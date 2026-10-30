@@ -100,22 +100,23 @@ Full checks are cheap enough to run after every change. Measured on 33,529 recor
 
 | Check | Serial, unoptimized | Now |
 |---|---:|---:|
-| `ast check` | 3m21s | 3.6s |
-| `ast pipeline-check` | 4m38s | 14s |
-| `ast export-unified` | 1m22s | 1.1s |
+| `ast check` | 3m21s | 5.3s |
+| `ast pipeline-check` | 4m38s | 19s |
+| `ast export-unified` | 1m22s | about 2s |
 | AST test execution | 43s | 3.8s |
+| Rebuild after an edit | 50s | 10s |
 
 The largest costs were not in lowering: unbuffered artifact writes took 27s of `pipeline-check`, a serial fold took 26s, and one fixture test took 16s of the test run. Keep it this way:
 
 - **Per-record work goes in the `map` closure of `corpus::map_cards`.** `visit` runs on one thread and only merges. Results arrive in line order, so reports do not depend on scheduling. `MTGISH_THREADS` overrides the worker count, which defaults to the core count capped at 32.
 - **Measure before optimizing.** Time the phases first. Sampling was flat here, and phase timers found both main-thread costs immediately.
 - **Prove a speedup changed nothing.** Compare reports against the previous run. Only `inputs` may differ, because it hashes the sources being edited.
-- **Do not use `--release`.** Optimizing `rust_syntax` did not finish in about 7 minutes. The dev profile instead optimizes dependencies and `mtgish-ast`, and leaves `rust_syntax` unoptimized.
+- **Do not use `--release`, and do not raise `opt-level` on our own crates.** Optimizing `rust_syntax` did not finish in about 7 minutes. Setting `mtgish-ast` to `opt-level = 1` cut `ast check` to 3.6s but took rebuilds from 10s to about 3 minutes. Judge a build setting by the whole edit-and-check loop, not by run time alone. The dev profile optimizes dependencies and drops debug assertions from `mtgish-ast`.
 - **Fixture sweeps share one parallel pass.** Look at any test over one second.
 
-The tradeoff is compile time. A profile change costs one rebuild of about 6 minutes. Rebuilding after an edit measured 21s to 2m37s against 23s to 1m02s before, depending on what changed. If compile time becomes the limit, lower `mtgish-ast`'s `opt-level` first: at `opt-level = 0`, `ast check` was still 15.6s.
+Changing a profile for dependencies costs one rebuild of about 6 minutes.
 
-Known remaining cost: `ast check` still uses about 70s of CPU, mostly `serde_json::Value` churn from `inspect::value`, `named_forms` and `Inventory::form`, which re-serializes a subtree at every node. Wall time does not justify more work yet.
+Known remaining cost: `ast check` still uses about 110s of CPU, mostly `serde_json::Value` churn from `inspect::value`, `named_forms` and `Inventory::form`, which re-serializes a subtree at every node. Wall time does not justify more work yet.
 
 ### Gates
 

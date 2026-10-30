@@ -29,14 +29,13 @@ sha2 = "0.10"
 incremental = true
 debug = 0
 
-# Corpus runs spend their time in generic serde and lowering code. Optimizing
-# everything except rust_syntax, whose derives are slow to optimize, keeps
-# builds fast while making full checks much faster.
+# Optimized dependencies make corpus runs fast, and dropping debug assertions
+# removes standard library checks from hot generic code. Do not raise opt-level
+# here: at 1, rebuilding after an edit took about 3 minutes instead of 10 seconds.
 [profile.dev.package."*"]
 opt-level = 2
 
 [profile.dev.package.mtgish-ast]
-opt-level = 1
 debug-assertions = false
 
 [features]
