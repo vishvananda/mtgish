@@ -1137,8 +1137,32 @@ impl<'a> Scope<'a> {
         }
         Ok(())
     }
+    fn named(&self, named: &Named) -> Result {
+        named.operands.iter().try_for_each(|o| self.operand(o))
+    }
+    fn operand(&self, operand: &Operand) -> Result {
+        match operand {
+            Operand::Absent | Operand::Bool(_) | Operand::Integer(_) | Operand::Text(_) => Ok(()),
+            Operand::List(items) => items.iter().try_for_each(|o| self.operand(o)),
+            Operand::Record(fields) => fields.iter().try_for_each(|f| self.operand(&f.value)),
+            Operand::Form(named) => self.named(named),
+            Operand::Object(object) => self.object(object),
+            Operand::Objects(objects) => self.objects(objects),
+            Operand::Player(player) => self.player(player),
+            Operand::Players(players) => self.players(players),
+            Operand::Number(expression) => self.expr(expression),
+            Operand::Condition(condition) => self.condition(condition),
+            Operand::Duration(_) => Ok(()),
+            Operand::Cost(cost) => self.cost(cost),
+            Operand::Ability(ability) => validate_ability(ability),
+        }
+    }
     fn operation(&self, operation: &Operation) -> Result {
         match operation {
+            Operation::Named { actor, form } => {
+                self.players(actor)?;
+                self.named(form)
+            }
             Operation::CreateDelayedTrigger {
                 event,
                 start,
@@ -1781,6 +1805,7 @@ fn validate_ability_in(
 ) -> Result {
     let mut scope = Scope::default();
     let (announcement, body) = match ability {
+        Ability::Named(named) => return scope.named(named),
         Ability::Scoped {
             zones: active,
             condition,
@@ -1998,16 +2023,8 @@ fn validate_ability_in(
     scope.program(body)
 }
 
-pub fn card(card: &Card) -> Result {
-    if card.schema_version != SCHEMA_VERSION {
-        return Err(format!(
-            "unsupported AST schema version {}",
-            card.schema_version
-        ));
-    }
-    if card.name.is_empty() {
-        return Err("card name is empty".into());
-    }
+/// Accepts `Named` forms. Complete cards go through `card`, which rejects them.
+pub fn first_invalid(card: &Card) -> Option<(usize, String)> {
     let casting_costs = card
         .abilities
         .iter()
@@ -2018,9 +2035,53 @@ pub fn card(card: &Card) -> Result {
                 .map(|cost| (i as u32, cost))
         })
         .collect();
-    for (i, ability) in card.abilities.iter().enumerate() {
+    card.abilities.iter().enumerate().find_map(|(i, ability)| {
         validate_ability_in(ability, None, &casting_costs)
-            .map_err(|e| format!("{}: abilities[{i}]: {e}", card.name))?;
+            .err()
+            .map(|e| (i, e))
+    })
+}
+
+fn face(card: &Card) -> Result {
+    if card.schema_version != SCHEMA_VERSION {
+        return Err(format!(
+            "unsupported AST schema version {}",
+            card.schema_version
+        ));
     }
-    Ok(())
+    if card.name.is_empty() {
+        return Err("card name is empty".into());
+    }
+    match first_invalid(card) {
+        Some((i, e)) => Err(format!("{}: abilities[{i}]: {e}", card.name)),
+        None => Ok(()),
+    }
+}
+
+pub fn card(card: &Card) -> Result {
+    face(card)?;
+    match crate::unified::named_forms(card).keys().next() {
+        Some(form) => Err(format!("{}: unreduced form {form}", card.name)),
+        None => Ok(()),
+    }
+}
+
+/// Validate a record that may hold `Named` forms.
+pub fn unified(card: &UnifiedCard) -> Result {
+    if card.schema_version != SCHEMA_VERSION {
+        return Err(format!(
+            "unsupported AST schema version {}",
+            card.schema_version
+        ));
+    }
+    if card.faces.is_empty() && card.data.is_empty() {
+        return Err(format!("{} record is empty", card.layout));
+    }
+    card.faces.iter().try_for_each(face)?;
+    card.data.iter().try_for_each(|f| operand(&f.value))
+}
+
+/// A `Named` operand must stand alone, so it is checked with no surrounding scope.
+pub fn operand(value: &Operand) -> Result {
+    Scope::default().operand(value)
 }

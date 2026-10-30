@@ -23,6 +23,10 @@ pub struct Record {
     pub operand_rewrites: usize,
     pub mechanic_rewrites: usize,
     pub semantic_complete: bool,
+    /// Unreduced forms, nested ones included. Unlike `source_forms`, this lists only
+    /// what actually failed to reduce, so it is the true worklist.
+    #[serde(default)]
+    pub named: BTreeMap<String, usize>,
     /// Per-record membership for dependency/impact queries over every subtree.
     pub source_forms: BTreeSet<String>,
     pub diagnostics: Vec<lower::Diagnostic>,
@@ -72,6 +76,8 @@ pub struct Report {
     pub remaining_number_forms: BTreeMap<String, usize>,
     pub records_with_rewrites: usize,
     pub semantic_complete: usize,
+    #[serde(default)]
+    pub unified: usize,
     pub source_forms: crate::inventory::Forms,
     pub remaining_registry_forms: BTreeMap<String, usize>,
     pub rewrite_rules: BTreeMap<String, usize>,
@@ -248,6 +254,7 @@ impl Report {
             remaining_number_forms: BTreeMap::new(),
             records_with_rewrites: 0,
             semantic_complete: 0,
+            unified: 0,
             source_forms: BTreeMap::new(),
             remaining_registry_forms: BTreeMap::new(),
             rewrite_rules: BTreeMap::new(),
@@ -477,16 +484,31 @@ impl Report {
                         .or_default() += 1;
                 }
             }
-            let diagnostics = match bind_prepared(&card, &structural) {
-                Ok(card) => {
-                    crate::validate::card(&card)
-                        .map_err(|e| format!("line {line}: invalid final AST: {e}"))?;
-                    report.semantic_complete += 1;
-                    crate::inventory::Inventory(&mut report.final_forms).card(&card);
-                    vec![]
+            let lowered = crate::unified::lower(&card);
+            let invalid = |e: String| format!("line {line}: invalid unified AST: {e}");
+            crate::validate::unified(&lowered.card).map_err(invalid)?;
+            crate::unified::round_trip(&lowered.card).map_err(invalid)?;
+            report.unified += 1;
+            let named = crate::unified::named_forms(&lowered.card);
+            // Whole cards bind through the staged recipes, so a recipe that diverges
+            // from native lowering still surfaces here.
+            let diagnostics = if lowered.card.layout == "Card" {
+                match bind_prepared(&card, &structural) {
+                    Ok(_) => vec![],
+                    Err(errors) => errors,
                 }
-                Err(errors) => errors,
+            } else {
+                lowered.diagnostics
             };
+            let complete = diagnostics.is_empty() && named.is_empty();
+            if complete {
+                for face in &lowered.card.faces {
+                    crate::validate::card(face)
+                        .map_err(|e| format!("line {line}: invalid final AST: {e}"))?;
+                    crate::inventory::Inventory(&mut report.final_forms).card(face);
+                }
+                report.semantic_complete += 1;
+            }
             report.total += 1;
             report.structurally_preserved += 1;
             report.source_nodes += structural.source.nodes.len();
@@ -513,7 +535,8 @@ impl Report {
                 program_rewrites: structural.programs.len(),
                 operand_rewrites: structural.operands.len(),
                 mechanic_rewrites: structural.mechanics.len(),
-                semantic_complete: diagnostics.is_empty(),
+                semantic_complete: complete,
+                named,
                 source_forms,
                 diagnostics,
                 remaining_registry_forms: remaining,

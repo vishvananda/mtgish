@@ -21,6 +21,12 @@ pub struct Record {
     pub line: usize,
     pub identity: Identity,
     pub complete: bool,
+    /// Lowered, validated and round-tripped. Unreduced forms are allowed here.
+    #[serde(default)]
+    pub unified: bool,
+    /// Every unreduced form in this record, including nested ones.
+    #[serde(default)]
+    pub named: BTreeMap<String, usize>,
     pub diagnostics: Vec<lower::Diagnostic>,
     pub backend_capable: bool,
     pub backend_diagnostic: Option<BackendDiagnostic>,
@@ -33,6 +39,14 @@ pub struct Report {
     pub inputs: BTreeMap<String, String>,
     pub total: usize,
     pub complete: usize,
+    #[serde(default)]
+    pub unified: usize,
+    /// Unreduced forms over all records, in the order of work for reduction.
+    #[serde(default)]
+    pub named: BTreeMap<String, usize>,
+    /// Records each form appears in. Reduction work ranks by this, not occurrences.
+    #[serde(default)]
+    pub named_records: BTreeMap<String, usize>,
     #[serde(default)]
     pub backend_checked: bool,
     pub backend_capable: usize,
@@ -108,6 +122,9 @@ impl Report {
             inputs: crate::pipeline::input_fingerprints(root)?,
             total: 0,
             complete: 0,
+            unified: 0,
+            named: BTreeMap::new(),
+            named_records: BTreeMap::new(),
             backend_checked: backend,
             backend_capable: 0,
             backend_unsupported: BTreeMap::new(),
@@ -122,16 +139,23 @@ impl Report {
             let mut backend_diagnostic = None;
             #[allow(unused_mut)]
             let mut backend_capable = false;
-            let diagnostics = match lower::card(&source) {
-                Ok(card) => {
-                    validate::card(&card).map_err(|e| {
+            let lowered = crate::unified::lower(&source);
+            let invalid = |e: String| format!("{}:{line}: invalid unified AST: {e}", path.display());
+            validate::unified(&lowered.card).map_err(invalid)?;
+            crate::unified::round_trip(&lowered.card).map_err(invalid)?;
+            result.unified += 1;
+            let named = crate::unified::named_forms(&lowered.card);
+            let complete = lowered.diagnostics.is_empty() && named.is_empty();
+            if complete {
+                for card in &lowered.card.faces {
+                    validate::card(card).map_err(|e| {
                         format!("{}:{line}: invalid normalized AST: {e}", path.display())
                     })?;
-                    crate::inventory::Inventory(&mut result.forms).card(&card);
-                    count_operations(&serde_json::to_value(&card)?, &mut result.operations);
+                    crate::inventory::Inventory(&mut result.forms).card(card);
+                    count_operations(&serde_json::to_value(card)?, &mut result.operations);
                     #[cfg(feature = "cantrip")]
-                    if backend {
-                        match crate::cantrip::module(&card) {
+                    if backend && lowered.card.layout == "Card" {
+                        match crate::cantrip::module(card) {
                             Ok(_) => {
                                 backend_capable = true;
                                 result.backend_capable += 1;
@@ -145,11 +169,14 @@ impl Report {
                             }
                         }
                     }
-                    result.complete += 1;
-                    Vec::new()
                 }
-                Err(errors) => errors,
-            };
+                result.complete += 1;
+            }
+            for (form, count) in &named {
+                *result.named.entry(form.clone()).or_default() += count;
+                *result.named_records.entry(form.clone()).or_default() += 1;
+            }
+            let diagnostics = lowered.diagnostics;
             for d in &diagnostics {
                 *result
                     .unsupported
@@ -160,7 +187,9 @@ impl Report {
             result.records.push(Record {
                 line,
                 identity,
-                complete: diagnostics.is_empty(),
+                complete,
+                unified: true,
+                named,
                 diagnostics,
                 backend_capable,
                 backend_diagnostic,
@@ -209,6 +238,26 @@ fn count_operations(value: &serde_json::Value, counts: &mut BTreeMap<String, usi
 
 /// A partial migration can produce a coverage report, but cannot publish a
 /// normalized corpus. The destination is unchanged if even its last card fails.
+/// Write every record in the one schema, reduced or not. Unlike `export_ron`,
+/// this succeeds on an unreduced corpus.
+pub fn export_unified(path: &Path, destination: &Path) -> Result<usize> {
+    let mut output = corpus::Artifact::create(destination)?;
+    let mut count = 0;
+    corpus::for_each_card(path, |line, source| {
+        let card = crate::unified::lower(&source).card;
+        validate::unified(&card)
+            .map_err(|e| format!("{}:{line}: invalid unified AST: {e}", path.display()))?;
+        writeln!(output, "{}", ron::ser::to_string(&card)?)?;
+        count += 1;
+        Ok(())
+    })?;
+    if count == 0 {
+        return Err("card corpus is empty".into());
+    }
+    output.commit()?;
+    Ok(count)
+}
+
 pub fn export_ron(path: &Path, destination: &Path) -> Result<usize> {
     let mut output = corpus::Artifact::create(destination)?;
     let mut count = 0;

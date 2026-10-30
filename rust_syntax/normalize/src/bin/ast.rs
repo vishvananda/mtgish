@@ -26,6 +26,7 @@ fn run() -> Result<()> {
             let report=mtgish_ast::pipeline::report::Report::check(Path::new(input),&root,baseline.as_ref())?;
             corpus::write_json(Path::new(output),&report)?;
             eprintln!("{} / {} source records structurally preserved; {} action occurrences rewritten by {} rules into {} recipe forms; {} records fully semantic",report.structurally_preserved,report.total,report.rewritten_actions,report.rewrite_rules.len(),report.expanded_recipes.len(),report.semantic_complete);
+            eprintln!("{} / {} records unified; {} complete",report.unified,report.total,report.semantic_complete);
             eprintln!("{} numeric occurrences consolidated by {} rules across {} records",report.rewritten_numbers,report.number_rules.len(),report.records_with_number_rewrites);
             eprintln!("{} selector occurrences consolidated by {} rules across {} records",report.rewritten_selectors,report.selector_rules.len(),report.records_with_selector_rewrites);
             eprintln!("{} program occurrences consolidated by {} rules across {} records",report.rewritten_programs,report.program_rules.len(),report.records_with_program_rewrites);
@@ -73,6 +74,7 @@ fn run() -> Result<()> {
             let report = if command=="check-cantrip"{mtgish_ast::report::Report::check_with_backend(Path::new(input),&root,baseline.as_ref())?}else{mtgish_ast::report::Report::check(Path::new(input), &root, baseline.as_ref())?};
             corpus::write_json(Path::new(output), &report)?;
             eprintln!("{} / {} records fully normalized; {} generic operation kinds used; {} unsupported source forms reported", report.complete, report.total, report.operations.len(), report.unsupported.len());
+            eprintln!("{} / {} records unified; {} unreduced forms across {} distinct",report.unified,report.total,report.named.values().sum::<usize>(),report.named.len());
             eprintln!("{} semantic families inventoried",report.forms.len());
             if report.backend_checked{eprintln!("{} records have all required Cantrip generator capabilities",report.backend_capable);}
             if report.complete != report.total { return Err("normalization is incomplete; see coverage report".into()); }
@@ -80,6 +82,10 @@ fn run() -> Result<()> {
         [command, input, output] if command == "export" => {
             let count = mtgish_ast::report::export_ron(Path::new(input), Path::new(output))?;
             eprintln!("exported {count} fully normalized records");
+        }
+        [command, input, output] if command == "export-unified" => {
+            let count = mtgish_ast::report::export_unified(Path::new(input), Path::new(output))?;
+            eprintln!("exported {count} unified records");
         }
         [command, input, output] if command == "cantrip" => {
             #[cfg(feature="cantrip")]
@@ -99,7 +105,7 @@ fn run() -> Result<()> {
             }
             out.commit()?;
         }
-        _ => return Err("usage: ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
+        _ => return Err("usage: ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
     }
     Ok(())
 }

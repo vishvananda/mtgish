@@ -1,11 +1,64 @@
 //! Portable semantic card definitions. No function pointers or runtime object
-//! IDs belong here. Unsupported source constructs are errors in `lower`, never
-//! opaque instructions in this schema.
+//! IDs belong here. Strict lowering rejects unsupported source constructs.
+//! `crate::unified` represents them as `Named` forms instead: typed, reported
+//! as unreduced, and never accepted by `validate::card` or counted as complete.
 
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 23;
+pub const SCHEMA_VERSION: u32 = 24;
+
+/// One record of any layout. Layout is data around ordinary faces, so Transforming,
+/// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
+/// to no face, such as `MeldsInto`.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct UnifiedCard {
+    pub schema_version: u32,
+    pub layout: String,
+    pub faces: Vec<Card>,
+    pub data: Vec<Field>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct Field {
+    pub name: String,
+    pub value: Operand,
+}
+
+/// A source form not yet reduced to generic operations. Names come from the Rust
+/// source enums, so no per-variant code exists for one. This is unified, not
+/// complete: see "Two different finish lines" in AST_PLAN.md.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct Named {
+    pub source_type: String,
+    pub form: String,
+    pub operands: Vec<Operand>,
+}
+
+/// Operands of a `Named` form. Typed variants hold reduced values lowered with no
+/// surrounding bindings, so each is meaningful without its enclosing ability.
+/// A reference that needs those bindings stays a `Form`, which keeps it visible
+/// rather than attaching it to the wrong antecedent.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum Operand {
+    Absent,
+    Bool(bool),
+    Integer(i64),
+    Text(String),
+    List(Vec<Operand>),
+    Record(Vec<Field>),
+    Form(Box<Named>),
+    Object(ObjectRef),
+    Objects(ObjectSet),
+    Player(PlayerRef),
+    Players(PlayerSet),
+    Number(Expr),
+    Condition(Condition),
+    Duration(Duration),
+    Cost(Cost),
+    Ability(Box<Ability>),
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct Card {
@@ -85,6 +138,8 @@ pub enum Ability {
         then: Vec<Ability>,
         otherwise: Vec<Ability>,
     },
+    /// A rule with no reduced form. Never present on a complete card.
+    Named(Named),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -583,6 +638,9 @@ pub enum Operation {
         duration: Duration,
         evaluation: EffectEvaluation,
     },
+    /// An action with no reduced form, carried out by `actor`. Never present on
+    /// a complete card. It binds no result, so later references cannot reach it.
+    Named { actor: PlayerSet, form: Named },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct SearchChoice {

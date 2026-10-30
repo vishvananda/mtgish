@@ -24,5 +24,6 @@ pub mod program_spec;
 pub mod rewrite_spec;
 pub mod selector_spec;
 pub mod semantics;
+pub mod unified;
 
 pub mod cost_history;

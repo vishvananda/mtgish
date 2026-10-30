@@ -203,6 +203,8 @@ impl Effects {
                     | Operation::Sacrifice { .. }
                     | Operation::PutCounters { .. }
                     | Operation::CreateContinuousEffect { .. } => {}
+                    // Its effects are unknown, so it must not read as a mana ability.
+                    Operation::Named { .. } => self.library = true,
                 },
                 Instruction::Group(p) | Instruction::Optional { body: p, .. } => self.program(p),
                 Instruction::If {

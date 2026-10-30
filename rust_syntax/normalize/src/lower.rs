@@ -47,6 +47,8 @@ fn invalid(message: &str) -> Diagnostic {
 #[derive(Default, Clone)]
 struct Context {
     prepared: crate::pipeline::PreparedRecipes,
+    /// Set only by `unified_face`. A failed action becomes `Operation::Named`.
+    lenient: bool,
     targets: Vec<TargetSpec>,
     modes: Option<ModeSelection>,
     result: u32,
@@ -76,6 +78,7 @@ impl Context {
     fn fresh(&self) -> Self {
         Self {
             prepared: self.prepared.clone(),
+            lenient: self.lenient,
             ..Self::default()
         }
     }
@@ -823,6 +826,21 @@ impl Context {
     }
 
     fn action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
+        if !self.lenient {
+            return self.reduced_action(value, actor);
+        }
+        let before = self.clone();
+        self.reduced_action(value, actor).or_else(|_| {
+            *self = before;
+            Ok(self.named_action(value, actor))
+        })
+    }
+
+    fn reduced_action(
+        &mut self,
+        value: &source::Action,
+        actor: &PlayerSet,
+    ) -> Result<Instruction> {
         if let Some(recipe) =
             self.prepared_program(crate::pipeline::programs::ProgramRef::Action(value))
         {
@@ -1691,6 +1709,18 @@ pub(crate) fn bind_card(
     value: &source::OracleCard,
     prepared: crate::pipeline::PreparedRecipes,
 ) -> std::result::Result<Card, Vec<Diagnostic>> {
+    bind_face(value, prepared, false)
+}
+/// Lower a face that strict lowering rejected, keeping every part it can reduce.
+/// Each rule yields exactly one ability, so ability indices still match rule indices.
+pub(crate) fn unified_face(value: &source::OracleCard) -> Card {
+    bind_face(value, Default::default(), true).expect("lenient lowering is total")
+}
+fn bind_face(
+    value: &source::OracleCard,
+    prepared: crate::pipeline::PreparedRecipes,
+    lenient: bool,
+) -> std::result::Result<Card, Vec<Diagnostic>> {
     let source::OracleCard::Card {
         name,
         typeline,
@@ -1704,6 +1734,21 @@ pub(crate) fn bind_card(
     else {
         return Err(vec![unsupported(value)]);
     };
+    let mut unreduced = Vec::new();
+    let mana_failed = lenient
+        && mana_cost
+            .as_ref()
+            .is_some_and(|m| m.iter().any(|s| mana_symbol_x(s).is_err()));
+    let loyalty_failed = lenient
+        && matches!(loyalty, Some(l) if !matches!(l, source::LoyaltyNumber::Integer(_)));
+    if mana_failed {
+        unreduced.push(Ability::Named(named_field("ManaCost", mana_cost)));
+    }
+    if loyalty_failed {
+        unreduced.push(Ability::Named(named_field("Loyalty", loyalty)));
+    }
+    let mana_cost = mana_cost.as_ref().filter(|_| !mana_failed);
+    let loyalty = loyalty.as_ref().filter(|_| !loyalty_failed);
     let metadata = (|| -> Result<Characteristics> {
         let color_indicator = color_indicator
             .as_deref()
@@ -1722,13 +1767,11 @@ pub(crate) fn bind_card(
             card_types: typeline.cardtypes.clone(),
             subtypes: typeline.subtypes.clone(),
             mana_cost: mana_cost
-                .as_ref()
                 .map(|m| m.iter().map(mana_symbol_x).collect::<Result<_>>())
                 .transpose()?,
             color_indicator,
             power_toughness: card_pt.as_ref().map(|p| (p.power, p.toughness)),
             loyalty: loyalty
-                .as_ref()
                 .map(|l| match l {
                     source::LoyaltyNumber::Integer(n) => Ok(Expr::Constant((*n).into())),
                     _ => Err(unsupported(l)),
@@ -1761,6 +1804,7 @@ pub(crate) fn bind_card(
         .collect();
     for (i, rule) in rules.as_deref().unwrap_or_default().iter().enumerate() {
         let mut context = base.fresh();
+        context.lenient = lenient;
         if matches!(rule, source::Rule::SpellActions(_)) {
             // Multiple declarations of the same role are ambiguous, even when
             // they reside in different additional-cost abilities.
@@ -1776,9 +1820,11 @@ pub(crate) fn bind_card(
         }
         match context.ability(rule) {
             Ok(ability) => abilities.push(ability),
+            Err(_) if lenient => abilities.push(Ability::Named(named_rule(rule))),
             Err(error) => errors.push(error.at(format!("Rules[{i}]"))),
         }
     }
+    abilities.append(&mut unreduced);
     let characteristics = match metadata {
         Ok(m) => Some(m),
         Err(e) => {
@@ -1836,3 +1882,4 @@ include!("lower_selector_pipeline.rs");
 include!("lower_number_pipeline.rs");
 
 include!("lower_paid.rs");
+include!("lower_named.rs");

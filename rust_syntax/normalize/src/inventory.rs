@@ -49,6 +49,7 @@ impl Inventory<'_> {
     fn ability(&mut self, a: &Ability) {
         self.form("Ability", a);
         match a {
+            Ability::Named(_) => {}
             Ability::Scoped {
                 zones,
                 condition,
@@ -207,6 +208,7 @@ impl Inventory<'_> {
     fn operation(&mut self, op: &Operation) {
         self.form("Operation", op);
         match op {
+            Operation::Named { .. } => {}
             Operation::CreateDelayedTrigger {
                 event,
                 start,
