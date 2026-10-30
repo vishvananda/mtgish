@@ -155,15 +155,6 @@ impl Recipe {
             Self::Actor { actor, body } | Self::Optional { actor, body } => {
                 actor.arguments(out);
                 out.push(body.argument());
-                if matches!(
-                    self,
-                    Self::Optional {
-                        actor: Actor::Batch { .. },
-                        ..
-                    }
-                ) {
-                    return Err("batch optional decisions need an explicit iteration policy".into());
-                }
             }
             Self::Conditional {
                 condition,

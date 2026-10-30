@@ -427,7 +427,6 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         "Fortune, Loyal Steed",
         "Gaze of the Gorgon",
         "Pygmy Hippo",
-        "Scattering Stroke",
         "Tatsumasa, the Dragon's Fang",
         "Thassa, Deep-Dwelling",
         "Urza's Bauble",
@@ -456,5 +455,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 30);
+    assert_eq!(complete, 31);
 }

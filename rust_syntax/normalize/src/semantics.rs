@@ -102,6 +102,12 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
             objects, choose, ..
         } => choose.as_ref().map_or_else(|| chosen(objects), one),
         Operation::Tap { objects, .. } => chosen(objects),
+        Operation::Discard {
+            players: PlayerSet::One(_),
+            amount: Expr::Constant(1),
+            ..
+        } => true,
+        Operation::DiscardObjects { objects } => chosen(objects),
         _ => false,
     }
 }
@@ -261,6 +267,8 @@ impl Effects {
                     Operation::CreateDelayedTrigger { .. }
                     | Operation::CreateTrigger { .. }
                     | Operation::BindValue { .. }
+                    | Operation::RepeatProcess
+                    | Operation::DiscardObjects { .. }
                     | Operation::ReflexiveTrigger { .. }
                     | Operation::ReturnAfter { .. }
                     | Operation::CreateReplacement { .. }
@@ -287,6 +295,9 @@ impl Effects {
                 } => {
                     self.program(then);
                     self.program(otherwise);
+                }
+                Instruction::ForEachPlayer { body, .. } | Instruction::Repeatable(body) => {
+                    self.program(body)
                 }
                 Instruction::ChooseOne { options, .. } => {
                     options.iter().for_each(|option| self.program(option));

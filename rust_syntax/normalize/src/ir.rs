@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 31;
+pub const SCHEMA_VERSION: u32 = 33;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -166,6 +166,11 @@ pub enum Ability {
     /// `EventSpec::SagaChapter`. The Saga rules supply lore counters and sacrifice.
     Saga {
         chapters: Vec<Ability>,
+    },
+    /// Levels 2 and up of a Class (716): gaining one is a sorcery-speed activated
+    /// ability, and each level's abilities apply from then on.
+    Class {
+        levels: Vec<ClassLevel>,
     },
     /// A rule with no reduced form. Never present on a complete card.
     Named(Named),
@@ -499,6 +504,15 @@ pub enum Instruction {
         decider: PlayerRef,
         body: Program,
     },
+    /// Run `body`, then run it again each time it reached `RepeatProcess`.
+    Repeatable(Program),
+    /// Each player, as `binding`, does `body`: choices in APNAP order, and the
+    /// actions then happen together (101.4).
+    ForEachPlayer {
+        players: PlayerSet,
+        binding: Binding,
+        body: Program,
+    },
     /// The decider picks one option as this resolves; no target is announced.
     ChooseOne {
         decider: PlayerRef,
@@ -612,6 +626,12 @@ pub enum Operation {
         duration: Duration,
         announcement: Announcement,
         body: Program,
+    },
+    /// Repeat the nearest enclosing `Instruction::Repeatable`.
+    RepeatProcess,
+    /// Discard these cards: chosen by whoever the effect says, not by their owner.
+    DiscardObjects {
+        objects: ObjectSet,
     },
     /// Name a number for later instructions; see `Expr::BoundValue`.
     BindValue {
@@ -1279,6 +1299,8 @@ pub struct SelectionChoice {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(tag = "kind", content = "args")]
 pub enum Expr {
+    /// The number of counters a `RemoveCounters` actually removed.
+    CountersRemoved(ResultId),
     /// The number a `BindValue` computed, fixed at that point in the resolution.
     BoundValue(ResultId),
     /// How often an event happened in a window, or the total of its amounts.
@@ -1651,6 +1673,8 @@ pub enum Recipients {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(tag = "kind", content = "args")]
 pub enum ObjectFilter {
+    /// Exiled by an ability of this object, as linked by 607.
+    ExiledWith(ObjectRef),
     /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
     Primitive {
         name: String,
@@ -1738,6 +1762,11 @@ pub enum Count {
     AnyNumber,
     AtLeast(Expr),
     AsManyAsCan(Expr),
+    /// `each` applied separately to what each of these players controls.
+    PerPlayer {
+        players: PlayerSet,
+        each: Box<Count>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1916,6 +1945,23 @@ pub struct ActivationLimits {
     pub sorcery: bool,
     /// Checked when activating, before costs are paid; not a resolution guard.
     pub condition: Option<Condition>,
+    /// Players other than the controller who may activate this.
+    pub activators: Option<PlayerSet>,
+    pub keyword: Option<ActivatedKeyword>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct ClassLevel {
+    pub cost: Cost,
+    pub abilities: Vec<Ability>,
+}
+
+/// Rules-defined kinds of activated ability, which other cards can refer to. Both
+/// activate only once; power-up also reduces its cost on the turn it was cast.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ActivatedKeyword {
+    Exhaust,
+    PowerUp,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2127,6 +2173,8 @@ impl ActivationLimits {
             once_each_turn: false,
             sorcery: false,
             condition: None,
+            activators: None,
+            keyword: None,
         }
     }
 }

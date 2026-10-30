@@ -53,6 +53,40 @@
       }
     },
     {
+      "id": "program.Action.EachPlayerMayAction",
+      "domain": "Action",
+      "source": "EachPlayerMayAction",
+      "arity": 2,
+      "recipe": {
+        "kind": "Optional",
+        "actor": {
+          "kind": "Batch",
+          "argument": 0
+        },
+        "body": {
+          "kind": "Action",
+          "argument": 1
+        }
+      }
+    },
+    {
+      "id": "program.Action.EachPlayerMayActions",
+      "domain": "Action",
+      "source": "EachPlayerMayActions",
+      "arity": 2,
+      "recipe": {
+        "kind": "Optional",
+        "actor": {
+          "kind": "Batch",
+          "argument": 0
+        },
+        "body": {
+          "kind": "List",
+          "argument": 1
+        }
+      }
+    },
+    {
       "id": "program.Action.MayAction",
       "domain": "Action",
       "source": "MayAction",

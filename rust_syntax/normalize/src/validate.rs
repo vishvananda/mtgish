@@ -28,6 +28,7 @@ struct Scope<'a> {
     payment_costs: BTreeMap<u32, Cost>,
     ordered_results: BTreeSet<u32>,
     singular: BTreeSet<u32>,
+    repeatable: bool,
     open_searches: Vec<PlayerRef>,
     search_libraries: BTreeMap<u32, PlayerRef>,
     event: crate::semantics::EventBindings,
@@ -578,7 +579,7 @@ impl<'a> Scope<'a> {
                 }
                 self.objects(objects)
             }
-            Expr::BoundValue(result) => {
+            Expr::BoundValue(result) | Expr::CountersRemoved(result) => {
                 if self.results.contains_key(&result.0) {
                     Ok(())
                 } else {
@@ -641,6 +642,10 @@ impl<'a> Scope<'a> {
         let value = match count {
             Count::Exactly(n) | Count::UpTo(n) | Count::AtLeast(n) | Count::AsManyAsCan(n) => n,
             Count::AnyNumber => return Ok(()),
+            Count::PerPlayer { players, each } => {
+                self.players(players)?;
+                return self.count(each);
+            }
         };
         if matches!(value, Expr::Constant(n) if *n < 0) {
             return Err("negative selection count".into());
@@ -655,6 +660,7 @@ impl<'a> Scope<'a> {
     }
     fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
+            ObjectFilter::ExiledWith(object) => self.object(object),
             ObjectFilter::Primitive { name, operands } => self.primitive(name, operands),
             ObjectFilter::Condition(condition) => self.condition(condition),
             ObjectFilter::Cast { by, from } => {
@@ -1450,6 +1456,14 @@ impl<'a> Scope<'a> {
                 child.program(body)
             }
             Operation::BindValue { value } => self.expr(value),
+            Operation::RepeatProcess => {
+                if self.repeatable {
+                    Ok(())
+                } else {
+                    Err("nothing to repeat in this scope".into())
+                }
+            }
+            Operation::DiscardObjects { objects } => self.objects(objects),
             Operation::ReflexiveTrigger {
                 performed,
                 condition,
@@ -1707,6 +1721,8 @@ impl<'a> Scope<'a> {
                             | Operation::Move { .. }
                             | Operation::Counter { .. }
                             | Operation::Tap { .. }
+                            | Operation::Discard { .. }
+                            | Operation::DiscardObjects { .. }
                             | Operation::Sacrifice { .. } => ResultKind::ObjectTransition,
                             _ => ResultKind::Other,
                         };
@@ -1802,6 +1818,23 @@ impl<'a> Scope<'a> {
                             }
                         }
                     }
+                    Instruction::Repeatable(body) => {
+                        let mut repeated = self.clone();
+                        repeated.repeatable = true;
+                        repeated.program(body)?;
+                    }
+                    Instruction::ForEachPlayer {
+                        players,
+                        binding,
+                        body,
+                    } => {
+                        self.players(players)?;
+                        let mut each = self.clone();
+                        if !each.players.insert(binding.0) {
+                            return Err(format!("duplicate player binding {}", binding.0));
+                        }
+                        each.program(body)?;
+                    }
                     Instruction::ChooseOne { decider, options } => {
                         self.player(decider)?;
                         if options.len() < 2 {
@@ -1892,6 +1925,8 @@ fn valid_crew_definition(
     if limits.once
         || limits.sorcery
         || limits.condition.is_some()
+        || limits.activators.is_some()
+        || limits.keyword.is_some()
         || !announcement.targets.is_empty()
         || announcement.modes.is_some()
     {
@@ -2028,6 +2063,18 @@ fn validate_ability_in(
             scope.cost(cost)?;
             validate_ability_in(paid, zones, casting_costs)?;
             return validate_ability_in(unpaid, zones, casting_costs);
+        }
+        Ability::Class { levels } => {
+            if levels.is_empty() {
+                return Err("class has no levels".into());
+            }
+            for level in levels {
+                scope.cost(&level.cost)?;
+                for ability in &level.abilities {
+                    validate_ability_in(ability, zones, casting_costs)?;
+                }
+            }
+            return Ok(());
         }
         Ability::Saga { chapters } => {
             if chapters.is_empty() {

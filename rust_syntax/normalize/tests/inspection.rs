@@ -57,7 +57,10 @@ fn operations(c: &Card) -> Vec<&Operation> {
         for i in &p.instructions {
             match i {
                 Instruction::Effect { operation, .. } => out.push(operation),
-                Instruction::Group(p) | Instruction::Optional { body: p, .. } => program(p, out),
+                Instruction::Group(p)
+                | Instruction::Optional { body: p, .. }
+                | Instruction::Repeatable(p)
+                | Instruction::ForEachPlayer { body: p, .. } => program(p, out),
                 Instruction::If {
                     then, otherwise, ..
                 } => {

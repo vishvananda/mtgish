@@ -57,6 +57,8 @@ impl Context {
                         once_each_turn: recipe.once_each_turn,
                         sorcery: false,
                         condition: None,
+                        activators: None,
+                        keyword: None,
                     },
                     announcement: Announcement {
                         targets: vec![],

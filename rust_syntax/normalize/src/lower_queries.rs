@@ -16,6 +16,21 @@ impl Context {
     ) -> Result<Condition> {
         use source::Players as S;
         Ok(match filter {
+            S::NumCardTypesInGraveyardIs(c) => {
+                let (comparison, right) = self.comparison(c)?;
+                Condition::Compare {
+                    left: Expr::CountDistinct {
+                        objects: Box::new(self.private_cards(
+                            EventZone::Graveyard,
+                            PlayerSet::One(player),
+                            ObjectFilter::Any,
+                        )),
+                        property: DistinctProperty::CardTypes,
+                    },
+                    comparison,
+                    right,
+                }
+            }
             S::NumCardsInHandIs(c) | S::NumCardsInGraveyardIs(c) => {
                 let (comparison, right) = self.comparison(c)?;
                 Condition::Compare {

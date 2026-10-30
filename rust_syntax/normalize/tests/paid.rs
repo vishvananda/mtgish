@@ -270,7 +270,6 @@ fn real_payment_history_cards_roundtrip_and_keep_independent_gaps() {
         "Devouring Greed",
         "Rite of Consumption",
         "Ruthless Technomancer",
-        "The Ever-Changing 'Dane",
     ];
     for line in include_str!("fixtures/paid.ronl").lines() {
         let source: source::OracleCard = ron::from_str(line).unwrap();
@@ -287,20 +286,19 @@ fn real_payment_history_cards_roundtrip_and_keep_independent_gaps() {
             }
         }
     }
-    assert_eq!(complete, 19);
+    assert_eq!(complete, 20);
 }
 
 #[test]
 fn later_ordinary_actions_shadow_payment_shorthand() {
     for rule in [
         "Activated(DiscardACard,ActionList([DiscardACard,GainLife(ManaValueOfTheDiscardedCard)]))",
+        "Activated(SacrificeAPermanent(IsCardtype(Creature)),ActionList([SacrificeAPermanent(IsCardtype(Creature)),GainLife(PowerOfTheSacrificedCreature)]))",
     ] {
-        assert!(pipeline::finalize(&custom(&[rule])).is_err(), "{rule}");
+        let value = json(&normalized(rule));
+        assert!(histories(&value).is_empty(), "not the cost's: {value}");
+        assert!(value.to_string().contains("Transition"), "{value}");
     }
-    let card = normalized("Activated(SacrificeAPermanent(IsCardtype(Creature)),ActionList([SacrificeAPermanent(IsCardtype(Creature)),GainLife(PowerOfTheSacrificedCreature)]))");
-    let value = json(&card);
-    assert!(histories(&value).is_empty(), "not the cost's: {value}");
-    assert!(value.to_string().contains("Transition"), "{value}");
 }
 
 #[test]

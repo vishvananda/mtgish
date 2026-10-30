@@ -5,9 +5,17 @@
     "Abilities", "ActivatedAbilities", "CardInHand", "CardsInGraveyards", "CardsInHand", "Companion",
     "EnterFlag", "ManaCost", "ManaSymbol", "Planes", "Schemes", "SinglePlane", "SingleScheme",
     "SpellsAndAbilities", "ChoosableColor", "CreatureTypeVariable", "LandTypeVariable", "CardsInOracle",
-    "TokenCopyEffects", "TokenCopyEffect", "CopyEffects", "CopyEffect", "PT", "SettableColor", "NameString"
+    "TokenCopyEffects", "TokenCopyEffect", "CopyEffects", "CopyEffect", "PT", "SettableColor", "NameString",
+    "CheckHasable", "PerpetualEffect"
   ],
   "rules": [
+    {"source": "Action::CreatePerpetualPermanentEffect", "text": "perpetually"},
+    {"source": "Action::CreatePerpetualCardInHandEffect", "text": "perpetually"},
+    {"source": "LayerEffect::IsACopyOfPermanent", "text": "copy|copies"},
+    {"source": "LayerEffect::LosesAbility", "text": "lose|loses|lost"},
+    {"source": "Permanents::IsBlockingAttacker", "text": "blocking|blocks|blocked"},
+    {"source": "ReplacementActionWouldEnter::EnterAsACopyOfAPermanent", "text": "copy"},
+    {"source": "ReplacementActionWouldEnter::EntersPrepared", "text": "prepared"},
     {"source": "DeckConstruction::CanBeYourCommander", "text": "commander"},
     {"source": "DeckConstruction::CanHaveAnyNumberOfThisCard", "text": "deck"},
     {"source": "DeckConstruction::CanHaveUptoNumberOfThisCard", "text": "deck"},

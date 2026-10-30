@@ -71,6 +71,12 @@ impl Inventory<'_> {
                     self.ability(chapter);
                 }
             }
+            Ability::Class { levels } => {
+                for level in levels {
+                    self.cost(&level.cost);
+                    level.abilities.iter().for_each(|a| self.ability(a));
+                }
+            }
             Ability::Scoped {
                 zones,
                 condition,
@@ -221,6 +227,11 @@ impl Inventory<'_> {
                     self.player(decider);
                     self.program(body);
                 }
+                Instruction::Repeatable(body) => self.program(body),
+                Instruction::ForEachPlayer { players, body, .. } => {
+                    self.players(players);
+                    self.program(body);
+                }
                 Instruction::ChooseOne { decider, options } => {
                     self.player(decider);
                     options.iter().for_each(|option| self.program(option));
@@ -338,6 +349,8 @@ impl Inventory<'_> {
                 self.program(body);
             }
             Operation::BindValue { value } => self.expr(value),
+            Operation::RepeatProcess => {}
+            Operation::DiscardObjects { objects } => self.objects(objects),
             Operation::ReflexiveTrigger {
                 condition,
                 announcement,
@@ -1123,7 +1136,7 @@ impl Inventory<'_> {
     fn expr(&mut self, e: &Expr) {
         self.form("Expr", e);
         match e {
-            Expr::BoundValue(_) => {}
+            Expr::BoundValue(_) | Expr::CountersRemoved(_) => {}
             Expr::Primitive { name, .. } => self.primitive(name),
             Expr::EventHistory {
                 event,
@@ -1213,11 +1226,16 @@ impl Inventory<'_> {
                 self.expr(n)
             }
             Count::AnyNumber => {}
+            Count::PerPlayer { players, each } => {
+                self.players(players);
+                self.count(each);
+            }
         }
     }
     fn filter(&mut self, f: &ObjectFilter) {
         self.form("ObjectFilter", f);
         match f {
+            ObjectFilter::ExiledWith(object) => self.object(object),
             ObjectFilter::Primitive { name, .. } => self.primitive(name),
             ObjectFilter::Condition(condition) => self.condition(condition),
             ObjectFilter::Cast { by, from } => {

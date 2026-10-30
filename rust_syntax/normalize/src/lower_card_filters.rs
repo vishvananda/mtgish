@@ -35,6 +35,9 @@ impl Context {
             source::CardsInExile::TheCardsExiledThisWay | source::CardsInExile::TheExiledCards => {
                 Ok(ObjectFilter::InSet(Box::new(self.exile_cards(value)?)))
             }
+            source::CardsInExile::WasExiledWithPermanent(p) => {
+                Ok(ObjectFilter::ExiledWith(self.object(p)?))
+            }
             _ => Err(unsupported(value)),
         }
     }

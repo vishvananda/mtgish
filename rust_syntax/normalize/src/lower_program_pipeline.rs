@@ -24,6 +24,34 @@ impl Context {
         }
         Ok(program.instructions.remove(0))
     }
+    fn for_each_player(
+        &mut self,
+        players: PlayerSet,
+        lower: impl FnOnce(&mut Self, &PlayerSet) -> Result<Instruction>,
+    ) -> Result<Instruction> {
+        let binding = Binding(self.binding_depth);
+        let mut child = self.clone();
+        child.binding_depth = self
+            .binding_depth
+            .checked_add(1)
+            .ok_or_else(|| invalid("player iteration nesting is too deep"))?;
+        child.iterated = Some(PlayerRef::Bound(binding.clone()));
+        let one = PlayerSet::One(PlayerRef::Bound(binding.clone()));
+        let body = match lower(&mut child, &one)? {
+            Instruction::Group(program) => program,
+            instruction => Program {
+                instructions: vec![instruction],
+            },
+        };
+        self.result = child.result;
+        self.invalidate_child_bindings(&child);
+        Ok(Instruction::ForEachPlayer {
+            players,
+            binding,
+            body,
+        })
+    }
+
     fn nested_program_recipe(
         &mut self,
         recipe: &crate::pipeline::programs::InstructionRecipe,
@@ -65,35 +93,53 @@ impl Context {
                     A::Player(p) => PlayerSet::One(self.player(p)?),
                     A::Batch(p) => self.players(p)?,
                 };
-                let instruction = match body.as_ref() {
-                    crate::pipeline::programs::InstructionRecipe::Sequence(_) => {
-                        Instruction::Group(self.bind_program_recipe(body, &players)?)
-                    }
-                    _ => self.program_instruction(body, &players)?,
+                let lower = |context: &mut Self, players: &PlayerSet| match body.as_ref() {
+                    crate::pipeline::programs::InstructionRecipe::Sequence(_) => Ok(
+                        Instruction::Group(context.bind_program_recipe(body, players)?),
+                    ),
+                    _ => context.program_instruction(body, players),
                 };
-                if matches!(input, A::Batch(_)) && !batch_actor_instruction(&instruction) {
-                    return Err(invalid(
-                        "each-player composition requires an explicit iteration or batch policy",
-                    ));
+                if !matches!(input, A::Batch(_)) {
+                    let outer = self.iterated.clone();
+                    if let PlayerSet::One(player) = &players {
+                        self.iterated = Some(player.clone());
+                    }
+                    let instruction = lower(self, &players);
+                    self.iterated = outer;
+                    instruction?
+                } else {
+                    let before = self.clone();
+                    let noted = self.blockers.borrow().len();
+                    match lower(self, &players) {
+                        Ok(instruction) if batch_actor_instruction(&instruction) => instruction,
+                        _ => {
+                            *self = before;
+                            self.blockers.borrow_mut().truncate(noted);
+                            self.for_each_player(players, lower)?
+                        }
+                    }
                 }
-                instruction
             }
             R::Optional { actor: input, body } => {
-                let players = match input {
-                    A::Inherit => actor.clone(),
-                    A::Player(p) => PlayerSet::One(self.player(p)?),
-                    A::Batch(_) => {
-                        return Err(invalid(
-                            "batch optional decisions require an explicit iteration policy",
-                        ))
+                let optional = |context: &mut Self, players: &PlayerSet| {
+                    let PlayerSet::One(decider) = players else {
+                        return Err(invalid("optional choice requires one decider"));
+                    };
+                    Ok(Instruction::Optional {
+                        decider: decider.clone(),
+                        body: context.nested_program_recipe(body, players)?,
+                    })
+                };
+                match input {
+                    A::Inherit => optional(self, actor)?,
+                    A::Player(p) => {
+                        let players = PlayerSet::One(self.player(p)?);
+                        optional(self, &players)?
                     }
-                };
-                let PlayerSet::One(decider) = &players else {
-                    return Err(invalid("optional choice requires one decider"));
-                };
-                Instruction::Optional {
-                    decider: decider.clone(),
-                    body: self.nested_program_recipe(body, &players)?,
+                    A::Batch(p) => {
+                        let players = self.players(p)?;
+                        self.for_each_player(players, optional)?
+                    }
                 }
             }
             R::Conditional {

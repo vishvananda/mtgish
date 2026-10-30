@@ -71,7 +71,6 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         "Aegar, the Freezing Flame",
         "Aisha of Sparks and Smoke",
         "Anowon, the Ruin Thief",
-        "Barbed Shocker",
         "Breeches, Brazen Plunderer",
         "Curious Obsession",
         "Dread",
@@ -118,7 +117,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 59);
+    assert_eq!(complete, 60);
 }
 
 #[test]

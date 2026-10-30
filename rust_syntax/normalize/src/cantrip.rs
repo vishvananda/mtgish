@@ -1071,6 +1071,8 @@ fn operation_name(op: &Operation) -> &'static str {
         Operation::Counter { .. } => "Counter",
         Operation::CreateTrigger { .. } => "CreateTrigger",
         Operation::BindValue { .. } => "BindValue",
+        Operation::RepeatProcess => "RepeatProcess",
+        Operation::DiscardObjects { .. } => "DiscardObjects",
         Operation::ReflexiveTrigger { .. } => "ReflexiveTrigger",
         Operation::ReturnAfter { .. } => "ReturnAfter",
         Operation::CreateReplacement { .. } => "CreateReplacement",

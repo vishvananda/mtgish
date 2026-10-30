@@ -79,7 +79,7 @@ fn structural_pass_preserves_every_fixture_field_and_layout_through_rust_source_
 
 #[test]
 fn unsupported_parents_do_not_hide_nested_actions_or_discard_source_operands() {
-    let s=custom("SpellActions(ActionList([RepeatableActions([PutPermanentIntoItsOwnersHand(ThisPermanent)])]))");
+    let s=custom("SpellActions(ActionList([EachPlayerStartingWithAction(AnyPlayer,You,[PutPermanentIntoItsOwnersHand(ThisPermanent)])]))");
     let intermediate = pipeline::Intermediate::new(&s).unwrap();
     assert!(intermediate.final_card.is_none());
     assert_eq!(intermediate.structural.rewrites.len(), 1);
@@ -92,7 +92,7 @@ fn unsupported_parents_do_not_hide_nested_actions_or_discard_source_operands() {
         .source
         .nodes
         .iter()
-        .any(|n| n.form == "RepeatableActions"));
+        .any(|n| n.form == "EachPlayerStartingWithAction"));
     assert_eq!(
         inspect::value(&intermediate.structural.source.restore().unwrap()).unwrap(),
         inspect::value(&s).unwrap()
@@ -1237,16 +1237,33 @@ fn program_actor_batches_preserve_single_operations_and_reject_implicit_serializ
     let source = custom(
         "SpellActions(ActionList([EachPlayerAction(AnyPlayer,TapPermanent(ThisPermanent))]))",
     );
-    assert!(pipeline::finalize(&source)
-        .unwrap_err()
-        .iter()
-        .any(|d| d.message.contains("iteration or batch policy")));
+    let card = pipeline::finalize(&source).unwrap();
+    let Ability::Spell { body, .. } = &card.abilities[0] else {
+        panic!()
+    };
+    assert!(matches!(
+        body.instructions.as_slice(),
+        [Instruction::ForEachPlayer {
+            players: PlayerSet::All,
+            ..
+        }]
+    ));
     let source =
         custom("SpellActions(ActionList([EachPlayerAction(AnyPlayer,MayAction(DrawACard))]))");
-    assert!(pipeline::finalize(&source)
-        .unwrap_err()
-        .iter()
-        .any(|d| d.message.contains("one decider")));
+    let card = pipeline::finalize(&source).unwrap();
+    let Ability::Spell { body, .. } = &card.abilities[0] else {
+        panic!()
+    };
+    let [Instruction::ForEachPlayer { body, .. }] = body.instructions.as_slice() else {
+        panic!()
+    };
+    assert!(matches!(
+        body.instructions.as_slice(),
+        [Instruction::Optional {
+            decider: PlayerRef::Bound(_),
+            ..
+        }]
+    ));
 }
 
 #[test]
@@ -1340,17 +1357,14 @@ fn program_modes_preserve_announcement_targets_and_reset_result_and_reference_sc
 }
 
 #[test]
-fn program_registry_checks_field_accounting_and_rejects_unreviewed_batch_optional_policy() {
+fn program_registry_checks_field_accounting() {
     let original = serde_json::to_value(pipeline::programs::registry()).unwrap();
-    for case in 0..4 {
+    for case in 0..3 {
         let mut value = original.clone();
         match case {
             0 => value["rules"][0]["arity"] = 3.into(),
             1 => value["rules"][0]["recipe"]["body"]["argument"] = 0.into(),
-            2 => value["rules"][0]["recipe"]["kind"] = "Optional".into(),
-            _ => {
-                value["rules"][0]["recipe"] = serde_json::json!({"kind":"Optional","actor":{"kind":"Batch","argument":0},"body":{"kind":"Action","argument":1}})
-            }
+            _ => value["rules"][0]["recipe"]["kind"] = "Optional".into(),
         }
         if case == 2 {
             value["rules"][0]["domain"] = "Actions".into();
@@ -1766,10 +1780,10 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 }
 
 #[test]
-fn schema_31_costs_roundtrip_and_reject_previous_versions_at_validation() {
+fn schema_33_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 31);
+    assert_eq!(card.schema_version, 33);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =

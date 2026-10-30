@@ -66,6 +66,9 @@ struct Context {
     singular: std::collections::BTreeSet<u32>,
     value_x: Option<ResultId>,
     revealed: Option<ObjectSet>,
+    /// The player "they" means in an effect several players carry out.
+    iterated: Option<PlayerRef>,
+    removed_counters: Option<ResultId>,
     announcing: bool,
     you: Option<PlayerRef>,
     payer: Option<PlayerRef>,
@@ -113,7 +116,9 @@ impl Context {
         use crate::number_spec::PaymentAction;
         let shadow = match &operation {
             Operation::Sacrifice { .. } => Some(PaymentAction::Sacrifice),
-            Operation::Discard { .. } => Some(PaymentAction::Discard),
+            Operation::Discard { .. } | Operation::DiscardObjects { .. } => {
+                Some(PaymentAction::Discard)
+            }
             Operation::Tap { tapped: true, .. } => Some(PaymentAction::Tap),
             Operation::Tap { tapped: false, .. } => Some(PaymentAction::Untap),
             _ => None,
@@ -130,6 +135,9 @@ impl Context {
         }
         if let Operation::Reveal { objects } = &operation {
             self.revealed = Some(objects.clone());
+        }
+        if matches!(operation, Operation::RemoveCounters { .. }) {
+            self.removed_counters = Some(ResultId(self.result));
         }
         if let Operation::Shuffle { players, .. } = &operation {
             self.open_searches
@@ -294,6 +302,12 @@ impl Context {
         use source::Player as S;
         Ok(match value {
             S::You => self.you.clone().unwrap_or(PlayerRef::AbilityController),
+            S::ActionPlayer | S::EachablePlayer if self.iterated.is_some() => {
+                self.iterated.clone().unwrap()
+            }
+            S::HostController => PlayerRef::ControllerOf(Box::new(ObjectRef::AttachedTo(
+                Box::new(ObjectRef::Source),
+            ))),
             S::TheActivePlayer => PlayerRef::Active,
             S::HostPlayer => PlayerRef::EnchantedBy(Box::new(ObjectRef::Source)),
             S::ControllerOfPermanent(p) => PlayerRef::ControllerOf(Box::new(self.object(p)?)),
@@ -522,6 +536,13 @@ impl Context {
                     SpentManaAggregation::DistinctColors
                 },
             },
+            S::TheNumberOfCountersRemovedThisWay if self.removed_counters.is_some() => {
+                Expr::CountersRemoved(self.removed_counters.clone().unwrap())
+            }
+            S::NumCardsDiscardedThisWay => Expr::CountObjects(Box::new(self.paid_objects(
+                crate::number_spec::PaymentAction::Discard,
+                CostObjectView::Performed,
+            )?)),
             S::ValueX if self.value_x.is_some() => Expr::BoundValue(self.value_x.clone().unwrap()),
             S::ValueX if self.event.activation_x => Expr::EventActivationX,
             S::ValueX => self
@@ -1262,6 +1283,105 @@ impl Context {
                     entry: self.token_entry(flags)?,
                 }
             }
+            S::DoNothing => return Ok(Instruction::Group(Program::empty())),
+            S::RepeatThisProcess => Operation::RepeatProcess,
+            S::RepeatableActions(actions) => {
+                let mut child = self.clone();
+                let instructions = actions
+                    .iter()
+                    .map(|action| child.action(action, actor))
+                    .collect::<Result<_>>()?;
+                self.result = child.result;
+                self.invalidate_child_bindings(&child);
+                return Ok(Instruction::Repeatable(Program { instructions }));
+            }
+            S::ValueActions(value, cases) => {
+                let value = self.number(value)?;
+                let mut instructions = Vec::new();
+                for source::ValueAction::ValueAction(range, actions) in cases {
+                    let condition = game_range(&value, range);
+                    instructions.push(self.conditional(
+                        condition,
+                        |c| {
+                            Ok(Program {
+                                instructions: actions
+                                    .iter()
+                                    .map(|action| c.action(action, actor))
+                                    .collect::<Result<_>>()?,
+                            })
+                        },
+                        |_| Ok(Program::empty()),
+                    )?);
+                }
+                return Ok(Instruction::Group(Program { instructions }));
+            }
+            S::ReturnEachCardFromPlayersGraveyardToBattlefield(cards, player, flags) => {
+                let you = self.player(&source::Player::You)?;
+                let (destination, entry) = self.move_entry(flags, you)?;
+                let players = PlayerSet::One(self.player(player)?);
+                Operation::Move {
+                    objects: self.private_cards(
+                        EventZone::Graveyard,
+                        players,
+                        self.grave_filter(cards)?,
+                    ),
+                    destination,
+                    entry,
+                    face_down: false,
+                }
+            }
+            S::AttachPermanentToAPermanent(attachment, hosts) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("attaching to a chosen permanent needs one chooser"));
+                };
+                let choice = self.effect(Operation::ChooseObjects {
+                    constraints: vec![],
+                    player: player.clone(),
+                    objects: self.objects(hosts)?,
+                    count: Count::AsManyAsCan(Expr::Constant(1)),
+                });
+                let Instruction::Effect { result, .. } = &choice else {
+                    unreachable!()
+                };
+                let attach = self.effect(Operation::Attach {
+                    attachments: ObjectSet::One(self.object(attachment)?),
+                    host: ObjectRef::Result {
+                        result: result.clone(),
+                        phase: ObjectPhase::After,
+                        index: 0,
+                    },
+                });
+                return Ok(Instruction::Group(Program {
+                    instructions: vec![choice, attach],
+                }));
+            }
+            S::RevealHandAndPlayerChoosesACardToDiscard(chooser, cards) => {
+                let PlayerSet::One(_) = actor else {
+                    return Err(invalid("revealing a hand needs one player"));
+                };
+                let reveal = self.effect(Operation::Reveal {
+                    objects: self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
+                });
+                let choice = self.effect(Operation::ChooseObjects {
+                    constraints: vec![],
+                    player: self.player(chooser)?,
+                    objects: self.private_cards(
+                        EventZone::Hand,
+                        actor.clone(),
+                        self.card_filter(cards)?,
+                    ),
+                    count: Count::AsManyAsCan(Expr::Constant(1)),
+                });
+                let Instruction::Effect { result, .. } = &choice else {
+                    unreachable!()
+                };
+                let discard = self.effect(Operation::DiscardObjects {
+                    objects: ObjectSet::Selected(result.clone()),
+                });
+                return Ok(Instruction::Group(Program {
+                    instructions: vec![reveal, choice, discard],
+                }));
+            }
             S::CreateValueX(value) => {
                 let value = self.number(value)?;
                 self.value_x = Some(ResultId(self.result));
@@ -1466,12 +1586,14 @@ impl Context {
                 ]),
                 restriction: Some(self.mana_use(modifier)?),
             },
-            S::PermanentDealsDamage(p, n, r) => Operation::DealDamage {
-                source: self.object(p)?,
-                recipients: self.recipients(r)?,
-                amount: self.number(n)?,
-                preventable: true,
-            },
+            S::PermanentDealsDamage(p, n, r) | S::HavePermanentDealDamage(p, n, r) => {
+                Operation::DealDamage {
+                    source: self.object(p)?,
+                    recipients: self.recipients(r)?,
+                    amount: self.number(n)?,
+                    preventable: true,
+                }
+            }
             S::SpellDealsDamage(spell, n, r) | S::SpellDealsDamageCantBePrevented(spell, n, r) => {
                 if !matches!(spell.as_ref(), source::Spell::ThisSpell) {
                     return Err(unsupported(spell));
@@ -1601,6 +1723,13 @@ impl Context {
                     }
                 }
                 S::TargetPermanent(p) => target.filter = self.filter(p)?,
+                S::UptoOneTargetPermanentEachPlayerControls(p, players) => {
+                    target.filter = self.filter(p)?;
+                    target.count = Count::PerPlayer {
+                        players: self.players(players)?,
+                        each: Box::new(Count::UpTo(Expr::Constant(1))),
+                    };
+                }
                 S::UptoOneTargetPermanent(p) => {
                     target.filter = self.filter(p)?;
                     target.count = Count::UpTo(Expr::Constant(1));
@@ -1678,6 +1807,17 @@ impl Context {
                 }
             }
             source::ActivateModifier::ActivateOnlyOnce => limits.once = true,
+            source::ActivateModifier::Exhaust => {
+                limits.once = true;
+                limits.keyword = Some(ActivatedKeyword::Exhaust);
+            }
+            source::ActivateModifier::PowerUp => {
+                limits.once = true;
+                limits.keyword = Some(ActivatedKeyword::PowerUp);
+            }
+            source::ActivateModifier::OtherPlayersMayActivate(players) => {
+                limits.activators = Some(self.players(players)?);
+            }
             source::ActivateModifier::ActivateOnlyOnceEachTurn => limits.once_each_turn = true,
             source::ActivateModifier::ActivateOnlyAsASorcery => limits.sorcery = true,
             source::ActivateModifier::ActivateOnlyIf(condition)
@@ -2047,6 +2187,20 @@ impl Context {
                     body,
                 })
             }
+            S::ClassAbilities(levels) => Ok(Ability::Class {
+                levels: levels
+                    .iter()
+                    .map(|source::ClassAbility::ClassAbility(cost, rules)| {
+                        Ok(ClassLevel {
+                            cost: self.cost(&source::Cost::PayMana(cost.clone()))?,
+                            abilities: rules
+                                .iter()
+                                .map(|rule| self.fresh().ability(rule))
+                                .collect::<Result<_>>()?,
+                        })
+                    })
+                    .collect::<Result<_>>()?,
+            }),
             S::SagaChapters(chapters) => {
                 let mut abilities = vec![];
                 for source::SagaChapter::SagaChapter(numbers, actions) in chapters {
@@ -2076,6 +2230,23 @@ impl Context {
             }
             _ => self.keyword(value).map(Ability::Keyword),
         }
+    }
+}
+
+fn game_range(value: &Expr, range: &source::GameRange) -> Condition {
+    let compare = |comparison, n: i32| Condition::Compare {
+        left: value.clone(),
+        comparison,
+        right: Expr::Constant(n.into()),
+    };
+    match range {
+        source::GameRange::BetweenValues(low, high) => Condition::All(vec![
+            compare(Comparison::GreaterOrEqual, *low),
+            compare(Comparison::LessOrEqual, *high),
+        ]),
+        source::GameRange::ValueOrBigger(n) => compare(Comparison::GreaterOrEqual, *n),
+        source::GameRange::ValueOrSmaller(n) => compare(Comparison::LessOrEqual, *n),
+        source::GameRange::ExactValue(n) => compare(Comparison::Equal, *n),
     }
 }
 
