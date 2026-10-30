@@ -189,6 +189,8 @@ impl<'a> Scope<'a> {
         match event {
             ReplacementEvent::Enter { objects } => self.filter(objects),
             ReplacementEvent::Damage(damage) => self.event(&EventSpec::Damage(damage.clone())),
+            ReplacementEvent::ZoneChange { objects, .. } => self.filter(objects),
+            ReplacementEvent::Primitive { name, operands } => self.primitive(name, operands),
             ReplacementEvent::Either(events) => {
                 if events.is_empty() {
                     return Err("replacement event alternatives are empty".into());
@@ -1441,11 +1443,21 @@ impl<'a> Scope<'a> {
                         self.count(&Count::Exactly(amount.clone()))
                     }
                     EventChange::SetController(player) => self.player(player),
-                    EventChange::PreventDamage => Ok(()),
+                    EventChange::PreventDamage
+                    | EventChange::Cancel
+                    | EventChange::SetDestination(_) => Ok(()),
                     EventChange::PreventSomeDamage(amount)
-                    | EventChange::PreventAllButDamage(amount) => {
-                        self.count(&Count::Exactly(amount.clone()))
-                    }
+                    | EventChange::PreventAllButDamage(amount)
+                    | EventChange::SetAmount(amount) => self.count(&Count::Exactly(amount.clone())),
+                    EventChange::RedirectDamage(recipients) => self.recipients(recipients),
+                    EventChange::Entry(state) => self.entry(&EntrySpec {
+                        states: vec![state.clone()],
+                        ..EntrySpec::default()
+                    }),
+                    EventChange::AddMana(mana) | EventChange::ReplaceMana(mana) => self.mana(mana),
+                    EventChange::ReplaceTokens { tokens, .. } => tokens
+                        .iter()
+                        .try_for_each(|token| self.count(&Count::Exactly(token.amount.clone()))),
                 }
             }
             Operation::CreateTrigger {

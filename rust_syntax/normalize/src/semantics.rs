@@ -68,6 +68,17 @@ impl EventBindings {
 /// References available in the body of a replacement on this event.
 pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
     match event {
+        ReplacementEvent::ZoneChange { objects, from, to } => {
+            event_bindings(&EventSpec::ZoneChange {
+                objects: objects.clone(),
+                from: from.clone(),
+                to: to.clone(),
+            })
+        }
+        ReplacementEvent::Primitive { name, operands } => event_bindings(&EventSpec::Primitive {
+            name: name.clone(),
+            operands: operands.clone(),
+        }),
         ReplacementEvent::Enter { .. } => EventBindings {
             object: true,
             permanent: true,

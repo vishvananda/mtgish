@@ -210,7 +210,14 @@ impl Context {
 
     /// The row name and bound operands of `value`, if it has a reviewed primitive.
     fn primitive(&self, family: &str, value: &impl Serialize) -> Option<(String, Vec<Operand>)> {
-        let inspected = crate::inspect::value(value).ok()?;
+        self.primitive_inspected(family, &crate::inspect::value(value).ok()?)
+    }
+
+    fn primitive_inspected(
+        &self,
+        family: &str,
+        inspected: &serde_json::Value,
+    ) -> Option<(String, Vec<Operand>)> {
         let name = format!("{family}::{}", inspected["variant"].as_str()?);
         crate::primitive_spec::lookup(&name)?;
         let operands = match &inspected["args"] {

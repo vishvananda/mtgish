@@ -64,6 +64,8 @@ struct Context {
     /// The latest ordinary action of each kind, for "sacrificed this way".
     acted: std::collections::BTreeMap<crate::number_spec::PaymentAction, ResultId>,
     singular: std::collections::BTreeSet<u32>,
+    /// In a replacement whose actions happen instead of the event.
+    body_replaces: bool,
     value_x: Option<ResultId>,
     revealed: Option<ObjectSet>,
     /// The player "they" means in an effect several players carry out.
@@ -275,6 +277,9 @@ impl Context {
             | S::Trigger_ThatCreature
             | S::Trigger_ThatDeadPermanent
             | S::ThatEnteringPermanent
+            | S::WouldDealDamage_ThatPermanent
+            | S::WouldDie_ThatPermanent
+            | S::WouldBeDestroyed_ThatPermanent
                 if self.event.permanent =>
             {
                 return Ok(ObjectRef::EventSubject)
@@ -329,7 +334,14 @@ impl Context {
                 slot: self.target(TargetKind::Player, 2, 0)?,
                 index: 0,
             },
-            S::Trigger_ThatPlayer if self.event.player => PlayerRef::EventSubject,
+            S::Trigger_ThatPlayer
+            | S::WouldDrawACard_ThatPlayer
+            | S::WouldGainLife_ThatPlayer
+            | S::WouldDealDamage_DamageRecipientPlayer
+                if self.event.player =>
+            {
+                PlayerRef::EventSubject
+            }
             S::ControllerOfDeadPermanent => PlayerRef::ControllerOf(Box::new(self.dead_object()?)),
             S::OwnerOfDeadPermanent => PlayerRef::OwnerOf(Box::new(self.dead_object()?)),
             S::TheChosenPlayer => PlayerRef::Chosen,
@@ -340,7 +352,9 @@ impl Context {
             | S::PlayerOrControllerOfPlaneswalkerCreatureIsAttacking(p) => {
                 PlayerRef::DefendingPlayerOf(Box::new(self.object(p)?))
             }
-            S::Trigger_ControllerOfThatSource if self.event.damage_source => {
+            S::Trigger_ControllerOfThatSource | S::WouldDealDamage_ControllerOfDamageSource
+                if self.event.damage_source =>
+            {
                 PlayerRef::ControllerOf(Box::new(ObjectRef::Damage(DamageSubject::Source)))
             }
             S::Trigger_ControllerOfThatPermanent if self.event.permanent => {
@@ -550,7 +564,17 @@ impl Context {
                 .clone()
                 .map(Expr::CastX)
                 .unwrap_or(Expr::AnnouncedX),
-            S::Trigger_ThatMuch | S::Trigger_AmountOfDamageDealt if self.event.amount => {
+            S::Trigger_ThatMuch
+            | S::Trigger_AmountOfDamageDealt
+            | S::WouldDealDamage_ThatMuchDamage
+            | S::WouldGainLife_LifeAmount
+            | S::WouldLoseLife_ThatMuch
+            | S::WouldPayLife_ThatMuch
+            | S::WouldScry_ThatMuch
+            | S::WouldDrawACard_ThatMany
+            | S::ThatManyCounters
+                if self.event.amount =>
+            {
                 Expr::EventAmount
             }
             S::Trigger_ValueXOfThatSpell if self.event.spell => Expr::ObjectProperty {
@@ -1034,6 +1058,11 @@ impl Context {
                 *self = before;
                 let error = match self.reflexive_action(value, actor) {
                     Some(Ok(instruction)) => return Ok(instruction),
+                    Some(Err(reason)) => reason,
+                    None => error,
+                };
+                let error = match self.replacement_creation(value) {
+                    Some(Ok(operation)) => return Ok(self.effect(operation)),
                     Some(Err(reason)) => reason,
                     None => error,
                 };
@@ -1943,7 +1972,10 @@ impl Context {
         let before = self.clone();
         self.reduced_ability(value).or_else(|error| {
             *self = before;
-            self.primitive_ability(value).ok_or(error)
+            match self.replacement_rule(value) {
+                Some(result) => result,
+                None => self.primitive_ability(value).ok_or(error),
+            }
         })
     }
 
@@ -2577,3 +2609,4 @@ include!("lower_paid.rs");
 include!("lower_named.rs");
 include!("lower_reflexive.rs");
 include!("lower_reveal.rs");
+include!("lower_replace.rs");

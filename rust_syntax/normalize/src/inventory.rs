@@ -332,9 +332,17 @@ impl Inventory<'_> {
                         self.expr(amount);
                     }
                     EventChange::SetController(player) => self.player(player),
-                    EventChange::PreventDamage => {}
+                    EventChange::PreventDamage
+                    | EventChange::Cancel
+                    | EventChange::SetDestination(_) => {}
                     EventChange::PreventSomeDamage(amount)
-                    | EventChange::PreventAllButDamage(amount) => self.expr(amount),
+                    | EventChange::PreventAllButDamage(amount)
+                    | EventChange::SetAmount(amount) => self.expr(amount),
+                    EventChange::RedirectDamage(recipients) => self.recipients(recipients),
+                    EventChange::Entry(_)
+                    | EventChange::AddMana(_)
+                    | EventChange::ReplaceMana(_)
+                    | EventChange::ReplaceTokens { .. } => {}
                 }
             }
             Operation::CreateTrigger {
@@ -1389,6 +1397,8 @@ impl Inventory<'_> {
         match event {
             ReplacementEvent::Enter { objects } => self.filter(objects),
             ReplacementEvent::Damage(damage) => self.event(&EventSpec::Damage(damage.clone())),
+            ReplacementEvent::ZoneChange { objects, .. } => self.filter(objects),
+            ReplacementEvent::Primitive { name, .. } => self.primitive(name),
             ReplacementEvent::Either(events) => {
                 for event in events {
                     self.replacement_event(event);

@@ -302,7 +302,7 @@ fn real_group_and_crew_cards_keep_unrelated_missing_abilities_visible() {
             }
         }
     }
-    assert_eq!(complete, 7);
+    assert_eq!(complete, 8);
 }
 
 #[test]

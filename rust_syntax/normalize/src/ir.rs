@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 34;
+pub const SCHEMA_VERSION: u32 = 35;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -320,6 +320,17 @@ pub enum ReplacementEvent {
     /// pair, because prevention applies to each such damage event.
     Damage(DamageEvent),
     Either(Vec<ReplacementEvent>),
+    /// An object about to change zones, matched as `EventSpec::ZoneChange`.
+    ZoneChange {
+        objects: ObjectFilter,
+        from: Option<EventZone>,
+        to: EventZone,
+    },
+    /// One rules-defined event from a reviewed row, as for `EventSpec::Primitive`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
 }
 /// How long a created replacement effect keeps applying within its duration.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -343,6 +354,22 @@ pub enum EventChange {
     PreventSomeDamage(Expr),
     /// Prevents all but this much of the pending damage.
     PreventAllButDamage(Expr),
+    /// The event does not happen. Unlike `PreventDamage` this is not prevention,
+    /// so it applies to damage that can't be prevented.
+    Cancel,
+    /// The event's amount: damage, counters, life or mana.
+    SetAmount(Expr),
+    RedirectDamage(Recipients),
+    SetDestination(Destination),
+    /// How the entering object enters.
+    Entry(EntryState),
+    AddMana(ManaProduction),
+    ReplaceMana(ManaProduction),
+    /// `copies` of the tokens the event would create, then `tokens` besides.
+    ReplaceTokens {
+        copies: u32,
+        tokens: Vec<TokenSpec>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

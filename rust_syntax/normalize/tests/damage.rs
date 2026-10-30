@@ -465,3 +465,68 @@ fn a_distributed_total_is_split_when_targets_are_chosen_and_read_per_target() {
 
     assert!(custom("SpellActions(ActionList([SpellDealsDistributedDamage(ThisSpell)]))").is_err());
 }
+
+fn changes(body: &Program) -> Vec<&EventChange> {
+    body.instructions
+        .iter()
+        .filter_map(|instruction| match instruction {
+            Instruction::Effect {
+                operation: Operation::ModifyEvent { change },
+                ..
+            } => Some(change),
+            _ => None,
+        })
+        .collect()
+}
+fn replacement(rule: &str) -> (ReplacementEvent, Program) {
+    let c = custom(rule).unwrap();
+    validate::card(&c).unwrap();
+    let Ability::Replacement { event, body, .. } = c.abilities.into_iter().next().unwrap() else {
+        panic!()
+    };
+    (event, body)
+}
+
+#[test]
+fn would_be_damage_changes_the_pending_event() {
+    let (event, body) = replacement("ReplaceWouldDealDamage(DamageWouldBeDealtByASourceToARecipient(AnyDamageSource,APlayerOrAPermanent(AnyPlayer,AnyPermanent)),[DealDamageInstead(Twice(WouldDealDamage_ThatMuchDamage))])");
+    assert!(matches!(event, ReplacementEvent::Damage(_)));
+    assert!(matches!(changes(&body)[..], [EventChange::SetAmount(_)]));
+    assert!(serde_json::to_string(&body)
+        .unwrap()
+        .contains("EventAmount"));
+}
+
+#[test]
+fn a_graveyard_replacement_changes_the_destination_and_a_card_is_not_a_token() {
+    let (event, body) = replacement("ReplaceWouldPutIntoGraveyard(WouldPutACardInAPlayersGraveyardFromAnywhere(AnyCard,Opponent),[ExileItInstead])");
+    let ReplacementEvent::ZoneChange { objects, from, .. } = event else {
+        panic!()
+    };
+    assert!(from.is_none());
+    assert!(serde_json::to_string(&objects).unwrap().contains("Token"));
+    assert!(matches!(
+        changes(&body)[..],
+        [EventChange::SetDestination(Destination::Exile)]
+    ));
+    let (event, _) = replacement("ReplaceWouldPutIntoGraveyard(WouldPutACardOrTokenInAPlayersGraveyardFromAnywhere(AnyCard,AnyPlayer),[ExileItInstead])");
+    assert!(!serde_json::to_string(&event).unwrap().contains("Token"));
+}
+
+#[test]
+fn a_body_of_ordinary_actions_happens_instead_of_the_event() {
+    // "you gain twice that much life instead", not that much and then twice as much.
+    let (_, body) = replacement("ReplaceWouldGainLife(PlayerWouldGainLife(You),[GainLife(Twice(WouldGainLife_LifeAmount))])");
+    assert!(matches!(changes(&body)[..], [EventChange::Cancel]));
+
+    // A body that names the event's fate keeps it unless that fate applies.
+    let (_, body) =
+        replacement("ReplaceWouldDraw(APlayerWouldDrawACard(AnyPlayer),[SkipThatDraw])");
+    assert!(matches!(changes(&body)[..], [EventChange::Cancel]));
+    let (_, body) = replacement("ReplaceWouldDestroy(PermanentWouldBeDestroyed(ThisPermanent),[RegeneratePermanent(WouldBeDestroyed_ThatPermanent)])");
+    assert!(changes(&body).is_empty());
+
+    // Counters only change the amount; the placement still happens.
+    let (_, body) = replacement("ReplaceWouldPutCounters(AnEffectWouldPutCountersOnAPermanent(AnyPermanent),[PutNewAmount(Twice(ThatManyCounters))])");
+    assert!(matches!(changes(&body)[..], [EventChange::SetAmount(_)]));
+}
