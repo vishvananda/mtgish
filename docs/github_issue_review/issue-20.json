@@ -1,0 +1,5 @@
+{
+  "title": "Wrong action or zone encoded (11 cards)",
+  "body": "- Cosima, God of the Voyage: `GainLife` instead of draw X cards\n- Starforged Sword: gift draws a card instead of a tapped Fish\n- Metamorphose: `ReturnPermanentToTopOrBottomOfLibrary`, but the text is on top\n- Teferi, Who Slows the Sunset: emblem draws during the untap step instead of the draw step\n- Bramblearmor Brawler: boosts cards in the graveyard instead of the library\n- Welcome the Dead: counts cards put into a library instead of your graveyard\n- Transmute Artifact: if you don't pay, the card goes to hand instead of the graveyard\n- Tuktuk Scrapper: \"you may destroy\" is `MustCost`\n- Ghalta and Mavren: Dinosaur's X counts attacking creatures instead of the greatest power; both modes include Ghalta and Mavren in \"other attacking creatures\"\n- Morality Shift and Grow Old Together: missing `Shuffle`\n",
+  "url": "https://github.com/i5jb/mtgish/issues/20"
+}

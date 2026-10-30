@@ -1,0 +1,5 @@
+{
+  "title": "Wrong player encoded (4 cards)",
+  "body": "- Urabrask: `APlayerPassesFilter(Opponent, ...)`, but the text checks spells you cast\n- Cataclysm: `EachPlayerAction(Opponent, ...)`, but each player sacrifices\n- Zodiark, Umbral God: `EachPlayerAction(Opponent, ...)`, but each player sacrifices\n- Duel for Dominance: `ControlledByAPlayer(Opponent)`, but the text is \"you don't control\"\n",
+  "url": "https://github.com/i5jb/mtgish/issues/19"
+}

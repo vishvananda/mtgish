@@ -1,0 +1,5 @@
+{
+  "title": "Power, toughness and mana value confused (17 cards)",
+  "body": "Toughness encoded as power: Catapult Captain, Abzan Beastmaster, Arbor Adherent, Bighorner Rancher, Flourishing Hunter, Towering Titan, Welcome to the Fold, The Wilds, Danse Macabre\n\nPower encoded as toughness: Savage Swipe\n\nPower encoded as mana value: Dread Defiler, Body Launderer\n\nMana value encoded as power: Death's Oasis, Soul Shatter, Flare of Malice (these two also omit planeswalkers)\n\nCounting wrong: Ghalta and Mavren (#20), Communal Brewing subtracts its counters from the spell's mana value instead of using the count\n",
+  "url": "https://github.com/i5jb/mtgish/issues/23"
+}

@@ -1,0 +1,5 @@
+{
+  "title": "Search misses zones named in the text (6 cards)",
+  "body": "- Jace's Ruse: \"library and/or graveyard\" searches only the library\n- Counterbore and Quash: \"graveyard, hand, and library\" searches only the library\n- Dark Supplicant, Gate to the Afterlife, Say Its Name: \"graveyard, hand, and/or library\" does not search the hand\n",
+  "url": "https://github.com/i5jb/mtgish/issues/22"
+}

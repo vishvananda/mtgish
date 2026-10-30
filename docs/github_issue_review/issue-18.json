@@ -1,0 +1,5 @@
+{
+  "title": "Wrong or missing duration (12 cards)",
+  "body": "These cards have the wrong duration:\n\n- Should end at end of turn: Koth of the Hammer (`UntilPlayersNextTurn`), Embiggen and Gollum, Scheming Guide (`UntilEndOfTheNextTurn`)\n- Should end at end of combat: Tahngarth, First Mate (`UntilEndOfTurn`)\n- Should have no end: Hellkite Courser, Swift Warkite, Whip of Erebos (\"It gains haste\"), True Polymorph, Dancing Sword (all `UntilEndOfTurn`)\n- Should last the rest of the game: Choice of Fortunes (`UntilEndOfTurn`)\n- Should end at end of turn: Seize the Spotlight (control change never ends), Grenzo, Havoc Raiser (permission to cast the card lasts only during resolution)\n",
+  "url": "https://github.com/i5jb/mtgish/issues/18"
+}

@@ -1,0 +1,5 @@
+{
+  "title": "Tapped state wrong on created or found permanents (10 cards)",
+  "body": "Encoded tapped, but the text does not say tapped:\n\n- Ashling's Command and Casey & Raph, Hotheads: Treasure tokens\n- Kassandra, Eagle Bearer: found card\n- Ghalta and Mavren: Vampire tokens (also encoded attacking)\n\nEncoded untapped, but the text says \"Gift a tapped Fish\":\n\n- Into the Flood Maw, Longstalk Brawl, Mind Spiral, Parting Gust, Pool Resources, Sazacap's Brew\n",
+  "url": "https://github.com/i5jb/mtgish/issues/21"
+}

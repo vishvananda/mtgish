@@ -713,7 +713,7 @@ type Action =
 | { "_Action": "ForEachPlayerSearchLibrary", "args": [Players, Array<SearchLibraryAction>] }
 | { "_Action": "ForEachValueInRangeConjureDuplicateOfARandomCardOfTypeOntoBattlefield", "args": [GameNumber, GameNumber, Cards, Array<EnterFlag>] }
 | { "_Action": "Forage" }
-| { "_Action": "GainControlOfAPermanentControlledByEachPlayer", "args": [Permanents, Players] }
+| { "_Action": "GainControlOfAPermanentControlledByEachPlayerUntil", "args": [Permanents, Players, Expiration] }
 | { "_Action": "GainControlOfAPermanentUntil", "args": [Permanents, Expiration] }
 | { "_Action": "GainControlOfEachPermanent", "args": Permanents }
 | { "_Action": "GainControlOfEachPermanentUntil", "args": [Permanents, Expiration] }
@@ -916,7 +916,7 @@ type Action =
 | { "_Action": "PutAStickerOnACardInPlayersGraveyard", "args": [CardsInGraveyards, Player] }
 | { "_Action": "PutAStickerOnAPermanent", "args": Permanents }
 | { "_Action": "PutAllCardsFromHandOnBottomOfLibraryAnyOrder" }
-| { "_Action": "PutAllCardsFromHandOnTopOfLibraryRandomOrder" }
+| { "_Action": "PutAllCardsFromHandOnTopOfLibrary" }
 | { "_Action": "PutAnAbilityStickerWithTicketCostOnPermanentWithoutPaying", "args": [Comparison, Permanent] }
 | { "_Action": "PutAnArtStickerOnAPermanent", "args": Permanents }
 | { "_Action": "PutAnExiledCardIntoOwnersGraveyard", "args": CardsInExile }
@@ -3706,7 +3706,8 @@ type Expiration =
 | { "_Expiration": "UntilTheBeginningOfTheNextEndStep" }
 | { "_Expiration": "UntilTheEndOfCombatOnPlayersNextTurn", "args": Player }
 | { "_Expiration": "UntilTheEndOfPlayersNextTurn", "args": Player }
-| { "_Expiration": "UntilTopCardOfPlayersLibraryChanges", "args": Player };
+| { "_Expiration": "UntilTopCardOfPlayersLibraryChanges", "args": Player }
+| { "_Expiration": "ForAsLongAsPlayerControlsPermanent", "args": [Player, Permanent] };
 type FacedownProperties =
 | { "_OracleCard": "Card", Name?: ObjectName, Typeline: ObjectTypeline, Rules: Array<SourcedRule>, CardPT?: ObjectPT, ColorIndicator?: Array<ColorIndicatorColor>, };
 type FaceUpAction =
@@ -4108,7 +4109,7 @@ type GameNumber =
 | { "_GameNumber": "TheNumberOfCardsReturnedToTheBattlefieldThisWay" }
 | { "_GameNumber": "TheNumberOfCardsScryedOnTopOfLibraryThisWay" }
 | { "_GameNumber": "TheNumberOfCardsSurveilledOnTopOfLibraryThisWay" }
-| { "_GameNumber": "TheNumberOfCardsThatWerePutIntoAPlayersLibraryFromTheirHandOrLibraryThisTurn", "args": Players }
+| { "_GameNumber": "TheNumberOfCardsThatWerePutIntoAPlayersGraveyardFromTheirHandOrLibraryThisTurn", "args": Players }
 | { "_GameNumber": "TheNumberOfCardtypesAmongCardsDiscardedThisWay" }
 | { "_GameNumber": "TheNumberOfCardtypesAmongGraveyardCards", "args": CardsInGraveyards }
 | { "_GameNumber": "TheNumberOfChosenColorsItIs" }
@@ -5729,7 +5730,7 @@ type PlayerEffect =
 | { "_PlayerEffect": "DoesntLoseColoredManaAsStepsAndPhasesEnd", "args": UnspentMana }
 | { "_PlayerEffect": "DoesntLoseManaAsStepsAndPhasesEnd" }
 | { "_PlayerEffect": "DoesntLoseTheGameForHaving0OrLessLife" }
-| { "_PlayerEffect": "DrawsACardDuringEachPlayersUntapStep", "args": Players }
+| { "_PlayerEffect": "DrawsACardDuringEachPlayersDrawStep", "args": Players }
 | { "_PlayerEffect": "GetsAnAdditionalVote" }
 | { "_PlayerEffect": "GetsAnOptionalAdditionalVote" }
 | { "_PlayerEffect": "HasNoMaximumHandSize" }

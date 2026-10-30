@@ -39,6 +39,17 @@ A later comparison of normalized cards against Oracle text found wrong template 
 - [#16](https://github.com/i5jb/mtgish/issues/16): Twenty-eight Domain cards count only basic lands.
 - [#17](https://github.com/i5jb/mtgish/issues/17): Rank Officer's optional discard is encoded as random.
 
+Word-token mining over every template, then a rule table, found more wrong literals; these were filed the same day and repaired locally with the earlier five:
+
+- [#18](https://github.com/i5jb/mtgish/issues/18): Twelve cards have the wrong or a missing duration.
+- [#19](https://github.com/i5jb/mtgish/issues/19): Four cards encode the wrong player.
+- [#20](https://github.com/i5jb/mtgish/issues/20): Eleven cards encode the wrong action or zone.
+- [#21](https://github.com/i5jb/mtgish/issues/21): Ten cards have the wrong tapped state.
+- [#22](https://github.com/i5jb/mtgish/issues/22): Six searches miss zones named in the text.
+- [#23](https://github.com/i5jb/mtgish/issues/23): Seventeen cards confuse power, toughness and mana value.
+- [#24](https://github.com/i5jb/mtgish/issues/24): Eight cards encode upkeep as end step.
+- [#25](https://github.com/i5jb/mtgish/issues/25): Twenty-six cards have another wrong literal.
+
 The issue payloads and comment text are saved here. No commits, pushes, issue closures, or upstream code changes were made. Disputed continuous-effect instruction grouping remains a rules-review question and was not filed as a confirmed bug. Changes that merely replace an equivalent scalar expression are not reported as new card mistakes.
 
 Issues #8–#12 and our additional-examples comment on #2 have been shortened to describe only the specific problems and examples. Rust port, local repair, and validation details were removed from the upstream reports. [The latest upstream read](latest_upstream.json) verifies all five edited issue bodies and the comment; saved issue payloads match them. Future reports should follow the same concise format.

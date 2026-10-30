@@ -1627,7 +1627,8 @@ pub enum Expiration {
   UntilTheBeginningOfTheNextEndStep,
   UntilTheEndOfCombatOnPlayersNextTurn(Box<Player>),
   UntilTheEndOfPlayersNextTurn(Box<Player>),
-  UntilTopCardOfPlayersLibraryChanges(Box<Player>)
+  UntilTopCardOfPlayersLibraryChanges(Box<Player>),
+  ForAsLongAsPlayerControlsPermanent(Box<Player>, Box<Permanent>),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
@@ -2155,7 +2156,7 @@ pub enum PlayerEffect {
   DoesntLoseColoredManaAsStepsAndPhasesEnd(UnspentMana),
   DoesntLoseManaAsStepsAndPhasesEnd,
   DoesntLoseTheGameForHaving0OrLessLife,
-  DrawsACardDuringEachPlayersUntapStep(Box<Players>),
+  DrawsACardDuringEachPlayersDrawStep(Box<Players>),
   GetsAnAdditionalVote,
   GetsAnOptionalAdditionalVote,
   HasNoMaximumHandSize,
@@ -6063,7 +6064,7 @@ pub enum GameNumber {
   TheNumberOfCardsReturnedToTheBattlefieldThisWay,
   TheNumberOfCardsScryedOnTopOfLibraryThisWay,
   TheNumberOfCardsSurveilledOnTopOfLibraryThisWay,
-  TheNumberOfCardsThatWerePutIntoAPlayersLibraryFromTheirHandOrLibraryThisTurn(Box<Players>),
+  TheNumberOfCardsThatWerePutIntoAPlayersGraveyardFromTheirHandOrLibraryThisTurn(Box<Players>),
   TheNumberOfCardtypesAmongCardsDiscardedThisWay,
   TheNumberOfCardtypesAmongGraveyardCards(Box<CardsInGraveyards>),
   TheNumberOfChosenColorsItIs,
@@ -9497,7 +9498,7 @@ pub enum Action {
   ForEachPlayerSearchLibrary(Box<Players>, Vec<SearchLibraryAction>),
   ForEachValueInRangeConjureDuplicateOfARandomCardOfTypeOntoBattlefield(Box<GameNumber>, Box<GameNumber>, Box<Cards>, Vec<EnterFlag>),
   Forage,
-  GainControlOfAPermanentControlledByEachPlayer(Box<Permanents>, Box<Players>),
+  GainControlOfAPermanentControlledByEachPlayerUntil(Box<Permanents>, Box<Players>, Expiration),
   GainControlOfAPermanentUntil(Box<Permanents>, Expiration),
   GainControlOfEachPermanent(Box<Permanents>),
   GainControlOfEachPermanentUntil(Box<Permanents>, Expiration),
@@ -9701,7 +9702,7 @@ pub enum Action {
   PutAStickerOnACardInPlayersGraveyard(Box<CardsInGraveyards>, Box<Player>),
   PutAStickerOnAPermanent(Box<Permanents>),
   PutAllCardsFromHandOnBottomOfLibraryAnyOrder,
-  PutAllCardsFromHandOnTopOfLibraryRandomOrder,
+  PutAllCardsFromHandOnTopOfLibrary,
   PutAnAbilityStickerWithTicketCostOnPermanentWithoutPaying(Box<Comparison>, Box<Permanent>),
   PutAnArtStickerOnAPermanent(Box<Permanents>),
   PutAnExiledCardIntoOwnersGraveyard(Box<CardsInExile>),

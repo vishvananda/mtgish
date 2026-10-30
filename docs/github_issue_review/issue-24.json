@@ -1,0 +1,5 @@
+{
+  "title": "Upkeep encoded as end step (8 cards)",
+  "body": "\"Next upkeep\" is encoded as the next end step: Force of Rage, Rally the Ancestors, Archangel Avacyn, Aang, at the Crossroads, Phytotitan, Quenchable Fire, The Eagles Are Coming!\n\nNoble Heritage triggers at each end step instead of your upkeep.\n",
+  "url": "https://github.com/i5jb/mtgish/issues/24"
+}
