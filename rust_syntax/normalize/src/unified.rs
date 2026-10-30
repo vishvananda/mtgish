@@ -177,10 +177,15 @@ pub fn forms(value: &impl Serialize) -> Forms {
                 ) {
                     *forms.named.entry(format!("{ty}::{form}")).or_default() += 1;
                 }
-                if fields.get("kind").and_then(Value::as_str) == Some("Primitive") {
-                    if let Some(name) = fields["args"]["name"].as_str() {
-                        *forms.primitives.entry(name.into()).or_default() += 1;
-                    }
+                // Tagged enums nest it under `args`, and untagged ones under the variant.
+                let primitive = if fields.get("kind").and_then(Value::as_str) == Some("Primitive")
+                {
+                    fields.get("args")
+                } else {
+                    fields.get("Primitive")
+                };
+                if let Some(name) = primitive.and_then(|p| p["name"].as_str()) {
+                    *forms.primitives.entry(name.into()).or_default() += 1;
                 }
                 fields.values().for_each(|child| walk(child, forms));
             }

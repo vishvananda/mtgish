@@ -72,7 +72,6 @@ fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete()
         "Hinder",
         "Necropotence",
         "Thought Distortion",
-        "Timeless Witness",
     ];
     let mut complete = 0;
     for source in sources() {
@@ -97,7 +96,7 @@ fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete()
         }
         complete += 1;
     }
-    assert_eq!(complete, 47);
+    assert_eq!(complete, 48);
 }
 
 #[test]

@@ -84,10 +84,7 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         "Inalla, Archmage Ritualist",
         "Narcomoeba",
         "Nether Shadow",
-        "Niv-Mizzet, Parun",
-        "Oloro, Ageless Ascetic",
         "Shadow of the Grave",
-        "Sidar Jabari of Zhalfir",
         "Soulfire Grand Master",
         "The Ur-Dragon",
         "Urza's Rage",
@@ -118,7 +115,7 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 68);
+    assert_eq!(complete, 71);
 }
 
 #[test]

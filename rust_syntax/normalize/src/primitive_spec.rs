@@ -11,6 +11,9 @@ pub struct Rule {
     pub source: String,
     /// Words that must appear in the Oracle text of cards using this form.
     pub text: String,
+    /// `EventBindings` fields a `Trigger` row supplies to references in its body.
+    #[serde(default)]
+    pub binds: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

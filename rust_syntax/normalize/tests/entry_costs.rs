@@ -40,14 +40,9 @@ fn program(rule: &str) -> Result<Card, Vec<lower::Diagnostic>> {
 fn complete_entry_and_cost_cards_roundtrip_and_unknown_nested_rules_stay_incomplete() {
     let incomplete = [
         "Aeve, Progenitor Ooze",
-        "Arcbound Worker",
-        "Blind Obedience",
-        "Furnace Celebration",
         "Hooded Hydra",
-        "Pentad Prism",
         "Sage of Hours",
         "Thran Portal",
-        "Young Wolf",
     ];
     let mut complete = 0;
     for source in sources() {
@@ -72,7 +67,7 @@ fn complete_entry_and_cost_cards_roundtrip_and_unknown_nested_rules_stay_incompl
         }
         complete += 1;
     }
-    assert_eq!(complete, 35);
+    assert_eq!(complete, 40);
 }
 
 #[test]

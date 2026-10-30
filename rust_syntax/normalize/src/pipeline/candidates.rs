@@ -242,7 +242,8 @@ fn draft_text(variant: &str) -> String {
     const NOISE: &[&str] = &[
         "a", "an", "the", "of", "to", "from", "on", "in", "into", "and", "or", "with", "its",
         "their", "your", "this", "that", "each", "all", "any", "permanent", "permanents", "card",
-        "cards", "player", "players", "action", "actions", "until", "for", "at", "by",
+        "cards", "player", "players", "action", "actions", "until", "for", "at", "by", "when",
+        "whenever", "creature", "creatures", "is", "are", "number", "nth", "number",
     ];
     let mut words: Vec<String> = vec![];
     for c in variant.chars() {
@@ -254,6 +255,12 @@ fn draft_text(variant: &str) -> String {
         }
     }
     words.retain(|w| !w.is_empty() && !NOISE.contains(&w.as_str()));
+    // Oracle text conjugates by subject, so match "attack" in "attacks".
+    for word in &mut words {
+        if word.len() > 3 && word.ends_with('s') && !word.ends_with("ss") {
+            word.pop();
+        }
+    }
     words.join(" ")
 }
 

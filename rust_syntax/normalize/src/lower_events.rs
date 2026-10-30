@@ -103,6 +103,11 @@ impl Context {
     }
 
     fn trigger(&self, value: &source::Trigger) -> Result<EventSpec> {
+        self.reduced_trigger(value)
+            .or_else(|error| self.primitive_trigger(value).ok_or(error))
+    }
+
+    fn reduced_trigger(&self, value: &source::Trigger) -> Result<EventSpec> {
         use source::Trigger as S;
         Ok(match value {
             S::WhenAPlayerCyclesACard(players, cards)

@@ -1794,7 +1794,7 @@ fn real_object_payment_cards_roundtrip_without_dropping_other_missing_abilities(
     for line in include_str!("fixtures/object_payments.ronl").lines() {
         let source: source::OracleCard = ron::from_str(line).unwrap();
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);
-        if ["Birchlore Rangers", "Cryptic Gateway", "Leech Bonder"].contains(&name.as_str()) {
+        if ["Cryptic Gateway", "Leech Bonder"].contains(&name.as_str()) {
             assert!(pipeline::finalize(&source).is_err(), "{name}");
             continue;
         }
@@ -1847,7 +1847,7 @@ fn real_object_payment_cards_roundtrip_without_dropping_other_missing_abilities(
         }
         complete += 1;
     }
-    assert_eq!(complete, 21);
+    assert_eq!(complete, 22);
 }
 
 #[test]

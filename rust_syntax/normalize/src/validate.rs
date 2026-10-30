@@ -179,6 +179,7 @@ impl<'a> Scope<'a> {
     }
     fn event(&self, event: &EventSpec) -> Result {
         match event {
+            EventSpec::Primitive { name, operands } => self.primitive(name, operands),
             EventSpec::Discard { players, cards, .. } => {
                 self.players(players)?;
                 self.filter(cards)
@@ -1137,6 +1138,12 @@ impl<'a> Scope<'a> {
         }
         Ok(())
     }
+    fn primitive(&self, name: &str, operands: &[Operand]) -> Result {
+        if crate::primitive_spec::lookup(name).is_none() {
+            return Err(format!("{name} is not a reviewed primitive"));
+        }
+        operands.iter().try_for_each(|o| self.operand(o))
+    }
     fn named(&self, named: &Named) -> Result {
         named.operands.iter().try_for_each(|o| self.operand(o))
     }
@@ -1154,6 +1161,8 @@ impl<'a> Scope<'a> {
             Operand::Number(expression) => self.expr(expression),
             Operand::Condition(condition) => self.condition(condition),
             Operand::Duration(_) => Ok(()),
+            Operand::Filter(filter) => self.filter(filter),
+            Operand::Comparison(_, expression) => self.expr(expression),
             Operand::Cost(cost) => self.cost(cost),
             Operand::Ability(ability) => validate_ability(ability),
         }
@@ -1170,10 +1179,7 @@ impl<'a> Scope<'a> {
                 operands,
             } => {
                 self.players(actor)?;
-                if crate::primitive_spec::lookup(name).is_none() {
-                    return Err(format!("{name} is not a reviewed primitive"));
-                }
-                operands.iter().try_for_each(|o| self.operand(o))
+                self.primitive(name, operands)
             }
             Operation::CreateDelayedTrigger {
                 event,
@@ -1818,6 +1824,7 @@ fn validate_ability_in(
     let mut scope = Scope::default();
     let (announcement, body) = match ability {
         Ability::Named(named) => return scope.named(named),
+        Ability::Primitive { name, operands } => return scope.primitive(name, operands),
         Ability::Scoped {
             zones: active,
             condition,

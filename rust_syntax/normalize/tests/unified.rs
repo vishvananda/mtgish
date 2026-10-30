@@ -162,3 +162,25 @@ fn every_primitive_row_is_a_real_source_form() {
         assert!(!row.text.trim().is_empty());
     }
 }
+
+#[test]
+fn trigger_primitives_are_counted_for_the_audit() {
+    let card = parse(
+        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Enchantment],Subtypes:[]),Rules:[TriggerA(WhenChaosEnsues,ActionList([DrawACard]))])"#,
+    );
+    let strict = lower::card(&card).unwrap();
+    assert_eq!(unified::forms(&strict).primitives["Trigger::WhenChaosEnsues"], 1);
+}
+
+/// Occurrence history and damage have structured semantics that a name would hide.
+/// See `ambiguous_legacy_roles_and_first_occurrence_history_remain_explicit_gaps`.
+#[test]
+fn primitive_rows_exclude_history_and_damage_events() {
+    for row in &mtgish_ast::primitive_spec::registry().rules {
+        if row.source.starts_with("Trigger::") {
+            for word in ["Damage", "FirstTime", "FirstUpkeep"] {
+                assert!(!row.source.contains(word), "{}", row.source);
+            }
+        }
+    }
+}

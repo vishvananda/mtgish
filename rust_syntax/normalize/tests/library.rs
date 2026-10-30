@@ -79,18 +79,14 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         "Archdruid's Charm",
         "Beseech the Mirror",
         "Caravan Vigil",
-        "Chord of Calling",
         "Claim Jumper",
         "Cultivator Colossus",
-        "Demonic Collusion",
-        "Disinformation Campaign",
         "Green Sun's Zenith",
         "Grow from the Ashes",
         "Land Grant",
         "Liliana Vess",
         "Plunge into Darkness",
         "Praetor's Grasp",
-        "Search for Tomorrow",
         "Snooping Newsie",
         "Tooth and Nail",
         "Urza's Saga",
@@ -121,7 +117,7 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 69);
+    assert_eq!(complete, 73);
 }
 
 #[test]

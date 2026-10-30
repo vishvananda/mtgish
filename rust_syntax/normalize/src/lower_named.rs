@@ -101,6 +101,12 @@ impl Context {
             "Condition" => Operand::Condition(self.condition(&decode(value).ok()?).ok()?),
             "Expiration" => Operand::Duration(self.duration(&decode(value).ok()?).ok()?),
             "Cost" => Operand::Cost(self.cost(&decode(value).ok()?).ok()?),
+            "Spells" => Operand::Filter(self.spell_filter(&decode(value).ok()?).ok()?),
+            "Cards" => Operand::Filter(self.card_filter(&decode(value).ok()?).ok()?),
+            "Comparison" => {
+                let (comparison, expression) = self.comparison(&decode(value).ok()?).ok()?;
+                Operand::Comparison(comparison, expression)
+            }
             "Rule" => {
                 let rule: source::Rule = decode(value).ok()?;
                 Operand::Ability(Box::new(self.fresh().ability(&rule).ok()?))
@@ -140,11 +146,10 @@ impl Context {
         })
     }
 
-    /// A reviewed atomic action whose operands all bind here. Its result is
-    /// unknown, so earlier antecedents are forgotten as for a named action.
-    fn primitive_action(&mut self, value: &source::Action, actor: &PlayerSet) -> Option<Instruction> {
+    /// The row name and bound operands of `value`, if it has a reviewed primitive.
+    fn primitive(&self, family: &str, value: &impl Serialize) -> Option<(String, Vec<Operand>)> {
         let inspected = crate::inspect::value(value).ok()?;
-        let name = format!("Action::{}", inspected["variant"].as_str()?);
+        let name = format!("{family}::{}", inspected["variant"].as_str()?);
         crate::primitive_spec::lookup(&name)?;
         let operands = match &inspected["args"] {
             serde_json::Value::Null => vec![],
@@ -154,6 +159,16 @@ impl Context {
                 .collect::<Option<_>>()?,
             other => vec![self.bound_operand(other)?],
         };
+        Some((name, operands))
+    }
+
+    /// Its result is unknown, so earlier antecedents are forgotten as for a named action.
+    fn primitive_action(
+        &mut self,
+        value: &source::Action,
+        actor: &PlayerSet,
+    ) -> Option<Instruction> {
+        let (name, operands) = self.primitive("Action", value)?;
         self.forget_results();
         let result = ResultId(self.result);
         self.result += 1;
@@ -166,9 +181,17 @@ impl Context {
             },
         })
     }
-}
 
-impl Context {
+    fn primitive_ability(&self, value: &source::Rule) -> Option<Ability> {
+        let (name, operands) = self.primitive("Rule", value)?;
+        Some(Ability::Primitive { name, operands })
+    }
+
+    fn primitive_trigger(&self, value: &source::Trigger) -> Option<EventSpec> {
+        let (name, operands) = self.primitive("Trigger", value)?;
+        Some(EventSpec::Primitive { name, operands })
+    }
+
     fn named_action(&mut self, value: &source::Action, actor: &PlayerSet) -> Instruction {
         self.forget_results();
         let result = ResultId(self.result);

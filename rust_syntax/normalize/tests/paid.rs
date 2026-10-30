@@ -272,7 +272,6 @@ fn real_payment_history_cards_roundtrip_and_keep_independent_gaps() {
         "Endemic Plague",
         "Rite of Consumption",
         "Ruthless Technomancer",
-        "Stadium Headliner",
         "The Ever-Changing 'Dane",
     ];
     for line in include_str!("fixtures/paid.ronl").lines() {
@@ -290,7 +289,7 @@ fn real_payment_history_cards_roundtrip_and_keep_independent_gaps() {
             }
         }
     }
-    assert_eq!(complete, 16);
+    assert_eq!(complete, 17);
 }
 
 #[test]

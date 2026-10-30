@@ -43,7 +43,6 @@ fn casting(c: &Card) -> &CastingRule {
 fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
     let incomplete = [
         "Abandon Hope",
-        "Abandon Reason",
         "Analyze the Pollen",
         "Armor of Thorns",
         "Bedlam Reveler",
@@ -51,20 +50,15 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         "Chart a Course",
         "Contagion",
         "Dargo, the Shipwrecker",
-        "Dig Through Time",
         "Ertai's Meddling",
         "Food Chain",
         "Fury of the Horde",
         "Hamlet Glutton",
-        "Hogaak, Arisen Necropolis",
         "Land Grant",
         "Mulch",
         "Rites of Initiation",
         "Soul Burn",
         "Spinning Darkness",
-        "Sundering Vitae",
-        "Thoughtcast",
-        "Treasure Cruise",
         "Valiant Changeling",
     ];
     let mut complete = 0;
@@ -90,7 +84,7 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 53);
+    assert_eq!(complete, 59);
 }
 
 #[test]

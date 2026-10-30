@@ -63,6 +63,8 @@ pub enum Operand {
     Duration(Duration),
     Cost(Cost),
     Ability(Box<Ability>),
+    Filter(ObjectFilter),
+    Comparison(Comparison, Expr),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -145,6 +147,12 @@ pub enum Ability {
     },
     /// A rule with no reduced form. Never present on a complete card.
     Named(Named),
+    /// One rules-defined ability, such as a keyword, from a reviewed row in
+    /// `rewrites/primitives.json5`. Operands are bound, as for `Operation::Primitive`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1746,6 +1754,12 @@ pub enum EventSpec {
     Filtered {
         event: Box<EventSpec>,
         condition: Condition,
+    },
+    /// One rules-defined event from a reviewed row. The row's `binds` says which
+    /// event references it supplies, so references resolve from data.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
     },
 }
 /// Match actual positive damage, after prevention/replacement, using event

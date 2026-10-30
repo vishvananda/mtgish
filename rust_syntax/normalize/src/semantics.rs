@@ -39,6 +39,18 @@ pub struct EventBindings {
 }
 pub fn event_bindings(event: &EventSpec) -> EventBindings {
     match event {
+        EventSpec::Primitive { name, .. } => {
+            let binds = crate::primitive_spec::lookup(name).map_or(&[][..], |r| &r.binds);
+            let has = |field: &str| binds.iter().any(|b| b == field);
+            EventBindings {
+                object: has("object"),
+                permanent: has("permanent"),
+                spell: has("spell"),
+                player: has("player"),
+                amount: has("amount"),
+                ..EventBindings::default()
+            }
+        }
         EventSpec::Discard { grouping, kind, .. } => EventBindings {
             object: matches!(grouping, DiscardGrouping::Card),
             player: true,

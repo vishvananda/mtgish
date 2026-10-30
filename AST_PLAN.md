@@ -15,19 +15,21 @@ The priorities, in order, are:
 
 ### Where things stand
 
-Measured on 2026-10-30 at schema 23 from a fresh `ast pipeline-check` over the repaired corpus:
+Unified, complete and blocker rows are current at schema 24. The other rows were measured at schema 23, from the `ast pipeline-check` that set this plan:
 
 | Measure | Value |
 |---|---|
 | Records | 33,529 |
-| Complete (typed semantic lowering) | 15,273 (45.6%) |
+| Unified, schema 24 | 33,529 (100%) |
+| Complete | 18,728 (55.9%) |
+| Complete with no primitive | 15,505 (46.2%) |
+| Distinct forms blocking the rest | 3,183 |
 | Structurally preserved | 33,529 |
 | Source enums / declared variants | 346 / 8,668 |
 | Distinct forms in the corpus | 8,247 |
 | Forms seen on at least one complete card | 1,818 |
 | Forms on no complete card | 6,429 |
 | Rewrite registry rows | 451 |
-| Non-`Card` layouts complete | 0 of 1,343 |
 
 Hand lowering will not finish this. Batch gains have been falling (+215, +97, +87 records), while first-failure diagnostics understate the work: 9,754 of the 18,256 incomplete records contain unproven forms their diagnostics never mention. On the other hand, 7,385 records are blocked by exactly one unproven form. Planning from full-tree forms gives this greedy curve. Each row assumes every listed form lowers everywhere it appears, so these are upper bounds:
 
@@ -68,10 +70,14 @@ The record counts in tiers 2, 4 and 5 are cumulative upper bounds from full-tree
 ### Order of work
 
 1. **Generate tier 1. Done, schema 24.** All 33,529 records lower, validate, and round-trip through JSON, bincode and RON, and `ast check` and `pipeline-check` report `unified` separately and agree on every record. This did not use the generated per-variant code proposed earlier: `crate::unified` walks the serde inspection of the source, so it is total by construction, needs no `syn` build step, and adds no compile time. Strict lowering runs first and is unchanged, so no `Card` record changed state. Failed actions become `Operation::Named` inside otherwise reduced abilities, failed rules become `Ability::Named`, and anything the validator rejects falls back to a whole named rule. Named operands lower with no surrounding bindings, so a reference that needs them stays a visible `Form` and cannot attach to the wrong antecedent. `validate::card` rejects `Named`, so a named form can never pass as complete. Measured: 158,320 unreduced nodes across 7,195 distinct forms. Each record's `named` map is the true worklist and replaces the "unproven" estimate. The `cantrip` feature does not compile, and did not before this change, with the same errors at the previous commit; adapters stay out of scope until a backend needs them.
-2. **Generate tier 2 and tier 3.** Tier 3 is done with tier 1: `UnifiedCard` holds any layout as ordinary `Card` faces plus layout data, from one generic walk with no per-layout code. A face is any object with a name and a typeline, its own or inherited. This raised `complete` from 15,273 to 15,505, all 232 gains in non-`Card` layouts, with no losses. Tier 2 remains: replace `Named` nodes for leaves with data-driven forms.
-3. **Build the registry drafter for tier 4.** Extend `pipeline-candidates` to write draft rows plus fixtures. Review by signature group, largest first.
-4. **Build the table-driven resolver for tier 5.**
+2. **Generate tier 2 and tier 3. Done.** Tier 3 landed with tier 1: `UnifiedCard` holds any layout as ordinary `Card` faces plus layout data, from one generic walk with no per-layout code, which raised `complete` from 15,273 to 15,505 with no losses. Tier 2's vocabularies are derived from `mtg_types.rs` at build time. They removed 613 distinct named forms and **changed no record**: the projection of 17,453 was wrong, because those leaves already lowered and only looked unproven beneath failed parents. No diagnostic has ever named `SubType`, `CreatureType`, `CardType` or `CounterType`.
+3. **Registry drafter. Done, as reviewed primitives rather than copied siblings.** The largest blocker groups are atomic rules actions, keyword abilities and events, which have no proven sibling to copy. `ast primitive-draft` writes candidate rows from true blockers, with signatures and Oracle hit rates, and accepted rows go in `rewrites/primitives.json5`. One generic path lowers `Operation`, `Ability` and `EventSpec` primitives. Unlike `Named`, every operand must bind in the enclosing scope, so a primitive holds no unreduced form. `ast primitive-audit` checks every use against Oracle text. 373 rows raised `complete` to 18,728.
+4. **Table-driven resolver. Started.** A trigger row's `binds` lists what the event supplies, so `Trigger_ThatPlayer` and similar resolve from data. Events with two candidate objects bind no object: "that creature" stays blocked rather than guessed. Reference forms still blocking are in the worklist, led by `Trigger_ThatGraveyardCard` and `Trigger_DefendingPlayer`.
 5. **Reduce tier 6 in greedy order**, one family at a time, following the existing rewrite pipeline. Stop when consumers no longer need a given form reduced.
+
+**Review rules for primitives.** An Oracle hit rate is evidence, not approval. Accept only one rules-defined action, keyword or event that existing operations cannot express: `RevealHand` scores 100% and is still wrong, because `Reveal` exists. Trigger rows must not hide occurrence history or damage, whose semantics are structured; a test enforces this after a batch accepted `...ForTheFirstTimeEachTurn` on hit rate alone and an existing test caught it. A failing test that pins a gap is a finding, so read it before changing it. Audit disagreements so far were all loose rows, such as Map tokens exploring and "six-sided die", but each must be read, because one could be a corpus bug.
+
+Rank work by `blocker_records` in the `ast check` report. It records the failure behind each named action and rule, past the first failure in a record. Do not rank by `named`, which includes children that only failed with their parent. Blockers still hide what lies inside a failed rule, so greedy figures remain upper bounds.
 
 Hand-written lowerers are the exception from step 1 on. A form gets hand-written code only when a generated or registry path cannot express it, and the reason goes in this plan.
 
@@ -124,7 +130,8 @@ Known remaining cost: `ast check` still uses about 110s of CPU, mostly `serde_js
 |---|---|---|
 | Go tests | `go test -count=1 ./...` in `go_mtg_parser` | Parser, 795 card regressions, capture audit, literal audit. `-count=1` is required: the data files sit outside the module, so Go otherwise reports a stale cached pass. |
 | AST suites | `just ast_test` | All 27 suites, now including `groups`, `paid` and `unified`. |
-| Corpus | `just ast_check` | Every record parses and identities match. |
+| Corpus | `just ast_check` | Every record parses, unifies, validates and round-trips, and identities match. |
+| Primitives | `ast primitive-audit <report> data/oracle.json` | Every primitive use has its words in the card's Oracle text. |
 | No silent losses | `just ast_compare <saved report>` | No complete card becomes incomplete without an entry in `data/ast_reviewed_losses.json`. |
 | Literals | `just parser_audit_literals` | Lists any finding without a review in `data/grammar_literal_review.json`. |
 

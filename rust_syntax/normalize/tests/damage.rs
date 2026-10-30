@@ -70,14 +70,11 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
     let incomplete = [
         "Aegar, the Freezing Flame",
         "Aisha of Sparks and Smoke",
-        "Alela, Cunning Conqueror",
         "Anowon, the Ruin Thief",
-        "Archfiend of Spite",
         "Barbed Shocker",
         "Breeches, Brazen Plunderer",
         "Contaminant Grafter",
         "Curious Obsession",
-        "Lost Vale",
         "Dread",
         "Fall of Cair Andros",
         "Fathom Fleet Swordjack",
@@ -89,17 +86,16 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         "Maarika, Brutal Gladiator",
         "Malcolm, Keen-Eyed Navigator",
         "Neheb, Dreadhorde Champion",
-        "Ninja of the Deep Hours",
         "Norn's Decree",
-        "Okiba-Gang Shinobi",
         "Sakashima's Will",
         "Screaming Nemesis",
-        "Vault of Catlacan",
         "Stuffy Doll",
         "Tandem Lookout",
         "The Gitrog, Ravenous Ride",
         "Vengeful Ancestor",
         "Obelisk Spider",
+        "Lost Vale",
+        "Vault of Catlacan",
     ];
     let mut complete = 0;
     for source in sources() {
@@ -124,7 +120,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 53);
+    assert_eq!(complete, 57);
 }
 
 #[test]

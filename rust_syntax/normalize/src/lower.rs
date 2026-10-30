@@ -1359,6 +1359,14 @@ impl Context {
     }
 
     fn ability(&mut self, value: &source::Rule) -> Result<Ability> {
+        let before = self.clone();
+        self.reduced_ability(value).or_else(|error| {
+            *self = before;
+            self.primitive_ability(value).ok_or(error)
+        })
+    }
+
+    fn reduced_ability(&mut self, value: &source::Rule) -> Result<Ability> {
         if !self.prepared.mechanics.is_empty() {
             if let Some(recipe) = self
                 .prepared
@@ -1713,7 +1721,7 @@ fn keyword(value: &source::Rule) -> Result<Keyword> {
 }
 
 pub fn card(value: &source::OracleCard) -> std::result::Result<Card, Vec<Diagnostic>> {
-    crate::pipeline::lower(value)
+    crate::corpus::on_large_stack(|| crate::pipeline::lower(value))
 }
 pub(crate) fn bind_card(
     value: &source::OracleCard,

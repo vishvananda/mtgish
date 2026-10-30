@@ -46,10 +46,19 @@ impl Inventory<'_> {
             self.ability(a);
         }
     }
+    fn primitive(&mut self, name: &str) {
+        *self
+            .0
+            .entry("Primitive".into())
+            .or_default()
+            .entry(name.into())
+            .or_default() += 1;
+    }
     fn ability(&mut self, a: &Ability) {
         self.form("Ability", a);
         match a {
             Ability::Named(_) => {}
+            Ability::Primitive { name, .. } => self.primitive(name),
             Ability::Scoped {
                 zones,
                 condition,
@@ -209,14 +218,7 @@ impl Inventory<'_> {
         self.form("Operation", op);
         match op {
             Operation::Named { .. } => {}
-            Operation::Primitive { name, .. } => {
-                *self
-                    .0
-                    .entry("Primitive".into())
-                    .or_default()
-                    .entry(name.clone())
-                    .or_default() += 1;
-            }
+            Operation::Primitive { name, .. } => self.primitive(name),
             Operation::CreateDelayedTrigger {
                 event,
                 start,
@@ -1245,6 +1247,7 @@ impl Inventory<'_> {
     fn event(&mut self, e: &EventSpec) {
         self.form("EventSpec", e);
         match e {
+            EventSpec::Primitive { name, .. } => self.primitive(name),
             EventSpec::Discard {
                 players,
                 cards,

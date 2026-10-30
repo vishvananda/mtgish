@@ -78,7 +78,6 @@ fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps
         "True-Name Nemesis",
         "Volatile Stormdrake",
         "Minthara, Merciless Soul",
-        "Albino Troll",
         "Aboleth Spawn",
         "Spectra Ward",
         "Samite Elder",
@@ -107,7 +106,7 @@ fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps
         }
         complete += 1;
     }
-    assert_eq!(complete, 36);
+    assert_eq!(complete, 37);
 }
 
 #[test]
