@@ -73,6 +73,7 @@ var literalCountRules = []literalRule{
 	newLiteralRule(`Tapped|EnterTapped`, `(battlefield|enters?)( under [^.,]*control)? tapped|creates? [^.,"]*\btapped\b[^.,"]*tokens?`),
 	newLiteralRule(`EntersAttacking|Attacking`, `tapped and attacking`),
 	newLiteralRule(`Random`, `random order`),
+	newLiteralRule(`PlayersNextEndStep`, `beginning of your next end step`),
 	newLiteralRule(`RoundedUp`, `rounded up`),
 	newLiteralRule(`RoundedDown`, `rounded down`),
 	newLiteralRule(`UntilTheEndOfPlayersNextTurn|UntilEndOfNextTurn`, `until the end of your next turn`),

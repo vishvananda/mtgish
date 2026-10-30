@@ -318801,7 +318801,7 @@ Card(
       ]),
       ActionList([
         CreateFutureTrigger(
-          AtTheBeginningOfTheNextEndStep,
+          AtTheBeginningOfPlayersNextEndStep(You),
           ActionList([
             PutGraveyardCardOntoBattlefield(
               Trigger_ThatGraveyardCard,
@@ -554527,7 +554527,7 @@ Card(
             ],
           ),
           CreateFutureTrigger(
-            AtTheBeginningOfTheNextEndStep,
+            AtTheBeginningOfPlayersNextEndStep(You),
             ActionList([
               PutPermanentIntoItsOwnersHand(ThePermanentPutOnTheBattlefieldThisWay),
             ]),
@@ -805999,7 +805999,7 @@ Card(
           ],
         ),
         CreateFutureTrigger(
-          AtTheBeginningOfTheNextEndStep,
+          AtTheBeginningOfPlayersNextEndStep(You),
           ActionList([
             SacrificeEachPermanent(TheTokensCreatedThisWay),
           ]),
@@ -887671,7 +887671,7 @@ Card(
           ],
         ),
         CreateFutureTrigger(
-          AtTheBeginningOfTheNextEndStep,
+          AtTheBeginningOfPlayersNextEndStep(You),
           ActionList([
             PutExiledCardIntoOwnersHand(TheCardExiledThisWay),
           ]),
@@ -1331669,7 +1331669,7 @@ Transforming(
                 ),
               ]),
               CreateFutureTrigger(
-                AtTheBeginningOfTheNextEndStep,
+                AtTheBeginningOfPlayersNextEndStep(You),
                 ActionList([
                   SacrificeEachPermanent(TheTokensCreatedThisWay),
                 ]),

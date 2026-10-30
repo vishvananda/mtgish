@@ -7409,5 +7409,65 @@
     "excludes": [
       "RepeatableActionsNumTimes(Integer(1)"
     ]
+  },
+  {
+    "name": "Necropotence",
+    "issues": [
+      34
+    ],
+    "contains": [
+      "AtTheBeginningOfPlayersNextEndStep(You)"
+    ],
+    "excludes": [
+      "AtTheBeginningOfTheNextEndStep"
+    ]
+  },
+  {
+    "name": "Desert Warfare",
+    "issues": [
+      34
+    ],
+    "contains": [
+      "AtTheBeginningOfPlayersNextEndStep(You)"
+    ],
+    "excludes": [
+      "AtTheBeginningOfTheNextEndStep"
+    ]
+  },
+  {
+    "name": "Mardu Siegebreaker",
+    "issues": [
+      34
+    ],
+    "contains": [
+      "AtTheBeginningOfPlayersNextEndStep(You)"
+    ],
+    "excludes": [
+      "AtTheBeginningOfTheNextEndStep"
+    ]
+  },
+  {
+    "name": "Greasefang, Okiba Boss",
+    "issues": [
+      34
+    ],
+    "contains": [
+      "AtTheBeginningOfPlayersNextEndStep(You)"
+    ],
+    "excludes": [
+      "AtTheBeginningOfTheNextEndStep"
+    ]
+  },
+  {
+    "name": "Terra, Magical Adept // Esper Terra",
+    "issues": [
+      34
+    ],
+    "contains": [
+      "AtTheBeginningOfPlayersNextEndStep(You)"
+    ],
+    "excludes": [
+      "AtTheBeginningOfTheNextEndStep"
+    ]
   }
 ]
