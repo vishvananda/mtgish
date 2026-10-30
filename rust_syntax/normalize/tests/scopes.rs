@@ -77,7 +77,6 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         "Decree of Pain",
         "Derevi, Empyrial Tactician",
         "Dread",
-        "Firemane Angel",
         "Firesong and Sunspeaker",
         "Fluctuator",
         "Glory",
@@ -87,7 +86,6 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         "Shadow of the Grave",
         "Soulfire Grand Master",
         "The Ur-Dragon",
-        "Urza's Rage",
         "Valiant Rescuer",
         "Vexing Shusher",
         "Writ of Passage",
@@ -115,7 +113,7 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 71);
+    assert_eq!(complete, 73);
 }
 
 #[test]

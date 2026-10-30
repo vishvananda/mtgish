@@ -41,7 +41,7 @@ fn real_rule_families_roundtrip_in_rust_and_missing_nested_forms_remain_diagnost
     let mut complete = 0;
     for source in sources() {
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);
-        if ["Bubble Snare", "Writ of Passage"].contains(&name.as_str()) {
+        if ["Writ of Passage"].contains(&name.as_str()) {
             assert!(lower::card(&source).is_err(), "{name}");
             continue;
         }
@@ -61,7 +61,7 @@ fn real_rule_families_roundtrip_in_rust_and_missing_nested_forms_remain_diagnost
         }
         complete += 1;
     }
-    assert_eq!(complete, 55);
+    assert_eq!(complete, 56);
 }
 
 #[test]

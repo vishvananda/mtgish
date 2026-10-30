@@ -117,7 +117,19 @@ impl Context {
             "Actions" => {
                 let actions: source::Actions = decode(value).ok()?;
                 let mut child = self.nested_program();
-                Operand::Program(child.actions(&actions).ok()?)
+                let body = child.actions(&actions).ok()?;
+                // A body announcing its own targets is an ability, not a nested step.
+                if child.targets.len() == self.targets.len() && child.modes.is_none() {
+                    Operand::Program(body)
+                } else {
+                    Operand::Ability(Box::new(Ability::Spell {
+                        announcement: Announcement {
+                            targets: child.targets,
+                            modes: child.modes,
+                        },
+                        body,
+                    }))
+                }
             }
             "Action" => {
                 let action: source::Action = decode(value).ok()?;
