@@ -71,6 +71,7 @@ struct Context {
     exiled_permanents: bool,
     ambiguous_damage_permanent: bool,
     damage_permanent_recipient: bool,
+    chosen_damage_source: Option<ResultId>,
     entered: Option<ResultId>,
     open_searches: Vec<PlayerRef>,
     inspection_hand: Option<Vec<ResultId>>,
@@ -335,7 +336,29 @@ impl Context {
             S::Opponent => PlayerSet::OpponentsOf(self.player(&source::Player::You)?),
             S::OpponentOf(player) => PlayerSet::OpponentsOf(self.player(player)?),
             S::Other(player) => PlayerSet::OthersThan(self.player(player)?),
-            _ => return Err(unsupported(value)),
+            S::IsTheirTurn => PlayerSet::One(PlayerRef::Active),
+            S::And(values) => PlayerSet::Intersection(
+                values
+                    .iter()
+                    .map(|p| self.players(p))
+                    .collect::<Result<_>>()?,
+            ),
+            _ => {
+                let binding = Binding(self.binding_depth);
+                let mut child = self.clone();
+                child.binding_depth = self
+                    .binding_depth
+                    .checked_add(1)
+                    .ok_or_else(|| invalid("player predicate nesting is too deep"))?;
+                PlayerSet::Matching {
+                    binding: binding.clone(),
+                    condition: Box::new(
+                        child
+                            .player_matches(PlayerRef::Bound(binding), value)
+                            .map_err(|_| unsupported(value))?,
+                    ),
+                }
+            }
         })
     }
 
@@ -420,15 +443,21 @@ impl Context {
     }
 
     fn filter_inner(&self, value: &source::Permanents) -> Result<ObjectFilter> {
-        if let Some(result) =
-            self.pipeline_selector(crate::pipeline::selectors::SelectorRef::Permanents(value))
+        let reduced = match self
+            .pipeline_selector(crate::pipeline::selectors::SelectorRef::Permanents(value))
         {
-            return result;
-        }
-        self.cast_history_filter(value)
+            Some(result) => result,
+            None => self.cast_history_filter(value),
+        };
+        reduced.or_else(|error| self.primitive_filter(value).ok_or(error))
     }
 
     fn number(&self, value: &source::GameNumber) -> Result<Expr> {
+        self.reduced_number(value)
+            .or_else(|error| self.primitive_number(value).ok_or(error))
+    }
+
+    fn reduced_number(&self, value: &source::GameNumber) -> Result<Expr> {
         if !self.prepared.numbers.is_empty() {
             if let Some(quantity) = self
                 .prepared
@@ -492,6 +521,11 @@ impl Context {
     }
 
     fn condition(&self, value: &source::Condition) -> Result<Condition> {
+        self.reduced_condition(value)
+            .or_else(|error| self.primitive_condition(value).ok_or(error))
+    }
+
+    fn reduced_condition(&self, value: &source::Condition) -> Result<Condition> {
         if let Some(crate::pipeline::operands::OperandRecipe::Condition(recipe)) =
             self.operand_recipe(crate::pipeline::operands::OperandRef::Condition(value))
         {
@@ -683,6 +717,11 @@ impl Context {
                     _ => return Err(unsupported(value)),
                 })
             })();
+            let changes = changes.or_else(|error| {
+                self.primitive_change(value)
+                    .map(|change| vec![change])
+                    .ok_or(error)
+            });
             result.extend(changes.map_err(|e| e.at(format!("changes[{index}]")))?);
         }
         Ok(result)
@@ -1003,6 +1042,42 @@ impl Context {
                 excluding: None,
             },
             S::Exile(items, flags) => return self.exile(items, flags, actor),
+            S::ChooseADamageSource(sources) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("a damage source needs one chooser"));
+                };
+                let instruction = self.effect(Operation::ChooseObjects {
+                    player: player.clone(),
+                    objects: ObjectSet::DamageSources(self.damage_sources(sources)?),
+                    count: Count::Exactly(Expr::Constant(1)),
+                    constraints: vec![],
+                });
+                let Instruction::Effect { result, .. } = &instruction else {
+                    unreachable!()
+                };
+                self.chosen_damage_source = Some(result.clone());
+                return Ok(instruction);
+            }
+            S::CreatePreventDamageUntil(event, actions, duration) => {
+                let event = self.prevented_event(event)?;
+                let body = self.prevention_body(&event, actions)?;
+                Operation::CreateReplacement {
+                    event,
+                    limit: ReplacementLimit::UntilExpired,
+                    duration: self.duration(duration)?,
+                    body,
+                }
+            }
+            S::CreateFuturePreventDamage(event, actions) => {
+                let (event, limit) = self.future_prevention(event)?;
+                let body = self.prevention_body(&event, actions)?;
+                Operation::CreateReplacement {
+                    event,
+                    limit,
+                    duration: Duration::EndOfTurn,
+                    body,
+                }
+            }
             S::CreateGraveyardCardEffectUntil(card, effects, duration) => {
                 Operation::CreateContinuousEffect {
                     source: ObjectRef::Source,
@@ -1324,7 +1399,7 @@ impl Context {
         {
             return self.bind_cost_recipe(&recipe);
         }
-        Err(unsupported(value))
+        self.primitive_cost(value).ok_or_else(|| unsupported(value))
     }
 
     fn limits(
@@ -1473,6 +1548,15 @@ impl Context {
                     actions,
                 )
             }
+            S::PreventDamage(event, actions) => {
+                let event = self.prevented_event(event)?;
+                let body = self.prevention_body(&event, actions)?;
+                Ok(Ability::Replacement {
+                    active: ReplacementActive::Battlefield,
+                    event,
+                    body,
+                })
+            }
             S::ReplaceWouldEnter(event, actions) => {
                 let objects = match event {
                     source::ReplacableEventWouldEnter::APermanentWouldEnterTheBattlefield(p) => self.filter(p)?,
@@ -1596,16 +1680,25 @@ impl Context {
                     },
                 })
             }
-            S::SpellActions(actions) => {
-                let body = self.actions(actions)?;
-                Ok(Ability::Spell {
-                    announcement: Announcement {
-                        targets: self.targets.clone(),
-                        modes: self.modes.clone(),
-                    },
-                    body,
-                })
+            S::SpellActions(actions) => self.spell_ability(actions),
+            S::SpellActions_Kicker(cost, source::WasKicked(paid), source::WasntKicked(unpaid)) => {
+                self.cost_branch("Kicker", cost, paid, unpaid)
             }
+            S::SpellActions_Overload(
+                cost,
+                source::OverloadPaid(paid),
+                source::OverloadNotPaid(unpaid),
+            ) => self.cost_branch("Overload", cost, paid, unpaid),
+            S::SpellActions_Cleave(
+                cost,
+                source::CleavePaid(paid),
+                source::CleaveNotPaid(unpaid),
+            ) => self.cost_branch("Cleave", cost, paid, unpaid),
+            S::SpellActions_Awaken(
+                cost,
+                source::WasAwakened(paid),
+                source::WasntAwakened(unpaid),
+            ) => self.cost_branch("Awaken", cost, paid, unpaid),
             S::Activated(cost, actions) | S::ActivatedWithModifiers(cost, actions, _) => {
                 let cost = self.cost(cost)?;
                 self.install_paid_history(&cost, PaymentRef::Activation);
@@ -1920,6 +2013,7 @@ include!("lower_queries.rs");
 
 include!("lower_counters.rs");
 include!("lower_replacement.rs");
+include!("lower_prevention.rs");
 
 include!("lower_rules.rs");
 

@@ -2567,51 +2567,51 @@ pub enum CDA_Types {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct CastUsingTeamwork(Box<Actions>);
+pub struct CastUsingTeamwork(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct NotCastUsingTeamwork(Box<Actions>);
+pub struct NotCastUsingTeamwork(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct WasAwakened(Box<Actions>);
+pub struct WasAwakened(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct WasntAwakened(Box<Actions>);
+pub struct WasntAwakened(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct WasKicked(Box<Actions>);
+pub struct WasKicked(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct WasntKicked(Box<Actions>);
+pub struct WasntKicked(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct CleavePaid(Box<Actions>);
+pub struct CleavePaid(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct CleaveNotPaid(Box<Actions>);
+pub struct CleaveNotPaid(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct OverloadPaid(Box<Actions>);
+pub struct OverloadPaid(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct OverloadNotPaid(Box<Actions>);
+pub struct OverloadNotPaid(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct MadnessXWasPaid(Box<Actions>);
+pub struct MadnessXWasPaid(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct MadnessXWasntPaid(Box<Actions>);
+pub struct MadnessXWasntPaid(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
@@ -2620,11 +2620,11 @@ pub struct Gift(Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct GiftWasPromised(Box<Actions>);
+pub struct GiftWasPromised(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct GiftWasntPromised(Box<Actions>);
+pub struct GiftWasntPromised(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]

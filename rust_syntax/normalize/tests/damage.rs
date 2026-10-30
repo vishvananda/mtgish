@@ -403,3 +403,28 @@ fn ambiguous_legacy_roles_and_first_occurrence_history_remain_explicit_gaps() {
     )
     .is_err());
 }
+
+#[test]
+fn prevention_is_a_replacement_on_a_damage_event() {
+    let lower = |rule: &str| {
+        let line = format!(
+            r#"Card(Name: "Test", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [], Rules: [{rule}])"#
+        );
+        let source: source::OracleCard = ron::from_str(&line).unwrap();
+        let card = lower::card(&source).unwrap();
+        validate::card(&card).unwrap();
+        serde_json::to_string(&card).unwrap()
+    };
+    let fog = lower(
+        "SpellActions(ActionList([CreatePreventDamageUntil(CombatDamageWouldBeDealt, [PreventThatDamage], UntilEndOfTurn)]))",
+    );
+    assert!(fog.contains(r#""kind":"CreateReplacement""#), "{fog}");
+    assert!(fog.contains(r#""limit":"UntilExpired""#), "{fog}");
+    assert!(fog.contains(r#""kind":"Combat""#), "{fog}");
+    assert!(fog.contains(r#""kind":"ModifyEvent""#), "{fog}");
+    let salve = lower(
+        "SpellActions(Targeted([AnyTarget], ActionList([CreateFuturePreventDamage(NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient(Integer(3), Ref_AnyTarget), [PreventThatDamage])])))",
+    );
+    assert!(salve.contains("TotalDamage"), "{salve}");
+    assert!(salve.contains(r#""duration":"EndOfTurn""#), "{salve}");
+}

@@ -65,7 +65,12 @@ impl Context {
                     A::Player(p) => PlayerSet::One(self.player(p)?),
                     A::Batch(p) => self.players(p)?,
                 };
-                let instruction = self.program_instruction(body, &players)?;
+                let instruction = match body.as_ref() {
+                    crate::pipeline::programs::InstructionRecipe::Sequence(_) => {
+                        Instruction::Group(self.bind_program_recipe(body, &players)?)
+                    }
+                    _ => self.program_instruction(body, &players)?,
+                };
                 if matches!(input, A::Batch(_)) && !batch_actor_instruction(&instruction) {
                     return Err(invalid(
                         "each-player composition requires an explicit iteration or batch policy",

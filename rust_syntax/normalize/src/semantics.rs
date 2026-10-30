@@ -38,6 +38,49 @@ pub struct EventBindings {
     pub discarded: bool,
     pub activation_x: bool,
 }
+impl EventBindings {
+    /// What every alternative of an either-event still binds.
+    fn shared(a: Self, b: Self) -> Self {
+        Self {
+            object: a.object && b.object,
+            permanent: a.permanent && b.permanent,
+            spell: a.spell && b.spell,
+            player: a.player && b.player,
+            amount: a.amount && b.amount,
+            moved: a.moved && b.moved,
+            damage: a.damage && b.damage,
+            damage_source: a.damage_source && b.damage_source,
+            damage_source_permanent: a.damage_source_permanent && b.damage_source_permanent,
+            damage_recipient: a.damage_recipient && b.damage_recipient,
+            damage_objects: a.damage_objects && b.damage_objects,
+            damage_players: a.damage_players && b.damage_players,
+            damage_subject: if a.damage_subject == b.damage_subject {
+                a.damage_subject
+            } else {
+                None
+            },
+            discard: a.discard && b.discard,
+            discarded: a.discarded && b.discarded,
+            activation_x: a.activation_x && b.activation_x,
+        }
+    }
+}
+/// References available in the body of a replacement on this event.
+pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
+    match event {
+        ReplacementEvent::Enter { .. } => EventBindings {
+            object: true,
+            permanent: true,
+            ..Default::default()
+        },
+        ReplacementEvent::Damage(damage) => event_bindings(&EventSpec::Damage(damage.clone())),
+        ReplacementEvent::Either(events) => events
+            .iter()
+            .map(replacement_bindings)
+            .reduce(EventBindings::shared)
+            .unwrap_or_default(),
+    }
+}
 pub fn event_bindings(event: &EventSpec) -> EventBindings {
     match event {
         EventSpec::SagaChapter(_) => EventBindings::default(),
@@ -128,28 +171,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
         EventSpec::Either(events) => events
             .iter()
             .map(event_bindings)
-            .reduce(|a, b| EventBindings {
-                object: a.object && b.object,
-                permanent: a.permanent && b.permanent,
-                spell: a.spell && b.spell,
-                player: a.player && b.player,
-                amount: a.amount && b.amount,
-                moved: a.moved && b.moved,
-                damage: a.damage && b.damage,
-                damage_source: a.damage_source && b.damage_source,
-                damage_source_permanent: a.damage_source_permanent && b.damage_source_permanent,
-                damage_recipient: a.damage_recipient && b.damage_recipient,
-                damage_objects: a.damage_objects && b.damage_objects,
-                damage_players: a.damage_players && b.damage_players,
-                damage_subject: if a.damage_subject == b.damage_subject {
-                    a.damage_subject
-                } else {
-                    None
-                },
-                discard: a.discard && b.discard,
-                discarded: a.discarded && b.discarded,
-                activation_x: a.activation_x && b.activation_x,
-            })
+            .reduce(EventBindings::shared)
             .unwrap_or_default(),
     }
 }
@@ -211,6 +233,7 @@ impl Effects {
                     // Its body executes in a later triggered ability, not
                     // during this activation's resolution (CR 605.1a).
                     Operation::CreateDelayedTrigger { .. }
+                    | Operation::CreateReplacement { .. }
                     | Operation::ModifyEvent { .. }
                     | Operation::CreateRegenerationShields { .. }
                     | Operation::Discard { .. }
@@ -293,7 +316,9 @@ impl Effects {
             ObjectSet::Targets(slot) => self.targets.get(&slot.0).copied().unwrap_or(false),
             ObjectSet::Selected(result) => self.result_library(result, &ObjectPhase::After),
             ObjectSet::Transition { result, phase } => self.result_library(result, phase),
-            ObjectSet::Battlefield(_) | ObjectSet::Created(_) => false,
+            ObjectSet::Battlefield(_) | ObjectSet::Created(_) | ObjectSet::DamageSources(_) => {
+                false
+            }
             ObjectSet::Damage(_) | ObjectSet::CostObjects { .. } => false,
         }
     }
@@ -301,6 +326,7 @@ impl Effects {
         let mut loyalty = false;
         for part in &cost.parts {
             match part {
+                CostPart::Primitive { .. } => {}
                 CostPart::Move {
                     selections,
                     destination,

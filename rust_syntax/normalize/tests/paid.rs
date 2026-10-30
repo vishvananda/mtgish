@@ -269,7 +269,6 @@ fn real_payment_history_cards_roundtrip_and_keep_independent_gaps() {
     let incomplete = [
         "Devouring Greed",
         "Disciple of Bolas",
-        "Endemic Plague",
         "Rite of Consumption",
         "Ruthless Technomancer",
         "The Ever-Changing 'Dane",
@@ -289,7 +288,7 @@ fn real_payment_history_cards_roundtrip_and_keep_independent_gaps() {
             }
         }
     }
-    assert_eq!(complete, 17);
+    assert_eq!(complete, 18);
 }
 
 #[test]

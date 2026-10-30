@@ -59,6 +59,13 @@ impl Inventory<'_> {
         match a {
             Ability::Named(_) => {}
             Ability::Primitive { name, .. } => self.primitive(name),
+            Ability::CostBranch {
+                cost, paid, unpaid, ..
+            } => {
+                self.cost(cost);
+                self.ability(paid);
+                self.ability(unpaid);
+            }
             Ability::Saga { chapters } => {
                 for chapter in chapters {
                     self.ability(chapter);
@@ -84,9 +91,7 @@ impl Inventory<'_> {
                 body,
             } => {
                 self.form("ReplacementActive", active);
-                self.form("ReplacementEvent", event);
-                let ReplacementEvent::Enter { objects } = event;
-                self.filter(objects);
+                self.replacement_event(event);
                 self.program(body);
             }
             Ability::Enchant { hosts } => {
@@ -308,7 +313,24 @@ impl Inventory<'_> {
                         self.expr(amount);
                     }
                     EventChange::SetController(player) => self.player(player),
+                    EventChange::PreventDamage => {}
+                    EventChange::PreventSomeDamage(amount)
+                    | EventChange::PreventAllButDamage(amount) => self.expr(amount),
                 }
+            }
+            Operation::CreateReplacement {
+                event,
+                limit,
+                duration,
+                body,
+            } => {
+                self.replacement_event(event);
+                self.form("ReplacementLimit", limit);
+                if let ReplacementLimit::TotalDamage(amount) = limit {
+                    self.expr(amount);
+                }
+                self.form("Duration", duration);
+                self.program(body);
             }
             Operation::PayCost { player, cost, .. } => {
                 self.player(player);
@@ -544,6 +566,7 @@ impl Inventory<'_> {
         for c in &cost.parts {
             self.form("CostPart", c);
             match c {
+                CostPart::Primitive { name, .. } => self.primitive(name),
                 CostPart::Constrained { part, constraints } => {
                     self.cost(&Cost {
                         parts: vec![part.as_ref().clone()],
@@ -799,6 +822,7 @@ impl Inventory<'_> {
     fn change(&mut self, c: &Change) {
         self.form("Change", c);
         match c {
+            Change::Primitive { name, .. } => self.primitive(name),
             Change::PlayerRule(rule) => self.player_rule(rule),
             Change::Rule(rule) => self.rule(rule),
             Change::Pump { power, toughness }
@@ -954,6 +978,7 @@ impl Inventory<'_> {
     fn objects(&mut self, r: &ObjectSet) {
         self.form("ObjectSet", r);
         match r {
+            ObjectSet::DamageSources(filter) => self.filter(filter),
             ObjectSet::CostObjects {
                 payment,
                 view,
@@ -1020,6 +1045,12 @@ impl Inventory<'_> {
     fn players(&mut self, r: &PlayerSet) {
         self.form("PlayerSet", r);
         match r {
+            PlayerSet::Intersection(sets) => {
+                for set in sets {
+                    self.players(set);
+                }
+            }
+            PlayerSet::Matching { condition, .. } => self.condition(condition),
             PlayerSet::Union(sets) => {
                 for players in sets {
                     self.players(players);
@@ -1047,6 +1078,7 @@ impl Inventory<'_> {
     fn expr(&mut self, e: &Expr) {
         self.form("Expr", e);
         match e {
+            Expr::Primitive { name, .. } => self.primitive(name),
             Expr::ManaSpent {
                 object,
                 filter,
@@ -1130,6 +1162,7 @@ impl Inventory<'_> {
     fn filter(&mut self, f: &ObjectFilter) {
         self.form("ObjectFilter", f);
         match f {
+            ObjectFilter::Primitive { name, .. } => self.primitive(name),
             ObjectFilter::Condition(condition) => self.condition(condition),
             ObjectFilter::Cast { by, from } => {
                 if let Some(players) = by {
@@ -1192,6 +1225,7 @@ impl Inventory<'_> {
     fn condition(&mut self, c: &Condition) {
         self.form("Condition", c);
         match c {
+            Condition::Primitive { name, .. } => self.primitive(name),
             Condition::Searched(_) => {}
             Condition::TargetsMatch {
                 object,
@@ -1249,6 +1283,18 @@ impl Inventory<'_> {
             self.player(p);
         }
     }
+    fn replacement_event(&mut self, event: &ReplacementEvent) {
+        self.form("ReplacementEvent", event);
+        match event {
+            ReplacementEvent::Enter { objects } => self.filter(objects),
+            ReplacementEvent::Damage(damage) => self.event(&EventSpec::Damage(damage.clone())),
+            ReplacementEvent::Either(events) => {
+                for event in events {
+                    self.replacement_event(event);
+                }
+            }
+        }
+    }
     fn event(&mut self, e: &EventSpec) {
         self.form("EventSpec", e);
         match e {
@@ -1298,7 +1344,7 @@ impl Inventory<'_> {
                 self.form("DamageSubject", &event.subject);
                 self.form("DamageRecipients", &event.recipients);
                 match &event.recipients {
-                    DamageRecipients::Any => {}
+                    DamageRecipients::Any | DamageRecipients::Target { .. } => {}
                     DamageRecipients::Objects(f) => self.filter(f),
                     DamageRecipients::Players(p) => self.players(p),
                     DamageRecipients::ObjectsAndPlayers { objects, players } => {

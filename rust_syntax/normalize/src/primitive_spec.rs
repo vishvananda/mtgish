@@ -21,6 +21,9 @@ pub struct Registry {
     pub version: u32,
     /// Fieldless forms of mixed enums that are still plain vocabulary.
     pub vocabularies: Vec<String>,
+    /// Descriptive enums a primitive may hold as bound `Operand::Term`s.
+    #[serde(default)]
+    pub terms: Vec<String>,
     pub rules: Vec<Rule>,
 }
 

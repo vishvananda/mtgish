@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 26;
+pub const SCHEMA_VERSION: u32 = 27;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -54,6 +54,13 @@ pub enum Operand {
         family: String,
         form: String,
     },
+    /// A form of a descriptive enum listed under `terms` in the primitive
+    /// registry. Unlike `Form`, every operand is bound.
+    Term {
+        family: String,
+        form: String,
+        operands: Vec<Operand>,
+    },
     Object(ObjectRef),
     Objects(ObjectSet),
     Player(PlayerRef),
@@ -63,6 +70,7 @@ pub enum Operand {
     Duration(Duration),
     Cost(Cost),
     Ability(Box<Ability>),
+    Program(Program),
     Filter(ObjectFilter),
     Comparison(Comparison, Expr),
 }
@@ -144,6 +152,15 @@ pub enum Ability {
         condition: Condition,
         then: Vec<Ability>,
         otherwise: Vec<Ability>,
+    },
+    /// A spell with two resolutions, chosen by an optional cost at casting.
+    /// Each branch is announced on its own, so kicked targets are only chosen
+    /// when the cost is (CR 601.2c, 702.33).
+    CostBranch {
+        keyword: String,
+        cost: Cost,
+        paid: Box<Ability>,
+        unpaid: Box<Ability>,
     },
     /// One triggered ability per chapter number (CR 714.2b), each on
     /// `EventSpec::SagaChapter`. The Saga rules supply lore counters and sacrifice.
@@ -291,7 +308,22 @@ pub enum ReplacementActive {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ReplacementEvent {
-    Enter { objects: ObjectFilter },
+    Enter {
+        objects: ObjectFilter,
+    },
+    /// Damage about to be dealt (CR 615). `grouping` stays per source/recipient
+    /// pair, because prevention applies to each such damage event.
+    Damage(DamageEvent),
+    Either(Vec<ReplacementEvent>),
+}
+/// How long a created replacement effect keeps applying within its duration.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ReplacementLimit {
+    UntilExpired,
+    /// Used up by the first event it applies to.
+    NextOccurrence,
+    /// A shield: used up once this much damage has been replaced (CR 615.7).
+    TotalDamage(Expr),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum EventChange {
@@ -301,6 +333,11 @@ pub enum EventChange {
         amount: Expr,
     },
     SetController(PlayerRef),
+    PreventDamage,
+    /// Prevents up to this much of the pending damage.
+    PreventSomeDamage(Expr),
+    /// Prevents all but this much of the pending damage.
+    PreventAllButDamage(Expr),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -556,6 +593,14 @@ pub enum Operation {
         objects: ObjectSet,
         destination: Destination,
     },
+    /// Create a replacement effect on future events (CR 614.1, 615). Unlike a
+    /// delayed trigger, `body` changes the pending event as it would happen.
+    CreateReplacement {
+        event: ReplacementEvent,
+        limit: ReplacementLimit,
+        duration: Duration,
+        body: Program,
+    },
     /// Apply a change to the currently proposed event. Legal only inside a
     /// replacement program for an event supporting this change.
     ModifyEvent {
@@ -801,6 +846,11 @@ pub enum Destination {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(tag = "kind", content = "args")]
 pub enum Change {
+    /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
     PlayerRule(PlayerRule),
     /// Changes a game rule, without granting the subject an ability.
     Rule(RuleChange),
@@ -1136,6 +1186,11 @@ pub struct SelectionChoice {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(tag = "kind", content = "args")]
 pub enum Expr {
+    /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
     /// Actual mana spent to cast this spell, or the spell that became this
     /// permanent (400.7d). Includes mana paid for additional costs, after
     /// reductions. Cost symbols, life payments, and an "as though" spending
@@ -1395,6 +1450,8 @@ pub enum ObjectSet {
         view: CostObjectView,
         phase: ObjectPhase,
     },
+    /// Every object able to be the source of damage (CR 609.7a) that matches.
+    DamageSources(ObjectFilter),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -1449,6 +1506,13 @@ pub enum PlayerRef {
 #[serde(tag = "kind", content = "args")]
 pub enum PlayerSet {
     DamageRecipients,
+    /// Players in every listed set.
+    Intersection(Vec<PlayerSet>),
+    /// Every player for whom `condition` holds, with that player bound.
+    Matching {
+        binding: Binding,
+        condition: Box<Condition>,
+    },
     /// Set union, with duplicate players removed before a batch.
     Union(Vec<PlayerSet>),
     One(PlayerRef),
@@ -1470,6 +1534,11 @@ pub enum Recipients {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(tag = "kind", content = "args")]
 pub enum ObjectFilter {
+    /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
     /// Evaluate a reusable condition with Candidate bound to this object.
     Condition(Box<Condition>),
     /// An actual casting event, retained by the permanent the spell becomes.
@@ -1557,6 +1626,11 @@ pub enum Count {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(tag = "kind", content = "args")]
 pub enum Condition {
+    /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
     Searched(ResultId),
     TargetsMatch {
         object: ObjectRef,
@@ -1678,6 +1752,11 @@ pub enum CostPart {
         part: Box<CostPart>,
         constraints: Vec<SelectionConstraint>,
     },
+    /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct CostObjectSelection {
@@ -1797,6 +1876,11 @@ pub struct DamageEvent {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DamageRecipients {
     Any,
+    /// The one player or object a damage-recipient target refers to.
+    Target {
+        slot: Slot,
+        index: u16,
+    },
     Objects(ObjectFilter),
     Players(PlayerSet),
     ObjectsAndPlayers {

@@ -240,7 +240,8 @@ impl Registry {
             let body_is_resolution = |b: &Body| !matches!(b, Body::Program { .. });
             let valid = match (&r.domain, &r.recipe) {
                 (Domain::Action, Recipe::Actor { actor, body }) => {
-                    !matches!(actor, Actor::Inherit) && matches!(body, Body::Action { .. })
+                    !matches!(actor, Actor::Inherit)
+                        && matches!(body, Body::Action { .. } | Body::List { .. })
                 }
                 (Domain::Action, Recipe::Optional { body, .. }) => body_is_resolution(body),
                 (

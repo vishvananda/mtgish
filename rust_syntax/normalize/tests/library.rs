@@ -82,7 +82,6 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         "Claim Jumper",
         "Cultivator Colossus",
         "Green Sun's Zenith",
-        "Grow from the Ashes",
         "Land Grant",
         "Liliana Vess",
         "Plunge into Darkness",
@@ -117,7 +116,7 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 73);
+    assert_eq!(complete, 74);
 }
 
 #[test]
@@ -560,4 +559,21 @@ fn library_observation_and_reordering_do_not_masquerade_as_zone_movement() {
     );
     let c = custom("SpellActions(ActionList([Scry(Integer(0)),Surveil(Integer(0))]))").unwrap();
     assert_eq!(spell(&c).instructions.len(), 2);
+}
+
+#[test]
+fn a_kicked_spell_announces_each_branch_on_its_own() {
+    let c = card("Grow from the Ashes");
+    let [Ability::CostBranch {
+        keyword,
+        paid,
+        unpaid,
+        ..
+    }] = &c.abilities[..]
+    else {
+        panic!("{:?}", c.abilities);
+    };
+    assert_eq!(keyword, "Kicker");
+    assert!(matches!(**paid, Ability::Spell { .. }));
+    assert!(matches!(**unpaid, Ability::Spell { .. }));
 }

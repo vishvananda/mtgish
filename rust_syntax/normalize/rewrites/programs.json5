@@ -19,6 +19,23 @@
       }
     },
     {
+      "id": "program.Action.PlayerActions",
+      "domain": "Action",
+      "source": "PlayerActions",
+      "arity": 2,
+      "recipe": {
+        "kind": "Actor",
+        "actor": {
+          "kind": "Player",
+          "argument": 0
+        },
+        "body": {
+          "kind": "List",
+          "argument": 1
+        }
+      }
+    },
+    {
       "id": "program.Action.EachPlayerAction",
       "domain": "Action",
       "source": "EachPlayerAction",

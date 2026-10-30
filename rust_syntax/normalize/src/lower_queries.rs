@@ -1,6 +1,15 @@
 // Shared typed queries used by event matching, production restrictions, and effects.
 impl Context {
     fn player_matches(&self, player: PlayerRef, filter: &source::Players) -> Result<Condition> {
+        self.reduced_player_check(player.clone(), filter)
+            .or_else(|error| self.primitive_player_check(&player, filter).ok_or(error))
+    }
+
+    fn reduced_player_check(
+        &self,
+        player: PlayerRef,
+        filter: &source::Players,
+    ) -> Result<Condition> {
         use source::Players as S;
         Ok(match filter {
             S::NumCardsInHandIs(c) | S::NumCardsInGraveyardIs(c) => {
@@ -31,6 +40,8 @@ impl Context {
                     right,
                 }
             }
+            S::IsTheirTurn => Condition::PlayerIsActive(player),
+            S::IsNotTheirTurn => Condition::Not(Box::new(Condition::PlayerIsActive(player))),
             S::And(items) => Condition::All(
                 items
                     .iter()

@@ -1065,6 +1065,7 @@ fn operation_name(op: &Operation) -> &'static str {
         Operation::Scry { .. } => "Scry",
         Operation::Surveil { .. } => "Surveil",
         Operation::Counter { .. } => "Counter",
+        Operation::CreateReplacement { .. } => "CreateReplacement",
         Operation::ModifyEvent { .. } => "ModifyEvent",
         Operation::PayCost { .. } => "PayCost",
         Operation::RemoveCounters { .. } => "RemoveCounters",

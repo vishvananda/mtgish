@@ -180,6 +180,18 @@ impl<'a> Scope<'a> {
         }
         Ok(())
     }
+    fn replacement_event(&self, event: &ReplacementEvent) -> Result {
+        match event {
+            ReplacementEvent::Enter { objects } => self.filter(objects),
+            ReplacementEvent::Damage(damage) => self.event(&EventSpec::Damage(damage.clone())),
+            ReplacementEvent::Either(events) => {
+                if events.is_empty() {
+                    return Err("replacement event alternatives are empty".into());
+                }
+                events.iter().try_for_each(|e| self.replacement_event(e))
+            }
+        }
+    }
     fn event(&self, event: &EventSpec) -> Result {
         match event {
             EventSpec::Primitive { name, operands } => self.primitive(name, operands),
@@ -201,6 +213,9 @@ impl<'a> Scope<'a> {
                 self.filter(&event.sources)?;
                 match &event.recipients {
                     DamageRecipients::Any => Ok(()),
+                    DamageRecipients::Target { slot, .. } => {
+                        self.recipients(&Recipients::Targets(slot.clone()))
+                    }
                     DamageRecipients::Objects(f) => self.filter(f),
                     DamageRecipients::Players(p) => self.players(p),
                     DamageRecipients::ObjectsAndPlayers { objects, players } => {
@@ -344,6 +359,14 @@ impl<'a> Scope<'a> {
 
     fn players(&self, players: &PlayerSet) -> Result {
         match players {
+            PlayerSet::Intersection(sets) => sets.iter().try_for_each(|s| self.players(s)),
+            PlayerSet::Matching { binding, condition } => {
+                let mut child = self.clone();
+                if !child.players.insert(binding.0) {
+                    return Err("player predicate redeclares a binding".into());
+                }
+                child.condition(condition)
+            }
             PlayerSet::Union(sets) => {
                 for players in sets {
                     self.players(players)?;
@@ -364,6 +387,7 @@ impl<'a> Scope<'a> {
 
     fn objects(&self, objects: &ObjectSet) -> Result {
         match objects {
+            ObjectSet::DamageSources(filter) => self.filter(filter),
             ObjectSet::CostObjects {
                 payment,
                 component,
@@ -475,6 +499,7 @@ impl<'a> Scope<'a> {
 
     fn expr(&self, expression: &Expr) -> Result {
         match expression {
+            Expr::Primitive { name, operands } => self.primitive(name, operands),
             Expr::ManaSpent { object, filter, .. } => {
                 self.object(object)?;
                 if let Some(colors) = &filter.colors {
@@ -565,6 +590,7 @@ impl<'a> Scope<'a> {
     }
     fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
+            ObjectFilter::Primitive { name, operands } => self.primitive(name, operands),
             ObjectFilter::Condition(condition) => self.condition(condition),
             ObjectFilter::Cast { by, from } => {
                 if let Some(players) = by {
@@ -613,6 +639,7 @@ impl<'a> Scope<'a> {
 
     fn condition(&self, condition: &Condition) -> Result {
         match condition {
+            Condition::Primitive { name, operands } => self.primitive(name, operands),
             Condition::Searched(result) => match self.results.get(&result.0) {
                 Some(ResultKind::Search) => Ok(()),
                 _ => Err("searched condition requires an available search result".into()),
@@ -746,6 +773,7 @@ impl<'a> Scope<'a> {
     }
     fn change(&self, change: &Change) -> Result {
         match change {
+            Change::Primitive { name, operands } => self.primitive(name, operands),
             Change::GrantKeyword(keyword) => self.keyword(keyword),
             Change::PlayerRule(rule) => self.player_rule(rule),
             Change::Rule(rule) => self.rule(rule),
@@ -963,6 +991,7 @@ impl<'a> Scope<'a> {
     fn cost(&self, cost: &Cost) -> Result {
         for part in &cost.parts {
             match part {
+                CostPart::Primitive { name, operands } => self.primitive(name, operands)?,
                 CostPart::Constrained { part, constraints } => {
                     let selectable = match part.as_ref() {
                         CostPart::Sacrifice { .. } | CostPart::Discard { .. } => true,
@@ -1161,6 +1190,7 @@ impl<'a> Scope<'a> {
             Operand::Record(fields) => fields.iter().try_for_each(|f| self.operand(&f.value)),
             Operand::Form(named) => self.named(named),
             Operand::Vocabulary { .. } => Ok(()),
+            Operand::Term { operands, .. } => operands.iter().try_for_each(|o| self.operand(o)),
             Operand::Object(object) => self.object(object),
             Operand::Objects(objects) => self.objects(objects),
             Operand::Player(player) => self.player(player),
@@ -1172,6 +1202,11 @@ impl<'a> Scope<'a> {
             Operand::Comparison(_, expression) => self.expr(expression),
             Operand::Cost(cost) => self.cost(cost),
             Operand::Ability(ability) => validate_ability(ability),
+            Operand::Program(program) => {
+                let mut child = self.clone();
+                child.open_searches.clear();
+                child.program(program)
+            }
         }
     }
     fn operation(&self, operation: &Operation) -> Result {
@@ -1329,7 +1364,33 @@ impl<'a> Scope<'a> {
                         self.count(&Count::Exactly(amount.clone()))
                     }
                     EventChange::SetController(player) => self.player(player),
+                    EventChange::PreventDamage => Ok(()),
+                    EventChange::PreventSomeDamage(amount)
+                    | EventChange::PreventAllButDamage(amount) => {
+                        self.count(&Count::Exactly(amount.clone()))
+                    }
                 }
+            }
+            Operation::CreateReplacement {
+                event,
+                limit,
+                duration,
+                body,
+            } => {
+                if let Duration::UntilNextTurn(player) | Duration::UntilEndOfNextTurn(player) =
+                    duration
+                {
+                    self.player(player)?;
+                }
+                if let ReplacementLimit::TotalDamage(amount) = limit {
+                    self.count(&Count::Exactly(amount.clone()))?;
+                }
+                self.replacement_event(event)?;
+                let mut child = self.clone();
+                child.replacement = true;
+                child.open_searches.clear();
+                child.event = crate::semantics::replacement_bindings(event);
+                child.program(body)
             }
             Operation::PayCost { player, cost, .. } => {
                 self.player(player)?;
@@ -1836,6 +1897,13 @@ fn validate_ability_in(
     let (announcement, body) = match ability {
         Ability::Named(named) => return scope.named(named),
         Ability::Primitive { name, operands } => return scope.primitive(name, operands),
+        Ability::CostBranch {
+            cost, paid, unpaid, ..
+        } => {
+            scope.cost(cost)?;
+            validate_ability_in(paid, zones, casting_costs)?;
+            return validate_ability_in(unpaid, zones, casting_costs);
+        }
         Ability::Saga { chapters } => {
             if chapters.is_empty() {
                 return Err("saga has no chapters".into());
@@ -1885,19 +1953,19 @@ fn validate_ability_in(
             event,
             body,
         } => {
-            let ReplacementEvent::Enter { objects } = event;
-            scope.filter(objects)?;
+            scope.replacement_event(event)?;
             if matches!(active, ReplacementActive::SourceEntering)
-                && !matches!(objects, ObjectFilter::SameObject(ObjectRef::Source))
+                && !matches!(
+                    event,
+                    ReplacementEvent::Enter {
+                        objects: ObjectFilter::SameObject(ObjectRef::Source)
+                    }
+                )
             {
                 return Err("source-entry replacement must match only its source".into());
             }
             scope.replacement = true;
-            scope.event = crate::semantics::EventBindings {
-                object: true,
-                permanent: true,
-                ..Default::default()
-            };
+            scope.event = crate::semantics::replacement_bindings(event);
             return scope.program(body);
         }
         Ability::Enchant { hosts } => {

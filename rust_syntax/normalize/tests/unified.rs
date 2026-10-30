@@ -210,3 +210,46 @@ fn saga_chapters_are_one_trigger_per_number() {
         .collect();
     assert_eq!(numbers, [1, 2, 3]);
 }
+
+#[test]
+fn primitives_in_every_family_bind_their_operands() {
+    let lowered = |rule: &str| {
+        let source = parse(&format!(
+            r#"Card(Name: "Test", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: []), ManaCost: [], Rules: [{rule}])"#
+        ));
+        lower::card(&source).map(|card| {
+            validate::card(&card).unwrap();
+            serde_json::to_string(&card).unwrap()
+        })
+    };
+    for (rule, name) in [
+        (
+            "Activated(PayEnergy(Integer(1)), ActionList([DrawACard]))",
+            "Cost::PayEnergy",
+        ),
+        (
+            "TriggerA(WhenAPlayerSetsASchemeInMotion(SinglePlayer(You), SingleScheme(ThisScheme)), ActionList([DrawACard]))",
+            "Trigger::WhenAPlayerSetsASchemeInMotion",
+        ),
+    ] {
+        let json = lowered(rule).unwrap();
+        assert!(json.contains(name), "{json}");
+    }
+    // A term must still bind what it refers to, unlike a named form.
+    assert!(lowered(
+        "TriggerA(WhenAPermanentBecomesTheTargetOfASpellOrAbility(SinglePermanent(ThisPermanent), TargetsPermanent(Ref_TargetPermanent)), ActionList([DrawACard]))"
+    )
+    .is_err());
+}
+
+#[test]
+fn player_predicates_in_a_set_bind_the_tested_player() {
+    let source = parse(
+        r#"Card(Name: "Test", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), ManaCost: [], Rules: [SpellActions(ActionList([EachPlayerAction(And([Opponent, IsTheMonarch]), DrawACard)]))])"#,
+    );
+    let card = lower::card(&source).unwrap();
+    validate::card(&card).unwrap();
+    let json = serde_json::to_string(&card).unwrap();
+    assert!(json.contains("Intersection"), "{json}");
+    assert!(json.contains("Players::IsTheMonarch"), "{json}");
+}

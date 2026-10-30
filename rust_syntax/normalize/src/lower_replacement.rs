@@ -1,4 +1,30 @@
 impl Context {
+    fn spell_ability(&mut self, actions: &source::Actions) -> Result<Ability> {
+        let body = self.actions(actions)?;
+        Ok(Ability::Spell {
+            announcement: Announcement {
+                targets: self.targets.clone(),
+                modes: self.modes.clone(),
+            },
+            body,
+        })
+    }
+
+    fn cost_branch(
+        &mut self,
+        keyword: &str,
+        cost: &source::Cost,
+        paid: &source::Actions,
+        unpaid: &source::Actions,
+    ) -> Result<Ability> {
+        Ok(Ability::CostBranch {
+            keyword: keyword.into(),
+            cost: self.cost(cost)?,
+            paid: Box::new(self.fresh().spell_ability(paid)?),
+            unpaid: Box::new(self.fresh().spell_ability(unpaid)?),
+        })
+    }
+
     fn conditional(
         &mut self,
         condition: Condition,

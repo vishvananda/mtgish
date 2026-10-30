@@ -111,8 +111,32 @@ impl Context {
                 let rule: source::Rule = decode(value).ok()?;
                 Operand::Ability(Box::new(self.fresh().ability(&rule).ok()?))
             }
+            "Spell" => Operand::Object(self.spell(&decode(value).ok()?).ok()?),
+            "CardInGraveyards" => Operand::Object(self.grave_card(&decode(value).ok()?).ok()?),
+            "CardInExile" => Operand::Object(self.exiled_card(&decode(value).ok()?).ok()?),
+            "Actions" => {
+                let actions: source::Actions = decode(value).ok()?;
+                let mut child = self.nested_program();
+                Operand::Program(child.actions(&actions).ok()?)
+            }
+            "Action" => {
+                let action: source::Action = decode(value).ok()?;
+                let mut child = self.nested_program();
+                let actor = PlayerSet::One(PlayerRef::AbilityController);
+                let instruction = child.action(&action, &actor).ok()?;
+                Operand::Program(Program {
+                    instructions: vec![instruction],
+                })
+            }
             _ => return None,
         })
+    }
+
+    /// A nested body closes over this scope; its results stay local to it.
+    fn nested_program(&self) -> Self {
+        let mut child = self.clone();
+        child.result += 1;
+        child
     }
 
     /// Lower an operand in this scope, or fail. A primitive may not hold a `Form`.
@@ -130,7 +154,9 @@ impl Context {
                     .collect::<Option<_>>()?,
             ),
             V::Object(fields) => match fields.get("enum").and_then(V::as_str) {
-                Some(ty) => vocabulary(ty, value).or_else(|| self.typed_operand(ty, value))?,
+                Some(ty) => vocabulary(ty, value)
+                    .or_else(|| self.typed_operand(ty, value))
+                    .or_else(|| self.term(ty, value))?,
                 None => Operand::Record(
                     fields
                         .iter()
@@ -143,6 +169,30 @@ impl Context {
                         .collect::<Option<_>>()?,
                 ),
             },
+        })
+    }
+
+    /// A descriptive enum the registry lists, with every operand bound.
+    fn term(&self, ty: &str, value: &serde_json::Value) -> Option<Operand> {
+        if !crate::primitive_spec::registry()
+            .terms
+            .iter()
+            .any(|t| t == ty)
+        {
+            return None;
+        }
+        let operands = match &value["args"] {
+            serde_json::Value::Null => vec![],
+            serde_json::Value::Array(items) => items
+                .iter()
+                .map(|v| self.bound_operand(v))
+                .collect::<Option<_>>()?,
+            other => vec![self.bound_operand(other)?],
+        };
+        Some(Operand::Term {
+            family: ty.into(),
+            form: value["variant"].as_str()?.into(),
+            operands,
         })
     }
 
@@ -188,6 +238,44 @@ impl Context {
             _ => self.primitive("Rule", value)?,
         };
         Some(Ability::Primitive { name, operands })
+    }
+
+    fn primitive_cost(&self, value: &source::Cost) -> Option<Cost> {
+        let (name, operands) = self.primitive("Cost", value)?;
+        Some(Cost {
+            parts: vec![CostPart::Primitive { name, operands }],
+        })
+    }
+
+    fn primitive_condition(&self, value: &source::Condition) -> Option<Condition> {
+        let (name, operands) = self.primitive("Condition", value)?;
+        Some(Condition::Primitive { name, operands })
+    }
+
+    fn primitive_filter(&self, value: &source::Permanents) -> Option<ObjectFilter> {
+        let (name, operands) = self.primitive("Permanents", value)?;
+        Some(ObjectFilter::Primitive { name, operands })
+    }
+
+    fn primitive_number(&self, value: &source::GameNumber) -> Option<Expr> {
+        let (name, operands) = self.primitive("GameNumber", value)?;
+        Some(Expr::Primitive { name, operands })
+    }
+
+    fn primitive_change(&self, value: &source::LayerEffect) -> Option<Change> {
+        let (name, operands) = self.primitive("LayerEffect", value)?;
+        Some(Change::Primitive { name, operands })
+    }
+
+    /// The tested player comes first, then the form's own operands.
+    fn primitive_player_check(
+        &self,
+        player: &PlayerRef,
+        value: &source::Players,
+    ) -> Option<Condition> {
+        let (name, mut operands) = self.primitive("Players", value)?;
+        operands.insert(0, Operand::Player(player.clone()));
+        Some(Condition::Primitive { name, operands })
     }
 
     fn primitive_trigger(&self, value: &source::Trigger) -> Option<EventSpec> {
