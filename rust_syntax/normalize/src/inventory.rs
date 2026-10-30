@@ -134,6 +134,7 @@ impl Inventory<'_> {
                 if let Some(condition) = &limits.condition {
                     self.condition(condition);
                 }
+                limits.modifiers.iter().for_each(|m| self.change(m));
                 self.announcement(announcement);
                 self.program(body);
             }
@@ -806,6 +807,7 @@ impl Inventory<'_> {
                 }
             }
             ManaUse::Not(r) => self.mana_use(r),
+            ManaUse::Primitive { name, .. } => self.primitive(name),
         }
     }
     fn activation_filter(&mut self, f: &ActivationFilter) {
@@ -846,6 +848,7 @@ impl Inventory<'_> {
     fn rule(&mut self, rule: &RuleChange) {
         self.form("RuleChange", rule);
         match rule {
+            RuleChange::Primitive { name, .. } => self.primitive(name),
             RuleChange::Prohibit(a) => self.object_action(a),
             RuleChange::RequireCombat { action, amount } => {
                 self.object_action(action);
@@ -959,6 +962,7 @@ impl Inventory<'_> {
                 self.form("CardPlayAction", action);
                 self.filter(filter);
             }
+            PlayerRule::Primitive { name, .. } => self.primitive(name),
             PlayerRule::Prohibit(action) => self.player_action(action),
             PlayerRule::LimitPerTurn { action, amount } => {
                 self.player_action(action);

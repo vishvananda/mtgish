@@ -1786,10 +1786,10 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 }
 
 #[test]
-fn schema_37_costs_roundtrip_and_reject_previous_versions_at_validation() {
+fn schema_38_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 37);
+    assert_eq!(card.schema_version, 38);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -1814,7 +1814,7 @@ fn real_object_payment_cards_roundtrip_without_dropping_other_missing_abilities(
     for line in include_str!("fixtures/object_payments.ronl").lines() {
         let source: source::OracleCard = ron::from_str(line).unwrap();
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);
-        if ["Cryptic Gateway", "Leech Bonder"].contains(&name.as_str()) {
+        if ["Cryptic Gateway"].contains(&name.as_str()) {
             assert!(pipeline::finalize(&source).is_err(), "{name}");
             continue;
         }
@@ -1867,7 +1867,7 @@ fn real_object_payment_cards_roundtrip_without_dropping_other_missing_abilities(
         }
         complete += 1;
     }
-    assert_eq!(complete, 22);
+    assert_eq!(complete, 23);
 }
 
 #[test]
@@ -2029,4 +2029,32 @@ fn a_returned_graveyard_card_is_chosen_once_and_moved_to_its_owners_hand() {
     );
     assert!(text.contains("ChooseObjects"), "{text}");
     assert!(text.contains("OwnersHand"), "{text}");
+}
+
+#[test]
+fn a_target_that_decides_its_mode_announces_no_mode_and_a_shuffle_is_one_destination() {
+    let card = pipeline::finalize(&custom("SpellActions(Targeted_Modal([Targeted([TargetSpell(AnySpell)],ActionList([ReturnSpellToOwnersHand(Ref_TargetSpell)])),Targeted([TargetPermanent(AnyPermanent)],ActionList([ShufflePermanentIntoLibrary(Ref_TargetPermanent)]))]))")).unwrap();
+    let Ability::Spell { announcement, .. } = &card.abilities[0] else {
+        panic!()
+    };
+    let modes = announcement.modes.as_ref().unwrap();
+    assert!(modes.implied);
+    assert_eq!(modes.modes.len(), 2);
+    let text = serde_json::to_string(&modes.modes).unwrap();
+    assert!(text.contains("OwnersHand"), "{text}");
+    assert!(text.contains("OwnersLibraryShuffled"), "{text}");
+}
+
+#[test]
+fn counts_and_primitive_rule_families_keep_their_operands() {
+    let text = ability_json("SpellActions(Targeted([OneOrTwoTargetPermanents(AnyPermanent)],ActionList([DestroyPermanent(Ref_TargetPermanent)])))");
+    assert!(text.contains(r#""Between""#), "{text}");
+    let text = ability_json(
+        "Activated(TapPermanent(ThisPermanent),ActionList([InvestigateTimes(Integer(2))]))",
+    );
+    assert!(text.contains("Action::InvestigateTimes"), "{text}");
+    assert!(
+        text.contains(r#""Integer":2"#) || text.contains("2"),
+        "{text}"
+    );
 }

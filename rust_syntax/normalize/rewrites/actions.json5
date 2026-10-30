@@ -15,6 +15,71 @@
       "entry": null
     },
     {
+      "id": "action.ReturnSpellToOwnersHand",
+      "source": "ReturnSpellToOwnersHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Spell",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.ShuffleSpellIntoLibrary",
+      "source": "ShuffleSpellIntoLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Spell",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null
+    },
+    {
+      "id": "action.ShufflePermanentIntoLibrary",
+      "source": "ShufflePermanentIntoLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null
+    },
+    {
+      "id": "action.ShuffleGraveyardCardIntoLibrary",
+      "source": "ShuffleGraveyardCardIntoLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null
+    },
+    {
+      "id": "action.ShuffleEachGraveyardCardIntoLibrary",
+      "source": "ShuffleEachGraveyardCardIntoLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null
+    },
+    {
       "id": "action.GainControlOfPermanentUntil",
       "source": "GainControlOfPermanentUntil",
       "arity": 2,

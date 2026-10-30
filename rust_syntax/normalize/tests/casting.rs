@@ -48,7 +48,6 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         "Dargo, the Shipwrecker",
         "Ertai's Meddling",
         "Food Chain",
-        "Fury of the Horde",
         "Hamlet Glutton",
         "Land Grant",
         "Rites of Initiation",
@@ -79,7 +78,7 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 64);
+    assert_eq!(complete, 65);
 }
 
 #[test]

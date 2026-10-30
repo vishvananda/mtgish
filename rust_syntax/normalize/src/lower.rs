@@ -1877,6 +1877,27 @@ impl Context {
                 distribute: None,
             };
             match value {
+                S::TargetSpellOrAbility(_) => {
+                    target.kind = TargetKind::Object(ObjectDomain {
+                        kind: ObjectKind::Any,
+                        zones: vec![EventZone::Stack],
+                    });
+                    target.filter = self
+                        .primitive_predicate("Target", value)
+                        .ok_or_else(|| unsupported(value))?;
+                }
+                S::OneOrTwoTargetPermanents(p) => {
+                    target.filter = self.filter(p)?;
+                    target.count = Count::Between {
+                        minimum: Expr::Constant(1),
+                        maximum: Expr::Constant(2),
+                    };
+                }
+                S::AnyNumberOfTargetPlayers(players) => {
+                    target.kind = TargetKind::Player;
+                    target.players = Some(self.players(players)?);
+                    target.count = Count::AnyNumber;
+                }
                 S::TargetAbility(_) | S::UptoOneTargetAbility(_) => {
                     target.kind = TargetKind::Object(ObjectDomain::ability());
                     target.filter = self
@@ -2168,7 +2189,12 @@ impl Context {
                     None => condition,
                 });
             }
-            _ => return Err(unsupported(value)),
+            _ => match self.primitive("ActivateModifier", value) {
+                Some((name, operands)) => {
+                    limits.modifiers.push(Change::Primitive { name, operands })
+                }
+                None => return Err(unsupported(value)),
+            },
         }
         Ok(())
     }

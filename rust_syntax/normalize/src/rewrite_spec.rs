@@ -42,6 +42,7 @@ pub enum SubjectKind {
     GraveCards,
     ExiledCard,
     ExiledCards,
+    Spell,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -55,6 +56,7 @@ pub enum Destination {
     OwnersGraveyard,
     OwnersLibraryTop,
     OwnersLibraryBottom,
+    OwnersLibraryShuffled,
     BattlefieldYou,
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -297,6 +299,7 @@ impl Registry {
                         SubjectKind::GraveCards => ("GraveCards", "CardsInGraveyards"),
                         SubjectKind::ExiledCard => ("ExiledCard", "CardInExile"),
                         SubjectKind::ExiledCards => ("ExiledCards", "CardsInExile"),
+                        SubjectKind::Spell => ("Spell", "Spell"),
                     };
                     format!("Subjects::{variant}(source::{ty}::clone(a{}))", s.argument)
                 })

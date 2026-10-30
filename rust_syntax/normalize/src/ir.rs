@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 37;
+pub const SCHEMA_VERSION: u32 = 38;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -445,6 +445,9 @@ pub struct ModeSelection {
     pub maximum: Expr,
     pub repeat: bool,
     pub modes: Vec<Mode>,
+    /// The target chosen decides the mode, as in "target spell or permanent",
+    /// so no mode is announced even though each has its own target (601.2c).
+    pub implied: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -904,6 +907,11 @@ pub enum ManaUse {
     All(Vec<ManaUse>),
     Either(Vec<ManaUse>),
     Not(Box<ManaUse>),
+    /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1002,6 +1010,8 @@ pub enum Destination {
     Exile,
     Battlefield(PlayerRef),
     OwnersBattlefield,
+    /// "Shuffle it into its owner's library": the shuffle is one action.
+    OwnersLibraryShuffled,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1074,6 +1084,11 @@ impl From<PlayerSet> for EffectSubjects {
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PlayerRule {
+    /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
     /// Grants a zone permission only. Normal costs, timing, land allowances,
     /// ownership-independent caster choice, and all prohibitions still apply.
     /// Exact object references follow only that zone incarnation; live zone
@@ -1211,6 +1226,11 @@ pub enum EffectEvaluation {
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum RuleChange {
+    /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
     Prohibit(ObjectAction),
     /// Requirements are maximized subject to restrictions; they do not compel
     /// payment of a declaration cost (CR 508.1d / 509.1c).
@@ -2022,6 +2042,8 @@ pub struct ActivationLimits {
     /// Players other than the controller who may activate this.
     pub activators: Option<PlayerSet>,
     pub keyword: Option<ActivatedKeyword>,
+    /// Reviewed modifiers of the activation itself, as `Change::Primitive`.
+    pub modifiers: Vec<Change>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2249,6 +2271,7 @@ impl ActivationLimits {
             condition: None,
             activators: None,
             keyword: None,
+            modifiers: vec![],
         }
     }
 }

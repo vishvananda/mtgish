@@ -843,6 +843,7 @@ impl<'a> Scope<'a> {
     }
     fn rule(&self, rule: &RuleChange) -> Result {
         match rule {
+            RuleChange::Primitive { name, operands } => self.primitive(name, operands),
             RuleChange::Prohibit(action) => self.object_action(action),
             RuleChange::RequireCombat { action, amount } => {
                 self.combat_action(action)?;
@@ -985,6 +986,7 @@ impl<'a> Scope<'a> {
                 self.require_zone(cards, from.clone())?;
                 self.filter(filter)
             }
+            PlayerRule::Primitive { name, operands } => self.primitive(name, operands),
             PlayerRule::Prohibit(action) => self.player_action(action),
             PlayerRule::LimitPerTurn { action, amount } => {
                 self.player_action(action)?;
@@ -1760,6 +1762,7 @@ impl<'a> Scope<'a> {
                 Ok(())
             }
             ManaUse::Not(r) => self.mana_use(r),
+            ManaUse::Primitive { name, operands } => self.primitive(name, operands),
         }
     }
 
@@ -2325,6 +2328,12 @@ fn validate_ability_in(
                 let mut proposal = scope.clone();
                 proposal.announcing = true;
                 proposal.condition(condition)?;
+            }
+            for modifier in &limits.modifiers {
+                let Change::Primitive { name, operands } = modifier else {
+                    return Err("an activation modifier must be a reviewed primitive".into());
+                };
+                scope.primitive(name, operands)?;
             }
             if matches!(origin, ActivationOrigin::Equip) {
                 let [target] = announcement.targets.as_slice() else {

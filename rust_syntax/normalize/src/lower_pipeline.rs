@@ -10,6 +10,7 @@ impl Context {
             S::GraveCards(c) => self.grave_cards(c)?,
             S::ExiledCard(c) => self.still_exiled(ObjectSet::One(self.exiled_card(c)?)),
             S::ExiledCards(c) => self.still_exiled(self.exile_cards(c)?),
+            S::Spell(s) => ObjectSet::One(self.spell(s)?),
         })
     }
     fn pipeline_selection(&self, selection: &crate::pipeline::SelectionInput) -> Result<Count> {
@@ -152,6 +153,9 @@ impl Context {
                     }
                     DestinationInput::OwnersLibraryBottom => {
                         (Destination::OwnersLibraryBottom, EntrySpec::default())
+                    }
+                    DestinationInput::OwnersLibraryShuffled => {
+                        (Destination::OwnersLibraryShuffled, EntrySpec::default())
                     }
                     DestinationInput::BattlefieldYou => self
                         .move_entry(&entry, self.player(&source::Player::You)?)

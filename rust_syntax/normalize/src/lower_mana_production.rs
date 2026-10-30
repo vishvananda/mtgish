@@ -74,6 +74,13 @@ impl Context {
         })
     }
     fn mana_use(&self, value: &source::ManaUseModifier) -> Result<ManaUse> {
+        self.reduced_mana_use(value).or_else(|error| {
+            self.primitive("ManaUseModifier", value)
+                .map(|(name, operands)| ManaUse::Primitive { name, operands })
+                .ok_or(error)
+        })
+    }
+    fn reduced_mana_use(&self, value: &source::ManaUseModifier) -> Result<ManaUse> {
         use source::ManaUseModifier as S;
         Ok(match value {
             S::CanOnlySpendOnSpells(spells) => ManaUse::CastSpell(self.spell_filter(spells)?),

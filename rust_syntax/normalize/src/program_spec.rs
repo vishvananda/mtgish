@@ -47,6 +47,7 @@ pub enum Actor {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", deny_unknown_fields)]
 pub enum Bounds {
+    Implied,
     Exact { count: i64 },
     All,
     OneOrMore,
@@ -140,6 +141,7 @@ impl Bounds {
     }
     fn generate(&self) -> String {
         match self {
+            Self::Implied => "ModeBounds::Implied".into(),
             Self::Exact { count } => format!("ModeBounds::Exact({count})"),
             Self::All => "ModeBounds::All".into(),
             Self::OneOrMore => "ModeBounds::OneOrMore".into(),
@@ -283,6 +285,7 @@ impl Registry {
                     },
                 ) => true,
                 (Domain::Actions, Recipe::Modal { bounds, .. }) => match bounds {
+                    Bounds::Implied => true,
                     Bounds::Exact { count } => *count > 0,
                     Bounds::UpTo { count } => *count >= 0,
                     _ => true,

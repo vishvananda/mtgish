@@ -277,6 +277,19 @@
       }
     },
     {
+      "id": "program.Actions.Targeted_Modal",
+      "domain": "Actions",
+      "source": "Targeted_Modal",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "Implied"
+        },
+        "modes": 0
+      }
+    },
+    {
       "id": "program.Actions.Modal_ChooseOne",
       "domain": "Actions",
       "source": "Modal_ChooseOne",

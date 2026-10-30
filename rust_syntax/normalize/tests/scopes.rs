@@ -74,7 +74,6 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         "Decree of Justice",
         "Decree of Pain",
         "Derevi, Empyrial Tactician",
-        "Dread",
         "Firesong and Sunspeaker",
         "Fluctuator",
         "Narcomoeba",
@@ -109,7 +108,7 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 77);
+    assert_eq!(complete, 78);
 }
 
 #[test]

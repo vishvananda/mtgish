@@ -81,7 +81,6 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         "Caravan Vigil",
         "Claim Jumper",
         "Cultivator Colossus",
-        "Green Sun's Zenith",
         "Land Grant",
         "Liliana Vess",
         "Plunge into Darkness",
@@ -89,7 +88,6 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         "Snooping Newsie",
         "Tooth and Nail",
         "Urza's Saga",
-        "Varragoth, Bloodsky Sire",
         "Wishclaw Talisman",
         "Woe Strider",
     ];
@@ -116,7 +114,7 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 74);
+    assert_eq!(complete, 76);
 }
 
 #[test]

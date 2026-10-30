@@ -79,7 +79,6 @@ fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps
         "Aboleth Spawn",
         "Spectra Ward",
         "Samite Elder",
-        "The Serpent Society",
     ];
     let mut complete = 0;
     for s in sources() {
@@ -104,7 +103,7 @@ fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps
         }
         complete += 1;
     }
-    assert_eq!(complete, 39);
+    assert_eq!(complete, 40);
 }
 
 #[test]

@@ -56,6 +56,7 @@ pub enum ActorInput {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ModeBounds {
+    Implied,
     Exact(i64),
     All,
     OneOrMore,

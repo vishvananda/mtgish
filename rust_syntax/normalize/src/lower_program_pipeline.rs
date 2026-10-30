@@ -198,6 +198,7 @@ impl Context {
                     return Err(invalid("multiple mode declarations in one announcement"));
                 }
                 let (minimum, maximum, repeat) = match bounds {
+                    B::Implied => (Expr::Constant(1), Expr::Constant(1), false),
                     B::Exact(n) => (Expr::Constant(*n), Expr::Constant(*n), false),
                     B::All => (
                         Expr::Constant(modes.len() as i64),
@@ -262,6 +263,7 @@ impl Context {
                     maximum,
                     repeat,
                     modes,
+                    implied: matches!(bounds, B::Implied),
                 });
                 return Ok(Program::empty());
             }

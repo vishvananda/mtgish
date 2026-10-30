@@ -74,6 +74,13 @@ impl Context {
     }
 
     fn rule_change(&self, value: &source::PermanentRule) -> Result<Vec<RuleChange>> {
+        self.reduced_rule_change(value).or_else(|error| {
+            self.primitive("PermanentRule", value)
+                .map(|(name, operands)| vec![RuleChange::Primitive { name, operands }])
+                .ok_or(error)
+        })
+    }
+    fn reduced_rule_change(&self, value: &source::PermanentRule) -> Result<Vec<RuleChange>> {
         use source::PermanentRule as S;
         let prohibit = |action| RuleChange::Prohibit(action);
         let require = |action, amount| RuleChange::RequireCombat { action, amount };

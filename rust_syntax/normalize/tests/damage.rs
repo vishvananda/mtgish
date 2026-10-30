@@ -69,14 +69,11 @@ fn effect(operation: Operation) -> Instruction {
 fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
     let incomplete = [
         "Aegar, the Freezing Flame",
-        "Aisha of Sparks and Smoke",
         "Anowon, the Ruin Thief",
         "Breeches, Brazen Plunderer",
         "Curious Obsession",
-        "Dread",
         "Fall of Cair Andros",
         "Fathom Fleet Swordjack",
-        "Fblthp, Impossibly Lost",
         "Firesong and Sunspeaker",
         "Gonti's Machinations",
         "Kaito, Dancing Shadow",
@@ -115,7 +112,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 62);
+    assert_eq!(complete, 65);
 }
 
 #[test]

@@ -35,6 +35,7 @@ pub enum Subjects {
     GraveCards(source::CardsInGraveyards),
     ExiledCard(source::CardInExile),
     ExiledCards(source::CardsInExile),
+    Spell(source::Spell),
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DurationInput {

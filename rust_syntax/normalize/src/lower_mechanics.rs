@@ -59,6 +59,7 @@ impl Context {
                         condition: None,
                         activators: None,
                         keyword: None,
+                        modifiers: vec![],
                     },
                     announcement: Announcement {
                         targets: vec![],

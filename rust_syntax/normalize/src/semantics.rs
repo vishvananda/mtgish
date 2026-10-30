@@ -336,7 +336,9 @@ impl Effects {
     }
     fn destination_library(destination: &Destination) -> bool {
         match destination {
-            Destination::OwnersLibraryTop | Destination::OwnersLibraryBottom => true,
+            Destination::OwnersLibraryTop
+            | Destination::OwnersLibraryBottom
+            | Destination::OwnersLibraryShuffled => true,
             Destination::OwnersHand
             | Destination::OwnersGraveyard
             | Destination::Exile
