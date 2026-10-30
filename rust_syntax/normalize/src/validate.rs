@@ -597,6 +597,13 @@ impl<'a> Scope<'a> {
             Expr::EventActivationX if self.event.activation_x => Ok(()),
             Expr::EventActivationX => Err("event activation X used outside a cycling event".into()),
             Expr::Constant(_) | Expr::AnnouncedX => Ok(()),
+            Expr::DieResult(result) => {
+                if self.results.contains_key(&result.0) {
+                    Ok(())
+                } else {
+                    Err(format!("result {} rolled no die in this scope", result.0))
+                }
+            }
             Expr::DistributedShare(slot) => match self.slots.get(&slot.0) {
                 Some(target) if target.distribute.is_some() => Ok(()),
                 _ => Err(format!("target slot {} announces no distribution", slot.0)),
@@ -1157,6 +1164,16 @@ impl<'a> Scope<'a> {
                 CostPart::Draw { count } | CostPart::Mill { count } => {
                     self.count(&Count::Exactly(count.clone()))?
                 }
+                CostPart::Reveal { count, filter } => {
+                    self.count(&Count::Exactly(count.clone()))?;
+                    self.filter(filter)?;
+                }
+                CostPart::Repeated { part, times } => {
+                    self.count(&Count::Exactly(times.clone()))?;
+                    self.cost(&Cost {
+                        parts: vec![part.as_ref().clone()],
+                    })?;
+                }
                 CostPart::Sacrifice { objects, choose } => {
                     self.cost_object_selection(&CostObjectSelection {
                         objects: objects.clone(),
@@ -1349,6 +1366,7 @@ impl<'a> Scope<'a> {
                 library,
                 top,
                 choices,
+                ..
             } => {
                 if self
                     .open_searches
@@ -1465,6 +1483,7 @@ impl<'a> Scope<'a> {
                 duration,
                 announcement,
                 body,
+                ..
             } => {
                 self.duration(duration)?;
                 self.event(event)?;
@@ -1605,6 +1624,7 @@ impl<'a> Scope<'a> {
             | Operation::Discard {
                 players, amount, ..
             }
+            | Operation::SetLifeTotal { players, amount }
             | Operation::GainLife { players, amount }
             | Operation::LoseLife { players, amount }
             | Operation::Mill { players, amount } => {
@@ -2021,6 +2041,7 @@ fn valid_cycling_body(origin: &ActivationOrigin, body: &Program) -> bool {
                 library: PlayerRef::AbilityController,
                 top: None,
                 choices,
+                ..
             },
     }, Instruction::Effect {
         operation: Operation::Reveal {

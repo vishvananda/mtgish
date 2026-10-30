@@ -538,6 +538,8 @@ fn library_observation_and_reordering_do_not_masquerade_as_zone_movement() {
                 count: Count::AsManyAsCan(Expr::Constant(1)),
                 constraints: vec![],
             }],
+            also: vec![],
+            either: false,
         },
         0,
     );

@@ -290,6 +290,7 @@ impl Effects {
                     | Operation::CreateTokens { .. }
                     | Operation::Attach { .. }
                     | Operation::GainLife { .. }
+                    | Operation::SetLifeTotal { .. }
                     | Operation::LoseLife { .. }
                     | Operation::DealDamage { .. }
                     | Operation::Destroy { .. }
@@ -403,6 +404,12 @@ impl Effects {
                 }
                 CostPart::Loyalty(_) => loyalty = true,
                 CostPart::Mill { .. } | CostPart::Draw { .. } => self.library = true,
+                CostPart::Repeated { part, .. } => {
+                    loyalty |= self.cost(&Cost {
+                        parts: vec![part.as_ref().clone()],
+                    })
+                }
+                CostPart::Reveal { .. } => {}
                 CostPart::RemoveCounters { .. }
                 | CostPart::ManaCostOf(_)
                 | CostPart::Mana(_)

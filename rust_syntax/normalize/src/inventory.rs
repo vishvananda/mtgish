@@ -274,6 +274,7 @@ impl Inventory<'_> {
                 library,
                 top,
                 choices,
+                ..
             } => {
                 self.player(player);
                 self.player(library);
@@ -350,6 +351,7 @@ impl Inventory<'_> {
                 duration,
                 announcement,
                 body,
+                ..
             } => {
                 self.event(event);
                 self.duration(duration);
@@ -461,6 +463,7 @@ impl Inventory<'_> {
             | Operation::Discard {
                 players, amount, ..
             }
+            | Operation::SetLifeTotal { players, amount }
             | Operation::GainLife { players, amount }
             | Operation::LoseLife { players, amount }
             | Operation::Mill { players, amount } => {
@@ -687,6 +690,11 @@ impl Inventory<'_> {
                 | CostPart::Loyalty(n)
                 | CostPart::Draw { count: n }
                 | CostPart::Mill { count: n } => self.expr(n),
+                CostPart::Reveal { count, filter } => {
+                    self.expr(count);
+                    self.filter(filter);
+                }
+                CostPart::Repeated { times, .. } => self.expr(times),
                 CostPart::Sacrifice { objects, choose } => {
                     self.objects(objects);
                     if let Some(c) = choose {
@@ -1144,7 +1152,10 @@ impl Inventory<'_> {
     fn expr(&mut self, e: &Expr) {
         self.form("Expr", e);
         match e {
-            Expr::BoundValue(_) | Expr::CountersRemoved(_) | Expr::DistributedShare(_) => {}
+            Expr::BoundValue(_)
+            | Expr::CountersRemoved(_)
+            | Expr::DistributedShare(_)
+            | Expr::DieResult(_) => {}
             Expr::Primitive { name, .. } => self.primitive(name),
             Expr::EventHistory {
                 event,

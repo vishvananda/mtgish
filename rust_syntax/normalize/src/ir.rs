@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 35;
+pub const SCHEMA_VERSION: u32 = 36;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -602,6 +602,10 @@ pub enum Operation {
         library: PlayerRef,
         top: Option<Expr>,
         choices: Vec<SearchChoice>,
+        /// Zones searched besides the library, all of them that player's.
+        also: Vec<EventZone>,
+        /// "and/or": the searcher chooses which zones to look through.
+        either: bool,
     },
     /// Explicit public revelation; searching never implies revelation.
     Reveal {
@@ -656,9 +660,15 @@ pub enum Operation {
         duration: Duration,
         announcement: Announcement,
         body: Program,
+        /// Ends once it has triggered, as for "your next spell this turn".
+        once: bool,
     },
     /// Repeat the nearest enclosing `Instruction::Repeatable`.
     RepeatProcess,
+    SetLifeTotal {
+        players: PlayerSet,
+        amount: Expr,
+    },
     /// Discard these cards: chosen by whoever the effect says, not by their owner.
     DiscardObjects {
         objects: ObjectSet,
@@ -1336,6 +1346,8 @@ pub enum Expr {
     /// The part of this slot's distributed total assigned to the recipient at
     /// hand, so one operation over the slot gives each target its own amount.
     DistributedShare(Slot),
+    /// What the die rolled by this result showed.
+    DieResult(ResultId),
     /// How often an event happened in a window, or the total of its amounts.
     EventHistory {
         event: Box<EventSpec>,
@@ -1961,6 +1973,16 @@ pub enum CostPart {
     Primitive {
         name: String,
         operands: Vec<Operand>,
+    },
+    /// Reveal cards from the payer's hand; they stay there.
+    Reveal {
+        count: Expr,
+        filter: ObjectFilter,
+    },
+    /// Pay `part` once per `times`, counted when the cost is paid.
+    Repeated {
+        part: Box<CostPart>,
+        times: Expr,
     },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

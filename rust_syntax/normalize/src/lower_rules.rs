@@ -95,6 +95,18 @@ impl Context {
         };
         Ok(vec![match value {
             S::CantAttack => prohibit(ObjectAction::Attack(AttackDefenders::Any)),
+            S::CantAttackUnlessDefendingPlayer(condition) => {
+                let binding = Binding(self.binding_depth);
+                let mut child = self.clone();
+                child.defending = Some(PlayerRef::Bound(binding.clone()));
+                child.binding_depth += 1;
+                prohibit(ObjectAction::Attack(AttackDefenders::PlayersAndPlaneswalkers(
+                    PlayerSet::Matching {
+                        binding,
+                        condition: Box::new(Condition::Not(Box::new(child.condition(condition)?))),
+                    },
+                )))
+            }
             S::CantBlock => prohibit(ObjectAction::Block(ObjectFilter::Any)),
             S::CantBeBlocked => prohibit(ObjectAction::BeBlocked(ObjectFilter::Any)),
             S::CantBeRegenerated => prohibit(ObjectAction::Regenerate),

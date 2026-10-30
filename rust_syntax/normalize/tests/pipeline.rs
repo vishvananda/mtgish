@@ -724,7 +724,7 @@ fn numeric_amount(card: &Card, index: usize) -> &Expr {
 #[test]
 fn numeric_consolidation_traverses_unsupported_actions_without_binding_them() {
     let source =
-        custom("SpellActions(ActionList([SetLifeTotal(Twice(NumCardsInPlayersLibrary(You)))]))");
+        custom("SpellActions(ActionList([PutNumCardsFromHandOnTopOfLibraryAnyOrder(Twice(NumCardsInPlayersLibrary(You)))]))");
     let stage = pipeline::Intermediate::new(&source).unwrap();
     assert!(stage.structural.rewrites.is_empty());
     assert_eq!(stage.structural.numbers.len(), 2);
@@ -1149,7 +1149,7 @@ fn selector_artifacts_and_saved_reports_require_all_registry_fingerprints() {
 fn program_structure_consolidates_even_when_a_nested_instruction_is_unknown() {
     use pipeline::programs::InstructionRecipe as R;
     let source =
-        custom("SpellActions(ActionList([MayActions([DrawACard,SetLifeTotal(Integer(7))])]))");
+        custom("SpellActions(ActionList([MayActions([DrawACard,PutNumCardsFromHandOnTopOfLibraryAnyOrder(Integer(7))])]))");
     let stage = pipeline::Intermediate::new(&source).unwrap();
     assert!(stage.final_card.is_none());
     let recipe = &stage
@@ -1162,7 +1162,10 @@ fn program_structure_consolidates_even_when_a_nested_instruction_is_unknown() {
     assert!(
         matches!(recipe,R::Optional {body,..} if matches!(body.as_ref(),R::Sequence(items) if matches!(items.as_slice(),[R::Effect(_),R::Source(_)])))
     );
-    assert!(stage.diagnostics.iter().any(|d| d.form == "SetLifeTotal"));
+    assert!(stage
+        .diagnostics
+        .iter()
+        .any(|d| d.form == "PutNumCardsFromHandOnTopOfLibraryAnyOrder"));
 }
 
 #[test]
@@ -1452,7 +1455,7 @@ fn cost_selection_remains_strict_while_effect_selection_does_as_much_as_possible
 #[test]
 fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
     use pipeline::operands::CostRecipe as R;
-    let source=custom("Activated(And([PayLifeForEach(Integer(2),Integer(3)),PayManaForEach([ManaCostGeneric(1)],Integer(2))]),ActionList([DrawACard]))");
+    let source=custom("Activated(And([PayLifeForEach(Integer(2),Integer(3)),PutPermanentIntoItsOwnersHand(ThisPermanent)]),ActionList([DrawACard]))");
     let stage = pipeline::Intermediate::new(&source).unwrap();
     let root = stage
         .structural
@@ -1461,10 +1464,13 @@ fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
         .find(|r| r.rule == "operand.Cost.And")
         .unwrap();
     assert!(
-        matches!(&root.recipe,pipeline::operands::OperandRecipe::Cost(R::All(items)) if matches!(items.as_slice(),[R::Amount {..},R::Source(source::Cost::PayManaForEach(..))]))
+        matches!(&root.recipe,pipeline::operands::OperandRecipe::Cost(R::All(items)) if matches!(items.as_slice(),[R::Amount {..},R::Source(source::Cost::PutPermanentIntoItsOwnersHand(..))]))
     );
     assert!(stage.final_card.is_none());
-    assert!(stage.diagnostics.iter().any(|d| d.form == "PayManaForEach"));
+    assert!(stage
+        .diagnostics
+        .iter()
+        .any(|d| d.form == "PutPermanentIntoItsOwnersHand"));
     for cost in [
         "TapPermanent(Ref_TargetPermanent)",
         "PayManaX([ManaCostGeneric(1)],Integer(2))",
@@ -1780,10 +1786,10 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 }
 
 #[test]
-fn schema_35_costs_roundtrip_and_reject_previous_versions_at_validation() {
+fn schema_36_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 35);
+    assert_eq!(card.schema_version, 36);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -1891,4 +1897,73 @@ fn appended_tap_payment_keeps_existing_cost_binary_discriminants() {
         serde_json::to_value(loaded).unwrap(),
         serde_json::to_value(part).unwrap()
     );
+}
+
+fn ability_json(rule: &str) -> String {
+    let card = pipeline::finalize(&custom(rule)).unwrap();
+    serde_json::to_string(&card.abilities[0]).unwrap()
+}
+
+#[test]
+fn a_search_keeps_every_zone_it_looks_through_and_whether_each_is_optional() {
+    let text = ability_json("SpellActions(ActionList([SearchLibraryAndOrGraveyard([FindAGenericCard,PutFoundCardsIntoHand,Shuffle])]))");
+    assert!(
+        text.contains(r#""also":["Graveyard"],"either":true"#),
+        "{text}"
+    );
+    let text = ability_json("SpellActions(ActionList([SearchLibraryAndGraveyardAndHand([FindAGenericCard,PutFoundCardsIntoHand,Shuffle])]))");
+    assert!(
+        text.contains(r#""also":["Graveyard","Hand"],"either":false"#),
+        "{text}"
+    );
+    let text = ability_json("SpellActions(ActionList([SearchLibrary([FindAGenericCard,PutFoundCardsIntoHand,Shuffle])]))");
+    assert!(text.contains(r#""also":[],"either":false"#), "{text}");
+}
+
+#[test]
+fn a_die_result_reads_the_roll_in_its_scope() {
+    let text = ability_json("SpellActions(ActionList([RollAD20,GainLife(TheDiceResult)]))");
+    assert!(text.contains("DieResult"), "{text}");
+    assert!(pipeline::finalize(&custom(
+        "SpellActions(ActionList([GainLife(TheDiceResult)]))"
+    ))
+    .is_err());
+}
+
+#[test]
+fn a_next_spell_trigger_ends_once_it_has_triggered() {
+    let text = ability_json("SpellActions(ActionList([CreateFutureTrigger(WhenPlayerCastsTheirNextSpellThisTurn(You,AnySpell),ActionList([DrawACard]))]))");
+    assert!(text.contains(r#""once":true"#), "{text}");
+    assert!(text.contains("EndOfTurn"), "{text}");
+}
+
+#[test]
+fn cant_attack_unless_asks_about_each_defending_player() {
+    let text = ability_json("PermanentRuleEffect(ThisPermanent,[CantAttackUnlessDefendingPlayer(PlayerPassesFilter(DefendingPlayer,ControlsA(IsLandType(Island))))])");
+    assert!(text.contains("PlayersAndPlaneswalkers"), "{text}");
+    assert!(text.contains("Matching"), "{text}");
+}
+
+#[test]
+fn entwine_branches_between_one_mode_and_both() {
+    let card = pipeline::finalize(&custom("SpellActions(Modal_ChooseOne_Entwine(PayMana([ManaCostG]),[ActionList([DrawACard]),ActionList([GainLife(Integer(2))])]))")).unwrap();
+    let Ability::CostBranch {
+        keyword,
+        paid,
+        unpaid,
+        ..
+    } = &card.abilities[0]
+    else {
+        panic!()
+    };
+    assert_eq!(keyword, "Entwine");
+    let modes = |ability: &Ability| {
+        let Ability::Spell { announcement, .. } = ability else {
+            panic!()
+        };
+        let selection = announcement.modes.as_ref().unwrap();
+        matches!(selection.minimum, Expr::Constant(n) if n == selection.modes.len() as i64)
+    };
+    assert!(modes(paid));
+    assert!(!modes(unpaid));
 }

@@ -159,11 +159,15 @@ impl Context {
                 None => break,
             }
         }
+        let also = std::mem::take(&mut self.search_also);
+        let either = std::mem::take(&mut self.search_either);
         let search = self.effect(Operation::Search {
             player: player.clone(),
             library: library.clone(),
             top,
             choices,
+            also,
+            either,
         });
         let Instruction::Effect { result, .. } = &search else {
             unreachable!()
@@ -315,6 +319,8 @@ impl Context {
             library: player.clone(),
             top: None,
             choices: vec![choice],
+            also: vec![],
+            either: false,
         });
         let Instruction::Effect { result, .. } = &search else {
             unreachable!()

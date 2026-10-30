@@ -241,6 +241,9 @@ impl Context {
         self.forget_results();
         let result = ResultId(self.result);
         self.result += 1;
+        if name.starts_with("Action::RollAD") {
+            self.rolled = Some(result.clone());
+        }
         Some(Instruction::Effect {
             result,
             operation: Operation::Primitive {

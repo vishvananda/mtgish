@@ -66,6 +66,13 @@ struct Context {
     singular: std::collections::BTreeSet<u32>,
     /// In a replacement whose actions happen instead of the event.
     body_replaces: bool,
+    /// The player a "can't attack unless" rule is asking about.
+    defending: Option<PlayerRef>,
+    /// The latest die rolled in this scope.
+    rolled: Option<ResultId>,
+    /// Zones the next search looks through besides a library, and whether it's "and/or".
+    search_also: Vec<EventZone>,
+    search_either: bool,
     value_x: Option<ResultId>,
     revealed: Option<ObjectSet>,
     /// The player "they" means in an effect several players carry out.
@@ -345,6 +352,7 @@ impl Context {
             S::ControllerOfDeadPermanent => PlayerRef::ControllerOf(Box::new(self.dead_object()?)),
             S::OwnerOfDeadPermanent => PlayerRef::OwnerOf(Box::new(self.dead_object()?)),
             S::TheChosenPlayer => PlayerRef::Chosen,
+            S::DefendingPlayer if self.defending.is_some() => self.defending.clone().unwrap(),
             S::Trigger_DefendingPlayer if self.event.permanent => {
                 PlayerRef::DefendingPlayerOf(Box::new(ObjectRef::EventSubject))
             }
@@ -470,6 +478,13 @@ impl Context {
         })
     }
 
+    fn die_result(&self) -> Result<Expr> {
+        self.rolled
+            .clone()
+            .map(Expr::DieResult)
+            .ok_or_else(|| invalid("no die was rolled in this scope"))
+    }
+
     fn comparison(&self, value: &source::Comparison) -> Result<(Comparison, Expr)> {
         use source::Comparison as S;
         let (comparison, number) = match value {
@@ -577,6 +592,7 @@ impl Context {
             {
                 Expr::EventAmount
             }
+            S::TheDiceResult => self.die_result()?,
             S::Trigger_ValueXOfThatSpell if self.event.spell => Expr::ObjectProperty {
                 object: ObjectRef::EventSubject,
                 property: Property::SpellX,
@@ -653,6 +669,14 @@ impl Context {
                 comparison: Comparison::Greater,
                 right: Expr::Constant(0),
             },
+            S::DiceResultIs(comparison) => {
+                let (op, right) = self.comparison(comparison)?;
+                Condition::Compare {
+                    left: self.die_result()?,
+                    comparison: op,
+                    right,
+                }
+            }
             S::ACardWasRevealedThisWay(cards) => {
                 let objects = self
                     .revealed
@@ -1098,6 +1122,32 @@ impl Context {
         }
         use source::Action as S;
         let operation = match value {
+            S::CreateFutureTrigger(
+                source::FutureTrigger::WhenPlayerCastsTheirNextSpellThisTurn(player, spells),
+                actions,
+            ) => {
+                let event = EventSpec::Spell {
+                    event: SpellEvent::Cast,
+                    players: PlayerSet::One(self.player(player)?),
+                    spells: self.spell_filter(spells)?,
+                };
+                let mut child = self.clone();
+                child.open_searches.clear();
+                child.event = crate::semantics::event_bindings(&event);
+                let known = child.targets.len();
+                let body = child.actions(actions)?;
+                self.result = child.result;
+                Operation::CreateTrigger {
+                    event,
+                    duration: Duration::EndOfTurn,
+                    announcement: Announcement {
+                        targets: child.targets.split_off(known),
+                        modes: child.modes,
+                    },
+                    body,
+                    once: true,
+                }
+            }
             S::CreateFutureTrigger(event, actions) | S::CreateFutureTriggerI(event, _, actions) => {
                 let (event, start, expires) = self.future_turn(event)?;
                 let mut child = self.clone();
@@ -1203,6 +1253,43 @@ impl Context {
                 };
                 return self.search_library(player.clone(), player.clone(), None, actions);
             }
+            S::SearchLibraryAndGraveyard(actions)
+            | S::SearchLibraryAndOrGraveyard(actions)
+            | S::SearchLibraryAndGraveyardAndHand(actions)
+            | S::SearchLibraryAndOrGraveyardAndOrHand(actions)
+            | S::SearchHandAndLibrary(actions)
+            | S::SearchHandAndOrLibrary(actions) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("search requires one searcher"));
+                };
+                self.search_either = matches!(
+                    value,
+                    S::SearchLibraryAndOrGraveyard(_)
+                        | S::SearchLibraryAndOrGraveyardAndOrHand(_)
+                        | S::SearchHandAndOrLibrary(_)
+                );
+                self.search_also = match value {
+                    S::SearchLibraryAndGraveyard(_) | S::SearchLibraryAndOrGraveyard(_) => {
+                        vec![EventZone::Graveyard]
+                    }
+                    S::SearchHandAndLibrary(_) | S::SearchHandAndOrLibrary(_) => {
+                        vec![EventZone::Hand]
+                    }
+                    _ => vec![EventZone::Graveyard, EventZone::Hand],
+                };
+                return self.search_library(player.clone(), player.clone(), None, actions);
+            }
+            S::SearchPlayersLibraryAndGraveyardAndHand(library, actions) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("search requires one searcher"));
+                };
+                self.search_also = vec![EventZone::Graveyard, EventZone::Hand];
+                return self.search_library(player.clone(), self.player(library)?, None, actions);
+            }
+            S::SetLifeTotal(amount) => Operation::SetLifeTotal {
+                players: actor.clone(),
+                amount: self.number(amount)?,
+            },
             S::SearchPlayersLibrary(library, actions) => {
                 let PlayerSet::One(player) = actor else {
                     return Err(invalid("search requires one searcher"));
@@ -1242,6 +1329,7 @@ impl Context {
                         modes: child.modes,
                     },
                     body,
+                    once: false,
                 }
             }
             S::RevealTopCardOfLibrary => {
@@ -1912,6 +2000,27 @@ impl Context {
     }
 
     fn cost(&self, value: &source::Cost) -> Result<Cost> {
+        match value {
+            source::Cost::RevealACardOfTypeFromHand(cards) => {
+                return Ok(Cost {
+                    parts: vec![CostPart::Reveal {
+                        count: Expr::Constant(1),
+                        filter: self.card_filter(cards)?,
+                    }],
+                })
+            }
+            source::Cost::PayManaForEach(mana, times) => {
+                return Ok(Cost {
+                    parts: vec![CostPart::Repeated {
+                        part: Box::new(CostPart::Mana(
+                            mana.iter().map(mana_symbol).collect::<Result<_>>()?,
+                        )),
+                        times: self.number(times)?,
+                    }],
+                })
+            }
+            _ => {}
+        }
         if let Some(crate::pipeline::operands::OperandRecipe::Cost(recipe)) =
             self.operand_recipe(crate::pipeline::operands::OperandRef::Cost(value))
         {
@@ -2213,7 +2322,26 @@ impl Context {
                     },
                 })
             }
-            S::SpellActions(actions) => self.spell_ability(actions),
+            S::SpellActions(actions) => match actions.as_ref() {
+                source::Actions::Modal_ChooseOne_Entwine(cost, modes) => self.cost_branch(
+                    "Entwine",
+                    cost,
+                    &source::Actions::Modal_ChooseBoth(modes.clone()),
+                    &source::Actions::Modal_ChooseOne(modes.clone()),
+                ),
+                actions => self.spell_ability(actions),
+            },
+            S::TriggerMayOnceEachTurn(trigger, actions) => {
+                let source::Actions::ActionList(list) = actions.as_ref() else {
+                    return Err(unsupported(value));
+                };
+                self.reduced_ability(&S::TriggerOnceEachTurn(
+                    trigger.clone(),
+                    Box::new(source::Actions::ActionList(vec![
+                        source::Action::MayActions(list.clone()),
+                    ])),
+                ))
+            }
             S::SpellActions_Kicker(cost, source::WasKicked(paid), source::WasntKicked(unpaid)) => {
                 self.cost_branch("Kicker", cost, paid, unpaid)
             }

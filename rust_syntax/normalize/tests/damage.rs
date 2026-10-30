@@ -78,7 +78,6 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         "Fathom Fleet Swordjack",
         "Fblthp, Impossibly Lost",
         "Firesong and Sunspeaker",
-        "Giant Shark",
         "Gonti's Machinations",
         "Kaito, Dancing Shadow",
         "Maarika, Brutal Gladiator",
@@ -117,7 +116,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 60);
+    assert_eq!(complete, 61);
 }
 
 #[test]
