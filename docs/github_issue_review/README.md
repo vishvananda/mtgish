@@ -62,6 +62,11 @@ Requiring one output token per English occurrence, for phrases that must survive
 - [#33](https://github.com/i5jb/mtgish/issues/33): Nine cards have another clause dropped or wrong.
 - [#34](https://github.com/i5jb/mtgish/issues/34): Five cards encode "your next end step" as the next end step.
 
+The primitive audit, then a scan of every "you own" template, found two more, filed and repaired the same way:
+
+- [#35](https://github.com/i5jb/mtgish/issues/35): Two cards encode "you control" as your team.
+- [#36](https://github.com/i5jb/mtgish/issues/36): Five cards lose the owner from "cards you own exiled with".
+
 The issue payloads and comment text are saved here. No commits, pushes, issue closures, or upstream code changes were made. Disputed continuous-effect instruction grouping remains a rules-review question and was not filed as a confirmed bug. Changes that merely replace an equivalent scalar expression are not reported as new card mistakes.
 
 Issues #8–#12 and our additional-examples comment on #2 have been shortened to describe only the specific problems and examples. Rust port, local repair, and validation details were removed from the upstream reports. [The latest upstream read](latest_upstream.json) verifies all five edited issue bodies and the comment; saved issue payloads match them. Future reports should follow the same concise format.

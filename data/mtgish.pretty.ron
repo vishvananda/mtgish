@@ -155001,7 +155001,10 @@ Card(
     TriggerA(
       AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),
       ActionList([
-        PutExiledCardsIntoOwnersHand(WasExiledWithPermanent(ThisPermanent)),
+        PutExiledCardsIntoOwnersHand(And([
+          OwnedByAPlayer(SinglePlayer(You)),
+          WasExiledWithPermanent(ThisPermanent),
+        ])),
         DrawACard,
       ]),
     ),
@@ -297206,7 +297209,10 @@ Card(
           [
             MayCastSpellsFromAmongExiledForAdditionalCost(
               IsCardtype(Creature),
-              TheExiledCards,
+              And([
+                OwnedByAPlayer(SinglePlayer(You)),
+                WasExiledWithPermanent(ThisPermanent),
+              ]),
               RemoveCounters([
                 NumberCountersFromAmongPermanents(
                   Integer(3),
@@ -364386,6 +364392,7 @@ Card(
           CostWasPaid,
           [
             PutExiledCardsIntoOwnersHand(And([
+              OwnedByAPlayer(SinglePlayer(You)),
               WasExiledWithPermanent(ThisPermanent),
               Not(TheCardsExiledThisWay),
             ])),
@@ -659153,7 +659160,10 @@ Card(
             IsCreatureType(Dinosaur),
             IsCardtype(Creature),
           ]),
-          WasExiledWithPermanent(ThisPermanent),
+          And([
+            OwnedByAPlayer(SinglePlayer(You)),
+            WasExiledWithPermanent(ThisPermanent),
+          ]),
           [
             EntersWithACounter(FinalityCounter),
           ],
@@ -770519,7 +770529,7 @@ Card(
           IsArtifactType(Spacecraft),
           IsLandType(Planet),
         ]),
-        ControlledByAPlayer(YourTeam),
+        ControlledByAPlayer(SinglePlayer(You)),
       ])),
       [
         PutNewAmount(Twice(ThatManyCounters)),
@@ -859173,6 +859183,7 @@ Card(
           CostWasPaid,
           [
             PutExiledCardsIntoOwnersHand(And([
+              OwnedByAPlayer(SinglePlayer(You)),
               WasExiledWithPermanent(ThisPermanent),
               Not(TheCardsExiledThisWay),
             ])),
@@ -1520818,7 +1520829,7 @@ Card(
           IsCardtype(Artifact),
           IsCardtype(Creature),
         ]),
-        ControlledByAPlayer(YourTeam),
+        ControlledByAPlayer(SinglePlayer(You)),
       ])),
       [
         PutNewAmount(Plus(

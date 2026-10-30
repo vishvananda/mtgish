@@ -7469,5 +7469,79 @@
     "excludes": [
       "AtTheBeginningOfTheNextEndStep"
     ]
+  },
+  {
+    "name": "Winding Constrictor",
+    "issues": [
+      35
+    ],
+    "contains": [
+      "ControlledByAPlayer(SinglePlayer(You))"
+    ],
+    "excludes": [
+      "YourTeam"
+    ]
+  },
+  {
+    "name": "Loading Zone",
+    "issues": [
+      35
+    ],
+    "contains": [
+      "ControlledByAPlayer(SinglePlayer(You))"
+    ],
+    "excludes": [
+      "YourTeam"
+    ]
+  },
+  {
+    "name": "Duplicity",
+    "issues": [
+      36
+    ],
+    "contains": [
+      "OwnedByAPlayer(SinglePlayer(You))"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Moonring Mirror",
+    "issues": [
+      36
+    ],
+    "contains": [
+      "OwnedByAPlayer(SinglePlayer(You))"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Bottled Cloister",
+    "issues": [
+      36
+    ],
+    "contains": [
+      "OwnedByAPlayer(SinglePlayer(You))"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Dawnhand Dissident",
+    "issues": [
+      36
+    ],
+    "contains": [
+      "OwnedByAPlayer(SinglePlayer(You))"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Intrepid Paleontologist",
+    "issues": [
+      36
+    ],
+    "contains": [
+      "OwnedByAPlayer(SinglePlayer(You))"
+    ],
+    "excludes": []
   }
 ]
