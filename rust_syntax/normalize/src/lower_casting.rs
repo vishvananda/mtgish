@@ -94,6 +94,10 @@ impl Context {
                 self.condition(condition)?,
                 CastingRule::AlternativeCost(Cost { parts: vec![] }),
             ),
+            S::MayCastWithoutPayingAndAsThoughItHadFlashIf(condition) => conditional(
+                self.condition(condition)?,
+                CastingRule::AlternativeCostWithFlash(Cost { parts: vec![] }),
+            ),
             S::ReduceCastingCost(reduction) => {
                 CastingRule::ReduceCost(self.mana_reduction(reduction, Expr::Constant(1))?)
             }

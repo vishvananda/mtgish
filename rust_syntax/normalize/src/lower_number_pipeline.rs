@@ -75,6 +75,10 @@ impl Context {
                 Box::new(self.pipeline_quantity(a)?),
                 Box::new(self.pipeline_quantity(b)?),
             ),
+            Q::Maximum(a, b) => Expr::Maximum(
+                Box::new(self.pipeline_quantity(a)?),
+                Box::new(self.pipeline_quantity(b)?),
+            ),
             Q::Divide {
                 numerator,
                 denominator,

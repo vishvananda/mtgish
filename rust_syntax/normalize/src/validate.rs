@@ -648,7 +648,11 @@ impl<'a> Scope<'a> {
                 self.object(object)
             }
             Expr::PlayerLife(player) => self.player(player),
-            Expr::Add(a, b) | Expr::Subtract(a, b) | Expr::Multiply(a, b) | Expr::Minimum(a, b) => {
+            Expr::Add(a, b)
+            | Expr::Subtract(a, b)
+            | Expr::Multiply(a, b)
+            | Expr::Minimum(a, b)
+            | Expr::Maximum(a, b) => {
                 self.expr(a)?;
                 self.expr(b)
             }
@@ -1262,9 +1266,9 @@ impl<'a> Scope<'a> {
                 }
                 Ok(())
             }
-            CastingRule::AdditionalCost { cost, .. } | CastingRule::AlternativeCost(cost) => {
-                self.cost(cost)
-            }
+            CastingRule::AdditionalCost { cost, .. }
+            | CastingRule::AlternativeCost(cost)
+            | CastingRule::AlternativeCostWithFlash(cost) => self.cost(cost),
             CastingRule::ReduceCost(reductions) => {
                 for reduction in reductions {
                     self.count(&Count::Exactly(reduction.amount.clone()))?;
@@ -1504,7 +1508,9 @@ impl<'a> Scope<'a> {
                         states: vec![state.clone()],
                         ..EntrySpec::default()
                     }),
-                    EventChange::AddMana(mana) | EventChange::ReplaceMana(mana) => self.mana(mana),
+                    EventChange::AddMana(mana)
+                    | EventChange::ReplaceMana(mana)
+                    | EventChange::ReplaceColoredMana(mana) => self.mana(mana),
                     EventChange::ReplaceTokens { tokens, .. } => tokens
                         .iter()
                         .try_for_each(|token| self.count(&Count::Exactly(token.amount.clone()))),

@@ -10,6 +10,7 @@ pub enum Quantity {
     Subtract(Box<Quantity>, Box<Quantity>),
     Multiply(Box<Quantity>, Box<Quantity>),
     Minimum(Box<Quantity>, Box<Quantity>),
+    Maximum(Box<Quantity>, Box<Quantity>),
     Divide {
         numerator: Box<Quantity>,
         denominator: Box<Quantity>,

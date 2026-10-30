@@ -1105,7 +1105,7 @@
     "PutCardFromHandOnBattlefield(ThisCardInHand, {{ENTER_FLAGS}})": "",
     "PutCardFromHandOnBottomOfLibrary(TheCardInHandChosenThisWay)": "",
     "PutCardFromHandOnTopOfLibrary(TheChosenCardInHand)": "",
-    "PutCardInHandIntoLibraryNthFromTop(TheCardInHandChosenThisWay)": "",
+    "PutCardInHandIntoLibraryNthFromTop(TheCardInHandChosenThisWay, {{NUMBER}})": "",
     "PutCardsInHandIntoGraveyard(TheCardsSeekedThisWay)": "",
     "PutCardsFromHandOnBattlefield(TheCardsDraftedThisWay, {{ENTER_FLAGS}})": "",
     "PutCardsFromHandOnBattlefield(TheCardsSeekedThisWay, {{ENTER_FLAGS}})": "",
@@ -1882,6 +1882,7 @@
     "CastEffect(MayCastAsThoughItHadFlashIfXIs({{COMPARISON}}))": "",
     "CastEffect(MayCastAsThoughItHadFlashWithSpecialAction({{ACTION_LIST}}))": "",
     "CastEffect(MayCastWithoutPayingIf({{CONDITION}}))": "",
+    "CastEffect(MayCastWithoutPayingAndAsThoughItHadFlashIf({{CONDITION}}))": "",
     //"CastEffect(MaySpendManaAsThoughAnyColorToCast)": "",
     "CastEffect(MaySpendManaAsThoughAnyTypeToCast)": "",
     "CastEffect(OptionalAdditionalCastingCost({{COST}}))": "",
@@ -1904,7 +1905,7 @@
     "CastEffect(SpendOnlyManaFromPermanentsToCast({{PERMANENTS}}))": "",
     "CastEffect(XCantBeZero)": "",
     "CastEffect(XIs(ANumberOfCardsInAPlayersGraveyard({{CARDS}}, {{PLAYERS}})))": "",
-    "CastEffect(XIs(LessThan({{NUMBER}})))": ""
+    "CastEffect(XIs(LessThanOrEqualTo({{NUMBER}})))": ""
   },
   "{{CHECK_HASABLE_LIST}}": {
     "[{{CHECK_HASABLE}}, {{CHECK_HASABLE}}, {{CHECK_HASABLE}}, {{CHECK_HASABLE}}, {{CHECK_HASABLE}}, {{CHECK_HASABLE}}, {{CHECK_HASABLE}}, {{CHECK_HASABLE}}, {{CHECK_HASABLE}}, {{CHECK_HASABLE}}, {{CHECK_HASABLE}}, {{CHECK_HASABLE}}, {{CHECK_HASABLE}}, {{CHECK_HASABLE}}]": "",
@@ -4936,7 +4937,8 @@
     "PlayerTappingAPermanentWouldProduceMana({{PLAYER}}, {{PERMANENTS}})": "",
     "TappingAPermanentWouldProduceMana({{PERMANENTS}})": "",
     "TappingAPermanentWouldProduceTwoOrMoreMana({{PERMANENTS}})": "",
-    "TappingPermanentWouldProduceMana({{PERMANENT}})": ""
+    "TappingPermanentWouldProduceMana({{PERMANENT}})": "",
+    "TappingPermanentWouldProduceManaOfColor({{PERMANENT}}, {{COLOR}})": ""
   },
   "{{REPLACABLE_EVENT[WouldProliferate]}}": {
     "APlayerWouldProliferate({{PLAYERS}})": ""
@@ -5443,6 +5445,7 @@
     "[WouldProduceMana_AddMana({{MANA_PRODUCE_SYMBOL}})]": "",
     "[WouldProduceMana_ProduceMultiple({{NUMBER}})]": "",
     "[WouldProduceMana_ReplaceColor({{COLOR}})]": "",
+    "[WouldProduceMana_ReplaceColorWithTheChosenColor]": "",
     "[WouldProduceMana_ReplaceType(AnyManaColor)]": "",
     "[WouldProduceMana_ReplaceType(ManaOfTheChosenColor)]": "",
     "[WouldProduceMana_ReplaceType({{MANA_PRODUCE_SYMBOL}})]": ""
@@ -7188,6 +7191,8 @@
   "{{_PLAYER_ACTION[LookAtTopOfLibrary]}}": {
     "LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [PutAGenericCardIntoHand, PutTheRemainingCardsOnTopOfLibraryInAnyOrder])": "",
 
+    "LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [MayAction(PutAGenericCardOnTopOfLibrary), ExileTheRemainingCards])": "",
+    "LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [MayAction(PutAGenericCardOnTopOfLibrary), PutTheRemainingCardsIntoGraveyard])": "",
     "LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [MayAction(PutAGenericCardOnTopOfLibrary), PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder])": "",
     "LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [MayRevealAnyNumberOfCardsOfTypeAndPutThemIntoHand({{CARDS}}), PutTheRemainingCardsOnTheBottomOfLibraryInAnyOrder])": "",
     "LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [MayRevealMultipleCardsOfTypeAndPutIntoHand([{{CARDS}}, {{CARDS}}]), PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder])": "",

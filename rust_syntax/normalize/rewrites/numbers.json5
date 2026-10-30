@@ -96,6 +96,23 @@
       }
     },
     {
+      "id": "number.MaximumOf",
+      "source": "MaximumOf",
+      "arity": 2,
+      "expression": {
+        "kind": "Binary",
+        "operation": "Maximum",
+        "left": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "right": {
+          "kind": "Source",
+          "argument": 1
+        }
+      }
+    },
+    {
       "id": "number.Plus3",
       "source": "Plus3",
       "arity": 3,

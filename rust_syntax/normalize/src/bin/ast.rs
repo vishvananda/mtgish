@@ -20,6 +20,11 @@ fn run() -> Result<()> {
             corpus::write_json(Path::new(output),&drafts)?;
             eprintln!("{} draft rows covering {} blocked records; review before adding any to rewrites/primitives.json5",drafts.len(),drafts.iter().map(|d|d.records).sum::<usize>());
         }
+        [command,input,oracle,reviewed] if command=="render-back" => {
+            let findings=mtgish_ast::render::audit(Path::new(input),Path::new(oracle),Path::new(reviewed))?;
+            for finding in &findings {println!("{finding}");}
+            eprintln!("{} mined pairs break on some unreviewed card",findings.len());
+        }
         [command,input,reviewed] if command=="value-audit" => {
             let findings=mtgish_ast::value_audit::audit(Path::new(input),Path::new(reviewed))?;
             for finding in &findings {println!("{finding}");}
@@ -128,7 +133,7 @@ fn run() -> Result<()> {
             }
             out.commit()?;
         }
-        _ => return Err("usage: ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast primitive-draft <check-report> <source-type> <oracle.json> <drafts.json>\n       ast primitive-audit <check-report> <oracle.json>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
+        _ => return Err("usage: ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast primitive-draft <check-report> <source-type> <oracle.json> <drafts.json>\n       ast primitive-audit <check-report> <oracle.json>\n       ast render-back <corpus.ronl> <oracle.json> <reviewed.json>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
     }
     Ok(())
 }

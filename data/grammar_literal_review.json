@@ -8903,6 +8903,28 @@
     "template": "each of your teammates creates a token that's a copy of this enchantment",
     "result": "ActionList([EachPlayerCreatesTokens(And([YourTeam, Other(You)]), [TokenCopyOfPermanent(ThisPermanent, NoTokenCopyEffects)], [])])",
     "reason": "triaged 2026-10-30: \"your teammates\" is your team; this pairing only appeared once the wrong YourTeam templates were repaired"
+  },
+  {
+     "id": "61f2a198cf3a5f809c2f1625661ca9a9900c71c305e9c006c41bd22f78f49330",
+     "kind": "mined_token",
+     "rule": "ActivatedActions",
+     "token": "WouldProduceMana_ReplaceType",
+     "word": "type",
+     "support": "7/8",
+     "template": "If target {{Permanent}} is tapped for mana, it produces colorless mana instead of {{Black}} mana",
+     "result": "Targeted([TargetPermanent({{Permanent[0]}})], ActionList([CreateReplaceWouldProduceManaUntil(TappingPermanentWouldProduceManaOfColor(Ref_TargetPermanent, {{Black[0]}}), [WouldProduceMana_ReplaceType(ManaProduceC)], UntilPermanentLeavesBattlefield(Ref_TargetPermanent))]))",
+     "reason": "triaged 2026-10-30: \"colorless mana instead of black mana\" does replace the type; the source color now sits on the event, TappingPermanentWouldProduceManaOfColor"
+  },
+  {
+     "id": "f5ede69e4963ef29143968f8e15cbbf60921375b518bd4ea4b6543ea8ffb3691",
+     "kind": "mined_token",
+     "rule": "TriggerActions(ThatPlayer)",
+     "token": "TappingAPermanentWouldProduceMana",
+     "word": "type",
+     "support": "7/8",
+     "template": "that player chooses a color. Until end of turn, {{Permanents}} tapped for mana produce mana of the chosen color instead of any other color",
+     "result": "ActionList([PlayerAction({{ThatPlayer}}, ChooseAColor(AnyColor)), CreateReplaceWouldProduceManaUntil(TappingAPermanentWouldProduceMana({{Permanents[0]}}), [WouldProduceMana_ReplaceColorWithTheChosenColor], UntilEndOfTurn)])",
+     "reason": "triaged 2026-10-30: the event and a replacement both name the mana; this pairing appeared when Hall of Gemstone moved to WouldProduceMana_ReplaceColorWithTheChosenColor"
   }
  ]
 }

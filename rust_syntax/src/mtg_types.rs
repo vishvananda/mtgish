@@ -2389,6 +2389,7 @@ pub enum CastEffect {
   MayCastAsThoughItHadFlashIfXIs(Box<Comparison>),
   MayCastAsThoughItHadFlashWithSpecialAction(Vec<Action>),
   MayCastWithoutPayingIf(Condition),
+  MayCastWithoutPayingAndAsThoughItHadFlashIf(Condition),
   MaySpendManaAsThoughAnyTypeToCast,
   OptionalAdditionalCastingCost(Box<Cost>),
   PayLifeForEachPreviousCastRatherThanManaForEachPreviousCast(Box<GameNumber>),
@@ -3193,6 +3194,7 @@ pub enum ReplacementActionWouldProduceMana {
   WouldProduceMana_AddMana(ManaProduce),
   WouldProduceMana_ProduceMultiple(Box<GameNumber>),
   WouldProduceMana_ReplaceColor(Color),
+  WouldProduceMana_ReplaceColorWithTheChosenColor,
   WouldProduceMana_ReplaceType(ManaProduce),
 }
 
@@ -3987,6 +3989,7 @@ pub enum ReplacableEventWouldMill {
 #[cfg_attr(feature = "write_out_json", serde(tag = "_ReplacableEventWouldProduceMana", content = "args"))]
 pub enum ReplacableEventWouldProduceMana {
   TappingPermanentWouldProduceMana(Box<Permanent>),
+  TappingPermanentWouldProduceManaOfColor(Box<Permanent>, Color),
   TappingAPermanentWouldProduceMana(Box<Permanents>),
   TappingAPermanentWouldProduceTwoOrMoreMana(Box<Permanents>),
   PlayerTappingAPermanentWouldProduceMana(Box<Player>, Box<Permanents>),
@@ -9723,7 +9726,7 @@ pub enum Action {
   PutCardFromHandOnBattlefield(CardInHand, Vec<EnterFlag>),
   PutCardFromHandOnBottomOfLibrary(CardInHand),
   PutCardFromHandOnTopOfLibrary(CardInHand),
-  PutCardInHandIntoLibraryNthFromTop(CardInHand),
+  PutCardInHandIntoLibraryNthFromTop(CardInHand, Box<GameNumber>),
   PutCardsFromHandOnBattlefield(Box<CardsInHand>, Vec<EnterFlag>),
   PutCardsInHandIntoGraveyard(Box<CardsInHand>),
   PutCommanderFromCommandZoneOntoBattlefield(Commander, Vec<EnterFlag>),

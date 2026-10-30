@@ -7543,5 +7543,687 @@
       "OwnedByAPlayer(SinglePlayer(You))"
     ],
     "excludes": []
+  },
+  {
+    "name": "Gaea's Avenger",
+    "issues": [
+      37
+    ],
+    "contains": [
+      "ControlledByAPlayer(Opponent)"
+    ],
+    "excludes": [
+      "ControlledByAPlayer(SinglePlayer(You))"
+    ]
+  },
+  {
+    "name": "Viridian Lorebearers",
+    "issues": [
+      37
+    ],
+    "contains": [
+      "ControlledByAPlayer(Opponent)"
+    ],
+    "excludes": [
+      "ControlledByAPlayer(SinglePlayer(You))"
+    ]
+  },
+  {
+    "name": "Sardian Avenger",
+    "issues": [
+      37
+    ],
+    "contains": [
+      "ControlledByAPlayer(Opponent)"
+    ],
+    "excludes": [
+      "ControlledByAPlayer(SinglePlayer(You))"
+    ]
+  },
+  {
+    "name": "Angry Mob",
+    "issues": [
+      37
+    ],
+    "contains": [
+      "ControlledByAPlayer(Opponent)"
+    ],
+    "excludes": [
+      "ControlledByAPlayer(SinglePlayer(You))"
+    ]
+  },
+  {
+    "name": "Thalia, Heretic Cathar",
+    "issues": [
+      37
+    ],
+    "contains": [
+      "ControlledByAPlayer(Opponent)"
+    ],
+    "excludes": [
+      "ControlledByAPlayer(SinglePlayer(You))"
+    ]
+  },
+  {
+    "name": "Leonin Iconoclast",
+    "issues": [
+      37
+    ],
+    "contains": [
+      "ControlledByAPlayer(Opponent)"
+    ],
+    "excludes": [
+      "ControlledByAPlayer(SinglePlayer(You))"
+    ]
+  },
+  {
+    "name": "Avalanche of Sector 7",
+    "issues": [
+      37
+    ],
+    "contains": [
+      "ControlledByAPlayer(Opponent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Smaug, Wicked Worm",
+    "issues": [
+      37
+    ],
+    "contains": [
+      "ControlledByAPlayer(Opponent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Thalia and The Gitrog Monster",
+    "issues": [
+      37
+    ],
+    "contains": [
+      "ControlledByAPlayer(Opponent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Beastie Beatdown",
+    "issues": [
+      37
+    ],
+    "contains": [
+      "ControlledByAPlayer(Opponent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Roots of Life",
+    "issues": [
+      37
+    ],
+    "contains": [
+      "ControlledByAPlayer(Opponent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Sacred Ground",
+    "issues": [
+      37
+    ],
+    "contains": [
+      "ControlledByAPlayer(Opponent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "The Scarlet Witch",
+    "issues": [
+      38
+    ],
+    "contains": [
+      "ManaValueIs(GreaterThanOrEqualTo"
+    ],
+    "excludes": [
+      "ManaValueIs(LessThanOrEqualTo"
+    ]
+  },
+  {
+    "name": "Thryx, the Sudden Storm",
+    "issues": [
+      38
+    ],
+    "contains": [
+      "ManaValueIs(GreaterThanOrEqualTo"
+    ],
+    "excludes": [
+      "ManaValueIs(LessThanOrEqualTo"
+    ]
+  },
+  {
+    "name": "Agadeem Occultist",
+    "issues": [
+      38
+    ],
+    "contains": [
+      "ManaValueIs(LessThanOrEqualTo"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Cerise, Slayer of Fear",
+    "issues": [
+      38
+    ],
+    "contains": [
+      "ManaValueIs(LessThanOrEqualTo"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Soul Immolation",
+    "issues": [
+      38
+    ],
+    "contains": [
+      "XIs(LessThanOrEqualTo"
+    ],
+    "excludes": [
+      "XIs(LessThan("
+    ]
+  },
+  {
+    "name": "Open the Way",
+    "issues": [
+      38
+    ],
+    "contains": [
+      "XIs(LessThanOrEqualTo"
+    ],
+    "excludes": [
+      "XIs(LessThan("
+    ]
+  },
+  {
+    "name": "Winter's Chill",
+    "issues": [
+      38
+    ],
+    "contains": [
+      "XIs(LessThanOrEqualTo"
+    ],
+    "excludes": [
+      "XIs(LessThan("
+    ]
+  },
+  {
+    "name": "Devourer of Destiny",
+    "issues": [
+      39
+    ],
+    "contains": [
+      "MayAction(PutAGenericCardOnTopOfLibrary)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Gurmag Nightwatch",
+    "issues": [
+      39
+    ],
+    "contains": [
+      "MayAction(PutAGenericCardOnTopOfLibrary)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Gutless Plunderer",
+    "issues": [
+      39
+    ],
+    "contains": [
+      "MayAction(PutAGenericCardOnTopOfLibrary)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Sage of Days",
+    "issues": [
+      39
+    ],
+    "contains": [
+      "MayAction(PutAGenericCardOnTopOfLibrary)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Thassa's Oracle",
+    "issues": [
+      39
+    ],
+    "contains": [
+      "MayAction(PutAGenericCardOnTopOfLibrary)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Slimefoot's Survey",
+    "issues": [
+      39
+    ],
+    "contains": [
+      "MayAction(PutAGenericCardOnTopOfLibrary)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Nael, Avizoa Aeronaut",
+    "issues": [
+      39
+    ],
+    "contains": [
+      "MayAction(PutAGenericCardOnTopOfLibrary)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Cost of Brilliance",
+    "issues": [
+      39
+    ],
+    "contains": [
+      "UptoOneTargetPermanent"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Hired Giant",
+    "issues": [
+      39
+    ],
+    "contains": [
+      "EachPlayerMayAction"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Heartwood Storyteller",
+    "issues": [
+      39
+    ],
+    "contains": [
+      "EachPlayerMayAction"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Selvala, Heart of the Wilds",
+    "issues": [
+      39
+    ],
+    "contains": [
+      "PlayerMayAction(ControllerOfPermanent"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Wandering Archaic // Explore the Vastlands",
+    "issues": [
+      39
+    ],
+    "contains": [
+      "MayAction(CopySpellAndMayChooseNewTargets"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Terminal Velocity",
+    "issues": [
+      39
+    ],
+    "contains": [
+      "MayActions([PutACardFromHandOnBattlefield"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Olivia Voldaren",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(ThisPermanent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Fatestitcher",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(ThisPermanent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Tideforce Elemental",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(ThisPermanent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Nessian Wilds Ravager",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(ThisPermanent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Perigee Beckoner",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(ThisPermanent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Setessan Tactics",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(ThisPermanent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Ertai Resurrected",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(ThisPermanent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "The Kami War // O-Kagachi Made Manifest",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(ThisPermanent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Clay Champion",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(ThisPermanent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Lockjaw, Slobbering Teleporter",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(ThisPermanent)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Deadshot",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(Ref_TargetPermanent1)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Rally Maneuver",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(Ref_TargetPermanent1)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Fleeting Reflection",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(Ref_TargetPermanent1)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Once and Future",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(Ref_TargetGraveyardCard1)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Puca's Covenant",
+    "issues": [
+      40
+    ],
+    "contains": [
+      "Other(Trigger_ThatGraveyardCard)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Enslave",
+    "issues": [
+      41
+    ],
+    "contains": [
+      "Player(OwnerOfPermanent(HostPermanent))"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Gandalf, Wandering Wizard",
+    "issues": [
+      41
+    ],
+    "contains": [
+      "PlayerAction(OwnerOfPermanent(ThisPermanent), DrawNumberCards"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Infernal Vessel",
+    "issues": [
+      41
+    ],
+    "contains": [
+      "EntersUnderOwnersControl"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Band Together",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "TargetPermanent(And([ExceptFor(Ref_TargetPermanents), IsCardtype(Creature)]))"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Ruin in Their Wake",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "IsNamed(NamedCard(\"Wastes\"))"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Elesh Norn // The Argent Etchings",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "TransformEachPermanent"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Lost Hours",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "PutCardInHandIntoLibraryNthFromTop(TheCardInHandChosenThisWay, Integer(3))"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Quarum Trench Gnomes",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "TappingPermanentWouldProduceManaOfColor(Ref_TargetPermanent, White)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Veil of Summer",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "CreateEachPermanentLayerEffectUntil"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Rusted Relic",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "SetCreatureType(Golem)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Kenku Artificer",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "SetCreatureType(Homunculus)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Bone Mask",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "ChooseADamageSource"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Cho-Arrim Alchemist",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "ChooseADamageSource"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Nova Pentacle",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "ChooseADamageSource"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Hall of Gemstone",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "WouldProduceMana_ReplaceColorWithTheChosenColor"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Qasali Ambusher",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "MayCastWithoutPayingAndAsThoughItHadFlashIf"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Shadow of Mortality",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "MaximumOf(Integer(0)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Kav Landseeker",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "AtTheBeginningOfPlayersEndStepNextTurn(You)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Kardur, Doomscourge",
+    "issues": [
+      42
+    ],
+    "contains": [
+      "[MustAttack, MustAttackAPlayer(Other(You))]"
+    ],
+    "excludes": []
   }
 ]

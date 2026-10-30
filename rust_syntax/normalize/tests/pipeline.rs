@@ -1786,10 +1786,10 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 }
 
 #[test]
-fn schema_39_costs_roundtrip_and_reject_previous_versions_at_validation() {
+fn schema_40_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 39);
+    assert_eq!(card.schema_version, 40);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2083,4 +2083,31 @@ fn a_replacement_from_anywhere_works_in_every_zone() {
     assert!(text.contains("Everywhere"), "{text}");
     assert!(text.contains("SetDestination"), "{text}");
     assert!(text.contains(r#""Graveyard""#), "{text}");
+}
+
+#[test]
+fn a_cost_reduction_floors_at_zero_with_a_maximum() {
+    let text = ability_json("CastEffect(ReduceCastingCostX([CostReduceX],MaximumOf(Integer(0),Minus(StartingLifeTotalOfPlayer(You),LifeTotalOfPlayer(You)))))");
+    assert!(text.contains(r#""Maximum""#), "{text}");
+}
+
+#[test]
+fn free_and_flash_are_one_permission() {
+    let text = ability_json("CastEffect(MayCastWithoutPayingAndAsThoughItHadFlashIf(PlayerPassesFilter(You,IsTheMonarch)))");
+    assert!(text.contains("AlternativeCostWithFlash"), "{text}");
+    assert!(!text.contains(r#""Flash""#), "{text}");
+}
+
+#[test]
+fn any_other_color_leaves_colorless_mana_alone() {
+    let text = ability_json("SpellActions(ActionList([ChooseAColor(AnyColor),CreateReplaceWouldProduceManaUntil(TappingAPermanentWouldProduceMana(IsCardtype(Land)),[WouldProduceMana_ReplaceColorWithTheChosenColor],UntilEndOfTurn)]))");
+    assert!(text.contains("ReplaceColoredMana"), "{text}");
+}
+
+#[test]
+fn a_card_put_from_hand_as_a_cost_comes_from_the_payers_hand() {
+    let text = ability_json("SpellActions(ActionList([MayCost(PutACardFromHandOnBattlefield(IsCardtype(Land),[EntersTapped])),If(CostWasPaid,[DrawACard])]))");
+    assert!(text.contains(r#""Move""#), "{text}");
+    assert!(text.contains(r#""Hand""#), "{text}");
+    assert!(text.contains(r#""optional":true"#), "{text}");
 }

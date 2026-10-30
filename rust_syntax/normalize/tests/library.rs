@@ -80,7 +80,6 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         "Beseech the Mirror",
         "Caravan Vigil",
         "Claim Jumper",
-        "Cultivator Colossus",
         "Land Grant",
         "Liliana Vess",
         "Plunge into Darkness",
@@ -114,7 +113,7 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 76);
+    assert_eq!(complete, 77);
 }
 
 #[test]

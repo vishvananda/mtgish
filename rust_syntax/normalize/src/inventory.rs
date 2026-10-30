@@ -344,6 +344,7 @@ impl Inventory<'_> {
                     EventChange::Entry(_)
                     | EventChange::AddMana(_)
                     | EventChange::ReplaceMana(_)
+                    | EventChange::ReplaceColoredMana(_)
                     | EventChange::ReplaceTokens { .. } => {}
                 }
             }
@@ -731,7 +732,9 @@ impl Inventory<'_> {
                 self.cost(cost);
                 self.form("CostRepetition", repetition);
             }
-            CastingRule::AlternativeCost(cost) => self.cost(cost),
+            CastingRule::AlternativeCost(cost) | CastingRule::AlternativeCostWithFlash(cost) => {
+                self.cost(cost)
+            }
             CastingRule::ReduceCost(reductions) => {
                 for r in reductions {
                     if let Some(color) = &r.color {
@@ -1216,7 +1219,11 @@ impl Inventory<'_> {
                 self.form("Information", information);
             }
             Expr::PlayerLife(p) => self.player(p),
-            Expr::Add(a, b) | Expr::Subtract(a, b) | Expr::Multiply(a, b) | Expr::Minimum(a, b) => {
+            Expr::Add(a, b)
+            | Expr::Subtract(a, b)
+            | Expr::Multiply(a, b)
+            | Expr::Minimum(a, b)
+            | Expr::Maximum(a, b) => {
                 self.expr(a);
                 self.expr(b);
             }

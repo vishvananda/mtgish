@@ -17393,7 +17393,7 @@ Card(
           If(
             GraveyardCardPassesFilter(
               Ref_TargetGraveyardCard,
-              ManaValueIs(GreaterThanOrEqualTo(TheNumberOfPermanentsOnTheBattlefield(And([
+              ManaValueIs(LessThanOrEqualTo(TheNumberOfPermanentsOnTheBattlefield(And([
                 IsCreatureType(Ally),
                 ControlledByAPlayer(SinglePlayer(You)),
               ])))),
@@ -44777,7 +44777,7 @@ Card(
               Integer(2),
               TheNumberOfPermanentsOnTheBattlefield(And([
                 IsLandType(Swamp),
-                ControlledByAPlayer(SinglePlayer(You)),
+                ControlledByAPlayer(Opponent),
               ])),
             )),
           ],
@@ -83539,7 +83539,7 @@ Card(
     Menace,
     CDA_Power(TheNumberOfPermanentsOnTheBattlefield(And([
       IsCardtype(Artifact),
-      ControlledByAPlayer(SinglePlayer(You)),
+      ControlledByAPlayer(Opponent),
     ]))),
     TriggerA(
       WhenAPlayerActivatesAnAbility(
@@ -96924,10 +96924,7 @@ Card(
         ),
         TargetPermanent(And([
           ExceptFor(Ref_TargetPermanents),
-          And([
-            IsCardtype(Creature),
-            ControlledByAPlayer(SinglePlayer(You)),
-          ]),
+          IsCardtype(Creature),
         ])),
       ],
       ActionList([
@@ -111005,7 +111002,7 @@ Card(
         ])),
         TargetPermanent(And([
           IsCardtype(Creature),
-          ControlledByAPlayer(SinglePlayer(You)),
+          ControlledByAPlayer(Opponent),
         ])),
       ],
       ActionList([
@@ -148713,6 +148710,7 @@ Card(
         TapPermanent(ThisPermanent),
       ]),
       ActionList([
+        ChooseADamageSource(AnyDamageSource),
         CreateFuturePreventDamage(
           NextTimeDamageWouldBeDealtThisTurnBySourceToRecipient(
             TheChosenDamageSource,
@@ -205964,12 +205962,9 @@ Card(
         GainedLifeThisTurn,
       ),
       ActionList([
-        SeekACard(ManaValueIs(EqualTo(MinimumOf(
-          TheHighestManaValueAmongCardsInPlayersLibrary(
-            AnyCard,
-            You,
-          ),
-          LifeGainedByPlayerThisTurn(You),
+        SeekACard(ManaValueIs(EqualTo(TheHighestManaValueAmongCardsInPlayersLibrary(
+          ManaValueIs(LessThanOrEqualTo(LifeGainedByPlayerThisTurn(You))),
+          You,
         )))),
       ]),
     ),
@@ -220719,6 +220714,7 @@ Card(
         DiscardACard,
       ]),
       ActionList([
+        ChooseADamageSource(AnyDamageSource),
         CreateFuturePreventDamage(
           NextTimeDamageWouldBeDealtThisTurnBySourceToRecipient(
             TheChosenDamageSource,
@@ -229751,8 +229747,11 @@ Card(
           UptoNumberTargetPermanents(
             Integer(2),
             And([
-              IsCardtype(Creature),
-              ControlledByAPlayer(SinglePlayer(You)),
+              Other(ThisPermanent),
+              And([
+                IsCardtype(Creature),
+                ControlledByAPlayer(SinglePlayer(You)),
+              ]),
             ]),
           ),
         ],
@@ -260138,7 +260137,7 @@ Card(
     SpellActions(Targeted(
       [
         TargetPlayer(AnyPlayer),
-        TargetPermanent(IsCardtype(Creature)),
+        UptoOneTargetPermanent(IsCardtype(Creature)),
       ],
       ActionList([
         PlayerAction(
@@ -301139,7 +301138,10 @@ Card(
     SpellActions(Targeted(
       [
         TargetPermanent(IsCardtype(Creature)),
-        TargetPermanent(IsCardtype(Creature)),
+        TargetPermanent(And([
+          Other(Ref_TargetPermanent1),
+          IsCardtype(Creature),
+        ])),
       ],
       ActionList([
         TapPermanent(Ref_TargetPermanent1),
@@ -323018,7 +323020,7 @@ Card(
               LookAtTheTopNumberCardsOfLibrary(
                 Integer(4),
                 [
-                  PutAGenericCardOnTopOfLibrary,
+                  MayAction(PutAGenericCardOnTopOfLibrary),
                   ExileTheRemainingCards,
                 ],
               ),
@@ -383931,6 +383933,11 @@ Transforming(
               Integer(5),
               Integer(2),
             ),
+            TransformEachPermanent(And([
+              IsArtifactType(Incubator),
+              IsToken,
+              ControlledByAPlayer(SinglePlayer(You)),
+            ])),
           ]),
         ),
         SagaChapter(
@@ -401591,7 +401598,7 @@ Card(
         PermanentDealsDamage(
           HostPermanent,
           Integer(1),
-          Player(ControllerOfPermanent(HostPermanent)),
+          Player(OwnerOfPermanent(HostPermanent)),
         ),
       ]),
     ),
@@ -406904,9 +406911,12 @@ Card(
         ),
         Targeted(
           [
-            TargetPermanent(Or([
-              IsCardtype(Creature),
-              IsCardtype(Planeswalker),
+            TargetPermanent(And([
+              Other(ThisPermanent),
+              Or([
+                IsCardtype(Creature),
+                IsCardtype(Planeswalker),
+              ]),
             ])),
           ],
           ActionList([
@@ -436912,7 +436922,10 @@ Card(
       TapPermanent(ThisPermanent),
       Targeted(
         [
-          TargetPermanent(AnyPermanent),
+          TargetPermanent(And([
+            Other(ThisPermanent),
+            AnyPermanent,
+          ])),
         ],
         ActionList([
           MayAction(TapOrUntapPermanent(Ref_TargetPermanent)),
@@ -463797,7 +463810,10 @@ Card(
           IsCardtype(Creature),
           ControlledByAPlayer(SinglePlayer(You)),
         ])),
-        UptoOneTargetPermanent(IsCardtype(Creature)),
+        UptoOneTargetPermanent(And([
+          Other(Ref_TargetPermanent1),
+          IsCardtype(Creature),
+        ])),
       ],
       ActionList([
         CreatePermanentLayerEffectUntil(
@@ -491543,14 +491559,14 @@ Card(
         Integer(1),
         TheNumberOfPermanentsOnTheBattlefield(And([
           IsCardtype(Artifact),
-          ControlledByAPlayer(SinglePlayer(You)),
+          ControlledByAPlayer(Opponent),
         ])),
       ),
       Plus(
         Integer(1),
         TheNumberOfPermanentsOnTheBattlefield(And([
           IsCardtype(Artifact),
-          ControlledByAPlayer(SinglePlayer(You)),
+          ControlledByAPlayer(Opponent),
         ])),
       ),
     ),
@@ -496297,7 +496313,10 @@ Card(
       ]),
       ActionList([
         ShufflePermanentIntoLibrary(ThisPermanent),
-        DrawNumberCards(Integer(3)),
+        PlayerAction(
+          OwnerOfPermanent(ThisPermanent),
+          DrawNumberCards(Integer(3)),
+        ),
       ]),
     ),
   ],
@@ -570857,7 +570876,7 @@ Card(
         LookAtTheTopNumberCardsOfLibrary(
           Integer(3),
           [
-            PutAGenericCardOnTopOfLibrary,
+            MayAction(PutAGenericCardOnTopOfLibrary),
             PutTheRemainingCardsIntoGraveyard,
           ],
         ),
@@ -572131,7 +572150,7 @@ Card(
         LookAtTheTopNumberCardsOfLibrary(
           Integer(3),
           [
-            PutAGenericCardOnTopOfLibrary,
+            MayAction(PutAGenericCardOnTopOfLibrary),
             PutTheRemainingCardsIntoGraveyard,
           ],
         ),
@@ -577265,7 +577284,7 @@ Card(
         CreateReplaceWouldProduceManaUntil(
           TappingAPermanentWouldProduceMana(IsCardtype(Land)),
           [
-            WouldProduceMana_ReplaceType(ManaOfTheChosenColor),
+            WouldProduceMana_ReplaceColorWithTheChosenColor,
           ],
           UntilEndOfTurn,
         ),
@@ -593290,7 +593309,7 @@ Card(
         IsNonCardtype(Creature),
       ),
       ActionList([
-        EachPlayerAction(
+        EachPlayerMayAction(
           OpponentOf(Trigger_ThatPlayer),
           DrawACard,
         ),
@@ -609856,7 +609875,7 @@ Card(
     TriggerA(
       WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),
       ActionList([
-        EachPlayerAction(
+        EachPlayerMayAction(
           Other(You),
           SearchLibrary([
             FindACardOfType(IsCardtype(Land)),
@@ -648824,6 +648843,7 @@ Card(
         PutGraveyardCardOntoBattlefield(
           Trigger_ThatGraveyardCard,
           [
+            EntersUnderOwnersControl,
             EntersWithNumberCounters(
               Integer(2),
               PTCounter(
@@ -699546,6 +699566,7 @@ Card(
             ControlledByAPlayer(Opponent),
           ]),
           [
+            MustAttack,
             MustAttackAPlayer(Other(You)),
           ],
           UntilPlayersNextTurn(You),
@@ -704134,7 +704155,7 @@ Card(
           [],
         ),
         CreateFutureTrigger(
-          AtTheBeginningOfPlayersNextEndStep(You),
+          AtTheBeginningOfPlayersEndStepNextTurn(You),
           ActionList([
             SacrificeEachPermanent(TheTokensCreatedThisWay),
           ]),
@@ -711052,8 +711073,11 @@ Card(
                 0,
                 0,
               )),
-              AddCardtype(Artifact),
-              AddCardtype(Creature),
+              SetCardtypes([
+                Artifact,
+                Creature,
+              ]),
+              SetCreatureType(Homunculus),
               AddAbility([
                 Flying,
               ]),
@@ -753665,7 +753689,7 @@ Card(
           TargetPermanent(And([
             IsCardtype(Enchantment),
             IsCardtype(Creature),
-            ControlledByAPlayer(SinglePlayer(You)),
+            ControlledByAPlayer(Opponent),
           ])),
         ],
         ActionList([
@@ -771974,8 +771998,11 @@ Card(
           Targeted(
             [
               UptoOneTargetPermanent(And([
-                IsCardtype(Creature),
-                ControlledByAPlayer(SinglePlayer(You)),
+                Other(ThisPermanent),
+                And([
+                  IsCardtype(Creature),
+                  ControlledByAPlayer(SinglePlayer(You)),
+                ]),
               ])),
             ],
             ActionList([
@@ -777957,7 +777984,10 @@ Card(
         ),
         PlayerAction(
           Ref_TargetPlayer,
-          PutCardInHandIntoLibraryNthFromTop(TheCardInHandChosenThisWay),
+          PutCardInHandIntoLibraryNthFromTop(
+            TheCardInHandChosenThisWay,
+            Integer(3),
+          ),
         ),
       ]),
     )),
@@ -878419,7 +878449,7 @@ Card(
         LookAtTheTopNumberCardsOfLibrary(
           ValueX,
           [
-            MayPutAGenericCardIntoHand,
+            MayAction(PutAGenericCardOnTopOfLibrary),
             PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder,
           ],
         ),
@@ -891091,7 +891121,10 @@ Card(
       EnteringPermanentPassesFilter(TributeWasntPaid),
       Targeted(
         [
-          TargetPermanent(IsCardtype(Creature)),
+          TargetPermanent(And([
+            Other(ThisPermanent),
+            IsCardtype(Creature),
+          ])),
         ],
         ActionList([
           MayAction(Fight(
@@ -909419,6 +909452,7 @@ Card(
           ),
         ],
         ActionList([
+          ChooseADamageSource(AnyDamageSource),
           CreateFutureReplaceWouldDealDamage(
             NextTimeDamageWouldBeDealtThisTurnBySourceToRecipient(
               TheChosenDamageSource,
@@ -925175,7 +925209,10 @@ Card(
       ]),
       Targeted(
         [
-          TargetPermanent(IsCardtype(Creature)),
+          TargetPermanent(And([
+            Other(ThisPermanent),
+            IsCardtype(Creature),
+          ])),
         ],
         ActionList([
           PermanentDealsDamage(
@@ -928441,7 +928478,10 @@ Card(
     SpellActions(Targeted(
       [
         TargetGraveyardCard(InAPlayersGraveyard(SinglePlayer(You))),
-        UptoOneTargetGraveyardCard(InAPlayersGraveyard(SinglePlayer(You))),
+        UptoOneTargetGraveyardCard(And([
+          Other(Ref_TargetGraveyardCard1),
+          InAPlayersGraveyard(SinglePlayer(You)),
+        ])),
       ],
       ActionList([
         IfElse(
@@ -931520,7 +931560,7 @@ Card(
     ManaCostG,
   ],
   Rules: [
-    CastEffect(XIs(LessThan(NumPlayers(AnyPlayer)))),
+    CastEffect(XIs(LessThanOrEqualTo(NumPlayers(AnyPlayer)))),
     SpellActions(ActionList([
       RevealCardsFromTheTopOfLibraryUntilANumberOfCardsOfTypeAreRevealed(
         ValueX,
@@ -962904,8 +962944,11 @@ Card(
       Targeted(
         [
           TargetPermanent(And([
-            IsCardtype(Creature),
-            ControlledByAPlayer(SinglePlayer(You)),
+            Other(ThisPermanent),
+            And([
+              IsCardtype(Creature),
+              ControlledByAPlayer(SinglePlayer(You)),
+            ]),
           ])),
         ],
         ActionList([
@@ -1008870,6 +1008913,7 @@ Card(
       Targeted(
         [
           TargetGraveyardCard(And([
+            Other(Trigger_ThatGraveyardCard),
             IsPermanent,
             ManaValueIs(LessThanOrEqualTo(TheTotalNumberOfCountersAmongPermanents(SinglePermanent(Trigger_ThatPermanent)))),
             InAPlayersGraveyard(SinglePlayer(You)),
@@ -1015863,20 +1015907,7 @@ Card(
   ],
   Rules: [
     Reach,
-    CastEffect(MayCastAsThoughItHadFlashIf(And([
-      APermanentPassesFilter(
-        IsCardtype(Creature),
-        IsAttackingPlayer(You),
-      ),
-      PlayerPassesFilter(
-        You,
-        And([
-          ControlsA(IsLandType(Forest)),
-          ControlsA(IsLandType(Plains)),
-        ]),
-      ),
-    ]))),
-    CastEffect(MayCastWithoutPayingIf(And([
+    CastEffect(MayCastWithoutPayingAndAsThoughItHadFlashIf(And([
       APermanentPassesFilter(
         IsCardtype(Creature),
         IsAttackingPlayer(You),
@@ -1017445,7 +1017476,10 @@ Card(
         ],
         ActionList([
           CreateReplaceWouldProduceManaUntil(
-            TappingPermanentWouldProduceMana(Ref_TargetPermanent),
+            TappingPermanentWouldProduceManaOfColor(
+              Ref_TargetPermanent,
+              White,
+            ),
             [
               WouldProduceMana_ReplaceType(ManaProduceC),
             ],
@@ -1031668,7 +1031702,10 @@ Card(
     SpellActions(Targeted(
       [
         TargetPermanent(IsCardtype(Creature)),
-        UptoOneTargetPermanent(IsCardtype(Creature)),
+        UptoOneTargetPermanent(And([
+          Other(Ref_TargetPermanent1),
+          IsCardtype(Creature),
+        ])),
       ],
       ActionList([
         CreatePermanentLayerEffectUntil(
@@ -1091934,6 +1091971,7 @@ Card(
       WhenAPermanentBecomesTapped(And([
         IsCardtype(Land),
         IsLandTypeVariable(TheChosenLandType),
+        ControlledByAPlayer(Opponent),
       ])),
       ActionList([
         GainLife(Integer(1)),
@@ -1098140,7 +1098178,10 @@ Card(
         If(
           PlayerPassesFilter(
             You,
-            ControlsA(IsCardtype(Land)),
+            ControlsA(And([
+              IsCardtype(Land),
+              IsNamed(NamedCard("Wastes")),
+            ])),
           ),
           [
             MayPutFoundCardsOntoBattlefield([
@@ -1103693,6 +1103734,7 @@ Card(
               Artifact,
               Creature,
             ]),
+            SetCreatureType(Golem),
           ],
         ),
       ],
@@ -1106485,7 +1106527,7 @@ Card(
   Rules: [
     TriggerA(
       WhenASpellOrAbilityCausesAPermanentToBePutIntoAPlayersGraveyard(
-        AnySpellOrAbility,
+        ControlledByAPlayer(Opponent),
         IsCardtype(Land),
         SinglePlayer(You),
       ),
@@ -1107893,7 +1107935,7 @@ Card(
         LookAtTheTopNumberCardsOfLibrary(
           Integer(3),
           [
-            PutAGenericCardOnTopOfLibrary,
+            MayAction(PutAGenericCardOnTopOfLibrary),
             PutTheRemainingCardsIntoGraveyard,
           ],
         ),
@@ -1119820,7 +1119862,7 @@ Card(
               Zero,
               TheNumberOfPermanentsOnTheBattlefield(And([
                 IsCardtype(Artifact),
-                ControlledByAPlayer(SinglePlayer(You)),
+                ControlledByAPlayer(Opponent),
               ])),
             ),
           ],
@@ -1151098,7 +1151140,7 @@ Card(
             ])))),
           ),
           [
-            PlayerAction(
+            PlayerMayAction(
               ControllerOfPermanent(Trigger_ThatPermanent),
               DrawACard,
             ),
@@ -1158079,7 +1158121,10 @@ Card(
                 TapPermanent(ThisPermanent),
                 Targeted(
                   [
-                    TargetPermanent(IsCardtype(Creature)),
+                    TargetPermanent(And([
+                      Other(ThisPermanent),
+                      IsCardtype(Creature),
+                    ])),
                   ],
                   ActionList([
                     Fight(
@@ -1160748,9 +1160793,12 @@ Card(
       [
         CostReduceX,
       ],
-      Minus(
-        StartingLifeTotalOfPlayer(You),
-        LifeTotalOfPlayer(You),
+      MaximumOf(
+        Integer(0),
+        Minus(
+          StartingLifeTotalOfPlayer(You),
+          LifeTotalOfPlayer(You),
+        ),
       ),
     )),
   ],
@@ -1207358,7 +1207406,7 @@ Card(
       LookAtTheTopNumberCardsOfLibrary(
         ValueX,
         [
-          PutAGenericCardOnTopOfLibrary,
+          MayAction(PutAGenericCardOnTopOfLibrary),
           PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder,
         ],
       ),
@@ -1210925,7 +1210973,7 @@ Card(
             NumberTokens(
               TheNumberOfPermanentsOnTheBattlefield(And([
                 IsCardtype(Artifact),
-                ControlledByAPlayer(SinglePlayer(You)),
+                ControlledByAPlayer(Opponent),
               ])),
               TreasureToken,
             ),
@@ -1224851,7 +1224899,7 @@ Card(
   ],
   Rules: [
     CastEffect(AdditionalCastingCostX(Blight(ValueX))),
-    CastEffect(XIs(LessThan(TheGreatestToughnessAmongPermanents(And([
+    CastEffect(XIs(LessThanOrEqualTo(TheGreatestToughnessAmongPermanents(And([
       IsCardtype(Creature),
       ControlledByAPlayer(SinglePlayer(You)),
     ]))))),
@@ -1331143,43 +1331191,45 @@ Card(
   ],
   Rules: [
     SpellActions(ActionList([
-      PutACardFromHandOnBattlefield(
-        Or([
-          IsCardtype(Artifact),
-          IsCardtype(Creature),
-        ]),
-        [
-          EntersNormally,
-        ],
-      ),
-      CreatePermanentLayerEffect(
-        ThePermanentPutOnTheBattlefieldThisWay,
-        [
-          AddAbility([
-            Haste,
+      MayActions([
+        PutACardFromHandOnBattlefield(
+          Or([
+            IsCardtype(Artifact),
+            IsCardtype(Creature),
           ]),
-          AddAbility([
-            TriggerA(
-              WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)),
-              ActionList([
-                PermanentDealsDamage(
-                  Trigger_ThatPermanent,
-                  ManaValueOfPermanent(Trigger_ThatPermanent),
-                  EachPermanent(IsCardtype(Creature)),
-                ),
-              ]),
-            ),
-          ]),
-          AddAbility([
-            TriggerA(
-              AtTheBeginningOfAPlayersEndStep(SinglePlayer(You)),
-              ActionList([
-                SacrificePermanent(ThisPermanent),
-              ]),
-            ),
-          ]),
-        ],
-      ),
+          [
+            EntersNormally,
+          ],
+        ),
+        CreatePermanentLayerEffect(
+          ThePermanentPutOnTheBattlefieldThisWay,
+          [
+            AddAbility([
+              Haste,
+            ]),
+            AddAbility([
+              TriggerA(
+                WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)),
+                ActionList([
+                  PermanentDealsDamage(
+                    Trigger_ThatPermanent,
+                    ManaValueOfPermanent(Trigger_ThatPermanent),
+                    EachPermanent(IsCardtype(Creature)),
+                  ),
+                ]),
+              ),
+            ]),
+            AddAbility([
+              TriggerA(
+                AtTheBeginningOfAPlayersEndStep(SinglePlayer(You)),
+                ActionList([
+                  SacrificePermanent(ThisPermanent),
+                ]),
+              ),
+            ]),
+          ],
+        ),
+      ]),
     ])),
   ],
 )
@@ -1337094,7 +1337144,7 @@ Card(
             IsCardtype(Land),
           ]),
         ]),
-        ControlledByAPlayer(SinglePlayer(You)),
+        ControlledByAPlayer(Opponent),
       ])),
       [
         EntersTapped,
@@ -1337359,7 +1337409,7 @@ Card(
             IsCardtype(Land),
           ]),
         ]),
-        ControlledByAPlayer(SinglePlayer(You)),
+        ControlledByAPlayer(Opponent),
       ])),
       [
         EntersTapped,
@@ -1338321,7 +1338371,7 @@ Card(
             Blue,
           ),
           [
-            PutAGenericCardOnTopOfLibrary,
+            MayAction(PutAGenericCardOnTopOfLibrary),
             PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder,
           ],
         ),
@@ -1350164,7 +1350214,10 @@ Transforming(
           ],
           Targeted(
             [
-              UptoOneTargetPermanent(IsNonCardtype(Land)),
+              UptoOneTargetPermanent(And([
+                Other(ThisPermanent),
+                IsNonCardtype(Land),
+              ])),
             ],
             ActionList([
               PutPermanentIntoItsOwnersHand(Ref_TargetPermanent),
@@ -1357230,7 +1357283,7 @@ Card(
               IsCardtype(Instant),
               IsCardtype(Sorcery),
             ]),
-            ManaValueIs(LessThanOrEqualTo(Integer(4))),
+            ManaValueIs(GreaterThanOrEqualTo(Integer(4))),
           ]),
           [
             CostReduceX,
@@ -1376310,13 +1376363,13 @@ Card(
       You,
       [
         DecreaseSpellCost(
-          ManaValueIs(LessThanOrEqualTo(Integer(5))),
+          ManaValueIs(GreaterThanOrEqualTo(Integer(5))),
           [
             CostReduceGeneric(1),
           ],
         ),
         SpellsCastHaveAbility(
-          ManaValueIs(LessThanOrEqualTo(Integer(5))),
+          ManaValueIs(GreaterThanOrEqualTo(Integer(5))),
           [
             CantBeCountered,
           ],
@@ -1381414,7 +1381467,10 @@ Card(
       ]),
       Targeted(
         [
-          TargetPermanent(IsCardtype(Creature)),
+          TargetPermanent(And([
+            Other(ThisPermanent),
+            IsCardtype(Creature),
+          ])),
         ],
         ActionList([
           MayAction(TapOrUntapPermanent(Ref_TargetPermanent)),
@@ -1454234,6 +1454290,18 @@ Card(
         ],
         UntilEndOfTurn,
       ),
+      CreateEachPermanentLayerEffectUntil(
+        ControlledByAPlayer(SinglePlayer(You)),
+        [
+          AddAbility([
+            HexproofFrom(FromColor(Colors([
+              Blue,
+              Black,
+            ]))),
+          ]),
+        ],
+        UntilEndOfTurn,
+      ),
     ])),
   ],
 )
@@ -1470771,7 +1470839,7 @@ Card(
                 PlusX,
                 TheNumberOfPermanentsOnTheBattlefield(And([
                   IsCardtype(Artifact),
-                  ControlledByAPlayer(SinglePlayer(You)),
+                  ControlledByAPlayer(Opponent),
                 ])),
               ),
             ],
@@ -1492433,7 +1492501,7 @@ ModalDFC(
           Unless(
             CostWasPaid,
             [
-              CopySpellAndMayChooseNewTargets(Trigger_ThatSpell),
+              MayAction(CopySpellAndMayChooseNewTargets(Trigger_ThatSpell)),
             ],
           ),
         ]),
@@ -1523867,7 +1523935,7 @@ Card(
       IsDuringCombat,
       IsBeforeBlockersDeclared,
     ]))),
-    CastEffect(XIs(LessThan(TheNumberOfPermanentsOnTheBattlefield(And([
+    CastEffect(XIs(LessThanOrEqualTo(TheNumberOfPermanentsOnTheBattlefield(And([
       IsSupertype(Snow),
       IsCardtype(Land),
       ControlledByAPlayer(SinglePlayer(You)),

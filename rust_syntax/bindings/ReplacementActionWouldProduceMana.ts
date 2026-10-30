@@ -3,4 +3,4 @@ import type { Color } from "./Color";
 import type { GameNumber } from "./GameNumber";
 import type { ManaProduce } from "./ManaProduce";
 
-export type ReplacementActionWouldProduceMana = { "WouldProduceMana_AddMana": ManaProduce } | { "WouldProduceMana_ProduceMultiple": GameNumber } | { "WouldProduceMana_ReplaceColor": Color } | { "WouldProduceMana_ReplaceType": ManaProduce };
+export type ReplacementActionWouldProduceMana = { "WouldProduceMana_AddMana": ManaProduce } | { "WouldProduceMana_ProduceMultiple": GameNumber } | { "WouldProduceMana_ReplaceColor": Color } | "WouldProduceMana_ReplaceColorWithTheChosenColor" | { "WouldProduceMana_ReplaceType": ManaProduce };

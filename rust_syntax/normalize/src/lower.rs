@@ -2289,6 +2289,29 @@ impl Context {
                     }],
                 })
             }
+            source::Cost::PutACardFromHandOnBattlefield(cards, flags) => {
+                let payer = self
+                    .payer
+                    .clone()
+                    .unwrap_or(self.player(&source::Player::You)?);
+                let (destination, entry) = self.move_entry(flags, payer.clone())?;
+                let filter = self.card_filter(cards)?;
+                return Ok(Cost {
+                    parts: vec![CostPart::Move {
+                        selections: vec![CostObjectSelection {
+                            objects: self.private_cards(
+                                EventZone::Hand,
+                                PlayerSet::One(payer),
+                                filter,
+                            ),
+                            choose: Some(Count::Exactly(Expr::Constant(1))),
+                        }],
+                        destination,
+                        entry,
+                        face_down: false,
+                    }],
+                });
+            }
             source::Cost::PayManaForEach(mana, times) => {
                 return Ok(Cost {
                     parts: vec![CostPart::Repeated {

@@ -702,6 +702,7 @@
     {"source": "ReplacableEventWouldProduceMana::TappingAPermanentWouldProduceMana", "text": "mana", "binds": ["amount"]},
     {"source": "ReplacableEventWouldProduceMana::PlayerTappingAPermanentWouldProduceMana", "text": "mana", "binds": ["amount"]},
     {"source": "ReplacableEventWouldProduceMana::TappingPermanentWouldProduceMana", "text": "mana", "binds": ["amount"]},
+    {"source": "ReplacableEventWouldProduceMana::TappingPermanentWouldProduceManaOfColor", "text": "mana", "binds": ["amount"]},
     {"source": "ReplacableEventWouldProduceMana::TappingAPermanentWouldProduceTwoOrMoreMana", "text": "mana", "binds": ["amount"]}
   ]
 }

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 39;
+pub const SCHEMA_VERSION: u32 = 40;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -227,6 +227,8 @@ pub enum CastingRule {
     /// Replaces only the printed mana cost; additional costs and modifiers
     /// still apply. Only one alternative is chosen (CR 118.9).
     AlternativeCost(Cost),
+    /// One permission, so the cost applies only when casting with flash.
+    AlternativeCostWithFlash(Cost),
     /// Apply to the total cost at CR 601.2f, then clamp its mana component at
     /// zero. Colored reductions spill into generic mana (CR 118.7b-c).
     ReduceCost(Vec<ManaReduction>),
@@ -367,6 +369,8 @@ pub enum EventChange {
     Entry(EntryState),
     AddMana(ManaProduction),
     ReplaceMana(ManaProduction),
+    /// Only colored mana is replaced; colorless mana is produced as it was.
+    ReplaceColoredMana(ManaProduction),
     /// `copies` of the tokens the event would create, then `tokens` besides.
     ReplaceTokens {
         copies: u32,
@@ -1449,6 +1453,7 @@ pub enum Expr {
     Subtract(Box<Expr>, Box<Expr>),
     Multiply(Box<Expr>, Box<Expr>),
     Minimum(Box<Expr>, Box<Expr>),
+    Maximum(Box<Expr>, Box<Expr>),
     Divide {
         numerator: Box<Expr>,
         denominator: Box<Expr>,

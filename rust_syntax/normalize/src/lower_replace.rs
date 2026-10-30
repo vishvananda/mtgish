@@ -30,7 +30,7 @@ fn retag(value: &mut serde_json::Value, rename: &impl Fn(&str) -> Option<&'stati
 
 /// Forms that say what becomes of the event, so a body using one is explicit.
 /// A regeneration shield belongs here because it applies to the event itself.
-const EVENT_FORMS: [&str; 26] = [
+const EVENT_FORMS: [&str; 27] = [
     "ContinueDealingDamage",
     "CancelThatDamage",
     "SkipThatDraw",
@@ -42,6 +42,7 @@ const EVENT_FORMS: [&str; 26] = [
     "WouldProduceMana_ProduceMultiple",
     "WouldProduceMana_AddMana",
     "WouldProduceMana_ReplaceType",
+    "WouldProduceMana_ReplaceColorWithTheChosenColor",
     "EntersWithLayerEffect",
     "CreateTokensInstead",
     "DealToPlayerInstead",
@@ -261,6 +262,11 @@ impl Context {
             "WouldProduceMana_ReplaceType" => vec![EventChange::ReplaceMana(
                 self.mana_production(&decode_step(args)?)?,
             )],
+            "WouldProduceMana_ReplaceColorWithTheChosenColor" => {
+                vec![EventChange::ReplaceColoredMana(
+                    self.mana_production(&source::ManaProduce::ManaOfTheChosenColor)?,
+                )]
+            }
             "EntersWithLayerEffect" => {
                 let effects = args
                     .as_array()

@@ -67,6 +67,15 @@ The primitive audit, then a scan of every "you own" template, found two more, fi
 - [#35](https://github.com/i5jb/mtgish/issues/35): Two cards encode "you control" as your team.
 - [#36](https://github.com/i5jb/mtgish/issues/36): Five cards lose the owner from "cards you own exiled with".
 
+Mining word pairs between rendered cards and their Oracle text, reading what it flagged, then scanning every template for dropped captures and every "another target" for a lost "other", found the largest batch yet. These were filed the same day and repaired locally:
+
+- [#37](https://github.com/i5jb/mtgish/issues/37): Twelve cards encode "your opponents control" as yours or anyone's.
+- [#38](https://github.com/i5jb/mtgish/issues/38): Seven cards have the wrong comparison.
+- [#39](https://github.com/i5jb/mtgish/issues/39): Thirteen cards lose "may" or "up to one".
+- [#40](https://github.com/i5jb/mtgish/issues/40): Fifteen cards lose "other" from a target.
+- [#41](https://github.com/i5jb/mtgish/issues/41): Three cards encode owner as controller.
+- [#42](https://github.com/i5jb/mtgish/issues/42): Sixteen cards have another clause dropped or wrong.
+
 The issue payloads and comment text are saved here. No commits, pushes, issue closures, or upstream code changes were made. Disputed continuous-effect instruction grouping remains a rules-review question and was not filed as a confirmed bug. Changes that merely replace an equivalent scalar expression are not reported as new card mistakes.
 
 Issues #8–#12 and our additional-examples comment on #2 have been shortened to describe only the specific problems and examples. Rust port, local repair, and validation details were removed from the upstream reports. [The latest upstream read](latest_upstream.json) verifies all five edited issue bodies and the comment; saved issue payloads match them. Future reports should follow the same concise format.
