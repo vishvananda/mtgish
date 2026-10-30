@@ -922,6 +922,10 @@ impl<'a> Scope<'a> {
             Change::Colors { .. }
             | Change::CreatureTypes { .. }
             | Change::AddCardType(_)
+            | Change::RemoveCardType(_)
+            | Change::AddSupertype(_)
+            | Change::AddLandType(_)
+            | Change::AddArtifactType(_)
             | Change::SetCardTypes(_)
             | Change::RemoveAllAbilities => Ok(()),
         }
@@ -1690,6 +1694,25 @@ impl<'a> Scope<'a> {
                 self.object(source)?;
                 self.recipients(recipients)?;
                 self.expr(amount)
+            }
+            Operation::DealDamageParts { source, parts, .. } => {
+                self.object(source)?;
+                for part in parts {
+                    self.recipients(&part.recipients)?;
+                    self.expr(&part.amount)?;
+                }
+                Ok(())
+            }
+            Operation::DealDamageFromEach {
+                sources,
+                recipients,
+                amount,
+            } => {
+                self.require_zone(sources, EventZone::Battlefield)?;
+                let mut per_object = self.clone();
+                per_object.affected = true;
+                per_object.recipients(recipients)?;
+                per_object.expr(amount)
             }
             Operation::Destroy { objects, .. } | Operation::Tap { objects, .. } => {
                 self.require_zone(objects, EventZone::Battlefield)

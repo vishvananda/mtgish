@@ -493,6 +493,26 @@ impl Inventory<'_> {
                 self.recipients(recipients);
                 self.expr(amount);
             }
+            Operation::DealDamageParts {
+                source,
+                parts,
+                preventable: _,
+            } => {
+                self.object(source);
+                for part in parts {
+                    self.recipients(&part.recipients);
+                    self.expr(&part.amount);
+                }
+            }
+            Operation::DealDamageFromEach {
+                sources,
+                recipients,
+                amount,
+            } => {
+                self.objects(sources);
+                self.recipients(recipients);
+                self.expr(amount);
+            }
             Operation::Destroy {
                 objects,
                 regeneration: _,
@@ -924,7 +944,13 @@ impl Inventory<'_> {
                     self.form("ManaColor", color);
                 }
             }
-            Change::AddCardType(_) | Change::SetCardTypes(_) | Change::RemoveAllAbilities => {}
+            Change::AddCardType(_)
+            | Change::RemoveCardType(_)
+            | Change::AddSupertype(_)
+            | Change::AddLandType(_)
+            | Change::AddArtifactType(_)
+            | Change::SetCardTypes(_)
+            | Change::RemoveAllAbilities => {}
         }
     }
     fn subjects(&mut self, subjects: &EffectSubjects) {

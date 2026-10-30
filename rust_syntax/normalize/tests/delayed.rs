@@ -425,7 +425,6 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         "Gaze of the Gorgon",
         "Pygmy Hippo",
         "Tatsumasa, the Dragon's Fang",
-        "Thassa, Deep-Dwelling",
         "Urza's Bauble",
         "Vivien's Stampede",
     ];
@@ -452,5 +451,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 34);
+    assert_eq!(complete, 35);
 }

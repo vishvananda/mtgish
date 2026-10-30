@@ -310,6 +310,8 @@ impl Effects {
                     | Operation::SetLifeTotal { .. }
                     | Operation::LoseLife { .. }
                     | Operation::DealDamage { .. }
+                    | Operation::DealDamageParts { .. }
+                    | Operation::DealDamageFromEach { .. }
                     | Operation::Destroy { .. }
                     | Operation::Tap { .. }
                     | Operation::Sacrifice { .. }

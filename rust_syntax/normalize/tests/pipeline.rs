@@ -1786,10 +1786,10 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 }
 
 #[test]
-fn schema_40_costs_roundtrip_and_reject_previous_versions_at_validation() {
+fn schema_41_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 40);
+    assert_eq!(card.schema_version, 41);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2110,4 +2110,48 @@ fn a_card_put_from_hand_as_a_cost_comes_from_the_payers_hand() {
     assert!(text.contains(r#""Move""#), "{text}");
     assert!(text.contains(r#""Hand""#), "{text}");
     assert!(text.contains(r#""optional":true"#), "{text}");
+}
+
+#[test]
+fn split_damage_is_one_batch_and_each_part_keeps_its_target() {
+    let text = ability_json("SpellActions(Targeted([TargetPermanent(IsCardtype(Creature)),TargetPermanent(IsCardtype(Land))],ActionList([SpellDealsMultipleDamage(ThisSpell,[DamageToRecipients(Integer(2),Permanent(Ref_TargetPermanent1)),DamageToRecipients(Integer(3),Permanent(Ref_TargetPermanent2))])])))");
+    assert!(text.contains("DealDamageParts"), "{text}");
+    assert!(!text.contains(r#""DealDamage""#), "{text}");
+    let parts = text.split(r#""recipients""#).skip(1).collect::<Vec<_>>();
+    assert_eq!(parts.len(), 2, "{text}");
+    assert_ne!(
+        parts[0].split(r#""amount""#).next(),
+        parts[1].split(r#""amount""#).next(),
+        "{text}"
+    );
+}
+
+#[test]
+fn each_source_reads_itself_for_its_own_damage() {
+    let text = ability_json("SpellActions(ActionList([EachPermanentDealsDamage(IsCardtype(Creature),PowerOfPermanent(EachablePermanent),Permanent(EachablePermanent))]))");
+    assert!(text.contains("DealDamageFromEach"), "{text}");
+    assert!(text.contains("Affected"), "{text}");
+}
+
+#[test]
+fn shuffling_a_graveyard_in_moves_every_card_then_shuffles() {
+    let text = ability_json("SpellActions(ActionList([ShuffleHandAndGraveyardIntoLibrary]))");
+    assert!(text.contains(r#""Move""#), "{text}");
+    assert!(text.contains(r#""Shuffle""#), "{text}");
+    assert!(text.contains(r#""Hand""#) && text.contains(r#""Graveyard""#), "{text}");
+}
+
+#[test]
+fn a_later_filter_reads_the_targets_and_target_players_are_a_set() {
+    let text = ability_json("SpellActions(Targeted([UptoNumberTargetPermanents(Integer(3),IsCardtype(Creature))],ActionList([DestroyEachPermanent(And([Ref_TargetPermanents,IsCreatureType(Wall)]))])))");
+    assert!(text.contains("InSet"), "{text}");
+    let text = ability_json("SpellActions(Targeted([AnyNumberOfTargetPlayers(AnyPlayer)],ActionList([EachPlayerAction(Ref_TargetPlayers,DrawACard)])))");
+    assert!(text.contains("Targets"), "{text}");
+}
+
+#[test]
+fn losing_a_card_type_and_gaining_a_supertype_are_changes() {
+    let text = ability_json("PermanentLayerEffect(ThisPermanent,[RemoveCardtype(Creature),AddSupertype(Legendary)])");
+    assert!(text.contains("RemoveCardType"), "{text}");
+    assert!(text.contains("AddSupertype"), "{text}");
 }

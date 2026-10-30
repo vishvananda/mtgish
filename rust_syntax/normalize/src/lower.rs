@@ -118,7 +118,9 @@ enum Done {
 impl Done {
     fn of(operation: &Operation) -> Option<Self> {
         Some(match operation {
-            Operation::DealDamage { .. } => Self::Damage,
+            Operation::DealDamage { .. }
+            | Operation::DealDamageParts { .. }
+            | Operation::DealDamageFromEach { .. } => Self::Damage,
             Operation::Destroy { .. } => Self::Destroyed,
             Operation::Draw { .. } => Self::Drew,
             Operation::CreateContinuousEffect { .. } => Self::Effect,
@@ -459,6 +461,7 @@ impl Context {
             S::OpponentOf(player) => PlayerSet::OpponentsOf(self.player(player)?),
             S::Other(player) => PlayerSet::OthersThan(self.player(player)?),
             S::IsTheirTurn => PlayerSet::One(PlayerRef::Active),
+            S::Ref_TargetPlayers => PlayerSet::Targets(self.target(TargetKind::Player, 0, 0)?),
             S::And(values) => PlayerSet::Intersection(
                 values
                     .iter()
@@ -580,6 +583,9 @@ impl Context {
         }
         if matches!(value, source::Permanents::WasDealtDamageThisWay) {
             return Ok(ObjectFilter::DamagedBy(self.done(Done::Damage)?));
+        }
+        if matches!(value, source::Permanents::Ref_TargetPermanents) {
+            return Ok(ObjectFilter::InSet(Box::new(self.objects(value)?)));
         }
         let reduced = match self
             .pipeline_selector(crate::pipeline::selectors::SelectorRef::Permanents(value))
@@ -1073,6 +1079,10 @@ impl Context {
                     S::SetCreatureTypes(types) => vec![Change::CreatureTypes { mode:ChangeMode::Set,types:CreatureTypeSet::Listed(types.clone()) }],
                     S::AddCreatureType(ty) => vec![Change::CreatureTypes { mode:ChangeMode::Add,types:CreatureTypeSet::Listed(vec![ty.clone()]) }],
                     S::AddCardtype(ty) => vec![Change::AddCardType(ty.clone())],
+                    S::RemoveCardtype(ty) => vec![Change::RemoveCardType(ty.clone())],
+                    S::AddSupertype(ty) => vec![Change::AddSupertype(ty.clone())],
+                    S::AddLandType(ty) => vec![Change::AddLandType(ty.clone())],
+                    S::AddArtifactType(ty) => vec![Change::AddArtifactType(ty.clone())],
                     S::SetCardtype(ty) => vec![Change::SetCardTypes(vec![ty.clone()])],
                     S::SetCardtypes(types) => vec![Change::SetCardTypes(types.clone())],
                     S::AddAbility(abilities) => abilities
@@ -1237,6 +1247,20 @@ impl Context {
             amount,
             selection,
         })
+    }
+
+    fn damage_parts(&self, values: &[source::DamageToRecipients]) -> Result<Vec<DamagePart>> {
+        values
+            .iter()
+            .map(
+                |source::DamageToRecipients::DamageToRecipients(n, recipient)| {
+                    Ok(DamagePart {
+                        recipients: self.recipients(recipient)?,
+                        amount: self.number(n)?,
+                    })
+                },
+            )
+            .collect()
     }
 
     fn recipients(&self, value: &source::DamageRecipient) -> Result<Recipients> {
@@ -1714,6 +1738,12 @@ impl Context {
             S::PutCardsFromHandOnBattlefield(cards, flags) => {
                 return self.put_from_hand(cards, flags, None, actor)
             }
+            S::ShuffleGraveyardIntoLibrary => {
+                return self.shuffle_into_library(&[EventZone::Graveyard], actor)
+            }
+            S::ShuffleHandAndGraveyardIntoLibrary => {
+                return self.shuffle_into_library(&[EventZone::Hand, EventZone::Graveyard], actor)
+            }
             S::DiscardHand => {
                 let PlayerSet::One(_) = actor else {
                     return Err(invalid("discarding a hand needs one player"));
@@ -1948,6 +1978,28 @@ impl Context {
                     recipients: self.recipients(r)?,
                     amount: self.number(n)?,
                     preventable: matches!(value, S::SpellDealsDamage(_, _, _)),
+                }
+            }
+            S::PermanentDealsMultipleDamage(permanent, parts) => Operation::DealDamageParts {
+                source: self.object(permanent)?,
+                parts: self.damage_parts(parts)?,
+                preventable: true,
+            },
+            S::SpellDealsMultipleDamage(spell, parts) => {
+                if !matches!(spell.as_ref(), source::Spell::ThisSpell) {
+                    return Err(unsupported(spell));
+                }
+                Operation::DealDamageParts {
+                    source: ObjectRef::Source,
+                    parts: self.damage_parts(parts)?,
+                    preventable: true,
+                }
+            }
+            S::EachPermanentDealsDamage(permanents, n, recipient) => {
+                Operation::DealDamageFromEach {
+                    sources: self.objects(permanents)?,
+                    recipients: self.recipients(recipient)?,
+                    amount: self.number(n)?,
                 }
             }
             S::SpellDealsDistributedDamage(spell) => {

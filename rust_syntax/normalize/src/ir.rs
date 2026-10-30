@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 40;
+pub const SCHEMA_VERSION: u32 = 41;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -787,6 +787,19 @@ pub enum Operation {
         amount: Expr,
         preventable: bool,
     },
+    /// Different amounts from one source, all dealt at the same time.
+    DealDamageParts {
+        source: ObjectRef,
+        parts: Vec<DamagePart>,
+        preventable: bool,
+    },
+    /// Each object deals damage at the same time; `ObjectRef::Affected` reads
+    /// that object in `recipients` and `amount`.
+    DealDamageFromEach {
+        sources: ObjectSet,
+        recipients: Recipients,
+        amount: Expr,
+    },
     Destroy {
         objects: ObjectSet,
         regeneration: bool,
@@ -1048,6 +1061,10 @@ pub enum Change {
         colors: Vec<ManaColor>,
     },
     AddCardType(CardType),
+    RemoveCardType(CardType),
+    AddSupertype(SuperType),
+    AddLandType(crate::mtg_types::LandType),
+    AddArtifactType(crate::mtg_types::ArtifactType),
     /// Replaces every card type; supertypes stay and subtypes follow 205.1a.
     SetCardTypes(Vec<CardType>),
     GrantKeyword(Keyword),
@@ -1056,6 +1073,12 @@ pub enum Change {
     SetController(PlayerRef),
     SetPower(Expr),
     SetToughness(Expr),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct DamagePart {
+    pub recipients: Recipients,
+    pub amount: Expr,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

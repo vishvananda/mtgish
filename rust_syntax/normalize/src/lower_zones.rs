@@ -492,6 +492,30 @@ impl Context {
             instructions: vec![choice, movement],
         }))
     }
+    /// The library is shuffled even if there was nothing to move.
+    fn shuffle_into_library(
+        &mut self,
+        zones: &[EventZone],
+        actor: &PlayerSet,
+    ) -> Result<Instruction> {
+        let objects = zones
+            .iter()
+            .map(|zone| self.private_cards(zone.clone(), actor.clone(), ObjectFilter::Any))
+            .collect();
+        let movement = self.effect(Operation::Move {
+            objects: ObjectSet::Union(objects),
+            destination: Destination::OwnersLibraryTop,
+            entry: EntrySpec::default(),
+            face_down: false,
+        });
+        let shuffle = self.effect(Operation::Shuffle {
+            players: actor.clone(),
+            excluding: None,
+        });
+        Ok(Instruction::Group(Program {
+            instructions: vec![movement, shuffle],
+        }))
+    }
     /// "Put a card from your hand onto the battlefield": `count` chosen, or all.
     fn put_from_hand(
         &mut self,
