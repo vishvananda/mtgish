@@ -16,6 +16,10 @@ pub fn action(part: &CostPart) -> Option<PaymentAction> {
         } else {
             PaymentAction::Untap
         }),
+        CostPart::Move {
+            destination: Destination::Exile,
+            ..
+        } => Some(PaymentAction::Exile),
         _ => None,
     }
 }
@@ -74,7 +78,7 @@ pub fn singular(part: &CostPart) -> bool {
         CostPart::Sacrifice { objects, choose } => choose
             .as_ref()
             .map_or(matches!(objects, ObjectSet::One(_)), one),
-        CostPart::ChangeTapState { selections, .. } => {
+        CostPart::ChangeTapState { selections, .. } | CostPart::Move { selections, .. } => {
             matches!(selections.as_slice(),[CostObjectSelection {objects,choose}] if choose.as_ref().map_or(matches!(objects,ObjectSet::One(_)),one))
         }
         _ => false,
@@ -90,6 +94,10 @@ pub fn zone(part: &CostPart, phase: &ObjectPhase) -> Option<EventZone> {
         CostPart::ChangeTapState { .. } if matches!(phase, ObjectPhase::Before) => {
             Some(EventZone::Battlefield)
         }
+        CostPart::Move {
+            destination: Destination::Exile,
+            ..
+        } if matches!(phase, ObjectPhase::After) => Some(EventZone::Exile),
         _ => None,
     }
 }

@@ -58,7 +58,6 @@ fn characteristic_families_roundtrip_and_other_unimplemented_abilities_are_not_d
         "Adaptive Automaton",
         "Planar Nexus",
         "Primal Clay",
-        "Sutured Ghoul",
         "Serra Avatar",
     ];
     let mut complete = 0;
@@ -84,7 +83,7 @@ fn characteristic_families_roundtrip_and_other_unimplemented_abilities_are_not_d
         }
         complete += 1;
     }
-    assert_eq!(complete, 47);
+    assert_eq!(complete, 48);
 }
 
 #[test]

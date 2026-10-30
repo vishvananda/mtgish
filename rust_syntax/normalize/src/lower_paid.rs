@@ -68,6 +68,20 @@ impl Context {
             phase: ObjectPhase::Before,
         })
     }
+    /// What a cost exiled, as it is now in exile. `None` when no cost here did.
+    fn paid_exile(&self) -> Option<(ObjectSet, bool)> {
+        let binding = self.paid.get(&crate::number_spec::PaymentAction::Exile)?;
+        let binding = binding.as_ref().filter(|_| !self.announcing)?;
+        Some((
+            ObjectSet::CostObjects {
+                payment: binding.payment.clone(),
+                component: binding.component.clone(),
+                view: CostObjectView::Performed,
+                phase: ObjectPhase::After,
+            },
+            binding.singular,
+        ))
+    }
     fn acted_result(&self, action: crate::number_spec::PaymentAction) -> Option<&ResultId> {
         let paid = self.paid.get(&action).is_some_and(Option::is_some);
         self.acted.get(&action).filter(|_| !paid)

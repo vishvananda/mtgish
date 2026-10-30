@@ -118,7 +118,13 @@ impl Context {
             S::TheCardExiledThisWay
             | S::TheSingleCardExiledThisWay
             | S::TheSinglePermanentExiledThisWay
-            | S::TheSpecificCardExiledThisWay => self.result_object(self.exiled.as_ref(), 0),
+            | S::TheSpecificCardExiledThisWay => match self.paid_exile() {
+                Some((objects, true)) if self.exiled.is_none() => Ok(ObjectRef::Query {
+                    objects: Box::new(objects),
+                    index: 0,
+                }),
+                _ => self.result_object(self.exiled.as_ref(), 0),
+            },
             S::ThisExiledCard | S::ThisExiledPermanentCard => Ok(ObjectRef::Source),
             _ => Err(unsupported(value)),
         }
@@ -173,12 +179,23 @@ impl Context {
     fn exile_cards(&self, value: &source::CardsInExile) -> Result<ObjectSet> {
         Ok(match value {
             source::CardsInExile::TheCardsExiledThisWay | source::CardsInExile::TheExiledCards => {
-                ObjectSet::Transition {
-                    result: self
-                        .exiled
-                        .clone()
-                        .ok_or_else(|| invalid("exiled cards have no movement in this scope"))?,
-                    phase: ObjectPhase::After,
+                match (&self.exiled, self.paid_exile()) {
+                    (Some(result), _) => ObjectSet::Transition {
+                        result: result.clone(),
+                        phase: ObjectPhase::After,
+                    },
+                    (None, Some((objects, _))) => objects,
+                    // Another ability of this card did the exiling (607.2a).
+                    (None, None) if matches!(value, source::CardsInExile::TheExiledCards) => {
+                        ObjectSet::Zone {
+                            scope: ZoneScope::Shared(EventZone::Exile),
+                            kind: ObjectKind::Card,
+                            filter: ObjectFilter::ExiledWith(ObjectRef::Source),
+                        }
+                    }
+                    (None, None) => {
+                        return Err(invalid("exiled cards have no movement in this scope"))
+                    }
                 }
             }
             source::CardsInExile::SingleExiledCard(c) => ObjectSet::One(self.exiled_card(c)?),

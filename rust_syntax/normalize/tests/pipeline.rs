@@ -1967,3 +1967,29 @@ fn entwine_branches_between_one_mode_and_both() {
     assert!(modes(paid));
     assert!(!modes(unpaid));
 }
+
+#[test]
+fn an_exile_paid_as_a_cost_is_read_in_exile_and_a_linked_exile_is_read_by_source() {
+    let paid = ability_json("TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),ActionList([MayCost(Exile([TheTopCardOfLibrary],[])),If(CostWasPaid,[PutExiledCardOntoBattlefield(TheCardExiledThisWay,[EntersNormally])])]))");
+    assert!(paid.contains(r#""kind":"CostObjects""#), "{paid}");
+    assert!(
+        paid.contains(r#""view":"Performed","phase":"After""#),
+        "{paid}"
+    );
+
+    let linked = ability_json("TriggerA(WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)),ActionList([PutExiledCardsIntoOwnersHand(TheExiledCards)]))");
+    assert!(linked.contains(r#""ExiledWith""#), "{linked}");
+
+    // "This way" means this scope, so it never reaches another ability's exile.
+    let strict = custom("TriggerA(WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)),ActionList([PutExiledCardsIntoOwnersHand(TheCardsExiledThisWay)]))");
+    assert!(pipeline::finalize(&strict).is_err());
+}
+
+#[test]
+fn a_manifested_or_single_created_permanent_is_the_permanent_put_there_this_way() {
+    let manifested = ability_json("SpellActions(ActionList([ManifestTheTopCardOfPlayersLibrary(You),PutCounters([ACounterOfTypeOnPermanent(PTCounter(+1,+1),ThePermanentPutOnTheBattlefieldThisWay)])]))");
+    assert!(manifested.contains(r#""kind":"Result""#), "{manifested}");
+
+    let two = custom("SpellActions(ActionList([CreateTokens([NumberTokens(Integer(2),TokenWithPT(PT(1,1),Colors([Black]),[],[Creature],SubtypesList([Horror]),[]))],[]),PutCounters([ACounterOfTypeOnPermanent(PTCounter(+1,+1),ThePermanentPutOnTheBattlefieldThisWay)])]))");
+    assert!(pipeline::finalize(&two).is_err());
+}

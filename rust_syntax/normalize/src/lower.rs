@@ -261,7 +261,11 @@ impl Context {
             }
 
             S::ThePermanentPutOnTheBattlefieldThisWay => {
-                return self.result_object(self.entered.as_ref(), 0)
+                let token = self
+                    .created_tokens
+                    .as_ref()
+                    .filter(|r| self.singular.contains(&r.0));
+                return self.result_object(self.entered.as_ref().or(token), 0);
             }
             S::ThisPermanent | S::ThisPermanentOrThisCommandCard => {
                 return Ok(if self.keyword_host {

@@ -71,7 +71,6 @@ fn cycle_trigger(c: &Card) -> &Ability {
 fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
     let incomplete = [
         "Ashen Ghoul",
-        "Astral Slide",
         "Decree of Justice",
         "Decree of Pain",
         "Derevi, Empyrial Tactician",
@@ -110,7 +109,7 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 76);
+    assert_eq!(complete, 77);
 }
 
 #[test]

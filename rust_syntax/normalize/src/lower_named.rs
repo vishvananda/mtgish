@@ -244,14 +244,16 @@ impl Context {
         if name.starts_with("Action::RollAD") {
             self.rolled = Some(result.clone());
         }
-        Some(Instruction::Effect {
-            result,
-            operation: Operation::Primitive {
-                actor: actor.clone(),
-                name,
-                operands,
-            },
-        })
+        let operation = Operation::Primitive {
+            actor: actor.clone(),
+            name,
+            operands,
+        };
+        if crate::semantics::manifests(&operation) {
+            self.entered = Some(result.clone());
+            self.singular.insert(result.0);
+        }
+        Some(Instruction::Effect { result, operation })
     }
 
     fn primitive_ability(&self, value: &source::Rule) -> Option<Ability> {

@@ -119,8 +119,25 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
             ..
         } => true,
         Operation::DiscardObjects { objects } => chosen(objects),
-        _ => false,
+        Operation::CreateTokens {
+            players: PlayerSet::One(_),
+            tokens,
+            ..
+        } => matches!(
+            tokens.as_slice(),
+            [TokenSpec {
+                amount: Expr::Constant(1),
+                ..
+            }]
+        ),
+        _ => manifests(operation),
     }
+}
+
+/// Manifesting puts one card onto the battlefield (701.40a), as a reviewed
+/// primitive with no ordinary movement to read the permanent from.
+pub fn manifests(operation: &Operation) -> bool {
+    matches!(operation, Operation::Primitive { name, .. } if name.starts_with("Action::Manifest"))
 }
 
 pub fn event_bindings(event: &EventSpec) -> EventBindings {

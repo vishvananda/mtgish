@@ -67,12 +67,19 @@ impl<'a> Scope<'a> {
         let ObjectSet::CostObjects {
             payment,
             component,
-            view: CostObjectView::Inputs,
-            phase: ObjectPhase::Before,
+            view,
+            phase,
         } = objects
         else {
             return false;
         };
+        if !matches!(
+            (view, phase),
+            (CostObjectView::Inputs, ObjectPhase::Before)
+                | (CostObjectView::Performed, ObjectPhase::After)
+        ) {
+            return false;
+        }
         self.paid_component(payment, component)
             .is_ok_and(crate::cost_history::singular)
     }
@@ -1764,6 +1771,9 @@ impl<'a> Scope<'a> {
                             | Operation::Discard { .. }
                             | Operation::DiscardObjects { .. }
                             | Operation::Sacrifice { .. } => ResultKind::ObjectTransition,
+                            other if crate::semantics::manifests(other) => {
+                                ResultKind::ObjectTransition
+                            }
                             _ => ResultKind::Other,
                         };
                         let zones = match operation {
