@@ -127,3 +127,38 @@ fn layout_fields_outside_a_face_are_kept_as_data() {
     assert_eq!(lowered.data[0].name, "MeldsInto");
     assert!(matches!(&lowered.data[0].value, Operand::Text(t) if t == "Whole"));
 }
+
+#[test]
+fn a_primitive_binds_its_operands_in_scope_and_is_complete() {
+    let card = parse(
+        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Sorcery],Subtypes:[]),Rules:[SpellActions(ActionList([Investigate]))])"#,
+    );
+    let strict = lower::card(&card).unwrap();
+    validate::card(&strict).unwrap();
+    let forms = unified::forms(&strict);
+    assert!(forms.named.is_empty());
+    assert_eq!(forms.primitives["Action::Investigate"], 1);
+}
+
+#[test]
+fn every_primitive_row_is_a_real_source_form() {
+    let schema = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../src/mtg_types.rs"),
+    )
+    .unwrap();
+    let syntax = syn::parse_file(&schema).unwrap();
+    let rows = &mtgish_ast::primitive_spec::registry().rules;
+    assert!(!rows.is_empty());
+    for row in rows {
+        assert!(mtgish_ast::primitive_spec::lookup(&row.source).is_some());
+        let (ty, form) = row.source.split_once("::").unwrap();
+        assert!(
+            syntax.items.iter().any(|item| matches!(item,
+                syn::Item::Enum(e) if e.ident == ty
+                    && e.variants.iter().any(|v| v.ident == form))),
+            "{} is not a source form",
+            row.source
+        );
+        assert!(!row.text.trim().is_empty());
+    }
+}

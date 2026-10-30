@@ -1146,6 +1146,7 @@ impl<'a> Scope<'a> {
             Operand::List(items) => items.iter().try_for_each(|o| self.operand(o)),
             Operand::Record(fields) => fields.iter().try_for_each(|f| self.operand(&f.value)),
             Operand::Form(named) => self.named(named),
+            Operand::Vocabulary { .. } => Ok(()),
             Operand::Object(object) => self.object(object),
             Operand::Objects(objects) => self.objects(objects),
             Operand::Player(player) => self.player(player),
@@ -1162,6 +1163,17 @@ impl<'a> Scope<'a> {
             Operation::Named { actor, form } => {
                 self.players(actor)?;
                 self.named(form)
+            }
+            Operation::Primitive {
+                actor,
+                name,
+                operands,
+            } => {
+                self.players(actor)?;
+                if crate::primitive_spec::lookup(name).is_none() {
+                    return Err(format!("{name} is not a reviewed primitive"));
+                }
+                operands.iter().try_for_each(|o| self.operand(o))
             }
             Operation::CreateDelayedTrigger {
                 event,

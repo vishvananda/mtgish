@@ -20,6 +20,7 @@ pub mod mechanic_spec;
 pub mod number_spec;
 pub mod operand_spec;
 pub mod pipeline;
+pub mod primitive_spec;
 pub mod program_spec;
 pub mod rewrite_spec;
 pub mod selector_spec;

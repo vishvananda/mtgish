@@ -31,6 +31,9 @@ pub struct Record {
     /// also holds children that only failed to reduce with their parent.
     #[serde(default)]
     pub blockers: BTreeMap<String, usize>,
+    /// Reviewed primitives this record depends on.
+    #[serde(default)]
+    pub primitives: BTreeMap<String, usize>,
     pub diagnostics: Vec<lower::Diagnostic>,
     pub backend_capable: bool,
     pub backend_diagnostic: Option<BackendDiagnostic>,
@@ -50,6 +53,9 @@ pub struct Report {
     pub inputs: BTreeMap<String, String>,
     pub total: usize,
     pub complete: usize,
+    /// Complete records that depend on no primitive.
+    #[serde(default)]
+    pub complete_without_primitives: usize,
     #[serde(default)]
     pub unified: usize,
     /// Unreduced forms over all records, in the order of work for reduction.
@@ -136,6 +142,7 @@ impl Report {
             inputs: crate::pipeline::input_fingerprints(root)?,
             total: 0,
             complete: 0,
+            complete_without_primitives: 0,
             unified: 0,
             named: BTreeMap::new(),
             named_records: BTreeMap::new(),
@@ -160,7 +167,8 @@ impl Report {
                 |e: String| format!("{}:{line}: invalid unified AST: {e}", path.display());
             validate::unified(&lowered.card).map_err(invalid)?;
             crate::unified::round_trip(&lowered.card).map_err(invalid)?;
-            let named = crate::unified::named_forms(&lowered.card);
+            let crate::unified::Forms { named, primitives } =
+                crate::unified::forms(&lowered.card);
             let mut blockers = BTreeMap::new();
             for d in &lowered.blockers {
                 *blockers
@@ -192,6 +200,7 @@ impl Report {
                     unified: true,
                     named,
                     blockers,
+                    primitives,
                     diagnostics: lowered.diagnostics,
                     backend_capable,
                     backend_diagnostic,
@@ -209,6 +218,8 @@ impl Report {
             result.total += 1;
             result.unified += 1;
             result.complete += usize::from(record.complete);
+            result.complete_without_primitives +=
+                usize::from(record.complete && record.primitives.is_empty());
             result.backend_capable += usize::from(record.backend_capable);
             if let Some(d) = &record.backend_diagnostic {
                 *result

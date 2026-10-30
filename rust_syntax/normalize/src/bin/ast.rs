@@ -12,6 +12,22 @@ fn run() -> Result<()> {
             corpus::write_json(Path::new(output),&candidates)?;
             eprintln!("{} observed {} forms grouped into {} Rust field signatures; mappings require semantic review",candidates.observed_forms,source_type,candidates.groups.len());
         }
+        [command,report,source_type,oracle,output] if command=="primitive-draft" => {
+            let report=serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(report)?))?;
+            let source=std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/mtg_types.rs"))?;
+            let oracle=mtgish_ast::pipeline::candidates::oracle_text(Path::new(oracle))?;
+            let drafts=mtgish_ast::pipeline::candidates::draft_rows(&report,&source,source_type,&oracle)?;
+            corpus::write_json(Path::new(output),&drafts)?;
+            eprintln!("{} draft rows covering {} blocked records; review before adding any to rewrites/primitives.json5",drafts.len(),drafts.iter().map(|d|d.records).sum::<usize>());
+        }
+        [command,report,oracle] if command=="primitive-audit" => {
+            let report=serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(report)?))?;
+            let oracle=mtgish_ast::pipeline::candidates::oracle_text(Path::new(oracle))?;
+            let findings=mtgish_ast::pipeline::candidates::audit_primitives(&report,&oracle);
+            for finding in &findings {println!("{finding}");}
+            if !findings.is_empty() {return Err(format!("{} primitive uses disagree with Oracle text",findings.len()).into());}
+            eprintln!("every primitive use matches its Oracle text");
+        }
         [command,before,after,reviewed] if command=="coverage-compare" => {
             let read=|path:&String|->Result<mtgish_ast::report::Report>{Ok(serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(path)?))?)};
             let delta=mtgish_ast::report::CoverageDelta::between(&read(before)?,&read(after)?);
@@ -75,6 +91,7 @@ fn run() -> Result<()> {
             corpus::write_json(Path::new(output), &report)?;
             eprintln!("{} / {} records fully normalized; {} generic operation kinds used; {} unsupported source forms reported", report.complete, report.total, report.operations.len(), report.unsupported.len());
             eprintln!("{} / {} records unified; {} unreduced forms across {} distinct",report.unified,report.total,report.named.values().sum::<usize>(),report.named.len());
+            eprintln!("{} complete records depend on no primitive; {} distinct forms block the rest",report.complete_without_primitives,report.blocker_records.len());
             eprintln!("{} semantic families inventoried",report.forms.len());
             if report.backend_checked{eprintln!("{} records have all required Cantrip generator capabilities",report.backend_capable);}
             if report.complete != report.total { return Err("normalization is incomplete; see coverage report".into()); }
@@ -105,7 +122,7 @@ fn run() -> Result<()> {
             }
             out.commit()?;
         }
-        _ => return Err("usage: ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
+        _ => return Err("usage: ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast primitive-draft <check-report> <source-type> <oracle.json> <drafts.json>\n       ast primitive-audit <check-report> <oracle.json>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
     }
     Ok(())
 }

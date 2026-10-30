@@ -431,12 +431,9 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         "Kavaron Harrier",
         "Kiki-Jiki, Mirror Breaker",
         "Meandering Towershell",
-        "Pact of Negation",
         "Pygmy Hippo",
         "Scattering Stroke",
-        "Slaughter Pact",
         "Splinter Twin",
-        "Summoner's Pact",
         "Tatsumasa, the Dragon's Fang",
         "Thassa, Deep-Dwelling",
         "Urza's Bauble",
@@ -465,5 +462,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 21);
+    assert_eq!(complete, 24);
 }

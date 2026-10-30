@@ -209,6 +209,14 @@ impl Inventory<'_> {
         self.form("Operation", op);
         match op {
             Operation::Named { .. } => {}
+            Operation::Primitive { name, .. } => {
+                *self
+                    .0
+                    .entry("Primitive".into())
+                    .or_default()
+                    .entry(name.clone())
+                    .or_default() += 1;
+            }
             Operation::CreateDelayedTrigger {
                 event,
                 start,

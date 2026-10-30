@@ -44,7 +44,6 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
     let incomplete = [
         "Abandon Hope",
         "Abandon Reason",
-        "Abhorrent Oculus",
         "Analyze the Pollen",
         "Armor of Thorns",
         "Bedlam Reveler",
@@ -91,7 +90,7 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 52);
+    assert_eq!(complete, 53);
 }
 
 #[test]

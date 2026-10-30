@@ -469,8 +469,12 @@ pub fn finalize(card: &source::OracleCard) -> Result<ir::Card, Vec<crate::lower:
     let value = crate::lower::card(card)?;
     validate_final(value)
 }
-pub(crate) fn registry_sources() -> [(&'static str, &'static [u8]); 6] {
+pub(crate) fn registry_sources() -> [(&'static str, &'static [u8]); 7] {
     [
+        (
+            "rust_syntax/normalize/rewrites/primitives.json5",
+            include_bytes!("../../rewrites/primitives.json5").as_slice(),
+        ),
         (
             "rust_syntax/normalize/rewrites/mechanics.json5",
             include_bytes!("../../rewrites/mechanics.json5").as_slice(),

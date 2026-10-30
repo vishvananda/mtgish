@@ -829,15 +829,21 @@ impl Context {
     }
 
     fn action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
-        if !self.lenient {
-            return self.reduced_action(value, actor);
-        }
         let before = self.clone();
-        self.reduced_action(value, actor).or_else(|error| {
-            *self = before;
-            self.blockers.borrow_mut().push(error);
-            Ok(self.named_action(value, actor))
-        })
+        match self.reduced_action(value, actor) {
+            Ok(instruction) => Ok(instruction),
+            Err(error) => {
+                *self = before;
+                if let Some(instruction) = self.primitive_action(value, actor) {
+                    return Ok(instruction);
+                }
+                if !self.lenient {
+                    return Err(error);
+                }
+                self.blockers.borrow_mut().push(error);
+                Ok(self.named_action(value, actor))
+            }
+        }
     }
 
     fn reduced_action(

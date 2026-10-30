@@ -1111,7 +1111,7 @@ fn selector_registry_accounts_for_nested_fields_domains_and_vocabulary_constants
 fn selector_artifacts_and_saved_reports_require_all_registry_fingerprints() {
     let source=custom("SpellActions(Targeted([TargetPermanent(IsCardtype(Creature))],ActionList([TapPermanent(Ref_TargetPermanent)])))");
     let stage = pipeline::Intermediate::new(&source).unwrap();
-    assert_eq!(stage.structural.registries.len(), 6);
+    assert_eq!(stage.structural.registries.len(), 7);
     let loaded: pipeline::Intermediate =
         ron::from_str(&ron::ser::to_string(&stage).unwrap()).unwrap();
     assert!(pipeline::bind(&loaded.structural).is_ok());
@@ -1600,7 +1600,7 @@ fn saved_operand_artifacts_validate_recipe_source_and_registry_before_binding() 
     let loaded: pipeline::Intermediate =
         ron::from_str(&ron::ser::to_string(&stage).unwrap()).unwrap();
     assert_eq!(loaded.format, "mtgish.pipeline.intermediate.v8");
-    assert_eq!(loaded.structural.registries.len(), 6);
+    assert_eq!(loaded.structural.registries.len(), 7);
     assert!(pipeline::bind(&loaded.structural).is_ok());
     for case in 0..3 {
         let mut changed = loaded.structural.clone();

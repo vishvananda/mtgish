@@ -181,3 +181,151 @@ impl Candidates {
         })
     }
 }
+
+/// Oracle text by face name, lowercased, without reminder text.
+pub fn oracle_text(path: &std::path::Path) -> corpus::Result<BTreeMap<String, String>> {
+    let cards: serde_json::Value =
+        serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(path)?))?;
+    let mut faces = BTreeMap::new();
+    for card in cards.as_array().ok_or("oracle data is not a list")? {
+        for face in card["cards"].as_array().into_iter().flatten() {
+            let (Some(name), text) = (face["name"].as_str(), face["text"].as_str()) else {
+                continue;
+            };
+            let mut plain = String::new();
+            let mut depth = 0;
+            for c in text.unwrap_or_default().to_lowercase().chars() {
+                match c {
+                    '(' => depth += 1,
+                    ')' => depth -= 1,
+                    _ if depth == 0 => plain.push(c),
+                    _ => {}
+                }
+            }
+            faces.insert(name.to_string(), plain);
+        }
+    }
+    Ok(faces)
+}
+
+/// Space-separated words must all appear; `|` separates alternatives for one word.
+pub fn text_matches(expected: &str, oracle: &str) -> bool {
+    expected
+        .split_whitespace()
+        .all(|word| word.split('|').any(|choice| oracle.contains(choice)))
+}
+
+fn record_text(names: &[String], oracle: &BTreeMap<String, String>) -> String {
+    names
+        .iter()
+        .filter_map(|name| oracle.get(name))
+        .cloned()
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// A blocker form with its signature and a first guess at its Oracle words.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Draft {
+    pub source: String,
+    pub signature: String,
+    pub text: String,
+    pub records: usize,
+    /// Share of those records whose Oracle text holds `text`. Evidence for review
+    /// only: a high score does not prove the form is atomic.
+    pub oracle_hits: usize,
+    pub example_lines: Vec<usize>,
+}
+
+/// Words of a variant name that say what it does, dropping schema vocabulary.
+fn draft_text(variant: &str) -> String {
+    const NOISE: &[&str] = &[
+        "a", "an", "the", "of", "to", "from", "on", "in", "into", "and", "or", "with", "its",
+        "their", "your", "this", "that", "each", "all", "any", "permanent", "permanents", "card",
+        "cards", "player", "players", "action", "actions", "until", "for", "at", "by",
+    ];
+    let mut words: Vec<String> = vec![];
+    for c in variant.chars() {
+        if c.is_uppercase() || words.is_empty() {
+            words.push(String::new());
+        }
+        if c != '_' {
+            words.last_mut().unwrap().push(c.to_ascii_lowercase());
+        }
+    }
+    words.retain(|w| !w.is_empty() && !NOISE.contains(&w.as_str()));
+    words.join(" ")
+}
+
+pub fn draft_rows(
+    report: &crate::report::Report,
+    schema: &str,
+    source_type: &str,
+    oracle: &BTreeMap<String, String>,
+) -> corpus::Result<Vec<Draft>> {
+    let syntax = syn::parse_file(schema)?;
+    let definition = syntax
+        .items
+        .iter()
+        .find_map(|item| match item {
+            syn::Item::Enum(e) if e.ident == source_type => Some(e),
+            _ => None,
+        })
+        .ok_or("source type is not a Rust enum")?;
+    let mut drafts = vec![];
+    for variant in &definition.variants {
+        let source = format!("{source_type}::{}", variant.ident);
+        if crate::primitive_spec::lookup(&source).is_some() {
+            continue;
+        }
+        let records: Vec<_> = report
+            .records
+            .iter()
+            .filter(|r| r.blockers.contains_key(&source))
+            .collect();
+        if records.is_empty() {
+            continue;
+        }
+        let text = draft_text(&variant.ident.to_string());
+        drafts.push(Draft {
+            signature: variant
+                .fields
+                .iter()
+                .map(|f| f.ty.to_token_stream().to_string().replace(' ', ""))
+                .collect::<Vec<_>>()
+                .join(","),
+            oracle_hits: records
+                .iter()
+                .filter(|r| text_matches(&text, &record_text(&r.identity.names, oracle)))
+                .count(),
+            records: records.len(),
+            example_lines: records.iter().take(3).map(|r| r.line).collect(),
+            source,
+            text,
+        });
+    }
+    drafts.sort_by(|a, b| (&a.signature, b.records).cmp(&(&b.signature, a.records)));
+    Ok(drafts)
+}
+
+/// Every use of a reviewed primitive on a card whose Oracle text lacks its words.
+pub fn audit_primitives(
+    report: &crate::report::Report,
+    oracle: &BTreeMap<String, String>,
+) -> Vec<String> {
+    let mut findings = vec![];
+    for record in &report.records {
+        let text = record_text(&record.identity.names, oracle);
+        for name in record.primitives.keys() {
+            let rule = crate::primitive_spec::lookup(name).expect("validated primitive");
+            if !text.is_empty() && !text_matches(&rule.text, &text) {
+                findings.push(format!(
+                    "{name} (\"{}\") on {}",
+                    rule.text,
+                    record.identity.names.join(" // ")
+                ));
+            }
+        }
+    }
+    findings
+}

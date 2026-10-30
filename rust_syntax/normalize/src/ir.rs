@@ -49,6 +49,11 @@ pub enum Operand {
     List(Vec<Operand>),
     Record(Vec<Field>),
     Form(Box<Named>),
+    /// A fieldless form of a vocabulary enum, such as a subtype or counter type.
+    Vocabulary {
+        family: String,
+        form: String,
+    },
     Object(ObjectRef),
     Objects(ObjectSet),
     Player(PlayerRef),
@@ -637,6 +642,15 @@ pub enum Operation {
         changes: Vec<Change>,
         duration: Duration,
         evaluation: EffectEvaluation,
+    },
+    /// One rules-defined action with no decomposition, from a reviewed row in
+    /// `rewrites/primitives.json5`. Unlike `Named`, its operands are bound in the
+    /// enclosing scope and none is left unreduced. Counts as complete, and reports
+    /// list the records that depend on one.
+    Primitive {
+        actor: PlayerSet,
+        name: String,
+        operands: Vec<Operand>,
     },
     /// An action with no reduced form, carried out by `actor`. Never present on
     /// a complete card. It binds no result, so later references cannot reach it.
