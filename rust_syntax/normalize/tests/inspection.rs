@@ -64,6 +64,9 @@ fn operations(c: &Card) -> Vec<&Operation> {
                     program(then, out);
                     program(otherwise, out);
                 }
+                Instruction::ChooseOne { options, .. } => {
+                    options.iter().for_each(|option| program(option, out));
+                }
             }
         }
     }

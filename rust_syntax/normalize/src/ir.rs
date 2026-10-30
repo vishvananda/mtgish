@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 30;
+pub const SCHEMA_VERSION: u32 = 31;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -499,6 +499,11 @@ pub enum Instruction {
         decider: PlayerRef,
         body: Program,
     },
+    /// The decider picks one option as this resolves; no target is announced.
+    ChooseOne {
+        decider: PlayerRef,
+        options: Vec<Program>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -557,6 +562,13 @@ pub enum Operation {
     /// Explicit public revelation; searching never implies revelation.
     Reveal {
         objects: ObjectSet,
+    },
+    /// Reveal from the top of `library` through the first card matching `filter`.
+    /// The result is every revealed card in order, or the whole library if none
+    /// matched; the match is the only card in it passing `filter`.
+    RevealUntil {
+        library: PlayerRef,
+        filter: ObjectFilter,
     },
     /// Reordering is within each library, without zone changes. Exclusions hold
     /// selected cards out of the shuffle while they remain in that library.

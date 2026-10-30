@@ -64,7 +64,6 @@ fn library(players: PlayerSet) -> ObjectSet {
 fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete() {
     let incomplete = [
         "Corpse Churn",
-        "Demonic Consultation",
         "Exhume",
         "Extract from Darkness",
         "Food Chain",
@@ -93,7 +92,7 @@ fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete()
         }
         complete += 1;
     }
-    assert_eq!(complete, 51);
+    assert_eq!(complete, 52);
 }
 
 #[test]

@@ -250,6 +250,7 @@ impl Effects {
                         self.library |= !matches!(amount, Expr::Constant(0))
                     }
                     Operation::Reveal { .. }
+                    | Operation::RevealUntil { .. }
                     | Operation::Shuffle { .. }
                     | Operation::Scry { .. } => {}
                     Operation::PayCost { cost, .. } => {
@@ -286,6 +287,9 @@ impl Effects {
                 } => {
                     self.program(then);
                     self.program(otherwise);
+                }
+                Instruction::ChooseOne { options, .. } => {
+                    options.iter().for_each(|option| self.program(option));
                 }
             }
         }

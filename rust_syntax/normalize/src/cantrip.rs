@@ -1063,6 +1063,7 @@ fn operation_name(op: &Operation) -> &'static str {
     match op {
         Operation::Search { .. } => "Search",
         Operation::Reveal { .. } => "Reveal",
+        Operation::RevealUntil { .. } => "RevealUntil",
         Operation::Shuffle { .. } => "Shuffle",
         Operation::ReorderLibrary { .. } => "ReorderLibrary",
         Operation::Scry { .. } => "Scry",

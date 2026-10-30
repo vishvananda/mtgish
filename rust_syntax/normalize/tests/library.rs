@@ -577,3 +577,16 @@ fn a_kicked_spell_announces_each_branch_on_its_own() {
     assert!(matches!(**paid, Ability::Spell { .. }));
     assert!(matches!(**unpaid, Ability::Spell { .. }));
 }
+
+#[test]
+fn revealing_until_a_match_finds_that_card_and_leaves_the_rest() {
+    let card = custom(
+        "SpellActions(ActionList([RevealCardsFromTheTopOfLibraryUntilACardOfTypeIsRevealed(IsCardtype(Land), [PutTheCardFoundThisWayIntoHand, PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder])]))",
+    )
+    .unwrap();
+    validate::card(&card).unwrap();
+    let json = serde_json::to_string(&card).unwrap();
+    assert!(json.contains("RevealUntil"), "{json}");
+    assert!(json.contains("OwnersHand"), "{json}");
+    assert!(json.contains("ReorderLibrary"), "{json}");
+}

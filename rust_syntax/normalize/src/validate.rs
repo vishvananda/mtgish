@@ -1363,6 +1363,10 @@ impl<'a> Scope<'a> {
                 Ok(())
             }
             Operation::Reveal { objects } => self.objects(objects),
+            Operation::RevealUntil { library, filter } => {
+                self.player(library)?;
+                self.filter(filter)
+            }
             Operation::Shuffle { players, excluding } => {
                 self.players(players)?;
                 if let Some(objects) = excluding {
@@ -1691,7 +1695,9 @@ impl<'a> Scope<'a> {
                     Instruction::Effect { result, operation } => {
                         self.operation(operation)?;
                         let kind = match operation {
-                            Operation::LookAt { .. } => ResultKind::Observation,
+                            Operation::LookAt { .. }
+                            | Operation::Reveal { .. }
+                            | Operation::RevealUntil { .. } => ResultKind::Observation,
                             Operation::Search { .. } => ResultKind::Search,
                             Operation::PayCost { .. } => ResultKind::Payment,
                             Operation::CreateTokens { .. } => ResultKind::CreatedObjects,
@@ -1705,10 +1711,12 @@ impl<'a> Scope<'a> {
                             _ => ResultKind::Other,
                         };
                         let zones = match operation {
-                            Operation::LookAt { objects, .. } => self.known_zones(objects),
-                            Operation::Search { .. } | Operation::ReorderLibrary { .. } => {
-                                Some(vec![EventZone::Library])
+                            Operation::LookAt { objects, .. } | Operation::Reveal { objects } => {
+                                self.known_zones(objects)
                             }
+                            Operation::Search { .. }
+                            | Operation::ReorderLibrary { .. }
+                            | Operation::RevealUntil { .. } => Some(vec![EventZone::Library]),
                             Operation::ChooseObjects { objects, .. } => self.known_zones(objects),
                             _ => None,
                         };
@@ -1723,7 +1731,12 @@ impl<'a> Scope<'a> {
                         if self.results.insert(result.0, kind).is_some() {
                             return Err(format!("duplicate result {}", result.0));
                         }
-                        if let Operation::LookAt { objects, .. } = operation {
+                        if matches!(operation, Operation::RevealUntil { .. }) {
+                            self.ordered_results.insert(result.0);
+                        }
+                        if let Operation::LookAt { objects, .. } | Operation::Reveal { objects } =
+                            operation
+                        {
                             if self.ordered(objects) {
                                 self.ordered_results.insert(result.0);
                             }
@@ -1787,6 +1800,15 @@ impl<'a> Scope<'a> {
                                         .retain(|p| !crate::semantics::same_player(p, library));
                                 }
                             }
+                        }
+                    }
+                    Instruction::ChooseOne { decider, options } => {
+                        self.player(decider)?;
+                        if options.len() < 2 {
+                            return Err("a choice needs at least two options".into());
+                        }
+                        for option in options {
+                            self.clone().program(option)?;
                         }
                     }
                     Instruction::Optional { decider, body } => {

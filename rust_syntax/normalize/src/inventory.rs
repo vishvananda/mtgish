@@ -221,6 +221,10 @@ impl Inventory<'_> {
                     self.player(decider);
                     self.program(body);
                 }
+                Instruction::ChooseOne { decider, options } => {
+                    self.player(decider);
+                    options.iter().for_each(|option| self.program(option));
+                }
             }
         }
     }
@@ -274,6 +278,10 @@ impl Inventory<'_> {
                 }
             }
             Operation::Reveal { objects } => self.objects(objects),
+            Operation::RevealUntil { library, filter } => {
+                self.player(library);
+                self.filter(filter);
+            }
             Operation::Shuffle { players, excluding } => {
                 self.players(players);
                 if let Some(o) = excluding {

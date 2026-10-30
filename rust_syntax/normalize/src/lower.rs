@@ -65,6 +65,7 @@ struct Context {
     acted: std::collections::BTreeMap<crate::number_spec::PaymentAction, ResultId>,
     singular: std::collections::BTreeSet<u32>,
     value_x: Option<ResultId>,
+    revealed: Option<ObjectSet>,
     announcing: bool,
     you: Option<PlayerRef>,
     payer: Option<PlayerRef>,
@@ -126,6 +127,9 @@ impl Context {
         }
         if let Operation::Search { library, .. } = &operation {
             self.open_searches.push(library.clone());
+        }
+        if let Operation::Reveal { objects } = &operation {
+            self.revealed = Some(objects.clone());
         }
         if let Operation::Shuffle { players, .. } = &operation {
             self.open_searches
@@ -604,6 +608,20 @@ impl Context {
                 comparison: Comparison::Greater,
                 right: Expr::Constant(0),
             },
+            S::ACardWasRevealedThisWay(cards) => {
+                let objects = self
+                    .revealed
+                    .clone()
+                    .ok_or_else(|| invalid("no card was revealed in this scope"))?;
+                Condition::Compare {
+                    left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                        objects: Box::new(objects),
+                        filter: self.card_filter(cards)?,
+                    })),
+                    comparison: Comparison::GreaterOrEqual,
+                    right: Expr::Constant(1),
+                }
+            }
             S::AnExiledCardPassesFilter(cards, filter) => Condition::Compare {
                 left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                     objects: Box::new(self.still_exiled(self.exile_cards(cards)?)),
@@ -1170,6 +1188,78 @@ impl Context {
                         modes: child.modes,
                     },
                     body,
+                }
+            }
+            S::RevealTopCardOfLibrary => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("revealing a library needs one player"));
+                };
+                let objects =
+                    self.library_slice(player.clone(), Expr::Constant(1), SequenceEnd::Top);
+                let reveal = self.effect(Operation::Reveal { objects });
+                let Instruction::Effect { result, .. } = &reveal else {
+                    unreachable!()
+                };
+                self.revealed = Some(ObjectSet::Observed(result.clone()));
+                return Ok(reveal);
+            }
+            S::RevealTheTopNumberCardsOfLibrary(amount, actions) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("revealing a library needs one player"));
+                };
+                let objects =
+                    self.library_slice(player.clone(), self.number(amount)?, SequenceEnd::Top);
+                return self.reveal_library(
+                    player.clone(),
+                    Operation::Reveal { objects },
+                    None,
+                    actions,
+                );
+            }
+            S::RevealCardsFromTheTopOfLibraryUntilACardOfTypeIsRevealed(cards, actions) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("revealing a library needs one player"));
+                };
+                let filter = self.card_filter(cards)?;
+                let reveal = Operation::RevealUntil {
+                    library: player.clone(),
+                    filter: filter.clone(),
+                };
+                return self.reveal_library(player.clone(), reveal, Some(filter), actions);
+            }
+            S::ChooseAnAction(options) => {
+                let PlayerSet::One(decider) = actor else {
+                    return Err(invalid("a choice of actions needs one player"));
+                };
+                let mut programs = Vec::new();
+                for option in options {
+                    let mut child = self.clone();
+                    let instructions = option
+                        .iter()
+                        .map(|action| child.action(action, actor))
+                        .collect::<Result<_>>()?;
+                    self.result = child.result;
+                    self.invalidate_child_bindings(&child);
+                    programs.push(Program { instructions });
+                }
+                return Ok(Instruction::ChooseOne {
+                    decider: decider.clone(),
+                    options: programs,
+                });
+            }
+            S::EachPlayerCreatesTokens(players, tokens, flags) => {
+                let players = self.players(players)?;
+                Operation::CreateTokens {
+                    players,
+                    tokens: tokens
+                        .iter()
+                        .enumerate()
+                        .map(|(i, token)| {
+                            self.token(token, 0)
+                                .map_err(|e| e.at(format!("tokens[{i}]")))
+                        })
+                        .collect::<Result<_>>()?,
+                    entry: self.token_entry(flags)?,
                 }
             }
             S::CreateValueX(value) => {
@@ -2218,3 +2308,4 @@ include!("lower_number_pipeline.rs");
 include!("lower_paid.rs");
 include!("lower_named.rs");
 include!("lower_reflexive.rs");
+include!("lower_reveal.rs");

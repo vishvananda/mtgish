@@ -53,7 +53,6 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         "Fury of the Horde",
         "Hamlet Glutton",
         "Land Grant",
-        "Mulch",
         "Rites of Initiation",
         "Soul Burn",
         "Spinning Darkness",
@@ -82,7 +81,7 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 61);
+    assert_eq!(complete, 62);
 }
 
 #[test]
