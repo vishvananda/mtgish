@@ -3,33 +3,134 @@
 use crate::mtg_types::OracleCard;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
+use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, BufRead, BufReader, Write};
+use std::io::{self, BufWriter, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::mpsc::sync_channel;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
-/// Do not skip blank, malformed, or unreadable records. The caller decides how
-/// to stage its output; a successful pass accounts for every input line.
-pub fn for_each_card(
+/// Lowering recurses through large frames in debug builds, so a deep card must
+/// not depend on the caller's stack.
+const STACK_BYTES: usize = 256 << 20;
+/// Large enough to avoid contention on the shared counter; small enough to balance.
+const CHUNK_LINES: usize = 32;
+// Set on any thread already running with `STACK_BYTES`.
+std::thread_local!(static LARGE_STACK: Cell<bool> = const { Cell::new(false) });
+
+/// Run `work` with a stack sized for lowering. Cheap when already on one.
+pub fn on_large_stack<R: Send>(work: impl FnOnce() -> R + Send) -> R {
+    if LARGE_STACK.get() {
+        return work();
+    }
+    std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .stack_size(STACK_BYTES)
+            .spawn_scoped(scope, || {
+                LARGE_STACK.set(true);
+                work()
+            })
+            .expect("large stack thread")
+            .join()
+            .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+    })
+}
+
+fn worker_count() -> usize {
+    std::env::var("MTGISH_THREADS")
+        .ok()
+        .and_then(|n| n.parse().ok())
+        .unwrap_or_else(|| {
+            std::thread::available_parallelism()
+                .map_or(1, |n| n.get())
+                .min(32)
+        })
+        .max(1)
+}
+
+fn parse_line(path: &Path, number: usize, line: &str) -> Result<OracleCard> {
+    ron::from_str(line).map_err(|e| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("{}:{number}: {e}", path.display()),
+        )
+        .into()
+    })
+}
+
+/// Parse and `map` records on worker threads, then `visit` every result on the
+/// calling thread in line order, so a report never depends on scheduling. Put
+/// expensive work in `map`. Do not skip blank, malformed, or unreadable records:
+/// the earliest failing line is reported, and a success accounts for every line.
+pub fn map_cards<T: Send>(
     path: &Path,
-    mut visit: impl FnMut(usize, OracleCard) -> Result<()>,
+    map: impl Fn(usize, OracleCard) -> Result<T> + Sync,
+    mut visit: impl FnMut(usize, T) -> Result<()>,
 ) -> Result<()> {
-    for (index, line) in BufReader::new(File::open(path)?).lines().enumerate() {
-        let number = index + 1;
-        let line = line
-            .map_err(|e| io::Error::new(e.kind(), format!("{}:{number}: {e}", path.display())))?;
-        let card = ron::from_str(&line).map_err(|e| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!("{}:{number}: {e}", path.display()),
-            )
-        })?;
-        visit(number, card)?;
+    let text = fs::read_to_string(path)
+        .map_err(|e| io::Error::new(e.kind(), format!("{}: {e}", path.display())))?;
+    let lines: Vec<&str> = text.lines().collect();
+    let chunks: Vec<&[&str]> = lines.chunks(CHUNK_LINES).collect();
+    let workers = worker_count().min(chunks.len().max(1));
+    let next = AtomicUsize::new(0);
+    let finished = std::thread::scope(|scope| -> Result<usize> {
+        let (sender, receiver) = sync_channel(workers * 2);
+        for _ in 0..workers {
+            let sender = sender.clone();
+            let (next, chunks, map) = (&next, &chunks, &map);
+            std::thread::Builder::new()
+                .stack_size(STACK_BYTES)
+                .spawn_scoped(scope, move || {
+                    LARGE_STACK.set(true);
+                    loop {
+                        let index = next.fetch_add(1, Ordering::Relaxed);
+                        let Some(chunk) = chunks.get(index) else {
+                            break;
+                        };
+                        let mapped = chunk
+                            .iter()
+                            .enumerate()
+                            .map(|(offset, line)| {
+                                let number = index * CHUNK_LINES + offset + 1;
+                                let card = parse_line(path, number, line)?;
+                                Ok((number, map(number, card)?))
+                            })
+                            .collect::<Result<Vec<_>>>();
+                        if sender.send((index, mapped)).is_err() {
+                            break;
+                        }
+                    }
+                })?;
+        }
+        drop(sender);
+        let mut pending = BTreeMap::new();
+        let mut wanted = 0;
+        for (chunk, mapped) in receiver {
+            pending.insert(chunk, mapped);
+            while let Some(mapped) = pending.remove(&wanted) {
+                for (number, value) in mapped? {
+                    visit(number, value)?;
+                }
+                wanted += 1;
+            }
+        }
+        Ok(wanted)
+    })?;
+    if finished != chunks.len() {
+        return Err("corpus worker stopped before finishing".into());
     }
     Ok(())
+}
+
+/// Every record on the calling thread, in line order. See `map_cards`.
+pub fn for_each_card(
+    path: &Path,
+    visit: impl FnMut(usize, OracleCard) -> Result<()>,
+) -> Result<()> {
+    map_cards(path, |_, card| Ok(card), visit)
 }
 
 pub fn read_cards(path: &Path) -> Result<Vec<OracleCard>> {
@@ -100,7 +201,7 @@ pub fn input_fingerprints(root: &Path) -> Result<BTreeMap<String, String>> {
 pub struct Artifact {
     path: PathBuf,
     destination: PathBuf,
-    file: File,
+    file: BufWriter<File>,
 }
 
 impl Artifact {
@@ -122,7 +223,7 @@ impl Artifact {
         Ok(Self {
             path,
             destination: destination.into(),
-            file,
+            file: BufWriter::with_capacity(1 << 20, file),
         })
     }
 
@@ -216,11 +317,24 @@ impl Manifest {
             records: Vec::new(),
             forms: BTreeMap::new(),
         };
-        for_each_card(path, |_, card| {
-            crate::inspect::count(&crate::inspect::value(&card)?, &mut result.forms);
-            result.records.push(Identity::of(&card)?);
-            Ok(())
-        })?;
+        map_cards(
+            path,
+            |_, card| {
+                let mut forms = BTreeMap::new();
+                crate::inspect::count(&crate::inspect::value(&card)?, &mut forms);
+                Ok((forms, Identity::of(&card)?))
+            },
+            |_, (forms, identity): (BTreeMap<String, BTreeMap<String, usize>>, Identity)| {
+                for (ty, variants) in forms {
+                    let merged = result.forms.entry(ty).or_default();
+                    for (variant, count) in variants {
+                        *merged.entry(variant).or_default() += count;
+                    }
+                }
+                result.records.push(identity);
+                Ok(())
+            },
+        )?;
         if result.records.is_empty() {
             return Err("card corpus is empty".into());
         }

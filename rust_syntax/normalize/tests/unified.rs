@@ -1,4 +1,5 @@
 use mtgish_ast::{
+    corpus,
     ir::{Ability, Named, Operand},
     lower, mtg_types as source, unified, validate,
 };
@@ -7,83 +8,65 @@ fn parse(card: &str) -> source::OracleCard {
     ron::from_str(card).unwrap()
 }
 
-fn lines(name: &str) -> impl Iterator<Item = source::OracleCard> {
-    std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("tests/fixtures")
-            .join(name),
-    )
-    .unwrap()
-    .lines()
-    .filter(|line| !line.trim().is_empty())
-    .map(parse)
-    .collect::<Vec<_>>()
-    .into_iter()
-}
-
-/// Strict lowering of a large fixture needs more than a test thread's 2 MiB.
-fn on_large_stack(test: impl FnOnce() + Send) {
-    std::thread::scope(|scope| {
-        std::thread::Builder::new()
-            .stack_size(256 << 20)
-            .spawn_scoped(scope, test)
-            .unwrap()
-            .join()
-            .unwrap()
-    })
+fn fixture(name: &str) -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures")
+        .join(name)
 }
 
 #[test]
 fn every_fixture_record_lowers_validates_and_round_trips() {
-    let mut records = 0;
     for name in ["pipeline_generated.ronl", "cast_history.ronl"] {
-        for card in lines(name) {
-            let lowered = unified::lower(&card);
-            validate::unified(&lowered.card).unwrap();
-            unified::round_trip(&lowered.card).unwrap();
-            assert!(!lowered.card.faces.is_empty() || !lowered.card.data.is_empty());
-            records += 1;
-        }
+        let (mut records, mut complete) = (0, 0);
+        corpus::map_cards(
+            &fixture(name),
+            |_, card| {
+                let lowered = unified::lower(&card);
+                validate::unified(&lowered.card).unwrap();
+                unified::round_trip(&lowered.card).unwrap();
+                assert!(!lowered.card.faces.is_empty() || !lowered.card.data.is_empty());
+                let strict = lower::card(&card).ok();
+                if let Some(strict) = &strict {
+                    assert!(lowered.diagnostics.is_empty());
+                    assert!(unified::named_forms(&lowered.card).is_empty());
+                    assert_eq!(
+                        serde_json::to_value(&lowered.card.faces[0]).unwrap(),
+                        serde_json::to_value(strict).unwrap(),
+                    );
+                }
+                Ok(strict.is_some())
+            },
+            |_, is_complete| {
+                records += 1;
+                complete += usize::from(is_complete);
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert!(records > 0);
+        assert!(complete > 0);
     }
-    assert!(records > 0);
 }
 
 #[test]
 fn strict_validation_rejects_named_forms() {
-    on_large_stack(|| {
-        let mut card = lines("pipeline_generated.ronl")
-            .find_map(|candidate| lower::card(&candidate).ok())
-            .expect("a complete fixture");
-        validate::card(&card).unwrap();
-        card.abilities.push(Ability::Named(Named {
-            source_type: "Rule".into(),
-            form: "Test".into(),
-            operands: vec![],
-        }));
-        assert!(validate::card(&card).unwrap_err().contains("Rule::Test"));
-    });
-}
-
-#[test]
-fn complete_cards_contain_no_named_forms() {
-    on_large_stack(|| {
-        for card in lines("pipeline_generated.ronl") {
-            if let Ok(strict) = lower::card(&card) {
-                let lowered = unified::lower(&card);
-                assert!(lowered.diagnostics.is_empty());
-                assert!(unified::named_forms(&lowered.card).is_empty());
-                assert_eq!(
-                    serde_json::to_value(&lowered.card.faces[0]).unwrap(),
-                    serde_json::to_value(&strict).unwrap(),
-                );
-            }
-        }
-    });
+    let card = parse(
+        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Creature],Subtypes:[]),Rules:[],CardPT:(Power:1,Toughness:1))"#,
+    );
+    let mut card = lower::card(&card).unwrap();
+    validate::card(&card).unwrap();
+    card.abilities.push(Ability::Named(Named {
+        source_type: "Rule".into(),
+        form: "Test".into(),
+        operands: vec![],
+    }));
+    assert!(validate::card(&card).unwrap_err().contains("Rule::Test"));
 }
 
 #[test]
 fn a_named_operand_never_holds_an_unbound_reference() {
-    let reference = serde_json::json!({"enum": "Permanent", "variant": "Ref_TargetPermanent", "args": null});
+    let reference =
+        serde_json::json!({"enum": "Permanent", "variant": "Ref_TargetPermanent", "args": null});
     assert!(matches!(lower::operand(&reference), Operand::Form(_)));
 }
 
@@ -111,10 +94,15 @@ fn rooms_share_their_typeline_and_flips_share_their_mana_cost() {
     ));
     let lowered = unified::lower(&room).card;
     assert_eq!(lowered.faces.len(), 2);
-    assert!(lowered.faces.iter().all(|f| !f.characteristics.card_types.is_empty()));
+    assert!(lowered
+        .faces
+        .iter()
+        .all(|f| !f.characteristics.card_types.is_empty()));
 
     let side = |n: &str| {
-        format!(r#"(Name:"{n}",Typeline:(Supertypes:[],Cardtypes:[Creature],Subtypes:[]),Rules:[],CardPT:(Power:1,Toughness:1))"#)
+        format!(
+            r#"(Name:"{n}",Typeline:(Supertypes:[],Cardtypes:[Creature],Subtypes:[]),Rules:[],CardPT:(Power:1,Toughness:1))"#
+        )
     };
     let flip = parse(&format!(
         "Flip(ManaCost:[ManaCostGeneric(2)],Unflipped:{},Flipped:{})",
@@ -123,7 +111,10 @@ fn rooms_share_their_typeline_and_flips_share_their_mana_cost() {
     ));
     let lowered = unified::lower(&flip).card;
     assert_eq!(lowered.faces.len(), 2);
-    assert!(lowered.faces.iter().all(|f| f.characteristics.mana_cost.is_some()));
+    assert!(lowered
+        .faces
+        .iter()
+        .all(|f| f.characteristics.mana_cost.is_some()));
 }
 
 #[test]

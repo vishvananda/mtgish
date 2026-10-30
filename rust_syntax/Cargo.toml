@@ -29,6 +29,16 @@ sha2 = "0.10"
 incremental = true
 debug = 0
 
+# Corpus runs spend their time in generic serde and lowering code. Optimizing
+# everything except rust_syntax, whose derives are slow to optimize, keeps
+# builds fast while making full checks much faster.
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.dev.package.mtgish-ast]
+opt-level = 1
+debug-assertions = false
+
 [features]
 legacy-cli = []
 ronl_to_bincode = ["legacy-cli"]

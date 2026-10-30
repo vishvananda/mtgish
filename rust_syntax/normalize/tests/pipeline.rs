@@ -286,68 +286,52 @@ fn stage_recipe_roundtrips_and_final_export_stays_atomic_on_unresolved_data() {
 #[test]
 fn automatically_selected_corpus_fixtures_cover_the_registry_and_preserve_partial_and_final_forms()
 {
-    // Legacy Serialize derives for nested granted abilities exceed the test
-    // harness's 2 MiB stack (e.g. Frodo, Sauron's Bane). Match the CLI source
-    // stack, then keep all final semantic codec checks on the default stack.
-    let (rules, cards, count) = std::thread::Builder::new()
-        .name("pipeline-source-fixtures".into())
-        .stack_size(8 * 1024 * 1024)
-        .spawn(|| {
-            let mut rules = BTreeSet::new();
-            let mut cards = vec![];
-            let mut count = 0;
-            for line in include_str!("fixtures/pipeline_generated.ronl").lines() {
-                let source: source::OracleCard = ron::from_str(line).unwrap();
-                let intermediate = pipeline::Intermediate::new(&source).unwrap();
-                let native = pipeline::finalize(&source);
-                match (&intermediate.final_card, native) {
-                    (Some(expected), Ok(actual)) => assert_eq!(
-                        serde_json::to_value(expected).unwrap(),
-                        serde_json::to_value(actual).unwrap()
-                    ),
-                    (None, Err(errors)) => assert_eq!(
-                        serde_json::to_value(&intermediate.diagnostics).unwrap(),
-                        serde_json::to_value(errors).unwrap()
-                    ),
-                    _ => panic!("prepared and ordinary lowering disagree"),
-                }
-
-                let loaded: pipeline::Intermediate =
-                    serde_json::from_value(serde_json::to_value(&intermediate).unwrap()).unwrap();
-                assert_eq!(
-                    inspect::value(&loaded.structural.source.restore().unwrap()).unwrap(),
-                    inspect::value(&source).unwrap()
-                );
-                for rewrite in &loaded.structural.rewrites {
-                    rules.insert(rewrite.rule.clone());
-                }
-                for rewrite in &loaded.structural.numbers {
-                    rules.insert(rewrite.rule.clone());
-                }
-                for rewrite in &loaded.structural.selectors {
-                    rules.insert(rewrite.rule.clone());
-                }
-                for rewrite in &loaded.structural.programs {
-                    rules.insert(rewrite.rule.clone());
-                }
-                for rewrite in &loaded.structural.mechanics {
-                    rules.insert(rewrite.rule.clone());
-                }
-                for rewrite in &loaded.structural.operands {
-                    rules.insert(rewrite.rule.clone());
-                }
-                if let Some(card) = loaded.final_card {
-                    cards.push(card);
-                } else {
-                    assert!(!loaded.diagnostics.is_empty());
-                }
-                count += 1;
+    let (mut rules, mut cards, mut count) = (BTreeSet::new(), vec![], 0);
+    let fixtures = root().join("rust_syntax/normalize/tests/fixtures/pipeline_generated.ronl");
+    mtgish_ast::corpus::map_cards(
+        &fixtures,
+        |_, source| {
+            let intermediate = pipeline::Intermediate::new(&source).unwrap();
+            let native = pipeline::finalize(&source);
+            match (&intermediate.final_card, native) {
+                (Some(expected), Ok(actual)) => assert_eq!(
+                    serde_json::to_value(expected).unwrap(),
+                    serde_json::to_value(actual).unwrap()
+                ),
+                (None, Err(errors)) => assert_eq!(
+                    serde_json::to_value(&intermediate.diagnostics).unwrap(),
+                    serde_json::to_value(errors).unwrap()
+                ),
+                _ => panic!("prepared and ordinary lowering disagree"),
             }
-            (rules, cards, count)
-        })
-        .unwrap()
-        .join()
-        .unwrap();
+
+            let loaded: pipeline::Intermediate =
+                serde_json::from_value(serde_json::to_value(&intermediate).unwrap()).unwrap();
+            assert_eq!(
+                inspect::value(&loaded.structural.source.restore().unwrap()).unwrap(),
+                inspect::value(&source).unwrap()
+            );
+            let structural = &loaded.structural;
+            let used: Vec<String> = (structural.rewrites.iter().map(|r| r.rule.clone()))
+                .chain(structural.numbers.iter().map(|r| r.rule.clone()))
+                .chain(structural.selectors.iter().map(|r| r.rule.clone()))
+                .chain(structural.programs.iter().map(|r| r.rule.clone()))
+                .chain(structural.mechanics.iter().map(|r| r.rule.clone()))
+                .chain(structural.operands.iter().map(|r| r.rule.clone()))
+                .collect();
+            if loaded.final_card.is_none() {
+                assert!(!loaded.diagnostics.is_empty());
+            }
+            Ok((used, loaded.final_card))
+        },
+        |_, (used, card)| {
+            rules.extend(used);
+            cards.extend(card);
+            count += 1;
+            Ok(())
+        },
+    )
+    .unwrap();
     let native = cards.len();
     for card in cards {
         let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();

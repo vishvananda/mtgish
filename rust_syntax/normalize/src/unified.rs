@@ -2,7 +2,7 @@
 //! whether a face is reduced; this only adds a representation for the rest, so it
 //! cannot change what counts as complete.
 use crate::{
-    ir::{Ability, Card, Field, Operand, UnifiedCard, SCHEMA_VERSION},
+    ir::{Ability, Card, Field, UnifiedCard, SCHEMA_VERSION},
     lower::{self, Diagnostic},
     mtg_types::OracleCard,
     pipeline::source_tree::decode,
@@ -39,19 +39,8 @@ struct Walk {
     diagnostics: Vec<Diagnostic>,
 }
 
-/// Named operands recurse through every lowerer, and those frames are large in
-/// debug builds, so a deep card must not depend on the caller's stack.
-const STACK_BYTES: usize = 256 << 20;
-
 pub fn lower(value: &OracleCard) -> Lowered {
-    std::thread::scope(|scope| {
-        std::thread::Builder::new()
-            .stack_size(STACK_BYTES)
-            .spawn_scoped(scope, || lower_record(value))
-            .expect("lowering thread")
-            .join()
-            .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
-    })
+    crate::corpus::on_large_stack(|| lower_record(value))
 }
 
 fn lower_record(value: &OracleCard) -> Lowered {
@@ -90,7 +79,10 @@ impl Walk {
                     face.insert(key.into(), value.clone());
                 }
             }
-            self.face(&json!({"enum": "OracleCard", "variant": "Card", "args": face}), path);
+            self.face(
+                &json!({"enum": "OracleCard", "variant": "Card", "args": face}),
+                path,
+            );
         }
         for (key, value) in fields {
             let consumed = if is_face {
@@ -113,7 +105,9 @@ impl Walk {
             Value::Object(_) if plain(value).is_some() => {
                 self.fields(plain(value).unwrap(), scope, &path);
             }
-            Value::Array(items) if !items.is_empty() && items.iter().all(|v| plain(v).is_some()) => {
+            Value::Array(items)
+                if !items.is_empty() && items.iter().all(|v| plain(v).is_some()) =>
+            {
                 for (i, item) in items.iter().enumerate() {
                     self.fields(plain(item).unwrap(), scope, &format!("{path}{i}/"));
                 }
@@ -169,29 +163,30 @@ pub fn named_forms(value: &impl Serialize) -> BTreeMap<String, usize> {
         }
     }
     let mut forms = BTreeMap::new();
-    walk(&serde_json::to_value(value).expect("serializable AST"), &mut forms);
+    walk(
+        &serde_json::to_value(value).expect("serializable AST"),
+        &mut forms,
+    );
     forms
 }
 
-/// Fails loudly when the schema stops surviving serialization.
+/// Fails loudly when the schema stops surviving serialization. Compares encoded
+/// bytes, which are deterministic, because this runs on every record.
 pub fn round_trip(card: &UnifiedCard) -> Result<(), String> {
-    let expected = serde_json::to_value(card).map_err(|e| e.to_string())?;
-    let json: UnifiedCard = serde_json::from_value(expected.clone()).map_err(|e| e.to_string())?;
+    let text = |e: &dyn std::fmt::Display| e.to_string();
     let config = bincode::config::standard();
-    let bytes = bincode::encode_to_vec(card, config).map_err(|e| e.to_string())?;
+    let encode = |value: &UnifiedCard| bincode::encode_to_vec(value, config);
+    let expected = encode(card).map_err(|e| text(&e))?;
     let (binary, _): (UnifiedCard, usize) =
-        bincode::decode_from_slice(&bytes, config).map_err(|e| e.to_string())?;
-    let text = ron::ser::to_string(card).map_err(|e| e.to_string())?;
-    let ron: UnifiedCard = ron::from_str(&text).map_err(|e| e.to_string())?;
-    for (format, copy) in [("JSON", json), ("bincode", binary), ("RON", ron)] {
-        if serde_json::to_value(&copy).map_err(|e| e.to_string())? != expected {
+        bincode::decode_from_slice(&expected, config).map_err(|e| text(&e))?;
+    let json = serde_json::to_string(card).map_err(|e| text(&e))?;
+    let json: UnifiedCard = serde_json::from_str(&json).map_err(|e| text(&e))?;
+    let ron_text = ron::ser::to_string(card).map_err(|e| text(&e))?;
+    let ron: UnifiedCard = ron::from_str(&ron_text).map_err(|e| text(&e))?;
+    for (format, copy) in [("bincode", binary), ("JSON", json), ("RON", ron)] {
+        if encode(&copy).map_err(|e| text(&e))? != expected {
             return Err(format!("{format} round trip changed the card"));
         }
     }
     Ok(())
-}
-
-/// Operands that need no review, so a record of them alone can be complete.
-pub fn reduced_operand(value: &Operand) -> bool {
-    named_forms(value).is_empty()
 }

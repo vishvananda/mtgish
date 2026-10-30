@@ -221,12 +221,12 @@ fn rewrite_features(
     }
 }
 impl Report {
-    pub fn check(path: &Path, root: &Path, baseline: Option<&Manifest>) -> corpus::Result<Self> {
-        let mut report = Self {
+    fn empty(corpus_sha256: String, inputs: BTreeMap<String, String>) -> Self {
+        Self {
             pipeline_version: 8,
             final_schema_version: ir::SCHEMA_VERSION,
-            corpus_sha256: corpus::digest(&std::fs::read(path)?),
-            inputs: input_fingerprints(root)?,
+            corpus_sha256,
+            inputs,
             total: 0,
             structurally_preserved: 0,
             source_nodes: 0,
@@ -268,8 +268,107 @@ impl Report {
                 selected_lines: vec![],
                 unseen_registry_rules: vec![],
             },
-        };
-        corpus::for_each_card(path, |line, card| {
+        }
+    }
+
+    /// Destructures every field, so adding one cannot silently skip the merge.
+    fn merge(&mut self, part: Self) {
+        fn add(into: &mut BTreeMap<String, usize>, from: BTreeMap<String, usize>) {
+            for (key, count) in from {
+                *into.entry(key).or_default() += count;
+            }
+        }
+        fn add_forms(into: &mut crate::inventory::Forms, from: crate::inventory::Forms) {
+            for (family, counts) in from {
+                add(into.entry(family).or_default(), counts);
+            }
+        }
+        let Self {
+            total,
+            structurally_preserved,
+            source_nodes,
+            face_records,
+            rewritten_actions,
+            rewritten_numbers,
+            rewritten_selectors,
+            rewritten_programs,
+            rewritten_costs,
+            rewritten_conditions,
+            rewritten_mechanics,
+            records_with_mechanic_rewrites,
+            records_with_operand_rewrites,
+            records_with_program_rewrites,
+            records_with_selector_rewrites,
+            records_with_number_rewrites,
+            records_with_rewrites,
+            semantic_complete,
+            unified,
+            mechanic_rules,
+            operand_rules,
+            remaining_operand_forms,
+            program_rules,
+            remaining_program_forms,
+            selector_rules,
+            remaining_selector_forms,
+            number_rules,
+            remaining_number_forms,
+            remaining_registry_forms,
+            rewrite_rules,
+            expanded_recipes,
+            source_forms,
+            recipe_forms,
+            final_forms,
+            records,
+            pipeline_version: _,
+            final_schema_version: _,
+            corpus_sha256: _,
+            inputs: _,
+            fixtures: _,
+        } = part;
+        self.total += total;
+        self.structurally_preserved += structurally_preserved;
+        self.source_nodes += source_nodes;
+        self.face_records += face_records;
+        self.rewritten_actions += rewritten_actions;
+        self.rewritten_numbers += rewritten_numbers;
+        self.rewritten_selectors += rewritten_selectors;
+        self.rewritten_programs += rewritten_programs;
+        self.rewritten_costs += rewritten_costs;
+        self.rewritten_conditions += rewritten_conditions;
+        self.rewritten_mechanics += rewritten_mechanics;
+        self.records_with_mechanic_rewrites += records_with_mechanic_rewrites;
+        self.records_with_operand_rewrites += records_with_operand_rewrites;
+        self.records_with_program_rewrites += records_with_program_rewrites;
+        self.records_with_selector_rewrites += records_with_selector_rewrites;
+        self.records_with_number_rewrites += records_with_number_rewrites;
+        self.records_with_rewrites += records_with_rewrites;
+        self.semantic_complete += semantic_complete;
+        self.unified += unified;
+        add(&mut self.mechanic_rules, mechanic_rules);
+        add(&mut self.operand_rules, operand_rules);
+        add(&mut self.remaining_operand_forms, remaining_operand_forms);
+        add(&mut self.program_rules, program_rules);
+        add(&mut self.remaining_program_forms, remaining_program_forms);
+        add(&mut self.selector_rules, selector_rules);
+        add(&mut self.remaining_selector_forms, remaining_selector_forms);
+        add(&mut self.number_rules, number_rules);
+        add(&mut self.remaining_number_forms, remaining_number_forms);
+        add(&mut self.remaining_registry_forms, remaining_registry_forms);
+        add(&mut self.rewrite_rules, rewrite_rules);
+        add(&mut self.expanded_recipes, expanded_recipes);
+        add_forms(&mut self.source_forms, source_forms);
+        add_forms(&mut self.recipe_forms, recipe_forms);
+        add_forms(&mut self.final_forms, final_forms);
+        self.records.extend(records);
+    }
+    pub fn check(path: &Path, root: &Path, baseline: Option<&Manifest>) -> corpus::Result<Self> {
+        let mut report = Self::empty(
+            corpus::digest(&std::fs::read(path)?),
+            input_fingerprints(root)?,
+        );
+        // Each record reports into its own `Report`, so all of this runs on workers.
+        let prepare = |line: usize, card: crate::mtg_types::OracleCard| -> corpus::Result<Self> {
+            let mut report = Self::empty(String::new(), BTreeMap::new());
             let structural = Structural::new(&card).map_err(|e| format!("line {line}: {e}"))?;
             let restored = structural
                 .source
@@ -277,6 +376,31 @@ impl Report {
                 .map_err(|e| format!("line {line}: source preservation: {e}"))?;
             if crate::inspect::value(&restored)? != structural.source.original {
                 return Err(format!("line {line}: structural pass changed source data").into());
+            }
+            let lowered = crate::unified::lower(&card);
+            let invalid = |e: String| format!("line {line}: invalid unified AST: {e}");
+            crate::validate::unified(&lowered.card).map_err(invalid)?;
+            crate::unified::round_trip(&lowered.card).map_err(invalid)?;
+            let named = crate::unified::named_forms(&lowered.card);
+            // Whole cards bind through the staged recipes, so a recipe that diverges
+            // from native lowering still surfaces here.
+            let diagnostics = if lowered.card.layout == "Card" {
+                match bind_prepared(&card, &structural) {
+                    Ok(_) => vec![],
+                    Err(errors) => errors,
+                }
+            } else {
+                lowered.diagnostics
+            };
+            let complete = diagnostics.is_empty() && named.is_empty();
+            report.unified += 1;
+            if complete {
+                for face in &lowered.card.faces {
+                    crate::validate::card(face)
+                        .map_err(|e| format!("line {line}: invalid final AST: {e}"))?;
+                    crate::inventory::Inventory(&mut report.final_forms).card(face);
+                }
+                report.semantic_complete += 1;
             }
             let mut remaining = BTreeMap::new();
             let mut source_forms = BTreeSet::new();
@@ -484,31 +608,6 @@ impl Report {
                         .or_default() += 1;
                 }
             }
-            let lowered = crate::unified::lower(&card);
-            let invalid = |e: String| format!("line {line}: invalid unified AST: {e}");
-            crate::validate::unified(&lowered.card).map_err(invalid)?;
-            crate::unified::round_trip(&lowered.card).map_err(invalid)?;
-            report.unified += 1;
-            let named = crate::unified::named_forms(&lowered.card);
-            // Whole cards bind through the staged recipes, so a recipe that diverges
-            // from native lowering still surfaces here.
-            let diagnostics = if lowered.card.layout == "Card" {
-                match bind_prepared(&card, &structural) {
-                    Ok(_) => vec![],
-                    Err(errors) => errors,
-                }
-            } else {
-                lowered.diagnostics
-            };
-            let complete = diagnostics.is_empty() && named.is_empty();
-            if complete {
-                for face in &lowered.card.faces {
-                    crate::validate::card(face)
-                        .map_err(|e| format!("line {line}: invalid final AST: {e}"))?;
-                    crate::inventory::Inventory(&mut report.final_forms).card(face);
-                }
-                report.semantic_complete += 1;
-            }
             report.total += 1;
             report.structurally_preserved += 1;
             report.source_nodes += structural.source.nodes.len();
@@ -542,6 +641,10 @@ impl Report {
                 remaining_registry_forms: remaining,
                 fixture_features,
             });
+            Ok(report)
+        };
+        corpus::map_cards(path, prepare, |_, part| {
+            report.merge(part);
             Ok(())
         })?;
         if report.total == 0 {

@@ -79,7 +79,7 @@ parser_audit_literals: parser_compile
 [group('ast')]
 [doc("Run focused Rust normalization regressions with the legacy schema cached")]
 ast_test:
-  cargo test --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml -p mtgish-ast --test normalization --test parser_regressions --test families --test github_issues --test choices --test coverage --test tokens --test mana --test attachments --test events --test entry_costs --test rules --test zones --test casting --test damage --test scopes --test library --test players --test keywords --test inspection --test characteristics --test delayed --test cast_history --test pipeline --test groups --test paid
+  cargo test --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml -p mtgish-ast --test unified --test normalization --test parser_regressions --test families --test github_issues --test choices --test coverage --test tokens --test mana --test attachments --test events --test entry_costs --test rules --test zones --test casting --test damage --test scopes --test library --test players --test keywords --test inspection --test characteristics --test delayed --test cast_history --test pipeline --test groups --test paid
 
 [group('ast')]
 [doc("Inspect every source subtree, check structural preservation, and report staged/native coverage")]

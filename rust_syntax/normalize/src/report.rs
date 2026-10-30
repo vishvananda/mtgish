@@ -32,6 +32,13 @@ pub struct Record {
     pub backend_diagnostic: Option<BackendDiagnostic>,
 }
 
+/// What one worker found for one record. Merged in line order.
+struct Checked {
+    record: Record,
+    forms: crate::inventory::Forms,
+    operations: BTreeMap<String, usize>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Report {
     pub schema_version: u32,
@@ -133,17 +140,18 @@ impl Report {
             unsupported: BTreeMap::new(),
             operations: BTreeMap::new(),
         };
-        corpus::for_each_card(path, |line, source| {
+        let check = |line: usize, source: crate::mtg_types::OracleCard| -> Result<Checked> {
             let identity = Identity::of(&source)?;
             #[allow(unused_mut)]
             let mut backend_diagnostic = None;
             #[allow(unused_mut)]
             let mut backend_capable = false;
+            let (mut forms, mut operations) = (BTreeMap::new(), BTreeMap::new());
             let lowered = crate::unified::lower(&source);
-            let invalid = |e: String| format!("{}:{line}: invalid unified AST: {e}", path.display());
+            let invalid =
+                |e: String| format!("{}:{line}: invalid unified AST: {e}", path.display());
             validate::unified(&lowered.card).map_err(invalid)?;
             crate::unified::round_trip(&lowered.card).map_err(invalid)?;
-            result.unified += 1;
             let named = crate::unified::named_forms(&lowered.card);
             let complete = lowered.diagnostics.is_empty() && named.is_empty();
             if complete {
@@ -151,49 +159,68 @@ impl Report {
                     validate::card(card).map_err(|e| {
                         format!("{}:{line}: invalid normalized AST: {e}", path.display())
                     })?;
-                    crate::inventory::Inventory(&mut result.forms).card(card);
-                    count_operations(&serde_json::to_value(card)?, &mut result.operations);
+                    crate::inventory::Inventory(&mut forms).card(card);
+                    count_operations(&serde_json::to_value(card)?, &mut operations);
                     #[cfg(feature = "cantrip")]
                     if backend && lowered.card.layout == "Card" {
                         match crate::cantrip::module(card) {
-                            Ok(_) => {
-                                backend_capable = true;
-                                result.backend_capable += 1;
-                            }
-                            Err(d) => {
-                                *result
-                                    .backend_unsupported
-                                    .entry(d.feature.clone())
-                                    .or_default() += 1;
-                                backend_diagnostic = Some(d);
-                            }
+                            Ok(_) => backend_capable = true,
+                            Err(d) => backend_diagnostic = Some(d),
                         }
                     }
                 }
-                result.complete += 1;
             }
-            for (form, count) in &named {
+            Ok(Checked {
+                record: Record {
+                    line,
+                    identity,
+                    complete,
+                    unified: true,
+                    named,
+                    diagnostics: lowered.diagnostics,
+                    backend_capable,
+                    backend_diagnostic,
+                },
+                forms,
+                operations,
+            })
+        };
+        corpus::map_cards(path, check, |_, checked| {
+            let Checked {
+                record,
+                forms,
+                operations,
+            } = checked;
+            result.total += 1;
+            result.unified += 1;
+            result.complete += usize::from(record.complete);
+            result.backend_capable += usize::from(record.backend_capable);
+            if let Some(d) = &record.backend_diagnostic {
+                *result
+                    .backend_unsupported
+                    .entry(d.feature.clone())
+                    .or_default() += 1;
+            }
+            for (family, counts) in forms {
+                let merged = result.forms.entry(family).or_default();
+                for (form, count) in counts {
+                    *merged.entry(form).or_default() += count;
+                }
+            }
+            for (operation, count) in operations {
+                *result.operations.entry(operation).or_default() += count;
+            }
+            for (form, count) in &record.named {
                 *result.named.entry(form.clone()).or_default() += count;
                 *result.named_records.entry(form.clone()).or_default() += 1;
             }
-            let diagnostics = lowered.diagnostics;
-            for d in &diagnostics {
+            for d in &record.diagnostics {
                 *result
                     .unsupported
                     .entry(format!("{}::{}", d.source_type, d.form))
                     .or_default() += 1;
             }
-            result.total += 1;
-            result.records.push(Record {
-                line,
-                identity,
-                complete,
-                unified: true,
-                named,
-                diagnostics,
-                backend_capable,
-                backend_diagnostic,
-            });
+            result.records.push(record);
             Ok(())
         })?;
         if result.total == 0 {
@@ -243,14 +270,20 @@ fn count_operations(value: &serde_json::Value, counts: &mut BTreeMap<String, usi
 pub fn export_unified(path: &Path, destination: &Path) -> Result<usize> {
     let mut output = corpus::Artifact::create(destination)?;
     let mut count = 0;
-    corpus::for_each_card(path, |line, source| {
-        let card = crate::unified::lower(&source).card;
-        validate::unified(&card)
-            .map_err(|e| format!("{}:{line}: invalid unified AST: {e}", path.display()))?;
-        writeln!(output, "{}", ron::ser::to_string(&card)?)?;
-        count += 1;
-        Ok(())
-    })?;
+    corpus::map_cards(
+        path,
+        |line, source| -> Result<String> {
+            let card = crate::unified::lower(&source).card;
+            validate::unified(&card)
+                .map_err(|e| format!("{}:{line}: invalid unified AST: {e}", path.display()))?;
+            Ok(ron::ser::to_string(&card)?)
+        },
+        |_, text| {
+            writeln!(output, "{text}")?;
+            count += 1;
+            Ok(())
+        },
+    )?;
     if count == 0 {
         return Err("card corpus is empty".into());
     }
@@ -261,23 +294,29 @@ pub fn export_unified(path: &Path, destination: &Path) -> Result<usize> {
 pub fn export_ron(path: &Path, destination: &Path) -> Result<usize> {
     let mut output = corpus::Artifact::create(destination)?;
     let mut count = 0;
-    corpus::for_each_card(path, |line, source| {
-        let card = lower::card(&source).map_err(|errors| {
-            let detail = errors
-                .iter()
-                .map(|e| format!("{} {}::{}", e.path, e.source_type, e.form))
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!(
-                "{}:{line}: incomplete normalization: {detail}",
-                path.display()
-            )
-        })?;
-        validate::card(&card)?;
-        writeln!(output, "{}", ron::ser::to_string(&card)?)?;
-        count += 1;
-        Ok(())
-    })?;
+    corpus::map_cards(
+        path,
+        |line, source| -> Result<String> {
+            let card = lower::card(&source).map_err(|errors| {
+                let detail = errors
+                    .iter()
+                    .map(|e| format!("{} {}::{}", e.path, e.source_type, e.form))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!(
+                    "{}:{line}: incomplete normalization: {detail}",
+                    path.display()
+                )
+            })?;
+            validate::card(&card)?;
+            Ok(ron::ser::to_string(&card)?)
+        },
+        |_, text| {
+            writeln!(output, "{text}")?;
+            count += 1;
+            Ok(())
+        },
+    )?;
     if count == 0 {
         return Err("card corpus is empty".into());
     }
