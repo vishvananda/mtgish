@@ -183,7 +183,10 @@ impl Context {
     }
 
     fn primitive_ability(&self, value: &source::Rule) -> Option<Ability> {
-        let (name, operands) = self.primitive("Rule", value)?;
+        let (name, operands) = match value {
+            source::Rule::DeckConstruction(deck) => self.primitive("DeckConstruction", deck)?,
+            _ => self.primitive("Rule", value)?,
+        };
         Some(Ability::Primitive { name, operands })
     }
 

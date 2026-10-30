@@ -365,3 +365,18 @@ fn player_rules_reject_wrong_subjects_and_keep_life_hand_size_and_skip_semantics
         .unwrap_err()
         .contains("empty continuous effect"));
 }
+
+#[test]
+fn defending_player_comes_from_the_attacking_event_subject() {
+    let c = custom(
+        "TriggerA(WhenACreatureAttacks(SinglePermanent(ThisPermanent)), ActionList([PlayerAction(Trigger_DefendingPlayer, LoseLife(Integer(1)))]))",
+    )
+    .unwrap();
+    validate::card(&c).unwrap();
+    let json = serde_json::to_string(&c).unwrap();
+    assert!(json.contains("DefendingPlayerOf"), "{json}");
+    assert!(custom(
+        "SpellActions(ActionList([PlayerAction(Trigger_DefendingPlayer, LoseLife(Integer(1)))]))"
+    )
+    .is_err());
+}

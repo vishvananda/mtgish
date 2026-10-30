@@ -66,6 +66,20 @@ impl Context {
             S::Ref_TargetGraveyardCard4 => 3,
             S::Ref_TargetGraveyardCard5 => 4,
             S::ThisGraveyardCard => return Ok(ObjectRef::Source),
+            S::Trigger_ThatGraveyardCard if self.event.moved || self.event.discarded => {
+                let object = if self.event.moved {
+                    ObjectRef::EventDestination
+                } else {
+                    ObjectRef::Discarded
+                };
+                return Ok(ObjectRef::Query {
+                    objects: Box::new(ObjectSet::InZone {
+                        objects: Box::new(ObjectSet::One(object)),
+                        zone: EventZone::Graveyard,
+                    }),
+                    index: 0,
+                });
+            }
             S::TopCardOfPlayersGraveyard(p) => {
                 return Ok(ObjectRef::Query {
                     objects: Box::new(self.private_cards(

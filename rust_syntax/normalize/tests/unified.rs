@@ -1,6 +1,6 @@
 use mtgish_ast::{
     corpus,
-    ir::{Ability, Named, Operand},
+    ir::{Ability, EventSpec, Named, Operand},
     lower, mtg_types as source, unified, validate,
 };
 
@@ -169,7 +169,10 @@ fn trigger_primitives_are_counted_for_the_audit() {
         r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Enchantment],Subtypes:[]),Rules:[TriggerA(WhenChaosEnsues,ActionList([DrawACard]))])"#,
     );
     let strict = lower::card(&card).unwrap();
-    assert_eq!(unified::forms(&strict).primitives["Trigger::WhenChaosEnsues"], 1);
+    assert_eq!(
+        unified::forms(&strict).primitives["Trigger::WhenChaosEnsues"],
+        1
+    );
 }
 
 /// Occurrence history and damage have structured semantics that a name would hide.
@@ -183,4 +186,27 @@ fn primitive_rows_exclude_history_and_damage_events() {
             }
         }
     }
+}
+
+#[test]
+fn saga_chapters_are_one_trigger_per_number() {
+    let source = parse(
+        r#"Card(Name: "Test Saga", Typeline: (Supertypes: [], Cardtypes: [Enchantment], Subtypes: [Saga]), ManaCost: [], Rules: [SagaChapters([SagaChapter([1, 2], ActionList([DrawACard])), SagaChapter([3], ActionList([DrawACard]))])])"#,
+    );
+    let card = lower::card(&source).unwrap();
+    validate::card(&card).unwrap();
+    let [Ability::Saga { chapters }] = &card.abilities[..] else {
+        panic!("{:?}", card.abilities);
+    };
+    let numbers: Vec<u32> = chapters
+        .iter()
+        .map(|chapter| match chapter {
+            Ability::Triggered {
+                event: EventSpec::SagaChapter(number),
+                ..
+            } => *number,
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    assert_eq!(numbers, [1, 2, 3]);
 }

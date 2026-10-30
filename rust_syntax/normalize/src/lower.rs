@@ -298,6 +298,13 @@ impl Context {
                 index: 0,
             },
             S::Trigger_ThatPlayer if self.event.player => PlayerRef::EventSubject,
+            S::Trigger_DefendingPlayer if self.event.permanent => {
+                PlayerRef::DefendingPlayerOf(Box::new(ObjectRef::EventSubject))
+            }
+            S::PlayerCreatureIsAttacking(p)
+            | S::PlayerOrControllerOfPlaneswalkerCreatureIsAttacking(p) => {
+                PlayerRef::DefendingPlayerOf(Box::new(self.object(p)?))
+            }
             S::Trigger_ControllerOfThatSource if self.event.damage_source => {
                 PlayerRef::ControllerOf(Box::new(ObjectRef::Damage(DamageSubject::Source)))
             }
@@ -849,11 +856,7 @@ impl Context {
         }
     }
 
-    fn reduced_action(
-        &mut self,
-        value: &source::Action,
-        actor: &PlayerSet,
-    ) -> Result<Instruction> {
+    fn reduced_action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
         if let Some(recipe) =
             self.prepared_program(crate::pipeline::programs::ProgramRef::Action(value))
         {
@@ -1687,6 +1690,33 @@ impl Context {
                     body,
                 })
             }
+            S::SagaChapters(chapters) => {
+                let mut abilities = vec![];
+                for source::SagaChapter::SagaChapter(numbers, actions) in chapters {
+                    for number in numbers {
+                        let mut chapter = self.clone();
+                        let chapter_number = u32::try_from(*number)
+                            .map_err(|_| invalid("saga chapter number is negative"))?;
+                        let body = chapter.actions(actions)?;
+                        abilities.push(Ability::Triggered {
+                            event: EventSpec::SagaChapter(chapter_number),
+                            intervening_if: None,
+                            limits: TriggerLimits {
+                                per_turn: None,
+                                total: None,
+                            },
+                            announcement: Announcement {
+                                targets: chapter.targets,
+                                modes: chapter.modes,
+                            },
+                            body,
+                        });
+                    }
+                }
+                Ok(Ability::Saga {
+                    chapters: abilities,
+                })
+            }
             _ => self.keyword(value).map(Ability::Keyword),
         }
     }
@@ -1772,8 +1802,8 @@ fn bind_face(
         && mana_cost
             .as_ref()
             .is_some_and(|m| m.iter().any(|s| mana_symbol_x(s).is_err()));
-    let loyalty_failed = lenient
-        && matches!(loyalty, Some(l) if !matches!(l, source::LoyaltyNumber::Integer(_)));
+    let loyalty_failed =
+        lenient && matches!(loyalty, Some(l) if !matches!(l, source::LoyaltyNumber::Integer(_)));
     if mana_failed {
         unreduced.push(Ability::Named(named_field("ManaCost", mana_cost)));
     }
@@ -1851,7 +1881,9 @@ fn bind_face(
         match context.ability(rule) {
             Ok(ability) => abilities.push(ability),
             Err(error) if lenient => {
-                base.blockers.borrow_mut().push(error.at(format!("Rules[{i}]")));
+                base.blockers
+                    .borrow_mut()
+                    .push(error.at(format!("Rules[{i}]")));
                 abilities.push(Ability::Named(named_rule(rule)));
             }
             Err(error) => errors.push(error.at(format!("Rules[{i}]"))),

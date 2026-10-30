@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 25;
+pub const SCHEMA_VERSION: u32 = 26;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -144,6 +144,11 @@ pub enum Ability {
         condition: Condition,
         then: Vec<Ability>,
         otherwise: Vec<Ability>,
+    },
+    /// One triggered ability per chapter number (CR 714.2b), each on
+    /// `EventSpec::SagaChapter`. The Saga rules supply lore counters and sacrifice.
+    Saga {
+        chapters: Vec<Ability>,
     },
     /// A rule with no reduced form. Never present on a complete card.
     Named(Named),
@@ -662,7 +667,10 @@ pub enum Operation {
     },
     /// An action with no reduced form, carried out by `actor`. Never present on
     /// a complete card. It binds no result, so later references cannot reach it.
-    Named { actor: PlayerSet, form: Named },
+    Named {
+        actor: PlayerSet,
+        form: Named,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct SearchChoice {
@@ -1284,6 +1292,9 @@ pub enum ObjectRef {
     /// The matched event's distinguished object: e.g. the entering/leaving,
     /// attacking, or damaged permanent, or the spell that was cast/copied.
     EventSubject,
+    /// The new object a matched zone change put in its destination (CR 400.7).
+    /// Selects nothing once that object leaves the zone.
+    EventDestination,
     Bound(Binding),
     Result {
         result: ResultId,
@@ -1428,6 +1439,9 @@ pub enum PlayerRef {
     /// The cast/copy event's actor or the turn event's turn player. Other
     /// matchers do not implicitly bind the source's controller as this player.
     EventSubject,
+    /// The player an attacking object is attacking, or that controls the
+    /// planeswalker it is attacking, using last-known information.
+    DefendingPlayerOf(Box<ObjectRef>),
     Bound(Binding),
 }
 
@@ -1756,6 +1770,8 @@ pub enum EventSpec {
         event: Box<EventSpec>,
         condition: Condition,
     },
+    /// The source's lore counters reached this chapter number (CR 714.2).
+    SagaChapter(u32),
     /// One rules-defined event from a reviewed row. The row's `binds` says which
     /// event references it supplies, so references resolve from data.
     Primitive {

@@ -56,6 +56,9 @@ impl<'a> Scope<'a> {
         if index != 0 {
             return false;
         }
+        if let ObjectSet::InZone { objects, .. } = objects {
+            return matches!(**objects, ObjectSet::One(_));
+        }
         let ObjectSet::CostObjects {
             payment,
             component,
@@ -180,6 +183,7 @@ impl<'a> Scope<'a> {
     fn event(&self, event: &EventSpec) -> Result {
         match event {
             EventSpec::Primitive { name, operands } => self.primitive(name, operands),
+            EventSpec::SagaChapter(_) => Ok(()),
             EventSpec::Discard { players, cards, .. } => {
                 self.players(players)?;
                 self.filter(cards)
@@ -280,6 +284,8 @@ impl<'a> Scope<'a> {
                 TargetKind::Object(ObjectDomain::permanent()),
             ),
             ObjectRef::EventSubject if self.event.object => Ok(()),
+            ObjectRef::EventDestination if self.event.moved => Ok(()),
+            ObjectRef::EventDestination => Err("this event moves no object".into()),
             ObjectRef::Result {
                 result,
                 phase: ObjectPhase::After,
@@ -324,7 +330,8 @@ impl<'a> Scope<'a> {
             PlayerRef::AbilityController | PlayerRef::Active => Ok(()),
             PlayerRef::CasterOf(object)
             | PlayerRef::ControllerOf(object)
-            | PlayerRef::OwnerOf(object) => self.object(object),
+            | PlayerRef::OwnerOf(object)
+            | PlayerRef::DefendingPlayerOf(object) => self.object(object),
             PlayerRef::Target { slot, index } => {
                 self.target(slot, Some(*index), TargetKind::Player)
             }
@@ -1829,6 +1836,24 @@ fn validate_ability_in(
     let (announcement, body) = match ability {
         Ability::Named(named) => return scope.named(named),
         Ability::Primitive { name, operands } => return scope.primitive(name, operands),
+        Ability::Saga { chapters } => {
+            if chapters.is_empty() {
+                return Err("saga has no chapters".into());
+            }
+            for chapter in chapters {
+                if !matches!(
+                    chapter,
+                    Ability::Triggered {
+                        event: EventSpec::SagaChapter(1..),
+                        ..
+                    }
+                ) {
+                    return Err("saga chapter must trigger on a positive chapter number".into());
+                }
+                validate_ability_in(chapter, zones, casting_costs)?;
+            }
+            return Ok(());
+        }
         Ability::Scoped {
             zones: active,
             condition,

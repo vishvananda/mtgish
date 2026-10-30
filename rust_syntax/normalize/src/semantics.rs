@@ -26,6 +26,7 @@ pub struct EventBindings {
     pub spell: bool,
     pub player: bool,
     pub amount: bool,
+    pub moved: bool,
     pub damage: bool,
     pub damage_source: bool,
     pub damage_source_permanent: bool,
@@ -39,6 +40,7 @@ pub struct EventBindings {
 }
 pub fn event_bindings(event: &EventSpec) -> EventBindings {
     match event {
+        EventSpec::SagaChapter(_) => EventBindings::default(),
         EventSpec::Primitive { name, .. } => {
             let binds = crate::primitive_spec::lookup(name).map_or(&[][..], |r| &r.binds);
             let has = |field: &str| binds.iter().any(|b| b == field);
@@ -59,7 +61,13 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             activation_x: matches!(kind, DiscardKind::Cycling),
             ..Default::default()
         },
-        EventSpec::ZoneChange { .. } | EventSpec::Object { .. } => EventBindings {
+        EventSpec::ZoneChange { .. } => EventBindings {
+            object: true,
+            permanent: true,
+            moved: true,
+            ..EventBindings::default()
+        },
+        EventSpec::Object { .. } => EventBindings {
             object: true,
             permanent: true,
             ..EventBindings::default()
@@ -91,6 +99,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                     && matches!(event.source_kind, ObjectKind::Spell),
                 player: recipient && players,
                 amount: true,
+                moved: false,
                 damage: true,
                 damage_source: source,
                 damage_source_permanent: source
@@ -125,6 +134,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 spell: a.spell && b.spell,
                 player: a.player && b.player,
                 amount: a.amount && b.amount,
+                moved: a.moved && b.moved,
                 damage: a.damage && b.damage,
                 damage_source: a.damage_source && b.damage_source,
                 damage_source_permanent: a.damage_source_permanent && b.damage_source_permanent,
@@ -251,6 +261,7 @@ impl Effects {
             | ObjectRef::AttachedTo(_)
             | ObjectRef::Affected
             | ObjectRef::EventSubject
+            | ObjectRef::EventDestination
             | ObjectRef::Bound(_) => false,
         }
     }

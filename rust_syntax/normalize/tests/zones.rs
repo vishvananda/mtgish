@@ -70,7 +70,6 @@ fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete()
         "Extract from Darkness",
         "Food Chain",
         "Hinder",
-        "Necropotence",
         "Thought Distortion",
     ];
     let mut complete = 0;
@@ -96,7 +95,7 @@ fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete()
         }
         complete += 1;
     }
-    assert_eq!(complete, 48);
+    assert_eq!(complete, 49);
 }
 
 #[test]
@@ -442,5 +441,14 @@ fn library_movement_classification_follows_queries_selections_and_transition_pha
             )
         ]),
         ActivationKind::Stack
+    );
+}
+
+#[test]
+fn a_graveyard_card_from_an_event_stays_in_the_graveyard() {
+    let json = serde_json::to_string(&card("Necropotence")).unwrap();
+    assert!(
+        json.contains(r#""objects":{"kind":"One","args":{"kind":"Discarded"}},"zone":"Graveyard""#),
+        "{json}"
     );
 }

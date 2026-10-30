@@ -59,6 +59,11 @@ impl Inventory<'_> {
         match a {
             Ability::Named(_) => {}
             Ability::Primitive { name, .. } => self.primitive(name),
+            Ability::Saga { chapters } => {
+                for chapter in chapters {
+                    self.ability(chapter);
+                }
+            }
             Ability::Scoped {
                 zones,
                 condition,
@@ -1248,6 +1253,7 @@ impl Inventory<'_> {
         self.form("EventSpec", e);
         match e {
             EventSpec::Primitive { name, .. } => self.primitive(name),
+            EventSpec::SagaChapter(_) => {}
             EventSpec::Discard {
                 players,
                 cards,
