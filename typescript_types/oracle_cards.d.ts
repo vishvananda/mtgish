@@ -936,7 +936,7 @@ type Action =
 | { "_Action": "PutCardFromHandOnBattlefield", "args": [CardInHand, Array<EnterFlag>] }
 | { "_Action": "PutCardFromHandOnBottomOfLibrary", "args": CardInHand }
 | { "_Action": "PutCardFromHandOnTopOfLibrary", "args": CardInHand }
-| { "_Action": "PutCardInHandIntoLibraryNthFromTop", "args": CardInHand }
+| { "_Action": "PutCardInHandIntoLibraryNthFromTop", "args": [CardInHand, GameNumber] }
 | { "_Action": "PutCardsFromHandOnBattlefield", "args": [CardsInHand, Array<EnterFlag>] }
 | { "_Action": "PutCardsInHandIntoGraveyard", "args": CardsInHand }
 | { "_Action": "PutCommanderFromCommandZoneOntoBattlefield", "args": [Commander, Array<EnterFlag>] }
@@ -2022,6 +2022,7 @@ type CastEffect =
 | { "_CastEffect": "MayCastAsThoughItHadFlashIfXIs", "args": Comparison }
 | { "_CastEffect": "MayCastAsThoughItHadFlashWithSpecialAction", "args": Array<Action> }
 | { "_CastEffect": "MayCastWithoutPayingIf", "args": Condition }
+| { "_CastEffect": "MayCastWithoutPayingAndAsThoughItHadFlashIf", "args": Condition }
 | { "_CastEffect": "MaySpendManaAsThoughAnyTypeToCast" }
 | { "_CastEffect": "OptionalAdditionalCastingCost", "args": Cost }
 | { "_CastEffect": "PayLifeForEachPreviousCastRatherThanManaForEachPreviousCast", "args": GameNumber }
@@ -6536,6 +6537,7 @@ type ReplacableEventWouldPlaneswalk =
 | { "_ReplacableEventWouldPlaneswalk": "APlayerWouldPlaneswalk", "args": Players };
 type ReplacableEventWouldProduceMana =
 | { "_ReplacableEventWouldProduceMana": "TappingPermanentWouldProduceMana", "args": Permanent }
+| { "_ReplacableEventWouldProduceMana": "TappingPermanentWouldProduceManaOfColor", "args": [Permanent, Color] }
 | { "_ReplacableEventWouldProduceMana": "TappingAPermanentWouldProduceMana", "args": Permanents }
 | { "_ReplacableEventWouldProduceMana": "TappingAPermanentWouldProduceTwoOrMoreMana", "args": Permanents }
 | { "_ReplacableEventWouldProduceMana": "PlayerTappingAPermanentWouldProduceMana", "args": [Player, Permanents] }
@@ -6878,6 +6880,7 @@ type ReplacementActionWouldProduceMana =
 | { "_ReplacementActionWouldProduceMana": "WouldProduceMana_AddMana", "args": ManaProduce }
 | { "_ReplacementActionWouldProduceMana": "WouldProduceMana_ProduceMultiple", "args": GameNumber }
 | { "_ReplacementActionWouldProduceMana": "WouldProduceMana_ReplaceColor", "args": Color }
+| { "_ReplacementActionWouldProduceMana": "WouldProduceMana_ReplaceColorWithTheChosenColor" }
 | { "_ReplacementActionWouldProduceMana": "WouldProduceMana_ReplaceType", "args": ManaProduce };
 type ReplacementActionWouldProliferate =
 | { "_ReplacementActionWouldProliferate": "ProliferateNumberTimes", "args": GameNumber };
