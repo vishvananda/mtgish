@@ -12,6 +12,14 @@ fn run() -> Result<()> {
             corpus::write_json(Path::new(output),&candidates)?;
             eprintln!("{} observed {} forms grouped into {} Rust field signatures; mappings require semantic review",candidates.observed_forms,source_type,candidates.groups.len());
         }
+        [command,before,after,reviewed] if command=="coverage-compare" => {
+            let read=|path:&String|->Result<mtgish_ast::report::Report>{Ok(serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(path)?))?)};
+            let delta=mtgish_ast::report::CoverageDelta::between(&read(before)?,&read(after)?);
+            let reviewed=serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(reviewed)?))?;
+            eprintln!("{} complete cards gained, {} lost",delta.gained.len(),delta.lost.len());
+            let unreviewed=delta.unreviewed_losses(&reviewed);
+            if !unreviewed.is_empty() {return Err(format!("complete cards lost without review: {unreviewed:?}").into());}
+        }
         [command,input,output] | [command,input,output,_] if command=="pipeline-check" => {
             let root=PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap().to_owned();
             let baseline:Option<Manifest>=args.get(3).map(|path|->Result<Manifest>{Ok(serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(path)?))?)}).transpose()?;

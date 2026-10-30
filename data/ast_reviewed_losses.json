@@ -1,0 +1,3 @@
+{
+  "Jace's Ruse": "Was complete only because the template dropped its graveyard search; upstream #22 restored SearchLibraryAndOrGraveyard, which is not lowered yet."
+}

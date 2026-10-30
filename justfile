@@ -112,6 +112,11 @@ ast_cantrip_check: make_temp
   cargo run --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml --features cantrip -p mtgish-ast --bin ast -- check-cantrip {{BASE_DIR}}/data/mtgish.lines.ron {{TEMP_DIR}}/ast.cantrip.coverage.json {{BASE_DIR}}/data/ast_baseline.json
 
 [group('ast')]
+[doc("Fail if a card that was complete in a saved coverage report no longer is, unless reviewed")]
+ast_compare before after="/tmp/mtgish/ast.coverage.json":
+  cargo run --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- coverage-compare {{before}} {{after}} {{BASE_DIR}}/data/ast_reviewed_losses.json
+
+[group('ast')]
 [doc("Check every RON record against the baseline and report incomplete normalization")]
 ast_check: make_temp
   cargo run --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- check {{BASE_DIR}}/data/mtgish.lines.ron {{TEMP_DIR}}/ast.coverage.json {{BASE_DIR}}/data/ast_baseline.json

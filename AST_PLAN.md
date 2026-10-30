@@ -9,6 +9,101 @@ The priorities, in order, are:
 3. Generic operations that minimize distinct forms without losing rules semantics.
 4. Fast implementation and enough validation to establish correctness, with expensive checks run only when their coverage is relevant.
 
+## Fastest path to the unified AST
+
+**This section is the current plan. Everything below it is the design rules and the chronological log; where a log entry's "next step" disagrees with this section, this section wins.**
+
+### Where things stand
+
+Measured on 2026-10-30 at schema 23 from a fresh `ast pipeline-check` over the repaired corpus:
+
+| Measure | Value |
+|---|---|
+| Records | 33,529 |
+| Complete (typed semantic lowering) | 15,273 (45.6%) |
+| Structurally preserved | 33,529 |
+| Source enums / declared variants | 346 / 8,668 |
+| Distinct forms in the corpus | 8,247 |
+| Forms seen on at least one complete card | 1,818 |
+| Forms on no complete card | 6,429 |
+| Rewrite registry rows | 451 |
+| Non-`Card` layouts complete | 0 of 1,343 |
+
+Hand lowering will not finish this. Batch gains have been falling (+215, +97, +87 records), while first-failure diagnostics understate the work: 9,754 of the 18,256 incomplete records contain unproven forms their diagnostics never mention. On the other hand, 7,385 records are blocked by exactly one unproven form. Planning from full-tree forms gives this greedy curve. Each row assumes every listed form lowers everywhere it appears, so these are upper bounds:
+
+| Forms lowered | Complete records | Share |
+|---|---:|---:|
+| 100 | 18,733 | 55.9% |
+| 250 | 21,337 | 63.6% |
+| 500 | 24,049 | 71.7% |
+| 1,000 | 26,785 | 79.9% |
+| 2,000 | 29,654 | 88.4% |
+| 3,000 | 31,009 | 92.5% |
+| 6,429 | 33,529 | 100% |
+
+### Two different finish lines
+
+Reaching the unified AST quickly requires separating two things this plan has treated as one:
+
+- **Unified**: the record is represented entirely in the new AST, in one schema, with typed operands and bound references where they can be bound. Some nodes may be generated named forms that have not been reduced to generic operations.
+- **Reduced**: every node is a reviewed generic operation. This is what "complete" means today.
+
+Unification can be automatic and total. Reduction is semantic work and can then proceed in priority order, on a stable format that consumers can already use. The existing rule stands: a legacy escape or opaque form never counts as normalized. A generated named form is reported as unified and unreduced, never as complete, and the two counts stay separate in every report. Mixing them would repeat the "complete means correct" mistake below.
+
+### Automation tiers
+
+Each form on no complete card falls into one class. The class is mechanical: it comes from the Rust field signature in `mtg_types.rs` and the variant name, which `ast pipeline-candidates` already parses with `syn`.
+
+| Tier | Class | Forms | Complete if finished | How it is automated |
+|---|---|---:|---:|---|
+| 1 | Generated named form for everything | 6,429 | unified 33,529 (100%); reduced unchanged | Generate one lowering per variant from the enum definitions. Recursively lower operands; emit `Named { source_type, form, operands }`. |
+| 2 | Fieldless leaves | 1,796 | 17,453 (52.1%) | Derive vocabularies from enums: subtypes, counter types and similar become one parameterized node, with no per-variant code. |
+| 3 | Layout wrappers | 17 | enables the 1,343 records at 0% | One generic face wrapper, keeping layout as data. Do this early: these records expose forms no complete card shows. |
+| 4 | Same signature as a proven form | 1,277 | 22,170 (66.1%) with tier 2 | `pipeline-candidates` drafts registry rows by copying the proven sibling's shape; generated fixtures and the literal audit check them; a reviewer accepts batches, not rows. |
+| 5 | Reference forms (`Ref_`, `Trigger_`, `ThisWay`, `That…`) | 535 | 23,118 (68.9%) with tiers 2 and 4 | One resolver over the existing scopes, driven by a table from form to the result or binding it reads. |
+| 6 | New signatures, including the 17 wrappers | 2,820 | 33,529 (100%) | The long tail. Stays as generated named forms and is reduced by consumer need, in greedy order. |
+
+The record counts in tiers 2, 4 and 5 are cumulative upper bounds from full-tree forms: a form proven on one card may still fail in another context, and 65 incomplete records have no unproven form at all. A matching signature also proves nothing about meaning, which is why tier 4 needs review. Re-measure after each tier rather than trusting these projections.
+
+### Order of work
+
+1. **Generate tier 1.** Extend the crate's `build.rs` to emit the generic lowering from `mtg_types.rs`, using `syn` as `pipeline-candidates` does (`syn` is a normal dependency today, so it also needs adding to `[build-dependencies]`), add `Named` to `ir.rs` as schema 24, and add a `unified` count to `ast check` and `pipeline-check`. Done when all 33,529 records lower, round-trip, validate and report unified, and `complete` is unchanged. This is the point at which consumers can move to one format.
+2. **Generate tier 2 and tier 3.** Replace `Named` nodes for leaves and face wrappers with data-driven forms.
+3. **Build the registry drafter for tier 4.** Extend `pipeline-candidates` to write draft rows plus fixtures. Review by signature group, largest first.
+4. **Build the table-driven resolver for tier 5.**
+5. **Reduce tier 6 in greedy order**, one family at a time, following the existing rewrite pipeline. Stop when consumers no longer need a given form reduced.
+
+Hand-written lowerers are the exception from step 1 on. A form gets hand-written code only when a generated or registry path cannot express it, and the reason goes in this plan.
+
+### Correctness has to scale with coverage
+
+Coverage automation only moves wrong data faster. All of the card bugs in this round came from the source corpus, not from the lowerer, and each passed every existing gate.
+
+| Check | Candidates | Confirmed templates | Yield |
+|---|---:|---:|---:|
+| Mining, tight thresholds | 256 | 26 | 10% |
+| Mining, wide thresholds | ~300 | 8 | 3% |
+| Mining, templates outside the first pass | 101 | 2 | 2% |
+| Rule table | 24 | 9 | ~40% |
+
+`--audit-literals` now runs both as a Go test. Mining needs no hand-written knowledge, and it found bugs nobody wrote a rule for. Its limit is that it compares one template's English with that template's output. It cannot see an error shared by most templates for a phrase, or an error that only appears when templates compose. So the remaining steps are:
+
+1. **Card-level differential:** run the same word-token mining between Oracle text and each card's unified AST. Tier 1 makes this possible for every record.
+2. **Render-back:** generate plain English from the unified AST and diff it against Oracle text. This is the strongest automatic check available, and `Named` forms render directly from their variant names.
+3. **Keep filing upstream**, using the same short format.
+
+The corpus bugs found so far are a lower bound. Do not read an empty literal audit as proof the corpus is right.
+
+### Gates
+
+| Gate | Command | Enforces |
+|---|---|---|
+| Go tests | `go test -count=1 ./...` in `go_mtg_parser` | Parser, 795 card regressions, capture audit, literal audit. `-count=1` is required: the data files sit outside the module, so Go otherwise reports a stale cached pass. |
+| AST suites | `just ast_test` | All 26 suites, now including `groups` and `paid`. |
+| Corpus | `just ast_check` | Every record parses and identities match. |
+| No silent losses | `just ast_compare <saved report>` | No complete card becomes incomplete without an entry in `data/ast_reviewed_losses.json`. |
+| Literals | `just parser_audit_literals` | Lists any finding without a review in `data/grammar_literal_review.json`. |
+
 **Current execution scope: finish normalization through staged, generated rewrites before expanding Cantrip support.**
 
 The compiler now separates structural consolidation, recipe expansion, reference binding, and final validation/export. Preserve the existing semantic IR and completed lowerers as the final target and migration bridge. Broaden the generated rewrite registry instead of continuing the direct, handwritten adapter loop. The full-tree stage inventory drives work even when a parent ability/layout cannot yet bind. Structural preservation and semantic completion are separate gates; unresolved intermediate data must never count as a final normalized card.
@@ -27,7 +122,7 @@ The pipelined execution loop is:
 
 Keep upstream bug reports concise: describe only the specific problem and affected examples. Do not include Rust normalization/port details, local implementation status, or validation notes. Keep that material in this plan and local review records.
 
-At schema 14, the report contains 16,578 incomplete records with one distinct reported blocker. For example, `Rule::PlayerEffect` is the only reported blocker on 286 records, temporary player effects on 158, and top-card inspection on 217. These are starting points for broad batches, not card-specific implementation lists or guaranteed coverage gains. Prefer these shared families before rare exceptions; preserve diagnostics for unsupported nested behavior throughout.
+Diagnostics report only the first blocker, so rank batches from full-tree forms in the `pipeline-check` report, as in the table above.
 
 **The starting point is the existing Rust schema and corpus.**
 
@@ -628,8 +723,16 @@ The successful structural checkpoint takes **131.17 seconds**, concurrent native
 
 **243 Rust tests pass across 26 suites**, including the final **61-test pipeline suite in 24.99 seconds** and **16 payment-history tests**. `/tmp/mtgish-paid-validation.json` retains the complete receipt with current source/test hashes, exact source and feature-union preservation, native/staged diagnostics, the schema-aware comparison of every prior complete export, and complete-export SHA-256 `d67165185ffa83bfec561a95b06b1ea2961bfb3565821067d1cbae0267f6c472`.
 
-Next, use these explicit scopes and the saved dependency inventory to bind ordinary action histories and further linked references, then continue broad recipe/record families. Ordinary sacrifices/discards/taps must retain their actual result identities rather than borrowing a cost frame. Linked casting declarations and more complex prospective outcomes still need their own shared binding contracts. Full normalization remains incomplete at **15,273 / 33,529**.
+Superseded by [Fastest path to the unified AST](#fastest-path-to-the-unified-ast). The binding work this paragraph named (ordinary action histories and linked references) is now tier 5.
 
 **Wrong template literals found against Oracle text (upstream issues #13-#17).**
 
 Complete means every form lowered, not that the parsed source is right. Comparing normalized cards with `data/oracle.json` found wrong literals on the right side of grammar templates, which the capture audit cannot detect: "until end of turn" as `UntilEndOfCombat` ([#13](https://github.com/i5jb/mtgish/issues/13)), "until your next turn" as end of turn ([#14](https://github.com/i5jb/mtgish/issues/14)), a missing "until end of turn" ([#15](https://github.com/i5jb/mtgish/issues/15)), Domain counting only basic lands ([#16](https://github.com/i5jb/mtgish/issues/16)), and Rank Officer's random discard ([#17](https://github.com/i5jb/mtgish/issues/17)). The issues cover 70 records, and **36 of the 15,273 complete cards** are among them. The count is a floor: only the phrases checked so far are covered. A seeded hand review of 32 complete cards found one error, Kavu Scout, already in #16. These are not yet repaired here. Repairs will change those records' source hashes and exports, so they must be reviewed as intended differences.
+
+**Literal repairs and audit (upstream issues #18-#25).**
+
+The sweep was extended to every template and all confirmed findings are repaired: 118 template lines changed, 163 corpus records updated, and a regression added for each changed card. Reported in eight further issues. Source forms changed in place to keep bincode indices: `DrawsACardDuringEachPlayersDrawStep`, `TheNumberOfCardsThatWerePutIntoAPlayersGraveyardFromTheirHandOrLibraryThisTurn`, `PutAllCardsFromHandOnTopOfLibrary`, and `GainControlOfAPermanentControlledByEachPlayerUntil`, which gained an expiration. `ForAsLongAsPlayerControlsPermanent` was appended to `Expiration` for Time of Ice.
+
+Net coverage is unchanged at 15,273. Condemn became complete; Jace's Ruse did not stay complete, because it was only complete while its graveyard search was missing. That is the sole entry in `data/ast_reviewed_losses.json`. Forms newly unlowered as a result: `CreatePerpetualCardsInPlayersLibraryEffect` and the renamed `PutAllCardsFromHandOnTopOfLibrary`.
+
+Open: Yenna, Redtooth Regent's filter uses `IsToken` to stand in for "another permanent", since a target filter cannot refer to its own candidate. Alaundo the Seer's `CastSpellFromExile...FlagSpellsCastWithEffect` has no expiration field. Both are recorded here rather than guessed at. Several older validation receipts named in this log are in `/tmp` and are not durable; the gates above replace them.

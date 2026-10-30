@@ -43,6 +43,45 @@ pub struct Report {
     pub operations: BTreeMap<String, usize>,
 }
 
+/// Complete cards that changed state between two reports. Cards are matched by
+/// name, not source hash, so a repaired card still compares with its old record.
+#[derive(Debug, Default, PartialEq, Eq, Serialize)]
+pub struct CoverageDelta {
+    pub gained: Vec<String>,
+    pub lost: Vec<String>,
+}
+
+impl CoverageDelta {
+    pub fn between(before: &Report, after: &Report) -> Self {
+        let complete = |report: &Report| {
+            report
+                .records
+                .iter()
+                .map(|record| (record.identity.names.join(" // "), record.complete))
+                .collect::<BTreeMap<_, _>>()
+        };
+        let (before, after) = (complete(before), complete(after));
+        let mut delta = Self::default();
+        for (name, now) in after {
+            match (before.get(&name).copied().unwrap_or(false), now) {
+                (false, true) => delta.gained.push(name),
+                (true, false) => delta.lost.push(name),
+                _ => {}
+            }
+        }
+        delta
+    }
+
+    /// Reviewed losses map a card to the reason, such as a dropped form the repair restored.
+    pub fn unreviewed_losses(&self, reviewed: &BTreeMap<String, String>) -> Vec<&str> {
+        self.lost
+            .iter()
+            .filter(|name| !reviewed.contains_key(*name))
+            .map(String::as_str)
+            .collect()
+    }
+}
+
 impl Report {
     pub fn check(path: &Path, root: &Path, baseline: Option<&Manifest>) -> Result<Self> {
         Self::check_options(path, root, baseline, false)
