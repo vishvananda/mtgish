@@ -1,0 +1,5 @@
+{
+  "AnyColor": "Lowers to one protection per color, so the name only survives in the hexproof form.",
+  "AnyHexproof": "Lowers to HasKeywordFamily Hexproof.",
+  "NonManaAbility": "Lowers to the activation filter Not Mana."
+}

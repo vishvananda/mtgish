@@ -310,7 +310,26 @@ impl Context {
                 vec![EventChange::SetDestination(Destination::OwnersGraveyard)]
             }
             "PutItOntoTheBattlefieldInstead" => {
-                vec![EventChange::SetDestination(Destination::OwnersBattlefield)]
+                let flags = args
+                    .as_array()
+                    .map_or(&[][..], |a| a)
+                    .iter()
+                    .map(decode_step)
+                    .collect::<Result<Vec<source::EnterFlag>>>()?;
+                let you = self.player(&source::Player::You)?;
+                let (_, entry) = self.move_entry(&flags, you)?;
+                let mut changes = vec![EventChange::SetDestination(Destination::OwnersBattlefield)];
+                if entry.tapped {
+                    changes.push(EventChange::SetTapped(true));
+                }
+                changes.extend(
+                    entry
+                        .counters
+                        .into_iter()
+                        .map(|(kind, amount)| EventChange::AddCounters { kind, amount }),
+                );
+                changes.extend(entry.states.into_iter().map(EventChange::Entry));
+                changes
             }
             "PutItOnTopOfOwnersLibraryInstead" | "DiscardItToTopOfLibraryInstead" => {
                 vec![EventChange::SetDestination(Destination::OwnersLibraryTop)]

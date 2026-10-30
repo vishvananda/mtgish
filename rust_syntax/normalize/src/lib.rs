@@ -26,5 +26,6 @@ pub mod rewrite_spec;
 pub mod selector_spec;
 pub mod semantics;
 pub mod unified;
+pub mod value_audit;
 
 pub mod cost_history;

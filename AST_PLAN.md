@@ -96,8 +96,9 @@ Coverage automation only moves wrong data faster. All of the card bugs in this r
 `--audit-literals` runs all of these as a Go test. Mining needs no hand-written knowledge, and it found bugs nobody wrote a rule for. Its limit is that it compares one template's English with that template's output. It cannot see an error shared by most templates for a phrase, or an error that only appears when templates compose. So the remaining steps are:
 
 1. **Card-level differential: first pass done.** A statistical comparison of each ability with its Oracle line was too noisy to use: 11,511 findings, mostly IR structure, and lines do not align with abilities when modes or `Scoped` wrappers split them. Asking the narrower question worked: does a word from the card's Oracle text appear anywhere in that card's source record? That found 76 wrong cards, all in single templates (#26-#33), which the template audit had missed because presence-only rules pass a template with two clauses and one token. The working rules moved into `literalCountRules`, so they now gate every template. 30 further cards only changed spelling from `UntilEndOfNextTurn` to `UntilTheEndOfPlayersNextTurn`. Words with long exception lists (`up to`, `unless`, `another`, `double`) were not reviewed and remain open.
-2. **Render-back:** generate plain English from the unified AST and diff it against Oracle text. This is the strongest automatic check available, and `Named` forms render directly from their variant names.
-3. **Keep filing upstream**, using the same short format.
+2. **Source-to-AST differential: done, as `ast value-audit`.** The lowerer is the one place a clause can vanish without any corpus check seeing it, so this compares each complete record's source with its AST. Integers and fieldless forms keep their spelling through reduction. A form most records keep but one record lacks was dropped on that path. Of 1,027 forms, three were flagged and all three were reviewed renames. Integers found one real drop, Dodecapod's two counters, which an ignored argument had lost, and two false positives that are now compared by magnitude. A form that is never kept was renamed, so the check says nothing about it. A grep of every lowering arm that discards a source field with `_` or `..` found 97, all read in a follow-on arm.
+3. **Render-back:** generate plain English from the unified AST and diff it against Oracle text. This is the strongest automatic check available, and `Named` forms render directly from their variant names. It stays open: reading Boon Reflection, not any check, found that a replacement body must cancel the event it replaces, and only a meaning-level check would catch that class of error.
+4. **Keep filing upstream**, using the same short format.
 
 Open: Awesome Presence (#33) still pays once, because no source form charges per blocker.
 
@@ -135,6 +136,7 @@ Known remaining cost: `ast check` still uses about 110s of CPU, mostly `serde_js
 | AST suites | `just ast_test` | All 27 suites, now including `groups`, `paid` and `unified`. |
 | Corpus | `just ast_check` | Every record parses, unifies, validates and round-trips, and identities match. |
 | Primitives | `ast primitive-audit <report> data/oracle.json` | Every primitive use has its words in the card's Oracle text. |
+| Kept values | `ast value-audit data/mtgish.lines.ron data/ast_reviewed_values.json` | A complete record keeps every integer of 2 or more, and every fieldless form that records normally keep. About 2 seconds. |
 | No silent losses | `just ast_compare <saved report>` | No complete card becomes incomplete without an entry in `data/ast_reviewed_losses.json`. |
 | Literals | `just parser_audit_literals` | Lists any finding without a review in `data/grammar_literal_review.json`, including phrases with fewer tokens than occurrences. |
 

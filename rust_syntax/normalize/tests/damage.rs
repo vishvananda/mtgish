@@ -469,12 +469,13 @@ fn a_distributed_total_is_split_when_targets_are_chosen_and_read_per_target() {
 fn changes(body: &Program) -> Vec<&EventChange> {
     body.instructions
         .iter()
-        .filter_map(|instruction| match instruction {
+        .flat_map(|instruction| match instruction {
             Instruction::Effect {
                 operation: Operation::ModifyEvent { change },
                 ..
-            } => Some(change),
-            _ => None,
+            } => vec![change],
+            Instruction::Group(group) => changes(group),
+            _ => vec![],
         })
         .collect()
 }
@@ -529,4 +530,19 @@ fn a_body_of_ordinary_actions_happens_instead_of_the_event() {
     // Counters only change the amount; the placement still happens.
     let (_, body) = replacement("ReplaceWouldPutCounters(AnEffectWouldPutCountersOnAPermanent(AnyPermanent),[PutNewAmount(Twice(ThatManyCounters))])");
     assert!(matches!(changes(&body)[..], [EventChange::SetAmount(_)]));
+}
+
+#[test]
+fn a_redirected_zone_change_keeps_how_the_object_enters() {
+    let (_, body) = replacement("ReplaceWouldDiscard(ASpellOrAbilityWouldCausePlayerToDiscardCard(ControlledByAPlayer(Opponent),You,ThisCardInHand),[PutItOntoTheBattlefieldInstead([EntersWithNumberCounters(Integer(2),PTCounter(+1,+1))])])");
+    assert!(matches!(
+        changes(&body)[..],
+        [
+            EventChange::SetDestination(Destination::OwnersBattlefield),
+            EventChange::AddCounters {
+                amount: Expr::Constant(2),
+                ..
+            }
+        ]
+    ));
 }

@@ -20,6 +20,12 @@ fn run() -> Result<()> {
             corpus::write_json(Path::new(output),&drafts)?;
             eprintln!("{} draft rows covering {} blocked records; review before adding any to rewrites/primitives.json5",drafts.len(),drafts.iter().map(|d|d.records).sum::<usize>());
         }
+        [command,input,reviewed] if command=="value-audit" => {
+            let findings=mtgish_ast::value_audit::audit(Path::new(input),Path::new(reviewed))?;
+            for finding in &findings {println!("{finding}");}
+            if !findings.is_empty() {return Err(format!("{} source values are missing from complete records",findings.len()).into());}
+            eprintln!("every kept source value is present");
+        }
         [command,report,oracle] if command=="primitive-audit" => {
             let report=serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(report)?))?;
             let oracle=mtgish_ast::pipeline::candidates::oracle_text(Path::new(oracle))?;
