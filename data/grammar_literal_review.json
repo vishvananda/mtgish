@@ -8892,6 +8892,17 @@
     "template": "If an effect would create one or more tokens, it creates twice that many of those tokens instead",
     "result": "ReplaceAnEffectWouldCreateAnyNumberOfTokens(AnEffectWouldCreateAnyNumberOfTokens(AnyPermanent), [CreateTokensInstead([ThoseTokens, ThoseTokens])])",
     "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "9219b07e62e635d43828698964ea587d8394590538029d78252d5fe847a0753c",
+    "kind": "mined_token",
+    "rule": "TriggerActions(~Permanent)",
+    "token": "YourTeam",
+    "word": "team",
+    "support": "9/10",
+    "template": "each of your teammates creates a token that's a copy of this enchantment",
+    "result": "ActionList([EachPlayerCreatesTokens(And([YourTeam, Other(You)]), [TokenCopyOfPermanent(ThisPermanent, NoTokenCopyEffects)], [])])",
+    "reason": "triaged 2026-10-30: \"your teammates\" is your team; this pairing only appeared once the wrong YourTeam templates were repaired"
   }
  ]
 }
