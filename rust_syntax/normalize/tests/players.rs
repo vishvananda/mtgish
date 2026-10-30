@@ -304,7 +304,7 @@ fn exact_exiled_incarnations_are_not_live_permissions_for_future_exiled_cards() 
         operation:
             Operation::CreateContinuousEffect {
                 changes,
-                duration: Duration::UntilNextTurn(PlayerRef::AbilityController),
+                duration: Duration::UntilEndOfNextTurn(PlayerRef::AbilityController),
                 ..
             },
         ..

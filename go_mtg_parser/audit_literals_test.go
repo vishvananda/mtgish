@@ -43,6 +43,34 @@ func TestLiteralRulesFindWrongOutputs(t *testing.T) {
 	}
 }
 
+func TestLiteralCountRulesRequireATokenPerOccurrence(t *testing.T) {
+	findings := AuditGrammarLiterals(writeLiteralGrammar(t, `{"{{Actions}}": {
+		"put it onto the battlefield tapped": "Put([EntersNormally])",
+		"put one onto the battlefield tapped, then put one onto the battlefield tapped": "Put([EntersTapped]), Put([EntersNormally])",
+		"put two onto the battlefield tapped": "Put([EntersTapped])",
+		"lose half your life, rounded up": "LoseLife(HalfRoundedDown(Life))",
+	}}`))
+	expected := map[string]bool{
+		"put it onto the battlefield tapped":                                            false,
+		"put one onto the battlefield tapped, then put one onto the battlefield tapped": false,
+		"lose half your life, rounded up":                                               false,
+	}
+	for _, finding := range findings {
+		if finding.Kind != "count_rule" {
+			continue
+		}
+		if _, ok := expected[finding.Template]; !ok {
+			t.Fatalf("unexpected finding %+v", finding)
+		}
+		expected[finding.Template] = true
+	}
+	for template, found := range expected {
+		if !found {
+			t.Errorf("no finding for %q", template)
+		}
+	}
+}
+
 func TestLiteralMiningFindsOutlierTemplate(t *testing.T) {
 	body := `{"{{Actions}}": {`
 	for _, word := range []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel", "india", "juliet", "kilo", "lima", "mike", "november", "oscar"} {

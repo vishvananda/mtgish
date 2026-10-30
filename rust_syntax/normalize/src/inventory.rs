@@ -1240,7 +1240,7 @@ impl Inventory<'_> {
     }
     fn duration(&mut self, d: &Duration) {
         self.form("Duration", d);
-        if let Duration::UntilNextTurn(p) = d {
+        if let Duration::UntilNextTurn(p) | Duration::UntilEndOfNextTurn(p) = d {
             self.player(p);
         }
     }

@@ -1,0 +1,5 @@
+{
+  "title": "Clause dropped or wrong (9 cards)",
+  "body": "- Winter Blast: deals damage to every target, not only those with flying\n- Cream of the Crop: the rest go on top of the library, not the bottom\n- Moonsnare Prototype, Power of Persuasion: always the bottom, not the owner's choice of top or bottom\n- Last Rites: can choose land cards, but the text says nonland\n- Sworn Defender: toughness becomes the power, not 1 plus the power\n- Zimone and Dina, No Secret Is Hidden from Me: \"repeat this process once\" encoded so it never repeats\n- Awesome Presence: pays {3} once, not {3} for each blocking creature\n",
+  "url": "https://github.com/i5jb/mtgish/issues/33"
+}

@@ -1,0 +1,5 @@
+{
+  "title": "\"without paying its mana cost\" missing (5 cards)",
+  "body": "The permission is encoded, but the card must still be paid for:\n\n- Gix, Yawgmoth Praetor\n- Lobelia, Defender of Bag End\n- Nicol Bolas, God-Pharaoh\n- Scarlet Witch, Chaotic Avenger\n- Tempest Trapper\n",
+  "url": "https://github.com/i5jb/mtgish/issues/30"
+}

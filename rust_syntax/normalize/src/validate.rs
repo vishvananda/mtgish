@@ -1198,7 +1198,9 @@ impl<'a> Scope<'a> {
                     self.player(player)?;
                 }
                 if let Some(duration) = expires {
-                    if let Duration::UntilNextTurn(player) = duration {
+                    if let Duration::UntilNextTurn(player) | Duration::UntilEndOfNextTurn(player) =
+                        duration
+                    {
                         self.player(player)?;
                     }
                     if matches!(duration, Duration::Indefinite) {
@@ -1457,7 +1459,9 @@ impl<'a> Scope<'a> {
                 }
                 self.object(source)?;
                 self.subject_changes(affected, changes)?;
-                if let Duration::UntilNextTurn(player) = duration {
+                if let Duration::UntilNextTurn(player) | Duration::UntilEndOfNextTurn(player) =
+                    duration
+                {
                     self.player(player)?;
                 }
                 Ok(())

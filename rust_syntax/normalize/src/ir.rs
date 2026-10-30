@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 24;
+pub const SCHEMA_VERSION: u32 = 25;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1588,6 +1588,7 @@ pub enum Duration {
     EndOfCombat,
     Indefinite,
     UntilNextTurn(PlayerRef),
+    UntilEndOfNextTurn(PlayerRef),
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.

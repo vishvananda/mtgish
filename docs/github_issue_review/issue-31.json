@@ -1,0 +1,5 @@
+{
+  "title": "\"face down\" missing from exile (3 cards)",
+  "body": "The text exiles the cards face down, but the encoding exiles them face up:\n\n- Apple of Eden, Isu Relic\n- Kardum, Patron of Flames\n- The Dragon-Kami Reborn\n",
+  "url": "https://github.com/i5jb/mtgish/issues/31"
+}

@@ -1,0 +1,5 @@
+{
+  "title": "\"until the end of your next turn\" ends too early (26 cards)",
+  "body": "Encoded as `UntilPlayersNextTurn`, which ends when your next turn begins, so the card cannot be played during that turn:\n\nElemental Mascot; Embrace the Unknown; Evil's Thrall; Flameskull; Hex Magic; Ignite the Future; Inspired Tinkering; Invasion of Kaldheim; Light Up the Stage; Mjölnir's Might; Molly Hayes, Runaway; Monastery Raid; Practiced Scrollsmith; Reckless Impulse; Rooting Moloch; Season of the Bold; Seize Opportunity; Single Combat; The Madcap Jester; Thor, God of Thunder; Tlincalli Hunter; Wheel of Potential; Wrenn's Resolve\n\nEncoded as `UntilEndOfTurn`: Atsushi, the Blazing Sky; Mazzy, Truesword Paladin; Ral and the Implicit Maze\n",
+  "url": "https://github.com/i5jb/mtgish/issues/28"
+}

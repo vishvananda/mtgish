@@ -15,15 +15,15 @@ The priorities, in order, are:
 
 ### Where things stand
 
-Unified, complete and blocker rows are current at schema 24. The other rows were measured at schema 23, from the `ast pipeline-check` that set this plan:
+Unified, complete and blocker rows are current at schema 25. The other rows were measured at schema 23, from the `ast pipeline-check` that set this plan:
 
 | Measure | Value |
 |---|---|
 | Records | 33,529 |
-| Unified, schema 24 | 33,529 (100%) |
-| Complete | 18,728 (55.9%) |
-| Complete with no primitive | 15,505 (46.2%) |
-| Distinct forms blocking the rest | 3,183 |
+| Unified, schema 25 | 33,529 (100%) |
+| Complete | 18,756 (55.9%) |
+| Complete with no primitive | 15,527 (46.3%) |
+| Distinct forms blocking the rest | 3,179 |
 | Structurally preserved | 33,529 |
 | Source enums / declared variants | 346 / 8,668 |
 | Distinct forms in the corpus | 8,247 |
@@ -91,12 +91,15 @@ Coverage automation only moves wrong data faster. All of the card bugs in this r
 | Mining, wide thresholds | ~300 | 8 | 3% |
 | Mining, templates outside the first pass | 101 | 2 | 2% |
 | Rule table | 24 | 9 | ~40% |
+| One token per phrase occurrence | 81 | 64 | 79% |
 
-`--audit-literals` now runs both as a Go test. Mining needs no hand-written knowledge, and it found bugs nobody wrote a rule for. Its limit is that it compares one template's English with that template's output. It cannot see an error shared by most templates for a phrase, or an error that only appears when templates compose. So the remaining steps are:
+`--audit-literals` runs all of these as a Go test. Mining needs no hand-written knowledge, and it found bugs nobody wrote a rule for. Its limit is that it compares one template's English with that template's output. It cannot see an error shared by most templates for a phrase, or an error that only appears when templates compose. So the remaining steps are:
 
-1. **Card-level differential:** run the same word-token mining between Oracle text and each card's unified AST. Tier 1 makes this possible for every record.
+1. **Card-level differential: first pass done.** A statistical comparison of each ability with its Oracle line was too noisy to use: 11,511 findings, mostly IR structure, and lines do not align with abilities when modes or `Scoped` wrappers split them. Asking the narrower question worked: does a word from the card's Oracle text appear anywhere in that card's source record? That found 76 wrong cards, all in single templates (#26-#33), which the template audit had missed because presence-only rules pass a template with two clauses and one token. The working rules moved into `literalCountRules`, so they now gate every template. 30 further cards only changed spelling from `UntilEndOfNextTurn` to `UntilTheEndOfPlayersNextTurn`. Words with long exception lists (`up to`, `unless`, `another`, `double`) were not reviewed and remain open.
 2. **Render-back:** generate plain English from the unified AST and diff it against Oracle text. This is the strongest automatic check available, and `Named` forms render directly from their variant names.
 3. **Keep filing upstream**, using the same short format.
+
+Open: Awesome Presence (#33) still pays once, because no source form charges per blocker.
 
 The corpus bugs found so far are a lower bound. Do not read an empty literal audit as proof the corpus is right.
 
@@ -133,7 +136,7 @@ Known remaining cost: `ast check` still uses about 110s of CPU, mostly `serde_js
 | Corpus | `just ast_check` | Every record parses, unifies, validates and round-trips, and identities match. |
 | Primitives | `ast primitive-audit <report> data/oracle.json` | Every primitive use has its words in the card's Oracle text. |
 | No silent losses | `just ast_compare <saved report>` | No complete card becomes incomplete without an entry in `data/ast_reviewed_losses.json`. |
-| Literals | `just parser_audit_literals` | Lists any finding without a review in `data/grammar_literal_review.json`. |
+| Literals | `just parser_audit_literals` | Lists any finding without a review in `data/grammar_literal_review.json`, including phrases with fewer tokens than occurrences. |
 
 **Current execution scope: finish normalization through staged, generated rewrites before expanding Cantrip support.**
 

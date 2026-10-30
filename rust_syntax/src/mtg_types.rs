@@ -7923,6 +7923,7 @@ pub enum LookAtTopOfLibraryAction {
   CreatePerpetualPermanentEffect(Box<Permanent>, Vec<PerpetualEffect>),
   MayPutUptoNumberCardsOntoTheBattlefield(Box<GameNumber>, Box<Cards>, Vec<EnterFlag>),
   GainLife(Box<GameNumber>),
+  ExileAGenericCardFaceDownWithACounter(CounterType),
 }
 
 
@@ -9915,7 +9916,7 @@ pub enum Action {
   RevealCardsFromTheTopOfLibraryUntilANumberOfCardsOfTypeAreRevealed(Box<GameNumber>, Box<Cards>, Vec<RevealTheTopNumberCardsOfLibraryAction>),
   RevealCardsFromTheTopOfPlanarDeckUntilRevealAPlaneCardThenChaosEnsuresOnThatPlaneThenPutAllCardsOnBottomInAnyOrder,
   RevealCardsFromTheTopOfPlanarDeckUntilRevealAPlaneCardThenPlaneswalkToItWhileNotPlaneswalkingAwayAndPutTheRestOnBottomInAnyOrder,
-  RevealCardsFromTheTopOfPlanarDeckUntilRevealNumberPlaneCardsAndPutAPlaneCardFromAmongOnTopAndTheRestOnBottomInAnyOrder(Box<GameNumber>),
+  RevealCardsFromTheTopOfPlanarDeckUntilRevealNumberPlaneCardsAndPutAPlaneCardFromAmongOnTopAndTheRestOnBottomInARandomOrder(Box<GameNumber>),
   RevealCardsFromTheTopOfPlanarDeckUntilRevealNumberPlaneCardsSimultaneouslyPlaneswalkToThemThenPutOnBottomInAnyOrder(Box<GameNumber>),
   RevealFaceDownPermanent(Box<Permanent>),
   RevealHand,
@@ -10144,6 +10145,7 @@ pub enum Action {
   VoteForColor(Vec<Color>),
   WinTheGame,
   WouldDealExcessDamage_DealExcessToPlayerInstead(Box<Player>),
+  RevealHandAndPlayerChoosesNumberCardsOfTypeToDiscard(Box<Player>, Box<GameNumber>, Box<Cards>),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]

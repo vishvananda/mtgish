@@ -1,3 +1,5 @@
 {
-  "Jace's Ruse": "Was complete only because the template dropped its graveyard search; upstream #22 restored SearchLibraryAndOrGraveyard, which is not lowered yet."
+  "Jace's Ruse": "Was complete only because the template dropped its graveyard search; upstream #22 restored SearchLibraryAndOrGraveyard, which is not lowered yet.",
+  "Moonsnare Prototype": "Was complete only because the template always chose the bottom of the library; upstream #33 restored ReturnPermanentToTopOrBottomOfLibrary, which is not lowered yet.",
+  "Winter Blast": "Was complete only because the template dropped \"with flying\"; upstream #33 restored the filter on the targets, which is not lowered yet."
 }

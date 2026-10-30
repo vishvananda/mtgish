@@ -575,6 +575,9 @@ impl Context {
             source::Expiration::UntilEndOfCombat => Duration::EndOfCombat,
             source::Expiration::UntilEndOfGame => Duration::Indefinite,
             source::Expiration::UntilPlayersNextTurn(p) => Duration::UntilNextTurn(self.player(p)?),
+            source::Expiration::UntilTheEndOfPlayersNextTurn(p) => {
+                Duration::UntilEndOfNextTurn(self.player(p)?)
+            }
             _ => return Err(unsupported(value)),
         })
     }

@@ -1,0 +1,5 @@
+{
+  "title": "Twice, half or rounding wrong (11 cards)",
+  "body": "- \"Twice\" missing: Chaotic Backlash, Devouring Hellion, Nuclear Fallout, Sage of the Maze, Tezzeret, Agent of Bolas\n- \"Copy each of those spells twice\" copies once: Finale of Promise\n- \"Half, rounded up\" encoded rounded down: Personal Incarnation, Split the Party, Torrent Sculptor\n- \"Half that many, rounded down\" draws the full amount: Sokrates, Athenian Teacher\n- Eternal Flame deals half X to the target and half X to you. It should deal X to the target and half X, rounded up, to you\n",
+  "url": "https://github.com/i5jb/mtgish/issues/29"
+}

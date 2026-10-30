@@ -1,6 +1,6 @@
 {
  "version": 1,
- "scope": "Triage of every finding from the rule table and word-token mining at the thresholds in go_mtg_parser/audit_literals.go. Confirmed defects were repaired and filed as upstream issues 18-25; these remaining entries were read template by template and do not prove the templates correct.",
+ "scope": "Triage of every finding from the rule table and word-token mining at the thresholds in go_mtg_parser/audit_literals.go. Confirmed defects were repaired and filed as upstream issues 18-33; these remaining entries were read template by template and do not prove the templates correct.",
  "reviewed": [
   {
    "id": "3a2453491925990e667988c99bd50f31d802a39e42e181576ec2cbe75f0db5e2",
@@ -8623,6 +8623,275 @@
    "template": "Zombies",
    "result": "Zombie",
    "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "0997dbcaf73bde147e43b658b1fb7a4bf202d8946d3f8d650b0dd20bc0cb9412",
+    "kind": "count_rule",
+    "rule": "StaticEffect[WouldCreateTokens]",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "If one or more tokens would be created, twice that many of those tokens are created instead",
+    "result": "ReplaceAnyNumberOfTokensWouldBeCreated(AnyNumberOfTokensWouldBeCreated(AnyPermanent), [CreateTokensInstead([ThoseTokens, ThoseTokens])])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "0fbae6e8c82317c129fe8eb7589fd652095ffd9b592f1b56b83a36d2f8cbef57",
+    "kind": "count_rule",
+    "rule": "StaticEffect[WouldCreateTokensUnderPlayersControl]",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead",
+    "result": "ReplaceAnEffectWouldCreateAnyNumberOfTokens(AnEffectWouldCreateAnyNumberOfTokensUnderAPlayersControl(AnyPermanent, SinglePlayer(You)), [CreateTokensInstead([ThoseTokens, ThoseTokens])])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "12693944bace870f1eb2c8515c64e1c36abf86e5f9125c97a0d8ec111e13f835",
+    "kind": "count_rule",
+    "rule": "SpellActions",
+    "token": "RoundedUp",
+    "word": "(?i)rounded up",
+    "template": "Each player hides at least one item, then all players reveal them simultaneously. Each player loses life equal to the number of items they revealed. The player who revealed the fewest items then loses half their life, rounded up. If two or more players are tied for fewest, each loses half their life, rounded up",
+    "result": "ActionList([EachPlayerAction(AnyPlayer, SecretlyChooseANumberGreaterThanNumber(1)), RevealSecretlyChosenNumbers, EachPlayerAction(AnyPlayer, LoseLife(PlayersChosenNumber(ActionPlayer))), EachPlayerAction(ChoseLowestNumber, LoseLife(HalfRoundedUp(LifeTotalOfPlayer(ActionPlayer))))])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "17a60e04c7a0af2034a92e329f9ad0ebd523b0ec7316af18b92090659b67a8ce",
+    "kind": "count_rule",
+    "rule": "StaticEffect[WouldCreateTokensUnderPlayersControl]",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "If one or more tokens would be created under your control, twice that many of those tokens are created instead",
+    "result": "ReplaceAnyNumberOfTokensWouldBeCreated(AnyNumberOfTokensWouldBeCreatedUnderAPlayersControl(AnyPermanent, SinglePlayer(You)), [CreateTokensInstead([ThoseTokens, ThoseTokens])])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "1cf1bd2a384e76d0da74e7c94afcafd1760e52bc27ead1d3127557ac53cb4ddb",
+    "kind": "count_rule",
+    "rule": "SpellActions(X)",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "You may cast up to one target instant card and/or up to one target sorcery card from your graveyard each with mana value X or less without paying their mana costs. If a spell cast this way would be put into your graveyard, exile it instead. If X is {{Digits}} or more, copy each of those spells twice. You may choose new targets for the copies",
+    "result": "Targeted([UptoOneTargetGraveyardCard(And([IsCardtype(Instant), ManaValueIs(LessThanOrEqualTo({{X}})), InAPlayersGraveyard(SinglePlayer(You))])), UptoOneTargetGraveyardCard(And([IsCardtype(Sorcery), ManaValueIs(LessThanOrEqualTo({{X}})), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([CastAnyNumberOfGraveyardCardsWithoutPayingIntoExile(Or([SingleGraveyardCard(Ref_TargetGraveyardCard1), SingleGraveyardCard(Ref_TargetGraveyardCard2)])), If(SpellXIs(GreaterThanOrEqualTo({{Digits[0]}})), [CopyEachSpellAndMayChooseNewTargets(TheSpellsCastThisWay), CopyEachSpellAndMayChooseNewTargets(TheSpellsCastThisWay)])]))",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "2c1704f933a70a837dea04056a2be3fb15430f45f1010ebedcfbf5f333770fd4",
+    "kind": "mined_token",
+    "rule": "TriggerActions",
+    "token": "ReturnEachExiledCardToBottomOfOwnersLibraryRandomOrder",
+    "word": "paying",
+    "support": "6/7",
+    "template": "exile the top {{Number}} cards of your library. You may cast {{a}} {{PotentialSpell}} from among them. Then put the rest on the bottom of your library in a random order",
+    "result": "ActionList([Exile([TheTopNumberCardsOfLibrary({{Number[0]}})], []), MayAction(CastASpellFromExile({{PotentialSpell[0]}}, TheCardsExiledThisWay)), ReturnEachExiledCardToBottomOfOwnersLibraryRandomOrder(TheCardsExiledThisWay)])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "341b018b51e9cfaa2039422cfe50209024f2bf919c488e9b703900735b3fd7fa",
+    "kind": "count_rule",
+    "rule": "TriggerActions[WhenACreatureOrPlaneswalkerDies]",
+    "token": "TopOrBottom",
+    "word": "(?i)choice of the top or bottom",
+    "template": "you may put it on your choice of the top or bottom of its owner's library",
+    "result": "ActionList([MayAction(PutDeadPermanentOnTopOfLibraryOrOnBottomOfLibrary)])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "476f80699732ec80a2c624fbcf6c533277e33b16978bd5cbcc2b70b74148c7e3",
+    "kind": "count_rule",
+    "rule": "ActivatedActions",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "Copy target {{Spell}} twice. You may choose new targets for the copies",
+    "result": "Targeted([TargetSpell({{Spell[0]}})], ActionList([CopySpellAndMayChooseNewTargets(Ref_TargetSpell), CopySpellAndMayChooseNewTargets(Ref_TargetSpell)]))",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "4c83e9c15347599dacc3b14ef0093adda969bf1098b7e644553363c095cff744",
+    "kind": "count_rule",
+    "rule": "ActivatedActions",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "Until end of turn, if one or more tokens would be created under your control, twice that many of those tokens are created instead",
+    "result": "ActionList([CreateReplaceAnyNumberOfTokensWouldBeCreatedUntil(AnyNumberOfTokensWouldBeCreatedUnderAPlayersControl(AnyPermanent, SinglePlayer(You)), [CreateTokensInstead([ThoseTokens, ThoseTokens])], UntilEndOfTurn)])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "56768306b22002b8add8c733be804ea692abb9cc2f15ae38151222e940476015",
+    "kind": "mined_token",
+    "rule": "TriggerActions",
+    "token": "ReturnEachExiledCardToBottomOfOwnersLibraryRandomOrder",
+    "word": "without",
+    "support": "6/7",
+    "template": "exile the top {{Number}} cards of your library. You may cast {{a}} {{PotentialSpell}} from among them. Then put the rest on the bottom of your library in a random order",
+    "result": "ActionList([Exile([TheTopNumberCardsOfLibrary({{Number[0]}})], []), MayAction(CastASpellFromExile({{PotentialSpell[0]}}, TheCardsExiledThisWay)), ReturnEachExiledCardToBottomOfOwnersLibraryRandomOrder(TheCardsExiledThisWay)])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "5bd1bece03f5d41e83b954aaf50bb750cfc149348eba5665cf6d8a18a72fccf6",
+    "kind": "mined_token",
+    "rule": "ActivatedActions(X)",
+    "token": "UntilCardsAreNoLongerExiled",
+    "word": "long",
+    "support": "19/20",
+    "template": "Exile the top X cards of target opponent's library. You may play lands and cast spells from among cards exiled this way without paying their mana costs",
+    "result": "Targeted([TargetPlayer(Opponent)], ActionList([Exile([TheTopNumberCardsOfPlayersLibrary({{X}}, Ref_TargetPlayer)], []), CreatePlayerEffectUntil(You, [MayPlayLandsFromAmongExiled(TheCardsExiledThisWay), MayCastSpellsFromAmongExiledWithoutPaying(AnySpell, TheCardsExiledThisWay)], UntilCardsAreNoLongerExiled(TheCardsExiledThisWay))]))",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "65a29de767e2f92c2f75d67a678bb6da8384dbe39c1032c3e7cb1971cc06291e",
+    "kind": "mined_token",
+    "rule": "SpellActions",
+    "token": "NumCardsInExileIs",
+    "word": "are",
+    "support": "6/7",
+    "template": "Exile all {{Permanents}}. Starting with you, each player chooses one of the exiled cards and puts it onto the battlefield tapped under their control. Repeat this process until all cards exiled this way have been chosen",
+    "result": "ActionList([Exile([EachPermanent({{Permanents[0]}})], []), RepeatableActions([EachPlayerStartingWithAction(AnyPlayer, You, [ReturnAnExiledCardToBattlefield(WasExiledThisWay, [EntersTapped, EntersUnderPlayersControl(ActionPlayer)])]), If(NumCardsInExileIs(GreaterThan(Integer(0)), WasExiledThisWay), [RepeatThisProcess])])])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "6a4177ca8c6a8ef62eb595051e36ca154d6708b9beba8d997dfee806baeaf52d",
+    "kind": "mined_token",
+    "rule": "TriggerActions",
+    "token": "ReturnEachExiledCardToBottomOfOwnersLibraryRandomOrder",
+    "word": "cost",
+    "support": "6/7",
+    "template": "exile the top {{Number}} cards of your library. You may cast {{a}} {{PotentialSpell}} from among them. Then put the rest on the bottom of your library in a random order",
+    "result": "ActionList([Exile([TheTopNumberCardsOfLibrary({{Number[0]}})], []), MayAction(CastASpellFromExile({{PotentialSpell[0]}}, TheCardsExiledThisWay)), ReturnEachExiledCardToBottomOfOwnersLibraryRandomOrder(TheCardsExiledThisWay)])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "8839b348db10d06f7d667df8e778772954705ab44314461455e31b9383d88276",
+    "kind": "mined_token",
+    "rule": "QuotedAbility[ThisCreature]",
+    "token": "TheAmountOfDamagePreventedThisWay",
+    "word": "way",
+    "support": "34/37",
+    "template": "If this creature would deal combat damage to a player, prevent that damage. This creature's controller and that player each draw half that many cards, rounded down",
+    "result": "PreventDamage(CombatDamageWouldBeDealtByACreatureToARecipient(SinglePermanent(ThisPermanent), APlayer(AnyPlayer)), [PreventThatDamage, EachPlayerAction(Or([SinglePlayer(You), SinglePlayer(WouldDealDamage_DamageRecipientPlayer)]), DrawNumberCards(HalfRoundedDown(TheAmountOfDamagePreventedThisWay)))])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "8a79bf8fa464a5c2430f4742f2e418aa1f2d7d30f394ac8b3f5c9dce1d5a30d2",
+    "kind": "count_rule",
+    "rule": "TriggerActions",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "manifest dread twice",
+    "result": "ActionList([ManifestDread, ManifestDread])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "926b441197e08188c832106990d3426cc2072c4c45b610fbc8380c53626c7aa9",
+    "kind": "count_rule",
+    "rule": "StaticEffect",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "If you tap a permanent for mana, it produces twice as much of that mana instead",
+    "result": "ReplaceWouldProduceMana(PlayerTappingAPermanentWouldProduceMana(You, IsPermanent), [WouldProduceMana_ProduceMultiple(Integer(2))])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "926da498e01840a0051826872cb3d6e21d62dd29dec48322ff96fd4daa77a4f8",
+    "kind": "count_rule",
+    "rule": "TriggerActions[Kicker](~Permanent)",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "copy the next {{Spell}} you cast this turn when you cast it. If this creature was kicked, copy that spell twice instead. You may choose new targets for the copies",
+    "result": "ActionList([CreateFutureTrigger(WhenPlayerCastsTheirNextSpellThisTurn(You, {{Spell[0]}}), ActionList([IfElse(EnteringPermanentPassesFilter(WasKicked), [CopySpellAndMayChooseNewTargets(Trigger_ThatSpell), CopySpellAndMayChooseNewTargets(Trigger_ThatSpell)], [CopySpellAndMayChooseNewTargets(Trigger_ThatSpell)])]))])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "a3b2d59ab218b40041fd32d19347218327dcc7de75da0e134c2970d1b2138099",
+    "kind": "mined_token",
+    "rule": "SpellActions",
+    "token": "NumCardsInExileIs",
+    "word": "there",
+    "support": "6/7",
+    "template": "Exile all {{Permanents}}. Starting with you, each player chooses one of the exiled cards and puts it onto the battlefield tapped under their control. Repeat this process until all cards exiled this way have been chosen",
+    "result": "ActionList([Exile([EachPermanent({{Permanents[0]}})], []), RepeatableActions([EachPlayerStartingWithAction(AnyPlayer, You, [ReturnAnExiledCardToBattlefield(WasExiledThisWay, [EntersTapped, EntersUnderPlayersControl(ActionPlayer)])]), If(NumCardsInExileIs(GreaterThan(Integer(0)), WasExiledThisWay), [RepeatThisProcess])])])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "aa2a53f42615c324d68a3ec4f20e57c99ca173643ca79f2ae499bea325c0e095",
+    "kind": "mined_token",
+    "rule": "Condition",
+    "token": "HalfRoundedDown",
+    "word": "down",
+    "support": "29/30",
+    "template": "your life total is less than or equal to half your starting life total",
+    "result": "PlayerPassesFilter(You, LifeTotalIs(LessThanOrEqualTo(HalfRoundedDown(StartingLifeTotalOfPlayer(You)))))",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "b580cea50326f3d9ab559a17e2e0fb6906d60ddbf3601fecae21ccbf46747718",
+    "kind": "count_rule",
+    "rule": "SelfEntersActions(~Permanent)",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "As {{ThisPermanent}} enters, roll a six-sided die twice. Its base power becomes the first result and its base toughness becomes the second result",
+    "result": "AsPermanentEnters(ThisPermanent, [RollTwoD6, EntersWithLayerEffect([SetPower(TheFirstDiceResult), SetToughness(TheSecondDiceResult)])])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "c609bf03e1a64c59f2a136a9eb320abef4d39f092f0791a48beea474659bb193",
+    "kind": "count_rule",
+    "rule": "TriggerActions",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "conjure {{Spellbook}} into your library twice, then shuffle",
+    "result": "ActionList([ConjureEachCardFromSpellBookIntoLibrary({{Spellbook[0]}}), ConjureEachCardFromSpellBookIntoLibrary({{Spellbook[0]}}), Shuffle])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "cca9282c8e62559c74717fc8b200884840ebcc3a0caddea96065d690b0c3d550",
+    "kind": "count_rule",
+    "rule": "StaticEffect(~Permanent)",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "You may activate the loyalty abilities of {{~Permanent}} twice each turn rather than only once",
+    "result": "PlayerEffect(You, [MayActivateLoyaltyAbilityOfPlanewalkerAnAdditionalTime(ThisPermanent)])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "cdc1901b831c577f1b51d22854821b5fc77318b30c7927655bfeedc304f3944a",
+    "kind": "count_rule",
+    "rule": "SpellActions",
+    "token": "Bottom",
+    "word": "(?i)(the rest|the other|others?) on the bottom",
+    "template": "Look at the top {{Number}} cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order. If {{Condition}}, instead put {{Number}} of them into your hand and the rest on the bottom of your library in any order",
+    "result": "ActionList([LookAtTheTopNumberCardsOfLibrary({{Number[0]}}, [IfElse({{Condition[0]}}, [PutNumberGenericCardsIntoHand({{Number[1]}})], [PutAGenericCardIntoHand]), PutTheRemainingCardsOnTheBottomOfLibraryInAnyOrder])])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "d76c887e09d09fd527acac63386a24301cfe77fb1b0d97896f2a538e0c34aa3b",
+    "kind": "mined_token",
+    "rule": "ActivatedActions(X)",
+    "token": "UntilCardsAreNoLongerExiled",
+    "word": "remain",
+    "support": "19/20",
+    "template": "Exile the top X cards of target opponent's library. You may play lands and cast spells from among cards exiled this way without paying their mana costs",
+    "result": "Targeted([TargetPlayer(Opponent)], ActionList([Exile([TheTopNumberCardsOfPlayersLibrary({{X}}, Ref_TargetPlayer)], []), CreatePlayerEffectUntil(You, [MayPlayLandsFromAmongExiled(TheCardsExiledThisWay), MayCastSpellsFromAmongExiledWithoutPaying(AnySpell, TheCardsExiledThisWay)], UntilCardsAreNoLongerExiled(TheCardsExiledThisWay))]))",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "d88064ecf8a854ad638d29f15d5ab6d506793dd293974b76b51a4b46cc603047",
+    "kind": "count_rule",
+    "rule": "TriggerActions",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "heist target opponent's library twice",
+    "result": "Targeted([TargetPlayer(Opponent)], ActionList([HeistPlayersLibrary(Ref_TargetPlayer), HeistPlayersLibrary(Ref_TargetPlayer)]))",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
+  },
+  {
+    "id": "db15c826b024e6443d8a494de59565a93a2f2010c8a6764730484d5a832c9d08",
+    "kind": "count_rule",
+    "rule": "StaticEffect[WouldCreateTokens]",
+    "token": "Twice|Double|Times",
+    "word": "(?i)\\btwice\\b",
+    "template": "If an effect would create one or more tokens, it creates twice that many of those tokens instead",
+    "result": "ReplaceAnEffectWouldCreateAnyNumberOfTokens(AnEffectWouldCreateAnyNumberOfTokens(AnyPermanent), [CreateTokensInstead([ThoseTokens, ThoseTokens])])",
+    "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
   }
  ]
 }

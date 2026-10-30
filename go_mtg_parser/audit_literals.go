@@ -56,6 +56,8 @@ var literalTokenRules = []literalRule{
 	newLiteralRule(`NextUpkeep|APlayersUpkeep`, `upkeep`),
 	newLiteralRule(`EndStep`, `end step|end of`),
 	newLiteralRule(`Shuffle`, `shuffl`),
+	newLiteralRule(`EntersUnderPlayersControl\(You\)`, `under your control|gain control`),
+	newLiteralRule(`UntilPlayersNextTurn`, `until your next turn|until the next turn|for as long as|next turn`),
 }
 
 var literalEnglishRules = []literalRule{
@@ -63,6 +65,23 @@ var literalEnglishRules = []literalRule{
 	newLiteralRule(`Random`, `\bat random\b`),
 	newLiteralRule(`Shuffle`, `\bshuffles?\b`),
 	newLiteralRule(`Upkeep`, `next upkeep`),
+}
+
+// A template can repeat a phrase, or lose it from one clause of several, so each
+// occurrence needs its own token. Presence alone would pass both of those.
+var literalCountRules = []literalRule{
+	newLiteralRule(`Tapped|EnterTapped`, `(battlefield|enters?)( under [^.,]*control)? tapped|creates? [^.,"]*\btapped\b[^.,"]*tokens?`),
+	newLiteralRule(`EntersAttacking|Attacking`, `tapped and attacking`),
+	newLiteralRule(`Random`, `random order`),
+	newLiteralRule(`RoundedUp`, `rounded up`),
+	newLiteralRule(`RoundedDown`, `rounded down`),
+	newLiteralRule(`UntilTheEndOfPlayersNextTurn|UntilEndOfNextTurn`, `until the end of your next turn`),
+	newLiteralRule(`UntilPlayersNextTurn`, `until your next turn`),
+	newLiteralRule(`WithoutPaying|Free`, `without paying`),
+	newLiteralRule(`FaceDown|Facedown`, `exiles? [^.]*face down`),
+	newLiteralRule(`TopOrBottom`, `choice of the top or bottom`),
+	newLiteralRule(`Bottom`, `(the rest|the other|others?) on the bottom`),
+	newLiteralRule(`Twice|Double|Times`, `\btwice\b`),
 }
 
 var (
@@ -150,6 +169,11 @@ func AuditGrammarLiterals(filenames []string) []LiteralFinding {
 		for _, rule := range literalEnglishRules {
 			if rule.english.MatchString(t.input) && !rule.token.MatchString(t.output) {
 				add("english_rule", t, rule.token.String(), rule.english.String(), "")
+			}
+		}
+		for _, rule := range literalCountRules {
+			if len(rule.english.FindAllString(t.input, -1)) > len(rule.token.FindAllString(t.output, -1)) {
+				add("count_rule", t, rule.token.String(), rule.english.String(), "")
 			}
 		}
 	}

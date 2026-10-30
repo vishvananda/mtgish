@@ -1128,7 +1128,7 @@ type Action =
 | { "_Action": "RevealCardsFromTheTopOfLibraryUntilANumberOfCardsOfTypeAreRevealed", "args": [GameNumber, Cards, Array<RevealTheTopNumberCardsOfLibraryAction>] }
 | { "_Action": "RevealCardsFromTheTopOfPlanarDeckUntilRevealAPlaneCardThenChaosEnsuresOnThatPlaneThenPutAllCardsOnBottomInAnyOrder" }
 | { "_Action": "RevealCardsFromTheTopOfPlanarDeckUntilRevealAPlaneCardThenPlaneswalkToItWhileNotPlaneswalkingAwayAndPutTheRestOnBottomInAnyOrder" }
-| { "_Action": "RevealCardsFromTheTopOfPlanarDeckUntilRevealNumberPlaneCardsAndPutAPlaneCardFromAmongOnTopAndTheRestOnBottomInAnyOrder", "args": GameNumber }
+| { "_Action": "RevealCardsFromTheTopOfPlanarDeckUntilRevealNumberPlaneCardsAndPutAPlaneCardFromAmongOnTopAndTheRestOnBottomInARandomOrder", "args": GameNumber }
 | { "_Action": "RevealCardsFromTheTopOfPlanarDeckUntilRevealNumberPlaneCardsSimultaneouslyPlaneswalkToThemThenPutOnBottomInAnyOrder", "args": GameNumber }
 | { "_Action": "RevealFaceDownPermanent", "args": Permanent }
 | { "_Action": "RevealHand" }
@@ -1143,6 +1143,7 @@ type Action =
 | { "_Action": "RevealHandAndPlayerChoosesACardToPutOnBattlefield", "args": [Player, Cards, Array<EnterFlag>] }
 | { "_Action": "RevealHandAndPlayerChoosesMultipleCardsToDiscard", "args": [Player, Array<Cards>] }
 | { "_Action": "RevealHandAndPlayerChoosesNumberCardsToDiscard", "args": [Player, GameNumber] }
+| { "_Action": "RevealHandAndPlayerChoosesNumberCardsOfTypeToDiscard", "args": [Player, GameNumber, Cards] }
 | { "_Action": "RevealHandAndPlayerChoosesNumberCardsToExile", "args": [Player, GameNumber, Cards] }
 | { "_Action": "RevealHandAndPlayerMayCastASpellFromAmongThemWithoutPaying", "args": [Player, Spells] }
 | { "_Action": "RevealHandAndPlayerMayChooseACardToDiscard", "args": [Player, Cards] }
@@ -4459,6 +4460,7 @@ type LookAtTopOfLibraryAction =
 | { "_LookAtTopOfLibraryAction": "MayPutAnyNumberOfGroupCardsOntoTheBattlefield", "args": [Cards, GroupFilter, Array<EnterFlag>] }
 | { "_LookAtTopOfLibraryAction": "APlayerChoosesAPileTopPutIntoHand", "args": Players }
 | { "_LookAtTopOfLibraryAction": "ExileAGenericCardWithACounter", "args": CounterType }
+| { "_LookAtTopOfLibraryAction": "ExileAGenericCardFaceDownWithACounter", "args": CounterType }
 | { "_LookAtTopOfLibraryAction": "MayExileUptoNumberCardsOfType", "args": [GameNumber, Cards] }
 | { "_LookAtTopOfLibraryAction": "PutAGenericCardAndAllCardsWithTheSameNameIntoHand" }
 | { "_LookAtTopOfLibraryAction": "LoseLifeForEach", "args": [GameNumber, GameNumber] }

@@ -1,0 +1,5 @@
+{
+  "title": "\"tapped\" missing from entering permanents and tokens (13 cards)",
+  "body": "The text says the permanent or token enters tapped, but the encoding has it enter untapped:\n\n- Search or reveal: Dire-Strain Rampage (first branch), Hew the Entwood (lands), Nissa's Pilgrimage, Pir's Whim, Settle the Wreckage, Sméagol, Helpful Guide, Viewpoint Synchronization\n- Return or exile: Sandman, Shifting Scoundrel, Thieves' Auction\n- Tokens: Bottle-Cap Blast, Corpseweft, The Western Cloud\n- Sandstorm Crasher: \"tapped and attacking\" token encoded neither tapped nor attacking\n\nViewpoint Synchronization also finds two cards instead of three and puts them into the graveyard instead of onto the battlefield.\n",
+  "url": "https://github.com/i5jb/mtgish/issues/26"
+}

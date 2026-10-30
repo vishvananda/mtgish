@@ -6284,5 +6284,1130 @@
     "excludes": [
       "TheNumberOfCardsThatWerePutIntoAPlayersLibraryFromTheirHandOrLibraryThisTurn"
     ]
+  },
+  {
+    "name": "Abundant Harvest",
+    "issues": [
+      27
+    ],
+    "contains": [
+      "PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder"
+    ],
+    "excludes": [
+      "PutTheRemainingCardsOnTheBottomOfLibraryInAnyOrder"
+    ]
+  },
+  {
+    "name": "Alania's Pathmaker",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Amplifire",
+    "issues": [
+      27
+    ],
+    "contains": [
+      "PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder"
+    ],
+    "excludes": [
+      "PutTheRemainingCardsOnTheBottomOfLibraryInAnyOrder"
+    ]
+  },
+  {
+    "name": "Apple of Eden, Isu Relic",
+    "issues": [
+      31
+    ],
+    "contains": [
+      "ExilesFaceDown"
+    ]
+  },
+  {
+    "name": "Atsushi, the Blazing Sky",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfTurn"
+    ]
+  },
+  {
+    "name": "Bottle-Cap Blast",
+    "issues": [
+      26
+    ],
+    "contains": [
+      "EntersTapped"
+    ]
+  },
+  {
+    "name": "Breathkeeper Seraph",
+    "issues": [
+      32
+    ],
+    "contains": [
+      "EntersUnderOwnersControl"
+    ],
+    "excludes": [
+      "EntersUnderPlayersControl"
+    ]
+  },
+  {
+    "name": "Breya's Apprentice",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Bruse Tarl, Roving Rancher",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Captive Weird // Compleated Conjurer",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Chaotic Backlash",
+    "issues": [
+      29
+    ],
+    "contains": [
+      "Twice"
+    ]
+  },
+  {
+    "name": "Chase Stein, Runaway",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Commune with Lava",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Cori Mountain Monastery",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Corpseweft",
+    "issues": [
+      26
+    ],
+    "contains": [
+      "EntersTapped"
+    ]
+  },
+  {
+    "name": "Cream of the Crop",
+    "issues": [
+      33
+    ],
+    "contains": [
+      "PutTheRemainingCardsOnTheBottomOfLibraryInAnyOrder"
+    ],
+    "excludes": [
+      "PutTheRemainingCardsOnTopOfLibraryInAnyOrder"
+    ]
+  },
+  {
+    "name": "Crimson Operative",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Cryptic Pursuit",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Devouring Hellion",
+    "issues": [
+      29
+    ],
+    "contains": [
+      "Twice"
+    ]
+  },
+  {
+    "name": "Dire-Strain Rampage",
+    "issues": [
+      26
+    ],
+    "excludes": [
+      "EntersNormally"
+    ]
+  },
+  {
+    "name": "Elemental Mascot",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Embrace the Unknown",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Ennis, Debate Moderator",
+    "issues": [
+      32
+    ],
+    "contains": [
+      "EntersUnderOwnersControl"
+    ],
+    "excludes": [
+      "EntersUnderPlayersControl"
+    ]
+  },
+  {
+    "name": "Equilibrium Adept",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Escape to the Wilds",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Eternal Flame",
+    "issues": [
+      29
+    ],
+    "excludes": [
+      "HalfRoundedDown"
+    ]
+  },
+  {
+    "name": "Evil's Thrall",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Feldon, Ronom Excavator",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Finale of Promise",
+    "issues": [
+      29
+    ],
+    "contains": [
+      "[CopyEachSpellAndMayChooseNewTargets(TheSpellsCastThisWay), CopyEachSpellAndMayChooseNewTargets(TheSpellsCastThisWay)]"
+    ]
+  },
+  {
+    "name": "Flameskull",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Ghitu Embercoiler",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Gila Courser",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Gix, Yawgmoth Praetor",
+    "issues": [
+      30
+    ],
+    "contains": [
+      "MayCastSpellsFromAmongExiledWithoutPaying"
+    ]
+  },
+  {
+    "name": "Gundabad Opportunist",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Herald of Amity",
+    "issues": [
+      27
+    ],
+    "contains": [
+      "ReturnEachExiledCardToBottomOfOwnersLibraryRandomOrder"
+    ],
+    "excludes": [
+      "PutEachExiledCardOnTheBottomOfTheirOwnersLibraryInAnyOrder"
+    ]
+  },
+  {
+    "name": "Hew the Entwood",
+    "issues": [
+      26
+    ],
+    "contains": [
+      "EntersTapped"
+    ]
+  },
+  {
+    "name": "Hex Magic",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Ignite the Future",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Inspired Tinkering",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Interplanar Tunnel",
+    "issues": [
+      27
+    ],
+    "contains": [
+      "RevealCardsFromTheTopOfPlanarDeckUntilRevealNumberPlaneCardsAndPutAPlaneCardFromAmongOnTopAndTheRestOnBottomInARandomOrder"
+    ],
+    "excludes": [
+      "RevealCardsFromTheTopOfPlanarDeckUntilRevealNumberPlaneCardsAndPutAPlaneCardFromAmongOnTopAndTheRestOnBottomInAnyOrder"
+    ]
+  },
+  {
+    "name": "Invasion of Kaldheim // Pyre of the World Tree",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Kardum, Patron of Flames",
+    "issues": [
+      31
+    ],
+    "contains": [
+      "ExilesFaceDown"
+    ]
+  },
+  {
+    "name": "Kulrath Zealot",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Last Rites",
+    "issues": [
+      33
+    ],
+    "contains": [
+      "IsNonCardtype",
+      "Land",
+      "RevealHandAndPlayerChoosesNumberCardsOfTypeToDiscard"
+    ],
+    "excludes": [
+      "RevealHandAndPlayerChoosesNumberCardsToDiscard"
+    ]
+  },
+  {
+    "name": "Light Up the Stage",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Lobelia, Defender of Bag End",
+    "issues": [
+      30
+    ],
+    "contains": [
+      "MayPlayOneCardFromAmongExiledWithoutPaying"
+    ]
+  },
+  {
+    "name": "March of Reckless Joy",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Mazzy, Truesword Paladin",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Mishra's Research Desk",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Mjölnir's Might",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Molly Hayes, Runaway",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Monastery Raid",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Moonsnare Prototype",
+    "issues": [
+      33
+    ],
+    "contains": [
+      "ReturnPermanentToTopOrBottomOfLibrary"
+    ],
+    "excludes": [
+      "PutPermanentOnBottomOfOwnersLibrary"
+    ]
+  },
+  {
+    "name": "Nicol Bolas, God-Pharaoh",
+    "issues": [
+      30
+    ],
+    "contains": [
+      "MayCastExiledCardWithoutPaying"
+    ]
+  },
+  {
+    "name": "Nissa's Pilgrimage",
+    "issues": [
+      26
+    ],
+    "contains": [
+      "EntersTapped"
+    ],
+    "excludes": [
+      "EntersNormally"
+    ]
+  },
+  {
+    "name": "No Secret Is Hidden from Me",
+    "issues": [
+      33
+    ],
+    "contains": [
+      "RepeatableActionsNumTimes(Integer(2)"
+    ],
+    "excludes": [
+      "RepeatableActionsNumTimes(Integer(1)"
+    ]
+  },
+  {
+    "name": "Nuclear Fallout",
+    "issues": [
+      29
+    ],
+    "contains": [
+      "Twice"
+    ]
+  },
+  {
+    "name": "Personal Incarnation",
+    "issues": [
+      29
+    ],
+    "contains": [
+      "HalfRoundedUp"
+    ],
+    "excludes": [
+      "HalfRoundedDown"
+    ]
+  },
+  {
+    "name": "Pir's Whim",
+    "issues": [
+      26
+    ],
+    "contains": [
+      "EntersTapped"
+    ],
+    "excludes": [
+      "EntersNormally"
+    ]
+  },
+  {
+    "name": "Possibility Storm",
+    "issues": [
+      27
+    ],
+    "contains": [
+      "ReturnEachExiledCardToBottomOfOwnersLibraryRandomOrder"
+    ],
+    "excludes": [
+      "PutEachExiledCardOnTheBottomOfTheirOwnersLibraryInAnyOrder"
+    ]
+  },
+  {
+    "name": "Power of Persuasion",
+    "issues": [
+      33
+    ],
+    "contains": [
+      "ReturnPermanentToTopOrBottomOfLibrary"
+    ],
+    "excludes": [
+      "ReturnPermanentToBottomOfLibrary"
+    ]
+  },
+  {
+    "name": "Practiced Scrollsmith",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Prosper, Tome-Bound",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Ral and the Implicit Maze",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfTurn"
+    ]
+  },
+  {
+    "name": "Reckless Impulse",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Rinoa, Angel Wing",
+    "issues": [
+      32
+    ],
+    "contains": [
+      "EntersUnderOwnersControl"
+    ],
+    "excludes": [
+      "EntersUnderPlayersControl"
+    ]
+  },
+  {
+    "name": "Rooting Moloch",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Rundvelt Hordemaster",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Sage of the Maze",
+    "issues": [
+      29
+    ],
+    "contains": [
+      "Twice"
+    ]
+  },
+  {
+    "name": "Sandman, Shifting Scoundrel",
+    "issues": [
+      26
+    ],
+    "contains": [
+      "EntersTapped"
+    ],
+    "excludes": [
+      "EntersNormally"
+    ]
+  },
+  {
+    "name": "Sandstorm Crasher",
+    "issues": [
+      26
+    ],
+    "contains": [
+      "EntersAttacking",
+      "EntersTapped"
+    ]
+  },
+  {
+    "name": "Scarlet Witch, Chaotic Avenger",
+    "issues": [
+      30
+    ],
+    "contains": [
+      "CastASpellFromExileWithoutPaying"
+    ]
+  },
+  {
+    "name": "Season of the Bold",
+    "issues": [
+      28
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Seize Opportunity",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Semester's End",
+    "issues": [
+      32
+    ],
+    "contains": [
+      "EntersUnderOwnersControl"
+    ],
+    "excludes": [
+      "EntersUnderPlayersControl"
+    ]
+  },
+  {
+    "name": "Settle the Wreckage",
+    "issues": [
+      26
+    ],
+    "contains": [
+      "EntersTapped"
+    ],
+    "excludes": [
+      "EntersNormally"
+    ]
+  },
+  {
+    "name": "Showdown of the Skalds",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Silicate Surveyor",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Single Combat",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Sizzling Changeling",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Sméagol, Helpful Guide",
+    "issues": [
+      26
+    ],
+    "contains": [
+      "EntersTapped"
+    ]
+  },
+  {
+    "name": "Sokrates, Athenian Teacher",
+    "issues": [
+      29
+    ],
+    "contains": [
+      "HalfRoundedDown"
+    ]
+  },
+  {
+    "name": "Spinneret and Spiderling",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Split the Party",
+    "issues": [
+      29
+    ],
+    "contains": [
+      "HalfRoundedUp"
+    ],
+    "excludes": [
+      "HalfRoundedDown"
+    ]
+  },
+  {
+    "name": "Stella Lee, Wild Card",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Strongbox Raider",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Sworn Defender",
+    "issues": [
+      33
+    ],
+    "contains": [
+      "Plus"
+    ]
+  },
+  {
+    "name": "Tempest Trapper",
+    "issues": [
+      30
+    ],
+    "contains": [
+      "MayPlayExiledCardWithoutPaying"
+    ]
+  },
+  {
+    "name": "Tezzeret, Agent of Bolas",
+    "issues": [
+      29
+    ],
+    "contains": [
+      "Twice"
+    ]
+  },
+  {
+    "name": "The Dragon-Kami Reborn // Dragon-Kami's Egg",
+    "issues": [
+      31
+    ],
+    "contains": [
+      "ExileAGenericCardFaceDownWithACounter"
+    ],
+    "excludes": [
+      "ExileAGenericCardWithACounter"
+    ]
+  },
+  {
+    "name": "The Legend of Roku // Avatar Roku",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "The Madcap Jester",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "The Western Cloud",
+    "issues": [
+      26
+    ],
+    "contains": [
+      "EntersTapped"
+    ]
+  },
+  {
+    "name": "Thieves' Auction",
+    "issues": [
+      26
+    ],
+    "contains": [
+      "EntersTapped"
+    ]
+  },
+  {
+    "name": "Thor, God of Thunder",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Tlincalli Hunter // Retrieve Prey",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Torrent Sculptor // Flamethrower Sonata",
+    "issues": [
+      29
+    ],
+    "contains": [
+      "HalfRoundedUp"
+    ],
+    "excludes": [
+      "HalfRoundedDown"
+    ]
+  },
+  {
+    "name": "Viewpoint Synchronization",
+    "issues": [
+      26
+    ],
+    "contains": [
+      "EntersTapped",
+      "PutFoundCardsOntoBattlefield"
+    ],
+    "excludes": [
+      "PutFoundCardsIntoGraveyard"
+    ]
+  },
+  {
+    "name": "Warehouse Thief",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Wheel of Potential",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Winter Blast",
+    "issues": [
+      33
+    ],
+    "contains": [
+      "And",
+      "Flying",
+      "HasAbility"
+    ]
+  },
+  {
+    "name": "Wrenn's Resolve",
+    "issues": [
+      28
+    ],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilPlayersNextTurn"
+    ]
+  },
+  {
+    "name": "Wyll, Pact-Bound Duelist",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "You Find Some Prisoners",
+    "issues": [],
+    "contains": [
+      "UntilTheEndOfPlayersNextTurn"
+    ],
+    "excludes": [
+      "UntilEndOfNextTurn"
+    ]
+  },
+  {
+    "name": "Zimone and Dina",
+    "issues": [
+      33
+    ],
+    "contains": [
+      "RepeatableActionsNumTimes(Integer(2)"
+    ],
+    "excludes": [
+      "RepeatableActionsNumTimes(Integer(1)"
+    ]
   }
 ]

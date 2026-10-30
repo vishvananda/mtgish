@@ -295,8 +295,9 @@ fn count_operations(value: &serde_json::Value, counts: &mut BTreeMap<String, usi
 /// A partial migration can produce a coverage report, but cannot publish a
 /// normalized corpus. The destination is unchanged if even its last card fails.
 /// Write every record in the one schema, reduced or not. Unlike `export_ron`,
-/// this succeeds on an unreduced corpus.
+/// this succeeds on an unreduced corpus. A `.jsonl` destination writes JSON lines.
 pub fn export_unified(path: &Path, destination: &Path) -> Result<usize> {
+    let json = destination.extension().is_some_and(|e| e == "jsonl");
     let mut output = corpus::Artifact::create(destination)?;
     let mut count = 0;
     corpus::map_cards(
@@ -305,7 +306,11 @@ pub fn export_unified(path: &Path, destination: &Path) -> Result<usize> {
             let card = crate::unified::lower(&source).card;
             validate::unified(&card)
                 .map_err(|e| format!("{}:{line}: invalid unified AST: {e}", path.display()))?;
-            Ok(ron::ser::to_string(&card)?)
+            Ok(if json {
+                serde_json::to_string(&card)?
+            } else {
+                ron::ser::to_string(&card)?
+            })
         },
         |_, text| {
             writeln!(output, "{text}")?;

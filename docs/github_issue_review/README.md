@@ -50,6 +50,17 @@ Word-token mining over every template, then a rule table, found more wrong liter
 - [#24](https://github.com/i5jb/mtgish/issues/24): Eight cards encode upkeep as end step.
 - [#25](https://github.com/i5jb/mtgish/issues/25): Twenty-six cards have another wrong literal.
 
+Requiring one output token per English occurrence, for phrases that must survive into the encoding, then found clauses dropped from single templates. These were filed the same day and repaired locally, except Awesome Presence, whose per-blocker cost has no source form yet:
+
+- [#26](https://github.com/i5jb/mtgish/issues/26): Thirteen cards lose "tapped".
+- [#27](https://github.com/i5jb/mtgish/issues/27): Five cards encode "in a random order" as any order.
+- [#28](https://github.com/i5jb/mtgish/issues/28): Twenty-six cards end "until the end of your next turn" too early.
+- [#29](https://github.com/i5jb/mtgish/issues/29): Eleven cards have twice, half or rounding wrong.
+- [#30](https://github.com/i5jb/mtgish/issues/30): Five cards lose "without paying its mana cost".
+- [#31](https://github.com/i5jb/mtgish/issues/31): Three cards lose "face down".
+- [#32](https://github.com/i5jb/mtgish/issues/32): Four cards encode "under its owner's control" as under your control.
+- [#33](https://github.com/i5jb/mtgish/issues/33): Nine cards have another clause dropped or wrong.
+
 The issue payloads and comment text are saved here. No commits, pushes, issue closures, or upstream code changes were made. Disputed continuous-effect instruction grouping remains a rules-review question and was not filed as a confirmed bug. Changes that merely replace an equivalent scalar expression are not reported as new card mistakes.
 
 Issues #8–#12 and our additional-examples comment on #2 have been shortened to describe only the specific problems and examples. Rust port, local repair, and validation details were removed from the upstream reports. [The latest upstream read](latest_upstream.json) verifies all five edited issue bodies and the comment; saved issue payloads match them. Future reports should follow the same concise format.
