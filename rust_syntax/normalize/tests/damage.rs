@@ -89,7 +89,6 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         "Norn's Decree",
         "Sakashima's Will",
         "Screaming Nemesis",
-        "Stuffy Doll",
         "Tandem Lookout",
         "The Gitrog, Ravenous Ride",
         "Vengeful Ancestor",
@@ -120,7 +119,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 57);
+    assert_eq!(complete, 58);
 }
 
 #[test]

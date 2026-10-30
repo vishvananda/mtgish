@@ -1,6 +1,13 @@
 // Typed bridge; these are production expressions, never sentence-shaped actions.
 impl Context {
     fn mana_production(&self, value: &source::ManaProduce) -> Result<ManaProduction> {
+        self.reduced_mana_production(value).or_else(|error| {
+            let (name, operands) = self.primitive("ManaProduce", value).ok_or(error)?;
+            Ok(ManaProduction::Primitive { name, operands })
+        })
+    }
+
+    fn reduced_mana_production(&self, value: &source::ManaProduce) -> Result<ManaProduction> {
         use source::ManaProduce as S;
         let color = match value {
             S::ManaProduceW => Some(ManaColor::White),

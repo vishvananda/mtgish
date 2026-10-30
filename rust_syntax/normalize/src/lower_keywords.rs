@@ -88,6 +88,10 @@ impl Context {
                 use source::ProtectableColor as C;
                 let color = |color| objects(ObjectKind::Any, ObjectFilter::Color(color));
                 match colors {
+                    C::TheChosenColor => objects(
+                        ObjectKind::Any,
+                        self.color_filter(&source::Color::TheChosenColor)?,
+                    ),
                     C::Colors(colors) => {
                         let mut qualities = colors
                             .iter()

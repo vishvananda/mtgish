@@ -47,7 +47,6 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         "Armor of Thorns",
         "Bedlam Reveler",
         "Bite Down on Crime",
-        "Chart a Course",
         "Contagion",
         "Dargo, the Shipwrecker",
         "Ertai's Meddling",
@@ -84,7 +83,7 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 59);
+    assert_eq!(complete, 60);
 }
 
 #[test]

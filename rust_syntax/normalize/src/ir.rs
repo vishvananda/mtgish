@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 27;
+pub const SCHEMA_VERSION: u32 = 28;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -593,6 +593,14 @@ pub enum Operation {
         objects: ObjectSet,
         destination: Destination,
     },
+    /// Create a triggered ability that lasts for `duration`. Unlike a delayed
+    /// trigger it can fire repeatedly, and it announces its own targets.
+    CreateTrigger {
+        event: EventSpec,
+        duration: Duration,
+        announcement: Announcement,
+        body: Program,
+    },
     /// Create a replacement effect on future events (CR 614.1, 615). Unlike a
     /// delayed trigger, `body` changes the pending event as it would happen.
     CreateReplacement {
@@ -760,6 +768,11 @@ pub enum CardOrder {
 /// `All` does not split it into independent productions.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ManaProduction {
+    /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
     Amount {
         color: ManaColor,
         amount: Expr,
@@ -1186,6 +1199,13 @@ pub struct SelectionChoice {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(tag = "kind", content = "args")]
 pub enum Expr {
+    /// How often an event happened in a window, or the total of its amounts.
+    EventHistory {
+        event: Box<EventSpec>,
+        window: HistoryWindow,
+        measure: HistoryMeasure,
+    },
+    CountPlayers(PlayerSet),
     /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
     Primitive {
         name: String,
@@ -1260,6 +1280,16 @@ pub struct SpentManaFilter {
     pub colors: Option<Vec<ManaColor>>,
     /// A unit produced by a snow source, not a seventh mana type.
     pub snow: bool,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum HistoryWindow {
+    ThisTurn,
+    LastTurn,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum HistoryMeasure {
+    Occurrences,
+    TotalAmount,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum SpentManaAggregation {
@@ -1350,6 +1380,8 @@ pub enum ObjectRef {
     /// The new object a matched zone change put in its destination (CR 400.7).
     /// Selects nothing once that object leaves the zone.
     EventDestination,
+    /// The object chosen by this ability, or by a linked ability of this source.
+    Chosen,
     Bound(Binding),
     Result {
         result: ResultId,
@@ -1499,6 +1531,9 @@ pub enum PlayerRef {
     /// The player an attacking object is attacking, or that controls the
     /// planeswalker it is attacking, using last-known information.
     DefendingPlayerOf(Box<ObjectRef>),
+    /// The player chosen by this ability, or by a linked ability of this source
+    /// (CR 607.2). The choosing form is a primitive, so no result binds it yet.
+    Chosen,
     Bound(Binding),
 }
 

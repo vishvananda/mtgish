@@ -253,3 +253,41 @@ fn player_predicates_in_a_set_bind_the_tested_player() {
     assert!(json.contains("Intersection"), "{json}");
     assert!(json.contains("Players::IsTheMonarch"), "{json}");
 }
+
+#[test]
+fn history_counts_ordinary_events_and_dead_references_read_the_event_subject() {
+    let lowered = |rule: &str| {
+        let source = parse(&format!(
+            r#"Card(Name: "Test", Typeline: (Supertypes: [], Cardtypes: [Creature], Subtypes: []), ManaCost: [], Rules: [{rule}])"#
+        ));
+        let card = lower::card(&source).unwrap();
+        validate::card(&card).unwrap();
+        serde_json::to_string(&card).unwrap()
+    };
+    let morbid = lowered(
+        "SpellActions(ActionList([If(ACreatureOrPlaneswalkerDiedThisTurn(IsCardtype(Creature)), [DrawACard])]))",
+    );
+    assert!(morbid.contains("EventHistory"), "{morbid}");
+    assert!(morbid.contains(r#""window":"ThisTurn""#), "{morbid}");
+    assert!(morbid.contains(r#""measure":"Occurrences""#), "{morbid}");
+    let blood = lowered(
+        "TriggerA(WhenAPermanentDies(SinglePermanent(ThisPermanent)), ActionList([DeadPermanentDealsDamage(Integer(1), Player(You))]))",
+    );
+    assert!(blood.contains(r#""source":{"kind":"EventSubject"}"#), "{blood}");
+    let bad = parse(
+        r#"Card(Name: "Test", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [], Rules: [SpellActions(ActionList([DeadPermanentDealsDamage(Integer(1), Player(You))]))])"#,
+    );
+    assert!(lower::card(&bad).is_err());
+}
+
+#[test]
+fn a_created_trigger_keeps_its_duration_and_announcement() {
+    let source = parse(
+        r#"Card(Name: "Test", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [], Rules: [SpellActions(ActionList([CreateTriggerUntil(WhenAPermanentEntersTheBattlefield(ControlledByAPlayer(SinglePlayer(You))), ActionList([DrawACard]), UntilEndOfTurn)]))])"#,
+    );
+    let card = lower::card(&source).unwrap();
+    validate::card(&card).unwrap();
+    let json = serde_json::to_string(&card).unwrap();
+    assert!(json.contains("CreateTrigger"), "{json}");
+    assert!(json.contains(r#""duration":"EndOfTurn""#), "{json}");
+}

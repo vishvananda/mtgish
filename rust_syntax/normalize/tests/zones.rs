@@ -70,7 +70,6 @@ fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete()
         "Extract from Darkness",
         "Food Chain",
         "Hinder",
-        "Thought Distortion",
     ];
     let mut complete = 0;
     for source in sources() {
@@ -95,7 +94,7 @@ fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete()
         }
         complete += 1;
     }
-    assert_eq!(complete, 49);
+    assert_eq!(complete, 50);
 }
 
 #[test]

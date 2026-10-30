@@ -167,7 +167,16 @@ impl Context {
                     body: self.entry_child(actions)?,
                 })
             }
-            _ => return Err(unsupported(value)),
+            _ => {
+                let (name, operands) = self
+                    .primitive("ReplacementActionWouldEnter", value)
+                    .ok_or_else(|| unsupported(value))?;
+                return Ok(self.effect(Operation::Primitive {
+                    actor: PlayerSet::One(self.player(&source::Player::You)?),
+                    name,
+                    operands,
+                }));
+            }
         };
         Ok(self.effect(Operation::ModifyEvent { change }))
     }

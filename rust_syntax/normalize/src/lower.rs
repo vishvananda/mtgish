@@ -299,6 +299,11 @@ impl Context {
                 index: 0,
             },
             S::Trigger_ThatPlayer if self.event.player => PlayerRef::EventSubject,
+            S::ControllerOfDeadPermanent => {
+                PlayerRef::ControllerOf(Box::new(self.dead_object()?))
+            }
+            S::OwnerOfDeadPermanent => PlayerRef::OwnerOf(Box::new(self.dead_object()?)),
+            S::TheChosenPlayer => PlayerRef::Chosen,
             S::Trigger_DefendingPlayer if self.event.permanent => {
                 PlayerRef::DefendingPlayerOf(Box::new(ObjectRef::EventSubject))
             }
@@ -449,15 +454,34 @@ impl Context {
             Some(result) => result,
             None => self.cast_history_filter(value),
         };
-        reduced.or_else(|error| self.primitive_filter(value).ok_or(error))
+        reduced.or_else(|error| {
+            self.history_filter(value)
+                .or_else(|| self.primitive_filter(value))
+                .ok_or(error)
+        })
     }
 
     fn number(&self, value: &source::GameNumber) -> Result<Expr> {
-        self.reduced_number(value)
-            .or_else(|error| self.primitive_number(value).ok_or(error))
+        self.reduced_number(value).or_else(|error| {
+            self.history_number(value)
+                .or_else(|| self.primitive_number(value))
+                .ok_or(error)
+        })
     }
 
     fn reduced_number(&self, value: &source::GameNumber) -> Result<Expr> {
+        match value {
+            source::GameNumber::PowerOfDeadPermanent => {
+                return self.dead_property(Property::Power)
+            }
+            source::GameNumber::ToughnessOfDeadPermanent => {
+                return self.dead_property(Property::Toughness)
+            }
+            source::GameNumber::ManaValueOfDeadPermanent => {
+                return self.dead_property(Property::ManaValue)
+            }
+            _ => {}
+        }
         if !self.prepared.numbers.is_empty() {
             if let Some(quantity) = self
                 .prepared
@@ -521,11 +545,20 @@ impl Context {
     }
 
     fn condition(&self, value: &source::Condition) -> Result<Condition> {
-        self.reduced_condition(value)
-            .or_else(|error| self.primitive_condition(value).ok_or(error))
+        self.reduced_condition(value).or_else(|error| {
+            self.history_condition(value)
+                .unwrap_or_else(|| Err(error.clone()))
+                .or_else(|_| self.primitive_condition(value).ok_or(error))
+        })
     }
 
     fn reduced_condition(&self, value: &source::Condition) -> Result<Condition> {
+        if let source::Condition::DeadPermanentPassesFilter(filter) = value {
+            return Ok(Condition::ObjectMatches {
+                object: self.dead_object()?,
+                filter: self.filter(filter)?,
+            });
+        }
         if let Some(crate::pipeline::operands::OperandRecipe::Condition(recipe)) =
             self.operand_recipe(crate::pipeline::operands::OperandRef::Condition(value))
         {
@@ -879,7 +912,11 @@ impl Context {
 
     fn action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
         let before = self.clone();
-        match self.reduced_action(value, actor) {
+        let reduced = match self.dead_action(value, actor) {
+            Some(result) => result,
+            None => self.reduced_action(value, actor),
+        };
+        match reduced {
             Ok(instruction) => Ok(instruction),
             Err(error) => {
                 *self = before;
@@ -1042,6 +1079,33 @@ impl Context {
                 excluding: None,
             },
             S::Exile(items, flags) => return self.exile(items, flags, actor),
+            S::CreateTriggerUntil(trigger, actions, duration) => {
+                let event = self.trigger(trigger)?;
+                let duration = self.duration(duration)?;
+                let mut child = self.clone();
+                child.open_searches.clear();
+                child.event = crate::semantics::event_bindings(&event);
+                let known = child.targets.len();
+                let body = child.actions(actions)?;
+                self.result = child.result;
+                Operation::CreateTrigger {
+                    event,
+                    duration,
+                    announcement: Announcement {
+                        targets: child.targets.split_off(known),
+                        modes: child.modes,
+                    },
+                    body,
+                }
+            }
+            S::RevealHand => {
+                let PlayerSet::One(_) = actor else {
+                    return Err(invalid("revealing a hand needs one player"));
+                };
+                Operation::Reveal {
+                    objects: self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
+                }
+            }
             S::ChooseADamageSource(sources) => {
                 let PlayerSet::One(player) = actor else {
                     return Err(invalid("a damage source needs one chooser"));
@@ -2014,6 +2078,7 @@ include!("lower_queries.rs");
 include!("lower_counters.rs");
 include!("lower_replacement.rs");
 include!("lower_prevention.rs");
+include!("lower_history.rs");
 
 include!("lower_rules.rs");
 

@@ -265,7 +265,11 @@ impl Context {
     }
 
     fn primitive_filter(&self, value: &source::Permanents) -> Option<ObjectFilter> {
-        let (name, operands) = self.primitive("Permanents", value)?;
+        self.primitive_predicate("Permanents", value)
+    }
+
+    fn primitive_predicate(&self, family: &str, value: &impl Serialize) -> Option<ObjectFilter> {
+        let (name, operands) = self.primitive(family, value)?;
         Some(ObjectFilter::Primitive { name, operands })
     }
 

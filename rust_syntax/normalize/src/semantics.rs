@@ -233,6 +233,7 @@ impl Effects {
                     // Its body executes in a later triggered ability, not
                     // during this activation's resolution (CR 605.1a).
                     Operation::CreateDelayedTrigger { .. }
+                    | Operation::CreateTrigger { .. }
                     | Operation::CreateReplacement { .. }
                     | Operation::ModifyEvent { .. }
                     | Operation::CreateRegenerationShields { .. }
@@ -285,6 +286,7 @@ impl Effects {
             | ObjectRef::Affected
             | ObjectRef::EventSubject
             | ObjectRef::EventDestination
+            | ObjectRef::Chosen
             | ObjectRef::Bound(_) => false,
         }
     }

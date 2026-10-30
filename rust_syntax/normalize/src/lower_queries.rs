@@ -2,7 +2,11 @@
 impl Context {
     fn player_matches(&self, player: PlayerRef, filter: &source::Players) -> Result<Condition> {
         self.reduced_player_check(player.clone(), filter)
-            .or_else(|error| self.primitive_player_check(&player, filter).ok_or(error))
+            .or_else(|error| {
+                self.history_player_check(&player, filter)
+                    .or_else(|| self.primitive_player_check(&player, filter))
+                    .ok_or(error)
+            })
     }
 
     fn reduced_player_check(
@@ -115,7 +119,11 @@ impl Context {
             source::Color::Red => ObjectFilter::Color(ManaColor::Red),
             source::Color::Green => ObjectFilter::Color(ManaColor::Green),
             source::Color::Colorless => ObjectFilter::Colorless,
-            _ => return Err(unsupported(value)),
+            _ => {
+                return self
+                    .primitive_predicate("Color", value)
+                    .ok_or_else(|| unsupported(value))
+            }
         })
     }
 
@@ -131,7 +139,9 @@ impl Context {
     fn spell_filter(&self, value: &source::Spells) -> Result<ObjectFilter> {
         let mut context = self.clone();
         context.candidate = true;
-        context.spell_filter_inner(value)
+        context
+            .spell_filter_inner(value)
+            .or_else(|error| context.primitive_predicate("Spells", value).ok_or(error))
     }
     fn spell_filter_inner(&self, value: &source::Spells) -> Result<ObjectFilter> {
         if let Some(result)=self.pipeline_selector(crate::pipeline::selectors::SelectorRef::Spells(value)) {return result;}

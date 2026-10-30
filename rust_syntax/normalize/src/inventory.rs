@@ -318,6 +318,17 @@ impl Inventory<'_> {
                     | EventChange::PreventAllButDamage(amount) => self.expr(amount),
                 }
             }
+            Operation::CreateTrigger {
+                event,
+                duration,
+                announcement,
+                body,
+            } => {
+                self.event(event);
+                self.form("Duration", duration);
+                self.announcement(announcement);
+                self.program(body);
+            }
             Operation::CreateReplacement {
                 event,
                 limit,
@@ -702,6 +713,7 @@ impl Inventory<'_> {
     fn mana(&mut self, mana: &ManaProduction) {
         self.form("ManaProduction", mana);
         match mana {
+            ManaProduction::Primitive { name, .. } => self.primitive(name),
             ManaProduction::Amount { color, amount } => {
                 self.form("ManaColor", color);
                 self.expr(amount);
@@ -1079,6 +1091,16 @@ impl Inventory<'_> {
         self.form("Expr", e);
         match e {
             Expr::Primitive { name, .. } => self.primitive(name),
+            Expr::EventHistory {
+                event,
+                window,
+                measure,
+            } => {
+                self.event(event);
+                self.form("HistoryWindow", window);
+                self.form("HistoryMeasure", measure);
+            }
+            Expr::CountPlayers(players) => self.players(players),
             Expr::ManaSpent {
                 object,
                 filter,

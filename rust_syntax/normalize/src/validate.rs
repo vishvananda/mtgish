@@ -301,6 +301,7 @@ impl<'a> Scope<'a> {
             ObjectRef::EventSubject if self.event.object => Ok(()),
             ObjectRef::EventDestination if self.event.moved => Ok(()),
             ObjectRef::EventDestination => Err("this event moves no object".into()),
+            ObjectRef::Chosen => Ok(()),
             ObjectRef::Result {
                 result,
                 phase: ObjectPhase::After,
@@ -343,6 +344,7 @@ impl<'a> Scope<'a> {
                 Err("declaring player used outside a combat declaration cost".into())
             }
             PlayerRef::AbilityController | PlayerRef::Active => Ok(()),
+            PlayerRef::Chosen => Ok(()),
             PlayerRef::CasterOf(object)
             | PlayerRef::ControllerOf(object)
             | PlayerRef::OwnerOf(object)
@@ -500,6 +502,8 @@ impl<'a> Scope<'a> {
     fn expr(&self, expression: &Expr) -> Result {
         match expression {
             Expr::Primitive { name, operands } => self.primitive(name, operands),
+            Expr::EventHistory { event, .. } => self.event(event),
+            Expr::CountPlayers(players) => self.players(players),
             Expr::ManaSpent { object, filter, .. } => {
                 self.object(object)?;
                 if let Some(colors) = &filter.colors {
@@ -1371,6 +1375,25 @@ impl<'a> Scope<'a> {
                     }
                 }
             }
+            Operation::CreateTrigger {
+                event,
+                duration,
+                announcement,
+                body,
+            } => {
+                if let Duration::UntilNextTurn(player) | Duration::UntilEndOfNextTurn(player) =
+                    duration
+                {
+                    self.player(player)?;
+                }
+                self.event(event)?;
+                let mut child = self.clone();
+                child.replacement = false;
+                child.open_searches.clear();
+                child.event = crate::semantics::event_bindings(event);
+                child.announcement(announcement)?;
+                child.program(body)
+            }
             Operation::CreateReplacement {
                 event,
                 limit,
@@ -1557,6 +1580,7 @@ impl<'a> Scope<'a> {
 
     fn mana(&self, mana: &ManaProduction) -> Result {
         match mana {
+            ManaProduction::Primitive { name, operands } => self.primitive(name, operands),
             ManaProduction::Amount { amount, .. } => self.count(&Count::Exactly(amount.clone())),
             ManaProduction::All(v) | ManaProduction::ChooseOne(v) => {
                 if v.is_empty() {

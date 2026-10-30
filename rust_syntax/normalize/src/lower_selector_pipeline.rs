@@ -88,7 +88,9 @@ impl Context {
             P::Keyword(v) => candidate.has_keyword(v)?,
             P::Name(v) => {
                 let source::NameFilter::NamedCard(name) = v else {
-                    return Err(unsupported(v));
+                    return self
+                        .primitive_predicate("NameFilter", v)
+                        .ok_or_else(|| unsupported(v));
                 };
                 ObjectFilter::Name(name.clone())
             }

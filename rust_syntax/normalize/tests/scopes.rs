@@ -70,7 +70,6 @@ fn cycle_trigger(c: &Card) -> &Ability {
 #[test]
 fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
     let incomplete = [
-        "Akroma's Blessing",
         "Ashen Ghoul",
         "Astral Slide",
         "Decree of Justice",
@@ -79,7 +78,6 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         "Dread",
         "Firesong and Sunspeaker",
         "Fluctuator",
-        "Glory",
         "Inalla, Archmage Ritualist",
         "Narcomoeba",
         "Nether Shadow",
@@ -113,7 +111,7 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 73);
+    assert_eq!(complete, 75);
 }
 
 #[test]

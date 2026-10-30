@@ -4,6 +4,7 @@ impl Context {
     fn card_filter(&self, value: &source::Cards) -> Result<ObjectFilter> {
         self.pipeline_selector(crate::pipeline::selectors::SelectorRef::Cards(value))
             .unwrap_or_else(|| Err(unsupported(value)))
+            .or_else(|error| self.primitive_predicate("Cards", value).ok_or(error))
     }
     fn grave_filter(&self, value: &source::CardsInGraveyards) -> Result<ObjectFilter> {
         if let Some(result) = self.pipeline_selector(
