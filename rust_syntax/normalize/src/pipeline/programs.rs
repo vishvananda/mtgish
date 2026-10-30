@@ -38,6 +38,11 @@ pub enum InstructionRecipe {
         targets: Vec<source::Target>,
         body: Box<InstructionRecipe>,
     },
+    Distributed {
+        targets: Vec<source::DistributedTarget>,
+        distribution: source::Distribution,
+        body: Box<InstructionRecipe>,
+    },
     Modal {
         bounds: ModeBounds,
         modes: Vec<InstructionRecipe>,

@@ -185,6 +185,14 @@ impl Context {
                 self.targets(targets)?;
                 return self.bind_program_recipe(body, actor);
             }
+            R::Distributed {
+                targets,
+                distribution,
+                body,
+            } => {
+                self.distributed_targets(targets, distribution)?;
+                return self.bind_program_recipe(body, actor);
+            }
             R::Modal { bounds, modes } => {
                 if self.modes.is_some() {
                     return Err(invalid("multiple mode declarations in one announcement"));

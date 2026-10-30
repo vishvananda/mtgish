@@ -425,3 +425,43 @@ fn prevention_is_a_replacement_on_a_damage_event() {
     assert!(salve.contains("TotalDamage"), "{salve}");
     assert!(salve.contains(r#""duration":"EndOfTurn""#), "{salve}");
 }
+
+#[test]
+fn a_distributed_total_is_split_when_targets_are_chosen_and_read_per_target() {
+    let card = custom("SpellActions(TargetedDistributed([BetweenOneAndNumberTargetPermanents(Integer(3),IsCardtype(Creature))],DistributeNumberAmongTargets(Integer(3)),ActionList([SpellDealsDistributedDamage(ThisSpell)])))").unwrap();
+    let Ability::Spell { announcement, body } = &card.abilities[0] else {
+        panic!()
+    };
+    let target = &announcement.targets[0];
+    assert!(matches!(
+        target.count,
+        Count::Between {
+            minimum: Expr::Constant(1),
+            maximum: Expr::Constant(3)
+        }
+    ));
+    assert!(matches!(target.distribute, Some(Expr::Constant(3))));
+    let [Instruction::Effect {
+        operation:
+            Operation::DealDamage {
+                recipients: Recipients::Objects(ObjectSet::Targets(recipients)),
+                amount: Expr::DistributedShare(share),
+                ..
+            },
+        ..
+    }] = body.instructions.as_slice()
+    else {
+        panic!("{:?}", body.instructions)
+    };
+    assert_eq!((recipients.0, share.0), (0, 0));
+
+    // Only the slot the total is split over receives a share.
+    let card = custom("SpellActions(TargetedDistributed([UptoNumberAnyTargets(Integer(5)),TargetPlayer(Opponent)],DistributeNumberAmongAnyTargets(Integer(5)),ActionList([SpellDealsDistributedDamage(ThisSpell),PlayerAction(Ref_TargetPlayer,GainLife(Integer(5)))])))").unwrap();
+    let Ability::Spell { announcement, .. } = &card.abilities[0] else {
+        panic!()
+    };
+    assert!(announcement.targets[0].distribute.is_some());
+    assert!(announcement.targets[1].distribute.is_none());
+
+    assert!(custom("SpellActions(ActionList([SpellDealsDistributedDamage(ThisSpell)]))").is_err());
+}

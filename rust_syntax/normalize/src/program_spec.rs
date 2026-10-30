@@ -84,6 +84,11 @@ pub enum Recipe {
         targets: usize,
         body: Body,
     },
+    Distributed {
+        targets: usize,
+        distribution: usize,
+        body: Body,
+    },
     Modal {
         bounds: Bounds,
         modes: usize,
@@ -175,6 +180,15 @@ impl Recipe {
                 out.push(*targets);
                 out.push(body.argument());
             }
+            Self::Distributed {
+                targets,
+                distribution,
+                body,
+            } => {
+                out.push(*targets);
+                out.push(*distribution);
+                out.push(body.argument());
+            }
             Self::Modal { bounds, modes } => {
                 bounds.arguments(out);
                 out.push(*modes);
@@ -190,6 +204,7 @@ impl Recipe {
             Self::Payment {player,cost,optional}=>format!("InstructionRecipe::Payment {{ player:{},cost:cost_tree(a{cost}),optional:{optional} }}",player.map_or("None".into(),|i|format!("Some(source::Player::clone(a{i}))"))),
             Self::Sequence {body}=>body.generate(),
             Self::Targeted {targets,body}=>format!("InstructionRecipe::Targeted {{ targets:a{targets}.clone(),body:Box::new({}) }}",body.generate()),
+            Self::Distributed {targets,distribution,body}=>format!("InstructionRecipe::Distributed {{ targets:a{targets}.clone(),distribution:source::Distribution::clone(a{distribution}),body:Box::new({}) }}",body.generate()),
             Self::Modal {bounds,modes}=>format!("InstructionRecipe::Modal {{ bounds:{},modes:a{modes}.iter().map(program_tree).collect() }}",bounds.generate()),
         }
     }
@@ -256,6 +271,13 @@ impl Registry {
                 (
                     Domain::Actions,
                     Recipe::Targeted {
+                        body: Body::Program { .. },
+                        ..
+                    },
+                ) => true,
+                (
+                    Domain::Actions,
+                    Recipe::Distributed {
                         body: Body::Program { .. },
                         ..
                     },

@@ -356,6 +356,12 @@ impl Context {
                 S::PutGraveyardCardOnBottomOfLibrary(card())
             }
             S::ReturnDeadGraveyardCardToTopOfLibrary => S::PutGraveyardCardOnTopOfLibrary(card()),
+            S::DeadPermanentDealsDistributedDamage => {
+                let operation = self
+                    .dead_object()
+                    .and_then(|source| self.distributed_damage(source));
+                return Some(operation.map(|operation| self.effect(operation)));
+            }
             S::DeadPermanentDealsDamage(amount, recipients)
             | S::HaveDeadPermanentDealDamage(amount, recipients) => {
                 let operation = (|| {

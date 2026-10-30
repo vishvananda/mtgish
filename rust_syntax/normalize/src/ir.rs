@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 33;
+pub const SCHEMA_VERSION: u32 = 34;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -433,6 +433,9 @@ pub struct TargetSpec {
     pub count: Count,
     pub filter: ObjectFilter,
     pub players: Option<PlayerSet>,
+    /// A total split among this slot's targets when they are chosen (601.2d).
+    /// Each target's part is `Expr::DistributedShare`.
+    pub distribute: Option<Expr>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1303,6 +1306,9 @@ pub enum Expr {
     CountersRemoved(ResultId),
     /// The number a `BindValue` computed, fixed at that point in the resolution.
     BoundValue(ResultId),
+    /// The part of this slot's distributed total assigned to the recipient at
+    /// hand, so one operation over the slot gives each target its own amount.
+    DistributedShare(Slot),
     /// How often an event happened in a window, or the total of its amounts.
     EventHistory {
         event: Box<EventSpec>,
@@ -1766,6 +1772,10 @@ pub enum Count {
     PerPlayer {
         players: PlayerSet,
         each: Box<Count>,
+    },
+    Between {
+        minimum: Expr,
+        maximum: Expr,
     },
 }
 

@@ -910,6 +910,10 @@ impl Context {
     ) -> Result<CounterPlacement> {
         use source::PutCountersAction as S;
         let (recipients, counter, amount, choose) = match value {
+            S::DistributedCounters(kind) => {
+                let (recipients, amount) = self.distribution()?;
+                (recipients, kind, amount, None)
+            }
             S::ACounterOfTypeOnPermanent(kind, object) => (
                 Recipients::Objects(ObjectSet::One(self.object(object)?)),
                 kind,
@@ -1605,6 +1609,13 @@ impl Context {
                     preventable: matches!(value, S::SpellDealsDamage(_, _, _)),
                 }
             }
+            S::SpellDealsDistributedDamage(spell) => {
+                if !matches!(spell.as_ref(), source::Spell::ThisSpell) {
+                    return Err(unsupported(spell));
+                }
+                self.distributed_damage(ObjectRef::Source)?
+            }
+            S::PermanentDealsDistributedDamage(p) => self.distributed_damage(self.object(p)?)?,
             S::DiscardedCardDealsDamage(c, n, r) | S::HaveDiscardedCardDealDamage(c, n, r) => {
                 Operation::DealDamage {
                     source: self.hand_card(c)?,
@@ -1685,6 +1696,7 @@ impl Context {
                 count: Count::Exactly(Expr::Constant(1)),
                 filter: ObjectFilter::Any,
                 players: None,
+                distribute: None,
             };
             match value {
                 S::TargetSpell(s)
@@ -1763,11 +1775,95 @@ impl Context {
                     target.kind = TargetKind::DamageRecipient;
                     target.count = Count::AnyNumber;
                 }
+                S::UptoNumberAnyTargets(n) => {
+                    target.kind = TargetKind::DamageRecipient;
+                    target.count = Count::UpTo(self.number(n)?);
+                }
+                S::BetweenOneAndNumberAnyTargets(n) => {
+                    target.kind = TargetKind::DamageRecipient;
+                    target.count = Count::Between {
+                        minimum: Expr::Constant(1),
+                        maximum: self.number(n)?,
+                    };
+                }
                 _ => return Err(unsupported(value).at(format!("targets[{i}]"))),
             }
             self.targets.push(target);
         }
         Ok(())
+    }
+
+    /// Announces targets with a total split among them, which is the first
+    /// slot's when a second slot exists only for another clause.
+    fn distributed_targets(
+        &mut self,
+        values: &[source::DistributedTarget],
+        distribution: &source::Distribution,
+    ) -> Result<()> {
+        use source::{DistributedTarget as S, Distribution as D, Target as T};
+        let total = match distribution {
+            D::DistributeNumberAmongTargets(_) if values.len() > 1 => {
+                return Err(invalid("distribution among several target slots"));
+            }
+            D::DistributeNumberAmongTargets(n) | D::DistributeNumberAmongAnyTargets(n) => {
+                self.number(n)?
+            }
+            D::IfElse(..) => return Err(unsupported(distribution)),
+        };
+        let first = self.targets.len();
+        let plain: Vec<T> = values
+            .iter()
+            .map(|value| match value.clone() {
+                S::TargetPermanent(p) => T::TargetPermanent(p),
+                S::BetweenOneAndNumberTargetPermanents(n, p)
+                | S::UptoNumberTargetPermanents(n, p) => T::UptoNumberTargetPermanents(n, p),
+                S::AnyNumberOfTargetPermanents(p) => T::AnyNumberOfTargetPermanents(p),
+                S::NumberTargetPermanents(n, p) => T::NumberTargetPermanents(n, p),
+                S::TargetPlayer(p) => T::TargetPlayer(p),
+                S::UptoNumberAnyTargets(n) => T::UptoNumberAnyTargets(n),
+                S::AnyNumberOfAnyTargets => T::AnyNumberOfAnyTargets,
+                S::BetweenOneAndNumberAnyTargets(n) => T::BetweenOneAndNumberAnyTargets(n),
+            })
+            .collect();
+        self.targets(&plain)?;
+        for (value, target) in values.iter().zip(&mut self.targets[first..]) {
+            if let (S::BetweenOneAndNumberTargetPermanents(..), Count::UpTo(maximum)) =
+                (value, &target.count)
+            {
+                target.count = Count::Between {
+                    minimum: Expr::Constant(1),
+                    maximum: maximum.clone(),
+                };
+            }
+        }
+        self.targets[first].distribute = Some(total);
+        Ok(())
+    }
+
+    /// The announced split: who receives a part, and the slot it is read from.
+    fn distribution(&self) -> Result<(Recipients, Expr)> {
+        let target = self
+            .targets
+            .iter()
+            .find(|target| target.distribute.is_some())
+            .ok_or_else(|| invalid("no distribution was announced in this scope"))?;
+        let slot = target.slot.clone();
+        let recipients = match target.kind {
+            TargetKind::Object(_) => Recipients::Objects(ObjectSet::Targets(slot.clone())),
+            TargetKind::Player => Recipients::Players(PlayerSet::Targets(slot.clone())),
+            TargetKind::DamageRecipient => Recipients::Targets(slot.clone()),
+        };
+        Ok((recipients, Expr::DistributedShare(slot)))
+    }
+
+    fn distributed_damage(&self, source: ObjectRef) -> Result<Operation> {
+        let (recipients, amount) = self.distribution()?;
+        Ok(Operation::DealDamage {
+            source,
+            recipients,
+            amount,
+            preventable: true,
+        })
     }
 
     fn actions(&mut self, value: &source::Actions) -> Result<Program> {
@@ -2018,6 +2114,7 @@ impl Context {
                                 )),
                             ]),
                             players: None,
+                            distribute: None,
                         }],
                         modes: None,
                     },

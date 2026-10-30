@@ -710,6 +710,7 @@ impl<'a> Compiler<'a> {
                 )
             }
             Count::AtLeast(_) => return Err(gap("at-least resolution choice")),
+            Count::Between { .. } => return Err(gap("bounded resolution choice")),
         };
         let local = format!("selected_{}", self.next);
         self.next += 1;

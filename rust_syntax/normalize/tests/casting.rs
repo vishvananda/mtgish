@@ -46,7 +46,6 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         "Analyze the Pollen",
         "Armor of Thorns",
         "Bite Down on Crime",
-        "Contagion",
         "Dargo, the Shipwrecker",
         "Ertai's Meddling",
         "Food Chain",
@@ -81,7 +80,7 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 62);
+    assert_eq!(complete, 63);
 }
 
 #[test]

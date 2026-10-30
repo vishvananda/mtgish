@@ -595,6 +595,10 @@ impl<'a> Scope<'a> {
             Expr::EventActivationX if self.event.activation_x => Ok(()),
             Expr::EventActivationX => Err("event activation X used outside a cycling event".into()),
             Expr::Constant(_) | Expr::AnnouncedX => Ok(()),
+            Expr::DistributedShare(slot) => match self.slots.get(&slot.0) {
+                Some(target) if target.distribute.is_some() => Ok(()),
+                _ => Err(format!("target slot {} announces no distribution", slot.0)),
+            },
             Expr::EventAmount if self.event.amount => Ok(()),
             Expr::EventAmount => Err("event amount used outside a damage event".into()),
             Expr::ObjectProperty {
@@ -642,6 +646,10 @@ impl<'a> Scope<'a> {
         let value = match count {
             Count::Exactly(n) | Count::UpTo(n) | Count::AtLeast(n) | Count::AsManyAsCan(n) => n,
             Count::AnyNumber => return Ok(()),
+            Count::Between { minimum, maximum } => {
+                self.expr(minimum)?;
+                maximum
+            }
             Count::PerPlayer { players, each } => {
                 self.players(players)?;
                 return self.count(each);
@@ -1876,6 +1884,9 @@ impl<'a> Scope<'a> {
             }
             proposal.count(&target.count)?;
             proposal.filter(&target.filter)?;
+            if let Some(total) = &target.distribute {
+                proposal.expr(total)?;
+            }
             if let Some(players) = &target.players {
                 proposal.players(players)?;
             }

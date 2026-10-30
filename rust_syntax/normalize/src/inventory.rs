@@ -1136,7 +1136,7 @@ impl Inventory<'_> {
     fn expr(&mut self, e: &Expr) {
         self.form("Expr", e);
         match e {
-            Expr::BoundValue(_) | Expr::CountersRemoved(_) => {}
+            Expr::BoundValue(_) | Expr::CountersRemoved(_) | Expr::DistributedShare(_) => {}
             Expr::Primitive { name, .. } => self.primitive(name),
             Expr::EventHistory {
                 event,
@@ -1226,6 +1226,10 @@ impl Inventory<'_> {
                 self.expr(n)
             }
             Count::AnyNumber => {}
+            Count::Between { minimum, maximum } => {
+                self.expr(minimum);
+                self.expr(maximum);
+            }
             Count::PerPlayer { players, each } => {
                 self.players(players);
                 self.count(each);

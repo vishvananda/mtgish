@@ -248,6 +248,21 @@
       }
     },
     {
+      "id": "program.Actions.TargetedDistributed",
+      "domain": "Actions",
+      "source": "TargetedDistributed",
+      "arity": 3,
+      "recipe": {
+        "kind": "Distributed",
+        "targets": 0,
+        "distribution": 1,
+        "body": {
+          "kind": "Program",
+          "argument": 2
+        }
+      }
+    },
+    {
       "id": "program.Actions.Targeted",
       "domain": "Actions",
       "source": "Targeted",

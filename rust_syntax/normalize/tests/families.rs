@@ -191,10 +191,10 @@ fn affected_object_is_scoped_to_characteristic_changes() {
 }
 
 #[test]
-fn distributed_counters_need_distribution_semantics_before_counting_complete() {
+fn distributed_counters_require_an_announced_distribution() {
     let source:OracleCard=ron::from_str("Card(Name:\"Distributed counter fixture\",Typeline:(Supertypes:[],Cardtypes:[Sorcery],Subtypes:[]),Rules:[SpellActions(ActionList([PutCounters([DistributedCounters(PTCounter(1,1))])]))])").unwrap();
     let errors = lower::card(&source).unwrap_err();
     assert!(errors
         .iter()
-        .any(|e| e.source_type == "PutCountersAction" && e.form == "DistributedCounters"));
+        .any(|e| e.message.contains("no distribution was announced")));
 }
