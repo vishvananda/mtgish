@@ -1,0 +1,341 @@
+//! Rules-derived properties of complete typed programs. Keep these separate
+//! from Cantrip capabilities and avoid a serialized flag that can become stale.
+use crate::ir::*;
+use serde::Serialize;
+
+/// Structural equality of typed references, without imposing Eq on the entire
+/// recursive query/expression language. This compares data, never source text.
+pub(crate) fn same_player(a: &PlayerRef, b: &PlayerRef) -> bool {
+    serde_json::to_value(a).expect("typed player") == serde_json::to_value(b).expect("typed player")
+}
+pub(crate) fn shuffle_closes(library: &PlayerRef, players: &PlayerSet) -> bool {
+    match players {
+        PlayerSet::One(player) => same_player(library, player),
+        PlayerSet::All => true,
+        PlayerSet::Union(sets) => sets.iter().any(|s| shuffle_closes(library, s)),
+        _ => false,
+    }
+}
+
+/// References guaranteed by every possible occurrence of an event matcher.
+/// Derived from the typed matcher rather than serialized as independent flags.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct EventBindings {
+    pub object: bool,
+    pub permanent: bool,
+    pub spell: bool,
+    pub player: bool,
+    pub amount: bool,
+    pub damage: bool,
+    pub damage_source: bool,
+    pub damage_source_permanent: bool,
+    pub damage_recipient: bool,
+    pub damage_objects: bool,
+    pub damage_players: bool,
+    pub damage_subject: Option<DamageSubject>,
+    pub discard: bool,
+    pub discarded: bool,
+    pub activation_x: bool,
+}
+pub fn event_bindings(event: &EventSpec) -> EventBindings {
+    match event {
+        EventSpec::Discard { grouping, kind, .. } => EventBindings {
+            object: matches!(grouping, DiscardGrouping::Card),
+            player: true,
+            discard: true,
+            discarded: matches!(grouping, DiscardGrouping::Card),
+            activation_x: matches!(kind, DiscardKind::Cycling),
+            ..Default::default()
+        },
+        EventSpec::ZoneChange { .. } | EventSpec::Object { .. } => EventBindings {
+            object: true,
+            permanent: true,
+            ..EventBindings::default()
+        },
+        EventSpec::Damage(event) => {
+            let source = matches!(
+                event.grouping,
+                DamageGrouping::Source | DamageGrouping::SourceRecipient
+            );
+            let recipient = matches!(
+                event.grouping,
+                DamageGrouping::Recipient | DamageGrouping::SourceRecipient
+            );
+            let objects = matches!(event.recipients, DamageRecipients::Objects(_));
+            let players = matches!(event.recipients, DamageRecipients::Players(_));
+            let object = match event.subject {
+                DamageSubject::Source => source,
+                DamageSubject::Recipient => recipient && objects,
+            };
+            EventBindings {
+                object,
+                permanent: object
+                    && match event.subject {
+                        DamageSubject::Source => matches!(event.source_kind, ObjectKind::Permanent),
+                        DamageSubject::Recipient => true,
+                    },
+                spell: object
+                    && matches!(event.subject, DamageSubject::Source)
+                    && matches!(event.source_kind, ObjectKind::Spell),
+                player: recipient && players,
+                amount: true,
+                damage: true,
+                damage_source: source,
+                damage_source_permanent: source
+                    && matches!(event.source_kind, ObjectKind::Permanent),
+                damage_recipient: recipient && objects,
+                damage_objects: !players,
+                damage_players: !objects,
+                damage_subject: Some(event.subject),
+                discard: false,
+                discarded: false,
+                activation_x: false,
+            }
+        }
+        EventSpec::Spell { .. } => EventBindings {
+            object: true,
+            spell: true,
+            player: true,
+            ..EventBindings::default()
+        },
+        EventSpec::Turn { .. } => EventBindings {
+            player: true,
+            ..EventBindings::default()
+        },
+        EventSpec::State { .. } => EventBindings::default(),
+        EventSpec::Filtered { event, .. } => event_bindings(event),
+        EventSpec::Either(events) => events
+            .iter()
+            .map(event_bindings)
+            .reduce(|a, b| EventBindings {
+                object: a.object && b.object,
+                permanent: a.permanent && b.permanent,
+                spell: a.spell && b.spell,
+                player: a.player && b.player,
+                amount: a.amount && b.amount,
+                damage: a.damage && b.damage,
+                damage_source: a.damage_source && b.damage_source,
+                damage_source_permanent: a.damage_source_permanent && b.damage_source_permanent,
+                damage_recipient: a.damage_recipient && b.damage_recipient,
+                damage_objects: a.damage_objects && b.damage_objects,
+                damage_players: a.damage_players && b.damage_players,
+                damage_subject: if a.damage_subject == b.damage_subject {
+                    a.damage_subject
+                } else {
+                    None
+                },
+                discard: a.discard && b.discard,
+                discarded: a.discarded && b.discarded,
+                activation_x: a.activation_x && b.activation_x,
+            })
+            .unwrap_or_default(),
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum ActivationKind {
+    Mana,
+    Stack,
+}
+#[derive(Default)]
+struct Effects {
+    mana: bool,
+    library: bool,
+    objects: std::collections::BTreeMap<u32, (bool, bool)>,
+    targets: std::collections::BTreeMap<u16, bool>,
+}
+impl Effects {
+    fn program(&mut self, program: &Program) {
+        for instruction in &program.instructions {
+            match instruction {
+                Instruction::Effect { result, operation } => match operation {
+                    Operation::AddMana { .. } => self.mana = true,
+                    Operation::Draw { .. } | Operation::Mill { .. } => self.library = true,
+                    Operation::Move {
+                        objects,
+                        destination,
+                        ..
+                    }
+                    | Operation::Counter {
+                        objects,
+                        destination,
+                    } => {
+                        let before = self.objects_library(objects);
+                        let after = Self::destination_library(destination);
+                        self.library |= before || after;
+                        self.objects.insert(result.0, (before, after));
+                    }
+                    Operation::ChooseObjects { objects, .. } => {
+                        let library = self.objects_library(objects);
+                        self.objects.insert(result.0, (library, library));
+                    }
+                    Operation::Search { .. } => {
+                        self.objects.insert(result.0, (true, true));
+                    }
+                    Operation::LookAt { objects, .. }
+                    | Operation::ReorderLibrary { objects, .. } => {
+                        let library = self.objects_library(objects);
+                        self.objects.insert(result.0, (library, library));
+                    }
+                    Operation::Surveil { amount, .. } => {
+                        self.library |= !matches!(amount, Expr::Constant(0))
+                    }
+                    Operation::Reveal { .. }
+                    | Operation::Shuffle { .. }
+                    | Operation::Scry { .. } => {}
+                    Operation::PayCost { cost, .. } => {
+                        self.cost(cost);
+                    }
+                    // Its body executes in a later triggered ability, not
+                    // during this activation's resolution (CR 605.1a).
+                    Operation::CreateDelayedTrigger { .. }
+                    | Operation::ModifyEvent { .. }
+                    | Operation::CreateRegenerationShields { .. }
+                    | Operation::Discard { .. }
+                    | Operation::RemoveCounters { .. }
+                    | Operation::CreateTokens { .. }
+                    | Operation::Attach { .. }
+                    | Operation::GainLife { .. }
+                    | Operation::LoseLife { .. }
+                    | Operation::DealDamage { .. }
+                    | Operation::Destroy { .. }
+                    | Operation::Tap { .. }
+                    | Operation::Sacrifice { .. }
+                    | Operation::PutCounters { .. }
+                    | Operation::CreateContinuousEffect { .. } => {}
+                },
+                Instruction::Group(p) | Instruction::Optional { body: p, .. } => self.program(p),
+                Instruction::If {
+                    then, otherwise, ..
+                } => {
+                    self.program(then);
+                    self.program(otherwise);
+                }
+            }
+        }
+    }
+    fn destination_library(destination: &Destination) -> bool {
+        match destination {
+            Destination::OwnersLibraryTop | Destination::OwnersLibraryBottom => true,
+            Destination::OwnersHand
+            | Destination::OwnersGraveyard
+            | Destination::Exile
+            | Destination::Battlefield(_)
+            | Destination::OwnersBattlefield => false,
+        }
+    }
+    fn object_library(&self, object: &ObjectRef) -> bool {
+        match object {
+            ObjectRef::Target { slot, .. } => self.targets.get(&slot.0).copied().unwrap_or(false),
+            ObjectRef::Query { objects, .. } => self.objects_library(objects),
+            ObjectRef::Result { result, phase, .. } => self.result_library(result, phase),
+            ObjectRef::Source
+            | ObjectRef::KeywordHost
+            | ObjectRef::Discarded
+            | ObjectRef::Damage(_)
+            | ObjectRef::Candidate
+            | ObjectRef::AttachedTo(_)
+            | ObjectRef::Affected
+            | ObjectRef::EventSubject
+            | ObjectRef::Bound(_) => false,
+        }
+    }
+    fn result_library(&self, result: &ResultId, phase: &ObjectPhase) -> bool {
+        self.objects
+            .get(&result.0)
+            .is_some_and(|(before, after)| match phase {
+                ObjectPhase::Before => *before,
+                ObjectPhase::After => *after,
+            })
+    }
+    fn objects_library(&self, objects: &ObjectSet) -> bool {
+        match objects {
+            ObjectSet::Observed(result) => self.result_library(result, &ObjectPhase::Before),
+            ObjectSet::Difference { objects, .. } | ObjectSet::Matching { objects, .. } => {
+                self.objects_library(objects)
+            }
+            ObjectSet::Zone { scope, .. } => matches!(
+                scope,
+                ZoneScope::Players {
+                    zone: EventZone::Library,
+                    ..
+                }
+            ),
+            ObjectSet::InZone { zone, .. } => matches!(zone, EventZone::Library),
+            ObjectSet::One(o) => self.object_library(o),
+            ObjectSet::Union(sets) => sets.iter().any(|s| self.objects_library(s)),
+            ObjectSet::Take { objects, .. } => self.objects_library(objects),
+            ObjectSet::Targets(slot) => self.targets.get(&slot.0).copied().unwrap_or(false),
+            ObjectSet::Selected(result) => self.result_library(result, &ObjectPhase::After),
+            ObjectSet::Transition { result, phase } => self.result_library(result, phase),
+            ObjectSet::Battlefield(_) | ObjectSet::Created(_) => false,
+            ObjectSet::Damage(_) | ObjectSet::CostObjects { .. } => false,
+        }
+    }
+    fn cost(&mut self, cost: &Cost) -> bool {
+        let mut loyalty = false;
+        for part in &cost.parts {
+            match part {
+                CostPart::Move {
+                    selections,
+                    destination,
+                    ..
+                } => {
+                    self.library |= Self::destination_library(destination)
+                        || selections.iter().any(|s| self.objects_library(&s.objects));
+                }
+                CostPart::Choice(options) => {
+                    for option in options {
+                        loyalty |= self.cost(option);
+                    }
+                }
+                CostPart::Constrained { part, .. } => {
+                    loyalty |= self.cost(&Cost {
+                        parts: vec![part.as_ref().clone()],
+                    })
+                }
+                CostPart::Loyalty(_) => loyalty = true,
+                CostPart::Mill { .. } | CostPart::Draw { .. } => self.library = true,
+                CostPart::RemoveCounters { .. }
+                | CostPart::ManaCostOf(_)
+                | CostPart::Mana(_)
+                | CostPart::ChangeTapState { .. }
+                | CostPart::TapSymbol
+                | CostPart::Life(_)
+                | CostPart::Sacrifice { .. }
+                | CostPart::Discard { .. } => {}
+            }
+        }
+        loyalty
+    }
+    fn announcement(&mut self, announcement: &Announcement) -> bool {
+        for target in &announcement.targets {
+            if let TargetKind::Object(domain) = &target.kind {
+                self.targets
+                    .insert(target.slot.0, domain.zones.contains(&EventZone::Library));
+            }
+        }
+        let mut targets = !announcement.targets.is_empty();
+        if let Some(modes) = &announcement.modes {
+            for mode in &modes.modes {
+                targets |= self.announcement(&mode.announcement);
+                self.program(&mode.body);
+            }
+        }
+        targets
+    }
+}
+/// CR 605.1a and 115.6, effective September 25, 2026. Even optional targets
+/// require targets. Costs/effects moving cards to or from libraries disqualify
+/// an activated ability; granted token abilities do not produce mana for it.
+pub fn activation_kind(cost: &Cost, announcement: &Announcement, body: &Program) -> ActivationKind {
+    let mut effects = Effects::default();
+    let targets = effects.announcement(announcement);
+    effects.program(body);
+    let loyalty = effects.cost(cost);
+    if effects.mana && !targets && !loyalty && !effects.library {
+        ActivationKind::Mana
+    } else {
+        ActivationKind::Stack
+    }
+}

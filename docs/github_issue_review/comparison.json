@@ -1,0 +1,5720 @@
+[
+  {
+    "name": "Aang, Swift Savior // Aang and La, Ocean's Fury",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 26,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Abandon Reason",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 35,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Abandon the Post",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 36,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Abigale, Eloquent First-Year",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 58,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Abomination",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 65,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Abomination, Terrifying Titan",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 69,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Abzan Charm",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 119,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Ace, Fearless Rebel",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 163,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Acid-Spewer Dragon",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 168,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Act of Aggression",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 191,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Act of Treason",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 194,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Adarkar Unicorn",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 213,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Advanced Floral Invocations",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 242,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Advanced Reconstruction",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 244,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Agatha's Soul Cauldron",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 390,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Agent's Toolkit",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 416,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Aggression",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 421,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ajani Steadfast",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 482,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ajani's Influence",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 490,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Al-abara's Carpet",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 563,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Alchemist's Talent",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 598,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Allies at Last",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 655,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Anafenza, Unyielding Lineage",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 810,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Annie Flash, the Veteran",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 993,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Apex of Power",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 1056,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Appeal // Authority",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 1083,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Armed and Armored",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 1381,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Arni Slays the Troll",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 1427,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Artificer Class",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 1457,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Artist's Talent",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 1471,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ashcoat of the Shadow Swarm",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 1506,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Assault // Battery",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 1573,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Aura Graft",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 1695,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Aven Liberator",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 1807,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Azusa's Many Journeys // Likeness of the Seeker",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 1934,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Back for More",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 1940,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Back for Seconds",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 1941,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Badlands",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 1964,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Badlands Revival",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 1965,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Baki's Curse",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 1981,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Balance",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 1989,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Baldur's Gate",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 1993,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Baldur's Gate Wilderness",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 33501,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ballyrush Banneret",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2033,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Bandit's Talent",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2058,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Baral and Kari Zev",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2104,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Barbarian Class",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2109,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Bard Class",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2133,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Battle of Hoover Dam",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2276,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Bellowing Bruiser // Beat a Path",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 2429,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Belltoll Dragon",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2438,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Beorn the Fierce",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 2489,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Betrayal",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 2521,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Black Cat",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2649,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Black Cat, Cunning Thief",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2650,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Blacksmith's Talent",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2688,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Blessed Defiance",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2771,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Blessing",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 2783,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Blex, Vexing Pest // Search for Blex",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 2789,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Blight Herder",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2792,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Blinding Beam",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 2836,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Blinding Fog",
+    "issue_numbers": [
+      4,
+      1
+    ],
+    "corpus_line": 2839,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Blizzard",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 2870,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Blood Price",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2915,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Blood for Bones",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 2929,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Bloodcurdler",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 2953,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Bloodrage Alpha",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 2991,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Bludgeon Brawl",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 3054,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Blue Dragon",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 3055,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Boiling Earth",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 3136,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Bold Defense",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 3147,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Boneyard Parley",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 3224,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Bontu's Last Reckoning",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 3230,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Boros Battleshaper",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 3285,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Bosk Banneret",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 3318,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Brainstorm",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 3400,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Brainsurge",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 3401,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Brainwash",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 3402,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Break Ties",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 3478,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Breathstealer",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 3503,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Breathstealer's Crypt",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 3504,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Brighthearth Banneret",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 3544,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Brilliance Unleashed",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 3554,
+    "status": "already_updated_locally",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Bronzehide Lion",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 3635,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Broodwarden",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 3658,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Brudiclad, Telchor Engineer",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 3675,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Builder's Talent",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 3714,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Bumi's Feast Lecture",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 3733,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Burn at the Stake",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 3759,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Burning Sun's Fury",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 3779,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Burrog Barrage",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 3800,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Cacophony Unleashed",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 3878,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Captain's Maneuver",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 4089,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Caretaker's Talent",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 4121,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Catch // Release",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 4244,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Caught Red-Handed",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 4271,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Cauldron's Gift",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 4280,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Caustic Bronco",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 4281,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Celestial Gatekeeper",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 4342,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Certain Death",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 4419,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Chandra, Hope's Beacon",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 4534,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Chandra, Pyromaster",
+    "issue_numbers": [
+      2,
+      1
+    ],
+    "corpus_line": 4538,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Chandra, the Firebrand",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 4541,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Chaos Moon",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 4571,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Cho-Arrim Legate",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 4719,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "City of the Daleks",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 4862,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Claim the Firstborn",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 4880,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Clavileño, First of the Blessed",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 4906,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Clear the Stage",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 4932,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Cleric Class",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 4945,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Cloud of Faeries",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 5023,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Cloudspire Skycycle",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 5053,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Collected Conjuring",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 5151,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Concealing Curtains // Revealing Eye",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 5290,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Contagion",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 5415,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Coordinated Assault",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 5474,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Corrupt",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 5550,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Corrupted Shapeshifter",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 5561,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Cosima, God of the Voyage // The Omenkeel",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 5570,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Cost of Brilliance",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 5588,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Countryside Crusher",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 5616,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Craig Boone, Novac Guard",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 5701,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Creative Outburst",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 5750,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Crumb and Get It",
+    "issue_numbers": [
+      11
+    ],
+    "corpus_line": 5886,
+    "status": "already_updated_locally",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Crusade",
+    "issue_numbers": [
+      6,
+      2
+    ],
+    "corpus_line": 5894,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Cunning",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 6006,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Cutthroat Maneuver",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 6128,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Daretti, Scrap Savant",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 6256,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Darigaaz, Shivan Champion",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 6264,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Daring Discovery",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 6270,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Dark Deal",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 6288,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Darkness",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 6330,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Dauntless Onslaught",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 6386,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Dawnsire, Sunstar Dreadnought",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 6440,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Deadly Riposte",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 6515,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Death Bomb",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 6531,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Deceit",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 6625,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Deepwood Legate",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 6703,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Deflection",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 6754,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Demonic Junker",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 6832,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Demonlord Belzenlok",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 6842,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Den Protector",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 6849,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Dermoplasm",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 6890,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Desert Warfare",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 6918,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Desertion",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 6931,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Destiny Spinner",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 6964,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Diabolic Vision",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 7045,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Diminish",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 7086,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Diminishing Returns",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 7089,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Disa the Restless",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 7161,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Discovery // Dispersal",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 7196,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Disorient",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 7221,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Disorienting Choice",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 7222,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Does Machines",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 7360,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Done for the Day",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 7408,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Douse in Gloom",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 7470,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Dragon Whelp",
+    "issue_numbers": [
+      9
+    ],
+    "corpus_line": 7550,
+    "status": "already_updated_locally",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Dragonhawk, Fate's Tempest",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 7581,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Dragonspark Reactor",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 7602,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Dralnu's Crusade",
+    "issue_numbers": [
+      6,
+      2
+    ],
+    "corpus_line": 7626,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Dread Linnorm // Scale Deflection",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 7658,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Dreamdew Entrancer",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 7722,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Driven // Despair",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 7769,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Druid Class",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 7840,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Dusk's Landing",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 7939,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Earth Rumble",
+    "issue_numbers": [
+      3,
+      1
+    ],
+    "corpus_line": 8066,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Eclipsed Boggart",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 8148,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Eclipsed Elf",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 8149,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Eclipsed Flamekin",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 8150,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Eclipsed Kithkin",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 8151,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Eclipsed Merrow",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 8152,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ecstatic Beauty",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 8158,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Eddie Brock // Venom, Lethal Protector",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 8160,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Eladamri",
+    "issue_numbers": [
+      10
+    ],
+    "corpus_line": 8229,
+    "status": "already_updated_locally",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Elven Rite",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 8411,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Emergency Eject",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 8516,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Emeria's Call // Emeria, Shattered Skyclave",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 8529,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Emeritus of Abundance // Regrowth",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 8531,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Emperor of Bones",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 8556,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Enchanter's Bane",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 8590,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Enduring Angel // Angelic Enforcer",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 8635,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Energy Vortex",
+    "issue_numbers": [
+      7,
+      1
+    ],
+    "corpus_line": 8659,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Entropic Battlecruiser",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 8736,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Epochrasite",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 8767,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Esika, God of the Tree // The Prismatic Bridge",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 8848,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Esper Origins // Summon: Esper Maduin",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 8856,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Essence Leak",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 8880,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Estinien Varlineau",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 8892,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Euru, Acorn Scrounger",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 8962,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Everything Pizza",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 9002,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Exploration",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 9122,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Exploration Broodship",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 9123,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Explore",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 9124,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Extus, Oriq Overlord // Awaken the Blood Avatar",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 9184,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Eye of Jace",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 9196,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Eye of Nidhogg",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 9198,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Faithbound Judge // Sinner's Judgment",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 9301,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Farrelite Priest",
+    "issue_numbers": [
+      9
+    ],
+    "corpus_line": 9436,
+    "status": "already_updated_locally",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Fated Conflagration",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 9461,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Favored Enemy",
+    "issue_numbers": [
+      7,
+      2
+    ],
+    "corpus_line": 9501,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Fear of Immobility",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 9519,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Felonious Rage",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 9613,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Fiendslayer Paladin",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 9736,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Fighter Class",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 9769,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Filigree Vector",
+    "issue_numbers": [
+      4,
+      1
+    ],
+    "corpus_line": 9782,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Final Showdown",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 9800,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Find // Finality",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 9811,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Fires of Mount Doom",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 9901,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Firestorm",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 9911,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Fisher's Talent",
+    "issue_numbers": [
+      4,
+      1
+    ],
+    "corpus_line": 9932,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Fishing Pole",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 9934,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Flamescroll Celebrant // Revel in Silence",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 10003,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Flashback",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 10043,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Flow State",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 10158,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Follow the Lumarets",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 10241,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Forging the Anchor",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 10345,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Fortune Teller",
+    "issue_numbers": [
+      2,
+      1
+    ],
+    "corpus_line": 10396,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Fortune Teller's Talent",
+    "issue_numbers": [
+      2,
+      1
+    ],
+    "corpus_line": 10397,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Foul-Tongue Invocation",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 10417,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Fractalize",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 10452,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Fracture",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 10453,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Fracturing Gust",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 10458,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Frogtosser Banneret",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 10544,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Furgul, Quag Nurturer",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 10648,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Gargos, Vicious Watcher",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 10834,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Gastal Raider",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 10873,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "General's Kabuto",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 10988,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Genesis",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 10999,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Genesis Ultimatum",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 11003,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Ghost of Ramirez DePietro",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 11116,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ghostform",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 11130,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ghostly Keybearer",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 11136,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Gideon Blackblade",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 11213,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Gideon's Phalanx",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 11224,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Gloom Ripper",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 11470,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Glyph of Life",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 11523,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Gold Rush",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 11776,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Goreclaw, Terror of Qal Sisma",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 11871,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Gossip's Talent",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 11901,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Gourmand's Talent",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 11905,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Graceful Restoration",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 11917,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Great Train Heist",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 12079,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Great Whale",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 12083,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Greatbow Doyen",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 12086,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Grief",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 12153,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Grist, the Hunger Tide",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 12228,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Hand of Emrakul",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 12596,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Harmonious Emergence",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 12668,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Harmonize",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 12670,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Harmonized Trio // Brainstorm",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 12672,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Hazel's Brewmaster",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 12796,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Healing Grace",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 12832,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Hearthhull, the Worldseed",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 12862,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Heaven // Earth",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 12890,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Herdchaser Dragon",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 13048,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Hidden Dragonslayer",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 13131,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Hoarder's Greed",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 13264,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Hollowhenge Overlord",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 13302,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Hotel of Fears",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 13458,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Hunter's Mark",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 13601,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Hunter's Talent",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 13603,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Huntmaster of the Fells // Ravager of the Fells",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 13615,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Icefeather Aven",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 13728,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Idris, Soul of the TARDIS",
+    "issue_numbers": [
+      7,
+      2
+    ],
+    "corpus_line": 13772,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Illuminate",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 13811,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Illusion // Reality",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 13820,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Imperial Hellkite",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 13904,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "In the Darkness Bind Them",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 13965,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Incremental Blight",
+    "issue_numbers": [
+      8
+    ],
+    "corpus_line": 14001,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Incremental Growth",
+    "issue_numbers": [
+      8
+    ],
+    "corpus_line": 14002,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Infernal Offering",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 14070,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ingenious Mastery",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 14124,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Initiates of the Ebon Hand",
+    "issue_numbers": [
+      9
+    ],
+    "corpus_line": 14136,
+    "status": "already_updated_locally",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Innkeeper's Talent",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 14162,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Inspiring Refrain",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 14234,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Inspirit",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 14240,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Inspirit, Flagship Vessel",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 14241,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Insurrection",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 14254,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Intermediate Chirography",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 14269,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Into the Earthen Maw",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 14284,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Invert the Skies",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 14375,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Invoke Despair",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 14394,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Invoke the Ancients",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 14397,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ire Shaman",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 14415,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Jadzi, Oracle of Arcavios // Journey to the Oracle",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 14647,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Jeska, Thrice Reborn",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 14732,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Jet's Brainwashing",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 14756,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Jon Irenicus, Shattered One",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 14843,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Joust Through",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 14867,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Justice",
+    "issue_numbers": [
+      7,
+      1
+    ],
+    "corpus_line": 14945,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Kairi, the Swirling Sky",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 14991,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Karplusan Strider",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 15122,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Katara, Waterbending Master",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 15149,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Kessig Wolf",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 15313,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Kessig Wolf Run",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 15314,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Kiora, Master of the Depths",
+    "issue_numbers": [
+      4,
+      1
+    ],
+    "corpus_line": 15445,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Knockout Blow",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 15593,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Kolaghan Stormsinger",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 15631,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Kolvori, God of Kinship // The Ringhart Crest",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 15638,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Kor Blademaster",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 15656,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Kyren Legate",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 15857,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Lantern Flare",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 15950,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Last Night Together",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 15990,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Lazav, Dimir Mastermind",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 16063,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Lead the Stampede",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 16077,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Leader's Talent",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 16081,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Legion's Chant",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 16146,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Legolas's Quick Reflexes",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 16154,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Lethal Protection",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 16208,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Library",
+    "issue_numbers": [
+      7,
+      6,
+      4,
+      1
+    ],
+    "corpus_line": 16258,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Liege of the Axe",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 16276,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Lightfoot Rogue",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 16332,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Lightning Coils",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 16346,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Liliana the Faultless",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 16392,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Limits of Solidarity",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 16435,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Littjara",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 16471,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Lively Dirge",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 16481,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Lizard, Connors's Curse",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 16515,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Loki, the Deceiver",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 16594,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Long River Lurker",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 16609,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Lord Windgrace",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 16653,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Lord of the Nazgûl",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 16662,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Lukka, Coppercoat Outcast",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 16796,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Lumen-Class Frigate",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 16818,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Maelstrom Djinn",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 16959,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Magma Opus",
+    "issue_numbers": [
+      4,
+      1
+    ],
+    "corpus_line": 17013,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Majestic Myriarch",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 17086,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Manacles of Decay",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 17192,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Mapping the Maze",
+    "issue_numbers": [
+      7,
+      1
+    ],
+    "corpus_line": 17249,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Marath, Will of the Wild",
+    "issue_numbers": [
+      7,
+      1
+    ],
+    "corpus_line": 17258,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Mark of the Oni",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 17340,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Markov Enforcer",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 17352,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Massacre",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 17448,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Master Skald",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 17463,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Mazemind Tome",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 17560,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Mechtitan Core",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 17582,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Meltstrider's Resolve",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 17631,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Memory Crystal",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 17644,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Memory Theft",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 17654,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Menacing Ogre",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 17660,
+    "status": "already_updated_locally",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Mephidross Slime",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 17679,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Mercurial Transformation",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 17715,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Mila, Crafty Companion // Lukka, Wayward Bonder",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 17893,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Mind Spike",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 17950,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Mirkwood",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 18071,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Mirkwood Elk",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 18074,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Mischief and Mayhem",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 18134,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Mischievous Quanar",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 18141,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Mistbreath Elder",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 18189,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Mistfire Weaver",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 18199,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Mogg Salvage",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 18302,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Mondassian Colony Ship",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 18402,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Monk Class",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 18410,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Monument to Perfection",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 18440,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Moogles' Valor",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 18444,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Mount Doom",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 18591,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Multani",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 18664,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Multani's Decree",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 18666,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Mythos of Brokkos",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 18871,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Nacatl War-Pride",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 18884,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Nahiri's Stoneblades",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 18904,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Nalathni Dragon",
+    "issue_numbers": [
+      9
+    ],
+    "corpus_line": 18922,
+    "status": "already_updated_locally",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Natural Balance",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 18983,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Necropolis",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 19077,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Nick Fury, Agent of S.H.I.E.L.D.",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 19258,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Nightbird's Clutches",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 19286,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Nightscape Familiar",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 19312,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Nim Deathmantle",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 19344,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ninja Teen",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 19382,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Nissa's Judgment",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 19400,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Nissa, Vastwood Seer // Nissa, Sage Animist",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 19412,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Nissa, Who Shakes the World",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 19415,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "No Admittance",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 19435,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Novel Nunchaku",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 19536,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Obuun, Mul Daya Ancestor",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 19729,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ogre Chitterlord",
+    "issue_numbers": [
+      7,
+      2
+    ],
+    "corpus_line": 19772,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Oko, Lorwyn Liege // Oko, Shadowmoor Scion",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 19824,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Old-Growth Troll",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 19845,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Omnath, Locus of All",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 19889,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ondu Knotmaster // Throw a Line",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 19919,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Onslaught",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 19944,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ophiomancer",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 19988,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Opportunity",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 19991,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Osseous Exhale",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 20169,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Pack's Betrayal",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 20322,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Paladin Class",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 20360,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Palinchron",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 20383,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Panic Attack",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 20399,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Pardic Dragon",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 20462,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Party Dude",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 20484,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Peregrine Drake",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 20639,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Pestilent Cauldron // Restorative Burst",
+    "issue_numbers": [
+      7,
+      1
+    ],
+    "corpus_line": 20702,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Phabine, Boss's Confidant",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 20728,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Phalanx Tactics",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 20733,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Phyrexian Portal",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 20855,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Pick-a-Beeble",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 20901,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Pitiless Fists",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 21006,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Pollen Remedy",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 21156,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Pore Over the Pages",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 21199,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Portent",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 21212,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Portent of Betrayal",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 21214,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Press into Service",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 21335,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Press the Advantage",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 21336,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Primal Clay",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 21388,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Primal Might",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 21398,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Primal Plasma",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 21400,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Primitive Justice",
+    "issue_numbers": [
+      7,
+      1
+    ],
+    "corpus_line": 21425,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Proclamation of Rebirth",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 21488,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Prophetic Bolt",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 21549,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Protect // Serve",
+    "issue_numbers": [
+      5,
+      3,
+      2,
+      1
+    ],
+    "corpus_line": 21569,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Prying Questions",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 21612,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Puppeteer",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 21711,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Puppeteer Clique",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 21712,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Purphoros, Bronze-Blooded",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 21731,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Rabble-Rouser",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 21957,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Racketeer Boss",
+    "issue_numbers": [],
+    "corpus_line": 21971,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Rage into the Valley",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 22030,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Rally for the Throne",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 22160,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Rally the Monastery",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 22166,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ramirez DePietro",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 22176,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Ranger Class",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 22229,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Rattleclaw Mystic",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 22313,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Razor Hippogriff",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 22401,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Reality Strobe",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 22447,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Reason // Believe",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 22480,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Reasonable Doubt",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 22481,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Rebirth",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 22493,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Reconstruction",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 22559,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Reflexes",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 22633,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Refresh",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 22637,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Refreshing Rain",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 22638,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Regrowth",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 22665,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Renewal",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 22780,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Research // Development",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 22848,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Revenant",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 22988,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Revival // Revenge",
+    "issue_numbers": [
+      6,
+      2,
+      1
+    ],
+    "corpus_line": 23014,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Revival Experiment",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 23015,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Riding the Dilu Horse",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 23111,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Righteous Fury",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 23131,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Riptide",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 23198,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Riptide Survivor",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 23212,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Rite of Renewal",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 23262,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Ritual of Hope",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 23282,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "River's Grasp",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 23312,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Robber of the Rich",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 23363,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Rogue Class",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 23409,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Rowdy Crew",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 23581,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Rupture",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 23720,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Rushwood Legate",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 23743,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Sacrifice",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 23827,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Salvage",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 23934,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Saprazzan Breaker",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 24084,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Saprazzan Legate",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 24087,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Saprazzan Outrigger",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 24088,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Sarkhan's Rage",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 24120,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Scalpelexis",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 24261,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Scarecrow",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 24276,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Scavenger's Talent",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 24312,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Scrounge",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 24482,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Searing Blood",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 24583,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Season of the Bold",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 24603,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Seasons Past",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 24615,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Seize Opportunity",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 24728,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Sentinel",
+    "issue_numbers": [
+      5
+    ],
+    "corpus_line": 24815,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Sephiroth, Fallen Hero",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 24837,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Settle the Score",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 24947,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Shadrix Silverquill",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 25030,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Shapeshifter",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 25085,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Shared Fate",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 25101,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Shatter",
+    "issue_numbers": [
+      3,
+      1
+    ],
+    "corpus_line": 25115,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Shelter",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 25167,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Shieldhide Dragon",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 25214,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Shilgengar, Sire of Famine",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 25234,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Silence",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 25518,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Silence the Believers",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 25519,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Silent Gravestone",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 25529,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Silkguard",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 25549,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Silumgar Assassin",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 25555,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Sivvi's Ruse",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 25712,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Skrelv, Defector Mite",
+    "issue_numbers": [
+      5
+    ],
+    "corpus_line": 25815,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Skullcage",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 25832,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Skyclave Relic",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 25879,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Smashing Success",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 26111,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Smelting Vat",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 26124,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Smuggler's Surprise",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 26162,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Solidarity",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 26293,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Somberwald Beastmaster",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 26321,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Somnophore",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 26329,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Sonar Strike",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 26330,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Song-Mad Treachery // Song-Mad Ruins",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 26343,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Sorcerer Class",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 26379,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Sorceress's Schemes",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 26385,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Soul Separator",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 26436,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Spark Double",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 26546,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Sparkshaper Visionary",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 26560,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Spectacular Skywhale",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 26606,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Spell Stutter",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 26660,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Splendid Agony",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 26926,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Split the Spoils",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 26943,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Spreading Insurrection",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 26987,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Spry and Mighty",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 27021,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Stampede",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 27126,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Starving Revenant",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 27203,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Stenchskipper",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 27289,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Steward of the Harvest",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 27318,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Stillness in Motion",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 27328,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Stitcher Geralf",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 27371,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Stonybrook Banneret",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 27457,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Stormchaser's Talent",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 27513,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Stormscape Familiar",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 27532,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Stormwing Dragon",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 27540,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Storyweave",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 27548,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Stratus Dancer",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 27569,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Struggle // Survive",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 27661,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Struggle for Sanity",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 27663,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Stunning Shot",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 27684,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Submerge",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 27702,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Subtlety",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 27713,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Sudden Storm",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 27733,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Summon: Kujata",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 27795,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Summon: Magus Sisters",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 27797,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Summoner's Sending",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 27810,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Sungold Sentinel",
+    "issue_numbers": [
+      5
+    ],
+    "corpus_line": 27871,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Sunscape Familiar",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 27897,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Sunset Revelry",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 27906,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Surly Badgersaur",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 27995,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Surrender Your Thoughts",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 28006,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Suspend",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 28028,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Suspicious Detonation",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 28033,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Sylvan Hierophant",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 28174,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Sylvan Library",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 28175,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Symbiosis",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 28195,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Synchronized Charge",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 28207,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Synthesizer Labship",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 28228,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Tackle Artist",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 28271,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Take for a Ride",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 28330,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Talion's Throneguard",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 28360,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Tannuk, Steadfast Second",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 28440,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Teferi's Reproach",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 28569,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Teferi, Hero of Dominaria",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 28577,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Temporal Firestorm",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 28666,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Tentative Connection",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 28723,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Terastodon",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 28739,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Thalakos Deceiver",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 28855,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "The Aesir Escape Valhalla",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 28901,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "The Balrog of Moria",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 28914,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "The Binding of the Titans",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 28924,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "The Boulder, Ready to Rumble",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 28934,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "The Dining Car",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 28975,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "The Doctor's Childhood Barn",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 28976,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "The Earth Crystal",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 28984,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "The Great Aerie",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 29047,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "The Jolly Balloon Man",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 29071,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "The Legend of Kyoshi // Avatar Kyoshi",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 29083,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "The Tale of Tamiyo",
+    "issue_numbers": [
+      7,
+      4
+    ],
+    "corpus_line": 29208,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Thelonite Hermit",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 29272,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "There Is No Refuge",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 29283,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "There and Back Again",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 29284,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Thorn Mammoth",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 29363,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Thornscape Familiar",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 29382,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Thought Hemorrhage",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 29402,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Thought Rattle",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 29408,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Thoughtweft Gambit",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 29431,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Thousand Winds",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 29439,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Thranduil, Sindarin Liege // Silvan Rally",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 29476,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Three Steps Ahead",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 29499,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Thundermane Dragon",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 29609,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Thunderous Orator",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 29614,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Thunderscape Familiar",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 29620,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Time Spiral",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 29723,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Titan of Littjara",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 29786,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Tokka & Rahzar, Terrible Twos",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 29840,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Tolaria",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 29843,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Tolarian Entrancer",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 29849,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Toph, Earthbending Master",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 29913,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Toph, Greatest Earthbender",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 29914,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Toph, Hardheaded Teacher",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 29915,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Toph, the Blind Bandit",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 29916,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Toph, the First Metalbender",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 29917,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Topple",
+    "issue_numbers": [
+      4
+    ],
+    "corpus_line": 29922,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Torrent Sculptor // Flamethrower Sonata",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 29969,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Torrent of Souls",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 29972,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Touch of Moonglove",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 29993,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Tovolar, Dire Overlord // Tovolar, the Midnight Scourge",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 30006,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Tower Above",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 30010,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Treachery",
+    "issue_numbers": [
+      4,
+      2
+    ],
+    "corpus_line": 30180,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Triassic Egg",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 30259,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Trygon Prime",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 30382,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Turn Against",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 30434,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Turntimber Symbiosis // Turntimber, Serpentine Wood",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 30452,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Two-Headed Giant",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 30527,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Tyrant of Discord",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 30550,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Tyvar Kell",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 30562,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Unearth",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 30768,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Unearthly Blizzard",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 30769,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Unexpected Request",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 30780,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Unseal the Necropolis",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 30875,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Uthros Research Craft",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 31019,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Valiant Changeling",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 31066,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Valki, God of Lies // Tibalt, Cosmic Impostor",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 31074,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Valkyrie's Sword",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 31079,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Vanish into Memory",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 31155,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Vanishing",
+    "issue_numbers": [
+      7,
+      2
+    ],
+    "corpus_line": 31156,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Vantress Transmuter // Croaking Curse",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 31168,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Vassal's Duty",
+    "issue_numbers": [
+      10
+    ],
+    "corpus_line": 31184,
+    "status": "already_updated_locally",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Vedalken Plotter",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 31240,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Vengeful Regrowth",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 31301,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Venom Blast",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 31310,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Venom, Eddie Brock",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 31315,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Vigilance",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 31512,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Visage of Dread // Dread Osseosaur",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 31631,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Voda Sea Scavenger",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 31719,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Voldaren Ambusher",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 31810,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Wandering Archaic // Explore the Vastlands",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 32070,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "War Report",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 32115,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Warbriar Blessing",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 32129,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Warlock Class",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 32166,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Wasteland",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 32232,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Wild Wasteland",
+    "issue_numbers": [
+      7
+    ],
+    "corpus_line": 32614,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Wilson, Majestic Bear",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 32679,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Wingbeat Warrior",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 32741,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Winter Blast",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 32772,
+    "status": "unchanged_control_or_reported_case_already_correct",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Wizard Class",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 32877,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Wondrous Revival",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 32930,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Wort, the Raidmother",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 33027,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Worzel, the Protector",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 33031,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Wrangle",
+    "issue_numbers": [
+      2
+    ],
+    "corpus_line": 33036,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "You Come to the Gnoll Camp",
+    "issue_numbers": [
+      3
+    ],
+    "corpus_line": 33239,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "You Meet in a Tavern",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 33249,
+    "status": "updated_in_this_review",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Yume, Chronicler of Valor",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 33287,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  },
+  {
+    "name": "Zaffai, Thunder Conductor",
+    "issue_numbers": [
+      1
+    ],
+    "corpus_line": 33304,
+    "status": "already_updated_locally",
+    "semantic_assertions": false
+  },
+  {
+    "name": "Zimone's Hypothesis",
+    "issue_numbers": [
+      6
+    ],
+    "corpus_line": 33403,
+    "status": "updated_in_this_review",
+    "semantic_assertions": true
+  }
+]

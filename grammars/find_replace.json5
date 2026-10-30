@@ -607,12 +607,6 @@
     "replace": "If a land or Bird you control entering causes",
   },
   {
-    "reason":  "Spacecraft is now an artifact type",
-    "cards":   ["Hotel of Fears", "Mondassian Colony Ship", "The Dining Car"],
-    "find":    "Plane - Spacecraft",
-    "replace": "Plane - Spaceship",
-  },
-  {
     "reason":  "I don't like that the wording went backwards",
     "cards":   ["The Lunar Whale"],
     "find":    "you may play the top card of your library",

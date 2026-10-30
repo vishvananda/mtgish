@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+"""Snapshot inert vocabulary and the API used by the Rust generator.
+
+Usage: python3 rust_syntax/normalize/tools/update_cantrip_vocabulary.py ../cantrip
+No executable card semantics are inferred or copied from Cantrip.
+"""
+import hashlib
+import argparse
+import json
+from pathlib import Path
+import re
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('checkout', type=Path)
+parser.add_argument('--check', action='store_true', help='verify the snapshot without writing it')
+args = parser.parse_args()
+checkout = args.checkout.resolve()
+state = checkout / 'crates/cantrip-state/src'
+
+def variants(path, name):
+    match = re.search(r'pub enum ' + name + r'\s*{(.*?)\n}', path.read_text(), re.S)
+    if match is None:
+        raise ValueError(f'cannot locate {name} in {path}')
+    result = re.findall(r'^    ([A-Za-z_][A-Za-z_0-9]*)\s*(?:,|=)', match[1], re.M)
+    if not result or len(result) != len(set(result)):
+        raise ValueError(f'invalid {name} vocabulary')
+    return result
+
+inputs = sorted(p for crate in ('cantrip-api', 'cantrip-state', 'cantrip-mechanics')
+                for p in (checkout / 'crates' / crate / 'src').rglob('*.rs'))
+fingerprints = {str(p.relative_to(checkout)): hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}
+api_hash = hashlib.sha256(json.dumps(fingerprints, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+text = '// Cantrip vocabulary snapshot; regenerate with tools/update_cantrip_vocabulary.py.\n'
+text += '// These names are inert metadata, never behavior.\n'
+text += f'pub const API_FINGERPRINT: &str = {json.dumps(api_hash)};\n'
+vocabularies = [('SUBTYPES', variants(state / 'subtypes.rs', 'Subtype')), ('KEYWORDS', variants(state / 'vocab.rs', 'Keyword'))]
+for name, values in vocabularies:
+    text += 'pub const ' + name + ': &[&str] = &[\n' + ''.join('    ' + json.dumps(v) + ',\n' for v in values) + '];\n'
+destination = Path(__file__).resolve().parents[1].joinpath('src/cantrip_vocab.rs')
+if args.check:
+    snapshot = destination.read_text()
+    assert re.search(r'API_FINGERPRINT:\s*&str\s*=\s*"' + api_hash + '"', snapshot), 'Cantrip API/mechanics inputs changed; review and regenerate the snapshot'
+    for name, values in vocabularies:
+        section = re.search(r'pub const ' + name + r':.*?=\s*&\[(.*?)\];', snapshot, re.S)
+        assert section and json.loads('[' + section[1].rstrip().rstrip(',') + ']') == values, 'Cantrip vocabulary changed: ' + name
+else:
+    destination.write_text(text)
+print(api_hash)

@@ -1,0 +1,4332 @@
+[
+  {
+    "name": "Aang, Swift Savior // Aang and La, Ocean's Fury",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Abandon Reason",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Abandon the Post",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Abigale, Eloquent First-Year",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Abomination",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Abomination, Terrifying Titan",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Abzan Charm",
+    "issues": [
+      3
+    ],
+    "contains": [
+      "BetweenOneAndNumberTargetPermanents(Integer(2), IsCardtype(Creature))"
+    ]
+  },
+  {
+    "name": "Ace, Fearless Rebel",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Acid-Spewer Dragon",
+    "issues": [
+      1
+    ],
+    "contains": [
+      "WhenAPermanentIsTurnedFaceUp"
+    ]
+  },
+  {
+    "name": "Act of Aggression",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Act of Treason",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Adarkar Unicorn",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "Or([ManaProduceU, And([ManaProduceC, ManaProduceU])])"
+    ]
+  },
+  {
+    "name": "Advanced Floral Invocations",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Advanced Reconstruction",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Agatha's Soul Cauldron",
+    "issues": [
+      2
+    ],
+    "contains": [
+      "EachPermanentLayerEffect(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), HasACounterOfType(PTCounter(+1, +1))])"
+    ]
+  },
+  {
+    "name": "Agent's Toolkit",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Aggression",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Ajani Steadfast",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Ajani's Influence",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Al-abara's Carpet",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Alchemist's Talent",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Allies at Last",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Anafenza, Unyielding Lineage",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "ActionList([EndureWithPermanent(Integer(2), ThisPermanent)])"
+    ],
+    "excludes": [
+      "Targeted("
+    ]
+  },
+  {
+    "name": "Annie Flash, the Veteran",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "MayPlayLandsFromAmongExiled(TheCardsExiledThisWay), MayCastSpellsFromAmongExiled(AnySpell, TheCardsExiledThisWay)"
+    ]
+  },
+  {
+    "name": "Apex of Power",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Appeal // Authority",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Armed and Armored",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Arni Slays the Troll",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Artificer Class",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Artist's Talent",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Ashcoat of the Shadow Swarm",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Assault // Battery",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Aura Graft",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "GainControlOfPermanent(Ref_TargetPermanent), AttachPermanentToAPermanent"
+    ]
+  },
+  {
+    "name": "Aven Liberator",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Azusa's Many Journeys // Likeness of the Seeker",
+    "issues": [
+      4
+    ]
+  },
+  {
+    "name": "Back for More",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Back for Seconds",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Badlands",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Badlands Revival",
+    "issues": [
+      1
+    ],
+    "contains": [
+      "UptoOneTargetGraveyardCard(And([IsPermanent, InAPlayersGraveyard(SinglePlayer(You))]))"
+    ]
+  },
+  {
+    "name": "Baki's Curse",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Balance",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Baldur's Gate",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Baldur's Gate Wilderness",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Ballyrush Banneret",
+    "issues": [
+      1
+    ],
+    "contains": [
+      "Or([IsCreatureType(Kithkin), IsCreatureType(Soldier)])"
+    ]
+  },
+  {
+    "name": "Bandit's Talent",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Baral and Kari Zev",
+    "issues": [
+      1
+    ],
+    "contains": [
+      "SubtypesList([Monkey, Pirate])"
+    ]
+  },
+  {
+    "name": "Barbarian Class",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Bard Class",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Battle of Hoover Dam",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Bellowing Bruiser // Beat a Path",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Belltoll Dragon",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Beorn the Fierce",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Betrayal",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Black Cat",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Black Cat, Cunning Thief",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Blacksmith's Talent",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Blessed Defiance",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Blessing",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Blex, Vexing Pest // Search for Blex",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Blight Herder",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Blinding Beam",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "Targeted([TargetPlayer(AnyPlayer)]",
+      "ControlledByAPlayer(SinglePlayer(Ref_TargetPlayer))"
+    ]
+  },
+  {
+    "name": "Blinding Fog",
+    "issues": [
+      4,
+      1
+    ],
+    "contains": [
+      "DamageWouldBeDealtToARecipient(APermanent(IsCardtype(Creature)))",
+      "CreateEachPermanentLayerEffectUntil(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])"
+    ]
+  },
+  {
+    "name": "Blizzard",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Blood Price",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Blood for Bones",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "ReturnAGraveyardCardToHand(IsCardtype(Creature))"
+    ]
+  },
+  {
+    "name": "Bloodcurdler",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "Exile([NumberCardsInGraveyards(Integer(2), InAPlayersGraveyard(SinglePlayer(You)))], [])"
+    ],
+    "excludes": [
+      "Targeted("
+    ]
+  },
+  {
+    "name": "Bloodrage Alpha",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Bludgeon Brawl",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "AddArtifactType(Equipment)"
+    ]
+  },
+  {
+    "name": "Blue Dragon",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Boiling Earth",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Bold Defense",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Boneyard Parley",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Bontu's Last Reckoning",
+    "issues": [
+      1
+    ],
+    "contains": [
+      "CreateEachPermanentRuleEffectUntil(And([IsCardtype(Land), ControlledByAPlayer(SinglePlayer(You))])"
+    ]
+  },
+  {
+    "name": "Boros Battleshaper",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Bosk Banneret",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Brainstorm",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Brainsurge",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Brainwash",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Break Ties",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Breathstealer",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Breathstealer's Crypt",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Brighthearth Banneret",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Brilliance Unleashed",
+    "issues": [
+      2
+    ],
+    "contains": [
+      "AddAbility([Flying])"
+    ]
+  },
+  {
+    "name": "Bronzehide Lion",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "SetCardtype(Enchantment), AddEnchantmentType(Aura), AddAbilityAndLoseAllOtherAbilities"
+    ]
+  },
+  {
+    "name": "Broodwarden",
+    "issues": [
+      1
+    ],
+    "contains": [
+      "IsCreatureType(Eldrazi), IsCreatureType(Spawn)"
+    ]
+  },
+  {
+    "name": "Brudiclad, Telchor Engineer",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Builder's Talent",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Bumi's Feast Lecture",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "TargetPermanent(And([IsCardtype(Land), ControlledByAPlayer(SinglePlayer(You))]))"
+    ]
+  },
+  {
+    "name": "Burn at the Stake",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Burning Sun's Fury",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Burrog Barrage",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Cacophony Unleashed",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Captain's Maneuver",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "NumberTargetPlayersOrPermanents(Integer(2), AnyPlayer, Or([IsCardtype(Creature), IsCardtype(Planeswalker)]))"
+    ],
+    "excludes": [
+      "NumberAnyTargets("
+    ]
+  },
+  {
+    "name": "Caretaker's Talent",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Catch // Release",
+    "issues": [
+      1
+    ],
+    "contains": [
+      "SacrificePermanents([IsCardtype(Artifact), IsCardtype(Creature), IsCardtype(Enchantment), IsCardtype(Land), IsCardtype(Planeswalker)])"
+    ]
+  },
+  {
+    "name": "Caught Red-Handed",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Cauldron's Gift",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Caustic Bronco",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "[LoseLife(ManaValueOfTheCardRevealedThisWay)]"
+    ]
+  },
+  {
+    "name": "Celestial Gatekeeper",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "PutEachGraveyardCardOntoBattlefield(Ref_TargetGraveyardCards, [EntersNormally])"
+    ]
+  },
+  {
+    "name": "Certain Death",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "LoseLife(Integer(2))), GainLife(Integer(2))"
+    ]
+  },
+  {
+    "name": "Chandra, Hope's Beacon",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Chandra, Pyromaster",
+    "issues": [
+      2,
+      1
+    ]
+  },
+  {
+    "name": "Chandra, the Firebrand",
+    "issues": [
+      3
+    ],
+    "contains": [
+      "UptoNumberAnyTargets(Integer(6))"
+    ]
+  },
+  {
+    "name": "Chaos Moon",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Cho-Arrim Legate",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "City of the Daleks",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Claim the Firstborn",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Clavileño, First of the Blessed",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Clear the Stage",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Cleric Class",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Cloud of Faeries",
+    "issues": [
+      4
+    ]
+  },
+  {
+    "name": "Cloudspire Skycycle",
+    "issues": [
+      3
+    ],
+    "contains": [
+      "BetweenOneAndNumberTargetPermanents(Integer(2), And([Other(ThisPermanent), And([Or([IsArtifactType(Vehicle), IsCardtype(Creature)]), ControlledByAPlayer(SinglePlayer(You))])]))"
+    ]
+  },
+  {
+    "name": "Collected Conjuring",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Concealing Curtains // Revealing Eye",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "MayCost(ChooseACardFromPlayersRevealedHand",
+      "PlayerAction(Ref_TargetPlayer, DrawACard)"
+    ]
+  },
+  {
+    "name": "Contagion",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Coordinated Assault",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Corrupt",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Corrupted Shapeshifter",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Cosima, God of the Voyage // The Omenkeel",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Cost of Brilliance",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Countryside Crusher",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "[PutTopOfLibraryInGraveyard, RepeatThisProcess]"
+    ]
+  },
+  {
+    "name": "Craig Boone, Novac Guard",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Creative Outburst",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Crumb and Get It",
+    "issues": [
+      11
+    ],
+    "contains": [
+      "PlayerAction(TheGiftedPlayer, CreateTokens([FoodToken], []))"
+    ]
+  },
+  {
+    "name": "Crusade",
+    "issues": [
+      6,
+      2
+    ]
+  },
+  {
+    "name": "Cunning",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Cutthroat Maneuver",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Daretti, Scrap Savant",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "AtTheBeginningOfTheNextEndStep, ActionList([PutGraveyardCardOntoBattlefield(Trigger_ThatGraveyardCard, [EntersNormally])])"
+    ]
+  },
+  {
+    "name": "Darigaaz, Shivan Champion",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Daring Discovery",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Dark Deal",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Darkness",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Dauntless Onslaught",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Dawnsire, Sunstar Dreadnought",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Deadly Riposte",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Death Bomb",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "PlayerAction(ControllerOfPermanent(Ref_TargetPermanent), LoseLife(Integer(2)))"
+    ]
+  },
+  {
+    "name": "Deceit",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Deepwood Legate",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Deflection",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Demonic Junker",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Demonlord Belzenlok",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Den Protector",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Dermoplasm",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Desert Warfare",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Desertion",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Destiny Spinner",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Diabolic Vision",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "[PutAGenericCardIntoHand, PutTheRemainingCardsOnTopOfLibraryInAnyOrder]"
+    ]
+  },
+  {
+    "name": "Diminish",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Diminishing Returns",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Disa the Restless",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Discovery // Dispersal",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Disorient",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Disorienting Choice",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Does Machines",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Done for the Day",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Douse in Gloom",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Dragon Whelp",
+    "issues": [
+      9
+    ],
+    "contains": [
+      "TimesThisAbilityHasBeenActivatedThisTurnIs(GreaterThanOrEqualTo(Integer(4)))"
+    ]
+  },
+  {
+    "name": "Dragonhawk, Fate's Tempest",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Dragonspark Reactor",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Dralnu's Crusade",
+    "issues": [
+      6,
+      2
+    ],
+    "contains": [
+      "SetColor(SimpleColorList([Black])), AddCreatureType(Zombie)"
+    ]
+  },
+  {
+    "name": "Dread Linnorm // Scale Deflection",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Dreamdew Entrancer",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Driven // Despair",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Druid Class",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Dusk's Landing",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Earth Rumble",
+    "issues": [
+      3,
+      1
+    ]
+  },
+  {
+    "name": "Eclipsed Boggart",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Eclipsed Elf",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Eclipsed Flamekin",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Eclipsed Kithkin",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Eclipsed Merrow",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Ecstatic Beauty",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Eddie Brock // Venom, Lethal Protector",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Eladamri",
+    "issues": [
+      10
+    ],
+    "contains": [
+      "NextAmountOfDamageThatWouldBeDealtToRecipient(Integer(1), Permanent(Ref_TargetPermanent))"
+    ]
+  },
+  {
+    "name": "Elven Rite",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Emergency Eject",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "DestroyPermanent(Ref_TargetPermanent)"
+    ]
+  },
+  {
+    "name": "Emeria's Call // Emeria, Shattered Skyclave",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Emeritus of Abundance // Regrowth",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Emperor of Bones",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Enchanter's Bane",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "PlayerMayCost(ControllerOfPermanent(Ref_TargetPermanent), SacrificePermanent(Ref_TargetPermanent))",
+      "Unless(CostWasPaid, [PermanentDealsDamage"
+    ]
+  },
+  {
+    "name": "Enduring Angel // Angelic Enforcer",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Energy Vortex",
+    "issues": [
+      7,
+      1
+    ],
+    "contains": [
+      "ActivatedWithModifiers",
+      "PutCounters([NumberCountersOfTypeOnPermanent(ValueX, VortexCounter"
+    ]
+  },
+  {
+    "name": "Entropic Battlecruiser",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Epochrasite",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "CreateEachExiledCardEffect(TheCardsExiledThisWay, [AddAbility([BasicSuspend])])"
+    ]
+  },
+  {
+    "name": "Esika, God of the Tree // The Prismatic Bridge",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Esper Origins // Summon: Esper Maduin",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "Flashback(PayMana([ManaCostGeneric(3), ManaCostG]))"
+    ]
+  },
+  {
+    "name": "Essence Leak",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Estinien Varlineau",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "DrawNumberCards(ValueX), LoseLife(ValueX)"
+    ]
+  },
+  {
+    "name": "Euru, Acorn Scrounger",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Everything Pizza",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Exploration",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Exploration Broodship",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Explore",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Extus, Oriq Overlord // Awaken the Blood Avatar",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Eye of Jace",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Eye of Nidhogg",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Faithbound Judge // Sinner's Judgment",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "PlayerAction(HostPlayer, LoseTheGame)"
+    ]
+  },
+  {
+    "name": "Farrelite Priest",
+    "issues": [
+      9
+    ],
+    "contains": [
+      "TimesThisAbilityHasBeenActivatedThisTurnIs(GreaterThanOrEqualTo(Integer(4)))"
+    ]
+  },
+  {
+    "name": "Fated Conflagration",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Favored Enemy",
+    "issues": [
+      7,
+      2
+    ]
+  },
+  {
+    "name": "Fear of Immobility",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Felonious Rage",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Fiendslayer Paladin",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Fighter Class",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Filigree Vector",
+    "issues": [
+      4,
+      1
+    ]
+  },
+  {
+    "name": "Final Showdown",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Find // Finality",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Fires of Mount Doom",
+    "issues": [
+      4
+    ]
+  },
+  {
+    "name": "Firestorm",
+    "issues": [
+      4
+    ]
+  },
+  {
+    "name": "Fisher's Talent",
+    "issues": [
+      4,
+      1
+    ],
+    "contains": [
+      "RevealTopCardOfLibraryOfType(IsCardtype(Land))",
+      "ClassAbility([ManaCostG, ManaCostU]",
+      "ClassAbility([ManaCostGeneric(2), ManaCostG, ManaCostU]"
+    ]
+  },
+  {
+    "name": "Fishing Pole",
+    "issues": [
+      4
+    ]
+  },
+  {
+    "name": "Flamescroll Celebrant // Revel in Silence",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Flashback",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Flow State",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Follow the Lumarets",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Forging the Anchor",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "MayRevealAnyNumberOfCardsOfTypeAndPutThemIntoHand(IsCardtype(Artifact))"
+    ]
+  },
+  {
+    "name": "Fortune Teller",
+    "issues": [
+      2,
+      1
+    ]
+  },
+  {
+    "name": "Fortune Teller's Talent",
+    "issues": [
+      2,
+      1
+    ]
+  },
+  {
+    "name": "Foul-Tongue Invocation",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Fractalize",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Fracture",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Planeswalker)])"
+    ]
+  },
+  {
+    "name": "Fracturing Gust",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Frogtosser Banneret",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Furgul, Quag Nurturer",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Gargos, Vicious Watcher",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Gastal Raider",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "General's Kabuto",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "PreventDamage(CombatDamageWouldBeDealtToRecipient(Permanent(HostPermanent)), [PreventThatDamage])"
+    ]
+  },
+  {
+    "name": "Genesis",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Genesis Ultimatum",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "Exile([Spell(ThisSpell)], [])"
+    ]
+  },
+  {
+    "name": "Ghost of Ramirez DePietro",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Ghostform",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Ghostly Keybearer",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Gideon Blackblade",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Gideon's Phalanx",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Gloom Ripper",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Glyph of Life",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Gold Rush",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Goreclaw, Terror of Qal Sisma",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "DecreaseSpellCost(And([IsCardtype(Creature), PowerIs(GreaterThanOrEqualTo(Integer(4)))]), [CostReduceGeneric(2)])"
+    ]
+  },
+  {
+    "name": "Gossip's Talent",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Gourmand's Talent",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Graceful Restoration",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Great Train Heist",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Great Whale",
+    "issues": [
+      4
+    ]
+  },
+  {
+    "name": "Greatbow Doyen",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "WhenAPermanentDealsDamageToAPermanent(And([IsCreatureType(Archer)"
+    ]
+  },
+  {
+    "name": "Grief",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "RevealHandAndPlayerChoosesACardToDiscard(You, IsNonCardtype(Land))"
+    ]
+  },
+  {
+    "name": "Grist, the Hunger Tide",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Hand of Emrakul",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Harmonious Emergence",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Harmonize",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Harmonized Trio // Brainstorm",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Hazel's Brewmaster",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Healing Grace",
+    "issues": [
+      2
+    ],
+    "contains": [
+      "[PreventThatDamage]), GainLife(Integer(3))"
+    ],
+    "excludes": [
+      "GainLife(TheAmountOfDamagePreventedThisWay)"
+    ]
+  },
+  {
+    "name": "Hearthhull, the Worldseed",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Heaven // Earth",
+    "issues": [
+      1
+    ],
+    "contains": [
+      "EachPermanent(And([IsCardtype(Creature), HasAbility(Flying)]))",
+      "EachPermanent(And([IsCardtype(Creature), DoesntHaveAbility(Flying)]))"
+    ]
+  },
+  {
+    "name": "Herdchaser Dragon",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Hidden Dragonslayer",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Hoarder's Greed",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "RepeatableActions([LoseLife(Integer(2))"
+    ]
+  },
+  {
+    "name": "Hollowhenge Overlord",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Hotel of Fears",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "Subtypes: [Spacecraft]"
+    ],
+    "excludes": [
+      "Subtypes: [Spaceship]"
+    ]
+  },
+  {
+    "name": "Hunter's Mark",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Hunter's Talent",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Huntmaster of the Fells // Ravager of the Fells",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Icefeather Aven",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Idris, Soul of the TARDIS",
+    "issues": [
+      7,
+      2
+    ],
+    "contains": [
+      "VanishingEnters(3)"
+    ]
+  },
+  {
+    "name": "Illuminate",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Illusion // Reality",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Imperial Hellkite",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "In the Darkness Bind Them",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "UntapEachPermanent(ThePermanentsGainedControlOfThisWay)"
+    ]
+  },
+  {
+    "name": "Incremental Blight",
+    "issues": [
+      8
+    ],
+    "contains": [
+      "NumberCountersOfTypeOnPermanent(Integer(3), PTCounter(-1, -1), Ref_TargetPermanent3)"
+    ]
+  },
+  {
+    "name": "Incremental Growth",
+    "issues": [
+      8
+    ],
+    "contains": [
+      "NumberCountersOfTypeOnPermanent(Integer(3), PTCounter(+1, +1), Ref_TargetPermanent3)"
+    ]
+  },
+  {
+    "name": "Infernal Offering",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Ingenious Mastery",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Initiates of the Ebon Hand",
+    "issues": [
+      9
+    ],
+    "contains": [
+      "TimesThisAbilityHasBeenActivatedThisTurnIs(GreaterThanOrEqualTo(Integer(4)))"
+    ]
+  },
+  {
+    "name": "Innkeeper's Talent",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Inspiring Refrain",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Inspirit",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Inspirit, Flagship Vessel",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Insurrection",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Intermediate Chirography",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Into the Earthen Maw",
+    "issues": [
+      1
+    ],
+    "contains": [
+      "UptoOneTargetPermanent(And([IsCardtype(Creature), HasAbility(Flying)])), UptoOneTargetPermanent(And([IsCardtype(Creature), DoesntHaveAbility(Flying)]))"
+    ]
+  },
+  {
+    "name": "Invert the Skies",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Invoke Despair",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "LoseLife(Integer(2))), DrawACard"
+    ]
+  },
+  {
+    "name": "Invoke the Ancients",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Ire Shaman",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Jadzi, Oracle of Arcavios // Journey to the Oracle",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Jeska, Thrice Reborn",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Jet's Brainwashing",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Jon Irenicus, Shattered One",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Joust Through",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Justice",
+    "issues": [
+      7,
+      1
+    ]
+  },
+  {
+    "name": "Kairi, the Swirling Sky",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Karplusan Strider",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Katara, Waterbending Master",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "If(CostWasPaid, [DiscardACard])"
+    ]
+  },
+  {
+    "name": "Kessig Wolf",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Kessig Wolf Run",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Kiora, Master of the Depths",
+    "issues": [
+      4,
+      1
+    ],
+    "contains": [
+      "UptoOneTargetPermanent(IsCardtype(Creature)), UptoOneTargetPermanent(IsCardtype(Land))"
+    ]
+  },
+  {
+    "name": "Knockout Blow",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Kolaghan Stormsinger",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Kolvori, God of Kinship // The Ringhart Crest",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Kor Blademaster",
+    "issues": [
+      2
+    ],
+    "contains": [
+      "IsCreatureType(Warrior), IsEquipped"
+    ]
+  },
+  {
+    "name": "Kyren Legate",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Lantern Flare",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "GainLife(ValueX)",
+      "GainLife(TheNumberOfPermanentsOnTheBattlefield"
+    ]
+  },
+  {
+    "name": "Last Night Together",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Lazav, Dimir Mastermind",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Lead the Stampede",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Leader's Talent",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Legion's Chant",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Legolas's Quick Reflexes",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "UntapPermanent(Ref_TargetPermanent)"
+    ]
+  },
+  {
+    "name": "Lethal Protection",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Library",
+    "issues": [
+      7,
+      6,
+      4,
+      1
+    ]
+  },
+  {
+    "name": "Liege of the Axe",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Lightfoot Rogue",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Lightning Coils",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])]))"
+    ]
+  },
+  {
+    "name": "Liliana the Faultless",
+    "issues": [
+      2
+    ],
+    "contains": [
+      "DiscardACard]), Targeted"
+    ]
+  },
+  {
+    "name": "Limits of Solidarity",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Littjara",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Lively Dirge",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "ReturnUptoNumberGroupCardsFromPlayersGraveyardToBattlefield(Integer(2), IsCardtype(Creature), TotalManaValueIs(LessThanOrEqualTo(Integer(4))), You"
+    ],
+    "excludes": [
+      "Targeted("
+    ]
+  },
+  {
+    "name": "Lizard, Connors's Curse",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Loki, the Deceiver",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Long River Lurker",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "WhenACreatureDealsCombatDamage(SinglePermanent(Ref_TargetPermanent))"
+    ]
+  },
+  {
+    "name": "Lord Windgrace",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Lord of the Nazgûl",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Lukka, Coppercoat Outcast",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Lumen-Class Frigate",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Maelstrom Djinn",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Magma Opus",
+    "issues": [
+      4,
+      1
+    ],
+    "contains": [
+      "DrawNumberCards(Integer(2))"
+    ]
+  },
+  {
+    "name": "Majestic Myriarch",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Manacles of Decay",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "CreatePermanentRuleEffectUntil(HostPermanent, [CantBlock], UntilEndOfTurn)"
+    ]
+  },
+  {
+    "name": "Mapping the Maze",
+    "issues": [
+      7,
+      1
+    ],
+    "contains": [
+      "ReturnAGraveyardCardToHand(And([IsMulticolored, Or([IsCardtype(Instant), IsCardtype(Sorcery)])]))"
+    ]
+  },
+  {
+    "name": "Marath, Will of the Wild",
+    "issues": [
+      7,
+      1
+    ],
+    "contains": [
+      "CreateTokens([TokenWithPT(PTX(X, X, ValueX)"
+    ]
+  },
+  {
+    "name": "Mark of the Oni",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Markov Enforcer",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Massacre",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Master Skald",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Mazemind Tome",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "MustCost(Exile([Permanent(Trigger_ThatPermanent)], []))"
+    ]
+  },
+  {
+    "name": "Mechtitan Core",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Meltstrider's Resolve",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Memory Crystal",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "DecreaseBuybackCosts([ManaCostGeneric(2)])"
+    ]
+  },
+  {
+    "name": "Memory Theft",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Menacing Ogre",
+    "issues": [
+      2
+    ],
+    "contains": [
+      "NumberCountersOfTypeOnPermanent(Integer(2), PTCounter(+1, +1), ThisPermanent)"
+    ]
+  },
+  {
+    "name": "Mephidross Slime",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "ShuffleEachGraveyardCardIntoLibrary(Or([SingleGraveyardCard(Trigger_ThatGraveyardCard), SingleGraveyardCard(TheCardConjuredIntoGraveyardThisWay)]))"
+    ]
+  },
+  {
+    "name": "Mercurial Transformation",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "[LosesAllAbilities, SetColor"
+    ]
+  },
+  {
+    "name": "Mila, Crafty Companion // Lukka, Wayward Bonder",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Mind Spike",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "PlayerAction(Ref_TargetPlayer, DiscardCard(TheCardChosenThisWay)), LoseLife(Integer(2))"
+    ]
+  },
+  {
+    "name": "Mirkwood",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Mirkwood Elk",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "GainLife(PowerOfGraveyardCard(Ref_TargetGraveyardCard))"
+    ]
+  },
+  {
+    "name": "Mischief and Mayhem",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Mischievous Quanar",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Mistbreath Elder",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "MustCost(PutAPermanentIntoItsOwnersHand(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])]))"
+    ]
+  },
+  {
+    "name": "Mistfire Weaver",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Mogg Salvage",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Mondassian Colony Ship",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "Subtypes: [Spacecraft]"
+    ],
+    "excludes": [
+      "Subtypes: [Spaceship]"
+    ]
+  },
+  {
+    "name": "Monk Class",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Monument to Perfection",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Moogles' Valor",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Mount Doom",
+    "issues": [
+      4
+    ]
+  },
+  {
+    "name": "Multani",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Multani's Decree",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Mythos of Brokkos",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "PutUptoNumberCardsFromGraveyardToHand(Integer(2), IsPermanent)"
+    ],
+    "excludes": [
+      "Targeted("
+    ]
+  },
+  {
+    "name": "Nacatl War-Pride",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "AtTheBeginningOfTheNextEndStep, ActionList([Exile([EachPermanent(TheTokensCreatedThisWay)], [])])"
+    ]
+  },
+  {
+    "name": "Nahiri's Stoneblades",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Nalathni Dragon",
+    "issues": [
+      9
+    ],
+    "contains": [
+      "TimesThisAbilityHasBeenActivatedThisTurnIs(GreaterThanOrEqualTo(Integer(4)))"
+    ]
+  },
+  {
+    "name": "Natural Balance",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Necropolis",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Nick Fury, Agent of S.H.I.E.L.D.",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Nightbird's Clutches",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Nightscape Familiar",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Nim Deathmantle",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Ninja Teen",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Nissa's Judgment",
+    "issues": [
+      3
+    ],
+    "contains": [
+      "UptoOneTargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(Opponent)]))"
+    ]
+  },
+  {
+    "name": "Nissa, Vastwood Seer // Nissa, Sage Animist",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Nissa, Who Shakes the World",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "UntapPermanent(Ref_TargetPermanent)"
+    ]
+  },
+  {
+    "name": "No Admittance",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Novel Nunchaku",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Obuun, Mul Daya Ancestor",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Ogre Chitterlord",
+    "issues": [
+      7,
+      2
+    ]
+  },
+  {
+    "name": "Oko, Lorwyn Liege // Oko, Shadowmoor Scion",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Old-Growth Troll",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Omnath, Locus of All",
+    "issues": [
+      4
+    ]
+  },
+  {
+    "name": "Ondu Knotmaster // Throw a Line",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Onslaught",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Ophiomancer",
+    "issues": [
+      2
+    ],
+    "contains": [
+      "ControlsNo(IsCreatureType(Snake))"
+    ]
+  },
+  {
+    "name": "Opportunity",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Osseous Exhale",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Pack's Betrayal",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Paladin Class",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Palinchron",
+    "issues": [
+      4
+    ]
+  },
+  {
+    "name": "Panic Attack",
+    "issues": [
+      3
+    ],
+    "contains": [
+      "UptoNumberTargetPermanents(Integer(3), IsCardtype(Creature))"
+    ]
+  },
+  {
+    "name": "Pardic Dragon",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "PutCounters([ACounterOfTypeOnCardInExile(TimeCounter, ThisExiledCard)])"
+    ]
+  },
+  {
+    "name": "Party Dude",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Peregrine Drake",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "UntapUptoNumberPermanents(Integer(5), IsCardtype(Land))"
+    ],
+    "excludes": [
+      "Targeted("
+    ]
+  },
+  {
+    "name": "Pestilent Cauldron // Restorative Burst",
+    "issues": [
+      7,
+      1
+    ],
+    "contains": [
+      "FrontFace: (Name: \"Pestilent Cauldron\", Typeline: (Supertypes: [], Cardtypes: [Artifact], Subtypes: []), ManaCost: [ManaCostGeneric(2), ManaCostB]",
+      "BackFace: (Name: \"Restorative Burst\", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), ManaCost: [ManaCostGeneric(3), ManaCostG, ManaCostG]",
+      "Ref_TargetGraveyardCards)], []), DrawACard"
+    ]
+  },
+  {
+    "name": "Phabine, Boss's Confidant",
+    "issues": [
+      1
+    ],
+    "contains": [
+      "AdjustPTForEach(+1, +1, NumLibraryCardsRevealedThisWay(IsNonCardtype(Land)))"
+    ]
+  },
+  {
+    "name": "Phalanx Tactics",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Phyrexian Portal",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Pick-a-Beeble",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "CreateTokens([TreasureToken], []), If("
+    ]
+  },
+  {
+    "name": "Pitiless Fists",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Pollen Remedy",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Pore Over the Pages",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Portent",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Portent of Betrayal",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Press into Service",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Press the Advantage",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Primal Clay",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Primal Might",
+    "issues": [
+      3
+    ],
+    "contains": [
+      "UptoOneTargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(Other(You))]))"
+    ]
+  },
+  {
+    "name": "Primal Plasma",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Primitive Justice",
+    "issues": [
+      7,
+      1
+    ]
+  },
+  {
+    "name": "Proclamation of Rebirth",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Prophetic Bolt",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Protect // Serve",
+    "issues": [
+      5,
+      3,
+      2,
+      1
+    ]
+  },
+  {
+    "name": "Prying Questions",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Puppeteer",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Puppeteer Clique",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Purphoros, Bronze-Blooded",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "DevotionToColorsIs([Red], LessThan(Integer(5)))",
+      "PutACardFromHandOnBattlefield("
+    ]
+  },
+  {
+    "name": "Rabble-Rouser",
+    "issues": [
+      2
+    ],
+    "contains": [
+      "CreateEachPermanentLayerEffectUntil("
+    ]
+  },
+  {
+    "name": "Racketeer Boss",
+    "issues": []
+  },
+  {
+    "name": "Rage into the Valley",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Rally for the Throne",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Rally the Monastery",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Ramirez DePietro",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Ranger Class",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Rattleclaw Mystic",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Razor Hippogriff",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "GainLife(ManaValueOfGraveyardCard(Ref_TargetGraveyardCard))"
+    ]
+  },
+  {
+    "name": "Reality Strobe",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "PutPermanentIntoItsOwnersHand(Ref_TargetPermanent)"
+    ]
+  },
+  {
+    "name": "Reason // Believe",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Reasonable Doubt",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Rebirth",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Reconstruction",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Reflexes",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Refresh",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Refreshing Rain",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Regrowth",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Renewal",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Research // Development",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Revenant",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Revival // Revenge",
+    "issues": [
+      6,
+      2,
+      1
+    ]
+  },
+  {
+    "name": "Revival Experiment",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Riding the Dilu Horse",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Righteous Fury",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Riptide",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Riptide Survivor",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Rite of Renewal",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "Exile([Spell(ThisSpell)], [])"
+    ]
+  },
+  {
+    "name": "Ritual of Hope",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "River's Grasp",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Robber of the Rich",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Rogue Class",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Rowdy Crew",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Rupture",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Rushwood Legate",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Sacrifice",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Salvage",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Saprazzan Breaker",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "[CantBeBlocked]"
+    ]
+  },
+  {
+    "name": "Saprazzan Legate",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Saprazzan Outrigger",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "AtTheNextEndOfCombat, ActionList([PutPermanentOnTopOfOwnersLibrary(Trigger_ThatCreature)])"
+    ]
+  },
+  {
+    "name": "Sarkhan's Rage",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Scalpelexis",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Scarecrow",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Scavenger's Talent",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Scrounge",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Searing Blood",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Season of the Bold",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Seasons Past",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "PutSpellOnBottomOfOwnersLibrary(ThisSpell)"
+    ]
+  },
+  {
+    "name": "Seize Opportunity",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Sentinel",
+    "issues": [
+      5
+    ]
+  },
+  {
+    "name": "Sephiroth, Fallen Hero",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Settle the Score",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Shadrix Silverquill",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Shapeshifter",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Shared Fate",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "[ExilesFaceDown]",
+      "MayLookAtFaceDownExiledCards(WasExiledByPlayerWithPermanent(EachablePlayer, ThisPermanent))"
+    ]
+  },
+  {
+    "name": "Shatter",
+    "issues": [
+      3,
+      1
+    ]
+  },
+  {
+    "name": "Shelter",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "UntilEndOfTurn), DrawACard"
+    ]
+  },
+  {
+    "name": "Shieldhide Dragon",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Shilgengar, Sire of Famine",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Silence",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Silence the Believers",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Silent Gravestone",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "AnyCardInAnyGraveyard)], []), DrawACard"
+    ]
+  },
+  {
+    "name": "Silkguard",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Silumgar Assassin",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Sivvi's Ruse",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Skrelv, Defector Mite",
+    "issues": [
+      5
+    ],
+    "contains": [
+      "HexproofFrom(FromColor(TheChosenColor))"
+    ],
+    "excludes": [
+      "Protection(FromColor"
+    ]
+  },
+  {
+    "name": "Skullcage",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Skyclave Relic",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Smashing Success",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Smelting Vat",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Smuggler's Surprise",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Solidarity",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Somberwald Beastmaster",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Somnophore",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "TapPermanent(Ref_TargetPermanent), CreatePermanentRuleEffectUntil"
+    ]
+  },
+  {
+    "name": "Sonar Strike",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Song-Mad Treachery // Song-Mad Ruins",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Sorcerer Class",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Sorceress's Schemes",
+    "issues": [
+      1
+    ],
+    "contains": [
+      "TargetExiledCard(And([HasAbility(AnyFlashback), OwnedByAPlayer(SinglePlayer(You))]))"
+    ]
+  },
+  {
+    "name": "Soul Separator",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CreateTokens"
+    ]
+  },
+  {
+    "name": "Spark Double",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Sparkshaper Visionary",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Spectacular Skywhale",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Spell Stutter",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Splendid Agony",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Split the Spoils",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "Exile([EachCardInGraveyards(Ref_TargetGraveyardCards)], []), SeparateExiledCardsIntoTwoPiles"
+    ]
+  },
+  {
+    "name": "Spreading Insurrection",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Spry and Mighty",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "ChooseNumberPermanents(Integer(2)",
+      "PowerOfPermanent(TheFirstChosenPermanent), PowerOfPermanent(TheSecondChosenPermanent)"
+    ],
+    "excludes": [
+      "Targeted("
+    ]
+  },
+  {
+    "name": "Stampede",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Starving Revenant",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Stenchskipper",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Steward of the Harvest",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Stillness in Motion",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Stitcher Geralf",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Stonybrook Banneret",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Stormchaser's Talent",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Stormscape Familiar",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Stormwing Dragon",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Storyweave",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Stratus Dancer",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Struggle // Survive",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Struggle for Sanity",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "ReturnEachExiledCardToGraveyard(WasExiledByPlayerThisWay(You))"
+    ]
+  },
+  {
+    "name": "Stunning Shot",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Submerge",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Subtlety",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Sudden Storm",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Summon: Kujata",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Summon: Magus Sisters",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Summoner's Sending",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Sungold Sentinel",
+    "issues": [
+      5
+    ],
+    "contains": [
+      "HexproofFrom(FromColor(TheChosenColor))"
+    ],
+    "excludes": [
+      "AddAbility([Hexproof])"
+    ]
+  },
+  {
+    "name": "Sunscape Familiar",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Sunset Revelry",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Surly Badgersaur",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Surrender Your Thoughts",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Suspend",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Suspicious Detonation",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Sylvan Hierophant",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "PutGraveyardCardIntoHand(Ref_TargetGraveyardCard)"
+    ]
+  },
+  {
+    "name": "Sylvan Library",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "ChooseNumberCardsInHandOfType(Integer(2), WasDrawnThisTurn)",
+      "ActionForEachCardInHand(TheChosenCardsInHand, [MayCost(PayLife(Integer(4))), Unless(CostWasPaid, [PutCardFromHandOnTopOfLibrary(EachableCardInHand)])])"
+    ],
+    "excludes": [
+      "DiscardNumberCardsDrawnThisTurn"
+    ]
+  },
+  {
+    "name": "Symbiosis",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Synchronized Charge",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Synthesizer Labship",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Tackle Artist",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Take for a Ride",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Talion's Throneguard",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Tannuk, Steadfast Second",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Teferi's Reproach",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "Protection(FromEverything), LifeTotalCantChange"
+    ]
+  },
+  {
+    "name": "Teferi, Hero of Dominaria",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "AtTheBeginningOfTheNextEndStep, ActionList([UntapUptoNumberPermanents(Integer(2), IsCardtype(Land))])"
+    ]
+  },
+  {
+    "name": "Temporal Firestorm",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "ChooseUptoNumberPermanents(NumTimesSpellWasKicked(ThisSpell)",
+      "PhaseOutEachPermanent(TheChosenPermanents)"
+    ]
+  },
+  {
+    "name": "Tentative Connection",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Terastodon",
+    "issues": [
+      3
+    ],
+    "contains": [
+      "UptoNumberTargetPermanents(Integer(3), IsNonCardtype(Creature))",
+      "MayAction(DestroyEachPermanent(Ref_TargetPermanents))"
+    ]
+  },
+  {
+    "name": "Thalakos Deceiver",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "If(CostWasPaid, [GainControlOfPermanent(Ref_TargetPermanent)])"
+    ]
+  },
+  {
+    "name": "The Aesir Escape Valhalla",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "PutPermanentIntoItsOwnersHand(ThisPermanent), PutExiledCardIntoOwnersHand(TheExiledCard)"
+    ]
+  },
+  {
+    "name": "The Balrog of Moria",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "The Binding of the Titans",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "Exile([EachCardInGraveyards(Ref_TargetGraveyardCards)], []), GainLifeForEach"
+    ]
+  },
+  {
+    "name": "The Boulder, Ready to Rumble",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "TargetPermanent(And([IsCardtype(Land), ControlledByAPlayer(SinglePlayer(You))]))"
+    ]
+  },
+  {
+    "name": "The Dining Car",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "Subtypes: [Spacecraft]"
+    ],
+    "excludes": [
+      "Subtypes: [Spaceship]"
+    ]
+  },
+  {
+    "name": "The Doctor's Childhood Barn",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "The Earth Crystal",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "The Great Aerie",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "The Jolly Balloon Man",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "The Legend of Kyoshi // Avatar Kyoshi",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "TargetPermanent(And([IsCardtype(Land), ControlledByAPlayer(SinglePlayer(You))]))"
+    ]
+  },
+  {
+    "name": "The Tale of Tamiyo",
+    "issues": [
+      7,
+      4
+    ],
+    "contains": [
+      "MillNumberCards(Integer(2))",
+      "[DrawACard, RepeatThisProcess]"
+    ]
+  },
+  {
+    "name": "Thelonite Hermit",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "There Is No Refuge",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "There and Back Again",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "TemptWithRing"
+    ]
+  },
+  {
+    "name": "Thorn Mammoth",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Thornscape Familiar",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Thought Hemorrhage",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Thought Rattle",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Thoughtweft Gambit",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Thousand Winds",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Thranduil, Sindarin Liege // Silvan Rally",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Three Steps Ahead",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Thundermane Dragon",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Thunderous Orator",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Thunderscape Familiar",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Time Spiral",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Titan of Littjara",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "If(CostWasPaid, [DiscardACard])"
+    ]
+  },
+  {
+    "name": "Tokka & Rahzar, Terrible Twos",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "ActionList([PermanentDealsDamage(ThisPermanent, Integer(3), Player(Trigger_ThatPlayer))])"
+    ],
+    "excludes": [
+      "Targeted("
+    ]
+  },
+  {
+    "name": "Tolaria",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Tolarian Entrancer",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "AtTheNextEndOfCombat, ActionList([GainControlOfPermanent(Trigger_TheBlockingCreature)])"
+    ]
+  },
+  {
+    "name": "Toph, Earthbending Master",
+    "issues": [
+      4
+    ]
+  },
+  {
+    "name": "Toph, Greatest Earthbender",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "TargetPermanent(And([IsCardtype(Land), ControlledByAPlayer(SinglePlayer(You))]))"
+    ]
+  },
+  {
+    "name": "Toph, Hardheaded Teacher",
+    "issues": [
+      4
+    ]
+  },
+  {
+    "name": "Toph, the Blind Bandit",
+    "issues": [
+      4
+    ]
+  },
+  {
+    "name": "Toph, the First Metalbender",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "TargetPermanent(And([IsCardtype(Land), ControlledByAPlayer(SinglePlayer(You))]))"
+    ]
+  },
+  {
+    "name": "Topple",
+    "issues": [
+      4
+    ],
+    "contains": [
+      "TargetPermanent(And([IsCardtype(Creature), PowerIs(EqualTo(TheGreatestPowerAmongPermanents(IsCardtype(Creature))))]))"
+    ]
+  },
+  {
+    "name": "Torrent Sculptor // Flamethrower Sonata",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Torrent of Souls",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Touch of Moonglove",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Tovolar, Dire Overlord // Tovolar, the Midnight Scourge",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Tower Above",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Treachery",
+    "issues": [
+      4,
+      2
+    ]
+  },
+  {
+    "name": "Triassic Egg",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Trygon Prime",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "CreatePermanentRuleEffectUntil(Ref_TargetPermanent, [CantBeBlocked], UntilEndOfTurn)"
+    ]
+  },
+  {
+    "name": "Turn Against",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Turntimber Symbiosis // Turntimber, Serpentine Wood",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Two-Headed Giant",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Tyrant of Discord",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Tyvar Kell",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "UntapPermanent(Ref_TargetPermanent)"
+    ]
+  },
+  {
+    "name": "Unearth",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Unearthly Blizzard",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Unexpected Request",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Unseal the Necropolis",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Uthros Research Craft",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Valiant Changeling",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Valki, God of Lies // Tibalt, Cosmic Impostor",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Valkyrie's Sword",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Vanish into Memory",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Vanishing",
+    "issues": [
+      7,
+      2
+    ]
+  },
+  {
+    "name": "Vantress Transmuter // Croaking Curse",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Vassal's Duty",
+    "issues": [
+      10
+    ],
+    "contains": [
+      "NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient(Integer(1), Permanent(Ref_TargetPermanent))"
+    ]
+  },
+  {
+    "name": "Vedalken Plotter",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Vengeful Regrowth",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "PutEachGraveyardCardOntoBattlefield(Ref_TargetGraveyardCards, [EntersTapped])",
+      "NumberTokens(TheNumberOfPermanentsPutOntoTheBattlefieldThisWay(IsCardtype(Land))",
+      "[Reach]))], [])"
+    ]
+  },
+  {
+    "name": "Venom Blast",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Venom, Eddie Brock",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "WhenAPermanentDies(And([Other(ThisPermanent), IsCardtype(Creature)]))"
+    ]
+  },
+  {
+    "name": "Vigilance",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Visage of Dread // Dread Osseosaur",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Voda Sea Scavenger",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "MayAction(PutAGenericCardOnTopOfLibrary)"
+    ]
+  },
+  {
+    "name": "Voldaren Ambusher",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Wandering Archaic // Explore the Vastlands",
+    "issues": [
+      7
+    ],
+    "contains": [
+      "MayRevealMultipleCardsOfTypeAndPutIntoHand",
+      "PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder"
+    ]
+  },
+  {
+    "name": "War Report",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Warbriar Blessing",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "Warlock Class",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Wasteland",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Wild Wasteland",
+    "issues": [
+      7
+    ]
+  },
+  {
+    "name": "Wilson, Majestic Bear",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Wingbeat Warrior",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Winter Blast",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Wizard Class",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Wondrous Revival",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Wort, the Raidmother",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Worzel, the Protector",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "Wrangle",
+    "issues": [
+      2
+    ]
+  },
+  {
+    "name": "You Come to the Gnoll Camp",
+    "issues": [
+      3
+    ]
+  },
+  {
+    "name": "You Meet in a Tavern",
+    "issues": [
+      6
+    ]
+  },
+  {
+    "name": "Yume, Chronicler of Valor",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "TheNthSpellCastEachTurnHasAbility(Integer(1), AnySpell, [Assist])"
+    ],
+    "excludes": [
+      "[Cascade]"
+    ]
+  },
+  {
+    "name": "Zaffai, Thunder Conductor",
+    "issues": [
+      1
+    ]
+  },
+  {
+    "name": "Zimone's Hypothesis",
+    "issues": [
+      6
+    ],
+    "contains": [
+      "MayAction(PutCounters",
+      "PutEachPermanentIntoItsOwnersHand(And([IsCardtype(Creature), PowerIs(TheChosenQuality)]))"
+    ]
+  }
+]

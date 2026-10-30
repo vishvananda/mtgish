@@ -3,6 +3,10 @@ name = "rust_syntax"
 version = "0.0.1"
 edition = "2021"
 
+[workspace]
+members = ["normalize"]
+resolver = "2"
+
 [dependencies]
 # Serialize/Deserialize, needed for RON
 serde = { version = "1.0.217", features = ["derive"] }
@@ -19,11 +23,19 @@ ts-rs = { version = "10.1", features = ["no-serde-warnings"] }
 
 # Non-Serde binary Serialize/Deserialize
 bincode = "2.0.1"
+sha2 = "0.10"
 
 [profile.dev]
-incremental = false
+incremental = true
+debug = 0
 
 [features]
-ronl_to_bincode = []
-ronl_to_pretty_ron = []
-write_out_json = []
+legacy-cli = []
+ronl_to_bincode = ["legacy-cli"]
+ronl_to_pretty_ron = ["legacy-cli"]
+write_out_json = ["legacy-cli"]
+
+[[bin]]
+name = "rust_syntax"
+path = "src/main.rs"
+required-features = ["legacy-cli"]

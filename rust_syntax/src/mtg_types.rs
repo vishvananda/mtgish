@@ -632,6 +632,7 @@ pub enum PlaneType {
   Shenmeng,
   Skaro,
   Spaceship,
+  Spacecraft,
   Tarkir,
   TheAbyss,
   TheDalekAsylum,
@@ -1248,17 +1249,17 @@ type CreatureTypeWord = CreatureType;
 #[ts(export)]
 #[serde(rename_all="PascalCase")]
 pub struct CardPT {
-  power: i32,
-  toughness: i32
+  pub power: i32,
+  pub toughness: i32
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
 #[serde(rename_all="PascalCase")]
 pub struct OracleTypeline {
-  supertypes: Vec<SuperType>,
-  cardtypes: Vec<CardType>,
-  subtypes: Vec<SubType>,
+  pub supertypes: Vec<SuperType>,
+  pub cardtypes: Vec<CardType>,
+  pub subtypes: Vec<SubType>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
@@ -2701,6 +2702,7 @@ pub enum Rule {
   DamageIsntRemovedFromCreaturesDuringCleanup(Box<Permanents>),
 
   IncreaseBuybackCosts(ManaCost),
+  DecreaseBuybackCosts(ManaCost),
   IncreaseMorphCosts(ManaCost),
 
   ItCantBecomeNight,
@@ -3075,6 +3077,9 @@ pub enum Rule {
   CantVentureIntoThisDungeonUnlessNamed,
   CountsAsACardWithNameForSpellsNamed(NameString, NameString),
   DeckBuildingIfCommander(Vec<DeckBuildingAction>),
+  // Append forms to preserve existing legacy bincode variant indices.
+  CDA_PowerToughness(Box<GameNumber>, Box<GameNumber>),
+
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
@@ -4098,6 +4103,7 @@ pub enum FutureReplacableEventWouldDealDamage {
   NextTimeDamageWouldBeDealtThisTurnToRecipient(Box<SingleDamageRecipient>),
 
   NextTimeDamageWouldBeDealtToRecipient(Box<SingleDamageRecipient>),
+  NextAmountOfDamageThatWouldBeDealtToRecipient(Box<GameNumber>, Box<SingleDamageRecipient>),
 }
 
 
@@ -4602,6 +4608,7 @@ pub enum Condition {
   ThisCardIsInYourGraveyard,
   ThisCardIsOnTheBattlefield,
   TimesThisAbilityHasResolvedThisTurnIs(Box<Comparison>),
+  TimesThisAbilityHasBeenActivatedThisTurnIs(Box<Comparison>),
   TopCardOfPlayersLibraryPassesFilter(Box<Player>, Box<Cards>),
   TopCardOfPlayersLibraryPassesFilter_Digital(Box<Player>, Box<Cards>),
   TotalPowerOfPermanentsIs(Box<Comparison>, Box<Permanents>),
@@ -4621,6 +4628,7 @@ pub enum Condition {
 #[ts(export)]
 #[cfg_attr(feature = "write_out_json", serde(tag = "_CardInHand", content = "args"))]
 pub enum CardInHand {
+  EachableCardInHand,
   TheCardChosenThisWay,
   TheCardConjuredIntoHandThisWay,
   TheCardConjuredThisWay,
@@ -6054,6 +6062,7 @@ pub enum GameNumber {
   TheNumberOfCardsPutIntoHandThisWay,
   TheNumberOfCardsReturnedToTheBattlefieldThisWay,
   TheNumberOfCardsScryedOnTopOfLibraryThisWay,
+  TheNumberOfCardsSurveilledOnTopOfLibraryThisWay,
   TheNumberOfCardsThatWerePutIntoAPlayersLibraryFromTheirHandOrLibraryThisTurn(Box<Players>),
   TheNumberOfCardtypesAmongCardsDiscardedThisWay,
   TheNumberOfCardtypesAmongGraveyardCards(Box<CardsInGraveyards>),
@@ -6410,6 +6419,7 @@ pub enum Players {
   AttackedWithACreatureThisTurn(Box<Permanents>),
   AttackedWithCreatureThisTurn(Box<Permanent>),
   AttackedWithCreaturesThisTurn,
+  AttackedWithAPermanentThisTurn(Box<Permanents>),
   AttackedWithCreaturesWithTotalPowerThisCombat(Box<Comparison>),
   AttackedWithNumCreaturesThisTurn(Box<Comparison>, Box<Permanents>),
   CastASpellDuringTheirLastTurn(Box<Spells>),
@@ -6911,6 +6921,7 @@ pub enum CardInExile {
 #[ts(export)]
 #[cfg_attr(feature = "write_out_json", serde(tag = "_CardsInHand", content = "args"))]
 pub enum CardsInHand {
+  WasDrawnThisTurn,
   And(Vec<CardsInHand>),
   Or(Vec<CardsInHand>),
   AnyCard,
@@ -8940,6 +8951,7 @@ pub enum Action {
   ActionForEachCheckableAbility(Vec<CheckHasable>, Vec<Action>),
   ActionForEachDistributedAnyTarget(Vec<Action>),
   ActionForEachExiledCard(CardsInExile, Vec<Action>),
+  ActionForEachCardInHand(Box<CardsInHand>, Vec<Action>),
   ActionForEachPermanent(Box<Permanents>, Vec<Action>),
   ActionForEachPermanentByController(Box<Permanents>, Vec<Action>),
   ActionForEachPermanentDestroyedThisWay(Vec<Action>),
@@ -9152,6 +9164,7 @@ pub enum Action {
   ChooseNumberCardsFromAmongCardsInHandRevealedThisWay(Box<GameNumber>, Box<Cards>),
   ChooseNumberCardsInEachPlayersGraveyard(Box<GameNumber>, Box<Cards>, Box<Players>),
   ChooseNumberCardsInHand(Box<GameNumber>),
+  ChooseNumberCardsInHandOfType(Box<GameNumber>, Box<CardsInHand>),
   ChooseNumberGraveyardCards(Box<GameNumber>, Box<CardsInGraveyards>),
   ChooseNumberPermanents(Box<GameNumber>, Box<Permanents>),
   ChooseOneOrTwoPermanents(Box<Permanents>),
@@ -9825,6 +9838,7 @@ pub enum Action {
   ReturnAnyNumberOfCardsFromGraveyardToBattlefield(Box<CardsInGraveyards>, Box<Player>, Vec<EnterFlag>),
   ReturnAnyNumberOfGroupCardsFromGraveyardToHand(Box<Cards>, GroupFilter),
   ReturnAnyNumberOfGroupCardsFromPlayersGraveyardToBattlefield(Box<CardsInGraveyards>, GroupFilter, Box<Player>, Vec<EnterFlag>),
+  ReturnUptoNumberGroupCardsFromPlayersGraveyardToBattlefield(Box<GameNumber>, Box<CardsInGraveyards>, GroupFilter, Box<Player>, Vec<EnterFlag>),
   ReturnAnyNumberOfGroupCardsMilledThisWayToBattlefield(Box<Cards>, GroupFilter, Vec<EnterFlag>),
   ReturnAnyNumberOfPermanentsToTheirOwnersHands(Box<Permanents>),
   ReturnDeadGraveyardCardToBattlefield(Vec<EnterFlag>),
@@ -10189,6 +10203,7 @@ pub enum AnteCard {
 #[ts(export)]
 #[cfg_attr(feature = "write_out_json", serde(tag = "_Target", content = "args"))]
 pub enum Target {
+  NumberTargetPlayersOrPermanents(Box<GameNumber>, Box<Players>, Box<Permanents>),
   UptoNumberTargetPermanentsAndOrCardsInGraveyards(Box<GameNumber>, Box<Permanents>, Box<CardsInGraveyards>),
   UptoOneTargetGraveyardCardOfEachCardType(Box<CardsInGraveyards>),
 
@@ -10403,6 +10418,7 @@ pub enum StackEffect {
 #[ts(export)]
 #[cfg_attr(feature = "write_out_json", serde(tag = "_SpellEffect", content = "args"))]
 pub enum SpellEffect {
+  Assist,
   EntersWithLayerEffectUntil(Vec<LayerEffect>, Box<Expiration>),
   WebSlinging(Box<Cost>),
   AdjustPT(i32, i32),

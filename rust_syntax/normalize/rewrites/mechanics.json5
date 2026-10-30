@@ -1,0 +1,4 @@
+{"version":1,"rules":[
+ {"id":"mechanic.Crew","source":"Crew","arity":1,"mechanic":"Crew","threshold":0,"once_each_turn":false},
+ {"id":"mechanic.CrewOnceEachTurn","source":"CrewOnceEachTurn","arity":1,"mechanic":"Crew","threshold":0,"once_each_turn":true}
+]}

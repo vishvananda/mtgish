@@ -1,0 +1,5 @@
+{
+  "title": "Amount-limited damage redirection encoded as redirecting an entire next event (Eladamri / Vassal’s Duty)",
+  "body": "Eladamri and Vassal's Duty drop the amount from “the next 1 damage,” encoding `NextTimeDamageWouldBeDealt...` instead. This redirects an entire damage event: a three-damage event would redirect three damage rather than one.\n\nOnly the next one damage should be redirected. Eladamri has no “this turn” expiration; Vassal's Duty does.",
+  "url": "https://github.com/i5jb/mtgish/issues/10"
+}

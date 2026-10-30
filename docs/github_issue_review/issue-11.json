@@ -1,0 +1,5 @@
+{
+  "title": "Crumb and Get It gifts a card draw instead of Food and omits its controller restriction",
+  "body": "Crumb and Get It has two encoding errors:\n\n- “Gift a Food” produces `PlayerAction(TheGiftedPlayer, DrawACard)` instead of a Food token.\n- Both gift branches use `TargetPermanent(IsCardtype(Creature))`, omitting the “you control” restriction.",
+  "url": "https://github.com/i5jb/mtgish/issues/11"
+}

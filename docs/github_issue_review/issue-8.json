@@ -1,0 +1,5 @@
+{
+  "title": "Repeated counter placement uses target two instead of target three (Incremental Growth / Incremental Blight)",
+  "body": "Incremental Growth and Incremental Blight announce three targets, but the third counter placement uses `Ref_TargetPermanent2` instead of `Ref_TargetPermanent3`.\n\nTarget two receives both the two-counter and three-counter placements; target three receives none. The third placement must apply three counters to target three.",
+  "url": "https://github.com/i5jb/mtgish/issues/8"
+}

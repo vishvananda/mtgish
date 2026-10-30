@@ -35,6 +35,9 @@ Usage:
     [--debug-english]
     [--debug-mtgish]
     [--report-unused-grammar-rules]
+    [--audit-templates]                 # semantic capture and grouping audit
+    [--audit-template-usage FILE_NAME]  # attach matched cards and capture values
+    [--audit-review FILE_NAME]          # apply input-checked reviewed exceptions
 `
 // ------------------------------------------------------------------------- //
 
@@ -57,6 +60,9 @@ var Config_DebugEnglish = false
 var Config_DebugMtgish  = false
 
 var Config_ReportUnused = false
+var Config_AuditTemplates = false
+var Config_AuditUsageFilename = ""
+var Config_AuditReviewFilename = ""
 
 // ------------------------------------------------------------------------- //
 
@@ -78,6 +84,8 @@ func readArguments() {
 
     // Optional
     if (arg == "--limit-to-subset")             { current_state = arg ; Config_LimitToSubset          = true  ; Config_SubsetFile = "" ; continue }
+    if (arg == "--audit-template-usage")        { current_state = arg ; Config_AuditUsageFilename     = "" ; continue }
+    if (arg == "--audit-review")                { current_state = arg ; Config_AuditReviewFilename    = "" ; continue }
 
     // Optional Flags
     if (arg == "--stop-after-first-failure")    { current_state = ""  ; Config_StopAfterFirstFailure  = true  ; continue }
@@ -98,6 +106,7 @@ func readArguments() {
     if (arg == "--debug-mtgish")                { current_state = ""  ; Config_DebugMtgish  = true  ; continue }
 
     if (arg == "--report-unused-grammar-rules") { current_state = ""  ; Config_ReportUnused = true  ; continue }
+    if (arg == "--audit-templates") { current_state = "" ; Config_AuditTemplates = true ; continue }
 
     // -------------------------------------
 
@@ -105,6 +114,8 @@ func readArguments() {
     if (current_state == "--short-names-file")      { Config_ShortNamesFilename  = arg ; current_state = "" ; continue }
     if (current_state == "--find-replace-file")     { Config_FindReplaceFilename = arg ; current_state = "" ; continue }
     if (current_state == "--limit-to-subset")       { Config_SubsetFile          = arg ; current_state = "" ; continue }
+    if (current_state == "--audit-template-usage")  { Config_AuditUsageFilename  = arg ; current_state = "" ; continue }
+    if (current_state == "--audit-review")          { Config_AuditReviewFilename = arg ; current_state = "" ; continue }
     if (current_state == "--english-grammar-files") { Config_EnglishGrammarFilenames = append(Config_EnglishGrammarFilenames, arg) ; continue }
     if (current_state == "--mtgish-grammar-files")  { Config_MtgishGrammarFilenames  = append(Config_MtgishGrammarFilenames,  arg) ; continue }
     if (current_state == "--mtgjson-files")         { Config_MtgjsonFilenames        = append(Config_MtgjsonFilenames,        arg) ; continue }
@@ -785,12 +796,37 @@ func makeSelfPairs(singles []string) map[string]string {
 func main() {
   readArguments()
 
+  if Config_AuditTemplates {
+    if len(Config_EnglishGrammarFilenames) == 0 {
+      fmt.Fprintln(os.Stderr, "--audit-templates needs --english-grammar-files")
+      os.Exit(1)
+    }
+    if err := WriteGrammarAudit(Config_EnglishGrammarFilenames, os.Stdout, Config_AuditReviewFilename); err != nil {
+      fmt.Fprintln(os.Stderr, err)
+      os.Exit(1)
+    }
+    return
+  }
+
   // Load all data
   englishGrammar     := ReadGrammarJsoncFiles(Config_EnglishGrammarFilenames)
   mtgishGrammar      := ReadGrammarJsoncFiles(Config_MtgishGrammarFilenames)
   ignoreCards        := ReadJsoncArray[string](Config_IgnoreListFilename)
   shortNames         := ReadJsoncMap[string](Config_ShortNamesFilename)
   findReplaceReasons  = ReadJsoncArray[FindReplaceEntry](Config_FindReplaceFilename)
+
+  var auditUsage *AuditUsage
+  if Config_AuditUsageFilename != "" {
+    audit, err := AuditGrammarFiles(Config_EnglishGrammarFilenames)
+    if err != nil { fmt.Fprintln(os.Stderr, err); os.Exit(1) }
+    inputFiles := append([]string{}, Config_EnglishGrammarFilenames...)
+    inputFiles = append(inputFiles, Config_MtgishGrammarFilenames...)
+    inputFiles = append(inputFiles, Config_MtgjsonFilenames...)
+    inputFiles = append(inputFiles, Config_IgnoreListFilename, Config_ShortNamesFilename, Config_FindReplaceFilename)
+    audit.ParserInputs, err = AuditParserInputs(inputFiles)
+    if err != nil { fmt.Fprintln(os.Stderr, err); os.Exit(1) }
+    auditUsage = NewAuditUsage(audit)
+  }
 
   jsonCards := []MtgJsonEntry{}
   for _, mtgjson_filename := range(Config_MtgjsonFilenames) {
@@ -828,13 +864,16 @@ func main() {
   //   fmt.Printf("[\n") }
 
   results := []CardInfo{}
+  failures := 0
   for _, jsonCard := range(jsonCards) {
     //fmt.Printf("Processing: %s\n", jsonCard.Name);
     cardInfo, err := ParseCard(englishGrammar, englishGrammarTree, mtgishGrammar, mtgishGrammarTree, shortNames, jsonCard)
+    if auditUsage != nil { auditUsage.Record(englishGrammar, cardInfo) }
     if (err != nil) {
+      failures++
       if (Config_StopAfterFirstFailure) {
         //fmt.Printf("Stopping after first failure: %s, %#v\n", jsonCard.Name, err);
-        return
+        os.Exit(1)
       }
       //fmt.Printf("Success: %s\n", jsonCard.Name);
       continue
@@ -864,6 +903,23 @@ func main() {
       }
       ReportUnusedTemplates(usedMtgishTemplates, mtgishGrammar)
     }
+  }
+
+  if auditUsage != nil {
+    auditUsage.Report.ParsedCards = len(results)
+    auditUsage.Report.ParseFailures = failures
+    if err := ReviewGrammarAudit(&auditUsage.Report, Config_AuditReviewFilename, true); err != nil {
+      fmt.Fprintln(os.Stderr, err)
+      os.Exit(1)
+    }
+    if err := auditUsage.Write(Config_AuditUsageFilename); err != nil {
+      fmt.Fprintln(os.Stderr, err)
+      os.Exit(1)
+    }
+  }
+  if failures > 0 {
+    fmt.Fprintf(os.Stderr, "%d card records failed parsing\n", failures)
+    os.Exit(1)
   }
 }
 

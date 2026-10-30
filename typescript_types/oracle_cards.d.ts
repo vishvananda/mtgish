@@ -46,6 +46,9 @@ type AbilityVariable =
 | { "_AbilityVariable": "TheChosenAbility" }
 | { "_AbilityVariable": "TheChosenAbilities" };
 type Action =
+| { "_Action": "ActionForEachCardInHand", "args": [CardsInHand, Array<Action>] }
+| { "_Action": "ChooseNumberCardsInHandOfType", "args": [GameNumber, CardsInHand] }
+| { "_Action": "ReturnUptoNumberGroupCardsFromPlayersGraveyardToBattlefield", "args": [GameNumber, CardsInGraveyards, GroupFilter, Player, Array<EnterFlag>] }
 | { "_Action": "Recruit" }
 | { "_Action": "Assimilate", "args": CardInGraveyards }
 | { "_Action": "CastAnyNumberOfSpellsFromAmongCopiedCardsWithoutPaying", "args": Spells }
@@ -1615,6 +1618,7 @@ type CardInGraveyards =
 | { "_CardInGraveyards": "Ref_TargetGraveyardCard5" }
 | { "_CardInGraveyards": "ThisGraveyardCard" };
 type CardInHand =
+| { "_CardInHand": "EachableCardInHand" }
 | { "_CardInHand": "TheCardChosenThisWay" }
 | { "_CardInHand": "TheCardConjuredIntoHandThisWay" }
 | { "_CardInHand": "TheCardConjuredThisWay" }
@@ -1855,6 +1859,7 @@ type CardsInGraveyards =
 | { "_CardsInGraveyards": "WasSurveilledThisTurn" }
 | { "_CardsInGraveyards": "WasntPutIntoGraveyardThisCombat" };
 type CardsInHand =
+| { "_CardsInHand": "WasDrawnThisTurn" }
 | { "_CardsInHand": "And", "args": Array<CardsInHand> }
 | { "_CardsInHand": "Or", "args": Array<CardsInHand> }
 | { "_CardsInHand": "AnyCard" }
@@ -2429,6 +2434,7 @@ type Condition =
 | { "_Condition": "ThisCardIsInYourGraveyard" }
 | { "_Condition": "ThisCardIsOnTheBattlefield" }
 | { "_Condition": "TimesThisAbilityHasResolvedThisTurnIs", "args": Comparison }
+| { "_Condition": "TimesThisAbilityHasBeenActivatedThisTurnIs", "args": Comparison }
 | { "_Condition": "TopCardOfPlayersLibraryPassesFilter", "args": [Player, Cards] }
 | { "_Condition": "TopCardOfPlayersLibraryPassesFilter_Digital", "args": [Player, Cards] }
 | { "_Condition": "TotalPowerOfPermanentsIs", "args": [Comparison, Permanents] }
@@ -3766,7 +3772,8 @@ type FutureReplacableEventWouldDealDamage =
 | { "_FutureReplacableEventWouldDealDamage": "NextTimeDamageWouldBeDealtThisTurnBySourceToRecipient", "args": [SingleDamageSource, SingleDamageRecipient] }
 | { "_FutureReplacableEventWouldDealDamage": "NextTimeDamageWouldBeDealtThisTurnToARecipient", "args": DamageRecipientsList }
 | { "_FutureReplacableEventWouldDealDamage": "NextTimeDamageWouldBeDealtThisTurnToRecipient", "args": SingleDamageRecipient }
-| { "_FutureReplacableEventWouldDealDamage": "NextTimeDamageWouldBeDealtToRecipient", "args": SingleDamageRecipient };
+| { "_FutureReplacableEventWouldDealDamage": "NextTimeDamageWouldBeDealtToRecipient", "args": SingleDamageRecipient }
+| { "_FutureReplacableEventWouldDealDamage": "NextAmountOfDamageThatWouldBeDealtToRecipient", "args": [GameNumber, SingleDamageRecipient] };
 type FutureReplacableEventWouldDestroy =
 | { "_FutureReplacableEventWouldDestroy": "NextTimePermanentWouldBeDestroyedThisTurn", "args": Permanent };
 type FutureReplacableEventWouldDraw =
@@ -4100,6 +4107,7 @@ type GameNumber =
 | { "_GameNumber": "TheNumberOfCardsPutIntoHandThisWay" }
 | { "_GameNumber": "TheNumberOfCardsReturnedToTheBattlefieldThisWay" }
 | { "_GameNumber": "TheNumberOfCardsScryedOnTopOfLibraryThisWay" }
+| { "_GameNumber": "TheNumberOfCardsSurveilledOnTopOfLibraryThisWay" }
 | { "_GameNumber": "TheNumberOfCardsThatWerePutIntoAPlayersLibraryFromTheirHandOrLibraryThisTurn", "args": Players }
 | { "_GameNumber": "TheNumberOfCardtypesAmongCardsDiscardedThisWay" }
 | { "_GameNumber": "TheNumberOfCardtypesAmongGraveyardCards", "args": CardsInGraveyards }
@@ -5495,6 +5503,7 @@ type PlaneswalkerType =
 type PlaneswalkerTypeVariable =
 | { "_PlaneswalkerTypeVariable": "TheChosenPlaneswalkerType" };
 type PlaneType =
+| "Spacecraft"
 | "Alara"
 | "AlfavaMetraxis"
 | "Amonkhet"
@@ -6007,6 +6016,7 @@ type Player =
 type PlayersAndPermanents =
 | { "_PlayersAndPermanents": "APlayerOrAPermanent", "args": [Players, Permanents] };
 type Players =
+| { "_Players": "AttackedWithAPermanentThisTurn", "args": Permanents }
 | { "_Players": "AnyPlayer" }
 | { "_Players": "And", "args": Array<Players> }
 | { "_Players": "Or", "args": Array<Players> }
@@ -7022,6 +7032,7 @@ type RevealTheTopNumberCardsOfLibraryCost =
 type Room =
 | { "_OracleCard": "Room", Typeline: OracleTypeline, LeftDoor: DoorInfo, RightDoor: DoorInfo, };
 type Rule =
+| { "_Rule": "DecreaseBuybackCosts", "args": Array<ManaSymbol> }
 | { "_Rule": "AnchorWord", "args": [string, Rule] }
 | { "_Rule": "StationChargedAnimate", "args": [GameRange, Array<Rule>, PT] }
 | { "_Rule": "StationCharged", "args": [GameRange, Array<Rule>] }
@@ -7289,6 +7300,7 @@ type Rule =
 | { "_Rule": "CDA_ColorButNotColorIdentity", "args": SettableColor }
 | { "_Rule": "CDA_Color", "args": SettableColor }
 | { "_Rule": "CDA_Power", "args": GameNumber }
+| { "_Rule": "CDA_PowerToughness", "args": [GameNumber, GameNumber] }
 | { "_Rule": "CDA_Toughness", "args": GameNumber }
 | { "_Rule": "CDA_Types", "args": CDA_Types }
 | { "_Rule": "Companion", "args": Companion }
@@ -7547,6 +7559,7 @@ type SourcedRule =
 type SpellCopyEffects =
 | { "_SpellCopyEffects": "NoSpellCopyEffects" };
 type SpellEffect =
+| { "_SpellEffect": "Assist" }
 | { "_SpellEffect": "EntersWithLayerEffectUntil", "args": [Array<LayerEffect>, Expiration] }
 | { "_SpellEffect": "WebSlinging", "args": Cost }
 | { "_SpellEffect": "AdjustPT", "args": [number, number] }
@@ -8564,6 +8577,7 @@ type Targets =
 | { "_Targets": "Ref_AnyTargets" }
 | { "_Targets": "Ref_TargetPlayersAndPermanents" };
 type Target =
+| { "_Target": "NumberTargetPlayersOrPermanents", "args": [GameNumber, Players, Permanents] }
 | { "_Target": "UptoNumberTargetPermanentsAndOrCardsInGraveyards", "args": [GameNumber, Permanents, CardsInGraveyards] }
 | { "_Target": "UptoOneTargetGraveyardCardOfEachCardType", "args": CardsInGraveyards }
 | { "_Target": "BetweenOneAndNumberAnyTargets", "args": GameNumber }

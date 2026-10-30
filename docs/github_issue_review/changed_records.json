@@ -1,0 +1,1857 @@
+[
+  {
+    "line": 26,
+    "name": "Aang, Swift Savior // Aang and La, Ocean's Fury",
+    "layout": "Transforming"
+  },
+  {
+    "line": 35,
+    "name": "Abandon Reason",
+    "layout": "Card"
+  },
+  {
+    "line": 36,
+    "name": "Abandon the Post",
+    "layout": "Card"
+  },
+  {
+    "line": 58,
+    "name": "Abigale, Eloquent First-Year",
+    "layout": "Card"
+  },
+  {
+    "line": 69,
+    "name": "Abomination, Terrifying Titan",
+    "layout": "Card"
+  },
+  {
+    "line": 119,
+    "name": "Abzan Charm",
+    "layout": "Card"
+  },
+  {
+    "line": 163,
+    "name": "Ace, Fearless Rebel",
+    "layout": "Card"
+  },
+  {
+    "line": 168,
+    "name": "Acid-Spewer Dragon",
+    "layout": "Card"
+  },
+  {
+    "line": 213,
+    "name": "Adarkar Unicorn",
+    "layout": "Card"
+  },
+  {
+    "line": 390,
+    "name": "Agatha's Soul Cauldron",
+    "layout": "Card"
+  },
+  {
+    "line": 482,
+    "name": "Ajani Steadfast",
+    "layout": "Card"
+  },
+  {
+    "line": 563,
+    "name": "Al-abara's Carpet",
+    "layout": "Card"
+  },
+  {
+    "line": 655,
+    "name": "Allies at Last",
+    "layout": "Card"
+  },
+  {
+    "line": 810,
+    "name": "Anafenza, Unyielding Lineage",
+    "layout": "Card"
+  },
+  {
+    "line": 993,
+    "name": "Annie Flash, the Veteran",
+    "layout": "Card"
+  },
+  {
+    "line": 1083,
+    "name": "{'_OracleCard': 'Split', 'Cards': [{'_OracleCard': 'Card', 'Name': 'Ap",
+    "layout": "Split"
+  },
+  {
+    "line": 1381,
+    "name": "Armed and Armored",
+    "layout": "Card"
+  },
+  {
+    "line": 1427,
+    "name": "Arni Slays the Troll",
+    "layout": "Card"
+  },
+  {
+    "line": 1695,
+    "name": "Aura Graft",
+    "layout": "Card"
+  },
+  {
+    "line": 1807,
+    "name": "Aven Liberator",
+    "layout": "Card"
+  },
+  {
+    "line": 1934,
+    "name": "Azusa's Many Journeys // Likeness of the Seeker",
+    "layout": "Transforming"
+  },
+  {
+    "line": 1965,
+    "name": "Badlands Revival",
+    "layout": "Card"
+  },
+  {
+    "line": 2033,
+    "name": "Ballyrush Banneret",
+    "layout": "Card"
+  },
+  {
+    "line": 2104,
+    "name": "Baral and Kari Zev",
+    "layout": "Card"
+  },
+  {
+    "line": 2201,
+    "name": "Basalt Golem",
+    "layout": "Card"
+  },
+  {
+    "line": 2250,
+    "name": "Battering Ram",
+    "layout": "Card"
+  },
+  {
+    "line": 2276,
+    "name": "Battle of Hoover Dam",
+    "layout": "Card"
+  },
+  {
+    "line": 2429,
+    "name": "Bellowing Bruiser",
+    "layout": "Adventurer"
+  },
+  {
+    "line": 2438,
+    "name": "Belltoll Dragon",
+    "layout": "Card"
+  },
+  {
+    "line": 2836,
+    "name": "Blinding Beam",
+    "layout": "Card"
+  },
+  {
+    "line": 2839,
+    "name": "Blinding Fog",
+    "layout": "Card"
+  },
+  {
+    "line": 2929,
+    "name": "Blood for Bones",
+    "layout": "Card"
+  },
+  {
+    "line": 2953,
+    "name": "Bloodcurdler",
+    "layout": "Card"
+  },
+  {
+    "line": 2991,
+    "name": "Bloodrage Alpha",
+    "layout": "Card"
+  },
+  {
+    "line": 3054,
+    "name": "Bludgeon Brawl",
+    "layout": "Card"
+  },
+  {
+    "line": 3055,
+    "name": "Blue Dragon",
+    "layout": "Card"
+  },
+  {
+    "line": 3230,
+    "name": "Bontu's Last Reckoning",
+    "layout": "Card"
+  },
+  {
+    "line": 3285,
+    "name": "Boros Battleshaper",
+    "layout": "Card"
+  },
+  {
+    "line": 3318,
+    "name": "Bosk Banneret",
+    "layout": "Card"
+  },
+  {
+    "line": 3478,
+    "name": "Break Ties",
+    "layout": "Card"
+  },
+  {
+    "line": 3544,
+    "name": "Brighthearth Banneret",
+    "layout": "Card"
+  },
+  {
+    "line": 3635,
+    "name": "Bronzehide Lion",
+    "layout": "Card"
+  },
+  {
+    "line": 3658,
+    "name": "Broodwarden",
+    "layout": "Card"
+  },
+  {
+    "line": 3675,
+    "name": "Brudiclad, Telchor Engineer",
+    "layout": "Card"
+  },
+  {
+    "line": 3733,
+    "name": "Bumi's Feast Lecture",
+    "layout": "Card"
+  },
+  {
+    "line": 3779,
+    "name": "Burning Sun's Fury",
+    "layout": "Card"
+  },
+  {
+    "line": 3800,
+    "name": "Burrog Barrage",
+    "layout": "Card"
+  },
+  {
+    "line": 3878,
+    "name": "Cacophony Unleashed",
+    "layout": "Card"
+  },
+  {
+    "line": 4089,
+    "name": "Captain's Maneuver",
+    "layout": "Card"
+  },
+  {
+    "line": 4234,
+    "name": "Catacomb Dragon",
+    "layout": "Card"
+  },
+  {
+    "line": 4244,
+    "name": "{'_OracleCard': 'Split', 'Cards': [{'_OracleCard': 'Card', 'Name': 'Ca",
+    "layout": "Split"
+  },
+  {
+    "line": 4281,
+    "name": "Caustic Bronco",
+    "layout": "Card"
+  },
+  {
+    "line": 4342,
+    "name": "Celestial Gatekeeper",
+    "layout": "Card"
+  },
+  {
+    "line": 4419,
+    "name": "Certain Death",
+    "layout": "Card"
+  },
+  {
+    "line": 4534,
+    "name": "Chandra, Hope's Beacon",
+    "layout": "Card"
+  },
+  {
+    "line": 4541,
+    "name": "Chandra, the Firebrand",
+    "layout": "Card"
+  },
+  {
+    "line": 4719,
+    "name": "Cho-Arrim Legate",
+    "layout": "Card"
+  },
+  {
+    "line": 5023,
+    "name": "Cloud of Faeries",
+    "layout": "Card"
+  },
+  {
+    "line": 5053,
+    "name": "Cloudspire Skycycle",
+    "layout": "Card"
+  },
+  {
+    "line": 5290,
+    "name": "Concealing Curtains // Revealing Eye",
+    "layout": "Transforming"
+  },
+  {
+    "line": 5415,
+    "name": "Contagion",
+    "layout": "Card"
+  },
+  {
+    "line": 5474,
+    "name": "Coordinated Assault",
+    "layout": "Card"
+  },
+  {
+    "line": 5616,
+    "name": "Countryside Crusher",
+    "layout": "Card"
+  },
+  {
+    "line": 5701,
+    "name": "Craig Boone, Novac Guard",
+    "layout": "Card"
+  },
+  {
+    "line": 6128,
+    "name": "Cutthroat Maneuver",
+    "layout": "Card"
+  },
+  {
+    "line": 6256,
+    "name": "Daretti, Scrap Savant",
+    "layout": "Card"
+  },
+  {
+    "line": 6270,
+    "name": "Daring Discovery",
+    "layout": "Card"
+  },
+  {
+    "line": 6386,
+    "name": "Dauntless Onslaught",
+    "layout": "Card"
+  },
+  {
+    "line": 6440,
+    "name": "Dawnsire, Sunstar Dreadnought",
+    "layout": "Card"
+  },
+  {
+    "line": 6531,
+    "name": "Death Bomb",
+    "layout": "Card"
+  },
+  {
+    "line": 6625,
+    "name": "Deceit",
+    "layout": "Card"
+  },
+  {
+    "line": 6703,
+    "name": "Deepwood Legate",
+    "layout": "Card"
+  },
+  {
+    "line": 6832,
+    "name": "Demonic Junker",
+    "layout": "Card"
+  },
+  {
+    "line": 6849,
+    "name": "Den Protector",
+    "layout": "Card"
+  },
+  {
+    "line": 6890,
+    "name": "Dermoplasm",
+    "layout": "Card"
+  },
+  {
+    "line": 6931,
+    "name": "Desertion",
+    "layout": "Card"
+  },
+  {
+    "line": 7045,
+    "name": "Diabolic Vision",
+    "layout": "Card"
+  },
+  {
+    "line": 7161,
+    "name": "Disa the Restless",
+    "layout": "Card"
+  },
+  {
+    "line": 7222,
+    "name": "Disorienting Choice",
+    "layout": "Card"
+  },
+  {
+    "line": 7408,
+    "name": "Done for the Day",
+    "layout": "Card"
+  },
+  {
+    "line": 7602,
+    "name": "Dragonspark Reactor",
+    "layout": "Card"
+  },
+  {
+    "line": 7626,
+    "name": "Dralnu's Crusade",
+    "layout": "Card"
+  },
+  {
+    "line": 7658,
+    "name": "Dread Linnorm",
+    "layout": "Adventurer"
+  },
+  {
+    "line": 8066,
+    "name": "Earth Rumble",
+    "layout": "Card"
+  },
+  {
+    "line": 8148,
+    "name": "Eclipsed Boggart",
+    "layout": "Card"
+  },
+  {
+    "line": 8149,
+    "name": "Eclipsed Elf",
+    "layout": "Card"
+  },
+  {
+    "line": 8150,
+    "name": "Eclipsed Flamekin",
+    "layout": "Card"
+  },
+  {
+    "line": 8151,
+    "name": "Eclipsed Kithkin",
+    "layout": "Card"
+  },
+  {
+    "line": 8152,
+    "name": "Eclipsed Merrow",
+    "layout": "Card"
+  },
+  {
+    "line": 8411,
+    "name": "Elven Rite",
+    "layout": "Card"
+  },
+  {
+    "line": 8412,
+    "name": "Elven Warhounds",
+    "layout": "Card"
+  },
+  {
+    "line": 8516,
+    "name": "Emergency Eject",
+    "layout": "Card"
+  },
+  {
+    "line": 8590,
+    "name": "Enchanter's Bane",
+    "layout": "Card"
+  },
+  {
+    "line": 8659,
+    "name": "Energy Vortex",
+    "layout": "Card"
+  },
+  {
+    "line": 8736,
+    "name": "Entropic Battlecruiser",
+    "layout": "Card"
+  },
+  {
+    "line": 8767,
+    "name": "Epochrasite",
+    "layout": "Card"
+  },
+  {
+    "line": 8786,
+    "name": "Erebos, Bleak-Hearted",
+    "layout": "Card"
+  },
+  {
+    "line": 8787,
+    "name": "Erebos, God of the Dead",
+    "layout": "Card"
+  },
+  {
+    "line": 8848,
+    "name": "Esika, God of the Tree // The Prismatic Bridge",
+    "layout": "ModalDFC"
+  },
+  {
+    "line": 8856,
+    "name": "Esper Origins // Summon: Esper Maduin",
+    "layout": "Transforming"
+  },
+  {
+    "line": 8880,
+    "name": "Essence Leak",
+    "layout": "Card"
+  },
+  {
+    "line": 8892,
+    "name": "Estinien Varlineau",
+    "layout": "Card"
+  },
+  {
+    "line": 8962,
+    "name": "Euru, Acorn Scrounger",
+    "layout": "Card"
+  },
+  {
+    "line": 9002,
+    "name": "Everything Pizza",
+    "layout": "Card"
+  },
+  {
+    "line": 9007,
+    "name": "Evil Eye of Urborg",
+    "layout": "Card"
+  },
+  {
+    "line": 9123,
+    "name": "Exploration Broodship",
+    "layout": "Card"
+  },
+  {
+    "line": 9198,
+    "name": "Eye of Nidhogg",
+    "layout": "Card"
+  },
+  {
+    "line": 9301,
+    "name": "Faithbound Judge // Sinner's Judgment",
+    "layout": "Transforming"
+  },
+  {
+    "line": 9501,
+    "name": "Favored Enemy",
+    "layout": "Card"
+  },
+  {
+    "line": 9519,
+    "name": "Fear of Immobility",
+    "layout": "Card"
+  },
+  {
+    "line": 9736,
+    "name": "Fiendslayer Paladin",
+    "layout": "Card"
+  },
+  {
+    "line": 9782,
+    "name": "Filigree Vector",
+    "layout": "Card"
+  },
+  {
+    "line": 9901,
+    "name": "Fires of Mount Doom",
+    "layout": "Card"
+  },
+  {
+    "line": 9932,
+    "name": "Fisher's Talent",
+    "layout": "Card"
+  },
+  {
+    "line": 10345,
+    "name": "Forging the Anchor",
+    "layout": "Card"
+  },
+  {
+    "line": 10417,
+    "name": "Foul-Tongue Invocation",
+    "layout": "Card"
+  },
+  {
+    "line": 10452,
+    "name": "Fractalize",
+    "layout": "Card"
+  },
+  {
+    "line": 10453,
+    "name": "Fracture",
+    "layout": "Card"
+  },
+  {
+    "line": 10544,
+    "name": "Frogtosser Banneret",
+    "layout": "Card"
+  },
+  {
+    "line": 10648,
+    "name": "Furgul, Quag Nurturer",
+    "layout": "Card"
+  },
+  {
+    "line": 10834,
+    "name": "Gargos, Vicious Watcher",
+    "layout": "Card"
+  },
+  {
+    "line": 10873,
+    "name": "Gastal Raider",
+    "layout": "Card"
+  },
+  {
+    "line": 10988,
+    "name": "General's Kabuto",
+    "layout": "Card"
+  },
+  {
+    "line": 11003,
+    "name": "Genesis Ultimatum",
+    "layout": "Card"
+  },
+  {
+    "line": 11116,
+    "name": "Ghost of Ramirez DePietro",
+    "layout": "Card"
+  },
+  {
+    "line": 11130,
+    "name": "Ghostform",
+    "layout": "Card"
+  },
+  {
+    "line": 11136,
+    "name": "Ghostly Keybearer",
+    "layout": "Card"
+  },
+  {
+    "line": 11471,
+    "name": "Gloom Sower",
+    "layout": "Card"
+  },
+  {
+    "line": 11523,
+    "name": "Glyph of Life",
+    "layout": "Card"
+  },
+  {
+    "line": 11776,
+    "name": "Gold Rush",
+    "layout": "Card"
+  },
+  {
+    "line": 11871,
+    "name": "Goreclaw, Terror of Qal Sisma",
+    "layout": "Card"
+  },
+  {
+    "line": 11917,
+    "name": "Graceful Restoration",
+    "layout": "Card"
+  },
+  {
+    "line": 12083,
+    "name": "Great Whale",
+    "layout": "Card"
+  },
+  {
+    "line": 12086,
+    "name": "Greatbow Doyen",
+    "layout": "Card"
+  },
+  {
+    "line": 12153,
+    "name": "Grief",
+    "layout": "Card"
+  },
+  {
+    "line": 12228,
+    "name": "Grist, the Hunger Tide",
+    "layout": "Card"
+  },
+  {
+    "line": 12596,
+    "name": "Hand of Emrakul",
+    "layout": "Card"
+  },
+  {
+    "line": 12796,
+    "name": "Hazel's Brewmaster",
+    "layout": "Card"
+  },
+  {
+    "line": 12832,
+    "name": "Healing Grace",
+    "layout": "Card"
+  },
+  {
+    "line": 12862,
+    "name": "Hearthhull, the Worldseed",
+    "layout": "Card"
+  },
+  {
+    "line": 12890,
+    "name": "{'_OracleCard': 'Split', 'Cards': [{'_OracleCard': 'Card', 'Name': 'He",
+    "layout": "Split"
+  },
+  {
+    "line": 12948,
+    "name": "Heliod, God of the Sun",
+    "layout": "Card"
+  },
+  {
+    "line": 12949,
+    "name": "Heliod, Sun-Crowned",
+    "layout": "Card"
+  },
+  {
+    "line": 13048,
+    "name": "Herdchaser Dragon",
+    "layout": "Card"
+  },
+  {
+    "line": 13131,
+    "name": "Hidden Dragonslayer",
+    "layout": "Card"
+  },
+  {
+    "line": 13264,
+    "name": "Hoarder's Greed",
+    "layout": "Card"
+  },
+  {
+    "line": 13302,
+    "name": "Hollowhenge Overlord",
+    "layout": "Card"
+  },
+  {
+    "line": 13458,
+    "name": "Hotel of Fears",
+    "layout": "Planar"
+  },
+  {
+    "line": 13601,
+    "name": "Hunter's Mark",
+    "layout": "Card"
+  },
+  {
+    "line": 13615,
+    "name": "Huntmaster of the Fells // Ravager of the Fells",
+    "layout": "Transforming"
+  },
+  {
+    "line": 13728,
+    "name": "Icefeather Aven",
+    "layout": "Card"
+  },
+  {
+    "line": 13772,
+    "name": "Idris, Soul of the TARDIS",
+    "layout": "Card"
+  },
+  {
+    "line": 13904,
+    "name": "Imperial Hellkite",
+    "layout": "Card"
+  },
+  {
+    "line": 13965,
+    "name": "In the Darkness Bind Them",
+    "layout": "Card"
+  },
+  {
+    "line": 14001,
+    "name": "Incremental Blight",
+    "layout": "Card"
+  },
+  {
+    "line": 14002,
+    "name": "Incremental Growth",
+    "layout": "Card"
+  },
+  {
+    "line": 14069,
+    "name": "Infernal Medusa",
+    "layout": "Card"
+  },
+  {
+    "line": 14241,
+    "name": "Inspirit, Flagship Vessel",
+    "layout": "Card"
+  },
+  {
+    "line": 14284,
+    "name": "Into the Earthen Maw",
+    "layout": "Scheme"
+  },
+  {
+    "line": 14375,
+    "name": "Invert the Skies",
+    "layout": "Card"
+  },
+  {
+    "line": 14394,
+    "name": "Invoke Despair",
+    "layout": "Card"
+  },
+  {
+    "line": 14415,
+    "name": "Ire Shaman",
+    "layout": "Card"
+  },
+  {
+    "line": 14732,
+    "name": "Jeska, Thrice Reborn",
+    "layout": "Card"
+  },
+  {
+    "line": 14756,
+    "name": "Jet's Brainwashing",
+    "layout": "Card"
+  },
+  {
+    "line": 14843,
+    "name": "Jon Irenicus, Shattered One",
+    "layout": "Card"
+  },
+  {
+    "line": 15122,
+    "name": "Karplusan Strider",
+    "layout": "Card"
+  },
+  {
+    "line": 15149,
+    "name": "Katara, Waterbending Master",
+    "layout": "Card"
+  },
+  {
+    "line": 15445,
+    "name": "Kiora, Master of the Depths",
+    "layout": "Card"
+  },
+  {
+    "line": 15631,
+    "name": "Kolaghan Stormsinger",
+    "layout": "Card"
+  },
+  {
+    "line": 15656,
+    "name": "Kor Blademaster",
+    "layout": "Card"
+  },
+  {
+    "line": 15857,
+    "name": "Kyren Legate",
+    "layout": "Card"
+  },
+  {
+    "line": 15950,
+    "name": "Lantern Flare",
+    "layout": "Card"
+  },
+  {
+    "line": 16077,
+    "name": "Lead the Stampede",
+    "layout": "Card"
+  },
+  {
+    "line": 16146,
+    "name": "Legion's Chant",
+    "layout": "Card"
+  },
+  {
+    "line": 16154,
+    "name": "Legolas's Quick Reflexes",
+    "layout": "Card"
+  },
+  {
+    "line": 16208,
+    "name": "Lethal Protection",
+    "layout": "Card"
+  },
+  {
+    "line": 16276,
+    "name": "Liege of the Axe",
+    "layout": "Card"
+  },
+  {
+    "line": 16346,
+    "name": "Lightning Coils",
+    "layout": "Card"
+  },
+  {
+    "line": 16392,
+    "name": "Liliana the Faultless",
+    "layout": "Card"
+  },
+  {
+    "line": 16481,
+    "name": "Lively Dirge",
+    "layout": "Card"
+  },
+  {
+    "line": 16515,
+    "name": "Lizard, Connors's Curse",
+    "layout": "Card"
+  },
+  {
+    "line": 16594,
+    "name": "Loki, the Deceiver",
+    "layout": "Card"
+  },
+  {
+    "line": 16609,
+    "name": "Long River Lurker",
+    "layout": "Card"
+  },
+  {
+    "line": 16653,
+    "name": "Lord Windgrace",
+    "layout": "Card"
+  },
+  {
+    "line": 16796,
+    "name": "Lukka, Coppercoat Outcast",
+    "layout": "Card"
+  },
+  {
+    "line": 16818,
+    "name": "Lumen-Class Frigate",
+    "layout": "Card"
+  },
+  {
+    "line": 16959,
+    "name": "Maelstrom Djinn",
+    "layout": "Card"
+  },
+  {
+    "line": 17013,
+    "name": "Magma Opus",
+    "layout": "Card"
+  },
+  {
+    "line": 17086,
+    "name": "Majestic Myriarch",
+    "layout": "Card"
+  },
+  {
+    "line": 17192,
+    "name": "Manacles of Decay",
+    "layout": "Card"
+  },
+  {
+    "line": 17249,
+    "name": "Mapping the Maze",
+    "layout": "Card"
+  },
+  {
+    "line": 17258,
+    "name": "Marath, Will of the Wild",
+    "layout": "Card"
+  },
+  {
+    "line": 17340,
+    "name": "Mark of the Oni",
+    "layout": "Card"
+  },
+  {
+    "line": 17352,
+    "name": "Markov Enforcer",
+    "layout": "Card"
+  },
+  {
+    "line": 17448,
+    "name": "Massacre",
+    "layout": "Card"
+  },
+  {
+    "line": 17463,
+    "name": "Master Skald",
+    "layout": "Card"
+  },
+  {
+    "line": 17560,
+    "name": "Mazemind Tome",
+    "layout": "Card"
+  },
+  {
+    "line": 17631,
+    "name": "Meltstrider's Resolve",
+    "layout": "Card"
+  },
+  {
+    "line": 17644,
+    "name": "Memory Crystal",
+    "layout": "Card"
+  },
+  {
+    "line": 17654,
+    "name": "Memory Theft",
+    "layout": "Card"
+  },
+  {
+    "line": 17679,
+    "name": "Mephidross Slime",
+    "layout": "Card"
+  },
+  {
+    "line": 17715,
+    "name": "Mercurial Transformation",
+    "layout": "Card"
+  },
+  {
+    "line": 17950,
+    "name": "Mind Spike",
+    "layout": "Card"
+  },
+  {
+    "line": 18074,
+    "name": "Mirkwood Elk",
+    "layout": "Card"
+  },
+  {
+    "line": 18134,
+    "name": "Mischief and Mayhem",
+    "layout": "Card"
+  },
+  {
+    "line": 18141,
+    "name": "Mischievous Quanar",
+    "layout": "Card"
+  },
+  {
+    "line": 18189,
+    "name": "Mistbreath Elder",
+    "layout": "Card"
+  },
+  {
+    "line": 18199,
+    "name": "Mistfire Weaver",
+    "layout": "Card"
+  },
+  {
+    "line": 18302,
+    "name": "Mogg Salvage",
+    "layout": "Card"
+  },
+  {
+    "line": 18402,
+    "name": "Mondassian Colony Ship",
+    "layout": "Planar"
+  },
+  {
+    "line": 18440,
+    "name": "Monument to Perfection",
+    "layout": "Card"
+  },
+  {
+    "line": 18871,
+    "name": "Mythos of Brokkos",
+    "layout": "Card"
+  },
+  {
+    "line": 18884,
+    "name": "Nacatl War-Pride",
+    "layout": "Card"
+  },
+  {
+    "line": 18904,
+    "name": "Nahiri's Stoneblades",
+    "layout": "Card"
+  },
+  {
+    "line": 19149,
+    "name": "Nessian Boar",
+    "layout": "Card"
+  },
+  {
+    "line": 19286,
+    "name": "Nightbird's Clutches",
+    "layout": "Card"
+  },
+  {
+    "line": 19312,
+    "name": "Nightscape Familiar",
+    "layout": "Card"
+  },
+  {
+    "line": 19400,
+    "name": "Nissa's Judgment",
+    "layout": "Card"
+  },
+  {
+    "line": 19412,
+    "name": "Nissa, Vastwood Seer // Nissa, Sage Animist",
+    "layout": "Transforming"
+  },
+  {
+    "line": 19415,
+    "name": "Nissa, Who Shakes the World",
+    "layout": "Card"
+  },
+  {
+    "line": 19536,
+    "name": "Novel Nunchaku",
+    "layout": "Card"
+  },
+  {
+    "line": 19604,
+    "name": "Nylea, God of the Hunt",
+    "layout": "Card"
+  },
+  {
+    "line": 19605,
+    "name": "Nylea, Keen-Eyed",
+    "layout": "Card"
+  },
+  {
+    "line": 19729,
+    "name": "Obuun, Mul Daya Ancestor",
+    "layout": "Card"
+  },
+  {
+    "line": 19778,
+    "name": "Ogre Leadfoot",
+    "layout": "Card"
+  },
+  {
+    "line": 19824,
+    "name": "Oko, Lorwyn Liege // Oko, Shadowmoor Scion",
+    "layout": "Transforming"
+  },
+  {
+    "line": 19845,
+    "name": "Old-Growth Troll",
+    "layout": "Card"
+  },
+  {
+    "line": 19919,
+    "name": "Ondu Knotmaster",
+    "layout": "Adventurer"
+  },
+  {
+    "line": 19988,
+    "name": "Ophiomancer",
+    "layout": "Card"
+  },
+  {
+    "line": 20383,
+    "name": "Palinchron",
+    "layout": "Card"
+  },
+  {
+    "line": 20399,
+    "name": "Panic Attack",
+    "layout": "Card"
+  },
+  {
+    "line": 20462,
+    "name": "Pardic Dragon",
+    "layout": "Card"
+  },
+  {
+    "line": 20639,
+    "name": "Peregrine Drake",
+    "layout": "Card"
+  },
+  {
+    "line": 20702,
+    "name": "Pestilent Cauldron // Restorative Burst",
+    "layout": "ModalDFC"
+  },
+  {
+    "line": 20728,
+    "name": "Phabine, Boss's Confidant",
+    "layout": "Card"
+  },
+  {
+    "line": 20860,
+    "name": "Phyrexian Reaper",
+    "layout": "Card"
+  },
+  {
+    "line": 20867,
+    "name": "Phyrexian Slayer",
+    "layout": "Card"
+  },
+  {
+    "line": 20901,
+    "name": "Pick-a-Beeble",
+    "layout": "Card"
+  },
+  {
+    "line": 21006,
+    "name": "Pitiless Fists",
+    "layout": "Card"
+  },
+  {
+    "line": 21336,
+    "name": "Press the Advantage",
+    "layout": "Card"
+  },
+  {
+    "line": 21398,
+    "name": "Primal Might",
+    "layout": "Card"
+  },
+  {
+    "line": 21488,
+    "name": "Proclamation of Rebirth",
+    "layout": "Card"
+  },
+  {
+    "line": 21612,
+    "name": "Prying Questions",
+    "layout": "Card"
+  },
+  {
+    "line": 21731,
+    "name": "Purphoros, Bronze-Blooded",
+    "layout": "Card"
+  },
+  {
+    "line": 21732,
+    "name": "Purphoros, God of the Forge",
+    "layout": "Card"
+  },
+  {
+    "line": 21832,
+    "name": "Quagmire Lamprey",
+    "layout": "Card"
+  },
+  {
+    "line": 21957,
+    "name": "Rabble-Rouser",
+    "layout": "Card"
+  },
+  {
+    "line": 22166,
+    "name": "Rally the Monastery",
+    "layout": "Card"
+  },
+  {
+    "line": 22313,
+    "name": "Rattleclaw Mystic",
+    "layout": "Card"
+  },
+  {
+    "line": 22401,
+    "name": "Razor Hippogriff",
+    "layout": "Card"
+  },
+  {
+    "line": 22447,
+    "name": "Reality Strobe",
+    "layout": "Card"
+  },
+  {
+    "line": 22481,
+    "name": "Reasonable Doubt",
+    "layout": "Card"
+  },
+  {
+    "line": 22638,
+    "name": "Refreshing Rain",
+    "layout": "Card"
+  },
+  {
+    "line": 23262,
+    "name": "Rite of Renewal",
+    "layout": "Card"
+  },
+  {
+    "line": 23312,
+    "name": "River's Grasp",
+    "layout": "Card"
+  },
+  {
+    "line": 23363,
+    "name": "Robber of the Rich",
+    "layout": "Card"
+  },
+  {
+    "line": 23720,
+    "name": "Rupture",
+    "layout": "Card"
+  },
+  {
+    "line": 23743,
+    "name": "Rushwood Legate",
+    "layout": "Card"
+  },
+  {
+    "line": 24084,
+    "name": "Saprazzan Breaker",
+    "layout": "Card"
+  },
+  {
+    "line": 24087,
+    "name": "Saprazzan Legate",
+    "layout": "Card"
+  },
+  {
+    "line": 24088,
+    "name": "Saprazzan Outrigger",
+    "layout": "Card"
+  },
+  {
+    "line": 24120,
+    "name": "Sarkhan's Rage",
+    "layout": "Card"
+  },
+  {
+    "line": 24276,
+    "name": "Scarecrow",
+    "layout": "Card"
+  },
+  {
+    "line": 24603,
+    "name": "Season of the Bold",
+    "layout": "Card"
+  },
+  {
+    "line": 24615,
+    "name": "Seasons Past",
+    "layout": "Card"
+  },
+  {
+    "line": 24728,
+    "name": "Seize Opportunity",
+    "layout": "Card"
+  },
+  {
+    "line": 24837,
+    "name": "Sephiroth, Fallen Hero",
+    "layout": "Card"
+  },
+  {
+    "line": 24947,
+    "name": "Settle the Score",
+    "layout": "Card"
+  },
+  {
+    "line": 25030,
+    "name": "Shadrix Silverquill",
+    "layout": "Card"
+  },
+  {
+    "line": 25101,
+    "name": "Shared Fate",
+    "layout": "Card"
+  },
+  {
+    "line": 25167,
+    "name": "Shelter",
+    "layout": "Card"
+  },
+  {
+    "line": 25214,
+    "name": "Shieldhide Dragon",
+    "layout": "Card"
+  },
+  {
+    "line": 25519,
+    "name": "Silence the Believers",
+    "layout": "Card"
+  },
+  {
+    "line": 25529,
+    "name": "Silent Gravestone",
+    "layout": "Card"
+  },
+  {
+    "line": 25549,
+    "name": "Silkguard",
+    "layout": "Card"
+  },
+  {
+    "line": 25555,
+    "name": "Silumgar Assassin",
+    "layout": "Card"
+  },
+  {
+    "line": 25712,
+    "name": "Sivvi's Ruse",
+    "layout": "Card"
+  },
+  {
+    "line": 25815,
+    "name": "Skrelv, Defector Mite",
+    "layout": "Card"
+  },
+  {
+    "line": 25879,
+    "name": "Skyclave Relic",
+    "layout": "Card"
+  },
+  {
+    "line": 26111,
+    "name": "Smashing Success",
+    "layout": "Card"
+  },
+  {
+    "line": 26329,
+    "name": "Somnophore",
+    "layout": "Card"
+  },
+  {
+    "line": 26385,
+    "name": "Sorceress's Schemes",
+    "layout": "Card"
+  },
+  {
+    "line": 26436,
+    "name": "Soul Separator",
+    "layout": "Card"
+  },
+  {
+    "line": 26926,
+    "name": "Splendid Agony",
+    "layout": "Card"
+  },
+  {
+    "line": 26943,
+    "name": "Split the Spoils",
+    "layout": "Card"
+  },
+  {
+    "line": 27021,
+    "name": "Spry and Mighty",
+    "layout": "Card"
+  },
+  {
+    "line": 27289,
+    "name": "Stenchskipper",
+    "layout": "Card"
+  },
+  {
+    "line": 27318,
+    "name": "Steward of the Harvest",
+    "layout": "Card"
+  },
+  {
+    "line": 27457,
+    "name": "Stonybrook Banneret",
+    "layout": "Card"
+  },
+  {
+    "line": 27532,
+    "name": "Stormscape Familiar",
+    "layout": "Card"
+  },
+  {
+    "line": 27540,
+    "name": "Stormwing Dragon",
+    "layout": "Card"
+  },
+  {
+    "line": 27569,
+    "name": "Stratus Dancer",
+    "layout": "Card"
+  },
+  {
+    "line": 27663,
+    "name": "Struggle for Sanity",
+    "layout": "Card"
+  },
+  {
+    "line": 27684,
+    "name": "Stunning Shot",
+    "layout": "Card"
+  },
+  {
+    "line": 27702,
+    "name": "Submerge",
+    "layout": "Card"
+  },
+  {
+    "line": 27713,
+    "name": "Subtlety",
+    "layout": "Card"
+  },
+  {
+    "line": 27795,
+    "name": "Summon: Kujata",
+    "layout": "Card"
+  },
+  {
+    "line": 27871,
+    "name": "Sungold Sentinel",
+    "layout": "Card"
+  },
+  {
+    "line": 27897,
+    "name": "Sunscape Familiar",
+    "layout": "Card"
+  },
+  {
+    "line": 27995,
+    "name": "Surly Badgersaur",
+    "layout": "Card"
+  },
+  {
+    "line": 28033,
+    "name": "Suspicious Detonation",
+    "layout": "Card"
+  },
+  {
+    "line": 28169,
+    "name": "Sylvan Basilisk",
+    "layout": "Card"
+  },
+  {
+    "line": 28174,
+    "name": "Sylvan Hierophant",
+    "layout": "Card"
+  },
+  {
+    "line": 28175,
+    "name": "Sylvan Library",
+    "layout": "Card"
+  },
+  {
+    "line": 28207,
+    "name": "Synchronized Charge",
+    "layout": "Card"
+  },
+  {
+    "line": 28228,
+    "name": "Synthesizer Labship",
+    "layout": "Card"
+  },
+  {
+    "line": 28360,
+    "name": "Talion's Throneguard",
+    "layout": "Card"
+  },
+  {
+    "line": 28440,
+    "name": "Tannuk, Steadfast Second",
+    "layout": "Card"
+  },
+  {
+    "line": 28569,
+    "name": "Teferi's Reproach",
+    "layout": "Card"
+  },
+  {
+    "line": 28577,
+    "name": "Teferi, Hero of Dominaria",
+    "layout": "Card"
+  },
+  {
+    "line": 28666,
+    "name": "Temporal Firestorm",
+    "layout": "Card"
+  },
+  {
+    "line": 28739,
+    "name": "Terastodon",
+    "layout": "Card"
+  },
+  {
+    "line": 28855,
+    "name": "Thalakos Deceiver",
+    "layout": "Card"
+  },
+  {
+    "line": 28888,
+    "name": "Thassa, Deep-Dwelling",
+    "layout": "Card"
+  },
+  {
+    "line": 28889,
+    "name": "Thassa, God of the Sea",
+    "layout": "Card"
+  },
+  {
+    "line": 28901,
+    "name": "The Aesir Escape Valhalla",
+    "layout": "Card"
+  },
+  {
+    "line": 28914,
+    "name": "The Balrog of Moria",
+    "layout": "Card"
+  },
+  {
+    "line": 28924,
+    "name": "The Binding of the Titans",
+    "layout": "Card"
+  },
+  {
+    "line": 28934,
+    "name": "The Boulder, Ready to Rumble",
+    "layout": "Card"
+  },
+  {
+    "line": 28975,
+    "name": "The Dining Car",
+    "layout": "Planar"
+  },
+  {
+    "line": 28976,
+    "name": "The Doctor's Childhood Barn",
+    "layout": "Planar"
+  },
+  {
+    "line": 28984,
+    "name": "The Earth Crystal",
+    "layout": "Card"
+  },
+  {
+    "line": 29047,
+    "name": "The Great Aerie",
+    "layout": "Planar"
+  },
+  {
+    "line": 29083,
+    "name": "The Legend of Kyoshi // Avatar Kyoshi",
+    "layout": "Transforming"
+  },
+  {
+    "line": 29208,
+    "name": "The Tale of Tamiyo",
+    "layout": "Card"
+  },
+  {
+    "line": 29272,
+    "name": "Thelonite Hermit",
+    "layout": "Card"
+  },
+  {
+    "line": 29283,
+    "name": "There Is No Refuge",
+    "layout": "Scheme"
+  },
+  {
+    "line": 29284,
+    "name": "There and Back Again",
+    "layout": "Card"
+  },
+  {
+    "line": 29363,
+    "name": "Thorn Mammoth",
+    "layout": "Card"
+  },
+  {
+    "line": 29382,
+    "name": "Thornscape Familiar",
+    "layout": "Card"
+  },
+  {
+    "line": 29408,
+    "name": "Thought Rattle",
+    "layout": "Card"
+  },
+  {
+    "line": 29431,
+    "name": "Thoughtweft Gambit",
+    "layout": "Card"
+  },
+  {
+    "line": 29439,
+    "name": "Thousand Winds",
+    "layout": "Card"
+  },
+  {
+    "line": 29614,
+    "name": "Thunderous Orator",
+    "layout": "Card"
+  },
+  {
+    "line": 29620,
+    "name": "Thunderscape Familiar",
+    "layout": "Card"
+  },
+  {
+    "line": 29786,
+    "name": "Titan of Littjara",
+    "layout": "Card"
+  },
+  {
+    "line": 29840,
+    "name": "Tokka & Rahzar, Terrible Twos",
+    "layout": "Card"
+  },
+  {
+    "line": 29849,
+    "name": "Tolarian Entrancer",
+    "layout": "Card"
+  },
+  {
+    "line": 29913,
+    "name": "Toph, Earthbending Master",
+    "layout": "Card"
+  },
+  {
+    "line": 29914,
+    "name": "Toph, Greatest Earthbender",
+    "layout": "Card"
+  },
+  {
+    "line": 29922,
+    "name": "Topple",
+    "layout": "Card"
+  },
+  {
+    "line": 30180,
+    "name": "Treachery",
+    "layout": "Card"
+  },
+  {
+    "line": 30259,
+    "name": "Triassic Egg",
+    "layout": "Card"
+  },
+  {
+    "line": 30382,
+    "name": "Trygon Prime",
+    "layout": "Card"
+  },
+  {
+    "line": 30550,
+    "name": "Tyrant of Discord",
+    "layout": "Card"
+  },
+  {
+    "line": 30562,
+    "name": "Tyvar Kell",
+    "layout": "Card"
+  },
+  {
+    "line": 30769,
+    "name": "Unearthly Blizzard",
+    "layout": "Card"
+  },
+  {
+    "line": 31019,
+    "name": "Uthros Research Craft",
+    "layout": "Card"
+  },
+  {
+    "line": 31066,
+    "name": "Valiant Changeling",
+    "layout": "Card"
+  },
+  {
+    "line": 31168,
+    "name": "Vantress Transmuter",
+    "layout": "Adventurer"
+  },
+  {
+    "line": 31240,
+    "name": "Vedalken Plotter",
+    "layout": "Card"
+  },
+  {
+    "line": 31301,
+    "name": "Vengeful Regrowth",
+    "layout": "Card"
+  },
+  {
+    "line": 31310,
+    "name": "Venom Blast",
+    "layout": "Card"
+  },
+  {
+    "line": 31315,
+    "name": "Venom, Eddie Brock",
+    "layout": "Card"
+  },
+  {
+    "line": 31478,
+    "name": "Vicious Battlerager",
+    "layout": "Card"
+  },
+  {
+    "line": 31631,
+    "name": "Visage of Dread // Dread Osseosaur",
+    "layout": "Transforming"
+  },
+  {
+    "line": 31719,
+    "name": "Voda Sea Scavenger",
+    "layout": "Card"
+  },
+  {
+    "line": 31810,
+    "name": "Voldaren Ambusher",
+    "layout": "Card"
+  },
+  {
+    "line": 32070,
+    "name": "Wandering Archaic // Explore the Vastlands",
+    "layout": "ModalDFC"
+  },
+  {
+    "line": 32129,
+    "name": "Warbriar Blessing",
+    "layout": "Card"
+  },
+  {
+    "line": 32614,
+    "name": "Wild Wasteland",
+    "layout": "Card"
+  },
+  {
+    "line": 32741,
+    "name": "Wingbeat Warrior",
+    "layout": "Card"
+  },
+  {
+    "line": 32889,
+    "name": "Wizened Githzerai",
+    "layout": "Card"
+  },
+  {
+    "line": 32930,
+    "name": "Wondrous Revival",
+    "layout": "Card"
+  },
+  {
+    "line": 33027,
+    "name": "Wort, the Raidmother",
+    "layout": "Card"
+  },
+  {
+    "line": 33031,
+    "name": "Worzel, the Protector",
+    "layout": "Card"
+  },
+  {
+    "line": 33239,
+    "name": "You Come to the Gnoll Camp",
+    "layout": "Card"
+  },
+  {
+    "line": 33249,
+    "name": "You Meet in a Tavern",
+    "layout": "Card"
+  },
+  {
+    "line": 33287,
+    "name": "Yume, Chronicler of Valor",
+    "layout": "Card"
+  },
+  {
+    "line": 33403,
+    "name": "Zimone's Hypothesis",
+    "layout": "Card"
+  },
+  {
+    "line": 33501,
+    "name": "Baldur's Gate Wilderness",
+    "layout": "Dungeon"
+  }
+]

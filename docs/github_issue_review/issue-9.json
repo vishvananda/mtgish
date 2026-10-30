@@ -1,0 +1,5 @@
+{
+  "title": "Activation-history condition encoded as resolution-history condition (four cards)",
+  "body": "Dragon Whelp, Nalathni Dragon, Farrelite Priest, and Initiates of the Ebon Hand count ability activations, but their encoding uses `TimesThisAbilityHasResolvedThisTurnIs(GreaterThanOrEqualTo(Integer(4)))`.\n\nThe condition must count activations, including abilities that are countered, rather than resolutions. All four cards have a threshold of four activations.",
+  "url": "https://github.com/i5jb/mtgish/issues/9"
+}

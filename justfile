@@ -59,6 +59,55 @@ parser_compile: make_temp
   cd {{BASE_DIR}}
 
 [group('parsing')]
+[doc("Audit semantic captures and possible instruction merges without parsing cards")]
+parser_audit_templates: parser_compile
+  #!/usr/bin/env bash
+  {{TEMP_DIR}}/go_mtg_parser --audit-templates \
+    --audit-review {{BASE_DIR}}/data/grammar_audit_review.json \
+    --english-grammar-files {{BASE_DIR}}/grammars/english_grammar*.json5 \
+    > {{TEMP_DIR}}/grammar.audit.json
+
+[group('ast')]
+[doc("Run focused Rust normalization regressions with the legacy schema cached")]
+ast_test:
+  cargo test --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml -p mtgish-ast --test normalization --test parser_regressions --test families --test github_issues --test choices --test coverage --test tokens --test mana --test attachments --test events --test entry_costs --test rules --test zones --test casting --test damage --test scopes --test library --test players --test keywords --test inspection --test characteristics --test delayed --test cast_history --test pipeline
+
+[group('ast')]
+[doc("Inspect every source subtree, check structural preservation, and report staged/native coverage")]
+ast_pipeline_check report="/tmp/mtgish-pipeline.json":
+  cargo run --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- pipeline-check {{BASE_DIR}}/data/mtgish.lines.ron {{report}} {{BASE_DIR}}/data/ast_baseline.json
+
+[group('ast')]
+[doc("Extract deterministic rule/operand fixtures from an existing pipeline report without rescanning")]
+ast_pipeline_fixtures report="/tmp/mtgish-pipeline.json" output="/tmp/mtgish-pipeline-fixtures.ronl":
+  cargo run --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- pipeline-fixtures {{BASE_DIR}}/data/mtgish.lines.ron {{report}} {{output}}
+
+[group('ast')]
+[doc("Group observed source forms by Rust field signatures for bulk mapping review")]
+ast_pipeline_candidates source_type="Action" report="/tmp/mtgish-pipeline.json" output="/tmp/mtgish-candidates.json":
+  cargo run --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- pipeline-candidates {{report}} {{source_type}} {{output}}
+
+[group('ast')]
+[doc("Compile generated modules against ../cantrip and execute deterministic core scenarios")]
+ast_cantrip_test:
+  cargo test --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml --features cantrip -p mtgish-ast --test cantrip_backend generated_modules_execute_in_cantrip -- --ignored
+
+[group('ast')]
+[doc("Compile every backend-capable record from a fresh ast_cantrip_check report")]
+ast_cantrip_corpus_test coverage:
+  MTGISH_AST_COVERAGE={{coverage}} cargo test --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml --features cantrip -p mtgish-ast --test cantrip_backend every_advertised_module_compiles_against_cantrip -- --ignored
+
+[group('ast')]
+[doc("Explicit deferred backend capability scan; normal ast_check skips this")]
+ast_cantrip_check: make_temp
+  cargo run --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml --features cantrip -p mtgish-ast --bin ast -- check-cantrip {{BASE_DIR}}/data/mtgish.lines.ron {{TEMP_DIR}}/ast.cantrip.coverage.json {{BASE_DIR}}/data/ast_baseline.json
+
+[group('ast')]
+[doc("Check every RON record against the baseline and report incomplete normalization")]
+ast_check: make_temp
+  cargo run --locked --manifest-path {{BASE_DIR}}/rust_syntax/Cargo.toml -p mtgish-ast --bin ast -- check {{BASE_DIR}}/data/mtgish.lines.ron {{TEMP_DIR}}/ast.coverage.json {{BASE_DIR}}/data/ast_baseline.json
+
+[group('parsing')]
 [doc("Shows cleaned up parser input for each card (used for debugging)")]
 parser_show_input: plurals_generate parser_compile
   #!/usr/bin/env bash
@@ -150,6 +199,9 @@ parser_list_passing_english: plurals_generate parser_compile
 [doc("Generates mtgish.lines.ron. Only run if parser_check_grammar is clean")]
 parser_generate_mtgish: plurals_generate parser_compile
   #!/usr/bin/env bash
+  set -euo pipefail
+  mtgish_ron_tmp=$(mktemp "{{BASE_DIR}}/data/.mtgish.lines.ron.XXXXXX")
+  trap 'rm -f "$mtgish_ron_tmp"' EXIT
   {{TEMP_DIR}}/go_mtg_parser \
     --ignore-list-file {{BASE_DIR}}/grammars/ignore.json5 \
     --short-names-file {{BASE_DIR}}/grammars/short_names.json5 \
@@ -160,8 +212,11 @@ parser_generate_mtgish: plurals_generate parser_compile
                     {{BASE_DIR}}/data/dungeons.json \
                     {{BASE_DIR}}/data/tokens.json \
                     {{BASE_DIR}}/data/additional_cards.json \
+    --audit-template-usage {{TEMP_DIR}}/grammar.usage.json \
+    --audit-review {{BASE_DIR}}/data/grammar_audit_review.json \
     --print-mtgish \
-  > {{BASE_DIR}}/data/mtgish.lines.ron
+  > "$mtgish_ron_tmp"
+  mv "$mtgish_ron_tmp" {{BASE_DIR}}/data/mtgish.lines.ron
 
 # ---------------------------------
 # Convert mtgish.ron to mtgish.json
@@ -199,7 +254,7 @@ rust_build_bincode_to_jsonl:
 rust_build_gen_ts_bindings:
   #!/usr/bin/env bash
   cd {{BASE_DIR}}/rust_syntax/
-    cargo build --target-dir={{TEMP_DIR}} --message-format=json --tests --features "write_out_json" | jq -r 'select(.reason == "compiler-artifact") | select(.target.name == "rust_syntax") | .filenames[0]' > {{TEMP_DIR}}/ts_rs_filename
+    cargo build --target-dir={{TEMP_DIR}} --message-format=json --tests --features "write_out_json" | jq -r 'select(.reason == "compiler-artifact" and .target.name == "rust_syntax" and .target.kind == ["lib"] and .profile.test == true and .executable != null) | .executable' > {{TEMP_DIR}}/ts_rs_filename
     cp `cat {{TEMP_DIR}}/ts_rs_filename` {{TEMP_DIR}}/generate_typescript_bindings
   cd {{BASE_DIR}}
 
@@ -211,13 +266,21 @@ rust_build_all: rust_build_ronl_to_bincode rust_build_ronl_to_pretty_ron rust_bu
 [group('convert')]
 convert_to_ron_pretty:
   #!/usr/bin/env bash
-  {{TEMP_DIR}}/ronl_to_pretty_ron data/mtgish.lines.ron > data/mtgish.pretty.ron 2> {{TEMP_DIR}}/ron.failing.txt
+  set -euo pipefail
+  mtgish_pretty_tmp=$(mktemp "{{BASE_DIR}}/data/.mtgish.pretty.ron.XXXXXX")
+  trap 'rm -f "$mtgish_pretty_tmp"' EXIT
+  {{TEMP_DIR}}/ronl_to_pretty_ron data/mtgish.lines.ron > "$mtgish_pretty_tmp" 2> {{TEMP_DIR}}/ron.failing.txt
+  mv "$mtgish_pretty_tmp" {{BASE_DIR}}/data/mtgish.pretty.ron
 
 [group('convert')]
 convert_to_json:
   #!/usr/bin/env bash
+  set -euo pipefail
+  mtgish_json_tmp=$(mktemp "{{BASE_DIR}}/data/.mtgish.lines.json.XXXXXX")
+  trap 'rm -f "$mtgish_json_tmp"' EXIT
   {{TEMP_DIR}}/ronl_to_bincode    data/mtgish.lines.ron {{TEMP_DIR}}/mtgish.bincode
-  {{TEMP_DIR}}/bincode_to_jsonl   {{TEMP_DIR}}/mtgish.bincode > data/mtgish.lines.json
+  {{TEMP_DIR}}/bincode_to_jsonl   {{TEMP_DIR}}/mtgish.bincode > "$mtgish_json_tmp"
+  mv "$mtgish_json_tmp" {{BASE_DIR}}/data/mtgish.lines.json
 
 [group('typescript')]
 typescript_generate_bindings:

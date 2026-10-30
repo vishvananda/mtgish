@@ -1,0 +1,207 @@
+// Included in the typed source adapter so token bodies share ordinary ability,
+// query, cost, and expression lowering, rather than a second semantic language.
+fn predefined_tokens() -> std::result::Result<
+    &'static std::collections::BTreeMap<String, source::CreatableToken>,
+    Diagnostic,
+> {
+    static RECIPES: std::sync::OnceLock<
+        std::result::Result<std::collections::BTreeMap<String, source::CreatableToken>, String>,
+    > = std::sync::OnceLock::new();
+    RECIPES
+        .get_or_init(|| {
+            let mut tokens = std::collections::BTreeMap::new();
+            for (i, line) in include_str!(concat!(env!("OUT_DIR"), "/token_definitions.ronl"))
+                .lines()
+                .enumerate()
+            {
+                let source::OracleCard::TokenDefinition { name, token } = ron::from_str(line)
+                    .map_err(|e| format!("predefined-token record {}: {e}", i + 1))?
+                else {
+                    return Err("predefined-token catalog contains another record layout".into());
+                };
+                if tokens.insert(name, token).is_some() {
+                    return Err("duplicate predefined-token definition".into());
+                }
+            }
+            Ok(tokens)
+        })
+        .as_ref()
+        .map_err(|message| invalid(message))
+}
+
+impl Context {
+    fn token(&self, value: &source::CreatableToken, depth: usize) -> Result<TokenSpec> {
+        use source::CreatableToken as S;
+        if depth > 64 {
+            return Err(invalid("recursive token definition"));
+        }
+        let named_recipe = match value {
+            S::BloodToken => Some("Blood Token"),
+            S::ClueToken => Some("Clue Token"),
+            S::FishToken => Some("Fish Token"),
+            S::FoodToken => Some("Food Token"),
+            S::GoldToken => Some("Gold Token"),
+            S::JunkToken => Some("Junk Token"),
+            S::LanderToken => Some("Lander Token"),
+            S::MapToken => Some("Map Token"),
+            S::MutagenToken => Some("Mutagen Token"),
+            S::OctopusToken => Some("Octopus Token"),
+            S::PowerstoneToken => Some("Powerstone Token"),
+            S::IncubatorToken => Some("Incubator Token"),
+            S::ShardToken => Some("Shard Token"),
+            S::TreasureToken => Some("Treasure Token"),
+            S::VibraniumToken => Some("Vibranium Token"),
+            S::WalkerToken => Some("Walker Token"),
+            S::HeartwoodToken => Some("Heartwood Token"),
+            S::VirtuousRoleToken => Some("Virtuous Role Token"),
+            S::WickedRoleToken => Some("Wicked Role Token"),
+            S::YoungHeroRoleToken => Some("Young Hero Role Token"),
+            S::CursedRoleToken => Some("Cursed Role Token"),
+            S::MonsterRoleToken => Some("Monster Role Token"),
+            S::RoyalRoleToken => Some("Royal Role Token"),
+            S::SorcererRoleToken => Some("Sorcerer Role Token"),
+            S::OracleToken(name) => Some(name.as_str()),
+            _ => None,
+        };
+        if let Some(name) = named_recipe {
+            let recipe = predefined_tokens()?
+                .get(name)
+                .ok_or_else(|| invalid("missing parsed predefined-token recipe"))?;
+            let mut token = self
+                .token(recipe, depth + 1)
+                .map_err(|e| e.at(format!("predefined[{name:?}]")))?;
+            token.words = TokenWords::Rules;
+            return Ok(token);
+        }
+        match value {
+            S::NumberTokens(n, inner) | S::NumberTokensForEach(n, _, inner) => {
+                let mut token = self.token(inner, depth + 1)?;
+                let mut amount = self.number(n)?;
+                if let S::NumberTokensForEach(_, each, _) = value {
+                    amount = Expr::multiply(amount, self.number(each)?);
+                }
+                token.amount = Expr::multiply(amount, token.amount);
+                return Ok(token);
+            }
+            _ => {}
+        }
+        let (name, pt, colors, supertypes, card_types, subtypes, rules) = match value {
+            S::Token(c, s, t, sub, rules) => (TokenName::FromSubtypes, None, c, s, t, sub, rules),
+            S::TokenWithPT(pt, c, s, t, sub, rules) => {
+                (TokenName::FromSubtypes, Some(pt), c, s, t, sub, rules)
+            }
+            S::NamedToken(name, c, s, t, sub, rules) => {
+                (TokenName::Explicit(name.clone()), None, c, s, t, sub, rules)
+            }
+            S::NamedTokenWithPT(name, pt, c, s, t, sub, rules)
+            | S::NamedTokenWithPTAndWithCopyEffects(
+                name,
+                pt,
+                c,
+                s,
+                t,
+                sub,
+                rules,
+                source::TokenCopyEffects::NoTokenCopyEffects,
+            ) => (
+                TokenName::Explicit(name.clone()),
+                Some(pt),
+                c,
+                s,
+                t,
+                sub,
+                rules,
+            ),
+            _ => return Err(unsupported(value)),
+        };
+        let colors = match colors {
+            source::TokenColorList::Colorless => Vec::new(),
+            source::TokenColorList::AllColors => vec![
+                ManaColor::White,
+                ManaColor::Blue,
+                ManaColor::Black,
+                ManaColor::Red,
+                ManaColor::Green,
+            ],
+            source::TokenColorList::Colors(colors) => colors
+                .iter()
+                .map(|c| match c {
+                    source::SimpleColor::White => ManaColor::White,
+                    source::SimpleColor::Blue => ManaColor::Blue,
+                    source::SimpleColor::Black => ManaColor::Black,
+                    source::SimpleColor::Red => ManaColor::Red,
+                    source::SimpleColor::Green => ManaColor::Green,
+                })
+                .collect(),
+            _ => return Err(unsupported(colors)),
+        };
+        let subtypes = match subtypes {
+            source::TokenSubtypes::SubtypesList(subtypes) => subtypes.clone(),
+            source::TokenSubtypes::AllBasicLandTypes => vec![
+                source::SubType::Plains,
+                source::SubType::Island,
+                source::SubType::Swamp,
+                source::SubType::Mountain,
+                source::SubType::Forest,
+            ],
+            _ => return Err(unsupported(subtypes)),
+        };
+        let power_toughness = pt
+            .map(|pt| -> Result<_> {
+                Ok(match pt {
+                    source::PT::PT(p, t) => {
+                        (Expr::Constant((*p).into()), Expr::Constant((*t).into()))
+                    }
+                    source::PT::ManualPT(p, t) => (self.number(p)?, self.number(t)?),
+                    source::PT::PTX(p, t, n) => {
+                        let n = self.number(n)?;
+                        let component = |v: &source::PTXValue| match v {
+                            source::PTXValue::Integer(n) => Expr::Constant((*n).into()),
+                            source::PTXValue::X => n.clone(),
+                        };
+                        (component(p), component(t))
+                    }
+                })
+            })
+            .transpose()?;
+        let abilities = rules
+            .iter()
+            .enumerate()
+            .map(|(i, rule)| {
+                self.fresh()
+                    .ability(rule)
+                    .map_err(|e| e.at(format!("definition.abilities[{i}]")))
+            })
+            .collect::<Result<_>>()?;
+        Ok(TokenSpec {
+            amount: Expr::Constant(1),
+            words: TokenWords::CreatingEffect,
+            definition: TokenDefinition {
+                name,
+                colors,
+                supertypes: supertypes.clone(),
+                card_types: card_types.clone(),
+                subtypes,
+                power_toughness,
+                abilities,
+            },
+        })
+    }
+
+    fn token_entry(&self, flags: &[source::TokenFlag]) -> Result<EntrySpec> {
+        let mut entry = EntrySpec::default();
+        for (i, flag) in flags.iter().enumerate() {
+            match flag {
+                source::TokenFlag::EntersTapped => entry.tapped = true,
+                source::TokenFlag::EntersWithACounter(kind) => entry
+                    .counters
+                    .push((crate::counter::lower(kind), Expr::Constant(1))),
+                source::TokenFlag::EntersWithNumberCounters(amount, kind) => entry
+                    .counters
+                    .push((crate::counter::lower(kind), self.number(amount)?)),
+                _ => return Err(unsupported(flag).at(format!("entry[{i}]"))),
+            }
+        }
+        Ok(entry)
+    }
+}

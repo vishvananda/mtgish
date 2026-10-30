@@ -634,7 +634,7 @@ flat_plane_types = [
   ("Shandalar"                , "Shandalar"             ),
   ("Shenmeng"                 , "Shenmeng"              ),
   ("Skaro"                    , "Skaro"                 ),
-  ("Spaceship"                , "Spaceship"             ),
+  ("Spacecraft"                , "Spacecraft"             ),
   ("Tarkir"                   , "Tarkir"                ),
   ("The Abyss"                , "TheAbyss"              ),
   ("The Dalek Asylum"         , "TheDalekAsylum"        ),
@@ -719,6 +719,8 @@ mtgish_grammar = {
   "{{CLUE}}"     : { variable: "" for (singular, variable) in zip(artifact_types    ["singular"], artifact_types    ["variable"]) },
   "{{LILIANA}}"  : { variable: "" for (singular, variable) in zip(planeswalker_types["singular"], planeswalker_types["variable"]) },
   "{{DOMINARIA}}": { variable: "" for (singular, variable) in zip(plane_types       ["singular"], plane_types       ["variable"]) },
+  # SUBTYPE_LIST already accepts names shared with artifacts via CLUE.
+  "{{DOMINARIA_UNIQUE}}": { variable: "" for variable in plane_types["variable"] if variable not in artifact_types["variable"] },
   "{{UNDERCITY}}": { variable: "" for (singular, variable) in zip(dungeon_types     ["singular"], dungeon_types     ["variable"]) },
   "{{SIEGE}}"    : { variable: "" for (singular, variable) in zip(battle_types      ["singular"], battle_types      ["variable"]) },
 }

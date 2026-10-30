@@ -1,0 +1,2946 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "selector.Permanents.And",
+      "domain": "Permanents",
+      "source": "And",
+      "arity": 1,
+      "predicate": {
+        "kind": "AllFrom",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.Or",
+      "domain": "Permanents",
+      "source": "Or",
+      "arity": 1,
+      "predicate": {
+        "kind": "EitherFrom",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.Not",
+      "domain": "Permanents",
+      "source": "Not",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsColor",
+      "domain": "Permanents",
+      "source": "IsColor",
+      "arity": 1,
+      "predicate": {
+        "kind": "Color",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.IsNonColor",
+      "domain": "Permanents",
+      "source": "IsNonColor",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Color",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsColorless",
+      "domain": "Permanents",
+      "source": "IsColorless",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Colorless"
+      }
+    },
+    {
+      "id": "selector.Permanents.IsColored",
+      "domain": "Permanents",
+      "source": "IsColored",
+      "arity": 0,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Literal",
+          "value": "Colorless"
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsNamed",
+      "domain": "Permanents",
+      "source": "IsNamed",
+      "arity": 1,
+      "predicate": {
+        "kind": "Name",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.IsNotNamed",
+      "domain": "Permanents",
+      "source": "IsNotNamed",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Name",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.HasAbility",
+      "domain": "Permanents",
+      "source": "HasAbility",
+      "arity": 1,
+      "predicate": {
+        "kind": "Keyword",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.DoesntHaveAbility",
+      "domain": "Permanents",
+      "source": "DoesntHaveAbility",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Keyword",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsToken",
+      "domain": "Permanents",
+      "source": "IsToken",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Token"
+      }
+    },
+    {
+      "id": "selector.Permanents.IsNonToken",
+      "domain": "Permanents",
+      "source": "IsNonToken",
+      "arity": 0,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Literal",
+          "value": "Token"
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsTapped",
+      "domain": "Permanents",
+      "source": "IsTapped",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Tapped"
+      }
+    },
+    {
+      "id": "selector.Permanents.IsUntapped",
+      "domain": "Permanents",
+      "source": "IsUntapped",
+      "arity": 0,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Literal",
+          "value": "Tapped"
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsAttacking",
+      "domain": "Permanents",
+      "source": "IsAttacking",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Attacking"
+      }
+    },
+    {
+      "id": "selector.Permanents.IsBlocking",
+      "domain": "Permanents",
+      "source": "IsBlocking",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Blocking"
+      }
+    },
+    {
+      "id": "selector.Permanents.IsModified",
+      "domain": "Permanents",
+      "source": "IsModified",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Modified"
+      }
+    },
+    {
+      "id": "selector.Permanents.IsMonocolored",
+      "domain": "Permanents",
+      "source": "IsMonocolored",
+      "arity": 0,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Equal",
+          "amount": 1
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsMulticolored",
+      "domain": "Permanents",
+      "source": "IsMulticolored",
+      "arity": 0,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Greater",
+          "amount": 1
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsAllColors",
+      "domain": "Permanents",
+      "source": "IsAllColors",
+      "arity": 0,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Equal",
+          "amount": 5
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsNumberColors",
+      "domain": "Permanents",
+      "source": "IsNumberColors",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsPermanent",
+      "domain": "Permanents",
+      "source": "IsPermanent",
+      "arity": 0,
+      "predicate": {
+        "kind": "Either",
+        "predicates": [
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Artifact"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Battle"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Creature"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Enchantment"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Land"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Planeswalker"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selector.Permanents.IsHistoric",
+      "domain": "Permanents",
+      "source": "IsHistoric",
+      "arity": 0,
+      "predicate": {
+        "kind": "Either",
+        "predicates": [
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Artifact"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "SuperType",
+            "argument": null,
+            "value": "Legendary"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "SubType",
+            "argument": null,
+            "value": "Saga"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selector.Permanents.IsCardtype",
+      "domain": "Permanents",
+      "source": "IsCardtype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "CardType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Permanents.IsNonCardtype",
+      "domain": "Permanents",
+      "source": "IsNonCardtype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "CardType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsSupertype",
+      "domain": "Permanents",
+      "source": "IsSupertype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "SuperType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Permanents.IsNonSupertype",
+      "domain": "Permanents",
+      "source": "IsNonSupertype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "SuperType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsCreatureType",
+      "domain": "Permanents",
+      "source": "IsCreatureType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "CreatureType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Permanents.IsNonCreatureType",
+      "domain": "Permanents",
+      "source": "IsNonCreatureType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "CreatureType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsLandType",
+      "domain": "Permanents",
+      "source": "IsLandType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "LandType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Permanents.IsNonLandType",
+      "domain": "Permanents",
+      "source": "IsNonLandType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "LandType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsArtifactType",
+      "domain": "Permanents",
+      "source": "IsArtifactType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "ArtifactType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Permanents.IsNonArtifactType",
+      "domain": "Permanents",
+      "source": "IsNonArtifactType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "ArtifactType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsEnchantmentType",
+      "domain": "Permanents",
+      "source": "IsEnchantmentType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "EnchantmentType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Permanents.IsNonEnchantmentType",
+      "domain": "Permanents",
+      "source": "IsNonEnchantmentType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "EnchantmentType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.IsPlaneswalkerType",
+      "domain": "Permanents",
+      "source": "IsPlaneswalkerType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "PlaneswalkerType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Permanents.IsNonPlaneswalkerType",
+      "domain": "Permanents",
+      "source": "IsNonPlaneswalkerType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "PlaneswalkerType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.PowerIs",
+      "domain": "Permanents",
+      "source": "PowerIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "Power",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.ToughnessIs",
+      "domain": "Permanents",
+      "source": "ToughnessIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "Toughness",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.ManaValueIs",
+      "domain": "Permanents",
+      "source": "ManaValueIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "ManaValue",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.BasePowerIs",
+      "domain": "Permanents",
+      "source": "BasePowerIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "BasePower",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.BaseToughnessIs",
+      "domain": "Permanents",
+      "source": "BaseToughnessIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "BaseToughness",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.ControlledByAPlayer",
+      "domain": "Permanents",
+      "source": "ControlledByAPlayer",
+      "arity": 1,
+      "predicate": {
+        "kind": "ControlledBy",
+        "players": {
+          "kind": "Players",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.ControlledByPlayer",
+      "domain": "Permanents",
+      "source": "ControlledByPlayer",
+      "arity": 1,
+      "predicate": {
+        "kind": "ControlledBy",
+        "players": {
+          "kind": "Player",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.OwnedByAPlayer",
+      "domain": "Permanents",
+      "source": "OwnedByAPlayer",
+      "arity": 1,
+      "predicate": {
+        "kind": "OwnedBy",
+        "players": {
+          "kind": "Players",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.HasACounter",
+      "domain": "Permanents",
+      "source": "HasACounter",
+      "arity": 0,
+      "predicate": {
+        "kind": "Counters",
+        "counter": null,
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Greater",
+          "amount": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.HasNoCounters",
+      "domain": "Permanents",
+      "source": "HasNoCounters",
+      "arity": 0,
+      "predicate": {
+        "kind": "Counters",
+        "counter": null,
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Equal",
+          "amount": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.HasACounterOfType",
+      "domain": "Permanents",
+      "source": "HasACounterOfType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Counters",
+        "counter": 0,
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Greater",
+          "amount": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.HasNoCountersOfType",
+      "domain": "Permanents",
+      "source": "HasNoCountersOfType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Counters",
+        "counter": 0,
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Equal",
+          "amount": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.HasNumberCounters",
+      "domain": "Permanents",
+      "source": "HasNumberCounters",
+      "arity": 1,
+      "predicate": {
+        "kind": "Counters",
+        "counter": null,
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.HasNumberCountersOfType",
+      "domain": "Permanents",
+      "source": "HasNumberCountersOfType",
+      "arity": 2,
+      "predicate": {
+        "kind": "Counters",
+        "counter": 1,
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Permanents.AnyPermanent",
+      "domain": "Permanents",
+      "source": "AnyPermanent",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Any"
+      }
+    },
+    {
+      "id": "selector.Permanents.SinglePermanent",
+      "domain": "Permanents",
+      "source": "SinglePermanent",
+      "arity": 1,
+      "predicate": {
+        "kind": "SameObject",
+        "domain": "Permanent",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.Other",
+      "domain": "Permanents",
+      "source": "Other",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "SameObject",
+          "domain": "Permanent",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.And",
+      "domain": "Cards",
+      "source": "And",
+      "arity": 1,
+      "predicate": {
+        "kind": "AllFrom",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Cards.Or",
+      "domain": "Cards",
+      "source": "Or",
+      "arity": 1,
+      "predicate": {
+        "kind": "EitherFrom",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Cards.Not",
+      "domain": "Cards",
+      "source": "Not",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.IsColor",
+      "domain": "Cards",
+      "source": "IsColor",
+      "arity": 1,
+      "predicate": {
+        "kind": "Color",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Cards.IsNonColor",
+      "domain": "Cards",
+      "source": "IsNonColor",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Color",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.IsColorless",
+      "domain": "Cards",
+      "source": "IsColorless",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Colorless"
+      }
+    },
+    {
+      "id": "selector.Cards.IsColored",
+      "domain": "Cards",
+      "source": "IsColored",
+      "arity": 0,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Literal",
+          "value": "Colorless"
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.IsNamed",
+      "domain": "Cards",
+      "source": "IsNamed",
+      "arity": 1,
+      "predicate": {
+        "kind": "Name",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Cards.IsNotNamed",
+      "domain": "Cards",
+      "source": "IsNotNamed",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Name",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.HasAbility",
+      "domain": "Cards",
+      "source": "HasAbility",
+      "arity": 1,
+      "predicate": {
+        "kind": "Keyword",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Cards.DoesntHaveAbility",
+      "domain": "Cards",
+      "source": "DoesntHaveAbility",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Keyword",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.IsMulticolored",
+      "domain": "Cards",
+      "source": "IsMulticolored",
+      "arity": 0,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Greater",
+          "amount": 1
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.IsAllColors",
+      "domain": "Cards",
+      "source": "IsAllColors",
+      "arity": 0,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Equal",
+          "amount": 5
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.IsNumberColors",
+      "domain": "Cards",
+      "source": "IsNumberColors",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.IsPermanent",
+      "domain": "Cards",
+      "source": "IsPermanent",
+      "arity": 0,
+      "predicate": {
+        "kind": "Either",
+        "predicates": [
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Artifact"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Battle"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Creature"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Enchantment"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Land"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Planeswalker"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selector.Cards.IsHistoric",
+      "domain": "Cards",
+      "source": "IsHistoric",
+      "arity": 0,
+      "predicate": {
+        "kind": "Either",
+        "predicates": [
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Artifact"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "SuperType",
+            "argument": null,
+            "value": "Legendary"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "SubType",
+            "argument": null,
+            "value": "Saga"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selector.Cards.IsCardtype",
+      "domain": "Cards",
+      "source": "IsCardtype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "CardType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Cards.IsNonCardtype",
+      "domain": "Cards",
+      "source": "IsNonCardtype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "CardType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.IsSupertype",
+      "domain": "Cards",
+      "source": "IsSupertype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "SuperType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Cards.IsNonSupertype",
+      "domain": "Cards",
+      "source": "IsNonSupertype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "SuperType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.IsCreatureType",
+      "domain": "Cards",
+      "source": "IsCreatureType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "CreatureType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Cards.IsNonCreatureType",
+      "domain": "Cards",
+      "source": "IsNonCreatureType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "CreatureType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.IsLandType",
+      "domain": "Cards",
+      "source": "IsLandType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "LandType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Cards.IsNonLandType",
+      "domain": "Cards",
+      "source": "IsNonLandType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "LandType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.IsArtifactType",
+      "domain": "Cards",
+      "source": "IsArtifactType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "ArtifactType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Cards.IsNonArtifactType",
+      "domain": "Cards",
+      "source": "IsNonArtifactType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "ArtifactType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.IsEnchantmentType",
+      "domain": "Cards",
+      "source": "IsEnchantmentType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "EnchantmentType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Cards.IsNonEnchantmentType",
+      "domain": "Cards",
+      "source": "IsNonEnchantmentType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "EnchantmentType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.IsPlaneswalkerType",
+      "domain": "Cards",
+      "source": "IsPlaneswalkerType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "PlaneswalkerType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Cards.IsSpellType",
+      "domain": "Cards",
+      "source": "IsSpellType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "SpellType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Cards.PowerIs",
+      "domain": "Cards",
+      "source": "PowerIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "Power",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.ToughnessIs",
+      "domain": "Cards",
+      "source": "ToughnessIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "Toughness",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.ManaValueIs",
+      "domain": "Cards",
+      "source": "ManaValueIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "ManaValue",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.ControlledByAPlayer",
+      "domain": "Cards",
+      "source": "ControlledByAPlayer",
+      "arity": 1,
+      "predicate": {
+        "kind": "ControlledBy",
+        "players": {
+          "kind": "Players",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.OwnedByAPlayer",
+      "domain": "Cards",
+      "source": "OwnedByAPlayer",
+      "arity": 1,
+      "predicate": {
+        "kind": "OwnedBy",
+        "players": {
+          "kind": "Players",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Cards.AnyCard",
+      "domain": "Cards",
+      "source": "AnyCard",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Any"
+      }
+    },
+    {
+      "id": "selector.Cards.SingleCard",
+      "domain": "Cards",
+      "source": "SingleCard",
+      "arity": 1,
+      "predicate": {
+        "kind": "SameObject",
+        "domain": "SingleCard",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Cards.Other",
+      "domain": "Cards",
+      "source": "Other",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "SameObject",
+          "domain": "SingleCard",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.And",
+      "domain": "Spells",
+      "source": "And",
+      "arity": 1,
+      "predicate": {
+        "kind": "AllFrom",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Spells.Or",
+      "domain": "Spells",
+      "source": "Or",
+      "arity": 1,
+      "predicate": {
+        "kind": "EitherFrom",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Spells.Not",
+      "domain": "Spells",
+      "source": "Not",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.IsColor",
+      "domain": "Spells",
+      "source": "IsColor",
+      "arity": 1,
+      "predicate": {
+        "kind": "Color",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Spells.IsNonColor",
+      "domain": "Spells",
+      "source": "IsNonColor",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Color",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.IsColorless",
+      "domain": "Spells",
+      "source": "IsColorless",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Colorless"
+      }
+    },
+    {
+      "id": "selector.Spells.IsColored",
+      "domain": "Spells",
+      "source": "IsColored",
+      "arity": 0,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Literal",
+          "value": "Colorless"
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.IsNamed",
+      "domain": "Spells",
+      "source": "IsNamed",
+      "arity": 1,
+      "predicate": {
+        "kind": "Name",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Spells.HasAbility",
+      "domain": "Spells",
+      "source": "HasAbility",
+      "arity": 1,
+      "predicate": {
+        "kind": "Keyword",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Spells.DoesntHaveAbility",
+      "domain": "Spells",
+      "source": "DoesntHaveAbility",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Keyword",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.IsCard",
+      "domain": "Spells",
+      "source": "IsCard",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "IsCard"
+      }
+    },
+    {
+      "id": "selector.Spells.IsMonocolored",
+      "domain": "Spells",
+      "source": "IsMonocolored",
+      "arity": 0,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Equal",
+          "amount": 1
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.IsMulticolored",
+      "domain": "Spells",
+      "source": "IsMulticolored",
+      "arity": 0,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Greater",
+          "amount": 1
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.IsAllColors",
+      "domain": "Spells",
+      "source": "IsAllColors",
+      "arity": 0,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Equal",
+          "amount": 5
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.IsNumberColors",
+      "domain": "Spells",
+      "source": "IsNumberColors",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.IsPermanent",
+      "domain": "Spells",
+      "source": "IsPermanent",
+      "arity": 0,
+      "predicate": {
+        "kind": "Either",
+        "predicates": [
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Artifact"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Battle"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Creature"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Enchantment"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Land"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Planeswalker"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selector.Spells.IsHistoric",
+      "domain": "Spells",
+      "source": "IsHistoric",
+      "arity": 0,
+      "predicate": {
+        "kind": "Either",
+        "predicates": [
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Artifact"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "SuperType",
+            "argument": null,
+            "value": "Legendary"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "SubType",
+            "argument": null,
+            "value": "Saga"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selector.Spells.IsCardtype",
+      "domain": "Spells",
+      "source": "IsCardtype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "CardType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Spells.IsNonCardtype",
+      "domain": "Spells",
+      "source": "IsNonCardtype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "CardType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.IsSupertype",
+      "domain": "Spells",
+      "source": "IsSupertype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "SuperType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Spells.IsNonSupertype",
+      "domain": "Spells",
+      "source": "IsNonSupertype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "SuperType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.IsCreatureType",
+      "domain": "Spells",
+      "source": "IsCreatureType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "CreatureType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Spells.IsNonCreatureType",
+      "domain": "Spells",
+      "source": "IsNonCreatureType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "CreatureType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.IsArtifactType",
+      "domain": "Spells",
+      "source": "IsArtifactType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "ArtifactType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Spells.IsEnchantmentType",
+      "domain": "Spells",
+      "source": "IsEnchantmentType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "EnchantmentType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Spells.IsPlaneswalkerType",
+      "domain": "Spells",
+      "source": "IsPlaneswalkerType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "PlaneswalkerType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Spells.IsSpellType",
+      "domain": "Spells",
+      "source": "IsSpellType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "SpellType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.Spells.PowerIs",
+      "domain": "Spells",
+      "source": "PowerIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "Power",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.ToughnessIs",
+      "domain": "Spells",
+      "source": "ToughnessIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "Toughness",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.ManaValueIs",
+      "domain": "Spells",
+      "source": "ManaValueIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "ManaValue",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.ControlledByAPlayer",
+      "domain": "Spells",
+      "source": "ControlledByAPlayer",
+      "arity": 1,
+      "predicate": {
+        "kind": "ControlledBy",
+        "players": {
+          "kind": "Players",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.OwnedByAPlayer",
+      "domain": "Spells",
+      "source": "OwnedByAPlayer",
+      "arity": 1,
+      "predicate": {
+        "kind": "OwnedBy",
+        "players": {
+          "kind": "Players",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.Spells.AnySpell",
+      "domain": "Spells",
+      "source": "AnySpell",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Any"
+      }
+    },
+    {
+      "id": "selector.Spells.SingleSpell",
+      "domain": "Spells",
+      "source": "SingleSpell",
+      "arity": 1,
+      "predicate": {
+        "kind": "SameObject",
+        "domain": "Spell",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Spells.Other",
+      "domain": "Spells",
+      "source": "Other",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "SameObject",
+          "domain": "Spell",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.And",
+      "domain": "CardsInGraveyards",
+      "source": "And",
+      "arity": 1,
+      "predicate": {
+        "kind": "AllFrom",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.Or",
+      "domain": "CardsInGraveyards",
+      "source": "Or",
+      "arity": 1,
+      "predicate": {
+        "kind": "EitherFrom",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.Not",
+      "domain": "CardsInGraveyards",
+      "source": "Not",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsColor",
+      "domain": "CardsInGraveyards",
+      "source": "IsColor",
+      "arity": 1,
+      "predicate": {
+        "kind": "Color",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsColorless",
+      "domain": "CardsInGraveyards",
+      "source": "IsColorless",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Colorless"
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsNamed",
+      "domain": "CardsInGraveyards",
+      "source": "IsNamed",
+      "arity": 1,
+      "predicate": {
+        "kind": "Name",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsNotNamed",
+      "domain": "CardsInGraveyards",
+      "source": "IsNotNamed",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Name",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.HasAbility",
+      "domain": "CardsInGraveyards",
+      "source": "HasAbility",
+      "arity": 1,
+      "predicate": {
+        "kind": "Keyword",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.DoesntHaveAbility",
+      "domain": "CardsInGraveyards",
+      "source": "DoesntHaveAbility",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Keyword",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsMonocolored",
+      "domain": "CardsInGraveyards",
+      "source": "IsMonocolored",
+      "arity": 0,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Equal",
+          "amount": 1
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsMulticolored",
+      "domain": "CardsInGraveyards",
+      "source": "IsMulticolored",
+      "arity": 0,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Greater",
+          "amount": 1
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsNumberColors",
+      "domain": "CardsInGraveyards",
+      "source": "IsNumberColors",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsPermanent",
+      "domain": "CardsInGraveyards",
+      "source": "IsPermanent",
+      "arity": 0,
+      "predicate": {
+        "kind": "Either",
+        "predicates": [
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Artifact"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Battle"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Creature"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Enchantment"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Land"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Planeswalker"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsHistoric",
+      "domain": "CardsInGraveyards",
+      "source": "IsHistoric",
+      "arity": 0,
+      "predicate": {
+        "kind": "Either",
+        "predicates": [
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Artifact"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "SuperType",
+            "argument": null,
+            "value": "Legendary"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "SubType",
+            "argument": null,
+            "value": "Saga"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsCardtype",
+      "domain": "CardsInGraveyards",
+      "source": "IsCardtype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "CardType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsNonCardtype",
+      "domain": "CardsInGraveyards",
+      "source": "IsNonCardtype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "CardType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsSupertype",
+      "domain": "CardsInGraveyards",
+      "source": "IsSupertype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "SuperType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsNonSupertype",
+      "domain": "CardsInGraveyards",
+      "source": "IsNonSupertype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "SuperType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsCreatureType",
+      "domain": "CardsInGraveyards",
+      "source": "IsCreatureType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "CreatureType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsNonCreatureType",
+      "domain": "CardsInGraveyards",
+      "source": "IsNonCreatureType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "CreatureType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsLandType",
+      "domain": "CardsInGraveyards",
+      "source": "IsLandType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "LandType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsArtifactType",
+      "domain": "CardsInGraveyards",
+      "source": "IsArtifactType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "ArtifactType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsEnchantmentType",
+      "domain": "CardsInGraveyards",
+      "source": "IsEnchantmentType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "EnchantmentType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsNonEnchantmentType",
+      "domain": "CardsInGraveyards",
+      "source": "IsNonEnchantmentType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "EnchantmentType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsPlaneswalkerType",
+      "domain": "CardsInGraveyards",
+      "source": "IsPlaneswalkerType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "PlaneswalkerType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsSpellType",
+      "domain": "CardsInGraveyards",
+      "source": "IsSpellType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "SpellType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.IsNonSpellType",
+      "domain": "CardsInGraveyards",
+      "source": "IsNonSpellType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "SpellType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.PowerIs",
+      "domain": "CardsInGraveyards",
+      "source": "PowerIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "Power",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.ToughnessIs",
+      "domain": "CardsInGraveyards",
+      "source": "ToughnessIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "Toughness",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.ManaValueIs",
+      "domain": "CardsInGraveyards",
+      "source": "ManaValueIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "ManaValue",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.AnyCardInAnyGraveyard",
+      "domain": "CardsInGraveyards",
+      "source": "AnyCardInAnyGraveyard",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Any"
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.SingleGraveyardCard",
+      "domain": "CardsInGraveyards",
+      "source": "SingleGraveyardCard",
+      "arity": 1,
+      "predicate": {
+        "kind": "SameObject",
+        "domain": "CardInGraveyards",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.Other",
+      "domain": "CardsInGraveyards",
+      "source": "Other",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "SameObject",
+          "domain": "CardInGraveyards",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.InAPlayersGraveyard",
+      "domain": "CardsInGraveyards",
+      "source": "InAPlayersGraveyard",
+      "arity": 1,
+      "predicate": {
+        "kind": "InZone",
+        "zone": "Graveyard",
+        "players": {
+          "kind": "Players",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInHand.And",
+      "domain": "CardsInHand",
+      "source": "And",
+      "arity": 1,
+      "predicate": {
+        "kind": "AllFrom",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInHand.Or",
+      "domain": "CardsInHand",
+      "source": "Or",
+      "arity": 1,
+      "predicate": {
+        "kind": "EitherFrom",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsColor",
+      "domain": "CardsInHand",
+      "source": "IsColor",
+      "arity": 1,
+      "predicate": {
+        "kind": "Color",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsNonColor",
+      "domain": "CardsInHand",
+      "source": "IsNonColor",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Color",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsColorless",
+      "domain": "CardsInHand",
+      "source": "IsColorless",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Colorless"
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsNamed",
+      "domain": "CardsInHand",
+      "source": "IsNamed",
+      "arity": 1,
+      "predicate": {
+        "kind": "Name",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInHand.HasAbility",
+      "domain": "CardsInHand",
+      "source": "HasAbility",
+      "arity": 1,
+      "predicate": {
+        "kind": "Keyword",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInHand.DoesntHaveAbility",
+      "domain": "CardsInHand",
+      "source": "DoesntHaveAbility",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Keyword",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsMulticolored",
+      "domain": "CardsInHand",
+      "source": "IsMulticolored",
+      "arity": 0,
+      "predicate": {
+        "kind": "Property",
+        "property": "ColorCount",
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Greater",
+          "amount": 1
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsPermanent",
+      "domain": "CardsInHand",
+      "source": "IsPermanent",
+      "arity": 0,
+      "predicate": {
+        "kind": "Either",
+        "predicates": [
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Artifact"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Battle"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Creature"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Enchantment"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Land"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Planeswalker"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsHistoric",
+      "domain": "CardsInHand",
+      "source": "IsHistoric",
+      "arity": 0,
+      "predicate": {
+        "kind": "Either",
+        "predicates": [
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Artifact"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "SuperType",
+            "argument": null,
+            "value": "Legendary"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "SubType",
+            "argument": null,
+            "value": "Saga"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsCardtype",
+      "domain": "CardsInHand",
+      "source": "IsCardtype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "CardType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsNonCardtype",
+      "domain": "CardsInHand",
+      "source": "IsNonCardtype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "CardType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsSupertype",
+      "domain": "CardsInHand",
+      "source": "IsSupertype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "SuperType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsCreatureType",
+      "domain": "CardsInHand",
+      "source": "IsCreatureType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "CreatureType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsLandType",
+      "domain": "CardsInHand",
+      "source": "IsLandType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "LandType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsArtifactType",
+      "domain": "CardsInHand",
+      "source": "IsArtifactType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "ArtifactType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsEnchantmentType",
+      "domain": "CardsInHand",
+      "source": "IsEnchantmentType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "EnchantmentType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsPlaneswalkerType",
+      "domain": "CardsInHand",
+      "source": "IsPlaneswalkerType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "PlaneswalkerType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInHand.IsSpellType",
+      "domain": "CardsInHand",
+      "source": "IsSpellType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "SpellType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInHand.PowerIs",
+      "domain": "CardsInHand",
+      "source": "PowerIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "Power",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInHand.ToughnessIs",
+      "domain": "CardsInHand",
+      "source": "ToughnessIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "Toughness",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInHand.ManaValueIs",
+      "domain": "CardsInHand",
+      "source": "ManaValueIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "ManaValue",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInHand.AnyCard",
+      "domain": "CardsInHand",
+      "source": "AnyCard",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Any"
+      }
+    },
+    {
+      "id": "selector.CardsInHand.SingleCardInHand",
+      "domain": "CardsInHand",
+      "source": "SingleCardInHand",
+      "arity": 1,
+      "predicate": {
+        "kind": "SameObject",
+        "domain": "CardInHand",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInHand.Other",
+      "domain": "CardsInHand",
+      "source": "Other",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "SameObject",
+          "domain": "CardInHand",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInHand.InAPlayersHand",
+      "domain": "CardsInHand",
+      "source": "InAPlayersHand",
+      "arity": 1,
+      "predicate": {
+        "kind": "InZone",
+        "zone": "Hand",
+        "players": {
+          "kind": "Players",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInExile.And",
+      "domain": "CardsInExile",
+      "source": "And",
+      "arity": 1,
+      "predicate": {
+        "kind": "AllFrom",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInExile.Or",
+      "domain": "CardsInExile",
+      "source": "Or",
+      "arity": 1,
+      "predicate": {
+        "kind": "EitherFrom",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInExile.Not",
+      "domain": "CardsInExile",
+      "source": "Not",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInExile.IsColor",
+      "domain": "CardsInExile",
+      "source": "IsColor",
+      "arity": 1,
+      "predicate": {
+        "kind": "Color",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInExile.IsNamed",
+      "domain": "CardsInExile",
+      "source": "IsNamed",
+      "arity": 1,
+      "predicate": {
+        "kind": "Name",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInExile.HasAbility",
+      "domain": "CardsInExile",
+      "source": "HasAbility",
+      "arity": 1,
+      "predicate": {
+        "kind": "Keyword",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInExile.DoesntHaveAbility",
+      "domain": "CardsInExile",
+      "source": "DoesntHaveAbility",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Keyword",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInExile.IsPermanent",
+      "domain": "CardsInExile",
+      "source": "IsPermanent",
+      "arity": 0,
+      "predicate": {
+        "kind": "Either",
+        "predicates": [
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Artifact"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Battle"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Creature"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Enchantment"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Land"
+          },
+          {
+            "kind": "Vocabulary",
+            "vocabulary": "CardType",
+            "argument": null,
+            "value": "Planeswalker"
+          }
+        ]
+      }
+    },
+    {
+      "id": "selector.CardsInExile.IsCardtype",
+      "domain": "CardsInExile",
+      "source": "IsCardtype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "CardType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInExile.IsNonCardtype",
+      "domain": "CardsInExile",
+      "source": "IsNonCardtype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "CardType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInExile.IsSupertype",
+      "domain": "CardsInExile",
+      "source": "IsSupertype",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "SuperType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInExile.IsCreatureType",
+      "domain": "CardsInExile",
+      "source": "IsCreatureType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Vocabulary",
+        "vocabulary": "CreatureType",
+        "argument": 0,
+        "value": null
+      }
+    },
+    {
+      "id": "selector.CardsInExile.IsNonEnchantmentType",
+      "domain": "CardsInExile",
+      "source": "IsNonEnchantmentType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Vocabulary",
+          "vocabulary": "EnchantmentType",
+          "argument": 0,
+          "value": null
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInExile.ManaValueIs",
+      "domain": "CardsInExile",
+      "source": "ManaValueIs",
+      "arity": 1,
+      "predicate": {
+        "kind": "Property",
+        "property": "ManaValue",
+        "comparison": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInExile.OwnedByAPlayer",
+      "domain": "CardsInExile",
+      "source": "OwnedByAPlayer",
+      "arity": 1,
+      "predicate": {
+        "kind": "OwnedBy",
+        "players": {
+          "kind": "Players",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInExile.HasACounterOfType",
+      "domain": "CardsInExile",
+      "source": "HasACounterOfType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Counters",
+        "counter": 0,
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Greater",
+          "amount": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInExile.HasNoCountersOfType",
+      "domain": "CardsInExile",
+      "source": "HasNoCountersOfType",
+      "arity": 1,
+      "predicate": {
+        "kind": "Counters",
+        "counter": 0,
+        "comparison": {
+          "kind": "Fixed",
+          "operator": "Equal",
+          "amount": 0
+        }
+      }
+    },
+    {
+      "id": "selector.CardsInExile.AnyCard",
+      "domain": "CardsInExile",
+      "source": "AnyCard",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Any"
+      }
+    },
+    {
+      "id": "selector.CardsInExile.AnyExiledCard",
+      "domain": "CardsInExile",
+      "source": "AnyExiledCard",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Any"
+      }
+    },
+    {
+      "id": "selector.CardsInExile.InExile",
+      "domain": "CardsInExile",
+      "source": "InExile",
+      "arity": 0,
+      "predicate": {
+        "kind": "Literal",
+        "value": "Any"
+      }
+    },
+    {
+      "id": "selector.CardsInExile.SingleExiledCard",
+      "domain": "CardsInExile",
+      "source": "SingleExiledCard",
+      "arity": 1,
+      "predicate": {
+        "kind": "SameObject",
+        "domain": "CardInExile",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInExile.Other",
+      "domain": "CardsInExile",
+      "source": "Other",
+      "arity": 1,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "SameObject",
+          "domain": "CardInExile",
+          "argument": 0
+        }
+      }
+    }
+  ]
+}

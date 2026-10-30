@@ -1,0 +1,5 @@
+{
+  "title": "Double kicker encoded as an exclusive cost alternative instead of two independent kickers (18 cards)",
+  "body": "The `{{Keyword[Spell][DoubleKicker]}}` production encodes “Kicker A and/or B” as `Kicker(Or([A, B]))`, making the payments exclusive alternatives.\n\nBoth costs are independently optional, and both may be paid (CR 702.33b). This affects 18 cards, including Ana Battlemage's two kicker effects and Archangel of Wrath's twice-kicked condition.",
+  "url": "https://github.com/i5jb/mtgish/issues/12"
+}

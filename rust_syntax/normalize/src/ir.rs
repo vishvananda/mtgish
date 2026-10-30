@@ -1,0 +1,1839 @@
+//! Portable semantic card definitions. No function pointers or runtime object
+//! IDs belong here. Unsupported source constructs are errors in `lower`, never
+//! opaque instructions in this schema.
+
+use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
+use serde::{Deserialize, Serialize};
+
+pub const SCHEMA_VERSION: u32 = 23;
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct Card {
+    pub schema_version: u32,
+    pub name: String,
+    pub characteristics: Characteristics,
+    pub abilities: Vec<Ability>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct Characteristics {
+    pub supertypes: Vec<SuperType>,
+    pub card_types: Vec<CardType>,
+    pub subtypes: Vec<SubType>,
+    pub mana_cost: Option<Vec<ManaSymbol>>,
+    pub color_indicator: Vec<ManaColor>,
+    pub power_toughness: Option<(i32, i32)>,
+    pub loyalty: Option<Expr>,
+    pub defense: Option<i32>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum Ability {
+    /// Overrides the source's ordinary functioning zones. Check the condition
+    /// while the ability functions / is activated / triggers, not again when
+    /// an already-created stack ability resolves. Does not grant control or
+    /// permission to activate another player's object.
+    Scoped {
+        zones: Vec<EventZone>,
+        condition: Option<Condition>,
+        ability: Box<Ability>,
+    },
+    Keyword(Keyword),
+    /// Intrinsic rules for casting this object (CR 113.6d-f), independent of
+    /// its resolution program and of ordinary battlefield static effects.
+    Casting(CastingRule),
+    /// One replacement application. The body modifies the pending event and
+    /// completes before that event occurs; it is not an ETB trigger.
+    Replacement {
+        active: ReplacementActive,
+        event: ReplacementEvent,
+        body: Program,
+    },
+    /// A static enchant keyword. Its predicate governs both the Aura spell's
+    /// target and whether the Aura may remain attached; entering otherwise does
+    /// not turn the host choice into a target.
+    Enchant {
+        hosts: EnchantHosts,
+    },
+    Spell {
+        announcement: Announcement,
+        body: Program,
+    },
+    Activated {
+        origin: ActivationOrigin,
+        cost: Cost,
+        limits: ActivationLimits,
+        announcement: Announcement,
+        body: Program,
+    },
+    Triggered {
+        event: EventSpec,
+        intervening_if: Option<Condition>,
+        limits: TriggerLimits,
+        announcement: Announcement,
+        body: Program,
+    },
+    /// A live definition: selectors and expressions are re-evaluated in layers.
+    Static {
+        kind: StaticKind,
+        affected: EffectSubjects,
+        changes: Vec<Change>,
+    },
+    Conditional {
+        condition: Condition,
+        then: Vec<Ability>,
+        otherwise: Vec<Ability>,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum StaticKind {
+    Ordinary,
+    /// Intrinsic definition of this source (604.3), including token-creation
+    /// text and copied definitions. Functions in every zone, outside the game,
+    /// and before play; applies before other effects in its layer (P/T in 7a).
+    /// A granted or conditionally functioning static ability is not a CDA.
+    /// Undeterminable numeric components use zero (208.2a), without replacing
+    /// a supported formula by its current value or clamping negative values.
+    CharacteristicDefining {
+        keyword: Option<Keyword>,
+        contributes_to_color_identity: bool,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CastingRule {
+    /// Intrinsic permission to cast this exact card from a zone by an
+    /// alternative cost. Does not waive ordinary timing, additional costs,
+    /// or restrictions. `require` tests the resulting spell, not just the
+    /// card's characteristics before announcement (702.34a).
+    ///
+    /// If this permission's cost was chosen, `leave_stack` redirects any
+    /// departure to its destination, including countering/bouncing, while
+    /// this stack-functioning ability exists. It is not a resolution action.
+    /// Choosing an alternative cost is copied under 707.10, independently
+    /// of whether the copy was cast or had mana actually spent on it.
+    /// When granted to a card, this casting ability continues to the resulting
+    /// stack object under 400.7g; the grant still has its original expiration.
+    Permission {
+        origin: CastingOrigin,
+        player: PlayerRef,
+        from: ZoneScope,
+        require: ObjectFilter,
+        cost: Cost,
+        leave_stack: Option<Destination>,
+    },
+    AdditionalCost {
+        cost: Cost,
+        optional: bool,
+        repetition: CostRepetition,
+    },
+    /// Replaces only the printed mana cost; additional costs and modifiers
+    /// still apply. Only one alternative is chosen (CR 118.9).
+    AlternativeCost(Cost),
+    /// Apply to the total cost at CR 601.2f, then clamp its mana component at
+    /// zero. Colored reductions spill into generic mana (CR 118.7b-c).
+    ReduceCost(Vec<ManaReduction>),
+    /// Check the completed casting proposal (CR 601.2e), before paying costs.
+    /// A payment cannot make an initially illegal proposal legal (601.6).
+    Require(Condition),
+    /// Changes timing, without granting permission to cast from a new zone.
+    Flash {
+        additional_cost: Option<Cost>,
+    },
+    ProhibitTargets {
+        domain: ObjectDomain,
+        filter: ObjectFilter,
+    },
+    RestrictMana {
+        portion: ManaCostPortion,
+        filter: ManaPaymentFilter,
+    },
+    SpendAsThoughAnyType,
+    If {
+        condition: Condition,
+        rule: Box<CastingRule>,
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CastingOrigin {
+    Ordinary,
+    Flashback,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CostRepetition {
+    Once,
+    /// Once for each announced target beyond this many initial targets.
+    TargetsBeyond(u32),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct ManaReduction {
+    /// None reduces generic mana only, not a mana of any type.
+    pub color: Option<ManaColor>,
+    pub amount: Expr,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ManaCostPortion {
+    All,
+    X,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ManaPaymentFilter {
+    None,
+    Colors(Vec<ManaColor>),
+    /// Test the producing permanent, retaining its production provenance.
+    ProducedBy(ObjectFilter),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum EnchantHosts {
+    Permanents(ObjectFilter),
+    Players(PlayerSet),
+}
+
+/// A keyword's identity remains observable to cost modifiers and triggers,
+/// even when its ordinary activated cost/targets/program are shared.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ActivationOrigin {
+    Ordinary,
+    Equip,
+    /// None is ordinary cycling; Some retains the typecycling predicate.
+    Cycling {
+        search: Option<ObjectFilter>,
+    },
+    /// The cost identifies creatures that crew as payment is made; the source
+    /// becomes crewed when this ability resolves (702.122b/e), even if already
+    /// a creature. Keep identity separate from the generic cost/effect recipe.
+    Crew,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ReplacementActive {
+    Battlefield,
+    /// CR 113.6h/614.12: only the source's own entry is affected, using its
+    /// prospective battlefield characteristics even before it is on the field.
+    SourceEntering,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ReplacementEvent {
+    Enter { objects: ObjectFilter },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum EventChange {
+    SetTapped(bool),
+    AddCounters {
+        kind: crate::counter::CounterKind,
+        amount: Expr,
+    },
+    SetController(PlayerRef),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum Keyword {
+    Devoid,
+    Changeling,
+    Protection(Box<Protection>),
+    HexproofFrom(Box<Protection>),
+    /// Unblockable if a defending player controls a land matching this
+    /// predicate. Does not grant a land type or inspect the attacker's lands.
+    Landwalk(Box<ObjectFilter>),
+    /// Native triggered keyword (702.21), not an additional targeting cost.
+    /// Each instance triggers independently. The opponent controlling the
+    /// targeting spell/ability may pay when the ward trigger resolves; an
+    /// uncounterable spell/ability may be left unpaid. Source-relative values
+    /// still refer to the permanent with ward, with current/LKI information.
+    /// Its cost is a fresh ability definition, evaluated at ward resolution,
+    /// not an expression to snapshot when a continuous effect grants ward.
+    Ward(Box<Cost>),
+    Flying,
+    Trample,
+    Lifelink,
+    Deathtouch,
+    Vigilance,
+    Haste,
+    Reach,
+    FirstStrike,
+    DoubleStrike,
+    Indestructible,
+    Hexproof,
+    Shroud,
+    Menace,
+    Defender,
+    Flash,
+    Fear,
+    Intimidate,
+    Infect,
+    Wither,
+    Prowess,
+    Flanking,
+    Horsemanship,
+    Shadow,
+    Skulk,
+}
+
+/// Protection/qualified hexproof quality, rather than a permanent-only filter.
+/// Protection applies the targeting, attachment, damage-prevention and blocking
+/// rules of 702.16; hexproof uses only its opponent targeting restriction.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Protection {
+    Objects {
+        kind: ObjectKind,
+        filter: ObjectFilter,
+    },
+    /// One instance per selected player (702.16i), including owned sources
+    /// not controlled by another player (702.16k).
+    Players(PlayerSet),
+    /// Behaves as separate keyword instances (702.16g-i / 702.11f-g), not
+    /// one ability with a merged quality. Duplicate instances remain present.
+    Each(Vec<Protection>),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct Announcement {
+    pub targets: Vec<TargetSpec>,
+    pub modes: Option<ModeSelection>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct ModeSelection {
+    pub minimum: Expr,
+    pub maximum: Expr,
+    pub repeat: bool,
+    pub modes: Vec<Mode>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct Mode {
+    pub announcement: Announcement,
+    pub body: Program,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct TargetSpec {
+    pub slot: Slot,
+    pub kind: TargetKind,
+    pub count: Count,
+    pub filter: ObjectFilter,
+    pub players: Option<PlayerSet>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum TargetKind {
+    Object(ObjectDomain),
+    Player,
+    DamageRecipient,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ObjectKind {
+    Any,
+    Permanent,
+    Spell,
+    Card,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct ObjectDomain {
+    pub kind: ObjectKind,
+    pub zones: Vec<EventZone>,
+}
+impl ObjectDomain {
+    pub fn permanent() -> Self {
+        Self {
+            kind: ObjectKind::Permanent,
+            zones: vec![EventZone::Battlefield],
+        }
+    }
+    pub fn spell() -> Self {
+        Self {
+            kind: ObjectKind::Spell,
+            zones: vec![EventZone::Stack],
+        }
+    }
+    pub fn card(zone: EventZone) -> Self {
+        Self {
+            kind: ObjectKind::Card,
+            zones: vec![zone],
+        }
+    }
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct Slot(pub u16);
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct Binding(pub u32);
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct ResultId(pub u32);
+
+/// A program is a sequence of semantic instructions. The operations making
+/// up one continuous-effect instruction stay in one payload.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct Program {
+    pub instructions: Vec<Instruction>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum Instruction {
+    Effect {
+        result: ResultId,
+        operation: Operation,
+    },
+    Group(Program),
+    If {
+        condition: Condition,
+        then: Program,
+        otherwise: Program,
+    },
+    Optional {
+        decider: PlayerRef,
+        body: Program,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum Operation {
+    /// Create a once-only delayed trigger (603.7), eligible only after this
+    /// instruction has executed. The turn players and start gate are resolved
+    /// at creation. A stated expiration cancels a still-waiting trigger; it
+    /// does not cancel an ability already on the stack.
+    ///
+    /// `body` is a lexical closure over the creator's reference frame: targets,
+    /// results, payment histories, announced X, event data, bound players, and exact object
+    /// incarnations survive independently of the creator's resolution. Source
+    /// and ability controller are retained under 603.7d-g. Queries/properties
+    /// and arithmetic in the body are evaluated when it resolves, using LKI
+    /// where required; capturing references does not snapshot all expressions.
+    /// An object that leaves its expected zone and returns is a new object.
+    ///
+    /// Currently only turn matchers are supported. Their turn-player binding
+    /// does NOT replace the captured creator's event bindings. This form has
+    /// no new targets/modes and exposes no bindings from the future event.
+    /// Body-local results never escape into the creating program.
+    CreateDelayedTrigger {
+        event: EventSpec,
+        start: DelayedStart,
+        expires: Option<Duration>,
+        intervening_if: Option<Condition>,
+        body: Program,
+    },
+    /// Privately inspect the queried current objects, retaining their original
+    /// identities and order as an observation result. Does not move cards,
+    /// reveal them publicly, search, scry, or inspect later top cards anew.
+    LookAt {
+        player: PlayerRef,
+        objects: ObjectSet,
+    },
+    /// At resolution, create one next-destruction replacement shield per
+    /// selected permanent, expiring at end of turn (701.19a). This instruction
+    /// does not itself tap, clear damage, remove combat participation, or
+    /// regenerate anything. Those happen only when a shield replaces an actual
+    /// destruction, unless regeneration is prohibited. Sacrifice/toughness-zero
+    /// deaths are not destruction. Each selection is a snapshot of its current
+    /// incarnation, and repeated instructions create independent shields.
+    CreateRegenerationShields {
+        objects: ObjectSet,
+    },
+    /// One search episode (CR 701.23h), even with several find clauses. Choices
+    /// have disjoint original-library identities. A denied/replaced search can
+    /// return searched=false; it does not cancel subsequent unconditional work.
+    Search {
+        player: PlayerRef,
+        library: PlayerRef,
+        top: Option<Expr>,
+        choices: Vec<SearchChoice>,
+    },
+    /// Explicit public revelation; searching never implies revelation.
+    Reveal {
+        objects: ObjectSet,
+    },
+    /// Reordering is within each library, without zone changes. Exclusions hold
+    /// selected cards out of the shuffle while they remain in that library.
+    Shuffle {
+        players: PlayerSet,
+        excluding: Option<ObjectSet>,
+    },
+    /// Reposition only cards still in this library, without a zone change.
+    /// Reordered revealed/looked-at cards stop being observed and become new
+    /// objects (701.20d-e); old observation/selection identities do not follow.
+    ReorderLibrary {
+        player: PlayerRef,
+        library: PlayerRef,
+        objects: ObjectSet,
+        end: SequenceEnd,
+        order: CardOrder,
+    },
+    /// CR 701.22: privately look at N top cards, partition/reorder top and bottom.
+    /// Scry 0 emits no scry event. Multiple players decide in APNAP order and
+    /// reposition simultaneously; completion triggers follow the whole process.
+    Scry {
+        players: PlayerSet,
+        amount: Expr,
+    },
+    /// CR 701.25: privately look at N top cards, move any number to the graveyard,
+    /// and reorder the rest on top. Surveil 0 emits no surveil event. Replacements
+    /// apply to actual movements; this is not drawing or revealing those cards.
+    Surveil {
+        players: PlayerSet,
+        amount: Expr,
+    },
+    /// Countering is a rules action; the destination applies only if it succeeds.
+    Counter {
+        objects: ObjectSet,
+        destination: Destination,
+    },
+    /// Apply a change to the currently proposed event. Legal only inside a
+    /// replacement program for an event supporting this change.
+    ModifyEvent {
+        change: EventChange,
+    },
+    /// A resolution-time cost, with a typed decision/result. This differs from
+    /// announcement costs on an activated ability.
+    PayCost {
+        player: PlayerRef,
+        cost: Cost,
+        optional: bool,
+    },
+    RemoveCounters {
+        removals: Vec<CounterRemoval>,
+    },
+    Attach {
+        attachments: ObjectSet,
+        host: ObjectRef,
+    },
+    /// Every definition in this instruction is created in one batch. Counts and
+    /// initial copiable values are evaluated before any token enters. Ability
+    /// definitions, including characteristic-defining recipes, remain live.
+    CreateTokens {
+        players: PlayerSet,
+        tokens: Vec<TokenSpec>,
+        entry: EntrySpec,
+    },
+    /// Resolution-time choice. Its result is the selected current objects;
+    /// it does not announce targets or mutate the selected objects.
+    ChooseObjects {
+        player: PlayerRef,
+        objects: ObjectSet,
+        count: Count,
+        constraints: Vec<SelectionConstraint>,
+    },
+    Draw {
+        players: PlayerSet,
+        amount: Expr,
+    },
+    /// Players choose their cards before the simultaneous discard batch.
+    Discard {
+        players: PlayerSet,
+        amount: Expr,
+        random: bool,
+    },
+    GainLife {
+        players: PlayerSet,
+        amount: Expr,
+    },
+    LoseLife {
+        players: PlayerSet,
+        amount: Expr,
+    },
+    Mill {
+        players: PlayerSet,
+        amount: Expr,
+    },
+    AddMana {
+        players: PlayerSet,
+        mana: ManaProduction,
+        restriction: Option<ManaUse>,
+    },
+    DealDamage {
+        source: ObjectRef,
+        recipients: Recipients,
+        amount: Expr,
+        preventable: bool,
+    },
+    Destroy {
+        objects: ObjectSet,
+        regeneration: bool,
+    },
+    Move {
+        objects: ObjectSet,
+        destination: Destination,
+        entry: EntrySpec,
+        face_down: bool,
+    },
+    Tap {
+        objects: ObjectSet,
+        tapped: bool,
+    },
+    /// Each player chooses their own eligible permanents in APNAP order;
+    /// selections are collected before one simultaneous sacrifice batch.
+    Sacrifice {
+        players: PlayerSet,
+        objects: ObjectSet,
+        choose: Option<Count>,
+    },
+    /// All choices precede one simultaneous placement event batch.
+    PutCounters {
+        placements: Vec<CounterPlacement>,
+    },
+    CreateContinuousEffect {
+        source: ObjectRef,
+        affected: EffectSubjects,
+        changes: Vec<Change>,
+        duration: Duration,
+        evaluation: EffectEvaluation,
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct SearchChoice {
+    pub filter: ObjectFilter,
+    /// Qualified hidden-zone searches use UpTo (may fail to find). Unqualified
+    /// quantities use AsManyAsCan; the distinction is not inferred from whether
+    /// matching cards happen to be present (CR 701.23b/d).
+    pub count: Count,
+    pub constraints: Vec<SelectionConstraint>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum SelectionConstraint {
+    DifferentNames,
+    TotalProperty {
+        property: Property,
+        comparison: Comparison,
+        amount: Expr,
+    },
+    /// A resolution choice to put a card somewhere must respect prohibitions
+    /// on that action (608.2d), e.g. Grafdigger's Cage. Replacing an otherwise
+    /// possible movement remains allowed; the replacement still applies later.
+    CanMoveTo {
+        destination: Destination,
+        entry: EntrySpec,
+        face_down: bool,
+    },
+    /// Nonempty selections have a property value common to every object.
+    /// For an empty selection the count policy controls whether zero is legal;
+    /// this constraint does not impose an unstated minimum selection count.
+    CommonProperty(DistinctProperty),
+    /// Pairwise different scalar values, not different totals or type sets.
+    DifferentProperty(Property),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CardOrder {
+    Chosen,
+    Preserve,
+    Random,
+}
+
+/// One production. Choices and numeric observations precede adding its mana;
+/// `All` does not split it into independent productions.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ManaProduction {
+    Amount {
+        color: ManaColor,
+        amount: Expr,
+    },
+    All(Vec<ManaProduction>),
+    ChooseOne(Vec<ManaProduction>),
+    Repeat {
+        amount: Expr,
+        production: Box<ManaProduction>,
+        choice: ManaChoiceTiming,
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ManaChoiceTiming {
+    Once,
+    EachUnit,
+}
+
+/// Predicates over the payment receiving these units, not a filter on the
+/// permanent that produced them. Other properties of mana need their own data.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ManaUse {
+    CastSpell(ObjectFilter),
+    ActivateAbility {
+        sources: ObjectFilter,
+        permanents_only: bool,
+    },
+    All(Vec<ManaUse>),
+    Either(Vec<ManaUse>),
+    Not(Box<ManaUse>),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct TokenSpec {
+    pub amount: Expr,
+    /// Text-changing effects on the creating spell do not rewrite a predefined
+    /// token's rules-defined recipe (CR 111.10, 612.2a).
+    pub words: TokenWords,
+    pub definition: TokenDefinition,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum TokenWords {
+    CreatingEffect,
+    Rules,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct TokenDefinition {
+    pub name: TokenName,
+    pub colors: Vec<ManaColor>,
+    pub supertypes: Vec<SuperType>,
+    pub card_types: Vec<CardType>,
+    pub subtypes: Vec<SubType>,
+    pub power_toughness: Option<(Expr, Expr)>,
+    /// Fresh scopes: "this" is the token, and "you" its ability's controller.
+    pub abilities: Vec<Ability>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum TokenName {
+    /// CR 111.4: subtype names followed by "Token".
+    FromSubtypes,
+    Explicit(String),
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct EntrySpec {
+    pub tapped: bool,
+    pub counters: Vec<(crate::counter::CounterKind, Expr)>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Destination {
+    OwnersHand,
+    OwnersGraveyard,
+    OwnersLibraryTop,
+    OwnersLibraryBottom,
+    Exile,
+    Battlefield(PlayerRef),
+    OwnersBattlefield,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum Change {
+    PlayerRule(PlayerRule),
+    /// Changes a game rule, without granting the subject an ability.
+    Rule(RuleChange),
+    Pump {
+        power: Expr,
+        toughness: Expr,
+    },
+    SetBasePowerToughness {
+        power: Expr,
+        toughness: Expr,
+    },
+    CreatureTypes {
+        mode: ChangeMode,
+        types: CreatureTypeSet,
+    },
+    Colors {
+        mode: ChangeMode,
+        colors: Vec<ManaColor>,
+    },
+    AddCardType(CardType),
+    GrantKeyword(Keyword),
+    GrantAbility(Box<Ability>),
+    RemoveAllAbilities,
+    SetController(PlayerRef),
+    SetPower(Expr),
+    SetToughness(Expr),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ChangeMode {
+    Set,
+    Add,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CreatureTypeSet {
+    Listed(Vec<CreatureType>),
+    /// The rules' creature-type universe, preserving other subtype categories.
+    All,
+}
+
+/// Subjects are live for static definitions. Resolving rule effects retain
+/// queries and capture resolution variables, as for object rule effects.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum EffectSubjects {
+    Objects(ObjectSet),
+    Players(PlayerSet),
+}
+impl From<ObjectSet> for EffectSubjects {
+    fn from(objects: ObjectSet) -> Self {
+        Self::Objects(objects)
+    }
+}
+impl From<PlayerSet> for EffectSubjects {
+    fn from(players: PlayerSet) -> Self {
+        Self::Players(players)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PlayerRule {
+    /// Grants a zone permission only. Normal costs, timing, land allowances,
+    /// ownership-independent caster choice, and all prohibitions still apply.
+    /// Exact object references follow only that zone incarnation; live zone
+    /// queries can admit later cards. A top query is re-evaluated each play.
+    PlayPermission {
+        cards: ObjectSet,
+        from: EventZone,
+        action: CardPlayAction,
+        filter: ObjectFilter,
+    },
+    Prohibit(PlayerAction),
+    /// Count actions actually performed this turn, including before the rule
+    /// began applying. This is not an activation limit belonging to the source.
+    LimitPerTurn {
+        action: PlayerAction,
+        amount: Expr,
+    },
+    HandSize(HandSizeRule),
+    /// Adds to the ordinary per-turn allowance, without changing land timing
+    /// or the zones from which a land can be played (CR 305.2-3).
+    AdditionalLandPlays(Count),
+    SpellCost {
+        spells: ObjectFilter,
+        modifier: SpellCostModifier,
+    },
+    SpellTiming {
+        spells: ObjectFilter,
+        timing: SpellTiming,
+    },
+    Skip(TurnSection),
+    /// A rule about whose information is visible; observing is not moving.
+    Visibility {
+        objects: ObjectSet,
+        audience: VisibilityAudience,
+    },
+    RetainMana {
+        colors: Option<Vec<ManaColor>>,
+    },
+    LifeTotalLocked,
+    DamageDoesNotCauseLifeLoss,
+    UntapLimit {
+        permanents: ObjectFilter,
+        amount: Expr,
+    },
+    /// Player abilities, as distinct from prohibitions or abilities granted
+    /// to objects. Their ordinary targeting definitions apply to the player.
+    GrantKeyword(PlayerKeyword),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PlayerAction {
+    Draw,
+    GainLife,
+    LoseLife,
+    WinGame,
+    LoseGame {
+        reason: Option<GameLossReason>,
+    },
+    SearchLibraries,
+    BecomeMonarch,
+    ReceiveCounters(Option<crate::counter::CounterKind>),
+    PlayLand {
+        from: Option<ZoneScope>,
+        filter: ObjectFilter,
+    },
+    CastSpell {
+        from: Option<ZoneScope>,
+        filter: ObjectFilter,
+    },
+    Activate(ActivationFilter),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum GameLossReason {
+    NonpositiveLife,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum HandSizeRule {
+    Unlimited,
+    Set(Expr),
+    Adjust(Expr),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum SpellCostModifier {
+    Increase(Cost),
+    /// Colored reductions normally spill into generic mana (118.7b-c).
+    Reduce {
+        reductions: Vec<ManaReduction>,
+        spill_into_generic: bool,
+    },
+    /// A floor on the mana component of the final total cost (601.2f).
+    Minimum(Expr),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum SpellTiming {
+    Flash,
+    SorceryOnly,
+    OwnTurnOnly,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum TurnSection {
+    Untap,
+    Upkeep,
+    Draw,
+    Main,
+    Combat,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum VisibilityAudience {
+    AffectedPlayer,
+    Everyone,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PlayerKeyword {
+    Protection(Box<Protection>),
+    HexproofFrom(Box<Protection>),
+    Hexproof,
+    Shroud,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CardPlayAction {
+    CastSpell,
+    PlayLand,
+    Either,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum EffectEvaluation {
+    /// Select objects and evaluate values when the instruction resolves.
+    Snapshot,
+    /// Retain queries and evaluate them when the continuous effect is applied.
+    Live,
+    /// Resolving rule effects (CR 611.2c-d): retain live subject queries and
+    /// rule predicates, but capture resolution variables such as announced X.
+    LiveObjects,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum RuleChange {
+    Prohibit(ObjectAction),
+    /// Requirements are maximized subject to restrictions; they do not compel
+    /// payment of a declaration cost (CR 508.1d / 509.1c).
+    RequireCombat {
+        action: ObjectAction,
+        amount: RequirementAmount,
+    },
+    CombatCost {
+        action: ObjectAction,
+        payer: PlayerRef,
+        cost: Cost,
+    },
+    /// A restriction checked only when the subject participates in this role.
+    /// Counts use the proposed declaration, not the current battlefield state.
+    CombatGroup {
+        role: CombatRole,
+        participants: ObjectFilter,
+        others_only: bool,
+        comparison: Comparison,
+        amount: Expr,
+    },
+    AttackException {
+        ignore: AttackCheck,
+        defenders: AttackDefenders,
+    },
+    BlockWhileTapped,
+    BlockCapacity(BlockCapacity),
+    CombatDamage(CombatDamageRule),
+    UntapStep {
+        players: PlayerSet,
+        behavior: UntapBehavior,
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ObjectAction {
+    Counter,
+    Copy,
+    /// One proposed attack from the affected creature to a defender.
+    Attack(AttackDefenders),
+    /// One proposed block from the affected blocker to an attacker.
+    Block(ObjectFilter),
+    /// One proposed block of the affected attacker by a matching blocker.
+    /// A blocking tax is paid per such pairing by the declaring blocker player.
+    BeBlocked(ObjectFilter),
+    Activate(ActivationFilter),
+    Untap,
+    Regenerate,
+    Sacrifice,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum AttackDefenders {
+    Any,
+    Objects(ObjectFilter),
+    Players(PlayerSet),
+    /// A battle is not included merely because a player controls/protects it.
+    PlayersAndPlaneswalkers(PlayerSet),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ActivationFilter {
+    Cycling,
+    Any,
+    Mana,
+    Not(Box<ActivationFilter>),
+    All(Vec<ActivationFilter>),
+    Either(Vec<ActivationFilter>),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum RequirementAmount {
+    /// One collective requirement with this minimum.
+    AtLeast(Expr),
+    /// A separate requirement for each matching participant.
+    Each,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CombatRole {
+    Attacker,
+    Blocker,
+    BlockedAttacker,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum AttackCheck {
+    Defender,
+    SummoningSickness,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum BlockCapacity {
+    Additional(Expr),
+    Unlimited,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CombatDamageRule {
+    NoAssignment,
+    UseToughness,
+    AsUnblocked { optional: bool },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum UntapBehavior {
+    Skip,
+    Optional,
+    Additional,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct CounterPlacement {
+    pub recipients: Recipients,
+    pub kind: crate::counter::CounterKind,
+    pub amount: Expr,
+    /// A resolution-time selection, independent of announcement targets.
+    pub selection: Option<SelectionChoice>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct CounterRemoval {
+    /// The player instructed to remove counters, who chooses kinds/counts
+    /// when the instruction leaves them open. This is also the cost's payer.
+    pub player: PlayerRef,
+    pub recipients: Recipients,
+    /// None permits choosing counters of any kinds.
+    pub kind: Option<crate::counter::CounterKind>,
+    pub amount: CounterAmount,
+    pub selection: Option<SelectionChoice>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CounterAmount {
+    Count(Count),
+    /// All counters present, including zero; distinct from choosing any number.
+    All,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct SelectionChoice {
+    pub player: PlayerRef,
+    pub count: Count,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum Expr {
+    /// Actual mana spent to cast this spell, or the spell that became this
+    /// permanent (400.7d). Includes mana paid for additional costs, after
+    /// reductions. Cost symbols, life payments, and an "as though" spending
+    /// permission do not change actual mana types (609.4b). A spell copy has
+    /// no mana spent on it; copying cost choices does not copy this payment.
+    /// A later zone change does not inherit the old incarnation's cast data.
+    ManaSpent {
+        object: ObjectRef,
+        filter: SpentManaFilter,
+        aggregation: SpentManaAggregation,
+    },
+    /// Count mana-cost symbols containing any listed color, once per symbol
+    /// even for a hybrid containing two listed colors (700.5). Two-brid and
+    /// Phyrexian symbols count; generic, X, and colorless symbols do not.
+    /// Object color changes, including devoid, do not change mana symbols.
+    CountManaSymbols {
+        objects: Box<ObjectSet>,
+        colors: Vec<ManaColor>,
+    },
+    /// Aggregate current numeric properties. Empty inputs yield zero;
+    /// maximum/minimum do not clamp negative nonempty inputs at zero.
+    Aggregate {
+        objects: Box<ObjectSet>,
+        property: Property,
+        aggregation: Aggregation,
+    },
+    /// Count distinct values, rather than objects or subtype occurrences.
+    CountDistinct {
+        objects: Box<ObjectSet>,
+        property: DistinctProperty,
+    },
+    /// X chosen for the activation that caused the matched cycling discard.
+    EventActivationX,
+    Constant(i64),
+    AnnouncedX,
+    /// X recorded on the spell that became this object, including copied
+    /// choices; zero if it did not enter from a spell (CR 107.3m / 707.10).
+    /// Entry replacements must not read an unrelated activation's announced X.
+    CastX(ObjectRef),
+    EventAmount,
+    ObjectProperty {
+        object: ObjectRef,
+        property: Property,
+        information: Information,
+    },
+    PlayerLife(PlayerRef),
+    Add(Box<Expr>, Box<Expr>),
+    Subtract(Box<Expr>, Box<Expr>),
+    Multiply(Box<Expr>, Box<Expr>),
+    Minimum(Box<Expr>, Box<Expr>),
+    Divide {
+        numerator: Box<Expr>,
+        denominator: Box<Expr>,
+        rounding: Rounding,
+    },
+    CountObjects(Box<ObjectSet>),
+    CountCounters {
+        recipients: Box<Recipients>,
+        kind: Option<crate::counter::CounterKind>,
+        information: Information,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct SpentManaFilter {
+    /// None matches all six types. Some restricts to the listed actual types.
+    pub colors: Option<Vec<ManaColor>>,
+    /// A unit produced by a snow source, not a seventh mana type.
+    pub snow: bool,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum SpentManaAggregation {
+    Count,
+    /// Count distinct actual colors among matching units; colorless is not a color.
+    DistinctColors,
+    /// Largest count of one actual color; excludes colorless and yields zero
+    /// for an empty set of colored units.
+    MaximumPerColor,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Aggregation {
+    Sum,
+    Maximum,
+    Minimum,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DistinctProperty {
+    CardTypes,
+    CreatureTypes,
+    Colors,
+    Names,
+    /// Plains, Island, Swamp, Mountain, Forest; excludes other land subtypes.
+    BasicLandTypes,
+    /// All land subtypes, including nonbasic types; distinct from domain.
+    LandTypes,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Information {
+    CurrentOrLastKnown,
+    Captured(Binding),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Property {
+    /// X recorded on this spell, including copied choices. Distinct from an
+    /// unrelated activation's announced X or an entering object's cast history.
+    SpellX,
+    ColorCount,
+    Power,
+    Toughness,
+    ManaValue,
+    BasePower,
+    BaseToughness,
+    Loyalty,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Rounding {
+    Down,
+    Up,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum ObjectRef {
+    /// The object carrying a parameterized keyword. Inside a granted ward
+    /// definition this remains the recipient, rather than the granting source.
+    KeywordHost,
+    /// The card after a matched discard, wherever replacements sent it.
+    Discarded,
+    /// A singular role in the matched damage occurrence, when its grouping
+    /// guarantees one object. Distinct from the source of this ability.
+    Damage(DamageSubject),
+    /// Index an ordered query, or index zero of a statically singular cost
+    /// history. Missing entries select nothing; plural unordered histories
+    /// cannot silently choose an arbitrary first object.
+    Query {
+        objects: Box<ObjectSet>,
+        index: u32,
+    },
+    /// The object currently tested by the innermost object filter.
+    Candidate,
+    Source,
+    /// The current permanent host of this attachment, in the query's view.
+    /// Selects nothing when unattached. Last-known attachment information needs
+    /// an explicit captured view rather than treating a departed source as live.
+    AttachedTo(Box<ObjectRef>),
+    /// The object whose characteristic change is currently being evaluated.
+    Affected,
+    Target {
+        slot: Slot,
+        index: u16,
+    },
+    /// The matched event's distinguished object: e.g. the entering/leaving,
+    /// attacking, or damaged permanent, or the spell that was cast/copied.
+    EventSubject,
+    Bound(Binding),
+    Result {
+        result: ResultId,
+        phase: ObjectPhase,
+        index: u32,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ObjectPhase {
+    Before,
+    After,
+}
+
+/// Namespaces are relative to the current ability, never a global last payment.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PaymentRef {
+    Activation,
+    /// Index of a cost declaration among this card's top-level abilities.
+    /// Only the spell resolution frame can access this casting history.
+    Casting {
+        ability: u32,
+    },
+    /// An earlier PayCost instruction in this lexical result frame.
+    Resolution(ResultId),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CostObjectView {
+    Inputs,
+    Performed,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum ObjectSet {
+    /// Original identities in a LookAt result; never re-run its source query.
+    Observed(ResultId),
+    /// Preserve the input sequence; ordinary filtering does not reveal cards.
+    Matching {
+        objects: Box<ObjectSet>,
+        filter: ObjectFilter,
+    },
+    /// Preserve the left input's sequence and original object identities.
+    Difference {
+        objects: Box<ObjectSet>,
+        excluding: Box<ObjectSet>,
+    },
+    /// Distinct objects occupying this role in the matched damage occurrence.
+    Damage(DamageSubject),
+    /// Private library/graveyard queries retain top-to-bottom order; filtering
+    /// preserves that order. Several players' zones have no shared ordering.
+    Zone {
+        scope: ZoneScope,
+        kind: ObjectKind,
+        filter: ObjectFilter,
+    },
+    /// Set union, with duplicates removed; this is not an iteration.
+    Union(Vec<ObjectSet>),
+    Take {
+        objects: Box<ObjectSet>,
+        count: Expr,
+        from: SequenceEnd,
+    },
+    /// Actual transitions, not all objects originally requested by an effect.
+    Transition {
+        result: ResultId,
+        phase: ObjectPhase,
+    },
+    One(ObjectRef),
+    Targets(Slot),
+    Battlefield(ObjectFilter),
+    /// Intersect a reference/result set with current zone membership. A saved
+    /// object reference alone does not imply the object is still on the field.
+    InZone {
+        objects: Box<ObjectSet>,
+        zone: EventZone,
+    },
+    /// Original object identities selected by a preceding choice or search.
+    Selected(ResultId),
+    /// Objects returned by a preceding token creation; distinct from a choice.
+    Created(ResultId),
+    /// Object history for one exact payment component. An unpaid component,
+    /// unchosen alternative, or omitted optional cost has an empty history. `Inputs`
+    /// retains the designated original identities and their expected-zone/LKI
+    /// view; `Performed` retains participants of the corresponding rules action
+    /// after replacement processing. Paying a cost does not imply the action
+    /// occurred (118.11-12). Before/After distinguish original and resulting
+    /// incarnations, never a fresh zone query. Input histories use Before.
+    /// During announcement, Inputs denotes the casting/activation proposal's
+    /// planned inputs (601.5); payment must use those same choices. Afterward
+    /// it denotes the recorded identities, so changes to a live selector cannot
+    /// redirect it. Performed action history is unavailable before payment.
+    /// A copied spell/ability uses the original's cost objects (707.10), even
+    /// though the copy pays no cost; a resolution-time payment is its own frame.
+    CostObjects {
+        payment: PaymentRef,
+        component: Vec<u32>,
+        view: CostObjectView,
+        phase: ObjectPhase,
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ZoneScope {
+    Shared(EventZone),
+    Players { zone: EventZone, players: PlayerSet },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum SequenceEnd {
+    Top,
+    Bottom,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum PlayerRef {
+    /// Controller of the targeting spell/ability that caused a ward trigger.
+    /// Bound only inside that keyword's cost recipe, never to its controller.
+    WardPayer,
+    /// Bound only while applying a player continuous effect, never in its
+    /// subject selector or an ordinary resolving instruction.
+    Affected,
+    EnchantedBy(Box<ObjectRef>),
+    /// The player proposing the attack/block declaration, including the
+    /// defending player paying a blocking tax on an attacking creature.
+    DeclaringPlayer,
+    /// The stack ability/spell's controller; for a static definition, its
+    /// source's controller or owner when it has none (CR 109.5 / 113.8).
+    AbilityController,
+    Active,
+    /// Read the referenced object's controller, using last-known information
+    /// after that object leaves its zone; never substitute the new card's owner.
+    ControllerOf(Box<ObjectRef>),
+    OwnerOf(Box<ObjectRef>),
+    /// The recorded caster, independent of the object's current controller.
+    /// A copy or an incarnation with no casting has no caster. While checking
+    /// a casting proposal, reads that proposal's announcing player instead.
+    CasterOf(Box<ObjectRef>),
+    Target {
+        slot: Slot,
+        index: u16,
+    },
+    /// The cast/copy event's actor or the turn event's turn player. Other
+    /// matchers do not implicitly bind the source's controller as this player.
+    EventSubject,
+    Bound(Binding),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum PlayerSet {
+    DamageRecipients,
+    /// Set union, with duplicate players removed before a batch.
+    Union(Vec<PlayerSet>),
+    One(PlayerRef),
+    All,
+    OpponentsOf(PlayerRef),
+    OthersThan(PlayerRef),
+    Targets(Slot),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum Recipients {
+    Objects(ObjectSet),
+    Players(PlayerSet),
+    Targets(Slot),
+    Union(Vec<Recipients>),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum ObjectFilter {
+    /// Evaluate a reusable condition with Candidate bound to this object.
+    Condition(Box<Condition>),
+    /// An actual casting event, retained by the permanent the spell becomes.
+    /// Both absent means "was cast". A copied spell was not cast. Origin is
+    /// the original zone/owner, not current stack membership or current owner.
+    /// This data is not inherited after a later zone change or blink. During
+    /// casting legality/payment checks, test the current casting proposal's
+    /// actor/origin, before it becomes a completed casting event.
+    Cast {
+        by: Option<PlayerSet>,
+        from: Option<ZoneScope>,
+    },
+    /// The zone from which this incarnation most recently entered the
+    /// battlefield, independently of whether it was cast. A reanimated card
+    /// can match a graveyard entry without having been cast from there.
+    EnteredFrom(ZoneScope),
+    HasKeywordFamily(KeywordFamily),
+    /// At least one actual target belongs to this set. For casting-cost rules
+    /// inspect the completed announcement, before costs are paid.
+    TargetsAny(Box<Recipients>),
+    /// Includes defined abilities even while their functioning zone is inactive.
+    HasActivatedAbility(ActivationFilter),
+    InSet(Box<ObjectSet>),
+    Name(String),
+    InZone(ZoneScope),
+    IsCard,
+    Any,
+    All(Vec<ObjectFilter>),
+    Either(Vec<ObjectFilter>),
+    Not(Box<ObjectFilter>),
+    CardType(CardType),
+    Supertype(SuperType),
+    Subtype(SubType),
+    Color(ManaColor),
+    Colorless,
+    HasKeyword(Keyword),
+    ControlledBy(PlayerSet),
+    OwnedBy(PlayerSet),
+    SameObject(ObjectRef),
+    Property {
+        property: Property,
+        comparison: Comparison,
+        value: Expr,
+    },
+    Counters {
+        kind: Option<crate::counter::CounterKind>,
+        comparison: Comparison,
+        value: Expr,
+    },
+    Token,
+    Tapped,
+    Attacking,
+    Blocking,
+    /// A creature with counters, Equipment, or an Aura controlled by its
+    /// controller (the rules definition of modified).
+    Modified,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum KeywordFamily {
+    Ward,
+    Protection,
+    Landwalk,
+    Hexproof,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Comparison {
+    Equal,
+    NotEqual,
+    Less,
+    LessOrEqual,
+    Greater,
+    GreaterOrEqual,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Count {
+    Exactly(Expr),
+    UpTo(Expr),
+    AnyNumber,
+    AtLeast(Expr),
+    AsManyAsCan(Expr),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[serde(tag = "kind", content = "args")]
+pub enum Condition {
+    Searched(ResultId),
+    TargetsMatch {
+        object: ObjectRef,
+        kind: ObjectKind,
+        filter: ObjectFilter,
+    },
+    /// Original casting zone, not current membership of the stack object.
+    WasCastFrom {
+        object: ObjectRef,
+        zone: EventZone,
+    },
+    ExistsPlayer {
+        players: PlayerSet,
+        binding: Binding,
+        condition: Box<Condition>,
+    },
+    /// CR 118.12: the optional cost was chosen, or the mandatory cost was
+    /// started. Replacement of the payment's events does not turn this false.
+    PaymentChosen(ResultId),
+    PlayerIsActive(PlayerRef),
+    All(Vec<Condition>),
+    Either(Vec<Condition>),
+    Not(Box<Condition>),
+    ObjectMatches {
+        object: ObjectRef,
+        filter: ObjectFilter,
+    },
+    Controls {
+        player: PlayerRef,
+        filter: ObjectFilter,
+        minimum: u32,
+    },
+    Compare {
+        left: Expr,
+        comparison: Comparison,
+        right: Expr,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Duration {
+    EndOfTurn,
+    EndOfCombat,
+    Indefinite,
+    UntilNextTurn(PlayerRef),
+}
+
+/// Eligibility gates for a scheduled trigger, relative to its creation.
+/// Once opened, a gate remains open even if a turn or step is skipped. It does
+/// not mean "this one turn only"; cancellation is represented by `expires`.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DelayedStart {
+    Immediately,
+    NextTurn,
+    PlayersNextTurn(PlayerRef),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct Cost {
+    pub parts: Vec<CostPart>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CostPart {
+    /// Copy this object's actual mana-cost symbols at payment, including X
+    /// and colored/hybrid/Phyrexian symbols, not its numeric mana value.
+    /// An absent mana cost is unpayable, distinct from a cost of zero.
+    ManaCostOf(ObjectRef),
+    /// Choose distinct inputs before one simultaneous movement cost payment.
+    /// Counts are strict: no as-many-as-possible effect choices.
+    Move {
+        selections: Vec<CostObjectSelection>,
+        destination: Destination,
+        entry: EntrySpec,
+        face_down: bool,
+    },
+    /// One option is announced as part of choosing how to pay this cost.
+    Choice(Vec<Cost>),
+    RemoveCounters {
+        removals: Vec<CounterRemoval>,
+    },
+    Mana(Vec<ManaSymbol>),
+    TapSymbol,
+    Life(Expr),
+    Loyalty(Expr),
+    Sacrifice {
+        objects: ObjectSet,
+        choose: Option<Count>,
+    },
+    Discard {
+        count: Expr,
+        filter: ObjectFilter,
+        random: bool,
+    },
+    Draw {
+        count: Expr,
+    },
+    Mill {
+        count: Expr,
+    },
+    /// One payment component, not a resolving tap/untap effect. Selected
+    /// permanents must have the opposite state before payment (118.3,
+    /// 107.5-6); setting an already-matching state does not pay the cost.
+    /// Inputs chosen within this component are distinct, and counts are
+    /// strict. Changes are performed as one component of paying the cost.
+    /// `symbol` denotes {T}/{Q} and retains the creature activation restriction
+    /// in 302.6/602.5a. It permits only the implicit source/keyword host with no
+    /// object choice. Ordinary object tapping does not acquire that restriction
+    /// or an unstated control requirement. TapSymbol is the compact {T} form.
+    ChangeTapState {
+        selections: Vec<CostObjectSelection>,
+        tapped: bool,
+        symbol: bool,
+    },
+    /// Qualifications on the chosen inputs to one payment component, checked
+    /// together before paying it. A property total is computed over those
+    /// inputs, not over every eligible object and not after movement.
+    Constrained {
+        part: Box<CostPart>,
+        constraints: Vec<SelectionConstraint>,
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct CostObjectSelection {
+    pub objects: ObjectSet,
+    pub choose: Option<Count>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct TriggerLimits {
+    pub per_turn: Option<u32>,
+    pub total: Option<u32>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct ActivationLimits {
+    pub once: bool,
+    pub once_each_turn: bool,
+    pub sorcery: bool,
+    /// Checked when activating, before costs are paid; not a resolution guard.
+    pub condition: Option<Condition>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ManaColor {
+    White,
+    Blue,
+    Black,
+    Red,
+    Green,
+    Colorless,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ManaSymbol {
+    Generic(u32),
+    Color(ManaColor),
+    Snow,
+    X,
+    Hybrid(ManaColor, ManaColor),
+    Phyrexian(Vec<ManaColor>),
+    MonocoloredHybrid(ManaColor),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum EventSpec {
+    /// Card predicates use the pre-discard view. Source-only matches follow
+    /// the source across this transition (CR 702.29c); they do not compare the
+    /// hand object's identity with the new graveyard/exile object's identity.
+    Discard {
+        players: PlayerSet,
+        cards: ObjectFilter,
+        source_only: bool,
+        kind: DiscardKind,
+        grouping: DiscardGrouping,
+    },
+    /// Battlefield departures use the pre-departure view to match; ordinary
+    /// entering events use the post-event view (CR 603.10). This also preserves
+    /// the distinction from a card entering a graveyard "from anywhere."
+    ZoneChange {
+        objects: ObjectFilter,
+        from: Option<EventZone>,
+        to: EventZone,
+    },
+    /// One occurrence per matching object, not once per simultaneous batch.
+    Object {
+        event: ObjectEvent,
+        objects: ObjectFilter,
+    },
+    /// Binds the spell and the player who cast/copied it, not its owner.
+    Spell {
+        event: SpellEvent,
+        players: PlayerSet,
+        spells: ObjectFilter,
+    },
+    /// The player binding is the player whose turn contains this point.
+    Turn {
+        point: TurnPoint,
+        players: PlayerSet,
+    },
+    Damage(DamageEvent),
+    /// A state trigger is checked after semantic instructions, not only events.
+    State {
+        condition: Condition,
+    },
+    /// One ability with alternative events, not multiple independent abilities.
+    /// Only bindings available in every branch may be used by the ability body.
+    Either(Vec<EventSpec>),
+    /// Checked at the event only. This is distinct from an intervening-if
+    /// condition, which is checked again when the ability resolves.
+    Filtered {
+        event: Box<EventSpec>,
+        condition: Condition,
+    },
+}
+/// Match actual positive damage, after prevention/replacement, using event
+/// information (including a departed source's last-known characteristics).
+/// Group only within one simultaneous damage event; never across instructions
+/// or separate first-strike/regular combat damage events.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct DamageEvent {
+    pub source_kind: ObjectKind,
+    pub sources: ObjectFilter,
+    pub recipients: DamageRecipients,
+    pub kind: DamageKind,
+    pub grouping: DamageGrouping,
+    /// The role meant by the legacy distinguished object reference. A grouped
+    /// role does not acquire a singular reference just because it has a subject.
+    pub subject: DamageSubject,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DamageRecipients {
+    Any,
+    Objects(ObjectFilter),
+    Players(PlayerSet),
+    ObjectsAndPlayers {
+        objects: ObjectFilter,
+        players: PlayerSet,
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DamageKind {
+    Any,
+    Combat,
+    Noncombat,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DamageGrouping {
+    /// One occurrence for each distinct source/recipient pair.
+    SourceRecipient,
+    Source,
+    Recipient,
+    Batch,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum DamageSubject {
+    Source,
+    Recipient,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ObjectEvent {
+    /// Includes leaving the game with the object's owner (CR 603.6c), not
+    /// just zone changes. The matcher uses the pre-departure view.
+    LeavesBattlefield,
+    Attacks,
+    AttacksAlone,
+    Blocks,
+    BecomesBlocked,
+    AttacksAndIsNotBlocked,
+    BecomesTapped,
+    BecomesUntapped,
+    TurnsFaceUp,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum TurnPoint {
+    UpkeepBegins,
+    DrawStepBegins,
+    MainPhaseBegins,
+    FirstMainPhaseBegins,
+    SecondMainPhaseBegins,
+    PostcombatMainPhaseBegins,
+    CombatBegins,
+    CombatEnds,
+    EndStepBegins,
+    CleanupStepBegins,
+    DeclareAttackersStepBegins,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum SpellEvent {
+    Cast,
+    Copy,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum EventZone {
+    Battlefield,
+    Graveyard,
+    Hand,
+    Library,
+    Exile,
+    Stack,
+    Command,
+    Ante,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DiscardKind {
+    Any,
+    Cycling,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DiscardGrouping {
+    Card,
+    Player,
+}
+
+impl Program {
+    pub fn empty() -> Self {
+        Self {
+            instructions: Vec::new(),
+        }
+    }
+}
+
+impl Announcement {
+    pub fn empty() -> Self {
+        Self {
+            targets: Vec::new(),
+            modes: None,
+        }
+    }
+}
+
+impl ActivationLimits {
+    pub fn unrestricted() -> Self {
+        Self {
+            once: false,
+            once_each_turn: false,
+            sorcery: false,
+            condition: None,
+        }
+    }
+}
+
+impl Expr {
+    /// Fold only constants, using checked arithmetic. Dynamic reads stay at the
+    /// same semantic point; overflow keeps the expression for a backend to judge.
+    pub fn add(a: Self, b: Self) -> Self {
+        if matches!(a, Self::Constant(0)) {
+            return b;
+        }
+        if matches!(b, Self::Constant(0)) {
+            return a;
+        }
+        if let (Self::Constant(a), Self::Constant(b)) = (&a, &b) {
+            if let Some(value) = a.checked_add(*b) {
+                return Self::Constant(value);
+            }
+        }
+        Self::Add(Box::new(a), Box::new(b))
+    }
+    pub fn multiply(a: Self, b: Self) -> Self {
+        if matches!(a, Self::Constant(1)) {
+            return b;
+        }
+        if matches!(b, Self::Constant(1)) {
+            return a;
+        }
+        if let (Self::Constant(a), Self::Constant(b)) = (&a, &b) {
+            if let Some(value) = a.checked_mul(*b) {
+                return Self::Constant(value);
+            }
+        }
+        Self::Multiply(Box::new(a), Box::new(b))
+    }
+}

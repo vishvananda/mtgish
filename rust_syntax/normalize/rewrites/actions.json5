@@ -1,0 +1,1071 @@
+{
+  "version": 2,
+  "rules": [
+    {
+      "id": "action.GainControlOfPermanent",
+      "source": "GainControlOfPermanent",
+      "arity": 1,
+      "family": "Control",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null
+    },
+    {
+      "id": "action.GainControlOfPermanentUntil",
+      "source": "GainControlOfPermanentUntil",
+      "arity": 2,
+      "family": "Control",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "duration": 1,
+      "destination": null,
+      "entry": null
+    },
+    {
+      "id": "action.GainControlOfEachPermanent",
+      "source": "GainControlOfEachPermanent",
+      "arity": 1,
+      "family": "Control",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null
+    },
+    {
+      "id": "action.GainControlOfEachPermanentUntil",
+      "source": "GainControlOfEachPermanentUntil",
+      "arity": 2,
+      "family": "Control",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": 1,
+      "destination": null,
+      "entry": null
+    },
+    {
+      "id": "action.GainControlOfAPermanentUntil",
+      "source": "GainControlOfAPermanentUntil",
+      "arity": 2,
+      "family": "Control",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": 1,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.PutPermanentIntoItsOwnersHand",
+      "source": "PutPermanentIntoItsOwnersHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.PutEachPermanentIntoItsOwnersHand",
+      "source": "PutEachPermanentIntoItsOwnersHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.PutGraveyardCardIntoHand",
+      "source": "PutGraveyardCardIntoHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.ReturnGraveyardCardToHand",
+      "source": "ReturnGraveyardCardToHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.PutEachGraveyardCardIntoHand",
+      "source": "PutEachGraveyardCardIntoHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.PutExiledCardIntoOwnersHand",
+      "source": "PutExiledCardIntoOwnersHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.ReturnEachExiledCardToOwnersHand",
+      "source": "ReturnEachExiledCardToOwnersHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.PutExiledCardsIntoOwnersHand",
+      "source": "PutExiledCardsIntoOwnersHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.PutPermanentIntoOwnersGraveyard",
+      "source": "PutPermanentIntoOwnersGraveyard",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersGraveyard",
+      "entry": null
+    },
+    {
+      "id": "action.PutExiledCardIntoOwnersGraveyard",
+      "source": "PutExiledCardIntoOwnersGraveyard",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersGraveyard",
+      "entry": null
+    },
+    {
+      "id": "action.PutExiledCardsIntoOwnersGraveyards",
+      "source": "PutExiledCardsIntoOwnersGraveyards",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersGraveyard",
+      "entry": null
+    },
+    {
+      "id": "action.ReturnEachExiledCardToGraveyard",
+      "source": "ReturnEachExiledCardToGraveyard",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersGraveyard",
+      "entry": null
+    },
+    {
+      "id": "action.PutPermanentOnTopOfOwnersLibrary",
+      "source": "PutPermanentOnTopOfOwnersLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTop",
+      "entry": null
+    },
+    {
+      "id": "action.PutGraveyardCardOnTopOfLibrary",
+      "source": "PutGraveyardCardOnTopOfLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTop",
+      "entry": null
+    },
+    {
+      "id": "action.PutPermanentOnBottomOfOwnersLibrary",
+      "source": "PutPermanentOnBottomOfOwnersLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null
+    },
+    {
+      "id": "action.PutGraveyardCardOnBottomOfLibrary",
+      "source": "PutGraveyardCardOnBottomOfLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null
+    },
+    {
+      "id": "action.PutExiledCardOnTheBottomOfItsOwnersLibrary",
+      "source": "PutExiledCardOnTheBottomOfItsOwnersLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null
+    },
+    {
+      "id": "action.PutGraveyardCardOntoBattlefield",
+      "source": "PutGraveyardCardOntoBattlefield",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "BattlefieldYou",
+      "entry": 1
+    },
+    {
+      "id": "action.PutEachGraveyardCardOntoBattlefield",
+      "source": "PutEachGraveyardCardOntoBattlefield",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "BattlefieldYou",
+      "entry": 1
+    },
+    {
+      "id": "action.ReturnEachGraveyardCardToBattlefield",
+      "source": "ReturnEachGraveyardCardToBattlefield",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "BattlefieldYou",
+      "entry": 1
+    },
+    {
+      "id": "action.PutExiledCardOntoBattlefield",
+      "source": "PutExiledCardOntoBattlefield",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "BattlefieldYou",
+      "entry": 1
+    },
+    {
+      "id": "action.PutEachExiledCardOntoTheBattlefield",
+      "source": "PutEachExiledCardOntoTheBattlefield",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "BattlefieldYou",
+      "entry": 1
+    },
+    {
+      "id": "action.DrawACard",
+      "source": "DrawACard",
+      "arity": 0,
+      "family": "PlayerAmount",
+      "player_operation": "Draw",
+      "amount": {
+        "kind": "Constant",
+        "value": 1
+      }
+    },
+    {
+      "id": "action.DrawNumberCards",
+      "source": "DrawNumberCards",
+      "arity": 1,
+      "family": "PlayerAmount",
+      "player_operation": "Draw",
+      "amount": {
+        "kind": "Source",
+        "argument": 0
+      }
+    },
+    {
+      "id": "action.DrawNumberCardsForEach",
+      "source": "DrawNumberCardsForEach",
+      "arity": 2,
+      "family": "PlayerAmount",
+      "player_operation": "Draw",
+      "amount": {
+        "kind": "Multiply",
+        "left": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "right": {
+          "kind": "Source",
+          "argument": 1
+        }
+      }
+    },
+    {
+      "id": "action.GainLife",
+      "source": "GainLife",
+      "arity": 1,
+      "family": "PlayerAmount",
+      "player_operation": "GainLife",
+      "amount": {
+        "kind": "Source",
+        "argument": 0
+      }
+    },
+    {
+      "id": "action.GainLifeForEach",
+      "source": "GainLifeForEach",
+      "arity": 2,
+      "family": "PlayerAmount",
+      "player_operation": "GainLife",
+      "amount": {
+        "kind": "Multiply",
+        "left": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "right": {
+          "kind": "Source",
+          "argument": 1
+        }
+      }
+    },
+    {
+      "id": "action.GainLifeAndLifeForEach",
+      "source": "GainLifeAndLifeForEach",
+      "arity": 3,
+      "family": "PlayerAmount",
+      "player_operation": "GainLife",
+      "amount": {
+        "kind": "Add",
+        "left": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "right": {
+          "kind": "Multiply",
+          "left": {
+            "kind": "Source",
+            "argument": 1
+          },
+          "right": {
+            "kind": "Source",
+            "argument": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "action.LoseLife",
+      "source": "LoseLife",
+      "arity": 1,
+      "family": "PlayerAmount",
+      "player_operation": "LoseLife",
+      "amount": {
+        "kind": "Source",
+        "argument": 0
+      }
+    },
+    {
+      "id": "action.LoseLifeForEach",
+      "source": "LoseLifeForEach",
+      "arity": 2,
+      "family": "PlayerAmount",
+      "player_operation": "LoseLife",
+      "amount": {
+        "kind": "Multiply",
+        "left": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "right": {
+          "kind": "Source",
+          "argument": 1
+        }
+      }
+    },
+    {
+      "id": "action.LoseLifeAndLifeForEach",
+      "source": "LoseLifeAndLifeForEach",
+      "arity": 3,
+      "family": "PlayerAmount",
+      "player_operation": "LoseLife",
+      "amount": {
+        "kind": "Add",
+        "left": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "right": {
+          "kind": "Multiply",
+          "left": {
+            "kind": "Source",
+            "argument": 1
+          },
+          "right": {
+            "kind": "Source",
+            "argument": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "action.MillACard",
+      "source": "MillACard",
+      "arity": 0,
+      "family": "PlayerAmount",
+      "player_operation": "Mill",
+      "amount": {
+        "kind": "Constant",
+        "value": 1
+      }
+    },
+    {
+      "id": "action.MillNumberCards",
+      "source": "MillNumberCards",
+      "arity": 1,
+      "family": "PlayerAmount",
+      "player_operation": "Mill",
+      "amount": {
+        "kind": "Source",
+        "argument": 0
+      }
+    },
+    {
+      "id": "action.Scry",
+      "source": "Scry",
+      "arity": 1,
+      "family": "PlayerAmount",
+      "player_operation": "Scry",
+      "amount": {
+        "kind": "Source",
+        "argument": 0
+      }
+    },
+    {
+      "id": "action.Surveil",
+      "source": "Surveil",
+      "arity": 1,
+      "family": "PlayerAmount",
+      "player_operation": "Surveil",
+      "amount": {
+        "kind": "Source",
+        "argument": 0
+      }
+    },
+    {
+      "id": "action.DiscardACard",
+      "source": "DiscardACard",
+      "arity": 0,
+      "family": "PlayerAmount",
+      "player_operation": {
+        "Discard": {
+          "random": false
+        }
+      },
+      "amount": {
+        "kind": "Constant",
+        "value": 1
+      }
+    },
+    {
+      "id": "action.DiscardNumberCards",
+      "source": "DiscardNumberCards",
+      "arity": 1,
+      "family": "PlayerAmount",
+      "player_operation": {
+        "Discard": {
+          "random": false
+        }
+      },
+      "amount": {
+        "kind": "Source",
+        "argument": 0
+      }
+    },
+    {
+      "id": "action.DiscardACardAtRandom",
+      "source": "DiscardACardAtRandom",
+      "arity": 0,
+      "family": "PlayerAmount",
+      "player_operation": {
+        "Discard": {
+          "random": true
+        }
+      },
+      "amount": {
+        "kind": "Constant",
+        "value": 1
+      }
+    },
+    {
+      "id": "action.DiscardNumberCardsAtRandom",
+      "source": "DiscardNumberCardsAtRandom",
+      "arity": 1,
+      "family": "PlayerAmount",
+      "player_operation": {
+        "Discard": {
+          "random": true
+        }
+      },
+      "amount": {
+        "kind": "Source",
+        "argument": 0
+      }
+    },
+    {
+      "id": "action.TapPermanent",
+      "source": "TapPermanent",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "object_operation": {
+        "Tap": {
+          "tapped": true
+        }
+      }
+    },
+    {
+      "id": "action.TapEachPermanent",
+      "source": "TapEachPermanent",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "object_operation": {
+        "Tap": {
+          "tapped": true
+        }
+      }
+    },
+    {
+      "id": "action.TapAnyNumberOfPermanents",
+      "source": "TapAnyNumberOfPermanents",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "object_operation": {
+        "Tap": {
+          "tapped": true
+        }
+      },
+      "selection": {
+        "kind": "AnyNumber"
+      }
+    },
+    {
+      "id": "action.TapNumberPermanents",
+      "source": "TapNumberPermanents",
+      "arity": 2,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 1
+      },
+      "object_operation": {
+        "Tap": {
+          "tapped": true
+        }
+      },
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.UntapPermanent",
+      "source": "UntapPermanent",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "object_operation": {
+        "Tap": {
+          "tapped": false
+        }
+      }
+    },
+    {
+      "id": "action.UntapEachPermanent",
+      "source": "UntapEachPermanent",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "object_operation": {
+        "Tap": {
+          "tapped": false
+        }
+      }
+    },
+    {
+      "id": "action.UntapAPermanent",
+      "source": "UntapAPermanent",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "object_operation": {
+        "Tap": {
+          "tapped": false
+        }
+      },
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.UntapUptoNumberPermanents",
+      "source": "UntapUptoNumberPermanents",
+      "arity": 2,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 1
+      },
+      "object_operation": {
+        "Tap": {
+          "tapped": false
+        }
+      },
+      "selection": {
+        "kind": "UpTo",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.DestroyPermanent",
+      "source": "DestroyPermanent",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "object_operation": {
+        "Destroy": {
+          "regeneration": true
+        }
+      }
+    },
+    {
+      "id": "action.DestroyEachPermanent",
+      "source": "DestroyEachPermanent",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "object_operation": {
+        "Destroy": {
+          "regeneration": true
+        }
+      }
+    },
+    {
+      "id": "action.DestroyNumberPermanents",
+      "source": "DestroyNumberPermanents",
+      "arity": 2,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 1
+      },
+      "object_operation": {
+        "Destroy": {
+          "regeneration": true
+        }
+      },
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.DestroyUptoNumberPermanents",
+      "source": "DestroyUptoNumberPermanents",
+      "arity": 2,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 1
+      },
+      "object_operation": {
+        "Destroy": {
+          "regeneration": true
+        }
+      },
+      "selection": {
+        "kind": "UpTo",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.DestroyPermanentNoRegen",
+      "source": "DestroyPermanentNoRegen",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "object_operation": {
+        "Destroy": {
+          "regeneration": false
+        }
+      }
+    },
+    {
+      "id": "action.DestroyEachPermanentNoRegen",
+      "source": "DestroyEachPermanentNoRegen",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "object_operation": {
+        "Destroy": {
+          "regeneration": false
+        }
+      }
+    },
+    {
+      "id": "action.DestroyAPermanentNoRegen",
+      "source": "DestroyAPermanentNoRegen",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "object_operation": {
+        "Destroy": {
+          "regeneration": false
+        }
+      },
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.SacrificePermanent",
+      "source": "SacrificePermanent",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "object_operation": "Sacrifice"
+    },
+    {
+      "id": "action.SacrificeEachPermanent",
+      "source": "SacrificeEachPermanent",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "object_operation": "Sacrifice"
+    },
+    {
+      "id": "action.SacrificeAPermanent",
+      "source": "SacrificeAPermanent",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "object_operation": "Sacrifice",
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.SacrificeNumberPermanents",
+      "source": "SacrificeNumberPermanents",
+      "arity": 2,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 1
+      },
+      "object_operation": "Sacrifice",
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.SacrificeAnyNumberOfPermanents",
+      "source": "SacrificeAnyNumberOfPermanents",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "object_operation": "Sacrifice",
+      "selection": {
+        "kind": "AnyNumber"
+      }
+    },
+    {
+      "id": "action.RegeneratePermanent",
+      "source": "RegeneratePermanent",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "object_operation": "Regenerate"
+    },
+    {
+      "id": "action.RegenerateEachPermanent",
+      "source": "RegenerateEachPermanent",
+      "arity": 1,
+      "family": "ObjectEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "object_operation": "Regenerate"
+    },
+    {
+      "id": "action.CreatePermanentLayerEffect",
+      "source": "CreatePermanentLayerEffect",
+      "arity": 2,
+      "family": "LayerEffect",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "changes": 1
+    },
+    {
+      "id": "action.CreatePermanentLayerEffectUntil",
+      "source": "CreatePermanentLayerEffectUntil",
+      "arity": 3,
+      "family": "LayerEffect",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "changes": 1,
+      "duration": 2
+    },
+    {
+      "id": "action.CreateEachPermanentLayerEffect",
+      "source": "CreateEachPermanentLayerEffect",
+      "arity": 2,
+      "family": "LayerEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "changes": 1
+    },
+    {
+      "id": "action.CreateEachPermanentLayerEffectUntil",
+      "source": "CreateEachPermanentLayerEffectUntil",
+      "arity": 3,
+      "family": "LayerEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "changes": 1,
+      "duration": 2
+    },
+    {
+      "id": "action.CreatePermanentRuleEffect",
+      "source": "CreatePermanentRuleEffect",
+      "arity": 2,
+      "family": "RuleEffect",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "changes": 1
+    },
+    {
+      "id": "action.CreatePermanentRuleEffectUntil",
+      "source": "CreatePermanentRuleEffectUntil",
+      "arity": 3,
+      "family": "RuleEffect",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "changes": 1,
+      "duration": 2
+    },
+    {
+      "id": "action.CreateEachPermanentRuleEffect",
+      "source": "CreateEachPermanentRuleEffect",
+      "arity": 2,
+      "family": "RuleEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "changes": 1
+    },
+    {
+      "id": "action.CreateEachPermanentRuleEffectUntil",
+      "source": "CreateEachPermanentRuleEffectUntil",
+      "arity": 3,
+      "family": "RuleEffect",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "changes": 1,
+      "duration": 2
+    }
+  ]
+}

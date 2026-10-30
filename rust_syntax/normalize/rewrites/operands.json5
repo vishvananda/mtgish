@@ -1,0 +1,926 @@
+{
+  "version": 3,
+  "rules": [
+    {
+      "id": "operand.Cost.And",
+      "domain": "Cost",
+      "source": "And",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostAll",
+        "argument": 0
+      }
+    },
+    {
+      "id": "operand.Cost.Or",
+      "domain": "Cost",
+      "source": "Or",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostChoice",
+        "argument": 0
+      }
+    },
+    {
+      "id": "operand.Cost.PayMana",
+      "domain": "Cost",
+      "source": "PayMana",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostMana",
+        "argument": 0
+      }
+    },
+    {
+      "id": "operand.Cost.TapPermanent",
+      "domain": "Cost",
+      "source": "TapPermanent",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostTapPermanent",
+        "argument": 0,
+        "tapped": true
+      }
+    },
+    {
+      "id": "operand.Cost.Loyalty",
+      "domain": "Cost",
+      "source": "Loyalty",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostLoyalty",
+        "argument": 0
+      }
+    },
+    {
+      "id": "operand.Cost.RemoveCounters",
+      "domain": "Cost",
+      "source": "RemoveCounters",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostRemoveCounters",
+        "argument": 0
+      }
+    },
+    {
+      "id": "operand.Cost.PayManaX",
+      "domain": "Cost",
+      "source": "PayManaX",
+      "arity": 2,
+      "recipe": {
+        "kind": "CostManaX",
+        "mana": 0,
+        "variable": 1
+      }
+    },
+    {
+      "id": "operand.Cost.ItsManaCost",
+      "domain": "Cost",
+      "source": "ItsManaCost",
+      "arity": 0,
+      "recipe": {
+        "kind": "CostOwnMana"
+      }
+    },
+    {
+      "id": "operand.Cost.PayLife",
+      "domain": "Cost",
+      "source": "PayLife",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostAmount",
+        "operation": "Life",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "operand.Cost.DrawACard",
+      "domain": "Cost",
+      "source": "DrawACard",
+      "arity": 0,
+      "recipe": {
+        "kind": "CostAmount",
+        "operation": "Draw",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "operand.Cost.DrawNumberCards",
+      "domain": "Cost",
+      "source": "DrawNumberCards",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostAmount",
+        "operation": "Draw",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "operand.Cost.MillACard",
+      "domain": "Cost",
+      "source": "MillACard",
+      "arity": 0,
+      "recipe": {
+        "kind": "CostAmount",
+        "operation": "Mill",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "operand.Cost.MillNumberCards",
+      "domain": "Cost",
+      "source": "MillNumberCards",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostAmount",
+        "operation": "Mill",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "operand.Cost.PayLifeForEach",
+      "domain": "Cost",
+      "source": "PayLifeForEach",
+      "arity": 2,
+      "recipe": {
+        "kind": "CostAmount",
+        "operation": "Life",
+        "amount": {
+          "kind": "Binary",
+          "operation": "Multiply",
+          "left": {
+            "kind": "Source",
+            "argument": 0
+          },
+          "right": {
+            "kind": "Source",
+            "argument": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "operand.Cost.SacrificePermanent",
+      "domain": "Cost",
+      "source": "SacrificePermanent",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostSacrifice",
+        "subjects": "Permanent",
+        "argument": 0,
+        "selection": null
+      }
+    },
+    {
+      "id": "operand.Cost.SacrificeAPermanent",
+      "domain": "Cost",
+      "source": "SacrificeAPermanent",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostSacrifice",
+        "subjects": "Permanents",
+        "argument": 0,
+        "selection": {
+          "kind": "Exactly",
+          "amount": {
+            "kind": "Constant",
+            "value": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "operand.Cost.SacrificeNumberPermanents",
+      "domain": "Cost",
+      "source": "SacrificeNumberPermanents",
+      "arity": 2,
+      "recipe": {
+        "kind": "CostSacrifice",
+        "subjects": "Permanents",
+        "argument": 1,
+        "selection": {
+          "kind": "Exactly",
+          "amount": {
+            "kind": "Source",
+            "argument": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "operand.Cost.SacrificeEachPermanent",
+      "domain": "Cost",
+      "source": "SacrificeEachPermanent",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostSacrifice",
+        "subjects": "Permanents",
+        "argument": 0,
+        "selection": null
+      }
+    },
+    {
+      "id": "operand.Cost.SacrificeAnyNumberOfPermanents",
+      "domain": "Cost",
+      "source": "SacrificeAnyNumberOfPermanents",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostSacrifice",
+        "subjects": "Permanents",
+        "argument": 0,
+        "selection": {
+          "kind": "AnyNumber"
+        }
+      }
+    },
+    {
+      "id": "operand.Cost.DiscardACard",
+      "domain": "Cost",
+      "source": "DiscardACard",
+      "arity": 0,
+      "recipe": {
+        "kind": "CostDiscard",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        },
+        "filter": {
+          "kind": "Any"
+        },
+        "random": false
+      }
+    },
+    {
+      "id": "operand.Cost.DiscardNumberCards",
+      "domain": "Cost",
+      "source": "DiscardNumberCards",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostDiscard",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "filter": {
+          "kind": "Any"
+        },
+        "random": false
+      }
+    },
+    {
+      "id": "operand.Cost.DiscardCard",
+      "domain": "Cost",
+      "source": "DiscardCard",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostDiscard",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        },
+        "filter": {
+          "kind": "HandCard",
+          "argument": 0
+        },
+        "random": false
+      }
+    },
+    {
+      "id": "operand.Cost.DiscardACardOfType",
+      "domain": "Cost",
+      "source": "DiscardACardOfType",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostDiscard",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        },
+        "filter": {
+          "kind": "Cards",
+          "argument": 0
+        },
+        "random": false
+      }
+    },
+    {
+      "id": "operand.Cost.DiscardNumberCardsOfType",
+      "domain": "Cost",
+      "source": "DiscardNumberCardsOfType",
+      "arity": 2,
+      "recipe": {
+        "kind": "CostDiscard",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "filter": {
+          "kind": "Cards",
+          "argument": 1
+        },
+        "random": false
+      }
+    },
+    {
+      "id": "operand.Cost.DiscardACardAtRandom",
+      "domain": "Cost",
+      "source": "DiscardACardAtRandom",
+      "arity": 0,
+      "recipe": {
+        "kind": "CostDiscard",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        },
+        "filter": {
+          "kind": "Any"
+        },
+        "random": true
+      }
+    },
+    {
+      "id": "operand.Cost.DiscardNumberCardsAtRandom",
+      "domain": "Cost",
+      "source": "DiscardNumberCardsAtRandom",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostDiscard",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "filter": {
+          "kind": "Any"
+        },
+        "random": true
+      }
+    },
+    {
+      "id": "operand.Cost.PutNumberPermanentsIntoOwnersHand",
+      "domain": "Cost",
+      "source": "PutNumberPermanentsIntoOwnersHand",
+      "arity": 2,
+      "recipe": {
+        "kind": "CostReturn",
+        "subjects": 1,
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "operand.Cost.Exile",
+      "domain": "Cost",
+      "source": "Exile",
+      "arity": 2,
+      "recipe": {
+        "kind": "CostExile",
+        "items": 0,
+        "flags": 1
+      }
+    },
+    {
+      "id": "operand.Condition.And",
+      "domain": "Condition",
+      "source": "And",
+      "arity": 1,
+      "recipe": {
+        "kind": "CheckAll",
+        "argument": 0
+      }
+    },
+    {
+      "id": "operand.Condition.Or",
+      "domain": "Condition",
+      "source": "Or",
+      "arity": 1,
+      "recipe": {
+        "kind": "CheckEither",
+        "argument": 0
+      }
+    },
+    {
+      "id": "operand.Condition.CostWasPaid",
+      "domain": "Condition",
+      "source": "CostWasPaid",
+      "arity": 0,
+      "recipe": {
+        "kind": "CheckPayment",
+        "negated": false
+      }
+    },
+    {
+      "id": "operand.Condition.CostWasntPaid",
+      "domain": "Condition",
+      "source": "CostWasntPaid",
+      "arity": 0,
+      "recipe": {
+        "kind": "CheckPayment",
+        "negated": true
+      }
+    },
+    {
+      "id": "operand.Condition.ValueIs",
+      "domain": "Condition",
+      "source": "ValueIs",
+      "arity": 2,
+      "recipe": {
+        "kind": "CheckCompare",
+        "left": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "comparison": 1
+      }
+    },
+    {
+      "id": "operand.Condition.NumPermanentsIs",
+      "domain": "Condition",
+      "source": "NumPermanentsIs",
+      "arity": 2,
+      "recipe": {
+        "kind": "CheckCompare",
+        "left": {
+          "kind": "Count",
+          "query": {
+            "kind": "Battlefield",
+            "argument": 1
+          }
+        },
+        "comparison": 0
+      }
+    },
+    {
+      "id": "operand.Condition.NumGraveyardCardsPassFilter",
+      "domain": "Condition",
+      "source": "NumGraveyardCardsPassFilter",
+      "arity": 3,
+      "recipe": {
+        "kind": "CheckCompare",
+        "left": {
+          "kind": "Count",
+          "query": {
+            "kind": "PrivateCards",
+            "zone": "Graveyard",
+            "players": {
+              "kind": "Players",
+              "argument": 2
+            },
+            "filter": 1,
+            "excluding": null
+          }
+        },
+        "comparison": 0
+      }
+    },
+    {
+      "id": "operand.Condition.SpellXIs",
+      "domain": "Condition",
+      "source": "SpellXIs",
+      "arity": 1,
+      "recipe": {
+        "kind": "CheckSpellX",
+        "comparison": 0
+      }
+    },
+    {
+      "id": "operand.Condition.PermanentPassesFilter",
+      "domain": "Condition",
+      "source": "PermanentPassesFilter",
+      "arity": 2,
+      "recipe": {
+        "kind": "CheckMatches",
+        "object": {
+          "kind": "Permanent",
+          "argument": 0
+        },
+        "domain": "Permanents",
+        "filter": 1
+      }
+    },
+    {
+      "id": "operand.Condition.SpellPassesFilter",
+      "domain": "Condition",
+      "source": "SpellPassesFilter",
+      "arity": 2,
+      "recipe": {
+        "kind": "CheckMatches",
+        "object": {
+          "kind": "Spell",
+          "argument": 0
+        },
+        "domain": "Spells",
+        "filter": 1
+      }
+    },
+    {
+      "id": "operand.Condition.GraveyardCardPassesFilter",
+      "domain": "Condition",
+      "source": "GraveyardCardPassesFilter",
+      "arity": 2,
+      "recipe": {
+        "kind": "CheckMatches",
+        "object": {
+          "kind": "GraveCard",
+          "argument": 0
+        },
+        "domain": "Cards",
+        "filter": 1
+      }
+    },
+    {
+      "id": "operand.Condition.IsPlayersTurn",
+      "domain": "Condition",
+      "source": "IsPlayersTurn",
+      "arity": 1,
+      "recipe": {
+        "kind": "CheckActive",
+        "players": {
+          "kind": "Player",
+          "argument": 0
+        },
+        "negated": false
+      }
+    },
+    {
+      "id": "operand.Condition.IsNotPlayersTurn",
+      "domain": "Condition",
+      "source": "IsNotPlayersTurn",
+      "arity": 1,
+      "recipe": {
+        "kind": "CheckActive",
+        "players": {
+          "kind": "Player",
+          "argument": 0
+        },
+        "negated": true
+      }
+    },
+    {
+      "id": "operand.Condition.IsAPlayersTurn",
+      "domain": "Condition",
+      "source": "IsAPlayersTurn",
+      "arity": 1,
+      "recipe": {
+        "kind": "CheckActive",
+        "players": {
+          "kind": "Players",
+          "argument": 0
+        },
+        "negated": false
+      }
+    },
+    {
+      "id": "operand.Condition.PlayerPassesFilter",
+      "domain": "Condition",
+      "source": "PlayerPassesFilter",
+      "arity": 2,
+      "recipe": {
+        "kind": "CheckPlayer",
+        "players": {
+          "kind": "Player",
+          "argument": 0
+        },
+        "filter": 1
+      }
+    },
+    {
+      "id": "operand.Condition.APlayerPassesFilter",
+      "domain": "Condition",
+      "source": "APlayerPassesFilter",
+      "arity": 2,
+      "recipe": {
+        "kind": "CheckPlayer",
+        "players": {
+          "kind": "Players",
+          "argument": 0
+        },
+        "filter": 1
+      }
+    },
+    {
+      "id": "operand.Condition.ThisCardIsOnTheBattlefield",
+      "domain": "Condition",
+      "source": "ThisCardIsOnTheBattlefield",
+      "arity": 0,
+      "recipe": {
+        "kind": "CheckSourceZones",
+        "zones": [
+          "Battlefield"
+        ]
+      }
+    },
+    {
+      "id": "operand.Condition.ThisCardIsInTheCommandZone",
+      "domain": "Condition",
+      "source": "ThisCardIsInTheCommandZone",
+      "arity": 0,
+      "recipe": {
+        "kind": "CheckSourceZones",
+        "zones": [
+          "Command"
+        ]
+      }
+    },
+    {
+      "id": "operand.Condition.ThisCardIsInExileOrOnTheBattlefield",
+      "domain": "Condition",
+      "source": "ThisCardIsInExileOrOnTheBattlefield",
+      "arity": 0,
+      "recipe": {
+        "kind": "CheckSourceZones",
+        "zones": [
+          "Exile",
+          "Battlefield"
+        ]
+      }
+    },
+    {
+      "id": "operand.Condition.ThisCardIsInTheCommandZoneOrOnTheBattlefield",
+      "domain": "Condition",
+      "source": "ThisCardIsInTheCommandZoneOrOnTheBattlefield",
+      "arity": 0,
+      "recipe": {
+        "kind": "CheckSourceZones",
+        "zones": [
+          "Command",
+          "Battlefield"
+        ]
+      }
+    },
+    {
+      "id": "operand.Condition.ThisCardIsInYourGraveyard",
+      "domain": "Condition",
+      "source": "ThisCardIsInYourGraveyard",
+      "arity": 0,
+      "recipe": {
+        "kind": "CheckGraveyard",
+        "object": null,
+        "owner": null
+      }
+    },
+    {
+      "id": "operand.Condition.CardIsInPlayersGraveyard",
+      "domain": "Condition",
+      "source": "CardIsInPlayersGraveyard",
+      "arity": 2,
+      "recipe": {
+        "kind": "CheckGraveyard",
+        "object": 0,
+        "owner": 1
+      }
+    },
+    {
+      "id": "operand.Cost.TapAPermanent",
+      "domain": "Cost",
+      "source": "TapAPermanent",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostTapObjects",
+        "subjects": "Permanents",
+        "argument": 0,
+        "selection": {
+          "kind": "Exactly",
+          "amount": {
+            "kind": "Constant",
+            "value": 1
+          }
+        },
+        "tapped": true
+      }
+    },
+    {
+      "id": "operand.Cost.TapNumberPermanents",
+      "domain": "Cost",
+      "source": "TapNumberPermanents",
+      "arity": 2,
+      "recipe": {
+        "kind": "CostTapObjects",
+        "subjects": "Permanents",
+        "argument": 1,
+        "selection": {
+          "kind": "Exactly",
+          "amount": {
+            "kind": "Source",
+            "argument": 0
+          }
+        },
+        "tapped": true
+      }
+    },
+    {
+      "id": "operand.Cost.TapAnyNumberOfPermanents",
+      "domain": "Cost",
+      "source": "TapAnyNumberOfPermanents",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostTapObjects",
+        "subjects": "Permanents",
+        "argument": 0,
+        "selection": {
+          "kind": "AnyNumber"
+        },
+        "tapped": true
+      }
+    },
+    {
+      "id": "operand.Cost.UntapAPermanent",
+      "domain": "Cost",
+      "source": "UntapAPermanent",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostTapObjects",
+        "subjects": "Permanents",
+        "argument": 0,
+        "selection": {
+          "kind": "Exactly",
+          "amount": {
+            "kind": "Constant",
+            "value": 1
+          }
+        },
+        "tapped": false
+      }
+    },
+    {
+      "id": "operand.Cost.UntapNumberPermanents",
+      "domain": "Cost",
+      "source": "UntapNumberPermanents",
+      "arity": 2,
+      "recipe": {
+        "kind": "CostTapObjects",
+        "subjects": "Permanents",
+        "argument": 1,
+        "selection": {
+          "kind": "Exactly",
+          "amount": {
+            "kind": "Source",
+            "argument": 0
+          }
+        },
+        "tapped": false
+      }
+    },
+    {
+      "id": "operand.Cost.UntapEachPermanent",
+      "domain": "Cost",
+      "source": "UntapEachPermanent",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostTapObjects",
+        "subjects": "Permanents",
+        "argument": 0,
+        "selection": null,
+        "tapped": false
+      }
+    },
+    {
+      "id": "operand.Cost.UntapPermanent",
+      "domain": "Cost",
+      "source": "UntapPermanent",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostTapPermanent",
+        "argument": 0,
+        "tapped": false
+      }
+    },
+    {
+      "id": "operand.Cost.PutAPermanentIntoItsOwnersHand",
+      "domain": "Cost",
+      "source": "PutAPermanentIntoItsOwnersHand",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostReturn",
+        "subjects": 0,
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "operand.Cost.TapNumberGroupPermanents",
+      "domain": "Cost",
+      "source": "TapNumberGroupPermanents",
+      "arity": 3,
+      "recipe": {
+        "kind": "CostTapObjects",
+        "subjects": "Permanents",
+        "argument": 1,
+        "selection": {
+          "kind": "Exactly",
+          "amount": {
+            "kind": "Source",
+            "argument": 0
+          }
+        },
+        "tapped": true,
+        "group": 2
+      }
+    },
+    {
+      "id": "operand.Cost.TapAnyNumberOfGroupPermanents",
+      "domain": "Cost",
+      "source": "TapAnyNumberOfGroupPermanents",
+      "arity": 2,
+      "recipe": {
+        "kind": "CostTapObjects",
+        "subjects": "Permanents",
+        "argument": 0,
+        "selection": {
+          "kind": "AnyNumber"
+        },
+        "tapped": true,
+        "group": 1
+      }
+    },
+    {
+      "id": "operand.Cost.SacrificeNumberGroupPermanents",
+      "domain": "Cost",
+      "source": "SacrificeNumberGroupPermanents",
+      "arity": 3,
+      "recipe": {
+        "kind": "CostSacrifice",
+        "subjects": "Permanents",
+        "argument": 1,
+        "selection": {
+          "kind": "Exactly",
+          "amount": {
+            "kind": "Source",
+            "argument": 0
+          }
+        },
+        "group": 2
+      }
+    },
+    {
+      "id": "operand.Cost.SacrificeAnyNumberOfGroupPermanents",
+      "domain": "Cost",
+      "source": "SacrificeAnyNumberOfGroupPermanents",
+      "arity": 2,
+      "recipe": {
+        "kind": "CostSacrifice",
+        "subjects": "Permanents",
+        "argument": 0,
+        "selection": {
+          "kind": "AnyNumber"
+        },
+        "group": 1
+      }
+    },
+    {
+      "id": "operand.Cost.DiscardNumberGroupCards",
+      "domain": "Cost",
+      "source": "DiscardNumberGroupCards",
+      "arity": 2,
+      "recipe": {
+        "kind": "CostDiscard",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "filter": {
+          "kind": "Any"
+        },
+        "random": false,
+        "group": 1
+      }
+    },
+    {
+      "id": "operand.Cost.DiscardNumberGroupCardsOfType",
+      "domain": "Cost",
+      "source": "DiscardNumberGroupCardsOfType",
+      "arity": 3,
+      "recipe": {
+        "kind": "CostDiscard",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "filter": {
+          "kind": "Cards",
+          "argument": 1
+        },
+        "random": false,
+        "group": 2
+      }
+    }
+  ]
+}

@@ -1,0 +1,367 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "program.Action.PlayerAction",
+      "domain": "Action",
+      "source": "PlayerAction",
+      "arity": 2,
+      "recipe": {
+        "kind": "Actor",
+        "actor": {
+          "kind": "Player",
+          "argument": 0
+        },
+        "body": {
+          "kind": "Action",
+          "argument": 1
+        }
+      }
+    },
+    {
+      "id": "program.Action.EachPlayerAction",
+      "domain": "Action",
+      "source": "EachPlayerAction",
+      "arity": 2,
+      "recipe": {
+        "kind": "Actor",
+        "actor": {
+          "kind": "Batch",
+          "argument": 0
+        },
+        "body": {
+          "kind": "Action",
+          "argument": 1
+        }
+      }
+    },
+    {
+      "id": "program.Action.MayAction",
+      "domain": "Action",
+      "source": "MayAction",
+      "arity": 1,
+      "recipe": {
+        "kind": "Optional",
+        "actor": {
+          "kind": "Inherit"
+        },
+        "body": {
+          "kind": "Action",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "program.Action.MayActions",
+      "domain": "Action",
+      "source": "MayActions",
+      "arity": 1,
+      "recipe": {
+        "kind": "Optional",
+        "actor": {
+          "kind": "Inherit"
+        },
+        "body": {
+          "kind": "List",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "program.Action.PlayerMayAction",
+      "domain": "Action",
+      "source": "PlayerMayAction",
+      "arity": 2,
+      "recipe": {
+        "kind": "Optional",
+        "actor": {
+          "kind": "Player",
+          "argument": 0
+        },
+        "body": {
+          "kind": "Action",
+          "argument": 1
+        }
+      }
+    },
+    {
+      "id": "program.Action.If",
+      "domain": "Action",
+      "source": "If",
+      "arity": 2,
+      "recipe": {
+        "kind": "Conditional",
+        "condition": 0,
+        "negated": false,
+        "then": {
+          "kind": "List",
+          "argument": 1
+        },
+        "otherwise": null
+      }
+    },
+    {
+      "id": "program.Action.Unless",
+      "domain": "Action",
+      "source": "Unless",
+      "arity": 2,
+      "recipe": {
+        "kind": "Conditional",
+        "condition": 0,
+        "negated": true,
+        "then": {
+          "kind": "List",
+          "argument": 1
+        },
+        "otherwise": null
+      }
+    },
+    {
+      "id": "program.Action.IfElse",
+      "domain": "Action",
+      "source": "IfElse",
+      "arity": 3,
+      "recipe": {
+        "kind": "Conditional",
+        "condition": 0,
+        "negated": false,
+        "then": {
+          "kind": "List",
+          "argument": 1
+        },
+        "otherwise": {
+          "kind": "List",
+          "argument": 2
+        }
+      }
+    },
+    {
+      "id": "program.Action.MayCost",
+      "domain": "Action",
+      "source": "MayCost",
+      "arity": 1,
+      "recipe": {
+        "kind": "Payment",
+        "player": null,
+        "cost": 0,
+        "optional": true
+      }
+    },
+    {
+      "id": "program.Action.MustCost",
+      "domain": "Action",
+      "source": "MustCost",
+      "arity": 1,
+      "recipe": {
+        "kind": "Payment",
+        "player": null,
+        "cost": 0,
+        "optional": false
+      }
+    },
+    {
+      "id": "program.Action.PlayerMayCost",
+      "domain": "Action",
+      "source": "PlayerMayCost",
+      "arity": 2,
+      "recipe": {
+        "kind": "Payment",
+        "player": 0,
+        "cost": 1,
+        "optional": true
+      }
+    },
+    {
+      "id": "program.Action.PlayerMustCost",
+      "domain": "Action",
+      "source": "PlayerMustCost",
+      "arity": 2,
+      "recipe": {
+        "kind": "Payment",
+        "player": 0,
+        "cost": 1,
+        "optional": false
+      }
+    },
+    {
+      "id": "program.Actions.ActionList",
+      "domain": "Actions",
+      "source": "ActionList",
+      "arity": 1,
+      "recipe": {
+        "kind": "Sequence",
+        "body": {
+          "kind": "List",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "program.Actions.Targeted",
+      "domain": "Actions",
+      "source": "Targeted",
+      "arity": 2,
+      "recipe": {
+        "kind": "Targeted",
+        "targets": 0,
+        "body": {
+          "kind": "Program",
+          "argument": 1
+        }
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseOne",
+      "domain": "Actions",
+      "source": "Modal_ChooseOne",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "Exact",
+          "count": 1
+        },
+        "modes": 0
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseTwo",
+      "domain": "Actions",
+      "source": "Modal_ChooseTwo",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "Exact",
+          "count": 2
+        },
+        "modes": 0
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseThree",
+      "domain": "Actions",
+      "source": "Modal_ChooseThree",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "Exact",
+          "count": 3
+        },
+        "modes": 0
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseBoth",
+      "domain": "Actions",
+      "source": "Modal_ChooseBoth",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "All"
+        },
+        "modes": 0
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseOneOrBoth",
+      "domain": "Actions",
+      "source": "Modal_ChooseOneOrBoth",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "OneOrMore"
+        },
+        "modes": 0
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseOneOrMore",
+      "domain": "Actions",
+      "source": "Modal_ChooseOneOrMore",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "OneOrMore"
+        },
+        "modes": 0
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseAnyNumber",
+      "domain": "Actions",
+      "source": "Modal_ChooseAnyNumber",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "AnyNumber"
+        },
+        "modes": 0
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseUptoOne",
+      "domain": "Actions",
+      "source": "Modal_ChooseUptoOne",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "UpTo",
+          "count": 1
+        },
+        "modes": 0
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseUptoNumber",
+      "domain": "Actions",
+      "source": "Modal_ChooseUptoNumber",
+      "arity": 2,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "UpToSource",
+          "argument": 0
+        },
+        "modes": 1
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseNumberMayChooseSameModeMoreThanOnce",
+      "domain": "Actions",
+      "source": "Modal_ChooseNumberMayChooseSameModeMoreThanOnce",
+      "arity": 2,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "RepeatSource",
+          "argument": 0
+        },
+        "modes": 1
+      }
+    },
+    {
+      "id": "program.Action.PlayerMayActions",
+      "domain": "Action",
+      "source": "PlayerMayActions",
+      "arity": 2,
+      "recipe": {
+        "kind": "Optional",
+        "actor": {
+          "kind": "Player",
+          "argument": 0
+        },
+        "body": {
+          "kind": "List",
+          "argument": 1
+        }
+      }
+    }
+  ]
+}

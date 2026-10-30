@@ -49,6 +49,10 @@
     "[{{ACTION_LIST}}, {{ACTION_LIST}}]": ""
   },
   "{{ACTION_LIST}}": {
+    "[{{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}]": "",
+    "[{{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}]": "",
+    "[{{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}]": "",
+
     "[{{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}]": "",
     "[{{_ACTION}}, {{_ACTION}}, {{_ACTION}}, {{_ACTION}}]": "",
     "[{{_ACTION}}, {{_ACTION}}, {{_ACTION}}]": "",
@@ -299,6 +303,12 @@
     "IsPlaneswalkerType({{LILIANA}})": ""
   },
   "{{BASIC_PLAYER_ACTION}}": {
+    "AddManaWithModifiers(Or([{{MANA_PRODUCE_SYMBOL}}, And({{MANA_PRODUCE_SYMBOL_LIST}})]), {{MANA_USE_MODIFIERS}})": "",
+    "PutCardFromHandOnTopOfLibrary(EachableCardInHand)": "",
+    "ReturnUptoNumberGroupCardsFromPlayersGraveyardToBattlefield({{NUMBER}}, {{CARDS_IN_GRAVEYARDS}}, {{GROUP_FILTER}}, {{PLAYER}}, {{ENTER_FLAGS}})": "",
+
+    "ChooseNumberCardsInHandOfType({{NUMBER}}, {{CARDS_IN_HAND}})": "",
+
     "{{_PLAYER_ACTION[PutCounters]}}": "",
     "{{_PLAYER_ACTION[PutCounters][Reflexive]}}": "",
     "{{_PLAYER_ACTION[PutCounters][NoteCounters]}}": "",
@@ -750,7 +760,6 @@
     "CreatePerpetualCardInLibraryEffect(TheTopCardOfTypeInPlayersLibrary({{CARDS}}, {{PLAYER}}), {{PERPETUAL_EFFECT_LIST}})": "",
     "CreatePerpetualCardsInEachPlayersHandEffect(TheCardsConjuredIntoHandThisWay, {{PLAYERS}}, {{PERPETUAL_EFFECT_LIST}})": "",
     "CreatePerpetualCardsInHandEffect(TheCardsConjuredIntoHandThisWay, {{PERPETUAL_EFFECT_LIST}})": "",
-    "CreatePerpetualCardsInHandEffect(TheChosenCardsInHand, {{PERPETUAL_EFFECT_LIST}})": "",
     "CreatePerpetualCardsInHandEffect({{CARDS_IN_HAND}}, {{PERPETUAL_EFFECT_LIST}})": "",
     "CreatePerpetualCardsInPlayersGraveyardEffect({{CARDS_IN_GRAVEYARDS}}, {{PLAYER}}, {{PERPETUAL_EFFECT_LIST}})": "",
     "CreatePerpetualCardsInPlayersHandAndCardsInPlayersLibraryEffect({{CARDS_IN_HAND}}, {{PLAYERS}}, {{CARDS_IN_LIBRARY}}, {{PLAYERS}}, {{PERPETUAL_EFFECT_LIST}})": "",
@@ -1670,6 +1679,10 @@
     "[{{CARDS_IN_HAND}}, {{CARDS_IN_HAND}}]": ""
   },
   "{{CARDS_IN_HAND}}": {
+    "TheChosenCardsInHand": "",
+
+    "WasDrawnThisTurn": "",
+
     "And({{CARDS_IN_HAND_LIST}})": "",
     "Or({{CARDS_IN_HAND_LIST}})": "",
     "Other({{CARD_IN_HAND}})": "",
@@ -1832,6 +1845,8 @@
     "SetPT({{PT}}), AddCreatureType({{ZOMBIE}}), AddCardtype(Creature)": ""
   },
   "{{CARD_IN_HAND}}": {
+    "EachableCardInHand": "",
+
     "TheCardRevealedThisWay": "",
     "TheCardChosenThisWay": "",
     "TheChosenCardInHand": "",
@@ -2223,6 +2238,7 @@
     "ThereAreNumberCardTypesInPlayersGraveyard({{COMPARISON}}, {{PLAYER}})": "",
     "ThereAreNumberNamesAmongUnlockedDoorsOfPermanents({{COMPARISON}}, {{PERMANENTS}})": "",
     "ThereAreNumberUnlockedDoorsAmongPermanents({{COMPARISON}}, {{PERMANENTS}})": "",
+    "TimesThisAbilityHasBeenActivatedThisTurnIs({{COMPARISON}})": "",
     "TimesThisAbilityHasResolvedThisTurnIs({{COMPARISON}})": "",
     "TopCardOfPlayersLibraryPassesFilter({{PLAYER}}, {{CARDS}})": "",
     "TopCardOfPlayersLibraryPassesFilter_Digital({{PLAYER}}, {{CARDS}})": "",
@@ -2273,6 +2289,7 @@
     "CopyEffects([SetName({{QUOTED_NAMED_CARD}}), AddSupertypes([{{SUPERTYPE}}]), SetCreatureTypes([{{ZOMBIE}}, {{ZOMBIE}}, {{ZOMBIE}}]), SetCardtypes([Creature])])": "",
     "CopyEffects([SetName({{QUOTED_NAMED_CARD}}), AddSupertypes([{{SUPERTYPE}}]), SetPT({{PT}}), AddCreatureTypes([{{ZOMBIE}}, {{ZOMBIE}}]), AddCardtypes([Creature]), AddAbility([{{RULE}}])])": "",
     "CopyEffects([SetName({{QUOTED_NAMED_CARD}}), AddSupertypes([{{SUPERTYPE}}]), AddAbility([{{RULE}}])])": "",
+    "CopyEffects([SetName({{QUOTED_NAMED_CARD}}), AddSupertypes([{{SUPERTYPE}}]), AddAbility({{RULES}}), AddAbilityVariable(ThisAbility)])": "",
     "CopyEffects([SetName({{QUOTED_NAMED_CARD}}), AddSupertypes([{{SUPERTYPE}}]), AddAbilityVariable(ThisAbility)])": "",
     "CopyEffects([SetName({{QUOTED_NAMED_CARD}}), AddSupertypes([{{SUPERTYPE}}])])": "",
     "CopyEffects([SetName({{QUOTED_NAMED_CARD}}), SetPT({{PT}}), AddAbility([{{RULE}}]), AddAbilityVariable(ThisAbility)])": "",
@@ -2293,6 +2310,8 @@
     "[{{COST}}, {{COST}}]": ""
   },
   "{{COST_REDUCTION_SYMBOL}}": {
+    "CostReduceGeneric(5)": "",
+
     "CostReduceB": "",
     "CostReduceG": "",
     "CostReduceGeneric(1)": "",
@@ -2904,6 +2923,7 @@
     "NextTimeDamageWouldBeDealtThisTurnBySourceToRecipient({{SINGLE_DAMAGE_SOURCE_FILTER}}, {{SINGLE_DAMAGE_RECIPIENT_FILTER}})": "",
     "NextTimeDamageWouldBeDealtThisTurnToARecipient({{DAMAGE_RECIPIENTS_LIST}})": "",
     "NextTimeDamageWouldBeDealtThisTurnToRecipient({{SINGLE_DAMAGE_RECIPIENT_FILTER}})": "",
+    "NextAmountOfDamageThatWouldBeDealtToRecipient({{NUMBER}}, {{SINGLE_DAMAGE_RECIPIENT_FILTER}})": "",
     "NextTimeDamageWouldBeDealtToRecipient({{SINGLE_DAMAGE_RECIPIENT_FILTER}})": ""
   },
   "{{FUTURE_REPLACABLE_EVENT[WouldDestroy]}}": {
@@ -4379,6 +4399,8 @@
     "[{{PLAYERS}}, {{PLAYERS}}]": ""
   },
   "{{PLAYERS}}": {
+    "AttackedWithAPermanentThisTurn({{PERMANENTS}})": "",
+
     "AnyPlayer": "",
     "ChoseToDoActions": "",
     "AllowedToDrawCards": "",
@@ -5087,6 +5109,8 @@
     "[PutItOntoTheBattlefieldInstead({{ENTER_FLAGS}})]": ""
   },
   "{{REPLACEMENT_ACTIONS[WouldDraw]}}": {
+    "[PlayerAction(WouldDrawACard_ThatPlayer, ChooseAPlayer({{PLAYERS}})), PlayerAction(WouldDrawACard_ThatPlayer, Exile([TheTopCardOfPlayersLibrary(TheChosenPlayer)], [ExilesFaceDown]))]": "",
+
     "[ChooseAnAction([{{REPLACEMENT_ACTIONS[WouldDraw]}}, {{REPLACEMENT_ACTIONS[WouldDraw]}}, {{REPLACEMENT_ACTIONS[WouldDraw]}}])]": "",
     "[ChooseAnAction([{{REPLACEMENT_ACTIONS[WouldDraw]}}, {{REPLACEMENT_ACTIONS[WouldDraw]}}])]": "",
     "[CreatePlayerEffectUntil({{PLAYER}}, {{PLAYER_EFFECT_LIST}}, {{EXPIRATION}})]": "",
@@ -5115,6 +5139,7 @@
 
     "[PlayerAction({{PLAYER}}, RevealTopCardOfLibrary), AnyPlayerMayCost(Other({{PLAYER}}), PayLife({{NUMBER}})), IfElse(CostWasPaid, [PlayerAction({{PLAYER}}, PutTopOfLibraryInGraveyard)], [PlayerAction({{PLAYER}}, DrawACard)])]": "",
     "[PlayerActions({{PLAYER}}, [DrawACard, RevealTheCardDrawnThisWay, If(ACardWasRevealedThisWay({{CARDS_IN_HAND}}), [DiscardTheCardDrawnThisWay])])]": "",
+    "[PlayerActions({{PLAYER}}, [DrawACard, RevealTheCardDrawnThisWay, If(ACardWasRevealedThisWay({{CARDS_IN_HAND}}), [AnyPlayerMayCost(SinglePlayer({{PLAYER}}), PayLife({{NUMBER}})), Unless(CostWasPaid, [DiscardTheCardDrawnThisWay])])])]": "",
     "[PlayerMustCost({{PLAYER}}, DiscardACard), IfElse(CostWasPaid, [PlayerAction({{PLAYER}}, DrawACard)], [PlayerAction({{PLAYER}}, MillACard)])]": "",
     "[PutACardFromOutsideGameInHand({{CARDS}})]": "",
     "[PutCounters([ACounterOfTypeOnPermanent({{COUNTER_TYPE}}, {{PERMANENT}})])]": "",
@@ -5261,6 +5286,7 @@
     "[EntersUnderAPlayersControl({{PLAYERS}})]": "",
     "[EntersUnderPlayersControl({{PLAYER}})]": "",
     "[EntersUntapped]": "",
+    "[EntersWithACounter({{COUNTER_TYPE}}), EntersWithACounter({{COUNTER_TYPE}}), EntersWithACounter({{COUNTER_TYPE}}), EntersWithACounter({{COUNTER_TYPE}})]": "",
     "[EntersWithACounter({{COUNTER_TYPE}}), EntersWithACounter({{COUNTER_TYPE}}), EntersWithACounter({{COUNTER_TYPE}})]": "",
     "[EntersWithACounter({{COUNTER_TYPE}})]": "",
     "[EntersWithACounterOfChoice([{{COUNTER_TYPE}}, {{COUNTER_TYPE}}, {{COUNTER_TYPE}}])]": "",
@@ -5486,6 +5512,8 @@
     "[]": ""
   },
   "{{RULE}}": {
+    "DecreaseBuybackCosts({{MANACOST}})": "",
+
     "ActivatedAbilityEffect({{ACTIVATED_ABILITIES}}, {{ACTIVATED_ABILITY_EFFECT}})": "",
     "AsPermanentBecomesAttachedToAPermanent({{PERMANENT}}, {{PERMANENTS}}, {{ATTACH_ACTIONS}})": "",
     "AsPermanentEnters({{PERMANENT}}, {{REPLACEMENT_ACTIONS[WouldEnter]}})": "",
@@ -5500,6 +5528,7 @@
     "CDA_Color(Devoid)": "",
     "CDA_ColorButNotColorIdentity(AllColors)": "",
     "CDA_Power({{NUMBER}})": "",
+    "CDA_PowerToughness({{NUMBER}}, {{NUMBER}})": "",
     "CDA_Toughness({{NUMBER}})": "",
     "CDA_Types(AddCreatureTypeVariable(TheChosenCreatureType))": "",
     "CDA_Types(AddCreatureTypes([{{ZOMBIE}}, {{ZOMBIE}}, {{ZOMBIE}}, {{ZOMBIE}}]))": "",
@@ -5827,6 +5856,8 @@
     "[{{SPELL_EFFECT}}]": ""
   },
   "{{SPELL_EFFECT}}": {
+    "Assist": "",
+
     "AddAbility([Flying])": "",
     "AddAbility([Haste, TriggerA(AtTheBeginningOfAPlayersEndStep(AnyPlayer), ActionList([SacrificePermanent(ThisPermanent)]))])": "",
     "AddAbility([Haste])": "",
@@ -6110,7 +6141,7 @@
     "[{{CURSE}}, {{ZOMBIE}}, {{ZOMBIE}}]": "",
     "[{{CURSE}}, {{ZOMBIE}}]": "",
     "[{{CURSE}}]": "",
-    "[{{DOMINARIA}}]": "",
+    "[{{DOMINARIA_UNIQUE}}]": "",
     "[{{LILIANA}}, {{LILIANA}}]": "",
     "[{{LILIANA}}]": "",
     "[{{SIEGE}}]": "",
@@ -6143,6 +6174,8 @@
     "[{{TARGET}}]": ""
   },
   "{{TARGET}}": {
+    "NumberTargetPlayersOrPermanents({{NUMBER}}, {{PLAYERS}}, {{PERMANENTS}})": "",
+
     "AnyNumberOfAnyTargets": "",
     "AnyNumberOfTargetGraveyardCards({{CARDS_IN_GRAVEYARDS}})": "",
     "AnyNumberOfTargetGroupGraveyardCards({{CARDS_IN_GRAVEYARDS}}, {{GROUP_FILTER}})": "",
@@ -6344,6 +6377,10 @@
     "ValueAction({{RANGE}}, {{ACTION_LIST}})": ""
   },
   "{{_ACTION}}": {
+    "EachPlayerAction({{PLAYERS}}, LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [MayRevealMultipleCardsOfTypeAndPutIntoHand([{{CARDS}}, {{CARDS}}]), PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder]))": "",
+
+    "ActionForEachCardInHand({{CARDS_IN_HAND}}, {{ACTION_LIST}})": "",
+
     "MultiDraw([DrawNumberCards({{NUMBER}}), EachPlayerDrawsACard({{PLAYERS}})])": "",
 
     // These are simultaneous (the creatures are sacrificed and the tokens are created at the same time)
@@ -6858,6 +6895,7 @@
     "TriggerTheDiceResult": ""
   },
   "{{_NUMBER[Scry]}}": {
+    "TheNumberOfCardsSurveilledOnTopOfLibraryThisWay": "",
     "TheNumberOfCardsScryedOnTopOfLibraryThisWay": ""
   },
   "{{_NUMBER[VoteForAPermanent]}}": {
@@ -7145,6 +7183,12 @@
     "HeistPlayersLibrary({{PLAYER}})": ""
   },
   "{{_PLAYER_ACTION[LookAtTopOfLibrary]}}": {
+    "LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [PutAGenericCardIntoHand, PutTheRemainingCardsOnTopOfLibraryInAnyOrder])": "",
+
+    "LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [MayAction(PutAGenericCardOnTopOfLibrary), PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder])": "",
+    "LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [MayRevealAnyNumberOfCardsOfTypeAndPutThemIntoHand({{CARDS}}), PutTheRemainingCardsOnTheBottomOfLibraryInAnyOrder])": "",
+    "LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [MayRevealMultipleCardsOfTypeAndPutIntoHand([{{CARDS}}, {{CARDS}}]), PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder])": "",
+
     "LookAtTheTopCardOfEachPlayersLibrary({{PLAYERS}})": "",
     "LookAtTheTopCardOfPlayersLibrary({{PLAYER}})": "",
     "LookAtTheTopNumberCardsOfLibrary({{NUMBER}}, [CloakNumberGenericCards({{NUMBER}}), PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder])": "",

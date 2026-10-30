@@ -1,0 +1,1137 @@
+{
+  "version": 2,
+  "rules": [
+    {
+      "id": "number.Integer",
+      "source": "Integer",
+      "arity": 1,
+      "expression": {
+        "kind": "Integer",
+        "argument": 0
+      }
+    },
+    {
+      "id": "number.Plus",
+      "source": "Plus",
+      "arity": 2,
+      "expression": {
+        "kind": "Binary",
+        "operation": "Add",
+        "left": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "right": {
+          "kind": "Source",
+          "argument": 1
+        }
+      }
+    },
+    {
+      "id": "number.Minus",
+      "source": "Minus",
+      "arity": 2,
+      "expression": {
+        "kind": "Binary",
+        "operation": "Subtract",
+        "left": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "right": {
+          "kind": "Source",
+          "argument": 1
+        }
+      }
+    },
+    {
+      "id": "number.DifferenceBetween",
+      "source": "DifferenceBetween",
+      "arity": 2,
+      "expression": {
+        "kind": "Binary",
+        "operation": "Subtract",
+        "left": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "right": {
+          "kind": "Source",
+          "argument": 1
+        }
+      }
+    },
+    {
+      "id": "number.Multiply",
+      "source": "Multiply",
+      "arity": 2,
+      "expression": {
+        "kind": "Binary",
+        "operation": "Multiply",
+        "left": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "right": {
+          "kind": "Source",
+          "argument": 1
+        }
+      }
+    },
+    {
+      "id": "number.MinimumOf",
+      "source": "MinimumOf",
+      "arity": 2,
+      "expression": {
+        "kind": "Binary",
+        "operation": "Minimum",
+        "left": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "right": {
+          "kind": "Source",
+          "argument": 1
+        }
+      }
+    },
+    {
+      "id": "number.Plus3",
+      "source": "Plus3",
+      "arity": 3,
+      "expression": {
+        "kind": "Binary",
+        "operation": "Add",
+        "left": {
+          "kind": "Binary",
+          "operation": "Add",
+          "left": {
+            "kind": "Source",
+            "argument": 0
+          },
+          "right": {
+            "kind": "Source",
+            "argument": 1
+          }
+        },
+        "right": {
+          "kind": "Source",
+          "argument": 2
+        }
+      }
+    },
+    {
+      "id": "number.Twice",
+      "source": "Twice",
+      "arity": 1,
+      "expression": {
+        "kind": "Binary",
+        "operation": "Multiply",
+        "left": {
+          "kind": "Constant",
+          "value": 2
+        },
+        "right": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "number.Thrice",
+      "source": "Thrice",
+      "arity": 1,
+      "expression": {
+        "kind": "Binary",
+        "operation": "Multiply",
+        "left": {
+          "kind": "Constant",
+          "value": 3
+        },
+        "right": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "number.HalfRoundedDown",
+      "source": "HalfRoundedDown",
+      "arity": 1,
+      "expression": {
+        "kind": "Divide",
+        "numerator": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "denominator": {
+          "kind": "Constant",
+          "value": 2
+        },
+        "rounding": "Down"
+      }
+    },
+    {
+      "id": "number.HalfRoundedUp",
+      "source": "HalfRoundedUp",
+      "arity": 1,
+      "expression": {
+        "kind": "Divide",
+        "numerator": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "denominator": {
+          "kind": "Constant",
+          "value": 2
+        },
+        "rounding": "Up"
+      }
+    },
+    {
+      "id": "number.DivideRoundedDown",
+      "source": "DivideRoundedDown",
+      "arity": 2,
+      "expression": {
+        "kind": "Divide",
+        "numerator": {
+          "kind": "Source",
+          "argument": 0
+        },
+        "denominator": {
+          "kind": "Source",
+          "argument": 1
+        },
+        "rounding": "Down"
+      }
+    },
+    {
+      "id": "number.PowerOfPermanent",
+      "source": "PowerOfPermanent",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "Permanent",
+          "argument": 0
+        },
+        "property": "Power"
+      }
+    },
+    {
+      "id": "number.ToughnessOfPermanent",
+      "source": "ToughnessOfPermanent",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "Permanent",
+          "argument": 0
+        },
+        "property": "Toughness"
+      }
+    },
+    {
+      "id": "number.ManaValueOfPermanent",
+      "source": "ManaValueOfPermanent",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "Permanent",
+          "argument": 0
+        },
+        "property": "ManaValue"
+      }
+    },
+    {
+      "id": "number.BasePowerOfPermanent",
+      "source": "BasePowerOfPermanent",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "Permanent",
+          "argument": 0
+        },
+        "property": "BasePower"
+      }
+    },
+    {
+      "id": "number.LoyaltyOfPermanent",
+      "source": "LoyaltyOfPermanent",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "Permanent",
+          "argument": 0
+        },
+        "property": "Loyalty"
+      }
+    },
+    {
+      "id": "number.NumColorsOfPermanent",
+      "source": "NumColorsOfPermanent",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "Permanent",
+          "argument": 0
+        },
+        "property": "ColorCount"
+      }
+    },
+    {
+      "id": "number.PowerOfSpell",
+      "source": "PowerOfSpell",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "Spell",
+          "argument": 0
+        },
+        "property": "Power"
+      }
+    },
+    {
+      "id": "number.ManaValueOfSpell",
+      "source": "ManaValueOfSpell",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "Spell",
+          "argument": 0
+        },
+        "property": "ManaValue"
+      }
+    },
+    {
+      "id": "number.PowerOfGraveyardCard",
+      "source": "PowerOfGraveyardCard",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "GraveCard",
+          "argument": 0
+        },
+        "property": "Power"
+      }
+    },
+    {
+      "id": "number.ManaValueOfGraveyardCard",
+      "source": "ManaValueOfGraveyardCard",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "GraveCard",
+          "argument": 0
+        },
+        "property": "ManaValue"
+      }
+    },
+    {
+      "id": "number.ToughnessOfGraveyardCard",
+      "source": "ToughnessOfGraveyardCard",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "GraveCard",
+          "argument": 0
+        },
+        "property": "Toughness"
+      }
+    },
+    {
+      "id": "number.PowerOfExiledCard",
+      "source": "PowerOfExiledCard",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "ExiledCard",
+          "argument": 0
+        },
+        "property": "Power"
+      }
+    },
+    {
+      "id": "number.ManaValueOfExiled",
+      "source": "ManaValueOfExiled",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "ExiledCard",
+          "argument": 0
+        },
+        "property": "ManaValue"
+      }
+    },
+    {
+      "id": "number.ToughnessOfExiledCard",
+      "source": "ToughnessOfExiledCard",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "ExiledCard",
+          "argument": 0
+        },
+        "property": "Toughness"
+      }
+    },
+    {
+      "id": "number.ToughnessOfCardInHand",
+      "source": "ToughnessOfCardInHand",
+      "arity": 1,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": "HandCard",
+          "argument": 0
+        },
+        "property": "Toughness"
+      }
+    },
+    {
+      "id": "number.LifeTotalOfPlayer",
+      "source": "LifeTotalOfPlayer",
+      "arity": 1,
+      "expression": {
+        "kind": "PlayerLife",
+        "argument": 0
+      }
+    },
+    {
+      "id": "number.TheNumberOfPermanentsOnTheBattlefield",
+      "source": "TheNumberOfPermanentsOnTheBattlefield",
+      "arity": 1,
+      "expression": {
+        "kind": "Count",
+        "query": {
+          "kind": "Battlefield",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "number.TheNumberOfGraveyardCards",
+      "source": "TheNumberOfGraveyardCards",
+      "arity": 1,
+      "expression": {
+        "kind": "Count",
+        "query": {
+          "kind": "GraveCards",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "number.NumCardsInExile",
+      "source": "NumCardsInExile",
+      "arity": 1,
+      "expression": {
+        "kind": "Count",
+        "query": {
+          "kind": "ExiledCards",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "number.TheNumberOfCardsInPlayersHand",
+      "source": "TheNumberOfCardsInPlayersHand",
+      "arity": 1,
+      "expression": {
+        "kind": "Count",
+        "query": {
+          "kind": "PrivateCards",
+          "zone": "Hand",
+          "players": {
+            "kind": "Player",
+            "argument": 0
+          },
+          "filter": null,
+          "excluding": null
+        }
+      }
+    },
+    {
+      "id": "number.TheTotalNumberOfCardsInPlayersHands",
+      "source": "TheTotalNumberOfCardsInPlayersHands",
+      "arity": 1,
+      "expression": {
+        "kind": "Count",
+        "query": {
+          "kind": "PrivateCards",
+          "zone": "Hand",
+          "players": {
+            "kind": "Players",
+            "argument": 0
+          },
+          "filter": null,
+          "excluding": null
+        }
+      }
+    },
+    {
+      "id": "number.TheNumberOfCardsOfTypeInPlayersHand",
+      "source": "TheNumberOfCardsOfTypeInPlayersHand",
+      "arity": 2,
+      "expression": {
+        "kind": "Count",
+        "query": {
+          "kind": "PrivateCards",
+          "zone": "Hand",
+          "players": {
+            "kind": "Player",
+            "argument": 1
+          },
+          "filter": 0,
+          "excluding": null
+        }
+      }
+    },
+    {
+      "id": "number.NumCardsInPlayersLibrary",
+      "source": "NumCardsInPlayersLibrary",
+      "arity": 1,
+      "expression": {
+        "kind": "Count",
+        "query": {
+          "kind": "PrivateCards",
+          "zone": "Library",
+          "players": {
+            "kind": "Player",
+            "argument": 0
+          },
+          "filter": null,
+          "excluding": null
+        }
+      }
+    },
+    {
+      "id": "number.NumCardsOfTypeInPlayersLibrary",
+      "source": "NumCardsOfTypeInPlayersLibrary",
+      "arity": 2,
+      "expression": {
+        "kind": "Count",
+        "query": {
+          "kind": "PrivateCards",
+          "zone": "Library",
+          "players": {
+            "kind": "Player",
+            "argument": 1
+          },
+          "filter": 0,
+          "excluding": null
+        }
+      }
+    },
+    {
+      "id": "number.TheNumberOfOtherCardsInPlayersGraveyard",
+      "source": "TheNumberOfOtherCardsInPlayersGraveyard",
+      "arity": 3,
+      "expression": {
+        "kind": "Count",
+        "query": {
+          "kind": "PrivateCards",
+          "zone": "Graveyard",
+          "players": {
+            "kind": "Player",
+            "argument": 2
+          },
+          "filter": 1,
+          "excluding": {
+            "kind": "GraveCard",
+            "argument": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "number.TheNumberOfCardtypesAmongGraveyardCards",
+      "source": "TheNumberOfCardtypesAmongGraveyardCards",
+      "arity": 1,
+      "expression": {
+        "kind": "Distinct",
+        "query": {
+          "kind": "GraveCards",
+          "argument": 0
+        },
+        "property": "CardTypes"
+      }
+    },
+    {
+      "id": "number.NumberOfBasicLandTypesAmongPermanents",
+      "source": "NumberOfBasicLandTypesAmongPermanents",
+      "arity": 1,
+      "expression": {
+        "kind": "Distinct",
+        "query": {
+          "kind": "Objects",
+          "argument": 0
+        },
+        "property": "BasicLandTypes"
+      }
+    },
+    {
+      "id": "number.TheNumberOfCreatureTypesAmongPermanents",
+      "source": "TheNumberOfCreatureTypesAmongPermanents",
+      "arity": 1,
+      "expression": {
+        "kind": "Distinct",
+        "query": {
+          "kind": "Objects",
+          "argument": 0
+        },
+        "property": "CreatureTypes"
+      }
+    },
+    {
+      "id": "number.NumColorsAmongPermanents",
+      "source": "NumColorsAmongPermanents",
+      "arity": 1,
+      "expression": {
+        "kind": "Distinct",
+        "query": {
+          "kind": "Objects",
+          "argument": 0
+        },
+        "property": "Colors"
+      }
+    },
+    {
+      "id": "number.TheGreatestPowerAmongPermanents",
+      "source": "TheGreatestPowerAmongPermanents",
+      "arity": 1,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "Objects",
+          "argument": 0
+        },
+        "property": "Power",
+        "aggregation": "Maximum"
+      }
+    },
+    {
+      "id": "number.TheGreatestToughnessAmongPermanents",
+      "source": "TheGreatestToughnessAmongPermanents",
+      "arity": 1,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "Objects",
+          "argument": 0
+        },
+        "property": "Toughness",
+        "aggregation": "Maximum"
+      }
+    },
+    {
+      "id": "number.TheHighestManaValueAmongPermanents",
+      "source": "TheHighestManaValueAmongPermanents",
+      "arity": 1,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "Objects",
+          "argument": 0
+        },
+        "property": "ManaValue",
+        "aggregation": "Maximum"
+      }
+    },
+    {
+      "id": "number.TheGreatestManaValueAmongPermanents",
+      "source": "TheGreatestManaValueAmongPermanents",
+      "arity": 1,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "Objects",
+          "argument": 0
+        },
+        "property": "ManaValue",
+        "aggregation": "Maximum"
+      }
+    },
+    {
+      "id": "number.TheGreatestPowerAmongCardsInPlayersGraveyard",
+      "source": "TheGreatestPowerAmongCardsInPlayersGraveyard",
+      "arity": 2,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "PrivateCards",
+          "zone": "Graveyard",
+          "players": {
+            "kind": "Players",
+            "argument": 1
+          },
+          "filter": 0,
+          "excluding": null
+        },
+        "property": "Power",
+        "aggregation": "Maximum"
+      }
+    },
+    {
+      "id": "number.TheGreatestPowerAmongPermanentsAndCardsInPlayersGraveyard",
+      "source": "TheGreatestPowerAmongPermanentsAndCardsInPlayersGraveyard",
+      "arity": 3,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "Union",
+          "queries": [
+            {
+              "kind": "Objects",
+              "argument": 0
+            },
+            {
+              "kind": "PrivateCards",
+              "zone": "Graveyard",
+              "players": {
+                "kind": "Player",
+                "argument": 2
+              },
+              "filter": 1,
+              "excluding": null
+            }
+          ]
+        },
+        "property": "Power",
+        "aggregation": "Maximum"
+      }
+    },
+    {
+      "id": "number.TheHighestManaValueAmongGraveyardCards",
+      "source": "TheHighestManaValueAmongGraveyardCards",
+      "arity": 1,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "GraveCards",
+          "argument": 0
+        },
+        "property": "ManaValue",
+        "aggregation": "Maximum"
+      }
+    },
+    {
+      "id": "number.TheGreatestManaValueAmongExiledCards",
+      "source": "TheGreatestManaValueAmongExiledCards",
+      "arity": 1,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "ExiledCards",
+          "argument": 0
+        },
+        "property": "ManaValue",
+        "aggregation": "Maximum"
+      }
+    },
+    {
+      "id": "number.TheHighestManaValueAmongCardsInPlayersGraveyard",
+      "source": "TheHighestManaValueAmongCardsInPlayersGraveyard",
+      "arity": 2,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "PrivateCards",
+          "zone": "Graveyard",
+          "players": {
+            "kind": "Player",
+            "argument": 1
+          },
+          "filter": 0,
+          "excluding": null
+        },
+        "property": "ManaValue",
+        "aggregation": "Maximum"
+      }
+    },
+    {
+      "id": "number.TheHighestManaValueAmongCardsInPlayersHand",
+      "source": "TheHighestManaValueAmongCardsInPlayersHand",
+      "arity": 2,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "PrivateCards",
+          "zone": "Hand",
+          "players": {
+            "kind": "Player",
+            "argument": 1
+          },
+          "filter": 0,
+          "excluding": null
+        },
+        "property": "ManaValue",
+        "aggregation": "Maximum"
+      }
+    },
+    {
+      "id": "number.TheHighestManaValueAmongCardsInPlayersLibrary",
+      "source": "TheHighestManaValueAmongCardsInPlayersLibrary",
+      "arity": 2,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "PrivateCards",
+          "zone": "Library",
+          "players": {
+            "kind": "Player",
+            "argument": 1
+          },
+          "filter": 0,
+          "excluding": null
+        },
+        "property": "ManaValue",
+        "aggregation": "Maximum"
+      }
+    },
+    {
+      "id": "number.TotalManaValueOfGraveyardCards",
+      "source": "TotalManaValueOfGraveyardCards",
+      "arity": 1,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "GraveCards",
+          "argument": 0
+        },
+        "property": "ManaValue",
+        "aggregation": "Sum"
+      }
+    },
+    {
+      "id": "number.TotalManaValueOfCardsInPlayersGraveyard",
+      "source": "TotalManaValueOfCardsInPlayersGraveyard",
+      "arity": 2,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "PrivateCards",
+          "zone": "Graveyard",
+          "players": {
+            "kind": "Player",
+            "argument": 1
+          },
+          "filter": 0,
+          "excluding": null
+        },
+        "property": "ManaValue",
+        "aggregation": "Sum"
+      }
+    },
+    {
+      "id": "number.TotalPowerOfPermanents",
+      "source": "TotalPowerOfPermanents",
+      "arity": 1,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "Objects",
+          "argument": 0
+        },
+        "property": "Power",
+        "aggregation": "Sum"
+      }
+    },
+    {
+      "id": "number.TotalToughnessOfPermanents",
+      "source": "TotalToughnessOfPermanents",
+      "arity": 1,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "Objects",
+          "argument": 0
+        },
+        "property": "Toughness",
+        "aggregation": "Sum"
+      }
+    },
+    {
+      "id": "number.TotalManaValueOfPermanents",
+      "source": "TotalManaValueOfPermanents",
+      "arity": 1,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "Objects",
+          "argument": 0
+        },
+        "property": "ManaValue",
+        "aggregation": "Sum"
+      }
+    },
+    {
+      "id": "number.TotalPowerOfExiledCards",
+      "source": "TotalPowerOfExiledCards",
+      "arity": 1,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "ExiledCards",
+          "argument": 0
+        },
+        "property": "Power",
+        "aggregation": "Sum"
+      }
+    },
+    {
+      "id": "number.TotalToughnessOfExiledCards",
+      "source": "TotalToughnessOfExiledCards",
+      "arity": 1,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "ExiledCards",
+          "argument": 0
+        },
+        "property": "Toughness",
+        "aggregation": "Sum"
+      }
+    },
+    {
+      "id": "number.TotalManaValueOfExiledCards",
+      "source": "TotalManaValueOfExiledCards",
+      "arity": 1,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "ExiledCards",
+          "argument": 0
+        },
+        "property": "ManaValue",
+        "aggregation": "Sum"
+      }
+    },
+    {
+      "id": "number.TheTotalNumberOfCountersAmongPermanents",
+      "source": "TheTotalNumberOfCountersAmongPermanents",
+      "arity": 1,
+      "expression": {
+        "kind": "Counters",
+        "recipients": {
+          "kind": "Objects",
+          "query": {
+            "kind": "Objects",
+            "argument": 0
+          }
+        },
+        "counter": null
+      }
+    },
+    {
+      "id": "number.TheTotalNumberOfCountersOfTypeAmongPermanents",
+      "source": "TheTotalNumberOfCountersOfTypeAmongPermanents",
+      "arity": 2,
+      "expression": {
+        "kind": "Counters",
+        "recipients": {
+          "kind": "Objects",
+          "query": {
+            "kind": "Objects",
+            "argument": 1
+          }
+        },
+        "counter": 0
+      }
+    },
+    {
+      "id": "number.TheTotalNumberOfCountersAmongPlayers",
+      "source": "TheTotalNumberOfCountersAmongPlayers",
+      "arity": 1,
+      "expression": {
+        "kind": "Counters",
+        "recipients": {
+          "kind": "Players",
+          "players": {
+            "kind": "Players",
+            "argument": 0
+          }
+        },
+        "counter": null
+      }
+    },
+    {
+      "id": "number.TheTotalNumberOfCountersOfTypeAmongPlayers",
+      "source": "TheTotalNumberOfCountersOfTypeAmongPlayers",
+      "arity": 2,
+      "expression": {
+        "kind": "Counters",
+        "recipients": {
+          "kind": "Players",
+          "players": {
+            "kind": "Players",
+            "argument": 1
+          }
+        },
+        "counter": 0
+      }
+    },
+    {
+      "id": "number.PowerOfTheSacrificedCreature",
+      "source": "PowerOfTheSacrificedCreature",
+      "arity": 0,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": {
+            "Payment": "Sacrifice"
+          }
+        },
+        "property": "Power"
+      }
+    },
+    {
+      "id": "number.ToughnessOfTheSacrificedCreature",
+      "source": "ToughnessOfTheSacrificedCreature",
+      "arity": 0,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": {
+            "Payment": "Sacrifice"
+          }
+        },
+        "property": "Toughness"
+      }
+    },
+    {
+      "id": "number.ToughnessOfCreatureSacrificedThisWay",
+      "source": "ToughnessOfCreatureSacrificedThisWay",
+      "arity": 0,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": {
+            "Payment": "Sacrifice"
+          }
+        },
+        "property": "Toughness"
+      }
+    },
+    {
+      "id": "number.ManaValueOfTheSacrificedPermanent",
+      "source": "ManaValueOfTheSacrificedPermanent",
+      "arity": 0,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": {
+            "Payment": "Sacrifice"
+          }
+        },
+        "property": "ManaValue"
+      }
+    },
+    {
+      "id": "number.ManaValueOfThePermanentSacrificedThisWay",
+      "source": "ManaValueOfThePermanentSacrificedThisWay",
+      "arity": 0,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": {
+            "Payment": "Sacrifice"
+          }
+        },
+        "property": "ManaValue"
+      }
+    },
+    {
+      "id": "number.TheNumberOfColorsOfTheSacrificedPermanent",
+      "source": "TheNumberOfColorsOfTheSacrificedPermanent",
+      "arity": 0,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": {
+            "Payment": "Sacrifice"
+          }
+        },
+        "property": "ColorCount"
+      }
+    },
+    {
+      "id": "number.ManaValueOfTheDiscardedCard",
+      "source": "ManaValueOfTheDiscardedCard",
+      "arity": 0,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": {
+            "Payment": "Discard"
+          }
+        },
+        "property": "ManaValue"
+      }
+    },
+    {
+      "id": "number.PowerOfTheDiscardedCard",
+      "source": "PowerOfTheDiscardedCard",
+      "arity": 0,
+      "expression": {
+        "kind": "Property",
+        "object": {
+          "kind": {
+            "Payment": "Discard"
+          }
+        },
+        "property": "Power"
+      }
+    },
+    {
+      "id": "number.TheNumberOfPermanentsSacrificedThisWay",
+      "source": "TheNumberOfPermanentsSacrificedThisWay",
+      "arity": 0,
+      "expression": {
+        "kind": "Count",
+        "query": {
+          "kind": "Payment",
+          "action": "Sacrifice"
+        }
+      }
+    },
+    {
+      "id": "number.TheNumberOfPermanentsTappedThisWay",
+      "source": "TheNumberOfPermanentsTappedThisWay",
+      "arity": 0,
+      "expression": {
+        "kind": "Count",
+        "query": {
+          "kind": "Payment",
+          "action": "Tap"
+        }
+      }
+    },
+    {
+      "id": "number.TheTotalPowerOfThePermanentsSacrificedThisWay",
+      "source": "TheTotalPowerOfThePermanentsSacrificedThisWay",
+      "arity": 0,
+      "expression": {
+        "kind": "Aggregate",
+        "query": {
+          "kind": "Payment",
+          "action": "Sacrifice"
+        },
+        "property": "Power",
+        "aggregation": "Sum"
+      }
+    }
+  ]
+}

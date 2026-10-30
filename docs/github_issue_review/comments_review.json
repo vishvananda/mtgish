@@ -1,0 +1,139 @@
+{
+  "repository": "i5jb/mtgish",
+  "checked_on": "2026-10-30",
+  "regressions": "data/github_issue_regressions.json",
+  "original_comment_count": 5,
+  "additional_local_comment_count": 1,
+  "comments": [
+    {
+      "url": "https://github.com/i5jb/mtgish/issues/1#issuecomment-6308570593",
+      "id": 6308570593,
+      "origin": "original follow-up",
+      "status": "repaired and covered by semantic assertions",
+      "cards": [
+        {
+          "name": "Pestilent Cauldron // Restorative Burst",
+          "contains": [
+            "FrontFace: (Name: \"Pestilent Cauldron\", Typeline: (Supertypes: [], Cardtypes: [Artifact], Subtypes: []), ManaCost: [ManaCostGeneric(2), ManaCostB]",
+            "BackFace: (Name: \"Restorative Burst\", Typeline: (Supertypes: [], Cardtypes: [Sorcery], Subtypes: []), ManaCost: [ManaCostGeneric(3), ManaCostG, ManaCostG]",
+            "Ref_TargetGraveyardCards)], []), DrawACard"
+          ],
+          "excludes": []
+        },
+        {
+          "name": "Fisher's Talent",
+          "contains": [
+            "RevealTopCardOfLibraryOfType(IsCardtype(Land))",
+            "ClassAbility([ManaCostG, ManaCostU]",
+            "ClassAbility([ManaCostGeneric(2), ManaCostG, ManaCostU]"
+          ],
+          "excludes": []
+        }
+      ]
+    },
+    {
+      "url": "https://github.com/i5jb/mtgish/issues/4#issuecomment-6308570796",
+      "id": 6308570796,
+      "origin": "original follow-up",
+      "status": "repaired and covered by semantic assertions",
+      "cards": [
+        {
+          "name": "Fisher's Talent",
+          "contains": [
+            "RevealTopCardOfLibraryOfType(IsCardtype(Land))",
+            "ClassAbility([ManaCostG, ManaCostU]",
+            "ClassAbility([ManaCostGeneric(2), ManaCostG, ManaCostU]"
+          ],
+          "excludes": []
+        }
+      ]
+    },
+    {
+      "url": "https://github.com/i5jb/mtgish/issues/3#issuecomment-6316168908",
+      "id": 6316168908,
+      "origin": "original follow-up",
+      "status": "repaired and covered by semantic assertions",
+      "cards": [
+        {
+          "name": "Nissa's Judgment",
+          "contains": [
+            "UptoOneTargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(Opponent)]))"
+          ],
+          "excludes": []
+        }
+      ]
+    },
+    {
+      "url": "https://github.com/i5jb/mtgish/issues/4#issuecomment-6316169215",
+      "id": 6316169215,
+      "origin": "original follow-up",
+      "status": "repaired and covered by semantic assertions",
+      "cards": [
+        {
+          "name": "Tokka & Rahzar, Terrible Twos",
+          "contains": [
+            "ActionList([PermanentDealsDamage(ThisPermanent, Integer(3), Player(Trigger_ThatPlayer))])"
+          ],
+          "excludes": [
+            "Targeted("
+          ]
+        },
+        {
+          "name": "Captain's Maneuver",
+          "contains": [
+            "NumberTargetPlayersOrPermanents(Integer(2), AnyPlayer, Or([IsCardtype(Creature), IsCardtype(Planeswalker)]))"
+          ],
+          "excludes": [
+            "NumberAnyTargets("
+          ]
+        },
+        {
+          "name": "Kiora, Master of the Depths",
+          "contains": [
+            "UptoOneTargetPermanent(IsCardtype(Creature)), UptoOneTargetPermanent(IsCardtype(Land))"
+          ],
+          "excludes": []
+        }
+      ]
+    },
+    {
+      "url": "https://github.com/i5jb/mtgish/issues/2#issuecomment-6316169725",
+      "id": 6316169725,
+      "origin": "original follow-up",
+      "status": "repaired and covered by semantic assertions",
+      "cards": [
+        {
+          "name": "Healing Grace",
+          "contains": [
+            "[PreventThatDamage]), GainLife(Integer(3))"
+          ],
+          "excludes": [
+            "GainLife(TheAmountOfDamagePreventedThisWay)"
+          ]
+        }
+      ]
+    },
+    {
+      "url": "https://github.com/i5jb/mtgish/issues/2#issuecomment-6514251308",
+      "id": 6514251308,
+      "origin": "filed during local review",
+      "status": "repaired and covered by semantic assertions",
+      "cards": [
+        {
+          "name": "Brilliance Unleashed",
+          "contains": [
+            "AddAbility([Flying])"
+          ],
+          "excludes": []
+        },
+        {
+          "name": "Menacing Ogre",
+          "contains": [
+            "NumberCountersOfTypeOnPermanent(Integer(2), PTCounter(+1, +1), ThisPermanent)"
+          ],
+          "excludes": []
+        }
+      ]
+    }
+  ]
+}

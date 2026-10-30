@@ -1,0 +1,107 @@
+use mtgish_ast::corpus::{self, Manifest, Result};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+
+fn run() -> Result<()> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    match args.as_slice() {
+        [command,report,source_type,output] if command=="pipeline-candidates" => {
+            let report=serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(report)?))?;
+            let source=std::fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/mtg_types.rs"))?;
+            let candidates=mtgish_ast::pipeline::candidates::Candidates::from_report(&report,&source,source_type)?;
+            corpus::write_json(Path::new(output),&candidates)?;
+            eprintln!("{} observed {} forms grouped into {} Rust field signatures; mappings require semantic review",candidates.observed_forms,source_type,candidates.groups.len());
+        }
+        [command,input,output] | [command,input,output,_] if command=="pipeline-check" => {
+            let root=PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap().to_owned();
+            let baseline:Option<Manifest>=args.get(3).map(|path|->Result<Manifest>{Ok(serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(path)?))?)}).transpose()?;
+            let report=mtgish_ast::pipeline::report::Report::check(Path::new(input),&root,baseline.as_ref())?;
+            corpus::write_json(Path::new(output),&report)?;
+            eprintln!("{} / {} source records structurally preserved; {} action occurrences rewritten by {} rules into {} recipe forms; {} records fully semantic",report.structurally_preserved,report.total,report.rewritten_actions,report.rewrite_rules.len(),report.expanded_recipes.len(),report.semantic_complete);
+            eprintln!("{} numeric occurrences consolidated by {} rules across {} records",report.rewritten_numbers,report.number_rules.len(),report.records_with_number_rewrites);
+            eprintln!("{} selector occurrences consolidated by {} rules across {} records",report.rewritten_selectors,report.selector_rules.len(),report.records_with_selector_rewrites);
+            eprintln!("{} program occurrences consolidated by {} rules across {} records",report.rewritten_programs,report.program_rules.len(),report.records_with_program_rewrites);
+            eprintln!("{} mechanic occurrences expanded by {} reusable definitions across {} records", report.rewritten_mechanics,report.mechanic_rules.len(),report.records_with_mechanic_rewrites);
+            eprintln!("{} cost and {} condition occurrences consolidated by {} rules across {} records",report.rewritten_costs,report.rewritten_conditions,report.operand_rules.len(),report.records_with_operand_rewrites);
+            eprintln!("{} fixtures cover {} observed rule/operand features; final export still requires complete semantic lowering",report.fixtures.selected_lines.len(),report.fixtures.covered);
+        }
+        [command,input,report,output] if command=="pipeline-fixtures" => {
+            let report=serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(report)?))?;
+            let count=mtgish_ast::pipeline::report::write_fixtures(Path::new(input),&report,Path::new(output))?;
+            eprintln!("selected {count} source fixtures");
+        }
+        [command,input,output] if command=="pipeline-export" => {
+            let intermediate:mtgish_ast::pipeline::Intermediate=serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(input)?))?;
+            if intermediate.format!="mtgish.pipeline.intermediate.v8" {return Err("unsupported intermediate format".into());}
+            let card=mtgish_ast::pipeline::bind(&intermediate.structural).map_err(|errors|format!("staged card is not fully semantic: {errors:?}"))?;
+            let mut artifact=corpus::Artifact::create(Path::new(output))?;
+            writeln!(artifact,"{}",ron::ser::to_string(&card)?)?;artifact.commit()?;
+        }
+        [command,input,line,output] if command=="pipeline-record" => {
+            use std::io::BufRead;
+            let line:usize=line.parse()?;
+            let text=std::io::BufReader::new(std::fs::File::open(input)?).lines().nth(line.checked_sub(1).ok_or("line numbers start at one")?).ok_or("line not found")??;
+            let card=ron::from_str(&text)?;
+            let intermediate=mtgish_ast::pipeline::Intermediate::new(&card)?;
+            corpus::write_json(Path::new(output),&intermediate)?;
+        }
+        [command, input, output] if command == "baseline" => {
+            let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap().to_owned();
+            let manifest = Manifest::build(Path::new(input), &root)?;
+            corpus::write_json(Path::new(output), &manifest)?;
+            eprintln!("validated {} records; {} Action forms; baseline {}", manifest.records.len(),
+                manifest.forms.get("Action").map_or(0, |v| v.len()), output);
+        }
+        [command, input, baseline] if command == "check-source" => {
+            let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap().to_owned();
+            let current = Manifest::build(Path::new(input), &root)?;
+            let baseline = serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(baseline)?))?;
+            current.check_identities(&baseline)?;
+            eprintln!("validated {} records; identities and layouts preserved", current.records.len());
+        }
+        [command, input, output] | [command, input, output, _] if command == "check"||command=="check-cantrip" => {
+            let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap().to_owned();
+            let baseline: Option<Manifest> = args.get(3).map(|path| -> Result<Manifest> { Ok(serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(path)?))?) }).transpose()?;
+            let report = if command=="check-cantrip"{mtgish_ast::report::Report::check_with_backend(Path::new(input),&root,baseline.as_ref())?}else{mtgish_ast::report::Report::check(Path::new(input), &root, baseline.as_ref())?};
+            corpus::write_json(Path::new(output), &report)?;
+            eprintln!("{} / {} records fully normalized; {} generic operation kinds used; {} unsupported source forms reported", report.complete, report.total, report.operations.len(), report.unsupported.len());
+            eprintln!("{} semantic families inventoried",report.forms.len());
+            if report.backend_checked{eprintln!("{} records have all required Cantrip generator capabilities",report.backend_capable);}
+            if report.complete != report.total { return Err("normalization is incomplete; see coverage report".into()); }
+        }
+        [command, input, output] if command == "export" => {
+            let count = mtgish_ast::report::export_ron(Path::new(input), Path::new(output))?;
+            eprintln!("exported {count} fully normalized records");
+        }
+        [command, input, output] if command == "cantrip" => {
+            #[cfg(feature="cantrip")]
+            {
+            let count = mtgish_ast::cantrip::export(Path::new(input), Path::new(output))?;
+            eprintln!("generated {count} Cantrip modules");
+            }
+            #[cfg(not(feature="cantrip"))]
+            {let _=(input,output);return Err("Cantrip generation requires --features cantrip".into());}
+        }
+        [command, input, output] if command == "pretty-source" => {
+            let cards = corpus::read_cards(Path::new(input))?;
+            let mut out = corpus::Artifact::create(Path::new(output))?;
+            let config = ron::ser::PrettyConfig::new().indentor("  ".into()).separate_tuple_members(true);
+            for card in cards {
+                writeln!(out, "------------------\n{}", ron::ser::to_string_pretty(&card, config.clone())?)?;
+            }
+            out.commit()?;
+        }
+        _ => return Err("usage: ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
+    }
+    Ok(())
+}
+
+fn main() -> std::process::ExitCode {
+    match run() {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("{error}");
+            std::process::ExitCode::FAILURE
+        }
+    }
+}
