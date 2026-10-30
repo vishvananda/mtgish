@@ -796,8 +796,11 @@ impl<'a> Compiler<'a> {
                 .unwrap();
                 for (i, token) in tokens.iter().enumerate() {
                     let amount = self.number(&token.amount)?.amount(u32::MAX.into(), "u32")?;
+                    let TokenRecipe::Defined(definition) = &token.recipe else {
+                        return Err(gap("a token copy has no Cantrip form yet"));
+                    };
                     let definition = self
-                        .token_definition(&token.definition)
+                        .token_definition(definition)
                         .map_err(|e| e.at(format!("tokens[{i}].definition")))?;
                     writeln!(out,"let count_{id}_{i} = {amount}; let def_{id}_{i} = g.card_id(&{definition});").unwrap();
                 }
@@ -1066,6 +1069,7 @@ fn operation_name(op: &Operation) -> &'static str {
         Operation::Surveil { .. } => "Surveil",
         Operation::Counter { .. } => "Counter",
         Operation::CreateTrigger { .. } => "CreateTrigger",
+        Operation::BindValue { .. } => "BindValue",
         Operation::ReflexiveTrigger { .. } => "ReflexiveTrigger",
         Operation::ReturnAfter { .. } => "ReturnAfter",
         Operation::CreateReplacement { .. } => "CreateReplacement",

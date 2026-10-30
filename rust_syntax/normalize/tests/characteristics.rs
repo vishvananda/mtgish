@@ -286,11 +286,11 @@ fn token_creation_retains_its_defining_ability_recipe_instead_of_snapshotting_th
     };
     let [token] = tokens.as_slice() else { panic!() };
     assert!(matches!(
-        token.definition.power_toughness,
+        token.definition().unwrap().power_toughness,
         Some((Expr::Constant(0), Expr::Constant(0)))
     ));
     assert!(
-        matches!(token.definition.abilities.as_slice(),[Ability::Static {kind:StaticKind::CharacteristicDefining {..},affected:EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),changes}] if matches!(changes.as_slice(),[Change::SetBasePowerToughness {power:Expr::CountObjects(_),..}]))
+        matches!(token.definition().unwrap().abilities.as_slice(),[Ability::Static {kind:StaticKind::CharacteristicDefining {..},affected:EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),changes}] if matches!(changes.as_slice(),[Change::SetBasePowerToughness {power:Expr::CountObjects(_),..}]))
     );
 }
 

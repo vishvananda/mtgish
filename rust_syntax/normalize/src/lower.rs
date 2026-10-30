@@ -64,6 +64,7 @@ struct Context {
     /// The latest ordinary action of each kind, for "sacrificed this way".
     acted: std::collections::BTreeMap<crate::number_spec::PaymentAction, ResultId>,
     singular: std::collections::BTreeSet<u32>,
+    value_x: Option<ResultId>,
     announcing: bool,
     you: Option<PlayerRef>,
     payer: Option<PlayerRef>,
@@ -517,6 +518,7 @@ impl Context {
                     SpentManaAggregation::DistinctColors
                 },
             },
+            S::ValueX if self.value_x.is_some() => Expr::BoundValue(self.value_x.clone().unwrap()),
             S::ValueX if self.event.activation_x => Expr::EventActivationX,
             S::ValueX => self
                 .cast_x
@@ -1169,6 +1171,42 @@ impl Context {
                     },
                     body,
                 }
+            }
+            S::CreateValueX(value) => {
+                let value = self.number(value)?;
+                self.value_x = Some(ResultId(self.result));
+                Operation::BindValue { value }
+            }
+            S::PutACardFromHandOnBattlefield(cards, flags) => {
+                return self.put_from_hand(
+                    cards,
+                    flags,
+                    Some(Count::AsManyAsCan(Expr::Constant(1))),
+                    actor,
+                )
+            }
+            S::PutCardsFromHandOnBattlefield(cards, flags) => {
+                return self.put_from_hand(cards, flags, None, actor)
+            }
+            S::DiscardHand => {
+                let PlayerSet::One(_) = actor else {
+                    return Err(invalid("discarding a hand needs one player"));
+                };
+                Operation::Discard {
+                    players: actor.clone(),
+                    amount: Expr::CountObjects(Box::new(self.private_cards(
+                        EventZone::Hand,
+                        actor.clone(),
+                        ObjectFilter::Any,
+                    ))),
+                    random: false,
+                }
+            }
+            S::PermanentDoesntUntapDuringControllersNextUntap(p) => {
+                self.skip_next_untap(ObjectSet::One(self.object(p)?))?
+            }
+            S::EachPermanentDoesntUntapDuringControllersNextUntap(p) => {
+                self.skip_next_untap(self.objects(p)?)?
             }
             S::RevealHand => {
                 let PlayerSet::One(_) = actor else {

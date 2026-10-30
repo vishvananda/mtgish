@@ -423,6 +423,61 @@ impl Context {
             Instruction::Group(Program { instructions })
         })
     }
+    /// "Put a card from your hand onto the battlefield": `count` chosen, or all.
+    fn put_from_hand(
+        &mut self,
+        cards: &source::CardsInHand,
+        flags: &[source::EnterFlag],
+        count: Option<Count>,
+        actor: &PlayerSet,
+    ) -> Result<Instruction> {
+        let PlayerSet::One(player) = actor else {
+            return Err(invalid("putting a card from hand needs one player"));
+        };
+        if self.hand_has_scope(cards)? {
+            return Err(unsupported(cards));
+        }
+        let (destination, entry) = self.move_entry(flags, player.clone())?;
+        let filter = self.hand_filter(cards)?;
+        let objects = self.private_cards(EventZone::Hand, actor.clone(), filter);
+        let Some(count) = count else {
+            return Ok(self.effect(Operation::Move {
+                objects,
+                destination,
+                entry,
+                face_down: false,
+            }));
+        };
+        let choice = self.effect(Operation::ChooseObjects {
+            constraints: vec![],
+            player: player.clone(),
+            objects,
+            count,
+        });
+        let Instruction::Effect { result, .. } = &choice else {
+            unreachable!()
+        };
+        let objects = ObjectSet::Selected(result.clone());
+        let movement = self.effect(Operation::Move {
+            objects,
+            destination,
+            entry,
+            face_down: false,
+        });
+        Ok(Instruction::Group(Program {
+            instructions: vec![choice, movement],
+        }))
+    }
+    fn skip_next_untap(&self, objects: ObjectSet) -> Result<Operation> {
+        Ok(Operation::CreateContinuousEffect {
+            source: ObjectRef::Source,
+            affected: EffectSubjects::Objects(objects),
+            changes: self
+                .rule_changes(&[source::PermanentRule::DoesntUntapDuringControllersUntap])?,
+            duration: Duration::DuringControllersNextUntapStep,
+            evaluation: EffectEvaluation::LiveObjects,
+        })
+    }
     fn move_entry(
         &self,
         flags: &[source::EnterFlag],
@@ -445,6 +500,44 @@ impl Context {
                 }
                 source::EnterFlag::EntersUnderOwnersControl => {
                     destination = Destination::OwnersBattlefield
+                }
+                source::EnterFlag::EntersTransformed => entry.states.push(EntryState::Transformed),
+                source::EnterFlag::EntersAttacking => entry.states.push(EntryState::Attacking {
+                    player: None,
+                    or_planeswalker: false,
+                }),
+                source::EnterFlag::EntersAttackingPlayer(p) => {
+                    entry.states.push(EntryState::Attacking {
+                        player: Some(self.player(p)?),
+                        or_planeswalker: false,
+                    })
+                }
+                source::EnterFlag::EntersAttackingPlayerOrPlaneswalkerControlledBy(p) => {
+                    entry.states.push(EntryState::Attacking {
+                        player: Some(self.player(p)?),
+                        or_planeswalker: true,
+                    })
+                }
+                source::EnterFlag::EntersBlockingAttacker(p) => {
+                    entry.states.push(EntryState::Blocking(self.object(p)?))
+                }
+                source::EnterFlag::EntersAttachedToPermanent(p) => {
+                    entry.states.push(EntryState::AttachedTo(self.object(p)?))
+                }
+                source::EnterFlag::EntersAttachedToAPermanent(p) => entry
+                    .states
+                    .push(EntryState::AttachedToChosen(self.filter(p)?)),
+                source::EnterFlag::EntersAttachedToPlayer(p) => entry
+                    .states
+                    .push(EntryState::AttachedToPlayer(self.player(p)?)),
+                source::EnterFlag::EntersWithLayerEffect(changes) => {
+                    entry.states.push(EntryState::Changes(self.changes(changes)?))
+                }
+                source::EnterFlag::EntersWithLayerEffectUntil(changes, duration) => {
+                    entry.states.push(EntryState::ChangesUntil {
+                        changes: self.changes(changes)?,
+                        duration: self.duration(duration)?,
+                    })
                 }
                 _ => return Err(unsupported(flag).at(format!("entry[{i}]"))),
             }

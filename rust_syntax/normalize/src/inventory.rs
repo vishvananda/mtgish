@@ -329,6 +329,7 @@ impl Inventory<'_> {
                 self.announcement(announcement);
                 self.program(body);
             }
+            Operation::BindValue { value } => self.expr(value),
             Operation::ReflexiveTrigger {
                 condition,
                 announcement,
@@ -377,24 +378,32 @@ impl Inventory<'_> {
                 for token in tokens {
                     self.expr(&token.amount);
                     self.form("TokenWords", &token.words);
-                    self.form("TokenName", &token.definition.name);
-                    for color in &token.definition.colors {
+                    let definition = match &token.recipe {
+                        TokenRecipe::Defined(definition) => definition,
+                        TokenRecipe::Copy { object, .. } => {
+                            self.form("TokenRecipe", &"Copy");
+                            self.object(object);
+                            continue;
+                        }
+                    };
+                    self.form("TokenName", &definition.name);
+                    for color in &definition.colors {
                         self.form("ManaColor", color);
                     }
-                    for ty in &token.definition.supertypes {
+                    for ty in &definition.supertypes {
                         self.form("SuperType", ty);
                     }
-                    for ty in &token.definition.card_types {
+                    for ty in &definition.card_types {
                         self.form("CardType", ty);
                     }
-                    for ty in &token.definition.subtypes {
+                    for ty in &definition.subtypes {
                         self.form("Subtype", ty);
                     }
-                    if let Some((power, toughness)) = &token.definition.power_toughness {
+                    if let Some((power, toughness)) = &definition.power_toughness {
                         self.expr(power);
                         self.expr(toughness);
                     }
-                    for ability in &token.definition.abilities {
+                    for ability in &definition.abilities {
                         self.ability(ability);
                     }
                 }
@@ -1106,6 +1115,7 @@ impl Inventory<'_> {
     fn expr(&mut self, e: &Expr) {
         self.form("Expr", e);
         match e {
+            Expr::BoundValue(_) => {}
             Expr::Primitive { name, .. } => self.primitive(name),
             Expr::EventHistory {
                 event,
@@ -1318,7 +1328,10 @@ impl Inventory<'_> {
     fn duration(&mut self, d: &Duration) {
         self.form("Duration", d);
         match d {
-            Duration::EndOfTurn | Duration::EndOfCombat | Duration::Indefinite => {}
+            Duration::EndOfTurn
+            | Duration::EndOfCombat
+            | Duration::Indefinite
+            | Duration::DuringControllersNextUntapStep => {}
             Duration::UntilNextTurn(p)
             | Duration::UntilEndOfNextTurn(p)
             | Duration::DuringNextUntapStep(p)

@@ -164,7 +164,7 @@ fn classification_accounts_for_targets_loyalty_library_moves_and_nested_definiti
     else {
         panic!()
     };
-    tokens[0].definition.abilities = card("Llanowar Elves").abilities;
+    tokens[0].definition_mut().unwrap().abilities = card("Llanowar Elves").abilities;
     assert_eq!(
         activation_kind(cost, announcement, body),
         ActivationKind::Stack

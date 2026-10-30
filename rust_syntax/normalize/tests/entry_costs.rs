@@ -243,7 +243,7 @@ fn counter_costs_and_state_triggers_keep_their_source_without_inventing_an_event
     assert!(
         matches!(&body.instructions[1],Instruction::If {condition:Condition::PaymentChosen(_),then,..}
         if matches!(then.instructions.as_slice(),[Instruction::Effect {operation:Operation::CreateTokens {tokens,..},..}]
-            if matches!(&tokens[0].definition.name,TokenName::Explicit(n) if n=="Marit Lage")))
+            if matches!(&tokens[0].definition().unwrap().name,TokenName::Explicit(n) if n=="Marit Lage")))
     );
 }
 

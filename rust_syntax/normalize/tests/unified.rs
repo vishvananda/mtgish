@@ -326,3 +326,28 @@ fn exile_until_returns_in_one_effect_and_durations_keep_their_object() {
     assert!(json.contains("ReturnAfter"), "{json}");
     assert!(json.contains("WhileOnBattlefield"), "{json}");
 }
+
+#[test]
+fn a_named_value_is_fixed_where_it_is_set_and_read_from_there() {
+    let source = parse(
+        r#"Card(Name: "Test", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [], Rules: [SpellActions(ActionList([CreateValueX(LifeTotalOfPlayer(You)), DrawNumberCards(ValueX)]))])"#,
+    );
+    let card = lower::card(&source).unwrap();
+    validate::card(&card).unwrap();
+    let json = serde_json::to_string(&card).unwrap();
+    assert!(json.contains("BindValue"), "{json}");
+    assert!(json.contains("BoundValue"), "{json}");
+    assert!(!json.contains("AnnouncedX"), "{json}");
+}
+
+#[test]
+fn token_copies_and_entry_states_keep_their_objects() {
+    let source = parse(
+        r#"Card(Name: "Test", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [], Rules: [SpellActions(Targeted([TargetPermanent(AnyPermanent)], ActionList([CreateTokens([TokenCopyOfPermanent(Ref_TargetPermanent, NoTokenCopyEffects)], [EntersAttacking])])))])"#,
+    );
+    let card = lower::card(&source).unwrap();
+    validate::card(&card).unwrap();
+    let json = serde_json::to_string(&card).unwrap();
+    assert!(json.contains(r#""Copy""#), "{json}");
+    assert!(json.contains(r#""Attacking""#), "{json}");
+}

@@ -83,7 +83,7 @@ fn different_token_definitions_remain_one_creation_batch_and_x_has_two_roles() {
     for (i, t) in tokens.iter().enumerate() {
         assert!(matches!(t.amount, Expr::Constant(1)));
         assert!(
-            matches!(&t.definition.power_toughness,Some((Expr::Constant(p),Expr::Constant(q))) if *p==i as i64+1&&p==q)
+            matches!(&t.definition().unwrap().power_toughness,Some((Expr::Constant(p),Expr::Constant(q))) if *p==i as i64+1&&p==q)
         );
     }
     let Ability::Spell { body, .. } = &menace.abilities[0] else {
@@ -96,7 +96,7 @@ fn different_token_definitions_remain_one_creation_batch_and_x_has_two_roles() {
         assert_eq!(t.len(), 1);
         assert_eq!(matches!(t[0].amount, Expr::AnnouncedX), multiple);
         assert!(matches!(
-            t[0].definition.power_toughness,
+            t[0].definition().unwrap().power_toughness,
             Some((Expr::AnnouncedX, Expr::AnnouncedX))
         ));
     }
@@ -104,7 +104,7 @@ fn different_token_definitions_remain_one_creation_batch_and_x_has_two_roles() {
     let (t, entry) = creations(&shadow);
     assert!(entry.tapped);
     assert!(matches!(
-        t[0].definition.abilities.as_slice(),
+        t[0].definition().unwrap().abilities.as_slice(),
         [Ability::Keyword(Keyword::Flying)]
     ));
 }
@@ -118,7 +118,7 @@ fn predefined_food_expands_the_existing_rust_recipe_in_a_fresh_ability_scope() {
         announcement,
         body,
         ..
-    } = &t[0].definition.abilities[0]
+    } = &t[0].definition().unwrap().abilities[0]
     else {
         panic!()
     };
@@ -142,12 +142,12 @@ fn predefined_food_expands_the_existing_rust_recipe_in_a_fresh_ability_scope() {
     ));
     let named = card("Tolsimir Wolfblood");
     let (t, _) = creations(&named);
-    assert!(matches!(&t[0].definition.name,TokenName::Explicit(n) if n=="Voja"));
-    assert_eq!(t[0].definition.colors.len(), 2);
+    assert!(matches!(&t[0].definition().unwrap().name,TokenName::Explicit(n) if n=="Voja"));
+    assert_eq!(t[0].definition().unwrap().colors.len(), 2);
     let opportunist = card("Argothian Opportunist");
     let (tokens, entry) = creations(&opportunist);
     assert!(entry.tapped);
-    let Ability::Activated { body, .. } = &tokens[0].definition.abilities[0] else {
+    let Ability::Activated { body, .. } = &tokens[0].definition().unwrap().abilities[0] else {
         panic!()
     };
     assert!(matches!(
@@ -328,9 +328,12 @@ fn entry_counters_stay_in_the_creation_and_unsupported_entry_flags_fail() {
     let source::Action::CreateTokens(_, flags) = &mut action else {
         panic!()
     };
-    flags.push(source::TokenFlag::EntersAttacking);
+    flags.push(source::TokenFlag::EntersWithRuleEffectUntil(
+        vec![],
+        source::Expiration::UntilEndOfTurn,
+    ));
     assert!(lower::card(&probe(vec![action]))
         .unwrap_err()
         .iter()
-        .any(|e| e.form == "EntersAttacking"));
+        .any(|e| e.form == "EntersWithRuleEffectUntil"));
 }

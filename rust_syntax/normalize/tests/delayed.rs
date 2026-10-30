@@ -426,13 +426,8 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         "Feral Encounter",
         "Fortune, Loyal Steed",
         "Gaze of the Gorgon",
-        "Heat Shimmer",
-        "Kavaron Harrier",
-        "Kiki-Jiki, Mirror Breaker",
-        "Meandering Towershell",
         "Pygmy Hippo",
         "Scattering Stroke",
-        "Splinter Twin",
         "Tatsumasa, the Dragon's Fang",
         "Thassa, Deep-Dwelling",
         "Urza's Bauble",
@@ -461,5 +456,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 25);
+    assert_eq!(complete, 30);
 }

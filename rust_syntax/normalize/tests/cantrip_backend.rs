@@ -193,7 +193,7 @@ fn generated_modules_execute_in_cantrip() {
     else {
         panic!()
     };
-    tokens[0].definition.power_toughness = Some((Expr::Constant(2), Expr::Constant(2)));
+    tokens[0].definition().unwrap().power_toughness = Some((Expr::Constant(2), Expr::Constant(2)));
     exported_cards.push(larger);
     let input = root.join("exported.ronl");
     let output = root.join("exported.rs");

@@ -76,8 +76,16 @@ fn coverage_compare_matches_cards_by_name_and_requires_a_review_for_losses() {
             "complete":{complete},"diagnostics":[],"backend_capable":false,"backend_diagnostic":null}}"#
         )
     };
-    let before = report(&format!("[{},{}]", record("Lost", "a", true), record("Gained", "b", false)));
-    let after = report(&format!("[{},{}]", record("Lost", "c", false), record("Gained", "d", true)));
+    let before = report(&format!(
+        "[{},{}]",
+        record("Lost", "a", true),
+        record("Gained", "b", false)
+    ));
+    let after = report(&format!(
+        "[{},{}]",
+        record("Lost", "c", false),
+        record("Gained", "d", true)
+    ));
     let delta = CoverageDelta::between(&before, &after);
     assert_eq!(delta.gained, ["Gained"]);
     assert_eq!(delta.lost, ["Lost"]);

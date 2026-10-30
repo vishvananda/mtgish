@@ -259,6 +259,7 @@ impl Effects {
                     // during this activation's resolution (CR 605.1a).
                     Operation::CreateDelayedTrigger { .. }
                     | Operation::CreateTrigger { .. }
+                    | Operation::BindValue { .. }
                     | Operation::ReflexiveTrigger { .. }
                     | Operation::ReturnAfter { .. }
                     | Operation::CreateReplacement { .. }

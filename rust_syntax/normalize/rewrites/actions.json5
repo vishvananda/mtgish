@@ -87,6 +87,26 @@
       "entry": null
     },
     {
+      "id": "action.PutAPermanentIntoItsOwnersHand",
+      "source": "PutAPermanentIntoItsOwnersHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
       "id": "action.PutEachPermanentIntoItsOwnersHand",
       "source": "PutEachPermanentIntoItsOwnersHand",
       "arity": 1,

@@ -78,7 +78,6 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         "Dread",
         "Firesong and Sunspeaker",
         "Fluctuator",
-        "Inalla, Archmage Ritualist",
         "Narcomoeba",
         "Nether Shadow",
         "Shadow of the Grave",
@@ -111,7 +110,7 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 75);
+    assert_eq!(complete, 76);
 }
 
 #[test]
@@ -260,7 +259,7 @@ fn cycling_x_cast_entry_x_and_stack_spell_x_keep_their_own_provenance() {
         panic!()
     };
     assert!(
-        matches!(body.instructions.as_slice(), [Instruction::Effect { operation: Operation::CreateTokens { tokens, .. }, .. }] if matches!(tokens[0].definition.power_toughness, Some((Expr::EventActivationX, Expr::EventActivationX))))
+        matches!(body.instructions.as_slice(), [Instruction::Effect { operation: Operation::CreateTokens { tokens, .. }, .. }] if matches!(tokens[0].definition().unwrap().power_toughness, Some((Expr::EventActivationX, Expr::EventActivationX))))
     );
     let c = card("Rampaging War Mammoth");
     let Ability::Triggered { announcement, .. } = inner(cycle_trigger(&c)) else {

@@ -63,6 +63,22 @@ impl Context {
             S::OracleToken(name) => Some(name.as_str()),
             _ => None,
         };
+        if let S::TokenCopyOfPermanent(object, effects) = value {
+            let inspected = crate::inspect::value(effects)
+                .map_err(|_| invalid("copy adjustments do not serialize"))?;
+            let adjustments = match self.term("TokenCopyEffects", &inspected) {
+                Some(term) => vec![term],
+                None => return Err(unsupported(effects)),
+            };
+            return Ok(TokenSpec {
+                amount: Expr::Constant(1),
+                words: TokenWords::CreatingEffect,
+                recipe: TokenRecipe::Copy {
+                    object: self.object(object)?,
+                    adjustments,
+                },
+            });
+        }
         if let Some(name) = named_recipe {
             let recipe = predefined_tokens()?
                 .get(name)
@@ -176,7 +192,7 @@ impl Context {
         Ok(TokenSpec {
             amount: Expr::Constant(1),
             words: TokenWords::CreatingEffect,
-            definition: TokenDefinition {
+            recipe: TokenRecipe::Defined(TokenDefinition {
                 name,
                 colors,
                 supertypes: supertypes.clone(),
@@ -184,7 +200,7 @@ impl Context {
                 subtypes,
                 power_toughness,
                 abilities,
-            },
+            }),
         })
     }
 
@@ -199,6 +215,34 @@ impl Context {
                 source::TokenFlag::EntersWithNumberCounters(amount, kind) => entry
                     .counters
                     .push((crate::counter::lower(kind), self.number(amount)?)),
+                source::TokenFlag::EntersAttacking => entry.states.push(EntryState::Attacking {
+                    player: None,
+                    or_planeswalker: false,
+                }),
+                source::TokenFlag::EntersAttackingPlayer(p) => {
+                    entry.states.push(EntryState::Attacking {
+                        player: Some(self.player(p)?),
+                        or_planeswalker: false,
+                    })
+                }
+                source::TokenFlag::EntersAttackingPlayerOrPlaneswalkerControlledBy(p) => {
+                    entry.states.push(EntryState::Attacking {
+                        player: Some(self.player(p)?),
+                        or_planeswalker: true,
+                    })
+                }
+                source::TokenFlag::EntersBlockingAttacker(p) => {
+                    entry.states.push(EntryState::Blocking(self.object(p)?))
+                }
+                source::TokenFlag::EntersAttachedToPermanent(p) => {
+                    entry.states.push(EntryState::AttachedTo(self.object(p)?))
+                }
+                source::TokenFlag::EntersAttachedToAPermanent(p) => entry
+                    .states
+                    .push(EntryState::AttachedToChosen(self.filter(p)?)),
+                source::TokenFlag::EntersAttachedToPlayer(p) => entry
+                    .states
+                    .push(EntryState::AttachedToPlayer(self.player(p)?)),
                 _ => return Err(unsupported(flag).at(format!("entry[{i}]"))),
             }
         }

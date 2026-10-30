@@ -73,7 +73,6 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         "Anowon, the Ruin Thief",
         "Barbed Shocker",
         "Breeches, Brazen Plunderer",
-        "Contaminant Grafter",
         "Curious Obsession",
         "Dread",
         "Fall of Cair Andros",
@@ -119,7 +118,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 58);
+    assert_eq!(complete, 59);
 }
 
 #[test]

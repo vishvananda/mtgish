@@ -4,7 +4,8 @@
   "terms": [
     "Abilities", "ActivatedAbilities", "CardInHand", "CardsInGraveyards", "CardsInHand", "Companion",
     "EnterFlag", "ManaCost", "ManaSymbol", "Planes", "Schemes", "SinglePlane", "SingleScheme",
-    "SpellsAndAbilities", "ChoosableColor", "CreatureTypeVariable", "LandTypeVariable", "CardsInOracle"
+    "SpellsAndAbilities", "ChoosableColor", "CreatureTypeVariable", "LandTypeVariable", "CardsInOracle",
+    "TokenCopyEffects", "TokenCopyEffect", "CopyEffects", "CopyEffect", "PT", "SettableColor", "NameString"
   ],
   "rules": [
     {"source": "DeckConstruction::CanBeYourCommander", "text": "commander"},

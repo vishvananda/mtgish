@@ -334,9 +334,36 @@ impl<'a> Scope<'a> {
         }
     }
 
+    fn entering_changes(&self, changes: &[Change]) -> Result {
+        let mut scope = self.clone();
+        scope.affected = true;
+        changes.iter().try_for_each(|c| scope.change(c))
+    }
+
+    fn entry(&self, entry: &EntrySpec) -> Result {
+        for (_, amount) in &entry.counters {
+            self.count(&Count::Exactly(amount.clone()))?;
+        }
+        entry.states.iter().try_for_each(|state| match state {
+            EntryState::Transformed => Ok(()),
+            EntryState::Attacking { player, .. } => player.iter().try_for_each(|p| self.player(p)),
+            EntryState::Blocking(object) | EntryState::AttachedTo(object) => self.object(object),
+            EntryState::AttachedToChosen(filter) => self.filter(filter),
+            EntryState::AttachedToPlayer(player) => self.player(player),
+            EntryState::Changes(changes) => self.entering_changes(changes),
+            EntryState::ChangesUntil { changes, duration } => {
+                self.duration(duration)?;
+                self.entering_changes(changes)
+            }
+        })
+    }
+
     fn duration(&self, duration: &Duration) -> Result {
         match duration {
-            Duration::EndOfTurn | Duration::EndOfCombat | Duration::Indefinite => Ok(()),
+            Duration::EndOfTurn
+            | Duration::EndOfCombat
+            | Duration::Indefinite
+            | Duration::DuringControllersNextUntapStep => Ok(()),
             Duration::UntilNextTurn(player)
             | Duration::UntilEndOfNextTurn(player)
             | Duration::DuringNextUntapStep(player)
@@ -550,6 +577,13 @@ impl<'a> Scope<'a> {
                     return Err("mana symbol color query requires actual colors".into());
                 }
                 self.objects(objects)
+            }
+            Expr::BoundValue(result) => {
+                if self.results.contains_key(&result.0) {
+                    Ok(())
+                } else {
+                    Err("a bound value is read before it is set".into())
+                }
             }
             Expr::AnnouncedX if self.definition => {
                 Err("characteristic definition cannot use an unrelated announced X".into())
@@ -1376,9 +1410,7 @@ impl<'a> Scope<'a> {
                 if *face_down && !matches!(destination, Destination::Exile) {
                     return Err("face-down movement currently requires exile".into());
                 }
-                for (_, amount) in &entry.counters {
-                    self.count(&Count::Exactly(amount.clone()))?;
-                }
+                self.entry(entry)?;
                 Ok(())
             }
             Operation::ModifyEvent { change } => {
@@ -1413,6 +1445,7 @@ impl<'a> Scope<'a> {
                 child.announcement(announcement)?;
                 child.program(body)
             }
+            Operation::BindValue { value } => self.expr(value),
             Operation::ReflexiveTrigger {
                 performed,
                 condition,
@@ -1472,7 +1505,17 @@ impl<'a> Scope<'a> {
                 }
                 for (i, token) in tokens.iter().enumerate() {
                     self.count(&Count::Exactly(token.amount.clone()))?;
-                    let definition = &token.definition;
+                    let definition = match &token.recipe {
+                        TokenRecipe::Defined(definition) => definition,
+                        TokenRecipe::Copy {
+                            object,
+                            adjustments,
+                        } => {
+                            self.object(object)?;
+                            adjustments.iter().try_for_each(operand)?;
+                            continue;
+                        }
+                    };
                     if matches!(&definition.name, TokenName::Explicit(name) if name.is_empty()) {
                         return Err("explicit token name is empty".into());
                     }
@@ -1492,9 +1535,7 @@ impl<'a> Scope<'a> {
                             .map_err(|e| format!("tokens[{i}].definition.abilities[{j}]: {e}"))?;
                     }
                 }
-                for (_, amount) in &entry.counters {
-                    self.count(&Count::Exactly(amount.clone()))?;
-                }
+                self.entry(entry)?;
                 Ok(())
             }
             Operation::ChooseObjects {
@@ -1603,9 +1644,7 @@ impl<'a> Scope<'a> {
             } = constraint
             {
                 self.destination(destination)?;
-                for (_, n) in &entry.counters {
-                    self.count(&Count::Exactly(n.clone()))?;
-                }
+                self.entry(entry)?;
             }
         }
         Ok(())
@@ -1936,6 +1975,7 @@ fn valid_cycling_body(origin: &ActivationOrigin, body: &Program) -> bool {
         && moved.0 == result.0
         && !entry.tapped
         && entry.counters.is_empty()
+        && entry.states.is_empty()
 }
 fn has_definition(ability: &Ability) -> bool {
     match ability {

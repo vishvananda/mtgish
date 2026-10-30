@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 29;
+pub const SCHEMA_VERSION: u32 = 30;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -601,6 +601,10 @@ pub enum Operation {
         announcement: Announcement,
         body: Program,
     },
+    /// Name a number for later instructions; see `Expr::BoundValue`.
+    BindValue {
+        value: Expr,
+    },
     /// A reflexive trigger (603.12): once, if `performed` happened during this
     /// resolution, it goes on the stack and announces its own targets. `condition`
     /// is checked as it triggers. `body` closes over the creator like a delayed
@@ -828,7 +832,32 @@ pub struct TokenSpec {
     /// Text-changing effects on the creating spell do not rewrite a predefined
     /// token's rules-defined recipe (CR 111.10, 612.2a).
     pub words: TokenWords,
-    pub definition: TokenDefinition,
+    pub recipe: TokenRecipe,
+}
+
+impl TokenSpec {
+    pub fn definition(&self) -> Option<&TokenDefinition> {
+        match &self.recipe {
+            TokenRecipe::Defined(definition) => Some(definition),
+            TokenRecipe::Copy { .. } => None,
+        }
+    }
+    pub fn definition_mut(&mut self) -> Option<&mut TokenDefinition> {
+        match &mut self.recipe {
+            TokenRecipe::Defined(definition) => Some(definition),
+            TokenRecipe::Copy { .. } => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum TokenRecipe {
+    Defined(TokenDefinition),
+    /// A copy of `object` (707.2), with `adjustments` to the copiable values.
+    Copy {
+        object: ObjectRef,
+        adjustments: Vec<Operand>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -860,6 +889,28 @@ pub enum TokenName {
 pub struct EntrySpec {
     pub tapped: bool,
     pub counters: Vec<(crate::counter::CounterKind, Expr)>,
+    pub states: Vec<EntryState>,
+}
+
+/// What an object is as it enters, beyond tapped and counters.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum EntryState {
+    Transformed,
+    /// Attacking but never declared (508.4). The entering side chooses the defender
+    /// unless one is given.
+    Attacking {
+        player: Option<PlayerRef>,
+        or_planeswalker: bool,
+    },
+    Blocking(ObjectRef),
+    AttachedTo(ObjectRef),
+    AttachedToChosen(ObjectFilter),
+    AttachedToPlayer(PlayerRef),
+    Changes(Vec<Change>),
+    ChangesUntil {
+        changes: Vec<Change>,
+        duration: Duration,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1216,6 +1267,8 @@ pub struct SelectionChoice {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(tag = "kind", content = "args")]
 pub enum Expr {
+    /// The number a `BindValue` computed, fixed at that point in the resolution.
+    BoundValue(ResultId),
     /// How often an event happened in a window, or the total of its amounts.
     EventHistory {
         event: Box<EventSpec>,
@@ -1746,6 +1799,8 @@ pub enum Duration {
         players: PlayerSet,
     },
     DuringNextUntapStep(PlayerRef),
+    /// Each affected object's own controller.
+    DuringControllersNextUntapStep,
     DuringNextTurn(PlayerRef),
     /// Ends when the first of these ends.
     Either(Vec<Duration>),

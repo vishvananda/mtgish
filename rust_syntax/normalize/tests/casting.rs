@@ -45,7 +45,6 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         "Abandon Hope",
         "Analyze the Pollen",
         "Armor of Thorns",
-        "Bedlam Reveler",
         "Bite Down on Crime",
         "Contagion",
         "Dargo, the Shipwrecker",
@@ -83,7 +82,7 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 60);
+    assert_eq!(complete, 61);
 }
 
 #[test]

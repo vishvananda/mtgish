@@ -431,8 +431,6 @@ fn cast_history_families_roundtrip_and_keep_unimplemented_nested_semantics() {
         "Arcane Proxy",
         "Archangel of Wrath",
         "Batwing Brume",
-        "Berg Strider",
-        "Breaching Leviathan",
         "Cabal Therapy",
         "Dream Thief",
         "Ethereal Forager",
@@ -442,7 +440,6 @@ fn cast_history_families_roundtrip_and_keep_unimplemented_nested_semantics() {
         "Joraga Warcaller",
         "Memory's Journey",
         "Portcullis",
-        "Preston, the Vanisher",
         "Primordial Hydra",
         "Recommission",
         "Roost of Drakes",
@@ -474,7 +471,7 @@ fn cast_history_families_roundtrip_and_keep_unimplemented_nested_semantics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 47);
+    assert_eq!(complete, 50);
     let rapid = card("Rapid Augmenter");
     assert!(rapid.abilities.iter().any(|a|matches!(a,Ability::Triggered {event:EventSpec::ZoneChange {objects:ObjectFilter::All(outer),..},..} if outer.iter().any(|f|matches!(f,ObjectFilter::All(inner) if inner.iter().any(|f|matches!(f,ObjectFilter::Property {property:Property::BasePower,comparison:Comparison::Equal,value:Expr::Constant(1)})))))));
 }
