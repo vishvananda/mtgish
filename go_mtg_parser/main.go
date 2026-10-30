@@ -36,8 +36,10 @@ Usage:
     [--debug-mtgish]
     [--report-unused-grammar-rules]
     [--audit-templates]                 # semantic capture and grouping audit
+    [--audit-literals]                  # English word and output token audit
     [--audit-template-usage FILE_NAME]  # attach matched cards and capture values
     [--audit-review FILE_NAME]          # apply input-checked reviewed exceptions
+    [--audit-literal-review FILE_NAME]  # apply template-pinned literal reviews
 `
 // ------------------------------------------------------------------------- //
 
@@ -61,6 +63,8 @@ var Config_DebugMtgish  = false
 
 var Config_ReportUnused = false
 var Config_AuditTemplates = false
+var Config_AuditLiterals = false
+var Config_AuditLiteralReviewFilename = ""
 var Config_AuditUsageFilename = ""
 var Config_AuditReviewFilename = ""
 
@@ -86,6 +90,7 @@ func readArguments() {
     if (arg == "--limit-to-subset")             { current_state = arg ; Config_LimitToSubset          = true  ; Config_SubsetFile = "" ; continue }
     if (arg == "--audit-template-usage")        { current_state = arg ; Config_AuditUsageFilename     = "" ; continue }
     if (arg == "--audit-review")                { current_state = arg ; Config_AuditReviewFilename    = "" ; continue }
+    if (arg == "--audit-literal-review")        { current_state = arg ; Config_AuditLiteralReviewFilename = "" ; continue }
 
     // Optional Flags
     if (arg == "--stop-after-first-failure")    { current_state = ""  ; Config_StopAfterFirstFailure  = true  ; continue }
@@ -107,6 +112,7 @@ func readArguments() {
 
     if (arg == "--report-unused-grammar-rules") { current_state = ""  ; Config_ReportUnused = true  ; continue }
     if (arg == "--audit-templates") { current_state = "" ; Config_AuditTemplates = true ; continue }
+    if (arg == "--audit-literals") { current_state = "" ; Config_AuditLiterals = true ; continue }
 
     // -------------------------------------
 
@@ -116,6 +122,7 @@ func readArguments() {
     if (current_state == "--limit-to-subset")       { Config_SubsetFile          = arg ; current_state = "" ; continue }
     if (current_state == "--audit-template-usage")  { Config_AuditUsageFilename  = arg ; current_state = "" ; continue }
     if (current_state == "--audit-review")          { Config_AuditReviewFilename = arg ; current_state = "" ; continue }
+    if (current_state == "--audit-literal-review")  { Config_AuditLiteralReviewFilename = arg ; current_state = "" ; continue }
     if (current_state == "--english-grammar-files") { Config_EnglishGrammarFilenames = append(Config_EnglishGrammarFilenames, arg) ; continue }
     if (current_state == "--mtgish-grammar-files")  { Config_MtgishGrammarFilenames  = append(Config_MtgishGrammarFilenames,  arg) ; continue }
     if (current_state == "--mtgjson-files")         { Config_MtgjsonFilenames        = append(Config_MtgjsonFilenames,        arg) ; continue }
@@ -802,6 +809,18 @@ func main() {
       os.Exit(1)
     }
     if err := WriteGrammarAudit(Config_EnglishGrammarFilenames, os.Stdout, Config_AuditReviewFilename); err != nil {
+      fmt.Fprintln(os.Stderr, err)
+      os.Exit(1)
+    }
+    return
+  }
+
+  if Config_AuditLiterals {
+    if len(Config_EnglishGrammarFilenames) == 0 {
+      fmt.Fprintln(os.Stderr, "--audit-literals needs --english-grammar-files")
+      os.Exit(1)
+    }
+    if err := WriteLiteralAudit(Config_EnglishGrammarFilenames, os.Stdout, Config_AuditLiteralReviewFilename); err != nil {
       fmt.Fprintln(os.Stderr, err)
       os.Exit(1)
     }
