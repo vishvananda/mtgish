@@ -31,6 +31,14 @@ Confirmed findings from our earlier audit that were not already listed were file
 - [#12](https://github.com/i5jb/mtgish/issues/12): Eighteen double-kicker cards encode two independently optional costs as one exclusive alternative.
 - [Additional examples on #2](https://github.com/i5jb/mtgish/issues/2#issuecomment-6514251308): Brilliance Unleashed loses flying; Menacing Ogre uses the chosen number instead of two counters.
 
+A later comparison of normalized cards against Oracle text found wrong template literals, filed on 2026-10-30 from the upstream corpus:
+
+- [#13](https://github.com/i5jb/mtgish/issues/13): Fifteen cards end "until end of turn" effects at end of combat.
+- [#14](https://github.com/i5jb/mtgish/issues/14): Fifteen cards end "until your next turn" effects at end of turn.
+- [#15](https://github.com/i5jb/mtgish/issues/15): Eleven cards lose "until end of turn," leaving the effect permanent.
+- [#16](https://github.com/i5jb/mtgish/issues/16): Twenty-eight Domain cards count only basic lands.
+- [#17](https://github.com/i5jb/mtgish/issues/17): Rank Officer's optional discard is encoded as random.
+
 The issue payloads and comment text are saved here. No commits, pushes, issue closures, or upstream code changes were made. Disputed continuous-effect instruction grouping remains a rules-review question and was not filed as a confirmed bug. Changes that merely replace an equivalent scalar expression are not reported as new card mistakes.
 
 Issues #8–#12 and our additional-examples comment on #2 have been shortened to describe only the specific problems and examples. Rust port, local repair, and validation details were removed from the upstream reports. [The latest upstream read](latest_upstream.json) verifies all five edited issue bodies and the comment; saved issue payloads match them. Future reports should follow the same concise format.

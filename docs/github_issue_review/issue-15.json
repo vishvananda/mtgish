@@ -1,0 +1,5 @@
+{
+  "title": "\"until end of turn\" missing, so the effect never ends (11 cards)",
+  "body": "These cards say \"until end of turn\" but encode no expiration, so the effect never ends:\n\n- `GainControlOfPermanent` / `GainControlOfEachPermanent`: Broadcast Takeover, Goatnapper, Mob Rule, Yasova Dragonclaw\n- `CreatePermanentLayerEffect`: Bloodfeather Phoenix, Eye of Malcator, Kaya, Spirits' Justice, Lazav, Wearer of Faces, Majestic Metamorphosis, Silvanus's Invoker, The Mechanist, Aerial Artisan\n",
+  "url": "https://github.com/i5jb/mtgish/issues/15"
+}

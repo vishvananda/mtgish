@@ -1,0 +1,5 @@
+{
+  "title": "\"until your next turn\" encoded as until end of turn (15 cards)",
+  "body": "These cards say \"until your next turn\" but encode `UntilEndOfTurn`, so the effect ends too early:\n\nEdifice of Authority, Jace, the Perfected Mind, Kardur's Vicious Return, Kardur, Doomscourge, Know Evil, Linvala, Shield of Sea Gate, Mu Yanling, Celestial Wind, Nissa, Vital Force, Offspring's Revenge, Rowan, Scholar of Sparks, Sly Instigator, Sorin, Solemn Visitor, Taskmaster, Mercenary Mimic, Your Puny Minds Cannot Fathom\n\nChoose Your Champion has the same problem through `OnlyAllowedAttackingPlayersUntilEndOfTurn` and `OnlyAllowedCastingPlayersUntilEndOfTurn`.\n",
+  "url": "https://github.com/i5jb/mtgish/issues/14"
+}

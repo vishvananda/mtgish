@@ -1,0 +1,5 @@
+{
+  "title": "Rank Officer's optional discard encoded as random",
+  "body": "Rank Officer says \"you may discard a card\" but encodes `MayCost(DiscardACardAtRandom)`. The player chooses the card; the discard isn't random.\n",
+  "url": "https://github.com/i5jb/mtgish/issues/17"
+}

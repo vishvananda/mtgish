@@ -1,0 +1,5 @@
+{
+  "title": "\"until end of turn\" encoded as UntilEndOfCombat (15 cards)",
+  "body": "These cards say \"until end of turn\" but encode `UntilEndOfCombat`, so the effect ends too early:\n\nAccelerated Evolution, Aquitect's Defenses, Aspect of Manticore, Captain's Tutelage, Cradle of Safety, Drench the Soil in Their Blood, Fae Flight, Fire-Rim Form, Gilt-Leaf's Embrace, Goblin Skycutter, Mantle of Leadership, Military Discipline, Sentinel's Mark, Starlit Mantle, Super Speed\n",
+  "url": "https://github.com/i5jb/mtgish/issues/13"
+}
