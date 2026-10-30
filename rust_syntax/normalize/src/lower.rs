@@ -49,6 +49,8 @@ struct Context {
     prepared: crate::pipeline::PreparedRecipes,
     /// Set only by `unified_face`. A failed action becomes `Operation::Named`.
     lenient: bool,
+    /// Why each named form failed. Shared, so restoring a snapshot keeps entries.
+    blockers: std::rc::Rc<std::cell::RefCell<Vec<Diagnostic>>>,
     targets: Vec<TargetSpec>,
     modes: Option<ModeSelection>,
     result: u32,
@@ -79,6 +81,7 @@ impl Context {
         Self {
             prepared: self.prepared.clone(),
             lenient: self.lenient,
+            blockers: self.blockers.clone(),
             ..Self::default()
         }
     }
@@ -830,8 +833,9 @@ impl Context {
             return self.reduced_action(value, actor);
         }
         let before = self.clone();
-        self.reduced_action(value, actor).or_else(|_| {
+        self.reduced_action(value, actor).or_else(|error| {
             *self = before;
+            self.blockers.borrow_mut().push(error);
             Ok(self.named_action(value, actor))
         })
     }
@@ -1709,18 +1713,30 @@ pub(crate) fn bind_card(
     value: &source::OracleCard,
     prepared: crate::pipeline::PreparedRecipes,
 ) -> std::result::Result<Card, Vec<Diagnostic>> {
-    bind_face(value, prepared, false)
+    bind_face(
+        value,
+        Context {
+            prepared,
+            ..Context::default()
+        },
+    )
 }
 /// Lower a face that strict lowering rejected, keeping every part it can reduce.
 /// Each rule yields exactly one ability, so ability indices still match rule indices.
-pub(crate) fn unified_face(value: &source::OracleCard) -> Card {
-    bind_face(value, Default::default(), true).expect("lenient lowering is total")
+pub(crate) fn unified_face(value: &source::OracleCard) -> (Card, Vec<Diagnostic>) {
+    let base = Context {
+        lenient: true,
+        ..Context::default()
+    };
+    let card = bind_face(value, base.clone()).expect("lenient lowering is total");
+    let blockers = base.blockers.take();
+    (card, blockers)
 }
 fn bind_face(
     value: &source::OracleCard,
-    prepared: crate::pipeline::PreparedRecipes,
-    lenient: bool,
+    base: Context,
 ) -> std::result::Result<Card, Vec<Diagnostic>> {
+    let lenient = base.lenient;
     let source::OracleCard::Card {
         name,
         typeline,
@@ -1782,10 +1798,6 @@ fn bind_face(
     })();
     let mut errors = Vec::new();
     let mut abilities = Vec::new();
-    let base = Context {
-        prepared,
-        ..Context::default()
-    };
     let casting_histories: Vec<_> = rules
         .as_deref()
         .unwrap_or_default()
@@ -1795,7 +1807,9 @@ fn bind_face(
             let source::Rule::CastEffect(effect) = rule else {
                 return None;
             };
-            let native = base.fresh().casting_rule(effect).ok()?;
+            let mut strict = base.fresh();
+            strict.lenient = false;
+            let native = strict.casting_rule(effect).ok()?;
             let ability = Ability::Casting(native);
             crate::cost_history::casting_cost(&ability)
                 .cloned()
@@ -1804,7 +1818,6 @@ fn bind_face(
         .collect();
     for (i, rule) in rules.as_deref().unwrap_or_default().iter().enumerate() {
         let mut context = base.fresh();
-        context.lenient = lenient;
         if matches!(rule, source::Rule::SpellActions(_)) {
             // Multiple declarations of the same role are ambiguous, even when
             // they reside in different additional-cost abilities.
@@ -1820,7 +1833,10 @@ fn bind_face(
         }
         match context.ability(rule) {
             Ok(ability) => abilities.push(ability),
-            Err(_) if lenient => abilities.push(Ability::Named(named_rule(rule))),
+            Err(error) if lenient => {
+                base.blockers.borrow_mut().push(error.at(format!("Rules[{i}]")));
+                abilities.push(Ability::Named(named_rule(rule)));
+            }
             Err(error) => errors.push(error.at(format!("Rules[{i}]"))),
         }
     }

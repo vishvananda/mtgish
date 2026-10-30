@@ -27,6 +27,10 @@ pub struct Record {
     /// Every unreduced form in this record, including nested ones.
     #[serde(default)]
     pub named: BTreeMap<String, usize>,
+    /// Forms that actually failed, with counts. This is the work list: `named`
+    /// also holds children that only failed to reduce with their parent.
+    #[serde(default)]
+    pub blockers: BTreeMap<String, usize>,
     pub diagnostics: Vec<lower::Diagnostic>,
     pub backend_capable: bool,
     pub backend_diagnostic: Option<BackendDiagnostic>,
@@ -54,6 +58,9 @@ pub struct Report {
     /// Records each form appears in. Reduction work ranks by this, not occurrences.
     #[serde(default)]
     pub named_records: BTreeMap<String, usize>,
+    /// Records blocked by each form. Rank reduction work by this.
+    #[serde(default)]
+    pub blocker_records: BTreeMap<String, usize>,
     #[serde(default)]
     pub backend_checked: bool,
     pub backend_capable: usize,
@@ -132,6 +139,7 @@ impl Report {
             unified: 0,
             named: BTreeMap::new(),
             named_records: BTreeMap::new(),
+            blocker_records: BTreeMap::new(),
             backend_checked: backend,
             backend_capable: 0,
             backend_unsupported: BTreeMap::new(),
@@ -153,6 +161,12 @@ impl Report {
             validate::unified(&lowered.card).map_err(invalid)?;
             crate::unified::round_trip(&lowered.card).map_err(invalid)?;
             let named = crate::unified::named_forms(&lowered.card);
+            let mut blockers = BTreeMap::new();
+            for d in &lowered.blockers {
+                *blockers
+                    .entry(format!("{}::{}", d.source_type, d.form))
+                    .or_default() += 1;
+            }
             let complete = lowered.diagnostics.is_empty() && named.is_empty();
             if complete {
                 for card in &lowered.card.faces {
@@ -177,6 +191,7 @@ impl Report {
                     complete,
                     unified: true,
                     named,
+                    blockers,
                     diagnostics: lowered.diagnostics,
                     backend_capable,
                     backend_diagnostic,
@@ -213,6 +228,9 @@ impl Report {
             for (form, count) in &record.named {
                 *result.named.entry(form.clone()).or_default() += count;
                 *result.named_records.entry(form.clone()).or_default() += 1;
+            }
+            for form in record.blockers.keys() {
+                *result.blocker_records.entry(form.clone()).or_default() += 1;
             }
             for d in &record.diagnostics {
                 *result

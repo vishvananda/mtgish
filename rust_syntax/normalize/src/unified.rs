@@ -30,6 +30,10 @@ pub struct Lowered {
     pub card: UnifiedCard,
     /// Why strict lowering rejected each unreduced face.
     pub diagnostics: Vec<Diagnostic>,
+    /// The failure behind every named action and rule. Unlike `diagnostics`, this
+    /// continues past the first failure, and unlike `named_forms` it leaves out
+    /// children that only became named because their parent failed.
+    pub blockers: Vec<Diagnostic>,
 }
 
 #[derive(Default)]
@@ -37,6 +41,7 @@ struct Walk {
     faces: Vec<Card>,
     data: Vec<Field>,
     diagnostics: Vec<Diagnostic>,
+    blockers: Vec<Diagnostic>,
 }
 
 pub fn lower(value: &OracleCard) -> Lowered {
@@ -60,6 +65,7 @@ fn lower_record(value: &OracleCard) -> Lowered {
     Lowered {
         card,
         diagnostics: walk.diagnostics,
+        blockers: walk.blockers,
     }
 }
 
@@ -124,11 +130,14 @@ impl Walk {
         match crate::pipeline::finalize(&source) {
             Ok(card) => self.faces.push(card),
             Err(errors) => {
-                self.diagnostics.extend(errors.into_iter().map(|mut d| {
+                let at = |mut d: Diagnostic| {
                     d.path = format!("{path}{}", d.path);
                     d
-                }));
-                self.faces.push(repaired(&source));
+                };
+                self.diagnostics.extend(errors.into_iter().map(at));
+                let (card, blockers) = repaired(&source);
+                self.blockers.extend(blockers.into_iter().map(at));
+                self.faces.push(card);
             }
         }
     }
@@ -136,12 +145,18 @@ impl Walk {
 
 /// Lenient lowering can bind something the validator rejects. Name that whole rule
 /// instead. Each pass removes one reduced ability, and a named rule always validates.
-fn repaired(source: &OracleCard) -> Card {
-    let mut card = lower::unified_face(source);
-    while let Some((index, _)) = crate::validate::first_invalid(&card) {
+fn repaired(source: &OracleCard) -> (Card, Vec<Diagnostic>) {
+    let (mut card, mut blockers) = lower::unified_face(source);
+    while let Some((index, message)) = crate::validate::first_invalid(&card) {
         card.abilities[index] = Ability::Named(lower::rule_at(source, index));
+        blockers.push(Diagnostic {
+            path: format!("Rules[{index}]"),
+            source_type: "invariant".into(),
+            form: "validator".into(),
+            message,
+        });
     }
-    card
+    (card, blockers)
 }
 
 /// Every `Named` node, nested ones included, as `Type::Form` with its count.
