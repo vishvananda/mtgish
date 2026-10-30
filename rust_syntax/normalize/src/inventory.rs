@@ -1057,6 +1057,7 @@ impl Inventory<'_> {
         self.form("ObjectSet", r);
         match r {
             ObjectSet::DamageSources(filter) => self.filter(filter),
+            ObjectSet::Affected(_) => {}
             ObjectSet::CostObjects {
                 payment,
                 view,
@@ -1159,6 +1160,7 @@ impl Inventory<'_> {
             Expr::BoundValue(_)
             | Expr::CountersRemoved(_)
             | Expr::PaidCountersRemoved { .. }
+            | Expr::Performed(_)
             | Expr::DistributedShare(_)
             | Expr::DieResult(_) => {}
             Expr::Primitive { name, .. } => self.primitive(name),
@@ -1264,6 +1266,7 @@ impl Inventory<'_> {
         self.form("ObjectFilter", f);
         match f {
             ObjectFilter::ExiledWith(object) => self.object(object),
+            ObjectFilter::DamagedBy(_) => {}
             ObjectFilter::Primitive { name, .. } => self.primitive(name),
             ObjectFilter::Condition(condition) => self.condition(condition),
             ObjectFilter::Cast { by, from } => {

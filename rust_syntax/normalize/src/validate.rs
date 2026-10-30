@@ -326,6 +326,7 @@ impl<'a> Scope<'a> {
             ObjectRef::EventDestination if self.event.moved => Ok(()),
             ObjectRef::EventDestination => Err("this event moves no object".into()),
             ObjectRef::Chosen => Ok(()),
+            ObjectRef::Primitive { name, operands } => self.primitive(name, operands),
             ObjectRef::Result {
                 result,
                 phase: ObjectPhase::After,
@@ -419,6 +420,8 @@ impl<'a> Scope<'a> {
             }
             PlayerRef::AbilityController | PlayerRef::Active => Ok(()),
             PlayerRef::Chosen => Ok(()),
+            PlayerRef::Primitive { name, operands } => self.primitive(name, operands),
+            PlayerRef::FirstWilling(players) => self.players(players),
             PlayerRef::CasterOf(object)
             | PlayerRef::ControllerOf(object)
             | PlayerRef::OwnerOf(object)
@@ -549,6 +552,8 @@ impl<'a> Scope<'a> {
                     result.0
                 )),
             },
+            ObjectSet::Affected(result) if self.results.contains_key(&result.0) => Ok(()),
+            ObjectSet::Affected(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectSet::Created(result) => match self.results.get(&result.0) {
                 Some(ResultKind::CreatedObjects) => Ok(()),
                 _ => Err(format!(
@@ -625,6 +630,8 @@ impl<'a> Scope<'a> {
                 Some(target) if target.distribute.is_some() => Ok(()),
                 _ => Err(format!("target slot {} announces no distribution", slot.0)),
             },
+            Expr::Performed(result) if self.results.contains_key(&result.0) => Ok(()),
+            Expr::Performed(result) => Err(format!("result {} is unavailable", result.0)),
             Expr::PaidCountersRemoved { payment, component } => {
                 self.paid_component(payment, component).map(|_| ())
             }
@@ -698,6 +705,8 @@ impl<'a> Scope<'a> {
     fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
             ObjectFilter::ExiledWith(object) => self.object(object),
+            ObjectFilter::DamagedBy(result) if self.results.contains_key(&result.0) => Ok(()),
+            ObjectFilter::DamagedBy(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectFilter::Primitive { name, operands } => self.primitive(name, operands),
             ObjectFilter::Condition(condition) => self.condition(condition),
             ObjectFilter::Cast { by, from } => {
@@ -1699,6 +1708,9 @@ impl<'a> Scope<'a> {
                 evaluation,
                 ..
             } => {
+                let mut per_object = self.clone();
+                per_object.affected = matches!(affected, EffectSubjects::Objects(_));
+                per_object.duration(duration)?;
                 let rule = |c: &Change| matches!(c, Change::Rule(_) | Change::PlayerRule(_));
                 let has_rules = changes.iter().any(rule);
                 if has_rules && changes.iter().any(|c| !rule(c)) {
@@ -1709,7 +1721,6 @@ impl<'a> Scope<'a> {
                 }
                 self.object(source)?;
                 self.subject_changes(affected, changes)?;
-                self.duration(duration)?;
                 Ok(())
             }
         }
@@ -1787,7 +1798,8 @@ impl<'a> Scope<'a> {
                             | Operation::Tap { .. }
                             | Operation::Discard { .. }
                             | Operation::DiscardObjects { .. }
-                            | Operation::Sacrifice { .. } => ResultKind::ObjectTransition,
+                            | Operation::Sacrifice { .. }
+                            | Operation::Mill { .. } => ResultKind::ObjectTransition,
                             other if crate::semantics::manifests(other) => {
                                 ResultKind::ObjectTransition
                             }

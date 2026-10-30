@@ -75,9 +75,10 @@ impl Context {
 
     fn rule_change(&self, value: &source::PermanentRule) -> Result<Vec<RuleChange>> {
         self.reduced_rule_change(value).or_else(|error| {
-            self.primitive("PermanentRule", value)
-                .map(|(name, operands)| vec![RuleChange::Primitive { name, operands }])
-                .ok_or(error)
+            rescue(error, || {
+                self.primitive("PermanentRule", value)
+                    .map(|(name, operands)| vec![RuleChange::Primitive { name, operands }])
+            })
         })
     }
     fn reduced_rule_change(&self, value: &source::PermanentRule) -> Result<Vec<RuleChange>> {

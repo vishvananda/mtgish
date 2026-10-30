@@ -361,6 +361,7 @@ impl Effects {
             | ObjectRef::EventSubject
             | ObjectRef::EventDestination
             | ObjectRef::Chosen
+            | ObjectRef::Primitive { .. }
             | ObjectRef::Bound(_) => false,
         }
     }
@@ -395,7 +396,7 @@ impl Effects {
             ObjectSet::Battlefield(_) | ObjectSet::Created(_) | ObjectSet::DamageSources(_) => {
                 false
             }
-            ObjectSet::Damage(_) | ObjectSet::CostObjects { .. } => false,
+            ObjectSet::Damage(_) | ObjectSet::CostObjects { .. } | ObjectSet::Affected(_) => false,
         }
     }
     fn cost(&mut self, cost: &Cost) -> bool {

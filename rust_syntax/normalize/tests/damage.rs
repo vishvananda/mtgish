@@ -69,7 +69,6 @@ fn effect(operation: Operation) -> Instruction {
 fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
     let incomplete = [
         "Aegar, the Freezing Flame",
-        "Anowon, the Ruin Thief",
         "Breeches, Brazen Plunderer",
         "Curious Obsession",
         "Fall of Cair Andros",
@@ -83,7 +82,6 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         "Norn's Decree",
         "Sakashima's Will",
         "Screaming Nemesis",
-        "Tandem Lookout",
         "The Gitrog, Ravenous Ride",
         "Vengeful Ancestor",
         "Lost Vale",
@@ -112,7 +110,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 65);
+    assert_eq!(complete, 67);
 }
 
 #[test]

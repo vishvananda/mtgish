@@ -181,6 +181,13 @@ impl Context {
                 0,
             )?),
             S::SingleGraveyardCard(c) => ObjectSet::One(self.grave_card(c)?),
+            S::CardsOfTypeMilledThisWay(cards) => ObjectSet::Matching {
+                objects: Box::new(ObjectSet::Transition {
+                    result: self.done(Done::Milled)?,
+                    phase: ObjectPhase::After,
+                }),
+                filter: self.card_filter(cards)?,
+            },
             _ => self.private_cards(
                 EventZone::Graveyard,
                 PlayerSet::All,

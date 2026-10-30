@@ -291,6 +291,16 @@ impl Context {
         Some(ObjectFilter::Primitive { name, operands })
     }
 
+    fn primitive_object(&self, value: &source::Permanent) -> Option<ObjectRef> {
+        let (name, operands) = self.primitive("Permanent", value)?;
+        Some(ObjectRef::Primitive { name, operands })
+    }
+
+    fn primitive_player(&self, value: &source::Player) -> Option<PlayerRef> {
+        let (name, operands) = self.primitive("Player", value)?;
+        Some(PlayerRef::Primitive { name, operands })
+    }
+
     fn primitive_number(&self, value: &source::GameNumber) -> Option<Expr> {
         let (name, operands) = self.primitive("GameNumber", value)?;
         Some(Expr::Primitive { name, operands })
@@ -334,6 +344,7 @@ impl Context {
     /// bound before it could be the wrong antecedent. Later references must fail.
     fn forget_results(&mut self) {
         self.created_tokens = None;
+        self.did.clear();
         self.payment = None;
         self.exiled = None;
         self.exiled_permanents = false;

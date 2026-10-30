@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 38;
+pub const SCHEMA_VERSION: u32 = 39;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -310,6 +310,8 @@ pub enum ReplacementActive {
     /// CR 113.6h/614.12: only the source's own entry is affected, using its
     /// prospective battlefield characteristics even before it is on the field.
     SourceEntering,
+    /// "From anywhere": the source's own replacement works in every zone (113.6).
+    Everywhere,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ReplacementEvent {
@@ -1371,6 +1373,8 @@ pub struct SelectionChoice {
 pub enum Expr {
     /// The number of counters a `RemoveCounters` actually removed.
     CountersRemoved(ResultId),
+    /// How much that action really did: life lost, cards drawn, damage dealt.
+    Performed(ResultId),
     /// The same number for a cost component that removed counters.
     PaidCountersRemoved {
         payment: PaymentRef,
@@ -1530,6 +1534,11 @@ pub enum Rounding {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(tag = "kind", content = "args")]
 pub enum ObjectRef {
+    /// One reviewed rules-defined reference; see `rewrites/primitives.json5`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
     /// The object carrying a parameterized keyword. Inside a granted ward
     /// definition this remains the recipient, rather than the granting source.
     KeywordHost,
@@ -1668,6 +1677,8 @@ pub enum ObjectSet {
     },
     /// Every object able to be the source of damage (CR 609.7a) that matches.
     DamageSources(ObjectFilter),
+    /// The objects an earlier continuous effect in this resolution applied to.
+    Affected(ResultId),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -1683,6 +1694,13 @@ pub enum SequenceEnd {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 #[serde(tag = "kind", content = "args")]
 pub enum PlayerRef {
+    /// One reviewed rules-defined reference; see `rewrites/primitives.json5`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
+    /// "Any player may": asked in turn order, the first who agrees (101.4).
+    FirstWilling(Box<PlayerSet>),
     /// Controller of the targeting spell/ability that caused a ward trigger.
     /// Bound only inside that keyword's cost recipe, never to its controller.
     WardPayer,
@@ -1816,6 +1834,8 @@ pub enum ObjectFilter {
     /// A creature with counters, Equipment, or an Aura controlled by its
     /// controller (the rules definition of modified).
     Modified,
+    /// Dealt damage by this earlier instruction of the same resolution.
+    DamagedBy(ResultId),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

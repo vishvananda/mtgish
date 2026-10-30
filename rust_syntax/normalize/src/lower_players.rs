@@ -13,9 +13,10 @@ impl Context {
 
     fn player_rule(&self, value: &source::PlayerEffect) -> Result<PlayerRule> {
         self.reduced_player_rule(value).or_else(|error| {
-            self.primitive("PlayerEffect", value)
-                .map(|(name, operands)| PlayerRule::Primitive { name, operands })
-                .ok_or(error)
+            rescue(error, || {
+                self.primitive("PlayerEffect", value)
+                    .map(|(name, operands)| PlayerRule::Primitive { name, operands })
+            })
         })
     }
     fn reduced_player_rule(&self, value: &source::PlayerEffect) -> Result<PlayerRule> {

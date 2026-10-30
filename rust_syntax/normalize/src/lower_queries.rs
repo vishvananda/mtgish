@@ -3,9 +3,10 @@ impl Context {
     fn player_matches(&self, player: PlayerRef, filter: &source::Players) -> Result<Condition> {
         self.reduced_player_check(player.clone(), filter)
             .or_else(|error| {
-                self.history_player_check(&player, filter)
-                    .or_else(|| self.primitive_player_check(&player, filter))
-                    .ok_or(error)
+                match self.history_player_check(&player, filter) {
+                    Some(check) => Ok(check),
+                    None => rescue(error, || self.primitive_player_check(&player, filter)),
+                }
             })
     }
 
@@ -156,7 +157,7 @@ impl Context {
         context.candidate = true;
         context
             .spell_filter_inner(value)
-            .or_else(|error| context.primitive_predicate("Spells", value).ok_or(error))
+            .or_else(|error| rescue(error, || context.primitive_predicate("Spells", value)))
     }
     fn spell_filter_inner(&self, value: &source::Spells) -> Result<ObjectFilter> {
         if let Some(result)=self.pipeline_selector(crate::pipeline::selectors::SelectorRef::Spells(value)) {return result;}

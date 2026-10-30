@@ -2,7 +2,7 @@
 impl Context {
     fn mana_production(&self, value: &source::ManaProduce) -> Result<ManaProduction> {
         self.reduced_mana_production(value).or_else(|error| {
-            let (name, operands) = self.primitive("ManaProduce", value).ok_or(error)?;
+            let (name, operands) = rescue(error, || self.primitive("ManaProduce", value))?;
             Ok(ManaProduction::Primitive { name, operands })
         })
     }
@@ -75,9 +75,10 @@ impl Context {
     }
     fn mana_use(&self, value: &source::ManaUseModifier) -> Result<ManaUse> {
         self.reduced_mana_use(value).or_else(|error| {
-            self.primitive("ManaUseModifier", value)
-                .map(|(name, operands)| ManaUse::Primitive { name, operands })
-                .ok_or(error)
+            rescue(error, || {
+                self.primitive("ManaUseModifier", value)
+                    .map(|(name, operands)| ManaUse::Primitive { name, operands })
+            })
         })
     }
     fn reduced_mana_use(&self, value: &source::ManaUseModifier) -> Result<ManaUse> {

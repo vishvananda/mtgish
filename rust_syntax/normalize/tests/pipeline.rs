@@ -1786,10 +1786,10 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 }
 
 #[test]
-fn schema_38_costs_roundtrip_and_reject_previous_versions_at_validation() {
+fn schema_39_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 38);
+    assert_eq!(card.schema_version, 39);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2057,4 +2057,30 @@ fn counts_and_primitive_rule_families_keep_their_operands() {
         text.contains(r#""Integer":2"#) || text.contains("2"),
         "{text}"
     );
+}
+
+#[test]
+fn this_way_histories_read_the_action_that_did_it() {
+    let text =
+        ability_json("SpellActions(ActionList([LoseLife(Integer(3)),GainLife(LifeLostThisWay)]))");
+    assert!(text.contains(r#""Performed""#), "{text}");
+    let text = ability_json("SpellActions(Targeted([TargetPermanent(AnyPermanent)],ActionList([DestroyPermanent(Ref_TargetPermanent),If(APermanentWasDestroyedThisWay(IsCardtype(Creature)),[DrawACard])])))");
+    assert!(text.contains(r#""Transition""#), "{text}");
+    let unbound = custom("SpellActions(ActionList([GainLife(LifeLostThisWay)]))");
+    assert!(pipeline::finalize(&unbound).is_err());
+}
+
+#[test]
+fn any_player_may_pay_is_offered_and_the_payer_pays_for_themselves() {
+    let text = ability_json("SpellActions(ActionList([AnyPlayerMayCost(AnyPlayer,SacrificeAPermanent(IsCardtype(Land))),If(CostWasPaid,[DrawACard])]))");
+    assert!(text.contains("FirstWilling"), "{text}");
+    assert!(text.contains(r#""optional":true"#), "{text}");
+}
+
+#[test]
+fn a_replacement_from_anywhere_works_in_every_zone() {
+    let text = ability_json("AsPutIntoAGraveyardFromAnywhere(ThisCard,[ExileItInstead])");
+    assert!(text.contains("Everywhere"), "{text}");
+    assert!(text.contains("SetDestination"), "{text}");
+    assert!(text.contains(r#""Graveyard""#), "{text}");
 }

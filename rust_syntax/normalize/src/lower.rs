@@ -35,6 +35,15 @@ fn unsupported(value: &impl Serialize) -> Diagnostic {
     }
 }
 
+/// A reviewed primitive stands in for a form with no reduction. It never
+/// overrides an invariant the reduced path rejected for a semantic reason.
+fn rescue<T>(error: Diagnostic, primitive: impl FnOnce() -> Option<T>) -> Result<T> {
+    if error.source_type == "invariant" {
+        return Err(error);
+    }
+    primitive().ok_or(error)
+}
+
 fn invalid(message: &str) -> Diagnostic {
     Diagnostic {
         path: String::new(),
@@ -85,6 +94,8 @@ struct Context {
     binding_depth: u32,
     state_subject: Option<ObjectRef>,
     exiled: Option<ResultId>,
+    /// The latest instruction of each kind a "this way" history can name.
+    did: std::collections::BTreeMap<Done, ResultId>,
     exiled_permanents: bool,
     ambiguous_damage_permanent: bool,
     damage_permanent_recipient: bool,
@@ -92,6 +103,30 @@ struct Context {
     entered: Option<ResultId>,
     open_searches: Vec<PlayerRef>,
     inspection_hand: Option<Vec<ResultId>>,
+}
+
+/// Actions a later "this way" can name in the same resolution.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
+enum Done {
+    Damage,
+    Destroyed,
+    Drew,
+    Effect,
+    LifeLost,
+    Milled,
+}
+impl Done {
+    fn of(operation: &Operation) -> Option<Self> {
+        Some(match operation {
+            Operation::DealDamage { .. } => Self::Damage,
+            Operation::Destroy { .. } => Self::Destroyed,
+            Operation::Draw { .. } => Self::Drew,
+            Operation::CreateContinuousEffect { .. } => Self::Effect,
+            Operation::LoseLife { .. } => Self::LifeLost,
+            Operation::Mill { .. } => Self::Milled,
+            _ => return None,
+        })
+    }
 }
 
 impl Context {
@@ -154,6 +189,9 @@ impl Context {
         }
         if matches!(operation, Operation::CreateTokens { .. }) {
             self.created_tokens = Some(ResultId(self.result));
+        }
+        if let Some(done) = Done::of(&operation) {
+            self.did.insert(done, ResultId(self.result));
         }
         if matches!(
             operation,
@@ -219,6 +257,12 @@ impl Context {
         if self.created_tokens.as_ref().map(|r| r.0) != child.created_tokens.as_ref().map(|r| r.0) {
             self.created_tokens = None;
         }
+        let parent = self.did.clone();
+        self.did
+            .retain(|kind, result| child.did.get(kind).is_some_and(|r| r.0 == result.0));
+        for kind in child.did.keys().filter(|k| !parent.contains_key(k)) {
+            self.did.remove(kind);
+        }
         if self.payment.as_ref().map(|r| r.0) != child.payment.as_ref().map(|r| r.0) {
             self.payment = None;
         }
@@ -232,6 +276,11 @@ impl Context {
     }
 
     fn object(&self, value: &source::Permanent) -> Result<ObjectRef> {
+        self.reduced_object(value)
+            .or_else(|error| rescue(error, || self.primitive_object(value)))
+    }
+
+    fn reduced_object(&self, value: &source::Permanent) -> Result<ObjectRef> {
         use source::Permanent as S;
         if matches!(value, S::Trigger_ThatPermanent) && self.ambiguous_damage_permanent {
             return Err(invalid("damage trigger needs an explicit source/recipient role for this legacy permanent reference"));
@@ -260,6 +309,9 @@ impl Context {
                 return self.paid_object(crate::number_spec::PaymentAction::Tap)
             }
 
+            S::EachablePermanent if self.candidate => return Ok(ObjectRef::Candidate),
+            S::EachablePermanent => return Ok(ObjectRef::Affected),
+            S::TheChosenPermanent => return Ok(ObjectRef::Chosen),
             S::ThePermanentPutOnTheBattlefieldThisWay => {
                 let token = self
                     .created_tokens
@@ -315,10 +367,17 @@ impl Context {
     }
 
     fn player(&self, value: &source::Player) -> Result<PlayerRef> {
+        self.reduced_player(value)
+            .or_else(|error| rescue(error, || self.primitive_player(value)))
+    }
+
+    fn reduced_player(&self, value: &source::Player) -> Result<PlayerRef> {
         use source::Player as S;
         Ok(match value {
             S::You => self.you.clone().unwrap_or(PlayerRef::AbilityController),
-            S::ActionPlayer | S::EachablePlayer if self.iterated.is_some() => {
+            S::ActionPlayer | S::EachablePlayer | S::PlayerAction_ThatPlayer
+                if self.iterated.is_some() =>
+            {
                 self.iterated.clone().unwrap()
             }
             S::HostController => PlayerRef::ControllerOf(Box::new(ObjectRef::AttachedTo(
@@ -453,6 +512,9 @@ impl Context {
                 }
             }
         }
+        if matches!(value, source::Permanents::ThePermanentsAffectedThisWay) {
+            return Ok(ObjectSet::Affected(self.done(Done::Effect)?));
+        }
         if matches!(value, source::Permanents::TheTokensCreatedThisWay) {
             return self
                 .created_tokens
@@ -516,25 +578,27 @@ impl Context {
         if let source::Permanents::ExceptFor(excluded) = value {
             return Ok(ObjectFilter::Not(Box::new(self.filter_inner(excluded)?)));
         }
+        if matches!(value, source::Permanents::WasDealtDamageThisWay) {
+            return Ok(ObjectFilter::DamagedBy(self.done(Done::Damage)?));
+        }
         let reduced = match self
             .pipeline_selector(crate::pipeline::selectors::SelectorRef::Permanents(value))
         {
             Some(result) => result,
             None => self.cast_history_filter(value),
         };
-        reduced.or_else(|error| {
-            self.history_filter(value)
-                .or_else(|| self.primitive_filter(value))
-                .ok_or(error)
+        reduced.or_else(|error| match self.history_filter(value) {
+            Some(filter) => Ok(filter),
+            None => rescue(error, || self.primitive_filter(value)),
         })
     }
 
     fn number(&self, value: &source::GameNumber) -> Result<Expr> {
-        self.reduced_number(value).or_else(|error| {
-            self.history_number(value)
-                .or_else(|| self.primitive_number(value))
-                .ok_or(error)
-        })
+        self.reduced_number(value)
+            .or_else(|error| match self.history_number(value) {
+                Some(number) => Ok(number),
+                None => rescue(error, || self.primitive_number(value)),
+            })
     }
 
     fn reduced_number(&self, value: &source::GameNumber) -> Result<Expr> {
@@ -577,6 +641,21 @@ impl Context {
             },
             S::TheNumberOfCountersRemovedThisWay if self.removed_counters.is_some() => {
                 Expr::CountersRemoved(self.removed_counters.clone().unwrap())
+            }
+            S::LifeLostThisWay => Expr::Performed(self.done(Done::LifeLost)?),
+            S::NumberOfCardsDrawnThisWay => Expr::Performed(self.done(Done::Drew)?),
+            S::TheAmountOfDamageDealtThisWay => Expr::Performed(self.done(Done::Damage)?),
+            S::NumPermanentsDestroyedThisWay(filter) => {
+                Expr::CountObjects(Box::new(self.done_matching(Done::Destroyed, filter)?))
+            }
+            S::NumGraveyardCardsExiledThisWay => {
+                Expr::CountObjects(Box::new(ObjectSet::Transition {
+                    result: self
+                        .exiled
+                        .clone()
+                        .ok_or_else(|| invalid("exile count has no movement in this scope"))?,
+                    phase: ObjectPhase::Before,
+                }))
             }
             S::TheNumberOfCountersRemovedThisWay => {
                 let paid = self.paid_binding(crate::number_spec::PaymentAction::RemoveCounters)?;
@@ -637,6 +716,23 @@ impl Context {
         })
     }
 
+    fn done(&self, kind: Done) -> Result<ResultId> {
+        self.did
+            .get(&kind)
+            .cloned()
+            .ok_or_else(|| invalid("this-way history has no action in this scope"))
+    }
+
+    fn done_matching(&self, kind: Done, filter: &source::Permanents) -> Result<ObjectSet> {
+        Ok(ObjectSet::Matching {
+            objects: Box::new(ObjectSet::Transition {
+                result: self.done(kind)?,
+                phase: ObjectPhase::Before,
+            }),
+            filter: self.filter(filter)?,
+        })
+    }
+
     fn count_matching(
         &self,
         objects: &source::Permanents,
@@ -652,7 +748,7 @@ impl Context {
         self.reduced_condition(value).or_else(|error| {
             self.history_condition(value)
                 .unwrap_or_else(|| Err(error.clone()))
-                .or_else(|_| self.primitive_condition(value).ok_or(error))
+                .or_else(|_| rescue(error, || self.primitive_condition(value)))
         })
     }
 
@@ -706,6 +802,44 @@ impl Context {
                     right,
                 }
             }
+            S::APermanentWasDestroyedThisWay(filter) => Condition::Compare {
+                left: Expr::CountObjects(Box::new(self.done_matching(Done::Destroyed, filter)?)),
+                comparison: Comparison::Greater,
+                right: Expr::Constant(0),
+            },
+            S::APermanentWasSacrificedThisWay(filter) => Condition::Compare {
+                left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                    objects: Box::new(self.paid_objects(
+                        crate::number_spec::PaymentAction::Sacrifice,
+                        CostObjectView::Performed,
+                    )?),
+                    filter: self.filter(filter)?,
+                })),
+                comparison: Comparison::Greater,
+                right: Expr::Constant(0),
+            },
+            S::ACardWasDiscardedThisWay(cards) => Condition::Compare {
+                left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                    objects: Box::new(self.paid_objects(
+                        crate::number_spec::PaymentAction::Discard,
+                        CostObjectView::Performed,
+                    )?),
+                    filter: self.card_filter(cards)?,
+                })),
+                comparison: Comparison::Greater,
+                right: Expr::Constant(0),
+            },
+            S::ACardWasMilledThisWay(cards) => Condition::Compare {
+                left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                    objects: Box::new(ObjectSet::Transition {
+                        result: self.done(Done::Milled)?,
+                        phase: ObjectPhase::After,
+                    }),
+                    filter: self.card_filter(cards)?,
+                })),
+                comparison: Comparison::Greater,
+                right: Expr::Constant(0),
+            },
             S::APermanentPassesFilter(objects, filter) => Condition::Compare {
                 left: self.count_matching(objects, filter)?,
                 comparison: Comparison::GreaterOrEqual,
@@ -964,9 +1098,9 @@ impl Context {
                 })
             })();
             let changes = changes.or_else(|error| {
-                self.primitive_change(value)
-                    .map(|change| vec![change])
-                    .ok_or(error)
+                rescue(error, || {
+                    self.primitive_change(value).map(|change| vec![change])
+                })
             });
             result.extend(changes.map_err(|e| e.at(format!("changes[{index}]")))?);
         }
@@ -1709,6 +1843,35 @@ impl Context {
                     .collect::<Result<_>>()?,
                 entry: self.token_entry(flags)?,
             },
+            S::PutCounters(placements)
+                if matches!(placements.as_slice(), [only]
+                    if self.counter_placement(only, actor).is_err()
+                        && self.primitive("PutCountersAction", only).is_some()) =>
+            {
+                let (name, operands) = self.primitive("PutCountersAction", &placements[0]).unwrap();
+                Operation::Primitive {
+                    actor: actor.clone(),
+                    name,
+                    operands,
+                }
+            }
+            S::AnyPlayerMayCost(players, cost) => {
+                let willing = PlayerRef::FirstWilling(Box::new(self.players(players)?));
+                let outer = self.iterated.replace(willing.clone());
+                let cost = self.cost(cost);
+                self.iterated = outer;
+                Operation::PayCost {
+                    player: willing,
+                    cost: cost?,
+                    optional: true,
+                }
+            }
+            S::PutACardOfTypeMilledThisWayIntoHand(cards) => {
+                return self.put_from_graveyard_into_hand(
+                    &source::CardsInGraveyards::CardsOfTypeMilledThisWay(cards.clone()),
+                    actor,
+                )
+            }
             S::PutCounters(placements) => Operation::PutCounters {
                 placements: placements
                     .iter()
@@ -2205,7 +2368,7 @@ impl Context {
             *self = before;
             match self.replacement_rule(value) {
                 Some(result) => result,
-                None => self.primitive_ability(value).ok_or(error),
+                None => rescue(error, || self.primitive_ability(value)),
             }
         })
     }

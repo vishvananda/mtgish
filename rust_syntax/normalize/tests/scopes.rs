@@ -72,17 +72,14 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
     let incomplete = [
         "Ashen Ghoul",
         "Decree of Justice",
-        "Decree of Pain",
         "Derevi, Empyrial Tactician",
         "Firesong and Sunspeaker",
         "Fluctuator",
         "Narcomoeba",
         "Nether Shadow",
         "Shadow of the Grave",
-        "Soulfire Grand Master",
         "The Ur-Dragon",
         "Valiant Rescuer",
-        "Vexing Shusher",
         "Writ of Passage",
     ];
     let mut complete = 0;
@@ -108,7 +105,7 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 78);
+    assert_eq!(complete, 81);
 }
 
 #[test]

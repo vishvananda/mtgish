@@ -442,6 +442,22 @@ impl Context {
 
     /// Every `Rule::Replace...` over a would-be event has one shape: event and body.
     fn replacement_rule(&mut self, value: &source::Rule) -> Option<Result<Ability>> {
+        if let source::Rule::AsPutIntoAGraveyardFromAnywhere(card, steps) = value {
+            return Some((|| {
+                let event = ReplacementEvent::ZoneChange {
+                    objects: ObjectFilter::SameObject(self.single_card(card)?),
+                    from: None,
+                    to: EventZone::Graveyard,
+                };
+                let steps: Vec<_> = steps.iter().filter_map(|s| crate::inspect::value(s).ok()).collect();
+                let body = self.replacement_body(&event, &steps)?;
+                Ok(Ability::Replacement {
+                    active: ReplacementActive::Everywhere,
+                    event,
+                    body,
+                })
+            })());
+        }
         let inspected = crate::inspect::value(value).ok()?;
         let variant = inspected["variant"].as_str()?;
         if !variant.starts_with("Replace") || variant == "ReplaceWouldEnter" {
