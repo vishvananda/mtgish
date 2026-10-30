@@ -126,6 +126,18 @@ impl Context {
                 _ => self.result_object(self.exiled.as_ref(), 0),
             },
             S::ThisExiledCard | S::ThisExiledPermanentCard => Ok(ObjectRef::Source),
+            S::TheExiledCard if self.exiled.is_none() => match self.paid_exile() {
+                Some((objects, true)) => Ok(ObjectRef::Query {
+                    objects: Box::new(objects),
+                    index: 0,
+                }),
+                Some(_) => Err(invalid("the exiled card names a plural exile")),
+                None => Ok(ObjectRef::Query {
+                    objects: Box::new(self.exiled_with_source()),
+                    index: 0,
+                }),
+            },
+            S::TheExiledCard => self.result_object(self.exiled.as_ref(), 0),
             _ => Err(unsupported(value)),
         }
     }
@@ -176,6 +188,14 @@ impl Context {
             ),
         })
     }
+    /// Another ability of this card did the exiling (607.2a).
+    fn exiled_with_source(&self) -> ObjectSet {
+        ObjectSet::Zone {
+            scope: ZoneScope::Shared(EventZone::Exile),
+            kind: ObjectKind::Card,
+            filter: ObjectFilter::ExiledWith(ObjectRef::Source),
+        }
+    }
     fn exile_cards(&self, value: &source::CardsInExile) -> Result<ObjectSet> {
         Ok(match value {
             source::CardsInExile::TheCardsExiledThisWay | source::CardsInExile::TheExiledCards => {
@@ -185,13 +205,8 @@ impl Context {
                         phase: ObjectPhase::After,
                     },
                     (None, Some((objects, _))) => objects,
-                    // Another ability of this card did the exiling (607.2a).
                     (None, None) if matches!(value, source::CardsInExile::TheExiledCards) => {
-                        ObjectSet::Zone {
-                            scope: ZoneScope::Shared(EventZone::Exile),
-                            kind: ObjectKind::Card,
-                            filter: ObjectFilter::ExiledWith(ObjectRef::Source),
-                        }
+                        self.exiled_with_source()
                     }
                     (None, None) => {
                         return Err(invalid("exiled cards have no movement in this scope"))
@@ -439,6 +454,36 @@ impl Context {
         } else {
             Instruction::Group(Program { instructions })
         })
+    }
+    /// "Return a card from your graveyard to your hand": one chosen, then moved.
+    fn put_from_graveyard_into_hand(
+        &mut self,
+        cards: &source::CardsInGraveyards,
+        actor: &PlayerSet,
+    ) -> Result<Instruction> {
+        let PlayerSet::One(player) = actor else {
+            return Err(invalid("returning a card from a graveyard needs one player"));
+        };
+        let objects = self.grave_cards(cards)?;
+        let choice = self.effect(Operation::ChooseObjects {
+            constraints: vec![],
+            player: player.clone(),
+            objects,
+            count: Count::Exactly(Expr::Constant(1)),
+        });
+        let Instruction::Effect { result, .. } = &choice else {
+            unreachable!()
+        };
+        let objects = ObjectSet::Selected(result.clone());
+        let movement = self.effect(Operation::Move {
+            objects,
+            destination: Destination::OwnersHand,
+            entry: EntrySpec::default(),
+            face_down: false,
+        });
+        Ok(Instruction::Group(Program {
+            instructions: vec![choice, movement],
+        }))
     }
     /// "Put a card from your hand onto the battlefield": `count` chosen, or all.
     fn put_from_hand(

@@ -412,7 +412,6 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         "Abomination",
         "Alchemist's Gambit",
         "Aleatory",
-        "Alora, Cheerful Assassin",
         "Arcane Denial",
         "Armor of Thorns",
         "Bounty of the Hunt",
@@ -453,5 +452,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 33);
+    assert_eq!(complete, 34);
 }

@@ -918,7 +918,7 @@ impl Inventory<'_> {
                     self.form("ManaColor", color);
                 }
             }
-            Change::AddCardType(_) | Change::RemoveAllAbilities => {}
+            Change::AddCardType(_) | Change::SetCardTypes(_) | Change::RemoveAllAbilities => {}
         }
     }
     fn subjects(&mut self, subjects: &EffectSubjects) {
@@ -1154,6 +1154,7 @@ impl Inventory<'_> {
         match e {
             Expr::BoundValue(_)
             | Expr::CountersRemoved(_)
+            | Expr::PaidCountersRemoved { .. }
             | Expr::DistributedShare(_)
             | Expr::DieResult(_) => {}
             Expr::Primitive { name, .. } => self.primitive(name),

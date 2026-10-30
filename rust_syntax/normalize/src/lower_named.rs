@@ -112,6 +112,12 @@ impl Context {
                 Operand::Ability(Box::new(self.fresh().ability(&rule).ok()?))
             }
             "Spell" => Operand::Object(self.spell(&decode(value).ok()?).ok()?),
+            "Ability" => match decode(value).ok()? {
+                source::Ability::Ref_TargetAbility => {
+                    Operand::Object(self.object_target(ObjectDomain::ability(), 0).ok()?)
+                }
+                _ => return None,
+            },
             "CardInGraveyards" => Operand::Object(self.grave_card(&decode(value).ok()?).ok()?),
             "CardInExile" => Operand::Object(self.exiled_card(&decode(value).ok()?).ok()?),
             "Actions" => {

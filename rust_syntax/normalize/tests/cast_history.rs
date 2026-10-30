@@ -441,7 +441,6 @@ fn cast_history_families_roundtrip_and_keep_unimplemented_nested_semantics() {
         "Portcullis",
         "Primordial Hydra",
         "Recommission",
-        "Roost of Drakes",
         "Seize the Day",
         "Sentinel's Mark",
         "Thran Portal",
@@ -470,7 +469,7 @@ fn cast_history_families_roundtrip_and_keep_unimplemented_nested_semantics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 51);
+    assert_eq!(complete, 52);
     let rapid = card("Rapid Augmenter");
     assert!(rapid.abilities.iter().any(|a|matches!(a,Ability::Triggered {event:EventSpec::ZoneChange {objects:ObjectFilter::All(outer),..},..} if outer.iter().any(|f|matches!(f,ObjectFilter::All(inner) if inner.iter().any(|f|matches!(f,ObjectFilter::Property {property:Property::BasePower,comparison:Comparison::Equal,value:Expr::Constant(1)})))))));
 }

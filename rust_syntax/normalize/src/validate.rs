@@ -61,6 +61,16 @@ impl<'a> Scope<'a> {
         if let ObjectSet::InZone { objects, .. } = objects {
             return matches!(**objects, ObjectSet::One(_));
         }
+        // "The exiled card": one card held by a linked ability (607.2a).
+        if matches!(
+            objects,
+            ObjectSet::Zone {
+                filter: ObjectFilter::ExiledWith(ObjectRef::Source),
+                ..
+            }
+        ) {
+            return true;
+        }
         if let ObjectSet::Transition { result, .. } = objects {
             return self.singular.contains(&result.0);
         }
@@ -615,6 +625,9 @@ impl<'a> Scope<'a> {
                 Some(target) if target.distribute.is_some() => Ok(()),
                 _ => Err(format!("target slot {} announces no distribution", slot.0)),
             },
+            Expr::PaidCountersRemoved { payment, component } => {
+                self.paid_component(payment, component).map(|_| ())
+            }
             Expr::EventAmount if self.event.amount => Ok(()),
             Expr::EventAmount => Err("event amount used outside a damage event".into()),
             Expr::ObjectProperty {
@@ -895,6 +908,7 @@ impl<'a> Scope<'a> {
             Change::Colors { .. }
             | Change::CreatureTypes { .. }
             | Change::AddCardType(_)
+            | Change::SetCardTypes(_)
             | Change::RemoveAllAbilities => Ok(()),
         }
     }

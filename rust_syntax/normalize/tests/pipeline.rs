@@ -1455,7 +1455,7 @@ fn cost_selection_remains_strict_while_effect_selection_does_as_much_as_possible
 #[test]
 fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
     use pipeline::operands::CostRecipe as R;
-    let source=custom("Activated(And([PayLifeForEach(Integer(2),Integer(3)),PutPermanentIntoItsOwnersHand(ThisPermanent)]),ActionList([DrawACard]))");
+    let source=custom("Activated(And([PayLifeForEach(Integer(2),Integer(3)),PutTopCardOfLibraryOfTypeOnBattlefield(IsCardtype(Creature),[EntersNormally])]),ActionList([DrawACard]))");
     let stage = pipeline::Intermediate::new(&source).unwrap();
     let root = stage
         .structural
@@ -1464,13 +1464,13 @@ fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
         .find(|r| r.rule == "operand.Cost.And")
         .unwrap();
     assert!(
-        matches!(&root.recipe,pipeline::operands::OperandRecipe::Cost(R::All(items)) if matches!(items.as_slice(),[R::Amount {..},R::Source(source::Cost::PutPermanentIntoItsOwnersHand(..))]))
+        matches!(&root.recipe,pipeline::operands::OperandRecipe::Cost(R::All(items)) if matches!(items.as_slice(),[R::Amount {..},R::Source(source::Cost::PutTopCardOfLibraryOfTypeOnBattlefield(..))]))
     );
     assert!(stage.final_card.is_none());
     assert!(stage
         .diagnostics
         .iter()
-        .any(|d| d.form == "PutPermanentIntoItsOwnersHand"));
+        .any(|d| d.form == "PutTopCardOfLibraryOfTypeOnBattlefield"));
     for cost in [
         "TapPermanent(Ref_TargetPermanent)",
         "PayManaX([ManaCostGeneric(1)],Integer(2))",
@@ -1786,10 +1786,10 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 }
 
 #[test]
-fn schema_36_costs_roundtrip_and_reject_previous_versions_at_validation() {
+fn schema_37_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 36);
+    assert_eq!(card.schema_version, 37);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -1992,4 +1992,41 @@ fn a_manifested_or_single_created_permanent_is_the_permanent_put_there_this_way(
 
     let two = custom("SpellActions(ActionList([CreateTokens([NumberTokens(Integer(2),TokenWithPT(PT(1,1),Colors([Black]),[],[Creature],SubtypesList([Horror]),[]))],[]),PutCounters([ACounterOfTypeOnPermanent(PTCounter(+1,+1),ThePermanentPutOnTheBattlefieldThisWay)])]))");
     assert!(pipeline::finalize(&two).is_err());
+}
+
+#[test]
+fn abilities_are_targets_on_the_stack_with_their_filter_kept() {
+    let text = ability_json("SpellActions(Targeted([TargetAbility(And([ActivatedAbility,ControlledByAPlayer(SinglePlayer(You))]))],ActionList([CounterAbility(Ref_TargetAbility)])))");
+    assert!(
+        text.contains(r#""kind":{"Object":{"kind":"Ability","zones":["Stack"]}}"#)
+            || text.contains(r#""kind":"Ability""#),
+        "{text}"
+    );
+    assert!(text.contains("ControlledByAPlayer"), "{text}");
+}
+
+#[test]
+fn removing_counters_as_a_cost_is_counted_from_that_cost() {
+    let text = ability_json("Activated(RemoveCounters([NumberCountersOfTypeFromPermanent(Integer(3),ChargeCounter,ThisPermanent)]),ActionList([DrawNumberCards(TheNumberOfCountersRemovedThisWay)]))");
+    assert!(text.contains("PaidCountersRemoved"), "{text}");
+}
+
+#[test]
+fn set_card_type_replaces_and_except_for_negates() {
+    let set = ability_json("PermanentLayerEffect(ThisPermanent,[SetCardtype(Land)])");
+    assert!(set.contains("SetCardTypes"), "{set}");
+    assert!(!set.contains("AddCardType"), "{set}");
+    let except = ability_json(
+        "EachPermanentRuleEffect(And([ExceptFor(IsToken),IsCardtype(Creature)]),[CantAttack])",
+    );
+    assert!(except.contains(r#""Not""#), "{except}");
+}
+
+#[test]
+fn a_returned_graveyard_card_is_chosen_once_and_moved_to_its_owners_hand() {
+    let text = ability_json(
+        "SpellActions(ActionList([PutACardFromGraveyardIntoHand(IsCardtype(Creature))]))",
+    );
+    assert!(text.contains("ChooseObjects"), "{text}");
+    assert!(text.contains("OwnersHand"), "{text}");
 }

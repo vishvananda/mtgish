@@ -333,6 +333,9 @@ impl Context {
             S::ControllerOfTargetSpell => {
                 PlayerRef::ControllerOf(Box::new(self.spell(&source::Spell::Ref_TargetSpell)?))
             }
+            S::ControllerOfTargetPermanent => PlayerRef::ControllerOf(Box::new(
+                self.object(&source::Permanent::Ref_TargetPermanent)?,
+            )),
             S::Ref_TargetPlayer | S::Ref_TargetPlayer1 => PlayerRef::Target {
                 slot: self.target(TargetKind::Player, 0, 0)?,
                 index: 0,
@@ -510,6 +513,9 @@ impl Context {
     }
 
     fn filter_inner(&self, value: &source::Permanents) -> Result<ObjectFilter> {
+        if let source::Permanents::ExceptFor(excluded) = value {
+            return Ok(ObjectFilter::Not(Box::new(self.filter_inner(excluded)?)));
+        }
         let reduced = match self
             .pipeline_selector(crate::pipeline::selectors::SelectorRef::Permanents(value))
         {
@@ -572,6 +578,14 @@ impl Context {
             S::TheNumberOfCountersRemovedThisWay if self.removed_counters.is_some() => {
                 Expr::CountersRemoved(self.removed_counters.clone().unwrap())
             }
+            S::TheNumberOfCountersRemovedThisWay => {
+                let paid = self.paid_binding(crate::number_spec::PaymentAction::RemoveCounters)?;
+                Expr::PaidCountersRemoved {
+                    payment: paid.payment.clone(),
+                    component: paid.component.clone(),
+                }
+            }
+            S::NumPlayers(players) => Expr::CountPlayers(self.players(players)?),
             S::NumCardsDiscardedThisWay => Expr::CountObjects(Box::new(self.paid_objects(
                 crate::number_spec::PaymentAction::Discard,
                 CostObjectView::Performed,
@@ -621,6 +635,17 @@ impl Context {
             }
             _ => return self.characteristic_number(value),
         })
+    }
+
+    fn count_matching(
+        &self,
+        objects: &source::Permanents,
+        filter: &source::Permanents,
+    ) -> Result<Expr> {
+        Ok(Expr::CountObjects(Box::new(ObjectSet::Matching {
+            objects: Box::new(self.objects(objects)?),
+            filter: self.filter(filter)?,
+        })))
     }
 
     fn condition(&self, value: &source::Condition) -> Result<Condition> {
@@ -681,6 +706,32 @@ impl Context {
                     right,
                 }
             }
+            S::APermanentPassesFilter(objects, filter) => Condition::Compare {
+                left: self.count_matching(objects, filter)?,
+                comparison: Comparison::GreaterOrEqual,
+                right: Expr::Constant(1),
+            },
+            S::NoPermanentsPassFilter(objects, filter) => Condition::Compare {
+                left: self.count_matching(objects, filter)?,
+                comparison: Comparison::Equal,
+                right: Expr::Constant(0),
+            },
+            S::NumPermanentsPassFilter(count, objects, filter) => {
+                let (comparison, right) = self.comparison(count)?;
+                Condition::Compare {
+                    left: self.count_matching(objects, filter)?,
+                    comparison,
+                    right,
+                }
+            }
+            S::NoPlayersPassFilter(players, filter) => Condition::Compare {
+                left: Expr::CountPlayers(self.players(&source::Players::And(vec![
+                    (**players).clone(),
+                    (**filter).clone(),
+                ]))?),
+                comparison: Comparison::Equal,
+                right: Expr::Constant(0),
+            },
             S::ACardWasRevealedThisWay(cards) => {
                 let objects = self
                     .revealed
@@ -888,6 +939,8 @@ impl Context {
                     S::SetCreatureTypes(types) => vec![Change::CreatureTypes { mode:ChangeMode::Set,types:CreatureTypeSet::Listed(types.clone()) }],
                     S::AddCreatureType(ty) => vec![Change::CreatureTypes { mode:ChangeMode::Add,types:CreatureTypeSet::Listed(vec![ty.clone()]) }],
                     S::AddCardtype(ty) => vec![Change::AddCardType(ty.clone())],
+                    S::SetCardtype(ty) => vec![Change::SetCardTypes(vec![ty.clone()])],
+                    S::SetCardtypes(types) => vec![Change::SetCardTypes(types.clone())],
                     S::AddAbility(abilities) => abilities
                         .iter()
                         .map(|r| {
@@ -945,7 +998,8 @@ impl Context {
                 S::HasAllCreatureTypes => T::HasAllCreatureTypes,
                 S::RemoveAllCreatureTypes => T::RemoveAllCreatureTypes,
                 S::LosesAllAbilities => T::LosesAllAbilities,
-                _ => return Err(unsupported(value).at(format!("changes[{i}]"))),
+                _ => as_family::<T>(value, "LayerEffect")
+                    .ok_or_else(|| unsupported(value).at(format!("changes[{i}]")))?,
             };
             changes.extend(
                 self.changes(&[change])
@@ -1512,6 +1566,9 @@ impl Context {
                 self.value_x = Some(ResultId(self.result));
                 Operation::BindValue { value }
             }
+            S::PutACardFromGraveyardIntoHand(cards) => {
+                return self.put_from_graveyard_into_hand(cards, actor)
+            }
             S::PutACardFromHandOnBattlefield(cards, flags) => {
                 return self.put_from_hand(
                     cards,
@@ -1820,6 +1877,15 @@ impl Context {
                 distribute: None,
             };
             match value {
+                S::TargetAbility(_) | S::UptoOneTargetAbility(_) => {
+                    target.kind = TargetKind::Object(ObjectDomain::ability());
+                    target.filter = self
+                        .primitive_predicate("Target", value)
+                        .ok_or_else(|| unsupported(value))?;
+                    if matches!(value, S::UptoOneTargetAbility(_)) {
+                        target.count = Count::UpTo(Expr::Constant(1));
+                    }
+                }
                 S::TargetSpell(s)
                 | S::UptoOneTargetSpell(s)
                 | S::UptoNumberTargetSpells(_, s)
@@ -2010,6 +2076,32 @@ impl Context {
                     parts: vec![CostPart::Reveal {
                         count: Expr::Constant(1),
                         filter: self.card_filter(cards)?,
+                    }],
+                })
+            }
+            source::Cost::PutPermanentIntoItsOwnersHand(permanent) => {
+                return Ok(Cost {
+                    parts: vec![CostPart::Move {
+                        selections: vec![CostObjectSelection {
+                            objects: ObjectSet::One(self.object(permanent)?),
+                            choose: None,
+                        }],
+                        destination: Destination::OwnersHand,
+                        entry: EntrySpec::default(),
+                        face_down: false,
+                    }],
+                })
+            }
+            source::Cost::PutACardFromGraveyardIntoHand(cards) => {
+                return Ok(Cost {
+                    parts: vec![CostPart::Move {
+                        selections: vec![CostObjectSelection {
+                            objects: self.grave_cards(cards)?,
+                            choose: Some(Count::Exactly(Expr::Constant(1))),
+                        }],
+                        destination: Destination::OwnersHand,
+                        entry: EntrySpec::default(),
+                        face_down: false,
                     }],
                 })
             }

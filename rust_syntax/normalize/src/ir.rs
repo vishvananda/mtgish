@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 36;
+pub const SCHEMA_VERSION: u32 = 37;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -477,6 +477,8 @@ pub enum ObjectKind {
     Permanent,
     Spell,
     Card,
+    /// An activated or triggered ability on the stack (113.1, 114.1b).
+    Ability,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct ObjectDomain {
@@ -493,6 +495,12 @@ impl ObjectDomain {
     pub fn spell() -> Self {
         Self {
             kind: ObjectKind::Spell,
+            zones: vec![EventZone::Stack],
+        }
+    }
+    pub fn ability() -> Self {
+        Self {
+            kind: ObjectKind::Ability,
             zones: vec![EventZone::Stack],
         }
     }
@@ -1024,6 +1032,8 @@ pub enum Change {
         colors: Vec<ManaColor>,
     },
     AddCardType(CardType),
+    /// Replaces every card type; supertypes stay and subtypes follow 205.1a.
+    SetCardTypes(Vec<CardType>),
     GrantKeyword(Keyword),
     GrantAbility(Box<Ability>),
     RemoveAllAbilities,
@@ -1341,6 +1351,11 @@ pub struct SelectionChoice {
 pub enum Expr {
     /// The number of counters a `RemoveCounters` actually removed.
     CountersRemoved(ResultId),
+    /// The same number for a cost component that removed counters.
+    PaidCountersRemoved {
+        payment: PaymentRef,
+        component: Vec<u32>,
+    },
     /// The number a `BindValue` computed, fixed at that point in the resolution.
     BoundValue(ResultId),
     /// The part of this slot's distributed total assigned to the recipient at

@@ -89,7 +89,6 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         "Tandem Lookout",
         "The Gitrog, Ravenous Ride",
         "Vengeful Ancestor",
-        "Obelisk Spider",
         "Lost Vale",
         "Vault of Catlacan",
     ];
@@ -116,7 +115,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 61);
+    assert_eq!(complete, 62);
 }
 
 #[test]

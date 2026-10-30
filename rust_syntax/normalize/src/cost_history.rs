@@ -20,6 +20,7 @@ pub fn action(part: &CostPart) -> Option<PaymentAction> {
             destination: Destination::Exile,
             ..
         } => Some(PaymentAction::Exile),
+        CostPart::RemoveCounters { .. } => Some(PaymentAction::RemoveCounters),
         _ => None,
     }
 }
