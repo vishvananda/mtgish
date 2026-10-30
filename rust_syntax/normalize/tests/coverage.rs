@@ -33,7 +33,7 @@ fn corpus_reports_ast_and_backend_capability_separately_and_counts_nested_forms(
     assert!(Report::check_with_backend(&input, &root, None).is_err());
     fs::remove_file(input).unwrap();
     assert_eq!(report.total, 3);
-    assert_eq!(report.complete, 2);
+    assert_eq!(report.complete, 3);
     #[cfg(feature = "cantrip")]
     {
         assert!(backend.backend_checked);

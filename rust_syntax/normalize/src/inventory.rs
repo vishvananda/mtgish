@@ -325,9 +325,25 @@ impl Inventory<'_> {
                 body,
             } => {
                 self.event(event);
-                self.form("Duration", duration);
+                self.duration(duration);
                 self.announcement(announcement);
                 self.program(body);
+            }
+            Operation::ReflexiveTrigger {
+                condition,
+                announcement,
+                body,
+                ..
+            } => {
+                if let Some(condition) = condition {
+                    self.condition(condition);
+                }
+                self.announcement(announcement);
+                self.program(body);
+            }
+            Operation::ReturnAfter { objects, duration } => {
+                self.objects(objects);
+                self.duration(duration);
             }
             Operation::CreateReplacement {
                 event,
@@ -1301,8 +1317,28 @@ impl Inventory<'_> {
     }
     fn duration(&mut self, d: &Duration) {
         self.form("Duration", d);
-        if let Duration::UntilNextTurn(p) | Duration::UntilEndOfNextTurn(p) = d {
-            self.player(p);
+        match d {
+            Duration::EndOfTurn | Duration::EndOfCombat | Duration::Indefinite => {}
+            Duration::UntilNextTurn(p)
+            | Duration::UntilEndOfNextTurn(p)
+            | Duration::DuringNextUntapStep(p)
+            | Duration::DuringNextTurn(p) => self.player(p),
+            Duration::WhileOnBattlefield(object) | Duration::WhileExiled(object) => {
+                self.object(object)
+            }
+            Duration::WhileControlled { player, object } => {
+                self.player(player);
+                self.object(object);
+            }
+            Duration::WhileMatches { object, filter } => {
+                self.object(object);
+                self.filter(filter);
+            }
+            Duration::UntilNext { point, players } => {
+                self.form("TurnPoint", point);
+                self.players(players);
+            }
+            Duration::Either(durations) => durations.iter().for_each(|d| self.duration(d)),
         }
     }
     fn replacement_event(&mut self, event: &ReplacementEvent) {

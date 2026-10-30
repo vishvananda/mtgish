@@ -268,7 +268,6 @@ fn real_payment_history_cards_roundtrip_and_keep_independent_gaps() {
     let mut complete = 0;
     let incomplete = [
         "Devouring Greed",
-        "Disciple of Bolas",
         "Rite of Consumption",
         "Ruthless Technomancer",
         "The Ever-Changing 'Dane",
@@ -288,15 +287,20 @@ fn real_payment_history_cards_roundtrip_and_keep_independent_gaps() {
             }
         }
     }
-    assert_eq!(complete, 18);
+    assert_eq!(complete, 19);
 }
 
 #[test]
 fn later_ordinary_actions_shadow_payment_shorthand() {
     for rule in [
-        "Activated(SacrificeAPermanent(IsCardtype(Creature)),ActionList([SacrificeAPermanent(IsCardtype(Creature)),GainLife(PowerOfTheSacrificedCreature)]))",
         "Activated(DiscardACard,ActionList([DiscardACard,GainLife(ManaValueOfTheDiscardedCard)]))",
-    ] {assert!(pipeline::finalize(&custom(&[rule])).is_err(),"{rule}");}
+    ] {
+        assert!(pipeline::finalize(&custom(&[rule])).is_err(), "{rule}");
+    }
+    let card = normalized("Activated(SacrificeAPermanent(IsCardtype(Creature)),ActionList([SacrificeAPermanent(IsCardtype(Creature)),GainLife(PowerOfTheSacrificedCreature)]))");
+    let value = json(&card);
+    assert!(histories(&value).is_empty(), "not the cost's: {value}");
+    assert!(value.to_string().contains("Transition"), "{value}");
 }
 
 #[test]

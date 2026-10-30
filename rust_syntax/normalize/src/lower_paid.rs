@@ -28,6 +28,9 @@ impl Context {
                 .and_modify(|v| *v = None)
                 .or_insert(Some(binding));
         }
+        for action in found.keys() {
+            self.acted.remove(action);
+        }
         self.paid.extend(found);
     }
     fn paid_binding(&self, action: crate::number_spec::PaymentAction) -> Result<&PaidBinding> {
@@ -43,6 +46,12 @@ impl Context {
         action: crate::number_spec::PaymentAction,
         view: CostObjectView,
     ) -> Result<ObjectSet> {
+        if let Some(result) = self.acted_result(action) {
+            return Ok(ObjectSet::Transition {
+                result: result.clone(),
+                phase: ObjectPhase::Before,
+            });
+        }
         let binding = self.paid_binding(action)?;
         if self.announcing
             && !(matches!(view, CostObjectView::Inputs)
@@ -59,8 +68,18 @@ impl Context {
             phase: ObjectPhase::Before,
         })
     }
+    fn acted_result(&self, action: crate::number_spec::PaymentAction) -> Option<&ResultId> {
+        let paid = self.paid.get(&action).is_some_and(Option::is_some);
+        self.acted.get(&action).filter(|_| !paid)
+    }
     fn paid_object(&self, action: crate::number_spec::PaymentAction) -> Result<ObjectRef> {
-        if !self.paid_binding(action)?.singular {
+        if let Some(result) = self.acted_result(action) {
+            if !self.singular.contains(&result.0) {
+                return Err(invalid(
+                    "singular action reference has a plural or unknown cardinality",
+                ));
+            }
+        } else if !self.paid_binding(action)?.singular {
             return Err(invalid(
                 "singular payment reference has a plural or unknown cardinality",
             ));

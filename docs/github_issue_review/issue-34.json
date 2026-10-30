@@ -1,5 +1,5 @@
 {
   "title": "\"your next end step\" encoded as the next end step (5 cards)",
-  "body": "- Necropotence, Esper Terra, Desert Warfare: on an opponent's turn this happens at that opponent's end step, not yours\n- Mardu Siegebreaker; Greasefang, Okiba Boss: same encoding, though only reached on your own turn\n",
+  "body": "\"Your next end step\" is encoded as `AtTheBeginningOfTheNextEndStep`; it should be `AtTheBeginningOfPlayersNextEndStep(You)`.\n\n- Necropotence, Esper Terra, Desert Warfare: on an opponent's turn this happens at that opponent's end step, not yours\n- Mardu Siegebreaker; Greasefang, Okiba Boss: same encoding, though only reached on your own turn\n",
   "url": "https://github.com/i5jb/mtgish/issues/34"
 }

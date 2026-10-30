@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 28;
+pub const SCHEMA_VERSION: u32 = 29;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -600,6 +600,23 @@ pub enum Operation {
         duration: Duration,
         announcement: Announcement,
         body: Program,
+    },
+    /// A reflexive trigger (603.12): once, if `performed` happened during this
+    /// resolution, it goes on the stack and announces its own targets. `condition`
+    /// is checked as it triggers. `body` closes over the creator like a delayed
+    /// trigger.
+    ReflexiveTrigger {
+        performed: ResultId,
+        condition: Option<Condition>,
+        announcement: Announcement,
+        body: Program,
+    },
+    /// Return these moved objects to where they were when `duration` ends, in one
+    /// effect with the move (610.3). If `duration` has already ended, the move
+    /// does not happen.
+    ReturnAfter {
+        objects: ObjectSet,
+        duration: Duration,
     },
     /// Create a replacement effect on future events (CR 614.1, 615). Unlike a
     /// delayed trigger, `body` changes the pending event as it would happen.
@@ -1712,6 +1729,26 @@ pub enum Duration {
     Indefinite,
     UntilNextTurn(PlayerRef),
     UntilEndOfNextTurn(PlayerRef),
+    /// Ends when the object leaves the battlefield, or at once if it already has.
+    WhileOnBattlefield(ObjectRef),
+    WhileControlled {
+        player: PlayerRef,
+        object: ObjectRef,
+    },
+    WhileMatches {
+        object: ObjectRef,
+        filter: ObjectFilter,
+    },
+    WhileExiled(ObjectRef),
+    /// Ends when the next such point arrives for one of these players.
+    UntilNext {
+        point: TurnPoint,
+        players: PlayerSet,
+    },
+    DuringNextUntapStep(PlayerRef),
+    DuringNextTurn(PlayerRef),
+    /// Ends when the first of these ends.
+    Either(Vec<Duration>),
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.

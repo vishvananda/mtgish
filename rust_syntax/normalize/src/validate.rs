@@ -27,6 +27,7 @@ struct Scope<'a> {
     casting_costs: BTreeMap<u32, Cost>,
     payment_costs: BTreeMap<u32, Cost>,
     ordered_results: BTreeSet<u32>,
+    singular: BTreeSet<u32>,
     open_searches: Vec<PlayerRef>,
     search_libraries: BTreeMap<u32, PlayerRef>,
     event: crate::semantics::EventBindings,
@@ -58,6 +59,9 @@ impl<'a> Scope<'a> {
         }
         if let ObjectSet::InZone { objects, .. } = objects {
             return matches!(**objects, ObjectSet::One(_));
+        }
+        if let ObjectSet::Transition { result, .. } = objects {
+            return self.singular.contains(&result.0);
         }
         let ObjectSet::CostObjects {
             payment,
@@ -327,6 +331,29 @@ impl<'a> Scope<'a> {
                 "result {} does not provide objects in this scope",
                 result.0
             )),
+        }
+    }
+
+    fn duration(&self, duration: &Duration) -> Result {
+        match duration {
+            Duration::EndOfTurn | Duration::EndOfCombat | Duration::Indefinite => Ok(()),
+            Duration::UntilNextTurn(player)
+            | Duration::UntilEndOfNextTurn(player)
+            | Duration::DuringNextUntapStep(player)
+            | Duration::DuringNextTurn(player) => self.player(player),
+            Duration::WhileOnBattlefield(object) | Duration::WhileExiled(object) => {
+                self.object(object)
+            }
+            Duration::WhileControlled { player, object } => {
+                self.player(player)?;
+                self.object(object)
+            }
+            Duration::WhileMatches { object, filter } => {
+                self.object(object)?;
+                self.filter(filter)
+            }
+            Duration::UntilNext { players, .. } => self.players(players),
+            Duration::Either(durations) => durations.iter().try_for_each(|d| self.duration(d)),
         }
     }
 
@@ -1244,11 +1271,7 @@ impl<'a> Scope<'a> {
                     self.player(player)?;
                 }
                 if let Some(duration) = expires {
-                    if let Duration::UntilNextTurn(player) | Duration::UntilEndOfNextTurn(player) =
-                        duration
-                    {
-                        self.player(player)?;
-                    }
+                    self.duration(duration)?;
                     if matches!(duration, Duration::Indefinite) {
                         return Err("indefinite delayed expiration should be absent".into());
                     }
@@ -1381,11 +1404,7 @@ impl<'a> Scope<'a> {
                 announcement,
                 body,
             } => {
-                if let Duration::UntilNextTurn(player) | Duration::UntilEndOfNextTurn(player) =
-                    duration
-                {
-                    self.player(player)?;
-                }
+                self.duration(duration)?;
                 self.event(event)?;
                 let mut child = self.clone();
                 child.replacement = false;
@@ -1394,17 +1413,35 @@ impl<'a> Scope<'a> {
                 child.announcement(announcement)?;
                 child.program(body)
             }
+            Operation::ReflexiveTrigger {
+                performed,
+                condition,
+                announcement,
+                body,
+            } => {
+                if !self.results.contains_key(&performed.0) {
+                    return Err("a reflexive trigger reads an action that has not run".into());
+                }
+                if let Some(condition) = condition {
+                    self.condition(condition)?;
+                }
+                let mut child = self.clone();
+                child.replacement = false;
+                child.open_searches.clear();
+                child.announcement(announcement)?;
+                child.program(body)
+            }
+            Operation::ReturnAfter { objects, duration } => {
+                self.duration(duration)?;
+                self.objects(objects)
+            }
             Operation::CreateReplacement {
                 event,
                 limit,
                 duration,
                 body,
             } => {
-                if let Duration::UntilNextTurn(player) | Duration::UntilEndOfNextTurn(player) =
-                    duration
-                {
-                    self.player(player)?;
-                }
+                self.duration(duration)?;
                 if let ReplacementLimit::TotalDamage(amount) = limit {
                     self.count(&Count::Exactly(amount.clone()))?;
                 }
@@ -1550,11 +1587,7 @@ impl<'a> Scope<'a> {
                 }
                 self.object(source)?;
                 self.subject_changes(affected, changes)?;
-                if let Duration::UntilNextTurn(player) | Duration::UntilEndOfNextTurn(player) =
-                    duration
-                {
-                    self.player(player)?;
-                }
+                self.duration(duration)?;
                 Ok(())
             }
         }
@@ -1628,6 +1661,7 @@ impl<'a> Scope<'a> {
                             | Operation::Destroy { .. }
                             | Operation::Move { .. }
                             | Operation::Counter { .. }
+                            | Operation::Tap { .. }
                             | Operation::Sacrifice { .. } => ResultKind::ObjectTransition,
                             _ => ResultKind::Other,
                         };
@@ -1641,6 +1675,11 @@ impl<'a> Scope<'a> {
                         };
                         if let Operation::PayCost { cost, .. } = operation {
                             self.payment_costs.insert(result.0, cost.clone());
+                        }
+                        if crate::semantics::singular_operation(operation, |r| {
+                            self.singular.contains(&r.0)
+                        }) {
+                            self.singular.insert(result.0);
                         }
                         if self.results.insert(result.0, kind).is_some() {
                             return Err(format!("duplicate result {}", result.0));

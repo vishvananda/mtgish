@@ -345,7 +345,18 @@ impl Context {
         flags: &[source::ExileFlag],
         actor: &PlayerSet,
     ) -> Result<Instruction> {
-        let (entry, face_down) = self.exile_entry(flags)?;
+        // "Exile until": one effect, ending in a return to where the object was.
+        let period = flags.iter().find_map(|flag| match flag {
+            source::ExileFlag::Limited(period) => Some(period),
+            _ => None,
+        });
+        let period = period.map(|p| self.duration(p)).transpose()?;
+        let flags: Vec<_> = flags
+            .iter()
+            .filter(|flag| !matches!(flag, source::ExileFlag::Limited(_)))
+            .cloned()
+            .collect();
+        let (entry, face_down) = self.exile_entry(&flags)?;
         let mut instructions = Vec::new();
         let mut sets = Vec::new();
         for (i, item) in items.iter().enumerate() {
@@ -392,12 +403,25 @@ impl Context {
                     | source::Exilable::AnyNumberOfPermanents(_)
             )
         });
-        if instructions.is_empty() {
-            Ok(movement)
-        } else {
-            instructions.push(movement);
-            Ok(Instruction::Group(Program { instructions }))
+        let moved = match &movement {
+            Instruction::Effect { result, .. } => result.clone(),
+            _ => unreachable!(),
+        };
+        instructions.push(movement);
+        if let Some(duration) = period {
+            instructions.push(self.effect(Operation::ReturnAfter {
+                objects: ObjectSet::Transition {
+                    result: moved,
+                    phase: ObjectPhase::After,
+                },
+                duration,
+            }));
         }
+        Ok(if instructions.len() == 1 {
+            instructions.pop().unwrap()
+        } else {
+            Instruction::Group(Program { instructions })
+        })
     }
     fn move_entry(
         &self,

@@ -63,7 +63,6 @@ fn library(players: PlayerSet) -> ObjectSet {
 #[test]
 fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete() {
     let incomplete = [
-        "Banishing Light",
         "Corpse Churn",
         "Demonic Consultation",
         "Exhume",
@@ -94,7 +93,7 @@ fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete()
         }
         complete += 1;
     }
-    assert_eq!(complete, 50);
+    assert_eq!(complete, 51);
 }
 
 #[test]
@@ -300,7 +299,7 @@ fn exile_choices_precede_one_batch_and_transition_bindings_are_scoped() {
     assert!(custom("SpellActions(ActionList([MayAction(Exile([Permanent(ThisPermanent)], [])), GainLife(NumPermanentsExiledThisWay)]))").is_err());
     assert!(custom("SpellActions(ActionList([Exile([EachCardInGraveyards(AnyCardInAnyGraveyard)], []), GainLife(NumPermanentsExiledThisWay)]))").is_err());
     assert!(custom(
-        "SpellActions(ActionList([Exile([Permanent(ThisPermanent)], [Limited(UntilEndOfTurn)])]))"
+        "SpellActions(ActionList([Exile([Permanent(ThisPermanent)], [Limited(UntilItIsNoLongerEnchanted)])]))"
     )
     .is_err());
 }

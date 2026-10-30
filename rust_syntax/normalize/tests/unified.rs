@@ -27,7 +27,7 @@ fn every_fixture_record_lowers_validates_and_round_trips() {
                 assert!(!lowered.card.faces.is_empty() || !lowered.card.data.is_empty());
                 let strict = lower::card(&card).ok();
                 if let Some(strict) = &strict {
-                    assert!(lowered.diagnostics.is_empty());
+                    assert!(lowered.diagnostics.is_empty(), "{:?}", lowered.diagnostics);
                     assert!(unified::named_forms(&lowered.card).is_empty());
                     assert_eq!(
                         serde_json::to_value(&lowered.card.faces[0]).unwrap(),
@@ -273,7 +273,10 @@ fn history_counts_ordinary_events_and_dead_references_read_the_event_subject() {
     let blood = lowered(
         "TriggerA(WhenAPermanentDies(SinglePermanent(ThisPermanent)), ActionList([DeadPermanentDealsDamage(Integer(1), Player(You))]))",
     );
-    assert!(blood.contains(r#""source":{"kind":"EventSubject"}"#), "{blood}");
+    assert!(
+        blood.contains(r#""source":{"kind":"EventSubject"}"#),
+        "{blood}"
+    );
     let bad = parse(
         r#"Card(Name: "Test", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [], Rules: [SpellActions(ActionList([DeadPermanentDealsDamage(Integer(1), Player(You))]))])"#,
     );
@@ -290,4 +293,36 @@ fn a_created_trigger_keeps_its_duration_and_announcement() {
     let json = serde_json::to_string(&card).unwrap();
     assert!(json.contains("CreateTrigger"), "{json}");
     assert!(json.contains(r#""duration":"EndOfTurn""#), "{json}");
+}
+
+#[test]
+fn a_reflexive_form_is_its_base_action_then_a_trigger_with_its_own_target() {
+    let source = parse(
+        r#"Card(Name: "Test", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [], Rules: [SpellActions(ActionList([MayAction(Reflexive_Sacrifice_WhenYouDo([APermanent(IsCardtype(Creature))], Targeted([AnyTarget], ActionList([DealDamage(Permanent(ThisPermanent), PowerOfTheSacrificedCreature, Ref_AnyTarget)]))))]))])"#,
+    );
+    let card = lower::card(&source).unwrap();
+    validate::card(&card).unwrap();
+    let json = serde_json::to_string(&card).unwrap();
+    assert!(json.contains("ReflexiveTrigger"), "{json}");
+    assert!(json.contains(r#""kind":"Sacrifice""#), "{json}");
+    assert!(json.contains(r#""kind":"Transition""#), "{json}");
+
+    let source = parse(
+        r#"Card(Name: "Test", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [], Rules: [SpellActions(ActionList([MayAction(Reflexive_PayMana_WhenYouDo([ManaCostGeneric(2)], ActionList([DrawACard])))]))])"#,
+    );
+    let card = lower::card(&source).unwrap();
+    validate::card(&card).unwrap();
+    assert!(serde_json::to_string(&card).unwrap().contains("PayCost"));
+}
+
+#[test]
+fn exile_until_returns_in_one_effect_and_durations_keep_their_object() {
+    let source = parse(
+        r#"Card(Name: "Test", Typeline: (Supertypes: [], Cardtypes: [Instant], Subtypes: []), ManaCost: [], Rules: [SpellActions(Targeted([TargetPermanent(AnyPermanent)], ActionList([Exile([Permanent(Ref_TargetPermanent)], [Limited(UntilPermanentLeavesBattlefield(ThisPermanent))])])))])"#,
+    );
+    let card = lower::card(&source).unwrap();
+    validate::card(&card).unwrap();
+    let json = serde_json::to_string(&card).unwrap();
+    assert!(json.contains("ReturnAfter"), "{json}");
+    assert!(json.contains("WhileOnBattlefield"), "{json}");
 }

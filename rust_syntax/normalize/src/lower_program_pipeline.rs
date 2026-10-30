@@ -169,6 +169,9 @@ impl Context {
                     .map(|(i, mode)| {
                         let mut context = Context {
                             event: self.event,
+                            result: self.result,
+                            acted: self.acted.clone(),
+                            singular: self.singular.clone(),
                             paid: self
                                 .paid
                                 .iter()

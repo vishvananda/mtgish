@@ -81,6 +81,31 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
             .unwrap_or_default(),
     }
 }
+/// Whether an operation affects at most one object, given which earlier results do.
+pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> bool) -> bool {
+    let one = |count: &Count| {
+        matches!(
+            count,
+            Count::Exactly(Expr::Constant(1))
+                | Count::AsManyAsCan(Expr::Constant(1))
+                | Count::UpTo(Expr::Constant(1))
+        )
+    };
+    let chosen = |objects: &ObjectSet| match objects {
+        ObjectSet::One(_) => true,
+        ObjectSet::Selected(result) => single(result),
+        _ => false,
+    };
+    match operation {
+        Operation::ChooseObjects { count, .. } => one(count),
+        Operation::Sacrifice {
+            objects, choose, ..
+        } => choose.as_ref().map_or_else(|| chosen(objects), one),
+        Operation::Tap { objects, .. } => chosen(objects),
+        _ => false,
+    }
+}
+
 pub fn event_bindings(event: &EventSpec) -> EventBindings {
     match event {
         EventSpec::SagaChapter(_) => EventBindings::default(),
@@ -234,6 +259,8 @@ impl Effects {
                     // during this activation's resolution (CR 605.1a).
                     Operation::CreateDelayedTrigger { .. }
                     | Operation::CreateTrigger { .. }
+                    | Operation::ReflexiveTrigger { .. }
+                    | Operation::ReturnAfter { .. }
                     | Operation::CreateReplacement { .. }
                     | Operation::ModifyEvent { .. }
                     | Operation::CreateRegenerationShields { .. }

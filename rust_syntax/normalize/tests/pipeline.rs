@@ -105,13 +105,13 @@ fn unsupported_parents_do_not_hide_nested_actions_or_discard_source_operands() {
 
 #[test]
 fn structural_rewriting_does_not_require_duration_or_reference_resolution() {
-    let s=custom("SpellActions(Targeted([TargetPermanent(AnyPermanent)],ActionList([GainControlOfPermanentUntil(Ref_TargetPermanent,UntilNextUpkeep(You))])))");
+    let s=custom("SpellActions(Targeted([TargetPermanent(AnyPermanent)],ActionList([GainControlOfPermanentUntil(Ref_TargetPermanent,UntilItIsNoLongerEnchanted)])))");
     let value = pipeline::Intermediate::new(&s).unwrap();
     assert!(value.final_card.is_none());
     assert!(matches!(
         &value.structural.rewrites[0].expanded,
         ExpandedRecipe::ContinuousEffect {
-            duration: DurationInput::Source(source::Expiration::UntilNextUpkeep(_)),
+            duration: DurationInput::Source(source::Expiration::UntilItIsNoLongerEnchanted),
             evaluation: EffectEvaluation::Snapshot,
             ..
         }
@@ -274,7 +274,7 @@ fn stage_recipe_roundtrips_and_final_export_stays_atomic_on_unresolved_data() {
     assert!(pipeline::bind(&altered).is_err());
     let input = scratch("input.ronl");
     let output = scratch("output.ronl");
-    let bad=custom("SpellActions(ActionList([GainControlOfPermanentUntil(ThisPermanent,UntilNextUpkeep(You))]))");
+    let bad=custom("SpellActions(ActionList([GainControlOfPermanentUntil(ThisPermanent,UntilItIsNoLongerEnchanted)]))");
     std::fs::write(&input, ron::ser::to_string(&bad).unwrap() + "\n").unwrap();
     std::fs::write(&output, "previous").unwrap();
     assert!(mtgish_ast::report::export_ron(&input, &output).is_err());
@@ -1766,10 +1766,10 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 }
 
 #[test]
-fn schema_28_costs_roundtrip_and_reject_previous_versions_at_validation() {
+fn schema_29_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 28);
+    assert_eq!(card.schema_version, 29);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =

@@ -61,6 +61,9 @@ struct Context {
     created_tokens: Option<ResultId>,
     payment: Option<ResultId>,
     paid: std::collections::BTreeMap<crate::number_spec::PaymentAction, Option<PaidBinding>>,
+    /// The latest ordinary action of each kind, for "sacrificed this way".
+    acted: std::collections::BTreeMap<crate::number_spec::PaymentAction, ResultId>,
+    singular: std::collections::BTreeSet<u32>,
     announcing: bool,
     you: Option<PlayerRef>,
     payer: Option<PlayerRef>,
@@ -115,6 +118,10 @@ impl Context {
         };
         if let Some(action) = shadow {
             self.paid.insert(action, None);
+            self.acted.insert(action, ResultId(self.result));
+        }
+        if crate::semantics::singular_operation(&operation, |r| self.singular.contains(&r.0)) {
+            self.singular.insert(self.result);
         }
         if let Operation::Search { library, .. } = &operation {
             self.open_searches.push(library.clone());
@@ -160,6 +167,11 @@ impl Context {
                 != serde_json::to_value(Some(binding)).unwrap()
             {
                 self.paid.insert(*action, None);
+            }
+        }
+        for (action, result) in &child.acted {
+            if self.acted.get(action).map(|r| r.0) != Some(result.0) {
+                self.acted.remove(action);
             }
         }
         if self
@@ -299,9 +311,7 @@ impl Context {
                 index: 0,
             },
             S::Trigger_ThatPlayer if self.event.player => PlayerRef::EventSubject,
-            S::ControllerOfDeadPermanent => {
-                PlayerRef::ControllerOf(Box::new(self.dead_object()?))
-            }
+            S::ControllerOfDeadPermanent => PlayerRef::ControllerOf(Box::new(self.dead_object()?)),
             S::OwnerOfDeadPermanent => PlayerRef::OwnerOf(Box::new(self.dead_object()?)),
             S::TheChosenPlayer => PlayerRef::Chosen,
             S::Trigger_DefendingPlayer if self.event.permanent => {
@@ -471,9 +481,7 @@ impl Context {
 
     fn reduced_number(&self, value: &source::GameNumber) -> Result<Expr> {
         match value {
-            source::GameNumber::PowerOfDeadPermanent => {
-                return self.dead_property(Property::Power)
-            }
+            source::GameNumber::PowerOfDeadPermanent => return self.dead_property(Property::Power),
             source::GameNumber::ToughnessOfDeadPermanent => {
                 return self.dead_property(Property::Toughness)
             }
@@ -652,6 +660,65 @@ impl Context {
             source::Expiration::UntilTheEndOfPlayersNextTurn(p) => {
                 Duration::UntilEndOfNextTurn(self.player(p)?)
             }
+            source::Expiration::UntilPermanentLeavesBattlefield(p)
+            | source::Expiration::ForAsLongAsPermanentRemainsOnTheBattlefield(p) => {
+                Duration::WhileOnBattlefield(self.object(p)?)
+            }
+            source::Expiration::UntilPermanentChangesControl(player, p)
+            | source::Expiration::ForAsLongAsPlayerControlsPermanent(player, p) => {
+                Duration::WhileControlled {
+                    player: self.player(player)?,
+                    object: self.object(p)?,
+                }
+            }
+            source::Expiration::ForAsLongAsPermanentRemainsTapped(p) => Duration::WhileMatches {
+                object: self.object(p)?,
+                filter: self.filter(&source::Permanents::IsTapped)?,
+            },
+            source::Expiration::ForAsLongAsPermanentRemainsFaceDown(p) => Duration::WhileMatches {
+                object: self.object(p)?,
+                filter: self.filter(&source::Permanents::IsFaceDown)?,
+            },
+            source::Expiration::ForAsLongAsPermanentHasACounterOfTypeOnIt(p, kind) => {
+                Duration::WhileMatches {
+                    object: self.object(p)?,
+                    filter: self.filter(&source::Permanents::HasACounterOfType(kind.clone()))?,
+                }
+            }
+            source::Expiration::UntilPermanentNoLongerPassesFilter(p, filter) => {
+                Duration::WhileMatches {
+                    object: self.object(p)?,
+                    filter: self.filter(filter)?,
+                }
+            }
+            source::Expiration::UntilCardIsNoLongerExiled(card) => {
+                Duration::WhileExiled(self.exiled_card(card)?)
+            }
+            source::Expiration::UntilPlayersNextEndStep(p) => Duration::UntilNext {
+                point: TurnPoint::EndStepBegins,
+                players: PlayerSet::One(self.player(p)?),
+            },
+            source::Expiration::UntilTheBeginningOfTheNextEndStep => Duration::UntilNext {
+                point: TurnPoint::EndStepBegins,
+                players: PlayerSet::All,
+            },
+            source::Expiration::UntilNextUpkeep(p)
+            | source::Expiration::UntilTheBeginningOfPlayersNextUpkeep(p) => Duration::UntilNext {
+                point: TurnPoint::UpkeepBegins,
+                players: PlayerSet::One(self.player(p)?),
+            },
+            source::Expiration::DuringPlayersNextUntapStep(p) => {
+                Duration::DuringNextUntapStep(self.player(p)?)
+            }
+            source::Expiration::DuringPlayersNextTurn(p) => {
+                Duration::DuringNextTurn(self.player(p)?)
+            }
+            source::Expiration::Or(values) => Duration::Either(
+                values
+                    .iter()
+                    .map(|value| self.duration(value))
+                    .collect::<Result<_>>()?,
+            ),
             _ => return Err(unsupported(value)),
         })
     }
@@ -920,6 +987,11 @@ impl Context {
             Ok(instruction) => Ok(instruction),
             Err(error) => {
                 *self = before;
+                let error = match self.reflexive_action(value, actor) {
+                    Some(Ok(instruction)) => return Ok(instruction),
+                    Some(Err(reason)) => reason,
+                    None => error,
+                };
                 if let Some(instruction) = self.primitive_action(value, actor) {
                     return Ok(instruction);
                 }
@@ -2107,3 +2179,4 @@ include!("lower_number_pipeline.rs");
 
 include!("lower_paid.rs");
 include!("lower_named.rs");
+include!("lower_reflexive.rs");

@@ -322,6 +322,7 @@ impl Context {
         self.entered = None;
         self.inspection_hand = None;
         self.paid.values_mut().for_each(|binding| *binding = None);
+        self.acted.clear();
     }
 }
 

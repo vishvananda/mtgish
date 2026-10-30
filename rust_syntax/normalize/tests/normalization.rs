@@ -179,10 +179,10 @@ fn normalization_rejects_unbound_targets_and_duplicate_results() {
 
 #[test]
 fn normalization_does_not_mark_unknown_nested_behavior_complete() {
-    let errors = lower::card(&source("Heart-Piercer Manticore")).unwrap_err();
+    let errors = lower::card(&source("Plaguecrafter")).unwrap_err();
     assert!(errors
         .iter()
-        .any(|e| e.form == "Reflexive_Sacrifice_WhenYouDo" && e.path.contains("actions[0]")));
+        .any(|e| e.form == "DidntSacrificeAPermanentThisWay" && e.path.contains("actions[1]")));
 }
 
 struct Scratch(PathBuf);
@@ -237,7 +237,7 @@ fn normalization_late_unsupported_card_cannot_publish_partial_corpus() {
         .unwrap();
     let unsupported = lines
         .lines()
-        .find(|l| l.contains("Name: \"Heart-Piercer Manticore\""))
+        .find(|l| l.contains("Name: \"Plaguecrafter\""))
         .unwrap();
     fs::write(&input, format!("{valid}\n{unsupported}\n")).unwrap();
     assert!(report::export_ron(&input, &output).is_err());

@@ -426,7 +426,6 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         "Feral Encounter",
         "Fortune, Loyal Steed",
         "Gaze of the Gorgon",
-        "Grinning Totem",
         "Heat Shimmer",
         "Kavaron Harrier",
         "Kiki-Jiki, Mirror Breaker",
@@ -462,5 +461,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 24);
+    assert_eq!(complete, 25);
 }
