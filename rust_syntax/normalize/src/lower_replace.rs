@@ -221,7 +221,7 @@ impl Context {
             }
             _ => self
                 .primitive_inspected(family, event)
-                .map(|(name, operands)| ReplacementEvent::Primitive { name, operands })
+                .map(|(name, operands)| crate::semantics::reduce_replacement(name, operands))
                 .ok_or_else(|| unsupported_step(event)),
         }
     }
@@ -488,14 +488,13 @@ impl Context {
     ) -> Result<Program> {
         let mut child = self.clone();
         child.event = crate::semantics::replacement_bindings(event);
-        child.body_replaces = matches!(event, ReplacementEvent::Primitive { .. });
+        child.body_replaces = crate::semantics::body_replaces(event);
         // "They lose twice that much": the player who would lose it, not the controller.
         let actor = match event {
-            ReplacementEvent::Primitive { name, .. }
-                if name.starts_with("ReplacableEventWouldLoseLife::") =>
-            {
-                PlayerRef::EventSubject
-            }
+            ReplacementEvent::Player {
+                event: ReplacedPlayerEvent::LoseLife,
+                ..
+            } => PlayerRef::EventSubject,
             _ => self.player(&source::Player::You)?,
         };
         let body = child.replacement_steps(steps, &actor)?;

@@ -98,6 +98,34 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
         },
         ReplacementEvent::Measured { event, .. } => replacement_bindings(event),
         ReplacementEvent::Damage(damage) => event_bindings(&EventSpec::Damage(damage.clone())),
+        ReplacementEvent::Player { event, .. } => EventBindings {
+            player: true,
+            amount: matches!(
+                event,
+                ReplacedPlayerEvent::GainLife
+                    | ReplacedPlayerEvent::LoseLife
+                    | ReplacedPlayerEvent::GetEnergy
+                    | ReplacedPlayerEvent::Mill
+                    | ReplacedPlayerEvent::Scry
+            ),
+            ..Default::default()
+        },
+        ReplacementEvent::Object { .. } => EventBindings {
+            object: true,
+            permanent: true,
+            ..Default::default()
+        },
+        ReplacementEvent::Tokens { .. } => EventBindings::default(),
+        ReplacementEvent::Counters { players, .. } => EventBindings {
+            object: players.is_none(),
+            permanent: players.is_none(),
+            amount: true,
+            ..Default::default()
+        },
+        ReplacementEvent::ProduceMana { .. } => EventBindings {
+            amount: true,
+            ..Default::default()
+        },
         ReplacementEvent::Either(events) => events
             .iter()
             .map(replacement_bindings)
@@ -1792,6 +1820,213 @@ pub fn set_event_player(event: &mut EventSpec, player: PlayerSet) -> bool {
         _ => return false,
     }
     true
+}
+
+const REPLACED_PLAYER_EVENTS: &[(&str, ReplacedPlayerEvent)] = &[
+    (
+        "WouldDraw::APlayerWouldDrawACard",
+        ReplacedPlayerEvent::Draw,
+    ),
+    (
+        "WouldDraw::APlayerWouldDrawOneOrMoreCards",
+        ReplacedPlayerEvent::DrawCards,
+    ),
+    (
+        "WouldDraw::PlayerWouldDrawExceptFirstDrawStepDraw",
+        ReplacedPlayerEvent::DrawExceptFirstInDrawStep,
+    ),
+    (
+        "WouldDraw::APlayerWouldDrawExceptFirstDrawStepDraw",
+        ReplacedPlayerEvent::DrawExceptFirstInDrawStep,
+    ),
+    (
+        "WouldDraw::PlayerWouldDrawDuringTheirDrawStep",
+        ReplacedPlayerEvent::DrawInDrawStep,
+    ),
+    (
+        "WouldGainLife::PlayerWouldGainLife",
+        ReplacedPlayerEvent::GainLife,
+    ),
+    (
+        "WouldGainLife::APlayerWouldGainLife",
+        ReplacedPlayerEvent::GainLife,
+    ),
+    (
+        "WouldLoseLife::APlayerWouldLoseLife",
+        ReplacedPlayerEvent::LoseLife,
+    ),
+    (
+        "WouldLoseTheGame::PlayerWouldLoseTheGame",
+        ReplacedPlayerEvent::LoseGame,
+    ),
+    (
+        "WouldGetEnergy::APlayerWouldGetEnergy",
+        ReplacedPlayerEvent::GetEnergy,
+    ),
+    (
+        "WouldMill::APlayerWouldMillAnyNumberOfCards",
+        ReplacedPlayerEvent::Mill,
+    ),
+    ("WouldScry::PlayerWouldScry", ReplacedPlayerEvent::Scry),
+    ("WouldLearn::APlayerWouldLearn", ReplacedPlayerEvent::Learn),
+    (
+        "WouldProliferate::APlayerWouldProliferate",
+        ReplacedPlayerEvent::Proliferate,
+    ),
+    (
+        "WouldBeginATurn::APlayerWouldBeginAnExtraTurn",
+        ReplacedPlayerEvent::BeginExtraTurn,
+    ),
+];
+
+const REPLACED_OBJECT_EVENTS: &[(&str, ReplacedObjectEvent)] = &[
+    (
+        "WouldDestroy::PermanentWouldBeDestroyed",
+        ReplacedObjectEvent::Destroyed,
+    ),
+    (
+        "WouldLeaveTheBattlefield::PermanentWouldLeaveTheBattlefield",
+        ReplacedObjectEvent::LeavesBattlefield,
+    ),
+    (
+        "WouldUntap::APermanentWouldUntapDuringsItsControllersUntapStep",
+        ReplacedObjectEvent::UntapsInUntapStep,
+    ),
+    (
+        "WouldConnive::APermanentWouldConnive",
+        ReplacedObjectEvent::Connives,
+    ),
+];
+
+/// A row's would-be event in generic form, when the row is a plain event.
+fn reduced_replacement(name: &str, operands: &[Operand]) -> Option<ReplacementEvent> {
+    use Operand::{Object, Objects, Player, Players};
+    let form = name.strip_prefix("ReplacableEvent")?;
+    let two_or_more = |event| ReplacementEvent::Measured {
+        event: Box::new(event),
+        comparison: Comparison::GreaterOrEqual,
+        amount: Expr::Constant(2),
+    };
+    if let Some((_, event)) = REPLACED_PLAYER_EVENTS.iter().find(|(row, _)| *row == form) {
+        let players = match operands {
+            [Players(players)] => players.clone(),
+            [Player(player)] => PlayerSet::One(player.clone()),
+            _ => return None,
+        };
+        let event = *event;
+        return Some(ReplacementEvent::Player { event, players });
+    }
+    if let Some((_, event)) = REPLACED_OBJECT_EVENTS.iter().find(|(row, _)| *row == form) {
+        let objects = match operands {
+            [Objects(objects)] => event_filter(objects)?,
+            [Object(object)] => ObjectFilter::SameObject(object.clone()),
+            _ => return None,
+        };
+        let event = *event;
+        return Some(ReplacementEvent::Object { event, objects });
+    }
+    let tokens = |tokens: &ObjectSet,
+                  controllers: Option<&PlayerSet>,
+                  creators: Option<&PlayerSet>,
+                  effect_only,
+                  each| {
+        Some(ReplacementEvent::Tokens {
+            tokens: event_filter(tokens)?,
+            controllers: controllers.cloned(),
+            creators: creators.cloned(),
+            effect_only,
+            each,
+        })
+    };
+    let counters = |kind: Option<&Operand>,
+                    objects: &ObjectSet,
+                    players: Option<&PlayerSet>,
+                    by: Option<&PlayerSet>,
+                    effect_only| {
+        Some(ReplacementEvent::Counters {
+            kind: match kind {
+                Some(kind) => Some(counter_kind(kind)?),
+                None => None,
+            },
+            objects: event_filter(objects)?,
+            players: players.cloned(),
+            by: by.cloned(),
+            effect_only,
+        })
+    };
+    let mana = |sources: &ObjectSet, by: Option<&PlayerRef>| {
+        Some(ReplacementEvent::ProduceMana {
+            sources: event_filter(sources)?,
+            by: by.cloned(),
+        })
+    };
+    let (_, row) = form.split_once("::")?;
+    match (row, operands) {
+        ("APlayerWouldDrawTwoOrMoreCards", [Players(players)]) => {
+            Some(two_or_more(ReplacementEvent::Player {
+                event: ReplacedPlayerEvent::DrawCards,
+                players: players.clone(),
+            }))
+        }
+        ("AnyNumberOfTokensWouldBeCreatedUnderAPlayersControl", [Objects(t), Players(c)]) => {
+            tokens(t, Some(c), None, false, false)
+        }
+        ("AnyNumberOfTokensWouldBeCreated", [Objects(t)]) => tokens(t, None, None, false, false),
+        ("AnEffectWouldCreateAnyNumberOfTokensUnderAPlayersControl", [Objects(t), Players(c)]) => {
+            tokens(t, Some(c), None, true, false)
+        }
+        ("AnEffectWouldCreateAnyNumberOfTokens", [Objects(t)]) => {
+            tokens(t, None, None, true, false)
+        }
+        ("APlayerWouldCreateAToken", [Players(p), Objects(t)]) => {
+            tokens(t, None, Some(p), false, true)
+        }
+        ("APlayerWouldCreateTokens", [Players(p), Objects(t)]) => {
+            tokens(t, None, Some(p), false, false)
+        }
+        ("CountersOfTypeWouldBePointOnAPermanent", [kind, Objects(o)]) => {
+            counters(Some(kind), o, None, None, false)
+        }
+        ("CountersWouldBePutOnAPermanent", [Objects(o)]) => counters(None, o, None, None, false),
+        ("AnEffectWouldPutCountersOnAPermanent", [Objects(o)]) => {
+            counters(None, o, None, None, true)
+        }
+        ("APlayerWouldPutCountersOnAPermanent", [Players(by), Objects(o)]) => {
+            counters(None, o, None, Some(by), false)
+        }
+        ("APlayerWouldPutCountersOnAPermanentOrAPlayer", [Players(by), Objects(o), Players(p)]) => {
+            counters(None, o, Some(p), Some(by), false)
+        }
+        (
+            "APlayerWouldPutAnyNumberOfCountersOfTypeOnAPermanent",
+            [Players(by), kind, Objects(o)],
+        ) => counters(Some(kind), o, None, Some(by), false),
+        ("TappingAPermanentWouldProduceMana", [Objects(s)]) => mana(s, None),
+        ("PlayerTappingAPermanentWouldProduceMana", [Player(p), Objects(s)]) => mana(s, Some(p)),
+        ("TappingAPermanentWouldProduceTwoOrMoreMana", [Objects(s)]) => {
+            mana(s, None).map(two_or_more)
+        }
+        _ => None,
+    }
+}
+
+/// A row's would-be event in generic form, or the row itself when it has none.
+pub fn reduce_replacement(name: String, operands: Vec<Operand>) -> ReplacementEvent {
+    reduced_replacement(&name, &operands).unwrap_or(ReplacementEvent::Primitive { name, operands })
+}
+
+/// Whether a would-be event is one a body stands in for unless it says otherwise.
+pub fn body_replaces(event: &ReplacementEvent) -> bool {
+    match event {
+        ReplacementEvent::Primitive { .. }
+        | ReplacementEvent::Player { .. }
+        | ReplacementEvent::Object { .. }
+        | ReplacementEvent::Tokens { .. }
+        | ReplacementEvent::Counters { .. }
+        | ReplacementEvent::ProduceMana { .. } => true,
+        ReplacementEvent::Measured { event, .. } => body_replaces(event),
+        _ => false,
+    }
 }
 
 /// A row's event in generic form, or the row itself when it has none.

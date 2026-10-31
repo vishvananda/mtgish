@@ -1844,6 +1844,42 @@ impl Inventory<'_> {
             ReplacementEvent::Damage(damage) => self.event(&EventSpec::Damage(damage.clone())),
             ReplacementEvent::ZoneChange { objects, .. } => self.filter(objects),
             ReplacementEvent::Primitive { name, .. } => self.primitive(name),
+            ReplacementEvent::Player { event, players } => {
+                self.form("ReplacedPlayerEvent", event);
+                self.players(players);
+            }
+            ReplacementEvent::Object { event, objects } => {
+                self.form("ReplacedObjectEvent", event);
+                self.filter(objects);
+            }
+            ReplacementEvent::Tokens {
+                tokens,
+                controllers,
+                creators,
+                ..
+            } => {
+                self.filter(tokens);
+                for players in controllers.iter().chain(creators) {
+                    self.players(players);
+                }
+            }
+            ReplacementEvent::Counters {
+                objects,
+                players,
+                by,
+                ..
+            } => {
+                self.filter(objects);
+                for players in players.iter().chain(by) {
+                    self.players(players);
+                }
+            }
+            ReplacementEvent::ProduceMana { sources, by } => {
+                self.filter(sources);
+                if let Some(player) = by {
+                    self.player(player);
+                }
+            }
             ReplacementEvent::Measured { event, amount, .. } => {
                 self.replacement_event(event);
                 self.expr(amount);

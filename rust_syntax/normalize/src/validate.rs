@@ -217,6 +217,36 @@ impl<'a> Scope<'a> {
             ReplacementEvent::Damage(damage) => self.event(&EventSpec::Damage(damage.clone())),
             ReplacementEvent::ZoneChange { objects, .. } => self.filter(objects),
             ReplacementEvent::Primitive { name, operands } => self.primitive(name, operands),
+            ReplacementEvent::Player { players, .. } => self.players(players),
+            ReplacementEvent::Object { objects, .. } => self.filter(objects),
+            ReplacementEvent::Tokens {
+                tokens,
+                controllers,
+                creators,
+                ..
+            } => {
+                self.filter(tokens)?;
+                controllers
+                    .iter()
+                    .chain(creators)
+                    .try_for_each(|players| self.players(players))
+            }
+            ReplacementEvent::Counters {
+                objects,
+                players,
+                by,
+                ..
+            } => {
+                self.filter(objects)?;
+                players
+                    .iter()
+                    .chain(by)
+                    .try_for_each(|players| self.players(players))
+            }
+            ReplacementEvent::ProduceMana { sources, by } => {
+                self.filter(sources)?;
+                by.iter().try_for_each(|player| self.player(player))
+            }
             ReplacementEvent::Measured { event, amount, .. } => {
                 self.replacement_event(event)?;
                 self.expr(amount)

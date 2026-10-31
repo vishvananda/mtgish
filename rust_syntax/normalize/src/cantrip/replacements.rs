@@ -59,6 +59,15 @@ impl Compiler {
             ReplacementEvent::Primitive { name, .. } => {
                 return Err(gap(format!("primitive replacement event {name}")))
             }
+            ReplacementEvent::Player { event, .. } => {
+                return Err(gap(format!("replacement of {event:?}")))
+            }
+            ReplacementEvent::Object { event, .. } => {
+                return Err(gap(format!("replacement of {event:?}")))
+            }
+            ReplacementEvent::Tokens { .. } => return Err(gap("replacement of token creation")),
+            ReplacementEvent::Counters { .. } => return Err(gap("replacement of counters")),
+            ReplacementEvent::ProduceMana { .. } => return Err(gap("replacement of mana")),
             ReplacementEvent::Damage(damage) => {
                 let (frame, locals, tests) = self.damage_match(damage)?;
                 (

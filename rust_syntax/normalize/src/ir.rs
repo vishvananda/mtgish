@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 93;
+pub const SCHEMA_VERSION: u32 = 94;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -389,6 +389,67 @@ pub enum ReplacementEvent {
         comparison: Comparison,
         amount: Expr,
     },
+    /// A player about to do something, as Forge's `Event$ Draw | ValidPlayer$`.
+    Player {
+        event: ReplacedPlayerEvent,
+        players: PlayerSet,
+    },
+    /// Something about to happen to an object.
+    Object {
+        event: ReplacedObjectEvent,
+        objects: ObjectFilter,
+    },
+    /// Tokens about to be created. `effect_only` leaves out a rule or a cost,
+    /// and `each` applies to one token at a time rather than all of them.
+    Tokens {
+        tokens: ObjectFilter,
+        controllers: Option<PlayerSet>,
+        creators: Option<PlayerSet>,
+        effect_only: bool,
+        each: bool,
+    },
+    /// Counters about to be put on `objects`, or on `players` when named.
+    Counters {
+        kind: Option<crate::counter::CounterKind>,
+        objects: ObjectFilter,
+        players: Option<PlayerSet>,
+        by: Option<PlayerSet>,
+        effect_only: bool,
+    },
+    /// Tapping one of `sources` for mana, by `by` when that is named.
+    ProduceMana {
+        sources: ObjectFilter,
+        by: Option<PlayerRef>,
+    },
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum ReplacedPlayerEvent {
+    /// One card, so each card of a larger draw is a separate event (CR 121.2).
+    Draw,
+    /// All the cards of one instruction together.
+    DrawCards,
+    DrawExceptFirstInDrawStep,
+    DrawInDrawStep,
+    GainLife,
+    LoseLife,
+    LoseGame,
+    GetEnergy,
+    Mill,
+    Scry,
+    Learn,
+    Proliferate,
+    BeginExtraTurn,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum ReplacedObjectEvent {
+    Destroyed,
+    LeavesBattlefield,
+    UntapsInUntapStep,
+    Connives,
 }
 /// How long a created replacement effect keeps applying within its duration.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

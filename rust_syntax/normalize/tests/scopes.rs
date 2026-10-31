@@ -892,3 +892,38 @@ fn a_graveyard_static_reaches_cards_in_that_graveyard() {
     assert!(body.contains("GrantAbility"), "{body}");
     assert!(!body.contains("EachCardInGraveyardEffect"), "{body}");
 }
+
+#[test]
+fn would_be_events_are_generic_and_keep_who_they_replace() {
+    let body = lowered(
+        "If(IsPlayersTurn(You), [ReplaceWouldLoseLife(APlayerWouldLoseLife(Opponent), [LoseLife(Twice(WouldLoseLife_ThatMuch))])])",
+    );
+    assert!(body.contains("event: LoseLife"), "{body}");
+    assert!(body.contains("EventSubject"), "{body}");
+    let body = lowered(
+        "ReplaceWouldDraw(APlayerWouldDrawTwoOrMoreCards(Opponent), [DrawACard, PlayerAction(WouldDrawACard_ThatPlayer, DrawACard)])",
+    );
+    assert!(body.contains("Measured {"), "{body}");
+    assert!(body.contains("event: DrawCards"), "{body}");
+    assert!(body.contains("Cancel"), "{body}");
+    let body = lowered(
+        "ReplaceAnyNumberOfTokensWouldBeCreated(AnyNumberOfTokensWouldBeCreatedUnderAPlayersControl(AnyPermanent, SinglePlayer(You)), [CreateTokensInstead([ThoseTokens, FoodToken])])",
+    );
+    assert!(body.contains("Tokens {"), "{body}");
+    assert!(body.contains("effect_only: false"), "{body}");
+    let body = lowered(
+        "ReplaceWouldPutCounters(CountersOfTypeWouldBePointOnAPermanent(PTCounter(+1, +1), IsCardtype(Creature)), [PutNewAmount(Twice(ThatManyCounters))])",
+    );
+    assert!(
+        body.contains("Counters { kind: Some(PowerToughness(1, 1))"),
+        "{body}"
+    );
+    let body = lowered(
+        "ReplaceWouldProduceMana(TappingAPermanentWouldProduceMana(IsCardtype(Land)), [WouldProduceMana_AddMana(ManaProduceB)])",
+    );
+    assert!(body.contains("ProduceMana {"), "{body}");
+    let body = lowered(
+        "ReplaceWouldDestroy(PermanentWouldBeDestroyed(ThisPermanent), [RegeneratePermanent(WouldBeDestroyed_ThatPermanent)])",
+    );
+    assert!(body.contains("event: Destroyed"), "{body}");
+}
