@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 71;
+pub const SCHEMA_VERSION: u32 = 72;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -74,6 +74,8 @@ pub enum Operand {
     Program(Program),
     Filter(ObjectFilter),
     Comparison(Comparison, Expr),
+    /// The event a row holds; its other operands can name what it binds.
+    Event(Box<EventSpec>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -931,6 +933,10 @@ pub enum Operation {
     FlipCoin {
         player: PlayerRef,
     },
+    /// One result standing for whichever of these branch results was made.
+    JoinResults {
+        results: Vec<ResultId>,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct SearchChoice {
@@ -1043,13 +1049,13 @@ impl TokenSpec {
     pub fn definition(&self) -> Option<&TokenDefinition> {
         match &self.recipe {
             TokenRecipe::Defined(definition) => Some(definition),
-            TokenRecipe::Copy { .. } | TokenRecipe::CopyEach { .. } | TokenRecipe::Named(_) => None,
+            _ => None,
         }
     }
     pub fn definition_mut(&mut self) -> Option<&mut TokenDefinition> {
         match &mut self.recipe {
             TokenRecipe::Defined(definition) => Some(definition),
-            TokenRecipe::Copy { .. } | TokenRecipe::CopyEach { .. } | TokenRecipe::Named(_) => None,
+            _ => None,
         }
     }
 }
@@ -1069,6 +1075,20 @@ pub enum TokenRecipe {
     },
     /// The token Oracle gives this name, defined outside the card that makes it.
     Named(String),
+    /// A copy of one of `objects`, picked as the effect resolves.
+    CopyOne {
+        objects: ObjectSet,
+        adjustments: Vec<Operand>,
+    },
+    /// A copy of the Oracle card with this name, which is not in the game.
+    CopyNamed {
+        name: String,
+        adjustments: Vec<Operand>,
+    },
+    /// A copy of a random Oracle card matching `cards`.
+    CopyAtRandom {
+        cards: Operand,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2323,8 +2343,9 @@ pub enum CostPart {
     },
     /// Reveal cards from the payer's hand; they stay there.
     Reveal {
-        count: Expr,
+        count: Count,
         filter: ObjectFilter,
+        random: bool,
     },
     /// Pay `part` once per `times`, counted when the cost is paid.
     Repeated {

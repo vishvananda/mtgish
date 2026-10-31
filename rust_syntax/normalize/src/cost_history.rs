@@ -84,7 +84,7 @@ pub fn singular(part: &CostPart) -> bool {
             ..
         } => true,
         CostPart::Reveal {
-            count: Expr::Constant(0..=1),
+            count: Count::Exactly(Expr::Constant(0..=1)),
             ..
         } => true,
         CostPart::Sacrifice { objects, choose } => choose

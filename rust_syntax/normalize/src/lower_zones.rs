@@ -725,12 +725,16 @@ impl Context {
         let filter = self.hand_filter(cards)?;
         let objects = self.private_cards(EventZone::Hand, actor.clone(), filter);
         let Some(count) = count else {
-            return Ok(self.effect(Operation::Move {
+            let movement = self.effect(Operation::Move {
                 objects,
                 destination,
                 entry,
                 face_down: false,
-            }));
+            });
+            self.note_moves(&Program {
+                instructions: vec![movement.clone()],
+            });
+            return Ok(movement);
         };
         let choice = self.effect(Operation::ChooseObjects {
             constraints: vec![],
@@ -748,9 +752,11 @@ impl Context {
             entry,
             face_down: false,
         });
-        Ok(Instruction::Group(Program {
+        let body = Program {
             instructions: vec![choice, movement],
-        }))
+        };
+        self.note_moves(&body);
+        Ok(Instruction::Group(body))
     }
     fn skip_next_untap(&self, objects: ObjectSet) -> Result<Operation> {
         Ok(Operation::CreateContinuousEffect {

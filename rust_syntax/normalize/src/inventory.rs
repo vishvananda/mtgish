@@ -350,6 +350,7 @@ impl Inventory<'_> {
                 self.players(players);
                 self.expr(amount);
             }
+            Operation::JoinResults { .. } => {}
             Operation::Counter {
                 objects,
                 destination,
@@ -455,6 +456,19 @@ impl Inventory<'_> {
                         TokenRecipe::CopyEach { objects, .. } => {
                             self.form("TokenRecipe", &"CopyEach");
                             self.objects(objects);
+                            continue;
+                        }
+                        TokenRecipe::CopyOne { objects, .. } => {
+                            self.form("TokenRecipe", &"CopyOne");
+                            self.objects(objects);
+                            continue;
+                        }
+                        TokenRecipe::CopyNamed { .. } => {
+                            self.form("TokenRecipe", &"CopyNamed");
+                            continue;
+                        }
+                        TokenRecipe::CopyAtRandom { .. } => {
+                            self.form("TokenRecipe", &"CopyAtRandom");
                             continue;
                         }
                         TokenRecipe::Named(_) => {
@@ -786,8 +800,8 @@ impl Inventory<'_> {
                     self.player(player);
                     self.program(body);
                 }
-                CostPart::Reveal { count, filter } => {
-                    self.expr(count);
+                CostPart::Reveal { count, filter, .. } => {
+                    self.count(count);
                     self.filter(filter);
                 }
                 CostPart::Repeated { times, .. } => self.expr(times),

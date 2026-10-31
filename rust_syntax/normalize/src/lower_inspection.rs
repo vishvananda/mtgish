@@ -110,6 +110,7 @@ impl Context {
                 });
                 return Ok(Program { instructions });
             }
+            let start = instructions.len();
             self.inspection_step(
                 player,
                 library,
@@ -119,6 +120,9 @@ impl Context {
                 &mut instructions,
             )
             .map_err(|e| e.at(format!("inspection[{i}]")))?;
+            self.note_moves(&Program {
+                instructions: instructions[start..].to_vec(),
+            });
         }
         Ok(Program { instructions })
     }

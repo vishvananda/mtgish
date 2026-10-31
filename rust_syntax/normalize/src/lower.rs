@@ -99,6 +99,8 @@ struct Context {
     found: Option<ObjectSet>,
     /// The last effect a player chose to take, and who was last offered a batch.
     took: Option<ResultId>,
+    /// A later step of this list may read what this branch did.
+    reads_later: bool,
     offered: Option<PlayerSet>,
     removed_counters: Option<ResultId>,
     announcing: bool,
@@ -220,7 +222,9 @@ impl Context {
 
     /// What a move leaves for a later "this way" to name.
     fn note_move(&mut self, operation: &Operation, result: ResultId) {
-        let Operation::Move { destination, .. } = operation else {
+        let (Operation::Move { destination, .. } | Operation::Counter { destination, .. }) =
+            operation
+        else {
             return;
         };
         match destination {
@@ -3004,6 +3008,7 @@ impl Context {
                     return Err(invalid("a choice of actions needs one player"));
                 };
                 let mut programs = Vec::new();
+                let mut branches = Vec::new();
                 for option in options {
                     let mut child = self.clone();
                     let instructions = option
@@ -3013,11 +3018,13 @@ impl Context {
                     self.result = child.result;
                     self.invalidate_child_bindings(&child);
                     programs.push(Program { instructions });
+                    branches.push(child);
                 }
-                return Ok(Instruction::ChooseOne {
+                let branch = Instruction::ChooseOne {
                     decider: decider.clone(),
                     options: programs,
-                });
+                };
+                return Ok(self.joined(branch, &branches.iter().collect::<Vec<_>>()));
             }
             S::EachPlayerMakesAVillainousChoice(players, options) => {
                 let players = self.players(players)?;
@@ -4062,11 +4069,27 @@ impl Context {
                     }],
                 });
             }
-            source::Cost::RevealACardOfTypeFromHand(cards) => {
+            source::Cost::RevealACardOfTypeFromHand(cards)
+            | source::Cost::RevealAnyNumberOfCardsOfTypeFromHand(cards) => {
                 return Ok(Cost {
                     parts: vec![CostPart::Reveal {
-                        count: Expr::Constant(1),
+                        count: match value {
+                            source::Cost::RevealACardOfTypeFromHand(_) => {
+                                Count::Exactly(Expr::Constant(1))
+                            }
+                            _ => Count::AnyNumber,
+                        },
                         filter: self.card_filter(cards)?,
+                        random: false,
+                    }],
+                })
+            }
+            source::Cost::RevealACardFromHandAtRandom => {
+                return Ok(Cost {
+                    parts: vec![CostPart::Reveal {
+                        count: Count::Exactly(Expr::Constant(1)),
+                        filter: ObjectFilter::Any,
+                        random: true,
                     }],
                 })
             }

@@ -30,6 +30,15 @@ fn predefined_tokens() -> std::result::Result<
 }
 
 impl Context {
+    fn copy_adjustments(&self, effects: &source::TokenCopyEffects) -> Result<Vec<Operand>> {
+        let inspected = crate::inspect::value(effects)
+            .map_err(|_| invalid("copy adjustments do not serialize"))?;
+        match self.term("TokenCopyEffects", &inspected) {
+            Some(term) => Ok(vec![term]),
+            None => Err(unsupported(effects)),
+        }
+    }
+
     fn token(&self, value: &source::CreatableToken, depth: usize) -> Result<TokenSpec> {
         use source::CreatableToken as S;
         if depth > 64 {
@@ -63,51 +72,87 @@ impl Context {
             S::OracleToken(name) => Some(name.as_str()),
             _ => None,
         };
-        if let S::TokenCopyOfPermanent(object, effects) = value {
-            let inspected = crate::inspect::value(effects)
-                .map_err(|_| invalid("copy adjustments do not serialize"))?;
-            let adjustments = match self.term("TokenCopyEffects", &inspected) {
-                Some(term) => vec![term],
-                None => return Err(unsupported(effects)),
-            };
-            return Ok(TokenSpec {
-                amount: Expr::Constant(1),
-                words: TokenWords::CreatingEffect,
-                recipe: TokenRecipe::Copy {
+        let copy = |recipe| TokenSpec {
+            amount: Expr::Constant(1),
+            words: TokenWords::CreatingEffect,
+            recipe,
+        };
+        match value {
+            S::TokenCopyOfPermanent(object, effects) => {
+                return Ok(copy(TokenRecipe::Copy {
                     object: self.object(object)?,
-                    adjustments,
-                },
-            });
-        }
-        if let S::TokenCopyOfExiledCard(card, effects) = value {
-            let inspected = crate::inspect::value(effects)
-                .map_err(|_| invalid("copy adjustments do not serialize"))?;
-            let Some(term) = self.term("TokenCopyEffects", &inspected) else {
-                return Err(unsupported(effects));
-            };
-            return Ok(TokenSpec {
-                amount: Expr::Constant(1),
-                words: TokenWords::CreatingEffect,
-                recipe: TokenRecipe::Copy {
+                    adjustments: self.copy_adjustments(effects)?,
+                }))
+            }
+            S::TokenCopyOfExiledCard(card, effects) => {
+                return Ok(copy(TokenRecipe::Copy {
                     object: self.exiled_card(card)?,
-                    adjustments: vec![term],
-                },
-            });
-        }
-        if let S::TokenCopyOfEachPermanent(objects, effects) = value {
-            let inspected = crate::inspect::value(effects)
-                .map_err(|_| invalid("copy adjustments do not serialize"))?;
-            let Some(term) = self.term("TokenCopyEffects", &inspected) else {
-                return Err(unsupported(effects));
-            };
-            return Ok(TokenSpec {
-                amount: Expr::Constant(1),
-                words: TokenWords::CreatingEffect,
-                recipe: TokenRecipe::CopyEach {
+                    adjustments: self.copy_adjustments(effects)?,
+                }))
+            }
+            S::TokenCopyOfGraveyardCard(card, effects) => {
+                return Ok(copy(TokenRecipe::Copy {
+                    object: self.grave_card(card)?,
+                    adjustments: self.copy_adjustments(effects)?,
+                }))
+            }
+            S::TokenCopyOfDiscardedCard(card, effects) => {
+                return Ok(copy(TokenRecipe::Copy {
+                    object: self.hand_card(card)?,
+                    adjustments: self.copy_adjustments(effects)?,
+                }))
+            }
+            S::TokenCopyOfSpell(spell, effects) => {
+                return Ok(copy(TokenRecipe::Copy {
+                    object: self.spell(spell)?,
+                    adjustments: self.copy_adjustments(effects)?,
+                }))
+            }
+            S::TokenCopyOfEachPermanent(objects, effects) => {
+                return Ok(copy(TokenRecipe::CopyEach {
                     objects: self.objects(objects)?,
-                    adjustments: vec![term],
-                },
-            });
+                    adjustments: self.copy_adjustments(effects)?,
+                }))
+            }
+            S::TokenCopyOfEachExiledCard(cards, effects) => {
+                return Ok(copy(TokenRecipe::CopyEach {
+                    objects: self.exile_cards(cards)?,
+                    adjustments: self.copy_adjustments(effects)?,
+                }))
+            }
+            S::TokenCopyOfEachGraveyardCard(cards, effects) => {
+                return Ok(copy(TokenRecipe::CopyEach {
+                    objects: self.grave_cards(cards)?,
+                    adjustments: self.copy_adjustments(effects)?,
+                }))
+            }
+            S::TokenCopyOfAPermanent(objects, effects) => {
+                return Ok(copy(TokenRecipe::CopyOne {
+                    objects: self.objects(objects)?,
+                    adjustments: self.copy_adjustments(effects)?,
+                }))
+            }
+            S::TokenCopyOfAnExiledCard(cards, effects) => {
+                return Ok(copy(TokenRecipe::CopyOne {
+                    objects: self.exile_cards(cards)?,
+                    adjustments: self.copy_adjustments(effects)?,
+                }))
+            }
+            S::TokenCopyOfNamedCard(name, effects) => {
+                return Ok(copy(TokenRecipe::CopyNamed {
+                    name: name.clone(),
+                    adjustments: self.copy_adjustments(effects)?,
+                }))
+            }
+            S::TokenCopyOfACardAtRandom(cards) => {
+                let inspected = crate::inspect::value(cards)
+                    .map_err(|_| invalid("oracle filter does not serialize"))?;
+                let Some(cards) = self.term("CardsInOracle", &inspected) else {
+                    return Err(unsupported(value));
+                };
+                return Ok(copy(TokenRecipe::CopyAtRandom { cards }));
+            }
+            _ => {}
         }
         if let S::OracleToken(name) = value {
             if !predefined_tokens()?.contains_key(name) {
