@@ -139,6 +139,7 @@ enum Done {
     Entered,
     Discarded,
     Sacrificed,
+    Prevented,
 }
 impl Done {
     fn of(operation: &Operation) -> Option<Self> {
@@ -147,6 +148,12 @@ impl Done {
             | Operation::DealDamageParts { .. }
             | Operation::DealDamageFromEach { .. }
             | Operation::DealDamageWith { .. } => Self::Damage,
+            Operation::ModifyEvent {
+                change:
+                    EventChange::PreventDamage
+                    | EventChange::PreventSomeDamage(_)
+                    | EventChange::PreventAllButDamage(_),
+            } => Self::Prevented,
             Operation::Destroy { .. } => Self::Destroyed,
             Operation::Draw { .. } => Self::Drew,
             Operation::PutCounters { .. } => Self::Counters,
@@ -994,6 +1001,7 @@ impl Context {
             S::Trigger_ThatMuch
             | S::Trigger_AmountOfDamageDealt
             | S::Trigger_AmountOfExcessDamage
+            | S::Trigger_AmountOfDamagePrevented
             | S::Trigger_AmountOfLifeGained
             | S::Trigger_AmountOfLifeLost
             | S::WouldDealDamage_ThatMuchDamage
@@ -1008,6 +1016,9 @@ impl Context {
                 Expr::EventAmount
             }
             S::TheDiceResult => self.die_result()?,
+            S::TheAmountOfDamagePreventedThisWay if self.did.contains_key(&Done::Prevented) => {
+                Expr::Performed(self.done(Done::Prevented)?)
+            }
             S::TheAmountOfDamagePreventedThisWay if self.event.amount => Expr::EventAmount,
             S::TheNumberOfCardsInHandRevealedThisWay => {
                 Expr::CountObjects(Box::new(self.revealed_objects()?))

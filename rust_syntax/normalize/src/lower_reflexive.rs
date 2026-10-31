@@ -123,11 +123,21 @@ impl Context {
                 }
             });
         }
+        let condition = condition.map(|c| self.condition(c)).transpose()?;
+        self.reflexive_after(instructions, condition, actions)
+    }
+
+    /// The base already lowered, then its reflexive trigger.
+    fn reflexive_after(
+        &mut self,
+        mut instructions: Vec<Instruction>,
+        condition: Option<Condition>,
+        actions: &source::Actions,
+    ) -> Result<Instruction> {
         let performed = instructions
             .last()
             .and_then(last_result)
             .ok_or_else(|| invalid("a reflexive trigger needs one base action"))?;
-        let condition = condition.map(|c| self.condition(c)).transpose()?;
         let mut child = self.clone();
         child.open_searches.clear();
         child.modes = None;

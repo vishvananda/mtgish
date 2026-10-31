@@ -387,6 +387,28 @@ fn ambiguous_legacy_roles_and_first_occurrence_history_remain_explicit_gaps() {
 }
 
 #[test]
+fn prevention_reads_back_what_it_stopped() {
+    let json = |rule: &str| serde_json::to_string(&custom(rule).unwrap()).unwrap();
+    let amount = json("PreventDamage(DamageWouldBeDealtToRecipient(Permanent(ThisPermanent)),[PreventThatDamage,GainLife(TheAmountOfDamagePreventedThisWay)])");
+    assert!(amount.contains("\"Performed\""), "{amount}");
+    let checked = json("PreventDamage(DamageWouldBeDealtToRecipient(Permanent(ThisPermanent)),[PreventThatDamage,If(DamageFromASourceWasPreventedThisWay(IsColor(Red)),[GainLife(Integer(1))])])");
+    assert!(checked.contains("\"Damage\""), "{checked}");
+    let reflexive = json("PreventDamage(DamageWouldBeDealtToRecipient(Permanent(ThisPermanent)),[Reflexive_PreventThatDamage_WhenDamageIsPreventedThisWay(ActionList([DrawACard]))])");
+    assert!(reflexive.contains("ReflexiveTrigger"), "{reflexive}");
+    assert!(custom("PreventDamage(DamageWouldBeDealtToRecipient(Permanent(ThisPermanent)),[If(DamageWasPreventedThisWay,[GainLife(Integer(1))])])").is_err());
+}
+
+#[test]
+fn a_shield_on_each_recipient_and_a_measured_event_are_data() {
+    let json = |rule: &str| serde_json::to_string(&custom(rule).unwrap()).unwrap();
+    let each = json("Activated(TapPermanent(ThisPermanent),ActionList([CreateFuturePreventDamage(NextAmountOfDamageThatWouldBeDealtThisTurnToEachRecipient(Integer(1),MultipleRecipients([EachPermanent(IsCardtype(Creature)),EachPlayer(AnyPlayer)])),[PreventThatDamage])]))");
+    assert!(each.contains("DamageToEach"), "{each}");
+    assert!(each.contains("ObjectsAndPlayers"), "{each}");
+    let measured = json("PreventDamage(AnAmountOfDamageWouldBeDealtByASourceToRecipient(LessThanOrEqualTo(Integer(3)),AnyDamageSource,Permanent(ThisPermanent)),[PreventThatDamage])");
+    assert!(measured.contains("Measured"), "{measured}");
+}
+
+#[test]
 fn prevention_is_a_replacement_on_a_damage_event() {
     let lower = |rule: &str| {
         let line = format!(

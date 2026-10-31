@@ -51,6 +51,18 @@ impl Context {
         })
     }
 
+    /// Damage this replacement prevented, when its source passes `filter`.
+    fn prevented_from(&self, filter: ObjectFilter) -> Result<Condition> {
+        let some = |left| self.this_way_compare(left, Comparison::Greater, 0);
+        Ok(Condition::All(vec![
+            some(Expr::Performed(self.done(Done::Prevented)?)),
+            some(Expr::CountObjects(Box::new(ObjectSet::Matching {
+                objects: Box::new(ObjectSet::Damage(DamageSubject::Source)),
+                filter,
+            }))),
+        ]))
+    }
+
     fn damaged_this_way(&self, filter: ObjectFilter) -> Result<Expr> {
         Ok(Expr::CountObjects(Box::new(ObjectSet::Battlefield(
             ObjectFilter::All(vec![
@@ -167,6 +179,13 @@ impl Context {
         let cards = |c: &source::Cards| self.card_filter(c).map(Some);
         let permanents = |p: &source::Permanents| self.filter(p).map(Some);
         Some((|| match value {
+            S::DamageWasPreventedThisWay => any(Ok(Expr::Performed(self.done(Done::Prevented)?))),
+            S::DamageFromASourceWasPreventedThisWay(sources) => {
+                self.prevented_from(self.damage_sources(sources)?)
+            }
+            S::DamageFromAPermanentSourceWasPreventedThisWay(sources) => {
+                self.prevented_from(self.filter(sources)?)
+            }
             S::ExcessDamageWasDealtThisWay => any(self.excess_dealt(ObjectFilter::Any)),
             S::ExcessDamageWasDealtToAPermanentThisWay(p) => any(self.excess_dealt(self.filter(p)?)),
             S::AnAmountOfExcessDamageWasDealtThisWay(comparison) => {

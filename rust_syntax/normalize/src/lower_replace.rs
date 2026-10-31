@@ -137,6 +137,14 @@ impl Context {
                     DamageKind::Noncombat,
                 )
                 .map(ReplacementEvent::Damage),
+            S::AnAmountOfDamageWouldBeDealtByASourceToARecipient(comparison, sources, recipients) => {
+                let shape = self.damage_shape(
+                    DamageFrom::Sources(sources),
+                    DamageTo::List(recipients),
+                    DamageKind::Any,
+                )?;
+                self.measured(ReplacementEvent::Damage(shape), comparison)
+            }
             // The prevention family spells the same events.
             _ => as_family(value, "EventPreventDamage")
                 .ok_or_else(|| unsupported(value))

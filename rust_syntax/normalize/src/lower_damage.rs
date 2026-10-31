@@ -157,6 +157,12 @@ impl Context {
                     amount = Some(c.as_ref());
                 }
             }
+            S::WhenDamageThatWouldBeDealtToAPlayerIsPrevented(p) => {
+                event.recipients = DamageRecipients::Players(self.players(p)?);
+                event.subject = DamageSubject::Recipient;
+                event.grouping = DamageGrouping::Recipient;
+                event.kind = DamageKind::Prevented;
+            }
             S::WhenAPlayerIsDealtDamage(p)
             | S::WhenAPlayerIsDealtCombatDamage(p)
             | S::WhenAPlayerIsDealtNoncombatDamage(p)

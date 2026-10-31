@@ -96,6 +96,7 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
             permanent: true,
             ..Default::default()
         },
+        ReplacementEvent::Measured { event, .. } => replacement_bindings(event),
         ReplacementEvent::Damage(damage) => event_bindings(&EventSpec::Damage(damage.clone())),
         ReplacementEvent::Either(events) => events
             .iter()

@@ -418,7 +418,9 @@ impl Inventory<'_> {
             } => {
                 self.replacement_event(event);
                 self.form("ReplacementLimit", limit);
-                if let ReplacementLimit::TotalDamage(amount) = limit {
+                if let ReplacementLimit::TotalDamage(amount)
+                | ReplacementLimit::DamageToEach(amount) = limit
+                {
                     self.expr(amount);
                 }
                 self.form("Duration", duration);
@@ -1550,6 +1552,10 @@ impl Inventory<'_> {
             ReplacementEvent::Damage(damage) => self.event(&EventSpec::Damage(damage.clone())),
             ReplacementEvent::ZoneChange { objects, .. } => self.filter(objects),
             ReplacementEvent::Primitive { name, .. } => self.primitive(name),
+            ReplacementEvent::Measured { event, amount, .. } => {
+                self.replacement_event(event);
+                self.expr(amount);
+            }
             ReplacementEvent::Either(events) => {
                 for event in events {
                     self.replacement_event(event);
@@ -1607,7 +1613,9 @@ impl Inventory<'_> {
                 self.form("DamageSubject", &event.subject);
                 self.form("DamageRecipients", &event.recipients);
                 match &event.recipients {
-                    DamageRecipients::Any | DamageRecipients::Target { .. } => {}
+                    DamageRecipients::Any
+                    | DamageRecipients::Target { .. }
+                    | DamageRecipients::Targets(_) => {}
                     DamageRecipients::Objects(f) => self.filter(f),
                     DamageRecipients::Players(p) => self.players(p),
                     DamageRecipients::ObjectsAndPlayers { objects, players } => {

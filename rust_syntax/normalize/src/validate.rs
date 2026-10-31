@@ -214,6 +214,10 @@ impl<'a> Scope<'a> {
             ReplacementEvent::Damage(damage) => self.event(&EventSpec::Damage(damage.clone())),
             ReplacementEvent::ZoneChange { objects, .. } => self.filter(objects),
             ReplacementEvent::Primitive { name, operands } => self.primitive(name, operands),
+            ReplacementEvent::Measured { event, amount, .. } => {
+                self.replacement_event(event)?;
+                self.expr(amount)
+            }
             ReplacementEvent::Either(events) => {
                 if events.is_empty() {
                     return Err("replacement event alternatives are empty".into());
@@ -244,7 +248,7 @@ impl<'a> Scope<'a> {
                 self.filter(&event.sources)?;
                 match &event.recipients {
                     DamageRecipients::Any => Ok(()),
-                    DamageRecipients::Target { slot, .. } => {
+                    DamageRecipients::Target { slot, .. } | DamageRecipients::Targets(slot) => {
                         self.recipients(&Recipients::Targets(slot.clone()))
                     }
                     DamageRecipients::Objects(f) => self.filter(f),
@@ -1663,7 +1667,9 @@ impl<'a> Scope<'a> {
                 body,
             } => {
                 self.duration(duration)?;
-                if let ReplacementLimit::TotalDamage(amount) = limit {
+                if let ReplacementLimit::TotalDamage(amount)
+                | ReplacementLimit::DamageToEach(amount) = limit
+                {
                     self.count(&Count::Exactly(amount.clone()))?;
                 }
                 self.replacement_event(event)?;

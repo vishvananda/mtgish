@@ -8,6 +8,7 @@ enum DamageFrom<'a> {
     Source(&'a source::SingleDamageSource),
     Spells(&'a source::Spells),
     Spell(&'a source::Spell),
+    Planes(&'a source::Planes),
 }
 enum DamageTo<'a> {
     Anything,
@@ -44,6 +45,13 @@ impl Context {
             ),
             DamageFrom::Spells(s) => (ObjectKind::Spell, self.spell_filter(s)?),
             DamageFrom::Spell(s) => (ObjectKind::Spell, ObjectFilter::SameObject(self.spell(s)?)),
+            DamageFrom::Planes(source::Planes::SinglePlane(_)) => {
+                (ObjectKind::Card, ObjectFilter::SameObject(ObjectRef::Source))
+            }
+            DamageFrom::Planes(source::Planes::IsNamed(name)) => (
+                ObjectKind::Card,
+                self.card_filter(&source::Cards::IsNamed(name.clone()))?,
+            ),
         };
         let recipients = match to {
             DamageTo::Anything => DamageRecipients::Any,
@@ -104,6 +112,10 @@ impl Context {
                     .collect::<Result<_>>()?,
             ));
         }
+        if let S::AnAmountOfDamageWouldBeDealtByASourceToRecipient(comparison, from, to) = value {
+            let shape = self.damage_shape(F::Sources(from), T::One(to), DamageKind::Any)?;
+            return self.measured(ReplacementEvent::Damage(shape), comparison);
+        }
         let kind = match value {
             S::CombatDamageWouldBeDealt
             | S::CombatDamageWouldBeDealtByACreature(..)
@@ -124,6 +136,7 @@ impl Context {
                 (F::Permanents(p), T::Anything)
             }
             S::CombatDamageWouldBeDealtByACreatureToARecipient(p, r)
+            | S::CombatDamageWouldBeDealtByACreatureToASetOfRecipients(p, r)
             | S::DamageWouldBeDealtByAPermanentToARecipient(p, r) => {
                 (F::Permanents(p), T::List(r))
             }
@@ -135,6 +148,7 @@ impl Context {
             S::CombatDamageWouldBeDealtByCreatureToARecipient(p, r)
             | S::DamageWouldBeDealtByPermanentToARecipient(p, r) => (F::Permanent(p), T::List(r)),
             S::DamageWouldBeDealtByPermanentToRecipient(p, r) => (F::Permanent(p), T::One(r)),
+            S::DamageWouldBeDealtByAPlaneToARecipient(p, r) => (F::Planes(p), T::List(r)),
             S::DamageWouldBeDealtByASource(s) => (F::Sources(s), T::Anything),
             S::DamageWouldBeDealtByASourceToARecipient(s, r) => (F::Sources(s), T::List(r)),
             S::DamageWouldBeDealtByASourceToRecipient(s, r) => (F::Sources(s), T::One(r)),
@@ -155,6 +169,48 @@ impl Context {
         self.damage_shape(from, to, kind).map(ReplacementEvent::Damage)
     }
 
+    fn measured(
+        &self,
+        event: ReplacementEvent,
+        comparison: &source::Comparison,
+    ) -> Result<ReplacementEvent> {
+        let (comparison, amount) = self.comparison(comparison)?;
+        Ok(ReplacementEvent::Measured {
+            event: Box::new(event),
+            comparison,
+            amount,
+        })
+    }
+
+    fn each_recipient(&self, value: &source::MultipleDamageRecipients) -> Result<DamageRecipients> {
+        use source::DamageRecipients as R;
+        let items = match value {
+            source::MultipleDamageRecipients::EachPermanent(objects) => {
+                return Ok(DamageRecipients::Objects(self.filter(objects)?))
+            }
+            source::MultipleDamageRecipients::MultipleRecipients(items) => items,
+        };
+        let (mut objects, mut players) = (Vec::new(), Vec::new());
+        for item in items {
+            match item {
+                R::EachPermanent(p) => objects.push(self.filter(p)?),
+                R::Permanent(p) => objects.push(ObjectFilter::SameObject(self.object(p)?)),
+                R::EachPlayer(p) => players.push(self.players(p)?),
+                R::Ref_AnyTarget => return Err(unsupported(item)),
+            }
+        }
+        let any = ObjectFilter::Either(objects.clone());
+        let each = PlayerSet::Union(players.clone());
+        Ok(match (objects.is_empty(), players.is_empty()) {
+            (false, true) => DamageRecipients::Objects(any),
+            (true, false) => DamageRecipients::Players(each),
+            _ => DamageRecipients::ObjectsAndPlayers {
+                objects: any,
+                players: each,
+            },
+        })
+    }
+
     fn future_prevention(
         &self,
         value: &source::FutureEventPreventDamage,
@@ -162,6 +218,27 @@ impl Context {
         use source::FutureEventPreventDamage as S;
         use DamageFrom as F;
         use DamageTo as T;
+        let each = match value {
+            S::NextDistributedDamageThisTurn => {
+                let (_, share) = self.distribution()?;
+                let Expr::DistributedShare(slot) = &share else {
+                    return Err(invalid("a distribution reads one slot's shares"));
+                };
+                Some((DamageRecipients::Targets(slot.clone()), share.clone()))
+            }
+            S::NextAmountOfDamageThatWouldBeDealtThisTurnToEachRecipient(n, recipients) => {
+                Some((self.each_recipient(recipients)?, self.number(n)?))
+            }
+            _ => None,
+        };
+        if let Some((recipients, amount)) = each {
+            let shape = self.damage_shape(F::Anything, T::Anything, DamageKind::Any)?;
+            let shape = DamageEvent { recipients, ..shape };
+            return Ok((
+                ReplacementEvent::Damage(shape),
+                ReplacementLimit::DamageToEach(amount),
+            ));
+        }
         let limit = match value {
             S::NextAmountOfDamageThatWouldBeDealtThisTurnByPermanent(n, ..)
             | S::NextAmountOfDamageThatWouldBeDealtThisTurnBySourceToARecipient(n, ..)
@@ -175,7 +252,8 @@ impl Context {
         };
         let kind = match value {
             S::NextTimeCombatDamageWouldBeDealtThisTurnByCreature(..)
-            | S::NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToRecipient(..) => {
+            | S::NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToRecipient(..)
+            | S::NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToAnyNumberOfRecipients(..) => {
                 DamageKind::Combat
             }
             _ => DamageKind::Any,
@@ -187,6 +265,9 @@ impl Context {
             S::NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToRecipient(p, r)
             | S::NextTimeDamageWouldBeDealtThisTurnByPermanentToRecipient(p, r) => {
                 (F::Permanent(p), T::One(r))
+            }
+            S::NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToAnyNumberOfRecipients(p, r) => {
+                (F::Permanent(p), T::List(r))
             }
             S::NextTimeDamageWouldBeDealtThisTurnByAPermanentToRecipient(p, r) => {
                 (F::Permanents(p), T::One(r))
@@ -267,6 +348,39 @@ impl Context {
                     |c| c.prevention_actions(otherwise),
                 );
             }
+            S::MayAction(action) => {
+                let body = self.prevention_actions(std::slice::from_ref(action.as_ref()))?;
+                return Ok(Instruction::Optional {
+                    decider: self.player(&source::Player::You)?,
+                    body,
+                });
+            }
+            S::MayActions(actions) => {
+                let body = self.prevention_actions(actions)?;
+                return Ok(Instruction::Optional {
+                    decider: self.player(&source::Player::You)?,
+                    body,
+                });
+            }
+            S::Reflexive_PreventThatDamage_WhenDamageIsPreventedThisWay(actions) => {
+                return self.prevented_reflexive(None, actions)
+            }
+            S::Reflexive_PreventThatDamage_WhenDamageFromASourceIsPreventedThisWay(s, actions) => {
+                let sources = self.damage_sources(s)?;
+                return self.prevented_reflexive(Some(sources), actions);
+            }
+            S::Reflexive_PreventThatDamage_WhenDamageFromAPermanentSourceIsPreventedThisWay(
+                p,
+                actions,
+            ) => {
+                let sources = self.filter(p)?;
+                return self.prevented_reflexive(Some(sources), actions);
+            }
+            S::Reflexive_RemoveCounters_WhenOneOrMoreAreRemovedThisWay(removals, actions) => {
+                let actor = PlayerSet::One(self.player(&source::Player::You)?);
+                let base = self.action(&source::Action::RemoveCounters(removals.clone()), &actor)?;
+                return self.reflexive_after(vec![base], None, actions);
+            }
             S::PermanentDealsDamage(p, n, r) => {
                 return Ok(self.effect(Operation::DealDamage {
                     source: self.object(p)?,
@@ -275,7 +389,7 @@ impl Context {
                     preventable: true,
                 }))
             }
-            S::SpellDealsDamage(s, n, r) => {
+            S::SpellDealsDamage(s, n, r) | S::HaveSpellDealDamage(s, n, r) => {
                 return Ok(self.effect(Operation::DealDamage {
                     source: self.spell(s)?,
                     recipients: self.recipients(r)?,
@@ -296,13 +410,37 @@ impl Context {
                 }))
             }
             _ => {
-                let action: source::Action =
-                    as_family(value, "Action").ok_or_else(|| unsupported(value))?;
+                let action: source::Action = as_family(value, "Action")
+                    .or_else(|| {
+                        cast(
+                            value,
+                            &[
+                                ("ActionPreventDamage", "Action"),
+                                ("ActionPreventDamageCost", "Cost"),
+                                ("ExilableCost", "Exilable"),
+                                ("ReplacementActionWouldDealDamage", "Action"),
+                            ],
+                        )
+                    })
+                    .ok_or_else(|| unsupported(value))?;
                 let actor = PlayerSet::One(self.player(&source::Player::You)?);
                 return self.action(&action, &actor);
             }
         };
         Ok(self.effect(Operation::ModifyEvent { change }))
+    }
+
+    /// "Prevent that damage. When damage is prevented this way, ...".
+    fn prevented_reflexive(
+        &mut self,
+        sources: Option<ObjectFilter>,
+        actions: &source::Actions,
+    ) -> Result<Instruction> {
+        let prevent = self.effect(Operation::ModifyEvent {
+            change: EventChange::PreventDamage,
+        });
+        let condition = sources.map(|s| self.prevented_from(s)).transpose()?;
+        self.reflexive_after(vec![prevent], condition, actions)
     }
 
     fn prevention_body(

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 59;
+pub const SCHEMA_VERSION: u32 = 60;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -336,6 +336,12 @@ pub enum ReplacementEvent {
         name: String,
         operands: Vec<Operand>,
     },
+    /// `event`, when its pending amount compares this way.
+    Measured {
+        event: Box<ReplacementEvent>,
+        comparison: Comparison,
+        amount: Expr,
+    },
 }
 /// How long a created replacement effect keeps applying within its duration.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -345,6 +351,8 @@ pub enum ReplacementLimit {
     NextOccurrence,
     /// A shield: used up once this much damage has been replaced (CR 615.7).
     TotalDamage(Expr),
+    /// A shield on each recipient: used up once it has replaced this much.
+    DamageToEach(Expr),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum EventChange {
@@ -2414,6 +2422,8 @@ pub enum DamageRecipients {
         objects: ObjectFilter,
         players: PlayerSet,
     },
+    /// Every target in this slot.
+    Targets(Slot),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DamageKind {
@@ -2423,6 +2433,8 @@ pub enum DamageKind {
     /// Only what went past lethal counts, and an amount reads that excess.
     Excess,
     ExcessNoncombat,
+    /// Damage a prevention effect stopped, and an amount reads what it stopped.
+    Prevented,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DamageGrouping {
