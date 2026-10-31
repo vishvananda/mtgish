@@ -295,7 +295,12 @@ impl Context {
                     amount: self.number(n)?,
                 }))
             }
-            _ => return Err(unsupported(value)),
+            _ => {
+                let action: source::Action =
+                    as_family(value, "Action").ok_or_else(|| unsupported(value))?;
+                let actor = PlayerSet::One(self.player(&source::Player::You)?);
+                return self.action(&action, &actor);
+            }
         };
         Ok(self.effect(Operation::ModifyEvent { change }))
     }

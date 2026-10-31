@@ -1530,6 +1530,7 @@ impl Inventory<'_> {
         self.form("EventSpec", e);
         match e {
             EventSpec::Primitive { name, .. } => self.primitive(name),
+            EventSpec::FirstEachTurn(event) => self.event(event),
             EventSpec::SagaChapter(_) => {}
             EventSpec::Discard {
                 players,

@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 53);
+    assert_eq!(card.schema_version, 54);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2613,4 +2613,23 @@ fn an_nth_position_keeps_its_number() {
     );
     assert!(text.contains("OwnersLibraryFromTop"), "{text}");
     assert!(text.contains('7'), "{text}");
+}
+
+#[test]
+fn a_first_each_turn_event_wraps_its_plain_event() {
+    let text = ability_json("TriggerA(WhenAPlayerGainsLifeForTheFirstTimeEachTurn(SinglePlayer(You)),ActionList([DrawACard]))");
+    assert!(text.contains("FirstEachTurn"), "{text}");
+}
+
+#[test]
+fn cards_moved_this_way_are_counted_from_the_move() {
+    let text = ability_json("SpellActions(Targeted([TargetPermanent(AnyPermanent)],ActionList([ShufflePermanentIntoLibrary(Ref_TargetPermanent),DrawNumberCards(NumCardsShuffledIntoLibraryThisWay)])))");
+    assert!(text.contains("Transition"), "{text}");
+}
+
+#[test]
+fn a_missing_antecedent_stays_an_error() {
+    let source =
+        custom("SpellActions(ActionList([DrawNumberCards(NumCardsPutIntoLibraryThisWay)]))");
+    assert!(pipeline::finalize(&source).is_err());
 }

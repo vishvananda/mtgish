@@ -222,6 +222,7 @@ impl<'a> Scope<'a> {
     fn event(&self, event: &EventSpec) -> Result {
         match event {
             EventSpec::Primitive { name, operands } => self.primitive(name, operands),
+            EventSpec::FirstEachTurn(event) => self.event(event),
             EventSpec::SagaChapter(_) => Ok(()),
             EventSpec::Discard { players, cards, .. } => {
                 self.players(players)?;
@@ -1681,7 +1682,7 @@ impl<'a> Scope<'a> {
                             adjustments,
                         } => {
                             self.object(object)?;
-                            adjustments.iter().try_for_each(operand)?;
+                            adjustments.iter().try_for_each(|o| self.operand(o))?;
                             continue;
                         }
                         TokenRecipe::CopyEach {
@@ -1689,7 +1690,7 @@ impl<'a> Scope<'a> {
                             adjustments,
                         } => {
                             self.objects(objects)?;
-                            adjustments.iter().try_for_each(operand)?;
+                            adjustments.iter().try_for_each(|o| self.operand(o))?;
                             continue;
                         }
                     };

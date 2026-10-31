@@ -319,9 +319,52 @@ impl Context {
             S::AnyNumberOfPermanents(p) => (self.objects(p)?, Some(Count::AnyNumber)),
             S::CardInGraveyards(c) => (ObjectSet::One(self.grave_card(c)?), None),
             S::EachCardInGraveyards(c) => (self.grave_cards(c)?, None),
-            S::ACardFromHand => (
+            S::ACardFromHand | S::ACardFromHandAtRandom => (
                 self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
                 Some(Count::AsManyAsCan(Expr::Constant(1))),
+            ),
+            S::TheTopCardOfEachPlayersLibraries(players) => {
+                (ObjectSet::LibraryTops(self.players(players)?), None)
+            }
+            S::ACardOfTypeFromHand(cards) => (
+                self.private_cards(EventZone::Hand, actor.clone(), self.hand_filter(cards)?),
+                Some(Count::AsManyAsCan(Expr::Constant(1))),
+            ),
+            S::AllCardsOfTypeFromLibrary(cards) => (
+                self.private_cards(EventZone::Library, actor.clone(), self.library_filter(cards)?),
+                None,
+            ),
+            S::ACardFromPlayersLibraryAtRandom(player) => (
+                self.private_cards(
+                    EventZone::Library,
+                    PlayerSet::One(self.player(player)?),
+                    ObjectFilter::Any,
+                ),
+                Some(Count::AsManyAsCan(Expr::Constant(1))),
+            ),
+            S::ACardOfTypeFromPlayersLibraryAtRandom(cards, player) => (
+                self.private_cards(
+                    EventZone::Library,
+                    PlayerSet::One(self.player(player)?),
+                    self.library_filter(cards)?,
+                ),
+                Some(Count::AsManyAsCan(Expr::Constant(1))),
+            ),
+            S::NumberCardsFromPlayersLibraryAtRandom(n, player) => (
+                self.private_cards(
+                    EventZone::Library,
+                    PlayerSet::One(self.player(player)?),
+                    ObjectFilter::Any,
+                ),
+                Some(Count::AsManyAsCan(self.number(n)?)),
+            ),
+            S::ACardInGraveyardsAtRandom(c) => (
+                self.grave_cards(c)?,
+                Some(Count::AsManyAsCan(Expr::Constant(1))),
+            ),
+            S::NumberCardsInGraveyardsAtRandom(n, c) => (
+                self.grave_cards(c)?,
+                Some(Count::AsManyAsCan(self.number(n)?)),
             ),
             S::ACardOfTypeFromPlayersHand(cards, player) => (
                 self.private_cards(
@@ -501,8 +544,21 @@ impl Context {
                 let PlayerSet::One(player) = actor else {
                     return Err(invalid("exile choice needs one explicit chooser"));
                 };
+                let random = matches!(
+                    item,
+                    source::Exilable::ACardFromHandAtRandom
+                        | source::Exilable::ACardFromPlayersLibraryAtRandom(_)
+                        | source::Exilable::ACardOfTypeFromPlayersLibraryAtRandom(..)
+                        | source::Exilable::NumberCardsFromPlayersLibraryAtRandom(..)
+                        | source::Exilable::ACardInGraveyardsAtRandom(_)
+                        | source::Exilable::NumberCardsInGraveyardsAtRandom(..)
+                );
                 let choice = self.effect(Operation::ChooseObjects {
-                    constraints: vec![],
+                    constraints: if random {
+                        vec![SelectionConstraint::AtRandom]
+                    } else {
+                        vec![]
+                    },
                     player: player.clone(),
                     objects,
                     count,

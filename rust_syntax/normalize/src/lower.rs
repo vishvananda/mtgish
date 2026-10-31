@@ -130,6 +130,12 @@ enum Done {
     LifeLost,
     Milled,
     Returned,
+    Exiled,
+    Library,
+    Graveyard,
+    Entered,
+    Discarded,
+    Sacrificed,
 }
 impl Done {
     fn of(operation: &Operation) -> Option<Self> {
@@ -143,10 +149,19 @@ impl Done {
             Operation::CreateContinuousEffect { .. } => Self::Effect,
             Operation::LoseLife { .. } => Self::LifeLost,
             Operation::Mill { .. } => Self::Milled,
-            Operation::Move {
-                destination: Destination::OwnersHand,
-                ..
-            } => Self::Returned,
+            Operation::Discard { .. } | Operation::DiscardObjects { .. } => Self::Discarded,
+            Operation::Sacrifice { .. } => Self::Sacrificed,
+            Operation::Move { destination, .. } => match destination {
+                Destination::OwnersHand => Self::Returned,
+                Destination::Exile => Self::Exiled,
+                Destination::OwnersGraveyard => Self::Graveyard,
+                Destination::Battlefield(_) | Destination::OwnersBattlefield => Self::Entered,
+                Destination::OwnersLibraryTop
+                | Destination::OwnersLibraryBottom
+                | Destination::OwnersLibraryBottomRandom
+                | Destination::OwnersLibraryFromTop(_)
+                | Destination::OwnersLibraryShuffled => Self::Library,
+            },
             _ => return None,
         })
     }
@@ -807,11 +822,15 @@ impl Context {
     }
 
     fn number(&self, value: &source::GameNumber) -> Result<Expr> {
-        self.reduced_number(value)
-            .or_else(|error| match self.history_number(value) {
+        self.reduced_number(value).or_else(|error| {
+            if let Some(number) = self.this_way_number(value) {
+                return number;
+            }
+            match self.history_number(value) {
                 Some(number) => Ok(number),
                 None => rescue(error, || self.primitive_number(value)),
-            })
+            }
+        })
     }
 
     fn reduced_number(&self, value: &source::GameNumber) -> Result<Expr> {
@@ -1046,6 +1065,9 @@ impl Context {
 
     fn condition(&self, value: &source::Condition) -> Result<Condition> {
         self.reduced_condition(value).or_else(|error| {
+            if let Some(condition) = self.this_way_condition(value) {
+                return condition;
+            }
             self.history_condition(value)
                 .unwrap_or_else(|| Err(error.clone()))
                 .or_else(|_| rescue(error, || self.primitive_condition(value)))
@@ -4272,6 +4294,7 @@ include!("lower_selector_pipeline.rs");
 include!("lower_number_pipeline.rs");
 
 include!("lower_paid.rs");
+include!("lower_this_way.rs");
 include!("lower_named.rs");
 include!("lower_reflexive.rs");
 include!("lower_reveal.rs");

@@ -69,7 +69,7 @@ fn body(c: &Card) -> &Program {
 
 #[test]
 fn real_player_families_roundtrip_and_unsupported_nested_mechanics_stay_incomplete() {
-    let incomplete = ["Valakut Exploration", "Muldrotha, the Gravetide"];
+    let incomplete = ["Muldrotha, the Gravetide"];
     let mut complete = 0;
     for s in sources() {
         let name = corpus::Identity::of(&s).unwrap().names.remove(0);
@@ -93,7 +93,7 @@ fn real_player_families_roundtrip_and_unsupported_nested_mechanics_stay_incomple
         }
         complete += 1;
     }
-    assert_eq!(complete, 49);
+    assert_eq!(complete, 50);
 }
 
 #[test]

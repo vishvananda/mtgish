@@ -103,8 +103,24 @@ impl Context {
     }
 
     fn trigger(&self, value: &source::Trigger) -> Result<EventSpec> {
-        self.reduced_trigger(value)
-            .or_else(|error| rescue(error, || self.primitive_trigger(value)))
+        self.reduced_trigger(value).or_else(|error| {
+            rescue(error, || {
+                self.first_each_turn(value)
+                    .or_else(|| self.primitive_trigger(value))
+            })
+        })
+    }
+
+    /// The plain event behind a "for the first time each turn" form.
+    fn first_each_turn(&self, value: &source::Trigger) -> Option<EventSpec> {
+        let mut inspected = crate::inspect::value(value).ok()?;
+        let base = inspected["variant"]
+            .as_str()?
+            .strip_suffix("ForTheFirstTimeEachTurn")?
+            .to_string();
+        inspected["variant"] = base.into();
+        let base: source::Trigger = crate::pipeline::source_tree::decode(&inspected).ok()?;
+        Some(EventSpec::FirstEachTurn(Box::new(self.trigger(&base).ok()?)))
     }
 
     fn reduced_trigger(&self, value: &source::Trigger) -> Result<EventSpec> {

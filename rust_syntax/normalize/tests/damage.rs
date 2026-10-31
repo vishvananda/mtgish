@@ -69,10 +69,8 @@ fn effect(operation: Operation) -> Instruction {
 fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
     let incomplete = [
         "Aegar, the Freezing Flame",
-        "Breeches, Brazen Plunderer",
         "Curious Obsession",
         "Fall of Cair Andros",
-        "Gonti's Machinations",
         "Maarika, Brutal Gladiator",
         "Neheb, Dreadhorde Champion",
         "Norn's Decree",
@@ -104,7 +102,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 73);
+    assert_eq!(complete, 75);
 }
 
 #[test]
@@ -381,7 +379,10 @@ fn ambiguous_legacy_roles_and_first_occurrence_history_remain_explicit_gaps() {
     assert!(custom("TriggerA(WhenAPermanentDealsDamageToAPermanent(AnyPermanent, AnyPermanent), ActionList([DestroyPermanent(Trigger_ThatPermanent)]))").is_err());
     let c = custom("TriggerA(WhenAPermanentDealsDamageToAPermanent(AnyPermanent, AnyPermanent), ActionList([DestroyPermanent(Trigger_ThatOtherPermanent)]))").unwrap();
     validate::card(&c).unwrap();
-    assert!(custom("TriggerA(WhenACreatureDealsCombatDamageToAPlayerForTheFirstTimeEachTurn(AnyPermanent, AnyPlayer), ActionList([DrawACard]))").is_err());
+    let first = custom("TriggerA(WhenACreatureDealsCombatDamageToAPlayerForTheFirstTimeEachTurn(AnyPermanent, AnyPlayer), ActionList([DrawACard]))").unwrap();
+    assert!(serde_json::to_string(&first)
+        .unwrap()
+        .contains("FirstEachTurn"));
     assert!(custom(
         "TriggerA(WhenAPermanentIsDealtExcessDamage(AnyPermanent), ActionList([DrawACard]))"
     )

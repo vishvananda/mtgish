@@ -159,6 +159,7 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
 pub fn event_bindings(event: &EventSpec) -> EventBindings {
     match event {
         EventSpec::SagaChapter(_) => EventBindings::default(),
+        EventSpec::FirstEachTurn(event) => event_bindings(event),
         EventSpec::Primitive { name, .. } => {
             let binds = crate::primitive_spec::lookup(name).map_or(&[][..], |r| &r.binds);
             let has = |field: &str| binds.iter().any(|b| b == field);

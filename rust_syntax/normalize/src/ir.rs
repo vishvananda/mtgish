@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 53;
+pub const SCHEMA_VERSION: u32 = 54;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2317,6 +2317,9 @@ pub enum EventSpec {
         name: String,
         operands: Vec<Operand>,
     },
+    /// The first such event each turn, counted whether or not this ability
+    /// existed yet, unlike a once-each-turn limit.
+    FirstEachTurn(Box<EventSpec>),
 }
 /// Match actual positive damage, after prevention/replacement, using event
 /// information (including a departed source's last-known characteristics).
