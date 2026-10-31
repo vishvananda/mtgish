@@ -477,8 +477,65 @@ fn mana_plan(value: &ManaProduction) -> Result<ManaPlan> {
         },
     })
 }
+/// "Subtype spells", "or abilities of subtype sources" and "... of subtypes".
+fn subtype_restriction(value: &ManaUse) -> Option<String> {
+    let of = |s: &crate::mtg_types::SubType| -> Option<String> {
+        let word = name(s);
+        crate::cantrip_vocab::SUBTYPES
+            .contains(&word.as_str())
+            .then(|| format!("SubtypeSpells::of(Subtype::{word})"))
+    };
+    let code = match value {
+        ManaUse::CastSpell(ObjectFilter::Subtype(s)) => of(s)?,
+        ManaUse::Either(uses) => {
+            let [ManaUse::CastSpell(ObjectFilter::Subtype(spell)), ManaUse::ActivateAbility {
+                sources: ObjectFilter::Subtype(source),
+                permanents_only,
+            }] = uses.as_slice()
+            else {
+                return None;
+            };
+            if name(spell) != name(source) {
+                return None;
+            }
+            let reach = match permanents_only {
+                true => "or_abilities_of_permanents",
+                false => "or_abilities",
+            };
+            format!("{}.{reach}()", of(spell)?)
+        }
+        _ => return None,
+    };
+    Some(format!("ManaRestriction::Subtypes({code})"))
+}
 fn mana_restriction(value: &ManaUse) -> Result<String> {
     use crate::mtg_types::CardType as T;
+    if let Some(restriction) = subtype_restriction(value) {
+        return Ok(restriction);
+    }
+    if let ManaUse::Either(uses) = value {
+        if let [ManaUse::CastSpell(ObjectFilter::CardType(spell)), ManaUse::ActivateAbility {
+            sources,
+            permanents_only,
+        }] = uses.as_slice()
+        {
+            let constant = match (spell, sources, permanents_only) {
+                (T::Creature, ObjectFilter::CardType(T::Creature), true) => {
+                    Some("CREATURE_SPELLS_OR_ABILITIES_OF_CREATURES")
+                }
+                (T::Creature, ObjectFilter::CardType(T::Creature), false) => {
+                    Some("CREATURE_SPELLS_OR_ABILITIES")
+                }
+                (T::Artifact, ObjectFilter::CardType(T::Artifact), true) => {
+                    Some("ARTIFACT_SPELLS_OR_ABILITIES_OF_ARTIFACTS")
+                }
+                _ => None,
+            };
+            if let Some(constant) = constant {
+                return Ok(format!("ManaRestriction::{constant}"));
+            }
+        }
+    }
     let constant = match value {
         ManaUse::CastSpell(ObjectFilter::CardType(T::Artifact)) => "ARTIFACT_SPELLS",
         ManaUse::CastSpell(ObjectFilter::CardType(T::Creature)) => "CREATURE_SPELLS",
@@ -1145,6 +1202,11 @@ struct EmittedModule {
     extras: Vec<String>,
     gaps: Vec<Diagnostic>,
 }
+/// How an object was cast: it as a spell, or the spell it resolved from. A
+/// spell's own `cast_from` isn't carried onto the permanent. A matcher sees the
+/// history before its own event, so `cast_at` reads that entry from the event.
+const CAST_OF: &str = "fn cast_of<'a>(q: &'a dyn Query, id: ObjectId) -> Option<&'a Cast> { let records = q.history().all(); let spell = records.iter().rev().find_map(|r| match r.event { Event::ZoneChange { old, new, reason: ZoneReason::Resolve, .. } if new == id => Some(old), _ => None }).unwrap_or(id); records.iter().rev().find_map(|r| match &r.event { Event::Cast(cast) if cast.spell == spell => Some(cast), _ => None }) }\n#[allow(dead_code)] fn cast_at<'a>(q: &'a dyn Query, event: &Event, id: ObjectId) -> Option<&'a Cast> { match event { Event::ZoneChange { old, new, reason: ZoneReason::Resolve, .. } if *new == id => cast_of(q, *old), _ => cast_of(q, id) } }\n";
+
 fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedModule> {
     validate::card(card).map_err(|e| Diagnostic {
         path: "card".into(),
@@ -1204,8 +1266,13 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
             _ => Err(gap("printed characteristic exceeds i16")),
         }
     };
+    // Filters are compiled through `&self`, so this one is found in their text.
+    if c.functions.contains("cast_of(q, ") || c.functions.contains("cast_at(q, ") {
+        c.helpers.insert("cast_of");
+    }
     for helper in &c.helpers {
         c.functions.push_str(match *helper {
+            "cast_of" => CAST_OF,
             "announced" => ANNOUNCED,
             "pay_question" => PAY_QUESTION,
             "about" => delayed::ABOUT,

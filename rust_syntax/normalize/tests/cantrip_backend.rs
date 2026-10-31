@@ -208,6 +208,13 @@ fn generated_modules_execute_in_cantrip() {
         ("faith", "Renewed Faith"),
         ("golem", "Flint Golem"),
         ("good", "Greater Good"),
+        ("arrest", "Arrest"),
+        ("pulse", "Maelstrom Pulse"),
+        ("zealot", "Ash Zealot"),
+        ("sunderflock", "Sunderflock"),
+        ("rhino", "Charging Rhino"),
+        ("acolyte", "Cathedral Acolyte"),
+        ("overlord", "Abhorrent Overlord"),
         ("decay", "Abrupt Decay"),
         ("woodland", "Woodland Changeling"),
         ("lignify", "Lignify"),
@@ -371,7 +378,7 @@ fn every_definition_loads_into_a_card_table() {
     for &(card, extra) in ALL {
         let definitions: Vec<&'static cantrip_api::CardDef> =
             std::iter::once(card).chain(extra.iter().copied()).collect();
-        if let Err(why) = std::panic::catch_unwind(|| cantrip_api::CardTable::new(definitions)) {
+        if let Err(why) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| cantrip_api::CardTable::new(definitions))) {
             let why = why
                 .downcast_ref::<String>()
                 .cloned()

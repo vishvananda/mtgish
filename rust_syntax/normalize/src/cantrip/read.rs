@@ -613,6 +613,31 @@ impl Compiler {
                 code.push_str("all }");
                 code
             }
+            PlayerSet::Intersection(sets) => {
+                let Some((first, rest)) = sets.split_first() else {
+                    return Err(gap("intersection of no player sets"));
+                };
+                let mut code = format!("{{ let mut all = {}; ", self.players(first)?);
+                for set in rest {
+                    write!(
+                        code,
+                        "let other = {}; all.retain(|p: &PlayerId| other.contains(p)); ",
+                        self.players(set)?
+                    )
+                    .unwrap();
+                }
+                code.push_str("all }");
+                code
+            }
+            PlayerSet::Matching { binding, condition } => {
+                let mut inner = self.clone();
+                inner.bound_players.insert(binding.0);
+                format!(
+                    "q.state().apnap().filter(|&bound_{}: &PlayerId| {}).collect::<Vec<PlayerId>>()",
+                    binding.0,
+                    inner.condition(condition)?
+                )
+            }
             other => return Err(gap(format!("player collection {}", form(other)))),
         })
     }
@@ -695,6 +720,20 @@ impl Compiler {
                 max: u16::MAX.into(),
                 dynamic: true,
             },
+            Expr::CountManaSymbols { objects, colors } if self.reader != Reader::Layer => {
+                let (
+                    ObjectSet::Battlefield(ObjectFilter::ControlledBy(PlayerSet::One(player))),
+                    [c],
+                ) = (&**objects, colors.as_slice())
+                else {
+                    return Err(gap("mana symbols other than a devotion to one color"));
+                };
+                count(format!(
+                    "{}.map_or(0i64, |p: PlayerId| i64::from(cantrip_mechanics::devotion::devotion(q, p, Color::{})))",
+                    self.player(player)?,
+                    color(c)?
+                ))
+            }
             Expr::CastX(ObjectRef::Source | ObjectRef::EventSubject)
                 if self.pending == Pending::Entering =>
             {
@@ -1165,6 +1204,46 @@ impl Compiler {
                 } else {
                     test
                 }
+            }
+            ObjectFilter::SharesNameWith(object) if self.reader != Reader::Layer => format!(
+                "{}.is_some_and(|o: ObjectId| cantrip_mechanics::same_name(q, {id}, o))",
+                self.object(object)?
+            ),
+            ObjectFilter::Cast { by, from } if self.reader != Reader::Layer => {
+                // The history has it only once it became cast.
+                if c.announced.is_some() {
+                    return Err(gap("how a spell being cast is being cast"));
+                }
+                let mut tests = Vec::new();
+                if let Some(by) = by {
+                    tests.push(format!("{}.contains(&cast.player)", self.players(by)?));
+                }
+                match from {
+                    None => {}
+                    Some(ZoneScope::Shared(zone)) => {
+                        tests.push(format!("cast.from == {}", zone_kind(zone)?));
+                    }
+                    Some(ZoneScope::Players { zone, players }) => {
+                        tests.push(format!("cast.from == {}", zone_kind(zone)?));
+                        let owner = "q.state().obj(cast.spell).owner";
+                        tests.push(match players {
+                            PlayerSet::All => "true".to_string(),
+                            PlayerSet::One(PlayerRef::CasterOf(of))
+                                if matches!(**of, ObjectRef::Candidate) =>
+                            {
+                                format!("{owner} == cast.player")
+                            }
+                            players => format!("{}.contains(&{owner})", self.players(players)?),
+                        });
+                    }
+                }
+                if tests.is_empty() {
+                    tests.push("true".to_string());
+                }
+                format!(
+                    "cast_of(q, {id}).is_some_and(|cast| {})",
+                    tests.join(" && ")
+                )
             }
             ObjectFilter::ExiledWith(ObjectRef::Source) if self.reader != Reader::Layer => {
                 format!("q.exiled_with(q.linked_to(asker)).contains(&{id})")

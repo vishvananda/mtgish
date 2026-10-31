@@ -1533,6 +1533,10 @@ impl Compiler {
     /// What a resolving effect's change is in the engine's vocabulary. Each
     /// value is read when the effect is made, as `EffectEvaluation::Snapshot` says.
     fn effect_kinds(&mut self, change: &Change) -> Result<Vec<String>> {
+        if let Change::GrantKeyword(ward @ Keyword::Ward(_)) = change {
+            let change = Change::GrantAbility(Box::new(Ability::Keyword(ward.clone())));
+            return self.effect_kinds(&change);
+        }
         if let Change::GrantAbility(ability) = change {
             let index = self.grant(ability)?;
             return Ok(vec![format!(

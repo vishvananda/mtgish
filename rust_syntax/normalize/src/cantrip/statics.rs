@@ -152,6 +152,12 @@ impl Compiler {
                 .unwrap();
                 parts.block_requirements.push(function);
             }
+            // The rule is asked in any zone an ability functions from.
+            RuleChange::Prohibit(ObjectAction::Activate(ActivationFilter::Any)) => {
+                let test = self.rule_subject(affected, "object")?;
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, object: ObjectId, ability: &ActivatedDef) -> bool {{ !({guard}q.state().obj(object).zone.is(ZoneKind::Battlefield) && {test}) }}").unwrap();
+                parts.table("activation_rules", function);
+            }
             RuleChange::Prohibit(ObjectAction::Attack(AttackDefenders::Any)) => {
                 let test = self.rule_subject(affected, "attacker")?;
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, attacker: ObjectId) -> bool {{ {PRELUDE} !({guard}{test}) }}").unwrap();
@@ -206,6 +212,10 @@ impl Compiler {
                 granted_protection(quality, &mut grants)?;
                 let body = grants.into_iter().map(|(_, statement)| statement).collect();
                 LayerChange::of("Ability", body)
+            }
+            // Ward is a triggered ability, given as any other is.
+            Change::GrantKeyword(ward @ Keyword::Ward(_)) => {
+                return self.layer_change(&Change::GrantAbility(Box::new(Ability::Keyword(ward.clone()))));
             }
             Change::GrantKeyword(k) => LayerChange::of(
                 "Ability",
@@ -305,6 +315,16 @@ impl Compiler {
                     format!("let card = {}; if let Some(slot) = chars.abilities.iter().position(|a| a.is_none()) {{ chars.abilities[slot] = Some(AbilityRef::delayed(card, {index})); }}", read::SOURCE_CARD),
                 )
             }
+            Change::Rule(RuleChange::CombatGroup {
+                role: CombatRole::BlockedAttacker,
+                participants: ObjectFilter::Any,
+                others_only: false,
+                comparison: Comparison::LessOrEqual,
+                amount: Expr::Constant(1),
+            }) => LayerChange::of(
+                "Ability",
+                "chars.keywords = chars.keywords.with(Keyword::CantBeBlockedByMoreThanOne);".into(),
+            ),
             Change::Rule(rule) => return Err(gap(format!("static rule {}", rule_name(rule)))),
             Change::PlayerRule(rule) => {
                 return Err(gap(format!("static player rule {}", form(rule))))

@@ -92,6 +92,15 @@ fn own_graveyard(objects: &ObjectSet) -> Option<ObjectSet> {
     })
 }
 
+/// Whether a filter keeps to permanents the ability's controller controls.
+fn yours(filter: &ObjectFilter) -> bool {
+    match filter {
+        ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)) => true,
+        ObjectFilter::All(filters) => filters.iter().any(yours),
+        _ => false,
+    }
+}
+
 /// "This spell can't be countered": the card's keyword, which the rules read.
 fn cant_be_countered(zones: &[EventZone], affected: &EffectSubjects, changes: &[Change]) -> bool {
     let EffectSubjects::Objects(ObjectSet::Zone {
@@ -169,8 +178,8 @@ impl Compiler {
             }
             CostPart::RemoveCounters { removals } => {
                 let [CounterRemoval {
-                    recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)),
-                    kind: Some(kind),
+                    recipients: Recipients::Objects(objects),
+                    kind,
                     amount: CounterAmount::Count(Count::Exactly(n)),
                     selection: None,
                     ..
@@ -179,7 +188,25 @@ impl Compiler {
                     return Err(gap("counter removal cost shape"));
                 };
                 let n = constant_u8(n).ok_or_else(|| gap("counter cost without a fixed count"))?;
-                format!("remove_counters({}, {n})", read::counter_kind(kind)?)
+                match (objects, kind) {
+                    (ObjectSet::One(ObjectRef::Source), Some(kind)) => {
+                        format!("remove_counters({}, {n})", read::counter_kind(kind)?)
+                    }
+                    (ObjectSet::One(ObjectRef::Source), None) if n == 1 => {
+                        "REMOVE_A_COUNTER".to_string()
+                    }
+                    (ObjectSet::Battlefield(filter), kind) if yours(filter) => {
+                        let filter = self.cost_filter(filter, label)?;
+                        match kind {
+                            Some(kind) => format!(
+                                "remove_kind_counters_among({}, {n}, {filter})",
+                                read::counter_kind(kind)?
+                            ),
+                            None => format!("remove_counters_among({n}, {filter})"),
+                        }
+                    }
+                    _ => return Err(gap("counter removal cost shape")),
+                }
             }
             CostPart::Move {
                 selections,

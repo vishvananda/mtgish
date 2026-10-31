@@ -558,12 +558,13 @@ impl Compiler {
         let mut body = String::new();
         for arm in &matched.arms {
             let tests: Vec<&str> = arm.tests.iter().chain(extra).map(String::as_str).collect();
+            let tests = tests
+                .join(" && ")
+                .replace("cast_of(q, ", "cast_at(q, event, ");
             writeln!(
                 body,
                 "if let {} = event {{ {} if {} {{ return Some(Fired {{ subject, data }}); }} }}",
-                arm.pattern,
-                arm.locals,
-                tests.join(" && ")
+                arm.pattern, arm.locals, tests
             )
             .unwrap();
         }

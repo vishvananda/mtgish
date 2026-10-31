@@ -281,6 +281,13 @@ mod scenarios {
             &spitemare::CARD,
             &faith::CARD,
             &golem::CARD,
+            &arrest::CARD,
+            &pulse::CARD,
+            &zealot::CARD,
+            &sunderflock::CARD,
+            &rhino::CARD,
+            &acolyte::CARD,
+            &overlord::CARD,
             &decay::CARD,
             &woodland::CARD,
             &lignify::CARD,
@@ -307,6 +314,12 @@ mod scenarios {
         ];
         for extras in [
             alarm::EXTRA,
+            pulse::EXTRA,
+            zealot::EXTRA,
+            sunderflock::EXTRA,
+            rhino::EXTRA,
+            acolyte::EXTRA,
+            overlord::EXTRA,
             decay::EXTRA,
             woodland::EXTRA,
             lignify::EXTRA,
@@ -1986,5 +1999,95 @@ mod scenarios {
         let cultivator = permanents_named(&g, "Nantuko Cultivator")[0];
         assert_eq!(g.state.obj(cultivator).counters(CounterKind::PlusOne), 2);
         assert_eq!(g.state.zone(Zone::library(ME)).len(), library - 2);
+    }
+    #[test]
+    fn all_others_of_a_name_go_with_the_target() {
+        let (mut g, pulse, _, _) = game_with_extras(
+            "Maelstrom Pulse",
+            None,
+            0,
+            &[
+                ("Grizzly Bears", THEM),
+                ("Grizzly Bears", THEM),
+                ("Spitemare", THEM),
+            ],
+        );
+        let bears = permanents_named(&g, "Grizzly Bears")[0];
+        announce_at(&mut g, pulse, ActionKind::CastSpell, Target::Object(bears));
+        resolve(&mut g, Some(bears), false);
+        assert!(permanents_named(&g, "Grizzly Bears").is_empty());
+        assert_eq!(permanents_named(&g, "Spitemare").len(), 1);
+    }
+    #[test]
+    fn a_spell_cast_from_a_graveyard_is_told_from_one_cast_from_hand() {
+        let (mut g, divination, _, _) = game_with_graveyard(
+            "Divination",
+            Some("Ash Zealot"),
+            0,
+            &[],
+            100,
+            &["Faithless Looting"],
+        );
+        let life = g.state.player(ME).life;
+        let looting = g.state.zone(Zone::graveyard(ME))[0];
+        announce(&mut g, divination, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.player(ME).life, life);
+        announce(&mut g, looting, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { cards, .. } => Answer::Cards(cards[..2].to_vec()),
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.state.player(ME).life, life - 3);
+    }
+    #[test]
+    fn a_permanent_remembers_it_was_cast() {
+        let (mut g, flock, bears, _) =
+            game_with_zones("Sunderflock", Some("Grizzly Bears"), 0, &[], 100, &[], &[]);
+        assert!(bears.is_some());
+        announce(&mut g, flock, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| {
+            panic!("unexpected question {kind:?}")
+        });
+        assert!(permanents_named(&g, "Grizzly Bears").is_empty());
+    }
+    #[test]
+    fn a_static_limits_blockers_and_grants_ward() {
+        let (g, _, rhino) = game("Divination", Some("Charging Rhino"));
+        let rhino = rhino.unwrap();
+        assert!(g
+            .chars(rhino)
+            .keywords
+            .has(Keyword::CantBeBlockedByMoreThanOne));
+        let (mut g, _, acolyte, _) = game_with_extras(
+            "Divination",
+            Some("Cathedral Acolyte"),
+            0,
+            &[("Grizzly Bears", ME)],
+        );
+        let acolyte = acolyte.unwrap();
+        let bears = permanents_named(&g, "Grizzly Bears")[0];
+        assert!(g.chars(acolyte).abilities.iter().flatten().count() > 0);
+        assert!(g.chars(bears).abilities.iter().flatten().count() == 0);
+        let _ = &mut g;
+    }
+    #[test]
+    fn devotion_counts_the_symbols_on_your_permanents() {
+        let (mut g, spell, _, _) =
+            game_with_extras("Abhorrent Overlord", None, 0, &[("Grizzly Bears", ME)]);
+        let before = g.state.battlefield().len();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        // Its own two black symbols, then a 1/1 for each, and the upkeep is later.
+        assert_eq!(g.state.battlefield().len(), before + 1 + 2);
+    }
+    #[test]
+    fn a_static_bars_activation_of_what_it_enchants() {
+        let (mut g, spell, seer) = game("Arrest", Some("Viscera Seer"));
+        let seer = seer.unwrap();
+        assert!(offers(&g, ActionKind::ActivateAbility, seer));
+        announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(seer));
+        resolve(&mut g, Some(seer), false);
+        assert!(!offers(&g, ActionKind::ActivateAbility, seer));
     }
 }
