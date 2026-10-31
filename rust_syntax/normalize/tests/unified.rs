@@ -351,3 +351,27 @@ fn token_copies_and_entry_states_keep_their_objects() {
     assert!(json.contains(r#""Copy""#), "{json}");
     assert!(json.contains(r#""Attacking""#), "{json}");
 }
+
+#[test]
+fn a_token_definition_is_a_face_and_a_sticker_sheet_holds_ordinary_abilities() {
+    let source: mtgish_ast::mtg_types::OracleCard = ron::from_str(
+        "TokenDefinition(Name: \"Fish Token\", Token: TokenWithPT(PT(1, 1), Colors([Blue]), [], [Creature], SubtypesList([Fish]), [Flying]))",
+    )
+    .unwrap();
+    let lowered = mtgish_ast::unified::lower(&source);
+    assert!(lowered.diagnostics.is_empty());
+    assert_eq!(lowered.card.faces.len(), 1);
+    let face = &lowered.card.faces[0];
+    assert_eq!(face.name, "Fish Token");
+    assert_eq!(face.characteristics.power_toughness, Some((1, 1)));
+    assert!(face.characteristics.mana_cost.is_none());
+    let source: mtgish_ast::mtg_types::OracleCard = ron::from_str(
+        "StickerSheet(Stickers: [NameSticker(\"Cool\"), AbilitySticker(2, [Flying])])",
+    )
+    .unwrap();
+    let card = mtgish_ast::unified::lower(&source).card;
+    assert!(card.faces.is_empty());
+    let text = format!("{:?}", card.data);
+    assert!(text.contains("Stickers([Name(\"Cool\"), Abilities { tickets: 2"), "{text}");
+    assert!(mtgish_ast::unified::forms(&card).named.is_empty());
+}

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 91;
+pub const SCHEMA_VERSION: u32 = 92;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -17,6 +17,21 @@ pub struct UnifiedCard {
     pub layout: String,
     pub faces: Vec<Card>,
     pub data: Vec<Field>,
+}
+
+/// One sticker on a sheet. `tickets` is what it costs to put on a permanent.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Sticker {
+    Name(String),
+    PowerToughness {
+        tickets: u32,
+        power: i32,
+        toughness: i32,
+    },
+    Abilities {
+        tickets: u32,
+        abilities: Vec<Ability>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -78,6 +93,7 @@ pub enum Operand {
     Event(Box<EventSpec>),
     /// The instruction a "this way" row reads: the nearest one before it.
     Result(ResultId),
+    Stickers(Vec<Sticker>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

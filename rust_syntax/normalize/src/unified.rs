@@ -2,7 +2,7 @@
 //! whether a face is reduced; this only adds a representation for the rest, so it
 //! cannot change what counts as complete.
 use crate::{
-    ir::{Ability, Card, Field, UnifiedCard, SCHEMA_VERSION},
+    ir::{Ability, Card, Field, Operand, UnifiedCard, SCHEMA_VERSION},
     lower::{self, Diagnostic},
     mtg_types::OracleCard,
     pipeline::source_tree::decode,
@@ -48,7 +48,47 @@ pub fn lower(value: &OracleCard) -> Lowered {
     crate::corpus::on_large_stack(|| lower_record(value))
 }
 
+/// Token definitions and sticker sheets have no card face, but hold ordinary
+/// abilities. `None` leaves anything unreduced to the generic walk.
+fn data_record(value: &OracleCard) -> Option<Lowered> {
+    let (layout, faces, data) = match value {
+        OracleCard::TokenDefinition { name, token } => (
+            "TokenDefinition",
+            lower::token_faces(name, token).ok()?,
+            vec![],
+        ),
+        OracleCard::StickerSheet { stickers } => {
+            let stickers = stickers
+                .iter()
+                .map(lower::sticker)
+                .collect::<Result<Vec<_>, _>>()
+                .ok()?;
+            let data = vec![Field {
+                name: "Stickers".into(),
+                value: Operand::Stickers(stickers),
+            }];
+            ("StickerSheet", vec![], data)
+        }
+        _ => return None,
+    };
+    let card = UnifiedCard {
+        schema_version: SCHEMA_VERSION,
+        layout: layout.into(),
+        faces,
+        data,
+    };
+    crate::validate::unified(&card).ok()?;
+    Some(Lowered {
+        card,
+        diagnostics: vec![],
+        blockers: vec![],
+    })
+}
+
 fn lower_record(value: &OracleCard) -> Lowered {
+    if let Some(lowered) = data_record(value) {
+        return lowered;
+    }
     let inspected = crate::inspect::value(value).expect("source AST serialization");
     let mut walk = Walk::default();
     walk.fields(
@@ -178,8 +218,7 @@ pub fn forms(value: &impl Serialize) -> Forms {
                     *forms.named.entry(format!("{ty}::{form}")).or_default() += 1;
                 }
                 // Tagged enums nest it under `args`, and untagged ones under the variant.
-                let primitive = if fields.get("kind").and_then(Value::as_str) == Some("Primitive")
-                {
+                let primitive = if fields.get("kind").and_then(Value::as_str) == Some("Primitive") {
                     fields.get("args")
                 } else {
                     fields.get("Primitive")

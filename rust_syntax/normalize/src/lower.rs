@@ -5487,6 +5487,59 @@ pub(crate) fn bind_card(
         },
     )
 }
+/// A token definition as the face of the card it would be. Its colors are its
+/// color indicator: a token has no mana cost.
+pub(crate) fn token_faces(name: &str, token: &source::CreatableToken) -> Result<Vec<Card>> {
+    if let source::CreatableToken::TransformingToken(front, back) = token {
+        let mut faces = token_faces(name, front)?;
+        faces.extend(token_faces(name, back)?);
+        return Ok(faces);
+    }
+    let spec = Context::default().token(token, 0)?;
+    let definition = spec.definition().ok_or_else(|| unsupported(token))?;
+    let power_toughness = match &definition.power_toughness {
+        None => None,
+        Some((Expr::Constant(power), Expr::Constant(toughness))) => Some((
+            i32::try_from(*power).map_err(|_| invalid("token power"))?,
+            i32::try_from(*toughness).map_err(|_| invalid("token toughness"))?,
+        )),
+        Some(_) => return Err(unsupported(token)),
+    };
+    Ok(vec![Card {
+        schema_version: SCHEMA_VERSION,
+        name: name.to_string(),
+        characteristics: Characteristics {
+            supertypes: definition.supertypes.clone(),
+            card_types: definition.card_types.clone(),
+            subtypes: definition.subtypes.clone(),
+            mana_cost: None,
+            color_indicator: definition.colors.clone(),
+            power_toughness,
+            loyalty: None,
+            defense: None,
+        },
+        abilities: definition.abilities.clone(),
+    }])
+}
+
+pub(crate) fn sticker(value: &source::Sticker) -> Result<Sticker> {
+    Ok(match value {
+        source::Sticker::NameSticker(name) => Sticker::Name(name.clone()),
+        source::Sticker::PTSticker(tickets, pt) => Sticker::PowerToughness {
+            tickets: *tickets,
+            power: pt.power,
+            toughness: pt.toughness,
+        },
+        source::Sticker::AbilitySticker(tickets, rules) => Sticker::Abilities {
+            tickets: *tickets,
+            abilities: rules
+                .iter()
+                .map(|rule| Context::default().ability(rule))
+                .collect::<Result<_>>()?,
+        },
+    })
+}
+
 /// Lower a face that strict lowering rejected, keeping every part it can reduce.
 /// Each rule yields exactly one ability, so ability indices still match rule indices.
 pub(crate) fn unified_face(value: &source::OracleCard) -> (Card, Vec<Diagnostic>) {

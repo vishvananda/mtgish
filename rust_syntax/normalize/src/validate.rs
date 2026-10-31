@@ -1633,6 +1633,16 @@ impl<'a> Scope<'a> {
             Operand::Duration(_) => Ok(()),
             Operand::Filter(filter) => self.filter(filter),
             Operand::Comparison(_, expression) => self.expr(expression),
+            Operand::Stickers(stickers) => {
+                for sticker in stickers {
+                    if let Sticker::Abilities { abilities, .. } = sticker {
+                        for ability in abilities {
+                            validate_ability_in(ability, None, &BTreeMap::new())?;
+                        }
+                    }
+                }
+                Ok(())
+            }
             Operand::Cost(cost) => self.cost(cost),
             // A nested body closes over this scope, targets included.
             Operand::Ability(ability) => match &**ability {
