@@ -1151,6 +1151,1420 @@
       },
       "changes": 1,
       "duration": 2
+    },
+    {
+      "id": "action.ReturnAnyNumberOfPermanentsToTheirOwnersHands",
+      "source": "ReturnAnyNumberOfPermanentsToTheirOwnersHands",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "AnyNumber"
+      }
+    },
+    {
+      "id": "action.PutNumberPermanentsIntoOwnersHand",
+      "source": "PutNumberPermanentsIntoOwnersHand",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 1
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.ReturnUptoNumberPermanentsToOwnersHand",
+      "source": "ReturnUptoNumberPermanentsToOwnersHand",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 1
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "UpTo",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.ReturnAPermanentToTopOfLibrary",
+      "source": "ReturnAPermanentToTopOfLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTop",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.ShuffleAPermanentIntoLibrary",
+      "source": "ShuffleAPermanentIntoLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.PutEachPermanentOnBottomOfOwnersLibraryInOrderOfOwnersChoice",
+      "source": "PutEachPermanentOnBottomOfOwnersLibraryInOrderOfOwnersChoice",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null
+    },
+    {
+      "id": "action.PutEachPermanentOnTheTopOfOwnersLibraryInOrderOfOwnersChoice",
+      "source": "PutEachPermanentOnTheTopOfOwnersLibraryInOrderOfOwnersChoice",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTop",
+      "entry": null
+    },
+    {
+      "id": "action.PutEachPermanentOnTopOfOwnersLibrariesThenShuffleThoseLibraries",
+      "source": "PutEachPermanentOnTopOfOwnersLibrariesThenShuffleThoseLibraries",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null
+    },
+    {
+      "id": "action.ReturnPermanentToBottomOfLibrary",
+      "source": "ReturnPermanentToBottomOfLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null
+    },
+    {
+      "id": "action.PutEachPermanentInOwnersLibraryNthFromTheTop",
+      "source": "PutEachPermanentInOwnersLibraryNthFromTheTop",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryNth",
+      "entry": null,
+      "depth": 1
+    },
+    {
+      "id": "action.ReturnSpellToBottomOfLibrary",
+      "source": "ReturnSpellToBottomOfLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Spell",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null
+    },
+    {
+      "id": "action.PutSpellOnBottomOfOwnersLibrary",
+      "source": "PutSpellOnBottomOfOwnersLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Spell",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null
+    },
+    {
+      "id": "action.PutSpellInOwnersLibraryNthFromTheTop",
+      "source": "PutSpellInOwnersLibraryNthFromTheTop",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "Spell",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryNth",
+      "entry": null,
+      "depth": 1
+    },
+    {
+      "id": "action.PutEachExiledCardOnTheBottomOfTheirOwnersLibraryInARandomOrder",
+      "source": "PutEachExiledCardOnTheBottomOfTheirOwnersLibraryInARandomOrder",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottomRandom",
+      "entry": null
+    },
+    {
+      "id": "action.ReturnEachExiledCardToBottomOfOwnersLibraryRandomOrder",
+      "source": "ReturnEachExiledCardToBottomOfOwnersLibraryRandomOrder",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottomRandom",
+      "entry": null
+    },
+    {
+      "id": "action.PutEachExiledCardOnTheBottomOfTheirOwnersLibraryInAnyOrder",
+      "source": "PutEachExiledCardOnTheBottomOfTheirOwnersLibraryInAnyOrder",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null
+    },
+    {
+      "id": "action.PutExiledCardsOnTopOfLibraryInAnyOrder",
+      "source": "PutExiledCardsOnTopOfLibraryInAnyOrder",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTop",
+      "entry": null
+    },
+    {
+      "id": "action.PutAnExiledCardIntoOwnersGraveyard",
+      "source": "PutAnExiledCardIntoOwnersGraveyard",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersGraveyard",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.ReturnAnExiledCardToOwnersHand",
+      "source": "ReturnAnExiledCardToOwnersHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.ReturnUptoNumberCardsFromExileToOwnersHand",
+      "source": "ReturnUptoNumberCardsFromExileToOwnersHand",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 1
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "UpTo",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.PutExiledCardInOwnersLibraryNthFromTheTop",
+      "source": "PutExiledCardInOwnersLibraryNthFromTheTop",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryNth",
+      "entry": null,
+      "depth": 1
+    },
+    {
+      "id": "action.ShuffleEachExiledCardIntoLibrary",
+      "source": "ShuffleEachExiledCardIntoLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null
+    },
+    {
+      "id": "action.ShuffleExiledCardIntoLibrary",
+      "source": "ShuffleExiledCardIntoLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null
+    },
+    {
+      "id": "action.PutAnExiledCardOntoBattlefield",
+      "source": "PutAnExiledCardOntoBattlefield",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 1,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.PutNumberCardsFromExileOntoBattlefield",
+      "source": "PutNumberCardsFromExileOntoBattlefield",
+      "arity": 3,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 1
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 2,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.PutAnyNumberOfCardsFromExileOntoBattlefield",
+      "source": "PutAnyNumberOfCardsFromExileOntoBattlefield",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 1,
+      "selection": {
+        "kind": "AnyNumber"
+      }
+    },
+    {
+      "id": "action.PutACardFromGraveyardIntoHandAtRandom",
+      "source": "PutACardFromGraveyardIntoHandAtRandom",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      },
+      "random": true
+    },
+    {
+      "id": "action.ReturnGraveyardCardsToHand",
+      "source": "ReturnGraveyardCardsToHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.PutAGraveyardCardIntoHand",
+      "source": "PutAGraveyardCardIntoHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.PutAllCardsFromGraveyardIntoHand",
+      "source": "PutAllCardsFromGraveyardIntoHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.PutAnyNumberOfCardsFromGraveyardIntoHand",
+      "source": "PutAnyNumberOfCardsFromGraveyardIntoHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "AnyNumber"
+      }
+    },
+    {
+      "id": "action.PutUptoNumberCardsFromGraveyardIntoHand",
+      "source": "PutUptoNumberCardsFromGraveyardIntoHand",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 1
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "UpTo",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.PutUptoNumberGraveyardCardsOntoTheBattlefield",
+      "source": "PutUptoNumberGraveyardCardsOntoTheBattlefield",
+      "arity": 3,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 1
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 2,
+      "selection": {
+        "kind": "UpTo",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.ReturnEachGraveyardCardToBottomOfLibraryInAnyOrder",
+      "source": "ReturnEachGraveyardCardToBottomOfLibraryInAnyOrder",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null
+    },
+    {
+      "id": "action.PutNumberGraveyardCardsOnTopOfLibraryInAnyOrder",
+      "source": "PutNumberGraveyardCardsOnTopOfLibraryInAnyOrder",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 1
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTop",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.ReturnNumberGraveyardCardsToBattlefieldAtRandom",
+      "source": "ReturnNumberGraveyardCardsToBattlefieldAtRandom",
+      "arity": 3,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 1
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 2,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      },
+      "random": true
+    },
+    {
+      "id": "action.ReturnACardFromAnyPlayersGraveyardToBattlefield",
+      "source": "ReturnACardFromAnyPlayersGraveyardToBattlefield",
+      "arity": 3,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCardsOf",
+        "argument": 0,
+        "owners": 1
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 2,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.ReturnUptoNumberCardsFromAmongPlayersGraveyardsToBattlefield",
+      "source": "ReturnUptoNumberCardsFromAmongPlayersGraveyardsToBattlefield",
+      "arity": 4,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCardsOf",
+        "argument": 1,
+        "owners": 2
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 3,
+      "selection": {
+        "kind": "UpTo",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.PutNumberCardsFromAmongPlayersGraveyardsOntoTheBattlefield",
+      "source": "PutNumberCardsFromAmongPlayersGraveyardsOntoTheBattlefield",
+      "arity": 4,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCardsOf",
+        "argument": 1,
+        "owners": 2
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 3,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.ReturnAnyNumberOfCardsFromGraveyardToBattlefield",
+      "source": "ReturnAnyNumberOfCardsFromGraveyardToBattlefield",
+      "arity": 3,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCardsOf",
+        "argument": 0,
+        "owner": 1
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 2,
+      "selection": {
+        "kind": "AnyNumber"
+      }
+    },
+    {
+      "id": "action.ReturnACardFromGraveyardToTopOfLibrary",
+      "source": "ReturnACardFromGraveyardToTopOfLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Graveyard"
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTop",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.ReturnNumberCardsFromGraveyardToBattlefield",
+      "source": "ReturnNumberCardsFromGraveyardToBattlefield",
+      "arity": 3,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 1,
+        "zone": "Graveyard"
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 2,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.ReturnACardFromGraveyardToBattlefieldAtRandom",
+      "source": "ReturnACardFromGraveyardToBattlefieldAtRandom",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Graveyard"
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 1,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      },
+      "random": true
+    },
+    {
+      "id": "action.ReturnNumberCardsFromGraveyardToBattlefieldAtRandom",
+      "source": "ReturnNumberCardsFromGraveyardToBattlefieldAtRandom",
+      "arity": 3,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 1,
+        "zone": "Graveyard"
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 2,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      },
+      "random": true
+    },
+    {
+      "id": "action.PutEachCardInGraveyardOntoBottomOfLibraryInRandomOrder",
+      "source": "PutEachCardInGraveyardOntoBottomOfLibraryInRandomOrder",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Graveyard"
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottomRandom",
+      "entry": null
+    },
+    {
+      "id": "action.ShuffleEachCardInGraveyardIntoLibrary",
+      "source": "ShuffleEachCardInGraveyardIntoLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Graveyard"
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null
+    },
+    {
+      "id": "action.ReturnACardFromPlayersGraveyardToBattlefield",
+      "source": "ReturnACardFromPlayersGraveyardToBattlefield",
+      "arity": 3,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Graveyard",
+        "owner": 1
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 2,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.ReturnEachCardFromPlayersGraveyardToHand",
+      "source": "ReturnEachCardFromPlayersGraveyardToHand",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Graveyard",
+        "owner": 1
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.ReturnNumberCardsFromPlayersGraveyardToHand",
+      "source": "ReturnNumberCardsFromPlayersGraveyardToHand",
+      "arity": 3,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 1,
+        "zone": "Graveyard",
+        "owner": 2
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.ReturnNumberCardsFromPlayersGraveyardToHandAtRandom",
+      "source": "ReturnNumberCardsFromPlayersGraveyardToHandAtRandom",
+      "arity": 3,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 1,
+        "zone": "Graveyard",
+        "owner": 2
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      },
+      "random": true
+    },
+    {
+      "id": "action.PutACardFromPlayersGraveyardOnTopOfLibrary",
+      "source": "PutACardFromPlayersGraveyardOnTopOfLibrary",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Graveyard",
+        "owner": 1
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTop",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.ShuffleEachCardInPlayersGraveyardIntoLibrary",
+      "source": "ShuffleEachCardInPlayersGraveyardIntoLibrary",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Graveyard",
+        "owner": 1
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null
+    },
+    {
+      "id": "action.ShuffleUptoNumberCardsFromPlayersGraveyardIntoLibrary",
+      "source": "ShuffleUptoNumberCardsFromPlayersGraveyardIntoLibrary",
+      "arity": 3,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 1,
+        "zone": "Graveyard",
+        "owner": 2
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null,
+      "selection": {
+        "kind": "UpTo",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.ReturnEachCardFromEachPlayersGraveyardToOwnersHand",
+      "source": "ReturnEachCardFromEachPlayersGraveyardToOwnersHand",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Graveyard",
+        "owners": 1
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.PutUptoNumberCardsFromHandOntoBattlefield",
+      "source": "PutUptoNumberCardsFromHandOntoBattlefield",
+      "arity": 3,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 1,
+        "zone": "Hand"
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 2,
+      "selection": {
+        "kind": "UpTo",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.PutACardFromHandIntoGraveyard",
+      "source": "PutACardFromHandIntoGraveyard",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Hand"
+      },
+      "duration": null,
+      "destination": "OwnersGraveyard",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.PutAllCardsFromHandOnBottomOfLibraryAnyOrder",
+      "source": "PutAllCardsFromHandOnBottomOfLibraryAnyOrder",
+      "arity": 0,
+      "family": "Move",
+      "subjects": {
+        "kind": "WholeZone",
+        "zone": "Hand"
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null
+    },
+    {
+      "id": "action.PutAllCardsFromHandOnTopOfLibrary",
+      "source": "PutAllCardsFromHandOnTopOfLibrary",
+      "arity": 0,
+      "family": "Move",
+      "subjects": {
+        "kind": "WholeZone",
+        "zone": "Hand"
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTop",
+      "entry": null
+    },
+    {
+      "id": "action.ShuffleHandIntoLibrary",
+      "source": "ShuffleHandIntoLibrary",
+      "arity": 0,
+      "family": "Move",
+      "subjects": {
+        "kind": "WholeZone",
+        "zone": "Hand"
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null
+    },
+    {
+      "id": "action.PutNumCardsFromHandOnBottomOfLibraryAnyOrder",
+      "source": "PutNumCardsFromHandOnBottomOfLibraryAnyOrder",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "WholeZone",
+        "zone": "Hand"
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.PutAnyNumberOfCardsFromHandOnBottomOfLibraryInAnyOrder",
+      "source": "PutAnyNumberOfCardsFromHandOnBottomOfLibraryInAnyOrder",
+      "arity": 0,
+      "family": "Move",
+      "subjects": {
+        "kind": "WholeZone",
+        "zone": "Hand"
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null,
+      "selection": {
+        "kind": "AnyNumber"
+      }
+    },
+    {
+      "id": "action.ShuffleAnyNumberOfCardsFromHandIntoLibrary",
+      "source": "ShuffleAnyNumberOfCardsFromHandIntoLibrary",
+      "arity": 0,
+      "family": "Move",
+      "subjects": {
+        "kind": "WholeZone",
+        "zone": "Hand"
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null,
+      "selection": {
+        "kind": "AnyNumber"
+      }
+    },
+    {
+      "id": "action.ShuffleCardsFromHandIntoLibrary",
+      "source": "ShuffleCardsFromHandIntoLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "HandCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null
+    },
+    {
+      "id": "action.PutCardsInHandIntoGraveyard",
+      "source": "PutCardsInHandIntoGraveyard",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "HandCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersGraveyard",
+      "entry": null
+    },
+    {
+      "id": "action.PutCardFromHandOnBottomOfLibrary",
+      "source": "PutCardFromHandOnBottomOfLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "HandCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null
+    },
+    {
+      "id": "action.PutCardFromHandOnTopOfLibrary",
+      "source": "PutCardFromHandOnTopOfLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "HandCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTop",
+      "entry": null
+    },
+    {
+      "id": "action.PutCardFromHandIntoGraveyard",
+      "source": "PutCardFromHandIntoGraveyard",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "HandCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersGraveyard",
+      "entry": null
+    },
+    {
+      "id": "action.ShuffleCardFromHandIntoLibrary",
+      "source": "ShuffleCardFromHandIntoLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "HandCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryShuffled",
+      "entry": null
+    },
+    {
+      "id": "action.PutCardInHandIntoLibraryNthFromTop",
+      "source": "PutCardInHandIntoLibraryNthFromTop",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "HandCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryNth",
+      "entry": null,
+      "depth": 1
+    },
+    {
+      "id": "action.PutCardsInLibraryOntoTheBattlefield",
+      "source": "PutCardsInLibraryOntoTheBattlefield",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "LibraryCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 1
+    },
+    {
+      "id": "action.PutCardsInLibraryIntoGraveyard",
+      "source": "PutCardsInLibraryIntoGraveyard",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "LibraryCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersGraveyard",
+      "entry": null
+    },
+    {
+      "id": "action.PutLibraryCardsIntoHand",
+      "source": "PutLibraryCardsIntoHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "LibraryCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.PutCardsInLibraryOnTheBottomOfLibraryInAnyOrder",
+      "source": "PutCardsInLibraryOnTheBottomOfLibraryInAnyOrder",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "LibraryCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottom",
+      "entry": null
+    },
+    {
+      "id": "action.PutCardsInLibraryOnTheBottomOfLibraryInARandomOrder",
+      "source": "PutCardsInLibraryOnTheBottomOfLibraryInARandomOrder",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "LibraryCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryBottomRandom",
+      "entry": null
+    },
+    {
+      "id": "action.PutARandomCardFromLibraryOntoBattlefield",
+      "source": "PutARandomCardFromLibraryOntoBattlefield",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "LibraryCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 1,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      },
+      "random": true
+    },
+    {
+      "id": "action.PutARandomCardFromLibraryIntoGraveyard",
+      "source": "PutARandomCardFromLibraryIntoGraveyard",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Library"
+      },
+      "duration": null,
+      "destination": "OwnersGraveyard",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      },
+      "random": true
+    },
+    {
+      "id": "action.PutARandomCardFromPlayersLibraryOntoBattlefield",
+      "source": "PutARandomCardFromPlayersLibraryOntoBattlefield",
+      "arity": 3,
+      "family": "Move",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Library",
+        "owner": 1
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 2,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      },
+      "random": true
+    },
+    {
+      "id": "action.PutEachCardOfTypeMilledThisWayIntoHand",
+      "source": "PutEachCardOfTypeMilledThisWayIntoHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "MilledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null
+    },
+    {
+      "id": "action.PutUptoNumberCardsOfTypeMilledThisWayIntoHand",
+      "source": "PutUptoNumberCardsOfTypeMilledThisWayIntoHand",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "MilledCards",
+        "argument": 1
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "UpTo",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.PutAnyNumberOfCardsOfTypeMilledThisWayIntoHand",
+      "source": "PutAnyNumberOfCardsOfTypeMilledThisWayIntoHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "MilledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "AnyNumber"
+      }
+    },
+    {
+      "id": "action.PutAnyNumberOfCardsOfTypeMilledThisWayOntoTheBattlefield",
+      "source": "PutAnyNumberOfCardsOfTypeMilledThisWayOntoTheBattlefield",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "MilledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 1,
+      "selection": {
+        "kind": "AnyNumber"
+      }
+    },
+    {
+      "id": "action.PutACardOfTypeMilledThisWayOnTopOfLibrary",
+      "source": "PutACardOfTypeMilledThisWayOnTopOfLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "MilledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTop",
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.ReturnAnyNumberCardsMilledThisWayToHand",
+      "source": "ReturnAnyNumberCardsMilledThisWayToHand",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "MilledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersHand",
+      "entry": null,
+      "selection": {
+        "kind": "AnyNumber"
+      }
+    },
+    {
+      "id": "action.ReturnACardMilledThisWayToBattlefield",
+      "source": "ReturnACardMilledThisWayToBattlefield",
+      "arity": 2,
+      "family": "Move",
+      "subjects": {
+        "kind": "MilledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "BattlefieldActor",
+      "entry": 1,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
     }
   ]
 }

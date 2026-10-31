@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 52);
+    assert_eq!(card.schema_version, 53);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2586,4 +2586,35 @@ fn an_optional_destroy_is_checked_in_the_graveyard() {
 fn a_search_can_match_a_targeted_graveyard_cards_name() {
     let text = ability_json("SpellActions(Targeted([TargetGraveyardCard(AnyCardInAnyGraveyard)],ActionList([SearchPlayersLibraryAndGraveyardAndHand(OwnerOfGraveyrdCard(Ref_TargetGraveyardCard),[FindAnyNumberOfCardsOfType(SharesANameWithGraveyardCard(Ref_TargetGraveyardCard)),ExileFoundCards])])))");
     assert!(text.contains("SharesNameWith"), "{text}");
+}
+
+#[test]
+fn a_random_move_is_picked_by_the_game() {
+    let text = ability_json(
+        "SpellActions(ActionList([PutACardFromGraveyardIntoHandAtRandom(IsCardtype(Creature))]))",
+    );
+    assert!(text.contains("AtRandom"), "{text}");
+    assert!(text.contains("OwnersHand"), "{text}");
+}
+
+#[test]
+fn a_random_bottom_order_is_part_of_the_destination() {
+    let text = ability_json("SpellActions(ActionList([ReturnEachExiledCardToBottomOfOwnersLibraryRandomOrder(AnyExiledCard)]))");
+    assert!(text.contains("OwnersLibraryBottomRandom"), "{text}");
+}
+
+#[test]
+fn a_whole_hand_moves_as_one_set() {
+    let text = ability_json("SpellActions(ActionList([ShuffleHandIntoLibrary]))");
+    assert!(text.contains("\"Hand\""), "{text}");
+    assert!(text.contains("OwnersLibraryShuffled"), "{text}");
+}
+
+#[test]
+fn an_nth_position_keeps_its_number() {
+    let text = ability_json(
+        "SpellActions(ActionList([PutSpellInOwnersLibraryNthFromTheTop(ThisSpell,Integer(7))]))",
+    );
+    assert!(text.contains("OwnersLibraryFromTop"), "{text}");
+    assert!(text.contains('7'), "{text}");
 }

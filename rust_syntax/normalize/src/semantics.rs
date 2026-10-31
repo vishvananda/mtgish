@@ -373,6 +373,7 @@ impl Effects {
             Destination::OwnersLibraryTop
             | Destination::OwnersLibraryBottom
             | Destination::OwnersLibraryFromTop(_)
+            | Destination::OwnersLibraryBottomRandom
             | Destination::OwnersLibraryShuffled => true,
             Destination::OwnersHand
             | Destination::OwnersGraveyard

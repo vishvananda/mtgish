@@ -13,7 +13,7 @@ pub mod report;
 #[path = "source.rs"]
 pub mod source_tree;
 pub use crate::rewrite_spec::{
-    Destination as DestinationInput, Family, ObjectOperation, PlayerOperation, Registry,
+    CardZone, Destination as DestinationInput, Family, ObjectOperation, PlayerOperation, Registry,
 };
 use crate::{ir, mtg_types as source_types};
 use serde::{Deserialize, Serialize};
@@ -36,6 +36,27 @@ pub enum Subjects {
     ExiledCard(source::CardInExile),
     ExiledCards(source::CardsInExile),
     Spell(source::Spell),
+    HandCard(source::CardInHand),
+    HandCards(source::CardsInHand),
+    LibraryCards(source::CardsInLibrary),
+    Cards {
+        zone: CardZone,
+        filter: source::Cards,
+        owners: Owners,
+    },
+    GraveCardsOf {
+        filter: source::CardsInGraveyards,
+        owners: Owners,
+    },
+    MilledCards(source::Cards),
+    WholeZone(CardZone),
+}
+/// Whose zone a card subject is read from.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum Owners {
+    Actor,
+    One(source::Player),
+    Many(source::Players),
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DurationInput {
@@ -60,6 +81,8 @@ pub enum SurfaceAction {
         selection: Option<SelectionInput>,
         destination: DestinationInput,
         entry: Vec<source::EnterFlag>,
+        depth: Option<Quantity>,
+        random: bool,
     },
     PlayerAmount {
         operation: PlayerOperation,
@@ -92,6 +115,8 @@ pub enum ExpandedRecipe {
         selection: Option<SelectionInput>,
         destination: DestinationInput,
         entry: Vec<source::EnterFlag>,
+        depth: Option<Quantity>,
+        random: bool,
     },
     PlayerAmount {
         operation: PlayerOperation,
@@ -138,11 +163,15 @@ impl SurfaceAction {
                 selection,
                 destination,
                 entry,
+                depth,
+                random,
             } => ExpandedRecipe::Move {
                 subjects,
                 selection,
                 destination,
                 entry,
+                depth,
+                random,
             },
             Self::PlayerAmount { operation, amount } => {
                 ExpandedRecipe::PlayerAmount { operation, amount }

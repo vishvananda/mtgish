@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 52;
+pub const SCHEMA_VERSION: u32 = 53;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -920,6 +920,8 @@ pub enum SelectionConstraint {
     DifferentControllers,
     /// No two of these share an owner, as "from each player's graveyard".
     DifferentOwners,
+    /// The game picks uniformly, not the choosing player.
+    AtRandom,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CardOrder {
@@ -1082,8 +1084,10 @@ pub enum Destination {
     OwnersBattlefield,
     /// "Shuffle it into its owner's library": the shuffle is one action.
     OwnersLibraryShuffled,
-    /// This many cards down from the top: third from the top is 2 below it.
+    /// The position counted from the top: third from the top is 3.
     OwnersLibraryFromTop(Expr),
+    /// The bottom, in a random order.
+    OwnersLibraryBottomRandom,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

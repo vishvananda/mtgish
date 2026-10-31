@@ -1,8 +1,29 @@
 // Binding pass for generated operation templates. Context and scope/result
 // checks are shared with the existing compiler; no template parses Oracle text.
 impl Context {
-    fn pipeline_subjects(&self, subjects: &crate::pipeline::Subjects) -> Result<ObjectSet> {
+    fn pipeline_owners(
+        &self,
+        owners: &crate::pipeline::Owners,
+        actor: &PlayerSet,
+    ) -> Result<PlayerSet> {
+        use crate::pipeline::Owners as O;
+        Ok(match owners {
+            O::Actor => actor.clone(),
+            O::One(player) => PlayerSet::One(self.player(player)?),
+            O::Many(players) => self.players(players)?,
+        })
+    }
+    fn pipeline_subjects(
+        &self,
+        subjects: &crate::pipeline::Subjects,
+        actor: &PlayerSet,
+    ) -> Result<ObjectSet> {
         use crate::pipeline::Subjects as S;
+        let zone = |zone: &crate::pipeline::CardZone| match zone {
+            crate::pipeline::CardZone::Hand => EventZone::Hand,
+            crate::pipeline::CardZone::Graveyard => EventZone::Graveyard,
+            crate::pipeline::CardZone::Library => EventZone::Library,
+        };
         Ok(match subjects {
             S::Permanent(p) => ObjectSet::One(self.object(p)?),
             S::Permanents(p) => self.objects(p)?,
@@ -11,6 +32,34 @@ impl Context {
             S::ExiledCard(c) => self.still_exiled(ObjectSet::One(self.exiled_card(c)?)),
             S::ExiledCards(c) => self.still_exiled(self.exile_cards(c)?),
             S::Spell(s) => ObjectSet::One(self.spell(s)?),
+            S::HandCard(c) => ObjectSet::One(self.hand_card(c)?),
+            S::HandCards(c) => {
+                if self.hand_has_scope(c)? {
+                    return Err(unsupported(c));
+                }
+                self.private_cards(EventZone::Hand, actor.clone(), self.hand_filter(c)?)
+            }
+            S::LibraryCards(c) => {
+                self.private_cards(EventZone::Library, actor.clone(), self.library_filter(c)?)
+            }
+            S::Cards {
+                zone: from,
+                filter,
+                owners,
+            } => self.private_cards(
+                zone(from),
+                self.pipeline_owners(owners, actor)?,
+                self.card_filter(filter)?,
+            ),
+            S::GraveCardsOf { filter, owners } => self.private_cards(
+                EventZone::Graveyard,
+                self.pipeline_owners(owners, actor)?,
+                self.grave_filter(filter)?,
+            ),
+            S::MilledCards(c) => self.grave_cards(
+                &source::CardsInGraveyards::CardsOfTypeMilledThisWay(Box::new(c.clone())),
+            )?,
+            S::WholeZone(from) => self.private_cards(zone(from), actor.clone(), ObjectFilter::Any),
         })
     }
     fn pipeline_selection(&self, selection: &crate::pipeline::SelectionInput) -> Result<Count> {
@@ -66,7 +115,7 @@ impl Context {
             R::PlayerAmount { .. } => unreachable!(),
         };
         let mut objects = self
-            .pipeline_subjects(subjects)
+            .pipeline_subjects(subjects, actor)
             .map_err(|e| e.at("subjects"))?;
         let selection = selection
             .as_ref()
@@ -93,11 +142,16 @@ impl Context {
             let PlayerSet::One(player) = actor else {
                 return Err(invalid("resolution selection requires one actor"));
             };
+            let random = matches!(&recipe, R::Move { random: true, .. });
             let choose = self.effect(Operation::ChooseObjects {
                 player: player.clone(),
                 objects,
                 count,
-                constraints: vec![],
+                constraints: if random {
+                    vec![SelectionConstraint::AtRandom]
+                } else {
+                    vec![]
+                },
             });
             let Instruction::Effect { result, .. } = &choose else {
                 unreachable!()
@@ -141,7 +195,10 @@ impl Context {
                 }
             }
             R::Move {
-                destination, entry, ..
+                destination,
+                entry,
+                depth,
+                ..
             } => {
                 let (destination, entry) = match destination {
                     DestinationInput::OwnersHand => (Destination::OwnersHand, EntrySpec::default()),
@@ -160,6 +217,23 @@ impl Context {
                     DestinationInput::BattlefieldYou => self
                         .move_entry(&entry, self.player(&source::Player::You)?)
                         .map_err(|e| e.at("entry"))?,
+                    DestinationInput::BattlefieldActor => {
+                        let PlayerSet::One(player) = actor else {
+                            return Err(invalid("entering the battlefield needs one player"));
+                        };
+                        self.move_entry(&entry, player.clone())
+                            .map_err(|e| e.at("entry"))?
+                    }
+                    DestinationInput::OwnersLibraryBottomRandom => {
+                        (Destination::OwnersLibraryBottomRandom, EntrySpec::default())
+                    }
+                    DestinationInput::OwnersLibraryNth => {
+                        let depth = depth.as_ref().ok_or_else(|| invalid("no library position"))?;
+                        (
+                            Destination::OwnersLibraryFromTop(self.pipeline_quantity(depth)?),
+                            EntrySpec::default(),
+                        )
+                    }
                 };
                 Operation::Move {
                     objects,

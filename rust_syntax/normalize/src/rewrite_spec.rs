@@ -24,6 +24,12 @@ pub struct Rule {
     pub selection: Option<Selection>,
     pub player_operation: Option<PlayerOperation>,
     pub object_operation: Option<ObjectOperation>,
+    /// The source argument holding a library position, for `OwnersLibraryNth`.
+    #[serde(default)]
+    pub depth: Option<usize>,
+    /// The selection is made at random rather than by the actor.
+    #[serde(default)]
+    pub random: bool,
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Family {
@@ -43,12 +49,73 @@ pub enum SubjectKind {
     ExiledCard,
     ExiledCards,
     Spell,
+    HandCard,
+    HandCards,
+    LibraryCards,
+    /// A `Cards` filter over `zone` of the actor, or of `owner` or `owners`.
+    Cards,
+    /// A `CardsInGraveyards` filter over the graveyards of `owner` or `owners`.
+    GraveCardsOf,
+    MilledCards,
+    /// Every card in `zone` of the actor.
+    WholeZone,
+}
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum CardZone {
+    Hand,
+    Graveyard,
+    Library,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Subjects {
     pub kind: SubjectKind,
-    pub argument: usize,
+    #[serde(default)]
+    pub argument: Option<usize>,
+    #[serde(default)]
+    pub zone: Option<CardZone>,
+    #[serde(default)]
+    pub owner: Option<usize>,
+    #[serde(default)]
+    pub owners: Option<usize>,
+}
+impl Subjects {
+    fn generate(&self) -> String {
+        let argument = self.argument.unwrap_or_default();
+        let owners = match (self.owner, self.owners) {
+            (Some(i), _) => format!("Owners::One(source::Player::clone(a{i}))"),
+            (_, Some(i)) => format!("Owners::Many(source::Players::clone(a{i}))"),
+            _ => "Owners::Actor".into(),
+        };
+        let (variant, ty) = match self.kind {
+            SubjectKind::Permanent => ("Permanent", "Permanent"),
+            SubjectKind::Permanents => ("Permanents", "Permanents"),
+            SubjectKind::GraveCard => ("GraveCard", "CardInGraveyards"),
+            SubjectKind::GraveCards => ("GraveCards", "CardsInGraveyards"),
+            SubjectKind::ExiledCard => ("ExiledCard", "CardInExile"),
+            SubjectKind::ExiledCards => ("ExiledCards", "CardsInExile"),
+            SubjectKind::Spell => ("Spell", "Spell"),
+            SubjectKind::HandCard => ("HandCard", "CardInHand"),
+            SubjectKind::HandCards => ("HandCards", "CardsInHand"),
+            SubjectKind::LibraryCards => ("LibraryCards", "CardsInLibrary"),
+            SubjectKind::MilledCards => ("MilledCards", "Cards"),
+            SubjectKind::Cards => {
+                return format!(
+                    "Subjects::Cards {{ zone: CardZone::{:?}, filter: source::Cards::clone(a{argument}), owners: {owners} }}",
+                    self.zone.expect("validated")
+                )
+            }
+            SubjectKind::GraveCardsOf => {
+                return format!(
+                    "Subjects::GraveCardsOf {{ filter: source::CardsInGraveyards::clone(a{argument}), owners: {owners} }}"
+                )
+            }
+            SubjectKind::WholeZone => {
+                return format!("Subjects::WholeZone(CardZone::{:?})", self.zone.expect("validated"))
+            }
+        };
+        format!("Subjects::{variant}(source::{ty}::clone(a{argument}))")
+    }
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Destination {
@@ -58,6 +125,10 @@ pub enum Destination {
     OwnersLibraryBottom,
     OwnersLibraryShuffled,
     BattlefieldYou,
+    /// Under the control of the player doing the action.
+    BattlefieldActor,
+    OwnersLibraryBottomRandom,
+    OwnersLibraryNth,
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
@@ -176,7 +247,10 @@ impl Registry {
                 return Err(format!("invalid Rust variant name: {}", r.source));
             }
             let mut arguments: Vec<usize> = [
-                r.subjects.as_ref().map(|s| s.argument),
+                r.subjects.as_ref().and_then(|s| s.argument),
+                r.subjects.as_ref().and_then(|s| s.owner),
+                r.subjects.as_ref().and_then(|s| s.owners),
+                r.depth,
                 r.duration,
                 r.entry,
                 r.changes,
@@ -245,8 +319,30 @@ impl Registry {
             {
                 return Err(format!("incompatible recipe fields: {}", r.id));
             }
-            if r.entry.is_some() && r.destination != Some(Destination::BattlefieldYou) {
+            if r.entry.is_some()
+                && !matches!(
+                    r.destination,
+                    Some(Destination::BattlefieldYou | Destination::BattlefieldActor)
+                )
+            {
                 return Err(format!("entry flags on a non-battlefield move: {}", r.id));
+            }
+            if r.depth.is_some() != (r.destination == Some(Destination::OwnersLibraryNth)) {
+                return Err(format!("library position without its depth: {}", r.id));
+            }
+            if r.random && r.selection.is_none() {
+                return Err(format!("random without a selection: {}", r.id));
+            }
+            if let Some(s) = &r.subjects {
+                let zone = matches!(s.kind, SubjectKind::Cards | SubjectKind::WholeZone);
+                let argument = s.kind != SubjectKind::WholeZone;
+                let owned = matches!(s.kind, SubjectKind::Cards | SubjectKind::GraveCardsOf);
+                if s.zone.is_some() != zone
+                    || s.argument.is_some() != argument
+                    || (!owned && (s.owner.is_some() || s.owners.is_some()))
+                {
+                    return Err(format!("incompatible subject fields: {}", r.id));
+                }
             }
             if r.selection.is_some()
                 && !matches!(
@@ -255,6 +351,12 @@ impl Registry {
                         SubjectKind::Permanents
                             | SubjectKind::GraveCards
                             | SubjectKind::ExiledCards
+                            | SubjectKind::HandCards
+                            | SubjectKind::LibraryCards
+                            | SubjectKind::Cards
+                            | SubjectKind::GraveCardsOf
+                            | SubjectKind::MilledCards
+                            | SubjectKind::WholeZone
                     )
                 )
             {
@@ -291,18 +393,7 @@ impl Registry {
             let subjects = r
                 .subjects
                 .as_ref()
-                .map(|s| {
-                    let (variant, ty) = match s.kind {
-                        SubjectKind::Permanent => ("Permanent", "Permanent"),
-                        SubjectKind::Permanents => ("Permanents", "Permanents"),
-                        SubjectKind::GraveCard => ("GraveCard", "CardInGraveyards"),
-                        SubjectKind::GraveCards => ("GraveCards", "CardsInGraveyards"),
-                        SubjectKind::ExiledCard => ("ExiledCard", "CardInExile"),
-                        SubjectKind::ExiledCards => ("ExiledCards", "CardsInExile"),
-                        SubjectKind::Spell => ("Spell", "Spell"),
-                    };
-                    format!("Subjects::{variant}(source::{ty}::clone(a{}))", s.argument)
-                })
+                .map(Subjects::generate)
                 .unwrap_or_default();
             let duration = r.duration.map_or("DurationInput::Indefinite".into(), |i| {
                 format!("DurationInput::Source(source::Expiration::clone(a{i}))")
@@ -313,7 +404,7 @@ impl Registry {
                 .map_or("None".into(), |s| format!("Some({})", s.generate()));
             let payload=match r.family {
                 Family::Control=>format!("SurfaceAction::Control {{ subjects: {subjects}, selection: {selection}, duration: {duration} }}"),
-                Family::Move=>format!("SurfaceAction::Move {{ subjects: {subjects}, selection: {selection}, destination: DestinationInput::{:?}, entry: {} }}",r.destination.unwrap(),r.entry.map_or("vec![]".into(),|i|format!("a{i}.clone()"))),
+                Family::Move=>format!("SurfaceAction::Move {{ subjects: {subjects}, selection: {selection}, destination: DestinationInput::{:?}, entry: {}, depth: {}, random: {} }}",r.destination.unwrap(),r.entry.map_or("vec![]".into(),|i|format!("a{i}.clone()")),r.depth.map_or("None".into(),|i|format!("Some(number_tree(a{i}))")),r.random),
                 Family::PlayerAmount=>format!("SurfaceAction::PlayerAmount {{ operation: PlayerOperation::{:?}, amount: {} }}",r.player_operation.unwrap(),r.amount.as_ref().unwrap().generate()),
                 Family::ObjectEffect=>format!("SurfaceAction::ObjectEffect {{ subjects: {subjects}, selection: {selection}, operation: ObjectOperation::{:?} }}",r.object_operation.unwrap()),
                 Family::LayerEffect | Family::RuleEffect=>format!("SurfaceAction::ContinuousEffect {{ subjects: {subjects}, change: ChangeTemplate::{}(a{}.clone()), duration: {duration} }}",if r.family==Family::LayerEffect {"LayerEffects"} else {"Rules"},r.changes.unwrap()),

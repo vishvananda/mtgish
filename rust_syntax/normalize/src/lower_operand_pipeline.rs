@@ -20,7 +20,10 @@ impl Context {
     ) -> Result<CostObjectSelection> {
         use crate::pipeline::operands::CostSelection as S;
         Ok(CostObjectSelection {
-            objects: self.pipeline_subjects(subjects)?,
+            objects: self.pipeline_subjects(
+                subjects,
+                &PlayerSet::One(self.payer.clone().unwrap_or(PlayerRef::AbilityController)),
+            )?,
             choose: selection
                 .map(|s| match s {
                     S::Exactly(n) => self.pipeline_quantity(n).map(Count::Exactly),
