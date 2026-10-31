@@ -134,6 +134,14 @@ pub(super) enum EventAt {
     Entering,
 }
 
+/// Whether `changes` read the object each is applied to, `ObjectRef::Affected`,
+/// rather than what an earlier result affected, `ObjectSet::Affected`.
+pub(super) fn reads_affected(changes: impl std::fmt::Debug) -> bool {
+    format!("{changes:?}")
+        .replace("Affected(", "")
+        .contains("Affected")
+}
+
 pub(super) fn compare(left: &str, comparison: &Comparison, right: &str) -> String {
     let symbol = match comparison {
         Comparison::Equal => "==",
@@ -263,6 +271,9 @@ impl Compiler {
             ObjectRef::Source => "Some(asker.source)".into(),
             // Inside a history question the event is what is being tested, and
             // the candidate is still the object the enclosing filter asks about.
+            ObjectRef::Affected if self.affected_object.is_some() => {
+                format!("Some({})", self.affected_object.unwrap_or_default())
+            }
             ObjectRef::Candidate if self.history.is_some() => match &self.history {
                 Some(History { outer: Some(outer) }) => format!("Some({outer})"),
                 _ => {

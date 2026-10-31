@@ -205,6 +205,8 @@ mod scenarios {
     ) -> (RulesGame, ObjectId, Option<ObjectId>, Vec<ObjectId>) {
         let mut definitions = vec![
             &divination::CARD,
+            &arms::CARD,
+            &touch::CARD,
             &satyr::CARD,
             &cling::CARD,
             &breezekeeper::CARD,
@@ -3082,5 +3084,37 @@ mod scenarios {
     fn phasing_is_the_keyword_the_engine_plays() {
         let (g, _, keeper) = game("Divination", Some("Breezekeeper"));
         assert!(g.chars(keeper.unwrap()).keywords.has(Keyword::Phasing));
+    }
+    #[test]
+    fn a_static_value_is_read_for_each_object_it_applies_to() {
+        let (g, _, _, _) = game_with_extras(
+            "Divination",
+            Some("Coat of Arms"),
+            0,
+            &[
+                ("Grizzly Bears", ME),
+                ("Grizzly Bears", THEM),
+                ("Shivan Dragon", THEM),
+            ],
+        );
+        let bears = permanents_named(&g, "Grizzly Bears")[0];
+        let dragon = permanents_named(&g, "Shivan Dragon")[0];
+        assert_eq!(g.chars(bears).power, Some(3));
+        assert_eq!(g.chars(dragon).power, Some(5));
+    }
+    #[test]
+    fn a_resolving_value_is_read_for_each_object_it_applies_to() {
+        let (mut g, spell, splitter) = game("Karn's Touch", Some("Bonesplitter"));
+        let splitter = splitter.unwrap();
+        announce_at(
+            &mut g,
+            spell,
+            ActionKind::CastSpell,
+            Target::Object(splitter),
+        );
+        resolve(&mut g, Some(splitter), false);
+        assert!(g.chars(splitter).is(CardType::Creature));
+        assert_eq!(g.chars(splitter).power, Some(1));
+        assert_eq!(g.chars(splitter).toughness, Some(1));
     }
 }

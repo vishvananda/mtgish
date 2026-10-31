@@ -1669,6 +1669,27 @@ impl Compiler {
             writeln!(out, "let original_{id} = {original}; let values_{id} = {values}; if let (Some(source), Some(values)) = (source_{id}, values_{id}) {{ cantrip_api::instruction(g, |g| {{ for &object in &objects_{id} {{ g.become_copy(source, object, values, duration_{id}); }} }}); }}").unwrap();
             return Ok(());
         }
+        // Each object has its own value, all read before any is applied.
+        if read::reads_affected(changes) {
+            self.affected_object = Some("object");
+            let kinds = changes
+                .iter()
+                .map(|change| self.effect_kinds(change))
+                .collect::<Result<Vec<_>>>();
+            self.affected_object = None;
+            let pushes: String = kinds?
+                .into_iter()
+                .flatten()
+                .map(|kind| {
+                    format!(
+                        "let kind = {}; all.push((object, kind)); ",
+                        self.fetch(kind)
+                    )
+                })
+                .collect();
+            writeln!(out, "let kinds_{id} = {{ let mut all = Vec::new(); for &object in &objects_{id} {{ {pushes} }} all }}; if let Some(source) = source_{id} {{ cantrip_api::instruction(g, |g| {{ for &(object, kind) in &kinds_{id} {{ g.add_effect(source, object, kind, duration_{id}); }} }}); }}").unwrap();
+            return Ok(());
+        }
         let mut kinds = Vec::new();
         for change in changes {
             for (i, kind) in self.effect_kinds(change)?.into_iter().enumerate() {

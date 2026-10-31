@@ -365,6 +365,9 @@ struct Compiler {
     performed: BTreeMap<u32, String>,
     values: BTreeMap<u32, String>,
     flips: BTreeMap<u32, String>,
+    /// The local of the object a change is being applied to, while its value
+    /// is read per object.
+    affected_object: Option<&'static str>,
     /// The bestow cost, which makes the card two definitions.
     bestow: Option<String>,
     /// Values this body chose, each in a local.
@@ -627,6 +630,7 @@ impl Compiler {
             performed: BTreeMap::new(),
             values: BTreeMap::new(),
             flips: BTreeMap::new(),
+            affected_object: None,
             bestow: None,
             chosen: Vec::new(),
             enters_choosing: Vec::new(),

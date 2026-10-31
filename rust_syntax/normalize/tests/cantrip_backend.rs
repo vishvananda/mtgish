@@ -144,6 +144,8 @@ fn generated_modules_execute_in_cantrip() {
     fs::write(root.join("Cargo.toml"), manifest).unwrap();
     let names = [
         ("divination", "Divination"),
+        ("arms", "Coat of Arms"),
+        ("touch", "Karn's Touch"),
         ("satyr", "Boon Satyr"),
         ("cling", "Cling to Dust"),
         ("breezekeeper", "Breezekeeper"),

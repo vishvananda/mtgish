@@ -210,7 +210,21 @@ impl Compiler {
         }
         Ok(true)
     }
+    /// `change_in_layer`, where a change reading the object it applies to is asked per
+    /// object, which `static_ability_for_each` gives it.
     fn layer_change(&mut self, change: &Change) -> Result<LayerChange> {
+        if !read::reads_affected(change) {
+            return self.change_in_layer(change);
+        }
+        self.affected_object = Some("affected");
+        let part = self.change_in_layer(change);
+        self.affected_object = None;
+        Ok(LayerChange {
+            each: true,
+            ..part?
+        })
+    }
+    fn change_in_layer(&mut self, change: &Change) -> Result<LayerChange> {
         let i16_of = |c: &Self, n: &Expr| -> Result<String> {
             c.number(n)?.fit(i16::MIN.into(), i16::MAX.into(), "i16")
         };
@@ -532,8 +546,22 @@ impl Compiler {
                 Some(builder) => format!("{builder}({affects}, {text})"),
                 None => {
                     let apply = format!("{label}_apply_{i}");
-                    writeln!(self.functions, "#[allow(unused_variables)] fn {apply}(q: &dyn LayerQuery, source: ObjectId, chars: &mut Chars) {{ {LAYER_PRELUDE} {} }}", part.body).unwrap();
-                    if part.land {
+                    let each = if part.each {
+                        "affected: ObjectId, "
+                    } else {
+                        ""
+                    };
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {apply}(q: &dyn LayerQuery, source: ObjectId, {each}chars: &mut Chars) {{ {LAYER_PRELUDE} {} }}", part.body).unwrap();
+                    if part.each && (part.land || defining) {
+                        return Err(gap(
+                            "a change by the object it applies to, defining or to a land",
+                        ));
+                    } else if part.each {
+                        format!(
+                            "static_ability_for_each(Layer::{}, {affects}, {apply}, {text})",
+                            part.layer
+                        )
+                    } else if part.land {
                         format!("sets_land_subtypes({affects}, {apply}, {text})")
                     } else if defining {
                         let layer = if part.layer == "PtSet" {
@@ -550,7 +578,6 @@ impl Compiler {
                     }
                 }
             };
-            let _ = part.each;
             let rank = layer_rank(part.layer);
             let follows = !defining && last.is_some_and(|before| before < rank);
             last = Some(rank);
