@@ -10,6 +10,7 @@ use std::{
     rc::Rc,
 };
 
+mod card_file;
 mod casting;
 mod chosen;
 mod copies;
@@ -96,6 +97,10 @@ fn generator_fingerprint() -> &'static str {
     HASH.get_or_init(|| {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
+            (
+                "cantrip/card_file.rs",
+                include_bytes!("cantrip/card_file.rs").as_slice(),
+            ),
             (
                 "cantrip/casting.rs",
                 include_bytes!("cantrip/casting.rs").as_slice(),
@@ -1185,6 +1190,118 @@ fn ability_text(body: &Program) -> String {
         .map(text)
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// What `card_files` found for one record.
+#[derive(serde::Serialize)]
+pub struct CardFileRow {
+    pub line: usize,
+    pub name: String,
+    /// The file, when the card has one; `None` with no gap needs only content.
+    pub rust: Option<String>,
+    pub gap: Option<String>,
+}
+
+/// Every single-faced, complete, primitive-free record the recipes of
+/// `card_file` cover, or the gap that stops it, as one JSON object a line.
+pub fn card_files(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usize> {
+    let printed: serde_json::Value =
+        serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(oracle)?))?;
+    let oracle: BTreeMap<String, String> = printed
+        .as_array()
+        .ok_or("oracle data is not a list")?
+        .iter()
+        .flat_map(|card| card["cards"].as_array().into_iter().flatten())
+        .filter_map(|face| {
+            let text = face["text"].as_str().unwrap_or_default();
+            Some((face["name"].as_str()?.to_string(), text.to_string()))
+        })
+        .collect();
+    let mut artifact = corpus::Artifact::create(output)?;
+    let mut count = 0;
+    corpus::map_cards(
+        input,
+        |line, source| -> corpus::Result<Option<CardFileRow>> {
+            let identity = corpus::Identity::of(&source)?;
+            let lowered = crate::unified::lower(&source);
+            let forms = crate::unified::forms(&lowered.card);
+            if !(lowered.diagnostics.is_empty() && forms.named.is_empty())
+                || !forms.primitives.is_empty()
+                || lowered.card.layout != "Card"
+                || lowered.card.faces.len() != 1
+            {
+                return Ok(None);
+            }
+            let name = identity.names.join(" // ");
+            let face = &lowered.card.faces[0];
+            if !gaps(face).is_empty() {
+                return Ok(None);
+            }
+            let Some(text) = oracle.get(&name) else {
+                return Ok(None);
+            };
+            let (rust, gap) = match card_file::card_file(face, text) {
+                Ok(rust) => (rust, None),
+                Err(gap) => (None, Some(gap.feature)),
+            };
+            Ok(Some(CardFileRow {
+                line,
+                name,
+                rust,
+                gap,
+            }))
+        },
+        |_, row| {
+            if let Some(row) = row {
+                writeln!(artifact, "{}", serde_json::to_string(&row)?)?;
+                count += 1;
+            }
+            Ok(())
+        },
+    )?;
+    artifact.commit()?;
+    Ok(count)
+}
+
+/// The module of each named card in a source corpus, for reading what the
+/// generator emits; a card with a gap shows the gaps instead.
+pub fn modules_named(input: &Path, names: &[String]) -> corpus::Result<Vec<(String, String)>> {
+    let wanted: BTreeSet<&str> = names.iter().map(String::as_str).collect();
+    let mut found = Vec::new();
+    corpus::map_cards(
+        input,
+        |_, source| -> corpus::Result<Option<(String, String)>> {
+            let identity = corpus::Identity::of(&source)?;
+            let Some(name) = identity
+                .names
+                .iter()
+                .find(|n| wanted.contains(n.as_str()))
+                .cloned()
+            else {
+                return Ok(None);
+            };
+            let lowered = crate::unified::lower(&source);
+            let rendered = lowered
+                .card
+                .faces
+                .iter()
+                .map(|face| match module(face) {
+                    Ok(rust) if std::env::var_os("MTGISH_SHOW_AST").is_some() => {
+                        format!("{face:#?}\n{rust}")
+                    }
+                    Ok(rust) => rust,
+                    Err(_) => format!("// gaps: {:?}", gaps(face)),
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            Ok(Some((name, rendered)))
+        },
+        |_, module| {
+            found.extend(module);
+            Ok(())
+        },
+    )?;
+    Ok(found)
 }
 
 /// One complete card module. Never returns partially executable code.
