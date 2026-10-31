@@ -11,7 +11,7 @@
     "Abilities", "ActivatedAbilities", "CardInHand", "CardsInGraveyards", "CardsInHand", "Companion",
     "EnterFlag", "ManaCost", "ManaSymbol", "ManaSymbolX", "CostReductionSymbol", "CostReductionSymbolX", "Planes", "Schemes", "SinglePlane", "SingleScheme",
     "SpellsAndAbilities", "ChoosableColor", "CreatureTypeVariable", "LandTypeVariable", "CardsInOracle",
-    "TokenCopyEffects", "TokenCopyEffect", "CopyEffects", "CopyEffect", "PT", "PTXValue", "SettableColor", "NameString",
+    "TokenCopyEffects", "TokenCopyEffect", "CopyEffects", "CopyEffect", "StaticCopyEffects", "GroupExiledEffect", "PT", "PTXValue", "SettableColor", "NameString",
     "CheckHasable", "VoteOption", "Protectable", "ProtectableColor", "GameEffect", "ModX", "ReplacementActionWouldEnter", "ExiledCardEffect", "FuturePlayerEffect", "PerpetualEffect", "CounterType", "Phenomena", "SpellEffect", "FutureSpell", "Level", "GameRange", "SpreeAction", "TieredAction", "GraveyardCardEffect", "HandEffect", "ActivatedAbilityEffect", "Craftable", "AbilitySources", "MoveCountersAction", "PutCountersCost", "PregameCard", "CostReduction", "LandType", "EnchantmentType", "Color", "SimpleColor"
   ],
   "rules": [
@@ -1316,7 +1316,7 @@
     {"source": "Trigger::WhenASpellOrAbilityIsPutOntoTheStack", "text": "stack", "binds": ["spell", "stack_object"]},
     {"source": "Trigger::WhenASpellOrAbilityDestroysAPermanent", "text": "destroys", "binds": ["stack_object"]},
     {"source": "Trigger::WhenASpellOrAbilityCausesItsControllerToShuffleTheirLibrary", "text": "causes", "binds": ["spell", "player"]},
-    {"source": "Trigger::WhenASpellOrAbilityCausesAnyNumberOfCardToBeExiledFromAPlayersLibrary", "text": "causes"},
+    {"source": "Trigger::WhenASpellOrAbilityCausesAnyNumberOfCardToBeExiledFromAPlayersLibrary", "text": "causes", "binds": ["group"]},
     {"source": "Trigger::WhenASpellOrAbilityCausesAPlayerToShuffleTheirLibrary", "text": "causes", "binds": ["spell", "player"]},
     {"source": "Trigger::WhenASpellOrAbilityCausesAPlayerToLoseAnAmountOfLife", "text": "causes", "binds": ["spell"]},
     {"source": "Trigger::WhenASpellOrAbilityCausesAPlayerToDiscardAnyNumberOfCards", "text": "causes", "binds": ["group"]},
@@ -3093,6 +3093,8 @@
     {"source": "GameNumber::ManaValueOfCardDiscardedByPlayerThisWay", "text": "mana"},
     {"source": "GameNumber::NumberOfPermanentsTappedThisWayByPlayer", "text": "tapped"},
     {"source": "Players::RolledHighestD20Value", "text": "highest"},
-    {"source": "Condition::TheNumberOfCardsOfTypeInPlayersLibraryIs", "text": "library"}
+    {"source": "Condition::TheNumberOfCardsOfTypeInPlayersLibraryIs", "text": "library"},
+    {"source": "StaticLayerEffect::IsACopyOf_TheObjectChosenToCopy", "text": "copy"},
+    {"source": "Permanent::ThePermanentCopiedThisWay", "text": "copied"}
   ]
 }

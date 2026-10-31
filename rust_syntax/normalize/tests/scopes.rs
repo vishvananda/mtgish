@@ -1891,3 +1891,19 @@ fn later_actions_of_a_row_list_read_earlier_ones() {
     );
     assert!(mate.contains("Program"), "{mate}");
 }
+
+#[test]
+fn a_distributed_total_can_depend_on_a_condition() {
+    let smashing = lowered(
+        "SpellActions(TargetedDistributed([UptoNumberTargetPermanents(Integer(2), IsCardtype(Creature))], IfElse(SpellXIs(GreaterThanOrEqualTo(Integer(6))), DistributeNumberAmongTargets(Twice(ValueX)), DistributeNumberAmongTargets(ValueX)), ActionList([SpellDealsDistributedDamage(ThisSpell)])))",
+    );
+    assert!(smashing.contains("distribute: Some(Conditional"), "{smashing}");
+}
+
+#[test]
+fn a_target_in_each_graveyard_is_read_by_its_owner() {
+    let primordial = lowered(
+        "TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), Targeted([UptoOneTargetGraveyardCardInEachPlayersGraveyard(IsCardtype(Creature), Opponent)], ActionList([ActionForEachPlayer(Opponent, [MayAction(PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCardInPlayersGraveyard(EachablePlayer), [EntersUnderPlayersControl(You)]))])])))",
+    );
+    assert!(primordial.contains("OwnedBy(One("), "{primordial}");
+}

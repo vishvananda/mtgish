@@ -173,6 +173,12 @@ impl Context {
                     amount = Some(c.as_ref());
                 }
             }
+            S::WhenAnyNumberOfPermanentsAreDealtExcessNoncombatDamage(p) => {
+                event.recipients = DamageRecipients::Objects(self.filter(p)?);
+                event.subject = DamageSubject::Recipient;
+                event.grouping = DamageGrouping::Batch;
+                event.kind = DamageKind::ExcessNoncombat;
+            }
             S::WhenDamageThatWouldBeDealtToAPlayerIsPrevented(p) => {
                 event.recipients = DamageRecipients::Players(self.players(p)?);
                 event.subject = DamageSubject::Recipient;

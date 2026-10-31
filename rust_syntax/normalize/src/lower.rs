@@ -814,6 +814,9 @@ impl Context {
             {
                 return Ok(ObjectRef::EventOther)
             }
+            S::Trigger_ThatCreature if self.event.block_pair => {
+                return Ok(ObjectRef::BlockPair(BlockRole::Blocker))
+            }
             S::Trigger_ThatOtherPermanent | S::Trigger_ThatOtherCreature
                 if self.event.block_pair =>
             {
@@ -5175,7 +5178,19 @@ impl Context {
             D::DistributeNumberAmongTargets(n) | D::DistributeNumberAmongAnyTargets(n) => {
                 self.number(n)?
             }
-            D::IfElse(..) => return Err(unsupported(distribution)),
+            D::IfElse(condition, then, otherwise) => {
+                let amount =
+                    |context: &Self, distribution: &source::Distribution| match distribution {
+                        D::DistributeNumberAmongTargets(n)
+                        | D::DistributeNumberAmongAnyTargets(n) => context.number(n),
+                        other => Err(unsupported(other)),
+                    };
+                Expr::Conditional {
+                    condition: Box::new(self.condition(condition)?),
+                    then: Box::new(amount(self, then)?),
+                    otherwise: Box::new(amount(self, otherwise)?),
+                }
+            }
         };
         let first = self.targets.len();
         let plain: Vec<T> = values

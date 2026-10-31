@@ -86,6 +86,16 @@ impl<'a> Scope<'a> {
         if let ObjectSet::InZone { objects, .. } = objects {
             return matches!(**objects, ObjectSet::One(_));
         }
+        // "The target card in that player's graveyard": one per owner.
+        if let ObjectSet::Matching {
+            objects,
+            filter: ObjectFilter::OwnedBy(PlayerSet::One(_)),
+        } = objects
+        {
+            if matches!(**objects, ObjectSet::Targets(_)) {
+                return true;
+            }
+        }
         // "The exiled card": one card held by a linked ability (607.2a).
         if matches!(
             objects,

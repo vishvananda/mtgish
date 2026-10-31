@@ -15,15 +15,15 @@ The priorities, in order, are:
 
 ### Where things stand
 
-Unified, complete and blocker rows are current at schema 139. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
+Unified, complete and blocker rows are current at schema 140. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
 
 | Measure | Value |
 |---|---|
 | Records | 33,529 |
-| Unified, schema 139 | 33,529 (100%) |
-| Complete | 33,372 (99.5%) |
-| Complete with no primitive | 31,158 (92.9%) |
-| Distinct forms blocking the rest | 127 |
+| Unified, schema 140 | 33,529 (100%) |
+| Complete | 33,383 (99.6%) |
+| Complete with no primitive | 31,162 (92.9%) |
+| Distinct forms blocking the rest | 117 |
 | Structurally preserved | 33,529 |
 | Source enums / declared variants | 346 / 8,668 |
 | Distinct forms in the corpus | 8,247 |
@@ -205,6 +205,7 @@ Hand-written lowerers are the exception from step 1 on. A form gets hand-written
 | 137 | Second and third chosen players as rows, in the order of the choices. Complete 33,347; no primitive 31,151; forms 149 |
 | 138 | `PaymentAction::Choose` and `PaymentRef::Branch`: a cost that picks an object and leaves it there names that object later, in a resolution or in the paid branch of a cost branch. A row can yield `chosen`, a selection later references read. Complete 33,352; no primitive 31,154; forms 144 |
 | 139 | A modal trigger keeps one triggered ability per event. Damage whose amount depends on the recipient is a loop. Perpetual changes read their subject. Later actions in a row's list read earlier ones. Rows can yield `destroyed` and `took`, and `CopyEach` covers revealed library cards. Complete 33,372; no primitive 31,158; forms 127 |
+| 140 | A distributed total can be conditional. A target in each graveyard is read by its owner. Excess noncombat damage to a batch has a typed event. Named exiled cards union into one set. The first revealed card can be the event's object. Complete 33,383; no primitive 31,162; forms 117 |
 
 Schema 80 and 81 do not shrink the vocabulary. `KeywordAction` has 25 forms and `Mechanic` 149, and they count as forms: the names moved into enums, so the 2,360 is typed parameters and an exhaustive match for consumers, not simplification. Keyword mechanics are still not expanded into reusable definitions, which is the reduction this plan asks for. The Cantrip backend still reports these as gaps until it maps them; the engine has direct events for most of schema 78 and 79. At 02210fe all 17,095 records the backend advertises compiled against the engine. That build needs `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_INCREMENTAL=0`: with debug info it runs out of disk quota writing the archive.
 

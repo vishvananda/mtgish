@@ -108,6 +108,19 @@ impl Context {
             {
                 return self.result_object(self.grave_choice.as_ref(), 0);
             }
+            S::Ref_TargetGraveyardCardInPlayersGraveyard(player) => {
+                return Ok(ObjectRef::Query {
+                    objects: Box::new(ObjectSet::Matching {
+                        objects: Box::new(ObjectSet::Targets(self.target(
+                            TargetKind::Object(ObjectDomain::card(EventZone::Graveyard)),
+                            0,
+                            0,
+                        )?)),
+                        filter: ObjectFilter::OwnedBy(PlayerSet::One(self.player(player)?)),
+                    }),
+                    index: 0,
+                })
+            }
             S::TheGraveyardCardChosenThisWay if self.row_choice.is_some() => {
                 return self.result_object(self.row_choice.as_ref(), 0);
             }
@@ -167,6 +180,11 @@ impl Context {
         use source::CardInExile as S;
         match value {
             S::TheCardConjuredIntoExileThisWay => self.conjured_object(),
+            S::TheExiledDeadPermanent if self.paid_exile().is_some() => Ok(ObjectRef::Query {
+                objects: Box::new(self.paid_exile().unwrap().0),
+                index: 0,
+            }),
+            S::TheExiledTopOfLibrary => self.result_object(self.exiled.as_ref(), 0),
             S::TheFirstCardExiledThisWay | S::TheSecondCardExiledThisWay
                 if self.exiled.is_none() && self.paid_exile().is_some() =>
             {
@@ -329,6 +347,12 @@ impl Context {
                 phase: ObjectPhase::After,
                 index: 0,
             }),
+            // "You may reveal the card as you draw it": the event is that reveal.
+            source::CardInHand::TheCardInHandRevealedThisWay
+                if self.revealed.is_none() && self.event.object =>
+            {
+                Ok(ObjectRef::EventSubject)
+            }
             source::CardInHand::TheCardRevealedThisWay
             | source::CardInHand::TheCardInHandRevealedThisWay
             | source::CardInHand::TheCardRevealedFromHandThisWay => Ok(ObjectRef::Query {
@@ -459,6 +483,12 @@ impl Context {
                 }
             }
             source::CardsInExile::SingleExiledCard(c) => ObjectSet::One(self.exiled_card(c)?),
+            source::CardsInExile::Or(values) => ObjectSet::Union(
+                values
+                    .iter()
+                    .map(|cards| self.exile_cards(cards))
+                    .collect::<Result<_>>()?,
+            ),
             _ => ObjectSet::Zone {
                 scope: ZoneScope::Shared(EventZone::Exile),
                 kind: ObjectKind::Card,

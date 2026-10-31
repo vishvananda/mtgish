@@ -213,6 +213,9 @@ impl Context {
         use source::Spells as S;
         Ok(match value {
             S::ExceptFor(spells) => ObjectFilter::Not(Box::new(self.spell_filter(spells)?)),
+            S::SharesANameWithTheCardRevealedThisWay => {
+                ObjectFilter::SharesNameWithAny(Box::new(self.revealed_objects()?))
+            }
             S::TheSpellsCastThisWay => ObjectFilter::InSet(Box::new(ObjectSet::Affected(
                 self.done(Done::Cast)?,
             ))),
