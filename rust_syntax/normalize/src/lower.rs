@@ -773,6 +773,7 @@ impl Context {
             S::Trigger_ThatMuch
             | S::Trigger_AmountOfDamageDealt
             | S::Trigger_AmountOfLifeGained
+            | S::Trigger_AmountOfLifeLost
             | S::WouldDealDamage_ThatMuchDamage
             | S::WouldGainLife_LifeAmount
             | S::WouldLoseLife_ThatMuch
@@ -1732,6 +1733,78 @@ impl Context {
                 let create = S::CreateTokens(tokens.clone(), flags.clone());
                 return self.for_each_player(players, |context, _| context.action(&create, actor));
             }
+            S::ActionForEachPlayer(players, actions) => {
+                let players = self.players(players)?;
+                let actor = actor.clone();
+                return self.for_each_player(players, |context, _| {
+                    let instructions = actions
+                        .iter()
+                        .map(|action| context.action(action, &actor))
+                        .collect::<Result<_>>()?;
+                    Ok(Instruction::Group(Program { instructions }))
+                });
+            }
+            S::PutGraveyardCardInOwnersLibraryNthFromTheTop(card, n) => Operation::Move {
+                objects: ObjectSet::One(self.grave_card(card)?),
+                destination: Destination::OwnersLibraryFromTop(self.number(n)?),
+                entry: EntrySpec::default(),
+                face_down: false,
+            },
+            S::PutPermanentInOwnersLibraryNthFromTheTop(object, n) => Operation::Move {
+                objects: ObjectSet::One(self.object(object)?),
+                destination: Destination::OwnersLibraryFromTop(self.number(n)?),
+                entry: EntrySpec::default(),
+                face_down: false,
+            },
+            S::PutEachCardFromEachPlayersGraveyardOntoTheBattlefield(cards, players, flags) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("moving graveyard cards needs one player"));
+                };
+                let (destination, entry) = self.move_entry(flags, player.clone())?;
+                Operation::Move {
+                    objects: self.private_cards(
+                        EventZone::Graveyard,
+                        self.players(players)?,
+                        self.card_filter(cards)?,
+                    ),
+                    destination,
+                    entry,
+                    face_down: false,
+                }
+            }
+            S::PutACardFromPlayersGraveyardOnBattlefield(cards, owner, flags) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("choosing a graveyard card needs one player"));
+                };
+                let choice = self.effect(Operation::ChooseObjects {
+                    constraints: vec![],
+                    player: player.clone(),
+                    objects: self.private_cards(
+                        EventZone::Graveyard,
+                        PlayerSet::One(self.player(owner)?),
+                        self.grave_filter(cards)?,
+                    ),
+                    count: Count::AsManyAsCan(Expr::Constant(1)),
+                });
+                let Instruction::Effect { result, .. } = &choice else {
+                    unreachable!()
+                };
+                let (destination, entry) = self.move_entry(flags, player.clone())?;
+                let movement = self.effect(Operation::Move {
+                    objects: ObjectSet::Selected(result.clone()),
+                    destination,
+                    entry,
+                    face_down: false,
+                });
+                return Ok(Instruction::Group(Program {
+                    instructions: vec![choice, movement],
+                }));
+            }
+            S::PutAnyNumberOfCardsFromHandOntoBattlefield(cards, flags) => {
+                let cards: source::CardsInHand =
+                    as_family(cards, "CardsInHand").ok_or_else(|| unsupported(value))?;
+                return self.put_from_hand(&cards, flags, Some(Count::AnyNumber), actor);
+            }
             S::ReturnEachCardFromGraveyardToHand(cards) => Operation::Move {
                 objects: self.private_cards(
                     EventZone::Graveyard,
@@ -1819,6 +1892,7 @@ impl Context {
                 }));
             }
             S::PutACardFromHandOnTopOfLibrary
+            | S::PutACardFromHandOnBottomOfLibrary
             | S::PutNumCardsFromHandOnTopOfLibraryAnyOrder(_)
             | S::DiscardUptoNumberCards(_) => {
                 let PlayerSet::One(player) = actor else {
@@ -1846,7 +1920,11 @@ impl Context {
                 } else {
                     Operation::Move {
                         objects: chosen,
-                        destination: Destination::OwnersLibraryTop,
+                        destination: if matches!(value, S::PutACardFromHandOnBottomOfLibrary) {
+                            Destination::OwnersLibraryBottom
+                        } else {
+                            Destination::OwnersLibraryTop
+                        },
                         entry: EntrySpec::default(),
                         face_down: false,
                     }

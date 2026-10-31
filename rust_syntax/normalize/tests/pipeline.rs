@@ -1468,10 +1468,7 @@ fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
         matches!(&root.recipe,pipeline::operands::OperandRecipe::Cost(R::All(items)) if matches!(items.as_slice(),[R::Amount {..},R::Source(source::Cost::BeholdAndExile(..))]))
     );
     assert!(stage.final_card.is_none());
-    assert!(stage
-        .diagnostics
-        .iter()
-        .any(|d| d.form == "BeholdAndExile"));
+    assert!(stage.diagnostics.iter().any(|d| d.form == "BeholdAndExile"));
     for cost in ["TapPermanent(Ref_TargetPermanent)"] {
         let source = custom(&format!("Activated({cost},ActionList([DrawACard]))"));
         let stage = pipeline::Intermediate::new(&source).unwrap();
@@ -1787,7 +1784,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 48);
+    assert_eq!(card.schema_version, 49);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2447,4 +2444,30 @@ fn a_card_can_come_from_a_hand_or_a_graveyard() {
 fn a_cost_shaped_like_an_action_is_that_action_by_the_payer() {
     let text = ability_json("Activated(DestroyPermanent(ThisPermanent),ActionList([DrawACard]))");
     assert!(text.contains("PlayerAction"), "{text}");
+}
+
+#[test]
+fn a_card_can_go_a_set_depth_into_its_owners_library() {
+    let text = ability_json("TriggerA(WhenAPermanentDies(SinglePermanent(ThisPermanent)),ActionList([PutGraveyardCardInOwnersLibraryNthFromTheTop(ThisGraveyardCard,Integer(2))]))");
+    assert!(text.contains("OwnersLibraryFromTop"), "{text}");
+}
+
+#[test]
+fn for_each_opponent_keeps_the_actor_and_names_that_player() {
+    let text = ability_json("SpellActions(ActionList([ActionForEachPlayer(Opponent,[DestroyEachPermanent(ControlledByAPlayer(SinglePlayer(EachablePlayer)))])]))");
+    assert!(text.contains("ForEachPlayer"), "{text}");
+}
+
+#[test]
+fn life_lost_is_the_event_amount() {
+    let text = ability_json(
+        "TriggerA(WhenAPlayerLosesLife(Opponent),ActionList([GainLife(Trigger_AmountOfLifeLost)]))",
+    );
+    assert!(text.contains("EventAmount"), "{text}");
+}
+
+#[test]
+fn a_chosen_hand_card_can_go_to_the_bottom_of_the_library() {
+    let text = ability_json("SpellActions(ActionList([PutACardFromHandOnBottomOfLibrary]))");
+    assert!(text.contains("OwnersLibraryBottom"), "{text}");
 }

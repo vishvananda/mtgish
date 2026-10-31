@@ -1342,6 +1342,9 @@ impl<'a> Scope<'a> {
     }
 
     fn destination(&self, destination: &Destination) -> Result {
+        if let Destination::OwnersLibraryFromTop(depth) = destination {
+            self.expr(depth)?;
+        }
         if let Destination::Battlefield(player) = destination {
             self.player(player)?;
         }

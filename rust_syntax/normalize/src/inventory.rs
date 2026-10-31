@@ -1101,6 +1101,9 @@ impl Inventory<'_> {
     }
     fn destination(&mut self, destination: &Destination) {
         self.form("Destination", destination);
+        if let Destination::OwnersLibraryFromTop(depth) = destination {
+            self.expr(depth);
+        }
         if let Destination::Battlefield(player) = destination {
             self.player(player);
         }

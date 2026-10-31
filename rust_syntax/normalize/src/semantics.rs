@@ -353,6 +353,7 @@ impl Effects {
         match destination {
             Destination::OwnersLibraryTop
             | Destination::OwnersLibraryBottom
+            | Destination::OwnersLibraryFromTop(_)
             | Destination::OwnersLibraryShuffled => true,
             Destination::OwnersHand
             | Destination::OwnersGraveyard

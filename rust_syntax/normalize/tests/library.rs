@@ -81,9 +81,7 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         "Caravan Vigil",
         "Claim Jumper",
         "Land Grant",
-        "Liliana Vess",
         "Plunge into Darkness",
-        "Praetor's Grasp",
         "Snooping Newsie",
         "Tooth and Nail",
         "Urza's Saga",
@@ -112,7 +110,7 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 78);
+    assert_eq!(complete, 80);
 }
 
 #[test]
