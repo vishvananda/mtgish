@@ -112,6 +112,8 @@ def cmd_tool(args):
     import scryfall
     scryfall.CACHE = str(SCRYFALL)
     sys.argv = [args.name, *args.rest]
+    if args.name == "scryfall.py":
+        return scryfall.main()  # run as a script it would be a second copy of the module, with the cache unchanged
     runpy.run_path(str(CANTRIP / "tools" / "maintenance" / args.name), run_name="__main__")
 
 
@@ -431,7 +433,7 @@ def prepare(card):
     (packet / "prior-art.md").write_text(prior_art(out), encoding="utf-8")
     points = parse_test_points(out)
     write_test_points(name, points)
-    (packet / "report.json").write_text(json.dumps(report_skeleton(points), indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    (packet / "report.json").write_text(json.dumps(report_skeleton(points, parse_rulings(out)), indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     module = (GEN / "modules" / f"{stem}.rs").read_text(encoding="utf-8")
     (packet / "draft.rs").write_text(module, encoding="utf-8")
     rows = {}
@@ -638,10 +640,10 @@ def style_problems(name, source):
 
 def overlaps(name, source):
     """Other cards with a function body equal to one of this card's, whitespace aside: the mechanical part of the
-    review's overlap finding. An exact copy of more than one statement should have been shared."""
+    review's overlap finding. An exact copy of two statements or more should have been shared."""
     def key(body):
         return re.sub(r"\s+", "", "".join(body))
-    mine = {key(b): fn for fn, _, b in functions(source) if len([l for l in b if l.strip().endswith(";")]) >= 3}
+    mine = {key(b): fn for fn, _, b in functions(source) if len([l for l in b if l.strip().endswith(";")]) >= 2}
     found = []
     if not mine:
         return found
@@ -662,9 +664,14 @@ def parse_test_points(out):
     return [line.strip() for line in section.splitlines() if re.match(r"\s+\[\d+\]", line)]
 
 
-def report_skeleton(points):
-    """The report a worker fills in, every test point listed, so its shape is never a thing to work out."""
+def parse_rulings(out):
+    return re.findall(r"^\s+- \d{4}-\d{2}-\d{2}\s+(.+)$", out, re.M)
+
+
+def report_skeleton(points, rulings=()):
+    """The report a worker fills in, every test point and ruling listed, so its shape is never a thing to work out."""
     return {"decision": "todo", "reason": "", "test_points": [{"id": i, "point": p, "scenario": "", "line": 0} for i, p in enumerate(points, 1)],
+            "rulings": [{"ruling": r, "scenario": "", "line": 0, "no_decision": ""} for r in rulings],
             "look_answers": [], "equivalent_mutants": [], "generator_disagreements": [], "notes": ""}
 
 
@@ -683,8 +690,21 @@ def report_of(name):
         return {"decision": "invalid", "reason": "report.json is not JSON"}
 
 
+def expectation_problem(pair, label):
+    """Why a report's (scenario, line) is no expectation, or None."""
+    path = CANTRIP / SCENARIOS_DIR / str(pair.get("scenario", ""))
+    try:
+        line = path.read_text(encoding="utf-8").splitlines()[int(pair.get("line", 0)) - 1]
+    except (OSError, ValueError, IndexError):
+        return f"{label}: no line {pair.get('line')} in {pair.get('scenario')}"
+    if not line.lstrip().startswith(("?", "!", "Bot", "Battlefield", "Stack", "Exile", "Turn", "Step", "Winner")) and " = " not in line:
+        return f"{label}: {pair.get('scenario')}:{pair.get('line')} is no expectation: {line.strip()[:80]}"
+    return None
+
+
 def report_problems(name, points, looks, survivors):
-    """The worker's report against what the tools found: every test point paired with a line that can catch it."""
+    """The worker's report against what the tools found: every test point paired with a line that can catch it, and every
+    ruling with one, or with why the card's own code decides nothing there."""
     report = report_of(name)
     if report is None:
         return [f"no report at {card_dir(name) / 'report.json'}"]
@@ -695,14 +715,15 @@ def report_problems(name, points, looks, survivors):
         if pair is None:
             problems.append(f"test point {number} unpaired: {point[:100]}")
             continue
-        path = CANTRIP / SCENARIOS_DIR / str(pair.get("scenario", ""))
-        try:
-            line = path.read_text(encoding="utf-8").splitlines()[int(pair.get("line", 0)) - 1]
-        except (OSError, ValueError, IndexError):
-            problems.append(f"test point {number}: no line {pair.get('line')} in {pair.get('scenario')}")
+        problem = expectation_problem(pair, f"test point {number}")
+        if problem:
+            problems.append(problem)
+    for entry in report.get("rulings") or []:
+        if not isinstance(entry, dict) or len(str(entry.get("no_decision", ""))) >= 20:
             continue
-        if not line.lstrip().startswith(("?", "!", "Bot", "Battlefield", "Stack", "Exile", "Turn", "Step", "Winner")) and " = " not in line:
-            problems.append(f"test point {number}: {pair.get('scenario')}:{pair.get('line')} is no expectation: {line.strip()[:80]}")
+        problem = expectation_problem(entry, f"ruling \"{str(entry.get('ruling'))[:60]}\"")
+        if problem:
+            problems.append(problem + " (or say in no_decision why the card's own code decides nothing here)")
     answers = " ".join(str(a) for a in report.get("look_answers") or [])
     for key, look in looks:
         if key not in answers:

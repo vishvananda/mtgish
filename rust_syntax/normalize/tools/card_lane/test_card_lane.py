@@ -78,6 +78,12 @@ class Packet(unittest.TestCase):
         self.assertEqual([p["id"] for p in report["test_points"]], [1, 2])
 
 
+    def test_rulings_come_with_their_dates_off(self):
+        out = "  2 rulings:\n  - 2019-07-12  If Bishop dies at once.\n  - 2020-01-01  Another.\n\n=== Next\n"
+        self.assertEqual(lane.parse_rulings(out), ["If Bishop dies at once.", "Another."])
+        self.assertEqual(lane.report_skeleton([], ["One."])["rulings"][0]["ruling"], "One.")
+
+
 class Usage(unittest.TestCase):
     def test_cached_input_is_not_charged_twice(self):
         usage = lane.Usage()

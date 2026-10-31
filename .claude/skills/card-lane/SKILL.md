@@ -79,15 +79,27 @@ that is missing.
    every test point an expectation that fails if the card gets it wrong: the exact amount, both players' objects for
    "each", "target" or "you control", an earlier turn for "this turn".
 
+   The gate breaks numbers and comparisons, not meaning, so ask the card these yourself. An independent review blocked
+   pilot cards on each of them:
+   - **Every ruling is specification.** Each gets an expectation, unless the card's own code decides nothing there. A ruling
+     with two halves gets both.
+   - **Order.** If swapping two of your statements leaves the end state the same, add a `?` at the point between them,
+     usually at the question the second one asks. A sequence the text states must be able to fail.
+   - **Last-known information.** If you read `old` rather than `new`, or a value that can change, use something whose answer
+     differs on the battlefield and in the graveyard. A card that is an Angel in both proves nothing: an animated land does.
+   - **Read through words.** A scenario does not have to show a text change, but say so in `notes`.
+
    Mistakes that cost earlier cards a run:
    - Bot1 plays odd turns and Bot2 even ones: a wait for Bot1 is `[T3 Bot1.Main1]`, never `[T2 Bot1.Main1]`.
    - Counts belong to a zone: `Bot1.Battlefield.Count`. There is no `<Name>.Count`. Same-named objects are `Name#1`.
    - Mana empties between steps, and a `?` reads at the next question, so a spell is usually still on the stack.
-4. **Check.** Run `check --fast` until it passes, then read each citation that `tool cr.py check --show <card file>`
-   prints against the rule beside it: a rule that does not say what your comment claims is fixed. Do not run the whole
-   corpus.
+4. **Check.** Run `check --fast` until it passes. Then run `tool cr.py check --show <card file> <its scenarios>` and read
+   each citation against the rule printed beside it: a rule that does not say what your comment claims is fixed. Do this
+   for scenario comments as well. A number copied from a shared function's comment or another card is how a wrong one gets
+   in (CR 119.1 is starting life totals; gaining life is 119.3). Do not run the whole corpus.
 5. **Fill in `report.json`.** Set `decision` to `done`. Give each test point its `scenario` and `line`, the 1-based line of
-   the expectation that catches it: a `?`, a `!` or a line under `[Expect]`. Each entry of `look_answers` names the LOOK's
+   the expectation that catches it: a `?`, a `!` or a line under `[Expect]`. Do the same for each ruling, or say in
+   `no_decision` why the card's own code decides nothing there. Each entry of `look_answers` names the LOOK's
    line as `line 12`, or the other card's file for a repeated function. `equivalent_mutants` stays empty unless the full gate
    reports a mutant that means the same thing: then add `{"mutant": "line 6: 4 to 5", "why": "..."}`, and only if it truly
    changes nothing the rules can see.
@@ -105,8 +117,9 @@ that is missing.
   false pass costs it a lot.
 - Never weaken a scenario to pass. Never assert what you know is wrong. No `# Known bug` scenarios in this lane: report an
   engine bug as `needs_review`.
-- If a function body in your file repeats another card's, the project wants it shared. Say so in `look_answers`, naming
-  the other file. Do not edit it.
+- If a function body in your file repeats another card's, or a trigger is a shared matcher plus one condition another card
+  also adds, the project wants it shared, and a review will send the card back. This lane cannot share it. Say so in
+  `look_answers`, naming the other file. Do not edit it.
 - No `git commit`, no `git add`, no `git push`, no `gh`, and no network. `commit` makes the commit. Do not write
   `Co-Authored-By` anywhere.
 - Never `--release`. One command at a time, in the foreground. `check` and `corpus` share one build, so running them
