@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 88);
+    assert_eq!(card.schema_version, 89);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -1992,7 +1992,7 @@ fn abilities_are_targets_on_the_stack_with_their_filter_kept() {
             || text.contains(r#""kind":"Ability""#),
         "{text}"
     );
-    assert!(text.contains("ControlledByAPlayer"), "{text}");
+    assert!(text.contains(r#""kind":"ControlledBy""#), "{text}");
 }
 
 #[test]
@@ -2154,7 +2154,10 @@ fn losing_a_card_type_and_gaining_a_supertype_are_changes() {
 #[test]
 fn x_paid_during_resolution_is_read_from_that_payment() {
     let text = ability_json("SpellActions(ActionList([MayCost(PayManaAnyX([ManaCostX])),If(CostWasPaid,[GainLife(ValueX)])]))");
-    assert!(text.contains("Cost::PayManaAnyX"), "{text}");
+    assert!(
+        text.contains(r#""ManaWithX":{"mana":["X"],"x":null}"#),
+        "{text}"
+    );
     assert!(text.contains("BoundValue"), "{text}");
     assert!(!text.contains("AnnouncedX"), "{text}");
 }
@@ -2290,7 +2293,7 @@ fn another_player_acting_can_be_a_cost() {
 #[test]
 fn a_chosen_ability_is_a_change_after_the_choice() {
     let text = ability_json("SpellActions(ActionList([ChooseAnAbility([Flying,Haste]),CreatePermanentLayerEffectUntil(ThisPermanent,[AddAbilityVariable(TheChosenAbility)],UntilEndOfTurn)]))");
-    assert!(text.contains("Action::ChooseAnAbility"), "{text}");
+    assert!(text.contains(r#""kind":"Ability","count":1"#), "{text}");
     assert!(text.contains("ChosenAbility"), "{text}");
 }
 
@@ -2326,7 +2329,7 @@ fn a_prevention_shield_can_remove_counters_for_the_damage_prevented() {
 fn x_can_be_defined_by_the_cost_itself() {
     let text =
         ability_json("Encore(PayManaX([ManaCostX],ManaValueOfGraveyardCard(ThisGraveyardCard)))");
-    assert!(text.contains("Cost::PayManaX"), "{text}");
+    assert!(text.contains("ManaWithX"), "{text}");
 }
 
 #[test]

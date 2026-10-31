@@ -295,6 +295,12 @@ impl<'a> Scope<'a> {
                     None => Ok(()),
                 }
             }
+            EventSpec::Activated { players, abilities } => {
+                self.players(players)?;
+                let mut scoped = self.clone();
+                scoped.event = crate::semantics::with_event(&self.event, event);
+                scoped.filter(abilities)
+            }
             EventSpec::SagaChapter(_) => Ok(()),
             EventSpec::Discard { players, cards, .. } => {
                 self.players(players)?;
@@ -899,6 +905,8 @@ impl<'a> Scope<'a> {
             ObjectFilter::HasKeywordFamily(_) => Ok(()),
             ObjectFilter::HasKeyword(keyword) => self.keyword(keyword),
             ObjectFilter::TargetsAny(targets) => self.recipients(targets),
+            ObjectFilter::OnStack(_) => Ok(()),
+            ObjectFilter::AbilityOf(sources) => self.filter(sources),
             ObjectFilter::HasActivatedAbility(filter) => self.activation_filter(filter),
             ObjectFilter::InZone(scope) => self.zone_scope(scope),
             ObjectFilter::InSet(objects) => self.objects(objects),
@@ -1129,6 +1137,9 @@ impl<'a> Scope<'a> {
             | Change::RemoveAllAbilities
             | Change::ChosenType { .. }
             | Change::SwitchPowerToughness => Ok(()),
+            Change::ActivationRule(_) => {
+                Err("an activation rule belongs to an activated ability".into())
+            }
             Change::LosesAbility(operand) | Change::SetLandType(operand) => self.operand(operand),
             Change::CopyOf { object, effects } => {
                 self.object(object)?;
@@ -1237,27 +1248,7 @@ impl<'a> Scope<'a> {
             }
             PlayerRule::SpellCost { spells, modifier } => {
                 self.filter(spells)?;
-                match modifier {
-                    SpellCostModifier::Increase(cost) => self.cost(cost),
-                    SpellCostModifier::Minimum(n) => self.count(&Count::Exactly(n.clone())),
-                    SpellCostModifier::Reduce {
-                        reductions,
-                        spill_into_generic,
-                    } => {
-                        if reductions.is_empty() {
-                            return Err("empty spell cost reduction".into());
-                        }
-                        for r in reductions {
-                            if !spill_into_generic && r.color.is_none() {
-                                return Err(
-                                    "non-spilling colored reduction requires a color".into()
-                                );
-                            }
-                            self.count(&Count::Exactly(r.amount.clone()))?;
-                        }
-                        Ok(())
-                    }
-                }
+                self.spell_cost_modifier(modifier)
             }
             PlayerRule::SpellTiming { spells, .. } => self.filter(spells),
             PlayerRule::Visibility { objects, .. } => self.objects(objects),
@@ -1334,6 +1325,44 @@ impl<'a> Scope<'a> {
             self.count(count)?;
         }
         Ok(())
+    }
+    fn spell_cost_modifier(&self, modifier: &SpellCostModifier) -> Result {
+        match modifier {
+            SpellCostModifier::Increase(cost) => self.cost(cost),
+            SpellCostModifier::Minimum(n) => self.count(&Count::Exactly(n.clone())),
+            SpellCostModifier::Reduce {
+                reductions,
+                spill_into_generic,
+            } => {
+                if reductions.is_empty() {
+                    return Err("empty spell cost reduction".into());
+                }
+                for r in reductions {
+                    if !spill_into_generic && r.color.is_none() {
+                        return Err("non-spilling colored reduction requires a color".into());
+                    }
+                    self.count(&Count::Exactly(r.amount.clone()))?;
+                }
+                Ok(())
+            }
+        }
+    }
+    fn activation_rule(&self, rule: &ActivationRule) -> Result {
+        match rule {
+            ActivationRule::Cost {
+                modifier,
+                condition,
+            } => {
+                self.spell_cost_modifier(modifier)?;
+                condition.iter().try_for_each(|c| self.condition(c))
+            }
+            ActivationRule::MaxPerTurn(n) | ActivationRule::XAtMost(n) | ActivationRule::XIs(n) => {
+                self.expr(n)
+            }
+            ActivationRule::XNotZero
+            | ActivationRule::CantBeCopied
+            | ActivationRule::AnyTimeOfInstant => Ok(()),
+        }
     }
     fn cost(&self, cost: &Cost) -> Result {
         for part in &cost.parts {
@@ -1430,6 +1459,14 @@ impl<'a> Scope<'a> {
                 CostPart::Reveal { count, filter, .. } => {
                     self.count(count)?;
                     self.filter(filter)?;
+                }
+                CostPart::ManaWithX { x, .. } => x.iter().try_for_each(|x| self.expr(x))?,
+                CostPart::Waterbend(_) => {}
+                CostPart::PutCounters(placements) => {
+                    for placement in placements {
+                        self.recipients(&placement.recipients)?;
+                        self.count(&Count::Exactly(placement.amount.clone()))?;
+                    }
                 }
                 CostPart::Repeated { part, times } => {
                     self.count(&Count::Exactly(times.clone()))?;
@@ -2725,6 +2762,15 @@ fn validate_ability_in(
     let (announcement, body) = match ability {
         Ability::Named(named) => return scope.named(named),
         Ability::Primitive { name, operands } => return scope.primitive(name, operands),
+        Ability::DeckRule(rule) => {
+            return match rule {
+                DeckRule::UpToCopies(count) => scope.expr(count),
+                DeckRule::AnyCards(cards) | DeckRule::AnyCardsWithOneAdditionalColor(cards) => {
+                    scope.filter(cards)
+                }
+                _ => Ok(()),
+            };
+        }
         Ability::Mechanic {
             cost,
             amount,
@@ -2941,10 +2987,15 @@ fn validate_ability_in(
                 proposal.condition(condition)?;
             }
             for modifier in &limits.modifiers {
-                let Change::Primitive { name, operands } = modifier else {
-                    return Err("an activation modifier must be a reviewed primitive".into());
-                };
-                scope.primitive(name, operands)?;
+                match modifier {
+                    Change::Primitive { name, operands } => scope.primitive(name, operands)?,
+                    Change::ActivationRule(rule) => {
+                        let mut proposal = scope.clone();
+                        proposal.announcing = true;
+                        proposal.activation_rule(rule)?;
+                    }
+                    _ => return Err("an activation modifier must be a reviewed form".into()),
+                }
             }
             if matches!(origin, ActivationOrigin::Equip) {
                 let [target] = announcement.targets.as_slice() else {

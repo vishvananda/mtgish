@@ -494,6 +494,9 @@ impl Compiler {
         match limits.keyword {
             Some(ActivatedKeyword::Exhaust) => def.push_str(".exhaust()"),
             Some(ActivatedKeyword::PowerUp) => def.push_str(".power_up()"),
+            Some(ActivatedKeyword::Boast | ActivatedKeyword::Forecast) => {
+                return Err(gap("activated keyword Boast or Forecast"));
+            }
             None => {}
         }
         if limits.sorcery {

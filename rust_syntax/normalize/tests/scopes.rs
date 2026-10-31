@@ -342,7 +342,7 @@ fn a_reference_cannot_pass_as_a_vocabulary_word() {
     let bound = lowered(
         "SpellActions(Targeted([TargetAbility(AnyAbility)], ActionList([CounterAbility(Ref_TargetAbility)])))",
     );
-    assert!(bound.contains("Object(Target { slot: Slot(0)"), "{bound}");
+    assert!(bound.contains("One(Target { slot: Slot(0)"), "{bound}");
     assert!(!bound.contains("\"Ref_TargetAbility\""), "{bound}");
 }
 
@@ -506,6 +506,78 @@ fn another_of_the_same_name_never_counts_the_object_itself() {
         "SpellActions(ActionList([DestroyEachPermanent(DoesntShareANameWithAnotherPermanent(AnyPermanent))]))",
     );
     assert!(body.contains("Not(SharesNameWithAnother("), "{body}");
+}
+
+#[test]
+fn a_deck_rule_is_typed_and_names_its_partner() {
+    let body = lowered("DeckConstruction(PartnerWith(\"Alisaie Leveilleur\"))");
+    assert!(body.contains("DeckRule(Partner(With("), "{body}");
+    let body = lowered("DeckConstruction(ChooseABackground)");
+    assert!(body.contains("DeckRule(ChooseBackground)"), "{body}");
+}
+
+#[test]
+fn choosing_a_player_or_an_ability_is_a_chosen_value() {
+    let body = lowered("SpellActions(ActionList([ChooseAPlayer(Opponent)]))");
+    assert!(body.contains("kind: Player, count: 1"), "{body}");
+    let body = lowered("SpellActions(ActionList([ChooseAnAbility([Flying, Haste])]))");
+    assert!(body.contains("kind: Ability, count: 1"), "{body}");
+}
+
+#[test]
+fn a_loyalty_cost_of_x_has_loyalty_timing() {
+    let body = lowered("Activated(LoyaltyMinusX, ActionList([DrawACard]))");
+    assert!(
+        body.contains("Loyalty(Multiply(Constant(-1), AnnouncedX))"),
+        "{body}"
+    );
+    assert!(body.contains("sorcery: true"), "{body}");
+}
+
+#[test]
+fn costs_with_x_and_counters_are_typed() {
+    let body =
+        lowered("Activated(PayManaX([ManaCostX, ManaCostU], ValueX), ActionList([DrawACard]))");
+    assert!(body.contains("Mana([X, Color(Blue)])"), "{body}");
+    let body = lowered(
+        "Activated(PayManaX([ManaCostX], TheNumberOfPermanentsOnTheBattlefield(IsCardtype(Land))), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("ManaWithX { mana: [X], x: Some("), "{body}");
+    let body = lowered(
+        "Activated(PutCounters([ACounterOfTypeOnPermanent(PTCounter(-1, -1), ThisPermanent)]), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("PutCounters([CounterPlacement"), "{body}");
+    let body = lowered("Activated(Waterbend([ManaCostGeneric(3)]), ActionList([DrawACard]))");
+    assert!(body.contains("Waterbend([Generic(3)])"), "{body}");
+}
+
+#[test]
+fn an_activation_rule_is_data_on_the_ability() {
+    let body = lowered(
+        "ActivatedWithModifiers(TapPermanent(ThisPermanent), ActionList([DrawACard]), ReduceCostForEach([CostReduceGeneric(1)], TheNumberOfPermanentsOnTheBattlefield(IsCardtype(Land))))",
+    );
+    assert!(
+        body.contains("ActivationRule(Cost { modifier: Reduce"),
+        "{body}"
+    );
+    let body = lowered(
+        "ActivatedWithModifiers(TapPermanent(ThisPermanent), ActionList([DrawACard]), Boast)",
+    );
+    assert!(body.contains("keyword: Some(Boast)"), "{body}");
+    assert!(body.contains("once_each_turn: true"), "{body}");
+}
+
+#[test]
+fn an_activation_is_an_event_with_a_stack_filter() {
+    let body = lowered(
+        "TriggerA(WhenAPlayerActivatesAnAbility(SinglePlayer(You), LoyaltyAbility), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("abilities: OnStack(Loyalty)"), "{body}");
+    let body = lowered(
+        "TriggerA(WhenAPlayerActivatesAnAbility(Opponent, And([ExhaustAbility, AbilityOfPermanent(HostPermanent)])), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("OnStack(Keyword(Exhaust))"), "{body}");
+    assert!(body.contains("AbilityOf(SameObject("), "{body}");
 }
 
 #[test]

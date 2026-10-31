@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 88;
+pub const SCHEMA_VERSION: u32 = 89;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -191,6 +191,8 @@ pub enum Ability {
         body: Program,
     },
     /// A keyword ability the rules define, with its parameters.
+    /// A rule of deck construction or commander choice, never read in a game.
+    DeckRule(DeckRule),
     Mechanic {
         mechanic: Mechanic,
         cost: Option<Cost>,
@@ -1197,6 +1199,7 @@ pub enum KeywordAction {
     RingTempts,
     Connive,
     Goad,
+    CopyAbility,
     Earthbend,
     Venture,
     ManifestDread,
@@ -1257,6 +1260,34 @@ pub enum MovedCounters {
 }
 /// What a choice of a value picks, as Forge's `ChooseColor`, `ChooseType`,
 /// `NameCard` and `ChooseNumber`.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PartnerKind {
+    Any,
+    CharacterSelect,
+    FatherAndSon,
+    FriendsForever,
+    Survivors,
+    With(String),
+}
+
+/// What a card says about building a deck, as Forge's `K:Partner` and
+/// `DeckHints` do. None of these changes a game in progress.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DeckRule {
+    CanBeCommander,
+    Partner(PartnerKind),
+    DoctorsCompanion,
+    ChooseBackground,
+    AnyNumberOfCopies,
+    UpToCopies(Expr),
+    NoMaximumDeckSize,
+    AnyBasicLands,
+    AnyCards(ObjectFilter),
+    AnyCardsWithOneAdditionalColor(ObjectFilter),
+    Banned,
+    RemoveUnlessPlayingForAnte,
+}
+
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
 )]
@@ -1272,6 +1303,8 @@ pub enum ValueKind {
     Parity,
     Direction,
     Word,
+    Player,
+    Ability,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -1588,6 +1621,8 @@ pub enum Change {
     SetArtifactType(crate::mtg_types::ArtifactType),
     RemoveSupertype(SuperType),
     SwitchPowerToughness,
+    /// Only in `ActivationLimits::modifiers`.
+    ActivationRule(ActivationRule),
     LosesAbility(Box<Operand>),
     SetLandType(Box<Operand>),
     /// Copiable values come from `object`; `effects` are the exceptions.
@@ -2502,6 +2537,10 @@ pub enum ObjectFilter {
     /// At least one actual target belongs to this set. For casting-cost rules
     /// inspect the completed announcement, before costs are paid.
     TargetsAny(Box<Recipients>),
+    /// What a spell or ability on the stack is.
+    OnStack(StackTrait),
+    /// An ability whose source matches.
+    AbilityOf(Box<ObjectFilter>),
     /// Includes defined abilities even while their functioning zone is inactive.
     HasActivatedAbility(ActivationFilter),
     InSet(Box<ObjectSet>),
@@ -2833,6 +2872,14 @@ pub enum CostPart {
         body: Program,
     },
     Energy(Expr),
+    /// Mana with an {X} set here, or by the payer while paying when `x` is None.
+    ManaWithX {
+        mana: Vec<ManaSymbol>,
+        x: Option<Expr>,
+    },
+    /// "Waterbend {N}": tapped artifacts and creatures pay for generic mana.
+    Waterbend(Vec<ManaSymbol>),
+    PutCounters(Vec<CounterPlacement>),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct CostObjectSelection {
@@ -2856,7 +2903,7 @@ pub struct ActivationLimits {
     /// Players other than the controller who may activate this.
     pub activators: Option<PlayerSet>,
     pub keyword: Option<ActivatedKeyword>,
-    /// Reviewed modifiers of the activation itself, as `Change::Primitive`.
+    /// Modifiers of the activation itself: `ActivationRule`, or a reviewed row.
     pub modifiers: Vec<Change>,
 }
 
@@ -2872,6 +2919,25 @@ pub struct ClassLevel {
 pub enum ActivatedKeyword {
     Exhaust,
     PowerUp,
+    /// Only if the creature attacked this turn, and once each turn.
+    Boast,
+    /// From the hand during its owner's upkeep, and once each turn.
+    Forecast,
+}
+
+/// What one activated ability says about its own activation.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ActivationRule {
+    Cost {
+        modifier: SpellCostModifier,
+        condition: Option<Condition>,
+    },
+    MaxPerTurn(Expr),
+    XNotZero,
+    XAtMost(Expr),
+    XIs(Expr),
+    CantBeCopied,
+    AnyTimeOfInstant,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2898,6 +2964,11 @@ pub enum ManaSymbol {
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum EventSpec {
+    /// A player activates an ability, as Forge's `AbilityCast` with `ValidSA$`.
+    Activated {
+        players: PlayerSet,
+        abilities: ObjectFilter,
+    },
     /// Card predicates use the pre-discard view. Source-only matches follow
     /// the source across this transition (CR 702.29c); they do not compare the
     /// hand object's identity with the new graveyard/exile object's identity.
@@ -3215,6 +3286,36 @@ pub enum TurnPoint {
     EndStepBegins,
     CleanupStepBegins,
     DeclareAttackersStepBegins,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum StackTrait {
+    Spell,
+    Triggered,
+    Activated,
+    Mana,
+    Loyalty,
+    XInCost,
+    TapSymbolInCost,
+    SingleTarget,
+    /// The ability a keyword gives: `Ninjutsu`, `Equip` and so on.
+    Keyword(AbilityKeyword),
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum AbilityKeyword {
+    Backup,
+    Boast,
+    Embalm,
+    Equip,
+    Eternalize,
+    Exhaust,
+    Modular,
+    Ninjutsu,
+    Outlast,
+    PowerUp,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum SpellEvent {

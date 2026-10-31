@@ -59,6 +59,7 @@ impl Inventory<'_> {
         match a {
             Ability::Named(_) => {}
             Ability::Primitive { name, .. } => self.primitive(name),
+            Ability::DeckRule(rule) => self.form("DeckRule", rule),
             Ability::Mechanic {
                 mechanic,
                 cost,
@@ -816,11 +817,42 @@ impl Inventory<'_> {
             }
         }
     }
+    fn spell_cost_modifier(&mut self, modifier: &SpellCostModifier) {
+        self.form("SpellCostModifier", modifier);
+        match modifier {
+            SpellCostModifier::Increase(cost) => self.cost(cost),
+            SpellCostModifier::Minimum(n) => self.expr(n),
+            SpellCostModifier::Reduce { reductions, .. } => {
+                for r in reductions {
+                    if let Some(color) = &r.color {
+                        self.form("ManaColor", color);
+                    }
+                    self.expr(&r.amount);
+                }
+            }
+        }
+    }
     fn cost(&mut self, cost: &Cost) {
         for c in &cost.parts {
             self.form("CostPart", c);
             match c {
                 CostPart::Primitive { name, .. } => self.primitive(name),
+                CostPart::ManaWithX { x, .. } => {
+                    if let Some(x) = x {
+                        self.expr(x);
+                    }
+                }
+                CostPart::Waterbend(_) => {}
+                CostPart::PutCounters(placements) => {
+                    for p in placements {
+                        self.recipients(&p.recipients);
+                        self.form("CounterKind", &p.kind);
+                        if let crate::counter::CounterKind::Named(n) = &p.kind {
+                            self.form("CounterName", n);
+                        }
+                        self.expr(&p.amount);
+                    }
+                }
                 CostPart::Constrained { part, constraints } => {
                     self.cost(&Cost {
                         parts: vec![part.as_ref().clone()],
@@ -1131,6 +1163,26 @@ impl Inventory<'_> {
             | Change::SwitchPowerToughness
             | Change::LosesAbility(_)
             | Change::SetLandType(_) => {}
+            Change::ActivationRule(rule) => {
+                self.form("ActivationRule", rule);
+                match rule {
+                    ActivationRule::Cost {
+                        modifier,
+                        condition,
+                    } => {
+                        self.spell_cost_modifier(modifier);
+                        if let Some(condition) = condition {
+                            self.condition(condition);
+                        }
+                    }
+                    ActivationRule::MaxPerTurn(n)
+                    | ActivationRule::XAtMost(n)
+                    | ActivationRule::XIs(n) => self.expr(n),
+                    ActivationRule::XNotZero
+                    | ActivationRule::CantBeCopied
+                    | ActivationRule::AnyTimeOfInstant => {}
+                }
+            }
             Change::CopyOf { object, .. } => self.object(object),
         }
     }
@@ -1196,19 +1248,7 @@ impl Inventory<'_> {
             PlayerRule::AdditionalLandPlays(count) => self.count(count),
             PlayerRule::SpellCost { spells, modifier } => {
                 self.filter(spells);
-                self.form("SpellCostModifier", modifier);
-                match modifier {
-                    SpellCostModifier::Increase(cost) => self.cost(cost),
-                    SpellCostModifier::Minimum(n) => self.expr(n),
-                    SpellCostModifier::Reduce { reductions, .. } => {
-                        for r in reductions {
-                            if let Some(color) = &r.color {
-                                self.form("ManaColor", color);
-                            }
-                            self.expr(&r.amount);
-                        }
-                    }
-                }
+                self.spell_cost_modifier(modifier);
             }
             PlayerRule::SpellTiming { spells, timing } => {
                 self.filter(spells);
@@ -1541,6 +1581,8 @@ impl Inventory<'_> {
             ObjectFilter::EnteredFrom(scope) => self.zone_scope(scope),
             ObjectFilter::HasKeywordFamily(family) => self.form("KeywordFamily", family),
             ObjectFilter::TargetsAny(targets) => self.recipients(targets),
+            ObjectFilter::OnStack(stack) => self.form("StackTrait", stack),
+            ObjectFilter::AbilityOf(sources) => self.filter(sources),
             ObjectFilter::HasActivatedAbility(filter) => self.activation_filter(filter),
             ObjectFilter::InSet(objects) => self.objects(objects),
             ObjectFilter::InZone(scope) => self.zone_scope(scope),
@@ -1784,6 +1826,10 @@ impl Inventory<'_> {
                 if let Some(by) = by {
                     self.players(by);
                 }
+            }
+            EventSpec::Activated { players, abilities } => {
+                self.players(players);
+                self.filter(abilities);
             }
             EventSpec::SagaChapter(_) => {}
             EventSpec::Discard {

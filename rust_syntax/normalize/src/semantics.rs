@@ -191,6 +191,10 @@ const KEYWORD_ACTIONS: &[(&str, KeywordAction)] = &[
         "Action::CopySpellAndMayChooseNewTargets",
         KeywordAction::CopySpell,
     ),
+    (
+        "Action::CopyAbilityAndMayChooseNewTargets",
+        KeywordAction::CopyAbility,
+    ),
     ("Action::Investigate", KeywordAction::Investigate),
     ("Action::Proliferate", KeywordAction::Proliferate),
     ("Action::Amass", KeywordAction::Amass),
@@ -306,6 +310,9 @@ const VALUE_CHOICES: &[(&str, ValueKind, u32)] = &[
     ("ChooseLeftOrRight", ValueKind::Direction, 1),
     ("ChooseADirection", ValueKind::Direction, 1),
     ("ChooseWord", ValueKind::Word, 1),
+    ("ChooseAPlayer", ValueKind::Player, 1),
+    ("ChooseTwoPlayers", ValueKind::Player, 2),
+    ("ChooseAnAbility", ValueKind::Ability, 1),
 ];
 
 /// One counter move as a table: how many, of what, from where, to where.
@@ -460,6 +467,14 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
         }
         _ => {}
     }
+    if let ("Action::CounterAbility", [Operand::Object(object)]) =
+        (name.as_str(), operands.as_slice())
+    {
+        return Operation::Counter {
+            objects: ObjectSet::One(object.clone()),
+            destination: Destination::OwnersGraveyard,
+        };
+    }
     let choice = name
         .strip_prefix("Action::")
         .or_else(|| name.strip_prefix("ReplacementActionWouldEnter::"))
@@ -541,6 +556,17 @@ fn chosen_kind(operand: &Operand) -> Option<ValueKind> {
 pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
     let form = name.split("::").nth(1).unwrap_or(&name);
     match (name.as_str(), operands.as_slice()) {
+        (
+            "Target::TargetAbility"
+            | "Target::UptoOneTargetAbility"
+            | "Target::TargetSpellOrAbility"
+            | "Target::UptoNumberTargetSpellsOrAbilities",
+            [.., stack],
+        ) => {
+            if let Some(filter) = stack_filter(stack) {
+                return filter;
+            }
+        }
         ("Color::TheChosenColor", []) => return ObjectFilter::Chosen(ValueKind::Color),
         ("NameFilter::TheChosenName", []) => return ObjectFilter::Chosen(ValueKind::CardName),
         (_, [variable]) if form.ends_with("TypeVariable") || form == "IsCardtypeVariable" => {
@@ -787,8 +813,41 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
     }
 }
 
+fn deck_rule(name: &str, operands: &[Operand]) -> Option<DeckRule> {
+    let form = name.strip_prefix("DeckConstruction::")?;
+    Some(match (form, operands) {
+        ("CanBeYourCommander", []) => DeckRule::CanBeCommander,
+        ("Partner", []) => DeckRule::Partner(PartnerKind::Any),
+        ("PartnerCharacterSelect", []) => DeckRule::Partner(PartnerKind::CharacterSelect),
+        ("PartnerFatherAndSon", []) => DeckRule::Partner(PartnerKind::FatherAndSon),
+        ("PartnerFriendsForever", []) => DeckRule::Partner(PartnerKind::FriendsForever),
+        ("PartnerSurvivors", []) => DeckRule::Partner(PartnerKind::Survivors),
+        ("PartnerWith", [Operand::Text(card)]) => {
+            DeckRule::Partner(PartnerKind::With(card.clone()))
+        }
+        ("DoctorsCompanion", []) => DeckRule::DoctorsCompanion,
+        ("ChooseABackground", []) => DeckRule::ChooseBackground,
+        ("CanHaveAnyNumberOfThisCard", []) => DeckRule::AnyNumberOfCopies,
+        ("CanHaveUptoNumberOfThisCard", [Operand::Number(count)]) => {
+            DeckRule::UpToCopies(count.clone())
+        }
+        ("HasNoMaximumDeckSize", []) => DeckRule::NoMaximumDeckSize,
+        ("CanHaveAnyBasicLandCards", []) => DeckRule::AnyBasicLands,
+        ("CanHaveAnyCards", [Operand::Filter(cards)]) => DeckRule::AnyCards(cards.clone()),
+        ("CanHaveAnyCardsWithOneSingleAdditionalColor", [Operand::Filter(cards)]) => {
+            DeckRule::AnyCardsWithOneAdditionalColor(cards.clone())
+        }
+        ("ThisCardIsBanned", []) => DeckRule::Banned,
+        ("RemoveFromDeckIfNotPlayingForAnte", []) => DeckRule::RemoveUnlessPlayingForAnte,
+        _ => return None,
+    })
+}
+
 /// A row's ability in generic form, or the row itself when it has none.
 pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
+    if let Some(rule) = deck_rule(&name, &operands) {
+        return Ability::DeckRule(rule);
+    }
     let Some((_, mechanic)) = MECHANICS.iter().find(|(row, _)| *row == name) else {
         return Ability::Primitive { name, operands };
     };
@@ -940,6 +999,98 @@ const TARGETING_EVENTS: &[(&str, TargetingKind)] = &[
 ];
 
 /// What an event says about objects, when a plain filter can say it.
+/// A filter on the stack, from whichever of the three families wrote it.
+fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
+    use StackTrait as T;
+    let (family, form, operands): (&str, &str, &[Operand]) = match operand {
+        Operand::Term {
+            family,
+            form,
+            operands,
+        } => (family, form, operands),
+        Operand::Vocabulary { family, form } => (family, form, &[]),
+        _ => return None,
+    };
+    if !matches!(
+        family,
+        "Abilities" | "ActivatedAbilities" | "SpellsAndAbilities"
+    ) {
+        return None;
+    }
+    let is = |value| ObjectFilter::OnStack(value);
+    let not = |value| ObjectFilter::Not(Box::new(ObjectFilter::OnStack(value)));
+    let keyword = |value| ObjectFilter::OnStack(T::Keyword(value));
+    let list = || -> Option<Vec<ObjectFilter>> {
+        let mut out = vec![];
+        for operand in operands {
+            match operand {
+                Operand::List(items) => {
+                    for item in items {
+                        out.push(stack_filter(item)?);
+                    }
+                }
+                _ => out.push(stack_filter(operand)?),
+            }
+        }
+        Some(out)
+    };
+    let objects = |operand: &Operand| match operand {
+        Operand::Objects(objects) => event_filter(objects),
+        Operand::Filter(filter) => Some(filter.clone()),
+        Operand::Object(object) => Some(ObjectFilter::SameObject(object.clone())),
+        _ => None,
+    };
+    let target = |recipients| ObjectFilter::TargetsAny(Box::new(recipients));
+    Some(match (form, operands) {
+        ("And", _) => ObjectFilter::All(list()?),
+        ("Or", _) => ObjectFilter::Either(list()?),
+        ("AnyAbility" | "AnySpellOrAbility", []) => ObjectFilter::Any,
+        ("TriggeredAbility", []) => is(T::Triggered),
+        ("ActivatedAbility", []) => is(T::Activated),
+        ("ManaAbility", []) => is(T::Mana),
+        ("NonManaAbility", []) => not(T::Mana),
+        ("LoyaltyAbility", []) => is(T::Loyalty),
+        ("NonLoyaltyAbility", []) => not(T::Loyalty),
+        ("HasXInCost", []) => is(T::XInCost),
+        ("HasTapSelfInCost", []) => is(T::TapSymbolInCost),
+        ("DoesntHaveTapSelfInCost", []) => not(T::TapSymbolInCost),
+        ("HasASingleTarget", []) => is(T::SingleTarget),
+        ("BackupAbility", []) => keyword(AbilityKeyword::Backup),
+        ("BoastAbility", []) => keyword(AbilityKeyword::Boast),
+        ("EmbalmAbility", []) => keyword(AbilityKeyword::Embalm),
+        ("EquipAbility", []) => keyword(AbilityKeyword::Equip),
+        ("EternalizeAbility", []) => keyword(AbilityKeyword::Eternalize),
+        ("ExhaustAbility", []) => keyword(AbilityKeyword::Exhaust),
+        ("ModularAbility", []) => keyword(AbilityKeyword::Modular),
+        ("NinjutsuAbility", []) => keyword(AbilityKeyword::Ninjutsu),
+        ("OutlastAbility", []) => keyword(AbilityKeyword::Outlast),
+        ("PowerUpAbility", []) => keyword(AbilityKeyword::PowerUp),
+        ("AbilityOfPermanent" | "AbilityOfAPermanent", [source]) => {
+            ObjectFilter::AbilityOf(Box::new(objects(source)?))
+        }
+        ("NotAnAbilityOfAPermanent", [source]) => ObjectFilter::Not(Box::new(
+            ObjectFilter::AbilityOf(Box::new(objects(source)?)),
+        )),
+        ("ControlledByAPlayer", [Operand::Players(players)]) => {
+            ObjectFilter::ControlledBy(players.clone())
+        }
+        ("IsSpell", [Operand::Filter(spells)]) => {
+            ObjectFilter::All(vec![is(T::Spell), spells.clone()])
+        }
+        ("TargetsAPermanent", [Operand::Objects(set)]) => target(Recipients::Objects(set.clone())),
+        ("TargetsPermanent", [Operand::Object(object)]) => {
+            target(Recipients::Objects(ObjectSet::One(object.clone())))
+        }
+        ("TargetsAPlayer", [Operand::Players(players)]) => {
+            target(Recipients::Players(players.clone()))
+        }
+        ("TargetsPlayer", [Operand::Player(player)]) => {
+            target(Recipients::Players(PlayerSet::One(player.clone())))
+        }
+        _ => return None,
+    })
+}
+
 fn event_filter(objects: &ObjectSet) -> Option<ObjectFilter> {
     match objects {
         ObjectSet::Battlefield(filter) => Some(filter.clone()),
@@ -1255,7 +1406,9 @@ pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
 pub fn set_event_player(event: &mut EventSpec, player: PlayerSet) -> bool {
     match event {
         EventSpec::Primitive { operands, .. } => operands[0] = Operand::Players(player),
-        EventSpec::Player { players, .. } => *players = player,
+        EventSpec::Player { players, .. } | EventSpec::Activated { players, .. } => {
+            *players = player
+        }
         EventSpec::Attack { by, .. } | EventSpec::Counters { by, .. } => *by = Some(player),
         EventSpec::Batch { event, .. } => return set_event_player(event, player),
         _ => return false,
@@ -1265,6 +1418,25 @@ pub fn set_event_player(event: &mut EventSpec, player: PlayerSet) -> bool {
 
 /// A row's event in generic form, or the row itself when it has none.
 pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
+    match (name.as_str(), operands.as_slice()) {
+        ("Trigger::WhenAPlayerActivatesAnAbility", [Operand::Players(players), abilities]) => {
+            if let Some(abilities) = stack_filter(abilities) {
+                return EventSpec::Activated {
+                    players: players.clone(),
+                    abilities,
+                };
+            }
+        }
+        ("Trigger::WhenAnAbilityIsActivated", [abilities]) => {
+            if let Some(abilities) = stack_filter(abilities) {
+                return EventSpec::Activated {
+                    players: PlayerSet::All,
+                    abilities,
+                };
+            }
+        }
+        _ => {}
+    }
     let reduced = reduce_attack(&name, &operands)
         .or_else(|| reduce_counters(&name, &operands))
         .or_else(|| reduce_batch(&name, &operands))
@@ -1524,6 +1696,13 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             player: true,
             ..EventBindings::default()
         },
+        EventSpec::Activated { .. } => EventBindings {
+            object: true,
+            permanent: true,
+            player: true,
+            stack_object: true,
+            ..EventBindings::default()
+        },
         EventSpec::Turn { .. } => EventBindings {
             player: true,
             ..EventBindings::default()
@@ -1748,7 +1927,10 @@ impl Effects {
         let mut loyalty = false;
         for part in &cost.parts {
             match part {
-                CostPart::Primitive { .. } => {}
+                CostPart::Primitive { .. }
+                | CostPart::ManaWithX { .. }
+                | CostPart::Waterbend(_)
+                | CostPart::PutCounters(_) => {}
                 CostPart::Move {
                     selections,
                     destination,

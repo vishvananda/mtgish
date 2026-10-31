@@ -515,9 +515,119 @@ impl Context {
         let (name, operands) = self.primitive("Cost", value)?;
         let part = match (name.as_str(), operands.as_slice()) {
             ("Cost::PayEnergy", [Operand::Number(amount)]) => CostPart::Energy(amount.clone()),
-            _ => CostPart::Primitive { name, operands },
+            _ => match self.typed_cost(value) {
+                Some(part) => part,
+                None => CostPart::Primitive { name, operands },
+            },
         };
         Some(Cost { parts: vec![part] })
+    }
+
+    fn activation_rule(&self, value: &source::ActivateModifier) -> Option<ActivationRule> {
+        use source::ActivateModifier as S;
+        let reduce = |symbols: &[source::CostReductionSymbol], factor| {
+            Some(SpellCostModifier::Reduce {
+                reductions: self.mana_reduction(symbols, factor).ok()?,
+                spill_into_generic: true,
+            })
+        };
+        Some(match value {
+            S::ReduceCostForEach(symbols, each) => ActivationRule::Cost {
+                modifier: reduce(symbols, self.number(each).ok()?)?,
+                condition: None,
+            },
+            S::ReduceCostIf(condition, symbols) => {
+                let mut context = self.clone();
+                context.activation_limit = true;
+                ActivationRule::Cost {
+                    modifier: reduce(symbols, Expr::Constant(1))?,
+                    condition: Some(context.condition(condition).ok()?),
+                }
+            }
+            S::IncreaseManaCostForEach(mana, each) => ActivationRule::Cost {
+                modifier: SpellCostModifier::Increase(Cost {
+                    parts: vec![CostPart::Repeated {
+                        part: Box::new(CostPart::Mana(
+                            mana.iter().map(mana_symbol).collect::<Result<_>>().ok()?,
+                        )),
+                        times: self.number(each).ok()?,
+                    }],
+                }),
+                condition: None,
+            },
+            S::ActivateNoMoreThanNumberTimesEachTurn(times) => {
+                ActivationRule::MaxPerTurn(self.number(times).ok()?)
+            }
+            S::XCantBeZero => ActivationRule::XNotZero,
+            S::XCantBeGreaterThan(limit) => ActivationRule::XAtMost(self.number(limit).ok()?),
+            S::XIs(value) => ActivationRule::XIs(self.number(value).ok()?),
+            S::CantBeCopied => ActivationRule::CantBeCopied,
+            S::ActivateOnlyAsAnInstant => ActivationRule::AnyTimeOfInstant,
+            _ => return None,
+        })
+    }
+
+    fn typed_cost(&self, value: &source::Cost) -> Option<CostPart> {
+        use source::Cost as S;
+        let plain = |mana: &source::ManaCost| -> Option<Vec<ManaSymbol>> {
+            mana.iter().map(mana_symbol).collect::<Result<_>>().ok()
+        };
+        let with_x = |mana: &source::ManaCostX| -> Option<Vec<ManaSymbol>> {
+            mana.iter().map(mana_symbol_x).collect::<Result<_>>().ok()
+        };
+        Some(match value {
+            S::PayManaAnyX(mana) => CostPart::ManaWithX {
+                mana: with_x(mana)?,
+                x: None,
+            },
+            S::PayManaX(mana, x) => CostPart::ManaWithX {
+                mana: with_x(mana)?,
+                x: Some(self.number(x).ok()?),
+            },
+            S::Waterbend(mana) => CostPart::Waterbend(plain(mana)?),
+            S::WaterbendX(mana) => CostPart::Waterbend(with_x(mana)?),
+            S::LoyaltyMinusX => CostPart::Loyalty(Expr::Multiply(
+                Box::new(Expr::Constant(-1)),
+                Box::new(Expr::AnnouncedX),
+            )),
+            S::PutCounters(placements) => CostPart::PutCounters(
+                placements
+                    .iter()
+                    .map(|placement| self.paid_counters(placement))
+                    .collect::<Option<_>>()?,
+            ),
+            _ => return None,
+        })
+    }
+
+    /// Counters placed as a cost: exact objects only, since a cost's choice
+    /// of object stays with the row that names it.
+    fn paid_counters(&self, value: &source::PutCountersCost) -> Option<CounterPlacement> {
+        use source::PutCountersCost as S;
+        let (recipients, kind, amount) = match value {
+            S::ACounterOfTypeOnPermanent(kind, object) => (
+                Recipients::Objects(ObjectSet::One(self.object(object).ok()?)),
+                kind,
+                Expr::Constant(1),
+            ),
+            S::NumberCountersOfTypeOnPermanent(amount, kind, object) => (
+                Recipients::Objects(ObjectSet::One(self.object(object).ok()?)),
+                kind,
+                self.number(amount).ok()?,
+            ),
+            S::NumberCountersOfTypeOnPlayer(amount, kind, player) => (
+                Recipients::Players(PlayerSet::One(self.player(player).ok()?)),
+                kind,
+                self.number(amount).ok()?,
+            ),
+            _ => return None,
+        };
+        Some(CounterPlacement {
+            recipients,
+            kind: crate::counter::lower(kind),
+            amount,
+            selection: None,
+        })
     }
 
     fn primitive_condition(&self, value: &source::Condition) -> Option<Condition> {

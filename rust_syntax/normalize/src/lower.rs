@@ -4941,9 +4941,20 @@ impl Context {
                     None => condition,
                 });
             }
+            source::ActivateModifier::Boast => {
+                limits.once_each_turn = true;
+                limits.keyword = Some(ActivatedKeyword::Boast);
+            }
+            source::ActivateModifier::Forecast => {
+                limits.once_each_turn = true;
+                limits.keyword = Some(ActivatedKeyword::Forecast);
+            }
             _ => match self.primitive("ActivateModifier", value) {
                 Some((name, operands)) => {
-                    limits.modifiers.push(Change::Primitive { name, operands })
+                    limits.modifiers.push(match self.activation_rule(value) {
+                        Some(rule) => Change::ActivationRule(rule),
+                        None => Change::Primitive { name, operands },
+                    })
                 }
                 None => return Err(unsupported(value)),
             },

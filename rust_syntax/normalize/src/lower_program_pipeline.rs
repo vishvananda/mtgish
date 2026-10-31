@@ -273,9 +273,10 @@ impl Context {
                     context.bind_cost_recipe(cost)?
                 };
                 // The amount chosen while paying {X} is X from here on.
-                let chooses_x = cost.parts.iter().any(
-                    |part| matches!(part, CostPart::Primitive { name, .. } if name == "Cost::PayManaAnyX"),
-                );
+                let chooses_x = cost
+                    .parts
+                    .iter()
+                    .any(|part| matches!(part, CostPart::ManaWithX { x: None, .. }));
                 let reveals_top = cost.parts.iter().any(
                     |part| matches!(part, CostPart::Primitive { name, .. } if name == "Cost::RevealTopCardOfLibrary"),
                 );
