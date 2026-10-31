@@ -1914,6 +1914,19 @@ pub enum Change {
         effects: Box<Operand>,
     },
     AddEnchantmentType(Box<Operand>),
+    SetName(String),
+    /// Loses all other abilities and has this one (CR 613.1f, in one effect).
+    OnlyAbility(Box<Ability>),
+    /// Has these kinds of abilities of each of `objects`.
+    GainAbilitiesOf {
+        objects: ObjectSet,
+        kinds: Box<Operand>,
+    },
+    /// CR 612: a text-changing effect replacing one word with another.
+    ReplaceWord {
+        from: Box<Operand>,
+        to: Box<Operand>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3107,6 +3120,15 @@ pub enum ObjectFilter {
     },
     /// Was kicked with this kicker (CR 702.33d).
     KickedWith(Vec<Operand>),
+    /// Has something matching attached to it.
+    HasAttached(Box<ObjectFilter>),
+    AttachedToPlayer(PlayerRef),
+    /// Has the highest or lowest value of `property` among `among`.
+    Extreme {
+        among: Box<ObjectSet>,
+        property: Property,
+        highest: bool,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3750,6 +3772,9 @@ pub enum ObjectState {
     TributeNotPaid,
     CastDuringOwnMainPhase,
     HasX,
+    Suspended,
+    HasAdventure,
+    BlockedThisTurn,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -3764,6 +3789,7 @@ pub enum TurnWindow {
     DeclareBlockers,
     BeforeBlockersDeclared,
     FirstCombat,
+    AfterBlockersDeclared,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

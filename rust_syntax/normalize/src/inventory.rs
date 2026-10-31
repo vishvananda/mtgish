@@ -1371,7 +1371,8 @@ impl Inventory<'_> {
             Change::SetPower(n) | Change::SetToughness(n) => self.expr(n),
             Change::SetController(p) => self.player(p),
             Change::GrantKeyword(k) => self.keyword(k),
-            Change::GrantAbility(a) => self.ability(a),
+            Change::GainAbilitiesOf { objects, .. } => self.objects(objects),
+            Change::GrantAbility(a) | Change::OnlyAbility(a) => self.ability(a),
             Change::CreatureTypes { mode, types } => {
                 self.form("ChangeMode", mode);
                 self.form("CreatureTypeSet", types);
@@ -1399,6 +1400,8 @@ impl Inventory<'_> {
             | Change::RemoveAllAbilities
             | Change::SwitchPowerToughness
             | Change::LosesAbility(_)
+            | Change::SetName(_)
+            | Change::ReplaceWord { .. }
             | Change::AddEnchantmentType(_)
             | Change::SetLandType(_) => {}
             Change::EntersWithCounters { kind, amount } => {
@@ -1858,6 +1861,9 @@ impl Inventory<'_> {
             ObjectFilter::BlockingObject(object) => self.object(object),
             ObjectFilter::Condition(condition) => self.condition(condition),
             ObjectFilter::KickedWith(_) => {}
+            ObjectFilter::HasAttached(filter) => self.filter(filter),
+            ObjectFilter::AttachedToPlayer(player) => self.player(player),
+            ObjectFilter::Extreme { among, .. } => self.objects(among),
             ObjectFilter::NthCast {
                 ordinal,
                 spells,

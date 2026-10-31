@@ -1195,7 +1195,10 @@ fn keyword_costs_are_generic() {
 #[test]
 fn manifesting_keeps_what_entered() {
     let body = lowered("SpellActions(ActionList([ManifestTheTopCardOfPlayersLibrary(You)]))");
-    assert!(body.contains("Manifest {") && body.contains("TopOfLibrary"), "{body}");
+    assert!(
+        body.contains("Manifest {") && body.contains("TopOfLibrary"),
+        "{body}"
+    );
     let cloak = lowered("SpellActions(ActionList([CloakTheTopCardOfPlayersLibrary(You)]))");
     assert!(cloak.contains("cloak: true"), "{cloak}");
 }
@@ -1210,4 +1213,16 @@ fn mana_that_stays_and_mana_like_what_was_produced() {
         "TriggerA(WhenAPlayerTapsAPermanentForMana(SinglePlayer(You), IsCardtype(Land)), ActionList([AddMana(Trigger_AnyManaTypeProduced)]))",
     );
     assert!(same.contains("SameTypeAsProduced"), "{same}");
+}
+
+#[test]
+fn layer_rows_and_hand_statics_are_generic() {
+    let hand = lowered(
+        "EachCardInPlayersHandEffect(IsCardtype(Land), You, [AddAbility([Cycling(PayMana([ManaCostR]))])])",
+    );
+    assert!(hand.contains("Hand") && hand.contains("GrantAbility"), "{hand}");
+    let gained = lowered(
+        "PermanentLayerEffect(ThisPermanent, [AddAbilityFromEachPermanentHasable(IsCardtype(Land), [ActivatedAbility])])",
+    );
+    assert!(gained.contains("GainAbilitiesOf"), "{gained}");
 }

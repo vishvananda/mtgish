@@ -1488,6 +1488,9 @@ impl Compiler {
                         format!("{step} < (Step::DeclareBlockers as u8)")
                     }
                     TurnWindow::FirstCombat => return Err(gap("engine: no combat phase count")),
+                    TurnWindow::AfterBlockersDeclared => {
+                        format!("{step} > (Step::DeclareBlockers as u8)")
+                    }
                 }
             }
             Condition::PlayerState { player, state } => format!(

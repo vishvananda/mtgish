@@ -1136,6 +1136,45 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
     };
     match (form, operands.as_slice()) {
         ("WasKickedWithKicker", kicker) => return ObjectFilter::KickedWith(kicker.to_vec()),
+        ("IsSuspended", []) => return ObjectFilter::State(ObjectState::Suspended),
+        ("HasAnAdventure", []) => return ObjectFilter::State(ObjectState::HasAdventure),
+        ("BlockedThisTurn", []) => return ObjectFilter::State(ObjectState::BlockedThisTurn),
+        ("IsFaceUp", []) => {
+            return ObjectFilter::Not(Box::new(ObjectFilter::State(ObjectState::FaceDown)))
+        }
+        ("HasASingleTarget", []) => return ObjectFilter::OnStack(StackTrait::SingleTarget),
+        ("TargetsOnlySinglePermanent", [Operand::Object(object)]) => {
+            return ObjectFilter::All(vec![
+                ObjectFilter::OnStack(StackTrait::SingleTarget),
+                ObjectFilter::TargetsAny(Box::new(Recipients::Objects(ObjectSet::One(
+                    object.clone(),
+                )))),
+            ])
+        }
+        ("TargetsOnlyASinglePermanent", [Operand::Objects(objects)]) => {
+            return ObjectFilter::All(vec![
+                ObjectFilter::OnStack(StackTrait::SingleTarget),
+                ObjectFilter::TargetsAny(Box::new(Recipients::Objects(objects.clone()))),
+            ])
+        }
+        ("AttachedToPlayer", [Operand::Player(player)]) => {
+            return ObjectFilter::AttachedToPlayer(player.clone())
+        }
+        ("APermanentWithTheHighestManaValue", [Operand::Objects(objects)]) => {
+            return ObjectFilter::Extreme {
+                among: Box::new(objects.clone()),
+                property: Property::ManaValue,
+                highest: true,
+            }
+        }
+        ("SharesANameWithAnExiled", [Operand::Objects(objects)]) => {
+            return ObjectFilter::SharesNameWithAny(Box::new(objects.clone()))
+        }
+        ("IsEnchantedByAPermanent", [Operand::Objects(objects)])
+            if event_filter(objects).is_some() =>
+        {
+            return ObjectFilter::HasAttached(Box::new(event_filter(objects).unwrap()))
+        }
         ("TheNthSpellCastThisTurn", [Operand::Number(ordinal)]) => {
             return nth(ordinal, None, None, CastScope::Turn)
         }
@@ -1267,6 +1306,36 @@ fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
         })
     };
     match (name, operands) {
+        ("Condition::NumCardsInExileIs", [Than(c, v), Objects(s)]) => {
+            compare(count(s.clone()), c, v)
+        }
+        ("Condition::ThereAreNumberCardTypesInPlayersGraveyard", [Than(c, v), Player(p)]) => {
+            compare(
+                distinct(
+                    &graveyard_of(p, ObjectFilter::Any),
+                    DistinctProperty::CardTypes,
+                ),
+                c,
+                v,
+            )
+        }
+        (
+            "Condition::NumDifferentManaValueAmongCardsInPlayersGraveyardIs",
+            [Than(c, v), Operand::Filter(cards), Player(p)],
+        ) => compare(
+            distinct(
+                &graveyard_of(p, cards.clone()),
+                DistinctProperty::ManaValues,
+            ),
+            c,
+            v,
+        ),
+        ("Condition::NumDifferentManaValuesAmongCardsInExileIs", [Than(c, v), Objects(s)]) => {
+            compare(distinct(s, DistinctProperty::ManaValues), c, v)
+        }
+        ("Condition::ThereAreNumberCardTypesAmongExiled", [Than(c, v), Objects(s)]) => {
+            compare(distinct(s, DistinctProperty::CardTypes), c, v)
+        }
         ("Players::ControlsMorePermanentThanPlayer", [Player(p), Player(other), Objects(s)]) => {
             compare(
                 count(controlled(p, s)?),
@@ -1341,6 +1410,14 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
         "Condition::ItsNeitherDayOrNight" => return Condition::ItsNeitherDayNorNight,
         _ => {}
     }
+    if let ("Condition::CardIsExiled", [Operand::Object(object)]) =
+        (name.as_str(), operands.as_slice())
+    {
+        return Condition::ObjectMatches {
+            object: object.clone(),
+            filter: ObjectFilter::InZone(ZoneScope::Shared(EventZone::Exile)),
+        };
+    }
     match (name.as_str(), operands.as_slice()) {
         ("Condition::MostVotesForWordIs", [Operand::Text(word)]) => {
             return Condition::MostVotes {
@@ -1387,6 +1464,7 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
         "Condition::IsDuringDeclareBlockersStep" => Some(TurnWindow::DeclareBlockers),
         "Condition::IsBeforeBlockersDeclared" => Some(TurnWindow::BeforeBlockersDeclared),
         "Condition::IsFirstCombatPhaseOfTurn" => Some(TurnWindow::FirstCombat),
+        "Condition::IsAfterBlockersAreDeclared" => Some(TurnWindow::AfterBlockersDeclared),
         _ => None,
     };
     let state = match name.as_str() {
@@ -1441,6 +1519,30 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
         },
         ("LayerEffect::LosesAbility", [ability]) => Change::LosesAbility(Box::new(ability.clone())),
         ("LayerEffect::SetLandType", [land]) => Change::SetLandType(Box::new(land.clone())),
+        ("LayerEffect::SetName", [Operand::Text(name)]) => Change::SetName(name.clone()),
+        ("LayerEffect::AddAbilityAndLoseAllOtherAbilities", [Operand::Ability(ability)]) => {
+            Change::OnlyAbility(ability.clone())
+        }
+        ("LayerEffect::IsACopyOfExiledCard", [Operand::Object(object), effects]) => {
+            Change::CopyOf {
+                object: object.clone(),
+                effects: Box::new(effects.clone()),
+            }
+        }
+        ("LayerEffect::AddAbilityFromEachPermanentHasable", [Operand::Objects(objects), kinds]) => {
+            Change::GainAbilitiesOf {
+                objects: objects.clone(),
+                kinds: Box::new(kinds.clone()),
+            }
+        }
+        (
+            "LayerEffect::ReplaceColorWordVariableWithNewColorWordVariable"
+            | "LayerEffect::ReplaceLandTypeVariableWithNewLandTypeVariable",
+            [from, to],
+        ) => Change::ReplaceWord {
+            from: Box::new(from.clone()),
+            to: Box::new(to.clone()),
+        },
         ("LayerEffect::AddEnchantmentType", [kind]) => {
             Change::AddEnchantmentType(Box::new(kind.clone()))
         }
@@ -2136,6 +2238,18 @@ fn casting_mode(name: &str, operands: &[Operand]) -> Option<Ability> {
 }
 
 /// What "each card in a graveyard has" gives those cards.
+fn zone_static(scope: ZoneScope, cards: &ObjectFilter, changes: Vec<Change>) -> Ability {
+    Ability::Static {
+        kind: StaticKind::Ordinary,
+        affected: EffectSubjects::Objects(ObjectSet::Zone {
+            scope,
+            kind: ObjectKind::Card,
+            filter: cards.clone(),
+        }),
+        changes,
+    }
+}
+
 fn graveyard_changes(effects: &[Operand]) -> Option<Vec<Change>> {
     let mut changes = vec![];
     for effect in effects {
@@ -2198,6 +2312,36 @@ pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
                     }),
                     changes,
                 };
+            }
+        }
+        (
+            "Rule::EachCardInPlayersHandEffect",
+            [Operand::Filter(cards), Operand::Player(owner), Operand::List(effects)],
+        ) => {
+            if let Some(changes) = graveyard_changes(effects) {
+                return zone_static(
+                    ZoneScope::Players {
+                        zone: EventZone::Hand,
+                        players: PlayerSet::One(owner.clone()),
+                    },
+                    cards,
+                    changes,
+                );
+            }
+        }
+        (
+            "Rule::EachCardInAGraveyardEffect",
+            [Operand::Filter(cards), Operand::Players(owners), Operand::List(effects)],
+        ) => {
+            if let Some(changes) = graveyard_changes(effects) {
+                return zone_static(
+                    ZoneScope::Players {
+                        zone: EventZone::Graveyard,
+                        players: owners.clone(),
+                    },
+                    cards,
+                    changes,
+                );
             }
         }
         ("Rule::Backup", [Operand::Integer(amount), Operand::List(abilities)]) => {
@@ -3247,6 +3391,17 @@ fn reduce_object_event(name: &str, operands: &[Operand]) -> Option<EventSpec> {
             by: Box::new(by.clone()),
         }),
         _ => None,
+    }
+}
+
+fn graveyard_of(player: &PlayerRef, cards: ObjectFilter) -> ObjectSet {
+    ObjectSet::Zone {
+        scope: ZoneScope::Players {
+            zone: EventZone::Graveyard,
+            players: PlayerSet::One(player.clone()),
+        },
+        kind: ObjectKind::Card,
+        filter: cards,
     }
 }
 

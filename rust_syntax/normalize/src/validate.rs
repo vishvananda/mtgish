@@ -958,6 +958,9 @@ impl<'a> Scope<'a> {
             ObjectFilter::DamagedBy(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectFilter::Primitive { name, operands } => self.primitive(name, operands),
             ObjectFilter::Condition(condition) => self.condition(condition),
+            ObjectFilter::HasAttached(filter) => self.filter(filter),
+            ObjectFilter::AttachedToPlayer(player) => self.player(player),
+            ObjectFilter::Extreme { among, .. } => self.objects(among),
             ObjectFilter::KickedWith(kicker) => {
                 kicker.iter().try_for_each(|operand| self.operand(operand))
             }
@@ -1213,7 +1216,7 @@ impl<'a> Scope<'a> {
                 self.expr(power)?;
                 self.expr(toughness)
             }
-            Change::GrantAbility(ability) => {
+            Change::GrantAbility(ability) | Change::OnlyAbility(ability) => {
                 if has_definition(ability) {
                     return Err(
                         "a granted ability is not an intrinsic characteristic definition".into(),
@@ -1246,6 +1249,15 @@ impl<'a> Scope<'a> {
             Change::CantBeCountered => Ok(()),
             Change::ActivationRule(_) => {
                 Err("an activation rule belongs to an activated ability".into())
+            }
+            Change::SetName(_) => Ok(()),
+            Change::GainAbilitiesOf { objects, kinds } => {
+                self.objects(objects)?;
+                self.operand(kinds)
+            }
+            Change::ReplaceWord { from, to } => {
+                self.operand(from)?;
+                self.operand(to)
             }
             Change::AddEnchantmentType(operand)
             | Change::LosesAbility(operand)
