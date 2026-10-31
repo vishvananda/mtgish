@@ -18,6 +18,14 @@ fn card(name: &str) -> Card {
         .unwrap();
     lower::card(&source).unwrap_or_else(|e| panic!("{name}: {e:?}"))
 }
+/// Where nested builds of generated crates go: under this build's target, so a
+/// separate worktree does not share or contend for one Cantrip build.
+fn generated_target() -> PathBuf {
+    std::env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir)
+        .join("mtgish-cantrip-build")
+}
 fn verify_cantrip_snapshot(checkout: &std::path::Path) {
     let result = Command::new("python3")
         .arg(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tools/update_cantrip_vocabulary.py"))
@@ -193,7 +201,8 @@ fn generated_modules_execute_in_cantrip() {
     else {
         panic!()
     };
-    tokens[0].definition().unwrap().power_toughness = Some((Expr::Constant(2), Expr::Constant(2)));
+    tokens[0].definition_mut().unwrap().power_toughness =
+        Some((Expr::Constant(2), Expr::Constant(2)));
     exported_cards.push(larger);
     let input = root.join("exported.ronl");
     let output = root.join("exported.rs");
@@ -266,7 +275,8 @@ fn generated_modules_execute_in_cantrip() {
     *affected = ObjectSet::Battlefield(ObjectFilter::All(vec![
         ObjectFilter::CardType(mtgish_ast::mtg_types::CardType::Creature),
         ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)),
-    ]));
+    ]))
+    .into();
     lib.push_str(&format!(
         "mod collection_pump {{\n{}\n}}\n",
         cantrip::module(&pump).unwrap()
@@ -278,7 +288,7 @@ fn generated_modules_execute_in_cantrip() {
         .env("CANTRIP_VERIFY", "1")
         .arg(root.join("Cargo.toml"))
         .arg("--target-dir")
-        .arg(std::env::temp_dir().join("mtgish-cantrip-build"))
+        .arg(generated_target())
         .output()
         .unwrap();
     assert!(
@@ -358,7 +368,7 @@ fn every_advertised_module_compiles_against_cantrip() {
         .args(["check", "--offline", "--manifest-path"])
         .arg(scratch.join("Cargo.toml"))
         .arg("--target-dir")
-        .arg(std::env::temp_dir().join("mtgish-cantrip-build"))
+        .arg(generated_target())
         .output()
         .unwrap();
     assert!(

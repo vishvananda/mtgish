@@ -30,6 +30,15 @@ impl Diagnostic {
 fn name(value: &impl std::fmt::Debug) -> String {
     format!("{value:?}")
 }
+/// The variant of an IR value, read from its derived `Debug`. With no list of
+/// variants here, a form added to the end of an enum reports itself as a gap.
+fn form(value: &impl std::fmt::Debug) -> String {
+    let text = format!("{value:?}");
+    let end = text
+        .find(|c: char| !c.is_alphanumeric() && c != '_')
+        .unwrap_or(text.len());
+    text[..end].into()
+}
 fn quoted(value: &str) -> String {
     format!("{value:?}")
 }
@@ -179,6 +188,9 @@ enum ManaPlan {
 }
 fn mana_plan(value: &ManaProduction) -> Result<ManaPlan> {
     Ok(match value {
+        ManaProduction::Primitive { name, .. } => {
+            return Err(gap(format!("primitive mana production {name}")))
+        }
         ManaProduction::Amount { color, amount } => {
             ManaPlan::Fixed(vec![(color.clone(), amount.clone())])
         }
@@ -615,9 +627,14 @@ impl<'a> Compiler<'a> {
                             player,
                             objects,
                             count,
+                            constraints,
                         },
                     result,
                 } => {
+                    if let Some(constraint) = constraints.first() {
+                        return Err(gap(format!("selection constraint {}", form(constraint)))
+                            .at(format!("instructions[{i}]")));
+                    }
                     // The consumer supplies prompt wording, not targeting or
                     // rules semantics. Other consumers need their own wording.
                     let purpose = match body.instructions.get(i + 1) {
@@ -711,6 +728,7 @@ impl<'a> Compiler<'a> {
             }
             Count::AtLeast(_) => return Err(gap("at-least resolution choice")),
             Count::Between { .. } => return Err(gap("bounded resolution choice")),
+            Count::PerPlayer { .. } => return Err(gap("per-player resolution choice")),
         };
         let local = format!("selected_{}", self.next);
         self.next += 1;
@@ -887,6 +905,9 @@ impl<'a> Compiler<'a> {
                 let Change::Pump { power, toughness } = &changes[0] else {
                     return Err(gap("continuous change"));
                 };
+                let EffectSubjects::Objects(affected) = affected else {
+                    return Err(gap("continuous effect on players"));
+                };
                 let power = self
                     .number(power)?
                     .fit(i16::MIN.into(), i16::MAX.into(), "i16")?;
@@ -895,7 +916,10 @@ impl<'a> Compiler<'a> {
                         .fit(i16::MIN.into(), i16::MAX.into(), "i16")?;
                 writeln!(out,"let power_{id} = {power}; let toughness_{id} = {toughness}; let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for object in objects_{id} {{ cantrip_mechanics::pump(g, {}, object, power_{id}, toughness_{id}); }} }});",self.objects(affected)?,self.raw_object(source)?).unwrap();
             }
-            _ => return Err(gap(format!("operation {}", operation_name(op)))),
+            Operation::Primitive { name, .. } => {
+                return Err(gap(format!("primitive operation {name}")))
+            }
+            _ => return Err(gap(format!("operation {}", form(op)))),
         }
         Ok(())
     }
@@ -1058,44 +1082,6 @@ impl<'a> Compiler<'a> {
         self.mana_context = false;
         writeln!(self.functions,"fn {label}(g: &mut dyn Game, asker: &Asker, chosen: Option<Color>) -> Result<(),Suspend> {{ {out} Ok(()) }}").unwrap();
         Ok(metadata)
-    }
-}
-fn operation_name(op: &Operation) -> &'static str {
-    match op {
-        Operation::Search { .. } => "Search",
-        Operation::Reveal { .. } => "Reveal",
-        Operation::RevealUntil { .. } => "RevealUntil",
-        Operation::Shuffle { .. } => "Shuffle",
-        Operation::ReorderLibrary { .. } => "ReorderLibrary",
-        Operation::Scry { .. } => "Scry",
-        Operation::Surveil { .. } => "Surveil",
-        Operation::Counter { .. } => "Counter",
-        Operation::CreateTrigger { .. } => "CreateTrigger",
-        Operation::BindValue { .. } => "BindValue",
-        Operation::RepeatProcess => "RepeatProcess",
-        Operation::DiscardObjects { .. } => "DiscardObjects",
-        Operation::ReflexiveTrigger { .. } => "ReflexiveTrigger",
-        Operation::ReturnAfter { .. } => "ReturnAfter",
-        Operation::CreateReplacement { .. } => "CreateReplacement",
-        Operation::ModifyEvent { .. } => "ModifyEvent",
-        Operation::PayCost { .. } => "PayCost",
-        Operation::RemoveCounters { .. } => "RemoveCounters",
-        Operation::Discard { .. } => "Discard",
-        Operation::Attach { .. } => "Attach",
-        Operation::CreateTokens { .. } => "CreateTokens",
-        Operation::ChooseObjects { .. } => "ChooseObjects",
-        Operation::Draw { .. } => "Draw",
-        Operation::GainLife { .. } => "GainLife",
-        Operation::LoseLife { .. } => "LoseLife",
-        Operation::Mill { .. } => "Mill",
-        Operation::AddMana { .. } => "AddMana",
-        Operation::DealDamage { .. } => "DealDamage",
-        Operation::Destroy { .. } => "Destroy",
-        Operation::Move { .. } => "Move",
-        Operation::Tap { .. } => "Tap",
-        Operation::Sacrifice { .. } => "Sacrifice",
-        Operation::PutCounters { .. } => "PutCounters",
-        Operation::CreateContinuousEffect { .. } => "CreateContinuousEffect",
     }
 }
 fn card_type(t: &crate::mtg_types::CardType) -> Result<String> {
