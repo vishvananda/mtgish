@@ -281,10 +281,9 @@ fn payment_decisions_require_payment_results_and_counter_allocation_is_not_appro
     assert!(validate::card(&c)
         .unwrap_err()
         .contains("not an available payment decision"));
-    let errors=program("Activated(RemoveCounters([NumberCountersOfTypeFromAmongPermanents(Integer(2), ChargeCounter, AnyPermanent)]), ActionList([DrawACard]))").unwrap_err();
-    assert!(errors
-        .iter()
-        .any(|e| e.form == "NumberCountersOfTypeFromAmongPermanents"));
+    let c = program("Activated(RemoveCounters([NumberCountersOfTypeFromAmongPermanents(Integer(2), ChargeCounter, AnyPermanent)]), ActionList([DrawACard]))").unwrap();
+    validate::card(&c).unwrap();
+    assert!(format!("{:?}", c.abilities).contains("AmongThem"));
     let c = program(
         "ReplaceWouldEnter(PermanentWouldEnterTheBattlefield(ThisPermanent), [EntersTapped])",
     )

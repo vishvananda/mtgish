@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 70);
+    assert_eq!(card.schema_version, 71);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2974,7 +2974,9 @@ fn a_target_player_can_carry_a_condition() {
 fn an_action_reads_its_own_actor_library_and_battlefield() {
     let text = ability_json("TriggerA(AtTheBeginningOfAPlayersDrawStep(AnyPlayer),ActionList([PlayerAction(Trigger_ThatPlayer,Exile([TheTopCardOfLibrary],[])),If(ACardWasExiledThisWay(IsCardtype(Land)),[PlayerAction(Trigger_ThatPlayer,PutExiledCardOntoBattlefield(TheCardExiledThisWay,[EntersNormally]))])]))");
     assert!(!text.contains("AbilityController"), "{text}");
-    let text = ability_json("SpellActions(ActionList([EachPlayerAction(Opponent,Exile([TheTopCardOfLibrary],[]))]))");
+    let text = ability_json(
+        "SpellActions(ActionList([EachPlayerAction(Opponent,Exile([TheTopCardOfLibrary],[]))]))",
+    );
     assert!(text.contains("Bound"), "{text}");
 }
 
@@ -2982,14 +2984,56 @@ fn an_action_reads_its_own_actor_library_and_battlefield() {
 fn a_life_loss_is_replaced_for_the_player_losing_it() {
     let text = ability_json("ReplaceWouldLoseLife(APlayerWouldLoseLife(Opponent),[LoseLife(Twice(WouldLoseLife_ThatMuch))])");
     assert!(text.contains("EventSubject"), "{text}");
-    assert!(!text.contains("\"players\":{\"kind\":\"One\",\"args\":{\"kind\":\"AbilityController\"}},\"amount\""), "{text}");
+    assert!(
+        !text.contains(
+            "\"players\":{\"kind\":\"One\",\"args\":{\"kind\":\"AbilityController\"}},\"amount\""
+        ),
+        "{text}"
+    );
 }
 
 #[test]
 fn a_difference_is_never_negative() {
-    let text = ability_json("SpellActions(ActionList([GainLife(DifferenceBetween(Integer(1),Integer(4)))]))");
+    let text = ability_json(
+        "SpellActions(ActionList([GainLife(DifferenceBetween(Integer(1),Integer(4)))]))",
+    );
     assert!(text.contains("Maximum"), "{text}");
     assert_eq!(text.matches("Subtract").count(), 2, "{text}");
+}
+
+#[test]
+fn counters_removed_from_among_permanents_are_spread_by_the_player() {
+    let text = ability_json("Activated(RemoveCounters([NumberCountersFromAmongPermanents(Integer(3), ControlledByAPlayer(SinglePlayer(You)))]),ActionList([DrawACard]))");
+    assert!(text.contains("AmongThem"), "{text}");
+}
+
+#[test]
+fn a_replacement_reveals_and_shuffles_the_card_it_saves() {
+    let text = ability_json("AsPutIntoAGraveyardFromAnywhere(ThisCard, [RevealItAndShuffleItIntoLibraryInstead])");
+    assert!(text.contains("Reveal"), "{text}");
+    assert!(text.contains("OwnersLibraryShuffled"), "{text}");
+}
+
+#[test]
+fn a_search_finds_a_card_named_after_each_chosen_permanent() {
+    let text = ability_json("SpellActions(ActionList([ChooseNumberPermanents(Integer(5), ControlledByAPlayer(SinglePlayer(You))), SearchLibrary([FindAnyNumberOfGroupCards(AnyCardInLibrary, SharesANameWithEachPermanent(ThePermanentsChosenThisWay)), PutFoundCardsOntoBattlefield([EntersTapped]), Shuffle])]))");
+    assert!(text.contains("NamedAfterOneEach"), "{text}");
+}
+
+#[test]
+fn a_timed_entry_replacement_changes_the_entering_object() {
+    let text = ability_json("SpellActions(ActionList([CreateReplaceWouldEnterUntil(APermanentWouldEnterTheBattlefield(IsCardtype(Creature)), [EntersWithACounter(PTCounter(+1, +1))], UntilEndOfTurn)]))");
+    assert!(text.contains("AddCounters"), "{text}");
+    let text = ability_json("SpellActions(ActionList([CreateReplaceWouldEnterUntil(APermanentWouldEnterTheBattlefield(IsCardtype(Creature)), [EntersTapped], UntilEndOfTurn)]))");
+    assert!(text.contains("SetTapped"), "{text}");
+}
+
+#[test]
+fn a_move_keeps_how_the_object_enters() {
+    let text = ability_json("TriggerA(WhenAPermanentDies(SinglePermanent(ThisPermanent)), ActionList([ReturnDeadGraveyardCardToBattlefield([EntersFaceDown, EntersUnderPlayersControl(You)])]))");
+    assert!(text.contains("FaceDown"), "{text}");
+    let text = ability_json("SpellActions(ActionList([Exile([Permanent(ThisPermanent)], []), PutExiledCardOntoBattlefield(TheCardExiledThisWay, [EntersUnderAPlayersControl(Opponent)])]))");
+    assert!(text.contains("OneOf"), "{text}");
 }
 
 #[test]
@@ -3004,6 +3048,25 @@ fn may_costs_read_what_they_drew_and_milled() {
     assert!(text.contains("CostObjects"), "{text}");
     let text = ability_json("SpellActions(ActionList([MayCost(MillNumberCards(Integer(2))),If(CostWasPaid,[MayAction(PutACardOfTypeMilledThisWayIntoHand(IsCardtype(Creature)))])]))");
     assert!(text.contains("CostObjects"), "{text}");
+}
+
+#[test]
+fn history_numbers_ask_about_ordinary_events() {
+    let text = ability_json("SpellActions(ActionList([GainLife(NumberOfPermanentsSacrificedByPlayerThisTurn(AnyPermanent,You))]))");
+    assert!(text.contains("EventHistory"), "{text}");
+    assert!(
+        text.contains("Trigger::WhenAPlayerSacrificesAPermanent"),
+        "{text}"
+    );
+    let text = ability_json("SpellActions(ActionList([GainLife(TheNumberOfCountersPutOnPermanentsThisTurn(AnyPermanent))]))");
+    assert!(text.contains("TotalAmount"), "{text}");
+}
+
+#[test]
+fn a_player_history_reads_that_player() {
+    let text = ability_json("If(PlayerPassesFilter(You,DidntAttackWithCreaturesThisTurn),[PlayerEffect(You,[CantGainLife])])");
+    assert!(text.contains("Trigger::WhenAPlayerAttacks"), "{text}");
+    assert!(text.contains("Not"), "{text}");
 }
 
 #[test]

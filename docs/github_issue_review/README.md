@@ -113,6 +113,7 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#76](https://github.com/i5jb/mtgish/issues/76): "combat" lost from damage (Decorated Griffin, Soltari Guerrillas).
 - [#77](https://github.com/i5jb/mtgish/issues/77): Wrong player (Shadow of the Second Sun, Davriel, Soul Broker).
 - [#78](https://github.com/i5jb/mtgish/issues/78): Wrong color, condition, optional or type (Esper, Gaea's Liege, Life and Limb, Chain Lightning, Chain of Plasma, Old-Growth Troll, Harold and Bob, First Numens).
+- [#79](https://github.com/i5jb/mtgish/issues/79): Perennial Gravewarden: "entered" encoded as "explored".
 
 [#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
 

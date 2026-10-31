@@ -5404,7 +5404,7 @@
     "a creature died this turn": "ACreatureOrPlaneswalkerDiedThisTurn(IsCardtype(Creature))",
     "a creature died under an opponent's control this turn": "ACreatureOrPlaneswalkerDiedThisTurn(And([IsCardtype(Creature), ControlledByAPlayer(Opponent)]))",
     "a creature died under your control this turn": "ACreatureOrPlaneswalkerDiedThisTurn(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]))",
-    "a creature entered and a creature died this turn": "And([APermanentExploredThisTurn(IsCardtype(Creature)), ACreatureOrPlaneswalkerDiedThisTurn(IsCardtype(Creature))])",
+    "a creature entered and a creature died this turn": "And([APermanentEnteredTheBattlefieldUnderAPlayersControlThisTurn(IsCardtype(Creature), AnyPlayer), ACreatureOrPlaneswalkerDiedThisTurn(IsCardtype(Creature))])",
     "a creature entered the battlefield under an opponent's control this turn": "APermanentEnteredTheBattlefieldUnderAPlayersControlThisTurn(IsCardtype(Creature), Opponent)",
     "a creature entered the battlefield under your control this turn": "APermanentEnteredTheBattlefieldUnderPlayersControlThisTurn(IsCardtype(Creature), You)",
     "a creature has {{a}} {{CounterType}} counter on it": "APermanentPassesFilter(IsCardtype(Creature), HasACounterOfType({{CounterType[0]}}))",

@@ -41,12 +41,7 @@ fn casting(c: &Card) -> &CastingRule {
 
 #[test]
 fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
-    let incomplete = [
-        "Dargo, the Shipwrecker",
-        "Ertai's Meddling",
-        "Rites of Initiation",
-        "Soul Burn",
-    ];
+    let incomplete = ["Ertai's Meddling", "Rites of Initiation", "Soul Burn"];
     let mut complete = 0;
     for source in sources() {
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);
@@ -70,7 +65,7 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 73);
+    assert_eq!(complete, 74);
 }
 
 #[test]

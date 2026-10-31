@@ -792,7 +792,22 @@ impl Context {
                 source::EnterFlag::EntersUnderOwnersControl => {
                     destination = Destination::OwnersBattlefield
                 }
-                source::EnterFlag::EntersTransformed => entry.states.push(EntryState::Transformed),
+                source::EnterFlag::EntersUnderAPlayersControl(players) => {
+                    destination =
+                        Destination::Battlefield(PlayerRef::OneOf(Box::new(self.players(players)?)))
+                }
+                source::EnterFlag::EntersTransformed | source::EnterFlag::EntersConverted => {
+                    entry.states.push(EntryState::Transformed)
+                }
+                source::EnterFlag::EntersFaceDown => entry.states.push(EntryState::FaceDown),
+                source::EnterFlag::EntersFlipped => entry.states.push(EntryState::Flipped),
+                source::EnterFlag::IfCardPassesFilter(cards, flags) => {
+                    let (_, then) = self.move_entry(flags, default.clone())?;
+                    entry.states.push(EntryState::When {
+                        filter: self.card_filter(cards)?,
+                        entry: Box::new(then),
+                    });
+                }
                 source::EnterFlag::EntersAttacking => entry.states.push(EntryState::Attacking {
                     player: None,
                     or_planeswalker: false,

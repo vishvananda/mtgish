@@ -4,6 +4,9 @@ impl Context {
         use source::GroupFilter as S;
         Ok(vec![match value {
             S::DifferentNames => SelectionConstraint::DifferentNames,
+            S::SharesANameWithEachPermanent(objects) => {
+                SelectionConstraint::NamedAfterOneEach(self.objects(objects)?)
+            }
             S::DifferentManaValues => SelectionConstraint::DifferentProperty(Property::ManaValue),
             S::DifferentPowers => SelectionConstraint::DifferentProperty(Property::Power),
             S::ShareACreatureType => {

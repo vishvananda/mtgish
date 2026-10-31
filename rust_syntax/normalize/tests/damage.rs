@@ -68,7 +68,6 @@ fn effect(operation: Operation) -> Instruction {
 #[test]
 fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
     let incomplete = [
-        "Curious Obsession",
         "Norn's Decree",
         "The Gitrog, Ravenous Ride",
         "Lost Vale",
@@ -97,7 +96,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 80);
+    assert_eq!(complete, 81);
 }
 
 #[test]
