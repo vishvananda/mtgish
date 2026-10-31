@@ -336,6 +336,8 @@ struct Compiler {
     frame: Frame,
     /// A batch trigger's members are in reach: `Query::event_objects`.
     grouped: bool,
+    /// A trigger on damage to a player fires with that player as its subject.
+    recipient_subject: bool,
     candidates: std::cell::RefCell<Vec<Candidate>>,
     affected_in_scope: bool,
     /// The condition of the enclosing `Ability::Conditional`, asked as layers run.
@@ -615,6 +617,7 @@ impl Compiler {
             event_at: EventAt::Nowhere,
             frame: Frame::default(),
             grouped: false,
+            recipient_subject: false,
             candidates: Default::default(),
             affected_in_scope: false,
             static_guard: None,

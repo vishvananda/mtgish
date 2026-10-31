@@ -21,6 +21,11 @@ mod scenarios {
         toughness: Some(1),
         ..CardDef::BLANK
     };
+    static FLASH_CREATURE: CardDef = CardDef {
+        name: "Flash creature fixture",
+        keywords: Keywords::of(&[Keyword::Flash]),
+        ..CHEAP_CREATURE
+    };
     static CHEAP_ARTIFACT: CardDef = CardDef {
         name: "One mana artifact fixture",
         types: TypeSet::of(&[CardType::Artifact, CardType::Creature]),
@@ -366,6 +371,8 @@ mod scenarios {
             &cosmotronic::CARD,
             &sleep::CARD,
             &rograkh::CARD,
+            &wasps::CARD,
+            &FLASH_CREATURE,
         ];
         for extras in [
             alarm::EXTRA,
@@ -414,7 +421,10 @@ mod scenarios {
         let filler = table.find("Fixture filler").unwrap();
         let mut mine = vec![table.find(hand).unwrap(), table.find(PREPARE.name).unwrap()];
         mine.resize(24, filler);
-        let mut theirs = vec![table.find("Unsummon").unwrap()];
+        let mut theirs = vec![
+            table.find("Unsummon").unwrap(),
+            table.find(FLASH_CREATURE.name).unwrap(),
+        ];
         theirs.resize(24, filler);
         let mut g = RulesGame::new(
             table,
@@ -1785,14 +1795,29 @@ mod scenarios {
         assert_eq!(g.state.zone(Zone::library(THEM)).len(), library - 3);
         assert!(g.state.stack.is_empty());
     }
-    /// A creature put in as the opponent's after the spell has resolved.
-    fn arrives_later(g: &mut RulesGame, name: &str, tapped: bool) -> ObjectId {
-        let mut obj = Obj::new(g.cards.find(name).unwrap(), THEM, Zone::BATTLEFIELD);
-        obj.tapped = tapped;
-        let id = g.state.push_obj(obj);
-        g.state.zone_push(Zone::BATTLEFIELD, id);
-        g.state.see_statics();
-        id
+    /// A flash creature in the opponent's hand, for `flash_in`.
+    fn held_by_them(g: &RulesGame) -> ObjectId {
+        let card = g.cards.find(FLASH_CREATURE.name).unwrap();
+        *g.state
+            .zone(Zone::hand(THEM))
+            .iter()
+            .find(|&&id| g.state.obj(id).card == card)
+            .unwrap()
+    }
+    /// I pass on an empty stack and the opponent casts `held` before the step
+    /// ends: a creature that comes in by the engine's own road, after whatever
+    /// has resolved, so no reading of the battlefield then could have named it.
+    /// Writing `Obj::controller` instead proves nothing: control is derived.
+    fn flash_in(g: &mut RulesGame, held: ObjectId) -> ObjectId {
+        let request = g.pending().cloned().unwrap();
+        g.answer(request.id, request.player, Answer::Pass).unwrap();
+        g.run();
+        announce(g, held, ActionKind::CastSpell);
+        resolve(g, None, false);
+        let arrived = permanents_named(g, FLASH_CREATURE.name);
+        assert_eq!(arrived.len(), 1);
+        assert_eq!(g.state.obj(arrived[0]).controller, THEM);
+        arrived[0]
     }
     #[test]
     fn a_rule_about_a_player_holds_for_a_creature_that_arrives_later() {
@@ -1802,11 +1827,12 @@ mod scenarios {
             let (mut g, gale, bears, _) =
                 game_with_extras("Ember Gale", Some("Grizzly Bears"), 0, &[]);
             let attacker = bears.unwrap();
+            let held = held_by_them(&g);
             if cast {
                 announce_at(&mut g, gale, ActionKind::CastSpell, Target::Player(THEM));
                 resolve(&mut g, None, false);
             }
-            arrives_later(&mut g, "Shivan Dragon", false);
+            flash_in(&mut g, held);
             let life = g.state.player(THEM).life;
             let mut asked = false;
             advance_answering(
@@ -1858,21 +1884,58 @@ mod scenarios {
         let (mut g, sleep, _, _) =
             game_with_extras("Sleep", None, 0, &[("Grizzly Bears", THEM)]);
         let slept = permanents_named(&g, "Grizzly Bears")[0];
+        let held = held_by_them(&g);
         announce_at(&mut g, sleep, ActionKind::CastSpell, Target::Player(THEM));
         resolve(&mut g, None, false);
         assert!(g.state.obj(slept).tapped);
         // Tapped too but never Sleep's: the set was closed when it resolved.
-        let late = arrives_later(&mut g, "Shivan Dragon", true);
+        let late = flash_in(&mut g, held);
+        g.state.update_obj(late, |o| o.tapped = true);
+        let keep_seven = |kind: &RequestKind| match kind {
+            RequestKind::DiscardToHandSize { count, hand } => {
+                Some(Answer::Cards(hand[..*count as usize].to_vec()))
+            }
+            _ => None,
+        };
         let at_main = |turn: u32| {
             move |g: &RulesGame| {
                 g.state.turn.number == turn && g.state.turn.step() == Step::PrecombatMain
             }
         };
-        advance_answering(&mut g, &at_main(2), &mut |_| None);
+        advance_answering(&mut g, &at_main(2), &mut |kind| keep_seven(kind));
         assert!(g.state.obj(slept).tapped, "Sleep skips this untap step");
         assert!(!g.state.obj(late).tapped, "the rule never reached it");
-        advance_answering(&mut g, &at_main(4), &mut |_| None);
+        advance_answering(&mut g, &at_main(4), &mut |kind| keep_seven(kind));
         assert!(!g.state.obj(slept).tapped, "only the next untap step");
+    }
+    #[test]
+    fn that_player_is_the_one_the_creature_damaged() {
+        // Each side has an artifact. The damaged player's is the only legal
+        // target, so being asked to choose means the filter read someone else.
+        let (mut g, _, wasps, _) = game_with_extras(
+            "Divination",
+            Some("Caustic Wasps"),
+            0,
+            &[("Bonesplitter", THEM), ("Bonesplitter", ME)],
+        );
+        let wasps = wasps.unwrap();
+        advance_answering(
+            &mut g,
+            &|g| permanents_named(g, "Bonesplitter").len() < 2 || g.state.turn.number > 1,
+            &mut |kind| match kind {
+                RequestKind::DeclareAttackers { .. } => {
+                    Some(Answer::Attack(vec![(wasps, Target::Player(THEM))]))
+                }
+                RequestKind::May { .. } => Some(Answer::Yes),
+                RequestKind::ChooseTarget { .. } => panic!("one legal target: {kind:?}"),
+                _ => None,
+            },
+        );
+        let left: Vec<_> = permanents_named(&g, "Bonesplitter")
+            .into_iter()
+            .map(|id| g.state.obj(id).controller)
+            .collect();
+        assert_eq!(left, vec![ME]);
     }
     #[test]
     fn a_deck_rule_leaves_the_rest_of_the_card_as_printed() {

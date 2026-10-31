@@ -292,6 +292,7 @@ fn generated_modules_execute_in_cantrip() {
         ("cosmotronic", "Cosmotronic Wave"),
         ("sleep", "Sleep"),
         ("rograkh", "Rograkh, Son of Rohgahh"),
+        ("wasps", "Caustic Wasps"),
     ];
     let mut lib = String::new();
     for (module, name) in names {

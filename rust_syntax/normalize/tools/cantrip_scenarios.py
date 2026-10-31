@@ -507,7 +507,8 @@ def trigger_scripts(card, frame, keywords, claim, pieces):
     actions = casts("Bot1", sources) + [activate("Bot1", s, a) for s, a in sources]
     actions += [f"Bot1.Hand.{name}.Cast", "? Bot1.Mana =", "Bot1.Pass", "Bot2.Pass"]
     before = "? Bot1.Life = 20" if claim.kind == "gain" else f"? Bot1.Hand.Count = {7 - (len(bot1) - 1)}"
-    actions += [before, "[T2 Bot2.Main1]", *kill_lines(name), "Bot2.Pass", "Bot1.Pass", "[T2 Bot2.Main2]"]
+    # On Bot2's turn, not as it resolves: an enters trigger would still be on the stack there, and pass for this.
+    actions += ["[T2 Bot2.Main1]", before, *kill_lines(name), "Bot2.Pass", "Bot1.Pass", "[T2 Bot2.Main2]"]
     expect = [f"Bot1.Battlefield.{name} = (absent)", *life_and_cards_expect(claim, len(bot1) - 1, len(bot1) - 1)]
     expect = [e for e in expect if not e.startswith("Bot2.Hand")]
     what = f"you gain {claim.n} life" if claim.kind == "gain" else f"draw {claim.n}"

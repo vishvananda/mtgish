@@ -807,8 +807,12 @@ impl Compiler {
             grouping,
             subject,
         } = damage;
-        let by_source = *subject == DamageSubject::Source;
         let to_players = matches!(recipients, DamageRecipients::Players(_));
+        // "Target artifact that player controls": all a target filter can read
+        // of the event is its subject, so the player is it, as in Cantrip's own
+        // DEALS_COMBAT_DAMAGE_TO_PLAYER_SUBJECT.
+        let player_subject = self.recipient_subject && to_players;
+        let by_source = *subject == DamageSubject::Source && !player_subject;
         let to_objects = matches!(recipients, DamageRecipients::Objects(_));
         // What `data[1]` holds: a batch key where grouped, and whichever role
         // the subject is not, when the recipients say what kind of thing it is.
@@ -843,7 +847,8 @@ impl Compiler {
                 }
             }
         } else {
-            frame.object = Some(Carried::Subject);
+            // A player is no object: "that creature" is a gap here, not a player.
+            frame.object = (!player_subject).then_some(Carried::Subject);
             frame.player = Some(Carried::Subject);
             frame.damage_recipient = Some(Carried::Subject);
             if !keyed_by_recipient {
@@ -1199,7 +1204,11 @@ impl Compiler {
             }
             return Ok(def);
         }
-        let matched = self.event(event)?;
+        self.recipient_subject = format!("{:?}", announcement.targets)
+            .contains("ControlledBy(One(EventSubject))");
+        let matched = self.event(event);
+        self.recipient_subject = false;
+        let matched = matched?;
         let adds_mana = |i: &Instruction| {
             matches!(
                 i,
