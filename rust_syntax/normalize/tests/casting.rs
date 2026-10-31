@@ -44,7 +44,6 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
     let incomplete = [
         "Dargo, the Shipwrecker",
         "Ertai's Meddling",
-        "Food Chain",
         "Rites of Initiation",
         "Soul Burn",
     ];
@@ -71,7 +70,7 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 72);
+    assert_eq!(complete, 73);
 }
 
 #[test]

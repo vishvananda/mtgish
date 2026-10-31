@@ -88,6 +88,8 @@ struct Context {
     iterated: Option<PlayerRef>,
     /// The one player performing the current action.
     acting: Option<PlayerRef>,
+    /// Lowering a cost paid during resolution, not an announced one.
+    resolving_payment: bool,
     removed_counters: Option<ResultId>,
     announcing: bool,
     you: Option<PlayerRef>,
@@ -233,8 +235,10 @@ impl Context {
                         self.singular.insert(result.0);
                     }
                     self.note_move(operation, result.clone());
-                    if let Some(done) = Done::of(operation) {
-                        self.did.insert(done, result.clone());
+                    self.note_acted(operation, result);
+                    self.note_done(operation, result);
+                    if let Operation::Reveal { objects } = operation {
+                        self.revealed = Some(objects.clone());
                     }
                     if let Operation::ChooseObjects { objects, .. } = operation {
                         self.note_choice(objects, result.clone());
@@ -248,12 +252,25 @@ impl Context {
         }
     }
 
-    fn effect(&mut self, operation: Operation) -> Instruction {
-        // A later ordinary action of the same kind shadows the shorthand.
-        // Until its own event-history binder exists, fail rather than silently
-        // referring back to an unrelated activation/payment component.
+    fn note_done(&mut self, operation: &Operation, result: &ResultId) {
+        if let Some(done) = Done::of(operation) {
+            self.did.insert(done, result.clone());
+            // Each of these ends in a graveyard unless something replaces it.
+            if matches!(
+                done,
+                Done::Destroyed | Done::Sacrificed | Done::Discarded | Done::Milled
+            ) {
+                self.did.insert(Done::Graveyard, result.clone());
+            }
+        }
+    }
+
+    /// A later ordinary action of the same kind shadows the shorthand.
+    /// Until its own event-history binder exists, fail rather than silently
+    /// referring back to an unrelated activation/payment component.
+    fn note_acted(&mut self, operation: &Operation, result: &ResultId) {
         use crate::number_spec::PaymentAction;
-        let shadow = match &operation {
+        let shadow = match operation {
             Operation::Sacrifice { .. } => Some(PaymentAction::Sacrifice),
             Operation::Discard { .. } | Operation::DiscardObjects { .. } => {
                 Some(PaymentAction::Discard)
@@ -264,8 +281,12 @@ impl Context {
         };
         if let Some(action) = shadow {
             self.paid.insert(action, None);
-            self.acted.insert(action, ResultId(self.result));
+            self.acted.insert(action, result.clone());
         }
+    }
+
+    fn effect(&mut self, operation: Operation) -> Instruction {
+        self.note_acted(&operation, &ResultId(self.result));
         if crate::semantics::singular_operation(&operation, |r| self.singular.contains(&r.0)) {
             self.singular.insert(self.result);
         }
@@ -285,9 +306,7 @@ impl Context {
         if matches!(operation, Operation::CreateTokens { .. }) {
             self.created_tokens = Some(ResultId(self.result));
         }
-        if let Some(done) = Done::of(&operation) {
-            self.did.insert(done, ResultId(self.result));
-        }
+        self.note_done(&operation, &ResultId(self.result));
         self.note_move(&operation, ResultId(self.result));
         if let Operation::PayCost { cost, .. } = &operation {
             self.payment = Some(ResultId(self.result));
@@ -3683,6 +3702,14 @@ impl Context {
             self.operand_recipe(crate::pipeline::operands::OperandRef::Cost(value))
         {
             return self.bind_cost_recipe(&recipe);
+        }
+        // A cost paid while resolving is the action itself, so "this way" can read it.
+        if self.resolving_payment {
+            let noted = self.blockers.borrow().len();
+            match self.cost_as_action(value) {
+                Ok(cost) => return Ok(cost),
+                Err(_) => self.blockers.borrow_mut().truncate(noted),
+            }
         }
         match self.primitive_cost(value) {
             Some(cost) => Ok(cost),

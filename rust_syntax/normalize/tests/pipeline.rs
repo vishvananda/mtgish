@@ -2163,7 +2163,10 @@ fn x_paid_during_resolution_is_read_from_that_payment() {
 fn a_damage_cost_keeps_its_recipient_bound() {
     let text = ability_json("SpellActions(ActionList([MayCost(HavePermanentDealDamage(ThisPermanent,Integer(2),Player(You))),If(CostWasPaid,[DrawACard])]))");
     assert!(text.contains("DealDamage"), "{text}");
-    assert!(text.contains("\"recipients\":{\"kind\":\"Players\""), "{text}");
+    assert!(
+        text.contains("\"recipients\":{\"kind\":\"Players\""),
+        "{text}"
+    );
 }
 
 #[test]
@@ -2776,6 +2779,16 @@ fn an_action_player_is_whoever_acts() {
 fn tokens_counted_per_player_loop_over_the_players() {
     let text = ability_json("SpellActions(ActionList([EachPlayerCreatesTokens(AnyPlayer,[NumberTokens(TheNumberOfPermanentsOnTheBattlefield(ControlledByAPlayer(SinglePlayer(ActionPlayer))),TreasureToken)],[])]))");
     assert!(text.contains("ForEachPlayer"), "{text}");
+}
+
+#[test]
+fn a_cost_paid_on_resolution_is_the_action_this_way_reads() {
+    let discard = ability_json("SpellActions(ActionList([MayCost(DiscardAnyNumberOfCardsOfType(IsCardtype(Land))),If(CostWasPaid,[DrawNumberCards(NumCardsDiscardedThisWay)])]))");
+    assert!(!discard.contains("Primitive"), "{discard}");
+    assert!(discard.contains("Discard"), "{discard}");
+    assert!(discard.contains("Transition"), "{discard}");
+    let announced = ability_json("Activated(Exile([APermanent(And([IsCardtype(Creature),ControlledByAPlayer(SinglePlayer(You))]))],[]),ActionList([AddManaRepeated(AnyManaColor,ManaValueOfTheCardExiledThisWay)]))");
+    assert!(announced.contains("CostObjects"), "{announced}");
 }
 
 #[test]

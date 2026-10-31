@@ -6,9 +6,18 @@ impl Context {
         phase: ObjectPhase,
         filter: Option<ObjectFilter>,
     ) -> Result<ObjectSet> {
-        let objects = ObjectSet::Transition {
-            result: self.done(done)?,
-            phase,
+        let objects = match (self.done(done), Self::paid_action(done)) {
+            (Ok(result), _) => ObjectSet::Transition { result, phase },
+            (Err(error), None) => return Err(error),
+            (Err(_), Some(action)) => {
+                let binding = self.paid_binding(action)?;
+                ObjectSet::CostObjects {
+                    payment: binding.payment.clone(),
+                    component: binding.component.clone(),
+                    view: CostObjectView::Performed,
+                    phase,
+                }
+            }
         };
         Ok(match filter {
             Some(filter) => ObjectSet::Matching {
@@ -17,6 +26,18 @@ impl Context {
             },
             None => objects,
         })
+    }
+
+    /// The cost component that did what `done` names, when no action did.
+    fn paid_action(done: Done) -> Option<crate::number_spec::PaymentAction> {
+        use crate::number_spec::PaymentAction as P;
+        match done {
+            Done::Exiled => Some(P::Exile),
+            Done::Entered => Some(P::Enter),
+            Done::Sacrificed => Some(P::Sacrifice),
+            Done::Discarded => Some(P::Discard),
+            _ => None,
+        }
     }
 
     fn this_way_count(

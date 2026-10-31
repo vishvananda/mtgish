@@ -225,6 +225,7 @@ impl Context {
                 let cost = {
                     let mut context = self.clone();
                     context.payer = Some(payer.clone());
+                    context.resolving_payment = true;
                     context.bind_cost_recipe(cost)?
                 };
                 // The amount chosen while paying {X} is X from here on.

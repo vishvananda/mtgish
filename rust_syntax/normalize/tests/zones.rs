@@ -61,15 +61,10 @@ fn library(players: PlayerSet) -> ObjectSet {
 }
 
 #[test]
-fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete() {
-    let incomplete = ["Food Chain"];
+fn real_zone_families_roundtrip() {
     let mut complete = 0;
     for source in sources() {
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);
-        if incomplete.contains(&name.as_str()) {
-            assert!(lower::card(&source).is_err(), "{name}");
-            continue;
-        }
         let c = lower::card(&source).unwrap_or_else(|e| panic!("{name}: {e:?}"));
         let expected = serde_json::to_value(&c).unwrap();
         let bytes = bincode::encode_to_vec(&c, bincode::config::standard()).unwrap();
@@ -86,7 +81,7 @@ fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete()
         }
         complete += 1;
     }
-    assert_eq!(complete, 56);
+    assert_eq!(complete, 57);
 }
 
 #[test]

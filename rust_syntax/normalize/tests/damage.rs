@@ -69,7 +69,6 @@ fn effect(operation: Operation) -> Instruction {
 fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
     let incomplete = [
         "Curious Obsession",
-        "Neheb, Dreadhorde Champion",
         "Norn's Decree",
         "The Gitrog, Ravenous Ride",
         "Lost Vale",
@@ -98,7 +97,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 79);
+    assert_eq!(complete, 80);
 }
 
 #[test]
