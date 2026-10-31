@@ -445,6 +445,10 @@ impl Compiler {
     ) -> Result<()> {
         match instruction {
             Instruction::Effect {
+                operation: operation @ Operation::PlayCards { .. },
+                ..
+            } => self.play_cards(operation, false, out),
+            Instruction::Effect {
                 operation:
                     Operation::ChooseObjects {
                         player,
@@ -596,6 +600,16 @@ impl Compiler {
                     writeln!(out, "}}").unwrap();
                 }
                 Ok(())
+            }
+            Instruction::Optional { decider, body } if playing::may_only_play(decider, body) => {
+                let mut plays = body;
+                while let [Instruction::Group(group)] = plays.instructions.as_slice() {
+                    plays = group;
+                }
+                let [Instruction::Effect { operation, .. }] = plays.instructions.as_slice() else {
+                    return Err(gap("may play"));
+                };
+                self.play_cards(operation, true, out)
             }
             Instruction::Optional { decider, body } if asks_by_paying(decider, body) => {
                 let id = self.fresh();
@@ -949,8 +963,38 @@ impl Compiler {
                 writeln!(out, "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for object in objects_{id} {{ g.add_effect(asker.source, object, EffectKind::RegenerationShield, Duration::EndOfTurn); }} }});", self.acted_on(objects)?).unwrap();
             }
             Operation::Reveal { objects } => {
+                self.revealed = true;
                 self.selections.insert(result.0, format!("objects_{id}"));
                 writeln!(out, "let objects_{id} = {}; let mut owners_{id}: Vec<PlayerId> = objects_{id}.iter().map(|o| g.state().obj(*o).owner).collect(); owners_{id}.dedup(); for owner in owners_{id} {{ let cards: Vec<ObjectId> = objects_{id}.iter().copied().filter(|o| g.state().obj(*o).owner == owner).collect(); g.reveal(owner, &cards); }}", self.fetch(self.objects(objects)?)).unwrap();
+            }
+            // The cards stay in the library until a later instruction moves them (701.20a), so
+            // this names every card shown, the qualifying ones and the others alike.
+            Operation::RevealUntil { library, filter, count } => {
+                let owner = self.fetch(self.certain_player(library)?);
+                let count = self.fetch(self.number(count)?.amount(u32::MAX.into(), "usize")?);
+                let filter = self.filter(filter, &Candidate::of("id"))?;
+                self.selections.insert(result.0, format!("objects_{id}"));
+                self.reveal_matches.insert(result.0, format!("found_{id}"));
+                self.revealed = true;
+                writeln!(out, "let owner_{id} = {owner}; let count_{id} = {count}; let (found_{id}, rest_{id}) = cantrip_mechanics::library::reveal_until_n(g, owner_{id}, count_{id}, &|q: &dyn Query, id: ObjectId| {filter}); let shown_{id} = found_{id}.len() + rest_{id}.len(); let objects_{id}: Vec<ObjectId> = g.state().zone(Zone::library(owner_{id})).iter().copied().take(shown_{id}).collect();").unwrap();
+            }
+            Operation::CreatePerpetualEffect { .. } => {
+                return Err(gap("engine: no perpetual effects"));
+            }
+            // Each count is read before any counter goes on, and all go on as one
+            // event (701.10e, 603.2c).
+            Operation::DoubleCounters { objects, kind } => {
+                let objects = self.fetch(self.objects(objects)?);
+                writeln!(out, "let objects_{id}: Vec<ObjectId> = {objects};").unwrap();
+                match kind {
+                    Some(kind) => writeln!(
+                        out,
+                        "cantrip_mechanics::double::counters(g, &objects_{id}, {});",
+                        counter_kind(kind)?
+                    )
+                    .unwrap(),
+                    None => writeln!(out, "let puts_{id}: Vec<(ObjectId, CounterKind, i16)> = objects_{id}.iter().flat_map(|&o| {{ let have = g.obj(o).counter_array(); CounterKind::ALL.into_iter().filter(move |&kind| have[kind as usize] > 0).map(move |kind| (o, kind, have[kind as usize])).collect::<Vec<_>>() }}).collect(); g.add_counters_together(&puts_{id});").unwrap(),
+                }
             }
             Operation::LookAt { player, objects } => {
                 writeln!(
@@ -1031,14 +1075,26 @@ impl Compiler {
                     return self.continuous_on_players(id, source, players, changes, duration, out);
                 }
                 // "Live" subjects differ from read ones only where the set
-                // could gain a member, which names of one object never do.
+                // could gain a member, which names of objects never do, nor
+                // what an earlier instruction already picked out.
                 let closed = matches!(
                     affected,
-                    EffectSubjects::Objects(ObjectSet::One(_) | ObjectSet::Targets(_))
+                    EffectSubjects::Objects(
+                        ObjectSet::One(_)
+                            | ObjectSet::Targets(_)
+                            | ObjectSet::Selected(_)
+                            | ObjectSet::Unselected(_)
+                            | ObjectSet::Created(_)
+                            | ObjectSet::Transition { .. }
+                    )
+                ) || matches!(
+                    affected,
+                    EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::Either(names)))
+                        if names.iter().all(|name| matches!(name, ObjectFilter::SameObject(_)))
                 );
                 match evaluation {
                     EffectEvaluation::LiveObjects if !closed => {
-                        return Err(gap("resolving rule effect on an open set of objects"))
+                        return self.open_rule(id, source, affected, changes, duration, out)
                     }
                     EffectEvaluation::Live => return Err(gap("live continuous effect")),
                     _ => {
@@ -1121,6 +1177,42 @@ impl Compiler {
                 self.moved.remove(&result.0);
                 self.before.remove(&result.0);
                 self.selections.remove(&result.0);
+            }
+            // "You may pay {X}": the payer says what X is as they pay (107.3f), and
+            // paying it, whatever X, is doing it.
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if matches!(cost.parts.as_slice(), [CostPart::ManaWithX { x: None, .. }]) => {
+                let [CostPart::ManaWithX { mana, .. }] = cost.parts.as_slice() else {
+                    return Err(gap("pay X"));
+                };
+                let plain = Cost {
+                    parts: vec![CostPart::Mana(mana.clone())],
+                };
+                let cost = self.cost(&plain, "paid")?;
+                self.helpers.insert("pay_question");
+                let payer = self.fetch(self.certain_player(player)?);
+                writeln!(out, "let payer_{id} = {payer}; let x_{id} = g.may_pay_x(payer_{id}, asker.source, asker.source, {cost}, &PAY_QUESTION)?; let paid_{id} = x_{id}.is_some(); let bound_{id}: i64 = i64::from(x_{id}.unwrap_or(0));").unwrap();
+                self.performed.insert(result.0, format!("paid_{id}"));
+                self.values.insert(result.0, format!("bound_{id}"));
+            }
+            // X is set here (107.3b): generic mana worked out as this resolves.
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if matches!(cost.parts.as_slice(), [CostPart::ManaWithX { x: Some(_), .. }]) => {
+                let [CostPart::ManaWithX { mana: symbols, x: Some(x) }] = cost.parts.as_slice() else {
+                    return Err(gap("pay a set X"));
+                };
+                let base = mana(symbols)?;
+                let owed = self.fetch(self.number(x)?.amount(255, "u8")?);
+                self.helpers.insert("pay_question");
+                let payer = self.fetch(self.certain_player(player)?);
+                writeln!(out, "let payer_{id} = {payer}; let owed_{id}: u8 = {owed}; let base_{id} = {base}; let price_{id} = ManaCost {{ generic: base_{id}.generic.saturating_add(owed_{id}.saturating_mul(base_{id}.x)), x: 0, ..base_{id} }}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, Cost::mana(price_{id}), &PAY_QUESTION)?;").unwrap();
+                self.performed.insert(result.0, format!("paid_{id}"));
             }
             Operation::PayCost {
                 player,
@@ -1270,6 +1362,8 @@ impl Compiler {
     }
     pub(super) fn reset_results(&mut self) {
         self.selections.clear();
+        self.reveal_matches.clear();
+        self.revealed = false;
         self.creations.clear();
         self.moved.clear();
         self.before.clear();
@@ -1431,6 +1525,7 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         let alone = self.one_object(objects);
+        let revealed = self.revealed;
         let objects = self.fetch(self.objects(objects)?);
         let library = |place: String| format!("g.put_into_library(&objects_{id}, {place})");
         let call = match destination {
@@ -1462,6 +1557,19 @@ impl Compiler {
                 }
             }
             _ if !plain_entry(entry) => return Err(gap("move arrival flags")),
+            // All players can still see the card as it moves (603.10a, 701.20a).
+            Destination::OwnersHand if revealed => {
+                format!("g.return_to_hand_revealed(&objects_{id})")
+            }
+            Destination::OwnersLibraryTop
+            | Destination::OwnersLibraryBottom
+            | Destination::OwnersLibraryBottomRandom
+            | Destination::OwnersLibraryShuffled
+            | Destination::OwnersLibraryFromTop(_)
+                if revealed =>
+            {
+                return Err(gap("revealed card to a place in a library"))
+            }
             Destination::OwnersHand => format!("g.return_to_hand(&objects_{id})"),
             Destination::Exile if self.links_exile && self.stack_item => {
                 format!("{{ let by = g.linked(item); g.exile_with(&objects_{id}, by, false) }}")
@@ -1626,6 +1734,57 @@ impl Compiler {
     }
     /// One instruction of the card's text: the IR keeps what one instruction
     /// does in one payload, and `instruction` says so to the engine.
+    /// A resolving rule on a set that can still gain members (CR 611.2c). Cantrip
+    /// keeps exactly two of them, both "can't block this turn". Marking the set's
+    /// members now would let a creature that arrives later do what the rule
+    /// forbids, so anything else is the engine's gap and never a snapshot.
+    fn open_rule(
+        &mut self,
+        id: usize,
+        source: &ObjectRef,
+        affected: &EffectSubjects,
+        changes: &[Change],
+        duration: &crate::ir::Duration,
+        out: &mut String,
+    ) -> Result<()> {
+        use crate::mtg_types::CardType;
+        let no_blocks = matches!(
+            changes,
+            [Change::Rule(RuleChange::Prohibit(ObjectAction::Block(ObjectFilter::Any)))]
+        );
+        if no_blocks && matches!(duration, crate::ir::Duration::EndOfTurn) {
+            let creature = |f: &ObjectFilter| matches!(f, ObjectFilter::CardType(CardType::Creature));
+            match affected {
+                EffectSubjects::Objects(ObjectSet::Battlefield(f)) if creature(f) => {
+                    writeln!(out, "cantrip_api::instruction(g, |g| g.creatures_cant_block());").unwrap();
+                    return Ok(());
+                }
+                EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters)))
+                    if filters.len() == 2 && filters.iter().any(creature) =>
+                {
+                    if let Some(players) = filters.iter().find_map(|f| match f {
+                        ObjectFilter::ControlledBy(players) => Some(players),
+                        _ => None,
+                    }) {
+                        writeln!(
+                            out,
+                            "let players_{id} = {}; let source_{id} = {}; if let Some(source) = source_{id} {{ cantrip_api::instruction(g, |g| {{ for player in players_{id} {{ g.add_effect(source, source, EffectKind::CreaturesCantBlock(player), Duration::EndOfTurn); }} }}); }}",
+                            self.fetch(self.players(players)?),
+                            self.fetch(self.object(source)?),
+                        )
+                        .unwrap();
+                        return Ok(());
+                    }
+                }
+                _ => {}
+            }
+        }
+        let what = match changes {
+            [Change::Rule(rule)] => rule_name(rule),
+            _ => "several changes".to_string(),
+        };
+        Err(gap(format!("engine: no resolving rule on an open set: {what}")))
+    }
     fn continuous(
         &mut self,
         id: usize,

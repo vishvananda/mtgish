@@ -341,7 +341,7 @@ impl Compiler {
         }
         Ok(())
     }
-    fn cost_delta(&self, modifier: &SpellCostModifier) -> Result<String> {
+    pub(super) fn cost_delta(&self, modifier: &SpellCostModifier) -> Result<String> {
         Ok(match modifier {
             SpellCostModifier::Increase(cost) => {
                 let [CostPart::Mana(symbols)] = cost.parts.as_slice() else {

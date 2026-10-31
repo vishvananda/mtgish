@@ -325,7 +325,16 @@ impl Compiler {
                 format!("Some(bound_{})", binding.0)
             }
             ObjectRef::Query { objects, index } => {
-                format!("({}).get({index}).copied()", self.objects(objects)?)
+                // "That card" after a reveal is the match, not the top card, and
+                // there is none when the library ran out, so read the matches alone.
+                let matches = match objects.as_ref() {
+                    ObjectSet::Observed(result) => self.reveal_matches.get(&result.0),
+                    _ => None,
+                };
+                match matches {
+                    Some(found) => format!("{found}.get({index}).copied()"),
+                    None => format!("({}).get({index}).copied()", self.objects(objects)?),
+                }
             }
             ObjectRef::Result {
                 result,
@@ -933,6 +942,18 @@ impl Compiler {
                 kind,
                 information: Information::CurrentOrLastKnown,
             } => {
+                if let Recipients::Players(players) = recipients.as_ref() {
+                    use crate::counter::{CounterKind, CounterName};
+                    let read = match kind {
+                        Some(CounterKind::Named(CounterName::PoisonCounter)) => "poison",
+                        Some(CounterKind::Named(CounterName::ExperienceCounter)) => "experience",
+                        _ => return Err(gap("counters on a player")),
+                    };
+                    return Ok(count(format!(
+                        "({}).into_iter().map(|p: PlayerId| i64::from(q.state().player(p).{read}())).sum::<i64>()",
+                        self.players(players)?
+                    )));
+                }
                 let Recipients::Objects(objects) = recipients.as_ref() else {
                     return Err(gap("counters on a player"));
                 };

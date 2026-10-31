@@ -10,6 +10,7 @@ use std::{
     rc::Rc,
 };
 
+mod card_file;
 mod casting;
 mod chosen;
 mod copies;
@@ -19,6 +20,7 @@ mod effects;
 mod keywords;
 mod mechanics;
 mod players;
+mod playing;
 mod read;
 mod replacements;
 mod statics;
@@ -96,6 +98,10 @@ fn generator_fingerprint() -> &'static str {
     HASH.get_or_init(|| {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
+            (
+                "cantrip/card_file.rs",
+                include_bytes!("cantrip/card_file.rs").as_slice(),
+            ),
             (
                 "cantrip/casting.rs",
                 include_bytes!("cantrip/casting.rs").as_slice(),
@@ -331,12 +337,21 @@ struct Compiler {
     frame: Frame,
     /// A batch trigger's members are in reach: `Query::event_objects`.
     grouped: bool,
+    /// A trigger on damage to a player fires with that player as its subject.
+    recipient_subject: bool,
     candidates: std::cell::RefCell<Vec<Candidate>>,
     affected_in_scope: bool,
     /// The condition of the enclosing `Ability::Conditional`, asked as layers run.
     static_guard: Option<Condition>,
     slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
+    /// The cards that ended each reveal, by the result that names all it showed.
+    reveal_matches: BTreeMap<u32, String>,
+    /// This resolution has revealed something. The AST does not always tie a
+    /// later move to the reveal ("reveal the top card and put it into your hand"
+    /// names the top card twice), and an unmarked move of a card all players saw
+    /// is refused, so every later move into a hand or library is marked.
+    revealed: bool,
     creations: BTreeMap<u32, String>,
     moved: BTreeMap<u32, String>,
     /// The same transitions as `moved`, by the identities they left behind.
@@ -615,11 +630,14 @@ impl Compiler {
             event_at: EventAt::Nowhere,
             frame: Frame::default(),
             grouped: false,
+            recipient_subject: false,
             candidates: Default::default(),
             affected_in_scope: false,
             static_guard: None,
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
+            reveal_matches: BTreeMap::new(),
+            revealed: false,
             creations: BTreeMap::new(),
             moved: BTreeMap::new(),
             before: BTreeMap::new(),
@@ -1196,6 +1214,121 @@ fn ability_text(body: &Program) -> String {
         .map(text)
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// What `card_files` found for one record.
+#[derive(serde::Serialize)]
+pub struct CardFileRow {
+    pub line: usize,
+    pub name: String,
+    /// The file, when the card has one; `None` with no gap needs only content.
+    pub rust: Option<String>,
+    pub gap: Option<String>,
+}
+
+/// Every single-faced, complete, primitive-free record the recipes of
+/// `card_file` cover, or the gap that stops it, as one JSON object a line.
+pub fn card_files(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usize> {
+    let printed: serde_json::Value =
+        serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(oracle)?))?;
+    let oracle: BTreeMap<String, String> = printed
+        .as_array()
+        .ok_or("oracle data is not a list")?
+        .iter()
+        .flat_map(|card| card["cards"].as_array().into_iter().flatten())
+        .filter_map(|face| {
+            let text = face["text"].as_str().unwrap_or_default();
+            Some((face["name"].as_str()?.to_string(), text.to_string()))
+        })
+        .collect();
+    let mut artifact = corpus::Artifact::create(output)?;
+    let mut count = 0;
+    corpus::map_cards(
+        input,
+        |line, source| -> corpus::Result<Option<CardFileRow>> {
+            let identity = corpus::Identity::of(&source)?;
+            let lowered = crate::unified::lower(&source);
+            let forms = crate::unified::forms(&lowered.card);
+            if !(lowered.diagnostics.is_empty() && forms.named.is_empty())
+                || !forms.primitives.is_empty()
+                || lowered.card.layout != "Card"
+                || lowered.card.faces.len() != 1
+            {
+                return Ok(None);
+            }
+            let name = identity.names.join(" // ");
+            let face = &lowered.card.faces[0];
+            if !gaps(face).is_empty() {
+                return Ok(None);
+            }
+            let Some(text) = oracle.get(&name) else {
+                return Ok(None);
+            };
+            let (rust, gap) = match card_file::card_file(face, text) {
+                Ok(rust) => (rust, None),
+                Err(gap) => (None, Some(gap.feature)),
+            };
+            Ok(Some(CardFileRow {
+                line,
+                name,
+                rust,
+                gap,
+            }))
+        },
+        |_, row| {
+            if let Some(row) = row {
+                writeln!(artifact, "{}", serde_json::to_string(&row)?)?;
+                count += 1;
+            }
+            Ok(())
+        },
+    )?;
+    artifact.commit()?;
+    Ok(count)
+}
+
+/// The module of each named card in a source corpus, for reading what the
+/// generator emits; a card with a gap shows the gaps instead.
+pub fn modules_named(input: &Path, names: &[String]) -> corpus::Result<Vec<(String, String)>> {
+    let wanted: BTreeSet<&str> = names.iter().map(String::as_str).collect();
+    let mut found = Vec::new();
+    corpus::map_cards(
+        input,
+        |_, source| -> corpus::Result<Option<(String, String)>> {
+            let identity = corpus::Identity::of(&source)?;
+            let Some(name) = identity
+                .names
+                .iter()
+                .find(|n| wanted.contains(n.as_str()))
+                .cloned()
+            else {
+                return Ok(None);
+            };
+            let lowered = crate::unified::lower(&source);
+            let rendered = lowered
+                .card
+                .faces
+                .iter()
+                .map(|face| match module(face) {
+                    Ok(rust) if std::env::var_os("MTGISH_SHOW_AST").is_some() => {
+                        format!("{face:#?}\n{rust}")
+                    }
+                    Ok(rust) => rust,
+                    Err(_) if std::env::var_os("MTGISH_SHOW_AST").is_some() => {
+                        format!("{face:#?}\n// gaps: {:?}", gaps(face))
+                    }
+                    Err(_) => format!("// gaps: {:?}", gaps(face)),
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            Ok(Some((name, rendered)))
+        },
+        |_, module| {
+            found.extend(module);
+            Ok(())
+        },
+    )?;
+    Ok(found)
 }
 
 /// One complete card module. Never returns partially executable code.

@@ -92,6 +92,26 @@ fn own_graveyard(objects: &ObjectSet) -> Option<ObjectSet> {
     })
 }
 
+/// A cost whose mana is a waterbend cost, spelled as that mana: `.waterbend()`
+/// lets a tapped permanent pay each generic of an ability's whole mana cost, so
+/// other mana beside it could be paid that way too and stays a gap.
+fn waterbend_as_mana(price: &Cost) -> Option<Cost> {
+    let bending = |part: &CostPart| matches!(part, CostPart::Waterbend(_));
+    let mana = |part: &CostPart| matches!(part, CostPart::Mana(_));
+    if price.parts.iter().filter(|p| bending(p)).count() != 1 || price.parts.iter().any(mana) {
+        return None;
+    }
+    let parts = price
+        .parts
+        .iter()
+        .map(|part| match part {
+            CostPart::Waterbend(symbols) => CostPart::Mana(symbols.clone()),
+            other => other.clone(),
+        })
+        .collect();
+    Some(Cost { parts })
+}
+
 /// Whether a filter keeps to permanents the ability's controller controls.
 fn yours(filter: &ObjectFilter) -> bool {
     match filter {
@@ -175,6 +195,20 @@ impl Compiler {
                 let n = exactly_u8(choose.as_ref())
                     .ok_or_else(|| gap("tap cost without a fixed count"))?;
                 format!("tap_untapped({n}, {})", self.cost_filter(filter, label)?)
+            }
+            // Put on the source by the activating player (Mazemind Tome's form).
+            CostPart::PutCounters(placements) => {
+                let [CounterPlacement {
+                    recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)),
+                    kind,
+                    amount: Expr::Constant(n),
+                    selection: None,
+                }] = placements.as_slice()
+                else {
+                    return Err(gap("counters put as a cost on another object"));
+                };
+                let n = u32::try_from(*n).map_err(|_| gap("counter cost without a fixed count"))?;
+                format!("put_counters({}, {n})", read::counter_kind(kind)?)
             }
             CostPart::RemoveCounters { removals } => {
                 let [CounterRemoval {
@@ -439,9 +473,40 @@ impl Compiler {
         writeln!(self.functions, "static {name}: ModalDef = {modal};").unwrap();
         Ok(name)
     }
+    /// "This ability costs {1} less to activate ...": a function asked for this
+    /// ability only, reading the game as a cast's cost change does.
+    fn activation_cost_change(
+        &mut self,
+        modifier: &SpellCostModifier,
+        condition: Option<&Condition>,
+        label: &str,
+    ) -> Result<String> {
+        let saved = (self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+        self.costing_targets = true;
+        let reads = self
+            .cost_delta(modifier)
+            .and_then(|delta| Ok((delta, condition.map(|c| self.condition(c)).transpose()?)));
+        self.costing_targets = false;
+        (self.reader, self.event_at) = saved;
+        let (delta, test) = reads?;
+        let test = test.unwrap_or_else(|| "true".into());
+        let function = format!("{label}_cost");
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, costed: Costed, targets: &[Target]) -> CostDelta {{ if {test} {{ {delta} }} else {{ CostDelta::NONE }} }}").unwrap();
+        Ok(function)
+    }
+    /// "Activate no more than twice each turn" (CR 602.5b), asked of the event
+    /// history, since the engine counts only once each turn. `index` is the
+    /// ability's place on its card, the same on a copy (CR 707.2).
+    fn activations_each_turn(&mut self, n: i64, index: usize, label: &str) -> String {
+        let function = format!("{label}_each_turn");
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ let o = q.state().obj(asker.source); let this = AbilityRef {{ card: o.copied_card().unwrap_or(o.card), index: {index} }}; (q.history().this_turn().iter().filter(|r| matches!(r.event, Event::AbilityActivated {{ source, ability, .. }} if source == asker.source && ability == this)).count() as i64) < {n} }}").unwrap();
+        function
+    }
     fn activated(
         &mut self,
         label: &str,
+        index: usize,
         origin: &ActivationOrigin,
         price: &Cost,
         limits: &ActivationLimits,
@@ -452,9 +517,8 @@ impl Compiler {
         if limits.activators.is_some() {
             return Err(gap("activation by other players"));
         }
-        if !limits.modifiers.is_empty() {
-            return Err(gap("activation modifier"));
-        }
+        let waterbent = waterbend_as_mana(price);
+        let price = waterbent.as_ref().unwrap_or(price);
         let text = ability_text(body);
         let suffix = match origin {
             ActivationOrigin::Ordinary => "",
@@ -499,6 +563,32 @@ impl Compiler {
             )
         };
         def.push_str(suffix);
+        if waterbent.is_some() {
+            if def.starts_with("mana_ability") {
+                return Err(gap("waterbend on a mana ability"));
+            }
+            def.push_str(".waterbend()");
+        }
+        let mut allowed = None;
+        for modifier in &limits.modifiers {
+            let Change::ActivationRule(rule) = modifier else {
+                return Err(gap("activation modifier"));
+            };
+            match rule {
+                ActivationRule::XNotZero => def.push_str(".x_cant_be_zero()"),
+                ActivationRule::Cost {
+                    modifier,
+                    condition,
+                } => {
+                    let change = self.activation_cost_change(modifier, condition.as_ref(), label)?;
+                    def.push_str(&format!(".cost_change({change})"));
+                }
+                ActivationRule::MaxPerTurn(Expr::Constant(n)) if *n >= 1 => {
+                    allowed = Some(self.activations_each_turn(*n, index, label));
+                }
+                other => return Err(gap(format!("activation rule {}", form(other)))),
+            }
+        }
         match limits.keyword {
             Some(ActivatedKeyword::Exhaust) => def.push_str(".exhaust()"),
             Some(ActivatedKeyword::PowerUp) => def.push_str(".power_up()"),
@@ -521,9 +611,10 @@ impl Compiler {
             .iter()
             .chain(scope.and_then(|s| s.condition))
             .collect();
-        match conditions.as_slice() {
-            [] => {}
-            [condition] => {
+        match (conditions.as_slice(), allowed) {
+            ([], None) => {}
+            ([], Some(function)) => def.push_str(&format!(".condition({function})")),
+            ([condition], None) => {
                 let function = self.activation_condition(condition, &format!("{label}_if"))?;
                 def.push_str(&format!(".condition({function})"));
             }
@@ -538,6 +629,105 @@ impl Compiler {
             }
         }
         Ok(def)
+    }
+    /// Backup N (702.165a). The listed abilities also stand on the card itself,
+    /// so here they are only what the target gains: keywords, and the one other
+    /// ability `backup::resolve` can name, kept in `delayed`.
+    fn backup(
+        &mut self,
+        amount: i64,
+        abilities: &[Ability],
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let n = i16::try_from(amount).map_err(|_| gap("backup beyond i16"))?;
+        let mut keywords = Vec::new();
+        let mut granted = None;
+        for (i, listed) in abilities.iter().enumerate() {
+            match listed {
+                Ability::Keyword(k) => keywords.push(keyword(k)?),
+                Ability::Triggered { .. } | Ability::Activated { .. } if granted.is_none() => {
+                    let mut own = Parts::default();
+                    self.ability(listed, &format!("{label}_gains_{i}"), &mut own, None)?;
+                    let [def] = own.abilities.as_slice() else {
+                        return Err(gap("backup grants an ability of several parts"));
+                    };
+                    let index = u8::try_from(self.delayed.len())
+                        .map_err(|_| gap("backup beyond the delayed abilities"))?;
+                    self.delayed.push(def.clone());
+                    granted = Some(index);
+                }
+                other => return Err(gap(format!("backup grants {}", form(other)))),
+            }
+        }
+        let ability = granted.map_or("None".to_string(), |i| format!("Some({i})"));
+        let function = format!("{label}_backup");
+        writeln!(self.functions, "fn {function}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ cantrip_mechanics::backup::resolve(g, item, {n}, &[{}], {ability}) }}", keywords.join(",")).unwrap();
+        parts.abilities.push(format!(
+            "cantrip_mechanics::backup::trigger({}, {function})",
+            quoted(&format!("Backup {n}"))
+        ));
+        Ok(())
+    }
+    /// Level up and its stages (702.87, 711): each is what its counters make
+    /// true, so a stage is a conditional ability over them.
+    fn counter_stages(
+        &mut self,
+        counter: &crate::counter::CounterKind,
+        level_up: Option<&Cost>,
+        stages: &[CounterStage],
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        if let Some(price) = level_up {
+            let [CostPart::Mana(symbols)] = price.parts.as_slice() else {
+                return Err(gap("level up cost other than mana"));
+            };
+            parts.abilities.push(format!(
+                "cantrip_mechanics::level_up::ability({}, \"Level up\")",
+                mana(symbols)?
+            ));
+        }
+        let held = Expr::CountCounters {
+            recipients: Box::new(Recipients::Objects(ObjectSet::One(ObjectRef::Source))),
+            kind: Some(counter.clone()),
+            information: Information::CurrentOrLastKnown,
+        };
+        let compare = |comparison, n| Condition::Compare {
+            left: held.clone(),
+            comparison,
+            right: Expr::Constant(n),
+        };
+        for (i, stage) in stages.iter().enumerate() {
+            if stage.animates {
+                return Err(gap("counter stage that animates"));
+            }
+            let least = compare(Comparison::GreaterOrEqual, stage.minimum);
+            let condition = match stage.maximum {
+                Some(most) => Condition::All(vec![least, compare(Comparison::LessOrEqual, most)]),
+                None => least,
+            };
+            let mut then: Vec<Ability> = stage
+                .power_toughness
+                .map(|(power, toughness)| Ability::Static {
+                    kind: StaticKind::Ordinary,
+                    affected: EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
+                    changes: vec![Change::SetBasePowerToughness {
+                        power: Expr::Constant(power.into()),
+                        toughness: Expr::Constant(toughness.into()),
+                    }],
+                })
+                .into_iter()
+                .collect();
+            then.extend(stage.abilities.iter().cloned());
+            let staged = Ability::Conditional {
+                condition,
+                then,
+                otherwise: Vec::new(),
+            };
+            self.ability(&staged, &format!("{label}_stage_{i}"), parts, None)?;
+        }
+        Ok(())
     }
     /// Add one ability to the card.
     pub(super) fn ability(
@@ -648,7 +838,8 @@ impl Compiler {
                 body,
             } => {
                 self.activation_cost = Some(cost.clone());
-                let def = self.activated(label, origin, cost, limits, announcement, body, scope);
+                let index = parts.abilities.len();
+                let def = self.activated(label, index, origin, cost, limits, announcement, body, scope);
                 self.activation_cost = None;
                 parts.abilities.push(def?);
             }
@@ -778,9 +969,22 @@ impl Compiler {
                 label,
                 parts,
             )?,
+            Ability::Backup { amount, abilities } => self.backup(*amount, abilities, label, parts)?,
+            Ability::CounterStages {
+                counter,
+                level_up,
+                stages,
+            } => self.counter_stages(counter, level_up.as_ref(), stages, label, parts)?,
             Ability::Primitive { name, .. } => {
                 return Err(gap(format!("primitive ability {name}")))
             }
+            // A card that says it is out of the game has no game to generate.
+            Ability::DeckRule(DeckRule::Banned | DeckRule::RemoveUnlessPlayingForAnte) => {
+                return Err(gap("card outside ordinary play"))
+            }
+            // How to build a deck, in no game: Cantrip's Sphinx's Approach says
+            // the same of its line, "no line of code here".
+            Ability::DeckRule(_) => {}
             other => return Err(gap(format!("ability {}", form(other)))),
         }
         Ok(())
