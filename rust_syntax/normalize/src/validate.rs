@@ -777,9 +777,10 @@ impl<'a> Scope<'a> {
             ObjectFilter::ControlledBy(players) | ObjectFilter::OwnedBy(players) => {
                 self.players(players)
             }
-            ObjectFilter::SameObject(object) | ObjectFilter::SharesNameWith(object) => {
-                self.object(object)
-            }
+            ObjectFilter::SameObject(object)
+            | ObjectFilter::SharesNameWith(object)
+            | ObjectFilter::Shares { with: object, .. } => self.object(object),
+            ObjectFilter::SharesNameWithAny(objects) => self.objects(objects),
             ObjectFilter::Property { value, .. } => self.expr(value),
             ObjectFilter::Counters { value, .. } => self.expr(value),
         }

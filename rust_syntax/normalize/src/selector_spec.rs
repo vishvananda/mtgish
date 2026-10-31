@@ -164,6 +164,11 @@ pub enum Recipe {
         domain: ObjectDomain,
         argument: usize,
     },
+    Shares {
+        property: String,
+        domain: ObjectDomain,
+        argument: usize,
+    },
     InZone {
         zone: PrivateZone,
         players: Players,
@@ -213,6 +218,7 @@ impl Recipe {
             | Self::Keyword { argument }
             | Self::Name { argument }
             | Self::SharesName { argument, .. }
+            | Self::Shares { argument, .. }
             | Self::SameObject { argument, .. } => out.push(*argument),
             Self::Vocabulary {
                 argument, value, ..
@@ -261,6 +267,7 @@ impl Recipe {
             Self::OwnedBy {players}=>format!("Predicate::OwnedBy({})",players.generate()),
             Self::SameObject {domain,argument}=>format!("Predicate::SameObject(PredicateObject::{domain:?}(source::{domain:?}::clone(a{argument})))"),
             Self::SharesName {domain,argument}=>format!("Predicate::SharesName(PredicateObject::{domain:?}(source::{domain:?}::clone(a{argument})))"),
+            Self::Shares {property,domain,argument}=>format!("Predicate::Shares(ir::DistinctProperty::{property},PredicateObject::{domain:?}(source::{domain:?}::clone(a{argument})))"),
             Self::InZone {zone,players}=>format!("Predicate::InZone {{ zone: ir::EventZone::{zone:?},players: {} }}",players.generate()),
             Self::Property {property,comparison}=>format!("Predicate::Property {{ property: ir::Property::{property:?}, comparison: {} }}",comparison.generate()),
             Self::Counters {counter,comparison}=>format!("Predicate::Counters {{ counter: {}, comparison: {} }}",counter.map_or("None".into(),|i|format!("Some(source::CounterType::clone(a{i}))")),comparison.generate()),

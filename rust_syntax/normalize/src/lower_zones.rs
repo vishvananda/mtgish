@@ -298,6 +298,10 @@ impl Context {
                 self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
                 Some(Count::AsManyAsCan(Expr::Constant(1))),
             ),
+            S::NumberCardsFromHand(n) => (
+                self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
+                Some(Count::AsManyAsCan(self.number(n)?)),
+            ),
             S::ACardInGraveyards(c) => (
                 self.grave_cards(c)?,
                 Some(Count::AsManyAsCan(Expr::Constant(1))),

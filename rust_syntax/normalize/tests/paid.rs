@@ -266,7 +266,7 @@ fn numeric_history_recipes_preserve_field_accounting_and_saved_artifact_checks()
 #[test]
 fn real_payment_history_cards_roundtrip_and_keep_independent_gaps() {
     let mut complete = 0;
-    let incomplete = ["Ruthless Technomancer"];
+    let incomplete: [&str; 0] = [];
     for line in include_str!("fixtures/paid.ronl").lines() {
         let source: source::OracleCard = ron::from_str(line).unwrap();
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);
@@ -282,7 +282,7 @@ fn real_payment_history_cards_roundtrip_and_keep_independent_gaps() {
             }
         }
     }
-    assert_eq!(complete, 22);
+    assert_eq!(complete, 23);
 }
 
 #[test]

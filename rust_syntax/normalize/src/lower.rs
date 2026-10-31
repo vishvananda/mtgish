@@ -576,7 +576,11 @@ impl Context {
                 })
                 .ok_or_else(|| invalid("movement reference has no transition in this scope"));
         }
-        if matches!(value, source::Permanents::ThePermanentsAffectedThisWay) {
+        if matches!(
+            value,
+            source::Permanents::ThePermanentsAffectedThisWay
+                | source::Permanents::ThePermanentsGainedControlOfThisWay
+        ) {
             return Ok(ObjectSet::Affected(self.done(Done::Effect)?));
         }
         if matches!(value, source::Permanents::TheTokensCreatedThisWay) {
@@ -640,6 +644,11 @@ impl Context {
 
     fn filter_inner(&self, value: &source::Permanents) -> Result<ObjectFilter> {
         match value {
+            source::Permanents::SharesANameWithAPermanent(objects) => {
+                return Ok(ObjectFilter::SharesNameWithAny(Box::new(
+                    self.objects(objects)?,
+                )));
+            }
             source::Permanents::IsntAttacking => {
                 let attacking = self.filter_inner(&source::Permanents::IsAttacking)?;
                 return Ok(ObjectFilter::Not(Box::new(attacking)));
@@ -1757,19 +1766,31 @@ impl Context {
                 face_down: false,
             },
             S::ReturnACardFromGraveyardToBattlefield(cards, _)
+            | S::PutACardFromHandOrGraveyardOnBattlefield(cards, _, _)
             | S::PutUptoNumberCardsFromGraveyardToHand(_, cards)
             | S::ReturnAGraveyardCardToHand(cards) => {
                 let PlayerSet::One(player) = actor else {
                     return Err(invalid("choosing a graveyard card needs one player"));
                 };
+                let filter = self.card_filter(cards)?;
+                let owner = match value {
+                    S::PutACardFromHandOrGraveyardOnBattlefield(_, owner, _) => {
+                        PlayerSet::One(self.player(owner)?)
+                    }
+                    _ => actor.clone(),
+                };
+                let grave = self.private_cards(EventZone::Graveyard, owner.clone(), filter.clone());
                 let choice = self.effect(Operation::ChooseObjects {
                     constraints: vec![],
                     player: player.clone(),
-                    objects: self.private_cards(
-                        EventZone::Graveyard,
-                        actor.clone(),
-                        self.card_filter(cards)?,
-                    ),
+                    objects: if matches!(value, S::PutACardFromHandOrGraveyardOnBattlefield(..)) {
+                        ObjectSet::Union(vec![
+                            self.private_cards(EventZone::Hand, owner, filter),
+                            grave,
+                        ])
+                    } else {
+                        grave
+                    },
                     count: match value {
                         S::PutUptoNumberCardsFromGraveyardToHand(n, _) => {
                             Count::UpTo(self.number(n)?)
@@ -1781,7 +1802,8 @@ impl Context {
                     unreachable!()
                 };
                 let (destination, entry) = match value {
-                    S::ReturnACardFromGraveyardToBattlefield(_, flags) => {
+                    S::ReturnACardFromGraveyardToBattlefield(_, flags)
+                    | S::PutACardFromHandOrGraveyardOnBattlefield(_, _, flags) => {
                         self.move_entry(flags, player.clone())?
                     }
                     _ => (Destination::OwnersHand, EntrySpec::default()),
@@ -2813,6 +2835,24 @@ impl Context {
                     target.kind = TargetKind::DamageRecipient;
                     target.filter = self.filter(objects)?;
                     target.players = Some(self.players(players)?);
+                }
+                S::NumberAnyTargets(n) => {
+                    target.kind = TargetKind::DamageRecipient;
+                    target.count = Count::Exactly(self.number(n)?);
+                }
+                S::NumberTargetPlayers(n, players) => {
+                    target.kind = TargetKind::Player;
+                    target.players = Some(self.players(players)?);
+                    target.count = Count::Exactly(self.number(n)?);
+                }
+                S::TargetPermanentEachPlayerControls(p, players) => {
+                    let players = self.players(players)?;
+                    target.filter = ObjectFilter::All(vec![
+                        self.filter(p)?,
+                        ObjectFilter::ControlledBy(players.clone()),
+                    ]);
+                    target.count = Count::UpTo(Expr::CountPlayers(players));
+                    target.constraints = vec![SelectionConstraint::DifferentControllers];
                 }
                 S::AnyNumberOfAnyTargets => {
                     target.kind = TargetKind::DamageRecipient;

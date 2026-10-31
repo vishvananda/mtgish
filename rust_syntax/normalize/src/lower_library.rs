@@ -6,6 +6,13 @@ impl Context {
             S::SharesANameWithPermanent(p) => {
                 return Ok(ObjectFilter::SharesNameWith(self.object(p)?))
             }
+            S::SharesANameWithSpell(s) => return Ok(ObjectFilter::SharesNameWith(self.spell(s)?)),
+            S::SharesANameWithExiled(c) => {
+                return Ok(ObjectFilter::SharesNameWith(self.exiled_card(c)?))
+            }
+            S::SharesANameWithAnExiled(c) => {
+                return Ok(ObjectFilter::SharesNameWithAny(Box::new(self.exile_cards(c)?)))
+            }
             S::And(v) => {
                 return Ok(ObjectFilter::All(
                     v.iter()

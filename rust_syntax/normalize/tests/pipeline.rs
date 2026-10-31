@@ -1456,7 +1456,7 @@ fn cost_selection_remains_strict_while_effect_selection_does_as_much_as_possible
 #[test]
 fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
     use pipeline::operands::CostRecipe as R;
-    let source=custom("Activated(And([PayLifeForEach(Integer(2),Integer(3)),RevealAnyNumberOfCardsOfTypeFromHand(IsCardtype(Creature))]),ActionList([DrawACard]))");
+    let source=custom("Activated(And([PayLifeForEach(Integer(2),Integer(3)),DestroyPermanent(ThisPermanent)]),ActionList([DrawACard]))");
     let stage = pipeline::Intermediate::new(&source).unwrap();
     let root = stage
         .structural
@@ -1465,13 +1465,13 @@ fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
         .find(|r| r.rule == "operand.Cost.And")
         .unwrap();
     assert!(
-        matches!(&root.recipe,pipeline::operands::OperandRecipe::Cost(R::All(items)) if matches!(items.as_slice(),[R::Amount {..},R::Source(source::Cost::RevealAnyNumberOfCardsOfTypeFromHand(..))]))
+        matches!(&root.recipe,pipeline::operands::OperandRecipe::Cost(R::All(items)) if matches!(items.as_slice(),[R::Amount {..},R::Source(source::Cost::DestroyPermanent(..))]))
     );
     assert!(stage.final_card.is_none());
     assert!(stage
         .diagnostics
         .iter()
-        .any(|d| d.form == "RevealAnyNumberOfCardsOfTypeFromHand"));
+        .any(|d| d.form == "DestroyPermanent"));
     for cost in ["TapPermanent(Ref_TargetPermanent)"] {
         let source = custom(&format!("Activated({cost},ActionList([DrawACard]))"));
         let stage = pipeline::Intermediate::new(&source).unwrap();
@@ -1787,7 +1787,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 47);
+    assert_eq!(card.schema_version, 48);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2413,4 +2413,32 @@ fn nonattacking_and_exact_power_toughness_are_plain_filters() {
     let text = ability_json("SpellActions(Targeted([TargetPermanent(And([IsntAttacking,PowerAndToughnessIsEqualTo(PT(1,1))]))],ActionList([DestroyPermanent(Ref_TargetPermanent)])))");
     assert!(text.contains("Not"), "{text}");
     assert!(text.contains("Toughness"), "{text}");
+}
+
+#[test]
+fn sharing_a_property_with_an_object_keeps_the_property() {
+    let text = ability_json("SpellActions(Targeted([TargetPermanent(AnyPermanent)],ActionList([DestroyEachPermanent(SharesACardtypeWithPermanent(Ref_TargetPermanent))])))");
+    assert!(text.contains("Shares"), "{text}");
+    assert!(text.contains("CardTypes"), "{text}");
+}
+
+#[test]
+fn a_name_can_be_shared_with_any_of_a_set() {
+    let text = ability_json("SpellActions(ActionList([DestroyEachPermanent(SharesANameWithAPermanent(IsCardtype(Land)))]))");
+    assert!(text.contains("SharesNameWithAny"), "{text}");
+}
+
+#[test]
+fn a_fixed_number_of_players_or_any_targets_share_a_slot() {
+    let text = ability_json("SpellActions(Targeted([NumberTargetPlayers(Integer(2),AnyPlayer)],ActionList([DrawACard])))");
+    assert!(text.contains("Exactly"), "{text}");
+    let text = ability_json("SpellActions(Targeted([TargetPermanentEachPlayerControls(AnyPermanent,Opponent)],ActionList([DrawACard])))");
+    assert!(text.contains("CountPlayers"), "{text}");
+    assert!(text.contains("DifferentControllers"), "{text}");
+}
+
+#[test]
+fn a_card_can_come_from_a_hand_or_a_graveyard() {
+    let text = ability_json("SpellActions(ActionList([PutACardFromHandOrGraveyardOnBattlefield(IsCardtype(Land),You,[EntersNormally])]))");
+    assert!(text.contains("Union"), "{text}");
 }

@@ -100,7 +100,7 @@ impl Context {
             P::OwnedBy(players) => {
                 ObjectFilter::OwnedBy(candidate.pipeline_number_players(players)?)
             }
-            P::SameObject(object) | P::SharesName(object) => {
+            P::SameObject(object) | P::SharesName(object) | P::Shares(_, object) => {
                 let reference = match object {
                     O::Permanent(p) => candidate.object(p)?,
                     O::Spell(p) => self.spell(p)?,
@@ -109,10 +109,13 @@ impl Context {
                     O::CardInHand(p) => self.hand_card(p)?,
                     O::CardInExile(p) => self.exiled_card(p)?,
                 };
-                if matches!(predicate, P::SharesName(_)) {
-                    ObjectFilter::SharesNameWith(reference)
-                } else {
-                    ObjectFilter::SameObject(reference)
+                match predicate {
+                    P::SharesName(_) => ObjectFilter::SharesNameWith(reference),
+                    P::Shares(property, _) => ObjectFilter::Shares {
+                        property: property.clone(),
+                        with: reference,
+                    },
+                    _ => ObjectFilter::SameObject(reference),
                 }
             }
             P::InZone { zone, players } => ObjectFilter::InZone(ZoneScope::Players {

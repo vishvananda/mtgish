@@ -2,6 +2,78 @@
   "version": 1,
   "rules": [
     {
+      "id": "selector.Permanents.SharesACreatureTypeWithPermanent",
+      "domain": "Permanents",
+      "source": "SharesACreatureTypeWithPermanent",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "CreatureTypes",
+        "domain": "Permanent",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.SharesACreatureTypeWithExiledCard",
+      "domain": "Permanents",
+      "source": "SharesACreatureTypeWithExiledCard",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "CreatureTypes",
+        "domain": "CardInExile",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.SharesAColorWithPermanent",
+      "domain": "Permanents",
+      "source": "SharesAColorWithPermanent",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "Colors",
+        "domain": "Permanent",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.SharesACardtypeWithPermanent",
+      "domain": "Permanents",
+      "source": "SharesACardtypeWithPermanent",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "CardTypes",
+        "domain": "Permanent",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.SharesACardtypeWithGraveyardCard",
+      "domain": "Permanents",
+      "source": "SharesACardtypeWithGraveyardCard",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "CardTypes",
+        "domain": "CardInGraveyards",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.SharesACardtypeWithExiledCard",
+      "domain": "Permanents",
+      "source": "SharesACardtypeWithExiledCard",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "CardTypes",
+        "domain": "CardInExile",
+        "argument": 0
+      }
+    },
+    {
       "id": "selector.Permanents.And",
       "domain": "Permanents",
       "source": "And",
@@ -803,6 +875,66 @@
       }
     },
     {
+      "id": "selector.Cards.SharesACreatureTypeWithPermanent",
+      "domain": "Cards",
+      "source": "SharesACreatureTypeWithPermanent",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "CreatureTypes",
+        "domain": "Permanent",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Cards.SharesAColorWithPermanent",
+      "domain": "Cards",
+      "source": "SharesAColorWithPermanent",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "Colors",
+        "domain": "Permanent",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Cards.SharesACardtypeWithSpell",
+      "domain": "Cards",
+      "source": "SharesACardtypeWithSpell",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "CardTypes",
+        "domain": "Spell",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Cards.SharesACardtypeWithPermanent",
+      "domain": "Cards",
+      "source": "SharesACardtypeWithPermanent",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "CardTypes",
+        "domain": "Permanent",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Cards.SharesACardtypeWithExiledCard",
+      "domain": "Cards",
+      "source": "SharesACardtypeWithExiledCard",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "CardTypes",
+        "domain": "CardInExile",
+        "argument": 0
+      }
+    },
+    {
       "id": "selector.Cards.And",
       "domain": "Cards",
       "source": "And",
@@ -1367,6 +1499,66 @@
           "domain": "SingleCard",
           "argument": 0
         }
+      }
+    },
+    {
+      "id": "selector.Spells.SharesACreatureTypeWithPermanent",
+      "domain": "Spells",
+      "source": "SharesACreatureTypeWithPermanent",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "CreatureTypes",
+        "domain": "Permanent",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Spells.SharesAColorWithSpell",
+      "domain": "Spells",
+      "source": "SharesAColorWithSpell",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "Colors",
+        "domain": "Spell",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Spells.SharesAColorWithExiledCard",
+      "domain": "Spells",
+      "source": "SharesAColorWithExiledCard",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "Colors",
+        "domain": "CardInExile",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Spells.SharesACardtypeWithSpell",
+      "domain": "Spells",
+      "source": "SharesACardtypeWithSpell",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "CardTypes",
+        "domain": "Spell",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Spells.SharesACardtypeWithExiledCard",
+      "domain": "Spells",
+      "source": "SharesACardtypeWithExiledCard",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "CardTypes",
+        "domain": "CardInExile",
+        "argument": 0
       }
     },
     {
@@ -2392,6 +2584,18 @@
           "kind": "Players",
           "argument": 0
         }
+      }
+    },
+    {
+      "id": "selector.CardsInHand.SharesACardtypeWithSpell",
+      "domain": "CardsInHand",
+      "source": "SharesACardtypeWithSpell",
+      "arity": 1,
+      "predicate": {
+        "kind": "Shares",
+        "property": "CardTypes",
+        "domain": "Spell",
+        "argument": 0
       }
     },
     {

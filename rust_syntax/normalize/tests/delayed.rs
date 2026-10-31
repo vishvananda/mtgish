@@ -412,7 +412,6 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         "Alchemist's Gambit",
         "Aleatory",
         "Arcane Denial",
-        "Armor of Thorns",
         "Bounty of the Hunt",
         "Chancellor of the Tangle",
         "Come Back Wrong",
@@ -450,5 +449,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 36);
+    assert_eq!(complete, 37);
 }

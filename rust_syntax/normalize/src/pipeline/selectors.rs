@@ -21,6 +21,7 @@ pub enum Predicate {
     OwnedBy(NumberPlayers),
     SameObject(PredicateObject),
     SharesName(PredicateObject),
+    Shares(ir::DistinctProperty, PredicateObject),
     InZone {
         zone: ir::EventZone,
         players: NumberPlayers,

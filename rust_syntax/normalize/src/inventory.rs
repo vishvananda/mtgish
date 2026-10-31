@@ -1374,7 +1374,10 @@ impl Inventory<'_> {
             }
             ObjectFilter::Not(f) => self.filter(f),
             ObjectFilter::ControlledBy(p) | ObjectFilter::OwnedBy(p) => self.players(p),
-            ObjectFilter::SameObject(o) | ObjectFilter::SharesNameWith(o) => self.object(o),
+            ObjectFilter::SameObject(o)
+            | ObjectFilter::SharesNameWith(o)
+            | ObjectFilter::Shares { with: o, .. } => self.object(o),
+            ObjectFilter::SharesNameWithAny(objects) => self.objects(objects),
             ObjectFilter::Property {
                 property,
                 comparison,

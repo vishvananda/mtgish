@@ -43,7 +43,6 @@ fn casting(c: &Card) -> &CastingRule {
 fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
     let incomplete = [
         "Abandon Hope",
-        "Armor of Thorns",
         "Bite Down on Crime",
         "Dargo, the Shipwrecker",
         "Ertai's Meddling",
@@ -78,7 +77,7 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 65);
+    assert_eq!(complete, 66);
 }
 
 #[test]
