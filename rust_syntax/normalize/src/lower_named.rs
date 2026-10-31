@@ -717,6 +717,12 @@ impl Context {
             S::XCantBeGreaterThan(limit) => ActivationRule::XAtMost(self.number(limit).ok()?),
             S::XIs(value) => ActivationRule::XIs(self.number(value).ok()?),
             S::CantBeCopied => ActivationRule::CantBeCopied,
+            S::OnlyPlayerMayActivate(player) => {
+                ActivationRule::OnlyBy(PlayerSet::One(self.player(player).ok()?))
+            }
+            S::OnlyOtherPlayersMayActivate(players) => {
+                ActivationRule::OnlyBy(self.players(players).ok()?)
+            }
             S::ActivateOnlyAsAnInstant => ActivationRule::AnyTimeOfInstant,
             _ => return None,
         })
@@ -804,6 +810,9 @@ impl Context {
         let (name, operands) = self.primitive("Permanent", value)?;
         Some(match (name.as_str(), operands.as_slice()) {
             ("Permanent::ThisGuest", []) => ObjectRef::Granter,
+            ("Permanent::SingleTargetPermanentOfSpell", [Operand::Object(spell)]) => {
+                ObjectRef::SoleTargetOf(Box::new(spell.clone()))
+            }
             ("Permanent::TheCreaturePairedWithPermanent", [Operand::Object(object)]) => {
                 ObjectRef::PairedWith(Box::new(object.clone()))
             }
@@ -815,6 +824,7 @@ impl Context {
         let (name, operands) = self.primitive("Player", value)?;
         Some(match (name.as_str(), operands.as_slice()) {
             ("Player::ClashOpponent", []) => PlayerRef::ClashOpponent,
+            ("Player::LoseLife_ThatPlayer", []) => PlayerRef::Acting,
             ("Player::TheGiftedPlayer", []) => PlayerRef::GiftedPlayer,
             ("Player::PlayerOrControllerOfPermanent", [Operand::Recipients(recipient)]) => {
                 PlayerRef::PlayerOrControllerOf(Box::new(recipient.clone()))

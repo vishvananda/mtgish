@@ -1133,6 +1133,7 @@ impl Inventory<'_> {
                 }
                 CostPart::DiscardHand => {}
                 CostPart::Behold { count, .. } => self.expr(count),
+                CostPart::ExiledToGraveyard(cards) => self.objects(cards),
                 CostPart::RevealTop(filter) => self.filter(filter),
                 CostPart::Waterbend(_) | CostPart::Teamwork(_) => {}
                 CostPart::PutCounters(placements) => {
@@ -1377,6 +1378,7 @@ impl Inventory<'_> {
             RuleChange::Primitive { name, .. } => self.primitive(name),
             RuleChange::Prohibit(a) => self.object_action(a),
             RuleChange::GoadedBy(player) => self.player(player),
+            RuleChange::CantAttackDefenderIf(condition) => self.condition(condition),
             RuleChange::TapPowerBonus { bonus, .. } => self.expr(bonus),
             RuleChange::MayExert(_)
             | RuleChange::BlockedAsThoughLacking(_)
@@ -1496,6 +1498,7 @@ impl Inventory<'_> {
                     ActivationRule::MaxPerTurn(n)
                     | ActivationRule::XAtMost(n)
                     | ActivationRule::XIs(n) => self.expr(n),
+                    ActivationRule::OnlyBy(players) => self.players(players),
                     ActivationRule::XNotZero
                     | ActivationRule::CantBeCopied
                     | ActivationRule::AnyTimeOfInstant => {}
@@ -1932,6 +1935,7 @@ impl Inventory<'_> {
             ObjectFilter::AttachedTo(filter) => self.filter(filter),
             ObjectFilter::BlockingObject(object) => self.object(object),
             ObjectFilter::Condition(condition) => self.condition(condition),
+            ObjectFilter::ManaSpentFrom(sources) => self.filter(sources),
             ObjectFilter::KickedWith(_) => {}
             ObjectFilter::HasAttached(filter) => self.filter(filter),
             ObjectFilter::AttachedToPlayer(player) => self.player(player),

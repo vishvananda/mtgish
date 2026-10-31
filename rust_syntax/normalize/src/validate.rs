@@ -441,6 +441,7 @@ impl<'a> Scope<'a> {
             ObjectRef::KeywordHost => {
                 Err("keyword host used outside its keyword definition".into())
             }
+            ObjectRef::SoleTargetOf(spell) => self.object(spell),
             ObjectRef::AttachedTo(attachment) | ObjectRef::PairedWith(attachment) => {
                 self.object(attachment)
             }
@@ -581,7 +582,7 @@ impl<'a> Scope<'a> {
             }
             PlayerRef::EnchantedBy(object) => self.object(object),
             PlayerRef::PlayerOrControllerOf(recipient) => self.recipients(recipient),
-            PlayerRef::GiftedPlayer => Ok(()),
+            PlayerRef::Acting | PlayerRef::GiftedPlayer => Ok(()),
             PlayerRef::ClashOpponent if self.clashing => Ok(()),
             PlayerRef::ClashOpponent => Err("a clash opponent outside a clash".into()),
             PlayerRef::DeclaringPlayer if self.declaration => Ok(()),
@@ -967,6 +968,7 @@ impl<'a> Scope<'a> {
             ObjectFilter::HasAttached(filter) => self.filter(filter),
             ObjectFilter::AttachedToPlayer(player) => self.player(player),
             ObjectFilter::Extreme { among, .. } => self.objects(among),
+            ObjectFilter::ManaSpentFrom(sources) => self.filter(sources),
             ObjectFilter::KickedWith(kicker) => {
                 kicker.iter().try_for_each(|operand| self.operand(operand))
             }
@@ -1173,6 +1175,7 @@ impl<'a> Scope<'a> {
             RuleChange::Primitive { name, operands } => self.primitive(name, operands),
             RuleChange::Prohibit(action) => self.object_action(action),
             RuleChange::GoadedBy(player) => self.player(player),
+            RuleChange::CantAttackDefenderIf(condition) => self.condition(condition),
             RuleChange::TapPowerBonus { bonus, .. } => self.expr(bonus),
             RuleChange::MayExert(then) => then.iter().try_for_each(|o| self.operand(o)),
             RuleChange::BlockedAsThoughLacking(ability) | RuleChange::CantGainAbility(ability) => {
@@ -1517,6 +1520,7 @@ impl<'a> Scope<'a> {
                 self.spell_cost_modifier(modifier)?;
                 condition.iter().try_for_each(|c| self.condition(c))
             }
+            ActivationRule::OnlyBy(players) => self.players(players),
             ActivationRule::MaxPerTurn(n) | ActivationRule::XAtMost(n) | ActivationRule::XIs(n) => {
                 self.expr(n)
             }
@@ -1635,6 +1639,7 @@ impl<'a> Scope<'a> {
                     self.expr(count)?;
                     self.operand(what)?;
                 }
+                CostPart::ExiledToGraveyard(cards) => self.objects(cards)?,
                 CostPart::RevealTop(filter) => self.filter(filter)?,
                 CostPart::Waterbend(_) | CostPart::Teamwork(_) => {}
                 CostPart::PutCounters(placements) => {

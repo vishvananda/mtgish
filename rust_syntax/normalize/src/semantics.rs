@@ -115,7 +115,10 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
             permanent: true,
             ..Default::default()
         },
-        ReplacementEvent::Tokens { .. } => EventBindings::default(),
+        ReplacementEvent::Tokens { .. } => EventBindings {
+            amount: true,
+            ..EventBindings::default()
+        },
         ReplacementEvent::Counters { players, .. } => EventBindings {
             object: players.is_none(),
             permanent: players.is_none(),
@@ -256,6 +259,7 @@ const KEYWORD_ACTIONS: &[(&str, KeywordAction)] = &[
         "Action::CopyAbilityAndMayChooseNewTargets",
         KeywordAction::CopyAbility,
     ),
+    ("Action::CollectEvidence", KeywordAction::CollectEvidence),
     ("Action::Investigate", KeywordAction::Investigate),
     ("Action::Proliferate", KeywordAction::Proliferate),
     ("Action::Amass", KeywordAction::Amass),
@@ -1380,6 +1384,16 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
     };
     match (form, operands.as_slice()) {
         ("WasKickedWithKicker", kicker) => return ObjectFilter::KickedWith(kicker.to_vec()),
+        ("ManaFromAPermanentWasSpentToCastIt", [Operand::Objects(objects)]) => {
+            if let Some(sources) = event_filter(objects) {
+                return ObjectFilter::ManaSpentFrom(Box::new(sources));
+            }
+        }
+        ("ManaFromATeasureWasSpentToCastIt" | "ManaFromTeasureWasSpentToCast", []) => {
+            return ObjectFilter::ManaSpentFrom(Box::new(ObjectFilter::Subtype(
+                crate::subtype::artifact_type(&crate::mtg_types::ArtifactType::Treasure),
+            )))
+        }
         ("IsSuspended", []) => return ObjectFilter::State(ObjectState::Suspended),
         ("HasASticker", []) => return ObjectFilter::State(ObjectState::HasSticker),
         ("PowerIsLessThanToughness", []) => {
@@ -1761,6 +1775,21 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
         _ => {}
     }
     match (name.as_str(), operands.as_slice()) {
+        ("Condition::ASpellWasWarpedThisTurn", []) => {
+            return Condition::Compare {
+                left: Expr::EventHistory {
+                    event: Box::new(EventSpec::Spell {
+                        event: SpellEvent::Cast,
+                        players: PlayerSet::All,
+                        spells: ObjectFilter::State(ObjectState::Warped),
+                    }),
+                    window: HistoryWindow::ThisTurn,
+                    measure: HistoryMeasure::Occurrences,
+                },
+                comparison: Comparison::GreaterOrEqual,
+                right: Expr::Constant(1),
+            }
+        }
         ("Players::IsAttackingPlayer", [Operand::Player(attacker), Operand::Player(defender)]) => {
             return Condition::PlayerAttacks {
                 attacker: attacker.clone(),
@@ -2044,6 +2073,9 @@ pub fn reduce_rule(name: String, operands: Vec<Operand>) -> RuleChange {
     let bare = name.strip_prefix("PermanentRule::").unwrap_or(&name);
     match (bare, operands.as_slice()) {
         ("IsGoadedByPlayer", [Operand::Player(player)]) => RuleChange::GoadedBy(player.clone()),
+        ("CantAttackIfDefendingPlayer", [Operand::Condition(condition)]) => {
+            RuleChange::CantAttackDefenderIf(condition.clone())
+        }
         ("TheLegendsRuleDoesntApply", []) => RuleChange::LegendRuleExempt,
         ("CantBeTheTargetOfSpells", [Operand::Filter(spells)]) => {
             RuleChange::Prohibit(ObjectAction::BeTargeted(ObjectFilter::All(vec![
@@ -2170,6 +2202,20 @@ pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
             spend(ManaPayment::Abilities(stack_filter(ability).unwrap()))
         }
         ("DecreaseEquipAbilityCost", [amount]) => cost(equip(), reduce(amount), None),
+        ("DecreaseEquipAbilityCostWhenTargetingPermanent", [amount, Operand::Object(object)]) => {
+            let targets = ObjectFilter::TargetsAny(Box::new(Recipients::Objects(ObjectSet::One(
+                object.clone(),
+            ))));
+            cost(
+                ObjectFilter::All(vec![equip(), targets]),
+                reduce(amount),
+                None,
+            )
+        }
+        (
+            "DamageThatWouldReduceLifeTotalToLessThanNumberReducesItToThatNumberInstead",
+            [Operand::Number(floor)],
+        ) => PlayerRule::DamageLifeFloor(floor.clone()),
         ("ReduceActivatedCost", [ability, amount]) if stack_filter(ability).is_some() => {
             cost(stack_filter(ability).unwrap(), reduce(amount), None)
         }
@@ -4177,6 +4223,7 @@ pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
             window: HistoryWindow::ThisGame,
             measure: HistoryMeasure::Occurrences,
         },
+        ("GameNumber::WouldCreateTokens_NumberTokens", []) => Expr::EventAmount,
         ("GameNumber::NumTimesCreatureHasMutated", [Operand::Object(object)]) => {
             Expr::TimesMutated(object.clone())
         }
@@ -5069,6 +5116,7 @@ impl Effects {
             | ObjectRef::Candidate
             | ObjectRef::AttachedTo(_)
             | ObjectRef::PairedWith(_)
+            | ObjectRef::SoleTargetOf(_)
             | ObjectRef::Affected
             | ObjectRef::EventSubject
             | ObjectRef::EventStackObject
@@ -5139,6 +5187,7 @@ impl Effects {
                 | CostPart::Unspecialize(_)
                 | CostPart::Behold { .. }
                 | CostPart::PutCounters(_) => {}
+                CostPart::ExiledToGraveyard(_) => {}
                 CostPart::RevealTop(_) => self.library = true,
                 CostPart::Move {
                     selections,

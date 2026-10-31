@@ -1300,3 +1300,20 @@ fn escaping_mana_purposes_and_random_choices() {
     let held = lowered("DamageIsntRemovedFromCreaturesDuringCleanup(IsCardtype(Creature))");
     assert!(held.contains("DamageStaysMarked"), "{held}");
 }
+
+#[test]
+fn life_floors_mana_sources_and_acting_players() {
+    let floor = lowered(
+        "PlayerEffect(You, [DamageThatWouldReduceLifeTotalToLessThanNumberReducesItToThatNumberInstead(Integer(1))])",
+    );
+    assert!(floor.contains("DamageLifeFloor"), "{floor}");
+    let half = lowered(
+        "TriggerA(WhenACreatureAttacks(SinglePermanent(ThisPermanent)), ActionList([LoseLife(HalfRoundedUp(LifeTotalOfPlayer(LoseLife_ThatPlayer)))]))",
+    );
+    assert!(half.contains("Acting"), "{half}");
+    assert!(!half.contains("Primitive"), "{half}");
+    let spent = lowered(
+        "StackSpellsEffect(And([CastByPlayer(You), ManaFromAPermanentWasSpentToCastIt(IsCardtype(Artifact))]), [SplitSecond])",
+    );
+    assert!(spent.contains("ManaSpentFrom"), "{spent}");
+}

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 106;
+pub const SCHEMA_VERSION: u32 = 107;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1590,6 +1590,7 @@ pub enum KeywordAction {
     Unprepare,
     Epic,
     Paradigm,
+    CollectEvidence,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum MovedCounters {
@@ -2210,6 +2211,8 @@ pub enum PlayerRule {
         change: ActivationCostChange,
         floor: Option<i64>,
     },
+    /// Damage that would bring the life total below this leaves it there.
+    DamageLifeFloor(Expr),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ManaPayment {
@@ -2404,6 +2407,8 @@ pub enum RuleChange {
     CantGainAbility(Box<Operand>),
     /// Damage stays marked through the cleanup step (CR 514.2).
     DamageStaysMarked,
+    /// Can't attack a player or their permanents while this holds of them.
+    CantAttackDefenderIf(Condition),
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -2915,6 +2920,8 @@ pub enum ObjectRef {
     Granter,
     /// The creature `object` is paired with (CR 702.95b), if any.
     PairedWith(Box<ObjectRef>),
+    /// The one object this spell targets.
+    SoleTargetOf(Box<ObjectRef>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3101,6 +3108,8 @@ pub enum PlayerRef {
     ClashOpponent,
     /// The opponent a gift was promised to.
     GiftedPlayer,
+    /// The player doing this action, for one of several: "half their life".
+    Acting,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3269,6 +3278,8 @@ pub enum ObjectFilter {
         property: Property,
         highest: bool,
     },
+    /// Mana from a source that matches was spent to cast this spell.
+    ManaSpentFrom(Box<ObjectFilter>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3581,6 +3592,8 @@ pub enum CostPart {
     },
     /// The top card of the payer's library is revealed and has to match.
     RevealTop(ObjectFilter),
+    /// Puts one of these exiled cards into its owner's graveyard.
+    ExiledToGraveyard(ObjectSet),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct CostObjectSelection {
@@ -3639,6 +3652,8 @@ pub enum ActivationRule {
     XIs(Expr),
     CantBeCopied,
     AnyTimeOfInstant,
+    /// Only these players may activate this ability.
+    OnlyBy(PlayerSet),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
