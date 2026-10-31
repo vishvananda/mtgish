@@ -1637,14 +1637,14 @@
    "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
   },
   {
-   "id": "d506a15d03f0c776554a970c05f519b01a7d0a017351e4c8a70f0bdecaa0f3bc",
+   "id": "e352e3093aec6503e6123d05a94e5fa2f986f64973a68474e0cdc9d3430e3261",
    "kind": "mined_token",
    "rule": "Eachable",
    "token": "HalfRoundedUp",
    "word": "round",
    "support": "44/48",
    "template": "opponent whose life total is less than half their starting life total",
-   "result": "NumPlayers(LifeTotalIs(LessThan(HalfRoundedUp(StartingLifeTotalOfPlayer(NumPlayers_ThatPlayer)))))",
+   "result": "NumPlayers(And([Opponent, LifeTotalIs(LessThan(HalfRoundedUp(StartingLifeTotalOfPlayer(NumPlayers_ThatPlayer))))]))",
    "reason": "triaged 2026-10-31: reads half the starting life total after #94; rounding up never changes a strict less-than"
   },
   {
@@ -8645,13 +8645,13 @@
     "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
   },
   {
-    "id": "12693944bace870f1eb2c8515c64e1c36abf86e5f9125c97a0d8ec111e13f835",
+    "id": "6f63c60a06357660edd522abfaf265a0c66c8dcf240a36dec5fc44cf1fcf1a73",
     "kind": "count_rule",
     "rule": "SpellActions",
     "token": "RoundedUp",
     "word": "(?i)rounded up",
     "template": "Each player hides at least one item, then all players reveal them simultaneously. Each player loses life equal to the number of items they revealed. The player who revealed the fewest items then loses half their life, rounded up. If two or more players are tied for fewest, each loses half their life, rounded up",
-    "result": "ActionList([EachPlayerAction(AnyPlayer, SecretlyChooseANumberGreaterThanNumber(1)), RevealSecretlyChosenNumbers, EachPlayerAction(AnyPlayer, LoseLife(PlayersChosenNumber(ActionPlayer))), EachPlayerAction(ChoseLowestNumber, LoseLife(HalfRoundedUp(LifeTotalOfPlayer(ActionPlayer))))])",
+    "result": "ActionList([EachPlayerAction(AnyPlayer, SecretlyChooseANumberGreaterThanNumber(0)), RevealSecretlyChosenNumbers, EachPlayerAction(AnyPlayer, LoseLife(PlayersChosenNumber(ActionPlayer))), EachPlayerAction(ChoseLowestNumber, LoseLife(HalfRoundedUp(LifeTotalOfPlayer(ActionPlayer))))])",
     "reason": "triaged 2026-10-30: the output states the same meaning in another form, or the pairing is a mining coincidence"
   },
   {
@@ -9287,6 +9287,50 @@
    "template": "Target {{Permanent}} becomes {{Black}} in addition to its other colors until end of turn",
    "result": "Targeted([TargetPermanent({{Permanent[0]}})], ActionList([CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [AddColor(SimpleColorList([{{Black[0]}}]))], UntilEndOfTurn)]))",
    "reason": "triaged 2026-10-31: reads correctly for its cards, or the pairing is a mining coincidence"
+  },
+  {
+   "id": "242ce63566b462d7fd24a793997925988b75117a34f7819be60e270509a13327",
+   "kind": "mined_token",
+   "rule": "SpellActions[TheSacrificedPermanents]",
+   "token": "LifeLostThisWay",
+   "word": "lost",
+   "support": "14/16",
+   "template": "Target player loses {{Digits}} life plus {{Digits}} life for each {{Zombie}} sacrificed this way. You gain that much life",
+   "result": "Targeted([TargetPlayer(AnyPlayer)], ActionList([PlayerAction(Ref_TargetPlayer, LoseLifeAndLifeForEach({{Digits[0]}}, {{Digits[1]}}, TheNumberOfPermanentsSacrificedThisWay)), GainLife(LifeLostThisWay)]))",
+   "reason": "triaged 2026-10-31: the phrase means the life lost, so the mined word is absent from correct English"
+  },
+  {
+   "id": "583681a10d209dc74aa728ce282575d2374f9b208cbf54ced0d441d6fff4f595",
+   "kind": "mined_token",
+   "rule": "SpellActions",
+   "token": "LifeLostThisWay",
+   "word": "lost",
+   "support": "14/16",
+   "template": "Target opponent loses {{Digits}} life for each {{Eachable}}. You gain that much life",
+   "result": "Targeted([TargetPlayer(Opponent)], ActionList([PlayerAction(Ref_TargetPlayer, LoseLifeForEach({{Digits[0]}}, {{Eachable[0]}})), GainLife(LifeLostThisWay)]))",
+   "reason": "triaged 2026-10-31: the phrase means the life lost, so the mined word is absent from correct English"
+  },
+  {
+   "id": "646e676fd22ee1991fd30adf65a7ad6ae0e89f06e44dcb62de5224646ed0a348",
+   "kind": "mined_token",
+   "rule": "SpellActions",
+   "token": "LifeLostThisWay",
+   "word": "way",
+   "support": "14/16",
+   "template": "Target opponent loses {{Digits}} life for each {{Eachable}}. You gain that much life",
+   "result": "Targeted([TargetPlayer(Opponent)], ActionList([PlayerAction(Ref_TargetPlayer, LoseLifeForEach({{Digits[0]}}, {{Eachable[0]}})), GainLife(LifeLostThisWay)]))",
+   "reason": "triaged 2026-10-31: the phrase means the life lost, so the mined word is absent from correct English"
+  },
+  {
+   "id": "82533b898f138ddd294a118150aa7a9a46bf41956a362228805ecd142888bd46",
+   "kind": "mined_token",
+   "rule": "TriggerEffect(~Permanent)",
+   "token": "LifeLostThisWay",
+   "word": "way",
+   "support": "14/16",
+   "template": "When {{ThisPermanent}} enters, you lose all but {{Digits}} life.\nWhen {{ThisPermanent}} leaves the battlefield, you gain life equal to the life you lost when it entered",
+   "result": "TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([LoseLife(Minus(LifeTotalOfPlayer(You), {{Digits[0]}}))])), TriggerA(WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([GainLife(LifeLostThisWay)]))",
+   "reason": "triaged 2026-10-31: the phrase means the life lost, so the mined word is absent from correct English"
   }
 ]
 }

@@ -1655,8 +1655,13 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     );
     // The creature and the Aura it is while bestowed have one text (CR 702.103b).
     let rust = match bestow {
-        Some(cost) => rust.replacen("pub static CARD: CardDef = CardDef {", "const FACE: CardDef = CardDef {", 1)
-            + &format!("\npub static BESTOWED: CardDef = cantrip_mechanics::bestow::bestowed(FACE);\npub static CARD: CardDef = CardDef {{ bestow: Some(&BESTOWED), bestow_cost: {cost}, ..FACE }};\n"),
+        Some(cost) => {
+            // Token modules come first, so the card's own definition is the last one.
+            let own = "pub static CARD: CardDef = CardDef {";
+            let at = rust.rfind(own).expect("a module defines its card");
+            format!("{}const FACE: CardDef = CardDef {{{}", &rust[..at], &rust[at + own.len()..])
+                + &format!("\npub static BESTOWED: CardDef = cantrip_mechanics::bestow::bestowed(FACE);\npub static CARD: CardDef = CardDef {{ bestow: Some(&BESTOWED), bestow_cost: {cost}, ..FACE }};\n")
+        }
         None => rust,
     };
     Ok(EmittedModule {

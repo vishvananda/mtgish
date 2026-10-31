@@ -1,4 +1,10 @@
 [
+  {
+    "reason":  "Every other equip quality narrows a creature, so a planeswalker cannot share that template. See #98",
+    "cards":   ["Luxior, Giada's Gift"],
+    "find":    "Equip planeswalker {1}",
+    "replace": "Equip target planeswalker {1}",
+  },
   // Spellbook capitalization
   {
     "reason":  "Arena typo, spellbook is lowercase. See Three Pigs spellbook and Planets spellbook",

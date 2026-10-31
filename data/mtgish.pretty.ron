@@ -48794,7 +48794,10 @@ Card(
         AdjustPTForEach(
           3,
           3,
-          NumPlayers(LifeTotalIs(LessThan(HalfRoundedUp(StartingLifeTotalOfPlayer(NumPlayers_ThatPlayer))))),
+          NumPlayers(And([
+            Opponent,
+            LifeTotalIs(LessThan(HalfRoundedUp(StartingLifeTotalOfPlayer(NumPlayers_ThatPlayer)))),
+          ])),
         ),
       ],
     ),
@@ -91604,7 +91607,10 @@ Card(
   ],
   Rules: [
     ActivatedWithModifiers(
-      ExileACardInGraveyardsAndPayItsManaCost(IsCardtype(Creature)),
+      ExileACardInGraveyardsAndPayItsManaCost(And([
+        IsCardtype(Creature),
+        InAPlayersGraveyard(SinglePlayer(You)),
+      ])),
       ActionList([
         CreateTokens(
           [
@@ -535126,7 +535132,7 @@ Card(
     SpellActions(ActionList([
       EachPlayerAction(
         AnyPlayer,
-        SecretlyChooseANumberGreaterThanNumber(1),
+        SecretlyChooseANumberGreaterThanNumber(0),
       ),
       RevealSecretlyChosenNumbers,
       EachPlayerAction(
@@ -689813,7 +689819,7 @@ Card(
                   ControlledByAPlayer(SinglePlayer(You)),
                 ]),
                 PowerOfPermanent(EachablePermanent),
-                Permanent(WouldDealDamage_DamageRecipientPermanent),
+                Permanent(WouldDealDamage_DamageSourceAsPermanent),
               ),
             ]),
           ),
@@ -706012,7 +706018,10 @@ Card(
       Loyalty(-2),
       Targeted(
         [
-          TargetPermanent(IsCardtype(Creature)),
+          TargetPermanent(And([
+            IsCardtype(Creature),
+            ControlledByAPlayer(SinglePlayer(You)),
+          ])),
           UptoOneTargetPermanentEachPlayerControls(
             IsCardtype(Creature),
             Other(You),
@@ -733296,10 +733305,13 @@ Card(
           ]),
           AnyPlayer,
         ),
-        EachPlayerAction(
+        EachPlayerMayAction(
           ControlledAPermanentDestroyedThisWay,
           SearchLibrary([
-            FindACardOfType(IsCardtype(Land)),
+            FindACardOfType(And([
+              IsSupertype(Basic),
+              IsCardtype(Land),
+            ])),
             PutFoundCardsOntoBattlefield([
               EntersTapped,
             ]),
@@ -743752,7 +743764,7 @@ Card(
       ActionList([
         PlayerAction(
           RememberedPlayer,
-          GainLife(LifeLostThisWay),
+          GainLife(Integer(6)),
         ),
       ]),
     ),
@@ -786709,10 +786721,7 @@ Card(
       ],
     ),
     Equip(
-      And([
-        IsCardtype(Creature),
-        IsCardtype(Planeswalker),
-      ]),
+      IsCardtype(Planeswalker),
       PayMana([
         ManaCostGeneric(1),
       ]),
@@ -900012,7 +900021,10 @@ Card(
             ActionList([
               GainControlOfPermanentUntil(
                 Ref_TargetPermanent,
-                UntilPermanentLeavesBattlefield(ThisPermanent),
+                UntilPermanentChangesControl(
+                  You,
+                  ThisPermanent,
+                ),
               ),
             ]),
           ),
@@ -950669,7 +950681,10 @@ Transforming(
         ThisPermanent,
         IsCardtype(Creature),
         [
-          ChooseAnExiledCardToCopy(UsedToCraftPermanent(ThisPermanent)),
+          ChooseAnExiledCardToCopy(And([
+            IsCardtype(Creature),
+            UsedToCraftPermanent(ThisPermanent),
+          ])),
         ],
       ),
       PermanentLayerEffect(
@@ -1032175,7 +1032190,7 @@ Card(
           ],
           [],
         ),
-        If(
+        Unless(
           TheLastCardExiledThisWayWasACard(IsCardtype(Land)),
           [
             RepeatThisProcess,
@@ -1225541,7 +1225556,7 @@ Card(
       ActionList([
         PlayerAction(
           RememberedPlayer,
-          GainLife(LifeLostThisWay),
+          GainLife(Integer(3)),
         ),
       ]),
     ),
@@ -1242589,12 +1242604,12 @@ Card(
           PutPermanentIntoItsOwnersHand(Ref_TargetPermanent),
           If(
             PlayerPassesFilter(
-              ControllerOfPermanent(Trigger_ThatPermanent),
-              SpeedIs(GreaterThan(TheHighestSpeedAmongPlayers(Other(ControllerOfPermanent(Trigger_ThatPermanent))))),
+              ControllerOfPermanent(Ref_TargetPermanent),
+              SpeedIs(GreaterThan(TheHighestSpeedAmongPlayers(Other(ControllerOfPermanent(Ref_TargetPermanent))))),
             ),
             [
               ReducePlayersSpeed(
-                ControllerOfPermanent(Trigger_ThatPermanent),
+                ControllerOfPermanent(Ref_TargetPermanent),
                 Integer(1),
               ),
             ],
@@ -1251432,7 +1251447,7 @@ Card(
         ControlledByAPlayer(SinglePlayer(You)),
       ])),
       ActionList([
-        If(
+        IfElse(
           PermanentPassesFilter(
             ThisPermanent,
             AttachedToAPermanent(And([
@@ -1251445,7 +1251460,7 @@ Card(
               ManaCostGeneric(1),
               ManaCostG,
             ])),
-            If(
+            IfElse(
               CostWasPaid,
               [
                 CreateTokens(
@@ -1251458,9 +1251473,6 @@ Card(
                   [],
                 ),
               ],
-            ),
-            Unless(
-              ATokenWasCreatedThisWay,
               [
                 CreateTokens(
                   [
@@ -1251485,6 +1251497,30 @@ Card(
                   [],
                 ),
               ],
+            ),
+          ],
+          [
+            CreateTokens(
+              [
+                TokenWithPT(
+                  PT(
+                    1,
+                    1,
+                  ),
+                  Colors([
+                    Green,
+                  ]),
+                  [],
+                  [
+                    Creature,
+                  ],
+                  SubtypesList([
+                    Insect,
+                  ]),
+                  [],
+                ),
+              ],
+              [],
             ),
           ],
         ),
@@ -1352055,7 +1352091,7 @@ Card(
     ),
     TriggerA(
       WhenASpellOrAbilityCausesAnyNumberOfCardToBeExiledFromAPlayersLibrary(
-        AnySpellOrAbility,
+        ControlledByAPlayer(SinglePlayer(You)),
         Opponent,
       ),
       ActionList([
@@ -1523707,6 +1523743,7 @@ Card(
       EachPlayerAction(
         AnyPlayer,
         SacrificeEachPermanent(And([
+          Other(TheChosenPermanentForPlayer(EachablePlayer)),
           IsCardtype(Creature),
           DoesntShareACreatureTypeWithPermanent(TheChosenPermanentForPlayer(EachablePlayer)),
         ])),

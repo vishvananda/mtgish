@@ -128,6 +128,21 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#95](https://github.com/i5jb/mtgish/issues/95): Deadly Complication unsuspects a trigger's permanent, not its target.
 - [#96](https://github.com/i5jb/mtgish/issues/96): Coiling Rebirth reads a target permanent, not the card it returned.
 - [#97](https://github.com/i5jb/mtgish/issues/97): Close Encounter deals damage equal to the target's power, not the chosen creature's or card's.
+- [#98](https://github.com/i5jb/mtgish/issues/98): Luxior, Giada's Gift equips only creature planeswalkers.
+- [#99](https://github.com/i5jb/mtgish/issues/99): Anya, Merciless Angel counts you as well as opponents.
+- [#100](https://github.com/i5jb/mtgish/issues/100): Back from the Brink exiles from any graveyard.
+- [#101](https://github.com/i5jb/mtgish/issues/101): Dinosaur Headdress's choice isn't limited to creature cards.
+- [#102](https://github.com/i5jb/mtgish/issues/102): Goblin Game makes each player hide at least two items.
+- [#103](https://github.com/i5jb/mtgish/issues/103): Judgment of Alexander deals damage to the recipient, not the creature.
+- [#104](https://github.com/i5jb/mtgish/issues/104): Kaya, Spirits' Justice's -2 can exile any creature.
+- [#105](https://github.com/i5jb/mtgish/issues/105): Krenko's Buzzcrusher forces the search and finds any land.
+- [#106](https://github.com/i5jb/mtgish/issues/106): Laquatus's Champion and Soul Scourge gain the life lost, not the printed amount.
+- [#107](https://github.com/i5jb/mtgish/issues/107): Nihiloor's control outlasts your control of it.
+- [#108](https://github.com/i5jb/mtgish/issues/108): Rally the Horde's repeat condition is inverted.
+- [#109](https://github.com/i5jb/mtgish/issues/109): Spikeshell Harrier reads and reduces the wrong player's speed.
+- [#110](https://github.com/i5jb/mtgish/issues/110): Springheart Nantuko makes no Insect unless it's attached.
+- [#111](https://github.com/i5jb/mtgish/issues/111): The Madcap Jester triggers on opponents' spells and abilities.
+- [#112](https://github.com/i5jb/mtgish/issues/112): Winnowing can sacrifice a chosen creature with no type.
 
 [#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
 

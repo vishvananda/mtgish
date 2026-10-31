@@ -49,6 +49,15 @@ fn a_made_redirect_cannot_read_the_target_of_the_ability_that_made_it() {
     );
 }
 #[test]
+fn bestow_renames_the_card_and_not_the_token_it_makes() {
+    let rust = cantrip::module(&card("Springheart Nantuko")).unwrap();
+    assert!(
+        rust.contains("const FACE: CardDef = CardDef { name: \"Springheart Nantuko\""),
+        "{rust}"
+    );
+    assert_eq!(rust.matches("const FACE: CardDef").count(), 1, "{rust}");
+}
+#[test]
 fn backend_capabilities_do_not_change_ast_coverage_or_publish_partial_code() {
     let mut kessig = card("Kessig Wolf Run");
     let Ability::Activated { limits, .. } = &mut kessig.abilities[1] else {

@@ -12219,8 +12219,249 @@
       "IsToken"
     ]
   },
-  {"name": "Anya, Merciless Angel", "issues": [94], "contains": ["HalfRoundedUp(StartingLifeTotalOfPlayer(NumPlayers_ThatPlayer))", "HalfRoundedUp(StartingLifeTotalOfPlayer(Condition_ThatPlayer))"], "excludes": ["HalfRoundedUp(LifeTotalOfPlayer("]},
-  {"name": "Deadly Complication", "issues": [95], "contains": ["UnsuspectPermanent(Ref_TargetPermanent)"], "excludes": ["UnsuspectPermanent(Trigger_ThatPermanent)"]},
-  {"name": "Coiling Rebirth", "issues": [96], "contains": ["PermanentPassesFilter(ThePermanentPutOnTheBattlefieldThisWay, IsNonSupertype(Legendary))", "TokenCopyOfPermanent(ThePermanentPutOnTheBattlefieldThisWay,"], "excludes": ["PermanentPassesFilter(Ref_TargetPermanent", "TokenCopyOfPermanent(Ref_TargetPermanent"]},
-  {"name": "Close Encounter", "issues": [97], "contains": ["PowerOfPermanent(ThePermanentChosenThisWay)", "PowerOfExiledCard(TheExiledCardChosenThisWay)"], "excludes": ["PowerOfPermanent(Ref_TargetPermanent)", "PowerOfExiledCard(Ref_TargetExiledCard)"]}
+  {
+    "name": "Anya, Merciless Angel",
+    "issues": [
+      94
+    ],
+    "contains": [
+      "HalfRoundedUp(StartingLifeTotalOfPlayer(NumPlayers_ThatPlayer))",
+      "HalfRoundedUp(StartingLifeTotalOfPlayer(Condition_ThatPlayer))"
+    ],
+    "excludes": [
+      "HalfRoundedUp(LifeTotalOfPlayer("
+    ]
+  },
+  {
+    "name": "Deadly Complication",
+    "issues": [
+      95
+    ],
+    "contains": [
+      "UnsuspectPermanent(Ref_TargetPermanent)"
+    ],
+    "excludes": [
+      "UnsuspectPermanent(Trigger_ThatPermanent)"
+    ]
+  },
+  {
+    "name": "Coiling Rebirth",
+    "issues": [
+      96
+    ],
+    "contains": [
+      "PermanentPassesFilter(ThePermanentPutOnTheBattlefieldThisWay, IsNonSupertype(Legendary))",
+      "TokenCopyOfPermanent(ThePermanentPutOnTheBattlefieldThisWay,"
+    ],
+    "excludes": [
+      "PermanentPassesFilter(Ref_TargetPermanent",
+      "TokenCopyOfPermanent(Ref_TargetPermanent"
+    ]
+  },
+  {
+    "name": "Close Encounter",
+    "issues": [
+      97
+    ],
+    "contains": [
+      "PowerOfPermanent(ThePermanentChosenThisWay)",
+      "PowerOfExiledCard(TheExiledCardChosenThisWay)"
+    ],
+    "excludes": [
+      "PowerOfPermanent(Ref_TargetPermanent)",
+      "PowerOfExiledCard(Ref_TargetExiledCard)"
+    ]
+  },
+  {
+    "name": "Luxior, Giada's Gift",
+    "issues": [
+      98
+    ],
+    "contains": [
+      "Equip(IsCardtype(Planeswalker), PayMana([ManaCostGeneric(1)]))"
+    ],
+    "excludes": [
+      "Equip(And([IsCardtype(Creature), IsCardtype(Planeswalker)])"
+    ]
+  },
+  {
+    "name": "Anya, Merciless Angel",
+    "issues": [
+      99
+    ],
+    "contains": [
+      "NumPlayers(And([Opponent, LifeTotalIs("
+    ],
+    "excludes": [
+      "NumPlayers(LifeTotalIs("
+    ]
+  },
+  {
+    "name": "Back from the Brink",
+    "issues": [
+      100
+    ],
+    "contains": [
+      "ExileACardInGraveyardsAndPayItsManaCost(And([IsCardtype(Creature), InAPlayersGraveyard(SinglePlayer(You))]))"
+    ],
+    "excludes": [
+      "ExileACardInGraveyardsAndPayItsManaCost(IsCardtype(Creature))"
+    ]
+  },
+  {
+    "name": "Paleontologist's Pick-Axe // Dinosaur Headdress",
+    "issues": [
+      101
+    ],
+    "contains": [
+      "ChooseAnExiledCardToCopy(And([IsCardtype(Creature), UsedToCraftPermanent(ThisPermanent)]))"
+    ],
+    "excludes": [
+      "ChooseAnExiledCardToCopy(UsedToCraftPermanent(ThisPermanent))"
+    ]
+  },
+  {
+    "name": "Goblin Game",
+    "issues": [
+      102
+    ],
+    "contains": [
+      "SecretlyChooseANumberGreaterThanNumber(0)"
+    ],
+    "excludes": [
+      "SecretlyChooseANumberGreaterThanNumber(1)"
+    ]
+  },
+  {
+    "name": "Judgment of Alexander",
+    "issues": [
+      103
+    ],
+    "contains": [
+      "WouldDealDamage_DamageSourceAsPermanent"
+    ],
+    "excludes": [
+      "WouldDealDamage_DamageRecipientPermanent"
+    ]
+  },
+  {
+    "name": "Kaya, Spirits' Justice",
+    "issues": [
+      104
+    ],
+    "contains": [
+      "TargetPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]))"
+    ],
+    "excludes": [
+      "Targeted([TargetPermanent(IsCardtype(Creature)), UptoOne"
+    ]
+  },
+  {
+    "name": "Krenko's Buzzcrusher",
+    "issues": [
+      105
+    ],
+    "contains": [
+      "EachPlayerMayAction(ControlledAPermanentDestroyedThisWay, SearchLibrary([FindACardOfType(And([IsSupertype(Basic), IsCardtype(Land)]))"
+    ],
+    "excludes": [
+      "EachPlayerAction(ControlledAPermanentDestroyedThisWay"
+    ]
+  },
+  {
+    "name": "Laquatus's Champion",
+    "issues": [
+      106
+    ],
+    "contains": [
+      "PlayerAction(RememberedPlayer, GainLife(Integer(6)))"
+    ],
+    "excludes": [
+      "GainLife(LifeLostThisWay)"
+    ]
+  },
+  {
+    "name": "Soul Scourge",
+    "issues": [
+      106
+    ],
+    "contains": [
+      "PlayerAction(RememberedPlayer, GainLife(Integer(3)))"
+    ],
+    "excludes": [
+      "GainLife(LifeLostThisWay)"
+    ]
+  },
+  {
+    "name": "Nihiloor",
+    "issues": [
+      107
+    ],
+    "contains": [
+      "UntilPermanentChangesControl(You, ThisPermanent)"
+    ],
+    "excludes": [
+      "UntilPermanentLeavesBattlefield(ThisPermanent)"
+    ]
+  },
+  {
+    "name": "Rally the Horde",
+    "issues": [
+      108
+    ],
+    "contains": [
+      "Unless(TheLastCardExiledThisWayWasACard(IsCardtype(Land)), [RepeatThisProcess])"
+    ],
+    "excludes": [
+      "If(TheLastCardExiledThisWayWasACard"
+    ]
+  },
+  {
+    "name": "Spikeshell Harrier",
+    "issues": [
+      109
+    ],
+    "contains": [
+      "ReducePlayersSpeed(ControllerOfPermanent(Ref_TargetPermanent), Integer(1))"
+    ],
+    "excludes": [
+      "Trigger_ThatPermanent"
+    ]
+  },
+  {
+    "name": "Springheart Nantuko",
+    "issues": [
+      110
+    ],
+    "contains": [
+      "IfElse(CostWasPaid, [CreateTokens([TokenCopyOfPermanent(HostPermanent, NoTokenCopyEffects)], [])], [CreateTokens([TokenWithPT(PT(1, 1)"
+    ],
+    "excludes": [
+      "ATokenWasCreatedThisWay"
+    ]
+  },
+  {
+    "name": "The Madcap Jester",
+    "issues": [
+      111
+    ],
+    "contains": [
+      "FromAPlayersLibrary(ControlledByAPlayer(SinglePlayer(You)), Opponent)"
+    ],
+    "excludes": [
+      "FromAPlayersLibrary(AnySpellOrAbility, Opponent)"
+    ]
+  },
+  {
+    "name": "Winnowing",
+    "issues": [
+      112
+    ],
+    "contains": [
+      "SacrificeEachPermanent(And([Other(TheChosenPermanentForPlayer(EachablePlayer)), IsCardtype(Creature)"
+    ],
+    "excludes": [
+      "SacrificeEachPermanent(And([IsCardtype(Creature), DoesntShare"
+    ]
+  }
 ]
