@@ -236,6 +236,11 @@ struct Compiler {
     selections: BTreeMap<u32, String>,
     creations: BTreeMap<u32, String>,
     moved: BTreeMap<u32, String>,
+    /// The same transitions as `moved`, by the identities they left behind.
+    before: BTreeMap<u32, String>,
+    /// The block to leave if the payment about to be compiled is declined: a
+    /// "you may" that is its first payment asks one question, not two.
+    asking: Option<usize>,
     performed: BTreeMap<u32, String>,
     values: BTreeMap<u32, String>,
     flips: BTreeMap<u32, String>,
@@ -419,6 +424,8 @@ impl Compiler {
             selections: BTreeMap::new(),
             creations: BTreeMap::new(),
             moved: BTreeMap::new(),
+            before: BTreeMap::new(),
+            asking: None,
             performed: BTreeMap::new(),
             values: BTreeMap::new(),
             flips: BTreeMap::new(),
@@ -470,6 +477,16 @@ impl Compiler {
             Some(local) => Ok(format!("{local}.clone()")),
             None if self.failed.contains(&result.0) => Err(gap(FOLLOWS_GAP)),
             None => Err(gap("transition this instruction does not report")),
+        }
+    }
+    /// What a transition moved, by the new objects or the ones they were.
+    fn transition(&self, result: &ResultId, phase: &ObjectPhase) -> Result<String> {
+        match (phase, self.before.get(&result.0)) {
+            (ObjectPhase::Before, Some(list)) => Ok(list.clone()),
+            (ObjectPhase::Before, None) if self.moved.contains_key(&result.0) => {
+                Err(gap("object as it was before an instruction moved it"))
+            }
+            _ => self.moved(result),
         }
     }
     fn target_domain(domain: &ObjectDomain) -> Result<String> {

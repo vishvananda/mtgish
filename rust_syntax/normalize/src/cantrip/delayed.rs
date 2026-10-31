@@ -1,6 +1,7 @@
-//! Delayed triggered abilities (CR 603.7). The body runs on a later stack item,
-//! so what it names of the instruction that made it has to travel with it: the
-//! engine carries one list of objects, or one subject.
+//! Delayed and reflexive triggered abilities (CR 603.7, 603.12). The body runs on
+//! a later stack item, so what it names of the instruction that made it has to
+//! travel with it: the engine carries one list of objects, or one subject, and
+//! for a reflexive ability only the subject.
 use super::*;
 
 /// What a delayed ability's body takes along from the instruction making it.
@@ -11,6 +12,9 @@ pub(super) struct Outer {
     objects: RefCell<Vec<String>>,
     /// `Option<PlayerId>` code for the player carried.
     player: RefCell<Option<String>>,
+    /// `Option<ObjectId>` code of the object carried as a subject, for an
+    /// ability that cannot carry lists.
+    subject: Option<RefCell<Option<String>>>,
 }
 
 /// The lists a delayed ability carries are one list to the engine, so each ends
@@ -56,6 +60,15 @@ impl Compiler {
         if self.reads_itself(object) {
             return Ok(None);
         }
+        if let Some(subject) = &outer.subject {
+            let code = outer.compiler.object(object)?;
+            let mut carried = subject.borrow_mut();
+            if carried.as_ref().is_some_and(|c| *c != code) {
+                return Err(gap("reflexive ability about two objects"));
+            }
+            *carried = Some(code);
+            return Ok(Some("item.subject.object()".into()));
+        }
         let code = format!("{}.into_iter().collect::<Vec<ObjectId>>()", outer.compiler.object(object)?);
         Ok(Some(format!("{}.first().copied()", self.carried_list(outer, code))))
     }
@@ -65,7 +78,9 @@ impl Compiler {
             return Ok(None);
         };
         let local = match objects {
-            ObjectSet::Selected(result) => self.selections.contains_key(&result.0),
+            ObjectSet::Selected(result) | ObjectSet::Observed(result) => {
+                self.selections.contains_key(&result.0)
+            }
             ObjectSet::Created(result) => self.creations.contains_key(&result.0),
             ObjectSet::Transition { result, .. } => self.moved.contains_key(&result.0),
             ObjectSet::Targets(_) => false,
@@ -74,6 +89,15 @@ impl Compiler {
         };
         if local {
             return Ok(None);
+        }
+        if outer.subject.is_some() {
+            return match objects {
+                ObjectSet::One(object) => Ok(Some(format!(
+                    "{}.into_iter().collect::<Vec<ObjectId>>()",
+                    self.outside_object(object)?.expect("carried")
+                ))),
+                _ => Err(gap("reflexive ability about a list of objects")),
+            };
         }
         let code = outer.compiler.objects(objects)?;
         Ok(Some(self.carried_list(outer, code)))
@@ -138,6 +162,100 @@ impl Compiler {
         };
         Ok(format!("DelayedWhen::Step {{ step: Step::{step}, on_turn_of: {turn} }}"))
     }
+    /// Compile a body that closes over the current instruction into `label`,
+    /// with its targets. What it carried is on the `Outer` this returns.
+    fn closure(
+        &mut self,
+        label: &str,
+        subject_only: bool,
+        announcement: Option<&Announcement>,
+        intervening_if: &Option<Condition>,
+        body: &Program,
+    ) -> Result<(Rc<Outer>, Option<String>)> {
+        let outer = Rc::new(Outer {
+            compiler: self.clone(),
+            objects: RefCell::new(Vec::new()),
+            player: RefCell::new(None),
+            subject: subject_only.then(|| RefCell::new(None)),
+        });
+        let results = self.results();
+        let scope = (
+            self.event_at,
+            self.frame,
+            self.grouped,
+            std::mem::take(&mut self.slots),
+            std::mem::take(&mut self.bound_objects),
+            std::mem::take(&mut self.bound_players),
+        );
+        (self.event_at, self.frame, self.grouped) = (EventAt::Nowhere, Frame::default(), false);
+        let targets = announcement
+            .map(|a| self.targets_for(a, label, Frame::default()))
+            .transpose();
+        self.outer = Some(outer.clone());
+        let compiled = match intervening_if {
+            Some(condition) => self.guarded_effect(condition, body, label),
+            None => self.effect(body, label),
+        };
+        self.outer = None;
+        (
+            self.event_at,
+            self.frame,
+            self.grouped,
+            self.slots,
+            self.bound_objects,
+            self.bound_players,
+        ) = scope;
+        self.restore_results(results);
+        compiled?;
+        Ok((outer, targets?))
+    }
+    /// `Operation::ReflexiveTrigger`.
+    pub(super) fn create_reflexive(
+        &mut self,
+        performed: &ResultId,
+        condition: &Option<Condition>,
+        announcement: &Announcement,
+        body: &Program,
+        out: &mut String,
+    ) -> Result<()> {
+        if !self.stack_item || self.pending != Pending::Nothing || self.outer.is_some() {
+            return Err(gap("reflexive trigger outside a resolving ability"));
+        }
+        let happened = if let Some(local) = self.performed.get(&performed.0) {
+            local.clone()
+        } else if self.moved.contains_key(&performed.0) {
+            format!("!{}.is_empty()", self.moved(performed)?)
+        } else if self.selections.contains_key(&performed.0) {
+            format!("!{}.is_empty()", self.selected(performed)?)
+        } else if self.creations.contains_key(&performed.0) {
+            format!("!{}.is_empty()", self.created(performed)?)
+        } else {
+            return Err(gap("reflexive trigger on what an instruction does not report"));
+        };
+        let condition = condition
+            .as_ref()
+            .map(|c| Ok::<_, Diagnostic>(self.fetch(self.condition(c)?)))
+            .transpose()?
+            .unwrap_or_else(|| "true".into());
+        let label = format!("reflexive_{}", self.fresh());
+        let (outer, targets) = self.closure(&label, true, Some(announcement), &None, body)?;
+        let mut def = format!("delayed_trigger({label}, {})", quoted(&ability_text(body)));
+        if let Some(targets) = targets {
+            write!(def, ".targets({targets})").unwrap();
+        }
+        self.delayed.push(def);
+        let index = self.delayed.len() - 1;
+        let subject = outer.subject.as_ref().expect("reflexive").borrow();
+        let player = outer.player.borrow();
+        let subject = match (subject.as_ref(), player.as_ref()) {
+            (None, None) => "Target::None".to_string(),
+            (Some(object), None) => format!("{}.map_or(Target::None, Target::Object)", self.fetch(object)),
+            (None, Some(player)) => format!("{}.map_or(Target::None, Target::Player)", self.fetch(player)),
+            _ => return Err(gap("reflexive ability about an object and a player")),
+        };
+        writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger(item.object, item.controller, AbilityRef::delayed(item.ability.card, {index}), {subject}); }}").unwrap();
+        Ok(())
+    }
     /// `Operation::CreateDelayedTrigger`.
     pub(super) fn create_delayed(
         &mut self,
@@ -153,37 +271,7 @@ impl Compiler {
         }
         let when = self.delayed_when(event, start, expires)?;
         let label = format!("delayed_{}", self.fresh());
-        let outer = Rc::new(Outer {
-            compiler: self.clone(),
-            objects: RefCell::new(Vec::new()),
-            player: RefCell::new(None),
-        });
-        let results = self.results();
-        let scope = (
-            self.event_at,
-            self.frame,
-            self.grouped,
-            std::mem::take(&mut self.slots),
-            std::mem::take(&mut self.bound_objects),
-            std::mem::take(&mut self.bound_players),
-        );
-        (self.event_at, self.frame, self.grouped) = (EventAt::Nowhere, Frame::default(), false);
-        self.outer = Some(outer.clone());
-        let compiled = match intervening_if {
-            Some(condition) => self.guarded_effect(condition, body, &label),
-            None => self.effect(body, &label),
-        };
-        self.outer = None;
-        (
-            self.event_at,
-            self.frame,
-            self.grouped,
-            self.slots,
-            self.bound_objects,
-            self.bound_players,
-        ) = scope;
-        self.restore_results(results);
-        compiled?;
+        let (outer, _) = self.closure(&label, false, None, intervening_if, body)?;
         self.delayed.push(format!(
             "delayed_trigger({label}, {})",
             quoted(&ability_text(body))

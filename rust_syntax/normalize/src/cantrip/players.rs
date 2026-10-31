@@ -9,6 +9,7 @@ const PRELUDE: &str = "let asker = &Asker::new(source, q.controller(source));";
 fn cast_card() -> Candidate {
     Candidate {
         controller: "player".into(),
+        announced: Some(String::new()),
         ..Candidate::of("spell")
     }
 }
@@ -94,7 +95,13 @@ impl Compiler {
             }
             PlayerRule::SpellCost { spells, modifier } => {
                 let delta = self.cost_delta(modifier)?;
-                let test = self.filter(spells, &cast_card())?;
+                let test = self.filter(
+                    spells,
+                    &Candidate {
+                        announced: Some("targets".into()),
+                        ..cast_card()
+                    },
+                )?;
                 let (guard, member) = (self.guard()?, self.player_member(players)?);
                 self.table_entry(parts, "cost_changes", &function, format!(
                     "fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ {PRELUDE} let Costed::Spell(spell) = costed else {{ return CostDelta::NONE; }}; if {guard}{member} && {test} {{ {delta} }} else {{ CostDelta::NONE }} }}"

@@ -7,9 +7,29 @@ use super::*;
 /// choice nothing consumes in sight stays a gap rather than asking something odd.
 fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'static str> {
     let chosen = |objects: &ObjectSet| matches!(objects, ObjectSet::Selected(r) if r.0 == result.0);
+    let picked = |object: &ObjectRef| matches!(object, ObjectRef::Result { result: r, .. } if r.0 == result.0);
     rest.iter().find_map(|instruction| {
-        let Instruction::Effect { operation, .. } = instruction else {
-            return None;
+        let operation = match instruction {
+            Instruction::Effect { operation, .. } => operation,
+            Instruction::Group(body)
+            | Instruction::Optional { body, .. }
+            | Instruction::Repeatable(body)
+            | Instruction::Times { body, .. }
+            | Instruction::ForEachPlayer { body, .. }
+            | Instruction::ForEachObject { body, .. } => {
+                return purpose(result, &body.instructions)
+            }
+            Instruction::If {
+                then, otherwise, ..
+            } => {
+                return purpose(result, &then.instructions)
+                    .or_else(|| purpose(result, &otherwise.instructions))
+            }
+            Instruction::ChooseOne { options, .. } => {
+                return options
+                    .iter()
+                    .find_map(|option| purpose(result, &option.instructions))
+            }
         };
         Some(match operation {
             Operation::Tap { objects, tapped } if chosen(objects) => {
@@ -23,7 +43,15 @@ fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'static str> {
             Operation::DiscardObjects { objects } if chosen(objects) => "Discard",
             Operation::Sacrifice { objects, .. } if chosen(objects) => "Sacrifice",
             Operation::Reveal { objects } if chosen(objects) => "Reveal",
-            Operation::Attach { attachments, .. } if chosen(attachments) => "Attach",
+            Operation::Attach { attachments, host }
+                if chosen(attachments) || picked(host) =>
+            {
+                "Attach"
+            }
+            Operation::ReorderLibrary { objects, end, .. } if chosen(objects) => match end {
+                SequenceEnd::Top => "PutOnTop",
+                SequenceEnd::Bottom => "PutOnBottom",
+            },
             Operation::Move {
                 objects,
                 destination,
@@ -44,6 +72,35 @@ fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'static str> {
             _ => return None,
         })
     })
+}
+
+/// Whether `decider`'s "you may" is that they pay something the engine can ask
+/// about as one payment.
+fn asks_by_paying(decider: &PlayerRef, body: &Program) -> bool {
+    match body.instructions.first() {
+        Some(Instruction::Group(group)) => asks_by_paying(decider, group),
+        Some(Instruction::Effect {
+            operation:
+                Operation::PayCost {
+                    player,
+                    cost,
+                    optional: false,
+                },
+            ..
+        }) => {
+            format!("{player:?}") == format!("{decider:?}")
+                && cost
+                    .parts
+                    .iter()
+                    .all(|part| matches!(part, CostPart::Mana(_) | CostPart::Life(_)))
+        }
+        _ => false,
+    }
+}
+
+/// `list` less what stayed: a transition is of what moved, not what was asked to.
+fn gone(list: &str) -> String {
+    format!("{list}.iter().copied().filter(|&o| q.state().obj(o).became.is_some()).collect::<Vec<ObjectId>>()")
 }
 
 /// What a result of the search that found it is about to become, for the search
@@ -92,6 +149,7 @@ pub(super) struct Results {
     selections: BTreeMap<u32, String>,
     creations: BTreeMap<u32, String>,
     moved: BTreeMap<u32, String>,
+    before: BTreeMap<u32, String>,
     performed: BTreeMap<u32, String>,
     values: BTreeMap<u32, String>,
     flips: BTreeMap<u32, String>,
@@ -211,6 +269,7 @@ impl Compiler {
             selections: self.selections.clone(),
             creations: self.creations.clone(),
             moved: self.moved.clone(),
+            before: self.before.clone(),
             performed: self.performed.clone(),
             values: self.values.clone(),
             flips: self.flips.clone(),
@@ -221,6 +280,7 @@ impl Compiler {
             selections,
             creations,
             moved,
+            before,
             performed,
             values,
             flips,
@@ -228,6 +288,7 @@ impl Compiler {
         self.selections = selections;
         self.creations = creations;
         self.moved = moved;
+        self.before = before;
         self.performed = performed;
         self.values = values;
         self.flips = flips;
@@ -258,7 +319,12 @@ impl Compiler {
                     },
                 result,
             } => {
-                if let Some(constraint) = constraints.first() {
+                // The move refuses what can't go there (608.2d); nothing reads
+                // that sooner, so such a card can be picked and stays put.
+                let constraint = constraints
+                    .iter()
+                    .find(|c| !matches!(c, SelectionConstraint::CanMoveTo { .. }));
+                if let Some(constraint) = constraint {
                     return Err(gap(format!("selection constraint {}", form(constraint))));
                 }
                 let purpose = purpose(result, &body.instructions[i + 1..])
@@ -294,6 +360,29 @@ impl Compiler {
                 self.selections.insert(result.0, format!("found_{id}"));
                 Ok(())
             }
+            // The cards left out go somewhere chosen at once, so a whole shuffle
+            // then that is the same library.
+            Instruction::Effect {
+                operation:
+                    Operation::Shuffle {
+                        players,
+                        excluding: Some(excluding),
+                    },
+                ..
+            } => {
+                let next = body.instructions[i + 1..].iter().find_map(|next| match next {
+                    Instruction::Effect {
+                        operation: Operation::ReorderLibrary { objects, .. },
+                        ..
+                    } => Some(objects),
+                    _ => None,
+                });
+                if format!("{next:?}") != format!("{:?}", Some(excluding)) {
+                    return Err(gap("shuffle around cards that stay where they are"));
+                }
+                writeln!(out, "for player in {} {{ g.shuffle(player); }}", self.fetch(self.players(players)?)).unwrap();
+                Ok(())
+            }
             Instruction::Effect { operation, result } => self.operation(operation, result, out),
             // One instruction of the card's text: no sentence boundary inside,
             // and its results stay in reach of what follows it.
@@ -313,6 +402,14 @@ impl Compiler {
                     self.block(otherwise, out, true)?;
                     writeln!(out, "}}").unwrap();
                 }
+                Ok(())
+            }
+            Instruction::Optional { decider, body } if asks_by_paying(decider, body) => {
+                let id = self.fresh();
+                writeln!(out, "'optional_{id}: {{").unwrap();
+                self.asking = Some(id);
+                self.block(body, out, true)?;
+                writeln!(out, "}}").unwrap();
                 Ok(())
             }
             Instruction::Optional { decider, body } => {
@@ -450,6 +547,7 @@ impl Compiler {
                 let number = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
                 writeln!(out,"let amount_{id} = {}; let mills_{id}: Vec<(PlayerId, u32)> = {}.into_iter().map(|p| (p, amount_{id})).collect(); let milled_{id} = g.mill_together(&mills_{id});",self.fetch(number),self.fetch(self.players(players)?)).unwrap();
                 self.moved.insert(result.0, format!("milled_{id}"));
+                self.left_behind(result, format!("milled_{id}.clone()"));
             }
             Operation::Discard {
                 players,
@@ -465,6 +563,7 @@ impl Compiler {
                 } else {
                     writeln!(out,"let amount_{id} = {}; let players_{id} = {}; let mut cards_{id} = Vec::new(); for player in players_{id} {{ cards_{id}.extend(cantrip_mechanics::choose_from_hand(g, player, asker.source, amount_{id})?); }} let discarded_{id} = g.discard_together(&cards_{id});",self.fetch(number),self.fetch(self.players(players)?)).unwrap();
                     self.moved.insert(result.0, format!("discarded_{id}"));
+                    self.left_behind(result, format!("discarded_{id}.clone()"));
                 }
             }
             Operation::DiscardObjects { objects } => {
@@ -475,6 +574,7 @@ impl Compiler {
                 )
                 .unwrap();
                 self.moved.insert(result.0, format!("discarded_{id}"));
+                self.left_behind(result, format!("discarded_{id}.clone()"));
             }
             Operation::Scry { players, amount } | Operation::Surveil { players, amount } => {
                 let PlayerSet::One(player) = players else {
@@ -508,6 +608,7 @@ impl Compiler {
                 )
                 .unwrap();
                 self.moved.insert(result.0, format!("destroyed_{id}"));
+                self.left_behind(result, gone(&format!("objects_{id}")));
             }
             Operation::Move {
                 objects,
@@ -578,6 +679,7 @@ impl Compiler {
                 writeln!(out, "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for object in objects_{id} {{ g.add_effect(asker.source, object, EffectKind::RegenerationShield, Duration::EndOfTurn); }} }});", self.acted_on(objects)?).unwrap();
             }
             Operation::Reveal { objects } => {
+                self.selections.insert(result.0, format!("objects_{id}"));
                 writeln!(out, "let objects_{id} = {}; let mut owners_{id}: Vec<PlayerId> = objects_{id}.iter().map(|o| g.state().obj(*o).owner).collect(); owners_{id}.dedup(); for owner in owners_{id} {{ let cards: Vec<ObjectId> = objects_{id}.iter().copied().filter(|o| g.state().obj(*o).owner == owner).collect(); g.reveal(owner, &cards); }}", self.fetch(self.objects(objects)?)).unwrap();
             }
             Operation::LookAt { player, objects } => {
@@ -590,6 +692,29 @@ impl Compiler {
                 .unwrap();
                 self.selections
                     .insert(result.0, format!("objects_{id}"));
+            }
+            Operation::ReorderLibrary {
+                player,
+                library,
+                objects,
+                end,
+                order,
+            } => {
+                let library = self.fetch(self.certain_player(library)?);
+                let chooser = self.fetch(self.certain_player(player)?);
+                let cards = self.fetch(self.objects(objects)?);
+                // Only what is still in that library moves (701.20e).
+                writeln!(out, "let library_{id} = {library}; let cards_{id}: Vec<ObjectId> = {cards}.into_iter().filter(|&o| g.state().obj(o).became.is_none() && g.state().obj(o).zone == Zone::library(library_{id})).collect();").unwrap();
+                let (kind, place) = match end {
+                    SequenceEnd::Top => ("LibraryTop", format!("g.arrange_library(library_{id}, &order_{id}, &[]);")),
+                    SequenceEnd::Bottom => ("LibraryBottom", format!("g.arrange_library(library_{id}, &[], &order_{id});")),
+                };
+                match (order, end) {
+                    (CardOrder::Chosen, _) => writeln!(out, "let chooser_{id} = {chooser}; let order_{id} = cantrip_mechanics::library::ask_library_order(g, chooser_{id}, asker.source, &cards_{id}, DestinationKind::{kind})?; {place}").unwrap(),
+                    (CardOrder::Preserve, _) => writeln!(out, "let order_{id} = cards_{id}; {place}").unwrap(),
+                    (CardOrder::Random, SequenceEnd::Bottom) => writeln!(out, "g.bottom_in_random_order(library_{id}, &cards_{id});").unwrap(),
+                    (CardOrder::Random, SequenceEnd::Top) => return Err(gap("cards on top in a random order")),
+                }
             }
             Operation::Shuffle {
                 players,
@@ -682,6 +807,69 @@ impl Compiler {
                 writeln!(out, "let payer_{id} = {}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, {cost}, &PAY_QUESTION)?;", self.fetch(self.certain_player(player)?)).unwrap();
                 self.performed.insert(result.0, format!("paid_{id}"));
             }
+            Operation::PayCost {
+                player,
+                cost,
+                optional: false,
+            } => {
+                if let Some(scope) = self.asking.take() {
+                    let cost = self.cost(cost, "paid")?;
+                    self.helpers.insert("pay_question");
+                    writeln!(out, "let payer_{id} = {}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, {cost}, &PAY_QUESTION)?; if !paid_{id} {{ break 'optional_{scope}; }}", self.fetch(self.certain_player(player)?)).unwrap();
+                    self.performed.insert(result.0, format!("paid_{id}"));
+                    return Ok(());
+                }
+                let [part] = cost.parts.as_slice() else {
+                    return Err(gap("resolution cost with several parts"));
+                };
+                let payer = PlayerSet::One(player.clone());
+                match part {
+                    CostPart::Sacrifice { objects, choose } => {
+                        self.sacrifice(id, &payer, objects, choose.as_ref(), result, out)?;
+                        writeln!(out, "let paid_{id} = !picks_{id}.is_empty();").unwrap();
+                    }
+                    CostPart::Discard {
+                        count,
+                        filter: ObjectFilter::Any,
+                        random: false,
+                    } => {
+                        self.operation(
+                            &Operation::Discard {
+                                players: payer,
+                                amount: count.clone(),
+                                random: false,
+                            },
+                            result,
+                            out,
+                        )?;
+                        writeln!(out, "let paid_{id} = !{}.is_empty();", self.moved(result)?).unwrap();
+                    }
+                    CostPart::Move {
+                        selections,
+                        destination,
+                        entry,
+                        face_down: false,
+                    } => {
+                        let [CostObjectSelection {
+                            objects,
+                            choose: None,
+                        }] = selections.as_slice()
+                        else {
+                            return Err(gap("resolution cost moving a choice of objects"));
+                        };
+                        self.move_objects(id, objects, destination, entry, result, out)?;
+                        writeln!(out, "let paid_{id} = !objects_{id}.is_empty();").unwrap();
+                    }
+                    other => return Err(gap(format!("resolution cost {}", form(other)))),
+                }
+                self.performed.insert(result.0, format!("paid_{id}"));
+            }
+            Operation::ReflexiveTrigger {
+                performed,
+                condition,
+                announcement,
+                body,
+            } => self.create_reflexive(performed, condition, announcement, body, out)?,
             Operation::Primitive { name, .. } => {
                 return Err(gap(format!("primitive operation {name}")))
             }
@@ -689,10 +877,14 @@ impl Compiler {
         }
         Ok(())
     }
+    fn left_behind(&mut self, result: &ResultId, list: String) {
+        self.before.insert(result.0, list);
+    }
     pub(super) fn reset_results(&mut self) {
         self.selections.clear();
         self.creations.clear();
         self.moved.clear();
+        self.before.clear();
         self.performed.clear();
         self.values.clear();
         self.flips.clear();
@@ -843,6 +1035,7 @@ impl Compiler {
         };
         writeln!(out, "let objects_{id} = {objects}; let moved_{id} = {call};").unwrap();
         self.moved.insert(result.0, format!("moved_{id}"));
+        self.left_behind(result, gone(&format!("objects_{id}")));
         Ok(())
     }
     fn sacrifice(
@@ -870,6 +1063,7 @@ impl Compiler {
         }
         writeln!(out, "let sacrificed_{id} = g.sacrifice_each(&picks_{id});").unwrap();
         self.moved.insert(result.0, format!("sacrificed_{id}"));
+        self.left_behind(result, gone(&format!("objects_{id}")));
         Ok(())
     }
     pub(super) fn duration(&self, duration: &crate::ir::Duration) -> Result<String> {

@@ -28,6 +28,9 @@ pub(super) struct Candidate {
     pub id: String,
     pub chars: String,
     pub controller: String,
+    /// Where the targets of a spell not on the stack yet are, if it has any
+    /// to speak of: `None` for one that is.
+    pub announced: Option<String>,
 }
 impl Candidate {
     pub fn of(id: &str) -> Self {
@@ -35,6 +38,7 @@ impl Candidate {
             id: id.into(),
             chars: format!("q.chars({id})"),
             controller: format!("q.controller({id})"),
+            announced: None,
         }
     }
     pub fn affected() -> Self {
@@ -42,6 +46,7 @@ impl Candidate {
             id: "affected".into(),
             chars: "(*so_far)".into(),
             controller: "q.controller(affected)".into(),
+            announced: None,
         }
     }
     /// An object about to enter, which is controlled by the player it enters
@@ -279,10 +284,8 @@ impl Compiler {
                     self.selected(result)?
                 } else if self.creations.contains_key(&result.0) {
                     self.created(result)?
-                } else if matches!(phase, ObjectPhase::After) {
-                    self.moved(result)?
                 } else {
-                    return Err(gap("object as it was before an instruction moved it"));
+                    self.transition(result, phase)?
                 };
                 format!("({list}).get({index} as usize).copied()")
             }
@@ -380,9 +383,9 @@ impl Compiler {
                 "q.state().battlefield().iter().copied().filter(|&id| {}).collect::<Vec<ObjectId>>()",
                 self.filter(filter, &Candidate::of("id"))?
             ),
-            ObjectSet::Selected(result) => self.selected(result)?,
+            ObjectSet::Selected(result) | ObjectSet::Observed(result) => self.selected(result)?,
             ObjectSet::Created(result) => self.created(result)?,
-            ObjectSet::Transition { result, .. } => self.moved(result)?,
+            ObjectSet::Transition { result, phase } => self.transition(result, phase)?,
             ObjectSet::Matching { objects, filter } => format!(
                 "({}).into_iter().filter(|&id| {}).collect::<Vec<ObjectId>>()",
                 self.objects(objects)?,
@@ -407,7 +410,7 @@ impl Compiler {
                 code
             }
             ObjectSet::InZone { objects, zone } => format!(
-                "({}).into_iter().filter(|&id| q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
+                "({}).into_iter().filter(|&id| q.state().obj(id).became.is_none() && q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
                 self.objects(objects)?,
                 zone_kind(zone)?
             ),
@@ -861,6 +864,25 @@ impl Compiler {
             other => return Err(gap(format!("numeric expression {}", form(other)))),
         })
     }
+    /// A boolean over `t: &Target`: whether a spell targeting it targets these.
+    fn targeted(&self, recipients: &Recipients) -> Result<String> {
+        Ok(match recipients {
+            Recipients::Objects(objects) => format!(
+                "t.object().is_some_and(|o| ({}).contains(&o))",
+                self.objects(objects)?
+            ),
+            Recipients::Players(players) => format!(
+                "matches!(t, Target::Player(p) if ({}).contains(p))",
+                self.players(players)?
+            ),
+            Recipients::Union(items) => items
+                .iter()
+                .map(|item| self.targeted(item))
+                .collect::<Result<Vec<_>>>()?
+                .join(" || "),
+            other => return Err(gap(format!("spell that targets {}", form(other)))),
+        })
+    }
     /// A boolean over `candidate`, the object `ObjectRef::Candidate` names.
     pub(super) fn filter(&self, f: &ObjectFilter, candidate: &Candidate) -> Result<String> {
         self.candidates.borrow_mut().push(candidate.clone());
@@ -891,6 +913,14 @@ impl Compiler {
             ObjectFilter::All(items) => combine(items, " && ", "true")?,
             ObjectFilter::Either(items) => combine(items, " || ", "false")?,
             ObjectFilter::Not(p) => format!("!({})", self.predicate(p, c)?),
+            ObjectFilter::TargetsAny(recipients) => {
+                let wanted = self.targeted(recipients)?;
+                match c.announced.as_deref() {
+                    None => format!("q.state().stack.iter().find(|i| i.kind == StackKind::Spell && i.object == {id}).is_some_and(|i| q.state().targets(i).iter().any(|t| {wanted}))"),
+                    Some("") => return Err(gap("targets of a spell as it is cast")),
+                    Some(list) => format!("{list}.iter().any(|t| {wanted})"),
+                }
+            }
             ObjectFilter::CardType(t) => format!("{chars}.is(CardType::{})", card_type(t)?),
             ObjectFilter::Supertype(t) => format!(
                 "{chars}.supertypes.{}",
