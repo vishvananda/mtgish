@@ -124,6 +124,19 @@ fn run() -> Result<()> {
             #[cfg(not(feature="cantrip"))]
             {let _=(input,output);return Err("Cantrip generation requires --features cantrip".into());}
         }
+        [command, input, output] if command == "cantrip-gaps" => {
+            #[cfg(feature="cantrip")]
+            {
+            let survey = mtgish_ast::cantrip::survey(Path::new(input))?;
+            corpus::write_json(Path::new(output), &survey)?;
+            eprintln!("{} / {} complete primitive-free records generate; {} more are other layouts", survey.capable, survey.complete_without_primitives, survey.other_layouts);
+            for step in survey.greedy.iter().take(60) {
+                eprintln!("{:>6} {:>6}  {}", step.unlocks, step.appears_on, step.feature);
+            }
+            }
+            #[cfg(not(feature="cantrip"))]
+            {let _=(input,output);return Err("Cantrip gaps require --features cantrip".into());}
+        }
         [command, input, output] if command == "pretty-source" => {
             let cards = corpus::read_cards(Path::new(input))?;
             let mut out = corpus::Artifact::create(Path::new(output))?;
@@ -133,7 +146,7 @@ fn run() -> Result<()> {
             }
             out.commit()?;
         }
-        _ => return Err("usage: ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast primitive-draft <check-report> <source-type> <oracle.json> <drafts.json>\n       ast primitive-audit <check-report> <oracle.json>\n       ast render-back <corpus.ronl> <oracle.json> <reviewed.json>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
+        _ => return Err("usage: ast baseline <corpus.ronl> <manifest.json>\n       ast check-source <corpus.ronl> <manifest.json>\n       ast check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-check <corpus.ronl> <report.json> [baseline.json]\n       ast pipeline-fixtures <corpus.ronl> <report.json> <subset.ronl>\n       ast pipeline-candidates <report.json> <source-enum> <candidates.json>\n       ast pipeline-record <corpus.ronl> <line> <intermediate.json>\n       ast pipeline-export <intermediate.json> <normalized.ronl>\n       ast check-cantrip <corpus.ronl> <report.json> [baseline.json] (requires --features cantrip)\n       ast export <corpus.ronl> <normalized.ronl>\n       ast export-unified <corpus.ronl> <unified.ronl>\n       ast primitive-draft <check-report> <source-type> <oracle.json> <drafts.json>\n       ast primitive-audit <check-report> <oracle.json>\n       ast render-back <corpus.ronl> <oracle.json> <reviewed.json>\n       ast cantrip <normalized.ronl> <output.rs>\n       ast cantrip-gaps <corpus.ronl> <survey.json> (requires --features cantrip)\n       ast pretty-source <corpus.ronl> <output.ron>".into()),
     }
     Ok(())
 }

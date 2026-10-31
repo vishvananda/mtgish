@@ -8,8 +8,13 @@ use std::{
     path::Path,
 };
 
+mod survey;
 pub use crate::report::BackendDiagnostic as Diagnostic;
+pub use survey::survey;
 type Result<T> = std::result::Result<T, Diagnostic>;
+/// A reference to the result of an instruction that already reported a gap.
+/// It says nothing new, so it is dropped rather than counted against the card.
+const FOLLOWS_GAP: &str = "depends on an instruction with a gap";
 fn gap(feature: impl Into<String>) -> Diagnostic {
     Diagnostic {
         path: String::new(),
@@ -47,6 +52,10 @@ fn generator_fingerprint() -> &'static str {
     HASH.get_or_init(|| {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
+            (
+                "cantrip/survey.rs",
+                include_bytes!("cantrip/survey.rs").as_slice(),
+            ),
             ("semantics.rs", include_bytes!("semantics.rs").as_slice()),
             ("validate.rs", include_bytes!("validate.rs").as_slice()),
             ("ir.rs", include_bytes!("ir.rs").as_slice()),
@@ -66,7 +75,7 @@ fn keyword(value: &Keyword) -> Result<String> {
     if crate::cantrip_vocab::KEYWORDS.contains(&n.as_str()) {
         Ok(format!("Keyword::{n}"))
     } else {
-        Err(gap(format!("keyword {n}")))
+        Err(gap(format!("keyword {}", form(value))))
     }
 }
 fn color(value: &ManaColor) -> Result<&'static str> {
@@ -173,6 +182,11 @@ struct Compiler<'a> {
     extras: Vec<String>,
     functions: String,
     next: usize,
+    /// Every gap so far. Compilation continues past one so a survey sees them
+    /// all, but `module` publishes nothing unless this ends up empty.
+    gaps: Vec<Diagnostic>,
+    /// Results of instructions that have a gap.
+    failed: std::collections::BTreeSet<u32>,
 }
 
 enum ManaPlan {
@@ -323,6 +337,35 @@ impl<'a> Compiler<'a> {
             extras: Vec::new(),
             functions: String::new(),
             next: 0,
+            gaps: Vec::new(),
+            failed: Default::default(),
+        }
+    }
+    /// Compile one part, recording a gap rather than stopping at it, and prefix
+    /// `path` to everything it reported.
+    fn attempt(&mut self, path: String, part: impl FnOnce(&mut Self) -> Result<()>) {
+        let mark = self.gaps.len();
+        if let Err(gap) = part(self) {
+            if gap.feature != FOLLOWS_GAP {
+                self.gaps.push(gap);
+            }
+        }
+        for gap in &mut self.gaps[mark..] {
+            *gap = gap.clone().at(&path);
+        }
+    }
+    fn selected(&self, result: &ResultId) -> Result<String> {
+        match self.selections.get(&result.0) {
+            Some(local) => Ok(format!("{local}.clone()")),
+            None if self.failed.contains(&result.0) => Err(gap(FOLLOWS_GAP)),
+            None => Err(gap("selection result outside generated scope")),
+        }
+    }
+    fn created(&self, result: &ResultId) -> Result<String> {
+        match self.creations.get(&result.0) {
+            Some(local) => Ok(format!("{local}.clone()")),
+            None if self.failed.contains(&result.0) => Err(gap(FOLLOWS_GAP)),
+            None => Err(gap("token result outside generated scope")),
         }
     }
     fn source(&self) -> &'static str {
@@ -359,14 +402,8 @@ impl<'a> Compiler<'a> {
                     .0;
                 Ok(format!("t_{i}.into_iter().collect::<Vec<_>>()"))
             }
-            ObjectSet::Selected(result) => self
-                .selections
-                .get(&result.0)
-                .map(|local| format!("{local}.clone()"))
-                .ok_or_else(|| gap("selection result outside generated scope")),
-            ObjectSet::Created(result) => self.creations.get(&result.0)
-                .map(|local| format!("{local}.clone()"))
-                .ok_or_else(|| gap("token result outside generated scope")),
+            ObjectSet::Selected(result) => self.selected(result),
+            ObjectSet::Created(result) => self.created(result),
             ObjectSet::Battlefield(filter) => Ok(format!(
                 "{{ let q: &dyn Query = g; let asker = &Asker::new({}, {}); q.state().battlefield().iter().copied().filter(|&id| {}).collect::<Vec<_>>() }}",
                 self.source(),self.controller(),
@@ -620,89 +657,93 @@ impl<'a> Compiler<'a> {
     }
     fn program(&mut self, body: &Program, out: &mut String, boundaries: bool) -> Result<()> {
         for (i, instruction) in body.instructions.iter().enumerate() {
-            match instruction {
-                Instruction::Effect {
-                    operation:
-                        Operation::ChooseObjects {
-                            player,
-                            objects,
-                            count,
-                            constraints,
-                        },
-                    result,
-                } => {
-                    if let Some(constraint) = constraints.first() {
-                        return Err(gap(format!("selection constraint {}", form(constraint)))
-                            .at(format!("instructions[{i}]")));
+            self.attempt(format!("instructions[{i}]"), |c| {
+                let compiled = c.instruction(body, i, instruction, out);
+                if compiled.is_err() {
+                    if let Instruction::Effect { result, .. } = instruction {
+                        c.failed.insert(result.0);
                     }
-                    // The consumer supplies prompt wording, not targeting or
-                    // rules semantics. Other consumers need their own wording.
-                    let purpose = match body.instructions.get(i + 1) {
-                        Some(Instruction::Effect {
-                            operation:
-                                Operation::Tap {
-                                    objects: ObjectSet::Selected(selected),
-                                    tapped,
-                                },
-                            ..
-                        }) if selected.0 == result.0 => {
-                            if *tapped {
-                                "Tap"
-                            } else {
-                                "Untap"
-                            }
-                        }
-                        _ => {
-                            return Err(gap("resolution choice prompt purpose")
-                                .at(format!("instructions[{i}]")));
-                        }
-                    };
-                    self.choose(player, objects, count, result, purpose, out)
-                        .map_err(|e| e.at(format!("instructions[{i}]")))?;
                 }
-                Instruction::Effect { operation, result } => self
-                    .operation(operation, result, out)
-                    .map_err(|e| e.at(format!("instructions[{i}]")))?,
-                Instruction::Group(group) => {
-                    // Today groups lower selection plus one mutation. A group
-                    // with multiple mutations needs an outer instruction scope,
-                    // including a policy for exporting result bindings.
-                    if group
-                        .instructions
-                        .iter()
-                        .filter(|instruction| {
-                            !matches!(
-                                instruction,
-                                Instruction::Effect {
-                                    operation: Operation::ChooseObjects { .. },
-                                    ..
-                                }
-                            )
-                        })
-                        .count()
-                        > 1
-                        || group
-                            .instructions
-                            .iter()
-                            .any(|instruction| !matches!(instruction, Instruction::Effect { .. }))
-                    {
-                        return Err(gap("grouped instruction with multiple mutations")
-                            .at(format!("instructions[{i}].group")));
-                    }
-                    self.program(group, out, false)
-                        .map_err(|e| e.at(format!("instructions[{i}].group")))?;
-                }
-                _ => {
-                    return Err(
-                        gap("conditional or optional instruction").at(format!("instructions[{i}]"))
-                    );
-                }
-            }
+                compiled
+            });
             if boundaries {
                 writeln!(out, "g.end_sentence();").unwrap();
             }
         }
         Ok(())
+    }
+    fn instruction(
+        &mut self,
+        body: &Program,
+        i: usize,
+        instruction: &Instruction,
+        out: &mut String,
+    ) -> Result<()> {
+        match instruction {
+            Instruction::Effect {
+                operation:
+                    Operation::ChooseObjects {
+                        player,
+                        objects,
+                        count,
+                        constraints,
+                    },
+                result,
+            } => {
+                if let Some(constraint) = constraints.first() {
+                    return Err(gap(format!("selection constraint {}", form(constraint))));
+                }
+                // The consumer supplies prompt wording, not targeting or
+                // rules semantics. Other consumers need their own wording.
+                let purpose = match body.instructions.get(i + 1) {
+                    Some(Instruction::Effect {
+                        operation:
+                            Operation::Tap {
+                                objects: ObjectSet::Selected(selected),
+                                tapped,
+                            },
+                        ..
+                    }) if selected.0 == result.0 => {
+                        if *tapped {
+                            "Tap"
+                        } else {
+                            "Untap"
+                        }
+                    }
+                    _ => return Err(gap("resolution choice prompt purpose")),
+                };
+                self.choose(player, objects, count, result, purpose, out)
+            }
+            Instruction::Effect { operation, result } => self.operation(operation, result, out),
+            Instruction::Group(group) => {
+                // Today groups lower selection plus one mutation. A group
+                // with multiple mutations needs an outer instruction scope,
+                // including a policy for exporting result bindings.
+                if group
+                    .instructions
+                    .iter()
+                    .filter(|instruction| {
+                        !matches!(
+                            instruction,
+                            Instruction::Effect {
+                                operation: Operation::ChooseObjects { .. },
+                                ..
+                            }
+                        )
+                    })
+                    .count()
+                    > 1
+                    || group
+                        .instructions
+                        .iter()
+                        .any(|instruction| !matches!(instruction, Instruction::Effect { .. }))
+                {
+                    return Err(gap("grouped instruction with multiple mutations").at("group"));
+                }
+                self.program(group, out, false)
+            }
+            other => Err(gap(format!("instruction {}", form(other)))),
+        }
     }
     fn choose(
         &mut self,
@@ -773,6 +814,8 @@ impl<'a> Compiler<'a> {
         let id = self.next;
         self.next += 1;
         let child = emit_module(&card, Some(&token.name))?;
+        self.gaps
+            .extend(child.gaps.iter().map(|g| g.clone().at("token")));
         writeln!(self.functions, "pub mod token_{id} {{\n{}\n}}", child.rust).unwrap();
         let path = format!("token_{id}::CARD");
         self.extras.push(path.clone());
@@ -1203,11 +1246,24 @@ fn ability_text(body: &Program) -> String {
 
 /// One complete card module. Never returns partially executable code.
 pub fn module(card: &Card) -> Result<String> {
-    emit_module(card, None).map(|module| module.rust)
+    let mut module = emit_module(card, None)?;
+    if module.gaps.is_empty() {
+        Ok(module.rust)
+    } else {
+        Err(module.gaps.swap_remove(0))
+    }
+}
+/// Everything the generator lacks for this card, not only the first gap.
+pub fn gaps(card: &Card) -> Vec<Diagnostic> {
+    match emit_module(card, None) {
+        Ok(module) => module.gaps,
+        Err(gap) => vec![gap],
+    }
 }
 struct EmittedModule {
     rust: String,
     extras: Vec<String>,
+    gaps: Vec<Diagnostic>,
 }
 fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedModule> {
     validate::card(card).map_err(|e| Diagnostic {
@@ -1220,7 +1276,7 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     let mut keywords = Vec::new();
     let mut spell = "None".to_string();
     for (i, a) in card.abilities.iter().enumerate() {
-        let compiled: Result<()> = (|| {
+        c.attempt(format!("abilities[{i}]"), |c| {
             match a {
                 Ability::Keyword(k) => keywords.push(keyword(k)?),
                 Ability::Casting(_) => return Err(gap("casting rules")),
@@ -1288,18 +1344,17 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
                         to: EventZone::Battlefield,
                     } = event
                     else {
-                        return Err(gap("trigger event matcher"));
+                        return Err(gap(format!("trigger event {}", form(event))));
                     };
                     let targets = c.announcement(announcement, &format!("triggered_{i}"))?;
                     let effect = c.effect(body, &format!("triggered_{i}"))?;
                     let text = format!("When this enters, {}", ability_text(body));
                     abilities.push(format!("triggered(when(EventMask::ZONE_CHANGE, cantrip_mechanics::triggers::this_enters), {effect}, {}).targets({targets})", quoted(&text)));
                 }
-                _ => return Err(gap("triggered, static, or conditional ability")),
+                other => return Err(gap(format!("ability {}", form(other)))),
             }
             Ok(())
-        })();
-        compiled.map_err(|e| e.at(format!("abilities[{i}]")))?;
+        });
     }
     let ch = &card.characteristics;
     let types = ch
@@ -1394,6 +1449,7 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     Ok(EmittedModule {
         rust,
         extras: c.extras,
+        gaps: c.gaps,
     })
 }
 
