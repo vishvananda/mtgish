@@ -1552,3 +1552,18 @@ fn offers_chosen_filters_and_first_upkeeps() {
         lowered("TriggerA(AtTheBeginningOfTheFirstUpkeepOfTheGame, ActionList([DrawACard]))");
     assert!(dispatch.contains("FirstEachGame"), "{dispatch}");
 }
+
+#[test]
+fn listed_values_negative_power_and_copied_stack_objects() {
+    let listed = lowered(
+        "TriggerA(WhenAPlayerCastsASpell(SinglePlayer(You), ManaValueIs(OneOf([4, 5, 6]))), ActionList([DrawACard]))",
+    );
+    assert!(listed.contains("AnyOf([Constant(4)"), "{listed}");
+    let negative = lowered("If(PermanentPassesFilter(ThisPermanent, PowerIs(Negative)), [Flying])");
+    assert!(negative.contains("Less"), "{negative}");
+    let copied = lowered(
+        "FromStack(TriggerA(WhenAPlayerCastsASpell(SinglePlayer(You), SingleSpell(ThisSpell)), ActionList([CopySpellAndMayChooseNewTargets(Trigger_ThatSpell)])))",
+    );
+    assert!(copied.contains("CopyOnStack {"), "{copied}");
+    assert!(copied.contains("targets: May"), "{copied}");
+}

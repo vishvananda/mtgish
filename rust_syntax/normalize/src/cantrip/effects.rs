@@ -740,6 +740,17 @@ impl Compiler {
                 count,
                 options,
             } => self.choose_value(id, actor, *kind, *count, options, out)?,
+            Operation::CopyOnStack {
+                actor: PlayerSet::One(player),
+                object,
+                times: Expr::Constant(1),
+                targets: NewTargets::May,
+                effects,
+            } if effects.is_empty() && !matches!(object, ObjectRef::EventStackObject) => {
+                let copier = self.fetch(self.certain_player(player)?);
+                let list = self.acted_on(&ObjectSet::One(object.clone()))?;
+                writeln!(out, "let copier_{id} = {copier}; if let Some(spell) = ({list}).first().copied() {{ g.copy_spell(spell, copier_{id}, true)?; }}").unwrap();
+            }
             Operation::Keyword {
                 actor,
                 action,
@@ -969,7 +980,11 @@ impl Compiler {
             }
             // The cards stay in the library until a later instruction moves them (701.20a), so
             // this names every card shown, the qualifying ones and the others alike.
-            Operation::RevealUntil { library, filter, count } => {
+            Operation::RevealUntil {
+                library,
+                filter,
+                count,
+            } => {
                 let owner = self.fetch(self.certain_player(library)?);
                 let count = self.fetch(self.number(count)?.amount(u32::MAX.into(), "usize")?);
                 let filter = self.filter(filter, &Candidate::of("id"))?;
@@ -1203,8 +1218,16 @@ impl Compiler {
                 player,
                 cost,
                 optional: true,
-            } if matches!(cost.parts.as_slice(), [CostPart::ManaWithX { x: Some(_), .. }]) => {
-                let [CostPart::ManaWithX { mana: symbols, x: Some(x) }] = cost.parts.as_slice() else {
+            } if matches!(
+                cost.parts.as_slice(),
+                [CostPart::ManaWithX { x: Some(_), .. }]
+            ) =>
+            {
+                let [CostPart::ManaWithX {
+                    mana: symbols,
+                    x: Some(x),
+                }] = cost.parts.as_slice()
+                else {
                     return Err(gap("pay a set X"));
                 };
                 let base = mana(symbols)?;
@@ -1750,13 +1773,20 @@ impl Compiler {
         use crate::mtg_types::CardType;
         let no_blocks = matches!(
             changes,
-            [Change::Rule(RuleChange::Prohibit(ObjectAction::Block(ObjectFilter::Any)))]
+            [Change::Rule(RuleChange::Prohibit(ObjectAction::Block(
+                ObjectFilter::Any
+            )))]
         );
         if no_blocks && matches!(duration, crate::ir::Duration::EndOfTurn) {
-            let creature = |f: &ObjectFilter| matches!(f, ObjectFilter::CardType(CardType::Creature));
+            let creature =
+                |f: &ObjectFilter| matches!(f, ObjectFilter::CardType(CardType::Creature));
             match affected {
                 EffectSubjects::Objects(ObjectSet::Battlefield(f)) if creature(f) => {
-                    writeln!(out, "cantrip_api::instruction(g, |g| g.creatures_cant_block());").unwrap();
+                    writeln!(
+                        out,
+                        "cantrip_api::instruction(g, |g| g.creatures_cant_block());"
+                    )
+                    .unwrap();
                     return Ok(());
                 }
                 EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters)))
@@ -1783,7 +1813,9 @@ impl Compiler {
             [Change::Rule(rule)] => rule_name(rule),
             _ => "several changes".to_string(),
         };
-        Err(gap(format!("engine: no resolving rule on an open set: {what}")))
+        Err(gap(format!(
+            "engine: no resolving rule on an open set: {what}"
+        )))
     }
     fn continuous(
         &mut self,

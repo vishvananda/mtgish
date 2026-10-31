@@ -44,7 +44,13 @@ fn constant(value: &Expr) -> Result<i64> {
 }
 
 fn first_target(objects: &ObjectRef) -> bool {
-    matches!(objects, ObjectRef::Target { slot: Slot(0), index: 0 })
+    matches!(
+        objects,
+        ObjectRef::Target {
+            slot: Slot(0),
+            index: 0
+        }
+    )
 }
 
 /// Which `targets::` constant says this target. Only forms it spells exactly.
@@ -62,9 +68,11 @@ fn target_constant(spec: &TargetSpec) -> Result<&'static str> {
     };
     let all_of = |filters: &[F], wanted: &[CardType]| {
         filters.len() == wanted.len()
-            && wanted
-                .iter()
-                .all(|w| filters.iter().any(|f| matches!(f, F::CardType(t) if format!("{t:?}") == format!("{w:?}"))))
+            && wanted.iter().all(|w| {
+                filters
+                    .iter()
+                    .any(|f| matches!(f, F::CardType(t) if format!("{t:?}") == format!("{w:?}")))
+            })
     };
     match (&spec.kind, &spec.filter, &spec.players) {
         (TargetKind::DamageRecipient, F::Any, None) => Ok("ANY"),
@@ -77,7 +85,9 @@ fn target_constant(spec: &TargetSpec) -> Result<&'static str> {
             F::Either(filters) if all_of(filters, &[CardType::Artifact, CardType::Enchantment]) => {
                 Ok("ARTIFACT_OR_ENCHANTMENT")
             }
-            F::Either(filters) if all_of(filters, &[CardType::Creature, CardType::Planeswalker]) => {
+            F::Either(filters)
+                if all_of(filters, &[CardType::Creature, CardType::Planeswalker]) =>
+            {
                 Ok("CREATURE_OR_PLANESWALKER")
             }
             other => Err(gap(format!("card file: target {}", form(other)))),
@@ -141,19 +151,18 @@ fn recipe(body: &Program, targets: &[TargetSpec]) -> Result<Recipe> {
             recipients,
             amount,
             preventable: true,
-        }, Operation::GainLife { players, amount: life }]
-            if in_slot(recipients) && controller(players) =>
-        {
-            Ok(Recipe {
-                code: Code::Closure(format!(
-                    "effects::damage_target_and_gain_life(g, item, {}, {})",
-                    constant(amount)?,
-                    constant(life)?
-                )),
-                imports: vec!["effects"],
-                cites: "CR 120.3, 119.3, 608.2b",
-            })
-        }
+        }, Operation::GainLife {
+            players,
+            amount: life,
+        }] if in_slot(recipients) && controller(players) => Ok(Recipe {
+            code: Code::Closure(format!(
+                "effects::damage_target_and_gain_life(g, item, {}, {})",
+                constant(amount)?,
+                constant(life)?
+            )),
+            imports: vec!["effects"],
+            cites: "CR 120.3, 119.3, 608.2b",
+        }),
         [Operation::Destroy {
             objects,
             regeneration: true,
@@ -178,7 +187,8 @@ fn recipe(body: &Program, targets: &[TargetSpec]) -> Result<Recipe> {
                 }
                 _ => return Err(gap("card file: continuous effect other than a pump")),
             };
-            let one = matches!(affected, EffectSubjects::Objects(ObjectSet::One(o)) if first_target(o));
+            let one =
+                matches!(affected, EffectSubjects::Objects(ObjectSet::One(o)) if first_target(o));
             let yours = matches!(affected, EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters)))
                 if filters.len() == 2
                     && filters.iter().any(|f| matches!(f, ObjectFilter::CardType(CardType::Creature)))
@@ -200,22 +210,17 @@ fn recipe(body: &Program, targets: &[TargetSpec]) -> Result<Recipe> {
                     "target_creature_gets_and_gains_first_strike",
                     "CR 611.2a, 514.2, 608.2b",
                 )),
-                (_, true, None) if targets.is_empty() => {
-                    Ok(pump(
-                        power,
-                        toughness,
-                        "creatures_you_control_get",
-                        "CR 611.2a, 611.2c, 514.2",
-                    ))
-                }
+                (_, true, None) if targets.is_empty() => Ok(pump(
+                    power,
+                    toughness,
+                    "creatures_you_control_get",
+                    "CR 611.2a, 611.2c, 514.2",
+                )),
                 _ => Err(gap("card file: pump of another subject")),
             }
         }
         [operation] => Err(gap(format!("card file: operation {}", form(*operation)))),
-        operations => Err(gap(format!(
-            "card file: {} instructions",
-            operations.len()
-        ))),
+        operations => Err(gap(format!("card file: {} instructions", operations.len()))),
     }
 }
 
@@ -392,8 +397,12 @@ pub fn card_file(card: &Card, oracle_text: &str) -> Result<Option<String>> {
                 notes.extend(shared_note(&recipe, line));
                 let mut entry = format!("triggered({trigger}, {effect}, {})", text(line));
                 if !announcement.targets.is_empty() {
-                    write!(entry, ".targets({})", target_list(announcement, &mut imports)?)
-                        .unwrap();
+                    write!(
+                        entry,
+                        ".targets({})",
+                        target_list(announcement, &mut imports)?
+                    )
+                    .unwrap();
                 }
                 triggered.push(entry);
             }
@@ -413,9 +422,12 @@ pub fn card_file(card: &Card, oracle_text: &str) -> Result<Option<String>> {
         let names: Vec<&str> = triggers.iter().copied().collect();
         match names.as_slice() {
             [one] => writeln!(out, "use cantrip_mechanics::triggers::{one};").unwrap(),
-            many => {
-                writeln!(out, "use cantrip_mechanics::triggers::{{{}}};", many.join(", ")).unwrap()
-            }
+            many => writeln!(
+                out,
+                "use cantrip_mechanics::triggers::{{{}}};",
+                many.join(", ")
+            )
+            .unwrap(),
         }
     }
     out.push_str("use cantrip_oracle as oracle;\n\n");
@@ -425,7 +437,11 @@ pub fn card_file(card: &Card, oracle_text: &str) -> Result<Option<String>> {
         writeln!(out, "{note}").unwrap();
     }
     if let Some((list, effect)) = &spell {
-        write!(out, "pub static CARD: CardDef = CardDef {{\n    spell: spell({list}, {effect}),\n").unwrap();
+        write!(
+            out,
+            "pub static CARD: CardDef = CardDef {{\n    spell: spell({list}, {effect}),\n"
+        )
+        .unwrap();
     } else {
         out.push_str("pub static CARD: CardDef = CardDef {\n");
     }

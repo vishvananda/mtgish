@@ -897,6 +897,7 @@ impl<'a> Scope<'a> {
                 self.object(object)
             }
             Expr::PlayerLife(player) => self.player(player),
+            Expr::AnyOf(values) => values.iter().try_for_each(|value| self.expr(value)),
             Expr::Add(a, b)
             | Expr::Subtract(a, b)
             | Expr::Multiply(a, b)
@@ -3573,11 +3574,14 @@ fn validate_ability_in(
                 proposal.announcing = true;
                 proposal.condition(condition)?;
             }
+            // A cost change can read what the ability targets.
+            let mut announced = scope.clone();
+            announced.announcement(announcement)?;
             for modifier in &limits.modifiers {
                 match modifier {
-                    Change::Primitive { name, operands } => scope.primitive(name, operands)?,
+                    Change::Primitive { name, operands } => announced.primitive(name, operands)?,
                     Change::ActivationRule(rule) => {
-                        let mut proposal = scope.clone();
+                        let mut proposal = announced.clone();
                         proposal.announcing = true;
                         proposal.activation_rule(rule)?;
                     }

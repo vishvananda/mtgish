@@ -152,11 +152,6 @@ impl Compiler {
                 writeln!(out, "let exchanged_{id} = match {pair} {{ (Some(first), Some(second)) => g.exchange_control(asker.source, first, second), _ => false }};").unwrap();
                 self.performed.insert(result.0, format!("exchanged_{id}"));
             }
-            K::CopySpell => {
-                let copier = self.actor(&action)?;
-                let spell = self.acted_object(action.object)?;
-                writeln!(out, "let copier_{id} = {copier}; if let Some(spell) = {spell} {{ g.copy_spell(spell, copier_{id}, true)?; }}").unwrap();
-            }
             K::Investigate => {
                 let clue = format!("{M}::tokens::CLUE");
                 if !self.extras.contains(&clue) {

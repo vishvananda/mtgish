@@ -168,6 +168,15 @@ impl Context {
                         .collect::<Result<_>>()?,
                 ))
             }
+            S::WhenPlayerCastsTheirNextSpellThisGame(player, spells) => T::WhenAPlayerCastsASpell(
+                Box::new(source::Players::SinglePlayer(player.clone())),
+                spells.clone(),
+            ),
+            S::AtTheBeginningOfPlayersFirstMainPhaseOfTheGame(player) => {
+                T::AtTheBeginningOfAPlayersFirstMainPhase(Box::new(
+                    source::Players::SinglePlayer(player.clone()),
+                ))
+            }
             S::WhenPermanentLeavesTheBattlefield(p) => T::WhenAPermanentLeavesTheBattlefield(one(p)),
             S::WhenPermanentDies(p) => T::WhenAPermanentDies(one(p)),
             S::WhenPermanentBecomesUntapped(p) => T::WhenAPermanentBecomesUntapped(one(p)),

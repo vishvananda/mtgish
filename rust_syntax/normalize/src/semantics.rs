@@ -252,14 +252,6 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
 const KEYWORD_ACTIONS: &[(&str, KeywordAction)] = &[
     ("Action::TransformPermanent", KeywordAction::Transform),
     ("Action::Fight", KeywordAction::Fight),
-    (
-        "Action::CopySpellAndMayChooseNewTargets",
-        KeywordAction::CopySpell,
-    ),
-    (
-        "Action::CopyAbilityAndMayChooseNewTargets",
-        KeywordAction::CopyAbility,
-    ),
     ("Action::CollectEvidence", KeywordAction::CollectEvidence),
     ("Action::Investigate", KeywordAction::Investigate),
     ("Action::Proliferate", KeywordAction::Proliferate),
@@ -1323,7 +1315,12 @@ fn reduce_stack_copy(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Opt
             | "CopyAbilityNumberTimesAndMayChooseNewTargets",
             [Object(o), Number(n)],
         ) => copy(o, n.clone(), T::May, &[]),
-        ("CopySpellOrAbilityAndMayChooseNewTargets", [Object(o)]) => copy(o, one(), T::May, &[]),
+        (
+            "CopySpellAndMayChooseNewTargets"
+            | "CopyAbilityAndMayChooseNewTargets"
+            | "CopySpellOrAbilityAndMayChooseNewTargets",
+            [Object(o)],
+        ) => copy(o, one(), T::May, &[]),
         ("CopySpellWithModifiers", [Object(o), List(effects)]) => copy(o, one(), T::Same, effects),
         ("CopySpellAndMayChooseNewTargetsWithEffects", [Object(o), List(effects)]) => {
             copy(o, one(), T::May, effects)
@@ -1546,7 +1543,12 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
             }
         }
         ("Color::TheChosenColor", []) => return ObjectFilter::Chosen(ValueKind::Color),
-        ("NameFilter::TheChosenName", []) => return ObjectFilter::Chosen(ValueKind::CardName),
+        (
+            "NameFilter::TheChosenName"
+            | "NameFilter::TheChosenCardName"
+            | "NameFilter::OneOfTheChosenNames",
+            [],
+        ) => return ObjectFilter::Chosen(ValueKind::CardName),
         (_, [variable]) if form.ends_with("TypeVariable") || form == "IsCardtypeVariable" => {
             if let Some(kind) = chosen_kind(variable) {
                 return ObjectFilter::Chosen(kind);

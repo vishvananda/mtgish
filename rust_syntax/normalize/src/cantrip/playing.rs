@@ -172,8 +172,16 @@ impl Compiler {
         let caster = self.fetch(self.certain_player(actor)?);
         let pool = self.acted_on(&set)?;
         let exile = if *into_exile { "Spell" } else { "Never" };
-        let purpose = if matches!(cost, PlayCost::Free) { "CastFree" } else { "Optional" };
-        let land_open = if lands { " || g.could_play_land_during_resolution(c)" } else { "" };
+        let purpose = if matches!(cost, PlayCost::Free) {
+            "CastFree"
+        } else {
+            "Optional"
+        };
+        let land_open = if lands {
+            " || g.could_play_land_during_resolution(c)"
+        } else {
+            ""
+        };
         writeln!(out, "let caster_{id} = {caster}; let mut pool_{id}: Vec<ObjectId> = {pool}; let mut left_{id}: u32 = {most};").unwrap();
         for (i, number) in numbers.iter().enumerate() {
             writeln!(out, "let limit_{id}_{i}: i64 = i64::from({number});").unwrap();

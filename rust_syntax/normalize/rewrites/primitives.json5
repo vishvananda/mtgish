@@ -2119,7 +2119,7 @@
     {"source": "GameNumber::TheLeastPowerAmongPermanents", "text": "least|lowest"},
     {"source": "GameNumber::TheAmountOfSnowManaSpentToCastSpell", "text": "spent"},
     {"source": "Spells::PlayerControlledAPermanentAsCast", "text": "controlled"},
-    {"source": "ReplacementActionWouldEnter::EnterAsACopyOfPermanent", "text": "copy"},
+    {"source": "ReplacementActionWouldEnter::EnterAsACopyOfPermanent", "text": "copy|copies"},
     {"source": "PlayerEffect::CantPayLifeToActivateAbilities", "text": "abilities"},
     {"source": "LookAtTopOfLibraryAction::PlayerChoosesPileTopPutIntoHand", "text": "pile"},
     {"source": "LookAtTopOfLibraryAction::APlayerChoosesAPileTopPutIntoHand", "text": "pile"},
@@ -2979,6 +2979,21 @@
     {"source": "Action::ChoosePermanentFilter", "text": "or", "keeps": true},
     {"source": "PlayerEffect::DrawsACardDuringEachPlayersDrawStep", "text": "draw"},
     {"source": "PlayerEffect::UntapsPermanentsDuringEachPlayersUntapSteps", "text": "untap"},
-    {"source": "GameEffect::PermanentCantPhaseIn", "text": "phase"}
+    {"source": "GameEffect::PermanentCantPhaseIn", "text": "phase"},
+    {"source": "NameFilter::TheChosenCardName", "text": "name|named|chosen"},
+    {"source": "NameFilter::OneOfTheChosenNames", "text": "name|named|chosen"},
+    {"source": "PermanentRule::AssignsCombatDamageAsThoughPowerWerePositive", "text": "assigns"},
+    {"source": "Players::AllowedToDrawCards", "text": "draw"},
+    {"source": "ReplacementActionWouldProduceMana::WouldProduceMana_ReplaceColor", "text": "mana"},
+    {"source": "ReplacementActionWouldPutAPermanentOnTheBattlefield::WouldPutPermanentOnBattlefield_PutPermanentOnBattlefield", "text": "battlefield"},
+    {"source": "ReplacementActionWouldCopyASpell::WouldCopyASpell_CopyAnAdditionalTimeAndMayChooseNewTargets", "text": "copy"},
+    {"source": "ReplacementActionWouldRollDice::RollThatManyAndMayExchangeOneWithPermanentsBasePowerOrBaseToughness", "text": "roll"},
+    {"source": "ReplacableEventWouldPutIntoGraveyard::WouldPutACardInPlayersGraveyardFromAnywhereNotCycled", "text": "graveyard"},
+    {"source": "ReplacableEventWouldPutIntoGraveyard::WouldPutACardInAPlayersGraveyardFromAnywhereOtherThanBattlefield", "text": "graveyard"},
+    {"source": "ReplacableEventWouldPutIntoGraveyard::WouldPutAPermanentASpellOrACardIntoAPlayersGraveyard", "text": "graveyard"},
+    {"source": "ReplacableEventWouldDealDamage::LethalLoyaltyDamageWouldBeDealtToAPlaneswalker", "text": "damage"},
+    {"source": "ReplacableEventWouldDealDamage::CombatDamageWouldBeDealtByCreatureToRecipient", "text": "combat damage"},
+    {"source": "ReplacableEventWouldDealDamage::Each1DamagePlayerWouldBeDealt", "text": "damage"},
+    {"source": "ReplacableEventWouldDealDamage::AnAmountOfNonCombatDamageWouldBeDealtByASourceToARecipient", "text": "noncombat"}
   ]
 }

@@ -580,7 +580,8 @@ impl Compiler {
                     modifier,
                     condition,
                 } => {
-                    let change = self.activation_cost_change(modifier, condition.as_ref(), label)?;
+                    let change =
+                        self.activation_cost_change(modifier, condition.as_ref(), label)?;
                     def.push_str(&format!(".cost_change({change})"));
                 }
                 ActivationRule::MaxPerTurn(Expr::Constant(n)) if *n >= 1 => {
@@ -839,7 +840,16 @@ impl Compiler {
             } => {
                 self.activation_cost = Some(cost.clone());
                 let index = parts.abilities.len();
-                let def = self.activated(label, index, origin, cost, limits, announcement, body, scope);
+                let def = self.activated(
+                    label,
+                    index,
+                    origin,
+                    cost,
+                    limits,
+                    announcement,
+                    body,
+                    scope,
+                );
                 self.activation_cost = None;
                 parts.abilities.push(def?);
             }
@@ -969,7 +979,9 @@ impl Compiler {
                 label,
                 parts,
             )?,
-            Ability::Backup { amount, abilities } => self.backup(*amount, abilities, label, parts)?,
+            Ability::Backup { amount, abilities } => {
+                self.backup(*amount, abilities, label, parts)?
+            }
             Ability::CounterStages {
                 counter,
                 level_up,

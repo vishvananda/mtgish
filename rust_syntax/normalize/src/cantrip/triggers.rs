@@ -590,7 +590,11 @@ impl Compiler {
     }
     /// `EventSpec::Activated`: a mana ability's activation is one too (605.3).
     /// The player is "that player" and the ability's object "that permanent".
-    fn activated_event(&mut self, players: &PlayerSet, abilities: &ObjectFilter) -> Result<Matched> {
+    fn activated_event(
+        &mut self,
+        players: &PlayerSet,
+        abilities: &ObjectFilter,
+    ) -> Result<Matched> {
         let frame = Frame {
             player: Some(Carried::Subject),
             object: Some(Carried::Data(0)),
@@ -623,7 +627,11 @@ impl Compiler {
                     .iter()
                     .map(|f| self.activation_test(f, frame))
                     .collect::<Result<Vec<_>>>()?;
-                let joint = if matches!(filter, ObjectFilter::All(_)) { " && " } else { " || " };
+                let joint = if matches!(filter, ObjectFilter::All(_)) {
+                    " && "
+                } else {
+                    " || "
+                };
                 format!("({})", tests.join(joint))
             }
             ObjectFilter::Not(inner) => format!("!({})", self.activation_test(inner, frame)?),
@@ -1259,8 +1267,8 @@ impl Compiler {
             }
             return Ok(def);
         }
-        self.recipient_subject = format!("{:?}", announcement.targets)
-            .contains("ControlledBy(One(EventSubject))");
+        self.recipient_subject =
+            format!("{:?}", announcement.targets).contains("ControlledBy(One(EventSubject))");
         let matched = self.event(event);
         self.recipient_subject = false;
         let matched = matched?;

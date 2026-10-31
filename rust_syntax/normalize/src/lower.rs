@@ -1194,6 +1194,11 @@ impl Context {
             S::LessThanOrEqualTo(n) => (Comparison::LessOrEqual, n),
             S::GreaterThan(n) => (Comparison::Greater, n),
             S::GreaterThanOrEqualTo(n) => (Comparison::GreaterOrEqual, n),
+            S::Negative => return Ok((Comparison::Less, Expr::Constant(0))),
+            S::OneOf(values) => {
+                let values = values.iter().map(|v| Expr::Constant((*v).into())).collect();
+                return Ok((Comparison::Equal, Expr::AnyOf(values)));
+            }
             _ => return Err(unsupported(value)),
         };
         Ok((comparison, self.number(number)?))
@@ -1406,6 +1411,11 @@ impl Context {
                     HistoryWindow::ThisTurn,
                     HistoryMeasure::Occurrences,
                 )
+            }
+            S::PowerOfTheCreatureItTargets => {
+                return self.number(&S::PowerOfPermanent(Box::new(
+                    source::Permanent::Ref_TargetPermanent,
+                )));
             }
             S::TheNumberOfRepeatedCostsNotPaid => {
                 let (Some(at_most), Some(paid)) = (&self.repeated, &self.payment) else {
@@ -5340,7 +5350,19 @@ impl Context {
                     ..ActivationLimits::unrestricted()
                 };
                 if let S::EquipWithModifiers(_, _, modifier) = value {
-                    self.limits(modifier, &mut limits)?;
+                    // "This ability costs less" can read the creature it targets.
+                    let mut scoped = self.clone();
+                    scoped.targets.push(TargetSpec {
+                        slot: slot.clone(),
+                        kind: TargetKind::Object(ObjectDomain::permanent()),
+                        count: Count::Exactly(Expr::Constant(1)),
+                        filter: filter.clone(),
+                        players: None,
+                        distribute: None,
+                        constraints: vec![],
+                        chooser: None,
+                    });
+                    scoped.limits(modifier, &mut limits)?;
                 }
                 Ok(Ability::Activated {
                     origin: ActivationOrigin::Equip,
@@ -5506,10 +5528,13 @@ impl Context {
                 if cost.parts.iter().any(|p| matches!(p, CostPart::Loyalty(_))) {
                     limits.sorcery = true;
                 }
-                if let S::ActivatedWithModifiers(_, _, modifier) = value {
-                    self.proposal().limits(modifier, &mut limits)?;
-                }
+                let mut proposal = self.proposal();
                 let body = self.actions(actions)?;
+                // A cost change can read what the ability targets.
+                if let S::ActivatedWithModifiers(_, _, modifier) = value {
+                    proposal.targets = self.targets.clone();
+                    proposal.limits(modifier, &mut limits)?;
+                }
                 Ok(Ability::Activated {
                     origin: ActivationOrigin::Ordinary,
                     cost,

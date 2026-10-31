@@ -218,15 +218,21 @@ impl Context {
     fn replacement_event(&self, event: &serde_json::Value) -> Result<ReplacementEvent> {
         let family = event["enum"].as_str().unwrap_or_default();
         match family {
-            "ReplacableEventWouldDealDamage" => self.damage_replacement(&decode_step(event)?),
-            "ReplacableEventWouldPutIntoGraveyard" => {
-                self.graveyard_replacement(&decode_step(event)?)
-            }
+            "ReplacableEventWouldDealDamage" => self
+                .damage_replacement(&decode_step(event)?)
+                .or_else(|error| rescue(error, || self.replacement_row(family, event))),
+            "ReplacableEventWouldPutIntoGraveyard" => self
+                .graveyard_replacement(&decode_step(event)?)
+                .or_else(|error| rescue(error, || self.replacement_row(family, event))),
             _ => self
-                .primitive_inspected(family, event)
-                .map(|(name, operands)| crate::semantics::reduce_replacement(name, operands))
+                .replacement_row(family, event)
                 .ok_or_else(|| unsupported_step(event)),
         }
+    }
+
+    fn replacement_row(&self, family: &str, event: &serde_json::Value) -> Option<ReplacementEvent> {
+        self.primitive_inspected(family, event)
+            .map(|(name, operands)| crate::semantics::reduce_replacement(name, operands))
     }
 
     fn replacement_steps(
@@ -643,12 +649,45 @@ impl Context {
     ) -> Result<(ReplacementEvent, ReplacementLimit)> {
         let family = event["enum"].as_str().unwrap_or_default();
         if family == "FutureReplacableEventWouldDealDamage" {
+            use source::FutureReplacableEventWouldDealDamage as S;
+            use DamageFrom as F;
+            use DamageTo as T;
+            let own: Option<S> = crate::pipeline::source_tree::decode(event).ok();
+            let next = ReplacementLimit::NextOccurrence;
+            let shape = match &own {
+                Some(S::NextTimeDamageWouldBeDealtThisTurnByASpellToRecipient(spells, to)) => {
+                    Some((F::Spells(spells), T::One(to), next))
+                }
+                Some(S::NextTimeDamageWouldBeDealtThisTurnToARecipient(to)) => {
+                    Some((F::Anything, T::List(to), next))
+                }
+                Some(S::NextAmountOfDamageThatWouldBeDealtToRecipient(amount, to)) => Some((
+                    F::Anything,
+                    T::One(to),
+                    ReplacementLimit::TotalDamage(self.number(amount)?),
+                )),
+                _ => None,
+            };
+            if let Some((from, to, limit)) = shape {
+                let shape = self.damage_shape(from, to, DamageKind::Any)?;
+                return Ok((ReplacementEvent::Damage(shape), limit));
+            }
             let mut prevention = event.clone();
             retag(&mut prevention, &|n: &str| {
                 (n == family).then_some("FutureEventPreventDamage")
             });
             let prevention = decode_step(&prevention).map_err(|_| unsupported_step(event))?;
             return self.future_prevention(&prevention);
+        }
+        if family == "FutureReplacableEventWouldEnter" {
+            let objects: source::Permanents = crate::pipeline::source_tree::decode(&event["args"])
+                .map_err(|_| unsupported_step(event))?;
+            return Ok((
+                ReplacementEvent::Enter {
+                    objects: self.filter(&objects)?,
+                },
+                ReplacementLimit::NextOccurrence,
+            ));
         }
         self.primitive_inspected(family, event)
             .map(|(name, operands)| {
