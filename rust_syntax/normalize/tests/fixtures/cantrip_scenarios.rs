@@ -2182,8 +2182,8 @@ mod scenarios {
             other => panic!("unexpected question {other:?}"),
         }
     }
-    // These three run with the engine's own check on: a card all players saw
-    // that moves into a hand or a library by an unmarked move is a panic.
+    // The engine's own check is on here: a card all players saw that moves into
+    // a hand by an unmarked move is a panic, which is what these two can show.
     #[test]
     fn a_card_searched_for_and_revealed_goes_to_the_hand_as_a_seen_card() {
         let (mut g, spell) =
@@ -2200,8 +2200,9 @@ mod scenarios {
         assert!(g.state.zone(Zone::hand(ME)).contains(&arrived));
     }
     #[test]
-    fn a_tutored_and_revealed_card_goes_on_top_as_a_seen_card() {
-        // Second from the top, so landing on top is the spell's doing.
+    fn a_tutored_and_revealed_card_ends_on_top_of_the_shuffle() {
+        // Second from the top, so landing on top is the spell's doing. It stays
+        // in the library, so no move of a seen card happens here at all.
         let cards = [FILLER.name, FLASH_CREATURE.name];
         let (mut g, spell) = game_with_libraries("Worldly Tutor", &[], &cards, &[]);
         let library = library_of(&g, ME).len();

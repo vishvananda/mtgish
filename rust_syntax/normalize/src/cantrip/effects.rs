@@ -1493,8 +1493,8 @@ impl Compiler {
             Destination::OwnersHand if revealed => {
                 format!("g.return_to_hand_revealed(&objects_{id})")
             }
-            Destination::OwnersLibraryTop if revealed => format!("{{ let moves: Vec<(ObjectId, Zone)> = objects_{id}.iter().map(|&o| (o, Zone::library(g.state().obj(o).owner))).collect(); g.move_together_revealed(&moves, MoveReason::Other) }}"),
-            Destination::OwnersLibraryBottom
+            Destination::OwnersLibraryTop
+            | Destination::OwnersLibraryBottom
             | Destination::OwnersLibraryBottomRandom
             | Destination::OwnersLibraryShuffled
             | Destination::OwnersLibraryFromTop(_)
