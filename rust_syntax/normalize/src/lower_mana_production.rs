@@ -119,7 +119,8 @@ impl Context {
                             "ManaUseModifier::DontLoseAsStepsAndPhasesEnd",
                             [Operand::Duration(until)],
                         ) => ManaUse::Persists(until.clone()),
-                        _ => ManaUse::Primitive { name, operands },
+                        _ => crate::semantics::reduce_mana_use(&name, &operands)
+                            .unwrap_or(ManaUse::Primitive { name, operands }),
                     })
             })
         })

@@ -537,6 +537,7 @@ impl<'a> Scope<'a> {
 
     fn duration(&self, duration: &Duration) -> Result {
         match duration {
+            Duration::UntilEvent(event) => self.event(event),
             Duration::Primitive { name, operands } => self.primitive(name, operands),
             Duration::ExtraTurn(result) if self.results.contains_key(&result.0) => Ok(()),
             Duration::ExtraTurn(result) => Err(format!("result {} is unavailable", result.0)),
@@ -801,6 +802,7 @@ impl<'a> Scope<'a> {
                 self.player_number(number)
             }
             Expr::TimesKicked(object) => self.object(object),
+            Expr::TimesMutated(object) => self.object(object),
             Expr::EventHistory { event, .. } => self.event(event),
             Expr::CountPlayers(players) => self.players(players),
             Expr::ManaSpent { object, filter, .. } => {
@@ -1044,6 +1046,10 @@ impl<'a> Scope<'a> {
             Condition::MostVotes { option, .. } | Condition::Voted(option) => {
                 self.vote_option(option)
             }
+            Condition::PlayerAttacks { attacker, defender } => {
+                self.player(attacker)?;
+                self.player(defender)
+            }
             Condition::SameTeam { player, other } => {
                 self.player(player)?;
                 self.player(other)
@@ -1172,7 +1178,7 @@ impl<'a> Scope<'a> {
             RuleChange::BlockedAsThoughLacking(ability) | RuleChange::CantGainAbility(ability) => {
                 self.operand(ability)
             }
-            RuleChange::LegendRuleExempt => Ok(()),
+            RuleChange::DamageStaysMarked | RuleChange::LegendRuleExempt => Ok(()),
             RuleChange::RequireCombat { action, amount } => {
                 self.combat_action(action)?;
                 if let RequirementAmount::AtLeast(n) = amount {
@@ -2090,6 +2096,13 @@ impl<'a> Scope<'a> {
                 self.objects(objects)?;
                 self.expr(times)
             }
+            Operation::ChooseAtRandom { options, .. } => {
+                options.iter().try_for_each(|o| self.operand(o))
+            }
+            Operation::ChooseAction { actor, options, .. } => {
+                self.players(actor)?;
+                options.iter().try_for_each(|o| self.operand(o))
+            }
             Operation::ChooseValue { actor, options, .. } => {
                 self.players(actor)?;
                 options.iter().try_for_each(|o| self.operand(o))
@@ -2627,6 +2640,7 @@ impl<'a> Scope<'a> {
             }
             ManaUse::Not(r) => self.mana_use(r),
             ManaUse::Persists(until) => self.duration(until),
+            ManaUse::Purpose(_) => Ok(()),
             ManaUse::Primitive { name, operands } => self.primitive(name, operands),
         }
     }
@@ -3339,13 +3353,15 @@ fn validate_ability_in(
             body,
         } => {
             scope.replacement_event(event)?;
+            fn only_source(filter: &ObjectFilter) -> bool {
+                match filter {
+                    ObjectFilter::SameObject(ObjectRef::Source) => true,
+                    ObjectFilter::All(filters) => filters.iter().any(only_source),
+                    _ => false,
+                }
+            }
             if matches!(active, ReplacementActive::SourceEntering)
-                && !matches!(
-                    event,
-                    ReplacementEvent::Enter {
-                        objects: ObjectFilter::SameObject(ObjectRef::Source)
-                    }
-                )
+                && !matches!(event, ReplacementEvent::Enter { objects } if only_source(objects))
             {
                 return Err("source-entry replacement must match only its source".into());
             }

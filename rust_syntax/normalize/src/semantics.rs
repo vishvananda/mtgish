@@ -734,6 +734,29 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
     }
     use Operand::{Duration, List, Number, Object, Objects};
     match (name, operands) {
+        ("Action::ChooseAPlayerAtRandom", [players]) => {
+            return Some(Operation::ChooseAtRandom {
+                kind: ValueKind::Player,
+                options: vec![players.clone()],
+            })
+        }
+        ("Action::PlayerChooseAnAction", [Operand::Player(player), Operand::List(options)]) => {
+            return Some(Operation::ChooseAction {
+                actor: PlayerSet::One(player.clone()),
+                options: options.clone(),
+                villainous: false,
+            })
+        }
+        ("Action::FaceAVillianousChoice", [first, second]) => {
+            return Some(Operation::ChooseAction {
+                actor: actor.clone(),
+                options: vec![first.clone(), second.clone()],
+                villainous: true,
+            })
+        }
+        _ => {}
+    }
+    match (name, operands) {
         (
             "Action::CreateExiledCardEffect" | "Action::CreateSpellEffect",
             [Object(object), List(effects)],
@@ -1479,6 +1502,7 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
         "IsBlocked" => Some(ObjectState::Blocked),
         "IsAttackingAlone" => Some(ObjectState::AttackingAlone),
         "WasBargained" => Some(ObjectState::Bargained),
+        "WasCastForItsWarpCost" => Some(ObjectState::Warped),
         "HasBeenGoaded" => Some(ObjectState::Goaded),
         "IsPaired" => Some(ObjectState::Paired),
         "IsSuspected" => Some(ObjectState::Suspected),
@@ -1736,6 +1760,43 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
         "Condition::ItsNight" => return Condition::ItsNight,
         _ => {}
     }
+    match (name.as_str(), operands.as_slice()) {
+        ("Players::IsAttackingPlayer", [Operand::Player(attacker), Operand::Player(defender)]) => {
+            return Condition::PlayerAttacks {
+                attacker: attacker.clone(),
+                defender: defender.clone(),
+            }
+        }
+        ("Condition::ActivatedAbilityPassesFilter", [Operand::Object(object), ability]) => {
+            if let Some(filter) = stack_filter(ability) {
+                return Condition::ObjectMatches {
+                    object: object.clone(),
+                    filter,
+                };
+            }
+        }
+        (
+            "Condition::ACardLeftPlayersGraveyardThisTurn",
+            [Operand::Filter(cards), Operand::Player(player)],
+        ) => {
+            return Condition::Compare {
+                left: Expr::EventHistory {
+                    event: Box::new(EventSpec::Object {
+                        event: ObjectEvent::LeavesGraveyard,
+                        objects: ObjectFilter::All(vec![
+                            cards.clone(),
+                            ObjectFilter::OwnedBy(PlayerSet::One(player.clone())),
+                        ]),
+                    }),
+                    window: HistoryWindow::ThisTurn,
+                    measure: HistoryMeasure::Occurrences,
+                },
+                comparison: Comparison::GreaterOrEqual,
+                right: Expr::Constant(1),
+            }
+        }
+        _ => {}
+    }
     if let ("Players::OwnsAndControls", [Operand::Player(player), Operand::Object(object)]) =
         (name.as_str(), operands.as_slice())
     {
@@ -1882,12 +1943,29 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
                 effects: Box::new(effects.clone()),
             }
         }
-        ("LayerEffect::AddAbilityFromPermanentHasable", [Operand::Object(object), kinds]) => {
-            Change::GainAbilitiesOf {
-                objects: ObjectSet::One(object.clone()),
-                kinds: Box::new(kinds.clone()),
-            }
-        }
+        (
+            "StaticLayerEffect::AddAbilityFromCardsInGraveyardsHasable",
+            [Operand::Filter(cards), kinds],
+        ) => Change::GainAbilitiesOf {
+            objects: ObjectSet::Zone {
+                scope: ZoneScope::Players {
+                    zone: EventZone::Graveyard,
+                    players: PlayerSet::All,
+                },
+                kind: ObjectKind::Card,
+                filter: cards.clone(),
+            },
+            kinds: Box::new(kinds.clone()),
+        },
+        (
+            "LayerEffect::AddAbilityFromPermanentHasable"
+            | "LayerEffect::AddAbilityFromGraveyardCardHasable"
+            | "StaticLayerEffect::AddAbilityFromExiledHasable",
+            [Operand::Object(object), kinds],
+        ) => Change::GainAbilitiesOf {
+            objects: ObjectSet::One(object.clone()),
+            kinds: Box::new(kinds.clone()),
+        },
         (
             "LayerEffect::AddAbilityFromEachPermanentHasable"
             | "StaticLayerEffect::AddAbilityFromAnExiledHasable",
@@ -2092,6 +2170,9 @@ pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
             spend(ManaPayment::Abilities(stack_filter(ability).unwrap()))
         }
         ("DecreaseEquipAbilityCost", [amount]) => cost(equip(), reduce(amount), None),
+        ("ReduceActivatedCost", [ability, amount]) if stack_filter(ability).is_some() => {
+            cost(stack_filter(ability).unwrap(), reduce(amount), None)
+        }
         ("ReduceManaCostOfActivatedAbilities", [ability, amount])
             if stack_filter(ability).is_some() =>
         {
@@ -2635,6 +2716,96 @@ fn graveyard_changes(effects: &[Operand]) -> Option<Vec<Change>> {
 }
 
 /// A row's ability in generic form, or the row itself when it has none.
+/// Rules that keep damage marked, and costs of activating abilities in general.
+fn reduce_rule_statics(name: &str, operands: &[Operand]) -> Option<Ability> {
+    let ordinary = |affected, change| Ability::Static {
+        kind: StaticKind::Ordinary,
+        affected,
+        changes: vec![change],
+    };
+    let stays = Change::Rule(RuleChange::DamageStaysMarked);
+    Some(match (name, operands) {
+        ("Rule::DamageIsntRemovedFromCreaturesDuringCleanup", [Operand::Objects(objects)]) => {
+            ordinary(EffectSubjects::Objects(objects.clone()), stays)
+        }
+        ("Rule::DamageIsntRemovedFromCreatureDuringCleanup", [Operand::Object(object)]) => {
+            ordinary(
+                EffectSubjects::Objects(ObjectSet::One(object.clone())),
+                stays,
+            )
+        }
+        ("Rule::ActivatedAbilityEffect", [abilities, Operand::Term { form, operands, .. }]) => {
+            let (change, floor) = match (form.as_str(), operands.as_slice()) {
+                ("IncreaseManaCost", [amount]) => (
+                    ActivationCostChange::Increase(Box::new(amount.clone())),
+                    None,
+                ),
+                ("ReduceManaCostNotLessThanOne", [amount]) => (
+                    ActivationCostChange::Reduce(Box::new(amount.clone())),
+                    Some(1),
+                ),
+                _ => return None,
+            };
+            ordinary(
+                EffectSubjects::Players(PlayerSet::All),
+                Change::PlayerRule(PlayerRule::ActivationCost {
+                    abilities: stack_filter(abilities)?,
+                    change,
+                    floor,
+                }),
+            )
+        }
+        _ => return None,
+    })
+}
+
+/// What mana may be spent on, past spells and abilities in general.
+pub fn reduce_mana_use(name: &str, operands: &[Operand]) -> Option<ManaUse> {
+    use ManaPurpose as P;
+    let purpose = match name.strip_prefix("ManaUseModifier::")? {
+        "CanOnlySpendOnXCost" => P::XCost,
+        "CanOnlySpendOnCumulativeUpkeepCosts" => P::CumulativeUpkeep,
+        "CanOnlySpendToUnlockDoors" => P::UnlockDoor,
+        "CanOnlySpendToTurnAPermanentFaceUp" => P::TurnFaceUp(ObjectFilter::Any),
+        "CanOnlySpendToTurnACreatureFaceUp" => {
+            P::TurnFaceUp(ObjectFilter::CardType(crate::mtg_types::CardType::Creature))
+        }
+        "CanOnlySpendOnMorphCosts" => P::MorphCost,
+        "CanOnlySpendToPayDisturbCosts" => P::DisturbCost,
+        "CanOnlySpendToForetellCards" => P::Foretell,
+        "CanOnlySpendToGainAClassLevel" => P::ClassLevel,
+        "CanOnlySpendToActivateEquipAbilities" => P::AbilityKeyword(AbilityKeyword::Equip),
+        "CanOnlySpendToActivatePowerUpAbilities" => P::AbilityKeyword(AbilityKeyword::PowerUp),
+        "CantSpendOnGenericCosts" => {
+            return Some(ManaUse::Not(Box::new(ManaUse::Purpose(P::GenericCost))))
+        }
+        "CanOnlySpendToCastTheirCommander" => {
+            return Some(ManaUse::CastSpell(ObjectFilter::State(
+                ObjectState::Commander,
+            )))
+        }
+        _ => return None,
+    };
+    operands.is_empty().then_some(ManaUse::Purpose(purpose))
+}
+
+/// A duration that ends on an event the trigger table already names.
+pub fn reduce_duration(name: &str, operands: &[Operand]) -> Option<Duration> {
+    let [Operand::Players(players)] = operands else {
+        return None;
+    };
+    let event = match name {
+        "Expiration::UntilAPlayerPlaneswalks" => PlayerEvent::PlaneswalksAway,
+        "Expiration::UntilAPlayerBecomesTheMonarch" => PlayerEvent::BecomesMonarch,
+        _ => return None,
+    };
+    Some(Duration::UntilEvent(Box::new(EventSpec::Player {
+        event,
+        players: players.clone(),
+        objects: None,
+    })))
+}
+
 pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
     if let Some(rule) = deck_rule(&name, &operands) {
         return Ability::DeckRule(rule);
@@ -2643,6 +2814,9 @@ pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
         return ability;
     }
     if let Some(ability) = staged_ability(&name, &operands) {
+        return ability;
+    }
+    if let Some(ability) = reduce_rule_statics(&name, &operands) {
         return ability;
     }
     match (name.as_str(), operands.as_slice()) {
@@ -4003,6 +4177,9 @@ pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
             window: HistoryWindow::ThisGame,
             measure: HistoryMeasure::Occurrences,
         },
+        ("GameNumber::NumTimesCreatureHasMutated", [Operand::Object(object)]) => {
+            Expr::TimesMutated(object.clone())
+        }
         ("GameNumber::TheAmountOfEnergyPaidThisWay", [Operand::Result(result)]) => {
             Expr::Performed(result.clone())
         }
@@ -4730,6 +4907,8 @@ impl Effects {
                 Instruction::Effect { result, operation } => match operation {
                     Operation::FlipCoin { .. }
                     | Operation::ChoosePowerToughness { .. }
+                    | Operation::DuplicateCounters { .. }
+                    | Operation::ChooseAtRandom { .. }
                     | Operation::ChooseValue { .. } => {}
                     Operation::JoinResults { results } => {
                         let joined = results
@@ -4826,7 +5005,7 @@ impl Effects {
                     | Operation::Retarget { .. }
                     | Operation::Clash { .. }
                     | Operation::Vote { .. }
-                    | Operation::DuplicateCounters { .. }
+                    | Operation::ChooseAction { .. }
                     | Operation::EffectOn { .. }
                     | Operation::GameEffect { .. }
                     | Operation::AttachChosen { .. }

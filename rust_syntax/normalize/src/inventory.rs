@@ -599,6 +599,8 @@ impl Inventory<'_> {
                 self.objects(objects);
                 self.expr(times);
             }
+            Operation::ChooseAtRandom { kind, .. } => self.form("ValueKind", kind),
+            Operation::ChooseAction { actor, .. } => self.players(actor),
             Operation::ChooseValue { actor, kind, .. } => {
                 self.form("ValueKind", kind);
                 self.players(actor);
@@ -1324,6 +1326,7 @@ impl Inventory<'_> {
             }
             ManaUse::Not(r) => self.mana_use(r),
             ManaUse::Persists(until) => self.duration(until),
+            ManaUse::Purpose(_) => {}
             ManaUse::Primitive { name, .. } => self.primitive(name),
         }
     }
@@ -1378,7 +1381,7 @@ impl Inventory<'_> {
             RuleChange::MayExert(_)
             | RuleChange::BlockedAsThoughLacking(_)
             | RuleChange::CantGainAbility(_) => {}
-            RuleChange::LegendRuleExempt => {}
+            RuleChange::DamageStaysMarked | RuleChange::LegendRuleExempt => {}
             RuleChange::RequireCombat { action, amount } => {
                 self.object_action(action);
                 self.form("RequirementAmount", amount);
@@ -1793,6 +1796,7 @@ impl Inventory<'_> {
                 self.player_number(number);
             }
             Expr::TimesKicked(object) => self.object(object),
+            Expr::TimesMutated(object) => self.object(object),
             Expr::BoundValue(_)
             | Expr::ChosenParity
             | Expr::ChosenNumber
@@ -2022,6 +2026,10 @@ impl Inventory<'_> {
             Condition::MostVotes { option, .. } | Condition::Voted(option) => {
                 self.vote_option(option)
             }
+            Condition::PlayerAttacks { attacker, defender } => {
+                self.player(attacker);
+                self.player(defender);
+            }
             Condition::SameTeam { player, other } => {
                 self.player(player);
                 self.player(other);
@@ -2091,6 +2099,7 @@ impl Inventory<'_> {
     fn duration(&mut self, d: &Duration) {
         self.form("Duration", d);
         match d {
+            Duration::UntilEvent(event) => self.event(event),
             Duration::Primitive { name, .. } => self.primitive(name),
             Duration::ExtraTurn(_) => {}
             Duration::EndOfTurn

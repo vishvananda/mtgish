@@ -1278,3 +1278,25 @@ fn counters_copied_and_players_compared() {
     );
     assert!(class.contains("ClassLevel"), "{class}");
 }
+
+#[test]
+fn escaping_mana_purposes_and_random_choices() {
+    let escape =
+        lowered("AsPermanentEscapes(ThisPermanent, [EntersWithACounter(PTCounter(+1, +1))])");
+    assert!(escape.contains("Escaped"), "{escape}");
+    assert!(validate::card(
+        &custom("AsPermanentEscapes(ThisPermanent, [EntersWithACounter(PTCounter(+1, +1))])")
+            .unwrap()
+    )
+    .is_ok());
+    let random = lowered(
+        "SpellActions(ActionList([ChooseAPlayerAtRandom(AnyPlayer), PlayerAction(TheChosenPlayer, DrawNumberCards(Integer(1)))]))",
+    );
+    assert!(random.contains("ChooseAtRandom"), "{random}");
+    let villain = lowered(
+        "SpellActions(ActionList([PlayerAction(You, FaceAVillianousChoice([[DrawNumberCards(Integer(1))], [DrawNumberCards(Integer(2))]]))]))",
+    );
+    assert!(villain.contains("villainous: true"), "{villain}");
+    let held = lowered("DamageIsntRemovedFromCreaturesDuringCleanup(IsCardtype(Creature))");
+    assert!(held.contains("DamageStaysMarked"), "{held}");
+}

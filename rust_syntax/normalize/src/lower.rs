@@ -1987,7 +1987,10 @@ impl Context {
             _ => {
                 return self
                     .primitive("Expiration", value)
-                    .map(|(name, operands)| Duration::Primitive { name, operands })
+                    .map(|(name, operands)| {
+                        crate::semantics::reduce_duration(&name, &operands)
+                            .unwrap_or(Duration::Primitive { name, operands })
+                    })
                     .ok_or_else(|| unsupported(value))
             }
         })
@@ -2175,7 +2178,7 @@ impl Context {
                         let (name, operands) = self
                             .primitive("StaticLayerEffect", value)
                             .ok_or_else(|| unsupported(value).at(format!("changes[{i}]")))?;
-                        changes.push(Change::Primitive { name, operands });
+                        changes.push(crate::semantics::reduce_change(name, operands));
                         continue;
                     }
                 },
@@ -5081,6 +5084,18 @@ impl Context {
                 self.entry_replacement(
                     ReplacementActive::SourceEntering,
                     ObjectFilter::SameObject(ObjectRef::Source),
+                    actions,
+                )
+            }
+            S::AsPermanentEscapes(p, actions)
+                if matches!(p.as_ref(), source::Permanent::ThisPermanent) =>
+            {
+                self.entry_replacement(
+                    ReplacementActive::SourceEntering,
+                    ObjectFilter::All(vec![
+                        ObjectFilter::SameObject(ObjectRef::Source),
+                        ObjectFilter::State(ObjectState::Escaped),
+                    ]),
                     actions,
                 )
             }

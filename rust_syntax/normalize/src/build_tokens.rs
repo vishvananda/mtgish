@@ -13,7 +13,8 @@ mod rewrite_spec;
 mod selector_spec;
 /// Enums with only fieldless variants are vocabularies: a value is just its name.
 fn write_vocabularies() {
-    let path = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("../src/mtg_types.rs");
+    let path =
+        PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("../src/mtg_types.rs");
     println!("cargo:rerun-if-changed={}", path.display());
     let names: Vec<String> = syn::parse_file(&fs::read_to_string(path).unwrap())
         .unwrap()
@@ -22,7 +23,9 @@ fn write_vocabularies() {
         .filter_map(|item| match item {
             syn::Item::Enum(e)
                 if !e.variants.is_empty()
-                    && e.variants.iter().all(|v| matches!(v.fields, syn::Fields::Unit)) =>
+                    && e.variants
+                        .iter()
+                        .all(|v| matches!(v.fields, syn::Fields::Unit)) =>
             {
                 Some(e.ident.to_string())
             }

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 105;
+pub const SCHEMA_VERSION: u32 = 106;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1336,6 +1336,18 @@ pub enum Operation {
         to: Recipients,
         copies: CounterCopies,
     },
+    /// Picks at random among these options, with no one choosing.
+    ChooseAtRandom {
+        kind: ValueKind,
+        options: Vec<Operand>,
+    },
+    /// The actor picks one of these instruction lists; `villainous` lets each
+    /// following opponent's pick apply in turn (CR 701.55).
+    ChooseAction {
+        actor: PlayerSet,
+        options: Vec<Operand>,
+        villainous: bool,
+    },
 }
 /// Defines the keyword abilities with one table, so the enum and the rows that
 /// lower to it cannot disagree.
@@ -1780,6 +1792,8 @@ pub enum ManaUse {
     },
     /// Mana that stays through step and phase ends until this expires (CR 106.4).
     Persists(Duration),
+    /// Spendable only on this part of a cost or action.
+    Purpose(ManaPurpose),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2388,6 +2402,8 @@ pub enum RuleChange {
     /// Blocked as though it lacked this ability.
     BlockedAsThoughLacking(Box<Operand>),
     CantGainAbility(Box<Operand>),
+    /// Damage stays marked through the cleanup step (CR 514.2).
+    DamageStaysMarked,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -2646,6 +2662,7 @@ pub enum Expr {
     },
     /// Votes cast for this option in this resolution.
     Votes(VoteOption),
+    TimesMutated(ObjectRef),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2726,6 +2743,20 @@ pub enum PlayerPairAction {
     Heist,
     ControlNextTurn,
     ExchangeLife,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ManaPurpose {
+    XCost,
+    GenericCost,
+    CumulativeUpkeep,
+    UnlockDoor,
+    TurnFaceUp(ObjectFilter),
+    MorphCost,
+    DisturbCost,
+    Foretell,
+    ClassLevel,
+    AbilityKeyword(AbilityKeyword),
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -3361,6 +3392,11 @@ pub enum Condition {
         other: PlayerRef,
     },
     ItsNight,
+    /// This player is attacking that one.
+    PlayerAttacks {
+        attacker: PlayerRef,
+        defender: PlayerRef,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3417,6 +3453,8 @@ pub enum Duration {
     },
     /// Through the extra turn this earlier instruction created.
     ExtraTurn(ResultId),
+    /// Ends when this event next happens.
+    UntilEvent(Box<EventSpec>),
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.
@@ -3897,6 +3935,8 @@ pub enum ObjectState {
     /// Controlled continuously since the turn began (CR 302.6).
     ControlledSinceTurnBegan,
     HauntedBySource,
+    Escaped,
+    Warped,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

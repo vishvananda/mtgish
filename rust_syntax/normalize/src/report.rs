@@ -167,8 +167,7 @@ impl Report {
                 |e: String| format!("{}:{line}: invalid unified AST: {e}", path.display());
             validate::unified(&lowered.card).map_err(invalid)?;
             crate::unified::round_trip(&lowered.card).map_err(invalid)?;
-            let crate::unified::Forms { named, primitives } =
-                crate::unified::forms(&lowered.card);
+            let crate::unified::Forms { named, primitives } = crate::unified::forms(&lowered.card);
             let mut blockers = BTreeMap::new();
             for d in &lowered.blockers {
                 *blockers
