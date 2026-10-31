@@ -1,7 +1,14 @@
 # Card lane
 
-Turns cards the mtgish generator can emit into `Card:` commits on a local Cantrip branch. One worktree, one card at a
+Turns cards the mtgish generator writes whole into `Card:` commits on a local Cantrip branch. One worktree, one card at a
 time, one commit per card. It replaces nothing in vizier, and it pushes and posts nothing.
+
+Only cards with no gap come here. `ast cantrip-files` has a closed table of recipes (`src/cantrip/card_file.rs`), and any
+ability, keyword or target with no recipe in shared mechanics is a gap, recorded in the row's `gap`. A card with no gap needs
+no mechanic and no engine work, so its code and content are final, and a worker does two things: validate them against the
+Oracle text, and write the scenarios. To widen the lane, add recipes to that table, not more to the worker's job.
+`backend_capable` in `ast check-cantrip` is a different question: that scan inlines whatever a card needs, so it says the
+card compiles, not that it needs nothing new.
 
 The way of working is the `card-lane` skill, `.claude/skills/card-lane/SKILL.md` in this repository: plain commands and one
 set of instructions, so any model, or a person, can do a card. This file covers setting the lane up and running it as an
@@ -13,7 +20,7 @@ unattended loop.
 cd <mtgish checkout>
 L=rust_syntax/normalize/tools/card_lane/card_lane.py
 python3 $L setup --checkout ~/cantrip   # worktree, ast, corpus, coverage shim, Scryfall; about a minute warm
-python3 $L queue --format pioneer       # the queue, in the format's own order
+python3 $L queue --format pioneer       # every card with no gap, that format's list first
 ```
 
 `cargo-llvm-cov` must be installed (`cargo install cargo-llvm-cov --locked --root ~/card-lane`). `llvm-cov` and
@@ -25,10 +32,10 @@ Everything lives under `~/card-lane`. Move it with `CARD_LANE`; `CARD_LANE_BRANC
 | --- | --- |
 | `cantrip/` | The Cantrip worktree, on a new local branch |
 | `targets/` | Cargo target directories. Nothing goes to `/tmp` |
-| `gen/` | The generator's report, card rows and one module per queued card |
+| `gen/` | `rows.jsonl`, the generator's card rows, each with its file or its gap |
 | `scryfall/` | Bulk files and index. `tool` points `scryfall.py` here, so the main checkout's `target/` stays untouched |
 | `state/queue.json` | The queue. Written atomically after every step |
-| `state/cards/<stem>/` | The packet: `reference.md`, `draft.rs`, `prompt.md`, `report.json`, `check.json`, `result.json`, `worker.jsonl`, `work.patch` |
+| `state/cards/<stem>/` | The packet: `reference.md`, `shared.md`, `prior-art.md`, `content.json`, `prompt.md`, `report.json`, `check.json`, `result.json`, `worker.jsonl`, `work.patch` |
 
 ## Doing cards in a session
 
@@ -74,8 +81,11 @@ prices to `RATES` if it reports none.
 Two infrastructure failures in a row always stop a run. A killed run restarts from the queue: a card left `working` keeps
 its work as `work.patch` and goes back to pending.
 
-Outcomes are `committed`, `failed_gates`, `engine_gap`, `needs_review`, `timeout`, `infrastructure` and `error`. A card that
-did not commit keeps its work in `work.patch`, and the tree is cleaned for the next card.
+Outcomes are `committed`, `generator_bug`, `failed_gates`, `engine_gap`, `needs_review`, `timeout`, `infrastructure` and
+`error`. A card that did not commit keeps its work in `work.patch`, and the tree is cleaned for the next card.
+
+`generator_bug` is the worker's finding that the card is wrong, or the driver's that the generated file cannot stand, which
+it decides before starting a worker. The fix goes in the generator; `status --json` has each card's reason.
 
 Cost is token counts as the backend reports them. Where it reports no price, `usd_api_equivalent` applies the list rates in
 `RATES`. That is an API-equivalent figure, not what a ChatGPT login is billed.
@@ -88,6 +98,7 @@ Cost is token counts as the backend reports them. Where it reports no price, `us
 | Gate | Fails when |
 | --- | --- |
 | `scope` | Anything changed but the card's content file, its card file and new scenarios |
+| `generated` | The card's file is not the generator's, or its content file is not what `new-card.py` wrote |
 | `oracle` | `new-card.py` says the content differs from Scryfall's current card |
 | `scenarios` | A placeholder or TODO remains, or a scenario says `Known bug`, has no opening comment or has no `[Expect]` |
 | `style` | Ability text not printed on the card, generator scaffolding left in, or a `fn` without a doc comment quoting the Oracle and citing the CR |
@@ -97,13 +108,13 @@ Cost is token counts as the backend reports them. Where it reports no price, `us
 | `warnings` | The build warns about the card's file |
 | `coverage` | `card-coverage.py` finds a line never run |
 | `liveness` | One scenario, played alone, runs none of the card's lines |
-| `mutation` | `card-mutate.py` could not finish, or the card has more than 40 possible changes |
+| `mutation` | `card-mutate.py` could not finish, or the card has more than 40 possible changes. A card with no file has none |
 | `layers` | With a static ability, `layer_pass_cases` fails |
-| `report` | A test point is unpaired, or a LOOK, a surviving mutant or a function copied from another card is unanswered |
+| `report` | A printed line has no validation, a test point or ruling is unpaired, or a LOOK, a surviving mutant or a function copied from another card is unanswered |
 
 `liveness` exists because `card-coverage.py` judges a card's scenarios together, so one that plays nothing of the card hides
-among them. The doc-comment rule in `style` is stricter than Cantrip's practice: 93 of the last 150 cards landed upstream
-pass it unchanged.
+among them. A card whose file names only a shared function has no line of its own, so `liveness` asks only that a scenario
+plays it, and `mutation` shows the scenarios reach it. A card with no file has neither, so its scenarios stand on their own.
 
 No gate reads the rules. The skill's last section says what that leaves to a review.
 

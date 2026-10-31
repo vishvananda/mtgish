@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Turn generated Cantrip cards into card commits, one card at a time, whoever does the writing.
+"""Turn the Cantrip cards the generator writes whole into card commits, one card at a time, whoever does the checking.
+
+Only a card with no gap comes here: the generator's closed table of recipes (`ast cantrip-files`, card_file.rs) wrote it
+from shared mechanics alone, so it needs no mechanic and no engine work. Its code and content are final. The worker
+validates them against the Oracle text and writes the scenarios, and a card that is wrong is a generator bug, not an edit.
 
 What a person or an agent uses, inside a session (the `card-lane` skill says how):
 
@@ -14,7 +18,7 @@ What a person or an agent uses, inside a session (the `card-lane` skill says how
 What sets it up, and what runs it unattended:
 
     card_lane.py setup                                   the worktree, the generator, the tools; safe to run again
-    card_lane.py queue [--format pioneer]                the cards the generator can emit whole
+    card_lane.py queue [--format pioneer]                the cards with no gap, the format's list first
     card_lane.py run --backend codex --model gpt-6-luna  a loop that starts a worker per card
 
 Nothing above `run` knows about models. `run` starts a worker and then calls the same steps, and `check` decides, never
@@ -26,7 +30,6 @@ Nothing here pushes or posts. Commits stay on the lane's local Cantrip branch. S
 import argparse
 import collections
 import datetime
-import glob
 import json
 import os
 import re
@@ -57,7 +60,8 @@ BIN = LANE / "bin"
 SKILL = MTGISH / ".claude" / "skills" / "card-lane"
 QUEUE = STATE / "queue.json"
 
-# What a card may add. Anything else is out of this lane: a card that needs it is a gap, not a bigger commit.
+# What a card may add. Anything else is out of this lane: a card that needs it is a gap, not a bigger commit. The card's
+# file and content come from tools, so of these a worker writes only scenarios; the `generated` gate holds the rest.
 CONTENT_DIR = "content/mtg/cards"
 CARDS_DIR = "crates/cantrip-cards/src/cards"
 SCENARIOS_DIR = "scenarios"
@@ -68,7 +72,8 @@ RATES = {"gpt-6-luna": (.10, .01, .50), "gpt-5.6-luna": (.20, .02, 1.20), "gpt-6
          "gpt-6-astra": (10, 1, 50)}
 
 MUTATION_LIMIT = 40  # about 16 s each; a card past this is reported as partly tested, not passed silently
-PRIOR_ART, PRIOR_ART_CHARS = 5, 3500  # cards in a packet's prior-art.md, and the most of any one file
+PRIOR_ART, PRIOR_ART_CHARS = 3, 3000  # scenarios in a packet's prior-art.md, and the most of any one
+STOPS = ("generator_bug", "engine_gap", "needs_review")  # what a worker can report instead of `done`; no gate can undo these
 
 
 def now():
@@ -172,21 +177,6 @@ def implemented():
     return have
 
 
-def generated_modules(names):
-    """`ast cantrip-module` for many cards in one read of the corpus: {name: module text}."""
-    code, out = shell(AST, "cantrip-module", MTGISH / "data" / "mtgish.lines.ron", *names, cwd=MTGISH)
-    if code != 0:
-        sys.exit(out[-2000:])
-    modules, name = {}, None
-    for line in out.splitlines(keepends=True):
-        if line.startswith("// ===== "):
-            name = line[9:].strip()
-            modules[name] = ""
-        elif name:
-            modules[name] += line
-    return modules
-
-
 def scryfall_cards():
     code, out = shell(sys.executable, "-c", """
 import gzip, glob, json, sys
@@ -214,66 +204,63 @@ def oracle_differs(printed, ours):
 
 
 def cmd_queue(args):
-    """The format's list in its own order (add-cards: cards go in list order, never sorted by difficulty), keeping
-    every card's state from an earlier queue."""
+    """Every card with no gap that Cantrip lacks: the format's list first, in its own order (add-cards: cards go in list
+    order, never sorted by difficulty), then the rest as the corpus has them. A gap is `ast cantrip-files`'s `gap`: an
+    ability, keyword or target with no shared recipe. `backend_capable` is no test here, since that scan inlines whatever
+    a card needs. Cards already worked keep their records; a card opened and not finished goes back first."""
     STATE.mkdir(parents=True, exist_ok=True)
     GEN.mkdir(parents=True, exist_ok=True)
-    report_path, rows_path = GEN / "report.json", GEN / "rows.jsonl"
+    rows_path = GEN / "rows.jsonl"
     data = MTGISH / "data"
-    shell(AST, "check-cantrip", data / "mtgish.lines.ron", report_path, cwd=MTGISH)  # exits 1 for records with gaps; the report is whole
     shell(AST, "cantrip-files", data / "mtgish.lines.ron", data / "oracle.json", rows_path, cwd=MTGISH, check=True)
-    report = json.loads(report_path.read_text(encoding="utf-8"))
-    records = collections.defaultdict(list)
-    for record in report["records"]:
-        for name in record["identity"]["names"]:
-            records[name].append(record)
-        records[" // ".join(record["identity"]["names"])].append(record)
-    rows = {json.loads(line)["name"]: json.loads(line) for line in rows_path.open(encoding="utf-8")}
+    rows = [json.loads(line) for line in rows_path.open(encoding="utf-8")]
     listed = [c["name"] for c in json.loads((CANTRIP / "docs" / "formats" / f"{args.format}.json").read_text(encoding="utf-8"))["cards"]]
+    previous = load_queue() if QUEUE.exists() else {"cards": []}
+    recover(previous)
+    kept = [c for c in previous["cards"] if c["status"] != "pending"]
+    done = {c["name"] for c in kept}
     have, scryfall = implemented(), scryfall_cards()
     oracle = {}
     for entry in json.loads((data / "oracle.json").read_text(encoding="utf-8")):
         for face in entry["cards"]:
             oracle.setdefault(face["name"], face)
     issues = open_issues(args.format)
-
-    old = {c["name"]: c for c in (json.loads(QUEUE.read_text(encoding="utf-8"))["cards"] if QUEUE.exists() else [])}
-    cards, skipped = [], collections.Counter()
-    details = []
-    missing = [n for n in listed if n not in have]
-    capable = [n for n in missing if records[n] and all(r["backend_capable"] for r in records[n])]
-    modules = generated_modules(capable) if capable else {}
-    (GEN / "modules").mkdir(exist_ok=True)
-    for name in missing:
+    old = {c["name"]: c for c in previous["cards"]}
+    rows_by_name = {row["name"]: row for row in rows}
+    order = [rows_by_name[n] for n in listed if n in rows_by_name]
+    if not args.listed_only:
+        order += [row for row in rows if row["name"] not in set(listed)]
+    cards, skipped, details = [], collections.Counter(), []
+    stopped = collections.Counter(rows_by_name[n]["gap"] for n in listed if n in rows_by_name and n not in have and rows_by_name[n]["gap"])
+    for row in order:
+        name = row["name"]
+        if row["gap"] or name in have or name in done:
+            continue
         reason = None
-        record = records[name][0] if records[name] else None
-        if record is None:
-            reason = "not in the corpus"
-        elif not all(r["backend_capable"] for r in records[name]):
-            reason = "generator gap: " + str((record.get("backend_diagnostic") or {}).get("feature", "unknown"))
-        elif record["identity"]["layout"] != "Card" or scryfall.get(name, {}).get("layout", "normal") not in args.layouts:
-            reason = "layout " + scryfall.get(name, {}).get("layout", record["identity"]["layout"])
-        elif name not in modules:
-            reason = "no module"
-        elif name in scryfall and name in oracle and oracle_differs(scryfall[name]["oracle_text"], oracle[name].get("text", "")):
+        if name not in scryfall:
+            reason = "not on Scryfall"
+        elif scryfall[name]["layout"] not in args.layouts:
+            reason = "layout " + scryfall[name]["layout"]
+        elif name in oracle and oracle_differs(scryfall[name]["oracle_text"], oracle[name].get("text", "")):
             reason = "Oracle text differs from mtgish's oracle.json"
             details.append({"name": name, "scryfall": scryfall[name]["oracle_text"], "mtgish": oracle[name].get("text", "")})
         if reason:
             skipped[reason] += 1
             continue
-        (GEN / "modules" / (names_of(name)[0] + ".rs")).write_text(modules[name], encoding="utf-8")
-        row = rows.get(name) or {}
         entry = old.get(name) or {"name": name, "status": "pending", "attempts": 0}
-        entry.update(lane="recipe" if row.get("gap") is None and row.get("rust") else "draft", gap=row.get("gap"), issue=issues.get(name))
+        entry.update(listed=name in listed, issue=issues.get(name))
         cards.append(entry)
+    missing = [n for n in listed if n not in have]
     queue = {"format": args.format, "built": now(), "generator_commit": git_head(MTGISH), "cantrip_commit": git("rev-parse", "HEAD").strip(),
-             "missing": len(missing), "capable": len(capable), "skipped": dict(skipped), "oracle_differences": details, "cards": cards}
+             "missing": len(missing), "skipped": dict(skipped), "stopped_by": dict(stopped), "oracle_differences": details, "cards": kept + cards}
     save_queue(queue)
-    print(f"{args.format}: {len(listed)} listed, {len(missing)} missing, {len(capable)} capable, {len(cards)} queued")
+    print(f"{args.format}: {len(listed)} listed, {len(missing)} missing, {sum(c['listed'] for c in cards)} of those have no gap")
+    print(f"queued {len(cards)} with no gap: {sum(c['listed'] for c in cards)} listed, {sum(not c['listed'] for c in cards)} others; "
+          f"{sum(1 for c in cards if not rows_by_name[c['name']]['rust'])} need no code; {len(kept)} earlier cards kept")
     for reason, n in skipped.most_common(12):
         print(f"  skipped {n}: {reason}")
-    print(f"  recipe (final code from the generator): {sum(c['lane'] == 'recipe' for c in cards)}; draft (worker rewrites it): "
-          f"{sum(c['lane'] == 'draft' for c in cards)}")
+    for gap, n in stopped.most_common(12):
+        print(f"  {args.format} stopped {n}: {gap}")
 
 
 def git_head(path):
@@ -299,71 +286,79 @@ def _gh_env():
 
 # ---- Preparing a card -----------------------------------------------------------------------------------------------
 
-CHARACTERISTICS = {"name", "token_words", "oracle", "cost", "has_cost", "types", "subtypes", "supertypes", "colors", "power", "toughness",
-                   "loyalty", "defense", "keywords"}
-EMPTY = {"None", "&[]", "ColorSet(0)"}
+class GeneratorBug(Exception):
+    """The generator's output cannot go to a worker. No worker may change it, so none is spent on it."""
 
 
-def split_fields(body):
-    """A struct literal's fields, split at its top-level commas: strings and brackets kept whole."""
-    fields, depth, start, i, quoted = [], 0, 0, 0, False
-    while i < len(body):
-        c = body[i]
-        if quoted:
-            if c == "\\":
-                i += 1
-            elif c == '"':
-                quoted = False
-        elif c == '"':
-            quoted = True
-        elif c in "([{":
-            depth += 1
-        elif c in ")]}":
-            depth -= 1
-        elif c == "," and depth == 0:
-            fields.append(body[start:i].strip())
-            start = i + 1
-        i += 1
-    if body[start:].strip():
-        fields.append(body[start:].strip())
-    return fields
+def generated_row(name):
+    """The card's row of `ast cantrip-files`: its file in `rust`, or none for a card of core keywords alone."""
+    for line in (GEN / "rows.jsonl").open(encoding="utf-8"):
+        row = json.loads(line)
+        if row["name"] == name:
+            return row
+    raise GeneratorBug(f"{name} has no generator row")
 
 
-def card_source(module, name, constant):
-    """A generated module as a card file: its behavior over the `oracle::` constant, its characteristics left to the
-    content JSON. It compiles and it plays; it is not yet what a reviewer accepts, which is the worker's part."""
-    lines = [l for l in module.splitlines() if not l.startswith(("// Generated by", "// Generator SHA256"))]
-    prefix = "pub static CARD: CardDef = CardDef {"
-    at = max(i for i, l in enumerate(lines) if l.startswith(prefix))
-    body = lines[at][len(prefix):].rstrip().removesuffix("};").rstrip().removesuffix("}")
-    if f'name: "{name}"' not in body.replace("\\'", "'"):
-        raise ValueError(f"the last CARD in {name}'s module is not its own")
-    kept = []
-    for field in split_fields(body):
-        key, _, value = field.partition(":")
-        if field.startswith("..") or key.strip() in CHARACTERISTICS or value.strip() in EMPTY:
+def printed_lines(oracle_text):
+    """A card's Oracle lines without reminder text, which has no game function (CR 207.2): what validating it covers."""
+    lines = (re.sub(r"\s+", " ", re.sub(r"\([^)]*\)", "", line)).strip() for line in oracle_text.split("\n"))
+    return [line for line in lines if line]
+
+
+def definition(path, name):
+    """The doc comment and text of a top-level `fn`, `const` or `static` in a file, or None."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    for i, line in enumerate(lines):
+        if not re.match(rf"\s*(?:pub(?:\([^)]*\))? )?(?:fn|const|static) {re.escape(name)}\b", line):
             continue
-        kept.append(field)
-    lines[at:at + 1] = [prefix, *[f"    {f}," for f in kept], f"    ..oracle::{constant}", "};"]
-    use = next(i for i, l in enumerate(lines) if "use cantrip_api::*;" in l)
-    lines.insert(use + 1, "use cantrip_oracle as oracle;")
-    return "\n".join(lines) + "\n"
+        start = i
+        while start and lines[start - 1].lstrip().startswith(("///", "#[")):
+            start -= 1
+        end, depth = i, 0
+        while end < len(lines):
+            depth += lines[end].count("{") + lines[end].count("(") - lines[end].count("}") - lines[end].count(")")
+            if depth <= 0 and lines[end].rstrip().endswith(("}", ";")):
+                break
+            end += 1
+        return "\n".join(lines[start:end + 1])
+    return None
+
+
+def shared_code(source):
+    """What a card's file calls, as the shared code defines it. The file's words say what it means to do; these say what it
+    does. Without them a worker searches `cantrip-mechanics` for each. A `const` brings the private function it names."""
+    mechanics = CANTRIP / "crates" / "cantrip-mechanics" / "src"
+    names = re.findall(r"\beffects::(\w+)", source) + re.findall(r"\btargets::(\w+)", source)
+    names += re.findall(r"\b(?:damage_target|destroy_target|THIS_ENTERS|THIS_DIES)\b", source)
+    out = []
+    for name in dict.fromkeys(names):
+        for module in ("effects.rs", "targets.rs", "triggers.rs", "lib.rs"):
+            text = definition(mechanics / module, name)
+            if text is None:
+                continue
+            out += [f"## {name} ({module})", "", "```rust", text]
+            helpers = re.findall(r"\b([a-z]\w+_filter|this_\w+)\b", text) if re.search(r"\bconst [A-Z]", text) else []
+            out += [f"\n{more}" for more in map(lambda helper: definition(mechanics / module, helper), helpers) if more]
+            out += ["```", ""]
+            break
+    return "\n".join(out)
 
 
 def brief(card, driven=False):
     """What a worker needs to know that the skill cannot: which card, and where its things are."""
     name = card["name"]
     stem, slug, _ = names_of(name)
-    code = ("the generator's final form, which still has to be proved" if card.get("lane") == "recipe"
-            else "the generator's draft: it compiles and plays, and step 2 rewrites it")
+    code = (f"`{CARDS_DIR}/{stem}.rs`, the generator's, read-only" if card_file(name).exists()
+            else "none: the content file's core keywords are the whole card")
     lines = [f"# Card: {name}", "",
              f"Follow the card-lane skill, section \"Doing one card\": {SKILL / 'SKILL.md'}", "",
-             f"Goal: `check \"{name}\" --fast` passes and `report.json` says `done`, with the card exact to its text. Then stop.", "",
+             f"Goal: the generated card is validated against its Oracle text, line by line, and its scenarios prove it: `check \"{name}\" --fast` passes "
+             "and `report.json` says `done`. Or `report.json` says why it is wrong. You write scenarios and the report, no code.", "",
              f"- Tools: `python3 {Path(__file__).resolve()} <command>`",
              f"- Cantrip tree, your working directory: `{CANTRIP}`",
              f"- Packet: `{card_dir(name)}`",
-             f"- Card file: `{CARDS_DIR}/{stem}.rs`, {code}",
-             f"- Content file: `{CONTENT_DIR}/{slug}.json`, written from Scryfall",
+             f"- Card file: {code}",
+             f"- Content file: `{CONTENT_DIR}/{slug}.json`, from Scryfall, read-only",
              f"- Placeholder scenarios: `{SCENARIOS_DIR}/{stem.replace('_', '-')}-*.cantrip`"]
     if driven:
         lines += ["", "A driver runs the gates and makes the commit. Stop after writing `report.json`; do not run `commit` or `abandon`."]
@@ -399,60 +394,71 @@ def placeholders(card_name):
     return written
 
 
-def prior_art(reference):
-    """The cards `new-card.py` names as prior art, each with its file and its shortest scenario. Read one by one these
-    cost a worker a dozen calls, and a scenario of the same shape answers most of what it would read the harness for."""
-    seen, out = [], []
-    for match in re.finditer(r"^\s+(.+?)\s{2,}crates/cantrip-cards/src/cards/(\w+)\.rs", reference, re.M):
-        if match[2] not in seen:
-            seen.append(match[2])
-    for stem in seen[:PRIOR_ART]:
-        source = CANTRIP / CARDS_DIR / f"{stem}.rs"
-        if not source.exists():
+def recipe_of(source):
+    """The shared call a card's file is built on, or None."""
+    match = re.search(r"\b(effects::\w+|damage_target|destroy_target)\b", source)
+    return match[1] if match else None
+
+
+def prior_art(source, reference):
+    """Short scenarios of existing cards, those built on this card's own shared call first, then the cards `new-card.py`
+    names. A scenario of the same shape answers most of what a worker would otherwise read the harness for."""
+    stems = []
+    recipe = recipe_of(source)
+    if recipe:
+        users = [p for p in (CANTRIP / CARDS_DIR).glob("*.rs") if recipe in p.read_text(encoding="utf-8")]
+        stems += [p.stem for p in sorted(users, key=lambda path: path.stat().st_size)[:40]]
+    stems += [m[1] for m in re.finditer(r"^\s+.+?\s{2,}crates/cantrip-cards/src/cards/(\w+)\.rs", reference, re.M)]
+    out, seen = [], set()
+    for stem in stems:
+        if len(seen) == PRIOR_ART or stem in seen:
             continue
-        out += [f"## {stem}", "", "```rust", source.read_text(encoding="utf-8")[:PRIOR_ART_CHARS].rstrip(), "```", ""]
         scenarios = sorted((CANTRIP / SCENARIOS_DIR).glob(stem.replace("_", "-") + "*.cantrip"), key=lambda path: path.stat().st_size)
         if scenarios:
+            seen.add(stem)
             text = scenarios[0].read_text(encoding="utf-8")[:PRIOR_ART_CHARS].rstrip()
             out += [f"`{SCENARIOS_DIR}/{scenarios[0].name}`", "", "```", text, "```", ""]
     return "\n".join(out)
 
 
 def prepare(card):
-    """Everything a worker starts from, in the worktree and the packet. Returns phase notes for the card's record."""
+    """Everything a worker starts from, in the worktree and the packet. The generator's file goes in as it is, its fields
+    on their own lines, which `card-mutate.py` needs: it passes over any line naming `oracle::`. If it cannot stand, no
+    worker is started."""
     name = card["name"]
-    stem = names_of(name)[0]
+    row = generated_row(name)
+    if row["gap"]:
+        raise GeneratorBug(f"{name} has a gap: {row['gap']}")
     packet = card_dir(name)
     packet.mkdir(parents=True, exist_ok=True)
-    for stale in ("report.json", "check.json"):
+    for stale in ("report.json", "check.json", "work.patch"):
         (packet / stale).unlink(missing_ok=True)
     code, out = tool("new-card.py", name)
     (packet / "reference.md").write_text(out, encoding="utf-8")
     if code != 0 or not content_file(name).exists():
         raise RuntimeError(f"new-card.py wrote no content file for {name}:\n{out[-1500:]}")
-    (packet / "prior-art.md").write_text(prior_art(out), encoding="utf-8")
+    shutil.copyfile(content_file(name), packet / "content.json")
+    source = row["rust"] or ""
+    if source:
+        card_file(name).write_text(source, encoding="utf-8", newline="\n")
+    else:
+        card_file(name).unlink(missing_ok=True)
+    problems = style_problems(name, source) if source else []
+    if problems:
+        raise GeneratorBug("; ".join(problems))
+    (packet / "shared.md").write_text(shared_code(source), encoding="utf-8")
+    (packet / "prior-art.md").write_text(prior_art(source, out), encoding="utf-8")
     points = parse_test_points(out)
     write_test_points(name, points)
-    (packet / "report.json").write_text(json.dumps(report_skeleton(points, parse_rulings(out)), indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
-    module = (GEN / "modules" / f"{stem}.rs").read_text(encoding="utf-8")
-    (packet / "draft.rs").write_text(module, encoding="utf-8")
-    rows = {}
-    for line in (GEN / "rows.jsonl").open(encoding="utf-8"):
-        row = json.loads(line)
-        if row["name"] == name:
-            rows = row
-            break
-    source = rows.get("rust") if card.get("lane") == "recipe" else None
-    if source is None:
-        source = card_source(module, name, names_of(name)[2])
-    card_file(name).write_text(source, encoding="utf-8", newline="\n")
-    shell("rustfmt", "--edition", "2024", "--config", "max_width=130,use_small_heuristics=Max", card_file(name))
+    oracle_text = json.loads(content_file(name).read_text(encoding="utf-8-sig")).get("oracleText", "")
+    (packet / "report.json").write_text(json.dumps(report_skeleton(points, parse_rulings(out), printed_lines(oracle_text)), indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     scenarios = placeholders(name)
     code, out = run_corpus(name)
     (packet / "first-build.txt").write_text(out, encoding="utf-8")
-    compiled = not re.search(r"^error", out, re.M) and "could not compile" not in out
+    if re.search(r"^error", out, re.M) or "could not compile" in out:
+        raise GeneratorBug(f"the generated file does not compile: {out[-500:]}")
     (packet / "prompt.md").write_text(brief(card), encoding="utf-8")
-    return {"scenarios": scenarios, "draft_compiled": compiled}
+    return {"scenarios": scenarios}
 
 
 def run_corpus(name):
@@ -494,12 +500,15 @@ def cmd_next(args):
     begin(card, queue, args.who)
     try:
         card_dir(card["name"]).mkdir(parents=True, exist_ok=True)
-        card["draft_compiled"] = prepare(card)["draft_compiled"]
+        prepare(card)
     except Exception as error:
         save_patch(card)
         clean_tree()
         card["failure"] = f"{type(error).__name__}: {error}"[:600]
-        conclude(card, queue, "error")
+        conclude(card, queue, "generator_bug" if isinstance(error, GeneratorBug) else "error")
+        if isinstance(error, GeneratorBug):
+            print(f"{card['name']}: generator_bug, no worker needed: {error}")
+            return 1
         raise
     save_queue(queue)
     print(brief(card))
@@ -563,8 +572,22 @@ def card_scenarios():
     return sorted(CANTRIP / p for s, p in changed_paths() if p.startswith(SCENARIOS_DIR + "/") and p.endswith(".cantrip"))
 
 
-def strip_comments(source):
-    return "\n".join(line.split("//")[0] if '"' not in line.split("//")[0] else line for line in source.splitlines())
+def generated_problems(name):
+    """How the tree's card differs from what the tools wrote. The code and the content are final in this lane."""
+    row = generated_row(name)
+    path = card_file(name)
+    problems = []
+    if row["rust"]:
+        if not path.exists() or path.read_text(encoding="utf-8") != row["rust"]:
+            problems.append(f"{path.name} is not the generator's")
+    elif path.exists():
+        problems.append(f"{path.name} exists, and this card needs no code")
+    copy = card_dir(name) / "content.json"
+    if not copy.exists() or copy.read_bytes() != content_file(name).read_bytes():
+        problems.append(f"{content_file(name).name} is not what new-card.py wrote")
+    if problems:
+        problems.append("Put it back. If the card is wrong, the report's decision is `generator_bug`.")
+    return problems
 
 
 def called_texts(source):
@@ -619,7 +642,7 @@ def style_problems(name, source):
         words = plain(re.sub(r"\\u\{([0-9a-fA-F]+)\}", lambda m: chr(int(m[1], 16)), text.replace('\\"', '"'))).lower()
         return words.rstrip(".,;") in oracle
 
-    problems = []
+    problems = [] if re.search(r"^\s*///", source, re.M) else ["no doc comment quotes the Oracle text and cites the CR"]
     for text, line in called_texts(source):
         if not printed(text):
             problems.append(f"line {line}: ability text {text!r} is not the card's printed text")
@@ -668,9 +691,11 @@ def parse_rulings(out):
     return re.findall(r"^\s+- \d{4}-\d{2}-\d{2}\s+(.+)$", out, re.M)
 
 
-def report_skeleton(points, rulings=()):
-    """The report a worker fills in, every test point and ruling listed, so its shape is never a thing to work out."""
-    return {"decision": "todo", "reason": "", "test_points": [{"id": i, "point": p, "scenario": "", "line": 0} for i, p in enumerate(points, 1)],
+def report_skeleton(points, rulings=(), lines=()):
+    """The report a worker fills in, every printed line, test point and ruling listed, so its shape is never a thing to
+    work out."""
+    return {"decision": "todo", "reason": "", "validation": [{"line": line, "code": "", "agrees": None, "why": ""} for line in lines],
+            "test_points": [{"id": i, "point": p, "scenario": "", "line": 0} for i, p in enumerate(points, 1)],
             "rulings": [{"ruling": r, "scenario": "", "line": 0, "no_decision": ""} for r in rulings],
             "look_answers": [], "equivalent_mutants": [], "generator_disagreements": [], "notes": ""}
 
@@ -709,6 +734,14 @@ def report_problems(name, points, looks, survivors):
     if report is None:
         return [f"no report at {card_dir(name) / 'report.json'}"]
     problems = []
+    oracle_text = json.loads(content_file(name).read_text(encoding="utf-8-sig")).get("oracleText", "")
+    validated = {plain(str(v.get("line"))): v for v in report.get("validation") or [] if isinstance(v, dict)}
+    for line in printed_lines(oracle_text):
+        entry = validated.get(plain(line))
+        if entry is None or not str(entry.get("code", "")).strip():
+            problems.append(f"validation: say what implements this line: {line}")
+        elif entry.get("agrees") is not True:
+            problems.append(f"validation: this line does not agree, so the decision is `generator_bug`: {line}")
     paired = {p.get("id"): p for p in report.get("test_points") or [] if isinstance(p, dict)}
     for number, point in enumerate(points, 1):
         pair = paired.get(number)
@@ -752,7 +785,7 @@ def scenario_liveness(name):
     that plays nothing of the card hides among them. Run after card-coverage.py, on the instrumented corpus it built."""
     path = card_file(name)
     source = path.read_text(encoding="utf-8") if path.exists() else ""
-    has_code = bool(re.search(r"\bfn\s+\w+\s*\(", source))
+    has_code = bool(re.search(r"\bfn\s+\w+\s*\(|\|g, item\|", source))
     dead, seen = [], {}
     corpus = TARGET / "llvm-cov-target" / "cards" / "corpus"
     for scenario in card_scenarios():
@@ -790,6 +823,10 @@ def check(name, fast=False):
     started = time.time()
     problems = scope_problems(name)
     gates.add("scope", not problems, "\n".join(problems), started)
+
+    started = time.time()
+    problems = generated_problems(name)
+    gates.add("generated", not problems, "\n".join(problems), started)
 
     started = time.time()
     code, out = tool("new-card.py", name, "--no-write")
@@ -846,17 +883,18 @@ def check(name, fast=False):
         return finish(gates)
 
     survivors = []
-    if source and re.search(r"\bfn\s+\w+\s*\(", source):
+    if source:
         started = time.time()
-        code, out = tool("card-mutate.py", name, "--max", MUTATION_LIMIT)
-        (card_dir(name) / "mutate.txt").write_text(out, encoding="utf-8")
-        survivors = [(f"line {m[1]}: {m[2]}", f"{m[0].removeprefix('SURVIVED ')} {m[3].strip()} {m[4].strip()}")
-                     for m in re.finditer(r"^SURVIVED \S+?:(\d+): (.*)\n(\s+was: .*)\n(\s+now: .*)$", out, re.M)]
-        code2, listing = tool("card-mutate.py", name, "--list")
+        _, listing = tool("card-mutate.py", name, "--list")
         total = re.search(r"(\d+) changes", listing)
-        capped = bool(total) and int(total[1]) > MUTATION_LIMIT
-        gates.add("mutation", "restored" in out and not capped,
-                  (f"{total[1]} possible changes, only {MUTATION_LIMIT} tried\n" if capped else "") + ("" if "restored" in out else out[-800:]), started)
+        if total and int(total[1]):
+            code, out = tool("card-mutate.py", name, "--max", MUTATION_LIMIT)
+            (card_dir(name) / "mutate.txt").write_text(out, encoding="utf-8")
+            survivors = [(f"line {m[1]}: {m[2]}", f"{m[0].removeprefix('SURVIVED ')} {m[3].strip()} {m[4].strip()}")
+                         for m in re.finditer(r"^SURVIVED \S+?:(\d+): (.*)\n(\s+was: .*)\n(\s+now: .*)$", out, re.M)]
+            capped = int(total[1]) > MUTATION_LIMIT
+            gates.add("mutation", "restored" in out and not capped,
+                      (f"{total[1]} possible changes, only {MUTATION_LIMIT} tried\n" if capped else "") + ("" if "restored" in out else out[-800:]), started)
     if "statics:" in source:
         started = time.time()
         code, out = shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases")
@@ -1101,7 +1139,8 @@ class _Timer:
 
 
 def repair_prompt(gates):
-    lines = ["The lane's gates failed on the tree as it stands. Fix what they name and nothing else, re-run the fast check, update report.json, and stop.", ""]
+    lines = ["The lane's gates failed on the tree as it stands. Fix what they name in your scenarios and your report, nothing else, re-run the fast "
+             "check, update report.json, and stop. If they show the generated card is wrong, say so with the decision `generator_bug`.", ""]
     for failure in gates.failures():
         lines += [f"### {failure['gate']}", failure["detail"], ""]
     lines.append("A scenario must not be weakened to pass, and a mutant is only declared equivalent if it truly changes nothing the rules can see.")
@@ -1120,9 +1159,8 @@ def run_card(card, backend, args, queue):
     log.unlink(missing_ok=True)
     try:
         t = time.time()
-        notes = prepare(card)
+        prepare(card)
         phases["prepare"] = round(time.time() - t, 1)
-        card["draft_compiled"] = notes["draft_compiled"]
         prompt = brief(card, driven=True)
         deadline = started + args.timeout
         while True:
@@ -1138,7 +1176,7 @@ def run_card(card, backend, args, queue):
                 outcome = "infrastructure"
                 break
             report = report_of(name) or {}
-            if report.get("decision") in ("engine_gap", "needs_review"):
+            if report.get("decision") in STOPS:
                 outcome = report["decision"]
                 card["failure"] = str(report.get("reason", ""))[:400]
                 break
@@ -1156,6 +1194,9 @@ def run_card(card, backend, args, queue):
                 card["failure"] = "; ".join(f"{r['gate']}: {r['detail'][:160]}" for r in gates.failures())[:600]
                 break
             prompt = repair_prompt(gates)
+    except GeneratorBug as error:
+        outcome = "generator_bug"
+        card["failure"] = str(error)[:600]
     except Exception as error:  # a card's trouble is the card's: record it, keep the tree clean, go on
         outcome = outcome or "error"
         card["failure"] = f"{type(error).__name__}: {error}"[:600]
@@ -1191,7 +1232,7 @@ def cmd_run(args):
     if args.only:
         pending = [c for c in pending if c["name"] in args.only]
     for card in pending[:args.limit]:
-        print(f"== {card['name']} ({card['lane']})", flush=True)
+        print(f"== {card['name']}", flush=True)
         outcome = run_card(card, backend, args, queue)
         results.append(outcome)
         u = card.get("usage", {})
@@ -1299,7 +1340,8 @@ def main():
     p.set_defaults(func=cmd_setup)
     p = sub.add_parser("queue")
     p.add_argument("--format", default="pioneer")
-    p.add_argument("--layouts", nargs="*", default=["normal", "saga"], help="Scryfall layouts new-card.py writes in one face")
+    p.add_argument("--layouts", nargs="*", default=["normal"], help="Scryfall layouts the card files cover")
+    p.add_argument("--listed-only", action="store_true", help="only cards on the format's list")
     p.set_defaults(func=cmd_queue)
     p = sub.add_parser("status")
     p.add_argument("--json", action="store_true")
@@ -1320,7 +1362,7 @@ def main():
     p.set_defaults(func=cmd_commit)
     p = sub.add_parser("abandon")
     p.add_argument("name")
-    p.add_argument("--outcome", choices=("engine_gap", "needs_review", "failed_gates"), default="failed_gates")
+    p.add_argument("--outcome", choices=(*STOPS, "failed_gates"), default="failed_gates")
     p.add_argument("--reason", required=True)
     p.set_defaults(func=cmd_abandon)
     p = sub.add_parser("tool")
