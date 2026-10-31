@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 63;
+pub const SCHEMA_VERSION: u32 = 64;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1886,6 +1886,13 @@ pub enum ObjectSet {
     /// Objects a preceding choice could have selected and did not, by the
     /// candidates it offered; each player's own in a per-player choice.
     Unselected(ResultId),
+    /// What this player's share of an action moved: their run of a `ForEachPlayer`
+    /// body, or the part of a batch they performed.
+    MovedBy {
+        result: ResultId,
+        phase: ObjectPhase,
+        player: PlayerRef,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -2157,6 +2164,11 @@ pub enum Condition {
     CoinFlip {
         result: ResultId,
         outcome: CoinOutcome,
+    },
+    /// This player's run of a `ForEachPlayer` body reached this instruction.
+    PlayerTook {
+        player: PlayerRef,
+        result: ResultId,
     },
 }
 

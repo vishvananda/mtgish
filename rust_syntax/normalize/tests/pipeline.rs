@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 63);
+    assert_eq!(card.schema_version, 64);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2904,6 +2904,23 @@ fn a_seek_is_a_random_pick_moved_to_hand() {
     let many = ability_json("SpellActions(ActionList([SeekNumberCards(Integer(2),AnyCard)]))");
     assert!(many.contains("AsManyAsCan"), "{many}");
     assert!(!many.contains("Primitive"), "{many}");
+}
+
+#[test]
+fn each_player_who_did_reads_their_share_of_the_batch() {
+    let refused = ability_json("SpellActions(ActionList([EachPlayerAction(Opponent,SacrificeAPermanent(IsCardtype(Creature))),EachPlayerAction(DidntSacrificeAPermanentThisWay(AnyPermanent),DiscardACard)]))");
+    assert!(!refused.contains("Primitive"), "{refused}");
+    assert!(refused.contains("MovedBy"), "{refused}");
+    assert!(refused.contains("Intersection"), "{refused}");
+    assert!(refused.contains("OpponentsOf"), "{refused}");
+    let took = ability_json("SpellActions(ActionList([EachPlayerMayAction(AnyPlayer,DrawACard),EachPlayerAction(PlayerWhoTookActionThisWay,GainLife(Integer(1)))]))");
+    assert!(took.contains("PlayerTook"), "{took}");
+    let declined = ability_json("SpellActions(ActionList([EachPlayerMayAction(Opponent,DrawACard),EachPlayerAction(DidntTakeAction,LoseLife(Integer(1)))]))");
+    assert!(declined.contains("PlayerTook"), "{declined}");
+    assert!(declined.contains("Intersection"), "{declined}");
+    let counted = ability_json("SpellActions(ActionList([EachPlayerAction(AnyPlayer,DiscardHand),EachPlayerAction(AnyPlayer,DrawNumberCards(TheNumberOfCardsDiscardedByPlayerThisWay(EachablePlayer)))]))");
+    assert!(counted.contains("MovedBy"), "{counted}");
+    assert!(!counted.contains("Primitive"), "{counted}");
 }
 
 #[test]

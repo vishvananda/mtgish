@@ -93,6 +93,9 @@ struct Context {
     /// The Army the last amass put counters on.
     amassed: Option<ResultId>,
     seeked: Vec<ResultId>,
+    /// The last effect a player chose to take, and who was last offered a batch.
+    took: Option<ResultId>,
+    offered: Option<PlayerSet>,
     removed_counters: Option<ResultId>,
     announcing: bool,
     you: Option<PlayerRef>,
@@ -400,6 +403,9 @@ impl Context {
         if self.entered.as_ref().map(|r| r.0) != child.entered.as_ref().map(|r| r.0) {
             self.entered = None;
         }
+        if self.took.as_ref().map(|r| r.0) != child.took.as_ref().map(|r| r.0) {
+            self.took = None;
+        }
         if self
             .seeked
             .iter()
@@ -704,13 +710,21 @@ impl Context {
                     .binding_depth
                     .checked_add(1)
                     .ok_or_else(|| invalid("player predicate nesting is too deep"))?;
-                PlayerSet::Matching {
+                let matching = PlayerSet::Matching {
                     binding: binding.clone(),
                     condition: Box::new(
                         child
                             .player_matches(PlayerRef::Bound(binding), value)
                             .map_err(|_| unsupported(value))?,
                     ),
+                };
+                match value {
+                    S::DidntTakeAction
+                    | S::DidntSacrificeAPermanentThisWay(_)
+                    | S::DidntDiscardedACardOfTypeThisWay(_) => {
+                        PlayerSet::Intersection(vec![self.offered()?, matching])
+                    }
+                    _ => matching,
                 }
             }
         })
@@ -978,6 +992,19 @@ impl Context {
                 Expr::CountersRemoved(self.removed_counters.clone().unwrap())
             }
             S::LifeLostThisWay => Expr::Performed(self.done(Done::LifeLost)?),
+            S::TheNumberOfCardsDiscardedByPlayerThisWay(player)
+            | S::TheNumberOfCardsPlayerDiscardedThisWay(player) => {
+                let player = self.player(player)?;
+                Expr::CountObjects(Box::new(self.moved_by(
+                    Done::Discarded,
+                    ObjectPhase::After,
+                    &player,
+                    None,
+                )?))
+            }
+            S::TheNumberOfPlayersWhoTookAnActionThisWay => {
+                Expr::CountPlayers(self.players(&source::Players::PlayerWhoTookActionThisWay)?)
+            }
             S::NumberOfCardsDrawnThisWay => Expr::Performed(self.done(Done::Drew)?),
             S::TheAmountOfDamageDealtThisWay => Expr::Performed(self.done(Done::Damage)?),
             S::NumPermanentsDestroyedThisWay(filter) => {
@@ -4756,6 +4783,7 @@ include!("lower_this_way.rs");
 include!("lower_coin.rs");
 include!("lower_hand.rs");
 include!("lower_named.rs");
+include!("lower_took.rs");
 include!("lower_reflexive.rs");
 include!("lower_reveal.rs");
 include!("lower_replace.rs");

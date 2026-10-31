@@ -161,6 +161,7 @@ impl<'a> Scope<'a> {
             } => crate::cost_history::zone(self.paid_component(payment, component).ok()?, phase)
                 .map(|z| vec![z]),
             ObjectSet::Transition { result, .. }
+            | ObjectSet::MovedBy { result, .. }
             | ObjectSet::Observed(result)
             | ObjectSet::Unselected(result)
             | ObjectSet::Selected(result) => self.result_zones.get(&result.0).cloned(),
@@ -580,6 +581,13 @@ impl<'a> Scope<'a> {
                 Some(ResultKind::ObjectTransition) => Ok(()),
                 _ => Err("transition set requires an object-transition result".into()),
             },
+            ObjectSet::MovedBy { result, player, .. } => {
+                self.player(player)?;
+                match self.results.get(&result.0) {
+                    Some(ResultKind::ObjectTransition) => Ok(()),
+                    _ => Err("a player's share requires an object-transition result".into()),
+                }
+            }
             ObjectSet::One(object) => self.object(object),
             ObjectSet::Targets(slot) => {
                 self.target(slot, None, TargetKind::Object(ObjectDomain::permanent()))
@@ -828,6 +836,14 @@ impl<'a> Scope<'a> {
     fn condition(&self, condition: &Condition) -> Result {
         match condition {
             Condition::Primitive { name, operands } => self.primitive(name, operands),
+            Condition::PlayerTook { player, result } => {
+                self.player(player)?;
+                if self.results.contains_key(&result.0) {
+                    Ok(())
+                } else {
+                    Err(format!("result {} is unavailable", result.0))
+                }
+            }
             Condition::Searched(result) => match self.results.get(&result.0) {
                 Some(ResultKind::Search) => Ok(()),
                 _ => Err("searched condition requires an available search result".into()),
@@ -1987,7 +2003,8 @@ impl<'a> Scope<'a> {
         }
     }
 
-    /// A player loop's picks stay readable as a set, never as one object.
+    /// A player loop's picks and moves stay readable as a set, never as one
+    /// object; anything else it did can still be asked whether it happened.
     fn adopt_choices(&mut self, body: &Program, run: &Self) {
         for instruction in &body.instructions {
             match instruction {
@@ -2001,7 +2018,29 @@ impl<'a> Scope<'a> {
                         self.result_zones.insert(result.0, zones.clone());
                     }
                 }
-                Instruction::Group(body) => self.adopt_choices(body, run),
+                Instruction::Effect { result, operation } => {
+                    let moved = matches!(
+                        operation,
+                        Operation::Move { .. }
+                            | Operation::Destroy { .. }
+                            | Operation::Sacrifice { .. }
+                            | Operation::Discard { .. }
+                            | Operation::DiscardObjects { .. }
+                            | Operation::Mill { .. }
+                    );
+                    self.results.insert(
+                        result.0,
+                        if moved {
+                            ResultKind::ObjectTransition
+                        } else {
+                            ResultKind::Other
+                        },
+                    );
+                    self.gathered.insert(result.0);
+                }
+                Instruction::Group(body) | Instruction::Optional { body, .. } => {
+                    self.adopt_choices(body, run)
+                }
                 _ => {}
             }
         }

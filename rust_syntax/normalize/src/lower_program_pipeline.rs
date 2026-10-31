@@ -50,6 +50,8 @@ impl Context {
         self.hand_choice = child.hand_choice.or(self.hand_choice.take());
         self.exile_choice = child.exile_choice.or(self.exile_choice.take());
         self.grave_choice = child.grave_choice.or(self.grave_choice.take());
+        self.took = child.took.or(self.took.take());
+        self.did.extend(child.did);
         Ok(Instruction::ForEachPlayer {
             players,
             binding,
@@ -154,6 +156,7 @@ impl Context {
                     self.iterated = outer;
                     instruction?
                 } else {
+                    self.offered = Some(players.clone());
                     let before = self.clone();
                     let noted = self.blockers.borrow().len();
                     match lower(self, &players) {
@@ -176,6 +179,7 @@ impl Context {
                     context.iterated = outer;
                     let body = body?;
                     context.note_moves(&body);
+                    context.took = last_effect(&body).or(context.took.take());
                     Ok(Instruction::Optional {
                         decider: decider.clone(),
                         body,
@@ -189,6 +193,7 @@ impl Context {
                     }
                     A::Batch(p) => {
                         let players = self.players(p)?;
+                        self.offered = Some(players.clone());
                         self.for_each_player(players, optional)?
                     }
                 }

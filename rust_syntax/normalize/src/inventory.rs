@@ -1210,6 +1210,10 @@ impl Inventory<'_> {
                 }
             }
             ObjectSet::Transition { phase, .. } => self.form("ObjectPhase", phase),
+            ObjectSet::MovedBy { phase, player, .. } => {
+                self.form("ObjectPhase", phase);
+                self.player(player);
+            }
             ObjectSet::One(r) => self.object(r),
             ObjectSet::Battlefield(f) => self.filter(f),
             ObjectSet::InZone { objects, zone } => {
@@ -1465,6 +1469,7 @@ impl Inventory<'_> {
         match c {
             Condition::Primitive { name, .. } => self.primitive(name),
             Condition::Searched(_) => {}
+            Condition::PlayerTook { player, .. } => self.player(player),
             Condition::TargetsMatch {
                 object,
                 kind,
