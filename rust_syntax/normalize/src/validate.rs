@@ -717,7 +717,9 @@ impl<'a> Scope<'a> {
         match expression {
             Expr::TimesActivatedThisTurn => Ok(()),
             Expr::Primitive { name, operands } => self.primitive(name, operands),
-            Expr::ChosenParity | Expr::ChosenNumber => Ok(()),
+            Expr::ChosenParity | Expr::ChosenNumber | Expr::TimesResolvedThisTurn => Ok(()),
+            Expr::PartySize(player) | Expr::StartingLife(player) => self.player(player),
+            Expr::TimesKicked(object) => self.object(object),
             Expr::EventHistory { event, .. } => self.event(event),
             Expr::CountPlayers(players) => self.players(players),
             Expr::ManaSpent { object, filter, .. } => {
@@ -909,6 +911,8 @@ impl<'a> Scope<'a> {
             | ObjectFilter::Attacking
             | ObjectFilter::Blocking => Ok(()),
             ObjectFilter::State(_) | ObjectFilter::Chosen(_) => Ok(()),
+            ObjectFilter::BlockedByObject(object) => self.object(object),
+            ObjectFilter::AttackingDefender(defenders) => self.defenders(defenders),
             ObjectFilter::AttachedTo(filter) => self.filter(filter),
             ObjectFilter::BlockingObject(object) => self.object(object),
             ObjectFilter::All(items) | ObjectFilter::Either(items) => {

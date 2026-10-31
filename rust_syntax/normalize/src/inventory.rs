@@ -1360,7 +1360,9 @@ impl Inventory<'_> {
     fn expr(&mut self, e: &Expr) {
         self.form("Expr", e);
         match e {
-            Expr::TimesActivatedThisTurn => {}
+            Expr::TimesActivatedThisTurn | Expr::TimesResolvedThisTurn => {}
+            Expr::PartySize(player) | Expr::StartingLife(player) => self.player(player),
+            Expr::TimesKicked(object) => self.object(object),
             Expr::BoundValue(_)
             | Expr::ChosenParity
             | Expr::ChosenNumber
@@ -1544,6 +1546,8 @@ impl Inventory<'_> {
                 self.form("Comparison", comparison);
                 self.expr(value);
             }
+            ObjectFilter::BlockedByObject(object) => self.object(object),
+            ObjectFilter::AttackingDefender(defenders) => self.defenders(defenders),
             ObjectFilter::Any
             | ObjectFilter::IsCard
             | ObjectFilter::Name(_)

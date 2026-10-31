@@ -408,6 +408,12 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
         "IsAttackingAlone" => Some(ObjectState::AttackingAlone),
         "WasBargained" => Some(ObjectState::Bargained),
         "HasBeenGoaded" => Some(ObjectState::Goaded),
+        "IsPaired" => Some(ObjectState::Paired),
+        "IsSuspected" => Some(ObjectState::Suspected),
+        "IsDamaged" => Some(ObjectState::Damaged),
+        "TributeWasntPaid" => Some(ObjectState::TributeNotPaid),
+        "WasCastByPlayerDuringTheirMainPhase" => Some(ObjectState::CastDuringOwnMainPhase),
+        "HasXInManaCost" | "HasXInCost" => Some(ObjectState::HasX),
         _ => None,
     };
     match (state, form, operands.as_slice()) {
@@ -439,12 +445,123 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
         (_, "IsBlockingAttacker", [Operand::Object(object)]) => {
             ObjectFilter::BlockingObject(object.clone())
         }
+        (_, "IsBlockedByDefender", [Operand::Object(object)]) => {
+            ObjectFilter::BlockedByObject(object.clone())
+        }
+        (_, "IsAttackingPlayer", [Operand::Player(player)]) => ObjectFilter::AttackingDefender(
+            Box::new(AttackDefenders::Players(PlayerSet::One(player.clone()))),
+        ),
+        (_, "IsAttackingAPlayer", [Operand::Players(players)]) => {
+            ObjectFilter::AttackingDefender(Box::new(AttackDefenders::Players(players.clone())))
+        }
         _ => ObjectFilter::Primitive { name, operands },
+    }
+}
+
+/// A color word's mana color.
+fn simple_color(operand: &Operand) -> Option<ManaColor> {
+    let Operand::Vocabulary { form, .. } = operand else {
+        return None;
+    };
+    match form.as_str() {
+        "White" => Some(ManaColor::White),
+        "Blue" => Some(ManaColor::Blue),
+        "Black" => Some(ManaColor::Black),
+        "Red" => Some(ManaColor::Red),
+        "Green" => Some(ManaColor::Green),
+        _ => None,
+    }
+}
+
+/// A row that compares a number the AST can already state.
+fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
+    use Operand::{Comparison as Than, Objects, Player};
+    let controlled = |player: &PlayerRef, objects: &ObjectSet| {
+        Some(ObjectSet::Battlefield(ObjectFilter::All(vec![
+            event_filter(objects)?,
+            ObjectFilter::ControlledBy(PlayerSet::One(player.clone())),
+        ])))
+    };
+    let count = |objects: ObjectSet| Expr::CountObjects(Box::new(objects));
+    let compare = |left, comparison: &Comparison, right: &Expr| {
+        Some(Condition::Compare {
+            left,
+            comparison: comparison.clone(),
+            right: right.clone(),
+        })
+    };
+    match (name, operands) {
+        ("Players::ControlsMorePermanentThanPlayer", [Player(p), Player(other), Objects(s)]) => {
+            compare(
+                count(controlled(p, s)?),
+                &Comparison::Greater,
+                &count(controlled(other, s)?),
+            )
+        }
+        ("Players::DevotionToColorsIs", [Player(p), Operand::List(colors), Than(c, v)]) => compare(
+            Expr::CountManaSymbols {
+                objects: Box::new(ObjectSet::Battlefield(ObjectFilter::ControlledBy(
+                    PlayerSet::One(p.clone()),
+                ))),
+                colors: colors.iter().map(simple_color).collect::<Option<_>>()?,
+            },
+            c,
+            v,
+        ),
+        ("Players::ControlsNumWithDifferentPowers", [Player(p), Than(c, v), Objects(s)]) => {
+            compare(
+                Expr::CountDistinct {
+                    objects: Box::new(controlled(p, s)?),
+                    property: DistinctProperty::Powers,
+                },
+                c,
+                v,
+            )
+        }
+        ("Players::ControlsNumWithDifferentNames", [Player(p), Than(c, v), Objects(s)]) => compare(
+            Expr::CountDistinct {
+                objects: Box::new(controlled(p, s)?),
+                property: DistinctProperty::Names,
+            },
+            c,
+            v,
+        ),
+        ("Players::NumCardsInLibraryIs", [Player(p), Than(c, v)]) => compare(
+            count(ObjectSet::Zone {
+                scope: ZoneScope::Players {
+                    zone: EventZone::Library,
+                    players: PlayerSet::One(p.clone()),
+                },
+                kind: ObjectKind::Card,
+                filter: ObjectFilter::Any,
+            }),
+            c,
+            v,
+        ),
+        ("Players::NumOpponentsIs", [Player(p), Than(c, v)]) => {
+            compare(Expr::CountPlayers(PlayerSet::OpponentsOf(p.clone())), c, v)
+        }
+        ("Condition::TotalPowerOfPermanentsIs", [Than(c, v), Objects(s)]) => compare(
+            Expr::Aggregate {
+                objects: Box::new(s.clone()),
+                property: Property::Power,
+                aggregation: Aggregation::Sum,
+            },
+            c,
+            v,
+        ),
+        ("Condition::TimesThisAbilityHasResolvedThisTurnIs", [Than(c, v)]) => {
+            compare(Expr::TimesResolvedThisTurn, c, v)
+        }
+        _ => None,
     }
 }
 
 /// A row's condition in generic form, or the row itself when it has none.
 pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
+    if let Some(condition) = reduce_comparison(&name, &operands) {
+        return condition;
+    }
     let window = match name.as_str() {
         "Condition::IsBeforeAttackersDeclared" => Some(TurnWindow::BeforeAttackersDeclared),
         "Condition::IsDuringCombat" => Some(TurnWindow::Combat),
@@ -460,6 +577,13 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
         "Players::HasAFullParty" => Some((PlayerState::FullParty, false)),
         "Players::IsNotTheStartingPlayer" => Some((PlayerState::StartingPlayer, true)),
         "Players::IsTheirUpkeep" => Some((PlayerState::InTheirUpkeep, false)),
+        "Players::IsTheirMainPhase" => Some((PlayerState::InTheirMainPhase, false)),
+        "Players::CompletedADungeon" => Some((PlayerState::CompletedDungeon, false)),
+        "Players::HasTheInitiative" => Some((PlayerState::Initiative, false)),
+        "Players::Descended" => Some((PlayerState::Descended, false)),
+        "Players::CommitedACrimeThisTurn" => Some((PlayerState::CommittedCrime, false)),
+        "Players::IsAttacked" => Some((PlayerState::BeingAttacked, false)),
+        "Players::HasAnEnduringStory" => Some((PlayerState::EnduringStory, false)),
         _ => None,
     };
     match (window, state, operands.as_slice()) {
@@ -954,6 +1078,23 @@ fn reduce_object_event(name: &str, operands: &[Operand]) -> Option<EventSpec> {
     }
 }
 
+/// A row's number in generic form, or the row itself when it has none.
+pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
+    match (name.as_str(), operands.as_slice()) {
+        ("GameNumber::TheChosenNumber", []) => Expr::ChosenNumber,
+        ("GameNumber::NumCreaturesInPlayersParty", [Operand::Player(player)]) => {
+            Expr::PartySize(player.clone())
+        }
+        ("GameNumber::StartingLifeTotalOfPlayer", [Operand::Player(player)]) => {
+            Expr::StartingLife(player.clone())
+        }
+        ("GameNumber::NumTimesSpellWasKicked", [Operand::Object(object)]) => {
+            Expr::TimesKicked(object.clone())
+        }
+        _ => Expr::Primitive { name, operands },
+    }
+}
+
 /// Say who did `event`, for history that asks about one player.
 pub fn set_event_player(event: &mut EventSpec, player: PlayerSet) -> bool {
     match event {
@@ -1014,6 +1155,21 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
         _ => {}
     }
     match (name.as_str(), operands.as_slice()) {
+        (
+            "Trigger::WhenAPlayerControlsNoPermanents",
+            [Operand::Players(players), Operand::Objects(objects)],
+        ) => match event_filter(objects) {
+            Some(filter) => EventSpec::State {
+                condition: Condition::Compare {
+                    left: Expr::CountObjects(Box::new(ObjectSet::Battlefield(ObjectFilter::All(
+                        vec![filter, ObjectFilter::ControlledBy(players.clone())],
+                    )))),
+                    comparison: Comparison::Equal,
+                    right: Expr::Constant(0),
+                },
+            },
+            None => EventSpec::Primitive { name, operands },
+        },
         (
             "Trigger::WhenAPlayerDrawsTheirNthCardEachTurn",
             [Operand::Players(players), Operand::Comparison(comparison, value)],

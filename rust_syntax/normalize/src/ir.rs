@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 85;
+pub const SCHEMA_VERSION: u32 = 86;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2017,6 +2017,11 @@ pub enum Expr {
     ChosenParity,
     /// The number chosen by this ability or as this object entered.
     ChosenNumber,
+    /// How many creatures are in this player's party (700.8).
+    PartySize(PlayerRef),
+    StartingLife(PlayerRef),
+    TimesKicked(ObjectRef),
+    TimesResolvedThisTurn,
     /// Damage past lethal dealt by this earlier instruction to these objects.
     ExcessDamage {
         result: ResultId,
@@ -2075,6 +2080,7 @@ pub enum Aggregation {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DistinctProperty {
+    Powers,
     CardTypes,
     CreatureTypes,
     Colors,
@@ -2456,6 +2462,10 @@ pub enum ObjectFilter {
     InSet(Box<ObjectSet>),
     Name(String),
     InZone(ZoneScope),
+    /// Blocked by this object.
+    BlockedByObject(ObjectRef),
+    /// Attacking one of these.
+    AttackingDefender(Box<AttackDefenders>),
     /// Has the value of this kind chosen by this ability or as this object entered.
     Chosen(ValueKind),
     IsCard,
@@ -3065,6 +3075,12 @@ pub enum ObjectState {
     AttackingAlone,
     Bargained,
     Goaded,
+    Paired,
+    Suspected,
+    Damaged,
+    TributeNotPaid,
+    CastDuringOwnMainPhase,
+    HasX,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -3086,6 +3102,13 @@ pub enum PlayerState {
     FullParty,
     StartingPlayer,
     InTheirUpkeep,
+    InTheirMainPhase,
+    CompletedDungeon,
+    Initiative,
+    Descended,
+    CommittedCrime,
+    BeingAttacked,
+    EnduringStory,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

@@ -503,7 +503,10 @@ fn a_chosen_value_is_one_choice_read_by_kind() {
     let body = lowered(
         "PermanentLayerEffect(HostPermanent, [AddCreatureTypeVariable(TheChosenCreatureType)])",
     );
-    assert!(body.contains("ChosenType { kind: CreatureType, mode: Add }"), "{body}");
+    assert!(
+        body.contains("ChosenType { kind: CreatureType, mode: Add }"),
+        "{body}"
+    );
 }
 
 #[test]
@@ -511,8 +514,29 @@ fn a_noted_type_is_not_a_chosen_one() {
     let body = lowered(
         "SpellActions(ActionList([DestroyEachPermanent(IsCreatureTypeVariable(TheNotedCreatureType))]))",
     );
-    assert!(body.contains("Permanents::IsCreatureTypeVariable"), "{body}");
+    assert!(
+        body.contains("Permanents::IsCreatureTypeVariable"),
+        "{body}"
+    );
     assert!(!body.contains("Chosen(CreatureType)"), "{body}");
+}
+
+#[test]
+fn a_player_comparison_is_an_ordinary_count() {
+    let body = lowered(
+        "TriggerI(WhenACreatureAttacks(SinglePermanent(ThisPermanent)), PlayerPassesFilter(Trigger_DefendingPlayer, ControlsMorePermanentThanPlayer(You, IsCardtype(Land))), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("Compare"), "{body}");
+    assert!(body.contains("comparison: Greater"), "{body}");
+    assert!(!body.contains("ControlsMorePermanentThanPlayer"), "{body}");
+}
+
+#[test]
+fn party_size_and_starting_life_are_numbers() {
+    let body = lowered(
+        "SpellActions(ActionList([DrawNumberCards(NumCreaturesInPlayersParty(You))]))",
+    );
+    assert!(body.contains("PartySize(AbilityController)"), "{body}");
 }
 
 #[test]
