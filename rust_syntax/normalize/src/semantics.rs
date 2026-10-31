@@ -443,6 +443,7 @@ impl Effects {
             ObjectRef::Source
             | ObjectRef::KeywordHost
             | ObjectRef::MadeHere
+            | ObjectRef::Granter
             | ObjectRef::Discarded
             | ObjectRef::Damage(_)
             | ObjectRef::Candidate

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 74;
+pub const SCHEMA_VERSION: u32 = 75;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1872,6 +1872,8 @@ pub enum ObjectRef {
         result: ResultId,
         chooser: PlayerRef,
     },
+    /// The permanent whose effect gave the source this ability, or made it.
+    Granter,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2048,6 +2050,8 @@ pub enum PlayerRef {
     /// "An opponent": one of these players, picked by the controller as this
     /// resolves.
     OneOf(Box<PlayerSet>),
+    /// Who chose this spell's or ability's modes, when it isn't the controller.
+    ModeChooser,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

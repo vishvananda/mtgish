@@ -168686,7 +168686,7 @@ Card(
       ),
       ActionList([
         PlayerMustCost(
-          Trigger_ThatPlayer,
+          ControllerOfPermanent(ThisPermanent),
           SacrificePermanent(ThisPermanent),
         ),
         If(
@@ -168695,7 +168695,7 @@ Card(
             PermanentDealsDamage(
               ThisPermanent,
               Integer(7),
-              Player(Trigger_ThatPlayer),
+              Player(ControllerOfPermanent(ThisPermanent)),
             ),
           ],
         ),
@@ -258757,7 +258757,7 @@ Card(
       ActionList([
         If(
           PlayerPassesFilter(
-            Trigger_ControllerOfThatSpell,
+            ControllerOfSpell(Ref_TargetSpell),
             Poisoned,
           ),
           [
@@ -339639,7 +339639,7 @@ Card(
         ]),
         PermanentDealsDamage(
           Ref_TargetPermanent1,
-          PowerOfPermanent(ActionPermanent),
+          PowerOfPermanent(Ref_TargetPermanent1),
           Permanent(Ref_TargetPermanent2),
         ),
       ]),
@@ -471932,33 +471932,37 @@ Scheme(
         SingleScheme(ThisScheme),
       ),
       ActionList([
-        CreateTokensForEachPlayer(
+        ActionForEachPlayer(
           Opponent,
           [
-            TokenWithPT(
-              PT(
-                3,
-                3,
-              ),
-              Colors([
-                Black,
-              ]),
-              [],
+            CreateTokens(
               [
-                Creature,
+                TokenWithPT(
+                  PT(
+                    3,
+                    3,
+                  ),
+                  Colors([
+                    Black,
+                  ]),
+                  [],
+                  [
+                    Creature,
+                  ],
+                  SubtypesList([
+                    Horror,
+                  ]),
+                  [],
+                ),
               ],
-              SubtypesList([
-                Horror,
-              ]),
               [],
             ),
-          ],
-          [],
-        ),
-        CreateEachPermanentRuleEffect(
-          TheTokensCreatedThisWay,
-          [
-            MustAttackPlayer(EachablePlayer),
+            CreateEachPermanentRuleEffect(
+              TheTokensCreatedThisWay,
+              [
+                MustAttackPlayer(EachablePlayer),
+              ],
+            ),
           ],
         ),
       ]),
@@ -1094463,33 +1094467,37 @@ Scheme(
         SingleScheme(ThisScheme),
       ),
       ActionList([
-        CreateTokensForEachPlayer(
+        ActionForEachPlayer(
           Opponent,
           [
-            TokenWithPT(
-              PT(
-                2,
-                2,
-              ),
-              Colors([
-                Black,
-              ]),
-              [],
+            CreateTokens(
               [
-                Creature,
+                TokenWithPT(
+                  PT(
+                    2,
+                    2,
+                  ),
+                  Colors([
+                    Black,
+                  ]),
+                  [],
+                  [
+                    Creature,
+                  ],
+                  SubtypesList([
+                    Zombie,
+                  ]),
+                  [],
+                ),
               ],
-              SubtypesList([
-                Zombie,
-              ]),
               [],
             ),
-          ],
-          [],
-        ),
-        CreateEachPermanentRuleEffect(
-          TheTokensCreatedThisWay,
-          [
-            MustAttackPlayer(EachablePlayer),
+            CreateEachPermanentRuleEffect(
+              TheTokensCreatedThisWay,
+              [
+                MustAttackPlayer(EachablePlayer),
+              ],
+            ),
           ],
         ),
       ]),
@@ -1330634,7 +1330642,7 @@ Card(
     ),
     If(
       PermanentPassesFilter(
-        ApplyPermanentEffect_It,
+        HostPermanent,
         IsSupertype(Legendary),
       ),
       [
@@ -1330651,7 +1330659,7 @@ Card(
     ),
     If(
       PermanentPassesFilter(
-        ApplyPermanentEffect_It,
+        HostPermanent,
         IsColor(Red),
       ),
       [

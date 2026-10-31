@@ -11748,5 +11748,77 @@
     "excludes": [
       "DestroyPermanent(Trigger_ThatCreature)"
     ]
+  },
+  {
+    "name": "Bronze Bombshell",
+    "issues": [
+      82
+    ],
+    "contains": [
+      "PlayerMustCost(ControllerOfPermanent(ThisPermanent), SacrificePermanent(ThisPermanent))"
+    ],
+    "excludes": [
+      "Trigger_ThatPlayer"
+    ]
+  },
+  {
+    "name": "Corrupted Resolve",
+    "issues": [
+      82
+    ],
+    "contains": [
+      "PlayerPassesFilter(ControllerOfSpell(Ref_TargetSpell), Poisoned)"
+    ],
+    "excludes": [
+      "Trigger_ControllerOfThatSpell"
+    ]
+  },
+  {
+    "name": "Domri's Ambush",
+    "issues": [
+      82
+    ],
+    "contains": [
+      "PowerOfPermanent(Ref_TargetPermanent1)"
+    ],
+    "excludes": [
+      "ActionPermanent"
+    ]
+  },
+  {
+    "name": "For Each of You, a Gift",
+    "issues": [
+      82
+    ],
+    "contains": [
+      "ActionForEachPlayer(Opponent, [CreateTokens("
+    ],
+    "excludes": [
+      "CreateTokensForEachPlayer"
+    ]
+  },
+  {
+    "name": "Rotted Ones, Lay Siege",
+    "issues": [
+      82
+    ],
+    "contains": [
+      "ActionForEachPlayer(Opponent, [CreateTokens("
+    ],
+    "excludes": [
+      "CreateTokensForEachPlayer"
+    ]
+  },
+  {
+    "name": "Tenza, Godo's Maul",
+    "issues": [
+      82
+    ],
+    "contains": [
+      "PermanentPassesFilter(HostPermanent, IsSupertype(Legendary))"
+    ],
+    "excludes": [
+      "ApplyPermanentEffect_It"
+    ]
   }
 ]
