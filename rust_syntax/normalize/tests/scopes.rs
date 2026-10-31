@@ -351,13 +351,22 @@ fn references_read_the_slot_of_their_arity() {
     let body = lowered(
         "SpellActions(Targeted([UptoNumberTargetPermanents(Integer(2), AnyPermanent), TargetPermanent(AnyPermanent)], ActionList([DestroyPermanent(Ref_TargetPermanent), DestroyEachPermanent(Ref_TargetPermanents)])))",
     );
-    assert!(body.contains("objects: One(Target { slot: Slot(1)"), "{body}");
+    assert!(
+        body.contains("objects: One(Target { slot: Slot(1)"),
+        "{body}"
+    );
     assert!(body.contains("objects: Targets(Slot(0))"), "{body}");
     let numbered = lowered(
         "SpellActions(Targeted([AnyNumberOfTargetPermanents(AnyPermanent), UptoOneTargetPermanent(AnyPermanent), TargetPermanent(AnyPermanent)], ActionList([DestroyPermanent(Ref_TargetPermanent1), DestroyPermanent(Ref_TargetPermanent2)])))",
     );
-    assert!(numbered.contains("objects: One(Target { slot: Slot(1)"), "{numbered}");
-    assert!(numbered.contains("objects: One(Target { slot: Slot(2)"), "{numbered}");
+    assert!(
+        numbered.contains("objects: One(Target { slot: Slot(1)"),
+        "{numbered}"
+    );
+    assert!(
+        numbered.contains("objects: One(Target { slot: Slot(2)"),
+        "{numbered}"
+    );
 }
 
 #[test]
@@ -383,6 +392,12 @@ fn a_cost_any_player_may_pay_is_paid_by_that_player() {
     let body = lowered(
         "SpellActions(ActionList([AnyPlayerMayCost(AnyPlayer, HavePermanentDealDamage(ThisPermanent, Integer(4), Player(ActionPlayer)))]))",
     );
-    assert!(body.contains("PlayerAction { player: FirstWilling"), "{body}");
-    assert!(body.contains("recipients: Players(One(FirstWilling"), "{body}");
+    assert!(
+        body.contains("PlayerAction { player: FirstWilling"),
+        "{body}"
+    );
+    assert!(
+        body.contains("recipients: Players(One(FirstWilling"),
+        "{body}"
+    );
 }

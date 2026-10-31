@@ -7,6 +7,7 @@ fn card(name: &str) -> Card {
         .chain(include_str!("fixtures/choices.ronl").lines())
         .chain(include_str!("fixtures/tokens.ronl").lines())
         .chain(include_str!("fixtures/mana.ronl").lines())
+        .chain(include_str!("fixtures/backend.ronl").lines())
         .map(|s| ron::from_str(s).unwrap())
         .find(|s| {
             corpus::Identity::of(s)
@@ -17,6 +18,14 @@ fn card(name: &str) -> Card {
         })
         .unwrap();
     lower::card(&source).unwrap_or_else(|e| panic!("{name}: {e:?}"))
+}
+/// Where nested builds of generated crates go: under this build's target, so a
+/// separate worktree does not share or contend for one Cantrip build.
+fn generated_target() -> PathBuf {
+    std::env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir)
+        .join("mtgish-cantrip-build")
 }
 fn verify_cantrip_snapshot(checkout: &std::path::Path) {
     let result = Command::new("python3")
@@ -34,10 +43,13 @@ fn verify_cantrip_snapshot(checkout: &std::path::Path) {
 #[test]
 fn backend_capabilities_do_not_change_ast_coverage_or_publish_partial_code() {
     let mut kessig = card("Kessig Wolf Run");
-    kessig.abilities.remove(0);
+    let Ability::Activated { limits, .. } = &mut kessig.abilities[1] else {
+        panic!()
+    };
+    limits.activators = Some(PlayerSet::All);
     let error = cantrip::module(&kessig).unwrap_err();
-    assert!(error.path.contains("abilities[0]"));
-    assert!(error.feature.contains("boundaries"));
+    assert!(error.path.contains("abilities[1]"), "{error:?}");
+    assert_eq!(error.feature, "activation by other players");
     let root = std::env::temp_dir().join(format!("mtgish-backend-atomic-{}", std::process::id()));
     fs::create_dir_all(&root).unwrap();
     let (input, output) = (root.join("cards.ronl"), root.join("cards.rs"));
@@ -75,15 +87,15 @@ fn numeric_bounds_are_checked_before_rust_is_published() {
         .contains("numeric range"));
 }
 #[test]
-fn unsupported_trigger_guards_and_multi_mutation_groups_are_not_silently_omitted() {
+fn unsupported_limits_are_not_omitted_and_one_group_is_one_sentence() {
     let mut drake = card("Peregrine Drake");
     let Ability::Triggered { limits, .. } = &mut drake.abilities[1] else {
         panic!()
     };
-    limits.per_turn = Some(1);
+    limits.total = Some(1);
     assert_eq!(
         cantrip::module(&drake).unwrap_err().feature,
-        "trigger conditions or frequency limits"
+        "trigger total limit"
     );
 
     let mut shivan = card("Shivan Dragon");
@@ -99,10 +111,8 @@ fn unsupported_trigger_guards_and_multi_mutation_groups_are_not_silently_omitted
     body.instructions = vec![Instruction::Group(Program {
         instructions: vec![first, second],
     })];
-    assert_eq!(
-        cantrip::module(&shivan).unwrap_err().feature,
-        "grouped instruction with multiple mutations"
-    );
+    let rust = cantrip::module(&shivan).unwrap();
+    assert_eq!(rust.matches("g.end_sentence();").count(), 1);
 }
 /// Actual Cantrip core execution is an explicit integration check, so ordinary
 /// lowerer edits do not repeatedly compile the sibling workspace.
@@ -161,6 +171,80 @@ fn generated_modules_execute_in_cantrip() {
         ("hawker", "Omen Hawker"),
         ("signet", "Selesnya Signet"),
         ("pirates", "Prosperous Pirates"),
+        ("visionary", "Elvish Visionary"),
+        ("traveler", "Doomed Traveler"),
+        ("anthem", "Glorious Anthem"),
+        ("strength", "Holy Strength"),
+        ("command", "Kolaghan's Command"),
+        ("raise", "Raise Dead"),
+        ("tutor", "Diabolic Tutor"),
+        ("gate", "Azorius Guildgate"),
+        ("seer", "Viscera Seer"),
+        ("splitter", "Bonesplitter"),
+        ("cave", "Forgotten Cave"),
+        ("bolt", "Lightning Bolt"),
+        ("blade", "Doom Blade"),
+        ("bears", "Grizzly Bears"),
+        ("melee", "Arcane Melee"),
+        ("crucible", "Crucible of Worlds"),
+        ("mending", "Mending Hands"),
+        ("blink", "Blink of an Eye"),
+        ("looting", "Faithless Looting"),
+        ("reap", "Altar's Reap"),
+        ("wastes", "Adarkar Wastes"),
+        ("cliffs", "Blackcleave Cliffs"),
+        ("impulse", "Act on Impulse"),
+        ("cindermaw", "Giant Cindermaw"),
+        ("ghostway", "Ghostway"),
+        ("wine", "Blessed Wine"),
+        ("index", "Index"),
+        ("seal", "Imperial Seal"),
+        ("impulse_look", "Impulse"),
+        ("stirrings", "Ancient Stirrings"),
+        ("litho", "Lithobraking"),
+        ("agent", "Agent of the Fates"),
+        ("priest", "Banisher Priest"),
+        ("spitemare", "Spitemare"),
+        ("faith", "Renewed Faith"),
+        ("golem", "Flint Golem"),
+        ("good", "Greater Good"),
+        ("arrest", "Arrest"),
+        ("niambi", "Niambi, Esteemed Speaker"),
+        ("academy_wall", "Academy Wall"),
+        ("alpha", "Alpha Status"),
+        ("assault", "Ambitious Assault"),
+        ("spite", "Barrin's Spite"),
+        ("village", "Flamekin Village"),
+        ("knockout", "Knockout Blow"),
+        ("troops", "Marshaling the Troops"),
+        ("pulse", "Maelstrom Pulse"),
+        ("zealot", "Ash Zealot"),
+        ("sunderflock", "Sunderflock"),
+        ("rhino", "Charging Rhino"),
+        ("acolyte", "Cathedral Acolyte"),
+        ("overlord", "Abhorrent Overlord"),
+        ("decay", "Abrupt Decay"),
+        ("woodland", "Woodland Changeling"),
+        ("lignify", "Lignify"),
+        ("law", "Absolute Law"),
+        ("burrowing", "Burrowing"),
+        ("depths", "Dark Depths"),
+        ("endless", "Endless One"),
+        ("detonate", "Detonate"),
+        ("journey", "Journey to Nowhere"),
+        ("falconer", "Falconer Adept"),
+        ("rage", "Monstrous Rage"),
+        ("skystreak", "Skystreak Engineer"),
+        ("caress", "Caress of Phyrexia"),
+        ("arc", "Arc Lightning"),
+        ("glimpse", "Glimpse of Nature"),
+        ("mark", "Make Your Mark"),
+        ("wish", "Make a Wish"),
+        ("cultivator", "Nantuko Cultivator"),
+        ("fling", "Fling"),
+        ("truths", "Painful Truths"),
+        ("strength_two", "Consume Strength"),
+        ("salvo", "Blazing Salvo"),
     ];
     let mut lib = String::new();
     for (module, name) in names {
@@ -193,7 +277,8 @@ fn generated_modules_execute_in_cantrip() {
     else {
         panic!()
     };
-    tokens[0].definition().unwrap().power_toughness = Some((Expr::Constant(2), Expr::Constant(2)));
+    tokens[0].definition_mut().unwrap().power_toughness =
+        Some((Expr::Constant(2), Expr::Constant(2)));
     exported_cards.push(larger);
     let input = root.join("exported.ronl");
     let output = root.join("exported.rs");
@@ -266,7 +351,8 @@ fn generated_modules_execute_in_cantrip() {
     *affected = ObjectSet::Battlefield(ObjectFilter::All(vec![
         ObjectFilter::CardType(mtgish_ast::mtg_types::CardType::Creature),
         ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)),
-    ]));
+    ]))
+    .into();
     lib.push_str(&format!(
         "mod collection_pump {{\n{}\n}}\n",
         cantrip::module(&pump).unwrap()
@@ -278,7 +364,7 @@ fn generated_modules_execute_in_cantrip() {
         .env("CANTRIP_VERIFY", "1")
         .arg(root.join("Cargo.toml"))
         .arg("--target-dir")
-        .arg(std::env::temp_dir().join("mtgish-cantrip-build"))
+        .arg(generated_target())
         .output()
         .unwrap();
     assert!(
@@ -290,6 +376,29 @@ fn generated_modules_execute_in_cantrip() {
     );
     fs::remove_dir_all(root).unwrap();
 }
+
+/// Each card on its own in a table, so one that a table refuses names itself.
+const LOADS: &str = r#"
+#[test]
+fn every_definition_loads_into_a_card_table() {
+    std::panic::set_hook(Box::new(|_| {}));
+    let mut refused = Vec::new();
+    for &(card, extra) in ALL {
+        let definitions: Vec<&'static cantrip_api::CardDef> =
+            std::iter::once(card).chain(extra.iter().copied()).collect();
+        if let Err(why) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| cantrip_api::CardTable::new(definitions))) {
+            let why = why
+                .downcast_ref::<String>()
+                .cloned()
+                .or_else(|| why.downcast_ref::<&str>().map(|s| s.to_string()))
+                .unwrap_or_default();
+            refused.push(format!("{}: {why}", card.name));
+        }
+    }
+    let _ = std::panic::take_hook();
+    assert!(refused.is_empty(), "{} refused\n{}", refused.len(), refused.join("\n"));
+}
+"#;
 
 /// Checks every advertised backend capability against the actual API, using the
 /// cached report to avoid decoding the unsupported legacy records again.
@@ -313,7 +422,7 @@ fn every_advertised_module_compiles_against_cantrip() {
     assert_eq!(report.corpus_sha256, corpus::digest(&source));
     assert_eq!(
         report.inputs,
-        corpus::input_fingerprints(&root).unwrap(),
+        mtgish_ast::pipeline::input_fingerprints(&root).unwrap(),
         "coverage report must match current lowering and generator inputs"
     );
     let lines = std::str::from_utf8(&source)
@@ -341,7 +450,32 @@ fn every_advertised_module_compiles_against_cantrip() {
     fs::write(scratch.join("Cargo.toml"), manifest).unwrap();
     let mut rust = String::from("#![allow(unused_variables,dead_code)]\n");
     let mut generated = 0;
-    for record in report.records.iter().filter(|r| r.backend_capable) {
+    let mut loaded = String::new();
+    // Compiling every module takes minutes. While a family is being added, an
+    // older report narrows this to what is newly capable since then.
+    let since = std::env::var_os("MTGISH_CANTRIP_SINCE").map(|path| {
+        let older: mtgish_ast::report::Report =
+            serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+        older
+            .records
+            .iter()
+            .filter(|r| r.backend_capable)
+            .map(|r| r.line)
+            .collect::<std::collections::BTreeSet<_>>()
+    });
+    let skipped = since.as_ref().map_or(0, |older| {
+        report
+            .records
+            .iter()
+            .filter(|r| r.backend_capable && older.contains(&r.line))
+            .count()
+    });
+    let wanted = |line: usize| since.as_ref().map_or(true, |older| !older.contains(&line));
+    for record in report
+        .records
+        .iter()
+        .filter(|r| r.backend_capable && wanted(r.line))
+    {
         let parsed: OracleCard = ron::from_str(lines[record.line - 1]).unwrap();
         let card = lower::card(&parsed).unwrap();
         rust.push_str(&format!(
@@ -349,16 +483,29 @@ fn every_advertised_module_compiles_against_cantrip() {
             record.line,
             cantrip::module(&card).unwrap()
         ));
+        loaded.push_str(&format!(
+            "(&card_{0}::CARD, card_{0}::EXTRA),\n",
+            record.line
+        ));
         generated += 1;
     }
-    assert_eq!(generated, report.backend_capable);
+    assert_eq!(generated + skipped, report.backend_capable);
     assert!(generated > 0);
+    // A card table asserts what no type does. Building and running that takes
+    // far longer than checking, so it is asked for.
+    let load = std::env::var_os("MTGISH_CANTRIP_LOAD").is_some();
+    if load {
+        rust.push_str(&format!(
+            "static ALL: &[(&cantrip_api::CardDef, &[&cantrip_api::CardDef])] = &[\n{loaded}];\n{LOADS}"
+        ));
+    }
     fs::write(scratch.join("src/lib.rs"), rust).unwrap();
+    let verb = if load { "test" } else { "check" };
     let result = Command::new("cargo")
-        .args(["check", "--offline", "--manifest-path"])
+        .args([verb, "--offline", "--manifest-path"])
         .arg(scratch.join("Cargo.toml"))
         .arg("--target-dir")
-        .arg(std::env::temp_dir().join("mtgish-cantrip-build"))
+        .arg(generated_target())
         .output()
         .unwrap();
     assert!(

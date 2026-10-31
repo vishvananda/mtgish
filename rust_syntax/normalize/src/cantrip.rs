@@ -2,14 +2,32 @@
 //! are separate from AST lowering failures; no source node is interpreted here.
 use crate::{corpus, ir::*, validate};
 use std::{
-    collections::BTreeMap,
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet},
     fmt::Write,
     io::{BufRead, Write as IoWrite},
     path::Path,
+    rc::Rc,
 };
 
+mod casting;
+mod costs;
+mod delayed;
+mod effects;
+mod players;
+mod read;
+mod replacements;
+mod statics;
+mod survey;
+mod triggers;
 pub use crate::report::BackendDiagnostic as Diagnostic;
+use effects::rule_name;
+use read::{counter_kind, zone_kind, Candidate, Carried, EventAt, Frame, History, Pending, Reader};
+pub use survey::survey;
 type Result<T> = std::result::Result<T, Diagnostic>;
+/// A reference to the result of an instruction that already reported a gap.
+/// It says nothing new, so it is dropped rather than counted against the card.
+const FOLLOWS_GAP: &str = "depends on an instruction with a gap";
 fn gap(feature: impl Into<String>) -> Diagnostic {
     Diagnostic {
         path: String::new(),
@@ -30,14 +48,90 @@ impl Diagnostic {
 fn name(value: &impl std::fmt::Debug) -> String {
     format!("{value:?}")
 }
+/// The variant of an IR value, read from its derived `Debug`. With no list of
+/// variants here, a form added to the end of an enum reports itself as a gap.
+fn form(value: &impl std::fmt::Debug) -> String {
+    let text = format!("{value:?}");
+    let end = text
+        .find(|c: char| !c.is_alphanumeric() && c != '_')
+        .unwrap_or(text.len());
+    text[..end].into()
+}
 fn quoted(value: &str) -> String {
     format!("{value:?}")
+}
+/// `ZoneKind` for a `Scoped` zone list, the form both builders take.
+fn zone_list(zones: &[EventZone]) -> Result<String> {
+    // "Every zone" means the ones the engine looks in for an ability; on its
+    // own, the command zone or the ante is somewhere it never looks.
+    let every = |zone: &EventZone| {
+        let has = |wanted: &EventZone| zones.iter().any(|z| z == wanted);
+        matches!(zone, EventZone::Command | EventZone::Ante)
+            && has(&EventZone::Battlefield)
+            && has(&EventZone::Graveyard)
+            && has(&EventZone::Hand)
+            && has(&EventZone::Library)
+            && has(&EventZone::Stack)
+            && has(&EventZone::Exile)
+    };
+    if zones
+        .iter()
+        .any(|z| matches!(z, EventZone::Command) && !every(z))
+    {
+        return Err(gap("ability functioning in the command zone"));
+    }
+    let kinds = zones
+        .iter()
+        .filter(|zone| !every(zone))
+        .map(read::zone_kind)
+        .collect::<Result<Vec<_>>>()?;
+    Ok(format!("ZoneKinds::of(&[{}])", kinds.join(", ")))
 }
 fn generator_fingerprint() -> &'static str {
     static HASH: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     HASH.get_or_init(|| {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
+            (
+                "cantrip/casting.rs",
+                include_bytes!("cantrip/casting.rs").as_slice(),
+            ),
+            (
+                "cantrip/costs.rs",
+                include_bytes!("cantrip/costs.rs").as_slice(),
+            ),
+            (
+                "cantrip/delayed.rs",
+                include_bytes!("cantrip/delayed.rs").as_slice(),
+            ),
+            (
+                "cantrip/effects.rs",
+                include_bytes!("cantrip/effects.rs").as_slice(),
+            ),
+            (
+                "cantrip/players.rs",
+                include_bytes!("cantrip/players.rs").as_slice(),
+            ),
+            (
+                "cantrip/read.rs",
+                include_bytes!("cantrip/read.rs").as_slice(),
+            ),
+            (
+                "cantrip/replacements.rs",
+                include_bytes!("cantrip/replacements.rs").as_slice(),
+            ),
+            (
+                "cantrip/statics.rs",
+                include_bytes!("cantrip/statics.rs").as_slice(),
+            ),
+            (
+                "cantrip/survey.rs",
+                include_bytes!("cantrip/survey.rs").as_slice(),
+            ),
+            (
+                "cantrip/triggers.rs",
+                include_bytes!("cantrip/triggers.rs").as_slice(),
+            ),
             ("semantics.rs", include_bytes!("semantics.rs").as_slice()),
             ("validate.rs", include_bytes!("validate.rs").as_slice()),
             ("ir.rs", include_bytes!("ir.rs").as_slice()),
@@ -53,12 +147,62 @@ fn generator_fingerprint() -> &'static str {
     })
 }
 fn keyword(value: &Keyword) -> Result<String> {
+    if let Keyword::Landwalk(land) = value {
+        use crate::mtg_types::SubType;
+        return Ok(format!(
+            "Keyword::{}",
+            match land.as_ref() {
+                ObjectFilter::Subtype(SubType::Plains) => "Plainswalk",
+                ObjectFilter::Subtype(SubType::Island) => "Islandwalk",
+                ObjectFilter::Subtype(SubType::Swamp) => "Swampwalk",
+                ObjectFilter::Subtype(SubType::Mountain) => "Mountainwalk",
+                ObjectFilter::Subtype(SubType::Forest) => "Forestwalk",
+                other => return Err(gap(format!("landwalk of {}", form(other)))),
+            }
+        ));
+    }
     let n = name(value);
     if crate::cantrip_vocab::KEYWORDS.contains(&n.as_str()) {
         Ok(format!("Keyword::{n}"))
     } else {
-        Err(gap(format!("keyword {n}")))
+        Err(gap(format!("keyword {}", form(value))))
     }
+}
+/// One protection quality an effect gives: the kind a resolving effect adds,
+/// and the statement that gives the same in a layer.
+fn granted_protection(quality: &Protection, grants: &mut Vec<(String, String)>) -> Result<()> {
+    match quality {
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter: ObjectFilter::Color(c),
+        } => {
+            let c = color(c)?;
+            grants.push((
+                format!("EffectKind::Protection(ColorSet::NONE.with(Color::{c}))"),
+                format!("chars.protection = chars.protection.with(q.words(asker.source).color(Color::{c}));"),
+            ));
+        }
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter: ObjectFilter::CardType(t),
+        } => {
+            let t = card_type(t)?;
+            grants.push((
+                format!("EffectKind::ProtectionFromTypes(TypeSet::of(&[CardType::{t}]))"),
+                format!("chars.protection_types = chars.protection_types.with(CardType::{t});"),
+            ));
+        }
+        Protection::Objects { filter, .. } => {
+            return Err(gap(format!("protection from {}", form(filter))))
+        }
+        Protection::Each(qualities) => {
+            for quality in qualities {
+                granted_protection(quality, grants)?;
+            }
+        }
+        other => return Err(gap(format!("protection {}", form(other)))),
+    }
+    Ok(())
 }
 fn color(value: &ManaColor) -> Result<&'static str> {
     Ok(match value {
@@ -68,17 +212,24 @@ fn color(value: &ManaColor) -> Result<&'static str> {
         ManaColor::Red => "Red",
         ManaColor::Green => "Green",
         ManaColor::Colorless => return Err(gap("colorless is not a color")),
+        other => return Err(gap(format!("color {}", form(other)))),
     })
 }
-fn color_index(value: &ManaColor) -> usize {
-    match value {
+fn color_index(value: &ManaColor) -> Result<usize> {
+    Ok(match value {
         ManaColor::White => 0,
         ManaColor::Blue => 1,
         ManaColor::Black => 2,
         ManaColor::Red => 3,
         ManaColor::Green => 4,
         ManaColor::Colorless => 5,
-    }
+        other => return Err(gap(format!("color {}", form(other)))),
+    })
+}
+fn color_mask(colors: &[ManaColor]) -> Result<u8> {
+    colors
+        .iter()
+        .try_fold(0u8, |mask, color| Ok(mask | 1 << color_index(color)?))
 }
 fn mana(symbols: &[ManaSymbol]) -> Result<String> {
     let (mut generic, mut x) = (0u32, 0u32);
@@ -93,20 +244,20 @@ fn mana(symbols: &[ManaSymbol]) -> Result<String> {
                     .checked_add(*n)
                     .ok_or_else(|| gap("generic mana overflow"))?
             }
-            ManaSymbol::Color(c) => colors[color_index(c)] += 1,
+            ManaSymbol::Color(c) => colors[color_index(c)?] += 1,
             ManaSymbol::X => x += 1,
             ManaSymbol::Hybrid(a, b) => hybrid.push(format!(
                 "Some((Mana::{}, Mana::{}))",
-                ["W", "U", "B", "R", "G", "C"][color_index(a)],
-                ["W", "U", "B", "R", "G", "C"][color_index(b)]
+                ["W", "U", "B", "R", "G", "C"][color_index(a)?],
+                ["W", "U", "B", "R", "G", "C"][color_index(b)?]
             )),
             ManaSymbol::MonocoloredHybrid(c) => {
                 color(c)?;
-                twobrid[color_index(c)] += 1;
+                twobrid[color_index(c)?] += 1;
             }
             ManaSymbol::Phyrexian(v) if v.len() == 1 => {
                 color(&v[0])?;
-                phyrexian[color_index(&v[0])] += 1;
+                phyrexian[color_index(&v[0])?] += 1;
             }
             _ => return Err(gap("mana symbol")),
         }
@@ -132,6 +283,9 @@ struct Number {
     code: String,
     min: i128,
     max: i128,
+    /// Read from the game. A value that can pass a field's range only in a game
+    /// no card reaches saturates there; a printed constant that passes is a gap.
+    dynamic: bool,
 }
 impl Number {
     fn integer(n: i64) -> Self {
@@ -139,31 +293,99 @@ impl Number {
             code: format!("{n}i64"),
             min: n.into(),
             max: n.into(),
+            dynamic: false,
         }
     }
     fn fit(&self, min: i128, max: i128, kind: &str) -> Result<String> {
-        if self.min < min || self.max > max {
-            Err(gap(format!("numeric range for {kind}")))
-        } else {
+        if self.min >= min && self.max <= max {
             Ok(format!("({}) as {kind}", self.code))
+        } else if self.dynamic {
+            Ok(format!("({}).clamp({min}, {max}) as {kind}", self.code))
+        } else {
+            Err(gap(format!("numeric range for {kind}")))
         }
     }
     fn amount(&self, max: i128, kind: &str) -> Result<String> {
-        if self.max > max {
-            Err(gap(format!("numeric range for {kind}")))
-        } else {
+        if self.max <= max {
             Ok(format!("({}).max(0) as {kind}", self.code))
+        } else if self.dynamic {
+            Ok(format!("({}).clamp(0, {max}) as {kind}", self.code))
+        } else {
+            Err(gap(format!("numeric range for {kind}")))
         }
     }
 }
-struct Compiler<'a> {
-    mana_context: bool,
-    slots: BTreeMap<u16, (usize, &'a TargetSpec)>,
+#[derive(Clone)]
+struct Compiler {
+    /// Compiling the event of `Expr::EventHistory`.
+    history: Option<History>,
+    /// A `StackItem` named `item` is in reach, with its targets and X.
+    stack_item: bool,
+    pending: Pending,
+    reader: Reader,
+    event_at: EventAt,
+    frame: Frame,
+    /// A batch trigger's members are in reach: `Query::event_objects`.
+    grouped: bool,
+    candidates: std::cell::RefCell<Vec<Candidate>>,
+    affected_in_scope: bool,
+    /// The condition of the enclosing `Ability::Conditional`, asked as layers run.
+    static_guard: Option<Condition>,
+    slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
     creations: BTreeMap<u32, String>,
+    moved: BTreeMap<u32, String>,
+    /// The same transitions as `moved`, by the identities they left behind.
+    before: BTreeMap<u32, String>,
+    /// The block to leave if the payment about to be compiled is declined: a
+    /// "you may" that is its first payment asks one question, not two.
+    asking: Option<usize>,
+    /// The cost of the activated ability being compiled.
+    activation_cost: Option<Cost>,
+    /// Each additional cost this card declares, by its ability's index.
+    casting_costs: BTreeMap<u32, Cost>,
+    /// Moves that already said when they end, in one call with the move.
+    returning: BTreeSet<u32>,
+    /// The `Divide` of the announcement just compiled, until a definition that
+    /// can say so takes it. What's left of it at the ability's end is a gap.
+    dividing: Option<String>,
+    /// Locals an effect declares up front to outlive its nested blocks. `None`
+    /// in code that isn't an effect's own body.
+    hoisted: Option<Vec<String>>,
+    /// Choices and searches that yield one object at most.
+    single: BTreeSet<u32>,
+    /// Some ability of the card reads what was exiled with its source.
+    links_exile: bool,
+    /// The announcement slot whose filter is being compiled.
+    choosing: Option<usize>,
+    performed: BTreeMap<u32, String>,
+    values: BTreeMap<u32, String>,
+    flips: BTreeMap<u32, String>,
+    bound_objects: BTreeSet<u32>,
+    bound_players: BTreeSet<u32>,
+    /// Small generated functions that this module uses.
+    /// Inside a spell's cost change, which has `targets` in reach.
+    costing_targets: bool,
+    helpers: BTreeSet<&'static str>,
     extras: Vec<String>,
+    /// Abilities that are no part of the card until a grant or an event names
+    /// them: `CardDef::delayed`.
+    delayed: Vec<String>,
+    /// The filter of each slot the last announcement compiled.
+    announced_filters: Vec<String>,
+    /// Compiling a delayed ability's body: what it carries from its maker.
+    outer: Option<Rc<delayed::Outer>>,
+    /// `CardDef::granted_preventions` and `granted_replacements`.
+    made_preventions: Vec<String>,
+    made_replacements: Vec<String>,
+    granting: bool,
     functions: String,
     next: usize,
+    /// Every gap so far. Compilation continues past one so a survey sees them
+    /// all, but `module` publishes nothing unless this ends up empty.
+    gaps: Vec<Diagnostic>,
+    /// Results of instructions that have a gap.
+    failed: BTreeSet<u32>,
 }
 
 enum ManaPlan {
@@ -179,6 +401,9 @@ enum ManaPlan {
 }
 fn mana_plan(value: &ManaProduction) -> Result<ManaPlan> {
     Ok(match value {
+        ManaProduction::Primitive { name, .. } => {
+            return Err(gap(format!("primitive mana production {name}")))
+        }
         ManaProduction::Amount { color, amount } => {
             ManaPlan::Fixed(vec![(color.clone(), amount.clone())])
         }
@@ -189,7 +414,7 @@ fn mana_plan(value: &ManaProduction) -> Result<ManaPlan> {
                     return Err(gap("combined mana choices in one production"));
                 };
                 for (color, amount) in part {
-                    let index = color_index(&color);
+                    let index = color_index(&color)?;
                     if let Some((_, previous)) = units.get_mut(&index) {
                         *previous = Expr::add(previous.clone(), amount);
                     } else {
@@ -216,7 +441,7 @@ fn mana_plan(value: &ManaProduction) -> Result<ManaPlan> {
                     return Err(gap("mana type choice including colorless"));
                 }
                 amount = Some(*n);
-                if !colors.iter().any(|c| color_index(c) == color_index(color)) {
+                if !colors.contains(color) {
                     colors.push(color.clone());
                 }
             }
@@ -254,8 +479,65 @@ fn mana_plan(value: &ManaProduction) -> Result<ManaPlan> {
         },
     })
 }
+/// "Subtype spells", "or abilities of subtype sources" and "... of subtypes".
+fn subtype_restriction(value: &ManaUse) -> Option<String> {
+    let of = |s: &crate::mtg_types::SubType| -> Option<String> {
+        let word = name(s);
+        crate::cantrip_vocab::SUBTYPES
+            .contains(&word.as_str())
+            .then(|| format!("SubtypeSpells::of(Subtype::{word})"))
+    };
+    let code = match value {
+        ManaUse::CastSpell(ObjectFilter::Subtype(s)) => of(s)?,
+        ManaUse::Either(uses) => {
+            let [ManaUse::CastSpell(ObjectFilter::Subtype(spell)), ManaUse::ActivateAbility {
+                sources: ObjectFilter::Subtype(source),
+                permanents_only,
+            }] = uses.as_slice()
+            else {
+                return None;
+            };
+            if name(spell) != name(source) {
+                return None;
+            }
+            let reach = match permanents_only {
+                true => "or_abilities_of_permanents",
+                false => "or_abilities",
+            };
+            format!("{}.{reach}()", of(spell)?)
+        }
+        _ => return None,
+    };
+    Some(format!("ManaRestriction::Subtypes({code})"))
+}
 fn mana_restriction(value: &ManaUse) -> Result<String> {
     use crate::mtg_types::CardType as T;
+    if let Some(restriction) = subtype_restriction(value) {
+        return Ok(restriction);
+    }
+    if let ManaUse::Either(uses) = value {
+        if let [ManaUse::CastSpell(ObjectFilter::CardType(spell)), ManaUse::ActivateAbility {
+            sources,
+            permanents_only,
+        }] = uses.as_slice()
+        {
+            let constant = match (spell, sources, permanents_only) {
+                (T::Creature, ObjectFilter::CardType(T::Creature), true) => {
+                    Some("CREATURE_SPELLS_OR_ABILITIES_OF_CREATURES")
+                }
+                (T::Creature, ObjectFilter::CardType(T::Creature), false) => {
+                    Some("CREATURE_SPELLS_OR_ABILITIES")
+                }
+                (T::Artifact, ObjectFilter::CardType(T::Artifact), true) => {
+                    Some("ARTIFACT_SPELLS_OR_ABILITIES_OF_ARTIFACTS")
+                }
+                _ => None,
+            };
+            if let Some(constant) = constant {
+                return Ok(format!("ManaRestriction::{constant}"));
+            }
+        }
+    }
     let constant = match value {
         ManaUse::CastSpell(ObjectFilter::CardType(T::Artifact)) => "ARTIFACT_SPELLS",
         ManaUse::CastSpell(ObjectFilter::CardType(T::Creature)) => "CREATURE_SPELLS",
@@ -301,273 +583,254 @@ fn mana_restriction(value: &ManaUse) -> Result<String> {
     };
     Ok(format!("ManaRestriction::{constant}"))
 }
-impl<'a> Compiler<'a> {
+impl Compiler {
     fn new() -> Self {
         Self {
-            mana_context: false,
+            history: None,
+            stack_item: true,
+            pending: Pending::Nothing,
+            reader: Reader::Resolution,
+            event_at: EventAt::Nowhere,
+            frame: Frame::default(),
+            grouped: false,
+            candidates: Default::default(),
+            affected_in_scope: false,
+            static_guard: None,
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
             creations: BTreeMap::new(),
+            moved: BTreeMap::new(),
+            before: BTreeMap::new(),
+            asking: None,
+            activation_cost: None,
+            casting_costs: BTreeMap::new(),
+            returning: BTreeSet::new(),
+            dividing: None,
+            hoisted: None,
+            single: BTreeSet::new(),
+            links_exile: false,
+            choosing: None,
+            performed: BTreeMap::new(),
+            values: BTreeMap::new(),
+            flips: BTreeMap::new(),
+            bound_objects: BTreeSet::new(),
+            bound_players: BTreeSet::new(),
+            costing_targets: false,
+            helpers: BTreeSet::new(),
             extras: Vec::new(),
+            delayed: Vec::new(),
+            announced_filters: Vec::new(),
+            outer: None,
+            made_preventions: Vec::new(),
+            made_replacements: Vec::new(),
+            granting: false,
             functions: String::new(),
             next: 0,
+            gaps: Vec::new(),
+            failed: BTreeSet::new(),
         }
     }
-    fn source(&self) -> &'static str {
-        if self.mana_context {
-            "asker.source"
-        } else {
-            "item.object"
+    /// Compile one part, recording a gap rather than stopping at it, and prefix
+    /// `path` to everything it reported.
+    fn attempt(&mut self, path: String, part: impl FnOnce(&mut Self) -> Result<()>) {
+        let mark = self.gaps.len();
+        if let Err(gap) = part(self) {
+            if gap.feature != FOLLOWS_GAP {
+                self.gaps.push(gap);
+            }
+        }
+        for gap in &mut self.gaps[mark..] {
+            *gap = gap.clone().at(&path);
         }
     }
-    fn controller(&self) -> &'static str {
-        if self.mana_context {
-            "asker.controller"
-        } else {
-            "item.controller"
+    fn selected(&self, result: &ResultId) -> Result<String> {
+        match self.selections.get(&result.0) {
+            Some(local) => Ok(format!("{local}.clone()")),
+            None if self.failed.contains(&result.0) => Err(gap(FOLLOWS_GAP)),
+            None => Err(gap("selection result outside generated scope")),
         }
     }
-    fn raw_object(&self, object: &ObjectRef) -> Result<String> {
-        match object {
-            ObjectRef::Source => Ok(self.source().into()),
-            ObjectRef::Target { slot, index: 0 } if self.slots.contains_key(&slot.0) => {
-                Ok(format!("t_{}_raw", self.slots[&slot.0].0))
-            }
-            _ => Err(gap("object observation reference")),
+    fn created(&self, result: &ResultId) -> Result<String> {
+        match self.creations.get(&result.0) {
+            Some(local) => Ok(format!("{local}.clone()")),
+            None if self.failed.contains(&result.0) => Err(gap(FOLLOWS_GAP)),
+            None => Err(gap("token result outside generated scope")),
         }
     }
-    fn objects(&self, objects: &ObjectSet) -> Result<String> {
-        match objects {
-            ObjectSet::One(ObjectRef::Source) => Ok(format!("vec![{}]",self.source())),
-            ObjectSet::One(ObjectRef::Target { slot, index: 0 }) => {
-                let i = self
-                    .slots
-                    .get(&slot.0)
-                    .ok_or_else(|| gap("target reference"))?
-                    .0;
-                Ok(format!("t_{i}.into_iter().collect::<Vec<_>>()"))
-            }
-            ObjectSet::Selected(result) => self
-                .selections
-                .get(&result.0)
-                .map(|local| format!("{local}.clone()"))
-                .ok_or_else(|| gap("selection result outside generated scope")),
-            ObjectSet::Created(result) => self.creations.get(&result.0)
-                .map(|local| format!("{local}.clone()"))
-                .ok_or_else(|| gap("token result outside generated scope")),
-            ObjectSet::Battlefield(filter) => Ok(format!(
-                "{{ let q: &dyn Query = g; let asker = &Asker::new({}, {}); q.state().battlefield().iter().copied().filter(|&id| {}).collect::<Vec<_>>() }}",
-                self.source(),self.controller(),
-                self.filter(filter)?
-            )),
-            _ => Err(gap("object collection")),
+    fn moved(&self, result: &ResultId) -> Result<String> {
+        match self.moved.get(&result.0) {
+            Some(local) => Ok(format!("{local}.clone()")),
+            None if self.failed.contains(&result.0) => Err(gap(FOLLOWS_GAP)),
+            None => Err(gap("transition this instruction does not report")),
         }
     }
-    fn player(&self, player: &PlayerRef) -> Result<String> {
-        match player {
-            PlayerRef::AbilityController => Ok(self.controller().into()),
-            PlayerRef::Active => Ok("g.state().turn.active".into()),
-            PlayerRef::ControllerOf(object) => {
-                Ok(format!("g.controller({})", self.raw_object(object)?))
+    /// What a transition moved, by the new objects or the ones they were.
+    fn transition(&self, result: &ResultId, phase: &ObjectPhase) -> Result<String> {
+        match (phase, self.before.get(&result.0)) {
+            (ObjectPhase::Before, Some(list)) => Ok(list.clone()),
+            (ObjectPhase::Before, None) if self.moved.contains_key(&result.0) => {
+                Err(gap("object as it was before an instruction moved it"))
             }
-            PlayerRef::OwnerOf(object) => Ok(format!("g.obj({}).owner", self.raw_object(object)?)),
-            _ => Err(gap("player observation reference")),
+            _ => self.moved(result),
         }
     }
-    fn players(&self, players: &PlayerSet) -> Result<String> {
-        match players {
-            PlayerSet::One(PlayerRef::Target { slot, index: 0 }) => {
-                let i = self
-                    .slots
-                    .get(&slot.0)
-                    .ok_or_else(|| gap("player target"))?
-                    .0;
-                Ok(format!("t_{i}.into_iter().collect::<Vec<_>>()"))
-            }
-            PlayerSet::One(p) => Ok(format!("vec![{}]", self.player(p)?)),
-            PlayerSet::All => Ok("g.state().apnap().collect::<Vec<_>>()".into()),
-            PlayerSet::OpponentsOf(p) => Ok(format!(
-                "g.state().opponents({}).collect::<Vec<_>>()",
-                self.player(p)?
-            )),
-            _ => Err(gap("player collection")),
-        }
-    }
-    fn number(&self, n: &Expr) -> Result<Number> {
-        Ok(match n {
-            Expr::Constant(n) => Number::integer(*n),
-            Expr::AnnouncedX if !self.mana_context => Number {
-                code: "i64::from(item.x)".into(),
-                min: 0,
-                max: u16::MAX.into(),
-            },
-            Expr::CountObjects(objects) => Number {
-                code: format!(
-                    "i64::try_from(({}).len()).expect(\"bounded object count\")",
-                    self.objects(objects)?
-                ),
-                min: 0,
-                max: u32::MAX.into(),
-            },
-            Expr::ObjectProperty {
-                object,
-                property,
-                information: Information::CurrentOrLastKnown,
-            } => {
-                let object = self.raw_object(object)?;
-                match property {
-                    // API costs hold u8 counts and obj.x is u16. This bound
-                    // includes all mana fields, hybrid and X, even after leaving
-                    // the stack; it is strictly below i32::MAX.
-                    Property::ManaValue => Number {
-                        code: format!("i64::from(g.mana_value({object}))"),
-                        min: 0,
-                        max: 255 * (1 + 6 + 10 + 5) + 6 + 255 * i128::from(u16::MAX),
-                    },
-                    Property::Power | Property::Toughness => Number {
-                        code: format!(
-                            "i64::from(g.chars({object}).{}.unwrap_or(0))",
-                            if matches!(property, Property::Power) {
-                                "power"
-                            } else {
-                                "toughness"
-                            }
-                        ),
-                        min: i16::MIN.into(),
-                        max: i16::MAX.into(),
-                    },
-                    _ => return Err(gap("numeric object property")),
-                }
-            }
-            Expr::PlayerLife(p) => Number {
-                code: format!("i64::from(g.state().player({}).life)", self.player(p)?),
-                min: i32::MIN.into(),
-                max: i32::MAX.into(),
-            },
-            Expr::Add(a, b) | Expr::Subtract(a, b) | Expr::Multiply(a, b) => {
-                let a = self.number(a)?;
-                let b = self.number(b)?;
-                let (symbol, min, max) = match n {
-                    Expr::Add(..) => ("+", a.min + b.min, a.max + b.max),
-                    Expr::Subtract(..) => ("-", a.min - b.max, a.max - b.min),
-                    _ => {
-                        let values = [a.min * b.min, a.min * b.max, a.max * b.min, a.max * b.max];
-                        (
-                            "*",
-                            *values.iter().min().unwrap(),
-                            *values.iter().max().unwrap(),
-                        )
-                    }
-                };
-                if min < i64::MIN.into() || max > i64::MAX.into() {
-                    return Err(gap("arithmetic exceeds i64"));
-                }
-                Number {
-                    code: format!("({} {symbol} {})", a.code, b.code),
-                    min,
-                    max,
-                }
-            }
-            _ => return Err(gap("numeric expression")),
-        })
-    }
-    fn filter(&self, f: &ObjectFilter) -> Result<String> {
-        let combine = |items: &[ObjectFilter], join: &str, identity: &str| -> Result<String> {
-            if items.is_empty() {
-                return Ok(identity.into());
-            }
-            Ok(format!(
-                "({})",
-                items
-                    .iter()
-                    .map(|x| self.filter(x))
-                    .collect::<Result<Vec<_>>>()?
-                    .join(join)
-            ))
+    fn target_domain(domain: &ObjectDomain) -> Result<String> {
+        let zones = |zones: &[EventZone]| -> Result<String> {
+            let tests = zones
+                .iter()
+                .map(|z| {
+                    read::zone_kind(z).map(|z| format!("q.state().obj(id).zone.kind() == {z}"))
+                })
+                .collect::<Result<Vec<_>>>()?;
+            Ok(format!("({})", tests.join(" || ")))
         };
-        Ok(match f {
-            ObjectFilter::Any => "true".into(),
-            ObjectFilter::All(items) => combine(items, " && ", "true")?,
-            ObjectFilter::Either(items) => combine(items, " || ", "false")?,
-            ObjectFilter::Not(p) => format!("!({})", self.filter(p)?),
-            ObjectFilter::CardType(t) => format!("q.chars(id).is(CardType::{})", card_type(t)?),
-            ObjectFilter::Supertype(t) => format!(
-                "q.chars(id).supertypes.{}",
-                match name(t).as_str() {
-                    "Basic" => "basic",
-                    "Legendary" => "legendary",
-                    "Snow" => "snow",
-                    _ => return Err(gap("supertype predicate")),
-                }
-            ),
-            ObjectFilter::Subtype(t) => {
-                let n = name(t);
-                if !crate::cantrip_vocab::SUBTYPES.contains(&n.as_str()) {
-                    return Err(gap(format!("subtype {n}")));
-                }
-                format!("q.chars(id).has_subtype(q.words(asker.source).subtype(Subtype::{n}))")
+        Ok(match domain.kind {
+            ObjectKind::Permanent if domain.zones == [EventZone::Battlefield] => {
+                "cantrip_mechanics::targets::permanent(q, id)".into()
             }
-            ObjectFilter::Color(c) => format!(
-                "q.chars(id).colors.has(q.words(asker.source).color(Color::{}))",
-                color(c)?
-            ),
-            ObjectFilter::Colorless => "q.chars(id).colors.is_empty()".into(),
-            ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)) => {
-                "q.controller(id) == asker.controller".into()
-            }
-            ObjectFilter::OwnedBy(PlayerSet::One(PlayerRef::AbilityController)) => {
-                "q.obj(id).owner == asker.controller".into()
-            }
-            ObjectFilter::SameObject(ObjectRef::Source) => "id == asker.source".into(),
-            ObjectFilter::Tapped => "q.obj(id).tapped".into(),
-            _ => return Err(gap("target predicate")),
+            ObjectKind::Card => format!("{} && !q.state().obj(id).token", zones(&domain.zones)?),
+            ObjectKind::Spell if domain.zones == [EventZone::Stack] => zones(&domain.zones)?,
+            _ => return Err(gap(format!("target object domain {:?}", domain.kind))),
         })
     }
-    fn announcement(&mut self, a: &'a Announcement, label: &str) -> Result<String> {
+    /// The body of a `TargetFilter`, or a shared target for an unrestricted one.
+    fn target_test(&self, spec: &TargetSpec) -> Result<String> {
+        let id = Candidate::of("id");
+        Ok(match &spec.kind {
+            TargetKind::Object(domain) => format!(
+                "matches!(t, Target::Object(id) if {} && ({}))",
+                Self::target_domain(domain)?,
+                self.filter(&spec.filter, &id)?
+            ),
+            TargetKind::Player => match &spec.players {
+                Some(players) => format!(
+                    "matches!(t, Target::Player(p) if {})",
+                    self.player_in(players, "p")?
+                ),
+                None => "matches!(t, Target::Player(_))".into(),
+            },
+            TargetKind::DamageRecipient => {
+                let players = match &spec.players {
+                    Some(players) => self.player_in(players, "p")?,
+                    None => "false".into(),
+                };
+                format!(
+                    "match t {{ Target::Player(p) => {players}, Target::Object(id) => q.is_on_battlefield(id) && {{ let c = q.chars(id); c.is(CardType::Creature) || c.is(CardType::Planeswalker) || c.is(CardType::Battle) }} && ({}), _ => false }}",
+                    self.filter(&spec.filter, &id)?
+                )
+            }
+        })
+    }
+    fn target_count(&self, count: &Count) -> Result<String> {
+        let constant = |n: &Expr| match n {
+            Expr::Constant(n) => u32::try_from(*n).ok(),
+            _ => None,
+        };
+        Ok(match count {
+            Count::Exactly(n) if constant(n) == Some(1) => String::new(),
+            Count::Exactly(Expr::AnnouncedX) => ".counted()".into(),
+            Count::Exactly(n) if constant(n).is_some() => {
+                let n = constant(n).unwrap();
+                format!(".between({n}, {n})")
+            }
+            Count::UpTo(n) if constant(n).is_some() => {
+                format!(".between(0, {})", constant(n).unwrap())
+            }
+            Count::AnyNumber => ".between(0, cantrip_mechanics::ANY_NUMBER)".into(),
+            Count::Between { minimum, maximum }
+                if constant(minimum).is_some() && constant(maximum).is_some() =>
+            {
+                format!(
+                    ".between({}, {})",
+                    constant(minimum).unwrap(),
+                    constant(maximum).unwrap()
+                )
+            }
+            other => return Err(gap(format!("target cardinality {}", form(other)))),
+        })
+    }
+    fn announcement(&mut self, a: &Announcement, label: &str) -> Result<String> {
         if a.modes.is_some() {
             return Err(gap("modal announcement"));
         }
         self.slots.clear();
+        let reader = std::mem::replace(&mut self.reader, Reader::Query);
+        let compiled = self.announced_targets(a, label);
+        self.reader = reader;
+        compiled
+    }
+    /// The set rule of a slot whose targets have one value in common, with the
+    /// module's own helpers where the engine names none.
+    fn common_property(&mut self, property: &DistinctProperty) -> Result<&'static str> {
+        let (helpers, rule): (&[&'static str], _) = match property {
+            DistinctProperty::CardTypes => {
+                return Ok(".together(cantrip_mechanics::select::SHARE_A_CARD_TYPE)")
+            }
+            DistinctProperty::Owners => (
+                &["common_by", "common_owner"],
+                ".together(cantrip_api::select::set_part(&(common_owner as SelectFn), &(largest_common_owner as cantrip_api::select::LargestFn), 0, \"with the same owner\"))",
+            ),
+            DistinctProperty::Controllers => (
+                &["common_by", "common_controller"],
+                ".together(cantrip_api::select::set_part(&(common_controller as SelectFn), &(largest_common_controller as cantrip_api::select::LargestFn), 0, \"with the same controller\"))",
+            ),
+            DistinctProperty::CreatureTypes => (
+                &["common_creature_type"],
+                ".together(cantrip_api::select::set_part(&(common_creature_type as SelectFn), &(largest_common_creature_type as cantrip_api::select::LargestFn), 0, \"that share a creature type\"))",
+            ),
+            other => return Err(gap(format!("target constraint CommonProperty {other:?}"))),
+        };
+        self.helpers.extend(helpers);
+        Ok(rule)
+    }
+    fn announced_targets(&mut self, a: &Announcement, label: &str) -> Result<String> {
         let mut targets = Vec::new();
+        self.announced_filters.clear();
         for (i, spec) in a.targets.iter().enumerate() {
-            if matches!(&spec.kind,TargetKind::Object(domain) if *domain != ObjectDomain::permanent())
-            {
-                return Err(gap("target object domain"));
-            }
-            if !matches!(spec.count, Count::Exactly(Expr::Constant(1))) {
-                return Err(
-                    gap("target cardinality other than exactly one").at(format!("targets[{i}]"))
-                );
-            }
-            self.slots.insert(spec.slot.0, (i, spec));
-            if matches!(spec.kind, TargetKind::DamageRecipient) {
-                if spec.players.is_some() || !matches!(spec.filter, ObjectFilter::Any) {
-                    return Err(gap("restricted damage-recipient target"));
+            let at = format!("targets[{i}]");
+            let together = match spec.constraints.as_slice() {
+                [] => "",
+                [SelectionConstraint::CommonProperty(property)] => {
+                    self.common_property(property).map_err(|e| e.at(&at))?
                 }
-                targets.push("cantrip_mechanics::targets::ANY".into());
+                [constraint, ..] => {
+                    return Err(gap(format!("target constraint {}", form(constraint))).at(at))
+                }
+            };
+            if let Some(total) = &spec.distribute {
+                let total = match total {
+                    Expr::Constant(n) if i == 0 && *n >= 0 => n.to_string(),
+                    Expr::AnnouncedX if i == 0 => "TargetSpec::COUNTED".to_string(),
+                    _ => return Err(gap("target with a divided amount").at(at)),
+                };
+                self.dividing = Some(format!("Divide {{ total: {total}, of_x: None }}"));
+            }
+            if spec.chooser.is_some() {
+                return Err(gap("targets chosen by another player").at(at));
+            }
+            let count = self.target_count(&spec.count).map_err(|e| e.at(&at))?;
+            self.slots.insert(spec.slot.0, (i, spec.clone()));
+            if spec.kind == TargetKind::DamageRecipient
+                && spec.players.is_none()
+                && matches!(spec.filter, ObjectFilter::Any)
+            {
+                targets.push(format!("cantrip_mechanics::targets::ANY{count}{together}"));
+                self.announced_filters
+                    .push("cantrip_mechanics::targets::ANY.filter".into());
                 continue;
             }
-            let filter = match spec.kind {
-                TargetKind::Object(_) => format!(
-                    "matches!(t, Target::Object(id) if q.is_on_battlefield(id) && ({}))",
-                    self.filter(&spec.filter)?
-                ),
-                TargetKind::Player => match &spec.players {
-                    Some(PlayerSet::All) => "matches!(t, Target::Player(_))".into(),
-                    Some(PlayerSet::OpponentsOf(PlayerRef::AbilityController)) => {
-                        "matches!(t, Target::Player(p) if p != asker.controller)".into()
-                    }
-                    _ => return Err(gap("player target predicate")),
-                },
-                _ => unreachable!(),
-            };
+            self.choosing = Some(i);
+            let test = self.target_test(spec).map_err(|e| e.at(&at));
+            self.choosing = None;
+            let test = test?;
             let function = format!("{label}_target_{i}");
             writeln!(
                 self.functions,
-                "fn {function}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {filter} }}"
+                "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {test} }}"
             )
             .unwrap();
-            targets.push(format!("target({function})"));
+            targets.push(format!("target({function}){count}{together}"));
+            self.announced_filters.push(function);
         }
         if targets.is_empty() {
             return Ok("&[]".into());
@@ -582,141 +845,6 @@ impl<'a> Compiler<'a> {
         )
         .unwrap();
         Ok(array)
-    }
-    fn effect(&mut self, body: &Program, label: &str) -> Result<String> {
-        self.selections.clear();
-        self.creations.clear();
-        let mut out = String::new();
-        for (i, spec) in self.slots.values() {
-            match spec.kind {
-                TargetKind::Object(_) => {
-                    writeln!(out,"let t_{i}_raw = g.state().target(item, {i}).object().expect(\"announced object target\"); let t_{i} = cantrip_mechanics::targets::object(g, item, {i});").unwrap();
-                }
-                TargetKind::Player => {
-                    writeln!(
-                        out,
-                        "let t_{i} = cantrip_mechanics::targets::player(g, item, {i});"
-                    )
-                    .unwrap();
-                }
-                TargetKind::DamageRecipient => return Err(gap("any-target damage emission")),
-            }
-        }
-        self.program(body, &mut out, true)?;
-        writeln!(self.functions,"fn {label}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ {out} Ok(()) }}").unwrap();
-        Ok(label.into())
-    }
-    fn program(&mut self, body: &Program, out: &mut String, boundaries: bool) -> Result<()> {
-        for (i, instruction) in body.instructions.iter().enumerate() {
-            match instruction {
-                Instruction::Effect {
-                    operation:
-                        Operation::ChooseObjects {
-                            player,
-                            objects,
-                            count,
-                        },
-                    result,
-                } => {
-                    // The consumer supplies prompt wording, not targeting or
-                    // rules semantics. Other consumers need their own wording.
-                    let purpose = match body.instructions.get(i + 1) {
-                        Some(Instruction::Effect {
-                            operation:
-                                Operation::Tap {
-                                    objects: ObjectSet::Selected(selected),
-                                    tapped,
-                                },
-                            ..
-                        }) if selected.0 == result.0 => {
-                            if *tapped {
-                                "Tap"
-                            } else {
-                                "Untap"
-                            }
-                        }
-                        _ => {
-                            return Err(gap("resolution choice prompt purpose")
-                                .at(format!("instructions[{i}]")));
-                        }
-                    };
-                    self.choose(player, objects, count, result, purpose, out)
-                        .map_err(|e| e.at(format!("instructions[{i}]")))?;
-                }
-                Instruction::Effect { operation, result } => self
-                    .operation(operation, result, out)
-                    .map_err(|e| e.at(format!("instructions[{i}]")))?,
-                Instruction::Group(group) => {
-                    // Today groups lower selection plus one mutation. A group
-                    // with multiple mutations needs an outer instruction scope,
-                    // including a policy for exporting result bindings.
-                    if group
-                        .instructions
-                        .iter()
-                        .filter(|instruction| {
-                            !matches!(
-                                instruction,
-                                Instruction::Effect {
-                                    operation: Operation::ChooseObjects { .. },
-                                    ..
-                                }
-                            )
-                        })
-                        .count()
-                        > 1
-                        || group
-                            .instructions
-                            .iter()
-                            .any(|instruction| !matches!(instruction, Instruction::Effect { .. }))
-                    {
-                        return Err(gap("grouped instruction with multiple mutations")
-                            .at(format!("instructions[{i}].group")));
-                    }
-                    self.program(group, out, false)
-                        .map_err(|e| e.at(format!("instructions[{i}].group")))?;
-                }
-                _ => {
-                    return Err(
-                        gap("conditional or optional instruction").at(format!("instructions[{i}]"))
-                    );
-                }
-            }
-            if boundaries {
-                writeln!(out, "g.end_sentence();").unwrap();
-            }
-        }
-        Ok(())
-    }
-    fn choose(
-        &mut self,
-        player: &PlayerRef,
-        objects: &ObjectSet,
-        count: &Count,
-        result: &ResultId,
-        purpose: &str,
-        out: &mut String,
-    ) -> Result<()> {
-        let count = match count {
-            Count::AnyNumber => "cantrip_mechanics::select::Count::AnyNumber".into(),
-            Count::Exactly(n) | Count::UpTo(n) | Count::AsManyAsCan(n) => {
-                let kind = match count {
-                    Count::Exactly(_) => "Exactly",
-                    Count::UpTo(_) => "UpTo",
-                    _ => "AsManyAsCan",
-                };
-                format!(
-                    "cantrip_mechanics::select::Count::{kind}({})",
-                    self.number(n)?.amount(u32::MAX.into(), "u32")?
-                )
-            }
-            Count::AtLeast(_) => return Err(gap("at-least resolution choice")),
-            Count::Between { .. } => return Err(gap("bounded resolution choice")),
-        };
-        let local = format!("selected_{}", self.next);
-        self.next += 1;
-        writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_rule = cantrip_mechanics::select::Selection::of({count}, &[]); let {local} = cantrip_mechanics::choose::select(g, {local}_player, item.object, Purpose::{purpose}, {local}_candidates, {local}_rule)?;", self.player(player)?, self.objects(objects)?).unwrap();
-        self.selections.insert(result.0, local);
-        Ok(())
     }
     fn token_definition(&mut self, token: &TokenDefinition) -> Result<String> {
         let pt = token
@@ -755,149 +883,14 @@ impl<'a> Compiler<'a> {
         let id = self.next;
         self.next += 1;
         let child = emit_module(&card, Some(&token.name))?;
+        self.gaps
+            .extend(child.gaps.iter().map(|g| g.clone().at("token")));
         writeln!(self.functions, "pub mod token_{id} {{\n{}\n}}", child.rust).unwrap();
         let path = format!("token_{id}::CARD");
         self.extras.push(path.clone());
         self.extras
             .extend(child.extras.into_iter().map(|p| format!("token_{id}::{p}")));
         Ok(path)
-    }
-    fn operation(&mut self, op: &Operation, result: &ResultId, out: &mut String) -> Result<()> {
-        let id = self.next;
-        self.next += 1;
-        match op {
-            Operation::AddMana {
-                players,
-                mana,
-                restriction,
-            } => {
-                let plan = mana_plan(mana)?;
-                self.emit_mana(&plan, players, restriction.as_ref(), None, out)?;
-            }
-            Operation::CreateTokens {
-                players,
-                tokens,
-                entry,
-            } => {
-                if !entry.counters.is_empty() {
-                    return Err(gap("tokens entering with counters"));
-                }
-                let first = &tokens[0].words;
-                if tokens
-                    .iter()
-                    .any(|t| std::mem::discriminant(&t.words) != std::mem::discriminant(first))
-                {
-                    return Err(gap("mixed token text origins in one creation batch"));
-                }
-                writeln!(
-                    out,
-                    "let players_{id} = {}; let mut tokens_{id} = Vec::new();",
-                    self.players(players)?
-                )
-                .unwrap();
-                for (i, token) in tokens.iter().enumerate() {
-                    let amount = self.number(&token.amount)?.amount(u32::MAX.into(), "u32")?;
-                    let TokenRecipe::Defined(definition) = &token.recipe else {
-                        return Err(gap("a token copy has no Cantrip form yet"));
-                    };
-                    let definition = self
-                        .token_definition(definition)
-                        .map_err(|e| e.at(format!("tokens[{i}].definition")))?;
-                    writeln!(out,"let count_{id}_{i} = {amount}; let def_{id}_{i} = g.card_id(&{definition});").unwrap();
-                }
-                writeln!(out, "for player in players_{id} {{").unwrap();
-                for i in 0..tokens.len() {
-                    writeln!(out,"tokens_{id}.extend(std::iter::repeat((def_{id}_{i},player)).take(count_{id}_{i} as usize));").unwrap();
-                }
-                let words = match first {
-                    TokenWords::Rules => "Words::NONE",
-                    TokenWords::CreatingEffect => "g.words(item.object)",
-                };
-                writeln!(out,"}} let words_{id} = {words}; let created_{id} = g.create_tokens_worded(&tokens_{id}, {}, None, words_{id})?;",entry.tapped).unwrap();
-                self.creations.insert(result.0, format!("created_{id}"));
-            }
-            Operation::Draw { players, amount }
-            | Operation::GainLife { players, amount }
-            | Operation::LoseLife { players, amount }
-            | Operation::Mill { players, amount } => {
-                let number = self.number(amount)?;
-                let (method, max, ty) = match op {
-                    Operation::Draw { .. } => ("draw", u32::MAX.into(), "u32"),
-                    Operation::Mill { .. } => ("mill", u32::MAX.into(), "u32"),
-                    Operation::GainLife { .. } => ("gain_life", i32::MAX.into(), "i32"),
-                    _ => ("lose_life", i32::MAX.into(), "i32"),
-                };
-                writeln!(out,"let amount_{id} = {}; let players_{id} = {}; for player in players_{id} {{ g.{method}(player, amount_{id}); }}",number.amount(max,ty)?,self.players(players)?).unwrap();
-            }
-            Operation::Destroy {
-                objects,
-                regeneration,
-            } => {
-                writeln!(
-                    out,
-                    "let objects_{id} = {}; g.{}(&objects_{id});",
-                    self.objects(objects)?,
-                    if *regeneration {
-                        "destroy_all"
-                    } else {
-                        "destroy_all_no_regen"
-                    }
-                )
-                .unwrap();
-            }
-            Operation::Move {
-                objects,
-                destination: Destination::OwnersHand,
-                entry,
-                face_down: false,
-            } => {
-                if entry.tapped || !entry.counters.is_empty() {
-                    return Err(gap("move arrival flags"));
-                }
-                writeln!(
-                    out,
-                    "let objects_{id} = {}; g.return_to_hand(&objects_{id});",
-                    self.objects(objects)?
-                )
-                .unwrap();
-            }
-            Operation::Tap { objects, tapped } => {
-                writeln!(
-                    out,
-                    "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for object in objects_{id} {{ g.{}(object); }} }});",
-                    self.objects(objects)?,
-                    if *tapped { "tap" } else { "untap" }
-                )
-                .unwrap();
-            }
-            Operation::CreateContinuousEffect {
-                source,
-                affected,
-                changes,
-                duration: crate::ir::Duration::EndOfTurn,
-                evaluation: EffectEvaluation::Snapshot,
-            } => {
-                // Mixed continuous changes are intentionally not batched on the
-                // unverified assumption that sentence or verb counts prove it.
-                if changes.len() != 1 {
-                    return Err(gap(
-                        "continuous-effect instruction grouping requires verified boundaries",
-                    ));
-                }
-                let Change::Pump { power, toughness } = &changes[0] else {
-                    return Err(gap("continuous change"));
-                };
-                let power = self
-                    .number(power)?
-                    .fit(i16::MIN.into(), i16::MAX.into(), "i16")?;
-                let toughness =
-                    self.number(toughness)?
-                        .fit(i16::MIN.into(), i16::MAX.into(), "i16")?;
-                writeln!(out,"let power_{id} = {power}; let toughness_{id} = {toughness}; let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for object in objects_{id} {{ cantrip_mechanics::pump(g, {}, object, power_{id}, toughness_{id}); }} }});",self.objects(affected)?,self.raw_object(source)?).unwrap();
-            }
-            _ => return Err(gap(format!("operation {}", operation_name(op)))),
-        }
-        Ok(())
     }
     fn emit_mana(
         &mut self,
@@ -916,14 +909,19 @@ impl<'a> Compiler<'a> {
                 None => format!("g.add_mana({player}, {color}, {amount});"),
             }
         };
-        writeln!(out, "let mana_players_{id} = {};", self.players(players)?).unwrap();
+        writeln!(
+            out,
+            "let mana_players_{id} = {};",
+            self.fetch(self.players(players)?)
+        )
+        .unwrap();
         match plan {
             ManaPlan::Fixed(units) => {
                 for (i, (_, amount)) in units.iter().enumerate() {
                     writeln!(
                         out,
                         "let mana_{id}_{i} = {};",
-                        self.number(amount)?.amount(u32::MAX.into(), "u32")?
+                        self.fetch(self.number(amount)?.amount(u32::MAX.into(), "u32")?)
                     )
                     .unwrap();
                 }
@@ -933,7 +931,7 @@ impl<'a> Compiler<'a> {
                         "player",
                         &format!(
                             "Mana::{}",
-                            ["W", "U", "B", "R", "G", "C"][color_index(color)]
+                            ["W", "U", "B", "R", "G", "C"][color_index(color)?]
                         ),
                         &format!("mana_{id}_{i}"),
                     ));
@@ -941,20 +939,20 @@ impl<'a> Compiler<'a> {
                 out.push_str("}\n");
             }
             ManaPlan::SameColor { colors, amount } | ManaPlan::Combination { colors, amount } => {
-                let mask = colors.iter().fold(0u8, |m, c| m | 1 << color_index(c));
+                let mask = color_mask(colors)?;
                 let combination = matches!(plan, ManaPlan::Combination { .. });
                 let number = self.number(amount)?;
                 writeln!(
                     out,
                     "let mana_{id} = {};",
-                    number.amount(
+                    self.fetch(number.amount(
                         if combination {
                             u8::MAX.into()
                         } else {
                             u32::MAX.into()
                         },
                         if combination { "u8" } else { "u32" }
-                    )?
+                    )?)
                 )
                 .unwrap();
                 writeln!(out, "for player in mana_players_{id} {{").unwrap();
@@ -969,7 +967,7 @@ impl<'a> Compiler<'a> {
                     .unwrap();
                     out.push_str(&add("player", "color.mana()", &format!("mana_{id}")));
                 } else {
-                    writeln!(out,"if mana_{id} > 0 {{ let colors = cantrip_mechanics::choose_colors(g, player, {}, ColorSet({mask}), {})?;",self.source(),if combination{format!("mana_{id}")}else{"1".into()}).unwrap();
+                    writeln!(out,"if mana_{id} > 0 {{ let colors = cantrip_mechanics::choose_colors(g, player, asker.source, ColorSet({mask}), {})?;",if combination{format!("mana_{id}")}else{"1".into()}).unwrap();
                     if combination {
                         writeln!(
                             out,
@@ -996,7 +994,7 @@ impl<'a> Compiler<'a> {
                     restriction,
                 },
             ..
-        }] = body.instructions.as_slice()
+        }, rest @ ..] = body.instructions.as_slice()
         else {
             return Err(gap("compound mana ability callback"));
         };
@@ -1010,7 +1008,7 @@ impl<'a> Compiler<'a> {
                 let mut known = true;
                 for (color, n) in units {
                     if let Expr::Constant(n) = n {
-                        pool[color_index(color)] =
+                        pool[color_index(color)?] =
                             u32::try_from(*n).map_err(|_| gap("fixed mana amount exceeds u32"))?;
                     } else {
                         known = false;
@@ -1021,7 +1019,7 @@ impl<'a> Compiler<'a> {
                 }
             }
             ManaPlan::SameColor { colors, amount } => {
-                let mask = colors.iter().fold(0u8, |m, c| m | 1 << color_index(c));
+                let mask = color_mask(colors)?;
                 metadata.push_str(&format!(".choose_color().colors(ColorSet({mask}))"));
                 if let Expr::Constant(n) = amount {
                     if (0..=255).contains(n) {
@@ -1030,7 +1028,7 @@ impl<'a> Compiler<'a> {
                 }
             }
             ManaPlan::Combination { colors, amount } => {
-                let mask = colors.iter().fold(0u8, |m, c| m | 1 << color_index(c));
+                let mask = color_mask(colors)?;
                 metadata.push_str(&format!(".colors(ColorSet({mask}))"));
                 if let Expr::Constant(n) = amount {
                     if (0..=255).contains(n) {
@@ -1043,8 +1041,9 @@ impl<'a> Compiler<'a> {
             metadata.push_str(&format!(".only_for({})", mana_restriction(r)?));
         }
         let mut out = String::new();
-        self.mana_context = true;
-        self.emit_mana(
+        self.stack_item = false;
+        let reader = std::mem::replace(&mut self.reader, Reader::Resolution);
+        let emitted = self.emit_mana(
             &plan,
             &PlayerSet::One(PlayerRef::AbilityController),
             restriction.as_ref(),
@@ -1054,49 +1053,23 @@ impl<'a> Compiler<'a> {
                 None
             },
             &mut out,
-        )?;
-        self.mana_context = false;
+        );
+        // What a mana ability does besides adds is part of it: painlands' damage.
+        self.reset_results();
+        let rest = emitted.and_then(|()| {
+            self.program(
+                &Program {
+                    instructions: rest.to_vec(),
+                },
+                &mut out,
+                false,
+            )
+        });
+        self.reader = reader;
+        self.stack_item = true;
+        rest?;
         writeln!(self.functions,"fn {label}(g: &mut dyn Game, asker: &Asker, chosen: Option<Color>) -> Result<(),Suspend> {{ {out} Ok(()) }}").unwrap();
         Ok(metadata)
-    }
-}
-fn operation_name(op: &Operation) -> &'static str {
-    match op {
-        Operation::Search { .. } => "Search",
-        Operation::Reveal { .. } => "Reveal",
-        Operation::RevealUntil { .. } => "RevealUntil",
-        Operation::RevealUntilGroup { .. } => "RevealUntilGroup",
-        Operation::Shuffle { .. } => "Shuffle",
-        Operation::ReorderLibrary { .. } => "ReorderLibrary",
-        Operation::Scry { .. } => "Scry",
-        Operation::Surveil { .. } => "Surveil",
-        Operation::Counter { .. } => "Counter",
-        Operation::CreateTrigger { .. } => "CreateTrigger",
-        Operation::BindValue { .. } => "BindValue",
-        Operation::RepeatProcess => "RepeatProcess",
-        Operation::DiscardObjects { .. } => "DiscardObjects",
-        Operation::ReflexiveTrigger { .. } => "ReflexiveTrigger",
-        Operation::ReturnAfter { .. } => "ReturnAfter",
-        Operation::CreateReplacement { .. } => "CreateReplacement",
-        Operation::ModifyEvent { .. } => "ModifyEvent",
-        Operation::PayCost { .. } => "PayCost",
-        Operation::RemoveCounters { .. } => "RemoveCounters",
-        Operation::Discard { .. } => "Discard",
-        Operation::Attach { .. } => "Attach",
-        Operation::CreateTokens { .. } => "CreateTokens",
-        Operation::ChooseObjects { .. } => "ChooseObjects",
-        Operation::Draw { .. } => "Draw",
-        Operation::GainLife { .. } => "GainLife",
-        Operation::LoseLife { .. } => "LoseLife",
-        Operation::Mill { .. } => "Mill",
-        Operation::AddMana { .. } => "AddMana",
-        Operation::DealDamage { .. } => "DealDamage",
-        Operation::Destroy { .. } => "Destroy",
-        Operation::Move { .. } => "Move",
-        Operation::Tap { .. } => "Tap",
-        Operation::Sacrifice { .. } => "Sacrifice",
-        Operation::PutCounters { .. } => "PutCounters",
-        Operation::CreateContinuousEffect { .. } => "CreateContinuousEffect",
     }
 }
 fn card_type(t: &crate::mtg_types::CardType) -> Result<String> {
@@ -1118,51 +1091,6 @@ fn card_type(t: &crate::mtg_types::CardType) -> Result<String> {
     } else {
         Err(gap(format!("card type {n}")))
     }
-}
-fn cost(value: &Cost) -> Result<String> {
-    let mut symbols = Vec::new();
-    let (mut tap, mut life_total, mut loyalty_delta) = (false, 0u32, None);
-    let mut sacrifice_this = false;
-    for part in &value.parts {
-        match part {
-            CostPart::Mana(mana) => symbols.extend(mana.iter().cloned()),
-            CostPart::TapSymbol if !tap => tap = true,
-            CostPart::Sacrifice {
-                objects: ObjectSet::One(ObjectRef::Source),
-                choose: None,
-            } if !sacrifice_this => sacrifice_this = true,
-            CostPart::Life(Expr::Constant(n)) if (0..=255).contains(n) => {
-                life_total = life_total
-                    .checked_add(*n as u32)
-                    .ok_or_else(|| gap("life cost overflow"))?;
-            }
-            CostPart::Loyalty(Expr::Constant(n))
-                if (-128..=127).contains(n) && loyalty_delta.is_none() =>
-            {
-                loyalty_delta = Some(*n)
-            }
-            _ => return Err(gap("cost part")),
-        }
-    }
-    if life_total > 255 {
-        return Err(gap("aggregate life cost exceeds u8"));
-    }
-    let mut parts = vec![format!("Cost::mana({})", mana(&symbols)?)];
-    if sacrifice_this {
-        parts.push("SACRIFICE_THIS".into());
-    }
-    if tap {
-        parts.push("Cost { tap: true, ..Cost::NONE }".into());
-    }
-    if life_total > 0 {
-        parts.push(format!("life({life_total})"));
-    }
-    if let Some(delta) = loyalty_delta {
-        parts.push(format!("loyalty({delta})"));
-    }
-    Ok(parts
-        .into_iter()
-        .fold("Cost::NONE".into(), |a, b| format!("{a}.and({b})")))
 }
 fn ability_text(body: &Program) -> String {
     fn text(instruction: &Instruction) -> String {
@@ -1218,12 +1146,109 @@ fn ability_text(body: &Program) -> String {
 
 /// One complete card module. Never returns partially executable code.
 pub fn module(card: &Card) -> Result<String> {
-    emit_module(card, None).map(|module| module.rust)
+    let mut module = emit_module(card, None)?;
+    if module.gaps.is_empty() {
+        Ok(module.rust)
+    } else {
+        Err(module.gaps.swap_remove(0))
+    }
 }
+/// Everything the generator lacks for this card, not only the first gap.
+pub fn gaps(card: &Card) -> Vec<Diagnostic> {
+    match emit_module(card, None) {
+        Ok(module) => module.gaps,
+        Err(gap) => vec![gap],
+    }
+}
+/// Every target of one slot, in the order chosen: all of them, for reading what
+/// was announced, or the ones still legal, for acting on them (CR 608.2b).
+const ANNOUNCED: &str = "fn announced(g: &dyn Game, item: &StackItem, spec: u8, legal: bool) -> Vec<Target> { (0..g.state().targets(item).len()).filter(|&i| g.state().spec(item, i) == spec && (!legal || g.target_legal(item, i))).map(|i| g.state().target(item, i)).collect() }\n";
+
+/// "You may pay": the engine shows the cost, and bots read the verb.
+const PAY_QUESTION: &str = "static PAY_QUESTION: Question = Question::new(\"Pay\", \"pay {cost}?\", \"\", \"Pay {cost}\", \"Decline\");\n";
+
+/// What a card's abilities contribute to its `CardDef`.
+struct Parts {
+    keywords: Vec<String>,
+    abilities: Vec<String>,
+    statics: Vec<String>,
+    replacements: Vec<String>,
+    preventions: Vec<String>,
+    enters: Vec<String>,
+    block_rules: Vec<String>,
+    block_requirements: Vec<String>,
+    attack_rules: Vec<String>,
+    untap_bans: Vec<String>,
+    /// `CardDef`'s other rule tables, by field.
+    tables: BTreeMap<&'static str, Vec<String>>,
+    /// `CardDef`'s other fields.
+    fields: BTreeMap<&'static str, String>,
+    spell: String,
+    modal: String,
+    enchant: String,
+    protection: u8,
+}
+impl Parts {
+    fn table(&mut self, table: &'static str, entry: String) {
+        self.tables.entry(table).or_default().push(entry);
+    }
+    fn field(&mut self, field: &'static str, value: String) {
+        self.fields.insert(field, value);
+    }
+    /// The struct-literal fields for `tables` and `fields`.
+    fn rest(&self) -> String {
+        let mut rest = String::new();
+        for (table, entries) in &self.tables {
+            write!(rest, "{table}: &[{}], ", entries.join(",")).unwrap();
+        }
+        for (field, value) in &self.fields {
+            write!(rest, "{field}: {value}, ").unwrap();
+        }
+        rest
+    }
+}
+impl Default for Parts {
+    fn default() -> Self {
+        Self {
+            keywords: Vec::new(),
+            abilities: Vec::new(),
+            statics: Vec::new(),
+            replacements: Vec::new(),
+            preventions: Vec::new(),
+            enters: Vec::new(),
+            block_rules: Vec::new(),
+            block_requirements: Vec::new(),
+            attack_rules: Vec::new(),
+            untap_bans: Vec::new(),
+            tables: BTreeMap::new(),
+            fields: BTreeMap::new(),
+            spell: "None".into(),
+            modal: "None".into(),
+            enchant: "None".into(),
+            protection: 0,
+        }
+    }
+}
+
 struct EmittedModule {
     rust: String,
     extras: Vec<String>,
+    gaps: Vec<Diagnostic>,
 }
+/// How an object was cast: it as a spell, or the spell it resolved from. A
+/// spell's own `cast_from` isn't carried onto the permanent. A matcher sees the
+/// history before its own event, so `cast_at` reads that entry from the event.
+const CAST_OF: &str = "fn cast_of<'a>(q: &'a dyn Query, id: ObjectId) -> Option<&'a Cast> { let records = q.history().all(); let spell = records.iter().rev().find_map(|r| match r.event { Event::ZoneChange { old, new, reason: ZoneReason::Resolve, .. } if new == id => Some(old), _ => None }).unwrap_or(id); records.iter().rev().find_map(|r| match &r.event { Event::Cast(cast) if cast.spell == spell => Some(cast), _ => None }) }\n#[allow(dead_code)] fn cast_at<'a>(q: &'a dyn Query, event: &Event, id: ObjectId) -> Option<&'a Cast> { match event { Event::ZoneChange { old, new, reason: ZoneReason::Resolve, .. } if *new == id => cast_of(q, *old), _ => cast_of(q, id) } }\n";
+
+/// CR 700.9: counters, an Equipment, or an Aura its controller controls.
+const MODIFIED: &str = "fn modified(q: &dyn Query, id: ObjectId) -> bool { q.state().obj(id).has_counters() || q.state().battlefield().iter().any(|&a| q.state().obj(a).attached_to == Some(id) && { let chars = q.chars(a); chars.has_subtype(Subtype::Equipment) || chars.has_subtype(Subtype::Aura) && q.controller(a) == q.controller(id) }) }\n";
+
+/// A set rule of one player every object has: the first chosen says which.
+const COMMON_BY: &str = "fn common_by(q: &dyn Query, choice: &Choice, key: fn(&dyn Query, ObjectId) -> PlayerId) -> Verdict { let first = choice.selected.first().map(|&c| key(q, c)); Verdict { complete: choice.selected.iter().all(|&c| Some(key(q, c)) == first), addable: Bits::of(choice.candidates.len(), |i| first.map_or(true, |k| key(q, choice.candidates[i]) == k)) } }\nfn largest_by(q: &dyn Query, choice: &Choice, key: fn(&dyn Query, ObjectId) -> PlayerId) -> Vec<ObjectId> { choice.candidates.iter().map(|&a| choice.candidates.iter().copied().filter(|&b| key(q, b) == key(q, a)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
+const COMMON_OWNER: &str = "fn owner_of(q: &dyn Query, id: ObjectId) -> PlayerId { q.state().obj(id).owner }\nfn common_owner(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { common_by(q, choice, owner_of) }\nfn largest_common_owner(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { largest_by(q, choice, owner_of) }\n";
+const COMMON_CONTROLLER: &str = "fn controller_of(q: &dyn Query, id: ObjectId) -> PlayerId { q.controller(id) }\nfn common_controller(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { common_by(q, choice, controller_of) }\nfn largest_common_controller(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { largest_by(q, choice, controller_of) }\n";
+const COMMON_CREATURE_TYPE: &str = "fn common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let common = choice.selected.iter().fold(SubtypeSet::CREATURE_TYPES, |common, &c| common.minus(common.minus(q.chars(c).subtypes))); Verdict { complete: choice.selected.is_empty() || !common.is_empty(), addable: Bits::of(choice.candidates.len(), |i| common.intersects(q.chars(choice.candidates[i]).subtypes)) } }\nfn largest_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { SubtypeSet::CREATURE_TYPES.iter().map(|t| choice.candidates.iter().copied().filter(|&c| q.chars(c).subtypes.has(t)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
+
 fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedModule> {
     validate::card(card).map_err(|e| Diagnostic {
         path: "card".into(),
@@ -1231,90 +1256,21 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
         message: e,
     })?;
     let mut c = Compiler::new();
-    let mut abilities = Vec::new();
-    let mut keywords = Vec::new();
-    let mut spell = "None".to_string();
+    let mut parts = Parts::default();
+    c.links_exile = format!("{:?}", card.abilities).contains("ExiledWith(Source)");
     for (i, a) in card.abilities.iter().enumerate() {
-        let compiled: Result<()> = (|| {
-            match a {
-                Ability::Keyword(k) => keywords.push(keyword(k)?),
-                Ability::Casting(_) => return Err(gap("casting rules")),
-                Ability::Scoped { .. } => return Err(gap("source-zone scope")),
-                Ability::Spell { announcement, body } => {
-                    if spell != "None" {
-                        return Err(gap("multiple spell bodies"));
-                    }
-                    let targets = c.announcement(announcement, &format!("spell_{i}"))?;
-                    let effect = c.effect(body, &format!("spell_{i}"))?;
-                    spell = format!("spell({targets}, {effect})");
-                }
-                Ability::Activated {
-                    cost: price,
-                    limits,
-                    announcement,
-                    body,
-                    ..
-                } => {
-                    if limits.once {
-                        return Err(gap("once-per-game activation"));
-                    }
-                    if limits.condition.is_some() {
-                        return Err(gap("activation condition"));
-                    }
-                    let targets = c.announcement(announcement, &format!("activated_{i}"))?;
-                    let label = ability_text(body);
-                    let mut def = if crate::semantics::activation_kind(price, announcement, body)
-                        == crate::semantics::ActivationKind::Mana
-                    {
-                        let adds = c.mana_ability(body, &format!("mana_{i}"))?;
-                        format!("mana_ability({}, {adds}, {})", cost(price)?, quoted(&label))
-                    } else {
-                        let effect = c.effect(body, &format!("activated_{i}"))?;
-                        format!(
-                            "ability({}, {effect}, {}).targets({targets})",
-                            cost(price)?,
-                            quoted(&label)
-                        )
-                    };
-                    if limits.sorcery {
-                        def.push_str(".sorcery_speed()");
-                    }
-                    if limits.once_each_turn {
-                        def.push_str(".once_each_turn()");
-                    }
-                    abilities.push(def);
-                }
-                Ability::Triggered {
-                    event,
-                    intervening_if,
-                    limits,
-                    announcement,
-                    body,
-                } => {
-                    if intervening_if.is_some()
-                        || limits.per_turn.is_some()
-                        || limits.total.is_some()
-                    {
-                        return Err(gap("trigger conditions or frequency limits"));
-                    }
-                    let EventSpec::ZoneChange {
-                        objects: ObjectFilter::SameObject(ObjectRef::Source),
-                        from: None,
-                        to: EventZone::Battlefield,
-                    } = event
-                    else {
-                        return Err(gap("trigger event matcher"));
-                    };
-                    let targets = c.announcement(announcement, &format!("triggered_{i}"))?;
-                    let effect = c.effect(body, &format!("triggered_{i}"))?;
-                    let text = format!("When this enters, {}", ability_text(body));
-                    abilities.push(format!("triggered(when(EventMask::ZONE_CHANGE, cantrip_mechanics::triggers::this_enters), {effect}, {}).targets({targets})", quoted(&text)));
-                }
-                _ => return Err(gap("triggered, static, or conditional ability")),
+        if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
+            c.casting_costs.insert(i as u32, cost.clone());
+        }
+    }
+    for (i, a) in card.abilities.iter().enumerate() {
+        c.attempt(format!("abilities[{i}]"), |c| {
+            let compiled = c.ability(a, &format!("ability_{i}"), &mut parts, None);
+            if c.dividing.take().is_some() {
+                return Err(gap("target with a divided amount"));
             }
-            Ok(())
-        })();
-        compiled.map_err(|e| e.at(format!("abilities[{i}]")))?;
+            compiled
+        });
     }
     let ch = &card.characteristics;
     let types = ch
@@ -1352,6 +1308,52 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
             _ => Err(gap("printed characteristic exceeds i16")),
         }
     };
+    // Filters are compiled through `&self`, so this one is found in their text.
+    if c.functions.contains("cast_of(q, ") || c.functions.contains("cast_at(q, ") {
+        c.helpers.insert("cast_of");
+    }
+    if c.functions.contains("modified(q, ") {
+        c.helpers.insert("modified");
+    }
+    for helper in &c.helpers {
+        c.functions.push_str(match *helper {
+            "cast_of" => CAST_OF,
+            "modified" => MODIFIED,
+            "common_by" => COMMON_BY,
+            "common_owner" => COMMON_OWNER,
+            "common_controller" => COMMON_CONTROLLER,
+            "common_creature_type" => COMMON_CREATURE_TYPE,
+            "announced" => ANNOUNCED,
+            "pay_question" => PAY_QUESTION,
+            "about" => delayed::ABOUT,
+            other => unreachable!("no helper {other}"),
+        });
+    }
+    for made in std::mem::take(&mut c.made_preventions) {
+        parts.table("granted_preventions", made);
+    }
+    for made in std::mem::take(&mut c.made_replacements) {
+        parts.table("granted_replacements", made);
+    }
+    let rest = parts.rest();
+    let Parts {
+        keywords,
+        abilities,
+        statics,
+        replacements,
+        preventions,
+        enters,
+        block_rules,
+        block_requirements,
+        attack_rules,
+        untap_bans,
+        spell,
+        modal,
+        enchant,
+        protection,
+        ..
+    } = parts;
+    let enters = c.enters(&enters);
     let (pt, loyalty) = (
         ch.power_toughness,
         ch.loyalty
@@ -1365,7 +1367,7 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     let mut colors = 0u8;
     for cl in &ch.color_indicator {
         color(cl)?;
-        colors |= 1 << color_index(cl);
+        colors |= 1 << color_index(cl)?;
     }
     let colors = if ch.color_indicator.is_empty() {
         "None".into()
@@ -1388,7 +1390,7 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     let generator = generator_fingerprint();
     let api = crate::cantrip_vocab::API_FINGERPRINT;
     let rust = format!(
-        "// Generated by mtgish-ast, schema {}, normalized SHA256 {fingerprint}.\n// Generator SHA256 {generator}; Cantrip API SHA256 {api}.\n#[allow(unused_imports)] use cantrip_api::*;\n{}\npub static CARD: CardDef = CardDef {{ name: {}, token_words: {token_words}, oracle: {oracle}, cost: {mana}, has_cost: {}, types: TypeSet::of(&[{}]), subtypes: SubtypeSet::of(&[{}]), supertypes: Supertypes {{ basic: {}, legendary: {}, snow: {} }}, colors: {colors}, power: {}, toughness: {}, loyalty: {}, defense: {}, keywords: Keywords::of(&[{}]), spell: {spell}, abilities: &[{}], ..CardDef::BLANK }};\npub static EXTRA: &[&CardDef] = &[{}];\n",
+        "// Generated by mtgish-ast, schema {}, normalized SHA256 {fingerprint}.\n// Generator SHA256 {generator}; Cantrip API SHA256 {api}.\n#[allow(unused_imports)] use cantrip_api::*;\n{}\npub static CARD: CardDef = CardDef {{ name: {}, token_words: {token_words}, oracle: {oracle}, cost: {mana}, has_cost: {}, types: TypeSet::of(&[{}]), subtypes: SubtypeSet::of(&[{}]), supertypes: Supertypes {{ basic: {}, legendary: {}, snow: {} }}, colors: {colors}, power: {}, toughness: {}, loyalty: {}, defense: {}, keywords: Keywords::of(&[{}]), protection: ColorSet({protection}), spell: {spell}, abilities: &[{}], statics: &[{}], replacements: &[{}], preventions: &[{}], block_rules: &[{}], block_requirements: &[{}], attack_rules: &[{}], untap_bans: &[{}], delayed: &[{}], enters: {enters}, modal: {modal}, enchant: {enchant}, {rest}..CardDef::BLANK }};\npub static EXTRA: &[&CardDef] = &[{}];\n",
         SCHEMA_VERSION,
         c.functions,
         name,
@@ -1404,11 +1406,20 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
         i16_opt(ch.defense.map(i64::from))?,
         keywords.join(","),
         abilities.join(","),
+        statics.join(","),
+        replacements.join(","),
+        preventions.join(","),
+        block_rules.join(","),
+        block_requirements.join(","),
+        attack_rules.join(","),
+        untap_bans.join(","),
+        c.delayed.join(","),
         c.extras.iter().map(|p|format!("&{p}")).collect::<Vec<_>>().join(",")
     );
     Ok(EmittedModule {
         rust,
         extras: c.extras,
+        gaps: c.gaps,
     })
 }
 
