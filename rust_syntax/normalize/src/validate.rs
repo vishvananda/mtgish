@@ -1012,6 +1012,7 @@ impl<'a> Scope<'a> {
             | Change::AddCardType(_)
             | Change::RemoveCardType(_)
             | Change::AddSupertype(_)
+            | Change::RemoveSupertype(_)
             | Change::AddLandType(_)
             | Change::AddArtifactType(_)
             | Change::SetArtifactType(_)
@@ -2589,6 +2590,7 @@ fn validate_ability_in(
                             | Change::Colors { .. }
                             | Change::ChosenColor { .. }
                             | Change::CreatureTypes { .. }
+                            | Change::Primitive { .. }
                     )
                 }) {
                     return Err("characteristic definition may define only color, subtypes, power, or toughness".into());

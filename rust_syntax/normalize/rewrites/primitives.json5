@@ -2443,6 +2443,10 @@
     {"source": "CardsInLibrary::CanEnchantThatEnteringPermanent", "text": "enchant"},
     {"source": "CardsInLibrary::CanEnchantPermanent", "text": "enchant"},
     {"source": "Cards::SharesANameWithACardSpliceOntoSpell", "text": "splice name"},
-    {"source": "Cost::PayAnyAmountOfLife", "text": "pay life"}
+    {"source": "Cost::PayAnyAmountOfLife", "text": "pay life"},
+    {"source": "Permanents::IsCardtypeVariable", "text": "type|chosen|choose|noted"},
+    {"source": "Spells::IsCardtypeVariable", "text": "type|chosen|choose|noted"},
+    {"source": "Permanents::IsEnchantedByAPermanent", "text": "enchanted|attached"},
+    {"source": "Permanents::IsEnchantedByANumberOfEnchantingPermanents", "text": "enchanted"}
   ]
 }

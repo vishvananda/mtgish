@@ -3,6 +3,11 @@ impl Context {
         use source::DamageSources as S;
         Ok(match value {
             S::AnyDamageSource => ObjectFilter::Any,
+            S::Other(source::DamageSource::Trigger_ThatPermanent) => ObjectFilter::Not(Box::new(
+                ObjectFilter::InSet(Box::new(ObjectSet::One(self.object(
+                    &source::Permanent::Trigger_ThatPermanent,
+                )?))),
+            )),
             S::And(v) => ObjectFilter::All(
                 v.iter()
                     .map(|f| self.damage_sources(f))

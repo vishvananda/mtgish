@@ -1020,6 +1020,7 @@ impl Inventory<'_> {
             Change::AddCardType(_)
             | Change::RemoveCardType(_)
             | Change::AddSupertype(_)
+            | Change::RemoveSupertype(_)
             | Change::AddLandType(_)
             | Change::AddArtifactType(_)
             | Change::SetArtifactType(_)

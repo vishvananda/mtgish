@@ -608,6 +608,9 @@ impl Context {
             S::TheActivePlayer => PlayerRef::Active,
             S::HostPlayer => PlayerRef::EnchantedBy(Box::new(ObjectRef::Source)),
             S::ControllerOfPermanent(p) => PlayerRef::ControllerOf(Box::new(self.object(p)?)),
+            S::SingleControllerOfTargetPermanents => PlayerRef::ControllerOf(Box::new(
+                self.object(&source::Permanent::Ref_TargetPermanents_0)?,
+            )),
             S::OwnerOfPermanent(p) => PlayerRef::OwnerOf(Box::new(self.object(p)?)),
             S::ControllerOfSpell(s) => PlayerRef::ControllerOf(Box::new(self.spell(s)?)),
             S::OwnerOfSpell(s) => PlayerRef::OwnerOf(Box::new(self.spell(s)?)),
@@ -832,10 +835,16 @@ impl Context {
         if let source::Permanents::SinglePermanent(object) = value {
             return Ok(ObjectSet::One(self.object(object)?));
         }
-        if matches!(value, source::Permanents::Ref_TargetPermanents) {
+        if matches!(
+            value,
+            source::Permanents::Ref_TargetPermanents
+                | source::Permanents::Ref_TargetPermanents1
+                | source::Permanents::Ref_TargetPermanents2
+        ) {
+            let ordinal = usize::from(matches!(value, source::Permanents::Ref_TargetPermanents2));
             return Ok(ObjectSet::Targets(self.target(
                 TargetKind::Object(ObjectDomain::permanent()),
-                0,
+                ordinal,
                 0,
             )?));
         }
@@ -898,6 +907,10 @@ impl Context {
                 ))?;
                 return Ok(ObjectFilter::Not(Box::new(matching)));
             }
+            source::Permanents::IsNotACommander => {
+                let commander = self.filter_inner(&source::Permanents::IsACommander)?;
+                return Ok(ObjectFilter::Not(Box::new(commander)));
+            }
             source::Permanents::IsntAttacking => {
                 let attacking = self.filter_inner(&source::Permanents::IsAttacking)?;
                 return Ok(ObjectFilter::Not(Box::new(attacking)));
@@ -927,13 +940,17 @@ impl Context {
         if matches!(
             value,
             source::Permanents::Ref_TargetPermanents
+                | source::Permanents::Ref_TargetPermanents1
+                | source::Permanents::Ref_TargetPermanents2
                 | source::Permanents::ThePermanentsChosenThisWay
                 | source::Permanents::TheChosenPermanents
                 | source::Permanents::ThePermanentsNotChosenThisWay
                 | source::Permanents::NotChosenThisWay
                 | source::Permanents::TheTokensCreatedThisWay
         ) && match value {
-            source::Permanents::Ref_TargetPermanents => true,
+            source::Permanents::Ref_TargetPermanents
+            | source::Permanents::Ref_TargetPermanents1
+            | source::Permanents::Ref_TargetPermanents2 => true,
             source::Permanents::TheTokensCreatedThisWay => self.created_tokens.is_some(),
             _ => self.permanent_choice.is_some(),
         } {
@@ -1629,6 +1646,16 @@ impl Context {
                             toughness: self.modifier(toughness, &x),
                         }]
                     }
+                    S::AdjustPTXY(power, toughness, x, y) => {
+                        let y = self.number(y)?;
+                        vec![Change::Pump {
+                            power: self.modifier(power, &self.number(x)?),
+                            toughness: match toughness {
+                                source::ModY::PlusY => y,
+                                source::ModY::MinusY => Expr::multiply(Expr::Constant(-1), y),
+                            },
+                        }]
+                    }
                     S::AdjustPTForEach(power, toughness, n) => {
                         let n = self.number(n)?;
                         vec![Change::Pump {
@@ -1671,6 +1698,7 @@ impl Context {
                     S::AddCardtype(ty) => vec![Change::AddCardType(ty.clone())],
                     S::RemoveCardtype(ty) => vec![Change::RemoveCardType(ty.clone())],
                     S::AddSupertype(ty) => vec![Change::AddSupertype(ty.clone())],
+                    S::RemoveSupertype(ty) => vec![Change::RemoveSupertype(ty.clone())],
                     S::AddLandType(ty) => vec![Change::AddLandType(ty.clone())],
                     S::AddArtifactType(ty) => vec![Change::AddArtifactType(ty.clone())],
                     S::SetArtifactType(ty) => vec![Change::SetArtifactType(ty.clone())],
@@ -2410,6 +2438,18 @@ impl Context {
                 };
                 self.exile_choice = Some(result.clone());
                 return Ok(choice);
+            }
+            S::ActionForEachPermanentByController(objects, actions) => {
+                let objects = self.objects(objects)?;
+                return self.for_each_object(objects, |context| {
+                    let each = ObjectRef::Bound(context.iterated_object.clone().unwrap());
+                    let controller = PlayerSet::One(PlayerRef::ControllerOf(Box::new(each)));
+                    let instructions = actions
+                        .iter()
+                        .map(|action| context.action(action, &controller))
+                        .collect::<Result<_>>()?;
+                    Ok(Program { instructions })
+                });
             }
             S::ActionForEachPermanent(objects, actions) => {
                 let objects = self.objects(objects)?;
