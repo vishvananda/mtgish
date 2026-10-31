@@ -267,9 +267,9 @@ impl<'a> Scope<'a> {
                 self.filter(objects)?;
                 self.expr(level)
             }
-            EventSpec::FirstEachTurn(event) | EventSpec::FirstForObjectEachTurn(event) => {
-                self.event(event)
-            }
+            EventSpec::FirstEachGame(event)
+            | EventSpec::FirstEachTurn(event)
+            | EventSpec::FirstForObjectEachTurn(event) => self.event(event),
             EventSpec::Player {
                 players, objects, ..
             } => {
@@ -747,8 +747,14 @@ impl<'a> Scope<'a> {
             }
             ObjectSet::Affected(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectSet::Affected(result) => Err(format!("result {} is unavailable", result.0)),
-            ObjectSet::Copies(result) if self.results.contains_key(&result.0) => Ok(()),
-            ObjectSet::Copies(result) => Err(format!("result {} is unavailable", result.0)),
+            ObjectSet::Copies(result) | ObjectSet::Unpaid(result)
+                if self.results.contains_key(&result.0) =>
+            {
+                Ok(())
+            }
+            ObjectSet::Copies(result) | ObjectSet::Unpaid(result) => {
+                Err(format!("result {} is unavailable", result.0))
+            }
             ObjectSet::Created(result) => match self.results.get(&result.0) {
                 Some(ResultKind::CreatedObjects) => Ok(()),
                 _ => Err(format!(
@@ -960,7 +966,7 @@ impl<'a> Scope<'a> {
     }
     fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
-            ObjectFilter::ArrivedThisTurn { .. } => Ok(()),
+            ObjectFilter::ArrivedThisTurn { .. } | ObjectFilter::ChosenFilter => Ok(()),
             ObjectFilter::SharesColorWith(object)
             | ObjectFilter::ExiledWith(object)
             | ObjectFilter::MadeBy(object)
@@ -2414,6 +2420,15 @@ impl<'a> Scope<'a> {
                 self.player(player)?;
                 self.cost(cost)
             }
+            Operation::PayRepeatedly {
+                player,
+                cost,
+                at_most,
+            } => {
+                self.player(player)?;
+                self.cost(cost)?;
+                self.expr(at_most)
+            }
             Operation::RemoveCounters { removals } => self.removals(removals),
             Operation::Attach { attachments, host } => {
                 self.require_zone(attachments, EventZone::Battlefield)?;
@@ -2795,9 +2810,9 @@ impl<'a> Scope<'a> {
                     );
                     self.gathered.insert(result.0);
                 }
-                Instruction::Group(body) | Instruction::Optional { body, .. } => {
-                    self.adopt_choices(body, run)
-                }
+                Instruction::Group(body)
+                | Instruction::Optional { body, .. }
+                | Instruction::ForEachPlayer { body, .. } => self.adopt_choices(body, run),
                 _ => {}
             }
         }
@@ -2822,7 +2837,9 @@ impl<'a> Scope<'a> {
                             | Operation::RevealUntil { .. }
                             | Operation::RevealUntilGroup { .. } => ResultKind::Observation,
                             Operation::Search { .. } => ResultKind::Search,
-                            Operation::PayCost { .. } => ResultKind::Payment,
+                            Operation::PayCost { .. } | Operation::PayRepeatedly { .. } => {
+                                ResultKind::Payment
+                            }
                             Operation::CreateTokens { .. } => ResultKind::CreatedObjects,
                             Operation::ChooseObjects { .. }
                             | Operation::SeparatePiles { .. }

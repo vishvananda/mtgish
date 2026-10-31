@@ -1526,7 +1526,6 @@
     {"source": "Players::ControlsAll", "text": "controls"},
     {"source": "Players::ControlsAPermanentOfEachColor", "text": "color"},
     {"source": "Players::ControlsALandOfEachBasicLandType", "text": "basic"},
-    {"source": "Players::ChoseToDoActions", "text": "do"},
     {"source": "PlayerEffect::SpellsCastGainAbility", "text": "cast"},
     {"source": "PlayerEffect::SpellsCastFromExileHaveAbility", "text": "exile"},
     {"source": "PlayerEffect::SpellsAndAbilitiesTheyCantCantCauseThemToSearchTheirLibrary", "text": "cause"},
@@ -1983,7 +1982,6 @@
     {"source": "Action::EndTheCombatPhase", "text": "phase", "keeps": true},
     {"source": "Action::EachPlayerStartingWithActionInDirection", "text": "direction"},
     {"source": "Action::EachPlayerRevealsCardsFromTheTopOfTheirLibraryUntilTheyRevealACardOfType", "text": "reveals"},
-    {"source": "Action::EachPlayerMayChooseToDoActions", "text": "do"},
     {"source": "Action::EachPlayerMayChooseAnAction", "text": "may"},
     {"source": "Action::EachPlayerCreatesTokensOfTheirChoice", "text": "creates"},
     {"source": "Action::EachPlayerCantCastSpellsDuringTheirNextTurn", "text": "during"},
@@ -2977,6 +2975,10 @@
     {"source": "LookAtTopOfLibraryAction::ExileAGenericCardFaceDownWithACounter", "text": "exile"},
     {"source": "SearchLibraryAction::ChooseAnAction", "text": "search"},
     {"source": "PutCountersAction::DistributeNumberCountersOfTypeAmongPermanents", "text": "distribute"},
-    {"source": "PutCountersAction::UptoSingleNumberCountersOfTypeOnEachPermanent", "text": "counters"}
+    {"source": "PutCountersAction::UptoSingleNumberCountersOfTypeOnEachPermanent", "text": "counters"},
+    {"source": "Action::ChoosePermanentFilter", "text": "or", "keeps": true},
+    {"source": "PlayerEffect::DrawsACardDuringEachPlayersDrawStep", "text": "draw"},
+    {"source": "PlayerEffect::UntapsPermanentsDuringEachPlayersUntapSteps", "text": "untap"},
+    {"source": "GameEffect::PermanentCantPhaseIn", "text": "phase"}
   ]
 }

@@ -248,7 +248,6 @@ impl Context {
                 source::SubType::Mountain,
                 source::SubType::Forest,
             ],
-            _ => return Err(unsupported(subtypes)),
         };
         let power_toughness = pt
             .map(|pt| -> Result<_> {

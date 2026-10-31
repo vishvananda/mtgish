@@ -366,6 +366,9 @@ const KEYWORD_ACTIONS: &[(&str, KeywordAction)] = &[
 /// Rows that choose a value, and how many, for an action or an entering object.
 const VALUE_CHOICES: &[(&str, ValueKind, u32)] = &[
     ("ChooseAColor", ValueKind::Color, 1),
+    ("ChoosePermanentFilter", ValueKind::Filter, 1),
+    ("ChooseLibraryFilter", ValueKind::Filter, 1),
+    ("SecretlyChooseLibraryFilter", ValueKind::Filter, 1),
     ("ChooseTwoColors", ValueKind::Color, 2),
     ("ChooseAColorOrColorless", ValueKind::ColorOrColorless, 1),
     ("ChooseACreatureType", ValueKind::CreatureType, 1),
@@ -4940,9 +4943,9 @@ fn with_bindings(outer: &EventBindings, row: &EventBindings) -> EventBindings {
 pub fn event_bindings(event: &EventSpec) -> EventBindings {
     match event {
         EventSpec::SagaChapter(_) => EventBindings::default(),
-        EventSpec::FirstEachTurn(event) | EventSpec::FirstForObjectEachTurn(event) => {
-            event_bindings(event)
-        }
+        EventSpec::FirstEachTurn(event)
+        | EventSpec::FirstForObjectEachTurn(event)
+        | EventSpec::FirstEachGame(event) => event_bindings(event),
         EventSpec::NthEachTurn { event, .. } => event_bindings(event),
         EventSpec::Primitive { name, .. } => row_bindings(name),
         EventSpec::Player { event, .. } => PLAYER_EVENTS
@@ -5177,7 +5180,7 @@ impl Effects {
                     | Operation::RevealUntilGroup { .. }
                     | Operation::Shuffle { .. }
                     | Operation::Scry { .. } => {}
-                    Operation::PayCost { cost, .. } => {
+                    Operation::PayCost { cost, .. } | Operation::PayRepeatedly { cost, .. } => {
                         self.cost(cost);
                     }
                     // Its body executes in a later triggered ability, not
@@ -5341,6 +5344,7 @@ impl Effects {
             ObjectSet::Battlefield(_)
             | ObjectSet::Created(_)
             | ObjectSet::Copies(_)
+            | ObjectSet::Unpaid(_)
             | ObjectSet::DamageSources(_) => false,
             ObjectSet::EventGroup
             | ObjectSet::Damage(_)

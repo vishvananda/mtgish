@@ -1517,3 +1517,38 @@ fn replacement_steps_with_rows_keep_their_operands() {
     );
     assert!(censor.contains("Constant(4)"), "{censor}");
 }
+
+#[test]
+fn repeated_payments_and_payments_per_object() {
+    let oath = lowered(
+        "SpellActions(ActionList([RepeatedMayCost(Integer(2), PayMana([ManaCostGeneric(1)])), LoseLifeForEach(Integer(1), TheNumberOfRepeatedCostsNotPaid)]))",
+    );
+    assert!(oath.contains("PayRepeatedly"), "{oath}");
+    assert!(oath.contains("Subtract(Constant(2), Performed("), "{oath}");
+    let cleansing = lowered(
+        "SpellActions(ActionList([ForEachPermanentAnyPlayerMayCost(IsCardtype(Land), AnyPlayer, PayLife(Integer(1))), DestroyEachPermanent(CostWasntPaidForIt)]))",
+    );
+    assert!(cleansing.contains("ForEachObject"), "{cleansing}");
+    assert!(cleansing.contains("Unpaid(ResultId(0))"), "{cleansing}");
+    validate::card(&custom(
+        "SpellActions(ActionList([ForEachPermanentAnyPlayerMayCost(IsCardtype(Land), AnyPlayer, PayLife(Integer(1))), DestroyEachPermanent(CostWasntPaidForIt)]))",
+    ).unwrap())
+    .unwrap();
+}
+
+#[test]
+fn offers_chosen_filters_and_first_upkeeps() {
+    let tempt = lowered(
+        "SpellActions(ActionList([EachPlayerMayCreateTokens(Opponent, [FoodToken], []), CreateTokens([NumberTokens(NumPlayers(CreatedATokenThisWay), FoodToken)], [])]))",
+    );
+    assert!(tempt.contains("PlayerAction"), "{tempt}");
+    assert!(tempt.contains("PlayerTook"), "{tempt}");
+    let filter = lowered(
+        "SpellActions(ActionList([ChoosePermanentFilter([IsCardtype(Land), IsCardtype(Creature)]), DestroyEachPermanent(IsTheChosenPermanentFilter)]))",
+    );
+    assert!(filter.contains("kind: Filter"), "{filter}");
+    assert!(filter.contains("ChosenFilter"), "{filter}");
+    let dispatch =
+        lowered("TriggerA(AtTheBeginningOfTheFirstUpkeepOfTheGame, ActionList([DrawACard]))");
+    assert!(dispatch.contains("FirstEachGame"), "{dispatch}");
+}

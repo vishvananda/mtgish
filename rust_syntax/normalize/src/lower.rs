@@ -118,6 +118,8 @@ struct Context {
     found: Option<ObjectSet>,
     /// The last effect a player chose to take, and who was last offered a batch.
     took: Option<ResultId>,
+    /// How many times the last repeated payment could have been made.
+    repeated: Option<Expr>,
     chosen_pt: Option<ResultId>,
     /// A later step of this list may read what this branch did.
     reads_later: bool,
@@ -180,6 +182,7 @@ enum Done {
     Prevented,
     Paid,
     Untapped,
+    PhasedOut,
 }
 impl Done {
     fn of(operation: &Operation) -> Option<Self> {
@@ -215,6 +218,14 @@ impl Done {
                 | Destination::OwnersLibraryFromTop(_)
                 | Destination::OwnersLibraryShuffled => Self::Library,
             },
+            Operation::KeywordEach {
+                action: KeywordAction::PhaseOut,
+                ..
+            }
+            | Operation::Keyword {
+                action: KeywordAction::PhaseOut,
+                ..
+            } => Self::PhasedOut,
             Operation::Primitive { .. }
             | Operation::Keyword { .. }
             | Operation::Conjure { .. }
@@ -405,6 +416,10 @@ impl Context {
         }
         self.note_done(&operation, &ResultId(self.result));
         self.note_move(&operation, ResultId(self.result));
+        if let Operation::PayRepeatedly { at_most, .. } = &operation {
+            self.payment = Some(ResultId(self.result));
+            self.repeated = Some(at_most.clone());
+        }
         if let Operation::PayCost { cost, .. } = &operation {
             self.payment = Some(ResultId(self.result));
             self.install_paid_history(cost, PaymentRef::Resolution(ResultId(self.result)));
@@ -933,6 +948,16 @@ impl Context {
             source::Permanents::NotInTheChosenPile => {
                 return Ok(ObjectSet::Unselected(self.pile_chosen()?))
             }
+            source::Permanents::ThePermanentsPhasedOutThisWay => {
+                return Ok(ObjectSet::Affected(self.done(Done::PhasedOut)?));
+            }
+            source::Permanents::CostWasntPaidForIt => {
+                let paid = self
+                    .took
+                    .clone()
+                    .ok_or_else(|| invalid("no payment was offered in this scope"))?;
+                return Ok(ObjectSet::Unpaid(paid));
+            }
             _ => {}
         }
         if matches!(
@@ -1182,6 +1207,9 @@ impl Context {
 
     fn filter_inner(&self, value: &source::Permanents) -> Result<ObjectFilter> {
         match value {
+            source::Permanents::IsTheChosenPermanentFilter => {
+                return Ok(ObjectFilter::ChosenFilter);
+            }
             source::Permanents::SharesANameWithAPermanent(objects) => {
                 return Ok(ObjectFilter::SharesNameWithAny(Box::new(
                     self.objects(objects)?,
@@ -1377,6 +1405,15 @@ impl Context {
                     ])),
                     HistoryWindow::ThisTurn,
                     HistoryMeasure::Occurrences,
+                )
+            }
+            S::TheNumberOfRepeatedCostsNotPaid => {
+                let (Some(at_most), Some(paid)) = (&self.repeated, &self.payment) else {
+                    return Err(invalid("no repeated payment in this scope"));
+                };
+                Expr::Subtract(
+                    Box::new(at_most.clone()),
+                    Box::new(Expr::Performed(paid.clone())),
                 )
             }
             S::NumTimesPaidMana => Expr::Performed(
@@ -1904,6 +1941,14 @@ impl Context {
 
     fn duration(&self, value: &source::Expiration) -> Result<Duration> {
         Ok(match value {
+            source::Expiration::UntilAPlayerRollsValue(players, comparison) => {
+                Duration::UntilEvent(Box::new(self.trigger(
+                    &source::Trigger::WhenAPlayerRollsAValueOnADie(
+                        players.clone(),
+                        comparison.clone(),
+                    ),
+                )?))
+            }
             source::Expiration::UntilEndOfTurn => Duration::EndOfTurn,
             source::Expiration::UntilEndOfCombat => Duration::EndOfCombat,
             source::Expiration::DuringTheExtraTurnCreatedThisWay => Duration::ExtraTurn(
@@ -3959,6 +4004,100 @@ impl Context {
                     }
                     Ok(payment)
                 });
+            }
+            S::EachPlayerMayChooseToDoActions(players) => {
+                let players = self.players(players)?;
+                self.offered = Some(players.clone());
+                return self.for_each_player(players, |context, each| {
+                    let PlayerSet::One(payer) = each else {
+                        return Err(invalid("a payment has one payer"));
+                    };
+                    let payment = context.effect(Operation::PayCost {
+                        cost: Cost { parts: vec![] },
+                        player: payer.clone(),
+                        optional: true,
+                    });
+                    if let Instruction::Effect { result, .. } = &payment {
+                        context.took = Some(result.clone());
+                    }
+                    Ok(payment)
+                });
+            }
+            S::RepeatedMayCost(times, cost) | S::PlayerRepeatedMayCost(_, times, cost) => {
+                let payer = match (value, actor) {
+                    (S::PlayerRepeatedMayCost(player, ..), _) => self.player(player)?,
+                    (_, PlayerSet::One(player)) => player.clone(),
+                    _ => return Err(invalid("a payment has one payer")),
+                };
+                let at_most = self.number(times)?;
+                let cost = self.cost_for(cost, &payer)?;
+                Operation::PayRepeatedly {
+                    player: payer,
+                    cost,
+                    at_most,
+                }
+            }
+            S::ForEachPermanentAnyPlayerMayCost(objects, players, cost) => {
+                let objects = self.objects(objects)?;
+                let mut took = None;
+                let offer = self.for_each_object(objects, |context| {
+                    let players = context.players(players)?;
+                    let offer = context.for_each_player(players, |context, each| {
+                        let PlayerSet::One(payer) = each else {
+                            return Err(invalid("a payment has one payer"));
+                        };
+                        let cost = context.cost_for(cost, payer)?;
+                        let payment = context.effect(Operation::PayCost {
+                            cost,
+                            player: payer.clone(),
+                            optional: true,
+                        });
+                        if let Instruction::Effect { result, .. } = &payment {
+                            context.took = Some(result.clone());
+                        }
+                        Ok(payment)
+                    })?;
+                    took = context.took.clone();
+                    Ok(Program {
+                        instructions: vec![offer],
+                    })
+                })?;
+                self.took = took;
+                return Ok(offer);
+            }
+            S::EachPlayerMayCreateTokens(players, tokens, flags) => {
+                let players = self.players(players)?;
+                self.offered = Some(players.clone());
+                let offer = self.for_each_player(players, |context, each| {
+                    let PlayerSet::One(payer) = each else {
+                        return Err(invalid("a payment has one payer"));
+                    };
+                    let mut child = context.clone();
+                    child.iterated = Some(payer.clone());
+                    // Nothing outside a cost reads what happens inside it
+                    child.result = context.result.saturating_add(1 << 20);
+                    let create = S::CreateTokens(tokens.clone(), flags.clone());
+                    let body = Program {
+                        instructions: vec![child.action(&create, each)?],
+                    };
+                    let payment = context.effect(Operation::PayCost {
+                        cost: Cost {
+                            parts: vec![CostPart::PlayerAction {
+                                player: payer.clone(),
+                                body,
+                            }],
+                        },
+                        player: payer.clone(),
+                        optional: true,
+                    });
+                    if let Instruction::Effect { result, .. } = &payment {
+                        context.took = Some(result.clone());
+                    }
+                    Ok(payment)
+                })?;
+                // Those tokens read through who took the offer
+                self.created_tokens = None;
+                return Ok(offer);
             }
             S::EachPlayerMayCostOrFallback(players, costs, fallback) => {
                 let players = self.players(players)?;

@@ -587,6 +587,10 @@ impl Context {
         value: &source::Action,
         actor: &PlayerSet,
     ) -> Option<Instruction> {
+        // A spell's own changes are typed, so their rows bind nothing
+        if let Some(operation) = self.spell_change(value) {
+            return Some(self.effect(operation));
+        }
         let (name, operands) = self.primitive("Action", value)?;
         if !crate::primitive_spec::lookup(&name)?.keeps {
             self.forget_results();
@@ -610,7 +614,6 @@ impl Context {
         }
         let operation = self
             .perpetual(value, operands.first())
-            .or_else(|| self.spell_change(value))
             .unwrap_or_else(|| crate::semantics::reduce_action(actor.clone(), name, operands));
         let yields = crate::semantics::yields(&operation);
         match yields {
@@ -965,6 +968,7 @@ impl Context {
         self.chosen_pile = None;
         self.found = None;
         self.took = None;
+        self.repeated = None;
         self.offered = None;
         self.did.clear();
         self.payment = None;

@@ -47,7 +47,7 @@ impl Context {
             })
         };
         Ok(Some(match value {
-            S::PlayerWhoTookActionThisWay | S::PaidCost => took()?,
+            S::PlayerWhoTookActionThisWay | S::PaidCost | S::ChoseToDoActions => took()?,
             S::DidntTakeAction | S::DidntPayCost => Condition::Not(Box::new(took()?)),
             S::SacrificedAPermanentThisWay(filter) => some(self.moved_by(
                 Done::Sacrificed,
@@ -85,6 +85,9 @@ impl Context {
                 player,
                 Some(self.filter(filter)?),
             )?),
+            S::CreatedATokenThisWay if self.created_tokens.is_none() && self.took.is_some() => {
+                took()?
+            }
             S::CreatedATokenThisWay => {
                 let result = self
                     .created_tokens

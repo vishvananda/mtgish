@@ -21,6 +21,8 @@ const REFLEXIVE_EVENTS: [&str; 15] = [
 enum Base {
     Action(source::Action),
     Cost(source::Cost),
+    /// A cost paid up to this many times.
+    Repeated(source::Cost, source::GameNumber),
 }
 
 fn base_form(name: &str, args: &serde_json::Value) -> Option<Base> {
@@ -31,6 +33,9 @@ fn base_form(name: &str, args: &serde_json::Value) -> Option<Base> {
     );
     let name = match name.as_str() {
         "RevealTheTopNumberCardsOfLibrary" => "RevealTheTopNumberCardsOfLibraryNEW".to_string(),
+        "PutCardInHandConjuredDuplicateOfPermanent" => {
+            "ConjureDuplicateOfPermanentIntoHand".to_string()
+        }
         _ => name,
     };
     let form = |ty| serde_json::json!({ "enum": ty, "variant": name, "args": args });
@@ -67,6 +72,7 @@ fn base_forms(name: &str, args: &serde_json::Value) -> Option<Vec<Base>> {
         };
         let form = match wrapper["variant"].as_str()? {
             "CardInGraveyard" => "PutGraveyardCardOntoBattlefield",
+            "CardInHand" => "PutCardFromHandOnBattlefield",
             "TheTopCardOfLibrary" => "PutTopOfLibraryOnBattlefield",
             _ => return None,
         };
@@ -123,7 +129,11 @@ impl Context {
             "ACardOfTypeIsExiledThisWay" | "AnyNumberOfCardsOfTypeAreExiledThisWay"
         );
         let filtered = discarded || exiled;
-        if !REFLEXIVE_EVENTS.contains(&event) && !filtered {
+        let held = matches!(
+            event,
+            "APermanentIsSacrificedThisWay" | "YouRevealACardOfTypeThisWay"
+        );
+        if !REFLEXIVE_EVENTS.contains(&event) && !filtered && !held {
             return None;
         }
         let mut args = match &inspected["args"] {
@@ -145,7 +155,21 @@ impl Context {
                     source::Condition::ACardWasDiscardedThisWay(cards)
                 })
             }
-            _ => None,
+            _ => match event {
+                "APermanentIsSacrificedThisWay" => Some(
+                    source::Condition::APermanentWasSacrificedThisWay(decode(&args.pop()?).ok()?),
+                ),
+                "YouRevealACardOfTypeThisWay" => Some(source::Condition::ACardWasRevealedThisWay(
+                    decode(&args.pop()?).ok()?,
+                )),
+                "APermanentEntersThisWay" if args.len() == 3 => {
+                    Some(source::Condition::PermanentPassesFilter(
+                        Box::new(source::Permanent::ThePermanentPutOnTheBattlefieldThisWay),
+                        decode(&args.pop()?).ok()?,
+                    ))
+                }
+                _ => None,
+            },
         };
         // "Each player" and "a player" name who does the base action.
         let (performer, base) = match base {
@@ -160,7 +184,19 @@ impl Context {
             1 => args.pop()?,
             _ => serde_json::Value::Array(args),
         };
-        let mut bases = base_forms(base, &args)?;
+        let mut bases = match base {
+            "PayManaUptoNumberTimes" => {
+                let serde_json::Value::Array(items) = &args else {
+                    return None;
+                };
+                let [mana, times] = items.as_slice() else {
+                    return None;
+                };
+                let cost = serde_json::json!({"enum": "Cost", "variant": "PayMana", "args": mana});
+                vec![Base::Repeated(decode(&cost).ok()?, decode(times).ok()?)]
+            }
+            _ => base_forms(base, &args)?,
+        };
         if let (Some(form), Some(who)) = (performer, who) {
             bases = bases
                 .into_iter()
@@ -172,7 +208,7 @@ impl Context {
                         });
                         decode(&wrapped).ok().map(Base::Action)
                     }
-                    Base::Cost(_) => None,
+                    Base::Cost(_) | Base::Repeated(..) => None,
                 })
                 .collect::<Option<_>>()?;
         }
@@ -206,6 +242,18 @@ impl Context {
                         cost,
                         player: payer.clone(),
                         optional: false,
+                    })
+                }
+                Base::Repeated(cost, times) => {
+                    let PlayerSet::One(payer) = actor else {
+                        return Err(invalid("payment requires one explicit payer"));
+                    };
+                    let at_most = self.number(times)?;
+                    let cost = self.cost_for(cost, payer)?;
+                    self.effect(Operation::PayRepeatedly {
+                        cost,
+                        player: payer.clone(),
+                        at_most,
                     })
                 }
             });

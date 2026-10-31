@@ -27,6 +27,9 @@ impl Context {
         })
     }
     fn card_filter(&self, value: &source::Cards) -> Result<ObjectFilter> {
+        if matches!(value, source::Cards::TheChosenLibraryFilter) {
+            return Ok(ObjectFilter::ChosenFilter);
+        }
         if let Some(result) = self.shares_type_this_way(value) {
             return result;
         }

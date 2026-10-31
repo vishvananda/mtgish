@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 118;
+pub const SCHEMA_VERSION: u32 = 119;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1369,6 +1369,13 @@ pub enum Operation {
         players: PlayerSet,
         keep: Expr,
     },
+    /// The player may pay `cost` up to `at_most` times. `Expr::Performed` reads
+    /// how many times they did.
+    PayRepeatedly {
+        player: PlayerRef,
+        cost: Cost,
+        at_most: Expr,
+    },
 }
 /// Defines the keyword abilities with one table, so the enum and the rows that
 /// lower to it cannot disagree.
@@ -1691,6 +1698,8 @@ pub enum ValueKind {
     ColorWord,
     PlaneswalkerType,
     Recipient,
+    /// One of the filters listed as options.
+    Filter,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -3105,6 +3114,8 @@ pub enum ObjectSet {
     },
     /// The copies a `CopyCards` made, wherever they were made.
     Copies(ResultId),
+    /// The objects of the enclosing `ForEachObject` this payment was not made for.
+    Unpaid(ResultId),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -3352,6 +3363,8 @@ pub enum ObjectFilter {
     ManaSpentFrom(Box<ObjectFilter>),
     /// Shares at least one color with this object.
     SharesColorWith(ObjectRef),
+    /// The filter chosen by a `ChooseValue` of `ValueKind::Filter`.
+    ChosenFilter,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3898,6 +3911,8 @@ pub enum EventSpec {
     /// The first such event for each object each turn, unlike `FirstEachTurn`,
     /// which is the first for any object.
     FirstForObjectEachTurn(Box<EventSpec>),
+    /// The first such event of the game.
+    FirstEachGame(Box<EventSpec>),
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

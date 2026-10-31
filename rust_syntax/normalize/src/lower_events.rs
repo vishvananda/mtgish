@@ -409,6 +409,20 @@ impl Context {
                     condition: event_scope.condition(condition)?,
                 }
             }
+            S::AtTheEndOfTheFirstCombat => {
+                EventSpec::FirstEachTurn(Box::new(self.trigger(&S::AtTheEndOfCombat)?))
+            }
+            S::AtTheBeginningOfAPlayersFirstUpkeepEachTurn(players) => EventSpec::FirstEachTurn(
+                Box::new(self.trigger(&S::AtTheBeginningOfAPlayersUpkeep(players.clone()))?),
+            ),
+            S::AtTheBeginningOfAPlayersFirstUpkeepOfTheGame(players) => EventSpec::FirstEachGame(
+                Box::new(self.trigger(&S::AtTheBeginningOfAPlayersUpkeep(players.clone()))?),
+            ),
+            S::AtTheBeginningOfTheFirstUpkeepOfTheGame => {
+                EventSpec::FirstEachGame(Box::new(self.trigger(
+                    &S::AtTheBeginningOfAPlayersUpkeep(Box::new(source::Players::AnyPlayer)),
+                )?))
+            }
             _ => self.damage_trigger(value)?,
         })
     }

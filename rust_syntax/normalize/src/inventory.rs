@@ -800,6 +800,15 @@ impl Inventory<'_> {
                 self.player(player);
                 self.cost(cost);
             }
+            Operation::PayRepeatedly {
+                player,
+                cost,
+                at_most,
+            } => {
+                self.player(player);
+                self.cost(cost);
+                self.expr(at_most);
+            }
             Operation::RemoveCounters { removals } => self.removals(removals),
             Operation::Attach { attachments, host } => {
                 self.objects(attachments);
@@ -1767,7 +1776,8 @@ impl Inventory<'_> {
             | ObjectSet::Selected(_)
             | ObjectSet::Unselected(_)
             | ObjectSet::Created(_)
-            | ObjectSet::Copies(_) => {}
+            | ObjectSet::Copies(_)
+            | ObjectSet::Unpaid(_) => {}
         }
     }
     fn player(&mut self, r: &PlayerRef) {
@@ -1977,7 +1987,7 @@ impl Inventory<'_> {
     fn filter(&mut self, f: &ObjectFilter) {
         self.form("ObjectFilter", f);
         match f {
-            ObjectFilter::ArrivedThisTurn { .. } => {}
+            ObjectFilter::ArrivedThisTurn { .. } | ObjectFilter::ChosenFilter => {}
             ObjectFilter::SharesColorWith(object)
             | ObjectFilter::ExiledWith(object)
             | ObjectFilter::MadeBy(object)
@@ -2253,9 +2263,9 @@ impl Inventory<'_> {
                 self.filter(objects);
                 self.expr(level);
             }
-            EventSpec::FirstEachTurn(event) | EventSpec::FirstForObjectEachTurn(event) => {
-                self.event(event)
-            }
+            EventSpec::FirstEachGame(event)
+            | EventSpec::FirstEachTurn(event)
+            | EventSpec::FirstForObjectEachTurn(event) => self.event(event),
             EventSpec::Player {
                 event,
                 players,
