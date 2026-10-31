@@ -65,7 +65,13 @@ impl Context {
             S::Ref_TargetGraveyardCard3 => 2,
             S::Ref_TargetGraveyardCard4 => 3,
             S::Ref_TargetGraveyardCard5 => 4,
-            S::ThisGraveyardCard => return Ok(ObjectRef::Source),
+            S::ThisGraveyardCard | S::ThisSacrificedPermanent => return Ok(ObjectRef::Source),
+            S::TheCardPutIntoGraveyardThisWay => {
+                return Ok(ObjectRef::Query {
+                    objects: Box::new(self.graveyard_set()?),
+                    index: 0,
+                })
+            }
             S::TheCardDiscardedThisWay => {
                 return Ok(ObjectRef::Result {
                     result: self.done(Done::Discarded)?,
@@ -156,7 +162,18 @@ impl Context {
                 self.object_target(ObjectDomain::card(EventZone::Exile), 0)
             }
             S::Ref_TargetExiledCard2 => self.object_target(ObjectDomain::card(EventZone::Exile), 1),
-            S::TheSpecificCardExiledThisWay if self.exile_found.is_some() => {
+            S::TheSpecificCardExiledThisWay | S::TheExiledCardFoundThisWay
+                if self.exile_found.is_some() =>
+            {
+                let found = self.exile_found.clone().unwrap();
+                // A later run of a player loop reads its own player's card.
+                let filter = match &self.iterated {
+                    Some(player @ PlayerRef::Bound(_)) => ObjectFilter::All(vec![
+                        found,
+                        ObjectFilter::OwnedBy(PlayerSet::One(player.clone())),
+                    ]),
+                    _ => found,
+                };
                 Ok(ObjectRef::Query {
                     objects: Box::new(ObjectSet::Matching {
                         objects: Box::new(ObjectSet::Transition {
@@ -166,7 +183,7 @@ impl Context {
                                 .ok_or_else(|| invalid("exiled cards have no movement"))?,
                             phase: ObjectPhase::After,
                         }),
-                        filter: self.exile_found.clone().unwrap(),
+                        filter,
                     }),
                     index: 0,
                 })
@@ -303,6 +320,19 @@ impl Context {
             source::CardsInExile::TheExiledCardsChosenThisWay if self.exile_choice.is_some() => {
                 ObjectSet::Selected(self.exile_choice.clone().unwrap())
             }
+            source::CardsInExile::TheSpecificCardsExiledThisWay
+            | source::CardsInExile::TheNonSpecificCardsExiledThisWay
+                if self.exile_found.is_some() =>
+            {
+                let found = self.exile_found.clone().unwrap();
+                ObjectSet::Matching {
+                    objects: Box::new(self.this_way_set(Done::Exiled, ObjectPhase::After, None)?),
+                    filter: match value {
+                        source::CardsInExile::TheSpecificCardsExiledThisWay => found,
+                        _ => ObjectFilter::Not(Box::new(found)),
+                    },
+                }
+            }
             source::CardsInExile::TheCardsExiledThisWay | source::CardsInExile::TheExiledCards => {
                 match (&self.exiled, self.paid_exile()) {
                     (Some(result), _) => ObjectSet::Transition {
@@ -354,6 +384,10 @@ impl Context {
         let (objects, choose) = match value {
             S::Permanent(p) => (ObjectSet::One(self.object(p)?), None),
             S::EachPermanent(p) => (self.objects(p)?, None),
+            S::EachCardInLibrary(cards) => (
+                self.private_cards(EventZone::Library, actor.clone(), self.library_filter(cards)?),
+                None,
+            ),
             S::APermanent(p) => (
                 self.objects(p)?,
                 Some(Count::AsManyAsCan(Expr::Constant(1))),

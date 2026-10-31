@@ -13,6 +13,24 @@ impl Context {
             S::SharesANameWithGraveyardCard(c) => {
                 return Ok(ObjectFilter::SharesNameWith(self.grave_card(c)?))
             }
+            S::SharesANameWithTheCardRevealedThisWay => {
+                return Ok(ObjectFilter::SharesNameWithAny(Box::new(
+                    self.revealed_objects()?,
+                )))
+            }
+            S::SharesANameWithTheCardChosenThisWay => {
+                let chosen = self.hand_choice.as_ref().or(self.permanent_choice.as_ref());
+                return Ok(ObjectFilter::SharesNameWith(self.result_object(chosen, 0)?));
+            }
+            S::RevealedFromLibraryThisWay => {
+                return Ok(ObjectFilter::InSet(Box::new(self.revealed_objects()?)))
+            }
+            S::RevealedFromPlayersLibraryThisWay(player) => {
+                return Ok(ObjectFilter::All(vec![
+                    ObjectFilter::InSet(Box::new(self.revealed_objects()?)),
+                    ObjectFilter::OwnedBy(PlayerSet::One(self.player(player)?)),
+                ]))
+            }
             S::SharesANameWithAnExiled(c) => {
                 return Ok(ObjectFilter::SharesNameWithAny(Box::new(self.exile_cards(c)?)))
             }

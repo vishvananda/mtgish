@@ -16,6 +16,8 @@ enum HandShown {
 enum HandFate {
     Discard,
     Exile(Option<Duration>),
+    /// The cards stay; a later reference reads the pick.
+    Keep,
 }
 
 impl Context {
@@ -86,9 +88,13 @@ impl Context {
                 unreachable!()
             };
             objects = ObjectSet::Selected(result.clone());
+            if matches!(fate, HandFate::Keep) {
+                self.hand_choice = Some(result.clone());
+            }
             instructions.push(choice);
         }
         match fate {
+            HandFate::Keep => {}
             HandFate::Discard => {
                 instructions.push(self.effect(Operation::DiscardObjects { objects }));
             }
@@ -160,6 +166,31 @@ impl Context {
                 let number = self.number(number)?;
                 return self.seek(cards, number, actor);
             }
+            S::RevealACardOfTypeFromHand(cards) => {
+                let filter = self.card_filter(cards)?;
+                let passing = self.private_cards(EventZone::Hand, actor.clone(), filter);
+                let (choice, result) = self.pick(actor, passing, single(), vec![])?;
+                let objects = ObjectSet::Selected(result.clone());
+                let reveal = self.effect(Operation::Reveal { objects });
+                self.hand_choice = Some(result);
+                return Ok(Some(Instruction::Group(Program {
+                    instructions: vec![choice, reveal],
+                })));
+            }
+            S::RevealHandAndPlayerChoosesACard(chooser, cards) => (
+                actor.clone(),
+                HandShown::Whole,
+                self.card_filter(cards)?,
+                Some((self.player(chooser)?, single())),
+                HandFate::Keep,
+            ),
+            S::RevealAllCardsOfTypeFromHandAndPlayerChoosesCard(cards, chooser) => (
+                actor.clone(),
+                HandShown::Passing,
+                self.card_filter(cards)?,
+                Some((self.player(chooser)?, single())),
+                HandFate::Keep,
+            ),
             S::RevealHandAndPlayerChoosesACardToDiscard(chooser, cards) => (
                 actor.clone(),
                 HandShown::Whole,

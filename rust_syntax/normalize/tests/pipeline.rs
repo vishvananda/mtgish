@@ -3210,6 +3210,31 @@ fn a_pick_is_read_by_who_made_it() {
 }
 
 #[test]
+fn a_reveal_is_read_by_later_filters() {
+    let text = ability_json("SpellActions(ActionList([EachPlayerRevealsTheTopNumberCardsOfLibrary(AnyPlayer,Integer(5)),EachPlayerAction(AnyPlayer,PutCardsInLibraryOntoTheBattlefield(And([IsCardtype(Land),RevealedFromPlayersLibraryThisWay(EachablePlayer)]),[EntersTapped])),EachPlayerAction(AnyPlayer,Exile([EachCardInLibrary(RevealedFromPlayersLibraryThisWay(EachablePlayer))],[]))]))");
+    assert!(text.contains("Observed"), "{text}");
+    assert!(text.contains("OwnedBy"), "{text}");
+    let text = ability_json("SpellActions(ActionList([RevealACardOfTypeFromHand(IsCardtype(Creature)),SearchLibrary([FindACardOfType(SharesANameWithTheCardRevealedThisWay),RevealFoundCards,PutFoundCardsIntoHand,Shuffle])]))");
+    assert!(text.contains("SharesNameWithAny"), "{text}");
+    let text = ability_json("SpellActions(ActionList([DrawACard,RevealTheCardDrawnThisWay,Unless(ACardWasRevealedThisWay(IsCardtype(Land)),[DiscardTheCardDrawnThisWay])]))");
+    assert!(text.contains("DiscardObjects"), "{text}");
+}
+
+#[test]
+fn a_tap_change_and_goading_read_what_they_touched() {
+    let text = ability_json("SpellActions(ActionList([UntapEachPermanent(IsCardtype(Creature)),CreateEachPermanentLayerEffectUntil(WasUntappedThisWay,[AdjustPT(+1,+1)],UntilEndOfTurn)]))");
+    assert!(text.contains("Affected"), "{text}");
+    let text = ability_json("SpellActions(ActionList([GoadEachCreature(IsCardtype(Creature)),CreateEachPermanentRuleEffectUntil(WasGoadedThisWay,[CantBlock],UntilEndOfTurn)]))");
+    assert!(text.contains("Affected"), "{text}");
+}
+
+#[test]
+fn an_exile_until_splits_what_it_found_from_the_rest() {
+    let text = ability_json("SpellActions(ActionList([Exile([CardsFromTheTopOfLibraryUntilACardOfTypeIsExiled(IsCardtype(Land))],[]),PutExiledCardOntoBattlefield(TheExiledCardFoundThisWay,[EntersNormally]),PutEachExiledCardOnTheBottomOfTheirOwnersLibraryInARandomOrder(TheNonSpecificCardsExiledThisWay)]))");
+    assert!(text.contains("Not"), "{text}");
+}
+
+#[test]
 fn a_card_replaces_its_discard_from_hand() {
     let text = ability_json("ReplaceWouldDiscard(ASpellOrAbilityWouldCausePlayerToDiscardCard(ControlledByAPlayer(Opponent),You,ThisCardInHand),[PutItOntoTheBattlefieldInstead([EntersNormally])])");
     assert!(text.contains("Everywhere"), "{text}");

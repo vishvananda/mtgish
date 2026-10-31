@@ -75,6 +75,7 @@ impl Context {
         self.entered = child.entered.clone().or(self.entered.take());
         if child.exiled.is_some() {
             self.exiled = child.exiled.clone();
+            self.exile_found = child.exile_found.clone();
             self.exiled_permanents = child.exiled_permanents;
         }
     }

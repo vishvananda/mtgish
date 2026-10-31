@@ -125,11 +125,15 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
         Operation::Sacrifice {
             objects, choose, ..
         } => choose.as_ref().map_or_else(|| chosen(objects), one),
-        Operation::Tap { objects, .. } => chosen(objects),
+        Operation::Tap { objects, .. } | Operation::Destroy { objects, .. } => chosen(objects),
         Operation::Discard {
             players: PlayerSet::One(_),
             amount: Expr::Constant(1),
             ..
+        }
+        | Operation::Draw {
+            players: PlayerSet::One(_),
+            amount: Expr::Constant(1),
         } => true,
         Operation::DiscardObjects { objects } => chosen(objects),
         Operation::CreateTokens {

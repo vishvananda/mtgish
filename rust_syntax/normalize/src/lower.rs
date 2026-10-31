@@ -168,6 +168,7 @@ enum Done {
     Sacrificed,
     Prevented,
     Paid,
+    Untapped,
 }
 impl Done {
     fn of(operation: &Operation) -> Option<Self> {
@@ -184,6 +185,7 @@ impl Done {
             } => Self::Prevented,
             Operation::Destroy { .. } => Self::Destroyed,
             Operation::Draw { .. } => Self::Drew,
+            Operation::Tap { tapped: false, .. } => Self::Untapped,
             Operation::PutCounters { .. } => Self::Counters,
             Operation::CreateContinuousEffect { .. } => Self::Effect,
             Operation::LoseLife { .. } => Self::LifeLost,
@@ -684,7 +686,9 @@ impl Context {
             S::TheActivePlayer => PlayerRef::Active,
             S::HostPlayer => PlayerRef::EnchantedBy(Box::new(ObjectRef::Source)),
             S::ControllerOfPermanent(p) => PlayerRef::ControllerOf(Box::new(self.object(p)?)),
-            S::ControllerOfEachableExiledPermanent | S::ControllerOfEachableRemovedPermanent
+            S::ControllerOfEachableExiledPermanent
+            | S::ControllerOfEachableRemovedPermanent
+            | S::ControllerOfEachableDestroyedPermanent
                 if self.iterated_object.is_some() =>
             {
                 let each = self.iterated_object.clone().unwrap();
@@ -861,6 +865,12 @@ impl Context {
         }
         if matches!(value, source::Permanents::HadCountersPutOnItThisWay) {
             return Ok(ObjectSet::Affected(self.done(Done::Counters)?));
+        }
+        if matches!(value, source::Permanents::WasUntappedThisWay) {
+            return Ok(ObjectSet::Affected(self.done(Done::Untapped)?));
+        }
+        if matches!(value, source::Permanents::WasGoadedThisWay) {
+            return Ok(ObjectSet::Affected(self.done(Done::Effect)?));
         }
         if matches!(
             value,
@@ -1116,6 +1126,14 @@ impl Context {
                         .collect(),
                 ),
             )))));
+        }
+        if matches!(
+            value,
+            source::Permanents::HadCountersPutOnItThisWay
+                | source::Permanents::WasUntappedThisWay
+                | source::Permanents::WasGoadedThisWay
+        ) {
+            return Ok(ObjectFilter::InSet(Box::new(self.objects(value)?)));
         }
         if matches!(value, source::Permanents::WasDealtDamageThisWay) {
             return Ok(ObjectFilter::DamagedBy(self.done(Done::Damage)?));
@@ -3238,6 +3256,42 @@ impl Context {
                 };
                 self.revealed = Some(ObjectSet::Observed(result.clone()));
                 return Ok(reveal);
+            }
+            S::EachPlayerRevealsTheTopNumberCardsOfLibrary(players, amount) => {
+                let players = self.players(players)?;
+                let mut shown = None;
+                let each = self.for_each_player(players, |context, one| {
+                    let PlayerSet::One(player) = one else {
+                        unreachable!()
+                    };
+                    let amount = context.number(amount)?;
+                    let objects = context.library_slice(player.clone(), amount, SequenceEnd::Top);
+                    let reveal = context.effect(Operation::Reveal { objects });
+                    if let Instruction::Effect { result, .. } = &reveal {
+                        shown = Some(ObjectSet::Observed(result.clone()));
+                    }
+                    Ok(reveal)
+                })?;
+                self.revealed = shown;
+                return Ok(each);
+            }
+            S::RevealTheCardDrawnThisWay | S::RevealTheCardsDrawnThisWay => Operation::Reveal {
+                objects: self.this_way_set(Done::Drew, ObjectPhase::After, None)?,
+            },
+            S::DiscardTheCardDrawnThisWay => Operation::DiscardObjects {
+                objects: self.this_way_set(Done::Drew, ObjectPhase::After, None)?,
+            },
+            S::RevealTheTopNumberCardsOfLibraryNEW(amount) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("revealing a library needs one player"));
+                };
+                Operation::Reveal {
+                    objects: self.library_slice(
+                        player.clone(),
+                        self.number(amount)?,
+                        SequenceEnd::Top,
+                    ),
+                }
             }
             S::RevealTheTopNumberCardsOfLibrary(amount, actions) => {
                 let PlayerSet::One(player) = actor else {

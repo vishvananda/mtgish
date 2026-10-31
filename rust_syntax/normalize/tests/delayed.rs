@@ -446,7 +446,6 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
     let incomplete = [
         "Bounty of the Hunt",
         "Chancellor of the Tangle",
-        "Come Back Wrong",
         "Pygmy Hippo",
     ];
     let mut complete = 0;
@@ -472,5 +471,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 49);
+    assert_eq!(complete, 50);
 }

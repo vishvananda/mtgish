@@ -67,11 +67,7 @@ fn effect(operation: Operation) -> Instruction {
 
 #[test]
 fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
-    let incomplete = [
-        "Norn's Decree",
-        "Lost Vale",
-        "Vault of Catlacan",
-    ];
+    let incomplete = ["Norn's Decree", "Lost Vale", "Vault of Catlacan"];
     let mut complete = 0;
     for source in sources() {
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);
