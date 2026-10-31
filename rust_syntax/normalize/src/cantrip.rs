@@ -364,6 +364,8 @@ struct Compiler {
     bound_objects: BTreeSet<u32>,
     bound_players: BTreeSet<u32>,
     /// Small generated functions that this module uses.
+    /// Inside a spell's cost change, which has `targets` in reach.
+    costing_targets: bool,
     helpers: BTreeSet<&'static str>,
     extras: Vec<String>,
     /// Abilities that are no part of the card until a grant or an event names
@@ -613,6 +615,7 @@ impl Compiler {
             flips: BTreeMap::new(),
             bound_objects: BTreeSet::new(),
             bound_players: BTreeSet::new(),
+            costing_targets: false,
             helpers: BTreeSet::new(),
             extras: Vec::new(),
             delayed: Vec::new(),
@@ -756,14 +759,44 @@ impl Compiler {
         self.reader = reader;
         compiled
     }
+    /// The set rule of a slot whose targets have one value in common, with the
+    /// module's own helpers where the engine names none.
+    fn common_property(&mut self, property: &DistinctProperty) -> Result<&'static str> {
+        let (helpers, rule): (&[&'static str], _) = match property {
+            DistinctProperty::CardTypes => {
+                return Ok(".together(cantrip_mechanics::select::SHARE_A_CARD_TYPE)")
+            }
+            DistinctProperty::Owners => (
+                &["common_by", "common_owner"],
+                ".together(cantrip_api::select::set_part(&(common_owner as SelectFn), &(largest_common_owner as cantrip_api::select::LargestFn), 0, \"with the same owner\"))",
+            ),
+            DistinctProperty::Controllers => (
+                &["common_by", "common_controller"],
+                ".together(cantrip_api::select::set_part(&(common_controller as SelectFn), &(largest_common_controller as cantrip_api::select::LargestFn), 0, \"with the same controller\"))",
+            ),
+            DistinctProperty::CreatureTypes => (
+                &["common_creature_type"],
+                ".together(cantrip_api::select::set_part(&(common_creature_type as SelectFn), &(largest_common_creature_type as cantrip_api::select::LargestFn), 0, \"that share a creature type\"))",
+            ),
+            other => return Err(gap(format!("target constraint CommonProperty {other:?}"))),
+        };
+        self.helpers.extend(helpers);
+        Ok(rule)
+    }
     fn announced_targets(&mut self, a: &Announcement, label: &str) -> Result<String> {
         let mut targets = Vec::new();
         self.announced_filters.clear();
         for (i, spec) in a.targets.iter().enumerate() {
             let at = format!("targets[{i}]");
-            if let Some(constraint) = spec.constraints.first() {
-                return Err(gap(format!("target constraint {}", form(constraint))).at(at));
-            }
+            let together = match spec.constraints.as_slice() {
+                [] => "",
+                [SelectionConstraint::CommonProperty(property)] => {
+                    self.common_property(property).map_err(|e| e.at(&at))?
+                }
+                [constraint, ..] => {
+                    return Err(gap(format!("target constraint {}", form(constraint))).at(at))
+                }
+            };
             if let Some(total) = &spec.distribute {
                 let total = match total {
                     Expr::Constant(n) if i == 0 && *n >= 0 => n.to_string(),
@@ -781,7 +814,7 @@ impl Compiler {
                 && spec.players.is_none()
                 && matches!(spec.filter, ObjectFilter::Any)
             {
-                targets.push(format!("cantrip_mechanics::targets::ANY{count}"));
+                targets.push(format!("cantrip_mechanics::targets::ANY{count}{together}"));
                 self.announced_filters
                     .push("cantrip_mechanics::targets::ANY.filter".into());
                 continue;
@@ -796,7 +829,7 @@ impl Compiler {
                 "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {test} }}"
             )
             .unwrap();
-            targets.push(format!("target({function}){count}"));
+            targets.push(format!("target({function}){count}{together}"));
             self.announced_filters.push(function);
         }
         if targets.is_empty() {
@@ -1207,6 +1240,15 @@ struct EmittedModule {
 /// history before its own event, so `cast_at` reads that entry from the event.
 const CAST_OF: &str = "fn cast_of<'a>(q: &'a dyn Query, id: ObjectId) -> Option<&'a Cast> { let records = q.history().all(); let spell = records.iter().rev().find_map(|r| match r.event { Event::ZoneChange { old, new, reason: ZoneReason::Resolve, .. } if new == id => Some(old), _ => None }).unwrap_or(id); records.iter().rev().find_map(|r| match &r.event { Event::Cast(cast) if cast.spell == spell => Some(cast), _ => None }) }\n#[allow(dead_code)] fn cast_at<'a>(q: &'a dyn Query, event: &Event, id: ObjectId) -> Option<&'a Cast> { match event { Event::ZoneChange { old, new, reason: ZoneReason::Resolve, .. } if *new == id => cast_of(q, *old), _ => cast_of(q, id) } }\n";
 
+/// CR 700.9: counters, an Equipment, or an Aura its controller controls.
+const MODIFIED: &str = "fn modified(q: &dyn Query, id: ObjectId) -> bool { q.state().obj(id).has_counters() || q.state().battlefield().iter().any(|&a| q.state().obj(a).attached_to == Some(id) && { let chars = q.chars(a); chars.has_subtype(Subtype::Equipment) || chars.has_subtype(Subtype::Aura) && q.controller(a) == q.controller(id) }) }\n";
+
+/// A set rule of one player every object has: the first chosen says which.
+const COMMON_BY: &str = "fn common_by(q: &dyn Query, choice: &Choice, key: fn(&dyn Query, ObjectId) -> PlayerId) -> Verdict { let first = choice.selected.first().map(|&c| key(q, c)); Verdict { complete: choice.selected.iter().all(|&c| Some(key(q, c)) == first), addable: Bits::of(choice.candidates.len(), |i| first.map_or(true, |k| key(q, choice.candidates[i]) == k)) } }\nfn largest_by(q: &dyn Query, choice: &Choice, key: fn(&dyn Query, ObjectId) -> PlayerId) -> Vec<ObjectId> { choice.candidates.iter().map(|&a| choice.candidates.iter().copied().filter(|&b| key(q, b) == key(q, a)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
+const COMMON_OWNER: &str = "fn owner_of(q: &dyn Query, id: ObjectId) -> PlayerId { q.state().obj(id).owner }\nfn common_owner(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { common_by(q, choice, owner_of) }\nfn largest_common_owner(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { largest_by(q, choice, owner_of) }\n";
+const COMMON_CONTROLLER: &str = "fn controller_of(q: &dyn Query, id: ObjectId) -> PlayerId { q.controller(id) }\nfn common_controller(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { common_by(q, choice, controller_of) }\nfn largest_common_controller(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { largest_by(q, choice, controller_of) }\n";
+const COMMON_CREATURE_TYPE: &str = "fn common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let common = choice.selected.iter().fold(SubtypeSet::CREATURE_TYPES, |common, &c| common.minus(common.minus(q.chars(c).subtypes))); Verdict { complete: choice.selected.is_empty() || !common.is_empty(), addable: Bits::of(choice.candidates.len(), |i| common.intersects(q.chars(choice.candidates[i]).subtypes)) } }\nfn largest_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { SubtypeSet::CREATURE_TYPES.iter().map(|t| choice.candidates.iter().copied().filter(|&c| q.chars(c).subtypes.has(t)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
+
 fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedModule> {
     validate::card(card).map_err(|e| Diagnostic {
         path: "card".into(),
@@ -1270,9 +1312,17 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     if c.functions.contains("cast_of(q, ") || c.functions.contains("cast_at(q, ") {
         c.helpers.insert("cast_of");
     }
+    if c.functions.contains("modified(q, ") {
+        c.helpers.insert("modified");
+    }
     for helper in &c.helpers {
         c.functions.push_str(match *helper {
             "cast_of" => CAST_OF,
+            "modified" => MODIFIED,
+            "common_by" => COMMON_BY,
+            "common_owner" => COMMON_OWNER,
+            "common_controller" => COMMON_CONTROLLER,
+            "common_creature_type" => COMMON_CREATURE_TYPE,
             "announced" => ANNOUNCED,
             "pay_question" => PAY_QUESTION,
             "about" => delayed::ABOUT,

@@ -76,6 +76,32 @@ fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'static str> {
     })
 }
 
+fn reveals_one(count: &Count) -> bool {
+    matches!(count, Count::Exactly(Expr::Constant(1)))
+}
+
+/// Whether a cost is one instruction a player either does or doesn't: drawing,
+/// revealing a card, or moving objects no one chooses among.
+fn performed_by_itself(cost: &Cost) -> bool {
+    match cost.parts.as_slice() {
+        [CostPart::Draw { .. }] => true,
+        [CostPart::Reveal {
+            count,
+            random: false,
+            ..
+        }] => reveals_one(count),
+        [CostPart::Move {
+            selections,
+            face_down: false,
+            ..
+        }] => matches!(
+            selections.as_slice(),
+            [CostObjectSelection { choose: None, .. }]
+        ),
+        _ => false,
+    }
+}
+
 /// Whether `decider`'s "you may" is that they pay something the engine can ask
 /// about as one payment.
 fn asks_by_paying(decider: &PlayerRef, body: &Program) -> bool {
@@ -762,11 +788,13 @@ impl Compiler {
             Operation::Tap { objects, tapped } => {
                 writeln!(
                     out,
-                    "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for object in objects_{id} {{ g.{}(object); }} }});",
+                    "let objects_{id} = {}; let turned_{id}: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.state().obj(o).tapped != {tapped}).collect(); cantrip_api::instruction(g, |g| {{ for &object in &turned_{id} {{ g.{}(object); }} }});",
                     self.acted_on(objects)?,
                     if *tapped { "tap" } else { "untap" }
                 )
                 .unwrap();
+                self.moved.insert(result.0, format!("turned_{id}"));
+                self.left_behind(result, format!("turned_{id}.clone()"));
             }
             Operation::Sacrifice {
                 players,
@@ -1009,6 +1037,37 @@ impl Compiler {
             } if matches!(cost.parts.as_slice(), [CostPart::PlayerAction { .. }]) => {
                 self.player_action(id, player, &cost.parts[0], true, result, out)?
             }
+            // These parts have no cost of the engine's: the instruction itself is
+            // what the player may do, and "if you do" reads whether it happened.
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if self.asking.is_none() && performed_by_itself(cost) => {
+                writeln!(
+                    out,
+                    "let payer_{id} = {}; let paid_{id} = if cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)? {{",
+                    self.fetch(self.certain_player(player)?)
+                )
+                .unwrap();
+                let mandatory = Operation::PayCost {
+                    player: player.clone(),
+                    cost: cost.clone(),
+                    optional: false,
+                };
+                self.operation(&mandatory, result, out)?;
+                let inner = self.performed.insert(result.0, format!("paid_{id}"));
+                writeln!(
+                    out,
+                    "{} }} else {{ false }};",
+                    inner.expect("a paid result")
+                )
+                .unwrap();
+                // What it moved stays in that block.
+                self.moved.remove(&result.0);
+                self.before.remove(&result.0);
+                self.selections.remove(&result.0);
+            }
             Operation::PayCost {
                 player,
                 cost,
@@ -1059,6 +1118,34 @@ impl Compiler {
                         )?;
                         writeln!(out, "let paid_{id} = !{}.is_empty();", self.moved(result)?)
                             .unwrap();
+                    }
+                    CostPart::Reveal {
+                        count,
+                        filter,
+                        random: false,
+                    } if reveals_one(count) => {
+                        let hand = ObjectSet::Zone {
+                            scope: ZoneScope::Players {
+                                zone: EventZone::Hand,
+                                players: payer,
+                            },
+                            kind: ObjectKind::Card,
+                            filter: filter.clone(),
+                        };
+                        self.choose(player, &hand, count, result, "Reveal", out)?;
+                        let picked = self.selections[&result.0].clone();
+                        writeln!(out, "let revealer_{id} = {}; g.reveal(revealer_{id}, &{picked}); let paid_{id} = !{picked}.is_empty();", self.fetch(self.certain_player(player)?)).unwrap();
+                    }
+                    CostPart::Draw { count } => {
+                        self.operation(
+                            &Operation::Draw {
+                                players: payer,
+                                amount: count.clone(),
+                            },
+                            result,
+                            out,
+                        )?;
+                        writeln!(out, "let paid_{id} = true;").unwrap();
                     }
                     CostPart::Move {
                         selections,

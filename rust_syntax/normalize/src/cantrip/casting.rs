@@ -363,10 +363,12 @@ impl Compiler {
                 };
                 let saved = (self.reader, self.event_at);
                 (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+                self.costing_targets = true;
                 let reads = self
                     .number(amount)
                     .and_then(|n| n.fit(0, 255, "u8"))
                     .and_then(|n| Ok((n, condition.map(|c| self.condition(c)).transpose()?)));
+                self.costing_targets = false;
                 (self.reader, self.event_at) = saved;
                 let (amount, test) = reads?;
                 let test = test.unwrap_or_else(|| "true".into());

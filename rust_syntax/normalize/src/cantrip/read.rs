@@ -1152,6 +1152,15 @@ impl Compiler {
             ObjectFilter::OwnedBy(players) => {
                 self.player_in(players, &format!("q.state().obj({id}).owner"))?
             }
+            // Always true of what it tests: it can only mean something outside the
+            // filter, which `Candidate` doesn't name.
+            ObjectFilter::SameObject(ObjectRef::Candidate)
+            | ObjectFilter::Shares {
+                with: ObjectRef::Candidate,
+                ..
+            } if self.history.is_none() => {
+                return Err(gap("filter comparing its candidate with itself"));
+            }
             ObjectFilter::SameObject(object) => {
                 format!("{} == Some({id})", self.object(object)?)
             }
@@ -1205,6 +1214,21 @@ impl Compiler {
                     test
                 }
             }
+            ObjectFilter::Shares { property, with } => {
+                let test = match property {
+                    DistinctProperty::CardTypes => "a.types.iter().any(|t| b.types.has(t))",
+                    DistinctProperty::CreatureTypes => {
+                        "a.subtypes.iter().any(|s| SubtypeSet::CREATURE_TYPES.has(s) && b.subtypes.has(s))"
+                    }
+                    DistinctProperty::Colors => "a.colors.intersects(b.colors)",
+                    other => return Err(gap(format!("sharing {other:?}"))),
+                };
+                format!(
+                    "{}.is_some_and(|o: ObjectId| {{ let (a, b) = (&{chars}, &q.chars(o)); {test} }})",
+                    self.object(with)?
+                )
+            }
+            ObjectFilter::Modified if self.reader != Reader::Layer => format!("modified(q, {id})"),
             ObjectFilter::SharesNameWith(object) if self.reader != Reader::Layer => format!(
                 "{}.is_some_and(|o: ObjectId| cantrip_mechanics::same_name(q, {id}, o))",
                 self.object(object)?
@@ -1293,6 +1317,22 @@ impl Compiler {
             Condition::All(items) => combine(items, " && ", "true")?,
             Condition::Either(items) => combine(items, " || ", "false")?,
             Condition::Not(c) => format!("!({})", self.condition(c)?),
+            // A cost change is told the targets just announced (601.2f).
+            Condition::TargetsMatch {
+                object: ObjectRef::Source,
+                kind,
+                filter,
+            } if self.costing_targets => {
+                let zone = match kind {
+                    ObjectKind::Permanent => "q.state().obj(id).zone.is(ZoneKind::Battlefield) && ",
+                    ObjectKind::Spell => "q.state().obj(id).zone.is(ZoneKind::Stack) && ",
+                    _ => "",
+                };
+                format!(
+                    "targets.iter().filter_map(|t| t.object()).any(|id| {zone}{})",
+                    self.filter(filter, &Candidate::of("id"))?
+                )
+            }
             Condition::ExistsPlayer {
                 players,
                 binding,

@@ -181,13 +181,21 @@ impl Compiler {
                     recipients: Recipients::Objects(objects),
                     kind,
                     amount: CounterAmount::Count(Count::Exactly(n)),
-                    selection: None,
+                    selection,
                     ..
                 }] = removals.as_slice()
                 else {
                     return Err(gap("counter removal cost shape"));
                 };
                 let n = constant_u8(n).ok_or_else(|| gap("counter cost without a fixed count"))?;
+                // One counter from one of them is one counter from among them.
+                if let Some(selection) = selection {
+                    let one = matches!(&selection.count, Count::Exactly(Expr::Constant(1)));
+                    let yours = matches!(selection.player, PlayerRef::AbilityController);
+                    if n != 1 || !one || !yours {
+                        return Err(gap("counter removal cost shape"));
+                    }
+                }
                 match (objects, kind) {
                     (ObjectSet::One(ObjectRef::Source), Some(kind)) => {
                         format!("remove_counters({}, {n})", read::counter_kind(kind)?)
