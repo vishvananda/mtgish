@@ -21812,7 +21812,7 @@ Card(
         CreatePermanentLayerEffect(
           Trigger_ThatOtherCreature,
           [
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
             ])),
           ],
@@ -21828,7 +21828,7 @@ Card(
         CreatePermanentLayerEffect(
           Trigger_TheBlockingCreature,
           [
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
             ])),
           ],
@@ -35679,7 +35679,7 @@ Card(
           1,
           1,
         )),
-        AddColor(SimpleColorList([
+        SetColor(SimpleColorList([
           Green,
         ])),
         AddCreatureType(Elf),
@@ -42480,7 +42480,7 @@ Card(
               3,
               3,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               White,
             ])),
             AddCreatureType(Angel),
@@ -74568,7 +74568,7 @@ Card(
                             4,
                             4,
                           )),
-                          AddColor(SimpleColorList([
+                          SetColor(SimpleColorList([
                             Black,
                           ])),
                           AddCreatureTypes([
@@ -76389,10 +76389,8 @@ Card(
               4,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Red,
-            ])),
-            AddColor(SimpleColorList([
               Green,
             ])),
             AddCreatureType(Dragon),
@@ -87811,7 +87809,7 @@ Card(
                 4,
                 5,
               )),
-              AddColor(SimpleColorList([
+              SetColor(SimpleColorList([
                 Green,
               ])),
               AddCreatureType(Treefolk),
@@ -90339,10 +90337,8 @@ Card(
               2,
               2,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               White,
-            ])),
-            AddColor(SimpleColorList([
               Blue,
             ])),
             AddCreatureType(Bird),
@@ -94263,7 +94259,7 @@ Card(
                 2,
                 2,
               )),
-              AddColor(SimpleColorList([
+              SetColor(SimpleColorList([
                 Blue,
               ])),
               AddCreatureType(Elemental),
@@ -153217,10 +153213,8 @@ Card(
               1,
               1,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Red,
-            ])),
-            AddColor(SimpleColorList([
               White,
             ])),
             AddCreatureType(Soldier),
@@ -180579,7 +180573,7 @@ Card(
           ThisPermanent,
           [
             SetPowerAndToughnessBoth(TheGreatestManaValueOfACommanderInTheCommandZoneOrOnTheBattlefield(OwnedByAPlayer(SinglePlayer(You)))),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
             ])),
             AddCreatureType(Plant),
@@ -200652,7 +200646,7 @@ Card(
               3,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               White,
             ])),
             AddCreatureType(Dragon),
@@ -202238,10 +202232,8 @@ Card(
               4,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               White,
-            ])),
-            AddColor(SimpleColorList([
               Blue,
             ])),
             AddCreatureType(Elemental),
@@ -267793,10 +267785,8 @@ Card(
               3,
               2,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Blue,
-            ])),
-            AddColor(SimpleColorList([
               Black,
             ])),
             AddCreatureType(Elemental),
@@ -315770,7 +315760,7 @@ Card(
               3,
               2,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Red,
             ])),
             AddCreatureType(Goblin),
@@ -326580,10 +326570,8 @@ Card(
               2,
               2,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Blue,
-            ])),
-            AddColor(SimpleColorList([
               Black,
             ])),
             AddCreatureType(Horror),
@@ -358583,10 +358571,8 @@ Card(
               4,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
-            ])),
-            AddColor(SimpleColorList([
               White,
             ])),
             AddCreatureType(Dragon),
@@ -427247,7 +427233,7 @@ Card(
               2,
               1,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Blue,
             ])),
             AddCreatureType(Faerie),
@@ -472672,7 +472658,7 @@ Card(
               1,
               5,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               White,
             ])),
             AddCreatureType(Soldier),
@@ -506364,7 +506350,7 @@ Card(
               4,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
             ])),
             AddCreatureType(Spirit),
@@ -506411,7 +506397,7 @@ Card(
               3,
               2,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Blue,
             ])),
             AddCreatureType(Spirit),
@@ -506461,7 +506447,7 @@ Card(
               2,
               2,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Black,
             ])),
             AddCreatureType(Spirit),
@@ -506527,7 +506513,7 @@ Card(
               2,
               5,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               White,
             ])),
             AddCreatureType(Spirit),
@@ -506639,7 +506625,7 @@ Card(
               6,
               1,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Red,
             ])),
             AddCreatureType(Spirit),
@@ -510465,7 +510451,7 @@ Card(
               2,
               1,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Red,
             ])),
             AddCreatureType(Warrior),
@@ -517016,7 +517002,7 @@ Card(
               5,
               5,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               White,
             ])),
             AddCreatureType(Soldier),
@@ -544227,10 +544213,8 @@ Card(
               2,
               2,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Black,
-            ])),
-            AddColor(SimpleColorList([
               Green,
             ])),
             AddCreatureType(Insect),
@@ -566485,10 +566469,8 @@ Card(
               3,
               2,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Red,
-            ])),
-            AddColor(SimpleColorList([
               Green,
             ])),
             AddCreatureType(Beast),
@@ -574690,7 +574672,7 @@ Vanguard(
         CreateSpellEffect(
           Trigger_ThatSpell,
           [
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Black,
             ])),
             AddCreatureType(Zombie),
@@ -577581,7 +577563,7 @@ Card(
               7,
               7,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Blue,
             ])),
             AddCreatureType(Giant),
@@ -594585,7 +594567,7 @@ Card(
                 5,
                 5,
               )),
-              AddColor(SimpleColorList([
+              SetColor(SimpleColorList([
                 Green,
               ])),
               AddCreatureType(Plant),
@@ -610492,10 +610474,8 @@ Card(
               2,
               2,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Black,
-            ])),
-            AddColor(SimpleColorList([
               Green,
             ])),
             AddCreatureType(Elemental),
@@ -611202,7 +611182,7 @@ Card(
               3,
               3,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Black,
             ])),
             AddCreatureType(Beholder),
@@ -636167,7 +636147,7 @@ Card(
                 4,
                 4,
               )),
-              AddColor(SimpleColorList([
+              SetColor(SimpleColorList([
                 Red,
               ])),
               AddCreatureType(Elemental),
@@ -673376,10 +673356,8 @@ Card(
               2,
               1,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Blue,
-            ])),
-            AddColor(SimpleColorList([
               Red,
             ])),
             AddCreatureType(Elemental),
@@ -727505,10 +727483,8 @@ Card(
               4,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Black,
-            ])),
-            AddColor(SimpleColorList([
               Red,
             ])),
             AddCreatureType(Dragon),
@@ -741605,7 +741581,7 @@ Card(
           ThisPermanent,
           [
             SetPowerAndToughnessBoth(ValueX),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
             ])),
             AddCreatureType(Hydra),
@@ -747213,10 +747189,8 @@ Card(
               2,
               2,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Black,
-            ])),
-            AddColor(SimpleColorList([
               Red,
             ])),
             AddCreatureType(Elemental),
@@ -783624,10 +783598,8 @@ Card(
               3,
               3,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
-            ])),
-            AddColor(SimpleColorList([
               Blue,
             ])),
             AddCreatureType(Elemental),
@@ -881375,10 +881347,8 @@ Card(
               4,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
-            ])),
-            AddColor(SimpleColorList([
               White,
             ])),
             AddCreatureType(Insect),
@@ -888633,10 +888603,8 @@ Card(
               2,
               1,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Red,
-            ])),
-            AddColor(SimpleColorList([
               White,
             ])),
             AddCreatureType(Elemental),
@@ -893340,7 +893308,7 @@ Card(
           CreatePermanentLayerEffectUntil(
             Ref_TargetPermanent,
             [
-              AddColor(SimpleColorList([
+              SetColor(SimpleColorList([
                 Blue,
               ])),
               RemoveCardtype(Artifact),
@@ -922670,10 +922638,8 @@ Card(
               4,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               White,
-            ])),
-            AddColor(SimpleColorList([
               Blue,
             ])),
             AddCreatureType(Dragon),
@@ -940198,10 +940164,8 @@ Card(
               1,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               White,
-            ])),
-            AddColor(SimpleColorList([
               Black,
             ])),
             AddCreatureType(Thrull),
@@ -973471,7 +973435,7 @@ Card(
               5,
               5,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Black,
             ])),
             AddCreatureType(Phyrexian),
@@ -1026764,10 +1026728,8 @@ Card(
               3,
               3,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Red,
-            ])),
-            AddColor(SimpleColorList([
               Green,
             ])),
             AddCreatureType(Elemental),
@@ -1029333,10 +1029295,8 @@ Card(
               3,
               1,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Black,
-            ])),
-            AddColor(SimpleColorList([
               Red,
             ])),
             AddCreatureType(Devil),
@@ -1064828,10 +1064788,8 @@ Card(
               2,
               3,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               White,
-            ])),
-            AddColor(SimpleColorList([
               Blue,
             ])),
             AddCreatureType(Bird),
@@ -1064941,10 +1064899,8 @@ Card(
               2,
               2,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Red,
-            ])),
-            AddColor(SimpleColorList([
               White,
             ])),
             AddCreatureType(Ox),
@@ -1065177,10 +1065133,8 @@ Card(
               4,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Black,
-            ])),
-            AddColor(SimpleColorList([
               Green,
             ])),
             AddCreatureType(Horror),
@@ -1065316,10 +1065270,8 @@ Card(
               1,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               White,
-            ])),
-            AddColor(SimpleColorList([
               Black,
             ])),
             AddCreatureType(Nightmare),
@@ -1065381,10 +1065333,8 @@ Card(
               3,
               3,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
-            ])),
-            AddColor(SimpleColorList([
               White,
             ])),
             AddCreatureType(Llama),
@@ -1065457,10 +1065407,8 @@ Card(
               4,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Blue,
-            ])),
-            AddColor(SimpleColorList([
               Black,
             ])),
             AddCreatureType(Shark),
@@ -1065529,10 +1065477,8 @@ Card(
               3,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Red,
-            ])),
-            AddColor(SimpleColorList([
               Green,
             ])),
             AddCreatureType(Dinosaur),
@@ -1065610,10 +1065556,8 @@ Card(
               2,
               1,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Blue,
-            ])),
-            AddColor(SimpleColorList([
               Red,
             ])),
             AddCreatureType(Elemental),
@@ -1065686,10 +1065630,8 @@ Card(
               2,
               3,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Black,
-            ])),
-            AddColor(SimpleColorList([
               Red,
             ])),
             AddCreatureType(Insect),
@@ -1065756,10 +1065698,8 @@ Card(
               5,
               5,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
-            ])),
-            AddColor(SimpleColorList([
               Blue,
             ])),
             AddCreatureType(Plant),
@@ -1085764,7 +1085704,7 @@ Card(
                 0,
                 0,
               )),
-              AddColor(SimpleColorList([
+              SetColor(SimpleColorList([
                 Green,
               ])),
               AddCreatureType(Spirit),
@@ -1121729,7 +1121669,7 @@ Card(
               4,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Red,
             ])),
             AddCreatureType(Dragon),
@@ -1149792,10 +1149732,8 @@ Card(
               3,
               3,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
-            ])),
-            AddColor(SimpleColorList([
               White,
             ])),
             AddCreatureType(Wolf),
@@ -1164038,10 +1163976,8 @@ Card(
               2,
               3,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               White,
-            ])),
-            AddColor(SimpleColorList([
               Black,
             ])),
             AddCreatureType(Elemental),
@@ -1186289,10 +1186225,8 @@ Card(
               4,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Blue,
-            ])),
-            AddColor(SimpleColorList([
               Black,
             ])),
             AddCreatureType(Dragon),
@@ -1189741,10 +1189675,8 @@ Card(
               2,
               3,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
-            ])),
-            AddColor(SimpleColorList([
               Blue,
             ])),
             AddCreatureType(Crab),
@@ -1233101,7 +1233033,7 @@ Card(
               1,
               1,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Black,
             ])),
             AddCreatureType(Skeleton),
@@ -1267883,10 +1267815,8 @@ Card(
               3,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
-            ])),
-            AddColor(SimpleColorList([
               White,
             ])),
             AddCreatureType(Elemental),
@@ -1406462,7 +1406392,7 @@ Card(
               3,
               3,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Green,
             ])),
             AddCreatureType(Ape),
@@ -1492914,10 +1492844,8 @@ Card(
               1,
               4,
             )),
-            AddColor(SimpleColorList([
+            SetColor(SimpleColorList([
               Blue,
-            ])),
-            AddColor(SimpleColorList([
               Red,
             ])),
             AddCreatureType(Elemental),
@@ -1495624,28 +1495552,37 @@ Card(
   ],
   Rules: [
     EachPlayerEffect(
-      ControlsMorePermanentThanPlayer(
-        You,
-        IsCardtype(Creature),
-      ),
+      And([
+        Opponent,
+        ControlsMorePermanentThanPlayer(
+          You,
+          IsCardtype(Creature),
+        ),
+      ]),
       [
         CantCastSpells(IsCardtype(Creature)),
       ],
     ),
     EachPlayerEffect(
-      ControlsMorePermanentThanPlayer(
-        You,
-        IsCardtype(Artifact),
-      ),
+      And([
+        Opponent,
+        ControlsMorePermanentThanPlayer(
+          You,
+          IsCardtype(Artifact),
+        ),
+      ]),
       [
         CantCastSpells(IsCardtype(Artifact)),
       ],
     ),
     EachPlayerEffect(
-      ControlsMorePermanentThanPlayer(
-        You,
-        IsCardtype(Enchantment),
-      ),
+      And([
+        Opponent,
+        ControlsMorePermanentThanPlayer(
+          You,
+          IsCardtype(Enchantment),
+        ),
+      ]),
       [
         CantCastSpells(IsCardtype(Enchantment)),
       ],
@@ -1532564,10 +1532501,8 @@ Card(
                 4,
                 4,
               )),
-              AddColor(SimpleColorList([
+              SetColor(SimpleColorList([
                 Black,
-              ])),
-              AddColor(SimpleColorList([
                 Green,
               ])),
               AddCreatureType(Elemental),

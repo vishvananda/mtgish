@@ -121,6 +121,8 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#84](https://github.com/i5jb/mtgish/issues/84): Wrong target number (Cracked Earth Technique, Crooked Scales, Coastal Discovery).
 - [#85](https://github.com/i5jb/mtgish/issues/85): Enduring cycle stays a creature (Enduring Courage, Enduring Curiosity, Enduring Friendship, Enduring Innocence, Enduring Tenacity, Enduring Vitality).
 - [#86](https://github.com/i5jb/mtgish/issues/86): Valley Floodcaller: pump reads no group.
+- [#87](https://github.com/i5jb/mtgish/issues/87): "becomes" a colored creature adds the color, 64 cards.
+- [#88](https://github.com/i5jb/mtgish/issues/88): Ward of Bones applies to every player.
 
 [#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
 

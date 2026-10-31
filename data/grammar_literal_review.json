@@ -9254,6 +9254,39 @@
    "template": "its controller is poisoned",
    "result": "PlayerPassesFilter(ControllerOfSpell(Ref_TargetSpell), Poisoned)",
    "reason": "triaged 2026-10-31: reads correctly for its cards, or the pairing is a mining coincidence"
+  },
+  {
+   "id": "34805d5177398e533af2c32ee14c7b8c8cbb05ceb6559d4832084dd83836a4b0",
+   "kind": "mined_token",
+   "rule": "TriggerEffect(~Permanent)",
+   "token": "AddColor",
+   "word": "type",
+   "support": "23/26",
+   "template": "At the beginning of your upkeep, if {{ThisPermanent}} isn't all colors, it becomes a random color that it isn't in addition to its other colors",
+   "result": "TriggerI(AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)), PermanentPassesFilter(ThisPermanent, IsNotAllColors), ActionList([ChooseARandomColor(NotColorAmoungPermanents(SinglePermanent(ThisPermanent))), CreatePermanentLayerEffect(ThisPermanent, [AddColor(TheChosenColor)])]))",
+   "reason": "triaged 2026-10-31: reads correctly for its cards, or the pairing is a mining coincidence"
+  },
+  {
+   "id": "63f06276eed94b6d680cbcdb5713da21d63c6d6215bc5e9a992a4df0671d1279",
+   "kind": "mined_token",
+   "rule": "StaticEffect[TheChosenColor]",
+   "token": "AddColor",
+   "word": "type",
+   "support": "23/26",
+   "template": "All cards that aren't on the battlefield, spells, and permanents are the chosen color in addition to their other colors",
+   "result": "CardEffect(AnyCard, [AddColor(TheChosenColor)]), StackSpellsEffect(AnySpell, [AddColor(TheChosenColor)]), EachPermanentLayerEffect(AnyPermanent, [AddColor(TheChosenColor)])",
+   "reason": "triaged 2026-10-31: reads correctly for its cards, or the pairing is a mining coincidence"
+  },
+  {
+   "id": "d6170442f75f1a63ec05f821e789f403d572aed795cdaade892a5d6f847d14e6",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "AddColor",
+   "word": "type",
+   "support": "23/26",
+   "template": "Target {{Permanent}} becomes {{Black}} in addition to its other colors until end of turn",
+   "result": "Targeted([TargetPermanent({{Permanent[0]}})], ActionList([CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [AddColor(SimpleColorList([{{Black[0]}}]))], UntilEndOfTurn)]))",
+   "reason": "triaged 2026-10-31: reads correctly for its cards, or the pairing is a mining coincidence"
   }
 ]
 }

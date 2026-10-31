@@ -393,6 +393,8 @@ pub enum EventChange {
     /// How the entering object enters.
     Entry(EntryState),
     AddMana(ManaProduction),
+    /// Each mana produced is replaced, so an amount here is per mana: a land
+    /// that makes two still makes two.
     ReplaceMana(ManaProduction),
     /// Only colored mana is replaced; colorless mana is produced as it was.
     ReplaceColoredMana(ManaProduction),
