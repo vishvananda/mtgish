@@ -1989,6 +1989,9 @@ impl<'a> Scope<'a> {
                     ) {
                         self.results.insert(result.0, ResultKind::ObjectTransition);
                     }
+                    if matches!(operation, Operation::CreateTokens { .. }) {
+                        self.results.insert(result.0, ResultKind::CreatedObjects);
+                    }
                     if let Operation::ChooseObjects { objects, .. } = operation {
                         self.results.insert(result.0, ResultKind::Selection);
                         if let Some(zones) = self.known_zones(objects) {
@@ -2033,6 +2036,8 @@ impl<'a> Scope<'a> {
                         result.0,
                         if moved {
                             ResultKind::ObjectTransition
+                        } else if matches!(operation, Operation::CreateTokens { .. }) {
+                            ResultKind::CreatedObjects
                         } else {
                             ResultKind::Other
                         },
@@ -2083,6 +2088,7 @@ impl<'a> Scope<'a> {
                                 Some("observed") => ResultKind::Observation,
                                 Some("extra_turn") => ResultKind::Other,
                                 Some("created") => ResultKind::CreatedObjects,
+                                Some("paid") => ResultKind::Other,
                                 Some(_) => ResultKind::ObjectTransition,
                                 None => ResultKind::Other,
                             },
@@ -2190,6 +2196,7 @@ impl<'a> Scope<'a> {
                         let mut iterated = self.clone();
                         iterated.bound_objects.insert(binding.0);
                         iterated.program(body)?;
+                        self.adopt_choices(body, &iterated);
                     }
                     Instruction::Times { amount, body } => {
                         self.expr(amount)?;

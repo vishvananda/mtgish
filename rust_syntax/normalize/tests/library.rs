@@ -75,7 +75,7 @@ fn effect(operation: Operation, id: u32) -> Instruction {
 
 #[test]
 fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
-    let incomplete = ["Archdruid's Charm", "Claim Jumper", "Plunge into Darkness"];
+    let incomplete = ["Claim Jumper"];
     let mut complete = 0;
     for source in sources() {
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);
@@ -99,7 +99,7 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 87);
+    assert_eq!(complete, 89);
 }
 
 #[test]

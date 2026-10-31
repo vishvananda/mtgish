@@ -82,6 +82,7 @@ impl Context {
                     source::Color::Black => ManaColor::Black,
                     source::Color::Red => ManaColor::Red,
                     source::Color::Green => ManaColor::Green,
+                    source::Color::TheChosenColor => ManaColor::Chosen,
                     _ => return Err(unsupported(color)),
                 }],
             },

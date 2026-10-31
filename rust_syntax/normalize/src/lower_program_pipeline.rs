@@ -45,19 +45,30 @@ impl Context {
         };
         self.result = child.result;
         self.invalidate_child_bindings(&child);
+        self.adopt_loop(&child);
         // Each run's picks add up, so the loop's choice reads as a set afterward.
         self.permanent_choice = child.permanent_choice.or(self.permanent_choice.take());
         self.hand_choice = child.hand_choice.or(self.hand_choice.take());
         self.exile_choice = child.exile_choice.or(self.exile_choice.take());
         self.grave_choice = child.grave_choice.or(self.grave_choice.take());
         self.took = child.took.or(self.took.take());
-        self.did.extend(child.did);
         Ok(Instruction::ForEachPlayer {
             players,
             binding,
             starting_with: None,
             body,
         })
+    }
+
+    /// A loop's runs add up, so what its body did reads as a set afterward.
+    fn adopt_loop(&mut self, child: &Self) {
+        self.did.extend(child.did.clone());
+        self.created_tokens = child.created_tokens.clone().or(self.created_tokens.take());
+        self.entered = child.entered.clone().or(self.entered.take());
+        if child.exiled.is_some() {
+            self.exiled = child.exiled.clone();
+            self.exiled_permanents = child.exiled_permanents;
+        }
     }
 
     /// Run `lower`'s body once per object; earlier bindings stay readable.
@@ -76,6 +87,7 @@ impl Context {
         let body = lower(&mut child)?;
         self.result = child.result;
         self.invalidate_child_bindings(&child);
+        self.adopt_loop(&child);
         Ok(Instruction::ForEachObject {
             objects,
             binding,
@@ -175,10 +187,15 @@ impl Context {
                         return Err(invalid("optional choice requires one decider"));
                     };
                     let outer = context.iterated.replace(decider.clone());
+                    // After an earlier creation "those tokens" could name either.
+                    let shadowing = context.created_tokens.is_some();
                     let body = context.nested_program_recipe(body, players);
                     context.iterated = outer;
                     let body = body?;
                     context.note_moves(&body);
+                    if shadowing {
+                        context.created_tokens = None;
+                    }
                     context.took = last_effect(&body).or(context.took.take());
                     Ok(Instruction::Optional {
                         decider: decider.clone(),

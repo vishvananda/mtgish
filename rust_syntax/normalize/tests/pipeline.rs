@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 65);
+    assert_eq!(card.schema_version, 66);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2921,6 +2921,21 @@ fn each_player_who_did_reads_their_share_of_the_batch() {
     let counted = ability_json("SpellActions(ActionList([EachPlayerAction(AnyPlayer,DiscardHand),EachPlayerAction(AnyPlayer,DrawNumberCards(TheNumberOfCardsDiscardedByPlayerThisWay(EachablePlayer)))]))");
     assert!(counted.contains("MovedBy"), "{counted}");
     assert!(!counted.contains("Primitive"), "{counted}");
+}
+
+#[test]
+fn a_loop_keeps_what_it_made_and_a_payment_reads_its_amount() {
+    let paid = ability_json(
+        "SpellActions(ActionList([PayAnyAmountOfMana,DrawNumberCards(AmountOfManaPaidThisWay)]))",
+    );
+    assert!(paid.contains("Performed"), "{paid}");
+    let found = ability_json("SpellActions(ActionList([SearchLibrary([FindACardOfType(IsCardtype(Creature)),RevealFoundCards,If(ACardOfTypeWasFoundThisWay(IsCardtype(Land)),[PutFoundCardsIntoHand])])]))");
+    assert!(found.contains("Selected"), "{found}");
+    assert!(found.contains("Compare"), "{found}");
+    let choice = ability_json("SpellActions(ActionList([EachPlayerMakesAVillainousChoice(Opponent,[[DrawACard],[PlayerAction(EachablePlayer,DiscardACard)]])]))");
+    assert!(choice.contains("ForEachPlayer"), "{choice}");
+    assert!(choice.contains("ChooseOne"), "{choice}");
+    assert!(!choice.contains("Primitive"), "{choice}");
 }
 
 #[test]

@@ -274,7 +274,7 @@ impl Context {
         }
         let result = ResultId(self.result);
         self.result += 1;
-        if name.starts_with("Action::RollAD") {
+        if name.starts_with("Action::Roll") {
             self.rolled = Some(result.clone());
         }
         let operation = Operation::Primitive {
@@ -293,6 +293,9 @@ impl Context {
             Some("hand") => self.to_hand = Some(result.clone()),
             Some("created") => self.created_tokens = Some(result.clone()),
             Some("amassed") => self.amassed = Some(result.clone()),
+            Some("paid") => {
+                self.did.insert(Done::Paid, result.clone());
+            }
             Some("extra_turn") => self.extra_turn = Some(result.clone()),
             _ => {}
         }
@@ -386,6 +389,7 @@ impl Context {
         self.created_tokens = None;
         self.amassed = None;
         self.seeked.clear();
+        self.found = None;
         self.took = None;
         self.offered = None;
         self.did.clear();

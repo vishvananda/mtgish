@@ -189,6 +189,7 @@ impl Context {
         instructions: &mut Vec<Instruction>,
     ) -> Result<()> {
         let found = ObjectSet::Selected(result.clone());
+        self.found = Some(found.clone());
         for (i, action) in actions.iter().enumerate() {
             use source::SearchLibraryAction as S;
             let operation = match action {

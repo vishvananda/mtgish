@@ -93,6 +93,8 @@ struct Context {
     /// The Army the last amass put counters on.
     amassed: Option<ResultId>,
     seeked: Vec<ResultId>,
+    /// The cards the search being resolved found.
+    found: Option<ObjectSet>,
     /// The last effect a player chose to take, and who was last offered a batch.
     took: Option<ResultId>,
     offered: Option<PlayerSet>,
@@ -150,6 +152,7 @@ enum Done {
     Discarded,
     Sacrificed,
     Prevented,
+    Paid,
 }
 impl Done {
     fn of(operation: &Operation) -> Option<Self> {
@@ -244,6 +247,9 @@ impl Context {
                     self.note_move(operation, result.clone());
                     self.note_acted(operation, result);
                     self.note_done(operation, result);
+                    if matches!(operation, Operation::CreateTokens { .. }) {
+                        self.created_tokens = Some(result.clone());
+                    }
                     if let Operation::Reveal { objects } = operation {
                         self.revealed = Some(objects.clone());
                     }
@@ -429,6 +435,13 @@ impl Context {
 
     fn reduced_object(&self, value: &source::Permanent) -> Result<ObjectRef> {
         use source::Permanent as S;
+        if let S::ThePermanentDestroyedThisWay = value {
+            return Ok(ObjectRef::Result {
+                result: self.done(Done::Destroyed)?,
+                phase: ObjectPhase::Before,
+                index: 0,
+            });
+        }
         if matches!(value, S::Trigger_ThatPermanent) && self.ambiguous_damage_permanent {
             return Err(invalid("damage trigger needs an explicit source/recipient role for this legacy permanent reference"));
         }
@@ -992,6 +1005,13 @@ impl Context {
                 Expr::CountersRemoved(self.removed_counters.clone().unwrap())
             }
             S::LifeLostThisWay => Expr::Performed(self.done(Done::LifeLost)?),
+            S::AmountOfManaPaidThisWay | S::AmountOfLifePaidThisWay => {
+                Expr::Performed(match (self.done(Done::Paid), &self.payment) {
+                    (Ok(result), _) => result,
+                    (_, Some(result)) => result.clone(),
+                    (Err(error), None) => return Err(error),
+                })
+            }
             S::TheNumberOfCardsDiscardedByPlayerThisWay(player)
             | S::TheNumberOfCardsPlayerDiscardedThisWay(player) => {
                 let player = self.player(player)?;
@@ -1017,7 +1037,12 @@ impl Context {
                         phase: ObjectPhase::Before,
                         index: 0,
                     },
-                    None => self.paid_object(crate::number_spec::PaymentAction::Exile)?,
+                    None => self
+                        .paid_object(crate::number_spec::PaymentAction::Exile)
+                        .unwrap_or_else(|_| ObjectRef::Query {
+                            objects: Box::new(self.exiled_with_source()),
+                            index: 0,
+                        }),
                 },
                 property: Property::Power,
                 information: Information::CurrentOrLastKnown,
@@ -1241,6 +1266,51 @@ impl Context {
                 object: self.exiled_card(card)?,
                 filter: self.exile_filter(filter)?,
             },
+            S::LeavingPermanentPassesFilter(filter) => Condition::ObjectMatches {
+                object: self.object(&source::Permanent::Trigger_ThatPermanent)?,
+                filter: self.filter(filter)?,
+            },
+            S::DiscardedCardPassesFilter(cards) => {
+                let filter = self.card_filter(cards)?;
+                if self.event.discarded {
+                    Condition::ObjectMatches {
+                        object: self.hand_card(&source::CardInHand::Trigger_ThatDiscardedCard)?,
+                        filter,
+                    }
+                } else {
+                    self.this_way_compare(
+                        Expr::CountObjects(Box::new(self.this_way_set(
+                            Done::Discarded,
+                            ObjectPhase::After,
+                            Some(filter),
+                        )?)),
+                        Comparison::Greater,
+                        0,
+                    )
+                }
+            }
+            S::ACardOfTypeWasFoundThisWay(cards) => {
+                let found = self
+                    .found
+                    .clone()
+                    .ok_or_else(|| invalid("no card was found in this scope"))?;
+                self.this_way_compare(
+                    Expr::CountObjects(Box::new(ObjectSet::Matching {
+                        objects: Box::new(found),
+                        filter: self.card_filter(cards)?,
+                    })),
+                    Comparison::Greater,
+                    0,
+                )
+            }
+            S::PlayerIsPlayer(left, right) => self.this_way_compare(
+                Expr::CountPlayers(PlayerSet::Intersection(vec![
+                    PlayerSet::One(self.player(left)?),
+                    PlayerSet::One(self.player(right)?),
+                ])),
+                Comparison::Greater,
+                0,
+            ),
             S::EnteringPermanentPassesFilter(filter) => Condition::ObjectMatches {
                 object: if self.event.permanent {
                     ObjectRef::EventSubject
@@ -2832,6 +2902,30 @@ impl Context {
                 return Ok(Instruction::ChooseOne {
                     decider: decider.clone(),
                     options: programs,
+                });
+            }
+            S::EachPlayerMakesAVillainousChoice(players, options) => {
+                let players = self.players(players)?;
+                let actor = actor.clone();
+                return self.for_each_player(players, |context, player| {
+                    let PlayerSet::One(decider) = player else {
+                        return Err(invalid("a choice needs one player"));
+                    };
+                    let mut programs = Vec::new();
+                    for option in options {
+                        let mut child = context.clone();
+                        let instructions = option
+                            .iter()
+                            .map(|action| child.action(action, &actor))
+                            .collect::<Result<_>>()?;
+                        context.result = child.result;
+                        context.invalidate_child_bindings(&child);
+                        programs.push(Program { instructions });
+                    }
+                    Ok(Instruction::ChooseOne {
+                        decider: decider.clone(),
+                        options: programs,
+                    })
                 });
             }
             S::EachPlayerCreatesTokens(players, tokens, flags) => {
