@@ -367,6 +367,9 @@ impl Compiler {
                 let amount = self.number(amount)?.fit(0, 255, "u8")?;
                 format!("CostDelta::less({amount})")
             }
+            SpellCostModifier::Alternate { .. } => {
+                return Err(gap("alternate spell cost rule"));
+            }
             SpellCostModifier::Minimum(amount) => {
                 let amount = self.number(amount)?.fit(0, 255, "u8")?;
                 format!("CostDelta::at_least({amount})")

@@ -1283,6 +1283,208 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
     }
 }
 
+/// A row's rule about an object in generic form, or the row itself.
+pub fn reduce_rule(name: String, operands: Vec<Operand>) -> RuleChange {
+    let not_spell = || ObjectFilter::Not(Box::new(ObjectFilter::OnStack(StackTrait::Spell)));
+    let bare = name.strip_prefix("PermanentRule::").unwrap_or(&name);
+    match (bare, operands.as_slice()) {
+        ("IsGoadedByPlayer", [Operand::Player(player)]) => RuleChange::GoadedBy(player.clone()),
+        ("TheLegendsRuleDoesntApply", []) => RuleChange::LegendRuleExempt,
+        ("CantBeTheTargetOfSpells", [Operand::Filter(spells)]) => {
+            RuleChange::Prohibit(ObjectAction::BeTargeted(ObjectFilter::All(vec![
+                ObjectFilter::OnStack(StackTrait::Spell),
+                spells.clone(),
+            ])))
+        }
+        ("CantBeTheTargetOfAbilities", [abilities]) if stack_filter(abilities).is_some() => {
+            RuleChange::Prohibit(ObjectAction::BeTargeted(ObjectFilter::All(vec![
+                not_spell(),
+                stack_filter(abilities).unwrap(),
+            ])))
+        }
+        ("CantBeTheTargetOfSpellsOrAbilities", [sources]) if stack_filter(sources).is_some() => {
+            RuleChange::Prohibit(ObjectAction::BeTargeted(stack_filter(sources).unwrap()))
+        }
+        ("CantHaveCountersPutOnIt", []) => {
+            RuleChange::Prohibit(ObjectAction::ReceiveCounters(None))
+        }
+        ("CantHaveCountersOfTypePutOnIt", [kind]) if counter_kind(kind).is_some() => {
+            RuleChange::Prohibit(ObjectAction::ReceiveCounters(counter_kind(kind)))
+        }
+        ("CantTransform", []) => RuleChange::Prohibit(ObjectAction::Transform),
+        ("CantPhaseOut", []) => RuleChange::Prohibit(ObjectAction::PhaseOut),
+        ("CantCrew", []) => RuleChange::Prohibit(ObjectAction::Crew),
+        ("CrewsVehiclesAsThoughPowerWereGreater", [Operand::Number(bonus)]) => {
+            RuleChange::TapPowerBonus {
+                cost: TapPowerCost::Crew,
+                bonus: bonus.clone(),
+            }
+        }
+        ("SaddlesMountsAsThoughPowerWereGreater", [Operand::Number(bonus)]) => {
+            RuleChange::TapPowerBonus {
+                cost: TapPowerCost::Saddle,
+                bonus: bonus.clone(),
+            }
+        }
+        ("MayBeExertedAsItAttacks", []) => RuleChange::MayExert(None),
+        ("MayBeExertedAsItAttacksWithTrigger", [then]) => {
+            RuleChange::MayExert(Some(Box::new(then.clone())))
+        }
+        ("CanBeBlockedAsThoughItDidntHave", [ability]) => {
+            RuleChange::BlockedAsThoughLacking(Box::new(ability.clone()))
+        }
+        ("CantGainAbility", [ability]) => RuleChange::CantGainAbility(Box::new(ability.clone())),
+        _ => RuleChange::Primitive { name, operands },
+    }
+}
+
+/// A row's rule about a player in generic form, or the row itself.
+pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
+    let permission =
+        |cards: ObjectSet, from, filter, cost, into_exile| PlayerRule::PlayPermissionWith {
+            permission: Box::new(PlayerRule::PlayPermission {
+                cards,
+                from,
+                action: CardPlayAction::CastSpell,
+                filter,
+            }),
+            terms: PlayTerms {
+                limit: None,
+                during: None,
+                cost,
+                spend_as: None,
+                into_exile,
+                condition: None,
+                effects: vec![],
+            },
+        };
+    let abilities = |spells: &ObjectFilter, from, nth_each_turn, abilities: &Operand| {
+        PlayerRule::SpellsHaveAbilities {
+            spells: spells.clone(),
+            from,
+            nth_each_turn,
+            abilities: Box::new(abilities.clone()),
+        }
+    };
+    let spend = |on| PlayerRule::SpendManaAs {
+        spend_as: SpendAs::AnyColor,
+        on,
+    };
+    let cost = |abilities, change, floor| PlayerRule::ActivationCost {
+        abilities,
+        change,
+        floor,
+    };
+    let reduce = |amount: &Operand| ActivationCostChange::Reduce(Box::new(amount.clone()));
+    let equip = || ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Equip));
+    let alternate = |spells: &ObjectFilter, paid: PlayCost, limit| PlayerRule::SpellCost {
+        spells: spells.clone(),
+        modifier: SpellCostModifier::Alternate { cost: paid, limit },
+    };
+    let bare = name.strip_prefix("PlayerEffect::").unwrap_or(&name);
+    match (bare, operands.as_slice()) {
+        (
+            "MayLookAtFaceDownExiledCards" | "MayLookAtFaceDownPermanents",
+            [Operand::Objects(objects)],
+        ) => PlayerRule::Visibility {
+            objects: objects.clone(),
+            audience: VisibilityAudience::AffectedPlayer,
+        },
+        ("MayLookAtFaceDownExiledCard", [Operand::Object(object)]) => PlayerRule::Visibility {
+            objects: ObjectSet::One(object.clone()),
+            audience: VisibilityAudience::AffectedPlayer,
+        },
+        (
+            "SpellsCastHaveAbility" | "SpellsControlledHaveAbility",
+            [Operand::Filter(spells), list],
+        ) => abilities(spells, None, None, list),
+        ("SpellsCastFromHandHaveAbility", [Operand::Filter(spells), list]) => {
+            abilities(spells, Some(EventZone::Hand), None, list)
+        }
+        (
+            "TheNthSpellCastEachTurnHasAbility",
+            [Operand::Number(nth), Operand::Filter(spells), list],
+        ) => abilities(spells, None, Some(nth.clone()), list),
+        ("MaySpendManaAsThoughItWasAnyColor", []) => spend(ManaPayment::Anything),
+        ("MaySpendManaAsThoughItWasAnyColorToCastSpells", [Operand::Filter(spells)]) => {
+            spend(ManaPayment::Spells(spells.clone()))
+        }
+        ("MaySpendManaAsThoughItWasAnyColorToPayForAbilities", [ability])
+            if stack_filter(ability).is_some() =>
+        {
+            spend(ManaPayment::Abilities(stack_filter(ability).unwrap()))
+        }
+        ("DecreaseEquipAbilityCost", [amount]) => cost(equip(), reduce(amount), None),
+        ("ReduceManaCostOfActivatedAbilities", [ability, amount])
+            if stack_filter(ability).is_some() =>
+        {
+            cost(stack_filter(ability).unwrap(), reduce(amount), None)
+        }
+        ("ReduceManaCostOfActivatedAbilitiesNotLessThanOne", [ability, amount])
+            if stack_filter(ability).is_some() =>
+        {
+            cost(stack_filter(ability).unwrap(), reduce(amount), Some(1))
+        }
+        ("IncreaseAbilityCost", [ability, amount]) if stack_filter(ability).is_some() => cost(
+            stack_filter(ability).unwrap(),
+            ActivationCostChange::Increase(Box::new(amount.clone())),
+            None,
+        ),
+        ("MayPayAlternateCostForSpells", [paid, Operand::Filter(spells)]) => {
+            alternate(spells, PlayCost::Alternate(paid.clone()), None)
+        }
+        ("MayPayAlternateCostForASpellOnceEachTurn", [paid, Operand::Filter(spells)]) => alternate(
+            spells,
+            PlayCost::Alternate(paid.clone()),
+            Some(PlayLimit::EachTurn(1)),
+        ),
+        ("MayCastSpellsWithoutPaying", [Operand::Filter(spells)]) => {
+            alternate(spells, PlayCost::Free, None)
+        }
+        ("MayCastCardFromGraveyardByPayingAddedCost", [Operand::Object(card), paid]) => permission(
+            ObjectSet::One(card.clone()),
+            EventZone::Graveyard,
+            ObjectFilter::Any,
+            PlayCost::Additional(paid.clone()),
+            false,
+        ),
+        ("MayCastCardInHandWithoutPaying", [Operand::Object(card)]) => permission(
+            ObjectSet::One(card.clone()),
+            EventZone::Hand,
+            ObjectFilter::Any,
+            PlayCost::Free,
+            false,
+        ),
+        ("MayCastExiledSpell", [Operand::Object(card), Operand::Filter(spells)]) => permission(
+            ObjectSet::One(card.clone()),
+            EventZone::Exile,
+            spells.clone(),
+            PlayCost::Normal,
+            false,
+        ),
+        ("MayCastExiledSpellWithoutPaying", [Operand::Object(card), Operand::Filter(spells)]) => {
+            permission(
+                ObjectSet::One(card.clone()),
+                EventZone::Exile,
+                spells.clone(),
+                PlayCost::Free,
+                false,
+            )
+        }
+        (
+            "MayCastGraveyardCardIntoExileIfSpell",
+            [Operand::Object(card), Operand::Filter(spells)],
+        ) => permission(
+            ObjectSet::One(card.clone()),
+            EventZone::Graveyard,
+            spells.clone(),
+            PlayCost::Normal,
+            true,
+        ),
+        _ => PlayerRule::Primitive { name, operands },
+    }
+}
+
 fn ability_list(operands: &[Operand]) -> Option<Vec<Ability>> {
     operands
         .iter()
@@ -2834,6 +3036,45 @@ fn reduce_object_event(name: &str, operands: &[Operand]) -> Option<EventSpec> {
     }
 }
 
+fn rounded_up(number: &Expr, denominator: i64) -> Expr {
+    Expr::Divide {
+        numerator: Box::new(number.clone()),
+        denominator: Box::new(Expr::Constant(denominator)),
+        rounding: Rounding::Up,
+    }
+}
+
+fn property_of(object: &ObjectRef, property: Property) -> Expr {
+    Expr::ObjectProperty {
+        object: object.clone(),
+        property,
+        information: Information::CurrentOrLastKnown,
+    }
+}
+
+fn among(players: &PlayerSet, number: PlayerNumber, aggregation: Aggregation) -> Expr {
+    Expr::AmongPlayers {
+        players: players.clone(),
+        number,
+        aggregation,
+    }
+}
+
+fn aggregate(objects: &ObjectSet, property: Property, aggregation: Aggregation) -> Expr {
+    Expr::Aggregate {
+        objects: Box::new(objects.clone()),
+        property,
+        aggregation,
+    }
+}
+
+fn distinct(objects: &ObjectSet, property: DistinctProperty) -> Expr {
+    Expr::CountDistinct {
+        objects: Box::new(objects.clone()),
+        property,
+    }
+}
+
 /// A row's number in generic form, or the row itself when it has none.
 pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
     match (name.as_str(), operands.as_slice()) {
@@ -2844,8 +3085,142 @@ pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
         ("GameNumber::StartingLifeTotalOfPlayer", [Operand::Player(player)]) => {
             Expr::StartingLife(player.clone())
         }
-        ("GameNumber::NumTimesSpellWasKicked", [Operand::Object(object)]) => {
-            Expr::TimesKicked(object.clone())
+        (
+            "GameNumber::NumTimesSpellWasKicked" | "GameNumber::TheNumberOfTimesPermanentWasKicked",
+            [Operand::Object(object)],
+        ) => Expr::TimesKicked(object.clone()),
+        ("GameNumber::ThirdRoundedUp", [Operand::Number(number)]) => rounded_up(number, 3),
+        ("GameNumber::TenthRoundedUp", [Operand::Number(number)]) => rounded_up(number, 10),
+        ("GameNumber::TheNumberOfColorsSpellIs", [Operand::Object(object)]) => {
+            property_of(object, Property::ColorCount)
+        }
+        (
+            "GameNumber::IntensityOfPermanent" | "GameNumber::IntensityOfSpell",
+            [Operand::Object(object)],
+        ) => property_of(object, Property::Intensity),
+        ("GameNumber::SpeedOfPlayer", [Operand::Player(player)]) => Expr::PlayerNumber {
+            player: player.clone(),
+            number: PlayerNumber::Speed,
+        },
+        ("GameNumber::TheAmountOfEnergyPlayerHas", [Operand::Player(player)]) => {
+            Expr::PlayerNumber {
+                player: player.clone(),
+                number: PlayerNumber::Energy,
+            }
+        }
+        (
+            "GameNumber::HighestLifeTotalAmongPlayers"
+            | "GameNumber::TheHighestLifeTotalAmongPlayers",
+            [Operand::Players(players)],
+        ) => among(players, PlayerNumber::Life, Aggregation::Maximum),
+        ("GameNumber::LowestLifeTotalAmongPlayers", [Operand::Players(players)]) => {
+            among(players, PlayerNumber::Life, Aggregation::Minimum)
+        }
+        ("GameNumber::TheHighestNumberOfCardsInHandAmongPlayers", [Operand::Players(players)]) => {
+            among(players, PlayerNumber::CardsInHand, Aggregation::Maximum)
+        }
+        ("GameNumber::TheLowestNumberOfCardsInHandAmongPlayers", [Operand::Players(players)]) => {
+            among(players, PlayerNumber::CardsInHand, Aggregation::Minimum)
+        }
+        (
+            "GameNumber::TheGreatestNumberOfPermanentsControlledAmongPlayers",
+            [Operand::Objects(objects), Operand::Players(players)],
+        ) if event_filter(objects).is_some() => among(
+            players,
+            PlayerNumber::Permanents(Box::new(event_filter(objects).unwrap())),
+            Aggregation::Maximum,
+        ),
+        (
+            "GameNumber::TheLowestNumberOfPermanentsControlledAmongPlayers",
+            [Operand::Objects(objects), Operand::Players(players)],
+        ) if event_filter(objects).is_some() => among(
+            players,
+            PlayerNumber::Permanents(Box::new(event_filter(objects).unwrap())),
+            Aggregation::Minimum,
+        ),
+        ("GameNumber::TheLeastPowerAmongPermanents", [Operand::Objects(objects)]) => {
+            aggregate(objects, Property::Power, Aggregation::Minimum)
+        }
+        ("GameNumber::TheLeastToughnessAmongPermanents", [Operand::Objects(objects)]) => {
+            aggregate(objects, Property::Toughness, Aggregation::Minimum)
+        }
+        ("GameNumber::TheGreatestPowerOrToughnessAmongPermanents", [Operand::Objects(objects)]) => {
+            Expr::Maximum(
+                Box::new(aggregate(objects, Property::Power, Aggregation::Maximum)),
+                Box::new(aggregate(
+                    objects,
+                    Property::Toughness,
+                    Aggregation::Maximum,
+                )),
+            )
+        }
+        (
+            "GameNumber::NumDifferentlyPoweredCreaturesAmongPermanents",
+            [Operand::Objects(objects)],
+        ) => distinct(objects, DistinctProperty::Powers),
+        (
+            "GameNumber::NumDifferentManaValuesAmongPermanents"
+            | "GameNumber::NumDifferentManaValuesAmongCardsInExile",
+            [Operand::Objects(objects)],
+        ) => distinct(objects, DistinctProperty::ManaValues),
+        ("GameNumber::TheNumberOfCardTypesAmongPermanents", [Operand::Objects(objects)]) => {
+            distinct(objects, DistinctProperty::CardTypes)
+        }
+        (
+            "GameNumber::TheNumberOfPlaneswalkerTypesAmongPermanents",
+            [Operand::Objects(objects)],
+        ) => distinct(objects, DistinctProperty::PlaneswalkerTypes),
+        ("GameNumber::TheNumberOfCounterTypesAmongPermanents", [Operand::Objects(objects)]) => {
+            distinct(objects, DistinctProperty::CounterTypes)
+        }
+        ("GameNumber::TheNumberOfCardTypesPermanentHas", [Operand::Object(object)]) => {
+            distinct(&ObjectSet::One(object.clone()), DistinctProperty::CardTypes)
+        }
+        ("GameNumber::NumEnteredTheBattlefieldThisTurn", [Operand::Objects(objects)])
+            if event_filter(objects).is_some() =>
+        {
+            Expr::EventHistory {
+                event: Box::new(EventSpec::ZoneChange {
+                    objects: event_filter(objects).unwrap(),
+                    from: None,
+                    to: EventZone::Battlefield,
+                }),
+                window: HistoryWindow::ThisTurn,
+                measure: HistoryMeasure::Occurrences,
+            }
+        }
+        ("GameNumber::TheNumberOfTimesCreatureAttackedThisGame", [Operand::Object(object)]) => {
+            Expr::EventHistory {
+                event: Box::new(EventSpec::Object {
+                    event: ObjectEvent::Attacks,
+                    objects: ObjectFilter::SameObject(object.clone()),
+                }),
+                window: HistoryWindow::ThisGame,
+                measure: HistoryMeasure::Occurrences,
+            }
+        }
+        (
+            "GameNumber::NumTimesPlayerHasCastTheirCommanderFromCommandZone"
+            | "GameNumber::NumTimesPlayerHasCastACommanderFromCommandZone"
+            | "GameNumber::NumTimesPlayerHasACastACommanderFromCommandZone",
+            [Operand::Player(player)],
+        ) => Expr::EventHistory {
+            event: Box::new(EventSpec::Filtered {
+                event: Box::new(EventSpec::Spell {
+                    event: SpellEvent::Cast,
+                    players: PlayerSet::One(player.clone()),
+                    spells: ObjectFilter::State(ObjectState::Commander),
+                }),
+                condition: Condition::WasCastFrom {
+                    object: ObjectRef::EventSubject,
+                    zone: EventZone::Command,
+                },
+            }),
+            window: HistoryWindow::ThisGame,
+            measure: HistoryMeasure::Occurrences,
+        },
+        ("GameNumber::TheAmountOfEnergyPaidThisWay", [Operand::Result(result)]) => {
+            Expr::Performed(result.clone())
         }
         _ => Expr::Primitive { name, operands },
     }

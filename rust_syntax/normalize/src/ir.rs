@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 98;
+pub const SCHEMA_VERSION: u32 = 99;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2038,6 +2038,36 @@ pub enum PlayerRule {
         permission: Box<PlayerRule>,
         terms: PlayTerms,
     },
+    /// Spells get abilities as they are cast. `nth_each_turn` says which one.
+    SpellsHaveAbilities {
+        spells: ObjectFilter,
+        from: Option<EventZone>,
+        nth_each_turn: Option<Expr>,
+        abilities: Box<Operand>,
+    },
+    /// May spend mana as though it were another color or type.
+    SpendManaAs {
+        spend_as: SpendAs,
+        on: ManaPayment,
+    },
+    /// What activating an ability matching `abilities` costs. `floor` keeps
+    /// at least that much mana in the cost.
+    ActivationCost {
+        abilities: ObjectFilter,
+        change: ActivationCostChange,
+        floor: Option<i64>,
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ManaPayment {
+    Anything,
+    Spells(ObjectFilter),
+    Abilities(ObjectFilter),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ActivationCostChange {
+    Reduce(Box<Operand>),
+    Increase(Box<Operand>),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PlayerAction {
@@ -2081,6 +2111,11 @@ pub enum SpellCostModifier {
     },
     /// A floor on the mana component of the final total cost (601.2f).
     Minimum(Expr),
+    /// CR 118.9: may be paid rather than the mana cost.
+    Alternate {
+        cost: PlayCost,
+        limit: Option<PlayLimit>,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum SpellTiming {
@@ -2204,6 +2239,23 @@ pub enum RuleChange {
     /// Attacks each combat if able, and not its goader if able (CR 701.38).
     GoadedBy(PlayerRef),
     LegendRuleExempt,
+    /// Counts as `bonus` more power for this tap cost (CR 702.122, 702.171).
+    TapPowerBonus {
+        cost: TapPowerCost,
+        bonus: Expr,
+    },
+    /// CR 701.43: may be exerted as it attacks, with what that does.
+    MayExert(Option<Box<Operand>>),
+    /// Blocked as though it lacked this ability.
+    BlockedAsThoughLacking(Box<Operand>),
+    CantGainAbility(Box<Operand>),
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum TapPowerCost {
+    Crew,
+    Saddle,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ObjectAction {
@@ -2220,6 +2272,13 @@ pub enum ObjectAction {
     Untap,
     Regenerate,
     Sacrifice,
+    /// A spell or ability on the stack matching this cannot target the object.
+    BeTargeted(ObjectFilter),
+    /// No counter of this kind, or none at all, can be put on the object.
+    ReceiveCounters(Option<crate::counter::CounterKind>),
+    Transform,
+    PhaseOut,
+    Crew,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum AttackDefenders {
@@ -2366,6 +2425,18 @@ pub enum Expr {
         property: Property,
         aggregation: Aggregation,
     },
+    /// One number about one player.
+    PlayerNumber {
+        player: PlayerRef,
+        number: PlayerNumber,
+    },
+    /// The largest or smallest `number` among `players`, as Forge's
+    /// `HighestLifeTotal`. Sum is not read here.
+    AmongPlayers {
+        players: PlayerSet,
+        number: PlayerNumber,
+        aggregation: Aggregation,
+    },
     /// Count distinct values, rather than objects or subtype occurrences.
     CountDistinct {
         objects: Box<ObjectSet>,
@@ -2473,6 +2544,16 @@ pub enum Aggregation {
     Minimum,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PlayerNumber {
+    Life,
+    CardsInHand,
+    Energy,
+    /// CR 702.179: absent speed reads zero.
+    Speed,
+    /// Permanents the player controls that match.
+    Permanents(Box<ObjectFilter>),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DistinctProperty {
     Powers,
     CardTypes,
@@ -2487,6 +2568,10 @@ pub enum DistinctProperty {
     Owners,
     Controllers,
     Toughness,
+    ManaValues,
+    PlaneswalkerTypes,
+    CounterTypes,
+    PermanentTypes,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2506,6 +2591,8 @@ pub enum Property {
     BasePower,
     BaseToughness,
     Loyalty,
+    /// CR 702.161: the starting intensity plus what intensify added.
+    Intensity,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum BlockRole {

@@ -764,12 +764,29 @@ impl<'a> Scope<'a> {
         }
     }
 
+    fn player_number(&self, number: &PlayerNumber) -> Result {
+        match number {
+            PlayerNumber::Permanents(filter) => self.filter(filter),
+            _ => Ok(()),
+        }
+    }
+
     fn expr(&self, expression: &Expr) -> Result {
         match expression {
             Expr::TimesActivatedThisTurn => Ok(()),
             Expr::Primitive { name, operands } => self.primitive(name, operands),
             Expr::ChosenParity | Expr::ChosenNumber | Expr::TimesResolvedThisTurn => Ok(()),
             Expr::PartySize(player) | Expr::StartingLife(player) => self.player(player),
+            Expr::PlayerNumber { player, number } => {
+                self.player(player)?;
+                self.player_number(number)
+            }
+            Expr::AmongPlayers {
+                players, number, ..
+            } => {
+                self.players(players)?;
+                self.player_number(number)
+            }
             Expr::TimesKicked(object) => self.object(object),
             Expr::EventHistory { event, .. } => self.event(event),
             Expr::CountPlayers(players) => self.players(players),
@@ -1092,10 +1109,15 @@ impl<'a> Scope<'a> {
             ObjectAction::Attack(d) => self.defenders(d),
             ObjectAction::Block(f) | ObjectAction::BeBlocked(f) => self.filter(f),
             ObjectAction::Activate(f) => self.activation_filter(f),
+            ObjectAction::BeTargeted(f) => self.filter(f),
             ObjectAction::Untap
             | ObjectAction::Regenerate
             | ObjectAction::Sacrifice
             | ObjectAction::Counter
+            | ObjectAction::ReceiveCounters(_)
+            | ObjectAction::Transform
+            | ObjectAction::PhaseOut
+            | ObjectAction::Crew
             | ObjectAction::Copy => Ok(()),
         }
     }
@@ -1113,6 +1135,11 @@ impl<'a> Scope<'a> {
             RuleChange::Primitive { name, operands } => self.primitive(name, operands),
             RuleChange::Prohibit(action) => self.object_action(action),
             RuleChange::GoadedBy(player) => self.player(player),
+            RuleChange::TapPowerBonus { bonus, .. } => self.expr(bonus),
+            RuleChange::MayExert(then) => then.iter().try_for_each(|o| self.operand(o)),
+            RuleChange::BlockedAsThoughLacking(ability) | RuleChange::CantGainAbility(ability) => {
+                self.operand(ability)
+            }
             RuleChange::LegendRuleExempt => Ok(()),
             RuleChange::RequireCombat { action, amount } => {
                 self.combat_action(action)?;
@@ -1290,6 +1317,31 @@ impl<'a> Scope<'a> {
                 terms.effects.iter().try_for_each(|o| self.operand(o))
             }
             PlayerRule::Primitive { name, operands } => self.primitive(name, operands),
+            PlayerRule::SpellsHaveAbilities {
+                spells,
+                nth_each_turn,
+                abilities,
+                ..
+            } => {
+                self.filter(spells)?;
+                if let Some(nth) = nth_each_turn {
+                    self.expr(nth)?;
+                }
+                self.operand(abilities)
+            }
+            PlayerRule::SpendManaAs { on, .. } => match on {
+                ManaPayment::Anything => Ok(()),
+                ManaPayment::Spells(filter) | ManaPayment::Abilities(filter) => self.filter(filter),
+            },
+            PlayerRule::ActivationCost {
+                abilities, change, ..
+            } => {
+                self.filter(abilities)?;
+                match change {
+                    ActivationCostChange::Reduce(amount)
+                    | ActivationCostChange::Increase(amount) => self.operand(amount),
+                }
+            }
             PlayerRule::Prohibit(action) => self.player_action(action),
             PlayerRule::LimitPerTurn { action, amount } => {
                 self.player_action(action)?;
@@ -1385,6 +1437,10 @@ impl<'a> Scope<'a> {
     fn spell_cost_modifier(&self, modifier: &SpellCostModifier) -> Result {
         match modifier {
             SpellCostModifier::Increase(cost) => self.cost(cost),
+            SpellCostModifier::Alternate { cost, .. } => match cost {
+                PlayCost::Alternate(paid) | PlayCost::Additional(paid) => self.operand(paid),
+                PlayCost::Normal | PlayCost::Free => Ok(()),
+            },
             SpellCostModifier::Minimum(n) => self.count(&Count::Exactly(n.clone())),
             SpellCostModifier::Reduce {
                 reductions,

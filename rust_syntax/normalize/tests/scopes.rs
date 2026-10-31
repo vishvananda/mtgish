@@ -1076,11 +1076,17 @@ fn zone_and_state_triggers_are_generic() {
     let untapped = lowered(
         "TriggerA(WhenAPermanentEntersTheBattlefieldUntapped(SinglePermanent(ThisPermanent)), ActionList([CreateTokens([FoodToken], [])]))",
     );
-    assert!(untapped.contains("ZoneChange") && untapped.contains("Not(Tapped)"), "{untapped}");
+    assert!(
+        untapped.contains("ZoneChange") && untapped.contains("Not(Tapped)"),
+        "{untapped}"
+    );
     let none = lowered(
         "TriggerA(WhenNoPermanentsAreOnTheBattlefield(IsCardtype(Land)), ActionList([SacrificePermanent(ThisPermanent)]))",
     );
-    assert!(none.contains("State") && !none.contains("Primitive"), "{none}");
+    assert!(
+        none.contains("State") && !none.contains("Primitive"),
+        "{none}"
+    );
 }
 
 #[test]
@@ -1088,7 +1094,10 @@ fn a_block_of_several_keeps_one_subject() {
     let body = lowered(
         "TriggerA(WhenACreatureBlocksANumberOfCreatures(SinglePermanent(ThisPermanent), GreaterThanOrEqualTo(Integer(2)), IsCardtype(Creature)), ActionList([CreatePermanentLayerEffectUntil(Trigger_ThatPermanent, [AddAbility([FirstStrike])], UntilEndOfTurn)]))",
     );
-    assert!(body.contains("per: Subject") && body.contains("Blocks"), "{body}");
+    assert!(
+        body.contains("per: Subject") && body.contains("Blocks"),
+        "{body}"
+    );
 }
 
 #[test]
@@ -1101,4 +1110,47 @@ fn a_player_targeted_or_on_their_turn_is_a_player_event() {
         "TriggerA(WhenAPlayerLosesLifeDuringTheirTurn(SinglePlayer(You)), ActionList([DrawACard]))",
     );
     assert!(turn.contains("PlayerIsActive(EventSubject)"), "{turn}");
+}
+
+#[test]
+fn numbers_among_players_and_objects_are_generic() {
+    let body = lowered(
+        "SpellActions(ActionList([GainLife(HighestLifeTotalAmongPlayers(AnyPlayer)), GainLife(TheLeastPowerAmongPermanents(IsCardtype(Creature))), GainLife(ThirdRoundedUp(Integer(9)))]))",
+    );
+    assert!(body.contains("AmongPlayers") && body.contains("Minimum"), "{body}");
+    assert!(body.contains("rounding: Up") && !body.contains("Primitive"), "{body}");
+}
+
+#[test]
+fn casting_a_commander_counts_from_history() {
+    let body = lowered(
+        "PlayerEffect(You, [DecreaseBlitzCostsForEach([ManaCostGeneric(1)], NumTimesPlayerHasCastTheirCommanderFromCommandZone(You))])",
+    );
+    assert!(body.contains("WasCastFrom") && body.contains("ThisGame"), "{body}");
+}
+
+#[test]
+fn rules_about_targeting_and_tap_costs_are_generic() {
+    let spells = lowered("PermanentRuleEffect(ThisPermanent, [CantBeTheTargetOfSpells(AnySpell)])");
+    assert!(spells.contains("BeTargeted") && spells.contains("OnStack(Spell)"), "{spells}");
+    let crew = lowered(
+        "PermanentRuleEffect(ThisPermanent, [CrewsVehiclesAsThoughPowerWereGreater(Integer(2))])",
+    );
+    assert!(crew.contains("TapPowerBonus") && crew.contains("Crew"), "{crew}");
+    let exert = lowered(
+        "PermanentRuleEffect(ThisPermanent, [MayBeExertedAsItAttacksWithTrigger(ActionList([DrawACard]))])",
+    );
+    assert!(exert.contains("MayExert(Some"), "{exert}");
+}
+
+#[test]
+fn rules_about_a_players_spells_and_abilities_are_generic() {
+    let delve = lowered("PlayerEffect(You, [SpellsCastHaveAbility(AnySpell, [Delve])])");
+    assert!(delve.contains("SpellsHaveAbilities"), "{delve}");
+    let equip = lowered("PlayerEffect(You, [DecreaseEquipAbilityCost([CostReduceGeneric(1)])])");
+    assert!(equip.contains("ActivationCost") && equip.contains("Equip"), "{equip}");
+    let look = lowered(
+        "PlayerEffect(You, [MayLookAtFaceDownExiledCards(WasExiledWithPermanent(ThisPermanent))])",
+    );
+    assert!(look.contains("Visibility"), "{look}");
 }

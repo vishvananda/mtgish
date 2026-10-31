@@ -1006,6 +1006,7 @@ impl Inventory<'_> {
         self.form("SpellCostModifier", modifier);
         match modifier {
             SpellCostModifier::Increase(cost) => self.cost(cost),
+            SpellCostModifier::Alternate { .. } => {}
             SpellCostModifier::Minimum(n) => self.expr(n),
             SpellCostModifier::Reduce { reductions, .. } => {
                 for r in reductions {
@@ -1247,10 +1248,15 @@ impl Inventory<'_> {
             ObjectAction::Attack(d) => self.defenders(d),
             ObjectAction::Block(f) | ObjectAction::BeBlocked(f) => self.filter(f),
             ObjectAction::Activate(f) => self.activation_filter(f),
+            ObjectAction::BeTargeted(f) => self.filter(f),
             ObjectAction::Untap
             | ObjectAction::Sacrifice
             | ObjectAction::Regenerate
             | ObjectAction::Counter
+            | ObjectAction::ReceiveCounters(_)
+            | ObjectAction::Transform
+            | ObjectAction::PhaseOut
+            | ObjectAction::Crew
             | ObjectAction::Copy => {}
         }
     }
@@ -1260,6 +1266,10 @@ impl Inventory<'_> {
             RuleChange::Primitive { name, .. } => self.primitive(name),
             RuleChange::Prohibit(a) => self.object_action(a),
             RuleChange::GoadedBy(player) => self.player(player),
+            RuleChange::TapPowerBonus { bonus, .. } => self.expr(bonus),
+            RuleChange::MayExert(_)
+            | RuleChange::BlockedAsThoughLacking(_)
+            | RuleChange::CantGainAbility(_) => {}
             RuleChange::LegendRuleExempt => {}
             RuleChange::RequireCombat { action, amount } => {
                 self.object_action(action);
@@ -1427,6 +1437,22 @@ impl Inventory<'_> {
                 self.filter(filter);
             }
             PlayerRule::Primitive { name, .. } => self.primitive(name),
+            PlayerRule::SpellsHaveAbilities {
+                spells,
+                nth_each_turn,
+                ..
+            } => {
+                self.filter(spells);
+                if let Some(nth) = nth_each_turn {
+                    self.expr(nth);
+                }
+            }
+            PlayerRule::SpendManaAs { on, .. } => {
+                if let ManaPayment::Spells(filter) | ManaPayment::Abilities(filter) = on {
+                    self.filter(filter);
+                }
+            }
+            PlayerRule::ActivationCost { abilities, .. } => self.filter(abilities),
             PlayerRule::Prohibit(action) => self.player_action(action),
             PlayerRule::LimitPerTurn { action, amount } => {
                 self.player_action(action);
@@ -1626,11 +1652,26 @@ impl Inventory<'_> {
             Recipients::Targets(_) | Recipients::Target { .. } => {}
         }
     }
+    fn player_number(&mut self, number: &PlayerNumber) {
+        if let PlayerNumber::Permanents(filter) = number {
+            self.filter(filter);
+        }
+    }
     fn expr(&mut self, e: &Expr) {
         self.form("Expr", e);
         match e {
             Expr::TimesActivatedThisTurn | Expr::TimesResolvedThisTurn => {}
             Expr::PartySize(player) | Expr::StartingLife(player) => self.player(player),
+            Expr::PlayerNumber { player, number } => {
+                self.player(player);
+                self.player_number(number);
+            }
+            Expr::AmongPlayers {
+                players, number, ..
+            } => {
+                self.players(players);
+                self.player_number(number);
+            }
             Expr::TimesKicked(object) => self.object(object),
             Expr::BoundValue(_)
             | Expr::ChosenParity

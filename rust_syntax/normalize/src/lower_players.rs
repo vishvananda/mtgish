@@ -20,7 +20,7 @@ impl Context {
             }
             rescue(error, || {
                 self.primitive("PlayerEffect", value)
-                    .map(|(name, operands)| PlayerRule::Primitive { name, operands })
+                    .map(|(name, operands)| crate::semantics::reduce_player_rule(name, operands))
             })
         })
     }
