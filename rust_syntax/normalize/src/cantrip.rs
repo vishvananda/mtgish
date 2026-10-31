@@ -1065,6 +1065,7 @@ fn operation_name(op: &Operation) -> &'static str {
         Operation::Search { .. } => "Search",
         Operation::Reveal { .. } => "Reveal",
         Operation::RevealUntil { .. } => "RevealUntil",
+        Operation::RevealUntilGroup { .. } => "RevealUntilGroup",
         Operation::Shuffle { .. } => "Shuffle",
         Operation::ReorderLibrary { .. } => "ReorderLibrary",
         Operation::Scry { .. } => "Scry",

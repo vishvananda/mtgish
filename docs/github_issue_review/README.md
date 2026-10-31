@@ -117,6 +117,10 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#80](https://github.com/i5jb/mtgish/issues/80): Blocked by a creature: "that creature" read as the attacker (Kolaghan Aspirant, Somberwald Vigilante, Grasping Giant, Barrow-Blade, Wooden Stake).
 - [#81](https://github.com/i5jb/mtgish/issues/81): Wrong reference in a body (Shifty Doppelganger, Wall of Caltrops, Infinite Authority, Siege Dragon, Mythos of Snapdax, Mirror Shield).
 - [#82](https://github.com/i5jb/mtgish/issues/82): Reference with nothing to bind to (Bronze Bombshell, Corrupted Resolve, Domri's Ambush, For Each of You, a Gift, Rotted Ones, Lay Siege, Tenza, Godo's Maul).
+- [#83](https://github.com/i5jb/mtgish/issues/83): Announced target never used (Altar of Dementia, Increasing Confusion, Trenchpost, Veteran Ice Climber, Helm of Obedience, Phantasmal Sphere, Auditore Ambush, Tunnel Vision, Rakdos, the Muscle, How to Start a Riot, Selfcraft Mechan, When We Were Young, Legolas, Master Archer).
+- [#84](https://github.com/i5jb/mtgish/issues/84): Wrong target number (Cracked Earth Technique, Crooked Scales, Coastal Discovery).
+- [#85](https://github.com/i5jb/mtgish/issues/85): Enduring cycle stays a creature (Enduring Courage, Enduring Curiosity, Enduring Friendship, Enduring Innocence, Enduring Tenacity, Enduring Vitality).
+- [#86](https://github.com/i5jb/mtgish/issues/86): Valley Floodcaller: pump reads no group.
 
 [#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
 

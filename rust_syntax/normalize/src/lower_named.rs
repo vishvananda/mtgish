@@ -43,7 +43,19 @@ fn named_node(value: &serde_json::Value) -> Named {
 
 include!(concat!(env!("OUT_DIR"), "/vocabularies.rs"));
 
+/// A fieldless form that names something in scope, not a word from a vocabulary.
+pub fn reads_scope(form: &str) -> bool {
+    form.starts_with("Ref_")
+        || form.starts_with("RefOuter_")
+        || form.starts_with("Trigger_")
+        || form.starts_with("Eachable")
+        || form.ends_with("ThisWay") && form != "TheNameStickerPutOnPermanentThisWay"
+}
+
 fn vocabulary(ty: &str, value: &serde_json::Value) -> Option<Operand> {
+    if value["variant"].as_str().is_some_and(reads_scope) {
+        return None;
+    }
     let plain = VOCABULARIES.contains(&ty)
         || crate::primitive_spec::registry()
             .vocabularies
@@ -92,6 +104,7 @@ fn standalone_operand(ty: &str, value: &serde_json::Value) -> Option<Operand> {
 impl Context {
     fn typed_operand(&self, ty: &str, value: &serde_json::Value) -> Option<Operand> {
         use crate::pipeline::source_tree::decode;
+        let scoped = value["variant"].as_str().is_some_and(reads_scope);
         Some(match ty {
             "Permanent" => Operand::Object(self.object(&decode(value).ok()?).ok()?),
             "Permanents" => Operand::Objects(self.objects(&decode(value).ok()?).ok()?),
@@ -115,26 +128,83 @@ impl Context {
                 Operand::Ability(Box::new(self.fresh().ability(&rule).ok()?))
             }
             "Spell" => Operand::Object(self.spell(&decode(value).ok()?).ok()?),
+            "CardInHand" => Operand::Object(self.hand_card(&decode(value).ok()?).ok()?),
+            "SpellOrPermanent" => {
+                Operand::Object(self.spell_or_permanent(&decode(value).ok()?).ok()?)
+            }
             "Trigger" => Operand::Event(Box::new(self.trigger(&decode(value).ok()?).ok()?)),
             "Ability" => match decode(value).ok()? {
                 source::Ability::Ref_TargetAbility => {
                     Operand::Object(self.object_target(ObjectDomain::ability(), 0).ok()?)
                 }
+                source::Ability::Trigger_ThatAbility
+                | source::Ability::Trigger_ThatActivatedAbility
+                | source::Ability::Trigger_ThatTriggeredAbility
+                    if self.event.stack_object =>
+                {
+                    Operand::Object(ObjectRef::EventStackObject)
+                }
                 _ => return None,
             },
+            "ActivatedAbility" if self.event.stack_object => {
+                Operand::Object(ObjectRef::EventStackObject)
+            }
+            "SpellOrAbility" => Operand::Object(self.stack_object(&decode(value).ok()?).ok()?),
+            "SingleCard" => Operand::Object(self.single_card(&decode(value).ok()?).ok()?),
+            "CardInLibrary" => match decode(value).ok()? {
+                source::CardInLibrary::TheCardConjureIntoLibraryThisWay => {
+                    Operand::Object(self.conjured_object().ok()?)
+                }
+                source::CardInLibrary::TheLibraryCardFoundThisWay => {
+                    Operand::Objects(self.found.clone()?)
+                }
+                _ => return None,
+            },
+            "CardsInHand" if scoped => Operand::Filter(self.hand_filter(&decode(value).ok()?).ok()?),
+            "CardsInGraveyards" if scoped => {
+                Operand::Objects(self.grave_cards(&decode(value).ok()?).ok()?)
+            }
+            "Targets" => Operand::Recipients(Recipients::Targets(
+                self.target(TargetKind::DamageRecipient, 0, 0).ok()?,
+            )),
+            "SpellsAndAbilities" if scoped => match self.target_on_stack().ok()? {
+                ObjectRef::Target { slot, .. } => Operand::Objects(ObjectSet::Targets(slot)),
+                _ => return None,
+            },
+            "ExchangeOwnershipCard" => match decode(value).ok()? {
+                source::ExchangeOwnershipCard::Ref_TargetPermanent => {
+                    Operand::Object(self.object(&source::Permanent::Ref_TargetPermanent).ok()?)
+                }
+                source::ExchangeOwnershipCard::TheCardRevealedFromHandThisWay => Operand::Object(
+                    self.hand_card(&source::CardInHand::TheCardRevealedFromHandThisWay)
+                        .ok()?,
+                ),
+                source::ExchangeOwnershipCard::TheFirstCardExiledThisWay => {
+                    Operand::Object(self.result_object(self.exiled.as_ref(), 0).ok()?)
+                }
+                source::ExchangeOwnershipCard::TheSecondCardExiledThisWay => {
+                    Operand::Object(self.result_object(self.exiled.as_ref(), 1).ok()?)
+                }
+                source::ExchangeOwnershipCard::ThisPermanent => return None,
+            },
+            "PlayerOrPermanent" => Operand::Recipients(Recipients::Targets(
+                self.target(TargetKind::DamageRecipient, 0, 0).ok()?,
+            )),
             "CardInGraveyards" => Operand::Object(self.grave_card(&decode(value).ok()?).ok()?),
             "CardInExile" => Operand::Object(self.exiled_card(&decode(value).ok()?).ok()?),
             "Actions" => {
                 let actions: source::Actions = decode(value).ok()?;
                 let mut child = self.nested_program();
+                let known = child.targets.len();
+                child.outer_targets = known;
                 let body = child.actions(&actions).ok()?;
                 // A body announcing its own targets is an ability, not a nested step.
-                if child.targets.len() == self.targets.len() && child.modes.is_none() {
+                if child.targets.len() == known && child.modes.is_none() {
                     Operand::Program(body)
                 } else {
                     Operand::Ability(Box::new(Ability::Spell {
                         announcement: Announcement {
-                            targets: child.targets,
+                            targets: child.targets.split_off(known),
                             modes: child.modes,
                         },
                         body,
@@ -144,8 +214,8 @@ impl Context {
             "Action" => {
                 let action: source::Action = decode(value).ok()?;
                 let mut child = self.nested_program();
-                let actor = PlayerSet::One(PlayerRef::AbilityController);
-                let instruction = child.action(&action, &actor).ok()?;
+                let actor = self.acting.clone().unwrap_or(PlayerRef::AbilityController);
+                let instruction = child.action(&action, &PlayerSet::One(actor)).ok()?;
                 Operand::Program(Program {
                     instructions: vec![instruction],
                 })
@@ -178,6 +248,7 @@ impl Context {
             V::Object(fields) => match fields.get("enum").and_then(V::as_str) {
                 Some(ty) => vocabulary(ty, value)
                     .or_else(|| self.typed_operand(ty, value))
+                    .or_else(|| self.row_target(value))
                     .or_else(|| self.term(ty, value))?,
                 None => Operand::Record(
                     fields
@@ -194,6 +265,16 @@ impl Context {
         })
     }
 
+    /// `Ref_TargetX` reads the slot the reviewed row `Target::TargetX` announced.
+    fn row_target(&self, value: &serde_json::Value) -> Option<Operand> {
+        let form = value["variant"].as_str()?.strip_prefix("Ref_")?;
+        let name = format!("Target::{form}");
+        let spec = self.targets.iter().find(
+            |t| matches!(&t.filter, ObjectFilter::Primitive { name: row, .. } if *row == name),
+        )?;
+        Some(Operand::Objects(ObjectSet::Targets(spec.slot.clone())))
+    }
+
     /// A descriptive enum the registry lists, with every operand bound.
     fn term(&self, ty: &str, value: &serde_json::Value) -> Option<Operand> {
         let listed = crate::primitive_spec::registry()
@@ -203,7 +284,7 @@ impl Context {
         let reviewed = value["variant"]
             .as_str()
             .is_some_and(|form| crate::primitive_spec::lookup(&format!("{ty}::{form}")).is_some());
-        if !listed && !reviewed {
+        if !listed && !reviewed || value["variant"].as_str().is_some_and(reads_scope) {
             return None;
         }
         let operands = match &value["args"] {
@@ -299,6 +380,11 @@ impl Context {
             operands,
         };
         let yields = crate::semantics::yields(&operation);
+        if let Operation::Primitive { name, .. } = &operation {
+            if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft") {
+                self.conjured = Some(result.clone());
+            }
+        }
         match yields {
             Some("observed") => self.revealed = Some(ObjectSet::Observed(result.clone())),
             Some("exiled") => {
@@ -426,6 +512,9 @@ impl Context {
         self.created_tokens = None;
         self.amassed = None;
         self.seeked.clear();
+        self.conjured = None;
+        self.tapped = None;
+        self.chosen_pile = None;
         self.found = None;
         self.took = None;
         self.offered = None;

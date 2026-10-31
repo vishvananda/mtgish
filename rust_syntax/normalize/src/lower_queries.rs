@@ -175,6 +175,10 @@ impl Context {
         }
     }
 
+    fn spell_or_permanent(&self, value: &source::SpellOrPermanent) -> Result<ObjectRef> {
+        let source::SpellOrPermanent::Ref_TargetSpellOrPermanent = value;
+        self.object_target(ObjectDomain::spell_or_permanent(), 0)
+    }
     fn spell_filter(&self, value: &source::Spells) -> Result<ObjectFilter> {
         let mut context = self.clone();
         context.candidate = true;
@@ -187,6 +191,7 @@ impl Context {
         if let Some(result)=self.pipeline_selector(crate::pipeline::selectors::SelectorRef::Spells(value)) {return result;}
         use source::Spells as S;
         Ok(match value {
+            S::ExceptFor(spells) => ObjectFilter::Not(Box::new(self.spell_filter(spells)?)),
             S::Ref_TargetSpells => ObjectFilter::InSet(Box::new(ObjectSet::Targets(
                 self.target(TargetKind::Object(ObjectDomain::spell()), 0, 0)?,
             ))),

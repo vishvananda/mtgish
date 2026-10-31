@@ -59,8 +59,16 @@ impl Context {
     }
     fn grave_card(&self, value: &source::CardInGraveyards) -> Result<ObjectRef> {
         use source::CardInGraveyards as S;
+        if let S::TheCardConjuredIntoGraveyardThisWay = value {
+            return self.conjured_object();
+        }
         let n = match value {
-            S::Ref_TargetGraveyardCard | S::Ref_TargetGraveyardCard1 => 0,
+            S::Ref_TargetGraveyardCard => self.slot_of_arity(
+                &TargetKind::Object(ObjectDomain::card(EventZone::Graveyard)),
+                false,
+                0,
+            ),
+            S::Ref_TargetGraveyardCard1 => 0,
             S::Ref_TargetGraveyardCard2 => 1,
             S::Ref_TargetGraveyardCard3 => 2,
             S::Ref_TargetGraveyardCard4 => 3,
@@ -139,6 +147,7 @@ impl Context {
     fn exiled_card(&self, value: &source::CardInExile) -> Result<ObjectRef> {
         use source::CardInExile as S;
         match value {
+            S::TheCardConjuredIntoExileThisWay => self.conjured_object(),
             S::EachableExiled if self.iterated_object.is_some() => {
                 Ok(ObjectRef::Bound(self.iterated_object.clone().unwrap()))
             }
@@ -217,6 +226,13 @@ impl Context {
     fn hand_card(&self, value: &source::CardInHand) -> Result<ObjectRef> {
         match value {
             source::CardInHand::ThisCardInHand => Ok(ObjectRef::Source),
+            source::CardInHand::TheCardConjuredIntoHandThisWay
+            | source::CardInHand::TheCardConjuredThisWay
+            | source::CardInHand::TheCardDraftedThisWay
+                if self.conjured.is_some() =>
+            {
+                self.conjured_object()
+            }
             source::CardInHand::TheCardInHandChosenThisWay
             | source::CardInHand::TheCardChosenThisWay
             | source::CardInHand::TheChosenCardInHand
@@ -239,7 +255,24 @@ impl Context {
                     index: 0,
                 })
             }
+            source::CardInHand::TheCardSeekedThisWay if !self.seeked.is_empty() => {
+                Ok(ObjectRef::Query {
+                    objects: Box::new(self.seeked_cards()?),
+                    index: 0,
+                })
+            }
+            source::CardInHand::TheCardReturnedToHandThisWay
+            | source::CardInHand::TheCardPutInHandThisWay => Ok(ObjectRef::Result {
+                result: self
+                    .to_hand
+                    .clone()
+                    .or_else(|| self.did.get(&Done::Returned).cloned())
+                    .ok_or_else(|| invalid("nothing went to a hand in this scope"))?,
+                phase: ObjectPhase::After,
+                index: 0,
+            }),
             source::CardInHand::TheCardRevealedThisWay
+            | source::CardInHand::TheCardInHandRevealedThisWay
             | source::CardInHand::TheCardRevealedFromHandThisWay => Ok(ObjectRef::Query {
                 objects: Box::new(self.revealed_objects()?),
                 index: 0,
@@ -249,6 +282,9 @@ impl Context {
                 if self.event.discarded =>
             {
                 Ok(ObjectRef::Discarded)
+            }
+            source::CardInHand::Trigger_ThatCardInHand if self.event.object => {
+                Ok(ObjectRef::EventSubject)
             }
             _ => Err(unsupported(value)),
         }
@@ -268,16 +304,19 @@ impl Context {
     fn grave_cards(&self, value: &source::CardsInGraveyards) -> Result<ObjectSet> {
         use source::CardsInGraveyards as S;
         Ok(match value {
+            S::InTheGraveyardPileChosenThisWay => ObjectSet::Selected(self.pile_chosen()?),
+            S::InTheGraveyardPileNotChosenThisWay => ObjectSet::Unselected(self.pile_chosen()?),
             S::Trigger_ThoseGraveyardCards if self.event.group => ObjectSet::EventGroup,
             S::ThePermanentsSacrificedThisWay => {
                 self.this_way_set(Done::Sacrificed, ObjectPhase::After, None)?
             }
             S::Ref_TargetGraveyardCards | S::Ref_TargetGraveyardCards1 => {
-                ObjectSet::Targets(self.target(
-                    TargetKind::Object(ObjectDomain::card(EventZone::Graveyard)),
-                    0,
-                    0,
-                )?)
+                let kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
+                let ordinal = match value {
+                    S::Ref_TargetGraveyardCards => self.slot_of_arity(&kind, true, 0),
+                    _ => 0,
+                };
+                ObjectSet::Targets(self.target(kind, ordinal, 0)?)
             }
             S::Ref_TargetGraveyardCards2 => ObjectSet::Targets(self.target(
                 TargetKind::Object(ObjectDomain::card(EventZone::Graveyard)),
@@ -314,6 +353,16 @@ impl Context {
     }
     fn exile_cards(&self, value: &source::CardsInExile) -> Result<ObjectSet> {
         Ok(match value {
+            source::CardsInExile::InTheExiledPileChosenThisWay
+            | source::CardsInExile::InTheChosenPile
+                if self.chosen_pile.is_some() =>
+            {
+                ObjectSet::Selected(self.pile_chosen()?)
+            }
+            source::CardsInExile::InTheExiledPileNotChosenThisWay if self.chosen_pile.is_some() => {
+                ObjectSet::Unselected(self.pile_chosen()?)
+            }
+            source::CardsInExile::TheCardsConjuredThisWay => self.conjured_cards()?,
             source::CardsInExile::Trigger_ThoseExiledCards if self.event.group => {
                 ObjectSet::EventGroup
             }
@@ -401,6 +450,18 @@ impl Context {
             S::EachCardInGraveyards(c) => (self.grave_cards(c)?, None),
             S::ACardFromHand | S::ACardFromHandAtRandom => (
                 self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
+                Some(Count::AsManyAsCan(Expr::Constant(1))),
+            ),
+            S::AnyNumberOfCardsFromHand => (
+                self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
+                Some(Count::AnyNumber),
+            ),
+            S::ARandomCardFromPlayersHand(player) => (
+                self.private_cards(
+                    EventZone::Hand,
+                    PlayerSet::One(self.player(player)?),
+                    ObjectFilter::Any,
+                ),
                 Some(Count::AsManyAsCan(Expr::Constant(1))),
             ),
             S::TheTopCardOfEachPlayersLibraries(players) => {
@@ -559,6 +620,53 @@ impl Context {
         };
         Ok((objects, choose))
     }
+    /// An exile reaching into each of several players' zones is that exile once
+    /// per player. A pick stays with the actor; a library names its own owner.
+    fn exile_from_each(
+        item: &source::Exilable,
+        flags: &[source::ExileFlag],
+    ) -> Option<source::Action> {
+        use source::{Action as A, CardsInGraveyards as C, Exilable as S, GameNumber as N, Player as P, Players as Ps};
+        let exile = |item| A::Exile(vec![item], flags.to_vec());
+        let in_graveyard = |cards: &C| {
+            Box::new(C::And(vec![
+                cards.clone(),
+                C::InAPlayersGraveyard(Box::new(Ps::SinglePlayer(Box::new(P::EachablePlayer)))),
+            ]))
+        };
+        Some(match item {
+            S::TheBottomCardOfEachPlayersLibraries(players) => A::EachPlayerAction(
+                players.clone(),
+                Box::new(exile(S::TheBottomNumberCardsOfLibrary(Box::new(N::Integer(1))))),
+            ),
+            S::TheTopNumberCardsOfEachPlayersLibrary(n, players) => A::EachPlayerAction(
+                players.clone(),
+                Box::new(exile(S::TheTopNumberCardsOfLibrary(n.clone()))),
+            ),
+            S::ACardInGraveyardsAtRandomInEachPlayersGraveyard(cards, players) => {
+                A::ActionForEachPlayer(
+                    players.clone(),
+                    vec![exile(S::ACardInGraveyardsAtRandom(in_graveyard(cards)))],
+                )
+            }
+            S::ACardOfTypeInEachPlayersGraveyard(cards, players) => A::ActionForEachPlayer(
+                players.clone(),
+                vec![exile(S::ACardInGraveyards(in_graveyard(cards)))],
+            ),
+            S::UptoOneCardOfTypeInEachPlayersGraveyard(cards, players) => A::ActionForEachPlayer(
+                players.clone(),
+                vec![exile(S::UptoOneCardInGraveyards(in_graveyard(cards)))],
+            ),
+            S::ACardOfTypeFromEachPlayersHand(cards, players) => A::ActionForEachPlayer(
+                players.clone(),
+                vec![exile(S::ACardOfTypeFromPlayersHand(
+                    cards.clone(),
+                    Box::new(P::EachablePlayer),
+                ))],
+            ),
+            _ => return None,
+        })
+    }
     fn exile_entry(&self, flags: &[source::ExileFlag]) -> Result<(EntrySpec, bool)> {
         let mut entry = EntrySpec::default();
         let mut face_down = false;
@@ -566,6 +674,17 @@ impl Context {
             match flag {
                 source::ExileFlag::ExilesFaceUp => face_down = false,
                 source::ExileFlag::ExilesFaceDown => face_down = true,
+                source::ExileFlag::ExilesIntoFaceUpPile => {
+                    entry.states.push(EntryState::ExilePile { shuffled: false })
+                }
+                source::ExileFlag::ExilesIntoFaceDownPile => {
+                    face_down = true;
+                    entry.states.push(EntryState::ExilePile { shuffled: false })
+                }
+                source::ExileFlag::ExilesIntoShuffledFaceDownPile => {
+                    face_down = true;
+                    entry.states.push(EntryState::ExilePile { shuffled: true })
+                }
                 source::ExileFlag::ExilesWithACounter(k) => entry
                     .counters
                     .push((crate::counter::lower(k), Expr::Constant(1))),
@@ -583,6 +702,11 @@ impl Context {
         flags: &[source::ExileFlag],
         actor: &PlayerSet,
     ) -> Result<Instruction> {
+        if let [item] = items {
+            if let Some(action) = Self::exile_from_each(item, flags) {
+                return self.action(&action, actor);
+            }
+        }
         // "Exile until": one effect, ending in a return to where the object was.
         let period = flags.iter().find_map(|flag| match flag {
             source::ExileFlag::Limited(period) => Some(period),
@@ -599,15 +723,43 @@ impl Context {
         let mut sets = Vec::new();
         self.exile_found = None;
         for (i, item) in items.iter().enumerate() {
-            if let source::Exilable::CardsFromTheTopOfLibraryUntilACardOfTypeIsExiled(cards) = item {
+            if let source::Exilable::CardsFromTheTopOfLibraryUntilGroupCardsAreExiled(group) = item {
                 let PlayerSet::One(player) = actor else {
                     return Err(invalid("exiling from a library needs one player"));
+                };
+                let constraints = self.group_constraints(group)?;
+                let seen = self.effect(Operation::RevealUntilGroup {
+                    library: player.clone(),
+                    constraints,
+                });
+                let Instruction::Effect { result, .. } = &seen else {
+                    unreachable!()
+                };
+                sets.push(ObjectSet::Observed(result.clone()));
+                instructions.push(seen);
+                continue;
+            }
+            if let source::Exilable::CardsFromTheTopOfLibraryUntilACardOfTypeIsExiled(_)
+            | source::Exilable::CardsFromTheTopOfLibraryUntilANumberOfCardsOfTypeAreExiled(..) = item
+            {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("exiling from a library needs one player"));
+                };
+                let (cards, count) = match item {
+                    source::Exilable::CardsFromTheTopOfLibraryUntilANumberOfCardsOfTypeAreExiled(
+                        n,
+                        cards,
+                    ) => (cards, self.number(n)?),
+                    source::Exilable::CardsFromTheTopOfLibraryUntilACardOfTypeIsExiled(cards) => {
+                        (cards, Expr::Constant(1))
+                    }
+                    _ => unreachable!(),
                 };
                 let filter = self.library_filter(cards)?;
                 let seen = self.effect(Operation::RevealUntil {
                     library: player.clone(),
                     filter: filter.clone(),
-                    count: Expr::Constant(1),
+                    count,
                 });
                 let Instruction::Effect { result, .. } = &seen else {
                     unreachable!()
@@ -627,6 +779,7 @@ impl Context {
                 let random = matches!(
                     item,
                     source::Exilable::ACardFromHandAtRandom
+                        | source::Exilable::ARandomCardFromPlayersHand(_)
                         | source::Exilable::ACardFromPlayersLibraryAtRandom(_)
                         | source::Exilable::ACardOfTypeFromPlayersLibraryAtRandom(..)
                         | source::Exilable::NumberCardsFromPlayersLibraryAtRandom(..)
@@ -820,6 +973,16 @@ impl Context {
                 source::EnterFlag::EntersNormally => {}
                 source::EnterFlag::EntersTapped => entry.tapped = true,
                 source::EnterFlag::IfPassesFilter(filter, flags) => {
+                    let (_, then) = self.move_entry(flags, default.clone())?;
+                    entry.states.push(EntryState::When {
+                        filter: self.filter(filter)?,
+                        entry: Box::new(then),
+                    });
+                }
+                source::EnterFlag::If(condition, flags) => {
+                    let source::Condition::EnteringPermanentPassesFilter(filter) = condition else {
+                        return Err(unsupported(flag).at(format!("flags[{i}]")));
+                    };
                     let (_, then) = self.move_entry(flags, default.clone())?;
                     entry.states.push(EntryState::When {
                         filter: self.filter(filter)?,

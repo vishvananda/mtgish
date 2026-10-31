@@ -101,6 +101,14 @@ struct Context {
     /// The Army the last amass put counters on.
     amassed: Option<ResultId>,
     seeked: Vec<ResultId>,
+    /// What the last conjure or draft row made.
+    conjured: Option<ResultId>,
+    /// The objects the last tap named, so "it" means them even if already tapped.
+    tapped: Option<ObjectSet>,
+    /// What a separation split and who split it, until a player picks a pile.
+    pile: Option<(PlayerRef, ObjectSet)>,
+    /// The picked pile; the other pile is what it left unselected.
+    chosen_pile: Option<ResultId>,
     /// The player a player filter is testing.
     self_player: std::cell::RefCell<Option<PlayerRef>>,
     /// The cards the search being resolved found.
@@ -244,6 +252,34 @@ impl Context {
         Ok(found.slot.clone())
     }
 
+    /// "Target creature" beside "two target creatures" reads the slot of its own
+    /// arity, whichever was announced first. Numbered references count that arity.
+    fn slot_of_arity(&self, kind: &TargetKind, plural: bool, nth: usize) -> usize {
+        let inner = &self.targets[self.outer_targets.min(self.targets.len())..];
+        let slots = if inner.iter().any(|t| t.kind == *kind) {
+            inner
+        } else {
+            &self.targets[..]
+        };
+        slots
+            .iter()
+            .filter(|t| t.kind == *kind)
+            .enumerate()
+            .filter(|(_, t)| {
+                let single = matches!(
+                    t.count,
+                    Count::Exactly(Expr::Constant(1)) | Count::UpTo(Expr::Constant(1))
+                );
+                single != plural
+            })
+            .nth(nth)
+            .map_or(nth, |(ordinal, _)| ordinal)
+    }
+
+    fn permanent_slot(&self, plural: bool, nth: usize) -> usize {
+        self.slot_of_arity(&TargetKind::Object(ObjectDomain::permanent()), plural, nth)
+    }
+
     /// What a move leaves for a later "this way" to name.
     fn note_move(&mut self, operation: &Operation, result: ResultId) {
         let (Operation::Move { destination, .. } | Operation::Counter { destination, .. }) =
@@ -330,6 +366,13 @@ impl Context {
     }
 
     fn effect(&mut self, operation: Operation) -> Instruction {
+        if let Operation::Tap {
+            objects,
+            tapped: true,
+        } = &operation
+        {
+            self.tapped = Some(objects.clone());
+        }
         self.note_acted(&operation, &ResultId(self.result));
         if let Operation::ChooseObjects { player, .. } = &operation {
             self.picks
@@ -468,6 +511,11 @@ impl Context {
     }
 
     fn object(&self, value: &source::Permanent) -> Result<ObjectRef> {
+        if let source::Permanent::TheCardConjuredOntoTheBattlefieldThisWay = value {
+            if self.conjured.is_some() {
+                return self.conjured_object();
+            }
+        }
         self.reduced_object(value)
             .or_else(|error| rescue(error, || self.primitive_object(value)))
     }
@@ -505,13 +553,23 @@ impl Context {
                 return self.paid_object(crate::number_spec::PaymentAction::Sacrifice)
             }
             S::ThePermanentTappedThisWay => {
-                return self.paid_object(crate::number_spec::PaymentAction::Tap)
+                return match &self.tapped {
+                    Some(ObjectSet::One(object)) => Ok(object.clone()),
+                    Some(ObjectSet::Targets(slot)) => Ok(ObjectRef::Target {
+                        slot: slot.clone(),
+                        index: 0,
+                    }),
+                    _ => self.paid_object(crate::number_spec::PaymentAction::Tap),
+                }
             }
 
             S::EachablePermanent if self.iterated_object.is_some() => {
                 return Ok(ObjectRef::Bound(self.iterated_object.clone().unwrap()));
             }
-            S::EachablePermanent if self.candidate => return Ok(ObjectRef::Candidate),
+            // Inside a count, the candidate is what is counted, not the object affected.
+            S::EachablePermanent if self.candidate && !self.affected => {
+                return Ok(ObjectRef::Candidate)
+            }
             S::EachablePermanent => return Ok(ObjectRef::Affected),
             S::ThePermanentChosenThisWay | S::TheChosenPermanent
                 if self.narrowed_choice.is_some() || self.permanent_choice.is_some() =>
@@ -601,8 +659,9 @@ impl Context {
                 outer.outer_targets = 0;
                 return outer.object(&S::Ref_TargetPermanent);
             }
-            S::Ref_TargetPermanent | S::Ref_TargetPermanent1 | S::Ref_TargetPermanents_0 => (0, 0),
-            S::Ref_TargetPermanent2 => (1, 0),
+            S::Ref_TargetPermanent | S::Ref_TargetPermanent1 => (self.permanent_slot(false, 0), 0),
+            S::Ref_TargetPermanents_0 => (0, 0),
+            S::Ref_TargetPermanent2 => (self.permanent_slot(false, 1), 0),
             S::Ref_TargetPermanent3 => (2, 0),
             S::Ref_TargetPermanent4 => (3, 0),
             S::Ref_TargetPermanent5 => (4, 0),
@@ -853,6 +912,21 @@ impl Context {
     }
 
     fn objects(&self, value: &source::Permanents) -> Result<ObjectSet> {
+        match value {
+            source::Permanents::TheCardsConjuredOntoTheBattlefieldThisWay
+                if self.conjured.is_some() =>
+            {
+                return self.conjured_cards()
+            }
+            source::Permanents::InThePermanentPileChosenThisWay
+            | source::Permanents::InTheChosenPile => {
+                return Ok(ObjectSet::Selected(self.pile_chosen()?))
+            }
+            source::Permanents::NotInTheChosenPile => {
+                return Ok(ObjectSet::Unselected(self.pile_chosen()?))
+            }
+            _ => {}
+        }
         if matches!(
             value,
             source::Permanents::ThePermanentsSacrificedThisWay
@@ -864,6 +938,9 @@ impl Context {
             );
         }
         if matches!(value, source::Permanents::ThePermanentsTappedThisWay) {
+            if let Some(tapped @ (ObjectSet::One(_) | ObjectSet::Targets(_))) = &self.tapped {
+                return Ok(tapped.clone());
+            }
             return self.paid_objects(
                 crate::number_spec::PaymentAction::Tap,
                 CostObjectView::Performed,
@@ -959,7 +1036,10 @@ impl Context {
                 | source::Permanents::Ref_TargetPermanents1
                 | source::Permanents::Ref_TargetPermanents2
         ) {
-            let ordinal = usize::from(matches!(value, source::Permanents::Ref_TargetPermanents2));
+            let ordinal = match value {
+                source::Permanents::Ref_TargetPermanents2 => self.permanent_slot(true, 1),
+                _ => self.permanent_slot(true, 0),
+            };
             return Ok(ObjectSet::Targets(self.target(
                 TargetKind::Object(ObjectDomain::permanent()),
                 ordinal,
@@ -1097,6 +1177,29 @@ impl Context {
                 return Ok(ObjectFilter::SharesNameWithAny(Box::new(
                     self.objects(objects)?,
                 )));
+            }
+            source::Permanents::ExceptFor(objects) => {
+                return Ok(ObjectFilter::Not(Box::new(self.filter(objects)?)));
+            }
+            source::Permanents::InThePermanentPileChosenThisWay
+            | source::Permanents::InTheChosenPile
+            | source::Permanents::NotInTheChosenPile => {
+                return Ok(ObjectFilter::InSet(Box::new(self.objects(value)?)));
+            }
+            source::Permanents::SharesACreatureTypeWithDeadPermanent => {
+                return Ok(ObjectFilter::Shares {
+                    property: DistinctProperty::CreatureTypes,
+                    with: self.dead_object()?,
+                });
+            }
+            source::Permanents::SharesACardtypeWithThatDeadPermanent => {
+                return Ok(ObjectFilter::Shares {
+                    property: DistinctProperty::CardTypes,
+                    with: self.dead_object()?,
+                });
+            }
+            source::Permanents::WasAttachedToDeadPermanent => {
+                return Ok(ObjectFilter::WasAttachedTo(self.dead_object()?));
             }
             source::Permanents::IsNonCreatureTypeVariable(variable) => {
                 let matching = self.filter_inner(&source::Permanents::IsCreatureTypeVariable(
@@ -2204,7 +2307,9 @@ impl Context {
                 }
             }
             S::Ref_AnyTarget | S::Ref_AnyTargets | S::Ref_TargetPlayerOrPermanent => {
-                Recipients::Targets(self.target(TargetKind::DamageRecipient, 0, 0)?)
+                let plural = matches!(value, S::Ref_AnyTargets);
+                let ordinal = self.slot_of_arity(&TargetKind::DamageRecipient, plural, 0);
+                Recipients::Targets(self.target(TargetKind::DamageRecipient, ordinal, 0)?)
             }
             S::Ref_AnyTargets_1 | S::Ref_AnyTargets_2 | S::Ref_AnyTargets_3 => {
                 let index = match value {
@@ -2244,6 +2349,15 @@ impl Context {
     }
 
     fn action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
+        if let source::Action::ReturnSpellOrPermanentToOwnersHand(object) = value {
+            let objects = ObjectSet::One(self.spell_or_permanent(object)?);
+            return Ok(self.effect(Operation::Move {
+                objects,
+                destination: Destination::OwnersHand,
+                entry: EntrySpec::default(),
+                face_down: false,
+            }));
+        }
         self.acted_by(actor, |context| context.acted_action(value, actor))
     }
 
@@ -2283,6 +2397,9 @@ impl Context {
     }
 
     fn reduced_action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
+        if let Some(result) = self.pile_action(value, actor) {
+            return result;
+        }
         if let Some(instruction) = self.hand_action(value, actor)? {
             return Ok(instruction);
         }
@@ -3244,6 +3361,10 @@ impl Context {
                 self.hand_choice = Some(result.clone());
                 return Ok(choice);
             }
+            // A boon speaks for whoever gets it, which `CreateTrigger` cannot say.
+            S::GetOneTimeBoon(..) if !matches!(actor, PlayerSet::One(PlayerRef::AbilityController)) => {
+                return Err(unsupported(value))
+            }
             S::GetOneTimeBoon(trigger, actions) => {
                 let event = self.trigger(trigger)?;
                 let mut child = self.clone();
@@ -3816,8 +3937,10 @@ impl Context {
             S::AnyPlayerMayCost(players, cost) => {
                 let willing = PlayerRef::FirstWilling(Box::new(self.players(players)?));
                 let outer = self.iterated.replace(willing.clone());
+                let payer = self.payer.replace(willing.clone());
                 let cost = self.cost(cost);
                 self.iterated = outer;
+                self.payer = payer;
                 Operation::PayCost {
                     player: willing,
                     cost: cost?,
@@ -4354,6 +4477,28 @@ impl Context {
                         target.count = Count::UpTo(Expr::Constant(1));
                     }
                 }
+                S::UptoNumberTargetPlayers(n, p) => {
+                    target.kind = TargetKind::Player;
+                    target.players = Some(self.players(p)?);
+                    target.count = Count::UpTo(self.number(n)?);
+                }
+                S::TargetSpellOrPermanent(_) => {
+                    target.kind = TargetKind::Object(ObjectDomain::spell_or_permanent());
+                }
+                S::TargetSpellOrTargetPermanent(spells, permanents) => {
+                    target.kind = TargetKind::Object(ObjectDomain::spell_or_permanent());
+                    let in_zone = |zone| ObjectFilter::InZone(ZoneScope::Shared(zone));
+                    target.filter = ObjectFilter::Either(vec![
+                        ObjectFilter::All(vec![
+                            in_zone(EventZone::Stack),
+                            self.spell_filter(spells)?,
+                        ]),
+                        ObjectFilter::All(vec![
+                            in_zone(EventZone::Battlefield),
+                            self.filter(permanents)?,
+                        ]),
+                    ]);
+                }
                 S::AnyTarget => target.kind = TargetKind::DamageRecipient,
                 S::AnyTargetExceptPermanent(p) => {
                     target.kind = TargetKind::DamageRecipient;
@@ -4368,10 +4513,21 @@ impl Context {
                     target.filter = self.filter(p)?;
                     target.chooser = Some(self.player(chooser)?);
                 }
-                S::TargetPlayerOrPermanent(players, objects) => {
+                S::TargetPlayerOrPermanent(players, objects)
+                | S::UptoOneTargetPlayerOrPermanent(players, objects)
+                | S::NumberTargetPlayersOrPermanents(_, players, objects)
+                | S::AnyNumberOfTargetPlayersOrPermanents(players, objects) => {
                     target.kind = TargetKind::DamageRecipient;
                     target.filter = self.filter(objects)?;
                     target.players = Some(self.players(players)?);
+                    target.count = match value {
+                        S::UptoOneTargetPlayerOrPermanent(..) => Count::UpTo(Expr::Constant(1)),
+                        S::NumberTargetPlayersOrPermanents(n, ..) => {
+                            Count::Exactly(self.number(n)?)
+                        }
+                        S::AnyNumberOfTargetPlayersOrPermanents(..) => Count::AnyNumber,
+                        _ => Count::Exactly(Expr::Constant(1)),
+                    };
                 }
                 S::NumberAnyTargets(n) => {
                     target.kind = TargetKind::DamageRecipient;
@@ -5490,6 +5646,7 @@ include!("lower_number_pipeline.rs");
 
 include!("lower_paid.rs");
 include!("lower_this_way.rs");
+include!("lower_piles.rs");
 include!("lower_coin.rs");
 include!("lower_hand.rs");
 include!("lower_named.rs");

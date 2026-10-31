@@ -327,6 +327,15 @@ impl Inventory<'_> {
                 self.expr(count);
                 self.filter(filter);
             }
+            Operation::RevealUntilGroup {
+                library,
+                constraints,
+            } => {
+                self.player(library);
+                for c in constraints {
+                    self.selection_constraint(c);
+                }
+            }
             Operation::Shuffle { players, excluding } => {
                 self.players(players);
                 if let Some(o) = excluding {
@@ -1431,7 +1440,9 @@ impl Inventory<'_> {
         self.form("ObjectFilter", f);
         match f {
             ObjectFilter::ArrivedThisTurn { .. } => {}
-            ObjectFilter::ExiledWith(object) | ObjectFilter::MadeBy(object) => self.object(object),
+            ObjectFilter::ExiledWith(object)
+            | ObjectFilter::MadeBy(object)
+            | ObjectFilter::WasAttachedTo(object) => self.object(object),
             ObjectFilter::DamagedBy(_) | ObjectFilter::DealtExcessBy(_) => {}
             ObjectFilter::Primitive { name, .. } => self.primitive(name),
             ObjectFilter::Condition(condition) => self.condition(condition),
@@ -1461,7 +1472,8 @@ impl Inventory<'_> {
             ObjectFilter::SameObject(o)
             | ObjectFilter::SharesNameWith(o)
             | ObjectFilter::Shares { with: o, .. } => self.object(o),
-            ObjectFilter::SharesNameWithAny(objects) => self.objects(objects),
+            ObjectFilter::SharesNameWithAny(objects)
+            | ObjectFilter::SharesWithAny { with: objects, .. } => self.objects(objects),
             ObjectFilter::Property {
                 property,
                 comparison,

@@ -402,7 +402,10 @@ impl<'a> Scope<'a> {
             self.count(&Count::Exactly(amount.clone()))?;
         }
         entry.states.iter().try_for_each(|state| match state {
-            EntryState::Transformed | EntryState::FaceDown | EntryState::Flipped => Ok(()),
+            EntryState::Transformed
+            | EntryState::FaceDown
+            | EntryState::Flipped
+            | EntryState::ExilePile { .. } => Ok(()),
             EntryState::Attacking { player, .. } => player.iter().try_for_each(|p| self.player(p)),
             EntryState::Blocking(object) | EntryState::AttachedTo(object) => self.object(object),
             EntryState::AttachedToChosen(filter) => self.filter(filter),
@@ -801,7 +804,9 @@ impl<'a> Scope<'a> {
     fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
             ObjectFilter::ArrivedThisTurn { .. } => Ok(()),
-            ObjectFilter::ExiledWith(object) | ObjectFilter::MadeBy(object) => self.object(object),
+            ObjectFilter::ExiledWith(object)
+            | ObjectFilter::MadeBy(object)
+            | ObjectFilter::WasAttachedTo(object) => self.object(object),
             ObjectFilter::DealtExcessBy(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectFilter::DealtExcessBy(result) => {
                 Err(format!("result {} is unavailable", result.0))
@@ -852,7 +857,8 @@ impl<'a> Scope<'a> {
             ObjectFilter::SameObject(object)
             | ObjectFilter::SharesNameWith(object)
             | ObjectFilter::Shares { with: object, .. } => self.object(object),
-            ObjectFilter::SharesNameWithAny(objects) => self.objects(objects),
+            ObjectFilter::SharesNameWithAny(objects)
+            | ObjectFilter::SharesWithAny { with: objects, .. } => self.objects(objects),
             ObjectFilter::Property { value, .. } => self.expr(value),
             ObjectFilter::Counters { value, .. } => self.expr(value),
         }
@@ -1482,6 +1488,11 @@ impl<'a> Scope<'a> {
             Operand::List(items) => items.iter().try_for_each(|o| self.operand(o)),
             Operand::Record(fields) => fields.iter().try_for_each(|f| self.operand(&f.value)),
             Operand::Form(named) => self.named(named),
+            Operand::Vocabulary { form, .. } | Operand::Term { form, .. }
+                if crate::lower::reads_scope(form) =>
+            {
+                Err(format!("{form} names something in scope").into())
+            }
             Operand::Vocabulary { .. } => Ok(()),
             Operand::Term { operands, .. } => operands.iter().try_for_each(|o| self.operand(o)),
             Operand::Object(object) => self.object(object),
@@ -1495,7 +1506,17 @@ impl<'a> Scope<'a> {
             Operand::Filter(filter) => self.filter(filter),
             Operand::Comparison(_, expression) => self.expr(expression),
             Operand::Cost(cost) => self.cost(cost),
-            Operand::Ability(ability) => validate_ability(ability),
+            // A nested body closes over this scope, targets included.
+            Operand::Ability(ability) => match &**ability {
+                Ability::Spell { announcement, body } => {
+                    let mut child = self.clone();
+                    child.replacement = false;
+                    child.open_searches.clear();
+                    child.announcement(announcement)?;
+                    child.program(body)
+                }
+                other => validate_ability(other),
+            },
             Operand::Event(event) => self.event(event),
             Operand::Program(program) => {
                 let mut child = self.clone();
@@ -1597,6 +1618,13 @@ impl<'a> Scope<'a> {
                 self.player(library)?;
                 self.expr(count)?;
                 self.filter(filter)
+            }
+            Operation::RevealUntilGroup {
+                library,
+                constraints,
+            } => {
+                self.player(library)?;
+                self.selection_constraints(constraints)
             }
             Operation::Shuffle { players, excluding } => {
                 self.players(players)?;
@@ -2109,6 +2137,8 @@ impl<'a> Scope<'a> {
                             ResultKind::Observation
                         } else if matches!(operation, Operation::CreateTokens { .. }) {
                             ResultKind::CreatedObjects
+                        } else if crate::semantics::makes_card(operation) {
+                            ResultKind::ObjectTransition
                         } else {
                             ResultKind::Other
                         },
@@ -2139,7 +2169,8 @@ impl<'a> Scope<'a> {
                         let kind = match operation {
                             Operation::LookAt { .. }
                             | Operation::Reveal { .. }
-                            | Operation::RevealUntil { .. } => ResultKind::Observation,
+                            | Operation::RevealUntil { .. }
+                            | Operation::RevealUntilGroup { .. } => ResultKind::Observation,
                             Operation::Search { .. } => ResultKind::Search,
                             Operation::PayCost { .. } => ResultKind::Payment,
                             Operation::CreateTokens { .. } => ResultKind::CreatedObjects,
@@ -2157,6 +2188,9 @@ impl<'a> Scope<'a> {
                             | Operation::JoinResults { .. }
                             | Operation::Draw { .. }
                             | Operation::Mill { .. } => ResultKind::ObjectTransition,
+                            other if crate::semantics::makes_card(other) => {
+                                ResultKind::ObjectTransition
+                            }
                             other => match crate::semantics::yields(other) {
                                 Some("observed") => ResultKind::Observation,
                                 Some("extra_turn") => ResultKind::Other,
@@ -2172,7 +2206,8 @@ impl<'a> Scope<'a> {
                             }
                             Operation::Search { .. }
                             | Operation::ReorderLibrary { .. }
-                            | Operation::RevealUntil { .. } => Some(vec![EventZone::Library]),
+                            | Operation::RevealUntil { .. }
+                            | Operation::RevealUntilGroup { .. } => Some(vec![EventZone::Library]),
                             Operation::Draw { .. } => Some(vec![EventZone::Hand]),
                             Operation::ChooseObjects { objects, .. }
                             | Operation::SeparatePiles { objects, .. } => self.known_zones(objects),
@@ -2189,7 +2224,10 @@ impl<'a> Scope<'a> {
                         if self.results.insert(result.0, kind).is_some() {
                             return Err(format!("duplicate result {}", result.0));
                         }
-                        if matches!(operation, Operation::RevealUntil { .. }) {
+                        if matches!(
+                            operation,
+                            Operation::RevealUntil { .. } | Operation::RevealUntilGroup { .. }
+                        ) {
                             self.ordered_results.insert(result.0);
                         }
                         if let Operation::LookAt { objects, .. }

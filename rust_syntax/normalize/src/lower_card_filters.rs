@@ -1,7 +1,35 @@
 // Generic predicates retain their source domains. Queries and result aliases
 // remain explicit in the zone adapter rather than becoming predicate literals.
 impl Context {
+    /// Shares a card type with anything an action of this scope touched.
+    fn shares_type_this_way(&self, value: &source::Cards) -> Option<Result<ObjectFilter>> {
+        use source::Cards as S;
+        let shares = |set: Result<ObjectSet>| {
+            set.map(|with| ObjectFilter::SharesWithAny {
+                property: DistinctProperty::CardTypes,
+                with: Box::new(with),
+            })
+        };
+        let discarded = || self.this_way_set(Done::Discarded, ObjectPhase::After, None);
+        Some(match value {
+            S::SharesACardtypeWithCardsDiscardedThisWay => shares(discarded()),
+            S::DoesntShareACardtypeWithTheCardsDiscardedThisWay => {
+                shares(discarded()).map(|filter| ObjectFilter::Not(Box::new(filter)))
+            }
+            S::SharesACardtypeWithCardDiscardedByPlayerThisWay(player) => shares(
+                self.player(player)
+                    .and_then(|p| self.moved_by(Done::Discarded, ObjectPhase::After, &p, None)),
+            ),
+            S::SharesACardtypeWithThePermanentDestroyedThisWay => {
+                shares(self.this_way_set(Done::Destroyed, ObjectPhase::Before, None))
+            }
+            _ => return None,
+        })
+    }
     fn card_filter(&self, value: &source::Cards) -> Result<ObjectFilter> {
+        if let Some(result) = self.shares_type_this_way(value) {
+            return result;
+        }
         self.pipeline_selector(crate::pipeline::selectors::SelectorRef::Cards(value))
             .unwrap_or_else(|| Err(unsupported(value)))
             .or_else(|error| rescue(error, || self.primitive_predicate("Cards", value)))
@@ -37,6 +65,13 @@ impl Context {
             | source::CardsInGraveyards::Ref_TargetGraveyardCards2 => {
                 Ok(ObjectFilter::InSet(Box::new(self.grave_cards(value)?)))
             }
+            source::CardsInGraveyards::InTheGraveyardPileChosenThisWay
+            | source::CardsInGraveyards::InTheGraveyardPileNotChosenThisWay => {
+                Ok(ObjectFilter::InSet(Box::new(self.grave_cards(value)?)))
+            }
+            source::CardsInGraveyards::WasAttachedToDeadPermanent => {
+                Ok(ObjectFilter::WasAttachedTo(self.dead_object()?))
+            }
             source::CardsInGraveyards::WasPutIntoGraveyardFromAnywhereThisTurn => {
                 Ok(ObjectFilter::ArrivedThisTurn { from: None })
             }
@@ -71,6 +106,12 @@ impl Context {
         if let source::CardsInHand::TheCardsSeekedThisWay = value {
             return Ok(ObjectFilter::InSet(Box::new(self.seeked_cards()?)));
         }
+        if let source::CardsInHand::TheCardsConjuredIntoHandThisWay
+        | source::CardsInHand::TheCardsConjuredThisWay
+        | source::CardsInHand::TheCardsDraftedThisWay = value
+        {
+            return Ok(ObjectFilter::InSet(Box::new(self.conjured_cards()?)));
+        }
         if let (source::CardsInHand::TheCardsInHandNotChosenThisWay, Some(result)) =
             (value, &self.hand_choice)
         {
@@ -92,6 +133,19 @@ impl Context {
         match value {
             source::CardsInExile::TheCardsExiledThisWay | source::CardsInExile::TheExiledCards => {
                 Ok(ObjectFilter::InSet(Box::new(self.exile_cards(value)?)))
+            }
+            source::CardsInExile::InTheExiledPileChosenThisWay
+            | source::CardsInExile::InTheChosenPile
+            | source::CardsInExile::InTheExiledPileNotChosenThisWay
+                if self.chosen_pile.is_some() =>
+            {
+                Ok(ObjectFilter::InSet(Box::new(self.exile_cards(value)?)))
+            }
+            source::CardsInExile::TheCardsConjuredThisWay => {
+                Ok(ObjectFilter::InSet(Box::new(self.conjured_cards()?)))
+            }
+            source::CardsInExile::WasExiledWithDeadPermanent => {
+                Ok(ObjectFilter::ExiledWith(self.dead_object()?))
             }
             source::CardsInExile::WasExiledThisWay => Ok(ObjectFilter::InSet(Box::new(
                 self.this_way_set(Done::Exiled, ObjectPhase::After, None)?,

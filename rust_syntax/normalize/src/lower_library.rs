@@ -7,6 +7,12 @@ impl Context {
                 return Ok(ObjectFilter::SharesNameWith(self.object(p)?))
             }
             S::SharesANameWithSpell(s) => return Ok(ObjectFilter::SharesNameWith(self.spell(s)?)),
+            S::TheCardsConjuredInLibraryThisWay => {
+                return Ok(ObjectFilter::InSet(Box::new(self.conjured_cards()?)))
+            }
+            S::SharesANameWithDeadPermanent => {
+                return Ok(ObjectFilter::SharesNameWith(self.dead_object()?))
+            }
             S::SharesANameWithExiled(c) => {
                 return Ok(ObjectFilter::SharesNameWith(self.exiled_card(c)?))
             }

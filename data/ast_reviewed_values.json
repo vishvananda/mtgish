@@ -12,5 +12,12 @@
   "TheChosenGraveyardCards": "Lowers to the selection result.",
   "TheChosenPermanents": "Lowers to the selection result.",
   "ThisPlane": "Lowers to the ability source.",
-  "XCantBeZero": "Lowers to a casting requirement that X is greater than zero."
+  "XCantBeZero": "Lowers to a casting requirement that X is greater than zero.",
+  "target:Keeper of the Beasts": "The target is a condition of activating; the effect reads nothing of it.",
+  "target:Keeper of the Light": "The target is a condition of activating; the effect reads nothing of it.",
+  "target:Keeper of the Mind": "The target is a condition of activating; the effect reads nothing of it.",
+  "target:Oath of Druids": "The target only tests that an opponent qualifies; the first player acts alone.",
+  "target:Oath of Ghouls": "The target only tests that an opponent qualifies; the first player acts alone.",
+  "target:Oath of Lieges": "The target only tests that an opponent qualifies; the first player acts alone.",
+  "target:Oath of Scholars": "The target only tests that an opponent qualifies; the first player acts alone."
 }

@@ -174,6 +174,12 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
     crate::primitive_spec::lookup(name)?.yields.as_deref()
 }
 
+/// A reviewed row that makes a card a later reference can read.
+pub fn makes_card(operation: &Operation) -> bool {
+    matches!(operation, Operation::Primitive { name, .. }
+        if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft"))
+}
+
 /// What a reviewed row says its body can name.
 pub fn row_bindings(name: &str) -> EventBindings {
     let binds = crate::primitive_spec::lookup(name).map_or(&[][..], |r| &r.binds);
@@ -366,6 +372,7 @@ impl Effects {
                     }
                     Operation::Reveal { .. }
                     | Operation::RevealUntil { .. }
+                    | Operation::RevealUntilGroup { .. }
                     | Operation::Shuffle { .. }
                     | Operation::Scry { .. } => {}
                     Operation::PayCost { cost, .. } => {

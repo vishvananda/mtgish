@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 75;
+pub const SCHEMA_VERSION: u32 = 76;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -560,6 +560,12 @@ impl ObjectDomain {
             zones: vec![EventZone::Stack],
         }
     }
+    pub fn spell_or_permanent() -> Self {
+        Self {
+            kind: ObjectKind::Any,
+            zones: vec![EventZone::Stack, EventZone::Battlefield],
+        }
+    }
     pub fn card(zone: EventZone) -> Self {
         Self {
             kind: ObjectKind::Card,
@@ -942,6 +948,12 @@ pub enum Operation {
         player: PlayerRef,
         options: Vec<(i64, i64)>,
     },
+    /// Reveal from the top of `library` until the revealed cards satisfy these
+    /// group constraints. The result is every revealed card in order.
+    RevealUntilGroup {
+        library: PlayerRef,
+        constraints: Vec<SelectionConstraint>,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct SearchChoice {
@@ -1154,6 +1166,11 @@ pub enum EntryState {
     },
     FaceDown,
     Flipped,
+    /// One exile pile with whatever else this action exiles; shuffled, nobody
+    /// can tell which card came from where.
+    ExilePile {
+        shuffled: bool,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2177,6 +2194,13 @@ pub enum ObjectFilter {
     },
     /// Created or put onto the battlefield by an ability of this object.
     MadeBy(ObjectRef),
+    /// Has a value of this property in common with any of these objects.
+    SharesWithAny {
+        property: DistinctProperty,
+        with: Box<ObjectSet>,
+    },
+    /// Was attached to this object as it last existed.
+    WasAttachedTo(ObjectRef),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

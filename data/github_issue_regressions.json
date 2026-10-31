@@ -11820,5 +11820,281 @@
     "excludes": [
       "ApplyPermanentEffect_It"
     ]
+  },
+  {
+    "name": "Altar of Dementia",
+    "issues": [
+      83
+    ],
+    "contains": [
+      "PlayerAction(Ref_TargetPlayer, MillNumberCards(PowerOfTheSacrificedCreature))"
+    ],
+    "excludes": [
+      "ActionList([MillNumberCards"
+    ]
+  },
+  {
+    "name": "Increasing Confusion",
+    "issues": [
+      83
+    ],
+    "contains": [
+      "PlayerAction(Ref_TargetPlayer, MillNumberCards(Twice"
+    ],
+    "excludes": [
+      "[MillNumberCards(Twice"
+    ]
+  },
+  {
+    "name": "Trenchpost",
+    "issues": [
+      83
+    ],
+    "contains": [
+      "PlayerAction(Ref_TargetPlayer, MillNumberCards("
+    ],
+    "excludes": [
+      "ActionList([MillNumberCards"
+    ]
+  },
+  {
+    "name": "Veteran Ice Climber",
+    "issues": [
+      83
+    ],
+    "contains": [
+      "PlayerAction(Ref_TargetPlayer, MillNumberCards("
+    ],
+    "excludes": [
+      "ActionList([MillNumberCards"
+    ]
+  },
+  {
+    "name": "Helm of Obedience",
+    "issues": [
+      83
+    ],
+    "contains": [
+      "PlayerAction(Ref_TargetPlayer, MillCardsUntil"
+    ],
+    "excludes": [
+      "ActionList([MillCardsUntil"
+    ]
+  },
+  {
+    "name": "Phantasmal Sphere",
+    "issues": [
+      83
+    ],
+    "contains": [
+      "PlayerAction(Ref_TargetPlayer, CreateTokens("
+    ],
+    "excludes": [
+      "ActionList([CreateTokens"
+    ]
+  },
+  {
+    "name": "Auditore Ambush",
+    "issues": [
+      83
+    ],
+    "contains": [
+      "PlayerAction(Ref_TargetPlayer, SearchLibraryAndOrGraveyard("
+    ],
+    "excludes": [
+      "ActionList([SearchLibraryAndOrGraveyard"
+    ]
+  },
+  {
+    "name": "Tunnel Vision",
+    "issues": [
+      83
+    ],
+    "contains": [
+      "PlayerAction(Ref_TargetPlayer, RevealCardsFromTheTopOfLibraryUntil"
+    ],
+    "excludes": [
+      "AnyOracleCard), RevealCardsFromTheTopOfLibraryUntil"
+    ]
+  },
+  {
+    "name": "Rakdos, the Muscle",
+    "issues": [
+      83
+    ],
+    "contains": [
+      "TheTopNumberCardsOfPlayersLibrary(ManaValueOfPermanent(Trigger_ThatPermanent), Ref_TargetPlayer)"
+    ],
+    "excludes": [
+      "TheTopNumberCardsOfLibrary("
+    ]
+  },
+  {
+    "name": "How to Start a Riot",
+    "issues": [
+      83
+    ],
+    "contains": [
+      "ControlledByAPlayer(SinglePlayer(Ref_TargetPlayer))"
+    ],
+    "excludes": [
+      "ControlledByAPlayer(SinglePlayer(You))"
+    ]
+  },
+  {
+    "name": "Selfcraft Mechan",
+    "issues": [
+      83
+    ],
+    "contains": [
+      "ACounterOfTypeOnPermanent(PTCounter(+1, +1), Ref_TargetPermanent)"
+    ],
+    "excludes": [
+      "ACounterOfTypeOnEachPermanent"
+    ]
+  },
+  {
+    "name": "When We Were Young",
+    "issues": [
+      83
+    ],
+    "contains": [
+      "CreateEachPermanentLayerEffectUntil(Ref_TargetPermanents, [AdjustPT(+2, +2)]"
+    ],
+    "excludes": [
+      "CreateEachPermanentLayerEffectUntil(IsCardtype(Creature)"
+    ]
+  },
+  {
+    "name": "Legolas, Master Archer",
+    "issues": [
+      83
+    ],
+    "contains": [
+      "PowerOfPermanent(ThisPermanent), Permanent(Ref_TargetPermanent))"
+    ],
+    "excludes": [
+      "EachPlayer(AnyPlayer)"
+    ]
+  },
+  {
+    "name": "Cracked Earth Technique",
+    "issues": [
+      84
+    ],
+    "contains": [
+      "Earthbend(Ref_TargetPermanent2"
+    ],
+    "excludes": [
+      "Earthbend(Ref_TargetPermanent1, Integer(3)), Earthbend(Ref_TargetPermanent1"
+    ]
+  },
+  {
+    "name": "Crooked Scales",
+    "issues": [
+      84
+    ],
+    "contains": [
+      "FlipACoin_OnWinAndLose([DestroyPermanent(Ref_TargetPermanent1)]"
+    ],
+    "excludes": [
+      "FlipACoin_OnWinAndLose([DestroyPermanent(Ref_TargetPermanent2)]"
+    ]
+  },
+  {
+    "name": "Coastal Discovery",
+    "issues": [
+      84
+    ],
+    "contains": [
+      "AwakenPermanent(Integer(4), Ref_TargetPermanent)"
+    ],
+    "excludes": [
+      "Ref_TargetPermanent2"
+    ]
+  },
+  {
+    "name": "Enduring Courage",
+    "issues": [
+      85
+    ],
+    "contains": [
+      "EntersWithLayerEffect([SetCardtype(Enchantment)])"
+    ],
+    "excludes": [
+      "AddCardtype(Enchantment)"
+    ]
+  },
+  {
+    "name": "Enduring Curiosity",
+    "issues": [
+      85
+    ],
+    "contains": [
+      "EntersWithLayerEffect([SetCardtype(Enchantment)])"
+    ],
+    "excludes": [
+      "AddCardtype(Enchantment)"
+    ]
+  },
+  {
+    "name": "Enduring Friendship",
+    "issues": [
+      85
+    ],
+    "contains": [
+      "EntersWithLayerEffect([SetCardtype(Enchantment)])"
+    ],
+    "excludes": [
+      "AddCardtype(Enchantment)"
+    ]
+  },
+  {
+    "name": "Enduring Innocence",
+    "issues": [
+      85
+    ],
+    "contains": [
+      "EntersWithLayerEffect([SetCardtype(Enchantment)])"
+    ],
+    "excludes": [
+      "AddCardtype(Enchantment)"
+    ]
+  },
+  {
+    "name": "Enduring Tenacity",
+    "issues": [
+      85
+    ],
+    "contains": [
+      "EntersWithLayerEffect([SetCardtype(Enchantment)])"
+    ],
+    "excludes": [
+      "AddCardtype(Enchantment)"
+    ]
+  },
+  {
+    "name": "Enduring Vitality",
+    "issues": [
+      85
+    ],
+    "contains": [
+      "EntersWithLayerEffect([SetCardtype(Enchantment)])"
+    ],
+    "excludes": [
+      "AddCardtype(Enchantment)"
+    ]
+  },
+  {
+    "name": "Valley Floodcaller",
+    "issues": [
+      86
+    ],
+    "contains": [
+      "CreateEachPermanentLayerEffectUntil(And([Or([IsCreatureType(Bird)"
+    ],
+    "excludes": [
+      "ThePermanentsList"
+    ]
   }
 ]

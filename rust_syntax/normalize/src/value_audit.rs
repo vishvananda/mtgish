@@ -40,6 +40,15 @@ fn source_values(value: &Value, integers: &mut BTreeSet<u64>, forms: &mut BTreeS
                         return;
                     }
                 }
+                // Two piles are what `SeparatePiles` means.
+                (Some("SeparatePermanentsIntoNumberPiles"), Some(Value::Array(terms))) => {
+                    if let [objects, count] = &terms[..] {
+                        if integer(count) == Some(2) {
+                            source_values(objects, integers, forms);
+                            return;
+                        }
+                    }
+                }
                 (Some("Integer"), Some(Value::Number(n))) => {
                     integers.extend(n.as_i64().map(i64::unsigned_abs).filter(|n| *n > 1));
                 }
@@ -75,9 +84,59 @@ fn output_values(value: &Value, integers: &mut BTreeSet<u64>, words: &mut BTreeS
     }
 }
 
-fn record(
-    source: &source::OracleCard,
-) -> Result<Option<(String, Vec<u64>, BTreeMap<String, bool>)>> {
+/// Slots read under `value`. A target's own `slot` field announces it.
+fn slot_reads(value: &Value, reads: &mut BTreeSet<u64>) {
+    match value {
+        Value::Array(items) => items.iter().for_each(|item| slot_reads(item, reads)),
+        Value::Object(fields) => fields.iter().for_each(|(name, field)| match name.as_str() {
+            "slot" | "Targets" if field.is_u64() => reads.extend(field.as_u64()),
+            "args" if fields.get("kind").is_some_and(|kind| kind == "Targets") => {
+                reads.extend(field.as_u64())
+            }
+            "targets" => {
+                for spec in field.as_array().into_iter().flatten() {
+                    for (name, part) in spec.as_object().into_iter().flatten() {
+                        if name != "slot" {
+                            slot_reads(part, reads);
+                        }
+                    }
+                }
+            }
+            _ => slot_reads(field, reads),
+        }),
+        _ => {}
+    }
+}
+
+/// Announced target slots nothing in their ability reads. A distributed slot is
+/// read through its shares.
+fn unread_targets(value: &Value, unread: &mut Vec<u64>) {
+    match value {
+        Value::Array(items) => items.iter().for_each(|item| unread_targets(item, unread)),
+        Value::Object(fields) => {
+            let specs = fields.get("announcement").and_then(|a| a.get("targets"));
+            if let Some(specs) = specs.and_then(Value::as_array) {
+                let mut reads = BTreeSet::new();
+                slot_reads(value, &mut reads);
+                unread.extend(
+                    specs
+                        .iter()
+                        .filter(|spec| spec["distribute"].is_null())
+                        .filter_map(|spec| spec["slot"].as_u64())
+                        .filter(|slot| !reads.contains(slot)),
+                );
+            }
+            fields
+                .values()
+                .for_each(|field| unread_targets(field, unread));
+        }
+        _ => {}
+    }
+}
+
+type Audited = (String, Vec<u64>, BTreeMap<String, bool>, Vec<u64>);
+
+fn record(source: &source::OracleCard) -> Result<Option<Audited>> {
     let lowered = crate::unified::lower(source);
     if !lowered.diagnostics.is_empty() || !crate::unified::forms(&lowered.card).named.is_empty() {
         return Ok(None);
@@ -85,11 +144,10 @@ fn record(
     let (mut integers, mut forms) = (BTreeSet::new(), BTreeSet::new());
     source_values(&inspect::value(source)?, &mut integers, &mut forms);
     let (mut kept_integers, mut words) = (BTreeSet::new(), BTreeSet::new());
-    output_values(
-        &serde_json::to_value(&lowered.card)?,
-        &mut kept_integers,
-        &mut words,
-    );
+    let tree = serde_json::to_value(&lowered.card)?;
+    output_values(&tree, &mut kept_integers, &mut words);
+    let mut unread = Vec::new();
+    unread_targets(&tree, &mut unread);
     let name = lowered
         .card
         .faces
@@ -100,10 +158,11 @@ fn record(
         let kept = words.contains(&form);
         (form, kept)
     });
-    Ok(Some((name, lost, forms.collect())))
+    Ok(Some((name, lost, forms.collect(), unread)))
 }
 
-/// Findings not listed in `reviewed`, which maps a form to why its absence is right.
+/// Findings not listed in `reviewed`, which maps a form, or `target:` and a card name,
+/// to why its absence is right.
 pub fn audit(corpus_path: &Path, reviewed: &Path) -> Result<Vec<String>> {
     let reviewed: BTreeMap<String, String> =
         serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(reviewed)?))?;
@@ -113,13 +172,20 @@ pub fn audit(corpus_path: &Path, reviewed: &Path) -> Result<Vec<String>> {
         corpus_path,
         |_, source| record(&source),
         |_, audited| {
-            let Some((name, lost, seen)) = audited else {
+            let Some((name, lost, seen, unread)) = audited else {
                 return Ok(());
             };
             findings.extend(
                 lost.iter()
                     .map(|n| format!("{name}: integer {n} is not in the AST")),
             );
+            if !reviewed.contains_key(&format!("target:{name}")) {
+                findings.extend(
+                    unread
+                        .iter()
+                        .map(|n| format!("{name}: target slot {n} is never read")),
+                );
+            }
             for (form, kept) in seen {
                 let tally = forms.entry(form).or_default();
                 tally.seen += 1;

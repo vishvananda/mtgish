@@ -331,3 +331,58 @@ fn legacy_damage_roles_resolve_from_shared_roles_and_verified_template_shapes() 
     );
     assert!(custom("TriggerA(WhenAPermanentDealsDamageToAPermanent(AnyPermanent, AnyPermanent), ActionList([DestroyPermanent(Trigger_ThatPermanent)]))").is_err());
 }
+
+fn lowered(rule: &str) -> String {
+    format!("{:?}", custom(rule).unwrap_or_else(|e| panic!("{e:?}")))
+}
+
+#[test]
+fn a_reference_cannot_pass_as_a_vocabulary_word() {
+    assert!(custom("SpellActions(ActionList([CounterAbility(Ref_TargetAbility)]))").is_err());
+    let bound = lowered(
+        "SpellActions(Targeted([TargetAbility(AnyAbility)], ActionList([CounterAbility(Ref_TargetAbility)])))",
+    );
+    assert!(bound.contains("Object(Target { slot: Slot(0)"), "{bound}");
+    assert!(!bound.contains("\"Ref_TargetAbility\""), "{bound}");
+}
+
+#[test]
+fn references_read_the_slot_of_their_arity() {
+    let body = lowered(
+        "SpellActions(Targeted([UptoNumberTargetPermanents(Integer(2), AnyPermanent), TargetPermanent(AnyPermanent)], ActionList([DestroyPermanent(Ref_TargetPermanent), DestroyEachPermanent(Ref_TargetPermanents)])))",
+    );
+    assert!(body.contains("objects: One(Target { slot: Slot(1)"), "{body}");
+    assert!(body.contains("objects: Targets(Slot(0))"), "{body}");
+    let numbered = lowered(
+        "SpellActions(Targeted([AnyNumberOfTargetPermanents(AnyPermanent), UptoOneTargetPermanent(AnyPermanent), TargetPermanent(AnyPermanent)], ActionList([DestroyPermanent(Ref_TargetPermanent1), DestroyPermanent(Ref_TargetPermanent2)])))",
+    );
+    assert!(numbered.contains("objects: One(Target { slot: Slot(1)"), "{numbered}");
+    assert!(numbered.contains("objects: One(Target { slot: Slot(2)"), "{numbered}");
+}
+
+#[test]
+fn a_count_inside_a_static_compares_with_the_affected_object() {
+    let body = lowered(
+        "EachPermanentLayerEffect(IsCardtype(Creature), [AdjustPTForEach(+1, +1, TheNumberOfPermanentsOnTheBattlefield(And([Other(EachablePermanent), IsCardtype(Creature)])))])",
+    );
+    assert!(body.contains("Not(SameObject(Affected))"), "{body}");
+    assert!(!body.contains("SameObject(Candidate)"), "{body}");
+}
+
+#[test]
+fn it_after_a_tap_is_the_target_even_if_already_tapped() {
+    let body = lowered(
+        "SpellActions(Targeted([TargetPermanent(AnyPermanent)], ActionList([TapPermanent(Ref_TargetPermanent), PermanentDoesntUntapDuringControllersNextUntap(ThePermanentTappedThisWay)])))",
+    );
+    assert!(body.contains("affected: Objects(One(Target"), "{body}");
+    assert!(!body.contains("Transition"), "{body}");
+}
+
+#[test]
+fn a_cost_any_player_may_pay_is_paid_by_that_player() {
+    let body = lowered(
+        "SpellActions(ActionList([AnyPlayerMayCost(AnyPlayer, HavePermanentDealDamage(ThisPermanent, Integer(4), Player(ActionPlayer)))]))",
+    );
+    assert!(body.contains("PlayerAction { player: FirstWilling"), "{body}");
+    assert!(body.contains("recipients: Players(One(FirstWilling"), "{body}");
+}
