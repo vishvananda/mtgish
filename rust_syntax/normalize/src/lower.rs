@@ -105,6 +105,7 @@ struct Context {
     seeked: Vec<ResultId>,
     /// What the last conjure or draft row made.
     conjured: Option<ResultId>,
+    copied: Option<ResultId>,
     /// The objects the last tap named, so "it" means them even if already tapped.
     tapped: Option<ObjectSet>,
     /// What a separation split and who split it, until a player picks a pile.

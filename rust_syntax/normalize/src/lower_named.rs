@@ -412,7 +412,8 @@ impl Context {
     fn perpetual(&self, value: &source::Action, subject: Option<&Operand>) -> Option<Operation> {
         use source::Action as S;
         let effects = match value {
-            S::CreatePerpetualPermanentEffect(_, effects)
+            S::CreatePerpetualCardsInHandEffect(_, effects)
+            | S::CreatePerpetualPermanentEffect(_, effects)
             | S::CreatePerpetualCardInHandEffect(_, effects)
             | S::CreatePerpetualCardInLibraryEffect(_, effects)
             | S::CreatePerpetualEachPermanentEffect(_, effects)
@@ -423,9 +424,19 @@ impl Context {
             | S::CreatePerpetualSpellEffect(_, effects) => effects,
             _ => return None,
         };
-        let objects = match subject? {
-            Operand::Object(object) => ObjectSet::One(object.clone()),
-            Operand::Objects(objects) => objects.clone(),
+        let hand = |filter| {
+            let you = PlayerSet::One(self.player(&source::Player::You).ok()?);
+            Some(self.private_cards(EventZone::Hand, you, filter))
+        };
+        let objects = match (value, subject) {
+            (S::CreatePerpetualCardInHandEffect(card, _), _) => {
+                ObjectSet::One(self.hand_card(card).ok()?)
+            }
+            (S::CreatePerpetualCardsInHandEffect(cards, _), _) => {
+                hand(self.hand_filter(cards).ok()?)?
+            }
+            (_, Some(Operand::Object(object))) => ObjectSet::One(object.clone()),
+            (_, Some(Operand::Objects(objects))) => objects.clone(),
             _ => return None,
         };
         let layers = effects
@@ -456,6 +467,14 @@ impl Context {
         }
         if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft") {
             self.conjured = Some(result.clone());
+        }
+        let mut operands = operands;
+        if name.starts_with("Action::Copy") && name.contains("Card") {
+            self.copied = Some(result.clone());
+        } else if name.contains("CopiedCard") {
+            if let Some(copies) = &self.copied {
+                operands.push(Operand::Objects(ObjectSet::Copies(copies.clone())));
+            }
         }
         let operation = self
             .perpetual(value, operands.first())

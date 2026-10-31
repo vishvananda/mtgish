@@ -581,6 +581,47 @@ fn an_activation_is_an_event_with_a_stack_filter() {
 }
 
 #[test]
+fn level_up_and_station_are_stages_of_a_counter_count() {
+    let body = lowered(
+        "LevelUp(PayMana([ManaCostGeneric(2)]), [LevelNoRules(BetweenValues(1, 3), PT(4, 4)), Level(ValueOrBigger(4), PT(6, 6), [Trample])])",
+    );
+    assert!(body.contains("counter: Named(LevelCounter)"), "{body}");
+    assert!(
+        body.contains("minimum: 1, maximum: Some(3), power_toughness: Some((4, 4))"),
+        "{body}"
+    );
+    assert!(body.contains("minimum: 4, maximum: None"), "{body}");
+    let body = lowered("StationChargedAnimate(ValueOrBigger(8), [Flying], PT(5, 4))");
+    assert!(body.contains("counter: Named(ChargeCounter)"), "{body}");
+    assert!(body.contains("animates: true"), "{body}");
+}
+
+#[test]
+fn max_speed_is_an_ordinary_condition_and_backup_keeps_its_abilities() {
+    let body = lowered("MaxSpeed(Flying)");
+    assert!(body.contains("Conditional {"), "{body}");
+    assert!(body.contains("state: MaxSpeed"), "{body}");
+    let body = lowered("Backup(2, [Flying])");
+    assert!(body.contains("Backup { amount: 2"), "{body}");
+}
+
+#[test]
+fn casting_on_resolution_is_one_operation() {
+    let body =
+        lowered("SpellActions(ActionList([CastASpellFromHandWithoutPaying(IsCardtype(Sorcery))]))");
+    assert!(body.contains("PlayCards {"), "{body}");
+    assert!(body.contains("action: CastSpell"), "{body}");
+    assert!(body.contains("cost: Free"), "{body}");
+    assert!(body.contains("zone: Hand"), "{body}");
+    assert!(body.contains("into_exile: false"), "{body}");
+    let body = lowered(
+        "SpellActions(Targeted([TargetGraveyardCard(IsNonCardtype(Land))], ActionList([Exile([CardInGraveyards(Ref_TargetGraveyardCard)], []), CopyExiledCard(TheCardExiledThisWay), MayAction(CastCopiedCardWithoutPaying)])))",
+    );
+    assert!(body.contains("CopyCards {"), "{body}");
+    assert!(body.contains("cards: Copies("), "{body}");
+}
+
+#[test]
 fn a_chosen_value_is_one_choice_read_by_kind() {
     let body = lowered("SpellActions(ActionList([ChooseACreatureType]))");
     assert!(body.contains("ChooseValue"), "{body}");

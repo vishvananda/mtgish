@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 89;
+pub const SCHEMA_VERSION: u32 = 90;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -191,6 +191,19 @@ pub enum Ability {
         body: Program,
     },
     /// A keyword ability the rules define, with its parameters.
+    /// Abilities that apply while this many counters are on the permanent:
+    /// level up, with its activated cost, and station.
+    CounterStages {
+        counter: crate::counter::CounterKind,
+        level_up: Option<Cost>,
+        stages: Vec<CounterStage>,
+    },
+    /// "Backup N": when this enters, put counters on a target creature; if it
+    /// is another, it gains `abilities` until end of turn (702.165).
+    Backup {
+        amount: i64,
+        abilities: Vec<Ability>,
+    },
     /// A rule of deck construction or commander choice, never read in a game.
     DeckRule(DeckRule),
     Mechanic {
@@ -752,6 +765,21 @@ pub enum Operation {
         players: PlayerSet,
         amount: Expr,
     },
+    /// Cast or play cards while resolving, as Forge's `Play`.
+    PlayCards {
+        actor: PlayerSet,
+        action: CardPlayAction,
+        cards: ObjectSet,
+        count: Count,
+        cost: PlayCost,
+        into_exile: bool,
+    },
+    /// Copy cards where they are; `ObjectSet::Copies` reads the copies.
+    CopyCards {
+        actor: PlayerSet,
+        objects: ObjectSet,
+        times: Expr,
+    },
     /// Countering is a rules action; the destination applies only if it succeeds.
     Counter {
         objects: ObjectSet,
@@ -1260,6 +1288,16 @@ pub enum MovedCounters {
 }
 /// What a choice of a value picks, as Forge's `ChooseColor`, `ChooseType`,
 /// `NameCard` and `ChooseNumber`.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct CounterStage {
+    pub minimum: i64,
+    pub maximum: Option<i64>,
+    pub power_toughness: Option<(i32, i32)>,
+    /// A station stage makes the permanent an artifact creature.
+    pub animates: bool,
+    pub abilities: Vec<Ability>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PartnerKind {
     Any,
@@ -2402,6 +2440,8 @@ pub enum ObjectSet {
         phase: ObjectPhase,
         player: PlayerRef,
     },
+    /// The copies a `CopyCards` made, wherever they were made.
+    Copies(ResultId),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -3221,6 +3261,7 @@ pub enum PlayerState {
     StartingPlayer,
     InTheirUpkeep,
     InTheirMainPhase,
+    MaxSpeed,
     CompletedDungeon,
     Initiative,
     Descended,

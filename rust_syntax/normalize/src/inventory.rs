@@ -59,6 +59,22 @@ impl Inventory<'_> {
         match a {
             Ability::Named(_) => {}
             Ability::Primitive { name, .. } => self.primitive(name),
+            Ability::CounterStages {
+                counter,
+                level_up,
+                stages,
+            } => {
+                self.form("CounterKind", counter);
+                if let Some(cost) = level_up {
+                    self.cost(cost);
+                }
+                for ability in stages.iter().flat_map(|stage| &stage.abilities) {
+                    self.ability(ability);
+                }
+            }
+            Ability::Backup { abilities, .. } => {
+                abilities.iter().for_each(|a| self.ability(a));
+            }
             Ability::DeckRule(rule) => self.form("DeckRule", rule),
             Ability::Mechanic {
                 mechanic,
@@ -320,6 +336,29 @@ impl Inventory<'_> {
             Operation::Conjure { actor, zone, .. } => {
                 self.form("EventZone", zone);
                 self.players(actor);
+            }
+            Operation::PlayCards {
+                actor,
+                action,
+                cards,
+                count,
+                cost,
+                ..
+            } => {
+                self.players(actor);
+                self.form("CardPlayAction", action);
+                self.objects(cards);
+                self.count(count);
+                self.form("PlayCost", cost);
+            }
+            Operation::CopyCards {
+                actor,
+                objects,
+                times,
+            } => {
+                self.players(actor);
+                self.objects(objects);
+                self.expr(times);
             }
             Operation::ChooseValue { actor, kind, .. } => {
                 self.form("ValueKind", kind);
@@ -1379,7 +1418,8 @@ impl Inventory<'_> {
             ObjectSet::Targets(_)
             | ObjectSet::Selected(_)
             | ObjectSet::Unselected(_)
-            | ObjectSet::Created(_) => {}
+            | ObjectSet::Created(_)
+            | ObjectSet::Copies(_) => {}
         }
     }
     fn player(&mut self, r: &PlayerRef) {

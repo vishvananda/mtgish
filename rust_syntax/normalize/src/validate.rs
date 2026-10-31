@@ -697,6 +697,8 @@ impl<'a> Scope<'a> {
             }
             ObjectSet::Affected(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectSet::Affected(result) => Err(format!("result {} is unavailable", result.0)),
+            ObjectSet::Copies(result) if self.results.contains_key(&result.0) => Ok(()),
+            ObjectSet::Copies(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectSet::Created(result) => match self.results.get(&result.0) {
                 Some(ResultKind::CreatedObjects) => Ok(()),
                 _ => Err(format!(
@@ -1694,6 +1696,25 @@ impl<'a> Scope<'a> {
             Operation::Conjure { actor, entry, .. } => {
                 self.players(actor)?;
                 entry.iter().try_for_each(|o| self.operand(o))
+            }
+            Operation::PlayCards {
+                actor,
+                cards,
+                count,
+                ..
+            } => {
+                self.players(actor)?;
+                self.objects(cards)?;
+                self.count(count)
+            }
+            Operation::CopyCards {
+                actor,
+                objects,
+                times,
+            } => {
+                self.players(actor)?;
+                self.objects(objects)?;
+                self.expr(times)
             }
             Operation::ChooseValue { actor, options, .. } => {
                 self.players(actor)?;
@@ -2762,6 +2783,21 @@ fn validate_ability_in(
     let (announcement, body) = match ability {
         Ability::Named(named) => return scope.named(named),
         Ability::Primitive { name, operands } => return scope.primitive(name, operands),
+        Ability::CounterStages {
+            level_up, stages, ..
+        } => {
+            level_up.iter().try_for_each(|cost| scope.cost(cost))?;
+            for ability in stages.iter().flat_map(|stage| &stage.abilities) {
+                validate_ability_in(ability, zones, casting_costs)?;
+            }
+            return Ok(());
+        }
+        Ability::Backup { abilities, .. } => {
+            for ability in abilities {
+                validate_ability_in(ability, zones, casting_costs)?;
+            }
+            return Ok(());
+        }
         Ability::DeckRule(rule) => {
             return match rule {
                 DeckRule::UpToCopies(count) => scope.expr(count),

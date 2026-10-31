@@ -467,6 +467,11 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
         }
         _ => {}
     }
+    if let Some(operation) =
+        reduce_play(&actor, &name, &operands).or_else(|| reduce_copy(&actor, &name, &operands))
+    {
+        return operation;
+    }
     if let ("Action::CounterAbility", [Operand::Object(object)]) =
         (name.as_str(), operands.as_slice())
     {
@@ -813,6 +818,214 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
     }
 }
 
+fn ability_list(operands: &[Operand]) -> Option<Vec<Ability>> {
+    operands
+        .iter()
+        .map(|operand| match operand {
+            Operand::Ability(ability) => Some((**ability).clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+fn game_range(operand: &Operand) -> Option<(i64, Option<i64>)> {
+    let Operand::Term { form, operands, .. } = operand else {
+        return None;
+    };
+    match (form.as_str(), operands.as_slice()) {
+        ("BetweenValues", [Operand::Integer(low), Operand::Integer(high)]) => {
+            Some((*low, Some(*high)))
+        }
+        ("ValueOrBigger", [Operand::Integer(low)]) => Some((*low, None)),
+        ("ExactValue", [Operand::Integer(value)]) => Some((*value, Some(*value))),
+        _ => None,
+    }
+}
+
+fn printed_pt(operand: &Operand) -> Option<(i32, i32)> {
+    let Operand::Term { form, operands, .. } = operand else {
+        return None;
+    };
+    match (form.as_str(), operands.as_slice()) {
+        ("PT", [Operand::Integer(power), Operand::Integer(toughness)]) => {
+            Some(((*power).try_into().ok()?, (*toughness).try_into().ok()?))
+        }
+        _ => None,
+    }
+}
+
+/// Level up and station: both are abilities gated by a counter count.
+fn staged_ability(name: &str, operands: &[Operand]) -> Option<Ability> {
+    use crate::counter::{CounterKind, CounterName};
+    let (level_up, stages, counter) = match (name, operands) {
+        ("Rule::LevelUp", [Operand::Cost(cost), Operand::List(levels)]) => {
+            let stages = levels
+                .iter()
+                .map(|level| {
+                    let Operand::Term { form, operands, .. } = level else {
+                        return None;
+                    };
+                    let (range, pt, abilities) = match (form.as_str(), operands.as_slice()) {
+                        ("Level", [range, pt, Operand::List(abilities)]) => {
+                            (range, pt, ability_list(abilities)?)
+                        }
+                        ("LevelNoRules", [range, pt]) => (range, pt, vec![]),
+                        _ => return None,
+                    };
+                    let (minimum, maximum) = game_range(range)?;
+                    Some(CounterStage {
+                        minimum,
+                        maximum,
+                        power_toughness: Some(printed_pt(pt)?),
+                        animates: false,
+                        abilities,
+                    })
+                })
+                .collect::<Option<Vec<_>>>()?;
+            (Some(cost.clone()), stages, CounterName::LevelCounter)
+        }
+        ("Rule::StationChargedAnimate", [range, Operand::List(abilities), pt]) => {
+            let (minimum, maximum) = game_range(range)?;
+            let stage = CounterStage {
+                minimum,
+                maximum,
+                power_toughness: Some(printed_pt(pt)?),
+                animates: true,
+                abilities: ability_list(abilities)?,
+            };
+            (None, vec![stage], CounterName::ChargeCounter)
+        }
+        ("Rule::StationCharged", [range, Operand::List(abilities)]) => {
+            let (minimum, maximum) = game_range(range)?;
+            let stage = CounterStage {
+                minimum,
+                maximum,
+                power_toughness: None,
+                animates: false,
+                abilities: ability_list(abilities)?,
+            };
+            (None, vec![stage], CounterName::ChargeCounter)
+        }
+        _ => return None,
+    };
+    Some(Ability::CounterStages {
+        counter: CounterKind::Named(counter),
+        level_up,
+        stages,
+    })
+}
+
+/// Forms that cast or play on resolution, with no effect or restriction of
+/// their own. Each says what it offers in its operands.
+const PLAY_FORMS: &[&str] = &[
+    "CastACopiedCardWithoutPaying",
+    "CastASpellFromExile",
+    "CastASpellFromExileWithoutPaying",
+    "CastASpellFromHandWithoutPaying",
+    "CastAnyNumberOfCopiedCards",
+    "CastAnyNumberOfCopiedCardsWithoutPaying",
+    "CastAnyNumberOfExiledCardsWithoutPaying",
+    "CastAnyNumberOfGraveyardCardsWithoutPayingIntoExile",
+    "CastAnyNumberOfSpellsFromExileWithoutPaying",
+    "CastAnyNumberOfSpellsFromHandWithoutPaying",
+    "CastCardInHandWithoutPaying",
+    "CastCopiedCard",
+    "CastCopiedCardWithoutPaying",
+    "CastExiledCardWithoutPaying",
+    "CastExiledCardWithoutPayingIntoExile",
+    "CastGraveyardCard",
+    "CastGraveyardCardIntoExile",
+    "CastGraveyardCardWithoutPaying",
+    "CastGraveyardCardWithoutPayingIntoExile",
+    "CastSpellFromExile",
+    "CastSpellFromExileWithoutPaying",
+    "CastUptoNumberCopiedCardsWithoutPaying",
+    "CastUptoNumberExiledCardsWithoutPaying",
+    "CastUptoNumberSpellsFromExileWithoutPaying",
+    "CastUptoNumberSpellsFromHandWithoutPaying",
+    "PlayACardFromExileWithoutPaying",
+    "PlayAnyNumberOfExiledCards",
+    "PlayExiledCard",
+    "PlayExiledCardWithoutPaying",
+    "PlayGraveyardCardWithoutPaying",
+];
+
+fn reduce_play(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option<Operation> {
+    let form = name.strip_prefix("Action::")?;
+    if !PLAY_FORMS.contains(&form) {
+        return None;
+    }
+    let (count, rest) = match operands {
+        _ if form.contains("AnyNumber") => (Count::AnyNumber, operands),
+        [Operand::Number(n), rest @ ..] if form.contains("Upto") => (Count::UpTo(n.clone()), rest),
+        _ => (Count::Exactly(Expr::Constant(1)), operands),
+    };
+    let cards = match rest {
+        [Operand::Object(card)] => ObjectSet::One(card.clone()),
+        [Operand::Objects(cards)] => cards.clone(),
+        [Operand::Filter(filter)] if form.contains("FromHand") => ObjectSet::Zone {
+            scope: ZoneScope::Players {
+                zone: EventZone::Hand,
+                players: actor.clone(),
+            },
+            kind: ObjectKind::Card,
+            filter: filter.clone(),
+        },
+        [Operand::Filter(filter), Operand::Object(card)] => ObjectSet::Matching {
+            objects: Box::new(ObjectSet::One(card.clone())),
+            filter: filter.clone(),
+        },
+        [Operand::Filter(filter), Operand::Objects(cards)] => ObjectSet::Matching {
+            objects: Box::new(cards.clone()),
+            filter: filter.clone(),
+        },
+        _ => return None,
+    };
+    Some(Operation::PlayCards {
+        actor: actor.clone(),
+        action: if form.starts_with("Cast") {
+            CardPlayAction::CastSpell
+        } else {
+            CardPlayAction::Either
+        },
+        cards,
+        count,
+        cost: if form.contains("WithoutPaying") {
+            PlayCost::Free
+        } else {
+            PlayCost::Normal
+        },
+        into_exile: form.ends_with("IntoExile"),
+    })
+}
+
+fn reduce_copy(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option<Operation> {
+    let objects = match operands.first()? {
+        Operand::Object(card) => ObjectSet::One(card.clone()),
+        Operand::Objects(cards) => cards.clone(),
+        _ => return None,
+    };
+    let times = match (name, &operands[1..]) {
+        (
+            "Action::CopyExiledCard"
+            | "Action::CopyExiledCards"
+            | "Action::CopyAnExiledCard"
+            | "Action::CopyCardInHand",
+            [],
+        ) => Expr::Constant(1),
+        (
+            "Action::CopyExiledCardNumberTimes" | "Action::CopyAnExiledCardNumberTimes",
+            [Operand::Number(times)],
+        ) => times.clone(),
+        _ => return None,
+    };
+    Some(Operation::CopyCards {
+        actor: actor.clone(),
+        objects,
+        times,
+    })
+}
+
 fn deck_rule(name: &str, operands: &[Operand]) -> Option<DeckRule> {
     let form = name.strip_prefix("DeckConstruction::")?;
     Some(match (form, operands) {
@@ -847,6 +1060,30 @@ fn deck_rule(name: &str, operands: &[Operand]) -> Option<DeckRule> {
 pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
     if let Some(rule) = deck_rule(&name, &operands) {
         return Ability::DeckRule(rule);
+    }
+    if let Some(ability) = staged_ability(&name, &operands) {
+        return ability;
+    }
+    match (name.as_str(), operands.as_slice()) {
+        ("Rule::MaxSpeed", [Operand::Ability(ability)]) => {
+            return Ability::Conditional {
+                condition: Condition::PlayerState {
+                    player: PlayerRef::AbilityController,
+                    state: PlayerState::MaxSpeed,
+                },
+                then: vec![(**ability).clone()],
+                otherwise: vec![],
+            }
+        }
+        ("Rule::Backup", [Operand::Integer(amount), Operand::List(abilities)]) => {
+            if let Some(abilities) = ability_list(abilities) {
+                return Ability::Backup {
+                    amount: *amount,
+                    abilities,
+                };
+            }
+        }
+        _ => {}
     }
     let Some((_, mechanic)) = MECHANICS.iter().find(|(row, _)| *row == name) else {
         return Ability::Primitive { name, operands };
@@ -1821,6 +2058,8 @@ impl Effects {
                     | Operation::CreateEmblem { .. }
                     | Operation::MoveCounters { .. }
                     | Operation::DoubleCounters { .. }
+                    | Operation::PlayCards { .. }
+                    | Operation::CopyCards { .. }
                     | Operation::Conjure { .. } => self.library = true,
                 },
                 Instruction::Group(p) | Instruction::Optional { body: p, .. } => self.program(p),
@@ -1914,9 +2153,10 @@ impl Effects {
             ObjectSet::Transition { result, phase } | ObjectSet::MovedBy { result, phase, .. } => {
                 self.result_library(result, phase)
             }
-            ObjectSet::Battlefield(_) | ObjectSet::Created(_) | ObjectSet::DamageSources(_) => {
-                false
-            }
+            ObjectSet::Battlefield(_)
+            | ObjectSet::Created(_)
+            | ObjectSet::Copies(_)
+            | ObjectSet::DamageSources(_) => false,
             ObjectSet::EventGroup
             | ObjectSet::Damage(_)
             | ObjectSet::CostObjects { .. }
