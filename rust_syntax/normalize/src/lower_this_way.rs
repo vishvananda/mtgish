@@ -72,6 +72,50 @@ impl Context {
         })
     }
 
+    fn this_way_greatest(
+        &self,
+        done: Done,
+        phase: ObjectPhase,
+        filter: Option<ObjectFilter>,
+        property: Property,
+    ) -> Result<Expr> {
+        Ok(Expr::Aggregate {
+            objects: Box::new(self.this_way_set(done, phase, filter)?),
+            property,
+            aggregation: Aggregation::Maximum,
+        })
+    }
+
+    fn this_way_types(&self, done: Done, phase: ObjectPhase) -> Result<Expr> {
+        Ok(Expr::CountDistinct {
+            objects: Box::new(self.this_way_set(done, phase, None)?),
+            property: DistinctProperty::CardTypes,
+        })
+    }
+
+    /// What a reveal or seek left in a hand, or else what went back to one.
+    fn this_way_to_hand(&self) -> Result<ObjectSet> {
+        match &self.to_hand {
+            Some(result) => Ok(ObjectSet::Transition {
+                result: result.clone(),
+                phase: ObjectPhase::After,
+            }),
+            None => self.this_way_set(Done::Returned, ObjectPhase::After, None),
+        }
+    }
+
+    /// What entered, by an action or by a cost.
+    fn this_way_entered(&self, filter: Option<ObjectFilter>) -> Result<ObjectSet> {
+        let entered = self.objects(&source::Permanents::ThePermanentsPutOnTheBattlefieldThisWay)?;
+        Ok(match filter {
+            Some(filter) => ObjectSet::Matching {
+                objects: Box::new(entered),
+                filter,
+            },
+            None => entered,
+        })
+    }
+
     fn excess_dealt(&self, to: ObjectFilter) -> Result<Expr> {
         Ok(Expr::ExcessDamage {
             result: self.done(Done::Damage)?,
@@ -176,6 +220,59 @@ impl Context {
             S::TotalPowerOfPermanentsExiledThisWay(p) => {
                 self.this_way_total(Done::Exiled, Before, permanents(p)?, Property::Power)
             }
+            S::TheNumberOfCardsPutIntoHandThisWay => {
+                Ok(Expr::CountObjects(Box::new(self.this_way_to_hand()?)))
+            }
+            S::ManaValueOfCardPutInHandThisWay => Ok(Expr::Aggregate {
+                objects: Box::new(self.this_way_to_hand()?),
+                property: Property::ManaValue,
+                aggregation: Aggregation::Sum,
+            }),
+            S::TheNumberOfPermanentsPutIntoAPlayersGraveyardThisWay(p, players) => self
+                .this_way_count(
+                    Done::Graveyard,
+                    Before,
+                    Some(ObjectFilter::All(vec![
+                        self.filter(p)?,
+                        ObjectFilter::OwnedBy(self.players(players)?),
+                    ])),
+                ),
+            S::TheNumberOfPermanentsThatDiedThisWay(p) => {
+                self.this_way_count(Done::Graveyard, Before, permanents(p)?)
+            }
+            S::TheNumberOfCardtypesAmongCardsDiscardedThisWay
+            | S::NumCardTypesOfCardDiscardedThisWay => self.this_way_types(Done::Discarded, After),
+            S::TheNumberOfCardTypesAmongCardsPutInGraveyardThisWay => {
+                self.this_way_types(Done::Graveyard, After)
+            }
+            S::TheGreatestManaValueAmongTheCardsDiscardedThisWay => {
+                self.this_way_greatest(Done::Discarded, After, None, Property::ManaValue)
+            }
+            S::HighestManaValueAmongCardsMilledThisWay => {
+                self.this_way_greatest(Done::Milled, After, None, Property::ManaValue)
+            }
+            S::TheGreatestPowerAmongCardsPutIntoGraveyardThisWay(c) => {
+                self.this_way_greatest(Done::Graveyard, After, cards(c)?, Property::Power)
+            }
+            S::TheNumberOfPermanentsPutOntoTheBattlefieldThisWay(p) => Ok(Expr::CountObjects(
+                Box::new(self.this_way_entered(permanents(p)?)?),
+            )),
+            S::TheNumberOfCardsReturnedToTheBattlefieldThisWay => {
+                Ok(Expr::CountObjects(Box::new(self.this_way_entered(None)?)))
+            }
+            S::TheNumberOfPermanentsGainedControlOfThisWay => Ok(Expr::CountObjects(Box::new(
+                ObjectSet::Affected(self.done(Done::Effect)?),
+            ))),
+            S::TheNumberOfPermanentsThatHadCountersPutOnItThisWay => Ok(Expr::CountObjects(
+                Box::new(ObjectSet::Affected(self.done(Done::Counters)?)),
+            )),
+            S::TheNumberOfCountersPutThisWay => Ok(Expr::Performed(self.done(Done::Counters)?)),
+            S::TheTotalAmountOfManaPaidThisWay => self.number(&S::AmountOfManaPaidThisWay),
+            S::TheNumberOfLibraryCardsRevealedThisWay => self
+                .revealed
+                .clone()
+                .map(|objects| Expr::CountObjects(Box::new(objects)))
+                .ok_or_else(|| invalid("no card was revealed in this scope")),
             _ => Err(unsupported(value)),
         })())
         .filter(|result| !matches!(result, Err(e) if e.source_type != "invariant"))

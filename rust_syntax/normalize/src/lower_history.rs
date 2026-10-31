@@ -77,6 +77,14 @@ impl Context {
         }
     }
 
+    /// One player attacking another.
+    fn player_pair(attackers: PlayerSet, attacked: PlayerSet) -> EventSpec {
+        EventSpec::Primitive {
+            name: "Trigger::WhenAPlayerAttacksAPlayer".into(),
+            operands: vec![Operand::Players(attackers), Operand::Players(attacked)],
+        }
+    }
+
     fn drew_event(players: PlayerSet) -> EventSpec {
         Self::player_event("Trigger::WhenAPlayerDrawsACard", players)
     }
@@ -158,6 +166,94 @@ impl Context {
             S::TimesThisAbilityHasBeenActivatedThisTurnIs(comparison) => {
                 self.history_compare(Expr::TimesActivatedThisTurn, comparison)
             }
+            S::APermanentWasPutIntoAPlayersGraveyardThisTurn(objects, players) => {
+                Ok(Self::happened(
+                    Self::died_event(ObjectFilter::All(vec![
+                        self.filter(objects)?,
+                        ObjectFilter::OwnedBy(self.players(players)?),
+                    ])),
+                    W::ThisTurn,
+                ))
+            }
+            S::APermanentWasPutIntoPlayersGraveyardThisTurn(objects, player) => {
+                Ok(Self::happened(
+                    Self::died_event(ObjectFilter::All(vec![
+                        self.filter(objects)?,
+                        ObjectFilter::OwnedBy(PlayerSet::One(self.player(player)?)),
+                    ])),
+                    W::ThisTurn,
+                ))
+            }
+            S::APermanentEnteredTheBattlefieldUnderAPlayersControlThisTurn(objects, players) => {
+                Ok(Self::happened(
+                    Self::entered_event(ObjectFilter::All(vec![
+                        self.filter(objects)?,
+                        ObjectFilter::ControlledBy(self.players(players)?),
+                    ])),
+                    W::ThisTurn,
+                ))
+            }
+            S::ACardOfTypeWasExiledThisTurn(cards) => Ok(Self::happened(
+                EventSpec::ZoneChange {
+                    objects: self.exile_filter(cards)?,
+                    from: None,
+                    to: EventZone::Exile,
+                },
+                W::ThisTurn,
+            )),
+            S::ANumberOfCardsWerePutIntoExileThisTurn(comparison, cards) => self.history_compare(
+                Self::history(
+                    EventSpec::ZoneChange {
+                        objects: self.card_filter(cards)?,
+                        from: None,
+                        to: EventZone::Exile,
+                    },
+                    W::ThisTurn,
+                    M::Occurrences,
+                ),
+                comparison,
+            ),
+            S::ANumberOfCardsWerePutIntoPlayersGraveyardFromAnywhereThisTurn(
+                comparison,
+                cards,
+                players,
+            ) => self.history_compare(
+                Self::history(
+                    EventSpec::ZoneChange {
+                        objects: ObjectFilter::All(vec![
+                            self.card_filter(cards)?,
+                            ObjectFilter::OwnedBy(self.players(players)?),
+                        ]),
+                        from: None,
+                        to: EventZone::Graveyard,
+                    },
+                    W::ThisTurn,
+                    M::Occurrences,
+                ),
+                comparison,
+            ),
+            S::APermanentWasReturnedToPlayersHandThisTurn(objects, player) => Ok(Self::happened(
+                EventSpec::ZoneChange {
+                    objects: ObjectFilter::All(vec![
+                        self.filter(objects)?,
+                        ObjectFilter::OwnedBy(PlayerSet::One(self.player(player)?)),
+                    ]),
+                    from: Some(EventZone::Battlefield),
+                    to: EventZone::Hand,
+                },
+                W::ThisTurn,
+            )),
+            S::APermanentExploredThisTurn(objects) => Ok(Self::happened(
+                self.trigger(&source::Trigger::WhenAPermanentExplores(objects.clone()))?,
+                W::ThisTurn,
+            )),
+            S::APermanentAttackedThisCombat(objects) => Ok(Self::happened(
+                EventSpec::Object {
+                    event: ObjectEvent::Attacks,
+                    objects: self.filter(objects)?,
+                },
+                W::ThisCombat,
+            )),
             S::ANumberOfPermanentsDiedThisTurn(comparison, objects) => self.history_compare(
                 Self::history(
                     Self::died_event(self.filter(objects)?),
@@ -205,8 +301,118 @@ impl Context {
             )
         };
         let dealt = |sources, kind, window| Self::happened(to_them(sources, kind), window);
+        // A trigger row's event, with this player as its first operand.
+        let by_them = |trigger: source::Trigger| -> Result<EventSpec> {
+            let mut event = self.trigger(&trigger)?;
+            match &mut event {
+                EventSpec::Primitive { operands, .. } => operands[0] = Operand::Players(one()),
+                _ => return Err(unsupported(&trigger)),
+            }
+            Ok(event)
+        };
+        let any_player = || Box::new(source::Players::AnyPlayer);
+        let any_permanent = || Box::new(source::Permanents::AnyPermanent);
+        let played = || {
+            by_them(source::Trigger::WhenAPlayerPlaysALand(
+                any_player(),
+                any_permanent(),
+            ))
+        };
+        let attacked_by = |player: &source::Player| -> Result<EventSpec> {
+            Ok(Self::player_pair(
+                PlayerSet::One(self.player(player)?),
+                one(),
+            ))
+        };
+        let attacked_them = |player: &source::Player| -> Result<EventSpec> {
+            Ok(Self::player_pair(
+                one(),
+                PlayerSet::One(self.player(player)?),
+            ))
+        };
+        let activated = |abilities: &source::ActivatedAbilities| {
+            by_them(source::Trigger::WhenAPlayerActivatesAnAbility(
+                any_player(),
+                Box::new(abilities.clone()),
+            ))
+        };
+        let not = |condition| Condition::Not(Box::new(condition));
         (|| -> Result<Condition> {
             Ok(match value {
+                S::LifeTotalIs(comparison) => {
+                    self.history_compare(Expr::PlayerLife(player.clone()), comparison)?
+                }
+                S::SacrificedNumPermanentsThisTurn(comparison, objects) => self.history_compare(
+                    Self::history(
+                        by_them(source::Trigger::WhenAPlayerSacrificesAPermanent(
+                            any_player(),
+                            objects.clone(),
+                        ))?,
+                        W::ThisTurn,
+                        M::Occurrences,
+                    ),
+                    comparison,
+                )?,
+                S::LostLifeLastTurn => Self::happened(Self::life_event(false, one()), W::LastTurn),
+                S::DidntLoseLifeThisTurn => {
+                    not(Self::happened(Self::life_event(false, one()), W::ThisTurn))
+                }
+                S::DrewACardLastTurn => Self::happened(Self::drew_event(one()), W::LastTurn),
+                S::AttackedWithCreaturesThisTurn => Self::happened(
+                    Self::player_event("Trigger::WhenAPlayerAttacks", one()),
+                    W::ThisTurn,
+                ),
+                S::DidntAttackWithCreaturesThisTurn => not(Self::happened(
+                    Self::player_event("Trigger::WhenAPlayerAttacks", one()),
+                    W::ThisTurn,
+                )),
+                S::CreatedATokenThisTurn => Self::happened(
+                    by_them(source::Trigger::WhenAPlayerCreatesAToken(
+                        any_player(),
+                        any_permanent(),
+                    ))?,
+                    W::ThisTurn,
+                ),
+                S::DidntCastASpellThisTurn(spells) => not(Self::happened(
+                    Self::cast_event(one(), self.spell_filter(spells)?),
+                    W::ThisTurn,
+                )),
+                S::CastASpellThisGame(spells) => Self::happened(
+                    Self::cast_event(one(), self.spell_filter(spells)?),
+                    W::ThisGame,
+                ),
+                S::HasntCastASpellThisGame(spells) => not(Self::happened(
+                    Self::cast_event(one(), self.spell_filter(spells)?),
+                    W::ThisGame,
+                )),
+                S::PlayedALandThisTurn => Self::happened(played()?, W::ThisTurn),
+                S::DidntPlayALandThisTurn => not(Self::happened(played()?, W::ThisTurn)),
+                S::SearchedTheirLibraryThisTurn => Self::happened(
+                    Self::player_event("Trigger::WhenAPlayerSearchesTheirLibrary", one()),
+                    W::ThisTurn,
+                ),
+                S::SurveilledThisTurn => Self::happened(
+                    Self::player_event("Trigger::WhenAPlayerSurveils", one()),
+                    W::ThisTurn,
+                ),
+                S::AttackedByPlayerThisTurn(attacker) => {
+                    Self::happened(attacked_by(attacker)?, W::ThisTurn)
+                }
+                S::AttackedByPlayerThisCombat(attacker) => {
+                    Self::happened(attacked_by(attacker)?, W::ThisCombat)
+                }
+                S::AttackedPlayerLastTurn(attacked) => {
+                    Self::happened(attacked_them(attacked)?, W::LastTurn)
+                }
+                S::DidntAttackPlayerThisTurn(attacked) => {
+                    not(Self::happened(attacked_them(attacked)?, W::ThisTurn))
+                }
+                S::HasActivatedAnAbilityThisTurn(abilities) => {
+                    Self::happened(activated(abilities)?, W::ThisTurn)
+                }
+                S::DidntActivateAnAbilityThisTurn(abilities) => {
+                    not(Self::happened(activated(abilities)?, W::ThisTurn))
+                }
                 S::CastASpellThisTurn(spells) => Self::happened(
                     Self::cast_event(one(), self.spell_filter(spells)?),
                     W::ThisTurn,
@@ -444,6 +650,31 @@ impl Context {
                 S::EnteredTheBattlefieldThisTurn => {
                     Self::happened(Self::entered_event(this()), W::ThisTurn)
                 }
+                S::DidntEnterTheBattlefieldThisTurn => Condition::Not(Box::new(Self::happened(
+                    Self::entered_event(this()),
+                    W::ThisTurn,
+                ))),
+                S::EnteredTheBattlefieldUnderPlayersControlThisTurn(player) => Self::happened(
+                    Self::entered_event(ObjectFilter::All(vec![
+                        this(),
+                        ObjectFilter::ControlledBy(PlayerSet::One(self.player(player)?)),
+                    ])),
+                    W::ThisTurn,
+                ),
+                S::WasBlockedThisTurn => Self::happened(
+                    EventSpec::Object {
+                        event: ObjectEvent::BecomesBlocked,
+                        objects: this(),
+                    },
+                    W::ThisTurn,
+                ),
+                S::WasTurnedFaceUpThisTurn => Self::happened(
+                    EventSpec::Object {
+                        event: ObjectEvent::TurnsFaceUp,
+                        objects: this(),
+                    },
+                    W::ThisTurn,
+                ),
                 S::AttackedThisTurn => attacked(),
                 S::AttackedThisCombat | S::BlockedThisCombat => Self::happened(
                     EventSpec::Object {
@@ -570,7 +801,143 @@ impl Context {
                 M::TotalAmount,
             )
         };
+        let some = |p: &source::Player| source::Players::SinglePlayer(Box::new(p.clone()));
+        let every = || source::Players::AnyPlayer;
+        let boxed = |value: &source::Permanents| Box::new(value.clone());
+        let happened = |trigger: source::Trigger, measure| {
+            Some(Self::history(self.trigger(&trigger).ok()?, W::ThisTurn, measure))
+        };
+        let zones = |objects, from, to| {
+            Self::history(
+                EventSpec::ZoneChange { objects, from, to },
+                W::ThisTurn,
+                M::Occurrences,
+            )
+        };
+        let owned = |objects, players| ObjectFilter::All(vec![objects, ObjectFilter::OwnedBy(players)]);
+        let attacks = |objects| {
+            Self::history(
+                EventSpec::Object {
+                    event: ObjectEvent::Attacks,
+                    objects,
+                },
+                W::ThisTurn,
+                M::Occurrences,
+            )
+        };
+        use source::Trigger as T;
         Some(match value {
+            S::NumSpellsCastThisTurn(spells) => Self::history(
+                Self::cast_event(PlayerSet::All, self.spell_filter(spells).ok()?),
+                W::ThisTurn,
+                M::Occurrences,
+            ),
+            S::NumSpellsCastByAnyPlayerThisTurn(spells, players) => Self::history(
+                Self::cast_event(self.players(players).ok()?, self.spell_filter(spells).ok()?),
+                W::ThisTurn,
+                M::Occurrences,
+            ),
+            S::NumberOfPermanentsSacrificedByPlayerThisTurn(objects, p) => happened(
+                T::WhenAPlayerSacrificesAPermanent(Box::new(some(p)), boxed(objects)),
+                M::Occurrences,
+            )?,
+            S::TheNumberOfPermanentsSacrificedThisTurn(objects) => happened(
+                T::WhenAPlayerSacrificesAPermanent(Box::new(every()), boxed(objects)),
+                M::Occurrences,
+            )?,
+            S::TheTotalNumberOfTokensPlayersCreatedThisTurn(objects, players) => happened(
+                T::WhenAPlayerCreatesAToken(players.clone(), boxed(objects)),
+                M::Occurrences,
+            )?,
+            S::TheNumberOfCountersPlayersHavePutOnPermanentsThisTurn(players, objects) => happened(
+                T::WhenAPlayerPutsAnyNumberOfCountersOnAPermanent(players.clone(), boxed(objects)),
+                M::TotalAmount,
+            )?,
+            S::TheNumberOfCountersOfTypePlayersHavePutOnPermanentsThisTurn(kind, players, objects) => {
+                happened(
+                    T::WhenAPlayerPutsAnyNumberOfCountersOfTypeOnAPermanent(
+                        players.clone(),
+                        kind.clone(),
+                        boxed(objects),
+                    ),
+                    M::TotalAmount,
+                )?
+            }
+            S::TheNumberOfCountersOfTypePutOnPermanentsThisTurn(kind, objects) => happened(
+                T::WhenAnyNumberOfCountersOfTypeArePutOnAPermanent(kind.clone(), boxed(objects)),
+                M::TotalAmount,
+            )?,
+            S::TheNumberOfCountersPutOnPermanentsThisTurn(objects) => happened(
+                T::WhenAnyNumberOfCountersArePutOnAPermanent(boxed(objects)),
+                M::TotalAmount,
+            )?,
+            S::TheNumberOfCountersOfTypeRemovedFromPermanentsThisTurn(kind, objects) => happened(
+                T::WhenAnyNumberOfCountersOfTypeAreRemovedFromAPermanent(
+                    kind.clone(),
+                    boxed(objects),
+                ),
+                M::TotalAmount,
+            )?,
+            S::TheNumberOfCreaturesThatAttackedThisTurn(objects) => {
+                attacks(self.filter(objects).ok()?)
+            }
+            S::NumCreaturesPlayerAttackedWithThisTurn(objects, p) => attacks(ObjectFilter::All(vec![
+                self.filter(objects).ok()?,
+                ObjectFilter::ControlledBy(one(p)?),
+            ])),
+            S::NumTimesPermanentAttackedThisTurn(object) => {
+                attacks(ObjectFilter::SameObject(self.object(object).ok()?))
+            }
+            S::TheNumberOfPermanentsPutIntoAPlayersGraveyardThisTurn(objects, players) => zones(
+                owned(self.filter(objects).ok()?, self.players(players).ok()?),
+                Some(EventZone::Battlefield),
+                EventZone::Graveyard,
+            ),
+            S::NumCardsPutIntoGraveyardFromAnywhereThisTurn(cards, p) => zones(
+                owned(self.card_filter(cards).ok()?, one(p)?),
+                None,
+                EventZone::Graveyard,
+            ),
+            S::TheNumberOfCardsPutIntoAPlayersGraveyardFromTheirLibraryThisTurn(players) => zones(
+                ObjectFilter::OwnedBy(self.players(players).ok()?),
+                Some(EventZone::Library),
+                EventZone::Graveyard,
+            ),
+            S::TheNumberOfPermanentsExiledThisTurn(objects) => zones(
+                self.filter(objects).ok()?,
+                Some(EventZone::Battlefield),
+                EventZone::Exile,
+            ),
+            S::TheNumberOfPermanentsThatLeftTheBattlefieldUnderPlayersControlThisTurn(objects, p) => {
+                Self::history(
+                    EventSpec::Object {
+                        event: ObjectEvent::LeavesBattlefield,
+                        objects: ObjectFilter::All(vec![
+                            self.filter(objects).ok()?,
+                            ObjectFilter::ControlledBy(one(p)?),
+                        ]),
+                    },
+                    W::ThisTurn,
+                    M::Occurrences,
+                )
+            }
+            S::TheTotalNumberOfCardsDrawnByPlayesThisTurn(players) => Self::history(
+                Self::drew_event(self.players(players).ok()?),
+                W::ThisTurn,
+                M::Occurrences,
+            ),
+            S::TheNumberOfCardsInPlayersGraveyardThatWerePutThereFromTheBattlefieldThisTurn(cards, p) => {
+                Expr::CountObjects(Box::new(self.private_cards(
+                    EventZone::Graveyard,
+                    one(p)?,
+                    ObjectFilter::All(vec![
+                        self.card_filter(cards).ok()?,
+                        ObjectFilter::ArrivedThisTurn {
+                            from: Some(EventZone::Battlefield),
+                        },
+                    ]),
+                )))
+            }
             S::NumCreaturesOrPlaneswalkersThatDiedThisTurn(objects) => Self::history(
                 Self::died_event(self.filter(objects).ok()?),
                 W::ThisTurn,

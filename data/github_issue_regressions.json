@@ -11605,5 +11605,17 @@
       "Targeted([TargetPlayer(Opponent)]"
     ],
     "excludes": []
+  },
+  {
+    "name": "Perennial Gravewarden",
+    "issues": [
+      79
+    ],
+    "contains": [
+      "APermanentEnteredTheBattlefieldUnderAPlayersControlThisTurn(IsCardtype(Creature), AnyPlayer)"
+    ],
+    "excludes": [
+      "APermanentExploredThisTurn"
+    ]
   }
 ]

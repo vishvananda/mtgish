@@ -265,6 +265,19 @@
       }
     },
     {
+      "id": "selector.Permanents.IsntBlocking",
+      "domain": "Permanents",
+      "source": "IsntBlocking",
+      "arity": 0,
+      "predicate": {
+        "kind": "Not",
+        "predicate": {
+          "kind": "Literal",
+          "value": "Blocking"
+        }
+      }
+    },
+    {
       "id": "selector.Permanents.IsModified",
       "domain": "Permanents",
       "source": "IsModified",

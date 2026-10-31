@@ -2974,7 +2974,9 @@ fn a_target_player_can_carry_a_condition() {
 fn an_action_reads_its_own_actor_library_and_battlefield() {
     let text = ability_json("TriggerA(AtTheBeginningOfAPlayersDrawStep(AnyPlayer),ActionList([PlayerAction(Trigger_ThatPlayer,Exile([TheTopCardOfLibrary],[])),If(ACardWasExiledThisWay(IsCardtype(Land)),[PlayerAction(Trigger_ThatPlayer,PutExiledCardOntoBattlefield(TheCardExiledThisWay,[EntersNormally]))])]))");
     assert!(!text.contains("AbilityController"), "{text}");
-    let text = ability_json("SpellActions(ActionList([EachPlayerAction(Opponent,Exile([TheTopCardOfLibrary],[]))]))");
+    let text = ability_json(
+        "SpellActions(ActionList([EachPlayerAction(Opponent,Exile([TheTopCardOfLibrary],[]))]))",
+    );
     assert!(text.contains("Bound"), "{text}");
 }
 
@@ -2982,12 +2984,19 @@ fn an_action_reads_its_own_actor_library_and_battlefield() {
 fn a_life_loss_is_replaced_for_the_player_losing_it() {
     let text = ability_json("ReplaceWouldLoseLife(APlayerWouldLoseLife(Opponent),[LoseLife(Twice(WouldLoseLife_ThatMuch))])");
     assert!(text.contains("EventSubject"), "{text}");
-    assert!(!text.contains("\"players\":{\"kind\":\"One\",\"args\":{\"kind\":\"AbilityController\"}},\"amount\""), "{text}");
+    assert!(
+        !text.contains(
+            "\"players\":{\"kind\":\"One\",\"args\":{\"kind\":\"AbilityController\"}},\"amount\""
+        ),
+        "{text}"
+    );
 }
 
 #[test]
 fn a_difference_is_never_negative() {
-    let text = ability_json("SpellActions(ActionList([GainLife(DifferenceBetween(Integer(1),Integer(4)))]))");
+    let text = ability_json(
+        "SpellActions(ActionList([GainLife(DifferenceBetween(Integer(1),Integer(4)))]))",
+    );
     assert!(text.contains("Maximum"), "{text}");
     assert_eq!(text.matches("Subtract").count(), 2, "{text}");
 }
@@ -3004,6 +3013,22 @@ fn may_costs_read_what_they_drew_and_milled() {
     assert!(text.contains("CostObjects"), "{text}");
     let text = ability_json("SpellActions(ActionList([MayCost(MillNumberCards(Integer(2))),If(CostWasPaid,[MayAction(PutACardOfTypeMilledThisWayIntoHand(IsCardtype(Creature)))])]))");
     assert!(text.contains("CostObjects"), "{text}");
+}
+
+#[test]
+fn history_numbers_ask_about_ordinary_events() {
+    let text = ability_json("SpellActions(ActionList([GainLife(NumberOfPermanentsSacrificedByPlayerThisTurn(AnyPermanent,You))]))");
+    assert!(text.contains("EventHistory"), "{text}");
+    assert!(text.contains("Trigger::WhenAPlayerSacrificesAPermanent"), "{text}");
+    let text = ability_json("SpellActions(ActionList([GainLife(TheNumberOfCountersPutOnPermanentsThisTurn(AnyPermanent))]))");
+    assert!(text.contains("TotalAmount"), "{text}");
+}
+
+#[test]
+fn a_player_history_reads_that_player() {
+    let text = ability_json("If(PlayerPassesFilter(You,DidntAttackWithCreaturesThisTurn),[PlayerEffect(You,[CantGainLife])])");
+    assert!(text.contains("Trigger::WhenAPlayerAttacks"), "{text}");
+    assert!(text.contains("Not"), "{text}");
 }
 
 #[test]

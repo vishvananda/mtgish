@@ -962793,7 +962793,10 @@ Card(
     FromGraveyard(TriggerI(
       AtTheBeginningOfAPlayersEndStep(SinglePlayer(You)),
       And([
-        APermanentExploredThisTurn(IsCardtype(Creature)),
+        APermanentEnteredTheBattlefieldUnderAPlayersControlThisTurn(
+          IsCardtype(Creature),
+          AnyPlayer,
+        ),
         ACreatureOrPlaneswalkerDiedThisTurn(IsCardtype(Creature)),
       ]),
       ActionList([
