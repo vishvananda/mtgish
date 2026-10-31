@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 77;
+pub const SCHEMA_VERSION: u32 = 78;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2576,6 +2576,19 @@ pub enum EventSpec {
     /// The first such event each turn, counted whether or not this ability
     /// existed yet, unlike a once-each-turn limit.
     FirstEachTurn(Box<EventSpec>),
+    /// Something one player does. `objects` is what it was done to, when the
+    /// form names that. The player binding is the player who did it.
+    Player {
+        event: PlayerEvent,
+        players: PlayerSet,
+        objects: Option<ObjectFilter>,
+    },
+    /// The event that brings its player's count this turn to `comparison value`.
+    NthEachTurn {
+        event: Box<EventSpec>,
+        comparison: Comparison,
+        value: Expr,
+    },
 }
 /// Match actual positive damage, after prevention/replacement, using event
 /// information (including a departed source's last-known characteristics).
@@ -2648,6 +2661,26 @@ pub enum ObjectEvent {
     BecomesTapped,
     BecomesUntapped,
     TurnsFaceUp,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum PlayerEvent {
+    GainsLife,
+    LosesLife,
+    Draws,
+    Attacks,
+    Scries,
+    Surveils,
+    CommitsCrime,
+    SearchesLibrary,
+    LosesGame,
+    RollsDice,
+    WinsCoinFlip,
+    Sacrifices,
+    PlaysLand,
+    UnlocksDoor,
+    TapsForMana,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum TurnPoint {

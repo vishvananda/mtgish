@@ -538,7 +538,7 @@ impl Context {
 
     fn primitive_trigger(&self, value: &source::Trigger) -> Option<EventSpec> {
         let (name, operands) = self.primitive("Trigger", value)?;
-        Some(EventSpec::Primitive { name, operands })
+        Some(crate::semantics::reduce_event(name, operands))
     }
 
     /// The nearest instruction doing what a "this way" row reports.

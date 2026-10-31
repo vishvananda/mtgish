@@ -1625,6 +1625,21 @@ impl Inventory<'_> {
         match e {
             EventSpec::Primitive { name, .. } => self.primitive(name),
             EventSpec::FirstEachTurn(event) => self.event(event),
+            EventSpec::Player {
+                event,
+                players,
+                objects,
+            } => {
+                self.form("PlayerEvent", event);
+                self.players(players);
+                if let Some(filter) = objects {
+                    self.filter(filter);
+                }
+            }
+            EventSpec::NthEachTurn { event, value, .. } => {
+                self.event(event);
+                self.expr(value);
+            }
             EventSpec::SagaChapter(_) => {}
             EventSpec::Discard {
                 players,

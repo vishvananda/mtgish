@@ -231,6 +231,16 @@ impl<'a> Scope<'a> {
         match event {
             EventSpec::Primitive { name, operands } => self.primitive(name, operands),
             EventSpec::FirstEachTurn(event) => self.event(event),
+            EventSpec::Player {
+                players, objects, ..
+            } => {
+                self.players(players)?;
+                objects.iter().try_for_each(|filter| self.filter(filter))
+            }
+            EventSpec::NthEachTurn { event, value, .. } => {
+                self.event(event)?;
+                self.expr(value)
+            }
             EventSpec::SagaChapter(_) => Ok(()),
             EventSpec::Discard { players, cards, .. } => {
                 self.players(players)?;

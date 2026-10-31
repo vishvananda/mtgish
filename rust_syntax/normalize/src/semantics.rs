@@ -201,6 +201,102 @@ pub fn row_bindings(name: &str) -> EventBindings {
 }
 
 /// `outer` with what a reviewed row adds for its own operands.
+/// Trigger rows that are one player event. Each keeps its reviewed `binds`.
+const PLAYER_EVENTS: &[(&str, PlayerEvent)] = &[
+    ("Trigger::WhenAPlayerGainsLife", PlayerEvent::GainsLife),
+    ("Trigger::WhenAPlayerLosesLife", PlayerEvent::LosesLife),
+    ("Trigger::WhenAPlayerDrawsACard", PlayerEvent::Draws),
+    ("Trigger::WhenAPlayerAttacks", PlayerEvent::Attacks),
+    ("Trigger::WhenAPlayerScrys", PlayerEvent::Scries),
+    ("Trigger::WhenAPlayerSurveils", PlayerEvent::Surveils),
+    (
+        "Trigger::WhenAPlayerCommitsACrime",
+        PlayerEvent::CommitsCrime,
+    ),
+    (
+        "Trigger::WhenAPlayerSearchesTheirLibrary",
+        PlayerEvent::SearchesLibrary,
+    ),
+    ("Trigger::WhenAPlayerLosesTheGame", PlayerEvent::LosesGame),
+    (
+        "Trigger::WhenAPlayerRollsAnyNumberOfDice",
+        PlayerEvent::RollsDice,
+    ),
+    (
+        "Trigger::WhenAPlayerWinsACoinFlip",
+        PlayerEvent::WinsCoinFlip,
+    ),
+    (
+        "Trigger::WhenAPlayerSacrificesAPermanent",
+        PlayerEvent::Sacrifices,
+    ),
+    ("Trigger::WhenAPlayerPlaysALand", PlayerEvent::PlaysLand),
+    ("Trigger::WhenAPlayerUnlocksADoor", PlayerEvent::UnlocksDoor),
+    (
+        "Trigger::WhenAPlayerTapsAPermanentForMana",
+        PlayerEvent::TapsForMana,
+    ),
+];
+
+/// A row's event in generic form, or the row itself when it has none.
+pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
+    let event = PLAYER_EVENTS
+        .iter()
+        .find(|(row, _)| *row == name)
+        .map(|(_, event)| *event);
+    match (event, operands.as_slice()) {
+        (Some(event), [Operand::Players(players)]) => {
+            return EventSpec::Player {
+                event,
+                players: players.clone(),
+                objects: None,
+            }
+        }
+        (Some(event), [Operand::Players(players), Operand::Objects(objects)]) => {
+            let filter = match objects {
+                ObjectSet::Battlefield(filter) => Some(filter.clone()),
+                ObjectSet::One(object) => Some(ObjectFilter::SameObject(object.clone())),
+                _ => None,
+            };
+            if filter.is_some() {
+                return EventSpec::Player {
+                    event,
+                    players: players.clone(),
+                    objects: filter,
+                };
+            }
+        }
+        _ => {}
+    }
+    match (name.as_str(), operands.as_slice()) {
+        (
+            "Trigger::WhenAPlayerDrawsTheirNthCardEachTurn",
+            [Operand::Players(players), Operand::Comparison(comparison, value)],
+        ) => EventSpec::NthEachTurn {
+            event: Box::new(EventSpec::Player {
+                event: PlayerEvent::Draws,
+                players: players.clone(),
+                objects: None,
+            }),
+            comparison: comparison.clone(),
+            value: value.clone(),
+        },
+        (
+            "Trigger::WhenAPlayerCastsTheirNthSpellInATurn",
+            [Operand::Players(players), Operand::Comparison(comparison, value), Operand::Filter(spells)],
+        ) => EventSpec::NthEachTurn {
+            event: Box::new(EventSpec::Spell {
+                event: SpellEvent::Cast,
+                players: players.clone(),
+                spells: spells.clone(),
+            }),
+            comparison: comparison.clone(),
+            value: value.clone(),
+        },
+        _ => EventSpec::Primitive { name, operands },
+    }
+}
+
 pub fn with_row(outer: &EventBindings, name: &str) -> EventBindings {
     let row = row_bindings(name);
     EventBindings {
@@ -223,7 +319,12 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
     match event {
         EventSpec::SagaChapter(_) => EventBindings::default(),
         EventSpec::FirstEachTurn(event) => event_bindings(event),
+        EventSpec::NthEachTurn { event, .. } => event_bindings(event),
         EventSpec::Primitive { name, .. } => row_bindings(name),
+        EventSpec::Player { event, .. } => PLAYER_EVENTS
+            .iter()
+            .find(|(_, row)| row == event)
+            .map_or_else(EventBindings::default, |(name, _)| row_bindings(name)),
         EventSpec::Discard { grouping, kind, .. } => EventBindings {
             object: matches!(grouping, DiscardGrouping::Card),
             player: true,

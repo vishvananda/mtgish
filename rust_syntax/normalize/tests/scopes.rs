@@ -417,3 +417,22 @@ fn a_this_way_row_names_the_instruction_it_reads() {
     );
     assert!(body.contains("Result(ResultId(0))"), "{body}");
 }
+
+#[test]
+fn a_player_event_row_is_one_generic_event() {
+    let body =
+        lowered("TriggerA(WhenAPlayerGainsLife(SinglePlayer(You)), ActionList([DrawACard]))");
+    assert!(body.contains("Player { event: GainsLife"), "{body}");
+    assert!(!body.contains("WhenAPlayerGainsLife"), "{body}");
+}
+
+#[test]
+fn the_nth_event_each_turn_wraps_the_plain_event() {
+    let body = lowered(
+        "TriggerA(WhenAPlayerDrawsTheirNthCardEachTurn(SinglePlayer(You), EqualTo(Integer(2))), ActionList([DrawACard]))",
+    );
+    assert!(
+        body.contains("NthEachTurn { event: Player { event: Draws"),
+        "{body}"
+    );
+}

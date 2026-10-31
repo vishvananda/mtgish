@@ -71,10 +71,7 @@ impl Context {
     }
 
     fn player_event(name: &str, player: PlayerSet) -> EventSpec {
-        EventSpec::Primitive {
-            name: name.into(),
-            operands: vec![Operand::Players(player)],
-        }
+        crate::semantics::reduce_event(name.into(), vec![Operand::Players(player)])
     }
 
     /// One player attacking another.
@@ -306,6 +303,7 @@ impl Context {
             let mut event = self.trigger(&trigger)?;
             match &mut event {
                 EventSpec::Primitive { operands, .. } => operands[0] = Operand::Players(one()),
+                EventSpec::Player { players, .. } => *players = one(),
                 _ => return Err(unsupported(&trigger)),
             }
             Ok(event)

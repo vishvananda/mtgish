@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 77);
+    assert_eq!(card.schema_version, 78);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -3270,10 +3270,7 @@ fn may_costs_read_what_they_drew_and_milled() {
 fn history_numbers_ask_about_ordinary_events() {
     let text = ability_json("SpellActions(ActionList([GainLife(NumberOfPermanentsSacrificedByPlayerThisTurn(AnyPermanent,You))]))");
     assert!(text.contains("EventHistory"), "{text}");
-    assert!(
-        text.contains("Trigger::WhenAPlayerSacrificesAPermanent"),
-        "{text}"
-    );
+    assert!(text.contains("\"event\":\"Sacrifices\""), "{text}");
     let text = ability_json("SpellActions(ActionList([GainLife(TheNumberOfCountersPutOnPermanentsThisTurn(AnyPermanent))]))");
     assert!(text.contains("TotalAmount"), "{text}");
 }
@@ -3281,7 +3278,7 @@ fn history_numbers_ask_about_ordinary_events() {
 #[test]
 fn a_player_history_reads_that_player() {
     let text = ability_json("If(PlayerPassesFilter(You,DidntAttackWithCreaturesThisTurn),[PlayerEffect(You,[CantGainLife])])");
-    assert!(text.contains("Trigger::WhenAPlayerAttacks"), "{text}");
+    assert!(text.contains("\"event\":\"Attacks\""), "{text}");
     assert!(text.contains("Not"), "{text}");
 }
 
