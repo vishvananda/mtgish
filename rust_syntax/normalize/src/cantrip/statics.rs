@@ -43,6 +43,7 @@ impl Compiler {
         let label = format!("granted_{}", self.fresh());
         // The enclosing callback's reader belongs to it, not to this ability.
         let saved = (self.reader, self.event_at, self.frame, self.static_guard.take());
+        let outer = self.outer.take();
         (self.reader, self.event_at, self.frame) =
             (Reader::Resolution, EventAt::Nowhere, Frame::default());
         let slots = std::mem::take(&mut self.slots);
@@ -54,6 +55,7 @@ impl Compiler {
         self.restore_results(results);
         self.slots = slots;
         (self.reader, self.event_at, self.frame, self.static_guard) = saved;
+        self.outer = outer;
         compiled?;
         let [def] = grown.abilities.as_slice() else {
             return Err(gap(format!("granted {}", form(ability))));

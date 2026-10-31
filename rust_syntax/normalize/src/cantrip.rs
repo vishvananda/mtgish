@@ -2,16 +2,19 @@
 //! are separate from AST lowering failures; no source node is interpreted here.
 use crate::{corpus, ir::*, validate};
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     fmt::Write,
     io::{BufRead, Write as IoWrite},
     path::Path,
+    rc::Rc,
 };
 
 mod costs;
+mod delayed;
 mod effects;
-mod read;
 mod players;
+mod read;
 mod replacements;
 mod statics;
 mod survey;
@@ -70,6 +73,7 @@ fn generator_fingerprint() -> &'static str {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
             ("cantrip/costs.rs", include_bytes!("cantrip/costs.rs").as_slice()),
+            ("cantrip/delayed.rs", include_bytes!("cantrip/delayed.rs").as_slice()),
             ("cantrip/effects.rs", include_bytes!("cantrip/effects.rs").as_slice()),
             ("cantrip/players.rs", include_bytes!("cantrip/players.rs").as_slice()),
             ("cantrip/read.rs", include_bytes!("cantrip/read.rs").as_slice()),
@@ -241,6 +245,8 @@ struct Compiler {
     /// Abilities that are no part of the card until a grant or an event names
     /// them: `CardDef::delayed`.
     delayed: Vec<String>,
+    /// Compiling a delayed ability's body: what it carries from its maker.
+    outer: Option<Rc<delayed::Outer>>,
     /// `CardDef::granted_preventions` and `granted_replacements`.
     made_preventions: Vec<String>,
     made_replacements: Vec<String>,
@@ -417,6 +423,7 @@ impl Compiler {
             helpers: BTreeSet::new(),
             extras: Vec::new(),
             delayed: Vec::new(),
+            outer: None,
             made_preventions: Vec::new(),
             made_replacements: Vec::new(),
             granting: false,
@@ -1022,6 +1029,7 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
         c.functions.push_str(match *helper {
             "announced" => ANNOUNCED,
             "pay_question" => PAY_QUESTION,
+            "about" => delayed::ABOUT,
             other => unreachable!("no helper {other}"),
         });
     }

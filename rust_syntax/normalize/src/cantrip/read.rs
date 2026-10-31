@@ -218,6 +218,9 @@ impl Compiler {
     }
     /// `Option<ObjectId>`: a reference that finds nothing selects nothing.
     pub(super) fn object(&self, object: &ObjectRef) -> Result<String> {
+        if let Some(carried) = self.outside_object(object)? {
+            return Ok(carried);
+        }
         Ok(match object {
             ObjectRef::Primitive { name, .. } => {
                 return Err(gap(format!("primitive object reference {name}")))
@@ -264,11 +267,30 @@ impl Compiler {
             ObjectRef::Query { objects, index } => {
                 format!("({}).get({index}).copied()", self.objects(objects)?)
             }
+            ObjectRef::Result {
+                result,
+                phase,
+                index,
+            } => {
+                let list = if self.selections.contains_key(&result.0) {
+                    self.selected(result)?
+                } else if self.creations.contains_key(&result.0) {
+                    self.created(result)?
+                } else if matches!(phase, ObjectPhase::After) {
+                    self.moved(result)?
+                } else {
+                    return Err(gap("object as it was before an instruction moved it"));
+                };
+                format!("({list}).get({index} as usize).copied()")
+            }
             other => return Err(gap(format!("object reference {}", form(other)))),
         })
     }
     /// `Option<PlayerId>`, for the same reason as `object`.
     pub(super) fn player(&self, player: &PlayerRef) -> Result<String> {
+        if let Some(carried) = self.outside_player(player)? {
+            return Ok(carried);
+        }
         Ok(match player {
             PlayerRef::Primitive { name, .. } => {
                 return Err(gap(format!("primitive player reference {name}")))
@@ -336,6 +358,9 @@ impl Compiler {
     }
     /// `Vec<ObjectId>`.
     pub(super) fn objects(&self, objects: &ObjectSet) -> Result<String> {
+        if let Some(carried) = self.outside_objects(objects)? {
+            return Ok(carried);
+        }
         Ok(match objects {
             ObjectSet::One(ObjectRef::Target { slot, index }) => format!(
                 "t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).and_then(|t: Target| t.object()).into_iter().collect::<Vec<_>>()",
@@ -544,7 +569,9 @@ impl Compiler {
                 return Err(gap(format!("primitive numeric expression {name}")))
             }
             Expr::Constant(n) => Number::integer(*n),
-            Expr::AnnouncedX if self.reader == Reader::Resolution && self.stack_item => Number {
+            Expr::AnnouncedX
+                if self.reader == Reader::Resolution && self.stack_item && self.outer.is_none() =>
+            Number {
                 code: "i64::from(item.x)".into(),
                 min: 0,
                 max: u16::MAX.into(),

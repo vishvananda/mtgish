@@ -656,6 +656,13 @@ impl Compiler {
                 self.flips.insert(result.0, format!("flip_{id}"));
             }
             Operation::ModifyEvent { change } => self.modify_entering(change, out)?,
+            Operation::CreateDelayedTrigger {
+                event,
+                start,
+                expires,
+                intervening_if,
+                body,
+            } => self.create_delayed(event, start, expires, intervening_if, body, out)?,
             Operation::CreateReplacement {
                 event,
                 limit,
