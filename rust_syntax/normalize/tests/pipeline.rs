@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 73);
+    assert_eq!(card.schema_version, 74);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -3181,6 +3181,32 @@ fn a_trigger_made_for_good_or_once_keeps_how_long_it_lasts() {
 fn what_was_revealed_this_way_is_tested_as_a_set() {
     let text = ability_json("SpellActions(ActionList([RevealTheTopNumberCardsOfLibrary(Integer(1), []), If(NoCardsOfTypeWereRevealedThisWay(IsCardtype(Land)), [DrawACard])]))");
     assert!(text.contains("Matching"), "{text}");
+}
+
+#[test]
+fn what_an_object_did_this_turn_is_asked_of_that_object() {
+    let text = ability_json("SpellActions(Targeted([TargetPermanent(And([IsCardtype(Creature),BlockedAttackerThisTurn(ThisPermanent)]))],ActionList([DestroyPermanent(Ref_TargetPermanent)])))");
+    assert!(text.contains("EventHistory"), "{text}");
+    assert!(text.contains("Candidate"), "{text}");
+    let text = ability_json("SpellActions(Targeted([TargetPermanent(WasCastFromAPlayersGraveyard(SinglePlayer(You)))],ActionList([DestroyPermanent(Ref_TargetPermanent)])))");
+    assert!(text.contains("Cast"), "{text}");
+}
+
+#[test]
+fn each_player_keeps_one_of_each_and_loses_the_rest() {
+    let text = ability_json("SpellActions(ActionList([EachPlayerAction(AnyPlayer,ChooseAPartyFromAmongPermanents(And([IsCardtype(Creature),ControlledByPlayer(EachablePlayer)]))),EachPlayerAction(AnyPlayer,SacrificeEachPermanent(ThePermanentsNotChosenThisWay))]))");
+    assert!(text.contains("OneForEach"), "{text}");
+    assert!(text.contains("Unselected"), "{text}");
+    let text = ability_json("SpellActions(ActionList([EachPlayerAction(AnyPlayer,RevealHand),EachPlayerAction(AnyPlayer,ChooseACardInHandOfEachColor),EachPlayerAction(AnyPlayer,DiscardCards(And([TheCardsInHandNotChosenThisWay,IsNonCardtype(Land)])))]))");
+    assert!(text.contains("Unselected"), "{text}");
+}
+
+#[test]
+fn a_pick_is_read_by_who_made_it() {
+    let text = ability_json("SpellActions(ActionList([EachPlayerAction(Opponent,ChooseAPermanent(And([IsCardtype(Creature),ControlledByPlayer(EachablePlayer)]))),EachPlayerAction(Opponent,Exile([Permanent(ThePermanentChosenByPlayerThisWay(EachablePlayer))],[]))]))");
+    assert!(text.contains("ChosenBy"), "{text}");
+    let text = ability_json("SpellActions(ActionList([ChooseAPermanent(IsCardtype(Creature)),EachPlayerAction(Opponent,ChooseAPermanent(And([IsCardtype(Creature),ControlledByPlayer(EachablePlayer)]))),Exile([EachPermanent(And([IsCardtype(Creature),NotChosenByAPlayerThisWay(AnyPlayer)]))],[])]))");
+    assert_eq!(text.matches("Selected").count(), 2, "{text}");
 }
 
 #[test]

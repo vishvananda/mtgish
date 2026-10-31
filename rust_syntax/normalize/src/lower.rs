@@ -136,6 +136,8 @@ struct Context {
     activation_limit: bool,
     hand_choice: Option<ResultId>,
     permanent_choice: Option<ResultId>,
+    /// Every pick so far and who made it; `None` is each run of a player loop.
+    picks: Vec<(Option<PlayerRef>, ResultId)>,
     exile_choice: Option<ResultId>,
     grave_choice: Option<ResultId>,
     narrowed_choice: Option<ResultId>,
@@ -327,6 +329,10 @@ impl Context {
 
     fn effect(&mut self, operation: Operation) -> Instruction {
         self.note_acted(&operation, &ResultId(self.result));
+        if let Operation::ChooseObjects { player, .. } = &operation {
+            self.picks
+                .push((Some(player.clone()), ResultId(self.result)));
+        }
         if crate::semantics::singular_operation(&operation, |r| self.singular.contains(&r.0)) {
             self.singular.insert(self.result);
         }
@@ -519,6 +525,26 @@ impl Context {
                 });
             }
             S::TheChosenPermanent => return Ok(ObjectRef::Chosen),
+            S::ThePermanentChosenByPlayerThisWay(player) => {
+                let chooser = self.player(player)?;
+                let named = serde_json::to_value(&chooser).ok();
+                let own = self.picks.iter().rev().find(|(who, _)| {
+                    who.is_some() && serde_json::to_value(who.as_ref().unwrap()).ok() == named
+                });
+                if let Some((_, result)) = own {
+                    return self.result_object(Some(result), 0);
+                }
+                let (_, result) = self
+                    .picks
+                    .iter()
+                    .rev()
+                    .find(|(who, _)| who.is_none())
+                    .ok_or_else(|| unsupported(value))?;
+                return Ok(ObjectRef::ChosenBy {
+                    result: result.clone(),
+                    chooser,
+                });
+            }
             S::TheArmyAmassedThisWay => return self.result_object(self.amassed.as_ref(), 0),
             S::ThePermanentPutOnTheBattlefieldThisWay
             | S::TheCardConjuredOntoTheBattlefieldThisWay => {
@@ -862,7 +888,8 @@ impl Context {
         }
         if let (
             source::Permanents::ThePermanentsNotChosenThisWay
-            | source::Permanents::NotChosenThisWay,
+            | source::Permanents::NotChosenThisWay
+            | source::Permanents::TheUnchosenPermanents,
             Some(result),
         ) = (value, &self.permanent_choice)
         {
@@ -1077,6 +1104,19 @@ impl Context {
         if let source::Permanents::ExceptFor(excluded) = value {
             return Ok(ObjectFilter::Not(Box::new(self.filter_inner(excluded)?)));
         }
+        if let source::Permanents::NotChosenByAPlayerThisWay(players) = value {
+            if !matches!(**players, source::Players::AnyPlayer) || self.picks.is_empty() {
+                return Err(unsupported(value));
+            }
+            let picks = self.picks.iter();
+            return Ok(ObjectFilter::Not(Box::new(ObjectFilter::InSet(Box::new(
+                ObjectSet::Union(
+                    picks
+                        .map(|(_, result)| ObjectSet::Selected(result.clone()))
+                        .collect(),
+                ),
+            )))));
+        }
         if matches!(value, source::Permanents::WasDealtDamageThisWay) {
             return Ok(ObjectFilter::DamagedBy(self.done(Done::Damage)?));
         }
@@ -1092,6 +1132,7 @@ impl Context {
                 | source::Permanents::TheChosenPermanents
                 | source::Permanents::ThePermanentsNotChosenThisWay
                 | source::Permanents::NotChosenThisWay
+                | source::Permanents::TheUnchosenPermanents
                 | source::Permanents::TheTokensCreatedThisWay
         ) && match value {
             source::Permanents::Ref_TargetPermanents
@@ -2467,6 +2508,81 @@ impl Context {
                 } else {
                     self.permanent_choice = Some(result.clone());
                 }
+                return Ok(choice);
+            }
+            S::ChooseAPermanentOfEachPermanentTypeAvailable(objects)
+                if matches!(actor, PlayerSet::One(_)) =>
+            {
+                use source::CardType::{Artifact, Battle, Creature, Enchantment, Land, Planeswalker};
+                let slots = [Artifact, Battle, Creature, Enchantment, Land, Planeswalker]
+                    .into_iter()
+                    .map(ObjectFilter::CardType)
+                    .collect();
+                return self.pick_each(actor, self.objects(objects)?, slots, Count::AsManyAsCan);
+            }
+            S::ChooseAPermanentOfEachBasicLandTypeAvailable(objects)
+                if matches!(actor, PlayerSet::One(_)) =>
+            {
+                use source::LandType::{Forest, Island, Mountain, Plains, Swamp};
+                let slots = [Plains, Island, Swamp, Mountain, Forest]
+                    .iter()
+                    .map(|ty| ObjectFilter::Subtype(crate::subtype::land_type(ty)))
+                    .collect();
+                return self.pick_each(actor, self.objects(objects)?, slots, Count::AsManyAsCan);
+            }
+            S::ChooseAPartyFromAmongPermanents(objects) if matches!(actor, PlayerSet::One(_)) => {
+                use source::CreatureType::{Cleric, Rogue, Warrior, Wizard};
+                let slots = [Cleric, Rogue, Warrior, Wizard]
+                    .iter()
+                    .map(|ty| ObjectFilter::Subtype(crate::subtype::creature_type(ty)))
+                    .collect();
+                return self.pick_each(actor, self.objects(objects)?, slots, Count::UpTo);
+            }
+            S::ChooseACardInHandOfEachColor if matches!(actor, PlayerSet::One(_)) => {
+                use ManaColor::{Black, Blue, Green, Red, White};
+                let slots = [White, Blue, Black, Red, Green]
+                    .into_iter()
+                    .map(ObjectFilter::Color)
+                    .collect();
+                let hand = self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any);
+                return self.pick_each(actor, hand, slots, Count::AsManyAsCan);
+            }
+            S::ChooseAPermanentOfEachPowerAvailable(objects)
+                if matches!(actor, PlayerSet::One(_)) =>
+            {
+                let objects = self.objects(objects)?;
+                let count = Count::AsManyAsCan(Expr::CountObjects(Box::new(objects.clone())));
+                let constraints = vec![SelectionConstraint::DifferentProperty(Property::Power)];
+                let (choice, result) = self.pick(actor, objects, count, constraints)?;
+                self.permanent_choice = Some(result);
+                return Ok(choice);
+            }
+            S::ChooseNumberCardsInHand(amount) if matches!(actor, PlayerSet::One(_)) => {
+                let hand = self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any);
+                let count = Count::AsManyAsCan(self.number(amount)?);
+                let (choice, result) = self.pick(actor, hand.clone(), count, vec![])?;
+                self.note_choice(&hand, result);
+                return Ok(choice);
+            }
+            S::ChooseNumberCardsInGraveyards(amount, cards)
+                if matches!(actor, PlayerSet::One(_)) =>
+            {
+                let cards = self.grave_cards(cards)?;
+                let count = Count::AsManyAsCan(self.number(amount)?);
+                let (choice, result) = self.pick(actor, cards.clone(), count, vec![])?;
+                self.grave_choice = Some(result);
+                return Ok(choice);
+            }
+            S::ChooseUptoNumberPermanentsForEach(amount, objects, each)
+                if matches!(actor, PlayerSet::One(_)) =>
+            {
+                let objects = self.objects(objects)?;
+                let count = Count::UpTo(Expr::Multiply(
+                    Box::new(self.number(amount)?),
+                    Box::new(self.number(each)?),
+                ));
+                let (choice, result) = self.pick(actor, objects, count, vec![])?;
+                self.permanent_choice = Some(result);
                 return Ok(choice);
             }
             S::ChooseUptoNumberPermanents(amount, objects)

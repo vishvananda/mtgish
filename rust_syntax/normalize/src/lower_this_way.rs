@@ -468,6 +468,15 @@ impl Context {
             ObjectSet::Matching { objects, .. } | ObjectSet::Difference { objects, .. } => {
                 return self.note_choice(objects, result)
             }
+            ObjectSet::Targets(slot) => self
+                .targets
+                .iter()
+                .find(|t| t.slot.0 == slot.0)
+                .and_then(|t| match &t.kind {
+                    TargetKind::Object(domain) => domain.zones.first(),
+                    _ => None,
+                })
+                .unwrap_or(&EventZone::Battlefield),
             _ => &EventZone::Battlefield,
         };
         match zone {
@@ -512,10 +521,20 @@ impl Context {
             .iter()
             .map(|slot| self.filter(slot))
             .collect::<Result<Vec<_>>>()?;
-        let count = Count::AsManyAsCan(Expr::Constant(slots.len() as i64));
+        self.pick_each(actor, objects, slots, Count::AsManyAsCan)
+    }
+    /// One object for each filter; `count` says whether a slot may stay empty.
+    fn pick_each(
+        &mut self,
+        actor: &PlayerSet,
+        objects: ObjectSet,
+        slots: Vec<ObjectFilter>,
+        count: impl FnOnce(Expr) -> Count,
+    ) -> Result<Instruction> {
+        let count = count(Expr::Constant(slots.len() as i64));
         let constraints = vec![SelectionConstraint::OneForEach(slots)];
-        let (choice, result) = self.pick(actor, objects, count, constraints)?;
-        self.permanent_choice = Some(result);
+        let (choice, result) = self.pick(actor, objects.clone(), count, constraints)?;
+        self.note_choice(&objects, result);
         Ok(choice)
     }
     fn pick_graveyard(

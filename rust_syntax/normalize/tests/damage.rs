@@ -69,7 +69,6 @@ fn effect(operation: Operation) -> Instruction {
 fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
     let incomplete = [
         "Norn's Decree",
-        "The Gitrog, Ravenous Ride",
         "Lost Vale",
         "Vault of Catlacan",
     ];
@@ -96,7 +95,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 81);
+    assert_eq!(complete, 82);
 }
 
 #[test]

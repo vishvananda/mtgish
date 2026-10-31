@@ -47,6 +47,11 @@ impl Context {
         self.invalidate_child_bindings(&child);
         self.adopt_loop(&child);
         // Each run's picks add up, so the loop's choice reads as a set afterward.
+        let picks = child.picks[self.picks.len()..].iter().map(|(who, result)| {
+            let own = matches!(who, Some(PlayerRef::Bound(b)) if b.0 == binding.0);
+            (who.clone().filter(|_| !own), result.clone())
+        });
+        self.picks.extend(picks.collect::<Vec<_>>());
         self.permanent_choice = child.permanent_choice.or(self.permanent_choice.take());
         self.hand_choice = child.hand_choice.or(self.hand_choice.take());
         self.exile_choice = child.exile_choice.or(self.exile_choice.take());

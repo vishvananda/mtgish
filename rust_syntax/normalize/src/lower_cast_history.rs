@@ -114,6 +114,17 @@ impl Context {
             S::CastFromPlayersLibrary(p) => {
                 self.cast_from(EventZone::Library, PlayerSet::One(self.player(p)?))
             }
+            S::WasCastFromAPlayersGraveyard(players) => ObjectFilter::Cast {
+                by: None,
+                from: Some(ZoneScope::Players {
+                    zone: EventZone::Graveyard,
+                    players: self.players(players)?,
+                }),
+            },
+            S::WasCastByAPlayer(players) => ObjectFilter::Cast {
+                by: Some(self.players(players)?),
+                from: None,
+            },
             S::WasCastFromTheirHand => self.cast_from(
                 EventZone::Hand,
                 PlayerSet::One(PlayerRef::CasterOf(Box::new(ObjectRef::Candidate))),

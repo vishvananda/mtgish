@@ -435,6 +435,7 @@ impl Effects {
             ObjectRef::Target { slot, .. } => self.targets.get(&slot.0).copied().unwrap_or(false),
             ObjectRef::Query { objects, .. } => self.objects_library(objects),
             ObjectRef::Result { result, phase, .. } => self.result_library(result, phase),
+            ObjectRef::ChosenBy { result, .. } => self.result_library(result, &ObjectPhase::After),
             ObjectRef::Source
             | ObjectRef::KeywordHost
             | ObjectRef::MadeHere

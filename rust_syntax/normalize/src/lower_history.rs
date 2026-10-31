@@ -639,6 +639,16 @@ impl Context {
         let any_player = |p: &source::Players| self.players(p).map(DamageRecipients::Players);
         let any_of = |p: &source::Permanents| self.filter(p).map(DamageRecipients::Objects);
         let happened = Self::happened;
+        use source::Trigger as T;
+        // The object under test, as an operand of an ordinary event.
+        let it = || {
+            Box::new(source::Permanents::SinglePermanent(Box::new(
+                source::Permanent::Self_It,
+            )))
+        };
+        let one = |p: &source::Permanent| {
+            Box::new(source::Permanents::SinglePermanent(Box::new(p.clone())))
+        };
         let total = |event, comparison| {
             self.history_compare(
                 Self::history(event, W::ThisTurn, HistoryMeasure::TotalAmount),
@@ -647,6 +657,75 @@ impl Context {
         };
         let condition = (|| -> Result<Condition> {
             Ok(match value {
+                S::BlockedAttackerThisTurn(attacker) => happened(
+                    self.trigger(&T::WhenACreatureBlocksACreature(it(), one(attacker)))?,
+                    W::ThisTurn,
+                ),
+                S::BlockedAnAttackerThisTurn(attackers) => happened(
+                    self.trigger(&T::WhenACreatureBlocksACreature(it(), attackers.clone()))?,
+                    W::ThisTurn,
+                ),
+                S::WasBlockedByDefenderThisTurn(blocker)
+                | S::WasBlockedByDefenderThisCombat(blocker) => happened(
+                    self.trigger(&T::WhenACreatureBecomesBlockedByACreature(
+                        it(),
+                        one(blocker),
+                    ))?,
+                    if matches!(value, S::WasBlockedByDefenderThisCombat(_)) {
+                        W::ThisCombat
+                    } else {
+                        W::ThisTurn
+                    },
+                ),
+                S::WasBlockedByADefenderThisTurn(blockers) => happened(
+                    self.trigger(&T::WhenACreatureBecomesBlockedByACreature(
+                        it(),
+                        blockers.clone(),
+                    ))?,
+                    W::ThisTurn,
+                ),
+                S::SaddledPermanentThisTurn(mount) => happened(
+                    self.trigger(&T::WhenACreatureSaddlesAMount(it(), one(mount)))?,
+                    W::ThisTurn,
+                ),
+                S::CrewedVehicleThisTurn(vehicle) => happened(
+                    self.trigger(&T::WhenACreatureCrewsAVehicle(it(), one(vehicle)))?,
+                    W::ThisTurn,
+                ),
+                S::WasCrewedByACreatureThisTurn(crew) => happened(
+                    self.trigger(&T::WhenACreatureCrewsAVehicle(crew.clone(), it()))?,
+                    W::ThisTurn,
+                ),
+                S::FoughtThisTurn => {
+                    happened(self.trigger(&T::WhenAPermanentFights(it()))?, W::ThisTurn)
+                }
+                S::DidntExertThisTurn => Condition::Not(Box::new(happened(
+                    self.trigger(&T::WhenAPlayerExertsACreature(
+                        Box::new(source::Players::AnyPlayer),
+                        it(),
+                    ))?,
+                    W::ThisTurn,
+                ))),
+                S::AttackedPlayerThisTurn(player) | S::AttackedPlayerThisCombat(player) => {
+                    happened(
+                        self.trigger(&T::WhenACreatureAttacksAPlayer(
+                            it(),
+                            Box::new(source::Players::SinglePlayer(player.clone())),
+                        ))?,
+                        if matches!(value, S::AttackedPlayerThisCombat(_)) {
+                            W::ThisCombat
+                        } else {
+                            W::ThisTurn
+                        },
+                    )
+                }
+                S::WasCastThisTurn => {
+                    happened(Self::cast_event(PlayerSet::All, this()), W::ThisTurn)
+                }
+                S::CastByPlayerThisTurn(player) => happened(
+                    Self::cast_event(PlayerSet::One(self.player(player)?), this()),
+                    W::ThisTurn,
+                ),
                 S::EnteredTheBattlefieldThisTurn => {
                     Self::happened(Self::entered_event(this()), W::ThisTurn)
                 }
