@@ -422,7 +422,11 @@ impl Context {
             | S::CreatePerpetualEachExiledCardEffect(_, effects)
             | S::CreatePerpetualGraveyardCardEffect(_, effects)
             | S::CreatePerpetualEachGraveyardCardEffect(_, effects)
-            | S::CreatePerpetualSpellEffect(_, effects) => effects,
+            | S::CreatePerpetualSpellEffect(_, effects)
+            | S::CreatePerpetualCardsInPlayersHandEffect(_, _, effects)
+            | S::CreatePerpetualCardsInEachPlayersHandEffect(_, _, effects)
+            | S::CreatePerpetualCardsInPlayersLibraryEffect(_, _, effects)
+            | S::CreatePerpetualCardsInPlayersGraveyardEffect(_, _, effects) => effects,
             _ => return None,
         };
         let hand = |filter| {
@@ -436,6 +440,29 @@ impl Context {
             (S::CreatePerpetualCardsInHandEffect(cards, _), _) => {
                 hand(self.hand_filter(cards).ok()?)?
             }
+            (S::CreatePerpetualCardsInPlayersHandEffect(cards, player, _), _) => self.private_cards(
+                EventZone::Hand,
+                PlayerSet::One(self.player(player).ok()?),
+                self.hand_filter(cards).ok()?,
+            ),
+            (S::CreatePerpetualCardsInEachPlayersHandEffect(cards, players, _), _) => self
+                .private_cards(
+                    EventZone::Hand,
+                    self.players(players).ok()?,
+                    self.hand_filter(cards).ok()?,
+                ),
+            (S::CreatePerpetualCardsInPlayersLibraryEffect(cards, player, _), _) => self
+                .private_cards(
+                    EventZone::Library,
+                    PlayerSet::One(self.player(player).ok()?),
+                    self.library_filter(cards).ok()?,
+                ),
+            (S::CreatePerpetualCardsInPlayersGraveyardEffect(cards, player, _), _) => self
+                .private_cards(
+                    EventZone::Graveyard,
+                    PlayerSet::One(self.player(player).ok()?),
+                    self.grave_filter(cards).ok()?,
+                ),
             (_, Some(Operand::Object(object))) => ObjectSet::One(object.clone()),
             (_, Some(Operand::Objects(objects))) => objects.clone(),
             _ => return None,

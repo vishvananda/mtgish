@@ -371,6 +371,26 @@ impl Inventory<'_> {
                     self.duration(until);
                 }
             }
+            Operation::MoveTopCard { actor, cards, .. } => {
+                self.players(actor);
+                self.filter(cards);
+            }
+            Operation::PayAnyAmount { actor, resource } => {
+                self.form("PaidResource", resource);
+                self.players(actor);
+            }
+            Operation::RevealFromHand {
+                actor,
+                cards,
+                count,
+                ..
+            } => {
+                self.players(actor);
+                self.filter(cards);
+                if let Some(count) = count {
+                    self.expr(count);
+                }
+            }
             Operation::CopyOnStack {
                 actor,
                 object,

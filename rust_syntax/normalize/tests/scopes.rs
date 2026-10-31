@@ -1038,3 +1038,35 @@ fn a_keyword_action_on_a_set_names_the_action() {
     assert!(body.contains("KeywordEach {"), "{body}");
     assert!(body.contains("action: PhaseOut"), "{body}");
 }
+
+#[test]
+fn doubling_power_is_a_pump_by_its_own_power() {
+    let body = lowered(
+        "SpellActions(Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([DoubleCreaturesPowerUntilEndOfTurn(Ref_TargetPermanent)])))",
+    );
+    assert!(
+        body.contains("Pump { power: ObjectProperty { object: Affected, property: Power"),
+        "{body}"
+    );
+    assert!(body.contains("toughness: Constant(0)"), "{body}");
+    assert!(body.contains("evaluation: Snapshot"), "{body}");
+}
+
+#[test]
+fn the_top_card_moves_only_if_it_matches() {
+    let body = lowered(
+        "Activated(Loyalty(+1), ActionList([LookAtTheTopCardOfPlayersLibrary(You), MayAction(RevealTopCardOfLibraryAndPutIntoHand(IsCardtype(Creature)))]))",
+    );
+    assert!(body.contains("MoveTopCard {"), "{body}");
+    assert!(body.contains("cards: CardType(Creature)"), "{body}");
+    assert!(body.contains("reveal: true"), "{body}");
+    assert!(body.contains("destination: OwnersHand"), "{body}");
+}
+
+#[test]
+fn a_chosen_colors_read_any_number() {
+    let body = lowered(
+        "SpellActions(Targeted([TargetPermanent(AnyPermanent)], ActionList([ChooseColors, CreatePermanentLayerEffect(Ref_TargetPermanent, [SetColor(TheChosenColors)])])))",
+    );
+    assert!(body.contains("kind: Color, count: 0"), "{body}");
+}

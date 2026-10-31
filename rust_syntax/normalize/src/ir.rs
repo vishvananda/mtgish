@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 96;
+pub const SCHEMA_VERSION: u32 = 97;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1144,6 +1144,7 @@ pub enum Operation {
     ChooseValue {
         actor: PlayerSet,
         kind: ValueKind,
+        /// 0 is any number.
         count: u32,
         options: Vec<Operand>,
     },
@@ -1167,6 +1168,27 @@ pub enum Operation {
         other: Option<ObjectRef>,
         amount: Option<Expr>,
         subtype: Option<String>,
+    },
+    /// The top card of `actor`'s library moves if it is one of `cards`, as
+    /// "reveal the top card; if it's a land, put it into your hand".
+    MoveTopCard {
+        actor: PlayerSet,
+        cards: ObjectFilter,
+        reveal: bool,
+        destination: Destination,
+        entry: Vec<Operand>,
+    },
+    /// Pay as much of this as `actor` chooses, for later "that much".
+    PayAnyAmount {
+        actor: PlayerSet,
+        resource: PaidResource,
+    },
+    /// `actor` reveals from hand. No `count` is every matching card.
+    RevealFromHand {
+        actor: PlayerSet,
+        cards: ObjectFilter,
+        count: Option<Expr>,
+        at_random: bool,
     },
     /// One keyword action on each of a set. No `until` is the action's own
     /// duration: for goad, until `actor`'s next turn (CR 701.38a).
@@ -1517,6 +1539,8 @@ pub enum ValueKind {
     Word,
     Player,
     Ability,
+    ColorWord,
+    PlaneswalkerType,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -1892,6 +1916,14 @@ impl From<PlayerSet> for EffectSubjects {
 pub struct SpreeMode {
     pub cost: Cost,
     pub ability: Box<Ability>,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum PaidResource {
+    Mana,
+    Energy,
+    Life,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum NewTargets {

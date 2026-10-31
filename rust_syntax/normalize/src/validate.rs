@@ -1752,6 +1752,27 @@ impl<'a> Scope<'a> {
                 self.objects(objects)?;
                 until.iter().try_for_each(|until| self.duration(until))
             }
+            Operation::MoveTopCard {
+                actor,
+                cards,
+                entry,
+                ..
+            } => {
+                self.players(actor)?;
+                self.filter(cards)?;
+                entry.iter().try_for_each(|o| self.operand(o))
+            }
+            Operation::PayAnyAmount { actor, .. } => self.players(actor),
+            Operation::RevealFromHand {
+                actor,
+                cards,
+                count,
+                ..
+            } => {
+                self.players(actor)?;
+                self.filter(cards)?;
+                count.iter().try_for_each(|n| self.expr(n))
+            }
             Operation::CopyOnStack {
                 actor,
                 object,

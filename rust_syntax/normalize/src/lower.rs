@@ -215,14 +215,15 @@ impl Done {
                 | Destination::OwnersLibraryFromTop(_)
                 | Destination::OwnersLibraryShuffled => Self::Library,
             },
-            Operation::Primitive { .. } | Operation::Keyword { .. } | Operation::Conjure { .. } => {
-                match crate::semantics::yields(operation)? {
-                    "counters" => Self::Counters,
-                    "damage" => Self::Damage,
-                    "paid" => Self::Paid,
-                    _ => return None,
-                }
-            }
+            Operation::Primitive { .. }
+            | Operation::Keyword { .. }
+            | Operation::Conjure { .. }
+            | Operation::PayAnyAmount { .. } => match crate::semantics::yields(operation)? {
+                "counters" => Self::Counters,
+                "damage" => Self::Damage,
+                "paid" => Self::Paid,
+                _ => return None,
+            },
             _ => return None,
         })
     }

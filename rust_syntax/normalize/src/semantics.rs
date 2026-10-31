@@ -213,6 +213,15 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
             action: KeywordAction::Goad,
             ..
         } => "Action::GoadEachCreature",
+        Operation::PayAnyAmount {
+            resource: PaidResource::Energy,
+            ..
+        } => return None,
+        Operation::PayAnyAmount { .. } => "Action::PayAnyAmountOfMana",
+        Operation::RevealFromHand {
+            count: Some(Expr::Constant(1)),
+            ..
+        } => "Action::RevealACardFromHand",
         Operation::DraftFromSpellbook { .. } => "Action::DraftACardFromSpellBook",
         _ => return None,
     };
@@ -349,6 +358,9 @@ const VALUE_CHOICES: &[(&str, ValueKind, u32)] = &[
     ("ChooseAPlayer", ValueKind::Player, 1),
     ("ChooseTwoPlayers", ValueKind::Player, 2),
     ("ChooseAnAbility", ValueKind::Ability, 1),
+    ("ChooseColors", ValueKind::Color, 0),
+    ("ChooseTwoColorWords", ValueKind::ColorWord, 2),
+    ("ChooseAPlaneswalkerType", ValueKind::PlaneswalkerType, 1),
 ];
 
 /// One counter move as a table: how many, of what, from where, to where.
@@ -589,6 +601,40 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
             objects: objects.clone(),
             until: until.cloned(),
         };
+    let pay = |resource| Operation::PayAnyAmount {
+        actor: actor.clone(),
+        resource,
+    };
+    let reveal = |cards, count, at_random| Operation::RevealFromHand {
+        actor: actor.clone(),
+        cards,
+        count,
+        at_random,
+    };
+    // CR 701.10d: +X/+0 where X is its power as this resolves, each on its own.
+    let double = |objects, power, toughness| {
+        let own = |doubled: bool, property| {
+            if doubled {
+                Expr::ObjectProperty {
+                    object: ObjectRef::Affected,
+                    property,
+                    information: Information::CurrentOrLastKnown,
+                }
+            } else {
+                Expr::Constant(0)
+            }
+        };
+        Operation::CreateContinuousEffect {
+            source: ObjectRef::Source,
+            affected: EffectSubjects::Objects(objects),
+            changes: vec![Change::Pump {
+                power: own(power, Property::Power),
+                toughness: own(toughness, Property::Toughness),
+            }],
+            duration: crate::ir::Duration::EndOfTurn,
+            evaluation: EffectEvaluation::Snapshot,
+        }
+    };
     Some(match (name.strip_prefix("Action::")?, operands) {
         ("GoadEachCreature", [Objects(objects)]) => each(KeywordAction::Goad, objects, None),
         ("GoadEachCreatureUntil", [Objects(objects), Duration(until)]) => {
@@ -613,6 +659,56 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
         ("SuspectEachPermanent", [Objects(objects)]) => each(KeywordAction::Suspect, objects, None),
         ("DetainEachPermanent", [Objects(objects)]) => each(KeywordAction::Detain, objects, None),
         ("AirbendPermanents", [Objects(objects)]) => each(KeywordAction::Airbend, objects, None),
+        ("DoubleCreaturesPowerUntilEndOfTurn", [Object(o)]) => {
+            double(ObjectSet::One(o.clone()), true, false)
+        }
+        ("DoubleCreaturesPowerAndToughnessUntilEndOfTurn", [Object(o)]) => {
+            double(ObjectSet::One(o.clone()), true, true)
+        }
+        ("DoubleEachCreaturesPowerUntilEndOfTurn", [Objects(o)]) => double(o.clone(), true, false),
+        ("DoubleEachCreaturesToughnessUntilEndOfTurn", [Objects(o)]) => {
+            double(o.clone(), false, true)
+        }
+        ("DoubleEachCreaturesPowerAndToughnessUntilEndOfTurn", [Objects(o)]) => {
+            double(o.clone(), true, true)
+        }
+        ("PutTopCardOfLibraryOfTypeOnBattlefield", [Operand::Filter(cards), flags @ ..]) => {
+            Operation::MoveTopCard {
+                actor: actor.clone(),
+                cards: cards.clone(),
+                reveal: false,
+                destination: Destination::OwnersBattlefield,
+                entry: flags.to_vec(),
+            }
+        }
+        ("RevealTopCardOfLibraryAndPutIntoHand", [Operand::Filter(cards)]) => {
+            Operation::MoveTopCard {
+                actor: actor.clone(),
+                cards: cards.clone(),
+                reveal: true,
+                destination: Destination::OwnersHand,
+                entry: vec![],
+            }
+        }
+        ("PayAnyAmountOfMana", []) => pay(PaidResource::Mana),
+        ("PayAnyAmountOfEnergy", []) => pay(PaidResource::Energy),
+        ("PayAnyAmountOfLife", []) => pay(PaidResource::Life),
+        ("RevealACardFromHand", []) => reveal(ObjectFilter::Any, Some(Expr::Constant(1)), false),
+        ("RevealACardFromHandAtRandom", []) => {
+            reveal(ObjectFilter::Any, Some(Expr::Constant(1)), true)
+        }
+        ("RevealNumberCardsFromHand", [Number(n)]) => {
+            reveal(ObjectFilter::Any, Some(n.clone()), false)
+        }
+        ("RevealNumberCardsFromHandAtRandom", [Number(n)]) => {
+            reveal(ObjectFilter::Any, Some(n.clone()), true)
+        }
+        ("RevealAllCardsOfTypeFromHand", [Operand::Filter(cards)]) => {
+            reveal(cards.clone(), None, false)
+        }
+        ("RevealACardOfTypeFromHandAtRandom", [Operand::Filter(cards)]) => {
+            reveal(cards.clone(), Some(Expr::Constant(1)), true)
+        }
         // CR 701.34a: a +1/+1 counter on each of up to N other target creatures.
         ("Support", [Objects(objects)]) => Operation::PutCounters {
             placements: vec![CounterPlacement {
@@ -2897,6 +2993,9 @@ impl Effects {
                     | Operation::CopyCards { .. }
                     | Operation::ChangeSpell { .. }
                     | Operation::KeywordEach { .. }
+                    | Operation::MoveTopCard { .. }
+                    | Operation::PayAnyAmount { .. }
+                    | Operation::RevealFromHand { .. }
                     | Operation::CopyOnStack { .. }
                     | Operation::Retarget { .. }
                     | Operation::Clash { .. }
