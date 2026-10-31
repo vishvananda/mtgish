@@ -184,6 +184,8 @@ impl Compiler {
         body: &Program,
     ) -> Result<(Rc<Outer>, Option<String>)> {
         self.closing(subject_only, |c| {
+            // A target filter is a function of its own: no local reaches it.
+            c.reset_results();
             let targets = announcement
                 .map(|a| c.targets_for(a, label, Frame::default()))
                 .transpose();
