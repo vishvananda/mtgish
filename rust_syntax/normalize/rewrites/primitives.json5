@@ -3062,6 +3062,15 @@
     {"source": "CreatableToken::TokenCopyOfCommander", "text": "commander"},
     {"source": "CDA_Types::HasAllNonbasicLandTypes", "text": "nonbasic"},
     {"source": "GameNumber::NumSpellsCastByPlayerBeforeSpellThisTurn", "text": "before"},
-    {"source": "FutureTrigger::WhenPermanentWinsAFightAgainstPermanent", "text": "wins"}
+    {"source": "FutureTrigger::WhenPermanentWinsAFightAgainstPermanent", "text": "wins"},
+    {"source": "Action::ReducePlayersSpeed", "text": "speed"},
+    {"source": "CardsInExile::SharesANameWithThePlayedCard", "text": "name"},
+    {"source": "Expiration::UntilPermanentIsTurnedFaceDown", "text": "face"},
+    {"source": "Player::ThePlayerThatAddedThisAbility", "text": "only"},
+    {"source": "Spell::TheNthSpellCastByPlayerThisTurn", "text": "first"},
+    {"source": "Player::DealsDamage_ThatPlayer", "text": "that"},
+    {"source": "Permanent::ThePermanentThatCreatedThisEmblem", "text": "exiled"},
+    {"source": "GameNumber::TheTotalManaValueOfThePermanentsThisSpellTargets", "text": "mana"},
+    {"source": "GameNumber::Trigger_NumberOfPlayersBeingAttacked", "text": "attack|attacked"}
   ]
 }

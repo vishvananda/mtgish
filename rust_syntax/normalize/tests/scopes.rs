@@ -1815,3 +1815,11 @@ fn keyword_actions_name_the_object_they_acted_on() {
     );
     assert!(enforcer.contains("Transformed"), "{enforcer}");
 }
+
+#[test]
+fn spell_exceptions_read_the_spell_they_except() {
+    let stitcher = lowered(
+        "SpellActions(ActionList([DrawNumberCards(NumSpellsCastByPlayerThisTurn(Other(TheNthSpellCastByPlayerThisTurn(Integer(1), AnySpell, You)), You))]))",
+    );
+    assert!(stitcher.contains("Not(SameObject(Primitive"), "{stitcher}");
+}

@@ -901,6 +901,7 @@ impl Context {
                 "Player::LoseLife_ThatPlayer"
                 | "Player::PlayerAction_ThatPlayer"
                 | "Player::SpellDealsDamage_ThatPlayer"
+                | "Player::DealsDamage_ThatPlayer"
                 | "Player::Condition_ThatPlayer",
                 [],
             ) => PlayerRef::Acting,
