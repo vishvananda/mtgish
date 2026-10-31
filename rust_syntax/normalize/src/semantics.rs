@@ -5321,6 +5321,7 @@ impl Effects {
     fn objects_library(&self, objects: &ObjectSet) -> bool {
         match objects {
             ObjectSet::LibraryTops(_) => true,
+            ObjectSet::Primitive { .. } => false,
             ObjectSet::Observed(result) => self.result_library(result, &ObjectPhase::Before),
             ObjectSet::Difference { objects, .. } | ObjectSet::Matching { objects, .. } => {
                 self.objects_library(objects)

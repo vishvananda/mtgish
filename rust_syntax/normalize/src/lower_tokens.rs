@@ -332,7 +332,12 @@ impl Context {
                 source::TokenFlag::EntersAttachedToPlayer(p) => entry
                     .states
                     .push(EntryState::AttachedToPlayer(self.player(p)?)),
-                _ => return Err(unsupported(flag).at(format!("entry[{i}]"))),
+                _ => {
+                    let (name, operands) = self
+                        .primitive("TokenFlag", flag)
+                        .ok_or_else(|| unsupported(flag).at(format!("entry[{i}]")))?;
+                    entry.states.push(EntryState::Primitive { name, operands });
+                }
             }
         }
         Ok(entry)

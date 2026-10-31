@@ -3025,6 +3025,11 @@
     {"source": "Condition::CastByAPlayer", "text": "cast"},
     {"source": "Players::AttackedWithCreatureThisTurn", "text": "attacked"},
     {"source": "Cost::WaterbendCustomX", "text": "waterbend"},
-    {"source": "Spells::SharesACardtypeWithAnExiledCard", "text": "shares"}
+    {"source": "Spells::SharesACardtypeWithAnExiledCard", "text": "shares"},
+    {"source": "EnterFlag::EntersAsFaceDownCreatureWithAbilitiesAndNotedName", "text": "face"},
+    {"source": "EnterFlag::EntersWithNotedCounters", "text": "counters"},
+    {"source": "ExileFlag::Limited", "text": "exile|exiled"},
+    {"source": "ExileFlag::LimitedWithTriggerEnters", "text": "exile|exiled"},
+    {"source": "TokenFlag::EntersWithRuleEffectUntil", "text": "attack|haste|gain"}
   ]
 }

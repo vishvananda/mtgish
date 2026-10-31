@@ -5523,6 +5523,9 @@ impl Context {
                     source::ReplacableEventWouldEnter::APermanentWouldEnterTheBattlefield(p) => self.filter(p)?,
                     source::ReplacableEventWouldEnter::PermanentWouldEnterTheBattlefield(p) => ObjectFilter::SameObject(self.object(p)?),
                     source::ReplacableEventWouldEnter::APermanentWouldEnterTheBattlefieldUnderAPlayersControl(p,players) => ObjectFilter::All(vec![self.filter(p)?,ObjectFilter::ControlledBy(self.players(players)?)]),
+                    source::ReplacableEventWouldEnter::APermanentWouldEnterTheBattlefieldAndWasntCast(p) => self.filter(
+                        &source::Permanents::And(vec![(**p).clone(), source::Permanents::WasntCast]),
+                    )?,
                     _=>return Err(unsupported(event)),
                 };
                 let active = if matches!(objects, ObjectFilter::SameObject(ObjectRef::Source)) {

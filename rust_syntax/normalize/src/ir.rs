@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 127;
+pub const SCHEMA_VERSION: u32 = 128;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1979,6 +1979,11 @@ pub enum EntryState {
     },
     /// One set of changes, chosen as it enters.
     ChooseChanges(Vec<Vec<Change>>),
+    /// A reviewed entry instruction with no reduction.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3122,6 +3127,11 @@ pub enum ObjectSet {
     Copies(ResultId),
     /// The objects of the enclosing `ForEachObject` this payment was not made for.
     Unpaid(ResultId),
+    /// A reviewed set with no reduction.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {

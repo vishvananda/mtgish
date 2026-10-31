@@ -301,7 +301,7 @@ fn creation_bindings_inside_branches_keep_the_parent_result_in_the_other_branch(
     assert_eq!(created(&otherwise.instructions[0]), 0);
 }
 #[test]
-fn entry_counters_stay_in_the_creation_and_unsupported_entry_flags_fail() {
+fn entry_counters_stay_in_the_creation_and_timed_entry_rules_are_named() {
     let mut action = create();
     let source::Action::CreateTokens(_, flags) = &mut action else {
         panic!()
@@ -340,8 +340,9 @@ fn entry_counters_stay_in_the_creation_and_unsupported_entry_flags_fail() {
         vec![],
         source::Expiration::UntilEndOfTurn,
     ));
-    assert!(lower::card(&probe(vec![action]))
-        .unwrap_err()
-        .iter()
-        .any(|e| e.form == "EntersWithRuleEffectUntil"));
+    let named = format!("{:?}", lower::card(&probe(vec![action])).unwrap());
+    assert!(
+        named.contains("TokenFlag::EntersWithRuleEffectUntil"),
+        "{named}"
+    );
 }

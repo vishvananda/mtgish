@@ -157,7 +157,12 @@ impl Context {
                             value: Expr::Constant(1),
                         },
                     ),
-                    _ => return Err(unsupported(colors)),
+                    _ => {
+                        let (name, operands) = self
+                            .primitive("ProtectableColor", colors)
+                            .ok_or_else(|| unsupported(colors))?;
+                        objects(ObjectKind::Any, ObjectFilter::Primitive { name, operands })
+                    }
                 }
             }
             _ => return Err(unsupported(value)),

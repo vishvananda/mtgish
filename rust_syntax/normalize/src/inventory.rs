@@ -878,6 +878,7 @@ impl Inventory<'_> {
                         self.ability(ability);
                     }
                 }
+                self.entry_states(entry);
                 for (kind, amount) in &entry.counters {
                     self.form("CounterKind", kind);
                     if let crate::counter::CounterKind::Named(n) = kind {
@@ -988,6 +989,7 @@ impl Inventory<'_> {
             } => {
                 self.objects(objects);
                 self.destination(destination);
+                self.entry_states(entry);
                 for (k, n) in &entry.counters {
                     self.counter(k);
                     self.expr(n);
@@ -1069,6 +1071,7 @@ impl Inventory<'_> {
         } = c
         {
             self.destination(destination);
+            self.entry_states(entry);
             for (kind, amount) in &entry.counters {
                 self.counter(kind);
                 self.expr(amount);
@@ -1196,6 +1199,7 @@ impl Inventory<'_> {
                             self.count(count);
                         }
                     }
+                    self.entry_states(entry);
                     for (kind, n) in &entry.counters {
                         self.counter(kind);
                         self.expr(n);
@@ -1718,6 +1722,7 @@ impl Inventory<'_> {
     fn objects(&mut self, r: &ObjectSet) {
         self.form("ObjectSet", r);
         match r {
+            ObjectSet::Primitive { name, .. } => self.primitive(name),
             ObjectSet::DamageSources(filter) => self.filter(filter),
             ObjectSet::LibraryTops(players) => self.players(players),
             ObjectSet::Affected(_) => {}
@@ -2208,6 +2213,14 @@ impl Inventory<'_> {
             Duration::Either(durations) => durations.iter().for_each(|d| self.duration(d)),
         }
     }
+    fn entry_states(&mut self, entry: &EntrySpec) {
+        for state in &entry.states {
+            if let EntryState::Primitive { name, .. } = state {
+                self.primitive(name);
+            }
+        }
+    }
+
     fn replacement_event(&mut self, event: &ReplacementEvent) {
         self.form("ReplacementEvent", event);
         match event {

@@ -1673,3 +1673,16 @@ fn divided_prevention_reads_each_share() {
     assert!(shields.contains("DistributedShare"), "{shields}");
     assert!(shields.contains("DamageToEach"), "{shields}");
 }
+
+#[test]
+fn entry_flags_exiled_sets_and_protection_colors_fall_back_to_rows() {
+    let exile = lowered(
+        "SpellActions(ActionList([Exile([TheBottomCardOfTypeInLibrary(IsCardtype(Creature))], [])]))",
+    );
+    assert!(exile.contains("TheBottomCardOfTypeInLibrary"), "{exile}");
+    let priest = lowered(
+        "ReplaceWouldEnter(APermanentWouldEnterTheBattlefieldAndWasntCast(And([IsNonToken, IsCardtype(Creature)])), [ExileItInstead])",
+    );
+    assert!(priest.contains("Cast"), "{priest}");
+    assert!(!priest.contains("WouldEnterTheBattlefieldAndWasntCast"), "{priest}");
+}

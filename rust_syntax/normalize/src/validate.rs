@@ -527,6 +527,7 @@ impl<'a> Scope<'a> {
             EntryState::Blocking(object) | EntryState::AttachedTo(object) => self.object(object),
             EntryState::AttachedToChosen(filter) => self.filter(filter),
             EntryState::AttachedToPlayer(player) => self.player(player),
+            EntryState::Primitive { name, operands } => self.primitive(name, operands),
             EntryState::Changes(changes) => self.entering_changes(changes),
             EntryState::ChooseChanges(options) => options
                 .iter()
@@ -730,6 +731,7 @@ impl<'a> Scope<'a> {
                     _ => Err("a player's share requires an object-transition result".into()),
                 }
             }
+            ObjectSet::Primitive { name, operands } => self.primitive(name, operands),
             ObjectSet::One(object) => self.object(object),
             // A loop over "any target" binds each one, player or permanent.
             ObjectSet::Targets(slot) => self

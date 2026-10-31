@@ -44,7 +44,12 @@ impl Context {
                 }
             }
             S::IsNamed(n) => self.card_filter(&source::Cards::IsNamed(n.clone()))?,
-            _ => return Err(unsupported(value)),
+            _ => {
+                let (name, operands) = self
+                    .primitive("DamageSources", value)
+                    .ok_or_else(|| unsupported(value))?;
+                ObjectFilter::Primitive { name, operands }
+            }
         })
     }
     fn damage_trigger(&self, value: &source::Trigger) -> Result<EventSpec> {

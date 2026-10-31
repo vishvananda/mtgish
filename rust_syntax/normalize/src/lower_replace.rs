@@ -190,7 +190,14 @@ impl Context {
                 return Ok(ReplacementEvent::Either(
                     items
                         .iter()
-                        .map(|item| self.graveyard_replacement(item))
+                        .map(|item| {
+                            self.graveyard_replacement(item).or_else(|error| {
+                                let (name, operands) = rescue(error, || {
+                                    self.primitive("ReplacableEventWouldPutIntoGraveyard", item)
+                                })?;
+                                Ok(crate::semantics::reduce_replacement(name, operands))
+                            })
+                        })
                         .collect::<Result<_>>()?,
                 ))
             }

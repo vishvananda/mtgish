@@ -636,7 +636,12 @@ impl Context {
                 ),
                 None,
             ),
-            _ => return Err(unsupported(value)),
+            _ => {
+                let (name, operands) = self
+                    .primitive("Exilable", value)
+                    .ok_or_else(|| unsupported(value))?;
+                (ObjectSet::Primitive { name, operands }, None)
+            }
         };
         Ok((objects, choose))
     }
@@ -711,7 +716,12 @@ impl Context {
                 source::ExileFlag::ExilesWithNumberCounters(n, k) => entry
                     .counters
                     .push((crate::counter::lower(k), self.number(n)?)),
-                _ => return Err(unsupported(flag).at(format!("flags[{i}]"))),
+                _ => {
+                    let (name, operands) = self
+                        .primitive("ExileFlag", flag)
+                        .ok_or_else(|| unsupported(flag).at(format!("flags[{i}]")))?;
+                    entry.states.push(EntryState::Primitive { name, operands });
+                }
             }
         }
         Ok((entry, face_down))
@@ -1075,7 +1085,12 @@ impl Context {
                         duration: self.duration(duration)?,
                     })
                 }
-                _ => return Err(unsupported(flag).at(format!("entry[{i}]"))),
+                _ => {
+                    let (name, operands) = self
+                        .primitive("EnterFlag", flag)
+                        .ok_or_else(|| unsupported(flag).at(format!("entry[{i}]")))?;
+                    entry.states.push(EntryState::Primitive { name, operands });
+                }
             }
         }
         Ok((destination, entry))
