@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 90;
+pub const SCHEMA_VERSION: u32 = 91;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -765,6 +765,11 @@ pub enum Operation {
         players: PlayerSet,
         amount: Expr,
     },
+    /// Change one spell on the stack, or the next spell a player casts.
+    ChangeSpell {
+        subject: SpellSubject,
+        changes: Vec<Change>,
+    },
     /// Cast or play cards while resolving, as Forge's `Play`.
     PlayCards {
         actor: PlayerSet,
@@ -1289,6 +1294,17 @@ pub enum MovedCounters {
 /// What a choice of a value picks, as Forge's `ChooseColor`, `ChooseType`,
 /// `NameCard` and `ChooseNumber`.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum SpellSubject {
+    One(ObjectRef),
+    Next {
+        spells: ObjectFilter,
+        player: PlayerRef,
+        this_turn: bool,
+        from_hand: bool,
+    },
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct CounterStage {
     pub minimum: i64,
     pub maximum: Option<i64>,
@@ -1659,6 +1675,14 @@ pub enum Change {
     SetArtifactType(crate::mtg_types::ArtifactType),
     RemoveSupertype(SuperType),
     SwitchPowerToughness,
+    /// The permanent this spell becomes enters with these counters.
+    EntersWithCounters {
+        kind: crate::counter::CounterKind,
+        amount: Expr,
+    },
+    /// Only for a spell: the total cost it is cast for.
+    SpellCost(SpellCostModifier),
+    CantBeCountered,
     /// Only in `ActivationLimits::modifiers`.
     ActivationRule(ActivationRule),
     LosesAbility(Box<Operand>),

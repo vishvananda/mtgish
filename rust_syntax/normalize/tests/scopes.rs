@@ -622,6 +622,21 @@ fn casting_on_resolution_is_one_operation() {
 }
 
 #[test]
+fn a_change_to_a_spell_names_the_spell_and_ordinary_changes() {
+    let body = lowered(
+        "SpellActions(ActionList([CreateFutureSpellEffect(TheNextSpellPlayerCastsThisTurn(AnySpell, You), [Cascade])]))",
+    );
+    assert!(body.contains("ChangeSpell { subject: Next"), "{body}");
+    assert!(body.contains("this_turn: true"), "{body}");
+    assert!(body.contains("GrantAbility("), "{body}");
+    let body = lowered(
+        "TriggerA(WhenAPlayerCastsASpell(SinglePlayer(You), AnySpell), ActionList([CreateSpellEffect(Trigger_ThatSpell, [EntersWithACounter(PTCounter(1, 1))])]))",
+    );
+    assert!(body.contains("subject: One("), "{body}");
+    assert!(body.contains("EntersWithCounters {"), "{body}");
+}
+
+#[test]
 fn a_chosen_value_is_one_choice_read_by_kind() {
     let body = lowered("SpellActions(ActionList([ChooseACreatureType]))");
     assert!(body.contains("ChooseValue"), "{body}");

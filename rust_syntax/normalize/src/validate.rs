@@ -1139,6 +1139,9 @@ impl<'a> Scope<'a> {
             | Change::RemoveAllAbilities
             | Change::ChosenType { .. }
             | Change::SwitchPowerToughness => Ok(()),
+            Change::EntersWithCounters { amount, .. } => self.expr(amount),
+            Change::SpellCost(modifier) => self.spell_cost_modifier(modifier),
+            Change::CantBeCountered => Ok(()),
             Change::ActivationRule(_) => {
                 Err("an activation rule belongs to an activated ability".into())
             }
@@ -1696,6 +1699,16 @@ impl<'a> Scope<'a> {
             Operation::Conjure { actor, entry, .. } => {
                 self.players(actor)?;
                 entry.iter().try_for_each(|o| self.operand(o))
+            }
+            Operation::ChangeSpell { subject, changes } => {
+                match subject {
+                    SpellSubject::One(spell) => self.object(spell)?,
+                    SpellSubject::Next { spells, player, .. } => {
+                        self.filter(spells)?;
+                        self.player(player)?;
+                    }
+                }
+                changes.iter().try_for_each(|change| self.change(change))
             }
             Operation::PlayCards {
                 actor,

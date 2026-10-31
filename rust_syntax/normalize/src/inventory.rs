@@ -337,6 +337,16 @@ impl Inventory<'_> {
                 self.form("EventZone", zone);
                 self.players(actor);
             }
+            Operation::ChangeSpell { subject, changes } => {
+                match subject {
+                    SpellSubject::One(spell) => self.object(spell),
+                    SpellSubject::Next { spells, player, .. } => {
+                        self.filter(spells);
+                        self.player(player);
+                    }
+                }
+                changes.iter().for_each(|change| self.change(change));
+            }
             Operation::PlayCards {
                 actor,
                 action,
@@ -1202,6 +1212,12 @@ impl Inventory<'_> {
             | Change::SwitchPowerToughness
             | Change::LosesAbility(_)
             | Change::SetLandType(_) => {}
+            Change::EntersWithCounters { kind, amount } => {
+                self.form("CounterKind", kind);
+                self.expr(amount);
+            }
+            Change::SpellCost(modifier) => self.spell_cost_modifier(modifier),
+            Change::CantBeCountered => {}
             Change::ActivationRule(rule) => {
                 self.form("ActivationRule", rule);
                 match rule {

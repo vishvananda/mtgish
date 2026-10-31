@@ -2060,6 +2060,7 @@ impl Effects {
                     | Operation::DoubleCounters { .. }
                     | Operation::PlayCards { .. }
                     | Operation::CopyCards { .. }
+                    | Operation::ChangeSpell { .. }
                     | Operation::Conjure { .. } => self.library = true,
                 },
                 Instruction::Group(p) | Instruction::Optional { body: p, .. } => self.program(p),

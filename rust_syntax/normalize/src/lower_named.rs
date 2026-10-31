@@ -449,6 +449,79 @@ impl Context {
         })
     }
 
+    /// A change to a spell, or the row when any effect has no generic form.
+    fn spell_change(&self, value: &source::Action) -> Option<Operation> {
+        use source::Action as S;
+        use source::FutureSpell as F;
+        let (subject, effects) = match value {
+            S::CreateSpellEffect(spell, effects) => {
+                (SpellSubject::One(self.spell(spell).ok()?), effects)
+            }
+            S::CreateFutureSpellEffect(next, effects) => {
+                let (spells, player, this_turn, from_hand) = match next {
+                    F::TheNextSpellPlayerCasts(spells, player) => (spells, player, false, false),
+                    F::TheNextSpellPlayerCastsThisTurn(spells, player) => {
+                        (spells, player, true, false)
+                    }
+                    F::TheNextSpellPlayerCastsFromTheirHandThisTurn(spells, player) => {
+                        (spells, player, true, true)
+                    }
+                };
+                let subject = SpellSubject::Next {
+                    spells: self.spell_filter(spells).ok()?,
+                    player: self.player(player).ok()?,
+                    this_turn,
+                    from_hand,
+                };
+                (subject, effects)
+            }
+            _ => return None,
+        };
+        let mut changes = vec![];
+        for effect in effects {
+            changes.extend(self.spell_effect(effect)?);
+        }
+        Some(Operation::ChangeSpell { subject, changes })
+    }
+
+    fn spell_effect(&self, value: &source::SpellEffect) -> Option<Vec<Change>> {
+        use source::SpellEffect as S;
+        let reduced = |symbols: &[source::CostReductionSymbol], factor| {
+            Some(Change::SpellCost(SpellCostModifier::Reduce {
+                reductions: self.mana_reduction(symbols, factor).ok()?,
+                spill_into_generic: true,
+            }))
+        };
+        let change = match value {
+            S::EntersWithACounter(kind) => Change::EntersWithCounters {
+                kind: crate::counter::lower(kind),
+                amount: Expr::Constant(1),
+            },
+            S::EntersWithNumberCounters(amount, kind) => Change::EntersWithCounters {
+                kind: crate::counter::lower(kind),
+                amount: self.number(amount).ok()?,
+            },
+            S::DecreaseManaCost(symbols) => reduced(symbols, Expr::Constant(1))?,
+            S::DecreaseManaCostForEach(symbols, each) => {
+                reduced(symbols, self.number(each).ok()?)?
+            }
+            S::IncreaseManaCost(mana) => Change::SpellCost(SpellCostModifier::Increase(Cost {
+                parts: vec![CostPart::Mana(
+                    mana.iter().map(mana_symbol).collect::<Result<_>>().ok()?,
+                )],
+            })),
+            S::CantBeCountered => Change::CantBeCountered,
+            _ => {
+                if let Some(layer) = as_family::<source::LayerEffect>(value, "LayerEffect") {
+                    return self.layer_changes(&[layer]).ok();
+                }
+                let rule: source::Rule = as_family(value, "Rule")?;
+                Change::GrantAbility(Box::new(self.fresh().ability(&rule).ok()?))
+            }
+        };
+        Some(vec![change])
+    }
+
     /// Its result is unknown, so earlier antecedents are forgotten as for a named action.
     fn primitive_action(
         &mut self,
@@ -478,6 +551,7 @@ impl Context {
         }
         let operation = self
             .perpetual(value, operands.first())
+            .or_else(|| self.spell_change(value))
             .unwrap_or_else(|| crate::semantics::reduce_action(actor.clone(), name, operands));
         let yields = crate::semantics::yields(&operation);
         match yields {
