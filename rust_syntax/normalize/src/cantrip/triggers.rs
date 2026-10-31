@@ -568,6 +568,192 @@ impl Compiler {
             "Whenever this becomes a target",
         ))
     }
+    /// Whether the `Target` `defender` is one of `defenders`.
+    fn attacked(&self, defenders: &AttackDefenders) -> Result<String> {
+        Ok(match defenders {
+            AttackDefenders::Any => "true".into(),
+            AttackDefenders::Objects(filter) => format!(
+                "match *defender {{ Target::Object(o) => {}, _ => false }}",
+                self.filter(filter, &Candidate::of("o"))?
+            ),
+            AttackDefenders::Players(players) => format!(
+                "match *defender {{ Target::Player(p) => {}, _ => false }}",
+                self.player_in(players, "p")?
+            ),
+            AttackDefenders::PlayersAndPlaneswalkers(players) => format!(
+                "match *defender {{ Target::Player(p) => {}, Target::Object(o) => q.chars(o).is(CardType::Planeswalker) && {}, _ => false }}",
+                self.player_in(players, "p")?,
+                self.player_in(players, "q.controller(o)")?
+            ),
+        })
+    }
+    /// `EventSpec::Attack`. `data` is the attacker's controller, then its
+    /// defending player, which is what a batch of them is split by.
+    fn attack_event(
+        &mut self,
+        attackers: &ObjectFilter,
+        by: Option<&PlayerSet>,
+        defenders: &AttackDefenders,
+    ) -> Result<(Matched, Vec<String>)> {
+        let named = !matches!(defenders, AttackDefenders::Any);
+        let frame = Frame {
+            object: Some(Carried::Subject),
+            player: match (by, named) {
+                (Some(_), _) => Some(Carried::Data(0)),
+                (None, true) => Some(Carried::Data(1)),
+                (None, false) => None,
+            },
+            other_player: (by.is_some() && named).then_some(Carried::Data(1)),
+            ..Frame::default()
+        };
+        let tests = self.matching(frame, |c| {
+            let mut tests = vec![c.filter(attackers, &Candidate::of("id"))?];
+            if let Some(by) = by {
+                tests.push(c.player_in(by, "q.controller(id)")?);
+            }
+            tests.push(c.attacked(defenders)?);
+            Ok(tests)
+        })?;
+        let arm = Arm {
+            pattern: "Event::Attacks { attacker, defender, defending, .. }".into(),
+            locals: "let id = *attacker; let subject = Target::Object(id); let data = [u32::from(q.controller(id).0), u32::from(defending.0)];".into(),
+            tests: tests.clone(),
+        };
+        Ok((
+            single("ATTACKS", arm, frame, "Whenever a creature attacks"),
+            tests,
+        ))
+    }
+    /// Creatures attacking at once. The declaration is whole by the time its
+    /// events are matched, so the attackers state how many there are.
+    fn attack_batch(
+        &mut self,
+        event: &EventSpec,
+        per: &BatchPer,
+        count: Option<&(Comparison, Expr)>,
+        including: Option<&ObjectRef>,
+    ) -> Result<Matched> {
+        let EventSpec::Attack {
+            attackers,
+            by,
+            defenders,
+        } = event
+        else {
+            return Err(gap("attack batch of another event"));
+        };
+        let (mut matched, tests) = self.attack_event(attackers, by.as_ref(), defenders)?;
+        let keyed = match per {
+            BatchPer::Whole => false,
+            BatchPer::Defender => true,
+            BatchPer::Subject => return Err(gap("attack batch by attacker")),
+        };
+        matched.batch = Some(keyed);
+        let frame = matched.frame;
+        let mut each = tests;
+        if keyed {
+            each.push("a.defending == *defending".into());
+        }
+        let mut extra = Vec::new();
+        if let Some(one) = including {
+            let one = self.matching(frame, |c| c.object(one))?;
+            extra.push(format!(
+                "q.state().attackers.iter().any(|a| Some(a.id) == {one})"
+            ));
+            // Its count is of the others, as "and at least two other creatures".
+            each.push(format!("Some(a.id) != {one}"));
+        }
+        if let Some((comparison, value)) = count {
+            let value = self.matching(frame, |c| Ok(c.number(value)?.code))?;
+            let many = format!(
+                "q.state().attackers.iter().filter(|a| {{ let (id, defender) = (a.id, &a.target); {} }}).count() as i64",
+                each.join(" && ")
+            );
+            extra.push(read::compare(&many, comparison, &value));
+        }
+        for arm in &mut matched.arms {
+            arm.tests.extend(extra.iter().cloned());
+        }
+        Ok(matched)
+    }
+    /// `EventSpec::Counters` put at once. `data[1]` is the object, which keeps
+    /// one object's counters apart from another's when split by subject.
+    fn counters_batch(
+        &mut self,
+        change: &CounterChange,
+        kind: Option<&crate::counter::CounterKind>,
+        objects: &ObjectFilter,
+        by: Option<&PlayerSet>,
+        per: &BatchPer,
+    ) -> Result<Matched> {
+        if *change != CounterChange::Put {
+            return Err(gap("engine: no event for a counter being removed"));
+        }
+        let frame = Frame {
+            object: Some(Carried::Subject),
+            amount: Some(Carried::Data(0)),
+            ..Frame::default()
+        };
+        let mut tests = vec![self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?];
+        if let Some(kind) = kind {
+            tests.push(format!("*kind == {}", read::counter_kind(kind)?));
+        }
+        if let Some(by) = by {
+            tests.push(self.matching(frame, |c| c.player_in(by, "*by"))?);
+        }
+        let mut matched = single(
+            "COUNTERS",
+            Arm {
+                pattern: "Event::CountersPut { object, kind, amount, by, .. }".into(),
+                locals: "let id = *object; let subject = Target::Object(id); let data = [*amount as u32, id.0];".into(),
+                tests,
+            },
+            frame,
+            "Whenever counters are put on a permanent",
+        );
+        matched.batch = Some(match per {
+            BatchPer::Whole => false,
+            BatchPer::Subject => true,
+            BatchPer::Defender => return Err(gap("counters batch by defender")),
+        });
+        Ok(matched)
+    }
+    /// `EventSpec::Batch`: however many of an event happen at once.
+    fn batch_event(
+        &mut self,
+        event: &EventSpec,
+        per: &BatchPer,
+        count: Option<&(Comparison, Expr)>,
+        including: Option<&ObjectRef>,
+    ) -> Result<Matched> {
+        let mut matched = match event {
+            EventSpec::Attack { .. } => self.attack_batch(event, per, count, including)?,
+            EventSpec::Counters {
+                change,
+                kind,
+                objects,
+                by,
+            } if count.is_none() && including.is_none() => {
+                self.counters_batch(change, kind.as_ref(), objects, by.as_ref(), per)?
+            }
+            other => {
+                if count.is_some() || including.is_some() || *per != BatchPer::Whole {
+                    return Err(gap(format!("batch of {}", form(other))));
+                }
+                let mut matched = self.event(other)?;
+                if matched.batch.is_some() || matched.sums {
+                    return Err(gap("a batch of grouped events"));
+                }
+                matched.batch = Some(false);
+                matched
+            }
+        };
+        // No one of a whole batch is the event's, however the form binds it.
+        if *per == BatchPer::Whole {
+            matched.frame.object = None;
+        }
+        matched.frame.amount = matched.frame.amount.filter(|_| *per == BatchPer::Subject);
+        Ok(matched)
+    }
     /// An event by how many came before it this turn, of its own player's when
     /// `by_player`. The history a matcher sees stops short of its event.
     fn ordinal_event(
@@ -921,6 +1107,19 @@ impl Compiler {
             EventSpec::FirstEachTurn(event) => {
                 self.ordinal_event(event, &Comparison::Equal, &Expr::Constant(1), false)
             }
+            EventSpec::Attack {
+                attackers,
+                by,
+                defenders,
+            } => Ok(self.attack_event(attackers, by.as_ref(), defenders)?.0),
+            EventSpec::Batch {
+                event,
+                per,
+                count,
+                including,
+            } => self.batch_event(event, per, count.as_ref(), including.as_ref()),
+            // The engine's event is one put, and each counter is one of these.
+            EventSpec::Counters { .. } => Err(gap("engine: no event for each counter put")),
             EventSpec::Primitive { name, .. } => {
                 Err(gap(format!("primitive trigger event {name}")))
             }

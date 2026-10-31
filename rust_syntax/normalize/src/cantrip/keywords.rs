@@ -54,6 +54,13 @@ impl Compiler {
         let number = self.number(amount)?.amount(max.into(), ty)?;
         Ok(self.fetch(number))
     }
+    /// How many times to repeat an action that may state a number of times.
+    fn times(&mut self, action: &Action) -> Result<String> {
+        match action.amount {
+            Some(_) => self.action_amount(action, u8::MAX.into(), "u32"),
+            None => Ok("1u32".into()),
+        }
+    }
     fn earthbend(&mut self, action: &Action, out: &mut String) -> Result<()> {
         self.controlled_by_item(action)?;
         let (Some(ObjectRef::Target { slot, index: 0 }), Some(Expr::Constant(n))) =
@@ -109,8 +116,17 @@ impl Compiler {
         }
         let counted = matches!(
             action.action,
-            K::Amass | K::Connive | K::Earthbend | K::Monstrosity | K::Discover | K::GainEnergy
-        );
+            K::Amass
+                | K::Connive
+                | K::Earthbend
+                | K::Monstrosity
+                | K::Discover
+                | K::GainEnergy
+                | K::Incubate
+                | K::EmpowerJace
+                | K::Adapt
+                | K::Bolster
+        ) || (action.amount.is_some() && matches!(action.action, K::Investigate | K::Proliferate));
         if action.amount.is_some() && !counted {
             return Err(gap(format!(
                 "keyword action {:?} with an amount",
@@ -145,12 +161,78 @@ impl Compiler {
                 if !self.extras.contains(&clue) {
                     self.extras.push(clue);
                 }
-                let call = format!("{M}::tokens::investigate(g, player)?");
+                let times = self.times(&action)?;
+                let call = format!("let times = {times}; for _ in 0..times {{ {M}::tokens::investigate(g, player)?; }}");
                 self.actor_action(&action, &call, out)?;
             }
             K::Proliferate => {
-                self.actor_action(&action, "g.proliferate(player, asker.source)?", out)?
+                let times = self.times(&action)?;
+                let call = format!("let times = {times}; for _ in 0..times {{ g.proliferate(player, asker.source)?; }}");
+                self.actor_action(&action, &call, out)?;
             }
+            K::Incubate => {
+                for token in ["INCUBATOR", "PHYREXIAN"] {
+                    let token = format!("{M}::tokens::{token}");
+                    if !self.extras.contains(&token) {
+                        self.extras.push(token);
+                    }
+                }
+                let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
+                let call = format!("let amount = {n}; {M}::tokens::incubate(g, player, amount)?");
+                self.actor_action(&action, &call, out)?;
+            }
+            K::EmpowerJace => {
+                let token = format!("{M}::empower::JACE");
+                if !self.extras.contains(&token) {
+                    self.extras.push(token);
+                }
+                let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
+                let call = format!("let amount = {n}; {M}::empower::jace(g, player, asker.source, amount)?");
+                self.actor_action(&action, &call, out)?;
+            }
+            K::Adapt => {
+                if action.object.is_some() {
+                    return Err(gap("adapt of another object"));
+                }
+                let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
+                writeln!(out, "{{ let amount_{id} = {n}; {M}::adapt::adapt(g, asker.source, amount_{id}); }}").unwrap();
+            }
+            K::Bolster => {
+                let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
+                let call = format!("let amount = {n}; let creatures: Vec<ObjectId> = g.permanents_of(player).into_iter().filter(|&o| g.chars(o).is(CardType::Creature)).collect(); let least = creatures.iter().map(|&o| g.chars(o).toughness.unwrap_or(0)).min(); let fewest: Vec<ObjectId> = creatures.into_iter().filter(|&o| Some(g.chars(o).toughness.unwrap_or(0)) == least).collect(); if let Some(creature) = {M}::choose::card(g, player, asker.source, Purpose::ChooseAsEnters, fewest)? {{ g.add_counters(creature, CounterKind::PlusOne, amount); }}");
+                self.actor_action(&action, &call, out)?;
+            }
+            K::Populate => {
+                let call = format!("let tokens: Vec<ObjectId> = g.permanents_of(player).into_iter().filter(|&o| g.obj(o).token && g.chars(o).is(CardType::Creature)).collect(); if let Some(token) = {M}::choose::card(g, player, asker.source, Purpose::CopyWhich, tokens)? {{ let values = g.copiable_values(token); g.create_token_copies_tapped(values, player, 1, false)?; }}");
+                self.actor_action(&action, &call, out)?;
+            }
+            K::Learn => {
+                self.controlled_by_item(&action)?;
+                writeln!(out, "{M}::learn::learn(g, item)?;").unwrap();
+            }
+            K::TakeInitiative => self.actor_action(&action, "g.take_initiative(player)", out)?,
+            K::Suspect => self.object_action(&action, "g.suspect(object)", out)?,
+            K::TurnFaceUp => {
+                let player = self.actor(&action)?;
+                let call = format!("g.turn_face_up(object, {player})");
+                self.object_action(&action, &call, out)?;
+            }
+            K::Unattach => self.object_action(&action, "g.unattach(object)", out)?,
+            K::Airbend => {
+                let object = self.acted_object(action.object)?;
+                writeln!(out, "if let Some(object) = {object} {{ {M}::airbend_all(g, &[object]); }}").unwrap();
+            }
+            K::EndTheTurn => writeln!(out, "g.end_the_turn()?;").unwrap(),
+            K::BecomeDay => writeln!(out, "g.become_day()?;").unwrap(),
+            K::BecomeNight => writeln!(out, "g.become_night()?;").unwrap(),
+            K::AdditionalPhase(AddedPhases::Combat) => {
+                writeln!(out, "g.add_combat_phase();").unwrap()
+            }
+            K::Skip(SkippedPart::Turn) => {
+                let call = "g.skip_next_turns(asker.source, player, 1)";
+                self.actor_action(&action, call, out)?;
+            }
+            K::RemoveFromCombat => return Err(gap("engine: no effect removes from combat")),
             K::Amass => {
                 use crate::mtg_types::SubType as S;
                 let (word, subtype) = match action.subtype {

@@ -1079,6 +1079,27 @@ impl Compiler {
                     dynamic: true,
                 }
             }
+            Expr::PartySize(player) => {
+                let party = self.party("player")?;
+                Number {
+                    code: format!(
+                        "{}.map_or(0, |player: PlayerId| {party})",
+                        self.player(player)?
+                    ),
+                    min: 0,
+                    max: 4,
+                    dynamic: true,
+                }
+            }
+            Expr::StartingLife(player) => Number {
+                code: format!(
+                    "{}.map_or(0, |player: PlayerId| i64::from(q.state().player(player).starting_life))",
+                    self.player(player)?
+                ),
+                min: i32::MIN.into(),
+                max: i32::MAX.into(),
+                dynamic: true,
+            },
             other => return Err(gap(format!("numeric expression {}", form(other)))),
         })
     }
@@ -1431,8 +1452,85 @@ impl Compiler {
                     CoinOutcome::Lost | CoinOutcome::Tails => format!("!{local}"),
                 }
             }
+            Condition::Window(window) => {
+                let step = "(q.state().turn.step() as u8)";
+                match window {
+                    TurnWindow::BeforeAttackersDeclared => {
+                        format!("{step} < (Step::DeclareAttackers as u8)")
+                    }
+                    TurnWindow::Combat => format!(
+                        "((Step::BeginCombat as u8)..=(Step::EndOfCombat as u8)).contains(&{step})"
+                    ),
+                    TurnWindow::Upkeep => "q.state().turn.step() == Step::Upkeep".into(),
+                    TurnWindow::EndStep => "q.state().turn.step() == Step::End".into(),
+                    TurnWindow::BeforeCombatDamage => {
+                        format!("{step} < (Step::CombatDamage as u8)")
+                    }
+                    TurnWindow::DeclareAttackers => {
+                        "q.state().turn.step() == Step::DeclareAttackers".into()
+                    }
+                }
+            }
+            Condition::PlayerState { player, state } => format!(
+                "{}.is_some_and(|player: PlayerId| {})",
+                self.player(player)?,
+                self.player_state(state)?
+            ),
             other => return Err(gap(format!("condition {}", form(other)))),
         })
+    }
+    /// Whether `player` is in this state.
+    fn player_state(&self, state: &PlayerState) -> Result<String> {
+        let active = "q.state().turn.active == player";
+        let step = "q.state().turn.step()";
+        Ok(match state {
+            PlayerState::Monarch => "q.state().player(player).monarch".into(),
+            PlayerState::CitysBlessing => "q.state().player(player).citys_blessing".into(),
+            PlayerState::EnduringStory => "q.state().player(player).enduring_story".into(),
+            PlayerState::Initiative => "q.state().player(player).initiative".into(),
+            PlayerState::StartingPlayer => "q.state().turn.starting == player".into(),
+            PlayerState::InTheirUpkeep => format!("{active} && {step} == Step::Upkeep"),
+            PlayerState::InTheirMainPhase => format!(
+                "{active} && matches!({step}, Step::PrecombatMain | Step::PostcombatMain)"
+            ),
+            PlayerState::CompletedDungeon => {
+                "q.history().any(EventQuery::kind(EventMask::DUNGEON_COMPLETED).player(player))"
+                    .into()
+            }
+            PlayerState::CommittedCrime => {
+                "q.history().any(EventQuery::kind(EventMask::CRIME).this_turn().player(player))"
+                    .into()
+            }
+            PlayerState::BeingAttacked => {
+                "q.state().attackers.iter().any(|a| a.target == Target::Player(player))".into()
+            }
+            // CR 700.11: a permanent card went to their graveyard this turn.
+            PlayerState::Descended => format!(
+                "q.history().this_turn().iter().any(|r| matches!(r.event, Event::ZoneChange {{ new, to, .. }} if to == Zone::graveyard(player) && !q.state().obj(new).token && [{}].iter().any(|&t| q.chars(new).is(t))))",
+                [
+                    "Artifact",
+                    "Battle",
+                    "Creature",
+                    "Enchantment",
+                    "Land",
+                    "Planeswalker"
+                ]
+                .map(|t| format!("CardType::{t}"))
+                .join(", ")
+            ),
+            PlayerState::FullParty => format!("{} == 4", self.party("player")?),
+        })
+    }
+    /// `i64` the creatures of `player`'s party (CR 700.8): the most of Cleric,
+    /// Rogue, Warrior and Wizard they can fill one creature to one role, by
+    /// the deficiency form of Hall's theorem over the 16 sets of roles.
+    pub(super) fn party(&self, player: &str) -> Result<String> {
+        if self.reader == Reader::Layer {
+            return Err(gap("a party read in a layer"));
+        }
+        Ok(format!(
+            "{{ let creatures: Vec<ObjectId> = q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == {player} && q.chars(id).is(CardType::Creature)).collect(); (0u8..16).map(|roles: u8| creatures.iter().filter(|&&id| [Subtype::Cleric, Subtype::Rogue, Subtype::Warrior, Subtype::Wizard].iter().enumerate().any(|(i, &role)| (roles >> i) & 1 == 1 && q.chars(id).has_subtype(role))).count() as i64 + 4 - i64::from(roles.count_ones())).min().unwrap_or(0) }}"
+        ))
     }
 }
 
