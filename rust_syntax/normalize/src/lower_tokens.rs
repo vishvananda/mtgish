@@ -214,8 +214,11 @@ impl Context {
             ),
             _ => return Err(unsupported(value)),
         };
+        let chosen_color = matches!(colors, source::TokenColorList::TheChosenColor);
         let colors = match colors {
-            source::TokenColorList::Colorless => Vec::new(),
+            source::TokenColorList::Colorless | source::TokenColorList::TheChosenColor => {
+                Vec::new()
+            }
             source::TokenColorList::AllColors => vec![
                 ManaColor::White,
                 ManaColor::Blue,
@@ -233,7 +236,6 @@ impl Context {
                     source::SimpleColor::Green => ManaColor::Green,
                 })
                 .collect(),
-            _ => return Err(unsupported(colors)),
         };
         let subtypes = match subtypes {
             source::TokenSubtypes::SubtypesList(subtypes) => subtypes.clone(),
@@ -279,6 +281,7 @@ impl Context {
             recipe: TokenRecipe::Defined(TokenDefinition {
                 name,
                 colors,
+                chosen_color,
                 supertypes: supertypes.clone(),
                 card_types: card_types.clone(),
                 subtypes,

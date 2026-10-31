@@ -740,7 +740,7 @@
     {"source": "Trigger::WhenAPlayerPutsAStickerOnAPermanent", "text": "put sticker", "binds": ["player", "object", "permanent"]},
     {"source": "Trigger::WhenAPlayerPutsAnAbilityStickerOnAPermanent", "text": "put ability sticker", "binds": ["player", "object", "permanent"]},
     {"source": "Trigger::WhenAPlayerPutsAnArtStickerOnAPermanent", "text": "put art sticker", "binds": ["player", "object", "permanent"]},
-    {"source": "Trigger::WhenAPlayerPutsAnyNumberOfCountersOnAPermanent", "text": "put counter", "binds": ["player", "object", "permanent"]},
+    {"source": "Trigger::WhenAPlayerPutsAnyNumberOfCountersOnAPermanent", "text": "put counter", "binds": ["player", "object", "permanent", "amount"]},
     {"source": "Trigger::WhenAPlayerRollsABlankOnThePlanarDie", "text": "roll blank planar die", "binds": ["player"]},
     {"source": "Trigger::WhenAPlayerRollsADie", "text": "roll die", "binds": ["player", "amount"]},
     {"source": "Trigger::WhenAPlayerRollsADiesHighestNaturalResult", "text": "roll die highest natural result", "binds": ["player"]},
@@ -1325,7 +1325,7 @@
     {"source": "Trigger::WhenAPlayerSacrificesAnyNumberOfPermanentsToActivateAnAbility", "text": "ability", "binds": ["stack_object"]},
     {"source": "Trigger::WhenAPlayerRollsANatural20", "text": "natural", "binds": ["player"]},
     {"source": "Trigger::WhenAPlayerRemovesACounterOfTypeFromAnExiledCard", "text": "exiled", "binds": ["player"]},
-    {"source": "Trigger::WhenAPlayerPutsCountersOnAPlayer", "text": "counters", "binds": ["player"]},
+    {"source": "Trigger::WhenAPlayerPutsCountersOnAPlayer", "text": "counters", "binds": ["player", "amount"]},
     {"source": "Trigger::WhenAPlayerPutsAnyNumberOfCountersOfTypeOnAnyNumberOfPermanents", "text": "counters"},
     {"source": "Trigger::WhenAPlayerPutsACounterOfTypeOnAPermanent", "text": "counter"},
     {"source": "Trigger::WhenAPlayerPlaysALandFromAmongCardsInExile", "text": "among", "binds": ["player"]},
@@ -2931,6 +2931,10 @@
     {"source": "PlayerEffect::CantPlayCardsFromHand", "text": "hand"},
     {"source": "PlayerEffect::PlaysWithCardInHandRevealed", "text": "reveal|revealed"},
     {"source": "PlayerEffect::CantAttackPlayerOrPlaneswalkerControlledBy", "text": "attack"},
-    {"source": "Players::AttackedPlayerThisTurn", "text": "attacked"}
+    {"source": "Players::AttackedPlayerThisTurn", "text": "attacked"},
+    {"source": "Player::PlayerAction_ThatPlayer", "text": "their|that|his|her"},
+    {"source": "Player::SpellDealsDamage_ThatPlayer", "text": "that"},
+    {"source": "Player::Condition_ThatPlayer", "text": "their|that"},
+    {"source": "Condition::TheChosenWordWas", "text": "if|is|was"}
   ]
 }

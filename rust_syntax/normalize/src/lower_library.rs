@@ -217,11 +217,54 @@ impl Context {
         aside: &mut Option<ObjectSet>,
         instructions: &mut Vec<Instruction>,
     ) -> Result<()> {
-        let found = ObjectSet::Selected(result.clone());
+        let mut found = ObjectSet::Selected(result.clone());
+        let mut picked = None;
         self.found = Some(found.clone());
         for (i, action) in actions.iter().enumerate() {
             use source::SearchLibraryAction as S;
             let operation = match action {
+                S::APlayerChoosesNumberFoundCards(players, _)
+                | S::APlayerChoosesAFoundCard(players) => {
+                    let count = match action {
+                        S::APlayerChoosesNumberFoundCards(_, n) => self.number(n)?,
+                        _ => Expr::Constant(1),
+                    };
+                    let player = match self.players(players)? {
+                        PlayerSet::One(player) => player,
+                        players => PlayerRef::OneOf(Box::new(players)),
+                    };
+                    let choice = self.effect(Operation::ChooseObjects {
+                        constraints: vec![],
+                        player,
+                        objects: found.clone(),
+                        count: Count::AsManyAsCan(count),
+                    });
+                    let Instruction::Effect { result: chosen, .. } = &choice else {
+                        unreachable!()
+                    };
+                    picked = Some(chosen.clone());
+                    instructions.push(choice);
+                    continue;
+                }
+                S::PutChosenFoundCardsIntoGraveyard
+                | S::PutChosenFoundCardIntoHand
+                | S::PutChosenFoundCardsIntoHand => {
+                    let chosen = picked
+                        .clone()
+                        .ok_or_else(|| invalid("no found card was chosen"))?;
+                    // "The rest" are what the later steps name.
+                    found = ObjectSet::Unselected(chosen.clone());
+                    self.found = Some(found.clone());
+                    Operation::Move {
+                        objects: ObjectSet::Selected(chosen),
+                        destination: match action {
+                            S::PutChosenFoundCardsIntoGraveyard => Destination::OwnersGraveyard,
+                            _ => Destination::OwnersHand,
+                        },
+                        entry: EntrySpec::default(),
+                        face_down: false,
+                    }
+                }
                 S::If(condition, then) | S::IfElse(condition, then, _) => {
                     let condition = self.condition(condition)?;
                     let otherwise = match action {

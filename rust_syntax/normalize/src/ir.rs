@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 111;
+pub const SCHEMA_VERSION: u32 = 112;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1872,6 +1872,8 @@ pub enum TokenWords {
 pub struct TokenDefinition {
     pub name: TokenName,
     pub colors: Vec<ManaColor>,
+    /// Also the color chosen earlier, which `colors` can't name.
+    pub chosen_color: bool,
     pub supertypes: Vec<SuperType>,
     pub card_types: Vec<CardType>,
     pub subtypes: Vec<SubType>,

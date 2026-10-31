@@ -824,7 +824,13 @@ impl Context {
         let (name, operands) = self.primitive("Player", value)?;
         Some(match (name.as_str(), operands.as_slice()) {
             ("Player::ClashOpponent", []) => PlayerRef::ClashOpponent,
-            ("Player::LoseLife_ThatPlayer", []) => PlayerRef::Acting,
+            (
+                "Player::LoseLife_ThatPlayer"
+                | "Player::PlayerAction_ThatPlayer"
+                | "Player::SpellDealsDamage_ThatPlayer"
+                | "Player::Condition_ThatPlayer",
+                [],
+            ) => PlayerRef::Acting,
             ("Player::TheGiftedPlayer", []) => PlayerRef::GiftedPlayer,
             ("Player::PlayerOrControllerOfPermanent", [Operand::Recipients(recipient)]) => {
                 PlayerRef::PlayerOrControllerOf(Box::new(recipient.clone()))

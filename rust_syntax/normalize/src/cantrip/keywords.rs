@@ -256,6 +256,7 @@ impl Compiler {
                 let token = self.token_definition(&TokenDefinition {
                     name: TokenName::FromSubtypes,
                     colors: vec![ManaColor::Black],
+                    chosen_color: false,
                     supertypes: Vec::new(),
                     card_types: vec![crate::mtg_types::CardType::Creature],
                     subtypes: vec![subtype, S::Army],

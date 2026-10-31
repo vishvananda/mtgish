@@ -875,6 +875,9 @@ impl Compiler {
         Ok(array)
     }
     fn token_definition(&mut self, token: &TokenDefinition) -> Result<String> {
+        if token.chosen_color {
+            return Err(gap("token of the chosen color"));
+        }
         let pt = token
             .power_toughness
             .as_ref()

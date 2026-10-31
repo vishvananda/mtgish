@@ -1382,3 +1382,13 @@ fn dice_history_and_ability_traits() {
     );
     assert!(least.contains("Minimum"), "{least}");
 }
+
+#[test]
+fn the_rest_of_a_search_and_chosen_token_colors() {
+    let gifts = lowered(
+        "SpellActions(Targeted([TargetPlayer(Opponent)], ActionList([SearchLibrary([FindNumberGroupCards(Integer(4), AnyCardInLibrary, DifferentNames), RevealFoundCards, APlayerChoosesNumberFoundCards(SinglePlayer(Ref_TargetPlayer), Integer(2)), PutChosenFoundCardsIntoGraveyard, PutFoundCardsIntoHand, Shuffle])])))",
+    );
+    assert!(gifts.contains("ChooseObjects"), "{gifts}");
+    assert!(gifts.contains("Unselected"), "{gifts}");
+    assert!(gifts.contains("OwnersGraveyard"), "{gifts}");
+}

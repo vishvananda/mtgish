@@ -1835,6 +1835,9 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
                 right: Expr::Constant(1),
             }
         }
+        ("Condition::TheChosenWordWas", [Operand::Text(word)]) => {
+            return Condition::ChosenWord(word.clone())
+        }
         ("Condition::TriggerDiceResultIs", [Operand::Comparison(comparison, value)]) => {
             return Condition::Compare {
                 left: Expr::EventAmount,
@@ -4983,6 +4986,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             object: true,
             permanent: true,
             player: by.is_some(),
+            amount: true,
             ..EventBindings::default()
         },
         EventSpec::Batch {
