@@ -269,6 +269,14 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
         "IsSaddled" => Some(ObjectState::Saddled),
         "IsACommander" => Some(ObjectState::Commander),
         "WasKicked" => Some(ObjectState::Kicked),
+        "IsFaceDown" => Some(ObjectState::FaceDown),
+        "IsMonstrous" => Some(ObjectState::Monstrous),
+        "IsRenowned" => Some(ObjectState::Renowned),
+        "IsUnblocked" => Some(ObjectState::Unblocked),
+        "IsBlocked" => Some(ObjectState::Blocked),
+        "IsAttackingAlone" => Some(ObjectState::AttackingAlone),
+        "WasBargained" => Some(ObjectState::Bargained),
+        "HasBeenGoaded" => Some(ObjectState::Goaded),
         _ => None,
     };
     match (state, form, operands.as_slice()) {
@@ -277,6 +285,19 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
             ObjectFilter::State(ObjectState::Commander),
             ObjectFilter::OwnedBy(PlayerSet::One(PlayerRef::AbilityController)),
         ]),
+        (_, "IsntEnchanted", []) => {
+            ObjectFilter::Not(Box::new(ObjectFilter::State(ObjectState::Enchanted)))
+        }
+        // An outlaw is any of these five creature types.
+        (_, "IsAnOutlaw", []) => {
+            use crate::mtg_types::CreatureType as C;
+            ObjectFilter::Either(
+                [C::Assassin, C::Mercenary, C::Pirate, C::Rogue, C::Warlock]
+                    .iter()
+                    .map(|ty| ObjectFilter::Subtype(crate::subtype::creature_type(ty)))
+                    .collect(),
+            )
+        }
         (_, "AttachedToPermanent", [Operand::Object(object)]) => {
             ObjectFilter::AttachedTo(Box::new(ObjectFilter::SameObject(object.clone())))
         }
@@ -288,6 +309,42 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
             ObjectFilter::BlockingObject(object.clone())
         }
         _ => ObjectFilter::Primitive { name, operands },
+    }
+}
+
+/// A row's condition in generic form, or the row itself when it has none.
+pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
+    let window = match name.as_str() {
+        "Condition::IsBeforeAttackersDeclared" => Some(TurnWindow::BeforeAttackersDeclared),
+        "Condition::IsDuringCombat" => Some(TurnWindow::Combat),
+        "Condition::IsDuringUpkeep" => Some(TurnWindow::Upkeep),
+        "Condition::IsDuringEndStep" => Some(TurnWindow::EndStep),
+        "Condition::IsBeforeCombatDamageStep" => Some(TurnWindow::BeforeCombatDamage),
+        "Condition::IsDuringDeclareAttackersStep" => Some(TurnWindow::DeclareAttackers),
+        _ => None,
+    };
+    let state = match name.as_str() {
+        "Players::IsTheMonarch" => Some((PlayerState::Monarch, false)),
+        "Players::HasTheCitysBlessing" => Some((PlayerState::CitysBlessing, false)),
+        "Players::HasAFullParty" => Some((PlayerState::FullParty, false)),
+        "Players::IsNotTheStartingPlayer" => Some((PlayerState::StartingPlayer, true)),
+        "Players::IsTheirUpkeep" => Some((PlayerState::InTheirUpkeep, false)),
+        _ => None,
+    };
+    match (window, state, operands.as_slice()) {
+        (Some(window), _, []) => Condition::Window(window),
+        (_, Some((state, negated)), [Operand::Player(player)]) => {
+            let held = Condition::PlayerState {
+                player: player.clone(),
+                state,
+            };
+            if negated {
+                Condition::Not(Box::new(held))
+            } else {
+                held
+            }
+        }
+        _ => Condition::Primitive { name, operands },
     }
 }
 

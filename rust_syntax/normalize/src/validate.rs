@@ -897,6 +897,8 @@ impl<'a> Scope<'a> {
     fn condition(&self, condition: &Condition) -> Result {
         match condition {
             Condition::Primitive { name, operands } => self.primitive(name, operands),
+            Condition::Window(_) => Ok(()),
+            Condition::PlayerState { player, .. } => self.player(player),
             Condition::PlayerTook { player, result } => {
                 self.player(player)?;
                 if self.results.contains_key(&result.0) {

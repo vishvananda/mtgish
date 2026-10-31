@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 82;
+pub const SCHEMA_VERSION: u32 = 83;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2526,6 +2526,12 @@ pub enum Condition {
         player: PlayerRef,
         result: ResultId,
     },
+    /// True during this part of the turn, whoever's turn it is.
+    Window(TurnWindow),
+    PlayerState {
+        player: PlayerRef,
+        state: PlayerState,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2919,6 +2925,35 @@ pub enum ObjectState {
     Saddled,
     Commander,
     Kicked,
+    FaceDown,
+    Monstrous,
+    Renowned,
+    Unblocked,
+    Blocked,
+    AttackingAlone,
+    Bargained,
+    Goaded,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum TurnWindow {
+    BeforeAttackersDeclared,
+    Combat,
+    Upkeep,
+    EndStep,
+    BeforeCombatDamage,
+    DeclareAttackers,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum PlayerState {
+    Monarch,
+    CitysBlessing,
+    FullParty,
+    StartingPlayer,
+    InTheirUpkeep,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

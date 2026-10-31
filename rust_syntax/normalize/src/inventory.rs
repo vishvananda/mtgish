@@ -1554,6 +1554,11 @@ impl Inventory<'_> {
         self.form("Condition", c);
         match c {
             Condition::Primitive { name, .. } => self.primitive(name),
+            Condition::Window(window) => self.form("TurnWindow", window),
+            Condition::PlayerState { player, state } => {
+                self.form("PlayerState", state);
+                self.player(player);
+            }
             Condition::Searched(_) => {}
             Condition::PlayerTook { player, .. } => self.player(player),
             Condition::TargetsMatch {

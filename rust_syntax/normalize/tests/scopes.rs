@@ -489,3 +489,19 @@ fn object_state_rows_are_filters_that_compose() {
     assert!(body.contains("State(Commander)"), "{body}");
     assert!(body.contains("OwnedBy(One(AbilityController))"), "{body}");
 }
+
+#[test]
+fn an_outlaw_is_its_five_creature_types() {
+    let body = lowered("SpellActions(ActionList([DestroyEachPermanent(IsAnOutlaw)]))");
+    assert!(body.contains("Either(["), "{body}");
+    assert_eq!(body.matches("Subtype(").count(), 5, "{body}");
+}
+
+#[test]
+fn turn_windows_and_player_states_are_generic_conditions() {
+    let body = lowered("If(IsDuringCombat, [PlayerEffect(You, [CantGainLife])])");
+    assert!(body.contains("Window(Combat)"), "{body}");
+    let body =
+        lowered("If(PlayerPassesFilter(You, IsTheMonarch), [PlayerEffect(You, [CantGainLife])])");
+    assert!(body.contains("state: Monarch"), "{body}");
+}

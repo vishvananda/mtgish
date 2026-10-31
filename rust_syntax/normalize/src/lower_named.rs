@@ -489,7 +489,7 @@ impl Context {
 
     fn primitive_condition(&self, value: &source::Condition) -> Option<Condition> {
         let (name, operands) = self.primitive("Condition", value)?;
-        Some(Condition::Primitive { name, operands })
+        Some(crate::semantics::reduce_condition(name, operands))
     }
 
     fn primitive_filter(&self, value: &source::Permanents) -> Option<ObjectFilter> {
@@ -529,7 +529,7 @@ impl Context {
     ) -> Option<Condition> {
         let (name, mut operands) = self.primitive("Players", value)?;
         operands.insert(0, Operand::Player(player.clone()));
-        Some(Condition::Primitive { name, operands })
+        Some(crate::semantics::reduce_condition(name, operands))
     }
 
     fn primitive_trigger(&self, value: &source::Trigger) -> Option<EventSpec> {

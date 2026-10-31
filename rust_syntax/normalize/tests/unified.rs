@@ -254,7 +254,7 @@ fn player_predicates_in_a_set_bind_the_tested_player() {
     validate::card(&card).unwrap();
     let json = serde_json::to_string(&card).unwrap();
     assert!(json.contains("Intersection"), "{json}");
-    assert!(json.contains("Players::IsTheMonarch"), "{json}");
+    assert!(json.contains("\"state\":\"Monarch\""), "{json}");
 }
 
 #[test]
