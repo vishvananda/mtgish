@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 129;
+pub const SCHEMA_VERSION: u32 = 130;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -451,6 +451,8 @@ pub enum ReplacementEvent {
         name: String,
         operands: Vec<Operand>,
     },
+    /// Applies once for each 1 of the pending amount, as "for each 1 damage".
+    EachPoint(Box<ReplacementEvent>),
     /// `event`, when its pending amount compares this way.
     Measured {
         event: Box<ReplacementEvent>,

@@ -284,6 +284,34 @@ impl Context {
                     self.revealed =
                         Some(self.library_slice(payer.clone(), Expr::Constant(1), SequenceEnd::Top));
                 }
+                // A forced choice among exiled cards has nothing to decline, so
+                // it counts as paid and later steps name what it chose.
+                if let (false, [CostPart::PlayerAction { body, .. }]) =
+                    (*optional, cost.parts.as_slice())
+                {
+                    if let [Instruction::Effect {
+                        operation: choice @ Operation::ChooseObjects { objects, .. },
+                        ..
+                    }] = body.instructions.as_slice()
+                    {
+                        if matches!(objects, ObjectSet::Transition { .. }) {
+                            let choice = self.effect(choice.clone());
+                            if let Instruction::Effect { result, .. } = &choice {
+                                self.exile_choice = Some(result.clone());
+                            }
+                            let payment = self.effect(Operation::PayCost {
+                                cost: Cost { parts: vec![] },
+                                player: payer,
+                                optional: false,
+                            });
+                            return Ok(Program {
+                                instructions: vec![Instruction::Group(Program {
+                                    instructions: vec![choice, payment],
+                                })],
+                            });
+                        }
+                    }
+                }
                 let payment = self.effect(Operation::PayCost {
                     cost,
                     player: payer,

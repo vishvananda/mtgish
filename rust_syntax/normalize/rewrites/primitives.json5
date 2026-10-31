@@ -2,6 +2,7 @@
   "version": 1,
   "vocabularies": ["CounterType"],
   "terms": [
+    "PermanentsAndSpells", "PermanentAndSpellEffect",
     "PermanentRule", "PlayerEffect",
     "PlayersAndPermanents", "AttackingPlayers", "Drawable", "PuttableOnBattlefield", "ColorAndCreatureType", "MultiCreateToken", "AnteCards", "LayerEffect", "StaticLayerEffect", "TransformAction", "AttachAction", "CreatableToken", "Commander",
     "Comparison", "ExiledCardEffect", "SpellEffect", "FutureTrigger", "PutRestriction", "SpellOrPermanentEffect", "SearchLibraryAction", "RevealTheTopNumberCardsOfLibraryAction", "LookAtTopOfLibraryAction", "LibraryRevealAction", "NamedAction", "ExileFlag", "TokenFlag",
@@ -2936,7 +2937,7 @@
     {"source": "Condition::TheChosenWordWas", "text": "if|is|was"},
     {"source": "Cost::BeholdAndExile", "text": "behold"},
     {"source": "ReplacableEventWouldPayLife::APlayerWouldPayAnAmountOfLife", "text": "pay", "binds": ["player", "amount"]},
-    {"source": "ReplacableEventTokensWouldBeCreatedUnderAPlayersControl::TokensWouldBeCreatedUnderAPlayersControl", "text": "tokens", "binds": ["amount"]},
+    {"source": "ReplacableEventTokensWouldBeCreatedUnderAPlayersControl::TokensWouldBeCreatedUnderAPlayersControl", "text": "token|token", "binds": ["amount"]},
     {"source": "ReplacableEventWouldReduceLife::PlayersLifeTotalWouldBeReducedToNumberOrLess", "text": "reduced", "binds": ["player"]},
     {"source": "ReplacableEventWouldProduceMana::ASpellOrAbilityWouldProduceColoredMana", "text": "colored", "binds": ["amount"]},
     {"source": "ReplacableEventWouldPlaneswalk::APlayerWouldPlaneswalkAsAResultOfRollingThePlanarDie", "text": "planar", "binds": ["player"]},
@@ -2993,7 +2994,7 @@
     {"source": "ReplacableEventWouldPutIntoGraveyard::WouldPutACardInPlayersGraveyardFromAnywhereNotCycled", "text": "graveyard"},
     {"source": "ReplacableEventWouldPutIntoGraveyard::WouldPutACardInAPlayersGraveyardFromAnywhereOtherThanBattlefield", "text": "graveyard"},
     {"source": "ReplacableEventWouldPutIntoGraveyard::WouldPutAPermanentASpellOrACardIntoAPlayersGraveyard", "text": "graveyard"},
-    {"source": "ReplacableEventWouldDealDamage::LethalLoyaltyDamageWouldBeDealtToAPlaneswalker", "text": "damage"},
+    {"source": "ReplacableEventWouldDealDamage::LethalLoyaltyDamageWouldBeDealtToAPlaneswalker", "text": "damage", "binds": ["object", "permanent"]},
     {"source": "ReplacableEventWouldDealDamage::CombatDamageWouldBeDealtByCreatureToRecipient", "text": "combat damage"},
     {"source": "ReplacableEventWouldDealDamage::Each1DamagePlayerWouldBeDealt", "text": "damage"},
     {"source": "ReplacableEventWouldDealDamage::AnAmountOfNonCombatDamageWouldBeDealtByASourceToARecipient", "text": "noncombat"},
@@ -3035,6 +3036,16 @@
     {"source": "Action::ExchangeAnteCardWithTopCardOfPlayersLibrary", "text": "exchange ante"},
     {"source": "StaticLayerEffect::SetNameToTheChosenName", "text": "name"},
     {"source": "ReplacementActionWouldEnter::EnterAsCopyOfExiled", "text": "copy"},
-    {"source": "ReplacementActionWouldEnter::EntersWithAnAbilityCounterForEachAbilityOnACardDiscardedThisWay", "text": "counter"}
+    {"source": "ReplacementActionWouldEnter::EntersWithAnAbilityCounterForEachAbilityOnACardDiscardedThisWay", "text": "counter"},
+    {"source": "CardInExile::TheLastExiledCard", "text": "exiled"},
+    {"source": "CardInExile::TopCardOfExiledPile", "text": "exiled"},
+    {"source": "Permanents::IsTheSecondChosenPermanentFilter", "text": "chosen|choose"},
+    {"source": "Permanents::IsTheThirdChosenPermanentFilter", "text": "chosen|choose"},
+    {"source": "Permanents::InTheChosenSector", "text": "sector"},
+    {"source": "Spell::TheSpellMostRecentlyCastThisTurn", "text": "recently"},
+    {"source": "Player::TheOtherChosenPlayer", "text": "other"},
+    {"source": "Rule::EachPermanentAndSpellEffect", "text": "color"},
+    {"source": "CardInHand::TheLastCardDrawnThisTurn", "text": "last"},
+    {"source": "DamageRecipient::CreatureOrPlaneswalkerChosenAtRandom", "text": "random"}
   ]
 }

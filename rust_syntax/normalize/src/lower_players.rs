@@ -224,7 +224,9 @@ impl Context {
                 reduction(spells, symbols, Expr::Constant(1), true)?
             }
             S::DecreaseSpellCostForEach(spells, symbols, n) => {
-                reduction(spells, symbols, self.number(n)?, true)?
+                let mut each = self.clone();
+                each.affected = true;
+                reduction(spells, symbols, each.number(n)?, true)?
             }
             S::DecreaseSpellCostOnlyColored(spells, symbols) => {
                 reduction(spells, symbols, Expr::Constant(1), false)?

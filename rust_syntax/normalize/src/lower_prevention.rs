@@ -112,6 +112,12 @@ impl Context {
                     .collect::<Result<_>>()?,
             ));
         }
+        if let S::EachDamageWouldBeDealtToRecipient(to) = value {
+            let shape = self.damage_shape(F::Anything, T::One(to), DamageKind::Any)?;
+            return Ok(ReplacementEvent::EachPoint(Box::new(
+                ReplacementEvent::Damage(shape),
+            )));
+        }
         if let S::AnAmountOfDamageWouldBeDealtByASourceToRecipient(comparison, from, to) = value {
             let shape = self.damage_shape(F::Sources(from), T::One(to), DamageKind::Any)?;
             return self.measured(ReplacementEvent::Damage(shape), comparison);

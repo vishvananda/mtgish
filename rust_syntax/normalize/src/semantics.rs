@@ -96,7 +96,9 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
             permanent: true,
             ..Default::default()
         },
-        ReplacementEvent::Measured { event, .. } => replacement_bindings(event),
+        ReplacementEvent::Measured { event, .. } | ReplacementEvent::EachPoint(event) => {
+            replacement_bindings(event)
+        }
         ReplacementEvent::Damage(damage) => event_bindings(&EventSpec::Damage(damage.clone())),
         ReplacementEvent::Player { event, .. } => EventBindings {
             player: true,
@@ -4633,9 +4635,9 @@ pub fn body_replaces(event: &ReplacementEvent) -> bool {
         | ReplacementEvent::Tokens { .. }
         | ReplacementEvent::Counters { .. }
         | ReplacementEvent::ProduceMana { .. } => true,
-        ReplacementEvent::Measured { event, .. } | ReplacementEvent::FirstEachTurn(event) => {
-            body_replaces(event)
-        }
+        ReplacementEvent::Measured { event, .. }
+        | ReplacementEvent::EachPoint(event)
+        | ReplacementEvent::FirstEachTurn(event) => body_replaces(event),
         _ => false,
     }
 }

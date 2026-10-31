@@ -1739,3 +1739,24 @@ fn an_exiled_replacement_is_read_at_its_new_home() {
     );
     assert!(ward.contains("RedirectSomeDamage(Constant(1)"), "{ward}");
 }
+
+#[test]
+fn each_point_of_damage_and_forced_exile_choices_keep_their_shape() {
+    let hydra = lowered(
+        "PreventDamage(EachDamageWouldBeDealtToRecipient(Permanent(ThisPermanent)), [PreventThatDamage])",
+    );
+    assert!(hydra.contains("EachPoint"), "{hydra}");
+    let giant = lowered(
+        "SpellActions(ActionList([Exile([TheTopNumberCardsOfLibrary(Integer(2))], []), MustCost(ChooseAnExiledCard(TheCardsExiledThisWay)), If(CostWasPaid, [CreatePlayerEffectUntil(You, [MayPlayExiledCard(TheExiledCardChosenThisWay)], UntilTheEndOfPlayersNextTurn(You))])]))",
+    );
+    assert!(giant.contains("ChooseObjects"), "{giant}");
+    assert!(giant.contains("PaymentChosen"), "{giant}");
+}
+
+#[test]
+fn a_cost_reduction_reads_the_spell_it_reduces() {
+    let locket = lowered(
+        "PlayerEffect(You, [DecreaseSpellCostForEach(AnySpell, [CostReduceGeneric(1)], TheNumberOfGraveyardCards(And([SharesANameWithSpell(DecreaseSpellCost_ThatSpell), InAPlayersGraveyard(SinglePlayer(You))])))])",
+    );
+    assert!(locket.contains("SharesNameWith(Affected)"), "{locket}");
+}

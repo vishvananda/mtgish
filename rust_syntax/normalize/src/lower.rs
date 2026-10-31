@@ -1609,6 +1609,8 @@ impl Context {
             | S::WouldScry_ThatMuch
             | S::WouldDrawACard_ThatMany
             | S::ThatManyCounters
+            | S::WhenAPlayerDiscardsCardsForTheFirstTimeEachTurn_AmountOfCardsDiscarded
+            | S::Trigger_TheNumberOfCardsOfTypeMilledThisWay(_)
                 if self.event.amount =>
             {
                 Expr::EventAmount
@@ -2546,7 +2548,12 @@ impl Context {
                     .map(|r| self.recipients(r))
                     .collect::<Result<_>>()?,
             ),
-            _ => return Err(unsupported(value)),
+            _ => {
+                let (name, operands) = self
+                    .primitive("DamageRecipient", value)
+                    .ok_or_else(|| unsupported(value))?;
+                Recipients::Objects(ObjectSet::Primitive { name, operands })
+            }
         })
     }
 
@@ -3136,24 +3143,6 @@ impl Context {
                 };
                 self.exile_choice = Some(result.clone());
                 return Ok(choice);
-            }
-            S::MustCost(cost) if matches!(**cost, source::Cost::ChooseAnExiledCard(_)) => {
-                let source::Cost::ChooseAnExiledCard(cards) = cost.as_ref() else {
-                    unreachable!()
-                };
-                let PlayerSet::One(player) = actor else {
-                    return Err(invalid("a payment has one payer"));
-                };
-                let choice = self.action(&S::ChooseAnExiledCard(cards.clone()), actor)?;
-                // A forced choice has nothing to decline, so it counts as paid.
-                let payment = self.effect(Operation::PayCost {
-                    cost: Cost { parts: vec![] },
-                    player: player.clone(),
-                    optional: false,
-                });
-                return Ok(Instruction::Group(Program {
-                    instructions: vec![choice, payment],
-                }));
             }
             S::ReturnEachCardFromGraveyardToHandThatWasPutThereFromAnywhereThisTurn(cards)
             | S::ReturnEachCardFromGraveyardToHandThatWasPutThereFromBattlefieldThisTurn(cards) => {

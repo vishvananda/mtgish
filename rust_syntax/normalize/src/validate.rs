@@ -263,6 +263,7 @@ impl<'a> Scope<'a> {
                 self.filter(sources)?;
                 by.iter().try_for_each(|player| self.player(player))
             }
+            ReplacementEvent::EachPoint(event) => self.replacement_event(event),
             ReplacementEvent::Measured { event, amount, .. } => {
                 self.replacement_event(event)?;
                 self.expr(amount)
@@ -1482,7 +1483,9 @@ impl<'a> Scope<'a> {
             }
             PlayerRule::SpellCost { spells, modifier } => {
                 self.filter(spells)?;
-                self.spell_cost_modifier(modifier)
+                let mut each = self.clone();
+                each.affected = true;
+                each.spell_cost_modifier(modifier)
             }
             PlayerRule::SpellTiming { spells, .. } => self.filter(spells),
             PlayerRule::Visibility { objects, .. } => self.objects(objects),

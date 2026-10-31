@@ -2272,7 +2272,9 @@ impl Inventory<'_> {
                 self.replacement_event(event);
                 self.expr(amount);
             }
-            ReplacementEvent::FirstEachTurn(event) => self.replacement_event(event),
+            ReplacementEvent::FirstEachTurn(event) | ReplacementEvent::EachPoint(event) => {
+                self.replacement_event(event)
+            }
             ReplacementEvent::Either(events) => {
                 for event in events {
                     self.replacement_event(event);

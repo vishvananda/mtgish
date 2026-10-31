@@ -181,7 +181,11 @@ impl Context {
             source::Spell::Trigger_ThatSpell if self.event.stack_object => {
                 Ok(ObjectRef::EventStackObject)
             }
-            _ => Err(unsupported(value)),
+            source::Spell::DecreaseSpellCost_ThatSpell if self.affected => Ok(ObjectRef::Affected),
+            _ => self
+                .primitive("Spell", value)
+                .map(|(name, operands)| ObjectRef::Primitive { name, operands })
+                .ok_or_else(|| unsupported(value)),
         }
     }
 

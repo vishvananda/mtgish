@@ -69,10 +69,13 @@ impl Context {
         if let S::TheCardConjuredIntoGraveyardThisWay = value {
             return self.conjured_object();
         }
+        if let S::TheSacrificedPermanent = value {
+            return self.paid_object(crate::number_spec::PaymentAction::Sacrifice);
+        }
         if let (S::Trigger_ThatSacrificedPermanent, true) = (value, self.event.permanent) {
             return Ok(ObjectRef::EventSubject);
         }
-        if let S::EnchantedGraveyardCard = value {
+        if let S::EnchantedGraveyardCard | S::HostGraveyardCard = value {
             return Ok(ObjectRef::AttachedTo(Box::new(ObjectRef::Source)));
         }
         let n = match value {
@@ -255,7 +258,10 @@ impl Context {
                 }),
             },
             S::TheExiledCard => self.result_object(self.exiled.as_ref(), 0),
-            _ => Err(unsupported(value)),
+            _ => self
+                .primitive("CardInExile", value)
+                .map(|(name, operands)| ObjectRef::Primitive { name, operands })
+                .ok_or_else(|| unsupported(value)),
         }
     }
     fn hand_card(&self, value: &source::CardInHand) -> Result<ObjectRef> {
@@ -324,7 +330,10 @@ impl Context {
             source::CardInHand::Trigger_ThatCardInHand if self.event.object => {
                 Ok(ObjectRef::EventSubject)
             }
-            _ => Err(unsupported(value)),
+            _ => self
+                .primitive("CardInHand", value)
+                .map(|(name, operands)| ObjectRef::Primitive { name, operands })
+                .ok_or_else(|| unsupported(value)),
         }
     }
     fn private_cards(

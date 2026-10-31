@@ -30,7 +30,7 @@ fn retag(value: &mut serde_json::Value, rename: &impl Fn(&str) -> Option<&'stati
 
 /// Forms that say what becomes of the event, so a body using one is explicit.
 /// A regeneration shield belongs here because it applies to the event itself.
-const EVENT_FORMS: [&str; 39] = [
+const EVENT_FORMS: [&str; 40] = [
     "SkipThisTurn",
     "SkipThisDrawStep",
     "EntersTapped",
@@ -60,6 +60,7 @@ const EVENT_FORMS: [&str; 39] = [
     "DealToAnyTargetInstead",
     "ExileItInstead",
     "ExileSpell",
+    "CreateTokensUnderPlayersControlInstead",
     "DealSomeDamageToRecipientInstead",
     "PutItInOwnersHandInstead",
     "PutIntoGraveyardInstead",
@@ -421,6 +422,9 @@ impl Context {
                     _ => return Err(unsupported(&recipient)),
                 })]
             }
+            "CreateTokensUnderPlayersControlInstead" => vec![EventChange::SetController(
+                self.player(&decode_step::<source::Player>(&args[1])?)?,
+            )],
             "ExileItInstead" | "ExileSpell" => {
                 self.replaced_exile = true;
                 vec![exile]
