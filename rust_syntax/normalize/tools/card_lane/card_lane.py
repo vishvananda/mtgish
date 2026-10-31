@@ -68,6 +68,7 @@ RATES = {"gpt-6-luna": (.10, .01, .50), "gpt-5.6-luna": (.20, .02, 1.20), "gpt-6
          "gpt-6-astra": (10, 1, 50)}
 
 MUTATION_LIMIT = 40  # about 16 s each; a card past this is reported as partly tested, not passed silently
+PRIOR_ART, PRIOR_ART_CHARS = 5, 3500  # cards in a packet's prior-art.md, and the most of any one file
 
 
 def now():
@@ -355,6 +356,7 @@ def brief(card, driven=False):
             else "the generator's draft: it compiles and plays, and step 2 rewrites it")
     lines = [f"# Card: {name}", "",
              f"Follow the card-lane skill, section \"Doing one card\": {SKILL / 'SKILL.md'}", "",
+             f"Goal: `check \"{name}\" --fast` passes and `report.json` says `done`, with the card exact to its text. Then stop.", "",
              f"- Tools: `python3 {Path(__file__).resolve()} <command>`",
              f"- Cantrip tree, your working directory: `{CANTRIP}`",
              f"- Packet: `{card_dir(name)}`",
@@ -395,6 +397,25 @@ def placeholders(card_name):
     return written
 
 
+def prior_art(reference):
+    """The cards `new-card.py` names as prior art, each with its file and its shortest scenario. Read one by one these
+    cost a worker a dozen calls, and a scenario of the same shape answers most of what it would read the harness for."""
+    seen, out = [], []
+    for match in re.finditer(r"^\s+(.+?)\s{2,}crates/cantrip-cards/src/cards/(\w+)\.rs", reference, re.M):
+        if match[2] not in seen:
+            seen.append(match[2])
+    for stem in seen[:PRIOR_ART]:
+        source = CANTRIP / CARDS_DIR / f"{stem}.rs"
+        if not source.exists():
+            continue
+        out += [f"## {stem}", "", "```rust", source.read_text(encoding="utf-8")[:PRIOR_ART_CHARS].rstrip(), "```", ""]
+        scenarios = sorted((CANTRIP / SCENARIOS_DIR).glob(stem.replace("_", "-") + "*.cantrip"), key=lambda path: path.stat().st_size)
+        if scenarios:
+            text = scenarios[0].read_text(encoding="utf-8")[:PRIOR_ART_CHARS].rstrip()
+            out += [f"`{SCENARIOS_DIR}/{scenarios[0].name}`", "", "```", text, "```", ""]
+    return "\n".join(out)
+
+
 def prepare(card):
     """Everything a worker starts from, in the worktree and the packet. Returns phase notes for the card's record."""
     name = card["name"]
@@ -407,6 +428,10 @@ def prepare(card):
     (packet / "reference.md").write_text(out, encoding="utf-8")
     if code != 0 or not content_file(name).exists():
         raise RuntimeError(f"new-card.py wrote no content file for {name}:\n{out[-1500:]}")
+    (packet / "prior-art.md").write_text(prior_art(out), encoding="utf-8")
+    points = parse_test_points(out)
+    write_test_points(name, points)
+    (packet / "report.json").write_text(json.dumps(report_skeleton(points), indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     module = (GEN / "modules" / f"{stem}.rs").read_text(encoding="utf-8")
     (packet / "draft.rs").write_text(module, encoding="utf-8")
     rows = {}
@@ -424,8 +449,6 @@ def prepare(card):
     code, out = run_corpus(name)
     (packet / "first-build.txt").write_text(out, encoding="utf-8")
     compiled = not re.search(r"^error", out, re.M) and "could not compile" not in out
-    _, reference = tool("new-card.py", name, "--no-write")
-    write_test_points(name, parse_test_points(reference))
     (packet / "prompt.md").write_text(brief(card), encoding="utf-8")
     return {"scenarios": scenarios, "draft_compiled": compiled}
 
@@ -637,6 +660,12 @@ def parse_test_points(out):
         return []
     section = out.split("=== Test points", 1)[1].split("\n=== ", 1)[0]
     return [line.strip() for line in section.splitlines() if re.match(r"\s+\[\d+\]", line)]
+
+
+def report_skeleton(points):
+    """The report a worker fills in, every test point listed, so its shape is never a thing to work out."""
+    return {"decision": "todo", "reason": "", "test_points": [{"id": i, "point": p, "scenario": "", "line": 0} for i, p in enumerate(points, 1)],
+            "look_answers": [], "equivalent_mutants": [], "generator_disagreements": [], "notes": ""}
 
 
 def write_test_points(name, points):

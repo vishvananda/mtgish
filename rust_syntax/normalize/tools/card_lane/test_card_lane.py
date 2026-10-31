@@ -71,6 +71,13 @@ class Comparing(unittest.TestCase):
         self.assertEqual(lane.parse_test_points(out), ["[1] the amount 4: x", "[2] 'you control': y"])
 
 
+class Packet(unittest.TestCase):
+    def test_the_report_starts_with_every_test_point_and_is_not_done(self):
+        report = lane.report_skeleton(["[1] the amount 4", "[2] 'you control'"])
+        self.assertEqual(report["decision"], "todo")
+        self.assertEqual([p["id"] for p in report["test_points"]], [1, 2])
+
+
 class Usage(unittest.TestCase):
     def test_cached_input_is_not_charged_twice(self):
         usage = lane.Usage()

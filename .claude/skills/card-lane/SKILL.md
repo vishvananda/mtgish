@@ -18,7 +18,7 @@ Each command sets up its own build environment. Run them from anywhere.
 | --- | --- |
 | `card_lane.py next` | Takes the next card, writes its code, placeholders and packet, and prints its brief. Prints the same brief again if a card is already open |
 | `card_lane.py corpus --card "Name" --brief` | Plays the card's scenarios. Also `--next`, `--dump`, `--diff N`, `--file PATH` |
-| `card_lane.py check "Name" --fast` | The gates that take seconds. Run it as often as you like |
+| `card_lane.py check "Name" --fast` | The gates that take seconds. Prints what failed |
 | `card_lane.py check "Name"` | Every gate, including breaking the card. Takes minutes, so run it when the fast gates pass |
 | `card_lane.py commit "Name"` | Every gate, then exactly one commit, or no commit |
 | `card_lane.py abandon "Name" --outcome engine_gap --reason "..."` | Keeps the work as a patch, cleans the tree, records why |
@@ -34,18 +34,29 @@ is its own commit and starts from a clean tree. A gate that fails on every card 
 
 ## Doing one card
 
+**Done means `check --fast` passes and `report.json` says `done`, with the card exact to its text.** Most of a card's cost
+is thinking and context, not builds, so spend them on the card's rules and not on learning the project. A card is usually a
+few sentences over mechanics that already exist.
+
 The brief names the Cantrip tree, which is your working directory, and the card's packet, which holds:
 
-- `reference.md`: Oracle text, official rulings, CR rules, prior art, test points. Read this first.
+- `reference.md`: Oracle text, official rulings, CR rules, prior art, test points.
+- `prior-art.md`: the nearest cards' files and their shortest scenarios. Copy their shape.
 - `draft.rs`: the generator's output, unedited. It is one reading of the card's text, not the answer.
 - `first-build.txt`: what the code and placeholders did on their first run.
+- `report.json`: your report, its test points already listed.
 
-Read these once, before you write anything, and follow them. They are the project's rules, not suggestions.
+Read those, then these two, once. They are the project's rules, not suggestions:
 
-- `.claude/skills/add-cards/SKILL.md`: "The non-negotiables", "Where code goes" with its never list, the loop's steps
-  4 to 7, and "Scenarios: what a card owes".
-- `.claude/skills/write-game-script/SKILL.md`, and `scenarios/README.md` for syntax and dump keys when you need them.
-- `docs/adding-cards.md` for a card file's fields.
+- `.claude/skills/add-cards/SKILL.md`: the non-negotiables, the never list, and "Scenarios: what a card owes".
+- `.claude/skills/write-game-script/SKILL.md`: how scenarios play, and its gotchas.
+
+**Read nothing else whole.** Keep what you read small, because everything you read is paid for again on every later step:
+
+- `docs/adding-cards.md` and `scenarios/README.md` are reference: `rg -n "word" FILE | head -20`, then read those lines.
+- A rule is `tool cr.py 603.6a`. Never open the rules file itself.
+- Bound every search with `| head -40` and aim it at a file you can name. Do not read `crates/cantrip-script`: `corpus --next
+  --brief`, `--dump` and `--diff N` tell you what a scenario can see.
 
 The card must be exact to its Oracle text, rulings and the Comprehensive Rules. A card that is wrong is worse than a card
 that is missing.
@@ -54,8 +65,7 @@ that is missing.
    the draft. Write expectations from the rules, never from what the engine printed.
 2. **Rewrite the card's file in the project's style.** The file compiles but no reviewer would pass it: the generator
    inlines what `cantrip-mechanics` and `cantrip-api` already do. Replace it:
-   - use the shared recipe wherever one exists, starting from the prior art in `reference.md`, whose card files you
-     should read;
+   - use the shared recipe wherever one exists, starting from `prior-art.md`;
    - name functions for what they do, and give each a doc comment that quotes the Oracle sentence it implements and
      cites the CR (`/// "Whenever ... you gain 4 life." (CR 603.2).`);
    - use the printed Oracle sentence as each ability's text;
@@ -63,31 +73,24 @@ that is missing.
 
    If the draft and your reading of the rules disagree, the rules win. Note the disagreement in your report: it may be a
    generator bug.
-3. **Write the scenarios.** Replace every placeholder with scenarios named for what they prove, each opening with a `#`
-   comment saying what it shows and the rule. Together they run every line and branch of the card, and each one must
-   execute the card's own code. Give every test point an expectation that fails if the card gets it wrong: the exact
-   amount, both players' objects for "each", "target" or "you control", an earlier turn for "this turn".
+3. **Write the scenarios.** Write one, play it, and read `corpus --file PATH --dump` for its keys before you write the rest.
+   Replace every placeholder with scenarios named for what they prove, each opening with a `#` comment saying what it shows
+   and the rule. Together they run every line and branch of the card, and each one must execute the card's own code. Give
+   every test point an expectation that fails if the card gets it wrong: the exact amount, both players' objects for
+   "each", "target" or "you control", an earlier turn for "this turn".
+
+   Mistakes that cost earlier cards a run:
+   - Bot1 plays odd turns and Bot2 even ones: a wait for Bot1 is `[T3 Bot1.Main1]`, never `[T2 Bot1.Main1]`.
+   - Counts belong to a zone: `Bot1.Battlefield.Count`. There is no `<Name>.Count`. Same-named objects are `Name#1`.
+   - Mana empties between steps, and a `?` reads at the next question, so a spell is usually still on the stack.
 4. **Check.** Run `check --fast` until it passes, then read each citation that `tool cr.py check --show <card file>`
    prints against the rule beside it: a rule that does not say what your comment claims is fixed. Do not run the whole
    corpus.
-5. **Write your report** to `report.json` in the packet. `check` writes `test-points.json` there, listing the test points
-   by id.
-
-   ```json
-   {
-     "decision": "done",
-     "reason": "",
-     "test_points": [{"id": 1, "scenario": "file-name.cantrip", "line": 31}],
-     "look_answers": ["line 12: why this LOOK from card-lint is right as written"],
-     "equivalent_mutants": [{"mutant": "line 6: 4 to 5", "why": "only if it truly changes nothing the rules can see"}],
-     "generator_disagreements": [],
-     "notes": "what cost you time"
-   }
-   ```
-
-   `line` is the 1-based line of the expectation in that scenario: a `?`, a `!` or a line under `[Expect]`. Each entry of
-   `look_answers` names the LOOK's line as `line 12`, or the other card's file for a repeated function.
-   `equivalent_mutants` starts empty. Fill it only for a mutant the full gate reports that means the same thing.
+5. **Fill in `report.json`.** Set `decision` to `done`. Give each test point its `scenario` and `line`, the 1-based line of
+   the expectation that catches it: a `?`, a `!` or a line under `[Expect]`. Each entry of `look_answers` names the LOOK's
+   line as `line 12`, or the other card's file for a repeated function. `equivalent_mutants` stays empty unless the full gate
+   reports a mutant that means the same thing: then add `{"mutant": "line 6: 4 to 5", "why": "..."}`, and only if it truly
+   changes nothing the rules can see.
 6. **Finish.** Run `commit`. If it fails, fix what it names and run it again. If the brief says a driver runs the gates,
    stop after the report instead: it runs them and sends back what fails, in this same session.
 
@@ -106,8 +109,8 @@ that is missing.
   the other file. Do not edit it.
 - No `git commit`, no `git add`, no `git push`, no `gh`, and no network. `commit` makes the commit. Do not write
   `Co-Authored-By` anywhere.
-- Never `--release`. Work in the foreground, one command at a time. Waiting costs context, so wait for a command to
-  return rather than polling it, and never start a second copy of a running build.
+- Never `--release`. One command at a time, in the foreground. `check` and `corpus` share one build, so running them
+  together only makes each wait for the other. Wait for a command to return: no polling, no `pgrep`.
 
 ## What the gates do not do
 
