@@ -28,6 +28,7 @@ impl Context {
                 .map(|s| match s {
                     S::Exactly(n) => self.pipeline_quantity(n).map(Count::Exactly),
                     S::AnyNumber => Ok(Count::AnyNumber),
+                    S::OneOrMore => Ok(Count::AtLeast(Expr::Constant(1))),
                 })
                 .transpose()?,
         })

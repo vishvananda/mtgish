@@ -460,7 +460,15 @@ impl Context {
         let mut child = self.clone();
         child.event = crate::semantics::replacement_bindings(event);
         child.body_replaces = matches!(event, ReplacementEvent::Primitive { .. });
-        let actor = self.player(&source::Player::You)?;
+        // "They lose twice that much": the player who would lose it, not the controller.
+        let actor = match event {
+            ReplacementEvent::Primitive { name, .. }
+                if name.starts_with("ReplacableEventWouldLoseLife::") =>
+            {
+                PlayerRef::EventSubject
+            }
+            _ => self.player(&source::Player::You)?,
+        };
         let body = child.replacement_steps(steps, &actor)?;
         self.result = child.result;
         Ok(body)
@@ -493,11 +501,17 @@ impl Context {
             return None;
         };
         event["enum"].as_str()?.strip_prefix("ReplacableEvent")?;
+        // A card replaces its own discard from the hand it is still in.
+        let active = if event.to_string().contains("ThisCardInHand") {
+            ReplacementActive::Everywhere
+        } else {
+            ReplacementActive::Battlefield
+        };
         Some((|| {
             let event = self.replacement_event(event)?;
             let body = self.replacement_body(&event, steps.as_array().map_or(&[], |s| s))?;
             Ok(Ability::Replacement {
-                active: ReplacementActive::Battlefield,
+                active,
                 event,
                 body,
             })

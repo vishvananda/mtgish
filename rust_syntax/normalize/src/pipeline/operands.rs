@@ -63,6 +63,7 @@ pub enum CostRecipe {
 pub enum CostSelection {
     Exactly(Quantity),
     AnyNumber,
+    OneOrMore,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum CostFilter {

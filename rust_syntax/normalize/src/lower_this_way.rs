@@ -6,11 +6,15 @@ impl Context {
         phase: ObjectPhase,
         filter: Option<ObjectFilter>,
     ) -> Result<ObjectSet> {
-        let objects = match (self.done(done), Self::paid_action(done)) {
-            (Ok(result), _) => ObjectSet::Transition { result, phase },
-            (Err(error), None) => return Err(error),
-            (Err(_), Some(action)) => {
-                let binding = self.paid_binding(action)?;
+        let objects = match self.done(done) {
+            Ok(result) => ObjectSet::Transition { result, phase },
+            Err(error) => {
+                let Some(binding) = Self::paid_actions(done)
+                    .iter()
+                    .find_map(|action| self.paid_binding(*action).ok())
+                else {
+                    return Err(error);
+                };
                 ObjectSet::CostObjects {
                     payment: binding.payment.clone(),
                     component: binding.component.clone(),
@@ -28,15 +32,18 @@ impl Context {
         })
     }
 
-    /// The cost component that did what `done` names, when no action did.
-    fn paid_action(done: Done) -> Option<crate::number_spec::PaymentAction> {
+    /// The cost components that do what `done` names, when no action did.
+    fn paid_actions(done: Done) -> &'static [crate::number_spec::PaymentAction] {
         use crate::number_spec::PaymentAction as P;
         match done {
-            Done::Exiled => Some(P::Exile),
-            Done::Entered => Some(P::Enter),
-            Done::Sacrificed => Some(P::Sacrifice),
-            Done::Discarded => Some(P::Discard),
-            _ => None,
+            Done::Exiled => &[P::Exile],
+            Done::Entered => &[P::Enter],
+            Done::Sacrificed => &[P::Sacrifice],
+            Done::Discarded => &[P::Discard],
+            Done::Drew => &[P::Draw],
+            Done::Milled => &[P::Mill],
+            Done::Graveyard => &[P::Sacrifice, P::Discard, P::Mill],
+            _ => &[],
         }
     }
 

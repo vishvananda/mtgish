@@ -271,10 +271,7 @@ impl Context {
                 ObjectSet::Unselected(self.grave_choice.clone().unwrap())
             }
             S::CardsOfTypeMilledThisWay(cards) => ObjectSet::Matching {
-                objects: Box::new(ObjectSet::Transition {
-                    result: self.done(Done::Milled)?,
-                    phase: ObjectPhase::After,
-                }),
+                objects: Box::new(self.this_way_set(Done::Milled, ObjectPhase::After, None)?),
                 filter: self.card_filter(cards)?,
             },
             _ => self.private_cards(
@@ -334,6 +331,14 @@ impl Context {
             from,
         }
     }
+    /// Whose library or battlefield an action names when it names none.
+    fn actor_or_you(&self, actor: &PlayerSet) -> Result<PlayerRef> {
+        match actor {
+            PlayerSet::One(player) => Ok(player.clone()),
+            _ => self.player(&source::Player::You),
+        }
+    }
+
     fn exilable(
         &self,
         value: &source::Exilable,
@@ -439,7 +444,7 @@ impl Context {
             ),
             S::TheTopCardOfLibrary => (
                 self.library_slice(
-                    self.player(&source::Player::You)?,
+                    self.actor_or_you(actor)?,
                     Expr::Constant(1),
                     SequenceEnd::Top,
                 ),
@@ -447,7 +452,7 @@ impl Context {
             ),
             S::TheTopNumberCardsOfLibrary(n) => (
                 self.library_slice(
-                    self.player(&source::Player::You)?,
+                    self.actor_or_you(actor)?,
                     self.number(n)?,
                     SequenceEnd::Top,
                 ),
@@ -455,7 +460,7 @@ impl Context {
             ),
             S::TheBottomNumberCardsOfLibrary(n) => (
                 self.library_slice(
-                    self.player(&source::Player::You)?,
+                    self.actor_or_you(actor)?,
                     self.number(n)?,
                     SequenceEnd::Bottom,
                 ),
@@ -472,7 +477,7 @@ impl Context {
             S::AllCardsFromLibrary => (
                 self.private_cards(
                     EventZone::Library,
-                    PlayerSet::One(self.player(&source::Player::You)?),
+                    PlayerSet::One(self.actor_or_you(actor)?),
                     ObjectFilter::Any,
                 ),
                 None,

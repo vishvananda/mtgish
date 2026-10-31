@@ -296,10 +296,26 @@ impl Context {
             Some("paid") => {
                 self.did.insert(Done::Paid, result.clone());
             }
+            Some("graveyard") => {
+                self.did.insert(Done::Graveyard, result.clone());
+            }
+            Some("discarded") => {
+                self.did.insert(Done::Discarded, result.clone());
+                self.did.insert(Done::Graveyard, result.clone());
+            }
+            Some("counters") => {
+                self.did.insert(Done::Counters, result.clone());
+            }
+            Some("effect") => {
+                self.did.insert(Done::Effect, result.clone());
+            }
+            Some("life_lost") => {
+                self.did.insert(Done::LifeLost, result.clone());
+            }
             Some("extra_turn") => self.extra_turn = Some(result.clone()),
             _ => {}
         }
-        if yields.is_some() {
+        if crate::semantics::singular_operation(&operation, |_| false) {
             self.singular.insert(result.0);
         }
         Some(Instruction::Effect { result, operation })

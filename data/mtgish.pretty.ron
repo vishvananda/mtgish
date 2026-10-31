@@ -27198,9 +27198,12 @@ Card(
       AtTheBeginningOfCombatDuringAPlayersTurn(SinglePlayer(You)),
       Targeted(
         [
-          UptoOneTargetPermanent(Or([
-            IsCreatureType(Mount),
-            IsArtifactType(Vehicle),
+          UptoOneTargetPermanent(And([
+            Or([
+              IsCreatureType(Mount),
+              IsArtifactType(Vehicle),
+            ]),
+            ControlledByAPlayer(SinglePlayer(You)),
           ])),
         ],
         ActionList([
@@ -69178,7 +69181,7 @@ Card(
     ManaCostB,
   ],
   Rules: [
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         ControlsNum(
@@ -105085,7 +105088,7 @@ Card(
     Reach,
     Trample,
     Indestructible,
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         ControlsNum(
@@ -133127,7 +133130,7 @@ Card(
     ManaCostR,
   ],
   Rules: [
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         ControlsA(And([
@@ -150391,7 +150394,7 @@ Card(
   Rules: [
     Menace,
     Indestructible,
-    If(
+    Unless(
       ACreatureOrPlaneswalkerDiedThisTurn(And([
         IsCardtype(Creature),
         ControlledByAPlayer(SinglePlayer(You)),
@@ -206605,7 +206608,7 @@ Card(
         If(
           CostWasPaid,
           [
-            PlayerAction(
+            PlayerMayAction(
               PlayerOrControllerOfPermanent(Ref_AnyTarget),
               CopySpellAndMayChooseNewTargets(ThisSpell),
             ),
@@ -206741,7 +206744,7 @@ Card(
         If(
           CostWasPaid,
           [
-            PlayerAction(
+            PlayerMayAction(
               PlayerOrControllerOfPermanent(Ref_AnyTarget),
               CopySpellAndMayChooseNewTargets(ThisSpell),
             ),
@@ -296093,10 +296096,13 @@ Card(
             Unless(
               CostWasPaid,
               [
-                SacrificeAPermanent(And([
-                  IsAttacking,
-                  IsCardtype(Creature),
-                ])),
+                PlayerAction(
+                  Trigger_ThatPlayer,
+                  SacrificeAPermanent(And([
+                    IsAttacking,
+                    IsCardtype(Creature),
+                  ])),
+                ),
               ],
             ),
           ]),
@@ -306810,7 +306816,7 @@ Card(
       ]),
       ActionList([
         CreateFuturePreventDamage(
-          NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient(
+          NextAmountOfCombatDamageThatWouldBeDealtThisTurnToRecipient(
             Integer(1),
             Player(You),
           ),
@@ -345316,7 +345322,7 @@ Card(
           ])),
         )),
         If(
-          CostWasPaid,
+          CostWasntPaid,
           [
             SacrificePermanent(ThisPermanent),
           ],
@@ -408502,8 +408508,8 @@ Planar(
             ControlledByAPlayer(SinglePlayer(You)),
             Or([
               IsColor(White),
-              IsColor(White),
-              IsColor(White),
+              IsColor(Blue),
+              IsColor(Black),
             ]),
           ]),
           [
@@ -467656,7 +467662,7 @@ Card(
     ManaCostG,
   ],
   Rules: [
-    If(
+    Unless(
       PermanentPassesFilter(
         ThisPermanent,
         IsPairedWithA(And([
@@ -491969,7 +491975,7 @@ Card(
     If(
       PermanentPassesFilter(
         ThisPermanent,
-        IsntAttacking,
+        IsAttacking,
       ),
       [
         PermanentLayerEffect(
@@ -584116,6 +584122,8 @@ Card(
         CreatePermanentLayerEffect(
           ThePermanentPutOnTheBattlefieldThisWay,
           [
+            SetCardtype(Enchantment),
+            AddEnchantmentType(Aura),
             AddAbilityAndLoseAllOtherAbilities([
               EnchantPermanent(And([
                 IsLandType(Forest),
@@ -589903,7 +589911,7 @@ Card(
   Rules: [
     Indestructible,
     Haste,
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         NumCardsInHandIs(LessThanOrEqualTo(Integer(1))),
@@ -590129,7 +590137,7 @@ Card(
         ]),
       ),
     ),
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         HasMaxSpeed,
@@ -708755,7 +708763,7 @@ Card(
   Rules: [
     Flying,
     Indestructible,
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         NumCardsInHandIs(GreaterThanOrEqualTo(Integer(7))),
@@ -712599,7 +712607,7 @@ Card(
     Menace,
     Lifelink,
     Indestructible,
-    If(
+    Unless(
       NumCardsInExileIs(
         GreaterThanOrEqualTo(Integer(7)),
         AnyExiledCard,
@@ -758725,7 +758733,7 @@ Card(
           1,
           1,
         )),
-        AddColor(SimpleColorList([
+        SetColor(SimpleColorList([
           Green,
         ])),
         AddCreatureType(Saproling),
@@ -785368,7 +785376,7 @@ Card(
     ManaCostGeneric(2),
   ],
   Rules: [
-    If(
+    Unless(
       APlayerPassesFilter(
         AnyPlayer,
         NumCardsInHandIs(EqualTo(Integer(0))),
@@ -922894,7 +922902,7 @@ Card(
   Rules: [
     DoubleStrike,
     Indestructible,
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         ControlsNum(
@@ -925097,6 +925105,8 @@ Card(
         CreatePermanentLayerEffect(
           ThePermanentPutOnTheBattlefieldThisWay,
           [
+            SetCardtype(Enchantment),
+            AddEnchantmentType(Aura),
             AddAbility([
               EnchantPermanent(And([
                 IsLandType(Forest),
@@ -956337,7 +956347,7 @@ Card(
     ManaCostG,
   ],
   Rules: [
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         NumCardTypesInGraveyardIs(GreaterThanOrEqualTo(Integer(4))),
@@ -982114,7 +982124,7 @@ Card(
       ]),
       Targeted(
         [
-          TargetPlayer(AnyPlayer),
+          TargetPlayer(Opponent),
         ],
         ActionList([
           PlayerAction(
@@ -1056987,7 +1056997,7 @@ Card(
     ManaCostGeneric(3),
   ],
   Rules: [
-    If(
+    Unless(
       APlayerPassesFilter(
         Opponent,
         NumCardsInGraveyardIs(GreaterThanOrEqualTo(Integer(8))),
@@ -1071698,7 +1071708,7 @@ Card(
   Rules: [
     Deathtouch,
     Indestructible,
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         ControlsA(And([
@@ -1105709,7 +1105719,7 @@ Card(
     Reach,
     Trample,
     Indestructible,
-    If(
+    Unless(
       PermanentPassesFilter(
         ThisPermanent,
         HasNumberCounters(Even),
@@ -1161082,7 +1161092,7 @@ Card(
   Rules: [
     EnchantPlayer(AnyPlayer),
     TriggerA(
-      AtTheBeginningOfAPlayersPostcombatMainPhase(SinglePlayer(You)),
+      AtTheBeginningOfAPlayersPostcombatMainPhase(SinglePlayer(HostPlayer)),
       ActionList([
         ThereIsAnAdditionalBeginningPhase,
       ]),
@@ -1179536,7 +1179546,7 @@ Card(
                   Integer(2),
                   Permanent(Ref_TargetPermanent),
                 ),
-                If(
+                Unless(
                   GuestWasUnattachedFromAPermanentThisWay(IsCreatureType(Ninja)),
                   [
                     CreatePermanentLayerEffect(
@@ -1210307,7 +1210317,7 @@ Card(
   ],
   Rules: [
     Flying,
-    If(
+    Unless(
       PermanentPassesFilter(
         ThisPermanent,
         HasNumberCountersOfType(
@@ -1219836,7 +1219846,7 @@ Card(
         ],
         ActionList([
           CreateFutureReplaceWouldDealDamage(
-            NextTimeDamageWouldBeDealtThisTurnByPermanentToARecipient(
+            NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToARecipient(
               ThisPermanent,
               APlayer(Opponent),
             ),
@@ -1321913,7 +1321923,7 @@ Card(
   Rules: [
     Reach,
     Trample,
-    If(
+    Unless(
       PermanentPassesFilter(
         ThisPermanent,
         PowerIs(GreaterThanOrEqualTo(Integer(6))),
@@ -1339615,7 +1339625,7 @@ Card(
     ManaCostB,
   ],
   Rules: [
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         NumCardsOfTypeInGraveyardIs(
@@ -1351515,7 +1351525,7 @@ Card(
         GainLife(Integer(3)),
       ]),
     ),
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         NumCardsOfTypeInGraveyardIs(
@@ -1382465,7 +1382475,7 @@ Card(
     ManaCostR,
   ],
   Rules: [
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         ControlsA(And([
@@ -1393307,7 +1393317,7 @@ Card(
         ]),
       ]),
     ),
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         ControlsNum(
@@ -1401031,7 +1401041,7 @@ Card(
     ManaCostGeneric(3),
   ],
   Rules: [
-    If(
+    Unless(
       PermanentPassesFilter(
         ThisPermanent,
         IsEquipped,
@@ -1488193,7 +1488203,7 @@ Card(
         ],
         Targeted(
           [
-            TargetPlayer(AnyPlayer),
+            TargetPlayer(Opponent),
           ],
           ActionList([
             If(
@@ -1504080,7 +1504090,7 @@ Card(
         MayPlayAnAdditionalLand,
       ],
     ),
-    If(
+    Unless(
       PlayerPassesFilter(
         You,
         HasTheCitysBlessing,

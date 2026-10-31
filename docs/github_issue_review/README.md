@@ -108,6 +108,11 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#71](https://github.com/i5jb/mtgish/issues/71): Reference to a target that doesn't exist (Whip of Erebos, The Last Ronin, Etched Slith).
 - [#72](https://github.com/i5jb/mtgish/issues/72): Chosen object encoded as a target (Eunuchs' Intrigues, Goblin War Cry, Scrounge).
 - [#73](https://github.com/i5jb/mtgish/issues/73): Rise from the Wreck: reference to a fifth target.
+- [#74](https://github.com/i5jb/mtgish/issues/74): "unless" encoded as "if" (25 cards).
+- [#75](https://github.com/i5jb/mtgish/issues/75): Target restriction lost (Planeswalker's Mischief, Waking the Trolls, Alacrian Armory).
+- [#76](https://github.com/i5jb/mtgish/issues/76): "combat" lost from damage (Decorated Griffin, Soltari Guerrillas).
+- [#77](https://github.com/i5jb/mtgish/issues/77): Wrong player (Shadow of the Second Sun, Davriel, Soul Broker).
+- [#78](https://github.com/i5jb/mtgish/issues/78): Wrong color, condition, optional or type (Esper, Gaea's Liege, Life and Limb, Chain Lightning, Chain of Plasma, Old-Growth Troll, Harold and Bob, First Numens).
 
 [#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
 

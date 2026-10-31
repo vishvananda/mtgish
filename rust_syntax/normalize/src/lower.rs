@@ -1070,7 +1070,10 @@ impl Context {
             S::TheNumberOfPlayersWhoTookAnActionThisWay => {
                 Expr::CountPlayers(self.players(&source::Players::PlayerWhoTookActionThisWay)?)
             }
-            S::NumberOfCardsDrawnThisWay => Expr::Performed(self.done(Done::Drew)?),
+            S::NumberOfCardsDrawnThisWay => match self.done(Done::Drew) {
+                Ok(result) => Expr::Performed(result),
+                Err(_) => self.this_way_count(Done::Drew, ObjectPhase::After, None)?,
+            },
             S::TheAmountOfDamageDealtThisWay => Expr::Performed(self.done(Done::Damage)?),
             S::NumPermanentsDestroyedThisWay(filter) => {
                 Expr::CountObjects(Box::new(self.done_matching(Done::Destroyed, filter)?))
@@ -1099,10 +1102,7 @@ impl Context {
                 }))
             }
             S::NumCardsMilledThisWay(cards) => Expr::CountObjects(Box::new(ObjectSet::Matching {
-                objects: Box::new(ObjectSet::Transition {
-                    result: self.done(Done::Milled)?,
-                    phase: ObjectPhase::After,
-                }),
+                objects: Box::new(self.this_way_set(Done::Milled, ObjectPhase::After, None)?),
                 filter: self.card_filter(cards)?,
             })),
             S::NumGraveyardCardsExiledThisWay => match &self.exiled {
@@ -1427,10 +1427,7 @@ impl Context {
             },
             S::ACardWasMilledThisWay(cards) => Condition::Compare {
                 left: Expr::CountObjects(Box::new(ObjectSet::Matching {
-                    objects: Box::new(ObjectSet::Transition {
-                        result: self.done(Done::Milled)?,
-                        phase: ObjectPhase::After,
-                    }),
+                    objects: Box::new(self.this_way_set(Done::Milled, ObjectPhase::After, None)?),
                     filter: self.card_filter(cards)?,
                 })),
                 comparison: Comparison::Greater,
@@ -3119,8 +3116,7 @@ impl Context {
                 return Ok(Instruction::Group(Program { instructions }));
             }
             S::ReturnEachCardFromPlayersGraveyardToBattlefield(cards, player, flags) => {
-                let you = self.player(&source::Player::You)?;
-                let (destination, entry) = self.move_entry(flags, you)?;
+                let (destination, entry) = self.move_entry(flags, self.actor_or_you(actor)?)?;
                 let players = PlayerSet::One(self.player(player)?);
                 Operation::Move {
                     objects: self.private_cards(

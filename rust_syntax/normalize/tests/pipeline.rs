@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 69);
+    assert_eq!(card.schema_version, 70);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2968,6 +2968,42 @@ fn a_target_player_can_carry_a_condition() {
     let text = ability_json("SpellActions(Targeted([TargetPlayerAtTime(Opponent,ControlsMorePermanentThanPlayer(You,IsCardtype(Creature)))],ActionList([DrawACard])))");
     assert!(text.contains("Intersection"), "{text}");
     assert!(text.contains("OpponentsOf"), "{text}");
+}
+
+#[test]
+fn an_action_reads_its_own_actor_library_and_battlefield() {
+    let text = ability_json("TriggerA(AtTheBeginningOfAPlayersDrawStep(AnyPlayer),ActionList([PlayerAction(Trigger_ThatPlayer,Exile([TheTopCardOfLibrary],[])),If(ACardWasExiledThisWay(IsCardtype(Land)),[PlayerAction(Trigger_ThatPlayer,PutExiledCardOntoBattlefield(TheCardExiledThisWay,[EntersNormally]))])]))");
+    assert!(!text.contains("AbilityController"), "{text}");
+    let text = ability_json("SpellActions(ActionList([EachPlayerAction(Opponent,Exile([TheTopCardOfLibrary],[]))]))");
+    assert!(text.contains("Bound"), "{text}");
+}
+
+#[test]
+fn a_life_loss_is_replaced_for_the_player_losing_it() {
+    let text = ability_json("ReplaceWouldLoseLife(APlayerWouldLoseLife(Opponent),[LoseLife(Twice(WouldLoseLife_ThatMuch))])");
+    assert!(text.contains("EventSubject"), "{text}");
+    assert!(!text.contains("\"players\":{\"kind\":\"One\",\"args\":{\"kind\":\"AbilityController\"}},\"amount\""), "{text}");
+}
+
+#[test]
+fn a_difference_is_never_negative() {
+    let text = ability_json("SpellActions(ActionList([GainLife(DifferenceBetween(Integer(1),Integer(4)))]))");
+    assert!(text.contains("Maximum"), "{text}");
+    assert_eq!(text.matches("Subtract").count(), 2, "{text}");
+}
+
+#[test]
+fn a_card_replaces_its_discard_from_hand() {
+    let text = ability_json("ReplaceWouldDiscard(ASpellOrAbilityWouldCausePlayerToDiscardCard(ControlledByAPlayer(Opponent),You,ThisCardInHand),[PutItOntoTheBattlefieldInstead([EntersNormally])])");
+    assert!(text.contains("Everywhere"), "{text}");
+}
+
+#[test]
+fn may_costs_read_what_they_drew_and_milled() {
+    let text = ability_json("TriggerA(WhenACreatureAttacks(SinglePermanent(ThisPermanent)),ActionList([MayCost(DrawNumberCards(Integer(2))),If(CostWasPaid,[DiscardNumberCards(NumberOfCardsDrawnThisWay)])]))");
+    assert!(text.contains("CostObjects"), "{text}");
+    let text = ability_json("SpellActions(ActionList([MayCost(MillNumberCards(Integer(2))),If(CostWasPaid,[MayAction(PutACardOfTypeMilledThisWayIntoHand(IsCardtype(Creature)))])]))");
+    assert!(text.contains("CostObjects"), "{text}");
 }
 
 #[test]

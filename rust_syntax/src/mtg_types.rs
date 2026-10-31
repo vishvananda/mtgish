@@ -4024,6 +4024,7 @@ pub enum ReplacableEventWouldDraw {
 pub enum FutureEventPreventDamage {
   NextDistributedDamageThisTurn,
 
+  NextAmountOfCombatDamageThatWouldBeDealtThisTurnToRecipient(Box<GameNumber>, Box<SingleDamageRecipient>),
   NextAmountOfDamageThatWouldBeDealtThisTurnByPermanent(Box<GameNumber>, Box<Permanent>),
   NextAmountOfDamageThatWouldBeDealtThisTurnBySourceToARecipient(Box<GameNumber>, Box<SingleDamageSource>, Box<DamageRecipientsList>),
   NextAmountOfDamageThatWouldBeDealtThisTurnBySourceToRecipient(Box<GameNumber>, Box<SingleDamageSource>, Box<SingleDamageRecipient>),
@@ -4101,7 +4102,7 @@ pub enum FutureReplacableEventWouldDealDamage {
   NextTimeCombatDamageWouldBeDealtThisTurnByCreature(Box<Permanent>),
   NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToRecipient(Box<Permanent>, Box<SingleDamageRecipient>),
   NextTimeDamageWouldBeDealtThisTurnByASpellToRecipient(Box<Spells>, Box<SingleDamageRecipient>),
-  NextTimeDamageWouldBeDealtThisTurnByPermanentToARecipient(Box<Permanent>, Box<DamageRecipientsList>),
+  NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToARecipient(Box<Permanent>, Box<DamageRecipientsList>),
   NextTimeDamageWouldBeDealtThisTurnBySource(Box<SingleDamageSource>),
   NextTimeDamageWouldBeDealtThisTurnBySourceToRecipient(Box<SingleDamageSource>, Box<SingleDamageRecipient>),
   NextTimeDamageWouldBeDealtThisTurnToARecipient(Box<DamageRecipientsList>),
