@@ -132,7 +132,6 @@ fn real_inspection_programs_roundtrip_and_unimplemented_nested_programs_remain_d
         "Lim-Dûl's Vault",
         "Moonlight Bargain",
         "Planar Genesis",
-        "Zimone's Experiment",
     ];
     let mut complete = 0;
     for s in sources() {
@@ -157,7 +156,7 @@ fn real_inspection_programs_roundtrip_and_unimplemented_nested_programs_remain_d
         }
         complete += 1;
     }
-    assert_eq!(complete, 47);
+    assert_eq!(complete, 48);
 }
 
 #[test]

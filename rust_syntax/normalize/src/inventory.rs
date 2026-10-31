@@ -351,6 +351,7 @@ impl Inventory<'_> {
                 self.expr(amount);
             }
             Operation::JoinResults { .. } => {}
+            Operation::ChoosePowerToughness { player, .. } => self.player(player),
             Operation::Counter {
                 objects,
                 destination,
@@ -1309,6 +1310,8 @@ impl Inventory<'_> {
             | Expr::CountersRemoved(_)
             | Expr::PaidCountersRemoved { .. }
             | Expr::Performed(_)
+            | Expr::ChosenPowerToughness { .. }
+            | Expr::DieResultAt { .. }
             | Expr::DistributedShare(_)
             | Expr::DieResult(_) => {}
             Expr::ExcessDamage { to, .. } => self.filter(to),

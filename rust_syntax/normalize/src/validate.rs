@@ -693,7 +693,16 @@ impl<'a> Scope<'a> {
                 self.filter(to)
             }
             Expr::ExcessDamage { result, .. } => Err(format!("result {} is unavailable", result.0)),
-            Expr::Performed(result) if self.results.contains_key(&result.0) => Ok(()),
+            Expr::Performed(result)
+            | Expr::ChosenPowerToughness { result, .. }
+            | Expr::DieResultAt { result, .. }
+                if self.results.contains_key(&result.0) =>
+            {
+                Ok(())
+            }
+            Expr::ChosenPowerToughness { result, .. } | Expr::DieResultAt { result, .. } => {
+                Err(format!("result {} is unavailable", result.0))
+            }
             Expr::Performed(result) => Err(format!("result {} is unavailable", result.0)),
             Expr::PaidCountersRemoved { payment, component } => {
                 self.paid_component(payment, component).map(|_| ())
@@ -1610,6 +1619,7 @@ impl<'a> Scope<'a> {
                 Err("a join needs at least two branches".into())
             }
             Operation::JoinResults { .. } => Ok(()),
+            Operation::ChoosePowerToughness { player, .. } => self.player(player),
             Operation::Counter {
                 objects,
                 destination,

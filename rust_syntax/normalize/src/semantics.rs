@@ -319,7 +319,7 @@ impl Effects {
         for instruction in &program.instructions {
             match instruction {
                 Instruction::Effect { result, operation } => match operation {
-                    Operation::FlipCoin { .. } => {}
+                    Operation::FlipCoin { .. } | Operation::ChoosePowerToughness { .. } => {}
                     Operation::JoinResults { results } => {
                         let joined = results
                             .iter()

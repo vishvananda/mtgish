@@ -3090,6 +3090,28 @@ fn a_play_permission_keeps_its_terms() {
 }
 
 #[test]
+fn each_payer_is_offered_and_the_refusers_are_counted() {
+    let text = ability_json("SpellActions(ActionList([EachPlayerMustCost(Opponent, DiscardACard), DrawNumberCards(TheNumberOfPlayersThatDidntPayCost)]))");
+    assert!(text.contains("PayCost"), "{text}");
+    assert!(text.contains("Intersection"), "{text}");
+    assert!(text.contains("PlayerTook"), "{text}");
+}
+
+#[test]
+fn a_chosen_power_change_is_read_where_it_applies() {
+    let text = ability_json("Activated(PayMana([ManaCostGeneric(1)]), ActionList([ChoosePTMod([PTMod(+1, -1), PTMod(-1, +1)]), CreatePermanentLayerEffectUntil(ThisPermanent, [AdjustPT_TheChosenPTMod], UntilEndOfTurn)]))");
+    assert!(text.contains("ChoosePowerToughness"), "{text}");
+    assert!(text.contains("ChosenPowerToughness"), "{text}");
+}
+
+#[test]
+fn ordered_dice_keep_their_positions() {
+    let text = ability_json("SpellActions(ActionList([RollTwoD8AndChooseAnOrder, DrawNumberCards(TheFirstDiceResult), GainLife(TheSecondDiceResult)]))");
+    assert!(text.contains(r#""DieResultAt""#), "{text}");
+    assert!(text.contains(r#""index":1"#), "{text}");
+}
+
+#[test]
 fn a_card_replaces_its_discard_from_hand() {
     let text = ability_json("ReplaceWouldDiscard(ASpellOrAbilityWouldCausePlayerToDiscardCard(ControlledByAPlayer(Opponent),You,ThisCardInHand),[PutItOntoTheBattlefieldInstead([EntersNormally])])");
     assert!(text.contains("Everywhere"), "{text}");

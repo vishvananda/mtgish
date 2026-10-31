@@ -937,6 +937,11 @@ pub enum Operation {
     JoinResults {
         results: Vec<ResultId>,
     },
+    /// Choose one of these power/toughness adjustments.
+    ChoosePowerToughness {
+        player: PlayerRef,
+        options: Vec<(i64, i64)>,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct SearchChoice {
@@ -1690,6 +1695,16 @@ pub enum Expr {
     },
     /// How many times this ability has been activated this turn.
     TimesActivatedThisTurn,
+    /// One half of the adjustment `ChoosePowerToughness` picked.
+    ChosenPowerToughness {
+        result: ResultId,
+        toughness: bool,
+    },
+    /// One of the dice a roll kept, in the order the roller chose.
+    DieResultAt {
+        result: ResultId,
+        index: u32,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
