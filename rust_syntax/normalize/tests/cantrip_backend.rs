@@ -304,6 +304,9 @@ fn generated_modules_execute_in_cantrip() {
         ("dark_confidant", "Dark Confidant"),
         ("growth_curve", "Growth Curve"),
         ("vorel", "Vorel of the Hull Clade"),
+        ("anoint", "Anoint with Affliction"),
+        ("apostle", "Apostle of Invasion"),
+        ("kalemne", "Kalemne, Disciple of Iroas"),
     ];
     let mut lib = String::new();
     for (module, name) in names {

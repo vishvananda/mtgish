@@ -942,6 +942,18 @@ impl Compiler {
                 kind,
                 information: Information::CurrentOrLastKnown,
             } => {
+                if let Recipients::Players(players) = recipients.as_ref() {
+                    use crate::counter::{CounterKind, CounterName};
+                    let read = match kind {
+                        Some(CounterKind::Named(CounterName::PoisonCounter)) => "poison",
+                        Some(CounterKind::Named(CounterName::ExperienceCounter)) => "experience",
+                        _ => return Err(gap("counters on a player")),
+                    };
+                    return Ok(count(format!(
+                        "({}).into_iter().map(|p: PlayerId| i64::from(q.state().player(p).{read}())).sum::<i64>()",
+                        self.players(players)?
+                    )));
+                }
                 let Recipients::Objects(objects) = recipients.as_ref() else {
                     return Err(gap("counters on a player"));
                 };

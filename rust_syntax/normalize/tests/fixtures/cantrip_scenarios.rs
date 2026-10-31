@@ -150,6 +150,29 @@ mod scenarios {
         spell: spell(&[], counters_on_my_creatures),
         ..CardDef::BLANK
     };
+    fn poison_my_opponent(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+        let them = if item.controller == ME { THEM } else { ME };
+        g.give_poison(them, 1);
+        Ok(())
+    }
+    static POISON: CardDef = CardDef {
+        name: "Poison fixture",
+        has_cost: true,
+        types: TypeSet::of(&[CardType::Sorcery]),
+        spell: spell(&[], poison_my_opponent),
+        ..CardDef::BLANK
+    };
+    fn experience_for_me(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+        g.give_experience(item.controller, 1);
+        Ok(())
+    }
+    static EXPERIENCE: CardDef = CardDef {
+        name: "Experience fixture",
+        has_cost: true,
+        types: TypeSet::of(&[CardType::Sorcery]),
+        spell: spell(&[], experience_for_me),
+        ..CardDef::BLANK
+    };
     fn all_three_present(q: &dyn Query, source: ObjectId, event: &Event) -> Option<Fired> {
         if matches!(event,Event::ZoneChange{new,to,reason:ZoneReason::Created,..} if to.is(ZoneKind::Battlefield)&&q.obj(*new).token)
             && q.permanents_of(q.controller(source))
@@ -446,6 +469,8 @@ mod scenarios {
             &ISLAND_LAND,
             &BASIC_LAND,
             &COUNTERS,
+            &POISON,
+            &EXPERIENCE,
             &sea_monster::CARD,
             &treasure_hunt::CARD,
             &mind_funeral::CARD,
@@ -457,6 +482,9 @@ mod scenarios {
             &dark_confidant::CARD,
             &growth_curve::CARD,
             &vorel::CARD,
+            &anoint::CARD,
+            &apostle::CARD,
+            &kalemne::CARD,
         ];
         for extras in [
             alarm::EXTRA,
@@ -2298,6 +2326,71 @@ mod scenarios {
         // Vorel has the same counters and was not the target.
         assert_eq!(g.state.obj(vorel).counters(CounterKind::PlusOne), 2);
         assert_eq!(g.state.obj(vorel).counters(CounterKind::Stun), 3);
+    }
+    /// A game with `copies` of a fixture spell in hand, each cast and resolved.
+    fn after_casting(
+        spell: &str,
+        copies: usize,
+        hand: &str,
+        permanent: Option<&str>,
+        extras: &[(&str, PlayerId)],
+    ) -> (RulesGame, ObjectId, Option<ObjectId>) {
+        let also = vec![spell; copies];
+        let (mut g, held, permanent, _) =
+            game_with_zones(hand, permanent, 0, extras, 100, &[], &also);
+        for _ in 0..copies {
+            let card = hand_card(&g, spell);
+            announce(&mut g, card, ActionKind::CastSpell);
+            resolve(&mut g, None, false);
+        }
+        (g, held, permanent)
+    }
+    #[test]
+    fn corrupted_counts_the_poison_of_the_creatures_controller() {
+        // Shivan Dragon's mana value is 6, so only corrupted can exile it. Poison
+        // goes on my opponent, so a Dragon of mine is the case that tells "its
+        // controller" from "an opponent".
+        for (poison, owner, exiled) in [(2, THEM, false), (3, THEM, true), (3, ME, false)] {
+            let extras = [("Shivan Dragon", owner)];
+            let (mut g, spell, _) =
+                after_casting(POISON.name, poison, "Anoint with Affliction", None, &extras);
+            let dragon = permanents_named(&g, "Shivan Dragon")[0];
+            announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(dragon));
+            resolve(&mut g, None, false);
+            assert_eq!(
+                permanents_named(&g, "Shivan Dragon").is_empty(),
+                exiled,
+                "{poison} poison, owner {owner:?}"
+            );
+        }
+    }
+    #[test]
+    fn an_opponents_poison_turns_a_static_on_at_the_exact_count() {
+        for (poison, double_strike) in [(2, false), (3, true)] {
+            let (g, _, apostle) = after_casting(
+                POISON.name,
+                poison,
+                "Divination",
+                Some("Apostle of Invasion"),
+                &[],
+            );
+            let has = g.chars(apostle.unwrap()).has(Keyword::DoubleStrike);
+            assert_eq!(has, double_strike, "{poison} poison");
+        }
+    }
+    #[test]
+    fn experience_counters_are_read_from_the_controller() {
+        // Printed 3/3, so the size is the experience and nothing else.
+        for (counters, power) in [(0, 3), (2, 5)] {
+            let (g, _, kalemne) = after_casting(
+                EXPERIENCE.name,
+                counters,
+                "Divination",
+                Some("Kalemne, Disciple of Iroas"),
+                &[],
+            );
+            assert_eq!(g.chars(kalemne.unwrap()).power, Some(power));
+        }
     }
     #[test]
     fn a_deck_rule_leaves_the_rest_of_the_card_as_printed() {
