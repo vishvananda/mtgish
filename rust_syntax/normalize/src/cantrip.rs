@@ -62,8 +62,24 @@ fn quoted(value: &str) -> String {
 }
 /// `ZoneKind` for a `Scoped` zone list, the form both builders take.
 fn zone_list(zones: &[EventZone]) -> Result<String> {
+    // "Every zone" means the ones the engine looks in for an ability; on its
+    // own, the command zone or the ante is somewhere it never looks.
+    let every = |zone: &EventZone| {
+        let has = |wanted: &EventZone| zones.iter().any(|z| z == wanted);
+        matches!(zone, EventZone::Command | EventZone::Ante)
+            && has(&EventZone::Battlefield)
+            && has(&EventZone::Graveyard)
+            && has(&EventZone::Hand)
+            && has(&EventZone::Library)
+            && has(&EventZone::Stack)
+            && has(&EventZone::Exile)
+    };
+    if zones.iter().any(|z| matches!(z, EventZone::Command) && !every(z)) {
+        return Err(gap("ability functioning in the command zone"));
+    }
     let kinds = zones
         .iter()
+        .filter(|zone| !every(zone))
         .map(read::zone_kind)
         .collect::<Result<Vec<_>>>()?;
     Ok(format!("ZoneKinds::of(&[{}])", kinds.join(", ")))

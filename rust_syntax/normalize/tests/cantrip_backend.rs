@@ -203,6 +203,15 @@ fn generated_modules_execute_in_cantrip() {
         ("stirrings", "Ancient Stirrings"),
         ("litho", "Lithobraking"),
         ("agent", "Agent of the Fates"),
+        ("priest", "Banisher Priest"),
+        ("spitemare", "Spitemare"),
+        ("faith", "Renewed Faith"),
+        ("golem", "Flint Golem"),
+        ("good", "Greater Good"),
+        ("fling", "Fling"),
+        ("truths", "Painful Truths"),
+        ("strength_two", "Consume Strength"),
+        ("salvo", "Blazing Salvo"),
     ];
     let mut lib = String::new();
     for (module, name) in names {

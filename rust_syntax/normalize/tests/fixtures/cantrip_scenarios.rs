@@ -277,6 +277,15 @@ mod scenarios {
             &stirrings::CARD,
             &litho::CARD,
             &agent::CARD,
+            &priest::CARD,
+            &spitemare::CARD,
+            &faith::CARD,
+            &golem::CARD,
+            &good::CARD,
+            &fling::CARD,
+            &truths::CARD,
+            &strength_two::CARD,
+            &salvo::CARD,
         ];
         for extras in [
             alarm::EXTRA,
@@ -1131,12 +1140,24 @@ mod scenarios {
     }
     /// Pass until `done`, as far as the turn goes, declaring nothing.
     fn advance(g: &mut RulesGame, done: &dyn Fn(&RulesGame) -> bool) {
+        advance_answering(g, done, &mut |_| None)
+    }
+    /// `advance`, with `answer` first in line for each question.
+    fn advance_answering(
+        g: &mut RulesGame,
+        done: &dyn Fn(&RulesGame) -> bool,
+        answer: &mut dyn FnMut(&RequestKind) -> Option<Answer>,
+    ) {
         for _ in 0..512 {
             g.run();
             if done(g) {
                 return;
             }
             let request = g.pending().cloned().expect("pending answer");
+            if let Some(reply) = answer(&request.kind) {
+                g.answer(request.id, request.player, reply).unwrap();
+                continue;
+            }
             let reply = match &request.kind {
                 RequestKind::Priority { .. } => Answer::Pass,
                 RequestKind::DeclareAttackers { .. } => Answer::Attack(vec![]),
@@ -1479,5 +1500,181 @@ mod scenarios {
             });
             assert_eq!(g.state.obj(theirs).became.is_some(), at_agent);
         }
+    }
+    #[test]
+    fn what_is_exiled_comes_back_when_its_jailer_leaves() {
+        let (mut g, priest, _, _) = game_with_zones(
+            "Banisher Priest",
+            None,
+            0,
+            &[("Grizzly Bears", THEM)],
+            100,
+            &[],
+            &["Doom Blade"],
+        );
+        let bears = permanents_named(&g, "Grizzly Bears")[0];
+        announce(&mut g, priest, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseTarget { .. } => Answer::Targets(vec![Target::Object(bears)]),
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert!(permanents_named(&g, "Grizzly Bears").is_empty());
+        let blade = hand_card(&g, "Doom Blade");
+        let jailer = permanents_named(&g, "Banisher Priest")[0];
+        announce_at(&mut g, blade, ActionKind::CastSpell, Target::Object(jailer));
+        resolve(&mut g, None, false);
+        assert_eq!(permanents_named(&g, "Grizzly Bears").len(), 1);
+    }
+    #[test]
+    fn a_damage_trigger_reads_how_much() {
+        let (mut g, bolt, spitemare) = game("Lightning Bolt", Some("Spitemare"));
+        let spitemare = spitemare.unwrap();
+        let life = g.state.player(THEM).life;
+        announce_at(
+            &mut g,
+            bolt,
+            ActionKind::CastSpell,
+            Target::Object(spitemare),
+        );
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseTarget { .. } => Answer::Targets(vec![Target::Player(THEM)]),
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.state.player(THEM).life, life - 3);
+    }
+    #[test]
+    fn a_cycling_trigger_sees_the_card_where_it_ended_up() {
+        let (mut g, card, _) = game("Renewed Faith", None);
+        let life = g.state.player(ME).life;
+        announce(&mut g, card, ActionKind::ActivateAbility);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::May { .. } => Answer::Yes,
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.state.player(ME).life, life + 2);
+    }
+    #[test]
+    fn a_sacrificed_creature_is_read_as_it_was() {
+        let (mut g, _, good, _) = game_with_extras(
+            "Divination",
+            Some("Greater Good"),
+            0,
+            &[("Grizzly Bears", ME)],
+        );
+        let good = good.unwrap();
+        let bears = permanents_named(&g, "Grizzly Bears")[0];
+        let library = g.state.zone(Zone::library(ME)).len();
+        announce(&mut g, good, ActionKind::ActivateAbility);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { purpose, .. } if *purpose == Purpose::SacrificeCost => {
+                Answer::Cards(vec![bears])
+            }
+            RequestKind::ChooseCards { cards, .. } => Answer::Cards(cards[..3].to_vec()),
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.state.zone(Zone::library(ME)).len(), library - 2);
+    }
+    #[test]
+    fn a_spell_reads_what_it_sacrificed() {
+        let (mut g, fling, bears) = game("Fling", Some("Grizzly Bears"));
+        let bears = bears.unwrap();
+        let life = g.state.player(THEM).life;
+        announce_at(&mut g, fling, ActionKind::CastSpell, Target::Player(THEM));
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { .. } => Answer::Cards(vec![bears]),
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.state.player(THEM).life, life - 2);
+    }
+    #[test]
+    fn converge_counts_the_colors_spent() {
+        let (mut g, spell, _) = game("Painful Truths", None);
+        let life = g.state.player(ME).life;
+        let hand = g.state.zone(Zone::hand(ME)).len();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        let colors = life - g.state.player(ME).life;
+        assert!(colors >= 1, "at least the black spent");
+        assert_eq!(
+            g.state.zone(Zone::hand(ME)).len() as i32,
+            hand as i32 - 1 + colors
+        );
+    }
+    #[test]
+    fn another_target_is_not_the_one_already_chosen() {
+        let (mut g, spell, _, _) = game_with_extras(
+            "Consume Strength",
+            None,
+            0,
+            &[("Grizzly Bears", ME), ("Grizzly Bears", THEM)],
+        );
+        let bears = permanents_named(&g, "Grizzly Bears");
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseTarget { candidates, .. } => {
+                if candidates.len() == 1 {
+                    assert!(!candidates.contains(&Target::Object(bears[0])));
+                    Answer::Targets(vec![candidates[0]])
+                } else {
+                    Answer::Targets(vec![Target::Object(bears[0])])
+                }
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.state.obj(bears[1]).became.is_some(), true);
+    }
+    #[test]
+    fn an_action_stands_in_for_a_cost_if_they_take_it() {
+        for accept in [true, false] {
+            let (mut g, spell, _, _) =
+                game_with_extras("Blazing Salvo", None, 0, &[("Spitemare", THEM)]);
+            let creature = permanents_named(&g, "Spitemare")[0];
+            let life = g.state.player(THEM).life;
+            announce_at(
+                &mut g,
+                spell,
+                ActionKind::CastSpell,
+                Target::Object(creature),
+            );
+            resolve_asking(&mut g, &mut |_, kind| match kind {
+                RequestKind::May { .. } if accept => Answer::Yes,
+                RequestKind::May { .. } => Answer::No,
+                RequestKind::ChooseTarget { .. } => Answer::Targets(vec![Target::Player(ME)]),
+                other => panic!("unexpected question {other:?}"),
+            });
+            let (lost, dealt) = if accept { (5, 0) } else { (0, 3) };
+            assert_eq!(g.state.player(THEM).life, life - lost);
+            assert_eq!(g.state.obj(creature).damage, dealt);
+        }
+    }
+    #[test]
+    fn being_blocked_by_two_creatures_triggers_once() {
+        let (mut g, _, golem, _) = game_with_extras(
+            "Divination",
+            Some("Flint Golem"),
+            0,
+            &[("Grizzly Bears", THEM), ("Spitemare", THEM)],
+        );
+        let golem = golem.unwrap();
+        let blockers = [
+            permanents_named(&g, "Grizzly Bears")[0],
+            permanents_named(&g, "Spitemare")[0],
+        ];
+        let library = g.state.zone(Zone::library(THEM)).len();
+        advance_answering(
+            &mut g,
+            &|g| g.state.zone(Zone::library(THEM)).len() < library,
+            &mut |kind| match kind {
+                RequestKind::DeclareAttackers { .. } => {
+                    Some(Answer::Attack(vec![(golem, Target::Player(THEM))]))
+                }
+                RequestKind::DeclareBlockers { .. } => Some(Answer::Block(
+                    blockers.iter().map(|&b| (b, golem)).collect(),
+                )),
+                _ => None,
+            },
+        );
+        assert_eq!(g.state.zone(Zone::library(THEM)).len(), library - 3);
+        assert!(g.state.stack.is_empty());
     }
 }
