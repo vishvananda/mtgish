@@ -48794,14 +48794,14 @@ Card(
         AdjustPTForEach(
           3,
           3,
-          NumPlayers(LifeTotalIs(LessThan(HalfRoundedUp(LifeTotalOfPlayer(NumPlayers_ThatPlayer))))),
+          NumPlayers(LifeTotalIs(LessThan(HalfRoundedUp(StartingLifeTotalOfPlayer(NumPlayers_ThatPlayer))))),
         ),
       ],
     ),
     If(
       APlayerPassesFilter(
         Opponent,
-        LifeTotalIs(LessThan(HalfRoundedUp(LifeTotalOfPlayer(Condition_ThatPlayer)))),
+        LifeTotalIs(LessThan(HalfRoundedUp(StartingLifeTotalOfPlayer(Condition_ThatPlayer)))),
       ),
       [
         PermanentLayerEffect(
@@ -234340,7 +234340,7 @@ Card(
           ActionList([
             SpellDealsDamage(
               ThisSpell,
-              PowerOfPermanent(Ref_TargetPermanent),
+              PowerOfPermanent(ThePermanentChosenThisWay),
               Permanent(Ref_TargetPermanent),
             ),
           ]),
@@ -234359,7 +234359,7 @@ Card(
           ActionList([
             SpellDealsDamage(
               ThisSpell,
-              PowerOfExiledCard(Ref_TargetExiledCard),
+              PowerOfExiledCard(TheExiledCardChosenThisWay),
               Permanent(Ref_TargetPermanent),
             ),
           ]),
@@ -239660,14 +239660,14 @@ Card(
           ),
           If(
             PermanentPassesFilter(
-              Ref_TargetPermanent,
+              ThePermanentPutOnTheBattlefieldThisWay,
               IsNonSupertype(Legendary),
             ),
             [
               CreateTokens(
                 [
                   TokenCopyOfPermanent(
-                    Ref_TargetPermanent,
+                    ThePermanentPutOnTheBattlefieldThisWay,
                     TokenCopyEffects([
                       SetPT(PT(
                         1,
@@ -300528,7 +300528,7 @@ Card(
               Ref_TargetPermanent,
             ),
           ]),
-          MayAction(UnsuspectPermanent(Trigger_ThatPermanent)),
+          MayAction(UnsuspectPermanent(Ref_TargetPermanent)),
         ]),
       ),
     ])),

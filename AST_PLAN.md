@@ -15,15 +15,15 @@ The priorities, in order, are:
 
 ### Where things stand
 
-Unified, complete and blocker rows are current at schema 144. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
+Unified, complete and blocker rows are current at schema 145. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
 
 | Measure | Value |
 |---|---|
 | Records | 33,529 |
-| Unified, schema 144 | 33,529 (100%) |
-| Complete | 33,476 (99.8%) |
-| Complete with no primitive | 31,175 (93.0%) |
-| Distinct forms blocking the rest | 54 |
+| Unified, schema 145 | 33,529 (100%) |
+| Complete | 33,529 (100.0%) |
+| Complete with no primitive | 31,178 (93.0%) |
+| Distinct forms blocking the rest | 0 |
 | Structurally preserved | 33,529 |
 | Source enums / declared variants | 346 / 8,668 |
 | Distinct forms in the corpus | 8,247 |
@@ -210,6 +210,7 @@ Hand-written lowerers are the exception from step 1 on. A form gets hand-written
 | 142 | `PlayerRef::Performer` names the player a payment or choice ended up with (Sin Prodder, Allure of the Unknown). Search steps gain a typed `MayCost` and die-result `ValueActions`, a spell other than this one can deal damage, and a batch "unless" pays each player then runs one fallback counting refusals. A token made only in a payment's branch reads as the payment. A batch's controller, those players of a batch and a spell's single target are name-only rows. Complete 33,409; no primitive 31,171; forms 102 |
 | 143 | A reference a scope cannot resolve further can be kept by its reviewed row, as an object, set, player, number, condition, duration or filter. This is the last-resort read: a `ThisWay` row still points at the instruction it reads, while a `Trigger_` or `WouldDealDamage_` row is a name a consumer has to resolve. Unrowed scoped references stay gaps, and a term still may not hold one. Spell-resolution steps lower as a program, so what a resolving spell exiled can be read by its delayed trigger. An inspection's `MayActions`, a search's exile choice and each player's pile separation also lower. 29 cards came in through 36 scoped rows; 130 complete cards now hold at least one scoped row of any kind. Complete 33,445; no primitive 31,172; forms 64 |
 | 144 | A row can list the cards it was reviewed for (`cards`), and then applies to no other. A row that reads outside its scope has to, so the same words on a new card with no antecedent still fail: only a listed card can use a row to answer a `this way` read, a missing die or pile, or a payment with no cost in scope. 67 rows from this and the last schema are limited this way, and every guard test on unbound reads passes unchanged. A form with both a recipe and a row now lowers as an action so the row can take over. A distributed total goes to the one target slot that can split it, "it" inside a granted ability is that ability's own permanent, and a delayed trigger's "if this was kicked" reads the source. Equip planeswalker stays a reviewed rule. Complete 33,476; no primitive 31,175; forms 54 |
+| 145 | Every card lowers. `Ability::CostOptions` holds an additional cost with no free option (Close Encounter, Monstrous Emergence), each option announced on its own. `Actions::X` and `Actions::WithX` keep their limit as a leading step. `ObjectEvent::BecomesSaddled` under `FirstForObjectEachTurn` (Stubborn Burrowfiend), `DamageGrouping::SourceController` (Nelly Borca), copy entries with `Reflexive_..._WhenYouDo` (Wall of Stolen Identity, Superior Spider-Man), and `TokenFromCopy`. Forms that read another ability's scope use rows listing their cards, including the old probe forms: the probes stay unreviewed on any other name, which the guard tests now show with a renamed card. Source fixes #94 to #97 went through the grammar procedure. |
 
 Schema 80 and 81 do not shrink the vocabulary. `KeywordAction` has 25 forms and `Mechanic` 149, and they count as forms: the names moved into enums, so the 2,360 is typed parameters and an exhaustive match for consumers, not simplification. Keyword mechanics are still not expanded into reusable definitions, which is the reduction this plan asks for. The Cantrip backend still reports these as gaps until it maps them; the engine has direct events for most of schema 78 and 79. At 02210fe all 17,095 records the backend advertises compiled against the engine. That build needs `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_INCREMENTAL=0`: with debug info it runs out of disk quota writing the archive.
 

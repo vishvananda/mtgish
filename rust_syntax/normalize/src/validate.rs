@@ -3422,6 +3422,15 @@ fn validate_ability_in(
             validate_ability_in(paid, zones, &paid_costs)?;
             return validate_ability_in(unpaid, zones, casting_costs);
         }
+        Ability::CostOptions { options, .. } => {
+            for (cost, ability) in options {
+                scope.cost(cost)?;
+                let mut paid_costs = casting_costs.clone();
+                paid_costs.insert(BRANCH_COST, cost.clone());
+                validate_ability_in(ability, zones, &paid_costs)?;
+            }
+            return Ok(());
+        }
         Ability::Gift {
             gift,
             promised,

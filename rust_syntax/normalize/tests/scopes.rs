@@ -2010,3 +2010,73 @@ fn a_total_goes_to_the_slot_that_can_split_it() {
     assert!(rhino.contains("distribute: Some(Constant(3))"), "{rhino}");
     assert!(rhino.contains("DistributedShare(Slot(1))"), "{rhino}");
 }
+
+/// `rule` on a card named `name`, which is what a row's `cards` list reads.
+fn on_card(name: &str, rule: &str) -> Result<Card, Vec<lower::Diagnostic>> {
+    let mut c = source("Unearth");
+    let source::OracleCard::Card {
+        name: card, rules, ..
+    } = &mut c
+    else {
+        panic!()
+    };
+    *card = name.to_string();
+    *rules = Some(vec![ron::from_str(rule).unwrap()]);
+    lower::card(&c)
+}
+
+#[test]
+fn a_first_saddling_counts_per_object_each_turn() {
+    let body = lowered(
+        "TriggerA(WhenAPermanentBecomesSaddledForTheFirstTimeInATurn(SinglePermanent(ThisPermanent)), ActionList([DrawACard]))",
+    );
+    assert!(
+        body.contains("FirstForObjectEachTurn(Object { event: BecomesSaddled"),
+        "{body}"
+    );
+}
+
+#[test]
+fn creatures_one_player_controls_deal_damage_as_one_event_per_controller() {
+    let body = lowered(
+        "TriggerA(WhenAnyNumberOfCreaturesAPlayerControlsDealCombatDamageToAnyNumberOfPlayers(IsCardtype(Creature), Opponent, Opponent), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("grouping: SourceController"), "{body}");
+}
+
+#[test]
+fn an_additional_cost_with_no_free_option_lists_every_cost() {
+    let body = lowered(
+        "SpellActions(AdditionalCost_Modal([AdditionalCost(PayLife(Integer(2)), ActionList([DrawACard])), AdditionalCost(PayLife(Integer(4)), ActionList([DrawNumberCards(Integer(2))]))]))",
+    );
+    assert!(body.contains("CostOptions {"), "{body}");
+    assert!(!body.contains("CostBranch {"), "{body}");
+    let free = lowered(
+        "SpellActions(AdditionalCost_Modal([AdditionalCost(PayLife(Integer(2)), ActionList([DrawACard])), NoAdditionalCost(ActionList([DrawNumberCards(Integer(2))]))]))",
+    );
+    assert!(free.contains("CostBranch {"), "{free}");
+}
+
+#[test]
+fn a_limit_on_x_is_a_step_the_reviewed_card_keeps() {
+    let rule = "SpellActions(X(GreaterThan(Integer(0)), ActionList([DrawNumberCards(ValueX)])))";
+    assert!(custom(rule).is_err());
+    let body = format!("{:?}", on_card("Mind Grind", rule).unwrap());
+    assert!(body.contains("\"Actions::X\""), "{body}");
+    assert!(body.contains("Comparison(Greater, Constant(0))"), "{body}");
+}
+
+#[test]
+fn entering_as_a_copy_can_trigger_when_you_do() {
+    let rule = "AsPermanentEnters(ThisPermanent, [MayAction(Reflexive_EnterAsACopyOfAPermanent_WhenYouDo(IsCardtype(Creature), CopyEffects([]), ActionList([DrawACard])))])";
+    let body = lowered(rule);
+    assert!(body.contains("CopyOf {"), "{body}");
+    assert!(body.contains("ReflexiveTrigger {"), "{body}");
+}
+
+#[test]
+fn a_token_copy_row_applies_only_to_its_card() {
+    let rule = "SpellActions(ActionList([CreateTokens([TokenFromCopy], [])]))";
+    assert!(custom(rule).is_err());
+    assert!(on_card("Maelstrom Archangel Avatar", rule).is_ok());
+}

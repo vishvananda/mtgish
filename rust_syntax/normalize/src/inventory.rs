@@ -114,6 +114,12 @@ impl Inventory<'_> {
                 self.ability(paid);
                 self.ability(unpaid);
             }
+            Ability::CostOptions { options, .. } => {
+                for (cost, ability) in options {
+                    self.cost(cost);
+                    self.ability(ability);
+                }
+            }
             Ability::Saga { chapters } => {
                 for chapter in chapters {
                     self.ability(chapter);

@@ -1322,15 +1322,15 @@
    "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
   },
   {
-   "id": "e4e32382cde3c4e07ea875e2c3455c0c6c6614072195d38cf1308bb38879dedc",
+   "id": "2e12e2f2a271b619315f9c1c21ce3433428afba124aecf89778b142066ede8b4",
    "kind": "mined_token",
    "rule": "Condition",
    "token": "HalfRoundedUp",
    "word": "round",
    "support": "44/48",
    "template": "an opponent's life total is less than half their starting life total",
-   "result": "APlayerPassesFilter(Opponent, LifeTotalIs(LessThan(HalfRoundedUp(LifeTotalOfPlayer(Condition_ThatPlayer)))))",
-   "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
+   "result": "APlayerPassesFilter(Opponent, LifeTotalIs(LessThan(HalfRoundedUp(StartingLifeTotalOfPlayer(Condition_ThatPlayer)))))",
+   "reason": "triaged 2026-10-31: reads half the starting life total after #94; rounding up never changes a strict less-than"
   },
   {
    "id": "0f7af6a6bb3e83ea32701dd68c55109e1dd3208c5b917b338b8759c377824048",
@@ -1637,15 +1637,15 @@
    "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
   },
   {
-   "id": "88e9e8274991ec304b4718b1bf41605ceeebcdd131790b3d2ca9ed2e931c60c7",
+   "id": "d506a15d03f0c776554a970c05f519b01a7d0a017351e4c8a70f0bdecaa0f3bc",
    "kind": "mined_token",
    "rule": "Eachable",
    "token": "HalfRoundedUp",
    "word": "round",
    "support": "44/48",
    "template": "opponent whose life total is less than half their starting life total",
-   "result": "NumPlayers(LifeTotalIs(LessThan(HalfRoundedUp(LifeTotalOfPlayer(NumPlayers_ThatPlayer)))))",
-   "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
+   "result": "NumPlayers(LifeTotalIs(LessThan(HalfRoundedUp(StartingLifeTotalOfPlayer(NumPlayers_ThatPlayer)))))",
+   "reason": "triaged 2026-10-31: reads half the starting life total after #94; rounding up never changes a strict less-than"
   },
   {
    "id": "14cdeda08db9382facc574de7178d977f6a2cc4400e75bb168da952941554917",
@@ -2121,15 +2121,15 @@
    "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
   },
   {
-   "id": "609b5b039f96b5893b197093389eb10614427304cbcc623a5f55e76dbd6b4c3b",
+   "id": "7e2c7ceb64d604e2dbe1914c0cc7a7cd0518cdb52be0922739469463a3cd74c7",
    "kind": "mined_token",
    "rule": "MultilineSpell",
    "token": "AdditionalCost_Modal",
    "word": "was",
    "support": "15/17",
    "template": "As an additional cost to cast this spell, choose a creature you control or a warped creature card you own in exile.\n{{~Spell}} deals damage equal to the power of the chosen creature or card to target creature.",
-   "result": "SpellActions(AdditionalCost_Modal([AdditionalCost(ChooseAPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([SpellDealsDamage(ThisSpell, PowerOfPermanent(Ref_TargetPermanent), Permanent(Ref_TargetPermanent))]))), AdditionalCost(ChooseAnExiledCard(And([IsWarped, IsCardtype(Creature), OwnedByAPlayer(SinglePlayer(You))])), Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([SpellDealsDamage(ThisSpell, PowerOfExiledCard(Ref_TargetExiledCard), Permanent(Ref_TargetPermanent))])))]))",
-   "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
+   "result": "SpellActions(AdditionalCost_Modal([AdditionalCost(ChooseAPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([SpellDealsDamage(ThisSpell, PowerOfPermanent(ThePermanentChosenThisWay), Permanent(Ref_TargetPermanent))]))), AdditionalCost(ChooseAnExiledCard(And([IsWarped, IsCardtype(Creature), OwnedByAPlayer(SinglePlayer(You))])), Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([SpellDealsDamage(ThisSpell, PowerOfExiledCard(TheExiledCardChosenThisWay), Permanent(Ref_TargetPermanent))])))]))",
+   "reason": "triaged 2026-10-31: corrected #97; the output is hand-written for this one card and reads the chosen object"
   },
   {
    "id": "a5a71da2687a1a8fba06fefcd1528559be3aa7d450903253e437bd8031860d27",

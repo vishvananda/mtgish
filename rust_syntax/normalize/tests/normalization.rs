@@ -5,6 +5,16 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+/// Hint of Insanity's reviewed row names that card; under any other name its
+/// nested form has no review, so these guards still see an unknown behavior.
+fn unreviewed() -> String {
+    include_str!("fixtures/core.ronl")
+        .lines()
+        .find(|l| l.contains("Name: \"Hint of Insanity\""))
+        .unwrap()
+        .replace("Hint of Insanity", "Unreviewed Insanity")
+}
+
 fn source(name: &str) -> OracleCard {
     include_str!("fixtures/core.ronl")
         .lines()
@@ -179,7 +189,8 @@ fn normalization_rejects_unbound_targets_and_duplicate_results() {
 
 #[test]
 fn normalization_does_not_mark_unknown_nested_behavior_complete() {
-    let errors = lower::card(&source("Hint of Insanity")).unwrap_err();
+    let card: OracleCard = ron::from_str(&unreviewed()).unwrap();
+    let errors = lower::card(&card).unwrap_err();
     assert!(errors
         .iter()
         .any(|e| e.form == "DiscardEachCard" && e.path.contains("actions[1]")));
@@ -235,10 +246,7 @@ fn normalization_late_unsupported_card_cannot_publish_partial_corpus() {
         .lines()
         .find(|l| l.contains("Name: \"Divination\""))
         .unwrap();
-    let unsupported = lines
-        .lines()
-        .find(|l| l.contains("Name: \"Hint of Insanity\""))
-        .unwrap();
+    let unsupported = unreviewed();
     fs::write(&input, format!("{valid}\n{unsupported}\n")).unwrap();
     assert!(report::export_ron(&input, &output).is_err());
     assert!(!output.exists());

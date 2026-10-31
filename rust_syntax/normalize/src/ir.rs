@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 144;
+pub const SCHEMA_VERSION: u32 = 145;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -182,6 +182,12 @@ pub enum Ability {
         cost: Cost,
         paid: Box<Ability>,
         unpaid: Box<Ability>,
+    },
+    /// A spell with one resolution per cost, and one of the costs must be paid
+    /// as it is cast (CR 601.2b). Each option is announced on its own.
+    CostOptions {
+        keyword: String,
+        options: Vec<(Cost, Ability)>,
     },
     /// One triggered ability per chapter number (CR 714.2b), each on
     /// `EventSpec::SagaChapter`. The Saga rules supply lore counters and sacrifice.
@@ -4021,6 +4027,8 @@ pub enum DamageGrouping {
     Source,
     Recipient,
     Batch,
+    /// One occurrence for each player controlling a source.
+    SourceController,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -4059,6 +4067,7 @@ pub enum ObjectEvent {
     Connives,
     Fights,
     BecomesRenowned,
+    BecomesSaddled,
     Evolves,
     Devoured,
     Destroyed,

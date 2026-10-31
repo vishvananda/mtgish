@@ -66,6 +66,7 @@ fn unsupported(value: &impl Serialize) -> Diagnostic {
 fn reads_outside_scope(error: &Diagnostic) -> bool {
     [
         "this-way history has no action",
+        "this event names no dead permanent",
         "no card was revealed",
         "no die was rolled",
         "no pile was chosen",
@@ -2611,6 +2612,13 @@ impl Context {
             S::Trigger_ThatRecipient if self.event.damage_recipient => {
                 Recipients::Objects(ObjectSet::One(ObjectRef::Damage(DamageSubject::Recipient)))
             }
+            // Either a player or a permanent, so only a reviewed row can name it.
+            S::Trigger_ThatRecipient => {
+                let (name, operands) = self
+                    .primitive("DamageRecipient", value)
+                    .ok_or_else(|| unsupported(value))?;
+                Recipients::Objects(ObjectSet::Primitive { name, operands })
+            }
             S::EachableTarget => Recipients::Objects(ObjectSet::One(ObjectRef::Bound(
                 self.iterated_object
                     .clone()
@@ -4120,6 +4128,27 @@ impl Context {
                     instructions: vec![choice, attach],
                 }));
             }
+            // The spell cast stays a row; only "when you do" needs the structure.
+            S::Reflexive_CastGraveyardCardWithAdditionalCostIntoExile_WhenYouCastThatSpell(
+                card,
+                cost,
+                actions,
+            ) => {
+                let name = "Action::Reflexive_CastGraveyardCardWithAdditionalCostIntoExile_WhenYouCastThatSpell";
+                if !self.reviewed(name) {
+                    return Err(unsupported(value));
+                }
+                let operands = vec![
+                    Operand::Object(self.grave_card(card)?),
+                    Operand::Cost(self.cost(cost)?),
+                ];
+                let base = self.effect(Operation::Primitive {
+                    actor: actor.clone(),
+                    name: name.into(),
+                    operands,
+                });
+                return self.reflexive_after(vec![base], None, actions);
+            }
             S::CreateValueX(value) => {
                 let value = self.number(value)?;
                 self.value_x = Some(ResultId(self.result));
@@ -5341,6 +5370,25 @@ impl Context {
     }
 
     fn actions(&mut self, value: &source::Actions) -> Result<Program> {
+        // A limit on the X this ability pays or announces, as in "X can't be 0".
+        if let source::Actions::X(allowed, body) | source::Actions::WithX(allowed, body) = value {
+            let form = match value {
+                source::Actions::X(..) => "Actions::X",
+                _ => "Actions::WithX",
+            };
+            if !self.reviewed(form) {
+                return Err(unsupported(value));
+            }
+            let (comparison, amount) = self.comparison(allowed)?;
+            let limit = self.effect(Operation::Primitive {
+                actor: PlayerSet::One(PlayerRef::AbilityController),
+                name: form.into(),
+                operands: vec![Operand::Comparison(comparison, amount)],
+            });
+            let mut program = self.actions(body)?;
+            program.instructions.insert(0, limit);
+            return Ok(program);
+        }
         // "Different target" is one word per slot, so 601.2c alone does not keep them apart.
         if let source::Actions::Targeted_DifferentTargets(targets, body) = value {
             let first = self.targets.len();
@@ -5813,6 +5861,19 @@ impl Context {
                 })
             }
             S::ReplaceWouldEnter(event, actions) => {
+                if let source::ReplacableEventWouldEnter::PermanentWouldEnterTheBattlefieldAndWasntCastOrNoManaWasSpentToCast(_) = event {
+                    let (name, operands) = self
+                        .primitive("ReplacableEventWouldEnter", event)
+                        .ok_or_else(|| unsupported(event))?;
+                    return self.entry_replacement(
+                        ReplacementActive::SourceEntering,
+                        ObjectFilter::All(vec![
+                            ObjectFilter::SameObject(ObjectRef::Source),
+                            ObjectFilter::Primitive { name, operands },
+                        ]),
+                        actions,
+                    );
+                }
                 let objects = match event {
                     source::ReplacableEventWouldEnter::APermanentWouldEnterTheBattlefield(p) => self.filter(p)?,
                     source::ReplacableEventWouldEnter::PermanentWouldEnterTheBattlefield(p) => ObjectFilter::SameObject(self.object(p)?),
@@ -5986,12 +6047,27 @@ impl Context {
                 ),
                 source::Actions::AdditionalCost_Modal(options) => {
                     use source::AdditionalCostOption as O;
-                    let [O::AdditionalCost(cost, paid), O::NoAdditionalCost(unpaid)] =
+                    if let [O::AdditionalCost(cost, paid), O::NoAdditionalCost(unpaid)] =
                         options.as_slice()
-                    else {
-                        return Err(unsupported(actions));
-                    };
-                    self.cost_branch("AdditionalCost", cost, paid, unpaid)
+                    {
+                        return self.cost_branch("AdditionalCost", cost, paid, unpaid);
+                    }
+                    let options = options
+                        .iter()
+                        .map(|option| {
+                            let O::AdditionalCost(cost, paid) = option else {
+                                return Err(unsupported(option));
+                            };
+                            let cost = self.cost(cost)?;
+                            let mut paid_context = self.fresh();
+                            paid_context.install_paid_history(&cost, PaymentRef::Branch);
+                            Ok((cost, paid_context.spell_ability(paid)?))
+                        })
+                        .collect::<Result<_>>()?;
+                    Ok(Ability::CostOptions {
+                        keyword: "AdditionalCost".into(),
+                        options,
+                    })
                 }
                 actions => self.spell_ability(actions),
             },

@@ -124,6 +124,10 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#87](https://github.com/i5jb/mtgish/issues/87): "becomes" a colored creature adds the color, 64 cards.
 - [#88](https://github.com/i5jb/mtgish/issues/88): Ward of Bones applies to every player.
 - [#89](https://github.com/i5jb/mtgish/issues/89): "same name as another" matches the object itself, six cards.
+- [#94](https://github.com/i5jb/mtgish/issues/94): Anya, Merciless Angel compares life totals to half the current total, not half the starting total.
+- [#95](https://github.com/i5jb/mtgish/issues/95): Deadly Complication unsuspects a trigger's permanent, not its target.
+- [#96](https://github.com/i5jb/mtgish/issues/96): Coiling Rebirth reads a target permanent, not the card it returned.
+- [#97](https://github.com/i5jb/mtgish/issues/97): Close Encounter deals damage equal to the target's power, not the chosen creature's or card's.
 
 [#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
 

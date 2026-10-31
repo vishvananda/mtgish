@@ -226,6 +226,12 @@ impl Context {
                 let event = S::WhenAPermanentDealsDamageToAPlayer(p.clone(), players.clone());
                 EventSpec::FirstForObjectEachTurn(Box::new(self.trigger(&event)?))
             }
+            S::WhenAPermanentBecomesSaddledForTheFirstTimeInATurn(objects) => {
+                EventSpec::FirstForObjectEachTurn(Box::new(EventSpec::Object {
+                    event: ObjectEvent::BecomesSaddled,
+                    objects: self.filter(objects)?,
+                }))
+            }
             S::WhenAPlayerCyclesACard(players, cards)
             | S::WhenAPlayerCyclesOrDiscardsACard(players, cards)
             | S::WhenAPlayerDiscardsACard(players, cards)

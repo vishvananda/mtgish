@@ -78,6 +78,15 @@ impl Context {
             recipe,
         };
         match value {
+            S::TokenFromCopy => {
+                let (name, operands) = self
+                    .primitive("CreatableToken", value)
+                    .ok_or_else(|| unsupported(value))?;
+                return Ok(copy(TokenRecipe::Copy {
+                    object: ObjectRef::Primitive { name, operands },
+                    adjustments: vec![],
+                }));
+            }
             S::TokenCopyOfCommander(effects) => {
                 return Ok(copy(TokenRecipe::Copy {
                     object: ObjectRef::Primitive {
@@ -213,16 +222,7 @@ impl Context {
                 (TokenName::Explicit(name.clone()), None, c, s, t, sub, rules)
             }
             S::NamedTokenWithPT(name, pt, c, s, t, sub, rules)
-            | S::NamedTokenWithPTAndWithCopyEffects(
-                name,
-                pt,
-                c,
-                s,
-                t,
-                sub,
-                rules,
-                source::TokenCopyEffects::NoTokenCopyEffects,
-            ) => (
+            | S::NamedTokenWithPTAndWithCopyEffects(name, pt, c, s, t, sub, rules, _) => (
                 TokenName::Explicit(name.clone()),
                 Some(pt),
                 c,
@@ -286,7 +286,7 @@ impl Context {
                 })
             })
             .transpose()?;
-        let abilities = rules
+        let mut abilities: Vec<Ability> = rules
             .iter()
             .enumerate()
             .map(|(i, rule)| {
@@ -295,6 +295,17 @@ impl Context {
                     .map_err(|e| e.at(format!("definition.abilities[{i}]")))
             })
             .collect::<Result<_>>()?;
+        // What the token copies is read from the cards as it is made, so it stays a row.
+        if let S::NamedTokenWithPTAndWithCopyEffects(.., effects) = value {
+            if !matches!(effects, source::TokenCopyEffects::NoTokenCopyEffects) {
+                // The token outlives the cost, so its ability reads no payment.
+                let (name, operands) = self
+                    .fresh()
+                    .primitive("TokenCopyEffects", effects)
+                    .ok_or_else(|| unsupported(value))?;
+                abilities.push(Ability::Primitive { name, operands });
+            }
+        }
         Ok(TokenSpec {
             amount: Expr::Constant(1),
             words: TokenWords::CreatingEffect,

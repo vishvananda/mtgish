@@ -146,6 +146,14 @@ fn standalone_operand(ty: &str, value: &serde_json::Value) -> Option<Operand> {
 }
 
 impl Context {
+    /// Whether this card may use `name`'s row: a row listing cards was reviewed
+    /// for those cards alone.
+    fn reviewed(&self, name: &str) -> bool {
+        crate::primitive_spec::lookup(name).is_some_and(|row| {
+            row.cards.is_empty() || row.cards.iter().any(|card| **card == *self.card)
+        })
+    }
+
     fn typed_operand(&self, ty: &str, value: &serde_json::Value) -> Option<Operand> {
         use crate::pipeline::source_tree::decode;
         let scoped = value["variant"].as_str().is_some_and(reads_scope);
@@ -165,6 +173,15 @@ impl Context {
                 })
             }
             "DamageRecipient" => Operand::Recipients(self.recipients(&decode(value).ok()?).ok()?),
+            "SingleDamageRecipient" => {
+                Operand::Recipients(match self.single_recipient(&decode(value).ok()?).ok()? {
+                    DamageRecipients::Objects(ObjectFilter::SameObject(object)) => {
+                        Recipients::Objects(ObjectSet::One(object))
+                    }
+                    DamageRecipients::Players(players) => Recipients::Players(players),
+                    _ => return None,
+                })
+            }
             "DamageRecipientsList" => {
                 use source::DamageRecipientsList as List;
                 let list: List = decode(value).ok()?;

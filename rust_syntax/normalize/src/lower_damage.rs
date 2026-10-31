@@ -105,6 +105,20 @@ impl Context {
                     _ => DamageGrouping::SourceRecipient,
                 };
             }
+            S::WhenAnyNumberOfCreaturesAPlayerControlsDealCombatDamageToAnyNumberOfPlayers(
+                p,
+                controllers,
+                players,
+            ) => {
+                event.source_kind = ObjectKind::Permanent;
+                event.sources = self.filter(&source::Permanents::And(vec![
+                    (**p).clone(),
+                    source::Permanents::ControlledByAPlayer(controllers.clone()),
+                ]))?;
+                event.recipients = DamageRecipients::Players(self.players(players)?);
+                event.kind = DamageKind::Combat;
+                event.grouping = DamageGrouping::SourceController;
+            }
             S::WhenACreatureDealsCombatDamageToAPermanent(p, r)
             | S::WhenAPermanentDealsDamageToAPermanent(p, r)
             | S::WhenACreatureDealsCombatDamageToAnyNumberOfPermanents(p, r)

@@ -209,7 +209,16 @@ fn rewrite_registry_rejects_unconsumed_fields_duplicate_sources_and_invalid_reci
 
 #[test]
 fn full_tree_report_and_fixture_selection_are_deterministic_and_separate_from_native_coverage() {
-    let input = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/pipeline.ronl");
+    // A card no row was reviewed for keeps semantic apart from structural counts
+    // now that every real card is complete.
+    let input = scratch("with-unreviewed.ronl");
+    let unreviewed = include_str!("fixtures/core.ronl")
+        .lines()
+        .find(|l| l.contains("Name: \"Hint of Insanity\""))
+        .unwrap()
+        .replace("Hint of Insanity", "Unreviewed Insanity");
+    let fixtures = include_str!("fixtures/pipeline.ronl").trim_end();
+    std::fs::write(&input, format!("{fixtures}\n{unreviewed}\n")).unwrap();
     let report = pipeline::report::Report::check(&input, &root(), None).unwrap();
     assert_eq!(report.total, report.structurally_preserved);
     assert!(report.semantic_complete < report.total);
@@ -1786,7 +1795,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 144);
+    assert_eq!(card.schema_version, 145);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =

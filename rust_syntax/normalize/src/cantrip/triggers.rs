@@ -1030,6 +1030,9 @@ impl Compiler {
             DamageGrouping::SourceRecipient => None,
             DamageGrouping::Source | DamageGrouping::Recipient => Some(true),
             DamageGrouping::Batch => Some(false),
+            DamageGrouping::SourceController => {
+                return Err(gap("damage grouped per source controller"))
+            }
         };
         Ok(matched)
     }

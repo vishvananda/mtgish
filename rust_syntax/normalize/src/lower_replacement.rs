@@ -171,6 +171,20 @@ impl Context {
     fn entry_action(&mut self, value: &source::ReplacementActionWouldEnter) -> Result<Instruction> {
         use source::ReplacementActionWouldEnter as S;
         let change = match value {
+            S::Reflexive_EnterAsACopyOfAPermanent_WhenYouDo(objects, effects, actions) => {
+                let base = S::EnterAsACopyOfAPermanent(objects.clone(), effects.clone());
+                let base = self.entry_action(&base)?;
+                return self.reflexive_after(vec![base], None, actions);
+            }
+            S::Reflexive_EnterAsACopyOfACardInGraveyards_WhenYouDo(cards, effects, actions) => {
+                let base = S::EnterAsACopyOfACardInAPlayersGraveyard(
+                    cards.clone(),
+                    Box::new(source::Players::AnyPlayer),
+                    effects.clone(),
+                );
+                let base = self.entry_action(&base)?;
+                return self.reflexive_after(vec![base], None, actions);
+            }
             S::EntersTapped => EventChange::SetTapped(true),
             S::EntersUntapped => EventChange::SetTapped(false),
             S::EntersWithACounter(k) => EventChange::AddCounters {
@@ -255,11 +269,15 @@ impl Context {
                             change: EventChange::Entry(state),
                         }));
                     }
-                    return Ok(self.effect(crate::semantics::reduce_action(
+                    let step = self.effect(crate::semantics::reduce_action(
                         PlayerSet::One(actor),
                         name,
                         operands,
-                    )));
+                    ));
+                    if let Instruction::Effect { result, operation } = &step {
+                        self.note_yield(operation, result);
+                    }
+                    return Ok(step);
                 }
                 let step = crate::inspect::value(value).map_err(|_| unsupported(value))?;
                 return Ok(self

@@ -104,6 +104,12 @@ impl Context {
         use source::EventPreventDamage as S;
         use DamageFrom as F;
         use DamageTo as T;
+        if let S::ASpellOrAbilityWouldCauseASourceToDealDamageToRecipient(..) = value {
+            let (name, operands) = self
+                .primitive("EventPreventDamage", value)
+                .ok_or_else(|| unsupported(value))?;
+            return Ok(ReplacementEvent::Primitive { name, operands });
+        }
         if let S::Or(items) = value {
             return Ok(ReplacementEvent::Either(
                 items

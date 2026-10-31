@@ -12218,5 +12218,9 @@
     "excludes": [
       "IsToken"
     ]
-  }
+  },
+  {"name": "Anya, Merciless Angel", "issues": [94], "contains": ["HalfRoundedUp(StartingLifeTotalOfPlayer(NumPlayers_ThatPlayer))", "HalfRoundedUp(StartingLifeTotalOfPlayer(Condition_ThatPlayer))"], "excludes": ["HalfRoundedUp(LifeTotalOfPlayer("]},
+  {"name": "Deadly Complication", "issues": [95], "contains": ["UnsuspectPermanent(Ref_TargetPermanent)"], "excludes": ["UnsuspectPermanent(Trigger_ThatPermanent)"]},
+  {"name": "Coiling Rebirth", "issues": [96], "contains": ["PermanentPassesFilter(ThePermanentPutOnTheBattlefieldThisWay, IsNonSupertype(Legendary))", "TokenCopyOfPermanent(ThePermanentPutOnTheBattlefieldThisWay,"], "excludes": ["PermanentPassesFilter(Ref_TargetPermanent", "TokenCopyOfPermanent(Ref_TargetPermanent"]},
+  {"name": "Close Encounter", "issues": [97], "contains": ["PowerOfPermanent(ThePermanentChosenThisWay)", "PowerOfExiledCard(TheExiledCardChosenThisWay)"], "excludes": ["PowerOfPermanent(Ref_TargetPermanent)", "PowerOfExiledCard(Ref_TargetExiledCard)"]}
 ]

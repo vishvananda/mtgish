@@ -185,7 +185,16 @@ impl Context {
                 state.did = state.found.clone().map(took);
             }
             _ => {
-                let cost = inspection_payment(cost).ok_or_else(|| unsupported(cost))?;
+                let Some(cost) = inspection_payment(cost) else {
+                    let step = self.primitive_step(
+                        "LookAtTopOfLibraryCost",
+                        cost,
+                        player,
+                        state.remaining(),
+                    )?;
+                    instructions.push(step);
+                    return Ok(());
+                };
                 let payer = self.payer.replace(player.clone());
                 let cost = self.cost(&cost);
                 self.payer = payer;

@@ -825,8 +825,9 @@ impl Context {
             retag(&mut prevention, &|n: &str| {
                 (n == family).then_some("FutureEventPreventDamage")
             });
-            let prevention = decode_step(&prevention).map_err(|_| unsupported_step(event))?;
-            return self.future_prevention(&prevention);
+            if let Ok(prevention) = decode_step(&prevention) {
+                return self.future_prevention(&prevention);
+            }
         }
         if family == "FutureReplacableEventWouldEnter" {
             let objects: source::Permanents = crate::pipeline::source_tree::decode(&event["args"])
