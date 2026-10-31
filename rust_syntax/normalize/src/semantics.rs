@@ -2241,6 +2241,53 @@ pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
         {
             spend(ManaPayment::Abilities(stack_filter(ability).unwrap()))
         }
+        ("CantAttackWithCreatures", [Operand::Objects(objects)])
+            if event_filter(objects).is_some() =>
+        {
+            PlayerRule::Prohibit(PlayerAction::AttackWith(event_filter(objects).unwrap()))
+        }
+        ("CantBlockWithCreatures", [Operand::Objects(objects)])
+            if event_filter(objects).is_some() =>
+        {
+            PlayerRule::Prohibit(PlayerAction::BlockWith(event_filter(objects).unwrap()))
+        }
+        ("CantAttackPlayer", [Operand::Player(player)]) => PlayerRule::Prohibit(
+            PlayerAction::AttackInto(Recipients::Players(PlayerSet::One(player.clone()))),
+        ),
+        ("CantAttackAPermanent", [Operand::Objects(objects)]) => PlayerRule::Prohibit(
+            PlayerAction::AttackInto(Recipients::Objects(objects.clone())),
+        ),
+        ("CantPayLifeToCastSpells", [Operand::Filter(spells)]) => {
+            PlayerRule::Prohibit(PlayerAction::PayLife(ManaPayment::Spells(spells.clone())))
+        }
+        ("CantPayLifeToActivateAbilities", [ability]) if stack_filter(ability).is_some() => {
+            PlayerRule::Prohibit(PlayerAction::PayLife(ManaPayment::Abilities(
+                stack_filter(ability).unwrap(),
+            )))
+        }
+        ("CantSacrificePermanents", [Operand::Objects(objects)])
+            if event_filter(objects).is_some() =>
+        {
+            PlayerRule::Prohibit(PlayerAction::Sacrifice {
+                objects: event_filter(objects).unwrap(),
+                paying: None,
+            })
+        }
+        (
+            "CantSacrificePermanentsToCastSpells",
+            [Operand::Objects(objects), Operand::Filter(spells)],
+        ) if event_filter(objects).is_some() => PlayerRule::Prohibit(PlayerAction::Sacrifice {
+            objects: event_filter(objects).unwrap(),
+            paying: Some(ManaPayment::Spells(spells.clone())),
+        }),
+        ("CantSacrificePermanentsToActivateAbilities", [Operand::Objects(objects), ability])
+            if event_filter(objects).is_some() && stack_filter(ability).is_some() =>
+        {
+            PlayerRule::Prohibit(PlayerAction::Sacrifice {
+                objects: event_filter(objects).unwrap(),
+                paying: Some(ManaPayment::Abilities(stack_filter(ability).unwrap())),
+            })
+        }
         ("DecreaseEquipAbilityCost", [amount]) => cost(equip(), reduce(amount), None),
         ("DecreaseEquipAbilityCostWhenTargetingPermanent", [amount, Operand::Object(object)]) => {
             let targets = ObjectFilter::TargetsAny(Box::new(Recipients::Objects(ObjectSet::One(

@@ -1525,11 +1525,27 @@ impl Inventory<'_> {
                 self.filter(filter);
             }
             PlayerAction::ReceiveCounters(Some(kind)) => self.counter(kind),
+            PlayerAction::AttackWith(filter) | PlayerAction::BlockWith(filter) => {
+                self.filter(filter)
+            }
+            PlayerAction::AttackInto(recipients) => self.recipients(recipients),
+            PlayerAction::PayLife(payment) => self.mana_payment(payment),
+            PlayerAction::Sacrifice { objects, paying } => {
+                self.filter(objects);
+                if let Some(payment) = paying {
+                    self.mana_payment(payment);
+                }
+            }
             PlayerAction::Activate(filter) => self.activation_filter(filter),
             PlayerAction::LoseGame {
                 reason: Some(reason),
             } => self.form("GameLossReason", reason),
             _ => {}
+        }
+    }
+    fn mana_payment(&mut self, payment: &ManaPayment) {
+        if let ManaPayment::Spells(filter) | ManaPayment::Abilities(filter) = payment {
+            self.filter(filter);
         }
     }
     fn player_rule(&mut self, rule: &PlayerRule) {

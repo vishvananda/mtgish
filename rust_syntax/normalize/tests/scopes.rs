@@ -1344,3 +1344,16 @@ fn keyword_families_and_paid_cards() {
         "{seek}"
     );
 }
+
+#[test]
+fn players_are_barred_from_attacks_and_payments() {
+    let attack = lowered(
+        "EachPlayerEffect(And([Opponent, CastASpellThisTurn(AnySpell)]), [CantAttackWithCreatures(AnyPermanent)])",
+    );
+    assert!(attack.contains("AttackWith"), "{attack}");
+    let life = lowered(
+        "EachPlayerEffect(AnyPlayer, [CantPayLifeToCastSpells(AnySpell), CantPayLifeToActivateAbilities(NonManaAbility)])",
+    );
+    assert!(life.contains("PayLife(Spells"), "{life}");
+    assert!(life.contains("PayLife(Abilities"), "{life}");
+}

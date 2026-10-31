@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 108;
+pub const SCHEMA_VERSION: u32 = 109;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2251,6 +2251,17 @@ pub enum PlayerAction {
         filter: ObjectFilter,
     },
     Activate(ActivationFilter),
+    AttackWith(ObjectFilter),
+    BlockWith(ObjectFilter),
+    /// Attacking this player or permanent.
+    AttackInto(Recipients),
+    /// Paying life, for what it pays for.
+    PayLife(ManaPayment),
+    /// Sacrificing these, for what it pays for when that is named.
+    Sacrifice {
+        objects: ObjectFilter,
+        paying: Option<ManaPayment>,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum GameLossReason {

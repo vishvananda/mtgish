@@ -1310,6 +1310,12 @@ impl<'a> Scope<'a> {
         }
         Ok(())
     }
+    fn mana_payment(&self, payment: &ManaPayment) -> Result {
+        match payment {
+            ManaPayment::Anything => Ok(()),
+            ManaPayment::Spells(filter) | ManaPayment::Abilities(filter) => self.filter(filter),
+        }
+    }
     fn player_action(&self, action: &PlayerAction) -> Result {
         match action {
             PlayerAction::CastSpell { filter, from } | PlayerAction::PlayLand { filter, from } => {
@@ -1323,6 +1329,15 @@ impl<'a> Scope<'a> {
                     self.zone_scope(zone)?;
                 }
                 self.filter(filter)
+            }
+            PlayerAction::AttackWith(filter) | PlayerAction::BlockWith(filter) => {
+                self.filter(filter)
+            }
+            PlayerAction::AttackInto(recipients) => self.recipients(recipients),
+            PlayerAction::PayLife(payment) => self.mana_payment(payment),
+            PlayerAction::Sacrifice { objects, paying } => {
+                self.filter(objects)?;
+                paying.iter().try_for_each(|p| self.mana_payment(p))
             }
             PlayerAction::Activate(filter) => self.activation_filter(filter),
             _ => Ok(()),
