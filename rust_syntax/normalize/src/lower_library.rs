@@ -317,6 +317,20 @@ impl Context {
                     instructions.push(branch);
                     continue;
                 }
+                S::APlayerChooseACardExiledThisWay(players) => {
+                    let chooser = self.one_of(players)?;
+                    let choice = self.effect(Operation::ChooseObjects {
+                        constraints: vec![],
+                        player: chooser,
+                        objects: self.exile_cards(&source::CardsInExile::TheCardsExiledThisWay)?,
+                        count: Count::AsManyAsCan(Expr::Constant(1)),
+                    });
+                    if let Instruction::Effect { result, .. } = &choice {
+                        self.exile_choice = Some(result.clone());
+                    }
+                    instructions.push(choice);
+                    continue;
+                }
                 S::MayCost(cost) => {
                     let cost: source::Cost =
                         as_family(cost, "Cost").ok_or_else(|| unsupported(cost))?;
@@ -497,7 +511,14 @@ impl Context {
                     continue;
                 }
             };
-            instructions.push(self.effect(operation));
+            let step = self.effect(operation);
+            if let (S::ExileFoundCards | S::ExileFoundCardsFaceDown, Instruction::Effect { result, .. }) =
+                (action, &step)
+            {
+                self.exiled = Some(result.clone());
+                self.exiled_permanents = false;
+            }
+            instructions.push(step);
         }
         Ok(())
     }

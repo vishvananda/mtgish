@@ -10,6 +10,7 @@
   "NonManaAbility": "Lowers to the activation filter Not Mana.",
   "RevealACardFromHandAtRandom": "As a cost, lowers to CostPart::Reveal with random set.",
   "TheChosenCardInHand": "Lowers to the selection result.",
+  "TheChosenCardsInHand": "Sylvan Library reads it as the selection it made; other cards keep the reviewed row.",
   "TheChosenColor": "Lowers to a chosen-color filter or mana, so the name only survives in rows.",
   "TheChosenGraveyardCard": "Lowers to the selection result.",
   "TheChosenGraveyardCards": "Lowers to the selection result.",

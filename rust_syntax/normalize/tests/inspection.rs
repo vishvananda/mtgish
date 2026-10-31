@@ -126,7 +126,7 @@ fn effect(operation: Operation, id: u32) -> Instruction {
 
 #[test]
 fn real_inspection_programs_roundtrip_and_unimplemented_nested_programs_remain_diagnostics() {
-    let incomplete = ["Break Out", "Lim-Dûl's Vault"];
+    let incomplete = ["Lim-Dûl's Vault"];
     let mut complete = 0;
     for s in sources() {
         let name = corpus::Identity::of(&s).unwrap().names.remove(0);
@@ -150,7 +150,7 @@ fn real_inspection_programs_roundtrip_and_unimplemented_nested_programs_remain_d
         }
         complete += 1;
     }
-    assert_eq!(complete, 51);
+    assert_eq!(complete, 52);
 }
 
 #[test]

@@ -279,6 +279,25 @@ impl Context {
         if let S::MayCost(cost) = action {
             return self.inspection_may(player, library, state, cost, instructions);
         }
+        // Whatever the body picks is no longer among the rest, wherever it went.
+        if let S::MayActions(steps) = action {
+            let body = self.inspection_steps(player, library, state.clone(), steps)?;
+            let picked = body.instructions.iter().find_map(|step| match step {
+                Instruction::Effect {
+                    result,
+                    operation: Operation::ChooseObjects { .. },
+                } => Some(result.clone()),
+                _ => None,
+            });
+            if let Some(picked) = picked {
+                state.assigned.push(ObjectSet::Selected(picked));
+            }
+            instructions.push(Instruction::Optional {
+                decider: player.clone(),
+                body,
+            });
+            return Ok(());
+        }
         if let S::MayRevealMultipleCardsOfTypeAndPutIntoHand(filters) = action {
             let mut selected = vec![];
             for filter in filters {

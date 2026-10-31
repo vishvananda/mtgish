@@ -447,6 +447,9 @@ impl Context {
             source::CardsInExile::InTheExiledPileNotChosenThisWay if self.chosen_pile.is_some() => {
                 ObjectSet::Unselected(self.pile_chosen()?)
             }
+            source::CardsInExile::TheExiledCardChosenThisWay if self.exile_choice.is_some() => {
+                ObjectSet::Selected(self.exile_choice.clone().unwrap())
+            }
             source::CardsInExile::TheCardsConjuredThisWay => self.conjured_cards()?,
             source::CardsInExile::Trigger_ThoseExiledCards if self.event.group => {
                 ObjectSet::EventGroup

@@ -1956,3 +1956,21 @@ fn an_unless_every_payer_counts_the_refusals_once() {
     );
     assert!(acererak.contains("CountPlayers(Intersection"), "{acererak}");
 }
+
+#[test]
+fn a_reference_this_scope_cannot_resolve_keeps_its_reviewed_row() {
+    let plague =
+        lowered("SpellActions(ActionList([If(NoLifeWasPaidThisWay, [GainLife(Integer(1))])]))");
+    assert!(plague.contains("NoLifeWasPaidThisWay"), "{plague}");
+    // A reference with no row stays a gap rather than attaching to anything.
+    assert!(custom("SpellActions(ActionList([DestroyPermanent(Trigger_ThatPermanent)]))").is_err());
+}
+
+#[test]
+fn a_look_may_set_aside_what_it_reveals() {
+    let break_out = lowered(
+        "SpellActions(ActionList([LookAtTheTopNumberCardsOfLibrary(Integer(6), [MayActions([RevealACardOfType(IsCardtype(Creature)), PutFoundCardIntoHand]), PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder])]))",
+    );
+    assert!(break_out.contains("Optional"), "{break_out}");
+    assert!(break_out.contains("Difference"), "{break_out}");
+}

@@ -14,7 +14,10 @@ impl Context {
         };
         let objects = match value {
             S::SeparatePermanentsIntoNumberPiles(objects, count) => {
-                if !matches!(&**count, source::GameNumber::Integer(2)) {
+                // Each player's piles outlive the loop, so a later choice can't finish them.
+                let finished_later = self.iterated.is_some()
+                    && matches!(&**count, source::GameNumber::Integer(2));
+                if !matches!(&**count, source::GameNumber::Integer(2)) || finished_later {
                     return None;
                 }
                 self.objects(objects)

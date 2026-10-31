@@ -361,13 +361,38 @@ impl Context {
                     let mut child = self.nested_program();
                     Operand::Program(child.actions(&source::Actions::ActionList(list)).ok()?)
                 }
+                // What a spell does as it resolves, so later steps read what it moved.
+                None if items.first().is_some_and(|v| v["enum"] == "ResolveAction") => {
+                    use crate::pipeline::source_tree::decode;
+                    let controller = PlayerRef::AbilityController;
+                    let mut child = self.nested_program();
+                    let mut instructions = vec![];
+                    for item in items {
+                        let step: source::ResolveAction = decode(item).ok()?;
+                        instructions.push(match as_family::<source::Action>(&step, "Action") {
+                            Some(action) => child
+                                .action(&action, &PlayerSet::One(controller.clone()))
+                                .ok()?,
+                            None => child
+                                .primitive_step(
+                                    "ResolveAction",
+                                    &step,
+                                    &controller,
+                                    ObjectSet::One(ObjectRef::Affected),
+                                )
+                                .ok()?,
+                        });
+                    }
+                    Operand::Program(Program { instructions })
+                }
                 None => return None,
             },
             V::Object(fields) => match fields.get("enum").and_then(V::as_str) {
                 Some(ty) => vocabulary(ty, value)
                     .or_else(|| self.typed_operand(ty, value))
                     .or_else(|| self.row_target(value))
-                    .or_else(|| self.term(ty, value))?,
+                    .or_else(|| self.term(ty, value))
+                    .or_else(|| self.scoped_row(ty, value))?,
                 None => Operand::Record(
                     fields
                         .iter()
@@ -393,6 +418,29 @@ impl Context {
         Some(Operand::Objects(ObjectSet::Targets(spec.slot.clone())))
     }
 
+    /// A reference this scope cannot resolve further, kept by its reviewed row.
+    /// A "this way" row still points at the instruction it reads.
+    fn scoped_row(&self, ty: &str, value: &serde_json::Value) -> Option<Operand> {
+        if !value["variant"].as_str().is_some_and(reads_scope) {
+            return None;
+        }
+        let (name, operands) = self.primitive_inspected(ty, value)?;
+        Some(match ty {
+            "Permanent" | "Spell" | "SpellOrAbility" | "CardInExile" | "CardInHand"
+            | "CardInGraveyards" => Operand::Object(ObjectRef::Primitive { name, operands }),
+            "Permanents" | "CardsInExile" | "CardsInHand" | "CardsInGraveyards"
+            | "CardsOutsideTheGame" => Operand::Objects(ObjectSet::Primitive { name, operands }),
+            "Player" => Operand::Player(PlayerRef::Primitive { name, operands }),
+            "GameNumber" => Operand::Number(Expr::Primitive { name, operands }),
+            "Condition" => Operand::Condition(Condition::Primitive { name, operands }),
+            "Expiration" => Operand::Duration(Duration::Primitive { name, operands }),
+            "Cards" | "CardsInOracle" | "CreatureTypeVariable" | "CheckHasable" => {
+                Operand::Filter(ObjectFilter::Primitive { name, operands })
+            }
+            _ => return None,
+        })
+    }
+
     /// A descriptive enum the registry lists, with every operand bound.
     fn term(&self, ty: &str, value: &serde_json::Value) -> Option<Operand> {
         let listed = crate::primitive_spec::registry()
@@ -407,6 +455,12 @@ impl Context {
         }
         let operands = match &value["args"] {
             serde_json::Value::Null => vec![],
+            // One list of steps, read as a program rather than step by step.
+            serde_json::Value::Array(items)
+                if items.first().is_some_and(|v| v["enum"] == "ResolveAction") =>
+            {
+                vec![self.bound_operand(&value["args"])?]
+            }
             serde_json::Value::Array(items) => items
                 .iter()
                 .map(|v| self.bound_operand(v))
