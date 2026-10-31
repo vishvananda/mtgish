@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 74);
+    assert_eq!(card.schema_version, 75);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -3232,6 +3232,24 @@ fn a_tap_change_and_goading_read_what_they_touched() {
 fn an_exile_until_splits_what_it_found_from_the_rest() {
     let text = ability_json("SpellActions(ActionList([Exile([CardsFromTheTopOfLibraryUntilACardOfTypeIsExiled(IsCardtype(Land))],[]),PutExiledCardOntoBattlefield(TheExiledCardFoundThisWay,[EntersNormally]),PutEachExiledCardOnTheBottomOfTheirOwnersLibraryInARandomOrder(TheNonSpecificCardsExiledThisWay)]))");
     assert!(text.contains("Not"), "{text}");
+}
+
+#[test]
+fn each_source_can_aim_at_its_own_controller() {
+    let text = ability_json("SpellActions(ActionList([EachPermanentDealsDamage(IsCardtype(Enchantment),Integer(2),Player(ControllerOfPermanent(ActionPermanent)))]))");
+    assert!(text.contains("ForEachObject"), "{text}");
+}
+
+#[test]
+fn a_granted_ability_names_who_granted_it() {
+    let text = ability_json("PermanentLayerEffect(HostPermanent,[AddAbility([Activated(PayMana([ManaCostGeneric(7)]),ActionList([SacrificePermanent(ThePermanentThatGrantedThisAbility)]))])])");
+    assert!(text.contains("Granter"), "{text}");
+}
+
+#[test]
+fn a_player_static_binds_each_player_it_affects() {
+    let text = ability_json("EachPlayerEffect(Opponent,[CantCastSpells(ManaValueIs(GreaterThan(TheNumberOfPermanentsOnTheBattlefield(And([IsCardtype(Land),ControlledByAPlayer(SinglePlayer(EachablePlayer))])))))])");
+    assert!(text.contains("Affected"), "{text}");
 }
 
 #[test]

@@ -441,6 +441,39 @@ impl Context {
                     Self::player_event("Trigger::WhenAPlayerAttacks", one()),
                     W::ThisTurn,
                 ),
+                S::ScriedThisTurn => Self::happened(
+                    by_them(source::Trigger::WhenAPlayerScrys(any_player()))?,
+                    W::ThisTurn,
+                ),
+                S::VisitedAnAttractionThisTurn => Self::happened(
+                    by_them(source::Trigger::WhenAPlayerVisitsAnAttraction(
+                        any_player(),
+                        any_permanent(),
+                    ))?,
+                    W::ThisTurn,
+                ),
+                S::TappedAPermanentForManaThisTurn(objects) => Self::happened(
+                    by_them(source::Trigger::WhenAPlayerTapsAPermanentForMana(
+                        any_player(),
+                        objects.clone(),
+                    ))?,
+                    W::ThisTurn,
+                ),
+                S::PlaneswalkedToAPlaneThisTurn(plane) => Self::happened(
+                    by_them(source::Trigger::WhenAPlayerPlaneswalksToAPlane(
+                        any_player(),
+                        plane.clone(),
+                    ))?,
+                    W::ThisTurn,
+                ),
+                S::RolledNumberDiceThisTurn(comparison) => self.history_compare(
+                    Self::history(
+                        by_them(source::Trigger::WhenAPlayerRollsADie(any_player()))?,
+                        W::ThisTurn,
+                        M::Occurrences,
+                    ),
+                    comparison,
+                )?,
                 S::GainedLifeThisTurn => {
                     Self::happened(Self::life_event(true, one()), W::ThisTurn)
                 }

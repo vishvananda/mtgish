@@ -320,7 +320,7 @@ impl<'a> Scope<'a> {
             ObjectRef::Candidate if self.candidate => Ok(()),
             ObjectRef::Candidate => Err("filter candidate used outside an object predicate".into()),
             ObjectRef::Source => Ok(()),
-            ObjectRef::MadeHere => Ok(()),
+            ObjectRef::MadeHere | ObjectRef::Granter => Ok(()),
             ObjectRef::ChosenBy { result, chooser } => {
                 self.player(chooser)?;
                 match self.results.get(&result.0) {
@@ -468,7 +468,7 @@ impl<'a> Scope<'a> {
                 Err("declaring player used outside a combat declaration cost".into())
             }
             PlayerRef::AbilityController | PlayerRef::Active => Ok(()),
-            PlayerRef::Chosen => Ok(()),
+            PlayerRef::Chosen | PlayerRef::ModeChooser => Ok(()),
             PlayerRef::Primitive { name, operands } => self.primitive(name, operands),
             PlayerRef::FirstWilling(players) | PlayerRef::OneOf(players) => self.players(players),
             PlayerRef::CasterOf(object)

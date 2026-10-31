@@ -116,6 +116,7 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#79](https://github.com/i5jb/mtgish/issues/79): Perennial Gravewarden: "entered" encoded as "explored".
 - [#80](https://github.com/i5jb/mtgish/issues/80): Blocked by a creature: "that creature" read as the attacker (Kolaghan Aspirant, Somberwald Vigilante, Grasping Giant, Barrow-Blade, Wooden Stake).
 - [#81](https://github.com/i5jb/mtgish/issues/81): Wrong reference in a body (Shifty Doppelganger, Wall of Caltrops, Infinite Authority, Siege Dragon, Mythos of Snapdax, Mirror Shield).
+- [#82](https://github.com/i5jb/mtgish/issues/82): Reference with nothing to bind to (Bronze Bombshell, Corrupted Resolve, Domri's Ambush, For Each of You, a Gift, Rotted Ones, Lay Siege, Tenza, Godo's Maul).
 
 [#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
 

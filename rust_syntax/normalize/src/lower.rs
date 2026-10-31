@@ -527,6 +527,16 @@ impl Context {
                 });
             }
             S::TheChosenPermanent => return Ok(ObjectRef::Chosen),
+            S::ThePermanentThatGrantedThisAbility
+            | S::ThePermanentThatCreatedIt
+            | S::GuestPermanent => return Ok(ObjectRef::Granter),
+            S::WouldDealDamage_DamageRecipientPermanent if self.event.damage_recipient => {
+                return Ok(ObjectRef::Damage(DamageSubject::Recipient))
+            }
+            S::WouldDealDamage_DamageSourceAsPermanent if self.event.damage_source => {
+                return Ok(ObjectRef::Damage(DamageSubject::Source))
+            }
+            S::CreatePermanentEffect_It if self.affected => return Ok(ObjectRef::Affected),
             S::ThePermanentChosenByPlayerThisWay(player) => {
                 let chooser = self.player(player)?;
                 let named = serde_json::to_value(&chooser).ok();
@@ -581,6 +591,9 @@ impl Context {
                 if self.affected =>
             {
                 return Ok(ObjectRef::Affected)
+            }
+            S::ActionPermanent if self.iterated_object.is_some() => {
+                return Ok(ObjectRef::Bound(self.iterated_object.clone().unwrap()))
             }
             S::Self_It if self.candidate => return Ok(ObjectRef::Candidate),
             S::RefOuter_TargetPermanent => {
@@ -678,6 +691,10 @@ impl Context {
             {
                 self.iterated.clone().unwrap()
             }
+            S::ItsController | S::ThatSpellsController if self.candidate => {
+                PlayerRef::ControllerOf(Box::new(ObjectRef::Candidate))
+            }
+            S::ThePlayerThatChoseTheMode => PlayerRef::ModeChooser,
             S::ActionPlayer if self.payer.is_some() => self.payer.clone().unwrap(),
             S::ActionPlayer if self.acting.is_some() => self.acting.clone().unwrap(),
             S::HostController => PlayerRef::ControllerOf(Box::new(ObjectRef::AttachedTo(
@@ -786,6 +803,9 @@ impl Context {
                 PlayerSet::DamagedBy(self.done(Done::Damage)?)
             }
             S::Trigger_ThosePlayers if self.event.damage_players => PlayerSet::DamageRecipients,
+            S::Trigger_IsDefendingPlayer => {
+                PlayerSet::One(self.player(&source::Player::Trigger_DefendingPlayer)?)
+            }
             S::Or(values) => PlayerSet::Union(
                 values
                     .iter()
@@ -3895,6 +3915,24 @@ impl Context {
                     preventable: true,
                 }
             }
+            // Each source aims at something of its own, so each deals its own.
+            S::EachPermanentDealsDamage(permanents, n, recipient)
+                if format!("{recipient:?}").contains("ActionPermanent") =>
+            {
+                let objects = self.objects(permanents)?;
+                let deal = self.for_each_object(objects, |context| {
+                    let binding = context.iterated_object.clone().unwrap();
+                    Ok(Program {
+                        instructions: vec![context.effect(Operation::DealDamage {
+                            source: ObjectRef::Bound(binding),
+                            recipients: context.recipients(recipient)?,
+                            amount: context.number(n)?,
+                            preventable: true,
+                        })],
+                    })
+                })?;
+                return Ok(deal);
+            }
             S::EachPermanentDealsDamage(permanents, n, recipient) => {
                 Operation::DealDamageFromEach {
                     sources: self.objects(permanents)?,
@@ -4954,11 +4992,15 @@ impl Context {
                 affected: EffectSubjects::Players(PlayerSet::One(self.player(player)?)),
                 changes: self.player_changes(rules)?,
             }),
-            S::EachPlayerEffect(players, rules) => Ok(Ability::Static {
-                kind: StaticKind::Ordinary,
-                affected: EffectSubjects::Players(self.players(players)?),
-                changes: self.player_changes(rules)?,
-            }),
+            S::EachPlayerEffect(players, rules) => {
+                let mut each = self.clone();
+                each.iterated = Some(PlayerRef::Affected);
+                Ok(Ability::Static {
+                    kind: StaticKind::Ordinary,
+                    affected: EffectSubjects::Players(self.players(players)?),
+                    changes: each.player_changes(rules)?,
+                })
+            }
             S::PermanentRuleEffect(object, rules) => Ok(Ability::Static {
                 kind: StaticKind::Ordinary,
                 affected: EffectSubjects::Objects(ObjectSet::One(self.object(object)?)),

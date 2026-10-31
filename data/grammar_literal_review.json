@@ -9243,6 +9243,17 @@
    "template": "you may put a name sticker on it, then it becomes an Aura with enchant creature. Return a creature card from your graveyard to the battlefield and attach this Aura to it",
    "result": "ActionList([MayAction(PutANameStickerOnPermanent(ThisPermanent)), CreatePermanentLayerEffect(ThisPermanent, [AddEnchantmentType(Aura), AddAbility([EnchantPermanent(IsCardtype(Creature))])]), PutACardFromPlayersGraveyardOnBattlefield(IsCardtype(Creature), You, [EntersNormally]), AttachPermanentToPermanent(ThisPermanent, ThePermanentPutOnTheBattlefieldThisWay)])",
    "reason": "triaged 2026-10-31: reads correctly for its cards, or the pairing is a mining coincidence"
+  },
+  {
+   "id": "c754d6b7f51ed571f77c0191ba19b6edeeb4f78fc743178dd11e886707c290da",
+   "kind": "mined_word",
+   "rule": "Condition(ThatSpell)",
+   "token": "PoisonCounter",
+   "word": "poison",
+   "support": "45/49",
+   "template": "its controller is poisoned",
+   "result": "PlayerPassesFilter(ControllerOfSpell(Ref_TargetSpell), Poisoned)",
+   "reason": "triaged 2026-10-31: reads correctly for its cards, or the pairing is a mining coincidence"
   }
 ]
 }
