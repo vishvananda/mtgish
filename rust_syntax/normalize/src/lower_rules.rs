@@ -42,6 +42,15 @@ impl Context {
         Ok(match value {
             S::AnyAbility => ActivationFilter::Any,
             S::ManaAbility => ActivationFilter::Mana,
+            S::AbilityOfAPermanent(sources) => {
+                ActivationFilter::Of(Box::new(self.filter(sources)?))
+            }
+            S::AbilityOfPermanent(source) => ActivationFilter::Of(Box::new(
+                ObjectFilter::SameObject(self.object(source)?),
+            )),
+            S::AbilityOfASource(sources) => {
+                ActivationFilter::Of(Box::new(self.mana_sources(sources)?))
+            }
             S::NonManaAbility => ActivationFilter::Not(Box::new(ActivationFilter::Mana)),
             S::And(v) => ActivationFilter::All(
                 v.iter()

@@ -350,11 +350,11 @@ fn activation_filters_keep_mana_exceptions_and_battlefield_scope() {
         matches!(&c.abilities[0],Ability::Static{affected:EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::CardType(source::CardType::Artifact))),changes,..}
         if matches!(changes.as_slice(),[Change::Rule(RuleChange::Prohibit(ObjectAction::Activate(ActivationFilter::Any)))]))
     );
+    // Sources in any zone are a rule on players, not on battlefield permanents.
+    let anywhere = program("ActivatedAbilityEffect(NonManaAbility,CantBeActivated)").unwrap();
     assert!(
-        program("ActivatedAbilityEffect(NonManaAbility,CantBeActivated)")
-            .unwrap_err()
-            .iter()
-            .any(|e| e.message.contains("outside the battlefield"))
+        matches!(&anywhere.abilities[0],Ability::Static{affected:EffectSubjects::Players(PlayerSet::All),changes,..}
+        if matches!(changes.as_slice(),[Change::PlayerRule(PlayerRule::Prohibit(PlayerAction::Activate(ActivationFilter::Not(_))))]))
     );
 }
 

@@ -2920,6 +2920,7 @@
     {"source": "Permanent::ThePermanentThatDiedThisWay", "text": "die|dies|died"},
     {"source": "Permanents::ThePermanentsAffectedThisWay", "text": "this"},
     {"source": "Player::TheFirstPlayerChosenThisWay", "text": "choose|chooses|chosen"},
-    {"source": "Condition::APermanentWasChosenThisWay", "text": "choose|chooses|chosen"}
+    {"source": "Condition::APermanentWasChosenThisWay", "text": "choose|chooses|chosen"},
+    {"source": "Action::DiscardAllButNumberCards", "text": "discard"}
   ]
 }

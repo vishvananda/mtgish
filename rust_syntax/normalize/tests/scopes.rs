@@ -1357,3 +1357,15 @@ fn players_are_barred_from_attacks_and_payments() {
     assert!(life.contains("PayLife(Spells"), "{life}");
     assert!(life.contains("PayLife(Abilities"), "{life}");
 }
+
+#[test]
+fn balance_and_abilities_of_sources() {
+    let balance = lowered(
+        "SpellActions(ActionList([EachPlayerAction(AnyPlayer, DiscardAllButNumberCards(TheLowestNumberOfCardsInHandAmongPlayers(AnyPlayer)))]))",
+    );
+    assert!(balance.contains("DiscardAllBut"), "{balance}");
+    let abolisher = lowered(
+        "If(IsPlayersTurn(You), [EachPlayerEffect(Opponent, [CantCastSpells(AnySpell), CantActivateAbilities(AbilityOfAPermanent(Or([IsCardtype(Artifact), IsCardtype(Creature), IsCardtype(Enchantment)])))])])",
+    );
+    assert!(abolisher.contains("Activate(Of("), "{abolisher}");
+}

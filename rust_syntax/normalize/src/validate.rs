@@ -1125,6 +1125,7 @@ impl<'a> Scope<'a> {
     fn activation_filter(&self, filter: &ActivationFilter) -> Result {
         match filter {
             ActivationFilter::Any | ActivationFilter::Mana | ActivationFilter::Cycling => Ok(()),
+            ActivationFilter::Of(sources) => self.filter(sources),
             ActivationFilter::Not(f) => self.activation_filter(f),
             ActivationFilter::All(v) | ActivationFilter::Either(v) => {
                 for f in v {
@@ -1972,6 +1973,10 @@ impl<'a> Scope<'a> {
             Operation::DrawUpTo { players, amount } => {
                 self.players(players)?;
                 self.expr(amount)
+            }
+            Operation::DiscardAllBut { players, keep } => {
+                self.players(players)?;
+                self.expr(keep)
             }
             Operation::SacrificeAllBut {
                 players,

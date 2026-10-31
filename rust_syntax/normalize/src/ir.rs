@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 109;
+pub const SCHEMA_VERSION: u32 = 110;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1353,6 +1353,11 @@ pub enum Operation {
         options: Vec<Operand>,
         villainous: bool,
     },
+    /// Each player discards down to `keep` cards of their choice.
+    DiscardAllBut {
+        players: PlayerSet,
+        keep: Expr,
+    },
 }
 /// Defines the keyword abilities with one table, so the enum and the rows that
 /// lower to it cannot disagree.
@@ -2473,6 +2478,8 @@ pub enum ActivationFilter {
     Not(Box<ActivationFilter>),
     All(Vec<ActivationFilter>),
     Either(Vec<ActivationFilter>),
+    /// Abilities of a source that matches.
+    Of(Box<ObjectFilter>),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum RequirementAmount {

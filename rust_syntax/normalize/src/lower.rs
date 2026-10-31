@@ -5064,15 +5064,19 @@ impl Context {
             }
             S::ActivatedAbilityEffect(filter, source::ActivatedAbilityEffect::CantBeActivated) => {
                 let (sources, filter) = self.permanent_activations(filter)?;
+                let Some(sources) = sources else {
+                    // Sources in any zone: no player may activate these.
+                    return Ok(Ability::Static {
+                        kind: StaticKind::Ordinary,
+                        affected: EffectSubjects::Players(PlayerSet::All),
+                        changes: vec![Change::PlayerRule(PlayerRule::Prohibit(
+                            PlayerAction::Activate(filter),
+                        ))],
+                    });
+                };
                 Ok(Ability::Static {
                     kind: StaticKind::Ordinary,
-                    affected: EffectSubjects::Objects(ObjectSet::Battlefield(sources.ok_or_else(
-                        || {
-                            invalid(
-                                "activation restriction includes sources outside the battlefield",
-                            )
-                        },
-                    )?)),
+                    affected: EffectSubjects::Objects(ObjectSet::Battlefield(sources)),
                     changes: vec![Change::Rule(RuleChange::Prohibit(ObjectAction::Activate(
                         filter,
                     )))],

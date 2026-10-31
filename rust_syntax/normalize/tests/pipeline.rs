@@ -724,7 +724,7 @@ fn numeric_amount(card: &Card, index: usize) -> &Expr {
 #[test]
 fn numeric_consolidation_traverses_unsupported_actions_without_binding_them() {
     let source =
-        custom("SpellActions(ActionList([DiscardAllButNumberCards(Twice(NumCardsInPlayersLibrary(You)))]))");
+        custom("SpellActions(ActionList([DiscardNumberCardsDrawnThisTurn(Twice(NumCardsInPlayersLibrary(You)))]))");
     let stage = pipeline::Intermediate::new(&source).unwrap();
     assert!(stage.structural.rewrites.is_empty());
     assert_eq!(stage.structural.numbers.len(), 2);
@@ -1149,7 +1149,7 @@ fn selector_artifacts_and_saved_reports_require_all_registry_fingerprints() {
 fn program_structure_consolidates_even_when_a_nested_instruction_is_unknown() {
     use pipeline::programs::InstructionRecipe as R;
     let source = custom(
-        "SpellActions(ActionList([MayActions([DrawACard,DiscardAllButNumberCards(Integer(7))])]))",
+        "SpellActions(ActionList([MayActions([DrawACard,DiscardNumberCardsDrawnThisTurn(Integer(7))])]))",
     );
     let stage = pipeline::Intermediate::new(&source).unwrap();
     assert!(stage.final_card.is_none());
@@ -1166,7 +1166,7 @@ fn program_structure_consolidates_even_when_a_nested_instruction_is_unknown() {
     assert!(stage
         .diagnostics
         .iter()
-        .any(|d| d.form == "DiscardAllButNumberCards"));
+        .any(|d| d.form == "DiscardNumberCardsDrawnThisTurn"));
 }
 
 #[test]
@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 109);
+    assert_eq!(card.schema_version, 110);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =

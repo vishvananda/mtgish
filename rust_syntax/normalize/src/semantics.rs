@@ -851,6 +851,12 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
                 choose: None,
             })
         }
+        ("Action::DiscardAllButNumberCards", [Number(keep)]) => {
+            return Some(Operation::DiscardAllBut {
+                players: actor.clone(),
+                keep: keep.clone(),
+            })
+        }
         ("Action::SacrificeAllPermanentsExceptForNum", [Objects(objects), Number(keep)]) => {
             return Some(Operation::SacrificeAllBut {
                 players: actor.clone(),
@@ -5161,6 +5167,7 @@ impl Effects {
                     | Operation::AttachChosen { .. }
                     | Operation::DrawUpTo { .. }
                     | Operation::SacrificeAllBut { .. }
+                    | Operation::DiscardAllBut { .. }
                     | Operation::TowardPlayer { .. }
                     | Operation::Intensify { .. }
                     | Operation::FlipCoins { .. }

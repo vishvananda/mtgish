@@ -179,10 +179,10 @@ fn normalization_rejects_unbound_targets_and_duplicate_results() {
 
 #[test]
 fn normalization_does_not_mark_unknown_nested_behavior_complete() {
-    let errors = lower::card(&source("Breakthrough")).unwrap_err();
+    let errors = lower::card(&source("Hint of Insanity")).unwrap_err();
     assert!(errors
         .iter()
-        .any(|e| e.form == "DiscardAllButNumberCards" && e.path.contains("actions[1]")));
+        .any(|e| e.form == "DiscardEachCard" && e.path.contains("actions[1]")));
 }
 
 struct Scratch(PathBuf);
@@ -237,7 +237,7 @@ fn normalization_late_unsupported_card_cannot_publish_partial_corpus() {
         .unwrap();
     let unsupported = lines
         .lines()
-        .find(|l| l.contains("Name: \"Breakthrough\""))
+        .find(|l| l.contains("Name: \"Hint of Insanity\""))
         .unwrap();
     fs::write(&input, format!("{valid}\n{unsupported}\n")).unwrap();
     assert!(report::export_ron(&input, &output).is_err());

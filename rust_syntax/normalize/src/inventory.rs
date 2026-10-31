@@ -453,6 +453,10 @@ impl Inventory<'_> {
                 self.players(players);
                 self.expr(amount);
             }
+            Operation::DiscardAllBut { players, keep } => {
+                self.players(players);
+                self.expr(keep);
+            }
             Operation::SacrificeAllBut {
                 players,
                 objects,
@@ -1336,6 +1340,7 @@ impl Inventory<'_> {
         self.form("ActivationFilter", f);
         match f {
             ActivationFilter::Any | ActivationFilter::Mana | ActivationFilter::Cycling => {}
+            ActivationFilter::Of(sources) => self.filter(sources),
             ActivationFilter::Not(f) => self.activation_filter(f),
             ActivationFilter::All(v) | ActivationFilter::Either(v) => {
                 for f in v {
