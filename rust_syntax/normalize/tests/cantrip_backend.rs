@@ -7,6 +7,7 @@ fn card(name: &str) -> Card {
         .chain(include_str!("fixtures/choices.ronl").lines())
         .chain(include_str!("fixtures/tokens.ronl").lines())
         .chain(include_str!("fixtures/mana.ronl").lines())
+        .chain(include_str!("fixtures/backend.ronl").lines())
         .map(|s| ron::from_str(s).unwrap())
         .find(|s| {
             corpus::Identity::of(s)
@@ -170,6 +171,20 @@ fn generated_modules_execute_in_cantrip() {
         ("hawker", "Omen Hawker"),
         ("signet", "Selesnya Signet"),
         ("pirates", "Prosperous Pirates"),
+        ("visionary", "Elvish Visionary"),
+        ("traveler", "Doomed Traveler"),
+        ("anthem", "Glorious Anthem"),
+        ("strength", "Holy Strength"),
+        ("command", "Kolaghan's Command"),
+        ("raise", "Raise Dead"),
+        ("tutor", "Diabolic Tutor"),
+        ("gate", "Azorius Guildgate"),
+        ("seer", "Viscera Seer"),
+        ("splitter", "Bonesplitter"),
+        ("cave", "Forgotten Cave"),
+        ("bolt", "Lightning Bolt"),
+        ("blade", "Doom Blade"),
+        ("bears", "Grizzly Bears"),
     ];
     let mut lib = String::new();
     for (module, name) in names {

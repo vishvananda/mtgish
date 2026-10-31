@@ -64,6 +64,12 @@ pub(super) enum Pending {
     Reshaped,
 }
 
+/// A question about past events: `Expr::EventHistory`.
+#[derive(Clone)]
+pub(super) struct History {
+    pub outer: Option<String>,
+}
+
 /// Where one event value travels from the matcher to the resolving ability.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Carried {
@@ -152,6 +158,7 @@ pub(super) fn counter_kind(kind: &crate::counter::CounterKind) -> Result<String>
         K::PowerToughness(..) => return Err(gap("power/toughness counter other than ±1/±1")),
         K::Named(counter) => name(counter),
     };
+    let word = word.strip_suffix("Counter").unwrap_or(&word).to_string();
     if crate::cantrip_vocab::COUNTERS.contains(&word.as_str()) {
         Ok(format!("CounterKind::{word}"))
     } else {
@@ -165,6 +172,9 @@ impl Compiler {
         format!("{{ let q: &dyn Query = g; {} }}", code.as_ref())
     }
     fn carried(&self, carried: Carried) -> Result<(String, String)> {
+        if self.history.is_some() {
+            return Err(gap("event reference in a history question"));
+        }
         let (subject, data) = match self.event_at {
             EventAt::Matcher => ("subject".to_string(), "data".to_string()),
             EventAt::Item => ("item.subject".into(), "item.data".into()),
@@ -213,6 +223,12 @@ impl Compiler {
                 return Err(gap(format!("primitive object reference {name}")))
             }
             ObjectRef::Source => "Some(asker.source)".into(),
+            // Inside a history question the event is what is being tested, and
+            // the candidate is still the object the enclosing filter asks about.
+            ObjectRef::Candidate if self.history.is_some() => match &self.history {
+                Some(History { outer: Some(outer) }) => format!("Some({outer})"),
+                _ => return Err(gap("candidate in a history question with no filter around it")),
+            },
             ObjectRef::Candidate => {
                 let candidate = self.candidates.borrow();
                 let candidate = candidate
@@ -550,6 +566,36 @@ impl Compiler {
                     return Err(gap("event amount outside the event data"));
                 };
                 count(format!("i64::from({data}[{i}])"))
+            }
+            Expr::EventHistory {
+                event,
+                window,
+                measure,
+            } => {
+                if self.reader == Reader::Layer {
+                    return Err(gap("event history in a layer"));
+                }
+                let scope = match window {
+                    HistoryWindow::ThisTurn => "q.history().this_turn().iter()",
+                    HistoryWindow::ThisGame => "q.history().all().iter()",
+                    HistoryWindow::LastTurn => {
+                        "q.history().all().iter().filter(|r| r.turn + 1 == q.state().turn.number)"
+                    }
+                    other => return Err(gap(format!("history window {}", form(other)))),
+                };
+                let mut asked = self.clone();
+                asked.history = Some(History {
+                    outer: self.candidates.borrow().last().map(|c| c.id.clone()),
+                });
+                let matched = asked.event(event)?;
+                let hits = format!("{scope}.filter_map({})", matched.history_test());
+                count(match measure {
+                    HistoryMeasure::Occurrences => format!("{hits}.count() as i64"),
+                    HistoryMeasure::TotalAmount if matched.frame.amount == Some(Carried::Data(0)) => {
+                        format!("{hits}.map(|f: Fired| i64::from(f.data[0])).sum::<i64>()")
+                    }
+                    other => return Err(gap(format!("history measure {}", form(other)))),
+                })
             }
             Expr::CountObjects(objects) => {
                 count(format!("({}).len() as i64", self.objects(objects)?))

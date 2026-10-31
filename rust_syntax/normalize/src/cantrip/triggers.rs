@@ -37,6 +37,24 @@ fn single(mask: &'static str, arm: Arm, frame: Frame, phrase: &str) -> Matched {
     }
 }
 
+impl Matched {
+    /// A closure over one history record, as the matcher would answer it.
+    pub(super) fn history_test(&self) -> String {
+        let mut body = String::new();
+        for arm in &self.arms {
+            write!(
+                body,
+                "if let {} = event {{ {} if {} {{ return Some(Fired {{ subject, data }}); }} }} ",
+                arm.pattern,
+                arm.locals,
+                arm.tests.join(" && ")
+            )
+            .unwrap();
+        }
+        format!("|r: &Record| -> Option<Fired> {{ let event = &r.event; {body} None }}")
+    }
+}
+
 impl Compiler {
     /// Compile with the matcher's view of the event.
     pub(super) fn matching<T>(

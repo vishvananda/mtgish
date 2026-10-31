@@ -17,7 +17,7 @@ mod survey;
 mod triggers;
 pub use crate::report::BackendDiagnostic as Diagnostic;
 use effects::rule_name;
-use read::{counter_kind, zone_kind, Candidate, Carried, EventAt, Frame, Pending, Reader};
+use read::{counter_kind, zone_kind, Candidate, Carried, EventAt, Frame, History, Pending, Reader};
 pub use survey::survey;
 type Result<T> = std::result::Result<T, Diagnostic>;
 /// A reference to the result of an instruction that already reported a gap.
@@ -201,7 +201,10 @@ impl Number {
         }
     }
 }
+#[derive(Clone)]
 struct Compiler {
+    /// Compiling the event of `Expr::EventHistory`.
+    history: Option<History>,
     /// A `StackItem` named `item` is in reach, with its targets and X.
     stack_item: bool,
     pending: Pending,
@@ -380,6 +383,7 @@ fn mana_restriction(value: &ManaUse) -> Result<String> {
 impl Compiler {
     fn new() -> Self {
         Self {
+            history: None,
             stack_item: true,
             pending: Pending::Nothing,
             reader: Reader::Resolution,
