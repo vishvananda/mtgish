@@ -13,6 +13,11 @@ impl Context {
 
     fn player_rule(&self, value: &source::PlayerEffect) -> Result<PlayerRule> {
         self.reduced_player_rule(value).or_else(|error| {
+            match self.play_rule(value) {
+                Some(Ok(rule)) => return Ok(rule),
+                Some(Err(reason)) if reason.source_type == "invariant" => return Err(reason),
+                _ => {}
+            }
             rescue(error, || {
                 self.primitive("PlayerEffect", value)
                     .map(|(name, operands)| PlayerRule::Primitive { name, operands })

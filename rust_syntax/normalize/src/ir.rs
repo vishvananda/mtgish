@@ -1310,6 +1310,11 @@ pub enum PlayerRule {
     /// Player abilities, as distinct from prohibitions or abilities granted
     /// to objects. Their ordinary targeting definitions apply to the player.
     GrantKeyword(PlayerKeyword),
+    /// A `PlayPermission` under terms the plain form lacks.
+    PlayPermissionWith {
+        permission: Box<PlayerRule>,
+        terms: PlayTerms,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PlayerAction {
@@ -1380,6 +1385,42 @@ pub enum PlayerKeyword {
     Hexproof,
     Shroud,
 }
+/// The terms of a permission, the parameters Forge's `MayPlay` takes.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct PlayTerms {
+    pub limit: Option<PlayLimit>,
+    /// Only during these players' turns.
+    pub during: Option<PlayerSet>,
+    pub cost: PlayCost,
+    pub spend_as: Option<SpendAs>,
+    /// A card cast this way is exiled instead of going anywhere else.
+    pub into_exile: bool,
+    pub condition: Option<Condition>,
+    /// What a card played this way gets: spell effects, entry flags or a trigger.
+    pub effects: Vec<Operand>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PlayLimit {
+    /// This many cards while the permission lasts.
+    Total(i64),
+    EachTurn(i64),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PlayCost {
+    Normal,
+    Free,
+    Alternate(Operand),
+    Additional(Operand),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum SpendAs {
+    AnyColor,
+    AnyType,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CardPlayAction {
     CastSpell,

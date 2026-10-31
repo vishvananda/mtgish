@@ -1097,6 +1097,19 @@ impl<'a> Scope<'a> {
                 self.require_zone(cards, from.clone())?;
                 self.filter(filter)
             }
+            PlayerRule::PlayPermissionWith { permission, terms } => {
+                self.player_rule(permission)?;
+                if let Some(players) = &terms.during {
+                    self.players(players)?;
+                }
+                if let PlayCost::Alternate(cost) | PlayCost::Additional(cost) = &terms.cost {
+                    self.operand(cost)?;
+                }
+                if let Some(condition) = &terms.condition {
+                    self.condition(condition)?;
+                }
+                terms.effects.iter().try_for_each(|o| self.operand(o))
+            }
             PlayerRule::Primitive { name, operands } => self.primitive(name, operands),
             PlayerRule::Prohibit(action) => self.player_action(action),
             PlayerRule::LimitPerTurn { action, amount } => {

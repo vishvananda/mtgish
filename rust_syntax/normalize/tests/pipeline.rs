@@ -3077,6 +3077,19 @@ fn a_mana_rider_names_the_spell_it_paid_for() {
 }
 
 #[test]
+fn a_play_permission_keeps_its_terms() {
+    let text = ability_json("PlayerEffect(You, [MayCastASpellFromGraveyardOnceEachPlayersTurn(IsCardtype(Creature), You)])");
+    assert!(text.contains(r#""EachTurn":1"#), "{text}");
+    assert!(text.contains(r#""during":{"kind":"One""#), "{text}");
+    let text = ability_json("SpellActions(ActionList([Exile([TheTopCardOfLibrary], []), CreatePlayerEffectUntil(You, [MayPlayOneCardFromAmongExiled(TheCardsExiledThisWay)], UntilEndOfTurn)]))");
+    assert!(text.contains(r#""Total":1"#), "{text}");
+    assert!(text.contains(r#""from":"Exile""#), "{text}");
+    let text = ability_json("PlayerEffect(You, [MayCastSpellsFromGraveyardForAdditionalCostWithEffect(IsCardtype(Creature), You, Forage, [EntersWithACounter(FinalityCounter)])])");
+    assert!(text.contains(r#""Additional":{"kind":"Cost""#), "{text}");
+    assert!(text.contains("EntersWithACounter"), "{text}");
+}
+
+#[test]
 fn a_card_replaces_its_discard_from_hand() {
     let text = ability_json("ReplaceWouldDiscard(ASpellOrAbilityWouldCausePlayerToDiscardCard(ControlledByAPlayer(Opponent),You,ThisCardInHand),[PutItOntoTheBattlefieldInstead([EntersNormally])])");
     assert!(text.contains("Everywhere"), "{text}");

@@ -5039,3 +5039,4 @@ include!("lower_took.rs");
 include!("lower_reflexive.rs");
 include!("lower_reveal.rs");
 include!("lower_replace.rs");
+include!("lower_play.rs");

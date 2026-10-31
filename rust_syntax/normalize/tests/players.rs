@@ -239,8 +239,9 @@ fn land_allowances_zone_permissions_and_hand_restrictions_remain_independent() {
             ..
         })
     )));
-    // A singular use permission needs its own usage accounting.
-    assert!(custom("PlayerEffect(You,[MayCastASpellFromGraveyard(AnySpell,You)])").is_err());
+    // A singular use permission carries its own usage accounting.
+    let single = custom("PlayerEffect(You,[MayCastASpellFromGraveyard(AnySpell,You)])").unwrap();
+    assert!(format!("{:?}", single.abilities).contains("Total(1)"));
 }
 
 #[test]

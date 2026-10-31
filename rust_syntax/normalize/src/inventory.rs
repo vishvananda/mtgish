@@ -1072,6 +1072,15 @@ impl Inventory<'_> {
     fn player_rule(&mut self, rule: &PlayerRule) {
         self.form("PlayerRule", rule);
         match rule {
+            PlayerRule::PlayPermissionWith { permission, terms } => {
+                self.player_rule(permission);
+                if let Some(players) = &terms.during {
+                    self.players(players);
+                }
+                if let Some(condition) = &terms.condition {
+                    self.condition(condition);
+                }
+            }
             PlayerRule::PlayPermission {
                 cards,
                 from,
