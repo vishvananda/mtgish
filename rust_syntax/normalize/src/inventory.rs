@@ -232,7 +232,15 @@ impl Inventory<'_> {
                     self.program(body);
                 }
                 Instruction::Repeatable(body) => self.program(body),
-                Instruction::ForEachPlayer { players, body, .. } => {
+                Instruction::ForEachPlayer {
+                    players,
+                    starting_with,
+                    body,
+                    ..
+                } => {
+                    if let Some(player) = starting_with {
+                        self.player(player);
+                    }
                     self.players(players);
                     self.program(body);
                 }
@@ -294,8 +302,13 @@ impl Inventory<'_> {
                 }
             }
             Operation::Reveal { objects } => self.objects(objects),
-            Operation::RevealUntil { library, filter } => {
+            Operation::RevealUntil {
+                library,
+                filter,
+                count,
+            } => {
                 self.player(library);
+                self.expr(count);
                 self.filter(filter);
             }
             Operation::Shuffle { players, excluding } => {
@@ -720,6 +733,10 @@ impl Inventory<'_> {
                 | CostPart::Loyalty(n)
                 | CostPart::Draw { count: n }
                 | CostPart::Mill { count: n } => self.expr(n),
+                CostPart::PlayerAction { player, body } => {
+                    self.player(player);
+                    self.program(body);
+                }
                 CostPart::Reveal { count, filter } => {
                     self.expr(count);
                     self.filter(filter);
@@ -953,6 +970,7 @@ impl Inventory<'_> {
                 }
             }
             Change::ChosenColor { mode } => self.form("ChangeMode", mode),
+            Change::ChosenAbility => {}
             Change::AddCardType(_)
             | Change::RemoveCardType(_)
             | Change::AddSupertype(_)

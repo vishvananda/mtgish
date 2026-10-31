@@ -130,7 +130,9 @@ impl<'a> Scope<'a> {
     }
     fn ordered(&self, objects: &ObjectSet) -> bool {
         match objects {
-            ObjectSet::Observed(result) => self.ordered_results.contains(&result.0),
+            ObjectSet::Observed(result) | ObjectSet::Transition { result, .. } => {
+                self.ordered_results.contains(&result.0)
+            }
             ObjectSet::Difference { objects, .. }
             | ObjectSet::Matching { objects, .. }
             | ObjectSet::InZone { objects, .. } => self.ordered(objects),
@@ -934,6 +936,7 @@ impl<'a> Scope<'a> {
             }
             Change::Colors { .. }
             | Change::ChosenColor { .. }
+            | Change::ChosenAbility
             | Change::CreatureTypes { .. }
             | Change::AddCardType(_)
             | Change::RemoveCardType(_)
@@ -1218,6 +1221,10 @@ impl<'a> Scope<'a> {
                 CostPart::Draw { count } | CostPart::Mill { count } => {
                     self.count(&Count::Exactly(count.clone()))?
                 }
+                CostPart::PlayerAction { player, body } => {
+                    self.player(player)?;
+                    self.clone().program(body)?;
+                }
                 CostPart::Reveal { count, filter } => {
                     self.count(&Count::Exactly(count.clone()))?;
                     self.filter(filter)?;
@@ -1452,8 +1459,13 @@ impl<'a> Scope<'a> {
                 Ok(())
             }
             Operation::Reveal { objects } => self.objects(objects),
-            Operation::RevealUntil { library, filter } => {
+            Operation::RevealUntil {
+                library,
+                filter,
+                count,
+            } => {
                 self.player(library)?;
+                self.expr(count)?;
                 self.filter(filter)
             }
             Operation::Shuffle { players, excluding } => {
@@ -1881,8 +1893,9 @@ impl<'a> Scope<'a> {
                         if matches!(operation, Operation::RevealUntil { .. }) {
                             self.ordered_results.insert(result.0);
                         }
-                        if let Operation::LookAt { objects, .. } | Operation::Reveal { objects } =
-                            operation
+                        if let Operation::LookAt { objects, .. }
+                        | Operation::Reveal { objects }
+                        | Operation::Move { objects, .. } = operation
                         {
                             if self.ordered(objects) {
                                 self.ordered_results.insert(result.0);
@@ -1957,9 +1970,13 @@ impl<'a> Scope<'a> {
                     Instruction::ForEachPlayer {
                         players,
                         binding,
+                        starting_with,
                         body,
                     } => {
                         self.players(players)?;
+                        if let Some(player) = starting_with {
+                            self.player(player)?;
+                        }
                         let mut each = self.clone();
                         if !each.players.insert(binding.0) {
                             return Err(format!("duplicate player binding {}", binding.0));

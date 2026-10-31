@@ -53,7 +53,6 @@ fn changes(a: &Ability) -> &[Change] {
 #[test]
 fn characteristic_families_roundtrip_and_other_unimplemented_abilities_are_not_dropped() {
     let incomplete = [
-        "Ajani Goldmane",
         "Fallaji Wayfarer",
         "Adaptive Automaton",
         "Planar Nexus",
@@ -82,7 +81,7 @@ fn characteristic_families_roundtrip_and_other_unimplemented_abilities_are_not_d
         }
         complete += 1;
     }
-    assert_eq!(complete, 49);
+    assert_eq!(complete, 50);
 }
 
 #[test]

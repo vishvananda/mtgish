@@ -103,6 +103,13 @@ struct Context {
     entered: Option<ResultId>,
     open_searches: Vec<PlayerRef>,
     inspection_hand: Option<Vec<ResultId>>,
+    /// What stopped the last "exile until": only the final card matches it.
+    exile_found: Option<ObjectFilter>,
+    /// The recipient a "that player" in a damage amount refers to.
+    damage_player: Option<PlayerRef>,
+    /// "defending player" in an activation limit is no attacker's.
+    activation_limit: bool,
+    hand_choice: Option<ResultId>,
 }
 
 /// Actions a later "this way" can name in the same resolution.
@@ -111,6 +118,7 @@ enum Done {
     Damage,
     Destroyed,
     Drew,
+    Counters,
     Effect,
     LifeLost,
     Milled,
@@ -123,6 +131,7 @@ impl Done {
             | Operation::DealDamageFromEach { .. } => Self::Damage,
             Operation::Destroy { .. } => Self::Destroyed,
             Operation::Draw { .. } => Self::Drew,
+            Operation::PutCounters { .. } => Self::Counters,
             Operation::CreateContinuousEffect { .. } => Self::Effect,
             Operation::LoseLife { .. } => Self::LifeLost,
             Operation::Mill { .. } => Self::Milled,
@@ -270,7 +279,11 @@ impl Context {
         }
         if self.exiled.as_ref().map(|r| r.0) != child.exiled.as_ref().map(|r| r.0) {
             self.exiled = None;
+            self.exile_found = None;
             self.exiled_permanents = false;
+        }
+        if self.hand_choice.as_ref().map(|r| r.0) != child.hand_choice.as_ref().map(|r| r.0) {
+            self.hand_choice = None;
         }
         if self.entered.as_ref().map(|r| r.0) != child.entered.as_ref().map(|r| r.0) {
             self.entered = None;
@@ -432,6 +445,15 @@ impl Context {
             S::OwnerOfDeadPermanent => PlayerRef::OwnerOf(Box::new(self.dead_object()?)),
             S::TheChosenPlayer => PlayerRef::Chosen,
             S::DefendingPlayer if self.defending.is_some() => self.defending.clone().unwrap(),
+            S::DefendingPlayer if !self.activation_limit => {
+                PlayerRef::DefendingPlayerOf(Box::new(ObjectRef::Source))
+            }
+            S::DealsDamage_ThatPlayer if self.damage_player.is_some() => {
+                self.damage_player.clone().unwrap()
+            }
+            S::ControllerOfSpellOrAbility(source::SpellOrAbility::Ref_TargetSpellOrAbility) => {
+                PlayerRef::ControllerOf(Box::new(self.target_on_stack()?))
+            }
             S::Trigger_DefendingPlayer if self.event.permanent => {
                 PlayerRef::DefendingPlayerOf(Box::new(ObjectRef::EventSubject))
             }
@@ -525,6 +547,22 @@ impl Context {
                     return Ok(ObjectSet::Damage(role));
                 }
             }
+        }
+        if matches!(value, source::Permanents::HadCountersPutOnItThisWay) {
+            return Ok(ObjectSet::Affected(self.done(Done::Counters)?));
+        }
+        if matches!(
+            value,
+            source::Permanents::ThePermanentsPutOnTheBattlefieldThisWay
+        ) {
+            return self
+                .entered
+                .clone()
+                .map(|result| ObjectSet::Transition {
+                    result,
+                    phase: ObjectPhase::After,
+                })
+                .ok_or_else(|| invalid("movement reference has no transition in this scope"));
         }
         if matches!(value, source::Permanents::ThePermanentsAffectedThisWay) {
             return Ok(ObjectSet::Affected(self.done(Done::Effect)?));
@@ -1128,6 +1166,9 @@ impl Context {
                             }
                         })
                         .collect::<Result<_>>()?,
+                    S::AddAbilityVariable(source::AbilityVariable::TheChosenAbility) => {
+                        vec![Change::ChosenAbility]
+                    }
                     S::SetColor(source::SettableColor::TheChosenColor) => {
                         vec![Change::ChosenColor { mode: ChangeMode::Set }]
                     }
@@ -1582,9 +1623,21 @@ impl Context {
                     once: false,
                 }
             }
-            S::PutTopOfLibraryInHand => {
+            S::PutTopOfLibraryInHand
+            | S::PutTopOfLibraryInGraveyard
+            | S::PutTopOfLibraryOnBattlefield(_) => {
                 let PlayerSet::One(player) = actor else {
                     return Err(invalid("moving a library card needs one player"));
+                };
+                let (destination, entry) = match value {
+                    S::PutTopOfLibraryInHand => (Destination::OwnersHand, EntrySpec::default()),
+                    S::PutTopOfLibraryInGraveyard => {
+                        (Destination::OwnersGraveyard, EntrySpec::default())
+                    }
+                    S::PutTopOfLibraryOnBattlefield(flags) => {
+                        self.move_entry(flags, player.clone())?
+                    }
+                    _ => unreachable!(),
                 };
                 Operation::Move {
                     objects: self.library_slice(
@@ -1592,9 +1645,96 @@ impl Context {
                         Expr::Constant(1),
                         SequenceEnd::Top,
                     ),
-                    destination: Destination::OwnersHand,
-                    entry: EntrySpec::default(),
+                    destination,
+                    entry,
                     face_down: false,
+                }
+            }
+            S::DiscardAnyNumberOfCards | S::DiscardAnyNumberOfCardsOfType(_) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("choosing discards needs one player"));
+                };
+                let filter = match value {
+                    S::DiscardAnyNumberOfCardsOfType(cards) => self.card_filter(cards)?,
+                    _ => ObjectFilter::Any,
+                };
+                let choice = self.effect(Operation::ChooseObjects {
+                    constraints: vec![],
+                    player: player.clone(),
+                    objects: self.private_cards(EventZone::Hand, actor.clone(), filter),
+                    count: Count::AnyNumber,
+                });
+                let Instruction::Effect { result, .. } = &choice else {
+                    unreachable!()
+                };
+                let discard = self.effect(Operation::DiscardObjects {
+                    objects: ObjectSet::Selected(result.clone()),
+                });
+                return Ok(Instruction::Group(Program {
+                    instructions: vec![choice, discard],
+                }));
+            }
+            S::RevealAnyNumberOfCardsOfTypeFromHand(cards) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("choosing reveals needs one player"));
+                };
+                let choice = self.effect(Operation::ChooseObjects {
+                    constraints: vec![],
+                    player: player.clone(),
+                    objects: self.private_cards(
+                        EventZone::Hand,
+                        actor.clone(),
+                        self.card_filter(cards)?,
+                    ),
+                    count: Count::AnyNumber,
+                });
+                let Instruction::Effect { result, .. } = &choice else {
+                    unreachable!()
+                };
+                let reveal = self.effect(Operation::Reveal {
+                    objects: ObjectSet::Selected(result.clone()),
+                });
+                return Ok(Instruction::Group(Program {
+                    instructions: vec![choice, reveal],
+                }));
+            }
+            S::ChooseACardFromPlayersRevealedHand(cards, owner) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("choosing a card needs one player"));
+                };
+                let choice = self.effect(Operation::ChooseObjects {
+                    constraints: vec![],
+                    player: player.clone(),
+                    objects: self.private_cards(
+                        EventZone::Hand,
+                        PlayerSet::One(self.player(owner)?),
+                        self.card_filter(cards)?,
+                    ),
+                    count: Count::AsManyAsCan(Expr::Constant(1)),
+                });
+                let Instruction::Effect { result, .. } = &choice else {
+                    unreachable!()
+                };
+                self.hand_choice = Some(result.clone());
+                return Ok(choice);
+            }
+            S::GetOneTimeBoon(trigger, actions) => {
+                let event = self.trigger(trigger)?;
+                let mut child = self.clone();
+                child.open_searches.clear();
+                child.event = crate::semantics::event_bindings(&event);
+                let known = child.targets.len();
+                let body = child.actions(actions)?;
+                self.result = child.result;
+                Operation::CreateTrigger {
+                    event,
+                    duration: Duration::Indefinite,
+                    announcement: Announcement {
+                        targets: child.targets.split_off(known),
+                        modes: child.modes,
+                    },
+                    body,
+                    once: true,
                 }
             }
             S::RevealTopCardOfLibrary => {
@@ -1631,8 +1771,64 @@ impl Context {
                 let reveal = Operation::RevealUntil {
                     library: player.clone(),
                     filter: filter.clone(),
+                    count: Expr::Constant(1),
                 };
                 return self.reveal_library(player.clone(), reveal, Some(filter), actions);
+            }
+            S::RevealCardsFromTheTopOfLibraryUntilANumberOfCardsOfTypeAreRevealed(
+                amount,
+                cards,
+                actions,
+            ) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("revealing a library needs one player"));
+                };
+                let filter = self.card_filter(cards)?;
+                let reveal = Operation::RevealUntil {
+                    library: player.clone(),
+                    filter: filter.clone(),
+                    count: self.number(amount)?,
+                };
+                return self.reveal_library(player.clone(), reveal, Some(filter), actions);
+            }
+            S::ReturnAnExiledCardToBattlefield(cards, flags) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("choosing an exiled card needs one player"));
+                };
+                let choice = self.effect(Operation::ChooseObjects {
+                    constraints: vec![],
+                    player: player.clone(),
+                    objects: self.exile_cards(cards)?,
+                    count: Count::AsManyAsCan(Expr::Constant(1)),
+                });
+                let Instruction::Effect { result, .. } = &choice else {
+                    unreachable!()
+                };
+                let (destination, entry) = self.move_entry(flags, player.clone())?;
+                let movement = self.effect(Operation::Move {
+                    objects: ObjectSet::Selected(result.clone()),
+                    destination,
+                    entry,
+                    face_down: false,
+                });
+                return Ok(Instruction::Group(Program {
+                    instructions: vec![choice, movement],
+                }));
+            }
+            S::EachPlayerStartingWithAction(players, first, actions) => {
+                let players = self.players(players)?;
+                let first = self.player(first)?;
+                let mut each = self.for_each_player(players, |context, one| {
+                    let instructions = actions
+                        .iter()
+                        .map(|action| context.action(action, one))
+                        .collect::<Result<_>>()?;
+                    Ok(Instruction::Group(Program { instructions }))
+                })?;
+                if let Instruction::ForEachPlayer { starting_with, .. } = &mut each {
+                    *starting_with = Some(first);
+                }
+                return Ok(each);
             }
             S::ChooseAnAction(options) => {
                 let PlayerSet::One(decider) = actor else {
@@ -1882,6 +2078,12 @@ impl Context {
                     evaluation: EffectEvaluation::Snapshot,
                 }
             }
+            S::CounterSpellOrAbility(source::SpellOrAbility::Ref_TargetSpellOrAbility) => {
+                Operation::Counter {
+                    objects: ObjectSet::One(self.target_on_stack()?),
+                    destination: Destination::OwnersGraveyard,
+                }
+            }
             S::CounterSpell(s)
             | S::CounterSpellIntoExile(s)
             | S::CounterSpellIntoHand(s)
@@ -2048,23 +2250,15 @@ impl Context {
                 restriction: Some(self.mana_use(modifier)?),
             },
             S::PermanentDealsDamage(p, n, r) | S::HavePermanentDealDamage(p, n, r) => {
-                Operation::DealDamage {
-                    source: self.object(p)?,
-                    recipients: self.recipients(r)?,
-                    amount: self.number(n)?,
-                    preventable: true,
-                }
+                let source = self.object(p)?;
+                return self.damage_each_recipient(source, n, r, true);
             }
             S::SpellDealsDamage(spell, n, r) | S::SpellDealsDamageCantBePrevented(spell, n, r) => {
                 if !matches!(spell.as_ref(), source::Spell::ThisSpell) {
                     return Err(unsupported(spell));
                 }
-                Operation::DealDamage {
-                    source: ObjectRef::Source,
-                    recipients: self.recipients(r)?,
-                    amount: self.number(n)?,
-                    preventable: matches!(value, S::SpellDealsDamage(_, _, _)),
-                }
+                let preventable = matches!(value, S::SpellDealsDamage(_, _, _));
+                return self.damage_each_recipient(ObjectRef::Source, n, r, preventable);
             }
             S::PermanentDealsMultipleDamage(permanent, parts) => Operation::DealDamageParts {
                 source: self.object(permanent)?,
@@ -2153,6 +2347,57 @@ impl Context {
                 })
                 .collect::<Result<_>>()?,
         })
+    }
+
+    fn target_on_stack(&self) -> Result<ObjectRef> {
+        self.object_target(
+            ObjectDomain {
+                kind: ObjectKind::Any,
+                zones: vec![EventZone::Stack],
+            },
+            0,
+        )
+    }
+
+    /// Damage whose amount reads "that player" is worked out per recipient.
+    fn damage_each_recipient(
+        &mut self,
+        source: ObjectRef,
+        amount: &source::GameNumber,
+        recipients: &source::DamageRecipient,
+        preventable: bool,
+    ) -> Result<Instruction> {
+        let per_player = format!("{amount:?}").contains("DealsDamage_ThatPlayer");
+        if let (true, source::DamageRecipient::EachPlayer(players)) = (per_player, recipients) {
+            let players = self.players(players)?;
+            return self.for_each_player(players, |context, each| {
+                let PlayerSet::One(player) = each else {
+                    return Err(invalid("per-player damage needs one player"));
+                };
+                context.damage_player = Some(player.clone());
+                let amount = context.number(amount);
+                context.damage_player = None;
+                Ok(context.effect(Operation::DealDamage {
+                    source,
+                    recipients: Recipients::Players(each.clone()),
+                    amount: amount?,
+                    preventable,
+                }))
+            });
+        }
+        let outer = self.damage_player.take();
+        if let source::DamageRecipient::Player(player) = recipients {
+            self.damage_player = Some(self.player(player)?);
+        }
+        let amount = self.number(amount);
+        self.damage_player = outer;
+        let operation = Operation::DealDamage {
+            source,
+            recipients: self.recipients(recipients)?,
+            amount: amount?,
+            preventable,
+        };
+        Ok(self.effect(operation))
     }
 
     fn targets(&mut self, values: &[source::Target]) -> Result<()> {
@@ -2421,6 +2666,27 @@ impl Context {
 
     fn cost(&self, value: &source::Cost) -> Result<Cost> {
         match value {
+            source::Cost::HavePlayerTakeAction(player, action) => {
+                let player = self.player(player)?;
+                let mut child = self.clone();
+                child.iterated = Some(player.clone());
+                // Nothing outside a cost reads what happens inside it.
+                child.result = self.result.saturating_add(1 << 20);
+                let mut inspected = crate::inspect::value(action)
+                    .map_err(|_| invalid("a cost action does not serialize"))?;
+                inspected["enum"] = "Action".into();
+                let action: source::Action = crate::pipeline::source_tree::decode(&inspected)
+                    .map_err(|_| unsupported(action))?;
+                let instruction = child.action(&action, &PlayerSet::One(player.clone()))?;
+                return Ok(Cost {
+                    parts: vec![CostPart::PlayerAction {
+                        player,
+                        body: Program {
+                            instructions: vec![instruction],
+                        },
+                    }],
+                });
+            }
             source::Cost::RevealACardOfTypeFromHand(cards) => {
                 return Ok(Cost {
                     parts: vec![CostPart::Reveal {
@@ -2525,7 +2791,11 @@ impl Context {
             source::ActivateModifier::ActivateOnlyAsASorcery => limits.sorcery = true,
             source::ActivateModifier::ActivateOnlyIf(condition)
             | source::ActivateModifier::CantActivateIf(condition) => {
-                let mut condition = self.condition(condition)?;
+                let mut condition = {
+                    let mut context = self.clone();
+                    context.activation_limit = true;
+                    context.condition(condition)?
+                };
                 if matches!(value, source::ActivateModifier::CantActivateIf(_)) {
                     condition = Condition::Not(Box::new(condition));
                 }
@@ -2804,6 +3074,15 @@ impl Context {
                     &source::Actions::Modal_ChooseBoth(modes.clone()),
                     &source::Actions::Modal_ChooseOne(modes.clone()),
                 ),
+                source::Actions::AdditionalCost_Modal(options) => {
+                    use source::AdditionalCostOption as O;
+                    let [O::AdditionalCost(cost, paid), O::NoAdditionalCost(unpaid)] =
+                        options.as_slice()
+                    else {
+                        return Err(unsupported(actions));
+                    };
+                    self.cost_branch("AdditionalCost", cost, paid, unpaid)
+                }
                 actions => self.spell_ability(actions),
             },
             S::TriggerMayOnceEachTurn(trigger, actions) => {

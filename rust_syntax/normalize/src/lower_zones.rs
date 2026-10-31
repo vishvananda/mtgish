@@ -115,6 +115,21 @@ impl Context {
                 self.object_target(ObjectDomain::card(EventZone::Exile), 0)
             }
             S::Ref_TargetExiledCard2 => self.object_target(ObjectDomain::card(EventZone::Exile), 1),
+            S::TheSpecificCardExiledThisWay if self.exile_found.is_some() => {
+                Ok(ObjectRef::Query {
+                    objects: Box::new(ObjectSet::Matching {
+                        objects: Box::new(ObjectSet::Transition {
+                            result: self
+                                .exiled
+                                .clone()
+                                .ok_or_else(|| invalid("exiled cards have no movement"))?,
+                            phase: ObjectPhase::After,
+                        }),
+                        filter: self.exile_found.clone().unwrap(),
+                    }),
+                    index: 0,
+                })
+            }
             S::TheCardExiledThisWay
             | S::TheSingleCardExiledThisWay
             | S::TheSinglePermanentExiledThisWay
@@ -144,6 +159,13 @@ impl Context {
     fn hand_card(&self, value: &source::CardInHand) -> Result<ObjectRef> {
         match value {
             source::CardInHand::ThisCardInHand => Ok(ObjectRef::Source),
+            source::CardInHand::TheCardInHandChosenThisWay if self.hand_choice.is_some() => {
+                Ok(ObjectRef::Result {
+                    result: self.hand_choice.clone().unwrap(),
+                    phase: ObjectPhase::After,
+                    index: 0,
+                })
+            }
             source::CardInHand::Trigger_ThatCardInHand
             | source::CardInHand::Trigger_ThatDiscardedCard
                 if self.event.discarded =>
@@ -259,6 +281,10 @@ impl Context {
             S::AnyNumberOfPermanents(p) => (self.objects(p)?, Some(Count::AnyNumber)),
             S::CardInGraveyards(c) => (ObjectSet::One(self.grave_card(c)?), None),
             S::EachCardInGraveyards(c) => (self.grave_cards(c)?, None),
+            S::ACardFromHand => (
+                self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
+                Some(Count::AsManyAsCan(Expr::Constant(1))),
+            ),
             S::ACardInGraveyards(c) => (
                 self.grave_cards(c)?,
                 Some(Count::AsManyAsCan(Expr::Constant(1))),
@@ -398,7 +424,26 @@ impl Context {
         let (entry, face_down) = self.exile_entry(&flags)?;
         let mut instructions = Vec::new();
         let mut sets = Vec::new();
+        self.exile_found = None;
         for (i, item) in items.iter().enumerate() {
+            if let source::Exilable::CardsFromTheTopOfLibraryUntilACardOfTypeIsExiled(cards) = item {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("exiling from a library needs one player"));
+                };
+                let filter = self.library_filter(cards)?;
+                let seen = self.effect(Operation::RevealUntil {
+                    library: player.clone(),
+                    filter: filter.clone(),
+                    count: Expr::Constant(1),
+                });
+                let Instruction::Effect { result, .. } = &seen else {
+                    unreachable!()
+                };
+                sets.push(ObjectSet::Observed(result.clone()));
+                instructions.push(seen);
+                self.exile_found = Some(filter);
+                continue;
+            }
             let (mut objects, choose) = self
                 .exilable(item, actor)
                 .map_err(|e| e.at(format!("objects[{i}]")))?;

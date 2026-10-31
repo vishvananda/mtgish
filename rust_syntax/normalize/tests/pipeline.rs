@@ -79,7 +79,7 @@ fn structural_pass_preserves_every_fixture_field_and_layout_through_rust_source_
 
 #[test]
 fn unsupported_parents_do_not_hide_nested_actions_or_discard_source_operands() {
-    let s=custom("SpellActions(ActionList([EachPlayerStartingWithAction(AnyPlayer,You,[PutPermanentIntoItsOwnersHand(ThisPermanent)])]))");
+    let s=custom("SpellActions(ActionList([ActionForEachPlayerInTurnOrder(AnyPlayer,[PutPermanentIntoItsOwnersHand(ThisPermanent)])]))");
     let intermediate = pipeline::Intermediate::new(&s).unwrap();
     assert!(intermediate.final_card.is_none());
     assert_eq!(intermediate.structural.rewrites.len(), 1);
@@ -92,7 +92,7 @@ fn unsupported_parents_do_not_hide_nested_actions_or_discard_source_operands() {
         .source
         .nodes
         .iter()
-        .any(|n| n.form == "EachPlayerStartingWithAction"));
+        .any(|n| n.form == "ActionForEachPlayerInTurnOrder"));
     assert_eq!(
         inspect::value(&intermediate.structural.source.restore().unwrap()).unwrap(),
         inspect::value(&s).unwrap()
@@ -1786,10 +1786,10 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 }
 
 #[test]
-fn schema_43_costs_roundtrip_and_reject_previous_versions_at_validation() {
+fn schema_44_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 43);
+    assert_eq!(card.schema_version, 44);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2233,4 +2233,70 @@ fn the_revealed_card_and_the_exiled_card_are_read_after_their_action() {
     assert!(text.contains("ManaValue"), "{text}");
     let text = ability_json("SpellActions(ActionList([Exile([TheTopCardOfLibrary],[]),If(ExiledCardPassesFilter(TheCardExiledThisWay,IsCardtype(Land)),[DrawACard])]))");
     assert!(text.contains("ObjectMatches"), "{text}");
+}
+
+#[test]
+fn a_top_card_moves_anywhere_and_any_number_of_cards_are_chosen() {
+    let text = ability_json("SpellActions(ActionList([RevealTopCardOfLibrary,PutTopOfLibraryOnBattlefield([EntersTapped])]))");
+    assert!(text.contains("Battlefield"), "{text}");
+    let text = ability_json("SpellActions(ActionList([DiscardAnyNumberOfCards,DrawNumberCards(NumCardsDiscardedThisWay)]))");
+    assert!(text.contains("DiscardObjects"), "{text}");
+    assert!(text.contains("AnyNumber"), "{text}");
+}
+
+#[test]
+fn exiling_until_a_card_reads_only_the_card_that_stopped_it() {
+    let text = ability_json("SpellActions(ActionList([Exile([CardsFromTheTopOfLibraryUntilACardOfTypeIsExiled(IsNonCardtype(Land))],[]),MayAction(PutExiledCardIntoOwnersHand(TheSpecificCardExiledThisWay))]))");
+    assert!(text.contains("RevealUntil"), "{text}");
+    assert!(text.contains("Matching"), "{text}");
+}
+
+#[test]
+fn a_boon_is_a_trigger_that_lasts_until_used_once() {
+    let text = ability_json("SpellActions(ActionList([GetOneTimeBoon(WhenAPlayerCastsASpell(SinglePlayer(You),IsCardtype(Creature)),ActionList([DrawACard]))]))");
+    assert!(text.contains("Indefinite"), "{text}");
+    assert!(text.contains("\"once\":true"), "{text}");
+}
+
+#[test]
+fn players_act_starting_with_the_named_player() {
+    let text = ability_json(
+        "SpellActions(ActionList([EachPlayerStartingWithAction(AnyPlayer,You,[DrawACard])]))",
+    );
+    assert!(text.contains("starting_with"), "{text}");
+    assert!(!text.contains("\"starting_with\":null"), "{text}");
+}
+
+#[test]
+fn an_optional_additional_cost_branches_the_spell() {
+    let text = ability_json("SpellActions(AdditionalCost_Modal([AdditionalCost(PayLife(Integer(2)),ActionList([DrawNumberCards(Integer(2))])),NoAdditionalCost(ActionList([DrawACard]))]))");
+    assert!(text.contains("CostBranch"), "{text}");
+}
+
+#[test]
+fn damage_read_from_each_recipient_is_worked_out_per_player() {
+    let text = ability_json("SpellActions(ActionList([SpellDealsDamage(ThisSpell,LifeTotalOfPlayer(DealsDamage_ThatPlayer),EachPlayer(AnyPlayer))]))");
+    assert!(text.contains("ForEachPlayer"), "{text}");
+    let text = ability_json("SpellActions(Targeted([TargetPlayer(AnyPlayer)],ActionList([SpellDealsDamage(ThisSpell,TheNumberOfCardsInPlayersHand(DealsDamage_ThatPlayer),Player(Ref_TargetPlayer))])))");
+    assert!(!text.contains("ForEachPlayer"), "{text}");
+}
+
+#[test]
+fn defending_player_is_the_attacker_s_unless_it_limits_an_activation() {
+    let text = ability_json("If(PlayerPassesFilter(DefendingPlayer,ControlsA(IsCardtype(Artifact))),[PermanentRuleEffect(ThisPermanent,[CantBeBlocked])])");
+    assert!(text.contains("DefendingPlayerOf"), "{text}");
+}
+
+#[test]
+fn another_player_acting_can_be_a_cost() {
+    let text = ability_json("SpellActions(Targeted([TargetPlayer(Opponent)],ActionList([MayCost(HavePlayerTakeAction(Ref_TargetPlayer,DrawACard)),If(CostWasPaid,[GainLife(Integer(2))])])))");
+    assert!(text.contains("PlayerAction"), "{text}");
+    assert!(text.contains("PaymentChosen"), "{text}");
+}
+
+#[test]
+fn a_chosen_ability_is_a_change_after_the_choice() {
+    let text = ability_json("SpellActions(ActionList([ChooseAnAbility([Flying,Haste]),CreatePermanentLayerEffectUntil(ThisPermanent,[AddAbilityVariable(TheChosenAbility)],UntilEndOfTurn)]))");
+    assert!(text.contains("Action::ChooseAnAbility"), "{text}");
+    assert!(text.contains("ChosenAbility"), "{text}");
 }

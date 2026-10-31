@@ -2,6 +2,23 @@
   "version": 1,
   "rules": [
     {
+      "id": "program.Action.HavePlayerTakeAction",
+      "domain": "Action",
+      "source": "HavePlayerTakeAction",
+      "arity": 2,
+      "recipe": {
+        "kind": "Actor",
+        "actor": {
+          "kind": "Player",
+          "argument": 0
+        },
+        "body": {
+          "kind": "Action",
+          "argument": 1
+        }
+      }
+    },
+    {
       "id": "program.Action.PlayerAction",
       "domain": "Action",
       "source": "PlayerAction",

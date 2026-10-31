@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 43;
+pub const SCHEMA_VERSION: u32 = 44;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -561,6 +561,8 @@ pub enum Instruction {
     ForEachPlayer {
         players: PlayerSet,
         binding: Binding,
+        /// Turn order begins with this player instead of the active player.
+        starting_with: Option<PlayerRef>,
         body: Program,
     },
     /// The decider picks one option as this resolves; no target is announced.
@@ -637,6 +639,8 @@ pub enum Operation {
     RevealUntil {
         library: PlayerRef,
         filter: ObjectFilter,
+        /// How many matching cards end the reveal.
+        count: Expr,
     },
     /// Reordering is within each library, without zone changes. Exclusions hold
     /// selected cards out of the shuffle while they remain in that library.
@@ -1070,6 +1074,8 @@ pub enum Change {
         mode: ChangeMode,
         colors: Vec<ManaColor>,
     },
+    /// The ability chosen by `Primitive` Action::ChooseAnAbility.
+    ChosenAbility,
     /// The color chosen by this ability or as this object entered.
     ChosenColor {
         mode: ChangeMode,
@@ -2100,6 +2106,11 @@ pub enum CostPart {
     Repeated {
         part: Box<CostPart>,
         times: Expr,
+    },
+    /// "You may have that player draw a card": the player performs the body.
+    PlayerAction {
+        player: PlayerRef,
+        body: Program,
     },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

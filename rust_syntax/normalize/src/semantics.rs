@@ -437,7 +437,7 @@ impl Effects {
                         parts: vec![part.as_ref().clone()],
                     })
                 }
-                CostPart::Reveal { .. } => {}
+                CostPart::Reveal { .. } | CostPart::PlayerAction { .. } => {}
                 CostPart::RemoveCounters { .. }
                 | CostPart::ManaCostOf(_)
                 | CostPart::Mana(_)

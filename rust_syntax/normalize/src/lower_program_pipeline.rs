@@ -48,6 +48,7 @@ impl Context {
         Ok(Instruction::ForEachPlayer {
             players,
             binding,
+            starting_with: None,
             body,
         })
     }
@@ -180,6 +181,13 @@ impl Context {
                 let chooses_x = cost.parts.iter().any(
                     |part| matches!(part, CostPart::Primitive { name, .. } if name == "Cost::PayManaAnyX"),
                 );
+                let reveals_top = cost.parts.iter().any(
+                    |part| matches!(part, CostPart::Primitive { name, .. } if name == "Cost::RevealTopCardOfLibrary"),
+                );
+                if reveals_top {
+                    self.revealed =
+                        Some(self.library_slice(payer.clone(), Expr::Constant(1), SequenceEnd::Top));
+                }
                 let payment = self.effect(Operation::PayCost {
                     cost,
                     player: payer,
