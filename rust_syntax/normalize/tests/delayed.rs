@@ -447,8 +447,6 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         "Bounty of the Hunt",
         "Chancellor of the Tangle",
         "Come Back Wrong",
-        "Fortune, Loyal Steed",
-        "Gaze of the Gorgon",
         "Pygmy Hippo",
     ];
     let mut complete = 0;
@@ -474,5 +472,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 47);
+    assert_eq!(complete, 49);
 }

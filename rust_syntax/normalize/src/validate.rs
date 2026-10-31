@@ -321,6 +321,16 @@ impl<'a> Scope<'a> {
             ObjectRef::Candidate => Err("filter candidate used outside an object predicate".into()),
             ObjectRef::Source => Ok(()),
             ObjectRef::MadeHere => Ok(()),
+            ObjectRef::ChosenBy { result, chooser } => {
+                self.player(chooser)?;
+                match self.results.get(&result.0) {
+                    Some(ResultKind::Selection | ResultKind::Search) => Ok(()),
+                    _ => Err(format!(
+                        "result {} is not an available object selection",
+                        result.0
+                    )),
+                }
+            }
             ObjectRef::KeywordHost if self.keyword_host => Ok(()),
             ObjectRef::KeywordHost => {
                 Err("keyword host used outside its keyword definition".into())

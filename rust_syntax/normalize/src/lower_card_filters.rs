@@ -71,6 +71,13 @@ impl Context {
         if let source::CardsInHand::TheCardsSeekedThisWay = value {
             return Ok(ObjectFilter::InSet(Box::new(self.seeked_cards()?)));
         }
+        if let (source::CardsInHand::TheCardsInHandNotChosenThisWay, Some(result)) =
+            (value, &self.hand_choice)
+        {
+            return Ok(ObjectFilter::InSet(Box::new(ObjectSet::Unselected(
+                result.clone(),
+            ))));
+        }
         self.pipeline_selector(crate::pipeline::selectors::SelectorRef::CardsInHand(value))
             .unwrap_or_else(|| Err(unsupported(value)))
             .or_else(|error| rescue(error, || self.primitive_predicate("CardsInHand", value)))
