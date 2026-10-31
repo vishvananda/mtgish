@@ -1293,6 +1293,9 @@ pub fn modules_named(input: &Path, names: &[String]) -> corpus::Result<Vec<(Stri
                         format!("{face:#?}\n{rust}")
                     }
                     Ok(rust) => rust,
+                    Err(_) if std::env::var_os("MTGISH_SHOW_AST").is_some() => {
+                        format!("{face:#?}\n// gaps: {:?}", gaps(face))
+                    }
                     Err(_) => format!("// gaps: {:?}", gaps(face)),
                 })
                 .collect::<Vec<_>>()

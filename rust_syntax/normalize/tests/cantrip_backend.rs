@@ -293,6 +293,7 @@ fn generated_modules_execute_in_cantrip() {
         ("sleep", "Sleep"),
         ("rograkh", "Rograkh, Son of Rohgahh"),
         ("wasps", "Caustic Wasps"),
+        ("sea_monster", "Sea Monster"),
     ];
     let mut lib = String::new();
     for (module, name) in names {

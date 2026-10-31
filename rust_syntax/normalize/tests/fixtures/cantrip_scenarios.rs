@@ -21,6 +21,14 @@ mod scenarios {
         toughness: Some(1),
         ..CardDef::BLANK
     };
+    static ISLAND_LAND: CardDef = CardDef {
+        name: "Island fixture land",
+        oracle: true,
+        has_cost: false,
+        types: TypeSet::of(&[CardType::Land]),
+        subtypes: SubtypeSet::of(&[Subtype::Island]),
+        ..CardDef::BLANK
+    };
     static FLASH_CREATURE: CardDef = CardDef {
         name: "Flash creature fixture",
         keywords: Keywords::of(&[Keyword::Flash]),
@@ -373,6 +381,8 @@ mod scenarios {
             &rograkh::CARD,
             &wasps::CARD,
             &FLASH_CREATURE,
+            &ISLAND_LAND,
+            &sea_monster::CARD,
         ];
         for extras in [
             alarm::EXTRA,
@@ -1936,6 +1946,29 @@ mod scenarios {
             .map(|id| g.state.obj(id).controller)
             .collect();
         assert_eq!(left, vec![ME]);
+    }
+    #[test]
+    fn an_attack_rule_reads_the_defending_player() {
+        // My own Island is the case that tells "defending player" from "you".
+        for (island, can_attack) in [(Some(THEM), true), (Some(ME), false), (None, false)] {
+            let extras: Vec<(&str, PlayerId)> =
+                island.map(|owner| (ISLAND_LAND.name, owner)).into_iter().collect();
+            let (mut g, _, monster, _) =
+                game_with_extras("Divination", Some("Sea Monster"), 0, &extras);
+            let monster = monster.unwrap();
+            let mut offered = false;
+            advance_answering(
+                &mut g,
+                &|g| g.state.turn.number > 1,
+                &mut |kind| {
+                    if let RequestKind::DeclareAttackers { eligible, .. } = kind {
+                        offered = eligible.contains(&monster);
+                    }
+                    None
+                },
+            );
+            assert_eq!(offered, can_attack, "with an Island of {island:?}");
+        }
     }
     #[test]
     fn a_deck_rule_leaves_the_rest_of_the_card_as_printed() {
