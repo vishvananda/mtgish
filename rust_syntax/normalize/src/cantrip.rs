@@ -344,6 +344,13 @@ struct Compiler {
     static_guard: Option<Condition>,
     slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
+    /// The cards that ended each reveal, by the result that names all it showed.
+    reveal_matches: BTreeMap<u32, String>,
+    /// This resolution has revealed something. The AST does not always tie a
+    /// later move to the reveal ("reveal the top card and put it into your hand"
+    /// names the top card twice), and an unmarked move of a card all players saw
+    /// is refused, so every later move into a hand or library is marked.
+    revealed: bool,
     creations: BTreeMap<u32, String>,
     moved: BTreeMap<u32, String>,
     /// The same transitions as `moved`, by the identities they left behind.
@@ -623,6 +630,8 @@ impl Compiler {
             static_guard: None,
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
+            reveal_matches: BTreeMap::new(),
+            revealed: false,
             creations: BTreeMap::new(),
             moved: BTreeMap::new(),
             before: BTreeMap::new(),

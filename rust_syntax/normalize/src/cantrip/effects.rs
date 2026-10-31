@@ -948,8 +948,23 @@ impl Compiler {
                 writeln!(out, "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for object in objects_{id} {{ g.add_effect(asker.source, object, EffectKind::RegenerationShield, Duration::EndOfTurn); }} }});", self.acted_on(objects)?).unwrap();
             }
             Operation::Reveal { objects } => {
+                self.revealed = true;
                 self.selections.insert(result.0, format!("objects_{id}"));
                 writeln!(out, "let objects_{id} = {}; let mut owners_{id}: Vec<PlayerId> = objects_{id}.iter().map(|o| g.state().obj(*o).owner).collect(); owners_{id}.dedup(); for owner in owners_{id} {{ let cards: Vec<ObjectId> = objects_{id}.iter().copied().filter(|o| g.state().obj(*o).owner == owner).collect(); g.reveal(owner, &cards); }}", self.fetch(self.objects(objects)?)).unwrap();
+            }
+            // The cards stay in the library until a later instruction moves them (701.20a), so
+            // this names every card shown, the qualifying ones and the others alike.
+            Operation::RevealUntil { library, filter, count } => {
+                let owner = self.fetch(self.certain_player(library)?);
+                let count = self.fetch(self.number(count)?.amount(u32::MAX.into(), "usize")?);
+                let filter = self.filter(filter, &Candidate::of("id"))?;
+                self.selections.insert(result.0, format!("objects_{id}"));
+                self.reveal_matches.insert(result.0, format!("found_{id}"));
+                self.revealed = true;
+                writeln!(out, "let owner_{id} = {owner}; let count_{id} = {count}; let (found_{id}, rest_{id}) = cantrip_mechanics::library::reveal_until_n(g, owner_{id}, count_{id}, &|q: &dyn Query, id: ObjectId| {filter}); let shown_{id} = found_{id}.len() + rest_{id}.len(); let objects_{id}: Vec<ObjectId> = g.state().zone(Zone::library(owner_{id})).iter().copied().take(shown_{id}).collect();").unwrap();
+            }
+            Operation::CreatePerpetualEffect { .. } => {
+                return Err(gap("engine: no perpetual effects"));
             }
             Operation::LookAt { player, objects } => {
                 writeln!(
@@ -1279,6 +1294,8 @@ impl Compiler {
     }
     pub(super) fn reset_results(&mut self) {
         self.selections.clear();
+        self.reveal_matches.clear();
+        self.revealed = false;
         self.creations.clear();
         self.moved.clear();
         self.before.clear();
@@ -1440,6 +1457,7 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         let alone = self.one_object(objects);
+        let revealed = self.revealed;
         let objects = self.fetch(self.objects(objects)?);
         let library = |place: String| format!("g.put_into_library(&objects_{id}, {place})");
         let call = match destination {
@@ -1471,6 +1489,19 @@ impl Compiler {
                 }
             }
             _ if !plain_entry(entry) => return Err(gap("move arrival flags")),
+            // All players can still see the card as it moves (603.10a, 701.20a).
+            Destination::OwnersHand if revealed => {
+                format!("g.return_to_hand_revealed(&objects_{id})")
+            }
+            Destination::OwnersLibraryTop if revealed => format!("{{ let moves: Vec<(ObjectId, Zone)> = objects_{id}.iter().map(|&o| (o, Zone::library(g.state().obj(o).owner))).collect(); g.move_together_revealed(&moves, MoveReason::Other) }}"),
+            Destination::OwnersLibraryBottom
+            | Destination::OwnersLibraryBottomRandom
+            | Destination::OwnersLibraryShuffled
+            | Destination::OwnersLibraryFromTop(_)
+                if revealed =>
+            {
+                return Err(gap("revealed card to a place in a library"))
+            }
             Destination::OwnersHand => format!("g.return_to_hand(&objects_{id})"),
             Destination::Exile if self.links_exile && self.stack_item => {
                 format!("{{ let by = g.linked(item); g.exile_with(&objects_{id}, by, false) }}")

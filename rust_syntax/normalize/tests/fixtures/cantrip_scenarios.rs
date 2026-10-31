@@ -21,6 +21,18 @@ mod scenarios {
         toughness: Some(1),
         ..CardDef::BLANK
     };
+    static BASIC_LAND: CardDef = CardDef {
+        name: "Basic fixture land",
+        oracle: true,
+        has_cost: false,
+        types: TypeSet::of(&[CardType::Land]),
+        supertypes: Supertypes {
+            basic: true,
+            legendary: false,
+            snow: false,
+        },
+        ..CardDef::BLANK
+    };
     static ISLAND_LAND: CardDef = CardDef {
         name: "Island fixture land",
         oracle: true,
@@ -216,6 +228,42 @@ mod scenarios {
         graveyard: &[&str],
         also_in_hand: &[&str],
     ) -> (RulesGame, ObjectId, Option<ObjectId>, Vec<ObjectId>) {
+        game_with_decks(
+            hand,
+            permanent,
+            land_count,
+            extras,
+            starting_mana,
+            graveyard,
+            also_in_hand,
+            &[],
+            &[],
+        )
+    }
+    /// `spell` in my hand, with each library starting with the cards named and
+    /// filler below them.
+    fn game_with_libraries(
+        spell: &str,
+        extras: &[(&str, PlayerId)],
+        mine: &[&str],
+        theirs: &[&str],
+    ) -> (RulesGame, ObjectId) {
+        let (g, spell, _, _) =
+            game_with_decks(spell, None, 0, extras, 100, &[], &[], mine, theirs);
+        (g, spell)
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn game_with_decks(
+        hand: &str,
+        permanent: Option<&str>,
+        land_count: usize,
+        extras: &[(&str, PlayerId)],
+        starting_mana: u32,
+        graveyard: &[&str],
+        also_in_hand: &[&str],
+        my_library: &[&str],
+        their_library: &[&str],
+    ) -> (RulesGame, ObjectId, Option<ObjectId>, Vec<ObjectId>) {
         let mut definitions = vec![
             &divination::CARD,
             &arms::CARD,
@@ -382,7 +430,16 @@ mod scenarios {
             &wasps::CARD,
             &FLASH_CREATURE,
             &ISLAND_LAND,
+            &BASIC_LAND,
             &sea_monster::CARD,
+            &treasure_hunt::CARD,
+            &mind_funeral::CARD,
+            &erratic_explosion::CARD,
+            &madcap_experiment::CARD,
+            &polymorph::CARD,
+            &lay_of_the_land::CARD,
+            &worldly_tutor::CARD,
+            &dark_confidant::CARD,
         ];
         for extras in [
             alarm::EXTRA,
@@ -429,13 +486,18 @@ mod scenarios {
         }
         let table = Box::leak(Box::new(CardTable::new(definitions)));
         let filler = table.find("Fixture filler").unwrap();
+        // The first seven of a deck are the opening hand.
         let mut mine = vec![table.find(hand).unwrap(), table.find(PREPARE.name).unwrap()];
-        mine.resize(24, filler);
+        mine.resize(7, filler);
+        mine.extend(my_library.iter().map(|name| table.find(name).unwrap()));
+        mine.resize(mine.len().max(24), filler);
         let mut theirs = vec![
             table.find("Unsummon").unwrap(),
             table.find(FLASH_CREATURE.name).unwrap(),
         ];
-        theirs.resize(24, filler);
+        theirs.resize(7, filler);
+        theirs.extend(their_library.iter().map(|name| table.find(name).unwrap()));
+        theirs.resize(theirs.len().max(24), filler);
         let mut g = RulesGame::new(
             table,
             &Setup {
@@ -1969,6 +2031,213 @@ mod scenarios {
             );
             assert_eq!(offered, can_attack, "with an Island of {island:?}");
         }
+    }
+    /// Answer "in any order" with the order the cards came in.
+    fn as_shown(_: &RulesGame, kind: &RequestKind) -> Answer {
+        match kind {
+            RequestKind::DistributeCards { cards, .. } => Answer::Placements {
+                placements: vec![cards.clone()],
+                shuffle: false,
+            },
+            other => panic!("unexpected question {other:?}"),
+        }
+    }
+    fn library_of(g: &RulesGame, player: PlayerId) -> Vec<ObjectId> {
+        g.state.zone(Zone::library(player)).to_vec()
+    }
+    #[test]
+    fn a_reveal_stops_at_the_first_match_and_all_it_showed_moves() {
+        const LAND: &str = ISLAND_LAND.name;
+        // Filler is a nonland card, so with nothing above it only the top card moves.
+        for (above, moved) in [(&[][..], 1), (&[LAND, LAND, LAND][..], 4)] {
+            let (mut g, spell) = game_with_libraries("Treasure Hunt", &[], above, &[]);
+            let hand = g.state.zone(Zone::hand(ME)).len();
+            let library = library_of(&g, ME);
+            announce(&mut g, spell, ActionKind::CastSpell);
+            resolve(&mut g, None, false);
+            assert_eq!(library_of(&g, ME), library[moved..]);
+            let held = g.state.zone(Zone::hand(ME));
+            assert_eq!(held.len(), hand - 1 + moved);
+            assert!(library[..moved]
+                .iter()
+                .all(|&card| held.contains(&g.state.obj(card).became.unwrap())));
+        }
+    }
+    #[test]
+    fn a_reveal_for_several_counts_matches_and_ends_with_the_library() {
+        const LAND: &str = ISLAND_LAND.name;
+        const NOT: &str = FILLER.name;
+        // The fourth land is the sixth card, so the seventh stays.
+        let fourth = [LAND, NOT, LAND, LAND, NOT, LAND, NOT];
+        let (mut g, spell) = game_with_libraries("Mind Funeral", &[], &[], &fourth);
+        let library = library_of(&g, THEM);
+        let mine = library_of(&g, ME);
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        assert_eq!(library_of(&g, THEM), library[6..]);
+        assert_eq!(g.state.zone(Zone::graveyard(THEM)).len(), 6);
+        assert_eq!(library_of(&g, ME), mine);
+
+        // Three lands never make four, so every card is revealed (CR 701.20).
+        let (mut g, spell) = game_with_libraries("Mind Funeral", &[], &[], &[LAND, LAND, LAND]);
+        let library = library_of(&g, THEM);
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        assert!(library_of(&g, THEM).is_empty());
+        assert_eq!(g.state.zone(Zone::graveyard(THEM)).len(), library.len());
+    }
+    #[test]
+    fn that_card_is_the_match_and_not_a_card_above_it() {
+        const LAND: &str = ISLAND_LAND.name;
+        // Divination's mana value is 3. The lands above it would each read 0.
+        for above in [&[][..], &[LAND, LAND][..]] {
+            let cards = [above, &["Divination"][..]].concat();
+            let (mut g, spell) = game_with_libraries("Erratic Explosion", &[], &cards, &[]);
+            let life = g.state.player(THEM).life;
+            let library = library_of(&g, ME);
+            announce_at(&mut g, spell, ActionKind::CastSpell, Target::Player(THEM));
+            resolve_asking(&mut g, &mut as_shown);
+            assert_eq!(g.state.player(THEM).life, life - 3, "{} above", above.len());
+            // The revealed cards are on the bottom, the rest where they were.
+            let shown = cards.len();
+            let now = library_of(&g, ME);
+            assert_eq!(now.len(), library.len());
+            assert_eq!(now[..library.len() - shown], library[shown..]);
+            assert_eq!(now[library.len() - shown..], library[..shown]);
+        }
+        // A library of lands has no such card, so it is no damage at all.
+        let (mut g, spell) = game_with_libraries("Erratic Explosion", &[], &[LAND; 17], &[]);
+        let life = g.state.player(THEM).life;
+        announce_at(&mut g, spell, ActionKind::CastSpell, Target::Player(THEM));
+        resolve_asking(&mut g, &mut as_shown);
+        assert_eq!(g.state.player(THEM).life, life);
+    }
+    #[test]
+    fn the_match_arrives_and_the_rest_go_to_the_bottom() {
+        const ARTIFACT: &str = CHEAP_ARTIFACT.name;
+        const NOT: &str = FILLER.name;
+        for (above, revealed) in [(&[][..], 1), (&[NOT, NOT][..], 3)] {
+            let cards = [above, &[ARTIFACT][..]].concat();
+            let (mut g, spell) = game_with_libraries("Madcap Experiment", &[], &cards, &[]);
+            let life = g.state.player(ME).life;
+            let library = library_of(&g, ME);
+            announce(&mut g, spell, ActionKind::CastSpell);
+            resolve(&mut g, None, false);
+            let arrived = permanents_named(&g, ARTIFACT);
+            assert_eq!(arrived.len(), 1);
+            assert_eq!(g.state.obj(library[revealed - 1]).became, Some(arrived[0]));
+            assert_eq!(g.state.obj(arrived[0]).controller, ME);
+            // "equal to the number of cards revealed this way", the match among them.
+            assert_eq!(g.state.player(ME).life, life - revealed as i32);
+            let now = library_of(&g, ME);
+            assert_eq!(now.len(), library.len() - 1);
+            assert_eq!(now[..now.len() - above.len()], library[revealed..]);
+            let bottom = &now[now.len() - above.len()..];
+            assert!(library[..above.len()].iter().all(|card| bottom.contains(card)));
+        }
+    }
+    #[test]
+    fn its_controller_reveals_after_the_creature_is_gone() {
+        const NEW: &str = FLASH_CREATURE.name;
+        const NOT: &str = FILLER.name;
+        // Each player has a creature card under two others, so which library
+        // is touched shows who "its controller" was.
+        for controller in [THEM, ME] {
+            let stack = [NOT, NOT, NEW];
+            let (mut g, spell) =
+                game_with_libraries("Polymorph", &[("Grizzly Bears", controller)], &stack, &stack);
+            let other = if controller == ME { THEM } else { ME };
+            let library = library_of(&g, controller);
+            let untouched = library_of(&g, other);
+            let bears = permanents_named(&g, "Grizzly Bears")[0];
+            announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(bears));
+            resolve(&mut g, None, false);
+            assert!(permanents_named(&g, "Grizzly Bears").is_empty());
+            let arrived = permanents_named(&g, NEW);
+            assert_eq!(arrived.len(), 1);
+            assert_eq!(g.state.obj(library[2]).became, Some(arrived[0]));
+            assert_eq!(g.state.obj(arrived[0]).controller, controller);
+            // The other two are shuffled in: the same cards, one fewer in all.
+            let mut now = library_of(&g, controller);
+            let mut left: Vec<ObjectId> =
+                library.iter().copied().filter(|card| *card != library[2]).collect();
+            now.sort();
+            left.sort();
+            assert_eq!(now, left);
+            assert_eq!(library_of(&g, other), untouched);
+        }
+    }
+    /// The card of that name in my library, and an answer to a search that
+    /// takes it: the question shows the whole library, not just what may be chosen.
+    fn searching_for(g: &RulesGame, name: &str) -> ObjectId {
+        let card = g.cards.find(name).unwrap();
+        *library_of(g, ME)
+            .iter()
+            .find(|&&id| g.state.obj(id).card == card)
+            .unwrap()
+    }
+    fn taking(card: ObjectId) -> impl FnMut(&RulesGame, &RequestKind) -> Answer {
+        move |_, kind| match kind {
+            RequestKind::SearchLibrary { .. } => Answer::Cards(vec![card]),
+            other => panic!("unexpected question {other:?}"),
+        }
+    }
+    // These three run with the engine's own check on: a card all players saw
+    // that moves into a hand or a library by an unmarked move is a panic.
+    #[test]
+    fn a_card_searched_for_and_revealed_goes_to_the_hand_as_a_seen_card() {
+        let (mut g, spell) =
+            game_with_libraries("Lay of the Land", &[], &[BASIC_LAND.name], &[]);
+        let hand = g.state.zone(Zone::hand(ME)).len();
+        let library = library_of(&g, ME).len();
+        let land = searching_for(&g, BASIC_LAND.name);
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut taking(land));
+        // The spell left the hand and the land replaced it.
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand);
+        assert_eq!(library_of(&g, ME).len(), library - 1);
+        let arrived = g.state.obj(land).became.unwrap();
+        assert!(g.state.zone(Zone::hand(ME)).contains(&arrived));
+    }
+    #[test]
+    fn a_tutored_and_revealed_card_goes_on_top_as_a_seen_card() {
+        // Second from the top, so landing on top is the spell's doing.
+        let cards = [FILLER.name, FLASH_CREATURE.name];
+        let (mut g, spell) = game_with_libraries("Worldly Tutor", &[], &cards, &[]);
+        let library = library_of(&g, ME).len();
+        let creature = searching_for(&g, FLASH_CREATURE.name);
+        assert_ne!(top_of(&g, 1), vec![creature]);
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut taking(creature));
+        assert_eq!(library_of(&g, ME).len(), library);
+        let on_top = g.state.obj(creature).became.unwrap_or(creature);
+        assert_eq!(top_of(&g, 1), vec![on_top]);
+    }
+    #[test]
+    fn the_top_card_named_twice_is_the_same_seen_card() {
+        // Nothing in the AST ties "reveal the top card" to "put that card":
+        // both name the top card. Divination makes the life lost exact.
+        let (mut g, _) =
+            game_with_libraries("Divination", &[("Dark Confidant", ME)], &["Divination"], &[]);
+        let life = g.state.player(ME).life;
+        let hand = g.state.zone(Zone::hand(ME)).len();
+        let top = library_of(&g, ME)[0];
+        // My next upkeep comes before my next draw, so a bigger hand is the trigger.
+        advance_answering(
+            &mut g,
+            &|g| g.state.zone(Zone::hand(ME)).len() > hand,
+            &mut |kind| match kind {
+                RequestKind::DiscardToHandSize { count, hand } => {
+                    Some(Answer::Cards(hand[..*count as usize].to_vec()))
+                }
+                _ => None,
+            },
+        );
+        assert_eq!(g.state.turn.active, ME);
+        assert_eq!(g.state.turn.step(), Step::Upkeep);
+        let arrived = g.state.obj(top).became.unwrap();
+        assert!(g.state.zone(Zone::hand(ME)).contains(&arrived));
+        assert_eq!(g.state.player(ME).life, life - 3);
     }
     #[test]
     fn a_deck_rule_leaves_the_rest_of_the_card_as_printed() {

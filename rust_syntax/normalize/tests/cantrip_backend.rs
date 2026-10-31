@@ -294,6 +294,14 @@ fn generated_modules_execute_in_cantrip() {
         ("rograkh", "Rograkh, Son of Rohgahh"),
         ("wasps", "Caustic Wasps"),
         ("sea_monster", "Sea Monster"),
+        ("treasure_hunt", "Treasure Hunt"),
+        ("mind_funeral", "Mind Funeral"),
+        ("erratic_explosion", "Erratic Explosion"),
+        ("madcap_experiment", "Madcap Experiment"),
+        ("polymorph", "Polymorph"),
+        ("lay_of_the_land", "Lay of the Land"),
+        ("worldly_tutor", "Worldly Tutor"),
+        ("dark_confidant", "Dark Confidant"),
     ];
     let mut lib = String::new();
     for (module, name) in names {

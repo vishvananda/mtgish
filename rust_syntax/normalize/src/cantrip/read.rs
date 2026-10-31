@@ -325,7 +325,16 @@ impl Compiler {
                 format!("Some(bound_{})", binding.0)
             }
             ObjectRef::Query { objects, index } => {
-                format!("({}).get({index}).copied()", self.objects(objects)?)
+                // "That card" after a reveal is the match, not the top card, and
+                // there is none when the library ran out, so read the matches alone.
+                let matches = match objects.as_ref() {
+                    ObjectSet::Observed(result) => self.reveal_matches.get(&result.0),
+                    _ => None,
+                };
+                match matches {
+                    Some(found) => format!("{found}.get({index}).copied()"),
+                    None => format!("({}).get({index}).copied()", self.objects(objects)?),
+                }
             }
             ObjectRef::Result {
                 result,
