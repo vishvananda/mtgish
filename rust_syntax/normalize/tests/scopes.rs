@@ -1866,3 +1866,28 @@ fn choosing_rows_name_their_choice_later() {
     );
     assert!(study.contains("result: ResultId(0)"), "{study}");
 }
+
+#[test]
+fn each_recipient_is_dealt_its_own_amount() {
+    let curse = lowered(
+        "SpellActions(ActionList([SpellDealsDamage(ThisSpell, TheNumberOfPermanentsOnTheBattlefield(AttachedToPermanent(DealsDamage_ThatPermanent)), EachPermanent(IsCardtype(Creature)))]))",
+    );
+    assert!(curse.contains("ForEach"), "{curse}");
+    assert!(curse.contains("Bound"), "{curse}");
+}
+
+#[test]
+fn a_modal_trigger_keeps_each_effect_with_its_event() {
+    let lantern = lowered(
+        "TriggerModalA([TriggerAndActions(WhenAPermanentDies(SinglePermanent(ThisPermanent)), ActionList([PutGraveyardCardIntoHand(Trigger_ThatGraveyardCard)])), TriggerAndActions(WhenAPermanentIsExiled(SinglePermanent(ThisPermanent)), ActionList([PutExiledCardIntoOwnersHand(Trigger_ThatExiledCard)]))])",
+    );
+    assert!(lantern.matches("Triggered").count() == 2, "{lantern}");
+}
+
+#[test]
+fn later_actions_of_a_row_list_read_earlier_ones() {
+    let mate = lowered(
+        "TriggerA(WhenAPlayerAttacksWithAnyNumberOfCreatures(Opponent, IsCardtype(Creature)), ActionList([IfHavePlayerAction(Trigger_ThatPlayer, GainControlOfPermanentUntil(ThisPermanent, UntilEndOfCombat), [ChooseAPlayerOrPlaneswalkerCurrentlyAttackedByPlayer(Trigger_ThatPlayer), SetAttackAssignmentOfCreature(ThisPermanent, ThePlayerOrPlaneswalkerChosenThisWay)])]))",
+    );
+    assert!(mate.contains("Program"), "{mate}");
+}

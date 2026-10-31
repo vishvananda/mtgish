@@ -748,7 +748,7 @@ impl Context {
             {
                 return Ok(ObjectRef::Affected)
             }
-            S::ActionPermanent if self.iterated_object.is_some() => {
+            S::ActionPermanent | S::DealsDamage_ThatPermanent if self.iterated_object.is_some() => {
                 return Ok(ObjectRef::Bound(self.iterated_object.clone().unwrap()))
             }
             S::Self_It if self.candidate => return Ok(ObjectRef::Candidate),
@@ -4493,6 +4493,26 @@ impl Context {
             S::SpellDealsDamage(spell, n, r) | S::SpellDealsDamageCantBePrevented(spell, n, r) => {
                 if !matches!(spell.as_ref(), source::Spell::ThisSpell) {
                     return Err(unsupported(spell));
+                }
+                // The amount differs by recipient, so each is dealt its own.
+                if let (true, source::DamageRecipient::EachPermanent(permanents)) = (
+                    format!("{n:?}").contains("DealsDamage_ThatPermanent"),
+                    r.as_ref(),
+                ) {
+                    let objects = self.objects(permanents)?;
+                    return self.for_each_object(objects, |context| {
+                        let binding = context.iterated_object.clone().unwrap();
+                        Ok(Program {
+                            instructions: vec![context.effect(Operation::DealDamage {
+                                source: ObjectRef::Source,
+                                recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Bound(
+                                    binding,
+                                ))),
+                                amount: context.number(n)?,
+                                preventable: true,
+                            })],
+                        })
+                    });
                 }
                 let preventable = matches!(value, S::SpellDealsDamage(_, _, _));
                 return self.damage_each_recipient(ObjectRef::Source, n, r, preventable);

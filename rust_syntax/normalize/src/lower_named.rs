@@ -206,6 +206,12 @@ impl Context {
                 let rule: source::Rule = decode(value).ok()?;
                 Operand::Ability(Box::new(self.fresh().ability(&rule).ok()?))
             }
+            // A perpetual change reads the object it changes as "it".
+            "PerpetualEffect" if !self.affected => {
+                let mut context = self.clone();
+                context.affected = true;
+                context.bound_operand(value)?
+            }
             "Spell" => Operand::Object(self.spell(&decode(value).ok()?).ok()?),
             "CardInHand" => Operand::Object(self.hand_card(&decode(value).ok()?).ok()?),
             "SpellOrPermanent" => {
@@ -286,6 +292,9 @@ impl Context {
             ),
             "CardInGraveyards" => Operand::Object(self.grave_card(&decode(value).ok()?).ok()?),
             "CardInExile" => Operand::Object(self.exiled_card(&decode(value).ok()?).ok()?),
+            "AttackAssignment" if value["variant"] == "ThePlayerOrPlaneswalkerChosenThisWay" => {
+                Operand::Object(self.result_object(self.row_choice.as_ref(), 0).ok()?)
+            }
             "Commander" if value["variant"] == "TheCommanderChosenThisWay" => {
                 Operand::Object(self.result_object(self.row_choice.as_ref(), 0).ok()?)
             }
@@ -336,12 +345,24 @@ impl Context {
             V::Bool(b) => Operand::Bool(*b),
             V::Number(n) => Operand::Integer(n.as_i64()?),
             V::String(s) => Operand::Text(s.clone()),
-            V::Array(items) => Operand::List(
-                items
-                    .iter()
-                    .map(|v| self.bound_operand(v))
-                    .collect::<Option<_>>()?,
-            ),
+            V::Array(items) => match items
+                .iter()
+                .map(|v| self.bound_operand(v))
+                .collect::<Option<Vec<_>>>()
+            {
+                Some(items) => Operand::List(items),
+                // Later actions of a list read what earlier ones did.
+                None if items.first().is_some_and(|v| v["enum"] == "Action") => {
+                    use crate::pipeline::source_tree::decode;
+                    let list = items
+                        .iter()
+                        .map(|v| decode(v).ok())
+                        .collect::<Option<Vec<source::Action>>>()?;
+                    let mut child = self.nested_program();
+                    Operand::Program(child.actions(&source::Actions::ActionList(list)).ok()?)
+                }
+                None => return None,
+            },
             V::Object(fields) => match fields.get("enum").and_then(V::as_str) {
                 Some(ty) => vocabulary(ty, value)
                     .or_else(|| self.typed_operand(ty, value))
@@ -525,7 +546,7 @@ impl Context {
             .collect::<Option<Vec<source::LayerEffect>>>()?;
         Some(Operation::CreatePerpetualEffect {
             objects,
-            changes: self.layer_changes(&layers).ok()?,
+            changes: self.changes(&layers).ok()?,
         })
     }
 
@@ -664,6 +685,11 @@ impl Context {
             Some("graveyard") => {
                 self.did.insert(Done::Graveyard, result.clone());
             }
+            Some("destroyed") => {
+                self.did.insert(Done::Destroyed, result.clone());
+                self.did.insert(Done::Graveyard, result.clone());
+            }
+            Some("took") => self.took = Some(result.clone()),
             Some("discarded") => {
                 self.did.insert(Done::Discarded, result.clone());
                 self.did.insert(Done::Graveyard, result.clone());
@@ -746,6 +772,20 @@ impl Context {
     fn primitive_ability(&self, value: &source::Rule) -> Option<Ability> {
         if let Some(ability) = self.printed_cost_rule(value) {
             return Some(ability);
+        }
+        // One ability with an effect for each of its events: each reads its own.
+        if let source::Rule::TriggerModalA(options) = value {
+            let abilities = options
+                .iter()
+                .map(|source::TriggerAndActions(trigger, actions)| {
+                    let rule = source::Rule::TriggerA(trigger.clone(), actions.clone());
+                    Some(Operand::Ability(Box::new(self.fresh().ability(&rule).ok()?)))
+                })
+                .collect::<Option<_>>()?;
+            return Some(Ability::Primitive {
+                name: "Rule::TriggerModalA".into(),
+                operands: vec![Operand::List(abilities)],
+            });
         }
         let (name, operands) = match value {
             source::Rule::DeckConstruction(deck) => self.primitive("DeckConstruction", deck)?,

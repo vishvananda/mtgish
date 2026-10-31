@@ -208,6 +208,8 @@ impl Context {
                 index: 0,
                 })
             }
+            // Played from exile, it has left by then; the event still names the card.
+            S::Trigger_ThatExiledCard if self.event.object => Ok(ObjectRef::EventSubject),
             S::Ref_TargetExiledCard | S::Ref_TargetExiledCard1 => {
                 self.object_target(ObjectDomain::card(EventZone::Exile), 0)
             }

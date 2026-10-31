@@ -2630,7 +2630,7 @@ pub struct GiftWasntPromised(pub Box<Actions>);
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
-pub struct TriggerAndActions(Trigger, Box<Actions>);
+pub struct TriggerAndActions(pub Trigger, pub Box<Actions>);
 
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]

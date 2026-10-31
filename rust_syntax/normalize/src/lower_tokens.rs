@@ -87,6 +87,16 @@ impl Context {
                     adjustments: self.copy_adjustments(effects)?,
                 }))
             }
+            S::TokenCopyOfEachCardInLibrary(cards, effects) => {
+                return Ok(copy(TokenRecipe::CopyEach {
+                    objects: self.private_cards(
+                        EventZone::Library,
+                        PlayerSet::All,
+                        self.library_filter(cards)?,
+                    ),
+                    adjustments: self.copy_adjustments(effects)?,
+                }))
+            }
             S::TokenCopyOfPermanent(object, effects) => {
                 return Ok(copy(TokenRecipe::Copy {
                     object: self.object(object)?,

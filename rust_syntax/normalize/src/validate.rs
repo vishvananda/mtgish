@@ -2934,7 +2934,7 @@ impl<'a> Scope<'a> {
                                 Some("observed") => ResultKind::Observation,
                                 Some("extra_turn") => ResultKind::Other,
                                 Some("created") => ResultKind::CreatedObjects,
-                                Some("paid") => ResultKind::Other,
+                                Some("paid" | "took") => ResultKind::Other,
                                 Some("chosen") => ResultKind::Selection,
                                 Some(_) => ResultKind::ObjectTransition,
                                 None => ResultKind::Other,

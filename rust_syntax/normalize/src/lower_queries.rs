@@ -178,6 +178,9 @@ impl Context {
                 Ok(ObjectRef::EventSubject)
             }
             source::Spell::Trigger_ThatSpell if self.event.spell => Ok(ObjectRef::EventSubject),
+            source::Spell::TheResolvedSpellChosenThisWay => {
+                self.result_object(self.row_choice.as_ref(), 0)
+            }
             source::Spell::Trigger_ThatSpell if self.event.stack_object => {
                 Ok(ObjectRef::EventStackObject)
             }
