@@ -2088,6 +2088,9 @@ impl<'a> Scope<'a> {
                     }
                 }
                 Instruction::Effect { result, operation } => {
+                    if run.ordered_results.contains(&result.0) {
+                        self.ordered_results.insert(result.0);
+                    }
                     let moved = matches!(
                         operation,
                         Operation::Move { .. }
@@ -2096,11 +2099,14 @@ impl<'a> Scope<'a> {
                             | Operation::Discard { .. }
                             | Operation::DiscardObjects { .. }
                             | Operation::Mill { .. }
+                            | Operation::Draw { .. }
                     );
                     self.results.insert(
                         result.0,
                         if moved {
                             ResultKind::ObjectTransition
+                        } else if matches!(operation, Operation::Reveal { .. }) {
+                            ResultKind::Observation
                         } else if matches!(operation, Operation::CreateTokens { .. }) {
                             ResultKind::CreatedObjects
                         } else {
@@ -2149,6 +2155,7 @@ impl<'a> Scope<'a> {
                             | Operation::DiscardObjects { .. }
                             | Operation::Sacrifice { .. }
                             | Operation::JoinResults { .. }
+                            | Operation::Draw { .. }
                             | Operation::Mill { .. } => ResultKind::ObjectTransition,
                             other => match crate::semantics::yields(other) {
                                 Some("observed") => ResultKind::Observation,
@@ -2166,6 +2173,7 @@ impl<'a> Scope<'a> {
                             Operation::Search { .. }
                             | Operation::ReorderLibrary { .. }
                             | Operation::RevealUntil { .. } => Some(vec![EventZone::Library]),
+                            Operation::Draw { .. } => Some(vec![EventZone::Hand]),
                             Operation::ChooseObjects { objects, .. }
                             | Operation::SeparatePiles { objects, .. } => self.known_zones(objects),
                             _ => None,

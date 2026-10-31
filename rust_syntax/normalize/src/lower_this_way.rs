@@ -30,6 +30,15 @@ impl Context {
         })
     }
 
+    /// What this scope put into a graveyard, by whichever action did it.
+    fn graveyard_set(&self) -> Result<ObjectSet> {
+        [Done::Graveyard, Done::Destroyed, Done::Sacrificed]
+            .into_iter()
+            .map(|done| self.this_way_set(done, ObjectPhase::After, None))
+            .find(Result::is_ok)
+            .unwrap_or_else(|| Err(invalid("nothing went to a graveyard in this scope")))
+    }
+
     /// The cost components that do what `done` names, when no action did.
     fn paid_actions(done: Done) -> &'static [crate::number_spec::PaymentAction] {
         use crate::number_spec::PaymentAction as P;
@@ -159,6 +168,14 @@ impl Context {
             S::AmountOfExcessDamageDealtThisWay => self.excess_dealt(ObjectFilter::Any),
             S::AmountOfExcessDamageDealtToPermanentsThisWay(p) => {
                 self.excess_dealt(self.filter(p)?)
+            }
+            S::NumPermanentsShuffledIntoLibraryThisWayByPlayer(player) => {
+                let owner = PlayerSet::One(self.player(player)?);
+                self.this_way_count(
+                    Done::Library,
+                    ObjectPhase::Before,
+                    Some(ObjectFilter::OwnedBy(owner)),
+                )
             }
             S::NumCardsShuffledIntoLibraryThisWay | S::NumCardsPutIntoLibraryThisWay => {
                 self.this_way_count(Done::Library, Before, None)

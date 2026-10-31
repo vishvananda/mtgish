@@ -105,7 +105,8 @@ impl Context {
                     None,
                 )?)))
             }
-            source::CardsInExile::WasExiledWithPermanent(p) => {
+            source::CardsInExile::WasExiledWithPermanent(p)
+            | source::CardsInExile::UsedToCraftPermanent(p) => {
                 Ok(ObjectFilter::ExiledWith(self.object(p)?))
             }
             _ => rescue(unsupported(value), || {

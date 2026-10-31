@@ -29,6 +29,10 @@ fn base_form(name: &str, args: &serde_json::Value) -> Option<Base> {
         "PutAPermanentInOwnersHand",
         "PutAPermanentIntoItsOwnersHand",
     );
+    let name = match name.as_str() {
+        "RevealTheTopNumberCardsOfLibrary" => "RevealTheTopNumberCardsOfLibraryNEW".to_string(),
+        _ => name,
+    };
     let form = |ty| serde_json::json!({ "enum": ty, "variant": name, "args": args });
     let mut action = form("Action");
     retag(&mut action, &|n: &str| (n == "CardsInHand").then_some("Cards"));

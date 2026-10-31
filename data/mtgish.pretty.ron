@@ -102883,7 +102883,7 @@ Card(
       ),
       ActionList([
         CreatePermanentLayerEffectUntil(
-          Trigger_ThatCreature,
+          Trigger_ThatOtherCreature,
           [
             LosesAllAbilities,
           ],
@@ -102898,7 +102898,7 @@ Card(
       ),
       ActionList([
         CreatePermanentLayerEffectUntil(
-          Trigger_TheAttackingCreature,
+          Trigger_TheBlockingCreature,
           [
             LosesAllAbilities,
           ],
@@ -550835,7 +550835,7 @@ Card(
       ActionList([
         Exile(
           [
-            Permanent(Trigger_TheAttackingCreature),
+            Permanent(Trigger_TheBlockingCreature),
           ],
           [
             Limited(UntilPermanentLeavesBattlefield(ThisPermanent)),
@@ -650051,7 +650051,7 @@ Card(
                           1,
                           1,
                         ),
-                        Trigger_ThatCreature,
+                        HostPermanent,
                       ),
                     ]),
                   ]),
@@ -727406,7 +727406,7 @@ Card(
         PermanentDealsDamage(
           ThisPermanent,
           Integer(1),
-          Permanent(Trigger_TheAttackingCreature),
+          Permanent(Trigger_TheBlockingCreature),
         ),
       ]),
     ),
@@ -842509,7 +842509,7 @@ Card(
               ),
             ]),
             ActionList([
-              DestroyPermanent(Trigger_ThatCreature),
+              DestroyPermanent(Trigger_ThatOtherCreature),
             ]),
           ),
         ]),
@@ -877659,8 +877659,8 @@ Card(
               ControlledByAPlayer(SinglePlayer(EachablePlayer)),
             ]),
           ),
-          PlayerAction(
-            EachablePlayer,
+          EachPlayerAction(
+            AnyPlayer,
             SacrificeEachPermanent(And([
               Not(ThePermanentsChosenThisWay),
               IsNonCardtype(Land),
@@ -1171789,7 +1171789,7 @@ Card(
             CreateFutureTrigger(
               AtTheBeginningOfTheNextEndStep,
               ActionList([
-                MustCost(SacrificeEachPermanent(TheTokensCreatedThisWay)),
+                MustCost(SacrificeEachPermanent(ThePermanentsPutOnTheBattlefieldThisWay)),
                 If(
                   CostWasPaid,
                   [
@@ -1181474,7 +1181474,7 @@ Card(
           EachPermanent(And([
             IsCardtype(Creature),
             DoesntHaveAbility(Flying),
-            ControlledByAPlayer(SinglePlayer(Trigger_ThatPlayer)),
+            ControlledByAPlayer(SinglePlayer(Trigger_DefendingPlayer)),
           ])),
         ),
       ]),
@@ -1220464,7 +1220464,7 @@ Card(
         PermanentDealsDamage(
           ThisPermanent,
           Integer(1),
-          Permanent(Trigger_TheAttackingCreature),
+          Permanent(Trigger_TheBlockingCreature),
         ),
       ]),
     ),
@@ -1489512,7 +1489512,7 @@ Card(
         NumPermanentsPassFilter(
           GreaterThanOrEqualTo(Integer(1)),
           And([
-            Other(Trigger_ThatCreature),
+            Other(ThisPermanent),
             IsCreatureType(Wall),
             IsCardtype(Creature),
           ]),
@@ -1508836,7 +1508836,7 @@ StickerSheet(
           ),
           ActionList([
             CreatePermanentLayerEffectUntil(
-              Trigger_ThatCreature,
+              Trigger_ThatOtherCreature,
               [
                 AdjustPT(
                   -4,
@@ -1531570,7 +1531570,7 @@ Card(
         IsCreatureType(Vampire),
       ),
       ActionList([
-        DestroyPermanentNoRegen(Trigger_ThatCreature),
+        DestroyPermanentNoRegen(Trigger_ThatOtherCreature),
       ]),
     ),
     TriggerA(
@@ -1531579,7 +1531579,7 @@ Card(
         IsCreatureType(Vampire),
       ),
       ActionList([
-        DestroyPermanentNoRegen(Trigger_TheAttackingCreature),
+        DestroyPermanentNoRegen(Trigger_TheBlockingCreature),
       ]),
     ),
     Equip(
