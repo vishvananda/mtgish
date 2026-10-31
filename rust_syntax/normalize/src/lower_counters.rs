@@ -110,7 +110,30 @@ impl Context {
         let object = |p| -> Result<_> { Ok(Recipients::Objects(ObjectSet::One(self.object(p)?))) };
         let player = |p| -> Result<_> { Ok(Recipients::Players(PlayerSet::One(self.player(p)?))) };
         let each = |p| -> Result<_> { Ok(Recipients::Objects(self.objects(p)?)) };
+        let exiled =
+            |c| -> Result<_> { Ok(Recipients::Objects(ObjectSet::One(self.exiled_card(c)?))) };
+        let exiled_each = |c| -> Result<_> { Ok(Recipients::Objects(self.exile_cards(c)?)) };
+        let exactly = |n| -> Result<_> {
+            Ok(CounterAmount::Count(Count::Exactly(self.number(n)?)))
+        };
         let (recipients, kind, amount, choose) = match value {
+            S::ACounterFromCardInExile(c) => (exiled(c)?, None, one(), None),
+            S::ACounterOfTypeFromCardInExile(k, c) => (exiled(c)?, Some(k), one(), None),
+            S::NumberCountersOfTypeFromCardInExile(n, k, c) => {
+                (exiled(c)?, Some(k), exactly(n)?, None)
+            }
+            S::ACounterOfTypeFromEachCardInExile(k, c) => {
+                (exiled_each(c)?, Some(k), one(), None)
+            }
+            S::NumberCountersOfTypeFromEachCardInExile(n, k, c) => {
+                (exiled_each(c)?, Some(k), exactly(n)?, None)
+            }
+            S::NumberCountersOfTypeFromACardInExile(n, k, c) => (
+                exiled_each(c)?,
+                Some(k),
+                exactly(n)?,
+                Some(Count::Exactly(Expr::Constant(1))),
+            ),
             S::ACounterFromPermanent(p) => (object(p)?, None, one(), None),
             S::ACounterFromPlayer(p) => (player(p)?, None, one(), None),
             S::ACounterOfTypeFromPermanent(k, p) => (object(p)?, Some(k), one(), None),

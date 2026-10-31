@@ -44,6 +44,9 @@ impl Context {
         }
     }
     fn hand_filter(&self, value: &source::CardsInHand) -> Result<ObjectFilter> {
+        if let source::CardsInHand::TheCardsSeekedThisWay = value {
+            return Ok(ObjectFilter::InSet(Box::new(self.seeked_cards()?)));
+        }
         self.pipeline_selector(crate::pipeline::selectors::SelectorRef::CardsInHand(value))
             .unwrap_or_else(|| Err(unsupported(value)))
             .or_else(|error| rescue(error, || self.primitive_predicate("CardsInHand", value)))

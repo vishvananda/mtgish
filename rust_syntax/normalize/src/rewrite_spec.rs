@@ -130,6 +130,7 @@ pub enum Destination {
     /// Under the control of the player doing the action.
     BattlefieldActor,
     OwnersLibraryBottomRandom,
+    OwnersLibraryTopOrBottom,
     OwnersLibraryNth,
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]

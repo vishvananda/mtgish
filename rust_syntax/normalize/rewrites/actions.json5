@@ -2854,6 +2854,58 @@
           "argument": 0
         }
       }
+    },
+    {
+      "id": "action.ReturnPermanentToTopOrBottomOfLibrary",
+      "source": "ReturnPermanentToTopOrBottomOfLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanent",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTopOrBottom",
+      "entry": null
+    },
+    {
+      "id": "action.ReturnSpellToTopOrBottomOfLibrary",
+      "source": "ReturnSpellToTopOrBottomOfLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Spell",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTopOrBottom",
+      "entry": null
+    },
+    {
+      "id": "action.ReturnGraveyardCardToTopOrBottomOfLibrary",
+      "source": "ReturnGraveyardCardToTopOrBottomOfLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "GraveCard",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTopOrBottom",
+      "entry": null
+    },
+    {
+      "id": "action.PutEachPermanentToTopOrBottomOfLibrary",
+      "source": "PutEachPermanentToTopOrBottomOfLibrary",
+      "arity": 1,
+      "family": "Move",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": "OwnersLibraryTopOrBottom",
+      "entry": null
     }
   ]
 }

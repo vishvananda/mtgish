@@ -24,7 +24,9 @@ enum Base {
 fn base_form(name: &str, args: &serde_json::Value) -> Option<Base> {
     use crate::pipeline::source_tree::decode;
     let form = |ty| serde_json::json!({ "enum": ty, "variant": name, "args": args });
-    decode(&form("Action"))
+    let mut action = form("Action");
+    retag(&mut action, &|n: &str| (n == "CardsInHand").then_some("Cards"));
+    decode(&action)
         .map(Base::Action)
         .or_else(|_| decode(&form("Cost")).map(Base::Cost))
         .ok()
@@ -71,7 +73,11 @@ impl Context {
             Some(event) => (event, true),
             None => (event, false),
         };
-        if !REFLEXIVE_EVENTS.contains(&event) {
+        let filtered = matches!(
+            event,
+            "ACardOfTypeIsDiscardedThisWay" | "YouDiscardOneOrMoreCardsOfTypeThisWay"
+        );
+        if !REFLEXIVE_EVENTS.contains(&event) && !filtered {
             return None;
         }
         let mut args = match &inspected["args"] {
@@ -79,9 +85,16 @@ impl Context {
             arg => vec![arg.clone()],
         };
         let actions: source::Actions = decode(&args.pop()?).ok()?;
-        let condition: Option<source::Condition> = match conditional {
-            true => Some(decode(&args.pop()?).ok()?),
-            false => None,
+        let condition: Option<source::Condition> = match (conditional, filtered) {
+            (true, _) => Some(decode(&args.pop()?).ok()?),
+            (_, true) => {
+                let mut cards = args.pop()?;
+                retag(&mut cards, &|n: &str| {
+                    matches!(n, "CardsInHand" | "CardsInLibrary").then_some("Cards")
+                });
+                Some(source::Condition::ACardWasDiscardedThisWay(decode(&cards).ok()?))
+            }
+            _ => None,
         };
         let args = match args.len() {
             0 => serde_json::Value::Null,

@@ -90,6 +90,9 @@ struct Context {
     acting: Option<PlayerRef>,
     /// Lowering a cost paid during resolution, not an announced one.
     resolving_payment: bool,
+    /// The Army the last amass put counters on.
+    amassed: Option<ResultId>,
+    seeked: Vec<ResultId>,
     removed_counters: Option<ResultId>,
     announcing: bool,
     you: Option<PlayerRef>,
@@ -174,6 +177,7 @@ impl Done {
                 Destination::OwnersLibraryTop
                 | Destination::OwnersLibraryBottom
                 | Destination::OwnersLibraryBottomRandom
+                | Destination::OwnersLibraryTopOrBottom
                 | Destination::OwnersLibraryFromTop(_)
                 | Destination::OwnersLibraryShuffled => Self::Library,
             },
@@ -396,6 +400,14 @@ impl Context {
         if self.entered.as_ref().map(|r| r.0) != child.entered.as_ref().map(|r| r.0) {
             self.entered = None;
         }
+        if self
+            .seeked
+            .iter()
+            .map(|r| r.0)
+            .ne(child.seeked.iter().map(|r| r.0))
+        {
+            self.seeked.clear();
+        }
         if self.to_hand.as_ref().map(|r| r.0) != child.to_hand.as_ref().map(|r| r.0) {
             self.to_hand = None;
         }
@@ -457,7 +469,9 @@ impl Context {
                 });
             }
             S::TheChosenPermanent => return Ok(ObjectRef::Chosen),
-            S::ThePermanentPutOnTheBattlefieldThisWay => {
+            S::TheArmyAmassedThisWay => return self.result_object(self.amassed.as_ref(), 0),
+            S::ThePermanentPutOnTheBattlefieldThisWay
+            | S::TheCardConjuredOntoTheBattlefieldThisWay => {
                 let token = self
                     .created_tokens
                     .as_ref()
@@ -620,7 +634,7 @@ impl Context {
             }
             S::ControllerOfDeadPermanent => PlayerRef::ControllerOf(Box::new(self.dead_object()?)),
             S::OwnerOfDeadPermanent => PlayerRef::OwnerOf(Box::new(self.dead_object()?)),
-            S::TheChosenPlayer => PlayerRef::Chosen,
+            S::TheChosenPlayer | S::ThePlayerChosenThisWay => PlayerRef::Chosen,
             S::DefendingPlayer if self.defending.is_some() => self.defending.clone().unwrap(),
             S::DefendingPlayer if !self.activation_limit => {
                 PlayerRef::DefendingPlayerOf(Box::new(ObjectRef::Source))
@@ -778,7 +792,10 @@ impl Context {
         ) {
             return Ok(ObjectSet::Affected(self.done(Done::Effect)?));
         }
-        if matches!(value, source::Permanents::TheTokensCreatedThisWay) {
+        if matches!(
+            value,
+            source::Permanents::TheTokensCreatedThisWay | source::Permanents::TheCreatedTokens
+        ) {
             return self
                 .created_tokens
                 .clone()
@@ -1295,6 +1312,14 @@ impl Context {
                     right,
                 }
             }
+            S::AllPlayersPassFilter(players, filter) => Condition::Compare {
+                left: Expr::CountPlayers(self.players(&source::Players::And(vec![
+                    (**players).clone(),
+                    (**filter).clone(),
+                ]))?),
+                comparison: Comparison::Equal,
+                right: Expr::CountPlayers(self.players(players)?),
+            },
             S::NoPlayersPassFilter(players, filter) => Condition::Compare {
                 left: Expr::CountPlayers(self.players(&source::Players::And(vec![
                     (**players).clone(),
@@ -2396,12 +2421,55 @@ impl Context {
                 attachments: self.objects(attachments)?,
                 host: self.object(host)?,
             },
-            S::ReturnEnchantingGraveyardCardToHand => Operation::Move {
-                objects: ObjectSet::One(ObjectRef::Source),
-                destination: Destination::OwnersHand,
+            S::ReturnEnchantingGraveyardCardToHand | S::ReturnDeadGuestGraveyardCardToHand => {
+                Operation::Move {
+                    objects: ObjectSet::One(ObjectRef::Source),
+                    destination: Destination::OwnersHand,
+                    entry: EntrySpec::default(),
+                    face_down: false,
+                }
+            }
+            // "This card" went to the graveyard; the Aura returns itself.
+            S::ReturnEnchantingGraveyardCardToBattlefield(flags)
+            | S::ReturnDeadGuestGraveyardCardToBattlefield(flags) => {
+                let (destination, entry) = self.move_entry(flags, PlayerRef::AbilityController)?;
+                Operation::Move {
+                    objects: ObjectSet::One(ObjectRef::Source),
+                    destination,
+                    entry,
+                    face_down: false,
+                }
+            }
+            S::ReturnPermanentToLibraryUnderNumberCards(object, n)
+            | S::PutPermanentInOwnersLibraryBeneathNumberCards(object, n) => Operation::Move {
+                objects: ObjectSet::One(self.object(object)?),
+                destination: Destination::OwnersLibraryFromTop(Expr::Add(
+                    Box::new(self.number(n)?),
+                    Box::new(Expr::Constant(1)),
+                )),
                 entry: EntrySpec::default(),
                 face_down: false,
             },
+            S::ShuffleHandGraveyardAndPermanentsIntoLibrary => {
+                let owned = ObjectSet::Battlefield(ObjectFilter::OwnedBy(actor.clone()));
+                let movement = self.effect(Operation::Move {
+                    objects: ObjectSet::Union(vec![
+                        self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
+                        self.private_cards(EventZone::Graveyard, actor.clone(), ObjectFilter::Any),
+                        owned,
+                    ]),
+                    destination: Destination::OwnersLibraryTop,
+                    entry: EntrySpec::default(),
+                    face_down: false,
+                });
+                let shuffle = self.effect(Operation::Shuffle {
+                    players: actor.clone(),
+                    excluding: None,
+                });
+                return Ok(Instruction::Group(Program {
+                    instructions: vec![movement, shuffle],
+                }));
+            }
             S::ReturnGraveyardCardsToTopOfLibraryInAnyOrder(cards) => Operation::Move {
                 objects: self.grave_cards(cards)?,
                 destination: Destination::OwnersLibraryTop,
@@ -4278,15 +4346,19 @@ impl Context {
                 actions => self.spell_ability(actions),
             },
             S::TriggerMayOnceEachTurn(trigger, actions) => {
-                let source::Actions::ActionList(list) = actions.as_ref() else {
-                    return Err(unsupported(value));
+                use source::Actions as A;
+                let may = |list: &Vec<source::Action>| {
+                    A::ActionList(vec![source::Action::MayActions(list.clone())])
                 };
-                self.reduced_ability(&S::TriggerOnceEachTurn(
-                    trigger.clone(),
-                    Box::new(source::Actions::ActionList(vec![
-                        source::Action::MayActions(list.clone()),
-                    ])),
-                ))
+                let body = match actions.as_ref() {
+                    A::ActionList(list) => may(list),
+                    A::Targeted(targets, inner) => match inner.as_ref() {
+                        A::ActionList(list) => A::Targeted(targets.clone(), Box::new(may(list))),
+                        _ => return Err(unsupported(value)),
+                    },
+                    _ => return Err(unsupported(value)),
+                };
+                self.reduced_ability(&S::TriggerOnceEachTurn(trigger.clone(), Box::new(body)))
             }
             S::SpellActions_Kicker(cost, source::WasKicked(paid), source::WasntKicked(unpaid)) => {
                 self.cost_branch("Kicker", cost, paid, unpaid)

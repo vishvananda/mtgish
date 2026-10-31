@@ -8,6 +8,8 @@ enum HandShown {
     Number(Expr),
     /// This player looks at it, and no one else sees it.
     Looked(PlayerRef),
+    /// Nothing is shown; its owner picks.
+    Hidden,
 }
 
 /// What happens to the cards picked from a hand.
@@ -71,6 +73,7 @@ impl Context {
                     objects: hand,
                 }));
             }
+            HandShown::Hidden => {}
         }
         if let Some((player, count)) = pick {
             let choice = self.effect(Operation::ChooseObjects {
@@ -127,7 +130,36 @@ impl Context {
         let single = || Count::AsManyAsCan(Expr::Constant(1));
         let may = || Count::UpTo(Expr::Constant(1));
         let any = ObjectFilter::Any;
+        let holder = || match actor {
+            PlayerSet::One(player) => Ok(player.clone()),
+            _ => Err(invalid("a hand belongs to one player")),
+        };
         let (owner, shown, filter, pick, fate) = match value {
+            S::DiscardACardOfType(cards) => (
+                actor.clone(),
+                HandShown::Hidden,
+                self.card_filter(cards)?,
+                Some((holder()?, single())),
+                HandFate::Discard,
+            ),
+            S::DiscardNumberCardsOfType(number, cards) => (
+                actor.clone(),
+                HandShown::Hidden,
+                self.card_filter(cards)?,
+                Some((holder()?, one(self.number(number)?))),
+                HandFate::Discard,
+            ),
+            S::DiscardEachCard(cards) => {
+                let Ok(filter) = self.hand_filter(cards) else {
+                    return Ok(None);
+                };
+                (actor.clone(), HandShown::Hidden, filter, None, HandFate::Discard)
+            }
+            S::SeekACard(cards) => return self.seek(cards, Expr::Constant(1), actor),
+            S::SeekNumberCards(number, cards) => {
+                let number = self.number(number)?;
+                return self.seek(cards, number, actor);
+            }
             S::RevealHandAndPlayerChoosesACardToDiscard(chooser, cards) => (
                 actor.clone(),
                 HandShown::Whole,
@@ -247,6 +279,59 @@ impl Context {
             _ => return Ok(None),
         };
         self.hand_pick(owner, shown, filter, pick, fate).map(Some)
+    }
+
+    /// A random passing card, or as many as the number, goes from library to hand.
+    fn seek(
+        &mut self,
+        cards: &source::Cards,
+        number: Expr,
+        actor: &PlayerSet,
+    ) -> Result<Option<Instruction>> {
+        let (Ok(filter), PlayerSet::One(seeker)) = (self.card_filter(cards), actor) else {
+            return Ok(None);
+        };
+        let choice = self.effect(Operation::ChooseObjects {
+            constraints: vec![SelectionConstraint::AtRandom],
+            player: seeker.clone(),
+            objects: self.private_cards(EventZone::Library, actor.clone(), filter),
+            count: Count::AsManyAsCan(number),
+        });
+        let Instruction::Effect { result, .. } = &choice else {
+            unreachable!()
+        };
+        let objects = ObjectSet::Selected(result.clone());
+        let movement = self.effect(Operation::Move {
+            objects,
+            destination: Destination::OwnersHand,
+            entry: EntrySpec::default(),
+            face_down: false,
+        });
+        let Instruction::Effect { result, .. } = &movement else {
+            unreachable!()
+        };
+        self.to_hand = Some(result.clone());
+        self.seeked.push(result.clone());
+        Ok(Some(Instruction::Group(Program {
+            instructions: vec![choice, movement],
+        })))
+    }
+
+    /// Every card this scope's seeks put into a hand.
+    fn seeked_cards(&self) -> Result<ObjectSet> {
+        let mut sets: Vec<_> = self
+            .seeked
+            .iter()
+            .map(|result| ObjectSet::Transition {
+                result: result.clone(),
+                phase: ObjectPhase::After,
+            })
+            .collect();
+        match sets.len() {
+            0 => Err(invalid("no card was sought in this scope")),
+            1 => Ok(sets.pop().unwrap()),
+            _ => Ok(ObjectSet::Union(sets)),
+        }
     }
 
     /// "Look at that player's hand and exile a card from it" paid as a cost.

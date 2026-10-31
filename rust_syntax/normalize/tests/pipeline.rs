@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 62);
+    assert_eq!(card.schema_version, 63);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2867,6 +2867,49 @@ fn a_target_says_how_many_who_chooses_and_what_it_avoids() {
     assert!(random.contains("AtRandom"), "{random}");
     let colors = ability_json("SpellActions(Targeted([UptoOneTargetGraveyardCardOfEachColor(InAPlayersGraveyard(SinglePlayer(You)))],ActionList([PutEachGraveyardCardIntoHand(Ref_TargetGraveyardCards)])))");
     assert!(colors.contains("OneForEach"), "{colors}");
+}
+
+#[test]
+fn moves_name_the_owners_choice_and_the_depth_under_cards() {
+    let choice = ability_json("SpellActions(Targeted([TargetSpell(AnySpell)],ActionList([ReturnSpellToTopOrBottomOfLibrary(Ref_TargetSpell)])))");
+    assert!(choice.contains("OwnersLibraryTopOrBottom"), "{choice}");
+    let under = ability_json("SpellActions(Targeted([TargetPermanent(IsCardtype(Creature))],ActionList([PutPermanentInOwnersLibraryBeneathNumberCards(Ref_TargetPermanent,Integer(2))])))");
+    assert!(under.contains("OwnersLibraryFromTop"), "{under}");
+    assert!(under.contains("\"kind\":\"Add\""), "{under}");
+}
+
+#[test]
+fn counters_leave_exiled_cards_as_they_leave_permanents() {
+    let text = ability_json("SpellActions(ActionList([Exile([TheTopNumberCardsOfLibrary(Integer(1))],[ExilesWithNumberCounters(Integer(3),TimeCounter)]),RemoveCounters([ACounterOfTypeFromCardInExile(TimeCounter,TheCardExiledThisWay)])]))");
+    assert!(text.contains("RemoveCounters"), "{text}");
+    assert!(!text.contains("Primitive"), "{text}");
+}
+
+#[test]
+fn a_reflexive_discard_reads_what_was_discarded() {
+    let plain = ability_json("SpellActions(ActionList([Reflexive_Discard_WhenYouDo(ACardOfType(IsNonCardtype(Land)),ActionList([DrawACard]))]))");
+    assert!(plain.contains("ReflexiveTrigger"), "{plain}");
+    assert!(!plain.contains("Primitive"), "{plain}");
+    let filtered = ability_json("SpellActions(ActionList([Reflexive_Discard_WhenACardOfTypeIsDiscardedThisWay(ACard,IsCardtype(Creature),ActionList([DrawACard]))]))");
+    assert!(filtered.contains("\"condition\":{"), "{filtered}");
+    assert!(filtered.contains("Creature"), "{filtered}");
+}
+
+#[test]
+fn a_seek_is_a_random_pick_moved_to_hand() {
+    let text = ability_json("SpellActions(ActionList([SeekACard(AnyCard)]))");
+    assert!(!text.contains("Primitive"), "{text}");
+    assert!(text.contains("AtRandom"), "{text}");
+    assert!(text.contains("OwnersHand"), "{text}");
+    let many = ability_json("SpellActions(ActionList([SeekNumberCards(Integer(2),AnyCard)]))");
+    assert!(many.contains("AsManyAsCan"), "{many}");
+    assert!(!many.contains("Primitive"), "{many}");
+}
+
+#[test]
+fn every_player_passing_counts_those_who_pass() {
+    let text = ability_json("TriggerI(AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),AllPlayersPassFilter(AnyPlayer,LifeTotalIs(LessThanOrEqualTo(Integer(10)))),ActionList([DrawACard]))");
+    assert_eq!(text.matches("CountPlayers").count(), 2, "{text}");
 }
 
 #[test]

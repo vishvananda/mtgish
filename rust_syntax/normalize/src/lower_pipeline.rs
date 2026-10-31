@@ -240,6 +240,9 @@ impl Context {
                         self.move_entry(&entry, player.clone())
                             .map_err(|e| e.at("entry"))?
                     }
+                    DestinationInput::OwnersLibraryTopOrBottom => {
+                        (Destination::OwnersLibraryTopOrBottom, EntrySpec::default())
+                    }
                     DestinationInput::OwnersLibraryBottomRandom => {
                         (Destination::OwnersLibraryBottomRandom, EntrySpec::default())
                     }

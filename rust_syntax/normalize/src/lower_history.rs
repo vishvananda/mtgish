@@ -585,7 +585,8 @@ impl Context {
         use source::CardInGraveyards as G;
         let card = || Box::new(G::Trigger_ThatGraveyardCard);
         let rewritten = match value {
-            S::ReturnDeadGraveyardCardToBattlefield(flags) => {
+            S::ReturnDeadGraveyardCardToBattlefield(flags)
+            | S::ReturnNewGraveyardCardToBattlefield(flags) => {
                 S::PutGraveyardCardOntoBattlefield(card(), flags.clone())
             }
             S::ReturnDeadGraveyardCardToHand => S::PutGraveyardCardIntoHand(card()),

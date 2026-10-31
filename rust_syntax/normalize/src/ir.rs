@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 62;
+pub const SCHEMA_VERSION: u32 = 63;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1142,6 +1142,8 @@ pub enum Destination {
     OwnersLibraryFromTop(Expr),
     /// The bottom, in a random order.
     OwnersLibraryBottomRandom,
+    /// Its owner's choice of the top or the bottom.
+    OwnersLibraryTopOrBottom,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
