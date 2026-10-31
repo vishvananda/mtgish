@@ -205,6 +205,31 @@ mod scenarios {
     ) -> (RulesGame, ObjectId, Option<ObjectId>, Vec<ObjectId>) {
         let mut definitions = vec![
             &divination::CARD,
+            &prey::CARD,
+            &twincast::CARD,
+            &reaver::CARD,
+            &twiddle::CARD,
+            &cyclops::CARD,
+            &cub::CARD,
+            &pridemate::CARD,
+            &beetle::CARD,
+            &horn::CARD,
+            &shredder::CARD,
+            &seraph::CARD,
+            &sentry::CARD,
+            &basilisk::CARD,
+            &druid::CARD,
+            &growth::CARD,
+            &duelist::CARD,
+            &osprey::CARD,
+            &aquamoeba::CARD,
+            &tether::CARD,
+            &presence::CARD,
+            &cytoshape::CARD,
+            &impostor::CARD,
+            &roar::CARD,
+            &cry::CARD,
+            &windseer::CARD,
             &shivan::CARD,
             &offering::CARD,
             &unsummon::CARD,
@@ -328,6 +353,7 @@ mod scenarios {
             rhino::EXTRA,
             acolyte::EXTRA,
             overlord::EXTRA,
+            reaver::EXTRA,
             decay::EXTRA,
             woodland::EXTRA,
             lignify::EXTRA,
@@ -2275,5 +2301,444 @@ mod scenarios {
         assert!(one.addable.get(1));
         assert!(!one.addable.get(2));
         assert!(!judged(&[candidates[0], candidates[2]]).complete);
+    }
+    #[test]
+    fn a_fight_has_each_creature_deal_its_power_to_the_other() {
+        let (mut g, spell, dragon, _) = game_with_extras(
+            "Prey Upon",
+            Some("Shivan Dragon"),
+            0,
+            &[("Grizzly Bears", THEM)],
+        );
+        let (dragon, bears) = (dragon.unwrap(), permanents_named(&g, "Grizzly Bears")[0]);
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseTarget { candidates, .. } => Answer::Targets(vec![candidates[0]]),
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.state.obj(dragon).damage, 2);
+        assert!(g.state.obj(bears).became.is_some());
+    }
+    #[test]
+    fn a_copied_spell_resolves_as_well_as_the_original() {
+        let (mut g, twincast, _, _) =
+            game_with_zones("Twincast", None, 0, &[], 100, &[], &["Divination"]);
+        let divination = hand_card(&g, "Divination");
+        let library = g.state.zone(Zone::library(ME)).len();
+        announce(&mut g, divination, ActionKind::CastSpell);
+        finish_payment(&mut g, false);
+        announce(&mut g, twincast, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.state.zone(Zone::library(ME)).len(), library - 4);
+    }
+    #[test]
+    fn a_second_amass_grows_the_first_army() {
+        let (mut g, spell, _, _) = game_with_zones(
+            "Lazotep Reaver",
+            None,
+            0,
+            &[],
+            100,
+            &[],
+            &["Lazotep Reaver"],
+        );
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        let second = hand_card(&g, "Lazotep Reaver");
+        announce(&mut g, second, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { cards, .. } => Answer::Cards(vec![cards[0]]),
+            other => panic!("unexpected question {other:?}"),
+        });
+        let armies: Vec<_> = g
+            .permanents_of(ME)
+            .into_iter()
+            .filter(|&id| g.chars(id).has_subtype(Subtype::Army))
+            .collect();
+        assert_eq!(armies.len(), 1);
+        assert!(g.chars(armies[0]).has_subtype(Subtype::Zombie));
+        assert_eq!(g.chars(armies[0]).power, Some(2));
+    }
+    /// Casts a Twiddle from hand on `object`: mode 0 taps it, 1 untaps it.
+    fn twiddle(g: &mut RulesGame, object: ObjectId, mode: u8) {
+        let spell = hand_card(g, "Twiddle");
+        announce_at(g, spell, ActionKind::CastSpell, Target::Object(object));
+        resolve_asking(g, &mut |_, kind| match kind {
+            RequestKind::May { .. } => Answer::Yes,
+            RequestKind::ChooseModes { .. } => Answer::Modes(vec![mode]),
+            other => panic!("unexpected question {other:?}"),
+        });
+    }
+    #[test]
+    fn tap_or_untap_does_what_is_chosen() {
+        let (mut g, _, bears, _) = game_with_zones(
+            "Twiddle",
+            Some("Grizzly Bears"),
+            0,
+            &[],
+            100,
+            &[],
+            &["Twiddle"],
+        );
+        let bears = bears.unwrap();
+        twiddle(&mut g, bears, 0);
+        assert!(g.state.obj(bears).tapped);
+        twiddle(&mut g, bears, 1);
+        assert!(!g.state.obj(bears).tapped);
+    }
+    #[test]
+    fn monstrosity_happens_only_the_first_time() {
+        let (mut g, _, cyclops) = game("Divination", Some("Gluttonous Cyclops"));
+        let cyclops = cyclops.unwrap();
+        for _ in 0..2 {
+            announce(&mut g, cyclops, ActionKind::ActivateAbility);
+            resolve(&mut g, None, false);
+            assert_eq!(g.state.obj(cyclops).counters(CounterKind::PlusOne), 3);
+            assert!(g.state.obj(cyclops).marks.monstrous);
+        }
+    }
+    #[test]
+    fn energy_gained_by_a_trigger_pays_for_a_cost() {
+        let (mut g, _, cub) = game("Divination", Some("Longtusk Cub"));
+        let cub = cub.unwrap();
+        advance_answering(
+            &mut g,
+            &|g| g.state.player(ME).energy() == 2 && g.state.stack.is_empty(),
+            &mut |kind| match kind {
+                RequestKind::DeclareAttackers { .. } => {
+                    Some(Answer::Attack(vec![(cub, Target::Player(THEM))]))
+                }
+                _ => None,
+            },
+        );
+        announce(&mut g, cub, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.player(ME).energy(), 0);
+        assert_eq!(g.state.obj(cub).counters(CounterKind::PlusOne), 1);
+    }
+    #[test]
+    fn gaining_life_triggers_for_the_player_who_gained_it() {
+        let (mut g, spell, mate) = game("Marshaling the Troops", Some("Ajani's Pridemate"));
+        let mate = mate.unwrap();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { cards, .. } => Answer::Cards(cards.clone()),
+            RequestKind::May { .. } => Answer::Yes,
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.state.obj(mate).counters(CounterKind::PlusOne), 1);
+    }
+    #[test]
+    fn the_first_time_each_turn_is_not_the_second() {
+        let (mut g, spell, _, _) = game_with_zones(
+            "Marshaling the Troops",
+            Some("Vanguard Seraph"),
+            0,
+            &[("Grizzly Bears", ME), ("Grizzly Bears", ME)],
+            100,
+            &[],
+            &["Marshaling the Troops"],
+        );
+        let mut surveils = 0;
+        let mut answer = |_: &RulesGame, kind: &RequestKind| match kind {
+            RequestKind::ChooseCards { cards, .. } => Answer::Cards(vec![cards[0]]),
+            RequestKind::DistributeCards { cards, .. } => {
+                surveils += 1;
+                Answer::Placements {
+                    placements: vec![vec![], cards.clone()],
+                    shuffle: false,
+                }
+            }
+            other => panic!("unexpected question {other:?}"),
+        };
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut answer);
+        let second = hand_card(&g, "Marshaling the Troops");
+        announce(&mut g, second, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut answer);
+        assert_eq!(surveils, 1);
+    }
+    #[test]
+    fn anyones_sacrifice_triggers_and_its_controller_decides() {
+        let (mut g, _, seer, _) = game_with_extras(
+            "Divination",
+            Some("Viscera Seer"),
+            0,
+            &[("Grizzly Bears", ME), ("Mortician Beetle", THEM)],
+        );
+        let bears = permanents_named(&g, "Grizzly Bears")[0];
+        let beetle = permanents_named(&g, "Mortician Beetle")[0];
+        announce(&mut g, seer.unwrap(), ActionKind::ActivateAbility);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { cards, .. } if cards.contains(&bears) => {
+                Answer::Cards(vec![bears])
+            }
+            RequestKind::May { .. } => Answer::Yes,
+            RequestKind::DistributeCards { cards, .. } => Answer::Placements {
+                placements: vec![vec![], cards.clone()],
+                shuffle: false,
+            },
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.state.obj(beetle).counters(CounterKind::PlusOne), 1);
+    }
+    #[test]
+    fn a_played_land_draws_for_the_player_who_played_it() {
+        let (mut g, land, _) = game("Adarkar Wastes", Some("Horn of Greed"));
+        let library = g.state.zone(Zone::library(ME)).len();
+        announce(&mut g, land, ActionKind::PlayLand);
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.zone(Zone::library(ME)).len(), library - 1);
+    }
+    #[test]
+    fn the_second_spell_each_turn_connives() {
+        let (mut g, spell, shredder, _) = game_with_zones(
+            "Divination",
+            Some("Ledger Shredder"),
+            0,
+            &[],
+            100,
+            &[],
+            &["Divination"],
+        );
+        let shredder = shredder.unwrap();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.obj(shredder).counters(CounterKind::PlusOne), 0);
+        let second = hand_card(&g, "Divination");
+        announce(&mut g, second, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { cards, .. } => Answer::Cards(vec![cards[0]]),
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.state.obj(shredder).counters(CounterKind::PlusOne), 1);
+    }
+    /// `attacker` attacks, and `blocker` blocks it, until `done`.
+    fn block(
+        g: &mut RulesGame,
+        attacker: ObjectId,
+        blocker: ObjectId,
+        done: &dyn Fn(&RulesGame) -> bool,
+    ) {
+        advance_answering(g, done, &mut |kind| match kind {
+            RequestKind::DeclareAttackers { .. } => {
+                Some(Answer::Attack(vec![(attacker, Target::Player(THEM))]))
+            }
+            RequestKind::DeclareBlockers { .. } => Some(Answer::Block(vec![(blocker, attacker)])),
+            _ => None,
+        });
+    }
+    #[test]
+    fn a_blocking_creature_destroys_what_it_blocks_and_itself() {
+        let (mut g, _, bears, _) = game_with_extras(
+            "Divination",
+            Some("Grizzly Bears"),
+            0,
+            &[("Loyal Sentry", THEM)],
+        );
+        let bears = bears.unwrap();
+        let sentry = permanents_named(&g, "Loyal Sentry")[0];
+        block(&mut g, bears, sentry, &|g| {
+            g.state.obj(bears).became.is_some() && g.state.obj(sentry).became.is_some()
+        });
+        assert_eq!(g.state.player(THEM).life, 20);
+    }
+    #[test]
+    fn being_blocked_destroys_the_blocker_before_damage() {
+        let (mut g, _, basilisk, _) = game_with_extras(
+            "Divination",
+            Some("Sylvan Basilisk"),
+            0,
+            &[("Grizzly Bears", THEM)],
+        );
+        let basilisk = basilisk.unwrap();
+        let bears = permanents_named(&g, "Grizzly Bears")[0];
+        block(&mut g, basilisk, bears, &|g| {
+            g.state.obj(bears).became.is_some()
+        });
+        assert_eq!(g.state.obj(basilisk).damage, 0);
+    }
+    #[test]
+    fn only_a_spell_of_the_stated_kind_triggers_on_targeting() {
+        for (spell, drawn) in [("Arrest", 1), ("Murder", 0)] {
+            let (mut g, spell, druid) = game(spell, Some("Fugitive Druid"));
+            let druid = druid.unwrap();
+            let library = g.state.zone(Zone::library(ME)).len();
+            announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(druid));
+            resolve(&mut g, Some(druid), false);
+            assert_eq!(g.state.zone(Zone::library(ME)).len(), library - drawn);
+        }
+    }
+    #[test]
+    fn an_enchanted_land_makes_more_when_tapped_for_mana() {
+        let (mut g, spell, land) = game("Wild Growth", Some("Adarkar Wastes"));
+        let land = land.unwrap();
+        announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(land));
+        resolve(&mut g, Some(land), false);
+        let before = g.state.player(ME).pool.0[4];
+        announce(&mut g, land, ActionKind::ActivateAbility);
+        finish_payment(&mut g, true);
+        assert_eq!(g.state.player(ME).pool.0[4], before + 1);
+    }
+    #[test]
+    fn as_long_as_equipped_follows_the_equipment() {
+        let (mut g, _, splitter, _) = game_with_extras(
+            "Divination",
+            Some("Bonesplitter"),
+            0,
+            &[("Kor Duelist", ME)],
+        );
+        let duelist = permanents_named(&g, "Kor Duelist")[0];
+        assert!(!g.chars(duelist).keywords.has(Keyword::DoubleStrike));
+        announce(&mut g, splitter.unwrap(), ActionKind::ActivateAbility);
+        resolve(&mut g, Some(duelist), false);
+        assert!(g.chars(duelist).keywords.has(Keyword::DoubleStrike));
+    }
+    #[test]
+    fn as_long_as_enchanted_follows_the_aura() {
+        let (mut g, spell, osprey) = game("Arrest", Some("Fledgling Osprey"));
+        let osprey = osprey.unwrap();
+        assert!(!g.chars(osprey).keywords.has(Keyword::Flying));
+        announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(osprey));
+        resolve(&mut g, Some(osprey), false);
+        assert!(g.chars(osprey).keywords.has(Keyword::Flying));
+    }
+    #[test]
+    fn switching_power_and_toughness_comes_after_the_rest() {
+        let (mut g, _, moeba) = game("Divination", Some("Aquamoeba"));
+        let moeba = moeba.unwrap();
+        announce(&mut g, moeba, ActionKind::ActivateAbility);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { cards, .. } => Answer::Cards(vec![cards[0]]),
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.chars(moeba).power, Some(3));
+        assert_eq!(g.chars(moeba).toughness, Some(1));
+    }
+    #[test]
+    fn an_aura_takes_a_keyword_away() {
+        let (mut g, spell, drake) = game("Sky Tether", Some("Peregrine Drake"));
+        let drake = drake.unwrap();
+        announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(drake));
+        resolve(&mut g, Some(drake), false);
+        assert!(!g.chars(drake).keywords.has(Keyword::Flying));
+        assert!(g.chars(drake).keywords.has(Keyword::Defender));
+    }
+    #[test]
+    fn a_land_set_to_a_type_makes_only_that_types_mana() {
+        let (mut g, spell, land) = game("Evil Presence", Some("Adarkar Wastes"));
+        let land = land.unwrap();
+        announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(land));
+        resolve(&mut g, Some(land), false);
+        assert!(g.chars(land).has_subtype(Subtype::Swamp));
+        let before = g.state.player(ME).pool.0;
+        announce(&mut g, land, ActionKind::ActivateAbility);
+        finish_payment(&mut g, true);
+        let after = g.state.player(ME).pool.0;
+        assert_eq!(after[2], before[2] + 1);
+        assert_eq!(after.iter().sum::<u32>(), before.iter().sum::<u32>() + 1);
+    }
+    #[test]
+    fn a_creature_becomes_a_copy_of_what_was_chosen() {
+        let (mut g, spell, bears, _) = game_with_extras(
+            "Cytoshape",
+            Some("Grizzly Bears"),
+            0,
+            &[("Shivan Dragon", THEM), ("Niambi, Esteemed Speaker", ME)],
+        );
+        let bears = bears.unwrap();
+        let dragon = permanents_named(&g, "Shivan Dragon")[0];
+        let niambi = permanents_named(&g, "Niambi, Esteemed Speaker")[0];
+        announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(bears));
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { cards, .. } => {
+                assert!(!cards.contains(&niambi));
+                Answer::Cards(vec![dragon])
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.chars(bears).power, Some(5));
+        assert!(g.chars(bears).keywords.has(Keyword::Flying));
+        assert!(g.chars(bears).has_subtype(Subtype::Dragon));
+    }
+    #[test]
+    fn a_token_copy_keeps_its_stated_exception() {
+        let (mut g, _, _, _) = game_with_extras(
+            "Divination",
+            Some("Impostor Syndrome"),
+            0,
+            &[("Niambi, Esteemed Speaker", ME)],
+        );
+        let niambi = permanents_named(&g, "Niambi, Esteemed Speaker")[0];
+        advance_answering(
+            &mut g,
+            &|g| permanents_named(g, "Niambi, Esteemed Speaker").len() == 2,
+            &mut |kind| match kind {
+                RequestKind::DeclareAttackers { .. } => {
+                    Some(Answer::Attack(vec![(niambi, Target::Player(THEM))]))
+                }
+                _ => None,
+            },
+        );
+        assert_eq!(permanents_named(&g, "Niambi, Esteemed Speaker").len(), 2);
+    }
+    #[test]
+    fn an_effect_refers_to_the_objects_the_last_one_changed() {
+        let (mut g, spell, mine, _) = game_with_zones(
+            "Rallying Roar",
+            Some("Grizzly Bears"),
+            0,
+            &[("Grizzly Bears", THEM)],
+            100,
+            &[],
+            &["Twiddle", "Twiddle"],
+        );
+        let mine = mine.unwrap();
+        let theirs = permanents_named(&g, "Grizzly Bears")[1];
+        twiddle(&mut g, mine, 0);
+        twiddle(&mut g, theirs, 0);
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        assert_eq!(g.chars(mine).power, Some(3));
+        assert!(!g.state.obj(mine).tapped);
+        assert_eq!(g.chars(theirs).power, Some(2));
+        assert!(g.state.obj(theirs).tapped);
+    }
+    #[test]
+    fn a_trigger_made_by_a_spell_reads_its_own_event() {
+        let (mut g, spell, bears, _) = game_with_extras(
+            "Battle Cry",
+            Some("Grizzly Bears"),
+            0,
+            &[("Grizzly Bears", THEM)],
+        );
+        let bears = bears.unwrap();
+        let blocker = permanents_named(&g, "Grizzly Bears")[1];
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        block(&mut g, bears, blocker, &|g| {
+            g.chars(blocker).toughness == Some(3)
+        });
+        assert_eq!(g.chars(bears).toughness, Some(2));
+    }
+    #[test]
+    fn a_die_result_picks_the_row() {
+        let (mut g, spell, _) = game("Djinni Windseer", None);
+        let mut scries = 0;
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::DistributeCards { cards, .. } => {
+                scries += 1;
+                assert!((1..=3).contains(&cards.len()));
+                Answer::Placements {
+                    placements: vec![vec![], cards.clone()],
+                    shuffle: false,
+                }
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(scries, 1);
     }
 }
