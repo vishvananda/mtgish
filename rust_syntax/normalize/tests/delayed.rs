@@ -383,7 +383,7 @@ fn scheduling_mana_is_not_immediate_mana_and_future_library_work_is_not_immediat
 }
 
 #[test]
-fn deferred_program_validation_retains_scope_and_rejects_unrepresented_future_event_bindings() {
+fn a_delayed_body_reads_the_creators_scope_not_the_future_events() {
     let mut c = spell(Program {
         instructions: vec![scheduled(Program::empty())],
     });
@@ -401,9 +401,28 @@ fn deferred_program_validation_retains_scope_and_rejects_unrepresented_future_ev
         event: ObjectEvent::BecomesTapped,
         objects: ObjectFilter::Any,
     };
+    validate::card(&c).unwrap();
+
+    let Ability::Spell { body, .. } = &mut c.abilities[0] else {
+        panic!()
+    };
+    let Instruction::Effect {
+        operation: Operation::CreateDelayedTrigger { body: later, .. },
+        ..
+    } = &mut body.instructions[0]
+    else {
+        panic!()
+    };
+    later.instructions = vec![Instruction::Effect {
+        result: ResultId(0),
+        operation: Operation::LookAt {
+            player: PlayerRef::AbilityController,
+            objects: ObjectSet::One(ObjectRef::EventSubject),
+        },
+    }];
     assert!(validate::card(&c)
         .unwrap_err()
-        .contains("separate captured/event scope"));
+        .contains("event subject used outside a triggered ability"));
 }
 
 #[test]
