@@ -87,6 +87,16 @@ fn plain_entry(entry: &EntrySpec) -> bool {
     !entry.tapped && entry.counters.is_empty() && entry.states.is_empty()
 }
 
+/// The locals earlier instructions bound, keyed by the result that names them.
+pub(super) struct Results {
+    selections: BTreeMap<u32, String>,
+    creations: BTreeMap<u32, String>,
+    moved: BTreeMap<u32, String>,
+    performed: BTreeMap<u32, String>,
+    values: BTreeMap<u32, String>,
+    flips: BTreeMap<u32, String>,
+}
+
 impl Compiler {
     /// `Vec<Target>`.
     pub(super) fn recipients(&self, recipients: &Recipients) -> Result<String> {
@@ -196,26 +206,38 @@ impl Compiler {
         }
         Ok(())
     }
+    pub(super) fn results(&self) -> Results {
+        Results {
+            selections: self.selections.clone(),
+            creations: self.creations.clone(),
+            moved: self.moved.clone(),
+            performed: self.performed.clone(),
+            values: self.values.clone(),
+            flips: self.flips.clone(),
+        }
+    }
+    pub(super) fn restore_results(&mut self, results: Results) {
+        let Results {
+            selections,
+            creations,
+            moved,
+            performed,
+            values,
+            flips,
+        } = results;
+        self.selections = selections;
+        self.creations = creations;
+        self.moved = moved;
+        self.performed = performed;
+        self.values = values;
+        self.flips = flips;
+    }
     /// A nested block: what it binds is out of Rust's scope once it closes, so
     /// a later reference reports a gap instead of generating a compile error.
     fn block(&mut self, body: &Program, out: &mut String, boundaries: bool) -> Result<()> {
-        let scope = (
-            self.selections.clone(),
-            self.creations.clone(),
-            self.moved.clone(),
-            self.performed.clone(),
-            self.values.clone(),
-            self.flips.clone(),
-        );
+        let scope = self.results();
         self.program(body, out, boundaries)?;
-        (
-            self.selections,
-            self.creations,
-            self.moved,
-            self.performed,
-            self.values,
-            self.flips,
-        ) = scope;
+        self.restore_results(scope);
         Ok(())
     }
     fn instruction(
@@ -439,7 +461,7 @@ impl Compiler {
                     let PlayerSet::One(player) = players else {
                         return Err(gap("random discard by several players"));
                     };
-                    writeln!(out, "let amount_{id} = {}; cantrip_mechanics::discard_at_random(g, {}, amount_{id} as usize);", self.fetch(number), self.fetch(self.certain_player(player)?)).unwrap();
+                    writeln!(out, "let amount_{id} = {}; let player_{id} = {}; cantrip_mechanics::discard_at_random(g, player_{id}, amount_{id} as usize);", self.fetch(number), self.fetch(self.certain_player(player)?)).unwrap();
                 } else {
                     writeln!(out,"let amount_{id} = {}; let players_{id} = {}; let mut cards_{id} = Vec::new(); for player in players_{id} {{ cards_{id}.extend(cantrip_mechanics::choose_from_hand(g, player, asker.source, amount_{id})?); }} let discarded_{id} = g.discard_together(&cards_{id});",self.fetch(number),self.fetch(self.players(players)?)).unwrap();
                     self.moved.insert(result.0, format!("discarded_{id}"));
@@ -603,8 +625,22 @@ impl Compiler {
                 affected,
                 changes,
                 duration,
-                evaluation: EffectEvaluation::Snapshot,
-            } => self.continuous(id, source, affected, changes, duration, out)?,
+                evaluation,
+            } => {
+                // "Live" subjects differ from read ones only where the set
+                // could gain a member, which names of one object never do.
+                let closed = matches!(
+                    affected,
+                    EffectSubjects::Objects(ObjectSet::One(_) | ObjectSet::Targets(_))
+                );
+                match evaluation {
+                    EffectEvaluation::LiveObjects if !closed => {
+                        return Err(gap("resolving rule effect on an open set of objects"))
+                    }
+                    EffectEvaluation::Live => return Err(gap("live continuous effect")),
+                    _ => self.continuous(id, source, affected, changes, duration, out)?,
+                }
+            }
             Operation::BindValue { value } => {
                 let value = self.number(value)?;
                 writeln!(out, "let value_{id}: i64 = {};", self.fetch(value.code)).unwrap();
@@ -852,6 +888,23 @@ impl Compiler {
         let EffectSubjects::Objects(affected) = affected else {
             return Err(gap("continuous effect on players"));
         };
+        // Exerting is exactly this (CR 701.43a), and no event tells them apart.
+        if let (
+            [Change::Rule(RuleChange::UntapStep {
+                behavior: UntapBehavior::Skip,
+                ..
+            })],
+            crate::ir::Duration::DuringControllersNextUntapStep,
+        ) = (changes, duration)
+        {
+            writeln!(
+                out,
+                "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for object in objects_{id} {{ g.exert(object); }} }});",
+                self.acted_on(affected)?
+            )
+            .unwrap();
+            return Ok(());
+        }
         let duration = self.duration(duration)?;
         writeln!(
             out,
@@ -877,7 +930,14 @@ impl Compiler {
     }
     /// What a resolving effect's change is in the engine's vocabulary. Each
     /// value is read when the effect is made, as `EffectEvaluation::Snapshot` says.
-    fn effect_kinds(&self, change: &Change) -> Result<Vec<String>> {
+    fn effect_kinds(&mut self, change: &Change) -> Result<Vec<String>> {
+        if let Change::GrantAbility(ability) = change {
+            let index = self.grant(ability)?;
+            return Ok(vec![format!(
+                "EffectKind::AddAbility(AbilityRef::delayed({}, {index}))",
+                read::SOURCE_CARD
+            )]);
+        }
         let i16_of = |n: &Expr| -> Result<String> {
             self.number(n)?.fit(i16::MIN.into(), i16::MAX.into(), "i16")
         };
@@ -952,6 +1012,18 @@ impl Compiler {
             Change::Rule(RuleChange::Prohibit(ObjectAction::BeBlocked(ObjectFilter::Any))) => {
                 vec!["EffectKind::CantBeBlocked".into()]
             }
+            Change::Rule(RuleChange::RequireCombat {
+                action: ObjectAction::Attack(AttackDefenders::Any),
+                amount: RequirementAmount::AtLeast(Expr::Constant(1)),
+            }) => vec!["EffectKind::MustAttack".into()],
+            Change::Rule(RuleChange::RequireCombat {
+                action: ObjectAction::Block(ObjectFilter::Any),
+                amount: RequirementAmount::AtLeast(Expr::Constant(1)),
+            }) => vec!["EffectKind::MustBlock".into()],
+            Change::SetController(player) => vec![format!(
+                "EffectKind::Control({})",
+                self.certain_player(player)?
+            )],
             Change::Rule(rule) => {
                 return Err(gap(format!("continuous rule {}", rule_name(rule))))
             }

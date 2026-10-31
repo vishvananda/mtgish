@@ -33,6 +33,118 @@ impl Compiler {
         (self.reader, self.event_at) = saved;
         compiled
     }
+    /// An ability another object is given, compiled as that object's own: it
+    /// sits in `CardDef::delayed`, and `AbilityRef::delayed` names it through
+    /// the card printing the grant, which a granted ability is not.
+    pub(super) fn grant(&mut self, ability: &Ability) -> Result<usize> {
+        if self.granting {
+            return Err(gap("granted ability that grants another"));
+        }
+        let label = format!("granted_{}", self.fresh());
+        // The enclosing callback's reader belongs to it, not to this ability.
+        let saved = (self.reader, self.event_at, self.frame, self.static_guard.take());
+        (self.reader, self.event_at, self.frame) =
+            (Reader::Resolution, EventAt::Nowhere, Frame::default());
+        let slots = std::mem::take(&mut self.slots);
+        let results = self.results();
+        self.granting = true;
+        let mut grown = Parts::default();
+        let compiled = self.ability(ability, &label, &mut grown, None);
+        self.granting = false;
+        self.restore_results(results);
+        self.slots = slots;
+        (self.reader, self.event_at, self.frame, self.static_guard) = saved;
+        compiled?;
+        let [def] = grown.abilities.as_slice() else {
+            return Err(gap(format!("granted {}", form(ability))));
+        };
+        self.delayed.push(def.clone());
+        Ok(self.delayed.len() - 1)
+    }
+    /// Whether `id` is among the objects a rule is about, as a `Query` reads.
+    fn rule_subject(&self, affected: &ObjectSet, id: &str) -> Result<String> {
+        Ok(match affected {
+            ObjectSet::One(ObjectRef::Source) => format!("{id} == asker.source"),
+            ObjectSet::One(ObjectRef::AttachedTo(host)) if matches!(**host, ObjectRef::Source) => {
+                format!("q.state().obj(asker.source).attached_to == Some({id})")
+            }
+            ObjectSet::Battlefield(filter) => self.filter(filter, &Candidate::of(id))?,
+            other => return Err(gap(format!("static rule subjects {}", form(other)))),
+        })
+    }
+    /// A rule of the game a static ability changes, as one of `CardDef`'s tables.
+    fn static_rule(
+        &mut self,
+        label: &str,
+        affected: &ObjectSet,
+        rule: &RuleChange,
+        parts: &mut Parts,
+    ) -> Result<bool> {
+        let saved = (self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+        let compiled = self.rule_table(label, affected, rule, parts);
+        (self.reader, self.event_at) = saved;
+        compiled
+    }
+    fn rule_table(
+        &mut self,
+        label: &str,
+        affected: &ObjectSet,
+        rule: &RuleChange,
+        parts: &mut Parts,
+    ) -> Result<bool> {
+        const PRELUDE: &str = "let asker = &Asker::new(source, q.controller(source));";
+        let guard = match &self.static_guard {
+            Some(condition) => format!("({}) && ", self.condition(condition)?),
+            None => String::new(),
+        };
+        let block = |c: &Self, blocker: bool, filter: &ObjectFilter| -> Result<String> {
+            let (subject, other) = if blocker {
+                ("blocker", "attacker")
+            } else {
+                ("attacker", "blocker")
+            };
+            Ok(format!(
+                "{} && {}",
+                c.rule_subject(affected, subject)?,
+                c.filter(filter, &Candidate::of(other))?
+            ))
+        };
+        const BLOCK: &str = "(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool";
+        let function = format!("{label}_rule");
+        match rule {
+            RuleChange::Prohibit(ObjectAction::Block(filter))
+            | RuleChange::Prohibit(ObjectAction::BeBlocked(filter)) => {
+                let blocker = matches!(rule, RuleChange::Prohibit(ObjectAction::Block(_)));
+                let test = block(self, blocker, filter)?;
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}{BLOCK} {{ {PRELUDE} !({guard}{test}) }}").unwrap();
+                parts.block_rules.push(function);
+            }
+            RuleChange::RequireCombat {
+                action: ObjectAction::BeBlocked(filter),
+                amount: RequirementAmount::Each,
+            } => {
+                let test = block(self, false, filter)?;
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}{BLOCK} {{ {PRELUDE} {guard}{test} }}").unwrap();
+                parts.block_requirements.push(function);
+            }
+            RuleChange::Prohibit(ObjectAction::Attack(AttackDefenders::Any)) => {
+                let test = self.rule_subject(affected, "attacker")?;
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, attacker: ObjectId) -> bool {{ {PRELUDE} !({guard}{test}) }}").unwrap();
+                parts.attack_rules.push(function);
+            }
+            RuleChange::UntapStep {
+                behavior: UntapBehavior::Skip,
+                ..
+            } => {
+                let test = self.rule_subject(affected, "id")?;
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ {guard}{test} }}").unwrap();
+                parts.untap_bans.push(function);
+            }
+            _ => return Ok(false),
+        }
+        Ok(true)
+    }
     fn layer_change(&mut self, change: &Change) -> Result<LayerChange> {
         let i16_of = |c: &Self, n: &Expr| -> Result<String> {
             c.number(n)?.fit(i16::MIN.into(), i16::MAX.into(), "i16")
@@ -89,6 +201,10 @@ impl Compiler {
                     },
                 )
             }
+            Change::AddCardType(t) => LayerChange::of(
+                "Type",
+                format!("chars.types = chars.types.with(CardType::{});", card_type(t)?),
+            ),
             Change::CreatureTypes {
                 mode: ChangeMode::Add,
                 types: CreatureTypeSet::Listed(types),
@@ -119,6 +235,17 @@ impl Compiler {
                 whole: Some("control_changing"),
                 each: false,
             },
+            Change::Rule(RuleChange::RequireCombat {
+                action: ObjectAction::Attack(AttackDefenders::Any),
+                amount: RequirementAmount::AtLeast(Expr::Constant(1)),
+            }) => LayerChange::of("Ability", "chars.must_attack += 1;".into()),
+            Change::GrantAbility(ability) => {
+                let index = self.grant(ability)?;
+                LayerChange::of(
+                    "Ability",
+                    format!("let card = {}; if let Some(slot) = chars.abilities.iter().position(|a| a.is_none()) {{ chars.abilities[slot] = Some(AbilityRef::delayed(card, {index})); }}", read::SOURCE_CARD),
+                )
+            }
             Change::Rule(rule) => return Err(gap(format!("static rule {}", rule_name(rule)))),
             Change::PlayerRule(rule) => {
                 return Err(gap(format!("static player rule {}", form(rule))))
@@ -133,7 +260,8 @@ impl Compiler {
         kind: &StaticKind,
         affected: &EffectSubjects,
         changes: &[Change],
-    ) -> Result<Vec<String>> {
+        parts: &mut Parts,
+    ) -> Result<()> {
         let EffectSubjects::Objects(affected) = affected else {
             return Err(gap("static ability on players"));
         };
@@ -182,6 +310,11 @@ impl Compiler {
         };
         let mut defs = Vec::new();
         for (i, change) in changes.iter().enumerate() {
+            if let Change::Rule(rule) = change {
+                if self.static_rule(&format!("{label}_{i}"), affected, rule, parts)? {
+                    continue;
+                }
+            }
             let part = self.layered(|c| c.layer_change(change))?;
             let text = quoted(&format!("Static: {}.", form(change)));
             let def = match part.whole {
@@ -205,12 +338,13 @@ impl Compiler {
                 }
             };
             let _ = part.each;
-            defs.push(if i == 0 {
+            defs.push(if defs.is_empty() {
                 def
             } else {
                 format!("{def}.continues()")
             });
         }
-        Ok(defs)
+        parts.statics.extend(defs);
+        Ok(())
     }
 }

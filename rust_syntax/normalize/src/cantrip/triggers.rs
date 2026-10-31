@@ -552,6 +552,9 @@ impl Compiler {
             return Ok(def);
         }
         let matched = self.event(event)?;
+        if announcement.modes.is_some() {
+            return self.modal_triggered(label, &matched, intervening_if, limits, announcement, body);
+        }
         let targets = self.targets_for(announcement, label, matched.frame)?;
         self.frame = matched.frame;
         // CR 603.4 asks an intervening "if" twice. The engine's `condition` has
@@ -600,7 +603,43 @@ impl Compiler {
         }
         Ok(def)
     }
-    fn targets_for(
+    fn modal_triggered(
+        &mut self,
+        label: &str,
+        matched: &Matched,
+        intervening_if: Option<&Condition>,
+        limits: &TriggerLimits,
+        announcement: &Announcement,
+        body: &Program,
+    ) -> Result<String> {
+        if !body.instructions.is_empty() {
+            return Err(gap("modal ability with instructions besides its modes"));
+        }
+        let condition = intervening_if
+            .map(|c| self.condition_function(c, &format!("{label}_if")))
+            .transpose()?;
+        let trigger = self.trigger(matched, &format!("{label}_event"), &[]);
+        self.frame = matched.frame;
+        self.grouped = matched.batch.is_some();
+        let modal = self.modal(announcement, label, Some(matched.frame));
+        self.grouped = false;
+        self.frame = Frame::default();
+        let modal = modal?;
+        let mut def = format!("modal_triggered({trigger}, &{modal}, {})", quoted(&matched.phrase));
+        if let Some(condition) = condition {
+            def.push_str(&format!(".condition({condition})"));
+        }
+        match matched.batch {
+            Some(true) => def.push_str(".once_per_batch().batch_by_data()"),
+            Some(false) => def.push_str(".once_per_batch()"),
+            None => {}
+        }
+        if let Some(per_turn) = limits.per_turn {
+            def.push_str(&format!(".triggers_each_turn({per_turn})"));
+        }
+        Ok(def)
+    }
+    pub(super) fn targets_for(
         &mut self,
         announcement: &Announcement,
         label: &str,

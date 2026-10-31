@@ -23,12 +23,37 @@ fn exactly_u8(count: Option<&Count>) -> Option<u8> {
     }
 }
 
+/// Crew N: the keyword's whole text is its cost's total power (CR 702.122a).
+fn crew(price: &Cost, text: &str) -> Result<String> {
+    if let [CostPart::Constrained { part, constraints }] = price.parts.as_slice() {
+        if let (
+            CostPart::ChangeTapState { tapped: true, .. },
+            [SelectionConstraint::TotalProperty {
+                property: Property::Power,
+                comparison: Comparison::GreaterOrEqual,
+                amount: Expr::Constant(power),
+            }],
+        ) = (part.as_ref(), constraints.as_slice())
+        {
+            if let Ok(power) = u8::try_from(*power) {
+                return Ok(format!(
+                    "cantrip_mechanics::crew::crew({power}, {})",
+                    quoted(text)
+                ));
+            }
+        }
+    }
+    Err(gap("crew with a different cost"))
+}
+
 impl Compiler {
     /// A generated `ObjectFilter`: what a cost accepts of an object.
     fn cost_filter(&mut self, filter: &ObjectFilter, label: &str) -> Result<String> {
-        let reader = std::mem::replace(&mut self.reader, Reader::Query);
+        // A cost's filter is a plain function, with no event or stack item to read.
+        let saved = (self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let test = self.filter(filter, &Candidate::of("id"));
-        self.reader = reader;
+        (self.reader, self.event_at) = saved;
         let function = format!("{label}_{}", self.fresh());
         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ {} }}", test?).unwrap();
         Ok(function)
@@ -46,6 +71,11 @@ impl Compiler {
                     .ok_or_else(|| gap("sacrifice cost without a fixed count"))?;
                 format!("sacrifice({n}, {})", self.cost_filter(filter, label)?)
             }
+            CostPart::Discard {
+                count: Expr::Constant(1),
+                filter: ObjectFilter::SameObject(ObjectRef::Source),
+                random: false,
+            } => "DISCARD_THIS".into(),
             CostPart::Discard {
                 count,
                 filter,
@@ -193,6 +223,82 @@ impl Compiler {
             .into_iter()
             .fold("Cost::NONE".into(), |a, b| format!("{a}.and({b})")))
     }
+    /// The modes of an announcement, as a `ModalDef` static. Each mode is a
+    /// program with slots of its own: the engine renumbers them as it runs it.
+    pub(super) fn modal(
+        &mut self,
+        announcement: &Announcement,
+        label: &str,
+        frame: Option<Frame>,
+    ) -> Result<String> {
+        let selection = announcement
+            .modes
+            .as_ref()
+            .expect("a modal announcement");
+        if !announcement.targets.is_empty() {
+            return Err(gap("targets announced for every mode"));
+        }
+        let ModeSelection {
+            minimum,
+            maximum,
+            repeat,
+            modes,
+            implied,
+            unchosen,
+            surcharge,
+            distinct_targets,
+            chooser,
+            random,
+            budget,
+            may_decline,
+        } = selection;
+        let bound = |n: &Expr| match n {
+            Expr::Constant(n) => u8::try_from(*n).ok(),
+            _ => None,
+        };
+        let (Some(min), Some(max)) = (bound(minimum), bound(maximum)) else {
+            return Err(gap("mode count that is not a constant"));
+        };
+        let refused = [
+            (*implied, "modes implied by the target chosen"),
+            (unchosen.is_some(), "modes limited by earlier choices"),
+            (*distinct_targets, "modes with distinct targets"),
+            (chooser.is_some(), "modes chosen by another player"),
+            (*random, "modes chosen at random"),
+            (budget.is_some(), "modes with a budget"),
+            (*may_decline, "modes that may all be declined"),
+        ];
+        if let Some((_, feature)) = refused.iter().find(|(applies, _)| *applies) {
+            return Err(gap(*feature));
+        }
+        let mut defs = Vec::new();
+        for (i, mode) in modes.iter().enumerate() {
+            if mode.requires.is_some() {
+                return Err(gap("mode with a requirement"));
+            }
+            let label = format!("{label}_mode_{i}");
+            let targets = match frame {
+                Some(frame) => self.targets_for(&mode.announcement, &label, frame)?,
+                None => self.announcement(&mode.announcement, &label)?,
+            };
+            let effect = self.effect(&mode.body, &label)?;
+            defs.push(format!(
+                "mode({effect}, {}).targets({targets})",
+                quoted(&ability_text(&mode.body))
+            ));
+        }
+        let mut modal = format!("modes(&[{}]).choose({min}, {max})", defs.join(","));
+        if *repeat {
+            modal.push_str(".repeat()");
+        }
+        if let Some(surcharge) = surcharge {
+            let cost = self.cost(surcharge, label)?;
+            modal.push_str(&format!(".escalate({cost})"));
+        }
+        let name = format!("{}_MODES", label.to_ascii_uppercase());
+        writeln!(self.functions, "static {name}: ModalDef = {modal};").unwrap();
+        Ok(name)
+    }
     fn activated(
         &mut self,
         label: &str,
@@ -212,14 +318,27 @@ impl Compiler {
         if limits.keyword.is_some() {
             return Err(gap("activated keyword"));
         }
+        let text = ability_text(body);
         let suffix = match origin {
             ActivationOrigin::Ordinary => "",
             ActivationOrigin::Equip => ".equip()",
+            // The zone the keyword functions from, unless a scope states it.
+            ActivationOrigin::Cycling { .. } if scope.is_none() => {
+                ".from(ZoneKind::Hand).cycling()"
+            }
+            ActivationOrigin::Cycling { .. } => ".cycling()",
+            ActivationOrigin::Crew => return crew(price, &text),
+            #[allow(unreachable_patterns)]
             other => return Err(gap(format!("activation origin {}", form(other)))),
         };
-        let targets = self.announcement(announcement, label)?;
-        let text = ability_text(body);
-        let mut def = if crate::semantics::activation_kind(price, announcement, body)
+        let mut def = if announcement.modes.is_some() {
+            let modal = self.modal(announcement, label, None)?;
+            format!(
+                "modal_ability({}, &{modal}, {})",
+                self.cost(price, label)?,
+                quoted(&text)
+            )
+        } else if crate::semantics::activation_kind(price, announcement, body)
             == crate::semantics::ActivationKind::Mana
         {
             let adds = self.mana_ability(body, &format!("{label}_mana"))?;
@@ -229,6 +348,7 @@ impl Compiler {
                 quoted(&text)
             )
         } else {
+            let targets = self.announcement(announcement, label)?;
             let effect = self.effect(body, label)?;
             format!(
                 "ability({}, {effect}, {}).targets({targets})",
@@ -330,9 +450,18 @@ impl Compiler {
                 if parts.spell != "None" {
                     return Err(gap("multiple spell bodies"));
                 }
-                let targets = self.announcement(announcement, label)?;
-                let effect = self.effect(body, label)?;
-                parts.spell = format!("spell({targets}, {effect})");
+                if announcement.modes.is_some() {
+                    if !body.instructions.is_empty() {
+                        return Err(gap("modal spell with instructions besides its modes"));
+                    }
+                    let modal = self.modal(announcement, label, None)?;
+                    parts.spell = "Some(SpellDef::MODAL)".into();
+                    parts.modal = format!("Some(&{modal})");
+                } else {
+                    let targets = self.announcement(announcement, label)?;
+                    let effect = self.effect(body, label)?;
+                    parts.spell = format!("spell({targets}, {effect})");
+                }
             }
             Ability::Activated {
                 origin,
@@ -372,8 +501,7 @@ impl Compiler {
                 affected,
                 changes,
             } => {
-                let defs = self.static_ability(label, kind, affected, changes)?;
-                parts.statics.extend(defs);
+                self.static_ability(label, kind, affected, changes, parts)?;
             }
             Ability::Enchant { hosts } => {
                 if parts.enchant != "None" {
@@ -415,14 +543,13 @@ impl Compiler {
                         Ability::Static { .. } => {
                             self.ability(inner, &format!("{label}_{i}"), parts, scope)
                         }
-                        Ability::Keyword(k) => self
-                            .static_ability(
-                                &format!("{label}_{i}"),
-                                &StaticKind::Ordinary,
-                                &EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
-                                &[Change::GrantKeyword(k.clone())],
-                            )
-                            .map(|defs| parts.statics.extend(defs)),
+                        Ability::Keyword(k) => self.static_ability(
+                            &format!("{label}_{i}"),
+                            &StaticKind::Ordinary,
+                            &EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
+                            &[Change::GrantKeyword(k.clone())],
+                            parts,
+                        ),
                         other => Err(gap(format!("conditional {}", form(other)))),
                     };
                     if step.is_err() {

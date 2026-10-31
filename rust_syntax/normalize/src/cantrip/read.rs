@@ -5,6 +5,11 @@
 //! `controller`, which is all generated here beyond what `Reader` selects.
 use super::*;
 
+/// The card printing what is being compiled: `delayed` is that card's list, and
+/// a copy of the object has the same text (CR 707.2).
+pub(super) const SOURCE_CARD: &str =
+    "{ let o = q.state().obj(asker.source); o.copied_card().unwrap_or(o.card) }";
+
 /// Which callback is being generated.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Reader {
@@ -917,6 +922,11 @@ impl Compiler {
                 comparison,
                 &self.number(right)?.code,
             ),
+            Condition::PaymentChosen(result) => match self.performed.get(&result.0) {
+                Some(local) => format!("(({local} as i64) != 0)"),
+                None if self.failed.contains(&result.0) => return Err(gap(FOLLOWS_GAP)),
+                None => return Err(gap("payment outside generated scope")),
+            },
             Condition::CoinFlip { result, outcome } => {
                 let Some(local) = self.flips.get(&result.0) else {
                     return Err(gap(if self.failed.contains(&result.0) {
