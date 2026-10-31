@@ -125,6 +125,8 @@ def free_mana(cost):
     rule: Black Lotus for three of one color, a Mox for one of its color, Gleemox and Lotus Petal for one of any."""
     colored, generic = {}, 0
     for symbol in re.findall(r"\{([^}]+)\}", cost or ""):
+        if "P" in symbol or symbol[0].isdigit() and "/" in symbol:
+            return None  # Phyrexian and {2/R} ask how they are paid, which is a choice no line here answers
         symbol = symbol.split("/")[0]  # either half of a hybrid symbol pays it (CR 107.4e)
         if symbol.isdigit():
             generic += int(symbol)
@@ -504,14 +506,15 @@ def trigger_scripts(card, frame, keywords, claim, pieces):
         raise Unwritable("no plain removal")
     actions = casts("Bot1", sources) + [activate("Bot1", s, a) for s, a in sources]
     actions += [f"Bot1.Hand.{name}.Cast", "? Bot1.Mana =", "Bot1.Pass", "Bot2.Pass"]
-    actions += ["? Bot1.Life = 20", "[T2 Bot2.Main1]", *kill_lines(name), "Bot2.Pass", "Bot1.Pass", "[T2 Bot2.Main2]"]
+    before = "? Bot1.Life = 20" if claim.kind == "gain" else f"? Bot1.Hand.Count = {7 - (len(bot1) - 1)}"
+    actions += [before, "[T2 Bot2.Main1]", *kill_lines(name), "Bot2.Pass", "Bot1.Pass", "[T2 Bot2.Main2]"]
     expect = [f"Bot1.Battlefield.{name} = (absent)", *life_and_cards_expect(claim, len(bot1) - 1, len(bot1) - 1)]
     expect = [e for e in expect if not e.startswith("Bot2.Hand")]
     what = f"you gain {claim.n} life" if claim.kind == "gain" else f"draw {claim.n}"
     return [Script(
         f"{slug}-dying-triggers-for-its-controller",
         [f"\"When this creature dies, {what}.\" Bot2's {REMOVAL} kills it: its controller, Bot1, gets the effect once (CR 603.10a, 700.4).",
-         "Nothing happens while it merely sits on the battlefield: life is checked before."],
+         f"Nothing happens while it merely sits on the battlefield: {'life' if claim.kind == 'gain' else 'the hand'} is checked before, so entering is not what did it."],
         bot1[:-1], ["Black Lotus", REMOVAL], actions, expect)]
 
 
@@ -538,7 +541,7 @@ def trigger_pump_scripts(card, frame, keywords, claim, pieces):
         bot1 = [own["name"], *bot1]
         start = casts("Bot1", [(own["name"], "")]) + start
     cast = ["[T3 Bot1.Main1]", *[activate("Bot1", s, a) for s, a in sources], f"Bot1.Hand.{name}.Cast", "? Bot1.Mana =", "Bot1.Pass", "Bot2.Pass"]
-    choose = [f"! Bot1.Target(Bot2.Battlefield.{OTHER_MOX})", f"Bot1.Target(Bot2.Battlefield.{v})"]
+    choose = [f"! Bot1.Target(Bot2.Battlefield.{OTHER_MOX})", "! Bot1.Target(Bot2)", f"Bot1.Target(Bot2.Battlefield.{v})"]
     during = [f"? Bot2.Battlefield.{v}.Power = {victim['power'] + p}", f"? Bot2.Battlefield.{v}.Toughness = {victim['toughness'] + t}"]
     if frame == "enters":
         actions = start + cast + choose + ["Bot1.Pass", "Bot2.Pass", *during, "[T4 Bot2.Main1]"]
@@ -552,7 +555,7 @@ def trigger_pump_scripts(card, frame, keywords, claim, pieces):
     return [Script(
         f"{slug}-{'entering' if frame == 'enters' else 'dying'}-pumps-the-creature-it-targets",
         [f"\"When this creature {'enters' if frame == 'enters' else 'dies'}, {text}\" The target is chosen as the trigger goes on the stack (CR 603.3d):",
-         f"a Mox is refused, Bot2's {v} ({victim['power']}/{victim['toughness']}) is taken over the other creature, and has exactly that until the turn ends (CR 611.2a, 514.2)."],
+         f"a Mox and a player are refused, Bot2's {v} ({victim['power']}/{victim['toughness']}) is taken over the other creature, and has exactly that until the turn ends (CR 611.2a, 514.2)."],
         bot1, cards, actions,
         [f"Bot2.Battlefield.{v}.Power = {victim['power']}", f"Bot2.Battlefield.{v}.Toughness = {victim['toughness']}", *keys])]
 

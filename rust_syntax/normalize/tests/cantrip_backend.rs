@@ -288,6 +288,10 @@ fn generated_modules_execute_in_cantrip() {
         ("truths", "Painful Truths"),
         ("strength_two", "Consume Strength"),
         ("salvo", "Blazing Salvo"),
+        ("gale", "Ember Gale"),
+        ("cosmotronic", "Cosmotronic Wave"),
+        ("sleep", "Sleep"),
+        ("rograkh", "Rograkh, Son of Rohgahh"),
     ];
     let mut lib = String::new();
     for (module, name) in names {

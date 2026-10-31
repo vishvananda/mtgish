@@ -1030,14 +1030,26 @@ impl Compiler {
                     return self.continuous_on_players(id, source, players, changes, duration, out);
                 }
                 // "Live" subjects differ from read ones only where the set
-                // could gain a member, which names of one object never do.
+                // could gain a member, which names of objects never do, nor
+                // what an earlier instruction already picked out.
                 let closed = matches!(
                     affected,
-                    EffectSubjects::Objects(ObjectSet::One(_) | ObjectSet::Targets(_))
+                    EffectSubjects::Objects(
+                        ObjectSet::One(_)
+                            | ObjectSet::Targets(_)
+                            | ObjectSet::Selected(_)
+                            | ObjectSet::Unselected(_)
+                            | ObjectSet::Created(_)
+                            | ObjectSet::Transition { .. }
+                    )
+                ) || matches!(
+                    affected,
+                    EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::Either(names)))
+                        if names.iter().all(|name| matches!(name, ObjectFilter::SameObject(_)))
                 );
                 match evaluation {
                     EffectEvaluation::LiveObjects if !closed => {
-                        return Err(gap("resolving rule effect on an open set of objects"))
+                        return self.open_rule(id, source, affected, changes, duration, out)
                     }
                     EffectEvaluation::Live => return Err(gap("live continuous effect")),
                     _ => {
@@ -1623,6 +1635,57 @@ impl Compiler {
     }
     /// One instruction of the card's text: the IR keeps what one instruction
     /// does in one payload, and `instruction` says so to the engine.
+    /// A resolving rule on a set that can still gain members (CR 611.2c). Cantrip
+    /// keeps exactly two of them, both "can't block this turn". Marking the set's
+    /// members now would let a creature that arrives later do what the rule
+    /// forbids, so anything else is the engine's gap and never a snapshot.
+    fn open_rule(
+        &mut self,
+        id: usize,
+        source: &ObjectRef,
+        affected: &EffectSubjects,
+        changes: &[Change],
+        duration: &crate::ir::Duration,
+        out: &mut String,
+    ) -> Result<()> {
+        use crate::mtg_types::CardType;
+        let no_blocks = matches!(
+            changes,
+            [Change::Rule(RuleChange::Prohibit(ObjectAction::Block(ObjectFilter::Any)))]
+        );
+        if no_blocks && matches!(duration, crate::ir::Duration::EndOfTurn) {
+            let creature = |f: &ObjectFilter| matches!(f, ObjectFilter::CardType(CardType::Creature));
+            match affected {
+                EffectSubjects::Objects(ObjectSet::Battlefield(f)) if creature(f) => {
+                    writeln!(out, "cantrip_api::instruction(g, |g| g.creatures_cant_block());").unwrap();
+                    return Ok(());
+                }
+                EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters)))
+                    if filters.len() == 2 && filters.iter().any(creature) =>
+                {
+                    if let Some(players) = filters.iter().find_map(|f| match f {
+                        ObjectFilter::ControlledBy(players) => Some(players),
+                        _ => None,
+                    }) {
+                        writeln!(
+                            out,
+                            "let players_{id} = {}; let source_{id} = {}; if let Some(source) = source_{id} {{ cantrip_api::instruction(g, |g| {{ for player in players_{id} {{ g.add_effect(source, source, EffectKind::CreaturesCantBlock(player), Duration::EndOfTurn); }} }}); }}",
+                            self.fetch(self.players(players)?),
+                            self.fetch(self.object(source)?),
+                        )
+                        .unwrap();
+                        return Ok(());
+                    }
+                }
+                _ => {}
+            }
+        }
+        let what = match changes {
+            [Change::Rule(rule)] => rule_name(rule),
+            _ => "several changes".to_string(),
+        };
+        Err(gap(format!("engine: no resolving rule on an open set: {what}")))
+    }
     fn continuous(
         &mut self,
         id: usize,

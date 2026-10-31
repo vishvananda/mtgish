@@ -781,6 +781,13 @@ impl Compiler {
             Ability::Primitive { name, .. } => {
                 return Err(gap(format!("primitive ability {name}")))
             }
+            // A card that says it is out of the game has no game to generate.
+            Ability::DeckRule(DeckRule::Banned | DeckRule::RemoveUnlessPlayingForAnte) => {
+                return Err(gap("card outside ordinary play"))
+            }
+            // How to build a deck, in no game: Cantrip's Sphinx's Approach says
+            // the same of its line, "no line of code here".
+            Ability::DeckRule(_) => {}
             other => return Err(gap(format!("ability {}", form(other)))),
         }
         Ok(())

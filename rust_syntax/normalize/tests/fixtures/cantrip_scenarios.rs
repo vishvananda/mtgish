@@ -362,6 +362,10 @@ mod scenarios {
             &truths::CARD,
             &strength_two::CARD,
             &salvo::CARD,
+            &gale::CARD,
+            &cosmotronic::CARD,
+            &sleep::CARD,
+            &rograkh::CARD,
         ];
         for extras in [
             alarm::EXTRA,
@@ -1780,6 +1784,107 @@ mod scenarios {
         );
         assert_eq!(g.state.zone(Zone::library(THEM)).len(), library - 3);
         assert!(g.state.stack.is_empty());
+    }
+    /// A creature put in as the opponent's after the spell has resolved.
+    fn arrives_later(g: &mut RulesGame, name: &str, tapped: bool) -> ObjectId {
+        let mut obj = Obj::new(g.cards.find(name).unwrap(), THEM, Zone::BATTLEFIELD);
+        obj.tapped = tapped;
+        let id = g.state.push_obj(obj);
+        g.state.zone_push(Zone::BATTLEFIELD, id);
+        g.state.see_statics();
+        id
+    }
+    #[test]
+    fn a_rule_about_a_player_holds_for_a_creature_that_arrives_later() {
+        // Without the spell the same board is asked for blocks, so "not asked"
+        // below is the rule and not a board with nothing to ask (CR 611.2c).
+        for cast in [true, false] {
+            let (mut g, gale, bears, _) =
+                game_with_extras("Ember Gale", Some("Grizzly Bears"), 0, &[]);
+            let attacker = bears.unwrap();
+            if cast {
+                announce_at(&mut g, gale, ActionKind::CastSpell, Target::Player(THEM));
+                resolve(&mut g, None, false);
+            }
+            arrives_later(&mut g, "Shivan Dragon", false);
+            let life = g.state.player(THEM).life;
+            let mut asked = false;
+            advance_answering(
+                &mut g,
+                &|g| g.state.player(THEM).life < life || g.state.turn.number > 1,
+                &mut |kind| match kind {
+                    RequestKind::DeclareAttackers { .. } => {
+                        Some(Answer::Attack(vec![(attacker, Target::Player(THEM))]))
+                    }
+                    RequestKind::DeclareBlockers { .. } => {
+                        asked = true;
+                        None
+                    }
+                    _ => None,
+                },
+            );
+            assert_eq!(asked, !cast);
+            assert!(g.state.player(THEM).life < life);
+        }
+    }
+    #[test]
+    fn a_rule_about_the_opponents_binds_only_them() {
+        let (mut g, wave, _, _) = game_with_extras(
+            "Cosmotronic Wave",
+            None,
+            0,
+            &[("Grizzly Bears", THEM), ("Grizzly Bears", ME)],
+        );
+        announce(&mut g, wave, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        let about = |g: &RulesGame, player: PlayerId| {
+            g.state
+                .effects
+                .iter()
+                .filter(|e| matches!(e.kind, EffectKind::CreaturesCantBlock(p) if p == player))
+                .count()
+        };
+        assert_eq!(about(&g, THEM), 1);
+        assert_eq!(about(&g, ME), 0);
+        let damaged: Vec<_> = permanents_named(&g, "Grizzly Bears")
+            .into_iter()
+            .map(|id| (g.state.obj(id).controller, g.state.obj(id).damage))
+            .collect();
+        assert!(damaged.contains(&(THEM, 1)));
+        assert!(damaged.contains(&(ME, 0)));
+    }
+    #[test]
+    fn those_creatures_are_the_ones_tapped_and_no_later_ones() {
+        let (mut g, sleep, _, _) =
+            game_with_extras("Sleep", None, 0, &[("Grizzly Bears", THEM)]);
+        let slept = permanents_named(&g, "Grizzly Bears")[0];
+        announce_at(&mut g, sleep, ActionKind::CastSpell, Target::Player(THEM));
+        resolve(&mut g, None, false);
+        assert!(g.state.obj(slept).tapped);
+        // Tapped too but never Sleep's: the set was closed when it resolved.
+        let late = arrives_later(&mut g, "Shivan Dragon", true);
+        let at_main = |turn: u32| {
+            move |g: &RulesGame| {
+                g.state.turn.number == turn && g.state.turn.step() == Step::PrecombatMain
+            }
+        };
+        advance_answering(&mut g, &at_main(2), &mut |_| None);
+        assert!(g.state.obj(slept).tapped, "Sleep skips this untap step");
+        assert!(!g.state.obj(late).tapped, "the rule never reached it");
+        advance_answering(&mut g, &at_main(4), &mut |_| None);
+        assert!(!g.state.obj(slept).tapped, "only the next untap step");
+    }
+    #[test]
+    fn a_deck_rule_leaves_the_rest_of_the_card_as_printed() {
+        let (mut g, rograkh, _) = game("Rograkh, Son of Rohgahh", None);
+        announce(&mut g, rograkh, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        let id = permanents_named(&g, "Rograkh, Son of Rohgahh")[0];
+        let chars = g.chars(id);
+        for keyword in [Keyword::FirstStrike, Keyword::Menace, Keyword::Trample] {
+            assert!(chars.keywords.has(keyword));
+        }
+        assert_eq!((chars.power, chars.toughness), (Some(0), Some(1)));
     }
     #[test]
     fn a_spell_that_cant_be_countered_says_so_in_every_zone() {

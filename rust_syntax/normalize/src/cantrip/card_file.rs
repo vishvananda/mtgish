@@ -244,15 +244,30 @@ fn printed_lines(oracle_text: &str) -> Vec<String> {
     ];
     oracle_text
         .lines()
-        .map(str::trim)
+        .map(without_reminder)
         .filter(|line| !line.is_empty())
         .filter(|line| {
             !line
                 .split(',')
                 .all(|word| KEYWORD_WORDS.contains(&word.trim().to_lowercase().as_str()))
         })
-        .map(str::to_string)
         .collect()
+}
+
+/// A line with its parentheses gone. Cantrip's accepted cards print a rules
+/// line bare (CR 207.2: reminder text has no game function).
+fn without_reminder(line: &str) -> String {
+    let mut out = String::new();
+    let mut depth = 0usize;
+    for c in line.chars() {
+        match c {
+            '(' => depth += 1,
+            ')' => depth = depth.saturating_sub(1),
+            c if depth == 0 => out.push(c),
+            _ => {}
+        }
+    }
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// The generated constant: `crates/cantrip-oracle/build.rs`'s rule.
@@ -279,9 +294,6 @@ pub fn oracle_constant(name: &str) -> String {
 /// The whole file of a card. `None` is a card that needs no file, only its
 /// content JSON: nothing in it but core keywords.
 pub fn card_file(card: &Card, oracle_text: &str) -> Result<Option<String>> {
-    if oracle_text.contains('(') {
-        return Err(gap("card file: reminder text to tell from rules text"));
-    }
     let lines = printed_lines(oracle_text);
     let abilities: Vec<&Ability> = card
         .abilities
