@@ -30,6 +30,11 @@ impl Context {
         if matches!(value, source::Cards::TheChosenLibraryFilter) {
             return Ok(ObjectFilter::ChosenFilter);
         }
+        if let source::Cards::SharesANameWithAnExiled(cards) = value {
+            return Ok(ObjectFilter::SharesNameWithAny(Box::new(
+                self.exile_cards(cards)?,
+            )));
+        }
         if let Some(result) = self.shares_type_this_way(value) {
             return result;
         }
@@ -141,6 +146,7 @@ impl Context {
             return result;
         }
         match value {
+            source::CardsInExile::IsFaceDown => Ok(ObjectFilter::State(ObjectState::FaceDown)),
             source::CardsInExile::TheCardsExiledThisWay | source::CardsInExile::TheExiledCards => {
                 Ok(ObjectFilter::InSet(Box::new(self.exile_cards(value)?)))
             }

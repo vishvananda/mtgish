@@ -1784,3 +1784,19 @@ fn spells_cast_this_way_and_replaced_returns_name_their_objects() {
     );
     assert!(phoenix.contains("EventDestination"), "{phoenix}");
 }
+
+#[test]
+fn group_members_auras_and_named_comparisons_bind_in_filters() {
+    let spinners = lowered(
+        "SpellActions(Targeted([TargetPermanent(AnyPermanent)], ActionList([AttachEachPermanentToAPermanent(And([IsEnchantmentType(Aura), IsEnchantingPermanent(Ref_TargetPermanent)]), Other(Ref_TargetPermanent))])))",
+    );
+    assert!(spinners.contains("AttachedTo(InSet(One("), "{spinners}");
+    let scapegoat = lowered(
+        "TriggerA(WhenAnyNumberOfPermanentsEnterTheBattlefield(IsCardtype(Creature)), ActionList([MayCost(SuspectAPermanent(And([Other(ThisPermanent), Trigger_ThosePermanents])))]))",
+    );
+    assert!(scapegoat.contains("InSet(EventGroup)"), "{scapegoat}");
+    let horde = lowered(
+        "SpellActions(ActionList([Exile([TheTopCardOfLibrary], []), If(TheLastCardExiledThisWayWasACard(IsCardtype(Land)), [DrawACard])]))",
+    );
+    assert!(horde.contains("ObjectMatches"), "{horde}");
+}

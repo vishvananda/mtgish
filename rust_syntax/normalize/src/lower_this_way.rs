@@ -475,6 +475,10 @@ impl Context {
                     0,
                 ))
             }
+            S::TheLastCardExiledThisWayWasACard(filter) => Ok(Condition::ObjectMatches {
+                object: self.result_object(self.exiled.as_ref(), 0)?,
+                filter: self.card_filter(filter)?,
+            }),
             S::TheChosenGraveyardCardPassesFilter(filter) => Ok(Condition::ObjectMatches {
                 object: self.grave_card(&source::CardInGraveyards::TheChosenGraveyardCard)?,
                 filter: self.card_filter(filter)?,

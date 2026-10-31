@@ -696,7 +696,12 @@ impl Context {
         ) {
             self.inspection_assignment(operation, state, instructions);
         } else {
-            instructions.push(self.effect(operation));
+            let to_hand = crate::semantics::yields(&operation) == Some("hand");
+            let instruction = self.effect(operation);
+            if let (true, Instruction::Effect { result, .. }) = (to_hand, &instruction) {
+                self.to_hand = Some(result.clone());
+            }
+            instructions.push(instruction);
         }
         Ok(())
     }

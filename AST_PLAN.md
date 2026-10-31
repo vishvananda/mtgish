@@ -15,15 +15,15 @@ The priorities, in order, are:
 
 ### Where things stand
 
-Unified, complete and blocker rows are current at schema 131. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
+Unified, complete and blocker rows are current at schema 132. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
 
 | Measure | Value |
 |---|---|
 | Records | 33,529 |
-| Unified, schema 131 | 33,529 (100%) |
-| Complete | 33,292 (99.3%) |
-| Complete with no primitive | 31,144 (92.9%) |
-| Distinct forms blocking the rest | 196 |
+| Unified, schema 132 | 33,529 (100%) |
+| Complete | 33,312 (99.4%) |
+| Complete with no primitive | 31,146 (92.9%) |
+| Distinct forms blocking the rest | 176 |
 | Structurally preserved | 33,529 |
 | Source enums / declared variants | 346 / 8,668 |
 | Distinct forms in the corpus | 8,247 |
@@ -195,6 +195,7 @@ Hand-written lowerers are the exception from step 1 on. A form gets hand-written
 | 129 | `SelectionConstraint::SharesLimitWith`, `EventChange::RedirectSomeDamage`, `replaced_exile` (a replaced exile read at `EventDestination`, inside delayed triggers too), `exact_count` for indexing performed cost objects, split target forms for permanents with graveyard cards, permanents a target player controls, one card of each type, listed categories, permanent or exiled card, ante card and any target dealt damage; `MustCost(ChooseAnExiledCard)` as a forced choice; replacement costs decoded as costs, else as performed actions; `ordinary_enum` no longer turns `WouldPutCounters` into a counter action; exile cost selections for a single graveyard, group permanents and milled cards; `IsACopyOfLibraryCard` and `IsACopyOfThatCard`; found cards visible to every reveal step. The Mimeoplasm stays blocked on its entering copy. |
 | 130 | `ReplacementEvent::EachPoint` for "for each 1 damage" (Rock Hydra); row fallbacks at the tails of exiled, hand and spell references and of damage recipients (`ObjectSet::Primitive`); `MustCost(ChooseAnExiledCard)` emitted as a choice plus an empty payment in the payment recipe, since lists bypass `action()`; `HostGraveyardCard`, the sacrificed permanent read from the paid cost, the reduced spell as `Affected` inside a cost reduction, amounts of first-discard and milled-card triggers, tokens created under another player. Rows for the last and top exiled cards, second and third chosen filters, sectors, the most recent spell and the other chosen player only name those forms. Laquatus's Champion and Soul Scourge stay blocked: their life total crosses abilities. |
 | 131 | Read spells cast this way, replaced hand returns and secret numbers; subsets of discarded or revealed cards meeting a filter are one condition. Complete 33,292; no primitive 31,144; forms 196 |
+| 132 | Terms for token colors, subtypes and multi-draw; row binds for group and stack references; named comparisons as `Expr::Primitive`; graveyard casts as `PlayCards`; Auras on a named object and last-exiled conditions. #94 and #95 filed. Complete 33,312; no primitive 31,146; forms 176 |
 
 Schema 80 and 81 do not shrink the vocabulary. `KeywordAction` has 25 forms and `Mechanic` 149, and they count as forms: the names moved into enums, so the 2,360 is typed parameters and an exhaustive match for consumers, not simplification. Keyword mechanics are still not expanded into reusable definitions, which is the reduction this plan asks for. The Cantrip backend still reports these as gaps until it maps them; the engine has direct events for most of schema 78 and 79. At 02210fe all 17,095 records the backend advertises compiled against the engine. That build needs `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_INCREMENTAL=0`: with debug info it runs out of disk quota writing the archive.
 

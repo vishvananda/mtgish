@@ -1272,7 +1272,13 @@ impl Context {
                 let values = values.iter().map(|v| Expr::Constant((*v).into())).collect();
                 return Ok((Comparison::Equal, Expr::AnyOf(values)));
             }
-            _ => return Err(unsupported(value)),
+            // "Equal to" a value the row names, as "a number of cards in a graveyard".
+            _ => {
+                let (name, operands) = self
+                    .primitive("Comparison", value)
+                    .ok_or_else(|| unsupported(value))?;
+                return Ok((Comparison::Equal, Expr::Primitive { name, operands }));
+            }
         };
         Ok((comparison, self.number(number)?))
     }
@@ -1285,6 +1291,14 @@ impl Context {
 
     fn filter_inner(&self, value: &source::Permanents) -> Result<ObjectFilter> {
         match value {
+            source::Permanents::IsEnchantingPermanent(object) => {
+                return Ok(ObjectFilter::AttachedTo(Box::new(ObjectFilter::InSet(
+                    Box::new(ObjectSet::One(self.object(object)?)),
+                ))));
+            }
+            source::Permanents::Trigger_ThosePermanents if self.event.group => {
+                return Ok(ObjectFilter::InSet(Box::new(ObjectSet::EventGroup)));
+            }
             source::Permanents::IsTheChosenPermanentFilter => {
                 return Ok(ObjectFilter::ChosenFilter);
             }

@@ -2614,6 +2614,14 @@ fn reduce_play(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option<Op
             kind: ObjectKind::Card,
             filter: filter.clone(),
         },
+        [Operand::Filter(filter)] if form.contains("Graveyard") => ObjectSet::Zone {
+            scope: ZoneScope::Players {
+                zone: EventZone::Graveyard,
+                players: PlayerSet::All,
+            },
+            kind: ObjectKind::Card,
+            filter: filter.clone(),
+        },
         [Operand::Filter(filter), Operand::Object(card)] => ObjectSet::Matching {
             objects: Box::new(ObjectSet::One(card.clone())),
             filter: filter.clone(),
