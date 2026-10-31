@@ -105,17 +105,24 @@ fn color(value: &ManaColor) -> Result<&'static str> {
         ManaColor::Red => "Red",
         ManaColor::Green => "Green",
         ManaColor::Colorless => return Err(gap("colorless is not a color")),
+        other => return Err(gap(format!("color {}", form(other)))),
     })
 }
-fn color_index(value: &ManaColor) -> usize {
-    match value {
+fn color_index(value: &ManaColor) -> Result<usize> {
+    Ok(match value {
         ManaColor::White => 0,
         ManaColor::Blue => 1,
         ManaColor::Black => 2,
         ManaColor::Red => 3,
         ManaColor::Green => 4,
         ManaColor::Colorless => 5,
-    }
+        other => return Err(gap(format!("color {}", form(other)))),
+    })
+}
+fn color_mask(colors: &[ManaColor]) -> Result<u8> {
+    colors
+        .iter()
+        .try_fold(0u8, |mask, color| Ok(mask | 1 << color_index(color)?))
 }
 fn mana(symbols: &[ManaSymbol]) -> Result<String> {
     let (mut generic, mut x) = (0u32, 0u32);
@@ -130,20 +137,20 @@ fn mana(symbols: &[ManaSymbol]) -> Result<String> {
                     .checked_add(*n)
                     .ok_or_else(|| gap("generic mana overflow"))?
             }
-            ManaSymbol::Color(c) => colors[color_index(c)] += 1,
+            ManaSymbol::Color(c) => colors[color_index(c)?] += 1,
             ManaSymbol::X => x += 1,
             ManaSymbol::Hybrid(a, b) => hybrid.push(format!(
                 "Some((Mana::{}, Mana::{}))",
-                ["W", "U", "B", "R", "G", "C"][color_index(a)],
-                ["W", "U", "B", "R", "G", "C"][color_index(b)]
+                ["W", "U", "B", "R", "G", "C"][color_index(a)?],
+                ["W", "U", "B", "R", "G", "C"][color_index(b)?]
             )),
             ManaSymbol::MonocoloredHybrid(c) => {
                 color(c)?;
-                twobrid[color_index(c)] += 1;
+                twobrid[color_index(c)?] += 1;
             }
             ManaSymbol::Phyrexian(v) if v.len() == 1 => {
                 color(&v[0])?;
-                phyrexian[color_index(&v[0])] += 1;
+                phyrexian[color_index(&v[0])?] += 1;
             }
             _ => return Err(gap("mana symbol")),
         }
@@ -268,7 +275,7 @@ fn mana_plan(value: &ManaProduction) -> Result<ManaPlan> {
                     return Err(gap("combined mana choices in one production"));
                 };
                 for (color, amount) in part {
-                    let index = color_index(&color);
+                    let index = color_index(&color)?;
                     if let Some((_, previous)) = units.get_mut(&index) {
                         *previous = Expr::add(previous.clone(), amount);
                     } else {
@@ -295,7 +302,7 @@ fn mana_plan(value: &ManaProduction) -> Result<ManaPlan> {
                     return Err(gap("mana type choice including colorless"));
                 }
                 amount = Some(*n);
-                if !colors.iter().any(|c| color_index(c) == color_index(color)) {
+                if !colors.contains(color) {
                     colors.push(color.clone());
                 }
             }
@@ -662,7 +669,7 @@ impl Compiler {
                         "player",
                         &format!(
                             "Mana::{}",
-                            ["W", "U", "B", "R", "G", "C"][color_index(color)]
+                            ["W", "U", "B", "R", "G", "C"][color_index(color)?]
                         ),
                         &format!("mana_{id}_{i}"),
                     ));
@@ -670,7 +677,7 @@ impl Compiler {
                 out.push_str("}\n");
             }
             ManaPlan::SameColor { colors, amount } | ManaPlan::Combination { colors, amount } => {
-                let mask = colors.iter().fold(0u8, |m, c| m | 1 << color_index(c));
+                let mask = color_mask(colors)?;
                 let combination = matches!(plan, ManaPlan::Combination { .. });
                 let number = self.number(amount)?;
                 writeln!(
@@ -739,7 +746,7 @@ impl Compiler {
                 let mut known = true;
                 for (color, n) in units {
                     if let Expr::Constant(n) = n {
-                        pool[color_index(color)] =
+                        pool[color_index(color)?] =
                             u32::try_from(*n).map_err(|_| gap("fixed mana amount exceeds u32"))?;
                     } else {
                         known = false;
@@ -750,7 +757,7 @@ impl Compiler {
                 }
             }
             ManaPlan::SameColor { colors, amount } => {
-                let mask = colors.iter().fold(0u8, |m, c| m | 1 << color_index(c));
+                let mask = color_mask(colors)?;
                 metadata.push_str(&format!(".choose_color().colors(ColorSet({mask}))"));
                 if let Expr::Constant(n) = amount {
                     if (0..=255).contains(n) {
@@ -759,7 +766,7 @@ impl Compiler {
                 }
             }
             ManaPlan::Combination { colors, amount } => {
-                let mask = colors.iter().fold(0u8, |m, c| m | 1 << color_index(c));
+                let mask = color_mask(colors)?;
                 metadata.push_str(&format!(".colors(ColorSet({mask}))"));
                 if let Expr::Constant(n) = amount {
                     if (0..=255).contains(n) {
@@ -1016,7 +1023,7 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     let mut colors = 0u8;
     for cl in &ch.color_indicator {
         color(cl)?;
-        colors |= 1 << color_index(cl);
+        colors |= 1 << color_index(cl)?;
     }
     let colors = if ch.color_indicator.is_empty() {
         "None".into()

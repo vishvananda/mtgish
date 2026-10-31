@@ -420,7 +420,7 @@ impl Compiler {
                         filter: ObjectFilter::Color(c),
                     } => {
                         color(c)?;
-                        parts.protection |= 1 << color_index(c);
+                        parts.protection |= 1 << color_index(c)?;
                     }
                     Protection::Objects { filter, .. } => {
                         return Err(gap(format!("protection from {}", form(filter))))

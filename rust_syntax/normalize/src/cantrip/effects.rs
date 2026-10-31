@@ -977,7 +977,7 @@ impl Compiler {
                 let mut mask = 0u8;
                 for c in colors {
                     color(c)?;
-                    mask |= 1 << color_index(c);
+                    mask |= 1 << color_index(c)?;
                 }
                 vec![format!("EffectKind::SetColors(ColorSet({mask}))")]
             }
