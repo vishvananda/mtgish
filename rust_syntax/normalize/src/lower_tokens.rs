@@ -215,6 +215,7 @@ impl Context {
             _ => return Err(unsupported(value)),
         };
         let chosen_color = matches!(colors, source::TokenColorList::TheChosenColor);
+        let chosen_creature_type = matches!(subtypes, source::TokenSubtypes::TheChosenCreatureType);
         let colors = match colors {
             source::TokenColorList::Colorless | source::TokenColorList::TheChosenColor => {
                 Vec::new()
@@ -239,6 +240,7 @@ impl Context {
         };
         let subtypes = match subtypes {
             source::TokenSubtypes::SubtypesList(subtypes) => subtypes.clone(),
+            source::TokenSubtypes::TheChosenCreatureType => vec![],
             source::TokenSubtypes::AllBasicLandTypes => vec![
                 source::SubType::Plains,
                 source::SubType::Island,
@@ -282,6 +284,7 @@ impl Context {
                 name,
                 colors,
                 chosen_color,
+                chosen_creature_type,
                 supertypes: supertypes.clone(),
                 card_types: card_types.clone(),
                 subtypes,

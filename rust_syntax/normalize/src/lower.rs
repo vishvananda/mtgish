@@ -2141,7 +2141,10 @@ impl Context {
                             }
                         })
                         .collect::<Result<_>>()?,
-                    S::AddAbilityVariable(source::AbilityVariable::TheChosenAbility) => {
+                    S::AddAbilityVariable(
+                        source::AbilityVariable::TheChosenAbility
+                        | source::AbilityVariable::TheChosenAbilities,
+                    ) => {
                         vec![Change::ChosenAbility]
                     }
                     S::SetColor(

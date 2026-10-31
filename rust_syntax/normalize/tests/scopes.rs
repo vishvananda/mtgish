@@ -1480,3 +1480,27 @@ fn first_events_for_an_object_dice_and_group_exile() {
     assert!(crown.contains("FirstEachTurn"), "{crown}");
     assert!(crown.contains("ChooseAction"), "{crown}");
 }
+
+#[test]
+fn own_colors_chosen_token_types_and_explored_replacements() {
+    let fellowship = lowered(
+        "EachPermanentLayerEffect(IsCardtype(Creature), [AddAbility([Protection(FromColor(ItsOwnColors))])])",
+    );
+    assert!(fellowship.contains("SharesColorWith"), "{fellowship}");
+
+    let lab = lowered(
+        "Activated(TapPermanent(ThisPermanent), ActionList([CreateTokens([TokenWithPT(PT(2, 2), TheChosenColor, [], [Creature], TheChosenCreatureType, [])], [])]))",
+    );
+    assert!(lab.contains("chosen_creature_type: true"), "{lab}");
+
+    let sponge = lowered(
+        "Activated(TapPermanent(ThisPermanent), Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([ChooseACheckableAbility([Flying, FirstStrike, Trample]), CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [LosesAbility(TheChosenAbility)], UntilEndOfTurn)])))",
+    );
+    assert!(sponge.contains("kind: Ability"), "{sponge}");
+
+    let tracker = lowered(
+        "ReplaceWouldExplore(APermanentWouldExplore(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), [ItExplores, ItExplores])",
+    );
+    assert_eq!(tracker.matches("Explore").count() >= 2, true, "{tracker}");
+    assert!(tracker.contains("Cancel"), "{tracker}");
+}

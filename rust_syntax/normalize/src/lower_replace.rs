@@ -483,6 +483,11 @@ impl Context {
                     |c| c.replacement_steps(&otherwise, actor),
                 )?
             }
+            "ItExplores" => self.effect(crate::semantics::reduce_action(
+                PlayerSet::One(actor.clone()),
+                "Action::ExploreWithPermanent".into(),
+                vec![Operand::Object(ObjectRef::EventSubject)],
+            )),
             "ChooseAnAction" => {
                 let options = list(args)
                     .iter()

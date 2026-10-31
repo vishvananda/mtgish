@@ -62,6 +62,9 @@ impl Context {
         if let S::TheCardConjuredIntoGraveyardThisWay = value {
             return self.conjured_object();
         }
+        if let S::EnchantedGraveyardCard = value {
+            return Ok(ObjectRef::AttachedTo(Box::new(ObjectRef::Source)));
+        }
         let n = match value {
             S::Ref_TargetGraveyardCard => self.slot_of_arity(
                 &TargetKind::Object(ObjectDomain::card(EventZone::Graveyard)),

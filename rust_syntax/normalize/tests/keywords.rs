@@ -71,7 +71,7 @@ fn instance_count(q: &Protection) -> usize {
 
 #[test]
 fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps() {
-    let incomplete = ["Earnest Fellowship", "Volatile Stormdrake", "Samite Elder"];
+    let incomplete = ["Volatile Stormdrake"];
     let mut complete = 0;
     for s in sources() {
         let name = corpus::Identity::of(&s).unwrap().names.remove(0);
@@ -95,7 +95,7 @@ fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps
         }
         complete += 1;
     }
-    assert_eq!(complete, 44);
+    assert_eq!(complete, 46);
 }
 
 #[test]

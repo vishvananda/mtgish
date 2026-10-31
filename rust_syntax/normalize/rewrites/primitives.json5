@@ -2647,6 +2647,7 @@
     {"source": "Action::TapAllButNumberPermanents", "text": "tap"},
     {"source": "Action::ExchangeOwnershipOfTwoCards", "text": "own|owns"},
     {"source": "Action::SkipNextCombatPhaseThisTurn", "text": "skip"},
+    {"source": "Action::ChooseACheckableAbility", "text": "or", "keeps": true},
     {"source": "Action::ChooseAnAbilityAtRandom", "text": "random"},
     {"source": "Action::UnsuspectEachPermanent", "text": "suspected", "keeps": true},
     {"source": "Action::ThereIsAnAdditionalCombatPhaseWithTrigger", "text": "additional", "keeps": true},

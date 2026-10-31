@@ -961,7 +961,8 @@ impl<'a> Scope<'a> {
     fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
             ObjectFilter::ArrivedThisTurn { .. } => Ok(()),
-            ObjectFilter::ExiledWith(object)
+            ObjectFilter::SharesColorWith(object)
+            | ObjectFilter::ExiledWith(object)
             | ObjectFilter::MadeBy(object)
             | ObjectFilter::WasAttachedTo(object) => self.object(object),
             ObjectFilter::DealtExcessBy(result) if self.results.contains_key(&result.0) => Ok(()),

@@ -390,6 +390,7 @@ const VALUE_CHOICES: &[(&str, ValueKind, u32)] = &[
     ("ChooseTwoColorWords", ValueKind::ColorWord, 2),
     ("ChooseAPlaneswalkerType", ValueKind::PlaneswalkerType, 1),
     ("ChooseADamageRecipient", ValueKind::Recipient, 1),
+    ("ChooseACheckableAbility", ValueKind::Ability, 1),
 ];
 
 /// One counter move as a table: how many, of what, from where, to where.
@@ -1414,6 +1415,9 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
         if let Some((_, family)) = family {
             return ObjectFilter::HasKeywordFamily(family.clone());
         }
+    }
+    if let ("SharesAColorWithPermanent", [Operand::Object(object)]) = (form, operands.as_slice()) {
+        return ObjectFilter::SharesColorWith(object.clone());
     }
     if form == "IsntPrepared" && operands.is_empty() {
         return ObjectFilter::Not(Box::new(ObjectFilter::State(ObjectState::Prepared)));
@@ -5021,7 +5025,9 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 object: inner.object && one,
                 permanent: inner.permanent && one,
                 amount: true,
-                group: !matches!(per, BatchPer::Subject),
+                // "One or more creatures" names the other half of a pair.
+                group: !matches!(per, BatchPer::Subject)
+                    || matches!(**event, EventSpec::Pair { .. }),
                 ..inner
             }
         }

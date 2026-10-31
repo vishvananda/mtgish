@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 116;
+pub const SCHEMA_VERSION: u32 = 117;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1904,6 +1904,8 @@ pub struct TokenDefinition {
     pub colors: Vec<ManaColor>,
     /// Also the color chosen earlier, which `colors` can't name.
     pub chosen_color: bool,
+    /// Also the creature type chosen earlier, which `subtypes` can't name.
+    pub chosen_creature_type: bool,
     pub supertypes: Vec<SuperType>,
     pub card_types: Vec<CardType>,
     pub subtypes: Vec<SubType>,
@@ -2014,7 +2016,7 @@ pub enum Change {
         mode: ChangeMode,
         colors: Vec<ManaColor>,
     },
-    /// The ability chosen by `Primitive` Action::ChooseAnAbility.
+    /// The abilities chosen by a `ChooseValue` of `ValueKind::Ability`.
     ChosenAbility,
     /// The color chosen by this ability or as this object entered.
     ChosenColor {
@@ -3348,6 +3350,8 @@ pub enum ObjectFilter {
     },
     /// Mana from a source that matches was spent to cast this spell.
     ManaSpentFrom(Box<ObjectFilter>),
+    /// Shares at least one color with this object.
+    SharesColorWith(ObjectRef),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

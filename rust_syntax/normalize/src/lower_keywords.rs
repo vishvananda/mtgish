@@ -122,6 +122,14 @@ impl Context {
                         ObjectKind::Any,
                         ObjectFilter::Not(Box::new(ObjectFilter::Colorless)),
                     ),
+                    C::ItsOwnColors => objects(
+                        ObjectKind::Any,
+                        ObjectFilter::SharesColorWith(ObjectRef::Source),
+                    ),
+                    C::ColorsOfPermanent(object) => objects(
+                        ObjectKind::Any,
+                        ObjectFilter::SharesColorWith(self.object(object)?),
+                    ),
                     C::Monocolored | C::Multicolored => objects(
                         ObjectKind::Any,
                         ObjectFilter::Property {

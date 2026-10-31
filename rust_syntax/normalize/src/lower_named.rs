@@ -174,6 +174,14 @@ impl Context {
             "Condition" => Operand::Condition(self.condition(&decode(value).ok()?).ok()?),
             "Expiration" => Operand::Duration(self.duration(&decode(value).ok()?).ok()?),
             "Cost" => Operand::Cost(self.cost(&decode(value).ok()?).ok()?),
+            // A rule named whole, as "this creature loses" one.
+            "CheckHasable" if value["variant"] == "PreventDamage" => {
+                let rule: source::Rule = as_family(
+                    &decode::<source::CheckHasable>(value).ok()?,
+                    "Rule",
+                )?;
+                Operand::Ability(Box::new(self.fresh().ability(&rule).ok()?))
+            }
             "Spells" => Operand::Filter(self.spell_filter(&decode(value).ok()?).ok()?),
             "Cards" => Operand::Filter(self.card_filter(&decode(value).ok()?).ok()?),
             "AbilitySources" => Operand::Filter(self.mana_sources(&decode(value).ok()?).ok()?),

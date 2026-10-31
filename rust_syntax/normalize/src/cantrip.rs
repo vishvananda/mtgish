@@ -878,6 +878,9 @@ impl Compiler {
         if token.chosen_color {
             return Err(gap("token of the chosen color"));
         }
+        if token.chosen_creature_type {
+            return Err(gap("token of the chosen creature type"));
+        }
         let pt = token
             .power_toughness
             .as_ref()

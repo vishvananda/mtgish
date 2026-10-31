@@ -257,6 +257,7 @@ impl Compiler {
                     name: TokenName::FromSubtypes,
                     colors: vec![ManaColor::Black],
                     chosen_color: false,
+                    chosen_creature_type: false,
                     supertypes: Vec::new(),
                     card_types: vec![crate::mtg_types::CardType::Creature],
                     subtypes: vec![subtype, S::Army],
