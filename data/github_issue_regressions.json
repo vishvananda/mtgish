@@ -5280,10 +5280,11 @@
   {
     "name": "Lazav, Wearer of Faces",
     "issues": [
-      15
+      15,
+      50
     ],
     "contains": [
-      "iledCards)), If(CostWasPaid, [CreatePermanentLayerEffectUntil(ThisPermanent, [IsACopyOfExiledCard(TheExiledCardChosenThisWay, NoCopyEffects)], UntilEndOfTurn)])]))], CardPT:"
+      "TheExiledCards]))), If(CostWasPaid, [CreatePermanentLayerEffectUntil(ThisPermanent, [IsACopyOfExiledCard(TheExiledCardChosenThisWay, NoCopyEffects)], UntilEndOfTurn)])]))], CardPT:"
     ],
     "excludes": [
       "iledCards)), If(CostWasPaid, [CreatePermanentLayerEffect(ThisPermanent, [IsACopyOfExiledCard(TheExiledCardChosenThisWay, NoCopyEffects)])])]))], CardPT:"
@@ -8225,5 +8226,1902 @@
       "[MustAttack, MustAttackAPlayer(Other(You))]"
     ],
     "excludes": []
+  },
+  {
+    "name": "Aberrant Mind Sorcerer",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "eAction(BetweenValues(1, 9), [MayAction(PutGraveyardCardOnTopOfLibrary(Ref_TargetGraveyardCard))]), ValueAction(BetweenValues"
+    ],
+    "excludes": [
+      "eAction(BetweenValues(1, 9), [PutGraveyardCardOnTopOfLibrary(Ref_TargetGraveyardCard)]), ValueAction(BetweenValues"
+    ]
+  },
+  {
+    "name": "Airship Crash",
+    "issues": [
+      47
+    ],
+    "contains": [
+      "ons(Targeted([TargetPermanent(Or([IsCardtype(Artifact), IsCardtype(Enchantment), And([IsCardtype(Creature), HasAbility(Flying)])]))], ActionList([DestroyPerm"
+    ],
+    "excludes": [
+      "ons(Targeted([TargetPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Creature)]), HasAbility(Flying)]))], ActionList([DestroyPerm"
+    ]
+  },
+  {
+    "name": "Ajani, Strength of the Pride",
+    "issues": [
+      48
+    ],
+    "contains": [
+      "r(You, LifeTotalIs(GreaterThanOrEqualTo(Plus(Integer(15), StartingLif"
+    ],
+    "excludes": [
+      "r(You, LifeTotalIs(GreaterThan(Plus(Integer(15), StartingLif"
+    ]
+  },
+  {
+    "name": "Angel of Destiny",
+    "issues": [
+      48
+    ],
+    "contains": [
+      "r(You, LifeTotalIs(GreaterThanOrEqualTo(Plus(Integer(15), StartingLif"
+    ],
+    "excludes": [
+      "r(You, LifeTotalIs(GreaterThan(Plus(Integer(15), StartingLif"
+    ]
+  },
+  {
+    "name": "Artist's Talent",
+    "issues": [
+      45
+    ],
+    "contains": [
+      "stR], [ReplaceWouldDealDamage(NoncombatDamageWouldBeDealtByASourceToA"
+    ],
+    "excludes": [
+      "stR], [ReplaceWouldDealDamage(DamageWouldBeDealtByASourceToA"
+    ]
+  },
+  {
+    "name": "Axis of Mortality",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "(2), AnyPlayer)], ActionList([MayAction(PlayersExchangeLifeTotals(Ref_TargetPlayers_0, Ref_TargetPlayers_1))])))])"
+    ],
+    "excludes": [
+      "(2), AnyPlayer)], ActionList([PlayersExchangeLifeTotals(Ref_TargetPlayers_0, Ref_TargetPlayers_1)])))])"
+    ]
+  },
+  {
+    "name": "Ballad of the Black Flag",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "[MillNumberCards(Integer(3)), MayAction(PutACardOfTypeMilledThisWayIntoHand(IsHistoric))])), SagaChapter([4], ActionL"
+    ],
+    "excludes": [
+      "[MillNumberCards(Integer(3)), PutACardOfTypeMilledThisWayIntoHand(IsHistoric)])), SagaChapter([4], ActionL"
+    ]
+  },
+  {
+    "name": "Be'lakor, the Dark Master",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCreatureType(Demon), ControlledByAPlayer(SinglePlayer(You))])])), Targeted([AnyTarget], Ac"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsCreatureType(Demon), ControlledByAPlayer(SinglePlayer(You))])), Targeted([AnyTarget], Ac"
+    ]
+  },
+  {
+    "name": "Belligerent Yearling",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "layer(You))])])), ActionList([MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [SetPower(PowerOfPermanent(ThatEnteringPermanent))], UntilEndOfTurn))]))], CardPT: (Power: 3, Toug"
+    ],
+    "excludes": [
+      "layer(You))])])), ActionList([CreatePermanentLayerEffectUntil(ThisPermanent, [SetPower(PowerOfPermanent(ThatEnteringPermanent))], UntilEndOfTurn)]))], CardPT: (Power: 3, Toug"
+    ]
+  },
+  {
+    "name": "Borderland Explorer",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "yer, DiscardACard), EachPlayerMayAction(DiscardedACardThisWay, "
+    ],
+    "excludes": [
+      "yer, DiscardACard), EachPlayerAction(DiscardedACardThisWay, "
+    ]
+  },
+  {
+    "name": "Boseiju, Who Endures",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "t(Ref_TargetPermanent), PlayerMayAction(ControllerOfTargetPerma"
+    ],
+    "excludes": [
+      "t(Ref_TargetPermanent), PlayerAction(ControllerOfTargetPerma"
+    ]
+  },
+  {
+    "name": "Bramble Sovereign",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsNonToken, IsCardtype(Creature)])])), ActionList([MayCost(PayM"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsNonToken, IsCardtype(Creature)])), ActionList([MayCost(PayM"
+    ]
+  },
+  {
+    "name": "Bribe Taker",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "(ThisPermanent)), ActionList([MayAction(PutCounters([ADuplicateOfEachKindOfCounterAmoungPermanentsOrACounterOfTypeOnPermanent(ControlledByAPlayer(SinglePlayer(You)), PTCounter(+1, +1), ThisPermanent)]))]))], CardPT: (Power: 6, Toug"
+    ],
+    "excludes": [
+      "(ThisPermanent)), ActionList([PutCounters([ADuplicateOfEachKindOfCounterAmoungPermanentsOrACounterOfTypeOnPermanent(ControlledByAPlayer(SinglePlayer(You)), PTCounter(+1, +1), ThisPermanent)])]))], CardPT: (Power: 6, Toug"
+    ]
+  },
+  {
+    "name": "Bringer of the Red Dawn",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "type(Creature))], ActionList([MayActions([UntapPermanent(Ref_TargetPermanent), GainControlOfPermanentUntil(Ref_TargetPermanent, UntilEndOfTurn)]), CreatePermanentLayerEffectU"
+    ],
+    "excludes": [
+      "type(Creature))], ActionList([UntapPermanent(Ref_TargetPermanent), GainControlOfPermanentUntil(Ref_TargetPermanent, UntilEndOfTurn), CreatePermanentLayerEffectU"
+    ]
+  },
+  {
+    "name": "Broken Wings",
+    "issues": [
+      47
+    ],
+    "contains": [
+      "ons(Targeted([TargetPermanent(Or([IsCardtype(Artifact), IsCardtype(Enchantment), And([IsCardtype(Creature), HasAbility(Flying)])]))], ActionList([DestroyPerm"
+    ],
+    "excludes": [
+      "ons(Targeted([TargetPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Creature)]), HasAbility(Flying)]))], ActionList([DestroyPerm"
+    ]
+  },
+  {
+    "name": "Burning Wish",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "es: [SpellActions(ActionList([MayAction(RevealCardFromOutsideGameAndPutInHand(IsCardtype(Sorcery))), Exile([Spell(ThisSpell)], "
+    ],
+    "excludes": [
+      "es: [SpellActions(ActionList([RevealCardFromOutsideGameAndPutInHand(IsCardtype(Sorcery)), Exile([Spell(ThisSpell)], "
+    ]
+  },
+  {
+    "name": "Buzzard-Wasp Colony",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "ggerI(WhenAPermanentDies(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), DeadPermanentPassesFilte"
+    ],
+    "excludes": [
+      "ggerI(WhenAPermanentDies(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), DeadPermanentPassesFilte"
+    ]
+  },
+  {
+    "name": "Carnivorous Canopy",
+    "issues": [
+      47
+    ],
+    "contains": [
+      "ons(Targeted([TargetPermanent(Or([IsCardtype(Artifact), IsCardtype(Enchantment), And([IsCardtype(Creature), HasAbility(Flying)])]))], ActionList([DestroyPerm"
+    ],
+    "excludes": [
+      "ons(Targeted([TargetPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Creature)]), HasAbility(Flying)]))], ActionList([DestroyPerm"
+    ]
+  },
+  {
+    "name": "Chalice of Life // Chalice of Death",
+    "issues": [
+      48
+    ],
+    "contains": [
+      "r(You, LifeTotalIs(GreaterThanOrEqualTo(Plus(Integer(10), StartingLif"
+    ],
+    "excludes": [
+      "r(You, LifeTotalIs(GreaterThan(Plus(Integer(10), StartingLif"
+    ]
+  },
+  {
+    "name": "Champion of the Path",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCreatureType(Elemental), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([PermanentDea"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsCreatureType(Elemental), ControlledByAPlayer(SinglePlayer(You))])), ActionList([PermanentDea"
+    ]
+  },
+  {
+    "name": "Citanul Flute",
+    "issues": [
+      48
+    ],
+    "contains": [
+      "rdtype(Creature), ManaValueIs(LessThanOrEqualTo(ValueX))])), RevealFou"
+    ],
+    "excludes": [
+      "rdtype(Creature), ManaValueIs(EqualTo(ValueX))])), RevealFou"
+    ]
+  },
+  {
+    "name": "Cloudstone Curio",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "ePlayer(You))])), ActionList([MayAction(PutAPermanentIntoItsOwnersHand(And([Other(Trigger_ThatPermanent), ControlledByAPlayer(SinglePlayer(You)), SharesAPermanentCardtypeWithPermanent(Trigger_ThatPermanent)])))]))])"
+    ],
+    "excludes": [
+      "ePlayer(You))])), ActionList([PutAPermanentIntoItsOwnersHand(And([Other(Trigger_ThatPermanent), ControlledByAPlayer(SinglePlayer(You)), SharesAPermanentCardtypeWithPermanent(Trigger_ThatPermanent)]))]))])"
+    ]
+  },
+  {
+    "name": "Coax from the Blind Eternities",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "es: [SpellActions(ActionList([MayAction(RevealCardFromOutsideGameAndPutInHandOrPutAnExiledCardInOwnersHand(IsCreatureType(Eldrazi), And([IsFaceUp, IsCreatureType(Eldrazi), OwnedByAPlayer(SinglePlayer(You))])))]))])"
+    ],
+    "excludes": [
+      "es: [SpellActions(ActionList([RevealCardFromOutsideGameAndPutInHandOrPutAnExiledCardInOwnersHand(IsCreatureType(Eldrazi), And([IsFaceUp, IsCreatureType(Eldrazi), OwnedByAPlayer(SinglePlayer(You))]))]))])"
+    ]
+  },
+  {
+    "name": "Collected Conjuring",
+    "issues": [
+      48
+    ],
+    "contains": [
+      "Sorcery), ManaValueIs(LessThanOrEqualTo(Integer(3)))]), WasExiledThis"
+    ],
+    "excludes": [
+      "Sorcery), ManaValueIs(LessThan(Integer(3)))]), WasExiledThis"
+    ]
+  },
+  {
+    "name": "Conjured Currency",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "(Other(You))]))], ActionList([MayAction(ExchangeControl(ThisPermanent, Ref_TargetPermanent))])))])"
+    ],
+    "excludes": [
+      "(Other(You))]))], ActionList([ExchangeControl(ThisPermanent, Ref_TargetPermanent)])))])"
+    ]
+  },
+  {
+    "name": "Cunning Wish",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "es: [SpellActions(ActionList([MayAction(RevealCardFromOutsideGameAndPutInHand(IsCardtype(Instant))), Exile([Spell(ThisSpell)], "
+    ],
+    "excludes": [
+      "es: [SpellActions(ActionList([RevealCardFromOutsideGameAndPutInHand(IsCardtype(Instant)), Exile([Spell(ThisSpell)], "
+    ]
+  },
+  {
+    "name": "Cut In",
+    "issues": [
+      51
+    ],
+    "contains": [
+      " Permanent(Ref_TargetPermanent1)), CreateTokens([YoungHeroRoleToken], [EntersAttachedToPermanent(Ref_TargetPermanent2)])])))])"
+    ],
+    "excludes": [
+      " Permanent(Ref_TargetPermanent)), CreateTokens([YoungHeroRoleToken], [EntersAttachedToPermanent(Ref_TargetPermanent)])])))])"
+    ]
+  },
+  {
+    "name": "Círdan the Shipwright",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "er(ActionPlayer))), EachPlayerMayAction(DidntReceiveAVote, PutA"
+    ],
+    "excludes": [
+      "er(ActionPlayer))), EachPlayerAction(DidntReceiveAVote, PutA"
+    ]
+  },
+  {
+    "name": "Daring Thief",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "tPermanent1)]))], ActionList([MayAction(ExchangeControl(Ref_TargetPermanent1, Ref_TargetPermanent2))])))], CardPT: (Power: 2, Tou"
+    ],
+    "excludes": [
+      "tPermanent1)]))], ActionList([ExchangeControl(Ref_TargetPermanent1, Ref_TargetPermanent2)])))], CardPT: (Power: 2, Tou"
+    ]
+  },
+  {
+    "name": "Deadly Brew",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "anentThisWay(AnyPermanent)), [MayAction(PutACardFromGraveyardIntoHandExceptForGraveyardCard(IsPermanent, ThePermanentSacrificedThisWay))])]))])"
+    ],
+    "excludes": [
+      "anentThisWay(AnyPermanent)), [PutACardFromGraveyardIntoHandExceptForGraveyardCard(IsPermanent, ThePermanentSacrificedThisWay)])]))])"
+    ]
+  },
+  {
+    "name": "Demolition Field",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "t(Ref_TargetPermanent), PlayerMayAction(ControllerOfDestroyedPermanent, SearchLibrary([FindACardOfType(And([IsSupertype(Basic), IsCardtype(Land)])), PutFoundCardsOntoBattlefield([EntersNormally]), Shuffle])), MayAction(SearchLibrary([FindACardOfType(And([IsSupertype(Basic), IsCardtype(Land)])), PutFoundCardsOntoBattlefield([EntersNormally]), Shuffle]))])))])"
+    ],
+    "excludes": [
+      "t(Ref_TargetPermanent), PlayerAction(ControllerOfDestroyedPermanent, SearchLibrary([FindACardOfType(And([IsSupertype(Basic), IsCardtype(Land)])), PutFoundCardsOntoBattlefield([EntersNormally]), Shuffle])), SearchLibrary([FindACardOfType(And([IsSupertype(Basic), IsCardtype(Land)])), PutFoundCardsOntoBattlefield([EntersNormally]), Shuffle])])))])"
+    ]
+  },
+  {
+    "name": "Dinosaur Egg",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "(ThisPermanent)), ActionList([MayAction(Discover(ToughnessOfDeadPermanent))]))], CardPT: (Power: 0, Toug"
+    ],
+    "excludes": [
+      "(ThisPermanent)), ActionList([Discover(ToughnessOfDeadPermanent)]))], CardPT: (Power: 0, Toug"
+    ]
+  },
+  {
+    "name": "Dire-Strain Rampage",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "Way(IsCardtype(Land)), [PlayerMayAction(ControllerOfPermanent(Ref_TargetPermanent), SearchLibrary([FindNumberCardsOfType(Integer(2), And([IsSupertype(Basic), IsCardtype(Land)])), PutFoundCardsOntoBattlefield([EntersTapped]), Shuffle]))], [PlayerMayAction(ControllerOfPermanent(R"
+    ],
+    "excludes": [
+      "Way(IsCardtype(Land)), [PlayerAction(ControllerOfPermanent(Ref_TargetPermanent), SearchLibrary([FindNumberCardsOfType(Integer(2), And([IsSupertype(Basic), IsCardtype(Land)])), PutFoundCardsOntoBattlefield([EntersTapped]), Shuffle]))], [PlayerAction(ControllerOfPermanent(R"
+    ]
+  },
+  {
+    "name": "Doctor Strange, Surgeon",
+    "issues": [
+      48
+    ],
+    "contains": [
+      "r(You, LifeTotalIs(GreaterThanOrEqualTo(Plus(Integer(10), StartingLif"
+    ],
+    "excludes": [
+      "r(You, LifeTotalIs(GreaterThan(Plus(Integer(10), StartingLif"
+    ]
+  },
+  {
+    "name": "Dragon Breath",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "(Integer(6)))])), ActionList([MayAction(PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersAttachedToPermanent(Trigger_ThatPermanent)]))])))])"
+    ],
+    "excludes": [
+      "(Integer(6)))])), ActionList([PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersAttachedToPermanent(Trigger_ThatPermanent)])])))])"
+    ]
+  },
+  {
+    "name": "Dragon Fangs",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "(Integer(6)))])), ActionList([MayAction(PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersAttachedToPermanent(Trigger_ThatPermanent)]))])))])"
+    ],
+    "excludes": [
+      "(Integer(6)))])), ActionList([PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersAttachedToPermanent(Trigger_ThatPermanent)])])))])"
+    ]
+  },
+  {
+    "name": "Dragon Scales",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "(Integer(6)))])), ActionList([MayAction(PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersAttachedToPermanent(Trigger_ThatPermanent)]))])))])"
+    ],
+    "excludes": [
+      "(Integer(6)))])), ActionList([PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersAttachedToPermanent(Trigger_ThatPermanent)])])))])"
+    ]
+  },
+  {
+    "name": "Dragon Shadow",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "(Integer(6)))])), ActionList([MayAction(PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersAttachedToPermanent(Trigger_ThatPermanent)]))])))])"
+    ],
+    "excludes": [
+      "(Integer(6)))])), ActionList([PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersAttachedToPermanent(Trigger_ThatPermanent)])])))])"
+    ]
+  },
+  {
+    "name": "Dragon Wings",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "(Integer(6)))])), ActionList([MayAction(PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersAttachedToPermanent(Trigger_ThatPermanent)]))])))])"
+    ],
+    "excludes": [
+      "(Integer(6)))])), ActionList([PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersAttachedToPermanent(Trigger_ThatPermanent)])])))])"
+    ]
+  },
+  {
+    "name": "Dredger's Insight",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "[MillNumberCards(Integer(4)), MayAction(PutACardOfTypeMilledThisWayIntoHand(Or([IsCardtype(Artifact), IsCardtype(Creature), IsCardtype(Land)])))]))])"
+    ],
+    "excludes": [
+      "[MillNumberCards(Integer(4)), PutACardOfTypeMilledThisWayIntoHand(Or([IsCardtype(Artifact), IsCardtype(Creature), IsCardtype(Land)]))]))])"
+    ]
+  },
+  {
+    "name": "Druid of Purification",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "Action(AnyPlayer, You, [ChooseUptoOnePermanent(And([Or([IsCardtype("
+    ],
+    "excludes": [
+      "Action(AnyPlayer, You, [ChooseAPermanent(And([Or([IsCardtype("
+    ]
+  },
+  {
+    "name": "Eerie Gravestone",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "[MillNumberCards(Integer(4)), MayAction(PutACardOfTypeMilledThisWayIntoHand(IsCardtype(Creature)))]))])"
+    ],
+    "excludes": [
+      "[MillNumberCards(Integer(4)), PutACardOfTypeMilledThisWayIntoHand(IsCardtype(Creature))]))])"
+    ]
+  },
+  {
+    "name": "Embodiment of Fury",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "Player(You))]))], ActionList([MayAction(CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [SetPT(PT(3, 3)), AddCreatureType(Elemental), AddCardtype(Creature), AddAbility([Haste])], UntilEndOfTurn))])))], CardPT: (Power: 4, Tou"
+    ],
+    "excludes": [
+      "Player(You))]))], ActionList([CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [SetPT(PT(3, 3)), AddCreatureType(Elemental), AddCardtype(Creature), AddAbility([Haste])], UntilEndOfTurn)])))], CardPT: (Power: 4, Tou"
+    ]
+  },
+  {
+    "name": "Embodiment of Insight",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "Player(You))]))], ActionList([MayAction(CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [SetPT(PT(3, 3)), AddCreatureType(Elemental), AddCardtype(Creature), AddAbility([Haste])], UntilEndOfTurn))])))], CardPT: (Power: 4, Tou"
+    ],
+    "excludes": [
+      "Player(You))]))], ActionList([CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [SetPT(PT(3, 3)), AddCreatureType(Elemental), AddCardtype(Creature), AddAbility([Haste])], UntilEndOfTurn)])))], CardPT: (Power: 4, Tou"
+    ]
+  },
+  {
+    "name": "Emperor Apatzec Intli IV",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([If(Permanent"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), ActionList([If(Permanent"
+    ]
+  },
+  {
+    "name": "Exorcise",
+    "issues": [
+      47
+    ],
+    "contains": [
+      "ons(Targeted([TargetPermanent(Or([IsCardtype(Artifact), IsCardtype(Enchantment), And([IsCardtype(Creature), PowerIs(GreaterThanOrEqualTo(Integer(4)))])]))], ActionList([Exile([Perm"
+    ],
+    "excludes": [
+      "ons(Targeted([TargetPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Creature)]), PowerIs(GreaterThanOrEqualTo(Integer(4)))]))], ActionList([Exile([Perm"
+    ]
+  },
+  {
+    "name": "Extract the Truth",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "ef_TargetPlayer, RevealHand), MayActions([ChooseACardFromPlayersRevealedHand(Or([IsCardtype(Creature), IsCardtype(Enchantment), IsCardtype(Planeswalker)]), Ref_TargetPlayer), PlayerAction(Ref_TargetPlayer, DiscardCard(TheCardChosenThisWay))])])), Targeted([TargetPlayer(O"
+    ],
+    "excludes": [
+      "ef_TargetPlayer, RevealHand), ChooseACardFromPlayersRevealedHand(Or([IsCardtype(Creature), IsCardtype(Enchantment), IsCardtype(Planeswalker)]), Ref_TargetPlayer), PlayerAction(Ref_TargetPlayer, DiscardCard(TheCardChosenThisWay))])), Targeted([TargetPlayer(O"
+    ]
+  },
+  {
+    "name": "Extrapolate the Impossible",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "es: [SpellActions(ActionList([MayActions([RevealNumberGroupCardsFromOutsideGame(Integer(2), AnyCard, DifferentNames), APlayerAction(Opponent, ChooseACardFromOutsideGame(TheCardsFromOutsideGameRevealedThisWay)), PutACardFromOutsideGameInHand(TheCardsFromOutsideGameChosenThisWay)])]))])"
+    ],
+    "excludes": [
+      "es: [SpellActions(ActionList([RevealNumberGroupCardsFromOutsideGame(Integer(2), AnyCard, DifferentNames), APlayerAction(Opponent, ChooseACardFromOutsideGame(TheCardsFromOutsideGameRevealedThisWay)), PutACardFromOutsideGameInHand(TheCardsFromOutsideGameChosenThisWay)]))])"
+    ]
+  },
+  {
+    "name": "Faerie Slumber Party",
+    "issues": [
+      49
+    ],
+    "contains": [
+      "orEach(Integer(2), NumPlayers(And([Opponent, ControlledAPermanentReturnToHandThisWay])), TokenWithPT(PT(1, 1), Color"
+    ],
+    "excludes": [
+      "orEach(Integer(2), NumPlayers(ControlledAPermanentReturnToHandThisWay), TokenWithPT(PT(1, 1), Color"
+    ]
+  },
+  {
+    "name": "Fleeting Flight",
+    "issues": [
+      46
+    ],
+    "contains": [
+      "rn), CreatePreventDamageUntil(CombatDamageWouldBeDealtToRecipient("
+    ],
+    "excludes": [
+      "rn), CreatePreventDamageUntil(DamageWouldBeDealtToRecipient("
+    ]
+  },
+  {
+    "name": "Flooded Woodlands",
+    "issues": [
+      50
+    ],
+    "contains": [
+      "dtype(Creature)]), [CantAttackUnlessCost(SacrificeAPermanent(IsCardtype"
+    ],
+    "excludes": [
+      "dtype(Creature)]), [CantAttackPlayerUnlessCost(You, SacrificeAPermanent(IsCardtype"
+    ]
+  },
+  {
+    "name": "Giant Ambush Beetle",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "type(Creature))], ActionList([MayAction(CreatePermanentRuleEffectUntil(Ref_TargetPermanent, [MustBlockAttacker(ThatEnteringPermanent)], UntilEndOfTurn))])))], CardPT: (Power: 4, Tou"
+    ],
+    "excludes": [
+      "type(Creature))], ActionList([CreatePermanentRuleEffectUntil(Ref_TargetPermanent, [MustBlockAttacker(ThatEnteringPermanent)], UntilEndOfTurn)])))], CardPT: (Power: 4, Tou"
+    ]
+  },
+  {
+    "name": "Glittering Wish",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "es: [SpellActions(ActionList([MayAction(RevealCardFromOutsideGameAndPutInHand(IsMulticolored)), Exile([Spell(ThisSpell)], ["
+    ],
+    "excludes": [
+      "es: [SpellActions(ActionList([RevealCardFromOutsideGameAndPutInHand(IsMulticolored), Exile([Spell(ThisSpell)], ["
+    ]
+  },
+  {
+    "name": "Golden Wish",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "es: [SpellActions(ActionList([MayAction(RevealCardFromOutsideGameAndPutInHand(Or([IsCardtype(Artifact), IsCardtype(Enchantment)]))), Exile([Spell(ThisSpell)], "
+    ],
+    "excludes": [
+      "es: [SpellActions(ActionList([RevealCardFromOutsideGameAndPutInHand(Or([IsCardtype(Artifact), IsCardtype(Enchantment)])), Exile([Spell(ThisSpell)], "
+    ]
+  },
+  {
+    "name": "Good-Fortune Unicorn",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([PutCounters("
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), ActionList([PutCounters("
+    ]
+  },
+  {
+    "name": "Grakmaw, Skyclave Ravager",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "ggerI(WhenAPermanentDies(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), DeadPermanentPassesFilte"
+    ],
+    "excludes": [
+      "ggerI(WhenAPermanentDies(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), DeadPermanentPassesFilte"
+    ]
+  },
+  {
+    "name": "Grappling Hook",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "type(Creature))], ActionList([MayAction(CreatePermanentRuleEffectUntil(Ref_TargetPermanent, [MustBlockAttacker(Trigger_ThatCreature)], UntilEndOfTurn))]))), Equip(IsCardtype(Creatu"
+    ],
+    "excludes": [
+      "type(Creature))], ActionList([CreatePermanentRuleEffectUntil(Ref_TargetPermanent, [MustBlockAttacker(Trigger_ThatCreature)], UntilEndOfTurn)]))), Equip(IsCardtype(Creatu"
+    ]
+  },
+  {
+    "name": "Graywater's Fixer",
+    "issues": [
+      50
+    ],
+    "contains": [
+      ")]), You, [AddAbility([Encore(PayManaX([ManaCostX], ManaValueOfGraveyardCard(ThisGraveyardCard)))])])], CardPT: (Power: 4, Tou"
+    ],
+    "excludes": [
+      ")]), You, [AddAbility([Encore(ItsManaCost)])])], CardPT: (Power: 4, Tou"
+    ]
+  },
+  {
+    "name": "Guan Yu, Sainted Warrior",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "nglePlayer(You)), ActionList([MayAction(ShuffleGraveyardCardIntoLibrary(Trigger_ThatGraveyardCard))]))], CardPT: (Power: 3, Toug"
+    ],
+    "excludes": [
+      "nglePlayer(You)), ActionList([ShuffleGraveyardCardIntoLibrary(Trigger_ThatGraveyardCard)]))], CardPT: (Power: 3, Toug"
+    ]
+  },
+  {
+    "name": "Halana, Kessig Ranger",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([MayAction(Re"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), ActionList([MayAction(Re"
+    ]
+  },
+  {
+    "name": "Halvar, God of Battle // Sword of the Realms",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "Player(You))]))], ActionList([MayAction(AttachPermanentToPermanent(Ref_TargetPermanent1, Ref_TargetPermanent2))])))], CardPT: (Power: 4, Tou"
+    ],
+    "excludes": [
+      "Player(You))]))], ActionList([AttachPermanentToPermanent(Ref_TargetPermanent1, Ref_TargetPermanent2)])))], CardPT: (Power: 4, Tou"
+    ]
+  },
+  {
+    "name": "Hamletback Goliath",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "ype(Creature)])), ActionList([MayAction(PutCounters([NumberCountersOfTypeOnPermanent(PowerOfPermanent(ThatEnteringPermanent), PTCounter(+1, +1), ThisPermanent)]))]))], CardPT: (Power: 6, Toug"
+    ],
+    "excludes": [
+      "ype(Creature)])), ActionList([PutCounters([NumberCountersOfTypeOnPermanent(PowerOfPermanent(ThatEnteringPermanent), PTCounter(+1, +1), ThisPermanent)])]))], CardPT: (Power: 6, Toug"
+    ]
+  },
+  {
+    "name": "Hawkeye, Young Avenger",
+    "issues": [
+      45
+    ],
+    "contains": [
+      "Reach, ReplaceWouldDealDamage(NoncombatDamageWouldBeDealtByASourceToA"
+    ],
+    "excludes": [
+      "Reach, ReplaceWouldDealDamage(DamageWouldBeDealtByASourceToA"
+    ]
+  },
+  {
+    "name": "Hellkite Courser",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "(ThisPermanent)), ActionList([MayActions([PutACommanderFromCommandZoneOntoBattlefield(OwnedByAPlayer(SinglePlayer(You)), [EntersNormally]), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([Haste])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([ReturnPermanentToCommandZone(ThePermanentPutOnTheBattlefieldThisWay)]))])]))], CardPT: (Power: 6, Toug"
+    ],
+    "excludes": [
+      "(ThisPermanent)), ActionList([PutACommanderFromCommandZoneOntoBattlefield(OwnedByAPlayer(SinglePlayer(You)), [EntersNormally]), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([Haste])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([ReturnPermanentToCommandZone(ThePermanentPutOnTheBattlefieldThisWay)]))]))], CardPT: (Power: 6, Toug"
+    ]
+  },
+  {
+    "name": "Hexhaven Invigorator",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "(ThisPermanent)), ActionList([MayAction(SearchLibrary([FindNumberCardsOfType(Trigger_ThatMuch, IsCardtype(Land)), PutFoundCardsOntoBattlefield([EntersTapped]), Shuffle]))]))], CardPT: (Power: 6, Toug"
+    ],
+    "excludes": [
+      "(ThisPermanent)), ActionList([SearchLibrary([FindNumberCardsOfType(Trigger_ThatMuch, IsCardtype(Land)), PutFoundCardsOntoBattlefield([EntersTapped]), Shuffle])]))], CardPT: (Power: 6, Toug"
+    ]
+  },
+  {
+    "name": "Invasion of Alara // Awaken the Maelstrom",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "DrawNumberCards(Integer(2))), MayAction(PutACardFromHandOnBattlefield(IsCardtype(Artifact), [EntersNormally])), CreateTokens([TokenCopyOfAP"
+    ],
+    "excludes": [
+      "DrawNumberCards(Integer(2))), PutACardFromHandOnBattlefield(IsCardtype(Artifact), [EntersNormally]), CreateTokens([TokenCopyOfAP"
+    ]
+  },
+  {
+    "name": "Jerren, Corrupted Bishop // Ormendahl, the Corrupter",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "ggerA(WhenAPermanentDies(And([Other(ThisPermanent), And([IsNonToken, IsCreatureType(Human), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([LoseLife(Int"
+    ],
+    "excludes": [
+      "ggerA(WhenAPermanentDies(And([IsNonToken, IsCreatureType(Human), ControlledByAPlayer(SinglePlayer(You))])), ActionList([LoseLife(Int"
+    ]
+  },
+  {
+    "name": "Journey to the Lost City",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "eAction(BetweenValues(1, 9), [MayAction(ReturnAnExiledCardToBattlefield(And([IsCardtype(Land), TheCardsExiledThisWay]), [EntersNormally]))]), ValueAction(BetweenValues"
+    ],
+    "excludes": [
+      "eAction(BetweenValues(1, 9), [ReturnAnExiledCardToBattlefield(And([IsCardtype(Land), TheCardsExiledThisWay]), [EntersNormally])]), ValueAction(BetweenValues"
+    ]
+  },
+  {
+    "name": "Jugan Defends the Temple // Remnant of the Rising Star",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([MayAction(Re"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), ActionList([MayAction(Re"
+    ]
+  },
+  {
+    "name": "Jund Sojourners",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "eted([AnyTarget], ActionList([MayActions([DiscardedCardDealsDamage(Trigger_ThatCardInHand, Integer(1), Ref_AnyTarget)])])))), TriggerA(WhenAPermanentDies(SinglePermanent(ThisPermanent)), Targeted([AnyTarget], ActionList([MayActions([PermanentDealsDamage(Trigger_ThatPermanent, Integer(1), Ref_AnyTarget)])]))), Cycling(PayMana([ManaCo"
+    ],
+    "excludes": [
+      "eted([AnyTarget], ActionList([DiscardedCardDealsDamage(Trigger_ThatCardInHand, Integer(1), Ref_AnyTarget)])))), TriggerA(WhenAPermanentDies(SinglePermanent(ThisPermanent)), Targeted([AnyTarget], ActionList([PermanentDealsDamage(Trigger_ThatPermanent, Integer(1), Ref_AnyTarget)]))), Cycling(PayMana([ManaCo"
+    ]
+  },
+  {
+    "name": "Karplusan Giant",
+    "issues": [
+      50
+    ],
+    "contains": [
+      "sUntapped, IsSupertype(Snow), IsCardtype(Land), ControlledByAPlayer(SinglePlay"
+    ],
+    "excludes": [
+      "sUntapped, IsSupertype(Snow), ControlledByAPlayer(SinglePlay"
+    ]
+  },
+  {
+    "name": "Keeper of the Dead",
+    "issues": [
+      48
+    ],
+    "contains": [
+      "dsOfTypeInGraveyardIs(LessThanOrEqualTo(Minus(TheNumberOfGraveyardCar"
+    ],
+    "excludes": [
+      "dsOfTypeInGraveyardIs(LessThan(Minus(TheNumberOfGraveyardCar"
+    ]
+  },
+  {
+    "name": "Kor Outfitter",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "Player(You))]))], ActionList([MayAction(AttachPermanentToPermanent(Ref_TargetPermanent1, Ref_TargetPermanent2))])))], CardPT: (Power: 2, Tou"
+    ],
+    "excludes": [
+      "Player(You))]))], ActionList([AttachPermanentToPermanent(Ref_TargetPermanent1, Ref_TargetPermanent2)])))], CardPT: (Power: 2, Tou"
+    ]
+  },
+  {
+    "name": "Last Voyage of the _____",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "(ThisPermanent)), ActionList([MayAction(PutANameStickerOnPermanent(ThisPermanent)), CreatePermanentLayerEffect("
+    ],
+    "excludes": [
+      "(ThisPermanent)), ActionList([PutANameStickerOnPermanent(ThisPermanent), CreatePermanentLayerEffect("
+    ]
+  },
+  {
+    "name": "Lazav, Familiar Stranger",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "isWay(IsCardtype(Creature)), [MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [IsACopyOfExiledCard(TheCardExiledThisWay, NoCopyEffects)], UntilEndOfTurn))])]))], CardPT: (Power: 1, To"
+    ],
+    "excludes": [
+      "isWay(IsCardtype(Creature)), [CreatePermanentLayerEffectUntil(ThisPermanent, [IsACopyOfExiledCard(TheCardExiledThisWay, NoCopyEffects)], UntilEndOfTurn)])]))], CardPT: (Power: 1, To"
+    ]
+  },
+  {
+    "name": "Leyline of Hope",
+    "issues": [
+      48
+    ],
+    "contains": [
+      "r(You, LifeTotalIs(GreaterThanOrEqualTo(Plus(Integer(7), StartingLife"
+    ],
+    "excludes": [
+      "r(You, LifeTotalIs(GreaterThan(Plus(Integer(7), StartingLife"
+    ]
+  },
+  {
+    "name": "Leyline of Singularity",
+    "issues": [
+      50
+    ],
+    "contains": [
+      "Cardtype(Land), [AddSupertype(Legendary)])])"
+    ],
+    "excludes": [
+      "Cardtype(Land), [AddSupertype(Snow)])])"
+    ]
+  },
+  {
+    "name": "Liar's Pendulum",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "sNamed(TheChosenName), You)), MayActions([RevealHand, If(PlayerGuessedWrong, [DrawACard])])])))])"
+    ],
+    "excludes": [
+      "sNamed(TheChosenName), You)), RevealHand, If(PlayerGuessedWrong, [DrawACard])])))])"
+    ]
+  },
+  {
+    "name": "Liliana, Waker of the Dead",
+    "issues": [
+      49
+    ],
+    "contains": [
+      "scardACard), EachPlayerAction(And([Opponent, DidntPayCost]), LoseLife(Integer(3)))])), Ac"
+    ],
+    "excludes": [
+      "scardACard), EachPlayerAction(DidntPayCost, LoseLife(Integer(3)))])), Ac"
+    ]
+  },
+  {
+    "name": "Living Wish",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "es: [SpellActions(ActionList([MayAction(RevealCardFromOutsideGameAndPutInHand(Or([IsCardtype(Creature), IsCardtype(Land)]))), Exile([Spell(ThisSpell)], "
+    ],
+    "excludes": [
+      "es: [SpellActions(ActionList([RevealCardFromOutsideGameAndPutInHand(Or([IsCardtype(Creature), IsCardtype(Land)])), Exile([Spell(ThisSpell)], "
+    ]
+  },
+  {
+    "name": "Make Your Move",
+    "issues": [
+      47
+    ],
+    "contains": [
+      "ons(Targeted([TargetPermanent(Or([IsCardtype(Artifact), IsCardtype(Enchantment), And([IsCardtype(Creature), PowerIs(GreaterThanOrEqualTo(Integer(4)))])]))], ActionList([DestroyPerm"
+    ],
+    "excludes": [
+      "ons(Targeted([TargetPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Creature)]), PowerIs(GreaterThanOrEqualTo(Integer(4)))]))], ActionList([DestroyPerm"
+    ]
+  },
+  {
+    "name": "Mausoleum Harpy",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "ggerI(WhenAPermanentDies(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), PlayerPassesFilter(You, "
+    ],
+    "excludes": [
+      "ggerI(WhenAPermanentDies(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), PlayerPassesFilter(You, "
+    ]
+  },
+  {
+    "name": "Midnight Tilling",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "[MillNumberCards(Integer(4)), MayAction(PutACardFromGraveyardIntoHand(CardsOfTypeMilledThisWay(IsPermanent)))]))])"
+    ],
+    "excludes": [
+      "[MillNumberCards(Integer(4)), PutACardFromGraveyardIntoHand(CardsOfTypeMilledThisWay(IsPermanent))]))])"
+    ]
+  },
+  {
+    "name": "Miirym, Sentinel Wyrm",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsNonToken, IsCreatureType(Dragon), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([CreateTokens"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsNonToken, IsCreatureType(Dragon), ControlledByAPlayer(SinglePlayer(You))])), ActionList([CreateTokens"
+    ]
+  },
+  {
+    "name": "Mirko, Obsessive Theorist",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "Player(You))]))], ActionList([MayAction(PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersWithACounter(FinalityCounter)]))])))], CardPT: (Power: 1, Tou"
+    ],
+    "excludes": [
+      "Player(You))]))], ActionList([PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersWithACounter(FinalityCounter)])])))], CardPT: (Power: 1, Tou"
+    ]
+  },
+  {
+    "name": "Mirkwood Meditator",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "ePlayer(You))])), ActionList([MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [SetPT(PT(4, 2))], UntilEndOfTurn))]))], CardPT: (Power: 2, Toug"
+    ],
+    "excludes": [
+      "ePlayer(You))])), ActionList([CreatePermanentLayerEffectUntil(ThisPermanent, [SetPT(PT(4, 2))], UntilEndOfTurn)]))], CardPT: (Power: 2, Toug"
+    ]
+  },
+  {
+    "name": "Mole Module",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "[MillNumberCards(Integer(4)), MayAction(PutACardOfTypeMilledThisWayOntoTheBattlefield(IsPermanent, [EntersNormally]))])), Crew(2)], CardPT: (Power"
+    ],
+    "excludes": [
+      "[MillNumberCards(Integer(4)), PutACardOfTypeMilledThisWayOntoTheBattlefield(IsPermanent, [EntersNormally])])), Crew(2)], CardPT: (Power"
+    ]
+  },
+  {
+    "name": "Monk Gyatso",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "ySpellOrAbility), ActionList([MayAction(AirbendPermanent(Trigger_ThatPermanent))]))], CardPT: (Power: 3, Toug"
+    ],
+    "excludes": [
+      "ySpellOrAbility), ActionList([AirbendPermanent(Trigger_ThatPermanent)]))], CardPT: (Power: 3, Toug"
+    ]
+  },
+  {
+    "name": "Mutant Chain Reaction",
+    "issues": [
+      47
+    ],
+    "contains": [
+      "geted([UptoOneTargetPermanent(Or([IsCardtype(Artifact), IsCardtype(Enchantment), And([IsCardtype(Creature), HasAbility(Flying)])]))], ActionList([DestroyPerm"
+    ],
+    "excludes": [
+      "geted([UptoOneTargetPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Creature)]), HasAbility(Flying)]))], ActionList([DestroyPerm"
+    ]
+  },
+  {
+    "name": "My Undead Horde Awakens",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "rd(Opponent)]))], ActionList([MayAction(PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersUnderPlayersControl(You)]))]))), TriggerA(WhenAPermanent"
+    ],
+    "excludes": [
+      "rd(Opponent)]))], ActionList([PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersUnderPlayersControl(You)])]))), TriggerA(WhenAPermanent"
+    ]
+  },
+  {
+    "name": "My Wings Enfold All",
+    "issues": [
+      50
+    ],
+    "contains": [
+      "astsASpell(SinglePlayer(You), Or([IsCardtype(Instant), IsCardt"
+    ],
+    "excludes": [
+      "astsASpell(SinglePlayer(You), And([IsCardtype(Instant), IsCardt"
+    ]
+  },
+  {
+    "name": "Nantuko Tracer",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "InAnyGraveyard)], ActionList([MayAction(PutGraveyardCardOnBottomOfLibrary(Ref_TargetGraveyardCard))])))], CardPT: (Power: 2, Tou"
+    ],
+    "excludes": [
+      "InAnyGraveyard)], ActionList([PutGraveyardCardOnBottomOfLibrary(Ref_TargetGraveyardCard)])))], CardPT: (Power: 2, Tou"
+    ]
+  },
+  {
+    "name": "Nihilith",
+    "issues": [
+      49
+    ],
+    "contains": [
+      "raveyardFromAnywhere(AnyCard, Opponent), ExiledCardPassesFilter(This"
+    ],
+    "excludes": [
+      "raveyardFromAnywhere(AnyCard, AnyPlayer), ExiledCardPassesFilter(This"
+    ]
+  },
+  {
+    "name": "Noctis, Heir Apparent",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "Player(You))]))], ActionList([MayAction(AttachPermanentToPermanent(Ref_TargetPermanent1, Ref_TargetPermanent2))]))), Activated(PayMana([Mana"
+    ],
+    "excludes": [
+      "Player(You))]))], ActionList([AttachPermanentToPermanent(Ref_TargetPermanent1, Ref_TargetPermanent2)]))), Activated(PayMana([Mana"
+    ]
+  },
+  {
+    "name": "Nocturnal Hunger",
+    "issues": [
+      48
+    ],
+    "contains": [
+      "Permanent(Ref_TargetPermanent)]))), GiftWasntPromised(Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([DestroyPermanent(Ref_TargetPermanent), LoseLife(Integer(2))]))))])"
+    ],
+    "excludes": [
+      "Permanent(Ref_TargetPermanent), LoseLife(Integer(2))]))), GiftWasntPromised(Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([DestroyPermanent(Ref_TargetPermanent)]))))])"
+    ]
+  },
+  {
+    "name": "Ogre Battledriver",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([CreatePerman"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), ActionList([CreatePerman"
+    ]
+  },
+  {
+    "name": "Oko, Lorwyn Liege // Oko, Shadowmoor Scion",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "[MillNumberCards(Integer(3)), MayAction(PutACardOfTypeMilledThisWayIntoHand(IsPermanent))])), Activated(Loyalty(-3), A"
+    ],
+    "excludes": [
+      "[MillNumberCards(Integer(3)), PutACardOfTypeMilledThisWayIntoHand(IsPermanent)])), Activated(Loyalty(-3), A"
+    ]
+  },
+  {
+    "name": "Olivia, Mobilized for War",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([MayCost(Disc"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), ActionList([MayCost(Disc"
+    ]
+  },
+  {
+    "name": "Orchard Warden",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCreatureType(Treefolk), IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([MayAction(Ga"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsCreatureType(Treefolk), IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), ActionList([MayAction(Ga"
+    ]
+  },
+  {
+    "name": "Primal Forcemage",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([CreatePerman"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), ActionList([CreatePerman"
+    ]
+  },
+  {
+    "name": "Printlifter Ooze",
+    "issues": [
+      50
+    ],
+    "contains": [
+      "rmanentsOnTheBattlefield(And([IsCardtype(Creature), Controll"
+    ],
+    "excludes": [
+      "rmanentsOnTheBattlefield(And([Other(Trigger_ThatPermanent), IsCardtype(Creature), Controll"
+    ]
+  },
+  {
+    "name": "Prisoner's Dilemma",
+    "issues": [
+      49
+    ],
+    "contains": [
+      "(ActionList([EachPlayerAction(Opponent, SecretlyVoteForAWord([\"Silen"
+    ],
+    "excludes": [
+      "(ActionList([EachPlayerAction(AnyPlayer, SecretlyVoteForAWord([\"Silen"
+    ]
+  },
+  {
+    "name": "Puca's Mischief",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "ermanent1)))]))], ActionList([MayAction(ExchangeControl(Ref_TargetPermanent1, Ref_TargetPermanent2))])))])"
+    ],
+    "excludes": [
+      "ermanent1)))]))], ActionList([ExchangeControl(Ref_TargetPermanent1, Ref_TargetPermanent2)])))])"
+    ]
+  },
+  {
+    "name": "Queen Kayla bin-Kroog",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "ds(NumCardsDiscardedThisWay), MayAction(ChooseACardFromAmongCardsDiscardedThisWay(And([Or([IsCardtype(Artifact), IsCardtype(Creature)]), ManaValueIs(EqualTo(Integer(1)))]))), MayAction(ChooseACardFromAmongCardsDiscardedThisWay(And([Or([IsCardtype(Artifact), IsCardtype(Creature)]), ManaValueIs(EqualTo(Integer(2)))]))), MayAction(ChooseACardFromAmongCardsDiscardedThisWay(And([Or([IsCardtype(Artifact), IsCardtype(Creature)]), ManaValueIs(EqualTo(Integer(3)))]))), ReturnEachGraveyardCardToB"
+    ],
+    "excludes": [
+      "ds(NumCardsDiscardedThisWay), ChooseACardFromAmongCardsDiscardedThisWay(And([Or([IsCardtype(Artifact), IsCardtype(Creature)]), ManaValueIs(EqualTo(Integer(1)))])), ChooseACardFromAmongCardsDiscardedThisWay(And([Or([IsCardtype(Artifact), IsCardtype(Creature)]), ManaValueIs(EqualTo(Integer(2)))])), ChooseACardFromAmongCardsDiscardedThisWay(And([Or([IsCardtype(Artifact), IsCardtype(Creature)]), ManaValueIs(EqualTo(Integer(3)))])), ReturnEachGraveyardCardToB"
+    ]
+  },
+  {
+    "name": "Reclamation",
+    "issues": [
+      50
+    ],
+    "contains": [
+      "dtype(Creature)]), [CantAttackUnlessCost(SacrificeAPermanent(IsCardtype"
+    ],
+    "excludes": [
+      "dtype(Creature)]), [CantAttackPlayerUnlessCost(You, SacrificeAPermanent(IsCardtype"
+    ]
+  },
+  {
+    "name": "Reins of the Vinesteed",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "(HostPermanent)), ActionList([MayAction(ReturnEnchantingGraveyardCardToBattlefield([EntersAttachedToAPermanent(And([IsCardtype(Creature), SharesACreatureTypeWithDeadPermanent]))]))]))])"
+    ],
+    "excludes": [
+      "(HostPermanent)), ActionList([ReturnEnchantingGraveyardCardToBattlefield([EntersAttachedToAPermanent(And([IsCardtype(Creature), SharesACreatureTypeWithDeadPermanent]))])]))])"
+    ]
+  },
+  {
+    "name": "Return to the Earth",
+    "issues": [
+      47
+    ],
+    "contains": [
+      "ons(Targeted([TargetPermanent(Or([IsCardtype(Artifact), IsCardtype(Enchantment), And([IsCardtype(Creature), HasAbility(Flying)])]))], ActionList([DestroyPerm"
+    ],
+    "excludes": [
+      "ons(Targeted([TargetPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Creature)]), HasAbility(Flying)]))], ActionList([DestroyPerm"
+    ]
+  },
+  {
+    "name": "Rick Jones, Destined Sidekick",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "[MillNumberCards(Integer(4)), MayAction(PutACardOfTypeMilledThisWayIntoHand(Or([IsCreatureType(Hero), IsCardtype(Enchantment)])))]))], CardPT: (Power: 0, Tou"
+    ],
+    "excludes": [
+      "[MillNumberCards(Integer(4)), PutACardOfTypeMilledThisWayIntoHand(Or([IsCreatureType(Hero), IsCardtype(Enchantment)]))]))], CardPT: (Power: 0, Tou"
+    ]
+  },
+  {
+    "name": "Righteous Valkyrie",
+    "issues": [
+      44,
+      48
+    ],
+    "contains": [
+      "entEntersTheBattlefield(And([Other(ThisPermanent), And([Or([IsCreatureType(Angel), IsCreatureType(Cleric)]), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([GainLife(ToughnessOfPermanent(Trigger_ThatPermanent))])), If(PlayerPassesFilter(You, LifeTotalIs(GreaterThanOrEqualTo(Plus(Integer(7), StartingLife"
+    ],
+    "excludes": [
+      "entEntersTheBattlefield(And([Or([IsCreatureType(Angel), IsCreatureType(Cleric)]), ControlledByAPlayer(SinglePlayer(You))])), ActionList([GainLife(ToughnessOfPermanent(Trigger_ThatPermanent))])), If(PlayerPassesFilter(You, LifeTotalIs(GreaterThan(Plus(Integer(7), StartingLife"
+    ]
+  },
+  {
+    "name": "Riku of Two Reflections",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsNonToken, IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([MayCost(PayM"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsNonToken, IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), ActionList([MayCost(PayM"
+    ]
+  },
+  {
+    "name": "Rocco, Cabaretti Caterer",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "stByPlayer(You)), ActionList([MayAction(SearchLibrary([FindACardOfType(And([IsCardtype(Creature), ManaValueIs(LessThanOrEqualTo(ValueX))])), PutFoundCardsOntoBattlefield([EntersNormally]), Shuffle]))]))], CardPT: (Power: 3, Toug"
+    ],
+    "excludes": [
+      "stByPlayer(You)), ActionList([SearchLibrary([FindACardOfType(And([IsCardtype(Creature), ManaValueIs(LessThanOrEqualTo(ValueX))])), PutFoundCardsOntoBattlefield([EntersNormally]), Shuffle])]))], CardPT: (Power: 3, Toug"
+    ]
+  },
+  {
+    "name": "Rosheen, Roaring Prophet",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "[MillNumberCards(Integer(6)), MayAction(PutACardOfTypeMilledThisWayIntoHand(HasXInManaCost))])), Activated(TapPermanent(T"
+    ],
+    "excludes": [
+      "[MillNumberCards(Integer(6)), PutACardOfTypeMilledThisWayIntoHand(HasXInManaCost)])), Activated(TapPermanent(T"
+    ]
+  },
+  {
+    "name": "Second Little Pig",
+    "issues": [
+      48
+    ],
+    "contains": [
+      "PassesFilter(ThisPermanent, IsNonCreatureType(Spirit))))], Card"
+    ],
+    "excludes": [
+      "PassesFilter(ThisPermanent, IsCreatureType(Spirit))))], Card"
+    ]
+  },
+  {
+    "name": "Selenia, the Cursed Heart",
+    "issues": [
+      50
+    ],
+    "contains": [
+      "a's Curse\", Colors([Black]), [Legendary], [Enchantment], SubtypesList"
+    ],
+    "excludes": [
+      "a's Curse\", Colors([Black]), [], [Enchantment], SubtypesList"
+    ]
+  },
+  {
+    "name": "Serra Redeemer",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), PowerIs(LessThanOrEqualTo(Integer(2)))])])), ActionList([PutCounters("
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You)), PowerIs(LessThanOrEqualTo(Integer(2)))])), ActionList([PutCounters("
+    ]
+  },
+  {
+    "name": "Shattered Wings",
+    "issues": [
+      47
+    ],
+    "contains": [
+      "ons(Targeted([TargetPermanent(Or([IsCardtype(Artifact), IsCardtype(Enchantment), And([IsCardtype(Creature), HasAbility(Flying)])]))], ActionList([DestroyPerm"
+    ],
+    "excludes": [
+      "ons(Targeted([TargetPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Creature)]), HasAbility(Flying)]))], ActionList([DestroyPerm"
+    ]
+  },
+  {
+    "name": "Shirei, Shizo's Caretaker",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "ermanent, OnTheBattlefield), [MayAction(PutGraveyardCardOntoBattlefield(Trigger_ThatGraveyardCard, [EntersNormally]))])]))]))], CardPT: (Power: 2,"
+    ],
+    "excludes": [
+      "ermanent, OnTheBattlefield), [PutGraveyardCardOntoBattlefield(Trigger_ThatGraveyardCard, [EntersNormally])])]))]))], CardPT: (Power: 2,"
+    ]
+  },
+  {
+    "name": "Shoot Down",
+    "issues": [
+      47
+    ],
+    "contains": [
+      "ons(Targeted([TargetPermanent(Or([IsCardtype(Artifact), IsCardtype(Enchantment), And([IsCardtype(Creature), HasAbility(Flying)])]))], ActionList([Exile([Perm"
+    ],
+    "excludes": [
+      "ons(Targeted([TargetPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Creature)]), HasAbility(Flying)]))], ActionList([Exile([Perm"
+    ]
+  },
+  {
+    "name": "Shower of Arrows",
+    "issues": [
+      47
+    ],
+    "contains": [
+      "ons(Targeted([TargetPermanent(Or([IsCardtype(Artifact), IsCardtype(Enchantment), And([IsCardtype(Creature), HasAbility(Flying)])]))], ActionList([DestroyPerm"
+    ],
+    "excludes": [
+      "ons(Targeted([TargetPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Creature)]), HasAbility(Flying)]))], ActionList([DestroyPerm"
+    ]
+  },
+  {
+    "name": "Six",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "[MillNumberCards(Integer(3)), MayAction(PutACardOfTypeMilledThisWayIntoHand(IsCardtype(Land)))])), If(IsPlayersTurn(You), "
+    ],
+    "excludes": [
+      "[MillNumberCards(Integer(3)), PutACardOfTypeMilledThisWayIntoHand(IsCardtype(Land))])), If(IsPlayersTurn(You), "
+    ]
+  },
+  {
+    "name": "Sliver Gravemother",
+    "issues": [
+      50
+    ],
+    "contains": [
+      ")]), You, [AddAbility([Encore(PayManaX([ManaCostX], ManaValueOfGraveyardCard(ThisGraveyardCard)))])]), Encore(PayMana([ManaCos"
+    ],
+    "excludes": [
+      ")]), You, [AddAbility([Encore(ItsManaCost)])]), Encore(PayMana([ManaCos"
+    ]
+  },
+  {
+    "name": "Smoke Shroud",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "ePlayer(You))])), ActionList([MayAction(PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersAttachedToPermanent(Trigger_ThatPermanent)]))])))])"
+    ],
+    "excludes": [
+      "ePlayer(You))])), ActionList([PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersAttachedToPermanent(Trigger_ThatPermanent)])])))])"
+    ]
+  },
+  {
+    "name": "Snort",
+    "issues": [
+      49
+    ],
+    "contains": [
+      "Spell, Integer(5), EachPlayer(And([Opponent, PlayerWhoTookActionThisWay])))])), Flashback(PayMana([Mana"
+    ],
+    "excludes": [
+      "Spell, Integer(5), EachPlayer(PlayerWhoTookActionThisWay))])), Flashback(PayMana([Mana"
+    ]
+  },
+  {
+    "name": "Snowfall",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "rmanent, IsSupertype(Snow)), [PlayerMayAction(ControllerOfPermanent(Trigger_ThatPermanent), AddManaWithModifiers(And([ManaProduceU, ManaProduceU]), CanOnlySpendOnCumulativeUpkeepCosts))], [PlayerMayAction(ControllerOfPermanent(Trigger_ThatPermanent), AddManaWithModifiers(ManaProduceU, CanOnlySpendOnCumulativeUpkeepCosts))])]))])"
+    ],
+    "excludes": [
+      "rmanent, IsSupertype(Snow)), [AddManaWithModifiers(And([ManaProduceU, ManaProduceU]), CanOnlySpendOnCumulativeUpkeepCosts)], [AddManaWithModifiers(ManaProduceU, CanOnlySpendOnCumulativeUpkeepCosts)])]))])"
+    ]
+  },
+  {
+    "name": "Solphim, Mayhem Dominus",
+    "issues": [
+      45
+    ],
+    "contains": [
+      "ules: [ReplaceWouldDealDamage(NoncombatDamageWouldBeDealtByASourceToA"
+    ],
+    "excludes": [
+      "ules: [ReplaceWouldDealDamage(DamageWouldBeDealtByASourceToA"
+    ]
+  },
+  {
+    "name": "Spawnbroker",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "er(Opponent)]))], ActionList([MayAction(ExchangeControl(Ref_TargetPermanent1, Ref_TargetPermanent2))])))], CardPT: (Power: 1, Tou"
+    ],
+    "excludes": [
+      "er(Opponent)]))], ActionList([ExchangeControl(Ref_TargetPermanent1, Ref_TargetPermanent2)])))], CardPT: (Power: 1, Tou"
+    ]
+  },
+  {
+    "name": "Specter's Shriek",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "n(Ref_TargetPlayer, RevealHand), MayAction(Exile([ACardOfTypeFromPlayersHand(IsNonCardtype(Land), Ref_TargetPlayer)], [])), If(ACardWasExiledThisWay(I"
+    ],
+    "excludes": [
+      "n(Ref_TargetPlayer, RevealHandAndPlayerChoosesACardToExile(You, IsNonCardtype(Land))), If(ACardWasExiledThisWay(I"
+    ]
+  },
+  {
+    "name": "Spellweaver Helix",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "hareAGraveyard)], ActionList([MayAction(Exile([EachCardInGraveyards(Ref_TargetGraveyardCards)], []))]))), TriggerI(WhenAPlayerCas"
+    ],
+    "excludes": [
+      "hareAGraveyard)], ActionList([Exile([EachCardInGraveyards(Ref_TargetGraveyardCards)], [])]))), TriggerI(WhenAPlayerCas"
+    ]
+  },
+  {
+    "name": "Sphinx Ambassador",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "sNotNamed(TheChosenName)])), [MayPutFoundCardsOntoBattlefield(["
+    ],
+    "excludes": [
+      "sNotNamed(TheChosenName)])), [PutFoundCardsOntoBattlefield(["
+    ]
+  },
+  {
+    "name": "Spider Food",
+    "issues": [
+      47
+    ],
+    "contains": [
+      "geted([UptoOneTargetPermanent(Or([IsCardtype(Artifact), IsCardtype(Enchantment), And([IsCardtype(Creature), HasAbility(Flying)])]))], ActionList([DestroyPerm"
+    ],
+    "excludes": [
+      "geted([UptoOneTargetPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Creature)]), HasAbility(Flying)]))], ActionList([DestroyPerm"
+    ]
+  },
+  {
+    "name": "Spiked Corridor // Torture Pit",
+    "issues": [
+      45
+    ],
+    "contains": [
+      "ules: [ReplaceWouldDealDamage(NoncombatDamageWouldBeDealtByASourceToA"
+    ],
+    "excludes": [
+      "ules: [ReplaceWouldDealDamage(DamageWouldBeDealtByASourceToA"
+    ]
+  },
+  {
+    "name": "Storm, Shaker of Skies",
+    "issues": [
+      47
+    ],
+    "contains": [
+      "geted([UptoOneTargetPermanent(Or([IsCardtype(Artifact), IsCardtype(Enchantment), And([IsCardtype(Creature), HasAbility(Flying)])]))], ActionList([DestroyPerm"
+    ],
+    "excludes": [
+      "geted([UptoOneTargetPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Creature)]), HasAbility(Flying)]))], ActionList([DestroyPerm"
+    ]
+  },
+  {
+    "name": "Summon Undead",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "s: [SpellActions(ActionList([MayAction(MillNumberCards(Integer(3))), ReturnACardFromPlayersGrav"
+    ],
+    "excludes": [
+      "s: [SpellActions(ActionList([MillNumberCards(Integer(3)), ReturnACardFromPlayersGrav"
+    ]
+  },
+  {
+    "name": "Surrakar Spellblade",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "ent), AnyPlayer), ActionList([MayAction(DrawNumberCards(TheTotalNumberOfCountersOfTypeAmongPermanents(ChargeCounter, SinglePermanent(Trigger_ThatCreature))))]))], CardPT: (Power: 2, To"
+    ],
+    "excludes": [
+      "ent), AnyPlayer), ActionList([DrawNumberCards(TheTotalNumberOfCountersOfTypeAmongPermanents(ChargeCounter, SinglePermanent(Trigger_ThatCreature)))]))], CardPT: (Power: 2, To"
+    ]
+  },
+  {
+    "name": "Sword of the Meek",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "ePlayer(You))])), ActionList([MayActions([PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersNormally]), AttachPermanentToPermanent(ThePermanentPutOnTheBattlefieldThisWay, Trigger_ThatPermanent)])])))])"
+    ],
+    "excludes": [
+      "ePlayer(You))])), ActionList([PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersNormally]), AttachPermanentToPermanent(ThePermanentPutOnTheBattlefieldThisWay, Trigger_ThatPermanent)])))])"
+    ]
+  },
+  {
+    "name": "Taii Wakeen, Perfect Shot",
+    "issues": [
+      45
+    ],
+    "contains": [
+      "R, ManaCostW], Rules: [TriggerI(WhenASourceDealsNoncombatDamageToAPermanent(ControlledByAPlayer(SinglePlayer(You)), IsCardtype(Creature)), TriggerAPermanentOrPlayerWasDealtAnAmountOfDamage(EqualTo(ToughnessOfPermanent(Trigger_ThatPermanent))), ActionList([DrawACard])), Activated(And([PayManaX([ManaCostX], ValueX), TapPermanent(ThisPermanent)]), ActionList([CreateReplaceWouldDealDamageUntil(NoncombatDamageWouldBeDealtByASourceToA"
+    ],
+    "excludes": [
+      "R, ManaCostW], Rules: [TriggerA(WhenASourceDealsAnAmountOfDamageToAPermanent(ControlledByAPlayer(SinglePlayer(You)), EqualTo(ToughnessOfPermanent(Trigger_ThatPermanent)), IsCardtype(Creature)), ActionList([DrawACard])), Activated(And([PayManaX([ManaCostX], ValueX), TapPermanent(ThisPermanent)]), ActionList([CreateReplaceWouldDealDamageUntil(DamageWouldBeDealtByASourceToA"
+    ]
+  },
+  {
+    "name": "Tawnos, the Toymaker",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "ype(Creature)])), ActionList([MayAction(CopySpellWithModifiers(Trigger_ThatSpell, [AddCardtype(Artifact)]))]))], CardPT: (Power: 3, Toug"
+    ],
+    "excludes": [
+      "ype(Creature)])), ActionList([CopySpellWithModifiers(Trigger_ThatSpell, [AddCardtype(Artifact)])]))], CardPT: (Power: 3, Toug"
+    ]
+  },
+  {
+    "name": "Tergrid, God of Fright // Tergrid's Lantern",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "ent, IsNonToken), ActionList([MayAction(PutGraveyardCardOntoBattlefield(Trigger_ThatGraveyardCard, [EntersUnderPlayersControl(You)]))])), TriggerAndActions(WhenAPlayerDiscardsACard(Opponent, IsPermanent), ActionList([MayAction(PutGraveyardCardOntoBattlefield(Trigger_ThatGraveyardCard, [EntersUnderPlayersControl(You)]))]))])], CardPT: (Power: 4, To"
+    ],
+    "excludes": [
+      "ent, IsNonToken), ActionList([PutGraveyardCardOntoBattlefield(Trigger_ThatGraveyardCard, [EntersUnderPlayersControl(You)])])), TriggerAndActions(WhenAPlayerDiscardsACard(Opponent, IsPermanent), ActionList([PutGraveyardCardOntoBattlefield(Trigger_ThatGraveyardCard, [EntersUnderPlayersControl(You)])]))])], CardPT: (Power: 4, To"
+    ]
+  },
+  {
+    "name": "Tetzin, Gnome Champion // The Golden-Gear Colossus",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "[MillNumberCards(Integer(3)), MayAction(PutACardOfTypeMilledThisWayIntoHand(IsCardtype(Artifact)))])), CraftWithANumberOfCraft"
+    ],
+    "excludes": [
+      "[MillNumberCards(Integer(3)), PutACardOfTypeMilledThisWayIntoHand(IsCardtype(Artifact))])), CraftWithANumberOfCraft"
+    ]
+  },
+  {
+    "name": "The Fallen",
+    "issues": [
+      49
+    ],
+    "contains": [
+      "ultipleRecipients([EachPlayer(And([Opponent, WasDealtDamageByPermanentThisGame(ThisPermanent)])), EachPermanent(And([IsCardt"
+    ],
+    "excludes": [
+      "ultipleRecipients([EachPlayer(WasDealtDamageByPermanentThisGame(ThisPermanent)), EachPermanent(And([IsCardt"
+    ]
+  },
+  {
+    "name": "The Fifteenth Doctor",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "[MillNumberCards(Integer(3)), MayAction(PutACardOfTypeMilledThisWayIntoHand(And([IsCardtype(Artifact), Or([ManaValueIs(EqualTo(Integer(2))), ManaValueIs(EqualTo(Integer(3)))])])))])), StackSpellsEffect(TheNt"
+    ],
+    "excludes": [
+      "[MillNumberCards(Integer(3)), PutACardOfTypeMilledThisWayIntoHand(And([IsCardtype(Artifact), Or([ManaValueIs(EqualTo(Integer(2))), ManaValueIs(EqualTo(Integer(3)))])]))])), StackSpellsEffect(TheNt"
+    ]
+  },
+  {
+    "name": "The Rollercrusher Ride",
+    "issues": [
+      45
+    ],
+    "contains": [
+      ")))), [ReplaceWouldDealDamage(NoncombatDamageWouldBeDealtByASourceToA"
+    ],
+    "excludes": [
+      ")))), [ReplaceWouldDealDamage(DamageWouldBeDealtByASourceToA"
+    ]
+  },
+  {
+    "name": "Tomik, Izzet Sparkmage",
+    "issues": [
+      45
+    ],
+    "contains": [
+      "owess, ReplaceWouldDealDamage(NoncombatDamageWouldBeDealtByASourceToA"
+    ],
+    "excludes": [
+      "owess, ReplaceWouldDealDamage(DamageWouldBeDealtByASourceToA"
+    ]
+  },
+  {
+    "name": "Town Greeter",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "[MillNumberCards(Integer(4)), MayAction(PutACardOfTypeMilledThisWayIntoHand(IsCardtype(Land))), If(ACardWasPutIntoHandThis"
+    ],
+    "excludes": [
+      "[MillNumberCards(Integer(4)), PutACardOfTypeMilledThisWayIntoHand(IsCardtype(Land)), If(ACardWasPutIntoHandThis"
+    ]
+  },
+  {
+    "name": "Transcendent Archaic",
+    "issues": [
+      48
+    ],
+    "contains": [
+      "(ThisPermanent)), ActionList([MayActions([DrawNumberCards(NumColorsManaSpentToCastEnteringPermanent), Unless(ACardWasntDrawnThisWay, [DiscardNumberCards(Integer(2))])])]))], CardPT: (Power: 6, To"
+    ],
+    "excludes": [
+      "(ThisPermanent)), ActionList([DrawNumberCards(NumColorsManaSpentToCastEnteringPermanent), If(ACardWasntDrawnThisWay, [DiscardNumberCards(Integer(2))])]))], CardPT: (Power: 6, To"
+    ]
+  },
+  {
+    "name": "Treacherous Urge",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "n(Ref_TargetPlayer, RevealHand), MayActions([ChooseACardFromPlayersRevealedHand(IsCardtype(Creature), Ref_TargetPlayer), PutCardFromHandOnBattlefield(TheCardInHandChosenThisWay, [EntersUnderPlayersControl(You)]), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([Haste])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay)]))])])))])"
+    ],
+    "excludes": [
+      "n(Ref_TargetPlayer, RevealHandAndPlayerChoosesACardToPutOnBattlefield(You, IsCardtype(Creature), [EntersUnderPlayersControl(You)])), CreatePermanentLayerEffect(ThePermanentPutOnTheBattlefieldThisWay, [AddAbility([Haste])]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([SacrificePermanent(ThePermanentPutOnTheBattlefieldThisWay)]))])))])"
+    ]
+  },
+  {
+    "name": "Trostani, Selesnya's Voice",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([GainLife(Tou"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), ActionList([GainLife(Tou"
+    ]
+  },
+  {
+    "name": "Twisted Fealty",
+    "issues": [
+      51
+    ],
+    "contains": [
+      "anentUntil(Ref_TargetPermanent1, UntilEndOfTurn), UntapPermanent(Ref_TargetPermanent1), CreatePermanentLayerEffectUntil(Ref_TargetPermanent1, [AddAbility([Haste])], UntilEndOfTurn), CreateTokens([WickedRoleToken], [EntersAttachedToPermanent(Ref_TargetPermanent2)])])))])"
+    ],
+    "excludes": [
+      "anentUntil(Ref_TargetPermanent, UntilEndOfTurn), UntapPermanent(Ref_TargetPermanent), CreatePermanentLayerEffectUntil(Ref_TargetPermanent, [AddAbility([Haste])], UntilEndOfTurn), CreateTokens([WickedRoleToken], [EntersAttachedToPermanent(Ref_TargetPermanent)])])))])"
+    ]
+  },
+  {
+    "name": "Valgavoth, Harrower of Souls",
+    "issues": [
+      49
+    ],
+    "contains": [
+      "esLifeForTheFirstTimeEachTurn(And([Opponent, SinglePlayer(TheActivePlayer)])), ActionList([PutCounters([A"
+    ],
+    "excludes": [
+      "esLifeForTheFirstTimeEachTurn(SinglePlayer(TheActivePlayer)), ActionList([PutCounters([A"
+    ]
+  },
+  {
+    "name": "Vivien Reid",
+    "issues": [
+      47
+    ],
+    "contains": [
+      "3), Targeted([TargetPermanent(Or([IsCardtype(Artifact), IsCardtype(Enchantment), And([IsCardtype(Creature), HasAbility(Flying)])]))], ActionList([DestroyPerm"
+    ],
+    "excludes": [
+      "3), Targeted([TargetPermanent(And([Or([IsCardtype(Artifact), IsCardtype(Enchantment), IsCardtype(Creature)]), HasAbility(Flying)]))], ActionList([DestroyPerm"
+    ]
+  },
+  {
+    "name": "Volatile Fault",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "t(Ref_TargetPermanent), PlayerMayAction(ControllerOfTargetPerma"
+    ],
+    "excludes": [
+      "t(Ref_TargetPermanent), PlayerAction(ControllerOfTargetPerma"
+    ]
+  },
+  {
+    "name": "Vraska's Stoneglare",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "manent(Ref_TargetPermanent)), MayAction(SearchLibraryAndOrGraveyard([FindACardOfType(IsNamed(NamedCard(\"Vraska, Regal Gorgon\"))), RevealFoundCards, PutFoundCardsIntoHand, ShuffleLibraryIfSearched]))])))])"
+    ],
+    "excludes": [
+      "manent(Ref_TargetPermanent)), SearchLibraryAndOrGraveyard([FindACardOfType(IsNamed(NamedCard(\"Vraska, Regal Gorgon\"))), RevealFoundCards, PutFoundCardsIntoHand, ShuffleLibraryIfSearched])])))])"
+    ]
+  },
+  {
+    "name": "Vraska, the Cutting Glare",
+    "issues": [
+      49
+    ],
+    "contains": [
+      "ermanent, ControlledByAPlayer(Opponent)]))], ActionList([DestroyPermanent(Ref_TargetPermanent), PlayerAction(ControllerOfPermanent(Ref_TargetPermanent), CreateTokens([TreasureToken]"
+    ],
+    "excludes": [
+      "ermanent, ControlledByAPlayer(SinglePlayer(You))]))], ActionList([DestroyPermanent(Ref_TargetPermanent), PlayerAction(Ref_TargetPlayer, CreateTokens([TreasureToken]"
+    ]
+  },
+  {
+    "name": "Wasteful Harvest",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "[MillNumberCards(Integer(5)), MayAction(PutACardFromGraveyardIntoHand(CardsOfTypeMilledThisWay(IsPermanent)))]))])"
+    ],
+    "excludes": [
+      "[MillNumberCards(Integer(5)), PutACardFromGraveyardIntoHand(CardsOfTypeMilledThisWay(IsPermanent))]))])"
+    ]
+  },
+  {
+    "name": "Winterthorn Blessing",
+    "issues": [
+      51
+    ],
+    "contains": [
+      "sNextUntap(Ref_TargetPermanent2)]))), Flashback(PayMana([Mana"
+    ],
+    "excludes": [
+      "sNextUntap(Ref_TargetPermanent)]))), Flashback(PayMana([Mana"
+    ]
+  },
+  {
+    "name": "Wolverine Riders",
+    "issues": [
+      44
+    ],
+    "contains": [
+      "nentEntersTheBattlefield(And([Other(ThisPermanent), And([IsCreatureType(Elf), ControlledByAPlayer(SinglePlayer(You))])])), ActionList([GainLife(Tou"
+    ],
+    "excludes": [
+      "nentEntersTheBattlefield(And([IsCreatureType(Elf), ControlledByAPlayer(SinglePlayer(You))])), ActionList([GainLife(Tou"
+    ]
+  },
+  {
+    "name": "Zara, Renegade Recruiter",
+    "issues": [
+      43
+    ],
+    "contains": [
+      " ActionList([LookAtPlayersHand(Trigger_DefendingPlayer), MayActions([ChooseACardFromPlayersRevealedHand(IsCardtype(Creature), Trigger_DefendingPlayer), PutCardFromHandOnBattlefield(TheCardInHandChosenThisWay, [EntersUnderPlayersControl(You), EntersTapped, EntersAttackingPlayerOrPlaneswalkerControlledBy(Trigger_DefendingPlayer)]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([PutPermanentIntoItsOwnersHand(ThePermanentPutOnTheBattlefieldThisWay)]))])]))], CardPT: (Power: 4, Toug"
+    ],
+    "excludes": [
+      " ActionList([LookAtPlayersHandAndChooseACardToPutOnBattlefield(Trigger_DefendingPlayer, IsCardtype(Creature), [EntersUnderPlayersControl(You), EntersTapped, EntersAttackingPlayerOrPlaneswalkerControlledBy(Trigger_DefendingPlayer)]), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, ActionList([PutPermanentIntoItsOwnersHand(ThePermanentPutOnTheBattlefieldThisWay)]))]))], CardPT: (Power: 4, Toug"
+    ]
+  },
+  {
+    "name": "Zoraline, Cosmos Caller",
+    "issues": [
+      43
+    ],
+    "contains": [
+      "hisPermanent))]), ActionList([MayAction(Reflexive_PayMana_PayLife_WhenYouDo([ManaCostW, ManaCostB], Integer(2), Targeted([TargetGraveyardCard(And([And([IsNonCardtype(Land), IsPermanent, ManaValueIs(LessThanOrEqualTo(Integer(3)))]), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersWithACounter(FinalityCounter)])]))))]))], CardPT: (Power: 3, To"
+    ],
+    "excludes": [
+      "hisPermanent))]), ActionList([Reflexive_PayMana_PayLife_WhenYouDo([ManaCostW, ManaCostB], Integer(2), Targeted([TargetGraveyardCard(And([And([IsNonCardtype(Land), IsPermanent, ManaValueIs(LessThanOrEqualTo(Integer(3)))]), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersWithACounter(FinalityCounter)])])))]))], CardPT: (Power: 3, To"
+    ]
   }
 ]

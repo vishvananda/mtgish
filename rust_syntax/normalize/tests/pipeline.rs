@@ -1148,8 +1148,9 @@ fn selector_artifacts_and_saved_reports_require_all_registry_fingerprints() {
 #[test]
 fn program_structure_consolidates_even_when_a_nested_instruction_is_unknown() {
     use pipeline::programs::InstructionRecipe as R;
-    let source =
-        custom("SpellActions(ActionList([MayActions([DrawACard,DiscardAllButNumberCards(Integer(7))])]))");
+    let source = custom(
+        "SpellActions(ActionList([MayActions([DrawACard,DiscardAllButNumberCards(Integer(7))])]))",
+    );
     let stage = pipeline::Intermediate::new(&source).unwrap();
     assert!(stage.final_card.is_none());
     let recipe = &stage
@@ -1471,10 +1472,7 @@ fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
         .diagnostics
         .iter()
         .any(|d| d.form == "PutTopCardOfLibraryOfTypeOnBattlefield"));
-    for cost in [
-        "TapPermanent(Ref_TargetPermanent)",
-        "PayManaX([ManaCostGeneric(1)],Integer(2))",
-    ] {
+    for cost in ["TapPermanent(Ref_TargetPermanent)"] {
         let source = custom(&format!("Activated({cost},ActionList([DrawACard]))"));
         let stage = pipeline::Intermediate::new(&source).unwrap();
         assert!(stage.final_card.is_none());
@@ -2327,4 +2325,11 @@ fn revealed_cards_are_counted_and_tokens_are_made_per_player() {
 fn a_prevention_shield_can_remove_counters_for_the_damage_prevented() {
     let text = ability_json("PreventDamage(DamageWouldBeDealtToRecipient(Permanent(ThisPermanent)),[PreventThatDamage,RemoveCounters([NumberCountersOfTypeFromPermanent(TheAmountOfDamagePreventedThisWay,PTCounter(1,1),ThisPermanent)])])");
     assert!(text.contains("RemoveCounters"), "{text}");
+}
+
+#[test]
+fn x_can_be_defined_by_the_cost_itself() {
+    let text =
+        ability_json("Encore(PayManaX([ManaCostX],ManaValueOfGraveyardCard(ThisGraveyardCard)))");
+    assert!(text.contains("Cost::PayManaX"), "{text}");
 }

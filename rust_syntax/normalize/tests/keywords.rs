@@ -74,7 +74,6 @@ fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps
     let incomplete = [
         "Earnest Fellowship",
         "Volatile Stormdrake",
-        "Minthara, Merciless Soul",
         "Aboleth Spawn",
         "Spectra Ward",
         "Samite Elder",
@@ -102,7 +101,7 @@ fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps
         }
         complete += 1;
     }
-    assert_eq!(complete, 41);
+    assert_eq!(complete, 42);
 }
 
 #[test]

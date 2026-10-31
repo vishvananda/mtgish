@@ -253,6 +253,8 @@
     {"source": "Trigger::WhenASpellOrAbilityCausesAPlayerToDiscardACard", "text": "discard", "binds": ["player"]},
     {"source": "Trigger::WhenAPlayerPlaysACard", "text": "play", "binds": ["player"]},
     {"source": "Action::ChooseAColor", "text": "choose|chosen|choice|color"},
+    {"source": "Action::ChooseUptoOnePermanent", "text": "choose|chosen"},
+    {"source": "Cost::PayManaX", "text": "{x}|x"},
     {"source": "Action::VoteForAWord", "text": "vote|votes"},
     {"source": "Condition::MostVotesForWordIs", "text": "vote|votes"},
     {"source": "Condition::MostVotesOrTiedForMostVotesForWordIs", "text": "vote|votes"},

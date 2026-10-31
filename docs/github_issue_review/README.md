@@ -75,6 +75,15 @@ Mining word pairs between rendered cards and their Oracle text, reading what it 
 - [#40](https://github.com/i5jb/mtgish/issues/40): Fifteen cards lose "other" from a target.
 - [#41](https://github.com/i5jb/mtgish/issues/41): Three cards encode owner as controller.
 - [#42](https://github.com/i5jb/mtgish/issues/42): Sixteen cards have another clause dropped or wrong.
+- [#43](https://github.com/i5jb/mtgish/issues/43): Eighty-five cards lose "may".
+- [#44](https://github.com/i5jb/mtgish/issues/44): Twenty-one triggers lose "another".
+- [#45](https://github.com/i5jb/mtgish/issues/45): Seven cards lose "noncombat".
+- [#46](https://github.com/i5jb/mtgish/issues/46): Three cards lose "combat".
+- [#47](https://github.com/i5jb/mtgish/issues/47): Thirteen cards apply a modifier to a whole list.
+- [#48](https://github.com/i5jb/mtgish/issues/48): Twelve cards have a wrong comparison.
+- [#49](https://github.com/i5jb/mtgish/issues/49): Eight cards have a wrong opponent restriction.
+- [#50](https://github.com/i5jb/mtgish/issues/50): Ten cards have a wrong word or value.
+- [#51](https://github.com/i5jb/mtgish/issues/51): Three cards reuse one reference for two targets.
 
 The issue payloads and comment text are saved here. No commits, pushes, issue closures, or upstream code changes were made. Disputed continuous-effect instruction grouping remains a rules-review question and was not filed as a confirmed bug. Changes that merely replace an equivalent scalar expression are not reported as new card mistakes.
 

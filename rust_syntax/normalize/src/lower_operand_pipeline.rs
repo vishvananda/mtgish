@@ -62,10 +62,8 @@ impl Context {
             )],
             R::ManaX { mana, variable } => {
                 if !matches!(variable, source::GameNumber::ValueX) {
-                    return Err(unsupported(&source::Cost::PayManaX(
-                        mana.clone(),
-                        Box::new(variable.clone()),
-                    )));
+                    let cost = source::Cost::PayManaX(mana.clone(), Box::new(variable.clone()));
+                    return self.primitive_cost(&cost).ok_or_else(|| unsupported(&cost));
                 }
                 vec![CostPart::Mana(
                     mana.iter().map(mana_symbol_x).collect::<Result<_>>()?,

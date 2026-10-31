@@ -8925,6 +8925,171 @@
      "template": "that player chooses a color. Until end of turn, {{Permanents}} tapped for mana produce mana of the chosen color instead of any other color",
      "result": "ActionList([PlayerAction({{ThatPlayer}}, ChooseAColor(AnyColor)), CreateReplaceWouldProduceManaUntil(TappingAPermanentWouldProduceMana({{Permanents[0]}}), [WouldProduceMana_ReplaceColorWithTheChosenColor], UntilEndOfTurn)])",
      "reason": "triaged 2026-10-30: the event and a replacement both name the mana; this pairing appeared when Hall of Gemstone moved to WouldProduceMana_ReplaceColorWithTheChosenColor"
+  },
+  {
+   "id": "3c1a88b7695269cefb3229d2a4dad74f8fde8b5433c755234a61e1d051676a27",
+   "kind": "mined_token",
+   "rule": "SpellActions[Gift](~Spell)",
+   "token": "FoodToken",
+   "word": "token",
+   "support": "75/78",
+   "template": "Gift a Food {{Reminder}}\nDestroy target {{Permanent}}. If the gift wasn't promised, you lose {{Digits}} life",
+   "result": "SpellActions_Gift(PlayerAction(TheGiftedPlayer, CreateTokens([FoodToken], [])), GiftWasPromised(Targeted([TargetPermanent({{Permanent[0]}})], ActionList([DestroyPermanent(Ref_TargetPermanent)]))), GiftWasntPromised(Targeted([TargetPermanent({{Permanent[0]}})], ActionList([DestroyPermanent(Ref_TargetPermanent), LoseLife({{Digits[0]}})]))))",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "5af0f9062c9836b4fa9ea10e2b3d69d8580eef848682fc46bc823140befa4a92",
+   "kind": "mined_token",
+   "rule": "ActivatedActions(~GraveyardCard)",
+   "token": "ThisGraveyardCard",
+   "word": "graveyard",
+   "support": "40/43",
+   "template": "Exile this card and target {{Creature}} unless that creature's controller pays {{ManaCost}}",
+   "result": "Targeted([TargetPermanent({{Creature[0]}})], ActionList([PlayerMayCost(ControllerOfPermanent(Ref_TargetPermanent), PayMana({{ManaCost[0]}})), Unless(CostWasPaid, [Exile([CardInGraveyards(ThisGraveyardCard)], []), Exile([Permanent(Ref_TargetPermanent)], [])])]))",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "6097d36f51f1988442ab492dd83fc954f7dbc750939b01c0a01ce6ccd5c5f148",
+   "kind": "mined_token",
+   "rule": "TriggerActions(~Permanent)",
+   "token": "NumberOfCardsOfTypeExiledThisWay",
+   "word": "way",
+   "support": "7/8",
+   "template": "exile the top {{Number}} cards of your library, then roll a d20.\n{{RawDigits}}-{{RawDigits}} | You may put {{a}} {{SpecificCard}} from among those cards onto the battlefield.\n{{RawDigits}}-{{RawDigits}} | Create {{a}} {{PT}} {{CreatureToken}}, then put {{a}} {{CounterType}} counter on it for each {{SpecificCard}} among those cards.\n{{RawDigits}} | Put all {{SpecificCards}} exiled with this enchantment onto the battlefield, then sacrifice it",
+   "result": "ActionList([Exile([TheTopNumberCardsOfLibrary({{Number[0]}})], []), RollAD20, ValueActions(TheDiceResult, [ValueAction(BetweenValues({{RawDigits[0]}}, {{RawDigits[1]}}), [MayAction(ReturnAnExiledCardToBattlefield(And([{{SpecificCard[0]}}, TheCardsExiledThisWay]), [EntersNormally]))]), ValueAction(BetweenValues({{RawDigits[2]}}, {{RawDigits[3]}}), [CreateTokens([TokenWithPT({{PT[0]}}, {{CreatureToken[0]}}, [])], []), PutCounters([NumberCountersOfTypeOnEachPermanent(NumberOfCardsOfTypeExiledThisWay({{SpecificCard[1]}}), {{CounterType[0]}}, TheTokensCreatedThisWay)])]), ValueAction(ExactValue({{RawDigits[4]}}), [PutEachExiledCardOntoTheBattlefield(And([{{SpecificCards[0]}}, WasExiledWithPermanent(ThisPermanent)]), [EntersNormally]), SacrificePermanent(ThisPermanent)])])])",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "6a2bc1b3005678a436517b535c541f7bb123fedb9e1d976986aa4acff4d9c09c",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "ControllerOfTargetPermanent",
+   "word": "controller",
+   "support": "28/31",
+   "template": "Destroy target {{Permanent}} an opponent controls. That player may search their library for {{a}} {{SpecificCard}}, put it onto the battlefield, then shuffle. You create a Treasure token",
+   "result": "Targeted([TargetPermanent(And([{{Permanent[0]}}, ControlledByAPlayer(Opponent)]))], ActionList([DestroyPermanent(Ref_TargetPermanent), PlayerMayAction(ControllerOfTargetPermanent, SearchLibrary([FindACardOfType({{SpecificCard[0]}}), PutFoundCardsOntoBattlefield([EntersNormally]), Shuffle])), CreateTokens([TreasureToken], [])]))",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "6cfc84fa11f3b3eaa20c1659d85bd471c63e0592881741396d69597117f64874",
+   "kind": "mined_token",
+   "rule": "SpellActions[Gift](~Spell)",
+   "token": "GiftWasPromised",
+   "word": "was",
+   "support": "20/23",
+   "template": "Gift a Food {{Reminder}}\nDestroy target {{Permanent}}. If the gift wasn't promised, you lose {{Digits}} life",
+   "result": "SpellActions_Gift(PlayerAction(TheGiftedPlayer, CreateTokens([FoodToken], [])), GiftWasPromised(Targeted([TargetPermanent({{Permanent[0]}})], ActionList([DestroyPermanent(Ref_TargetPermanent)]))), GiftWasntPromised(Targeted([TargetPermanent({{Permanent[0]}})], ActionList([DestroyPermanent(Ref_TargetPermanent), LoseLife({{Digits[0]}})]))))",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "7b3c3324fec802e9d29575c2e30d7ba5ac7b3817a1fb01cd93697d85b55c875c",
+   "kind": "mined_token",
+   "rule": "TriggerActions(ThatPlayer)",
+   "token": "IsNotNamed",
+   "word": "named",
+   "support": "8/9",
+   "template": "search that player's library for a card, then that player chooses a card name. If you searched for a creature card that doesn't have that name, you may put it onto the battlefield under your control. Then that player shuffles",
+   "result": "ActionList([SearchPlayersLibrary({{ThatPlayer}}, [FindAGenericCard, PlayerChoosesACardName({{ThatPlayer}}, AnyOracleCard), If(ACardOfTypeWasFoundThisWay(And([IsCardtype(Creature), IsNotNamed(TheChosenName)])), [MayPutFoundCardsOntoBattlefield([EntersUnderPlayersControl(You)])]), Shuffle])])",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "7d026ce700bf4bdede57cb24ef0af722d5ee11cc32e7eb137496e10adf514446",
+   "kind": "mined_token",
+   "rule": "Activated(~GraveyardCard)",
+   "token": "ThisGraveyardCard",
+   "word": "graveyard",
+   "support": "40/43",
+   "template": "{{ManaCost}}: Roll a d20. {{ActivateModifiers(~GraveyardCard)}}.\n{{RawDigits}}-{{RawDigits}} | Put this card on top of your library.\n{{RawDigits}}-{{RawDigits}} | Return this card to your hand.\n{{RawDigits}} | Return this card to the battlefield tapped",
+   "result": "FromGraveyard(ActivatedWithModifiers(PayMana({{ManaCost[0]}}), ActionList([RollAD20, ValueActions(TheDiceResult, [ValueAction(BetweenValues({{RawDigits[0]}}, {{RawDigits[1]}}), [PutGraveyardCardOnTopOfLibrary(ThisGraveyardCard)]), ValueAction(BetweenValues({{RawDigits[2]}}, {{RawDigits[3]}}), [ReturnGraveyardCardToHand(ThisGraveyardCard)]), ValueAction(ExactValue({{RawDigits[4]}}), [PutGraveyardCardOntoBattlefield(ThisGraveyardCard, [EntersTapped])])])]), {{ActivateModifiers(~GraveyardCard=^~GraveyardCard)[0]}}))",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "8bed1bddce7cc913174a444cdc5959a191139f9daa289819335e4e206dbce863",
+   "kind": "mined_token",
+   "rule": "TriggerActions(ThatPlayer)",
+   "token": "IsNotNamed",
+   "word": "not",
+   "support": "8/9",
+   "template": "search that player's library for a card, then that player chooses a card name. If you searched for a creature card that doesn't have that name, you may put it onto the battlefield under your control. Then that player shuffles",
+   "result": "ActionList([SearchPlayersLibrary({{ThatPlayer}}, [FindAGenericCard, PlayerChoosesACardName({{ThatPlayer}}, AnyOracleCard), If(ACardOfTypeWasFoundThisWay(And([IsCardtype(Creature), IsNotNamed(TheChosenName)])), [MayPutFoundCardsOntoBattlefield([EntersUnderPlayersControl(You)])]), Shuffle])])",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "8f826220a2c84ab10f69cbe01feb6704a081b1adc15b5ae553407cfe14e19ee5",
+   "kind": "mined_token",
+   "rule": "SpellActions[Gift](~Spell)",
+   "token": "GiftWasntPromised",
+   "word": "was",
+   "support": "20/23",
+   "template": "Gift a Food {{Reminder}}\nDestroy target {{Permanent}}. If the gift wasn't promised, you lose {{Digits}} life",
+   "result": "SpellActions_Gift(PlayerAction(TheGiftedPlayer, CreateTokens([FoodToken], [])), GiftWasPromised(Targeted([TargetPermanent({{Permanent[0]}})], ActionList([DestroyPermanent(Ref_TargetPermanent)]))), GiftWasntPromised(Targeted([TargetPermanent({{Permanent[0]}})], ActionList([DestroyPermanent(Ref_TargetPermanent), LoseLife({{Digits[0]}})]))))",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "a1986fb8891778f74dff09c17562ece0d7dda51c41750259363d54cf7faccaa5",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "ReturnEachGraveyardCardToBattlefield",
+   "word": "graveyard",
+   "support": "35/37",
+   "template": "Discard all the cards in your hand, then draw that many cards. You may choose {{a}} {{PermanentCard}} with mana value {{Digits}} you discarded this way, then do the same for {{PermanentCards}} with mana values {{Digits}} and {{Digits}}. Return those cards to the battlefield",
+   "result": "ActionList([DiscardHand, DrawNumberCards(NumCardsDiscardedThisWay), MayAction(ChooseACardFromAmongCardsDiscardedThisWay(And([{{PermanentCard[0]}}, ManaValueIs(EqualTo({{Digits[0]}}))]))), MayAction(ChooseACardFromAmongCardsDiscardedThisWay(And([{{PermanentCards[0]}}, ManaValueIs(EqualTo({{Digits[1]}}))]))), MayAction(ChooseACardFromAmongCardsDiscardedThisWay(And([{{PermanentCards[0]}}, ManaValueIs(EqualTo({{Digits[2]}}))]))), ReturnEachGraveyardCardToBattlefield(TheDiscardedCardsChosenThisWay, [EntersNormally])])",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "ad68aba9ac1e1ccb39d65cb3aa66f6c663d133582b1b9db28a04ba80b021ff5c",
+   "kind": "mined_token",
+   "rule": "SpellActions[Gift](~Spell)",
+   "token": "SpellActions_Gift",
+   "word": "was",
+   "support": "20/23",
+   "template": "Gift a Food {{Reminder}}\nDestroy target {{Permanent}}. If the gift wasn't promised, you lose {{Digits}} life",
+   "result": "SpellActions_Gift(PlayerAction(TheGiftedPlayer, CreateTokens([FoodToken], [])), GiftWasPromised(Targeted([TargetPermanent({{Permanent[0]}})], ActionList([DestroyPermanent(Ref_TargetPermanent)]))), GiftWasntPromised(Targeted([TargetPermanent({{Permanent[0]}})], ActionList([DestroyPermanent(Ref_TargetPermanent), LoseLife({{Digits[0]}})]))))",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "bf77db2aac1ffbf4217d23d4c5135c31ab86b690a3f3f8145be100a25a10d866",
+   "kind": "mined_token",
+   "rule": "TriggerActions(~Permanent)",
+   "token": "IsACopyOfExiledCard",
+   "word": "becom",
+   "support": "13/15",
+   "template": "you may have {{~Permanent}} become a copy of {{a}} {{SpecificCard}} exiled with it until end of turn",
+   "result": "ActionList([MayAction(ChooseAnExiledCard(And([{{SpecificCard[0]}}, TheExiledCards]))), If(CostWasPaid, [CreatePermanentLayerEffectUntil(ThisPermanent, [IsACopyOfExiledCard(TheExiledCardChosenThisWay, NoCopyEffects)], UntilEndOfTurn)])])",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "dd51888c8e31e60e80b10cebc0c04dd15a082769644b0b9dd87510cbfdf1bb01",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "ControllerOfTargetPermanent",
+   "word": "controller",
+   "support": "28/31",
+   "template": "Destroy target {{Permanent}} an opponent controls. That player may search their library for {{a}} {{SpecificCard}}, put it onto the battlefield, then shuffle",
+   "result": "Targeted([TargetPermanent(And([{{Permanent[0]}}, ControlledByAPlayer(Opponent)]))], ActionList([DestroyPermanent(Ref_TargetPermanent), PlayerMayAction(ControllerOfTargetPermanent, SearchLibrary([FindACardOfType({{SpecificCard[0]}}), PutFoundCardsOntoBattlefield([EntersNormally]), Shuffle]))]))",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "eae40a467aec1847336aa61e512a4cfacd14b79f3f8bf63ccc18993a00a6c511",
+   "kind": "mined_token",
+   "rule": "Activated(~GraveyardCard)",
+   "token": "ThisGraveyardCard",
+   "word": "graveyard",
+   "support": "40/43",
+   "template": "{{ManaCost}}, {{ExileSelfGraveyardCost}}: It deals {{Digits}} damage to target player or planeswalker and {{Digits}} damage to up to one target creature that player or that planeswalker's controller controls",
+   "result": "FromGraveyard(Activated(And([PayMana({{ManaCost[0]}}), {{ExileSelfGraveyardCost[0]}}]), Targeted([TargetPlayerOrPermanent(AnyPlayer, IsCardtype(Planeswalker)), UptoOneTargetPermanent(And([IsCardtype(Creature), ControlledByPlayer(PlayerOrControllerOfPermanent(Ref_TargetPlayerOrPermanent))]))], ActionList([GraveyardCardDealsMultipleDamage(ThisGraveyardCard, [DamageToRecipients({{Digits[0]}}, Ref_TargetPlayerOrPermanent), DamageToRecipients({{Digits[1]}}, Permanent(Ref_TargetPermanent))])]))))",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "f1790c3ea580233a3c085c5e7dc39a663d0a2da9dab764b97f9da56c9804d60e",
+   "kind": "mined_token",
+   "rule": "TriggerActions(~Permanent)",
+   "token": "IsACopyOfExiledCard",
+   "word": "becom",
+   "support": "13/15",
+   "template": "put {{a}} {{CounterType}} counter on {{~Permanent}}. Then you may exile a card from a graveyard. If {{a}} {{SpecificCard}} was exiled this way, you may have {{~Permanent}} become a copy of that card until end of turn",
+   "result": "ActionList([PutCounters([ACounterOfTypeOnPermanent({{CounterType[0]}}, ThisPermanent)]), MayAction(Exile([ACardInGraveyards(AnyCardInAnyGraveyard)], [])), If(ACardWasExiledThisWay({{SpecificCard[0]}}), [MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [IsACopyOfExiledCard(TheCardExiledThisWay, NoCopyEffects)], UntilEndOfTurn))])])",
+   "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
   }
  ]
 }
