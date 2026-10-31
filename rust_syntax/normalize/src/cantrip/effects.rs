@@ -76,6 +76,19 @@ fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'static str> {
     })
 }
 
+/// Whether a later instruction reads the objects `result` chose: chosen, then
+/// referred to, with nothing happening to them by being chosen.
+fn referred_to(result: &ResultId, rest: &[Instruction]) -> bool {
+    let (selected, picked) = (
+        format!("Selected(ResultId({}))", result.0),
+        format!("Result {{ result: ResultId({}),", result.0),
+    );
+    rest.iter().any(|instruction| {
+        let text = format!("{instruction:?}");
+        text.contains(&selected) || text.contains(&picked)
+    })
+}
+
 fn reveals_one(count: &Count) -> bool {
     matches!(count, Count::Exactly(Expr::Constant(1)))
 }
@@ -200,6 +213,7 @@ pub(super) struct Results {
     performed: BTreeMap<u32, String>,
     values: BTreeMap<u32, String>,
     flips: BTreeMap<u32, String>,
+    chosen: Vec<(ValueKind, String)>,
 }
 
 /// Which of a block's results `Compiler::hoist` keeps.
@@ -263,7 +277,9 @@ impl Compiler {
     }
     pub(super) fn effect(&mut self, body: &Program, label: &str) -> Result<String> {
         self.reset_results();
-        let out = self.effect_body(body)?;
+        let out = self.effect_body(body);
+        self.chosen.clear();
+        let out = out?;
         writeln!(self.functions,"fn {label}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ {out} Ok(()) }}").unwrap();
         Ok(label.into())
     }
@@ -282,7 +298,9 @@ impl Compiler {
         self.reader = reader;
         self.event_at = at;
         let test = test?;
-        let out = self.effect_body(body)?;
+        let out = self.effect_body(body);
+        self.chosen.clear();
+        let out = out?;
         writeln!(self.functions,"fn {label}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ let asker = &Asker::new(item.object, item.controller); if !{test} {{ return Ok(()); }} {out} Ok(()) }}").unwrap();
         Ok(label.into())
     }
@@ -350,6 +368,7 @@ impl Compiler {
             performed: self.performed.clone(),
             values: self.values.clone(),
             flips: self.flips.clone(),
+            chosen: self.chosen.clone(),
         }
     }
     pub(super) fn restore_results(&mut self, results: Results) {
@@ -361,6 +380,7 @@ impl Compiler {
             performed,
             values,
             flips,
+            chosen,
         } = results;
         self.selections = selections;
         self.creations = creations;
@@ -369,6 +389,7 @@ impl Compiler {
         self.performed = performed;
         self.values = values;
         self.flips = flips;
+        self.chosen = chosen;
     }
     /// A nested block: what it binds is out of Rust's scope once it closes. The
     /// objects it reports stay readable through a local of the whole effect;
@@ -457,7 +478,9 @@ impl Compiler {
                     self.selections.insert(result.0, format!("picked_{id}"));
                     return Ok(());
                 }
-                let purpose = purpose(result, &body.instructions[i + 1..])
+                let rest = &body.instructions[i + 1..];
+                let purpose = purpose(result, rest)
+                    .or_else(|| referred_to(result, rest).then_some("ChooseAsEnters"))
                     .ok_or_else(|| gap("resolution choice prompt purpose"))?;
                 self.choose(player, objects, count, result, purpose, out)
             }
@@ -679,7 +702,7 @@ impl Compiler {
     }
     /// `Vec<ObjectId>` of what can still be changed: an object that left is
     /// gone, and its last-known information is not a thing to act on (400.7).
-    fn acted_on(&self, objects: &ObjectSet) -> Result<String> {
+    pub(super) fn acted_on(&self, objects: &ObjectSet) -> Result<String> {
         Ok(self.fetch(format!(
             "({}).into_iter().filter(|&o| q.state().obj(o).became.is_none()).collect::<Vec<ObjectId>>()",
             self.objects(objects)?
@@ -695,6 +718,30 @@ impl Compiler {
             } => {
                 let plan = mana_plan(mana)?;
                 self.emit_mana(&plan, players, restriction.as_ref(), None, out)?;
+            }
+            Operation::ChooseValue {
+                actor,
+                kind,
+                count,
+                options,
+            } => self.choose_value(id, actor, *kind, *count, options, out)?,
+            Operation::Keyword {
+                actor,
+                action,
+                object,
+                other,
+                amount,
+                subtype,
+            } => {
+                let action = keywords::Action {
+                    actor,
+                    action: *action,
+                    object: object.as_ref(),
+                    other: other.as_ref(),
+                    amount: amount.as_ref(),
+                    subtype: subtype.as_deref(),
+                };
+                self.keyword_action(id, action, result, out)?;
             }
             Operation::CreateTokens {
                 players,
@@ -888,7 +935,8 @@ impl Compiler {
                     let kind = counter_kind(&placement.kind)?;
                     writeln!(out, "let amount = {}; for t in {} {{ if let Target::Object(object) = t {{ counters_{id}.push((object, {kind}, amount)); }} }}", self.fetch(amount), self.fetch(self.recipients(&placement.recipients)?)).unwrap();
                 }
-                writeln!(out, "g.add_counters_together(&counters_{id});").unwrap();
+                writeln!(out, "g.add_counters_together(&counters_{id}); let applied_{id}: Vec<ObjectId> = counters_{id}.iter().map(|c| c.0).collect();").unwrap();
+                self.selections.insert(result.0, format!("applied_{id}"));
             }
             Operation::RemoveCounters { removals } => {
                 self.remove_counters(id, removals, result, out)?
@@ -992,7 +1040,10 @@ impl Compiler {
                         return Err(gap("resolving rule effect on an open set of objects"))
                     }
                     EffectEvaluation::Live => return Err(gap("live continuous effect")),
-                    _ => self.continuous(id, source, affected, changes, duration, out)?,
+                    _ => {
+                        self.continuous(id, source, affected, changes, duration, out)?;
+                        self.selections.insert(result.0, format!("objects_{id}"));
+                    }
                 }
             }
             Operation::BindValue { value } => {
@@ -1222,6 +1273,7 @@ impl Compiler {
         self.performed.clear();
         self.values.clear();
         self.flips.clear();
+        self.chosen.clear();
     }
     fn create_tokens(
         &mut self,
@@ -1259,13 +1311,19 @@ impl Compiler {
             ..
         }] = tokens
         {
-            if adjustments.iter().any(adjusts) || !entry.counters.is_empty() || entry.tapped {
-                return Err(gap("adjusted token copy"));
+            if !entry.counters.is_empty() {
+                return Err(gap("token copy entering with counters"));
             }
             let PlayerSet::One(player) = players else {
                 return Err(gap("token copies for several players"));
             };
             let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
+            if adjustments.iter().any(adjusts) || entry.tapped {
+                let values = self.copy_values(&format!("original_{id}"), adjustments)?;
+                writeln!(out, "let original_{id} = {}; let values_{id} = {values}; let count_{id} = {}; let player_{id} = {}; let created_{id} = match values_{id} {{ Some(values) => g.create_token_copies_tapped(values, player_{id}, count_{id}, {})?, None => Vec::new() }};", self.fetch(self.object(object)?), self.fetch(amount), self.fetch(self.certain_player(player)?), entry.tapped).unwrap();
+                self.creations.insert(result.0, format!("created_{id}"));
+                return Ok(());
+            }
             writeln!(out, "let original_{id} = {}; let count_{id} = {}; let player_{id} = {}; let created_{id} = match original_{id} {{ Some(original) => g.create_token_copies(original, player_{id}, count_{id})?, None => Vec::new() }};", self.fetch(self.object(object)?), self.fetch(amount), self.fetch(self.certain_player(player)?)).unwrap();
             self.creations.insert(result.0, format!("created_{id}"));
             return Ok(());
@@ -1588,7 +1646,7 @@ impl Compiler {
         {
             writeln!(
                 out,
-                "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for object in objects_{id} {{ g.exert(object); }} }});",
+                "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for &object in &objects_{id} {{ g.exert(object); }} }});",
                 self.acted_on(affected)?
             )
             .unwrap();
@@ -1602,6 +1660,36 @@ impl Compiler {
             self.fetch(self.object(source)?),
         )
         .unwrap();
+        if let [Change::CopyOf { object, effects }] = changes {
+            let original = self.fetch(self.objects(&ObjectSet::One(object.clone()))?);
+            let values = self.copy_values(
+                &format!("original_{id}.first().copied()"),
+                std::slice::from_ref(effects),
+            )?;
+            writeln!(out, "let original_{id} = {original}; let values_{id} = {values}; if let (Some(source), Some(values)) = (source_{id}, values_{id}) {{ cantrip_api::instruction(g, |g| {{ for &object in &objects_{id} {{ g.become_copy(source, object, values, duration_{id}); }} }}); }}").unwrap();
+            return Ok(());
+        }
+        // Each object has its own value, all read before any is applied.
+        if read::reads_affected(changes) {
+            self.affected_object = Some("object");
+            let kinds = changes
+                .iter()
+                .map(|change| self.effect_kinds(change))
+                .collect::<Result<Vec<_>>>();
+            self.affected_object = None;
+            let pushes: String = kinds?
+                .into_iter()
+                .flatten()
+                .map(|kind| {
+                    format!(
+                        "let kind = {}; all.push((object, kind)); ",
+                        self.fetch(kind)
+                    )
+                })
+                .collect();
+            writeln!(out, "let kinds_{id} = {{ let mut all = Vec::new(); for &object in &objects_{id} {{ {pushes} }} all }}; if let Some(source) = source_{id} {{ cantrip_api::instruction(g, |g| {{ for &(object, kind) in &kinds_{id} {{ g.add_effect(source, object, kind, duration_{id}); }} }}); }}").unwrap();
+            return Ok(());
+        }
         let mut kinds = Vec::new();
         for change in changes {
             for (i, kind) in self.effect_kinds(change)?.into_iter().enumerate() {
@@ -1649,10 +1737,14 @@ impl Compiler {
                 i16_of(toughness)?
             )],
             Change::GrantKeyword(Keyword::Protection(quality)) => {
+                if let Some((kind, _)) = self.chosen_protection(quality)? {
+                    return Ok(vec![kind]);
+                }
                 let mut grants = Vec::new();
                 granted_protection(quality, &mut grants)?;
                 grants.into_iter().map(|(kind, _)| kind).collect()
             }
+            Change::ChosenColor { .. } | Change::ChosenType { .. } => self.chosen_effect(change)?,
             Change::GrantKeyword(k) => {
                 vec![format!(
                     "EffectKind::AddKeywords(Keywords::of(&[{}]))",
@@ -1660,6 +1752,28 @@ impl Compiler {
                 )]
             }
             Change::RemoveAllAbilities => vec!["EffectKind::LoseAllAbilities".into()],
+            Change::SwitchPowerToughness => vec!["EffectKind::SwitchPt".into()],
+            Change::LosesAbility(lost) => vec![format!(
+                "EffectKind::LoseKeywords(Keywords::of(&[Keyword::{}]))",
+                statics::lost_keyword(lost)?
+            )],
+            Change::AddLandType(t) => vec![format!("EffectKind::AddSubtype(Subtype::{})", name(t))],
+            // A land type set takes the land's rules text with it (CR 305.7),
+            // which only `sets_land_subtypes`, a static ability, does.
+            Change::SetLandType(_) => {
+                return Err(gap("engine: no resolving effect sets land types"))
+            }
+            Change::SetPower(_) | Change::SetToughness(_) => {
+                return Err(gap("engine: no effect sets power or toughness alone"))
+            }
+            Change::AddSupertype(_) | Change::RemoveSupertype(_) => {
+                return Err(gap("engine: no effect changes supertypes"))
+            }
+            Change::RemoveCardType(_) => return Err(gap("engine: no effect removes a card type")),
+            Change::Colors {
+                mode: ChangeMode::Add,
+                ..
+            } => return Err(gap("engine: no effect adds colors")),
             Change::AddCardType(t) => vec![format!(
                 "EffectKind::AddTypes(TypeSet::of(&[CardType::{}]))",
                 card_type(t)?

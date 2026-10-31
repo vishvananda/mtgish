@@ -227,6 +227,7 @@ impl Compiler {
         );
         let mut out = String::new();
         let compiled = self.program(body, &mut out, false);
+        self.chosen.clear();
         (
             self.reader,
             self.event_at,

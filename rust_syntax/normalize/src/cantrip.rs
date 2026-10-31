@@ -11,9 +11,13 @@ use std::{
 };
 
 mod casting;
+mod chosen;
+mod copies;
 mod costs;
 mod delayed;
 mod effects;
+mod keywords;
+mod mechanics;
 mod players;
 mod read;
 mod replacements;
@@ -361,11 +365,24 @@ struct Compiler {
     performed: BTreeMap<u32, String>,
     values: BTreeMap<u32, String>,
     flips: BTreeMap<u32, String>,
+    /// The local of the object a change is being applied to, while its value
+    /// is read per object.
+    affected_object: Option<&'static str>,
+    /// The bestow cost, which makes the card two definitions.
+    bestow: Option<String>,
+    /// Values this body chose, each in a local.
+    chosen: Vec<(ValueKind, String)>,
+    /// Values the card chooses as it enters, which its permanent keeps.
+    enters_choosing: Vec<ValueKind>,
     bound_objects: BTreeSet<u32>,
     bound_players: BTreeSet<u32>,
-    /// Small generated functions that this module uses.
+    /// A mechanic asks for the first way, so no other way may come before it.
+    only_way: bool,
+    /// An instruction asks "tap or untap", which the card's `labels` word.
+    tap_or_untap: bool,
     /// Inside a spell's cost change, which has `targets` in reach.
     costing_targets: bool,
+    /// Small generated functions that this module uses.
     helpers: BTreeSet<&'static str>,
     extras: Vec<String>,
     /// Abilities that are no part of the card until a grant or an event names
@@ -613,9 +630,15 @@ impl Compiler {
             performed: BTreeMap::new(),
             values: BTreeMap::new(),
             flips: BTreeMap::new(),
+            affected_object: None,
+            bestow: None,
+            chosen: Vec::new(),
+            enters_choosing: Vec::new(),
             bound_objects: BTreeSet::new(),
             bound_players: BTreeSet::new(),
             costing_targets: false,
+            only_way: false,
+            tap_or_untap: false,
             helpers: BTreeSet::new(),
             extras: Vec::new(),
             delayed: Vec::new(),
@@ -998,7 +1021,26 @@ impl Compiler {
         else {
             return Err(gap("compound mana ability callback"));
         };
-        let plan = mana_plan(mana)?;
+        let plan = match mana_plan(mana)? {
+            // One color the engine limits it to (`colors_from`) as it is offered.
+            ManaPlan::Fixed(units) if matches!(units.as_slice(), [(ManaColor::Chosen, _)]) => {
+                if !self.enters_choosing.contains(&ValueKind::Color) {
+                    return Err(gap("mana of a color not chosen as it entered"));
+                }
+                let [(_, amount)] = <[_; 1]>::try_from(units).unwrap();
+                ManaPlan::SameColor {
+                    colors: vec![
+                        ManaColor::White,
+                        ManaColor::Blue,
+                        ManaColor::Black,
+                        ManaColor::Red,
+                        ManaColor::Green,
+                    ],
+                    amount,
+                }
+            }
+            plan => plan,
+        };
         let mut metadata = format!("add_by({label})");
         // Listed yields help the engine advise payments; callbacks do the actual
         // production and also preserve mana-ability status when the amount is 0.
@@ -1065,6 +1107,7 @@ impl Compiler {
                 false,
             )
         });
+        self.chosen.clear();
         self.reader = reader;
         self.stack_item = true;
         rest?;
@@ -1187,6 +1230,8 @@ struct Parts {
     modal: String,
     enchant: String,
     protection: u8,
+    /// The `PayWith` fields a card's keywords set.
+    pay_with: BTreeSet<&'static str>,
 }
 impl Parts {
     fn table(&mut self, table: &'static str, entry: String) {
@@ -1226,6 +1271,7 @@ impl Default for Parts {
             modal: "None".into(),
             enchant: "None".into(),
             protection: 0,
+            pay_with: BTreeSet::new(),
         }
     }
 }
@@ -1258,11 +1304,28 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     let mut c = Compiler::new();
     let mut parts = Parts::default();
     c.links_exile = format!("{:?}", card.abilities).contains("ExiledWith(Source)");
+    c.enters_choosing = chosen::enters_choosing(card);
     for (i, a) in card.abilities.iter().enumerate() {
         if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
             c.casting_costs.insert(i as u32, cost.clone());
         }
     }
+    let firsts: Vec<String> = card
+        .abilities
+        .iter()
+        .filter_map(|a| match a {
+            Ability::Mechanic { mechanic, .. } => mechanics::first_delayed(*mechanic),
+            _ => None,
+        })
+        .collect();
+    c.attempt("abilities".into(), |c| match firsts.as_slice() {
+        [] => Ok(()),
+        [first] => {
+            c.delayed.push(first.clone());
+            Ok(())
+        }
+        _ => Err(gap("two mechanics that need the first delayed ability")),
+    });
     for (i, a) in card.abilities.iter().enumerate() {
         c.attempt(format!("abilities[{i}]"), |c| {
             let compiled = c.ability(a, &format!("ability_{i}"), &mut parts, None);
@@ -1271,6 +1334,32 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
             }
             compiled
         });
+    }
+    c.attempt("abilities".into(), |c| {
+        let ways = parts.tables.get("ways").map_or(0, Vec::len);
+        match c.only_way && ways != 1 {
+            true => Err(gap("another way beside a mechanic's only way")),
+            false => Ok(()),
+        }
+    });
+    if c.tap_or_untap {
+        let taken = parts.fields.contains_key("labels");
+        c.attempt("abilities".into(), |_| match taken {
+            true => Err(gap("tap or untap beside other labels")),
+            false => Ok(()),
+        });
+        parts.field("labels", "cantrip_mechanics::choose::TAP_OR_UNTAP".into());
+    }
+    if !parts.pay_with.is_empty() {
+        let fields: Vec<String> = parts
+            .pay_with
+            .iter()
+            .map(|f| format!("{f}: true"))
+            .collect();
+        parts.field(
+            "pay_with",
+            format!("PayWith {{ {}, ..PayWith::NONE }}", fields.join(", ")),
+        );
     }
     let ch = &card.characteristics;
     let types = ch
@@ -1389,6 +1478,10 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     };
     let generator = generator_fingerprint();
     let api = crate::cantrip_vocab::API_FINGERPRINT;
+    let bestow = c.bestow.take();
+    if bestow.is_some() {
+        c.extras.push("BESTOWED".into());
+    }
     let rust = format!(
         "// Generated by mtgish-ast, schema {}, normalized SHA256 {fingerprint}.\n// Generator SHA256 {generator}; Cantrip API SHA256 {api}.\n#[allow(unused_imports)] use cantrip_api::*;\n{}\npub static CARD: CardDef = CardDef {{ name: {}, token_words: {token_words}, oracle: {oracle}, cost: {mana}, has_cost: {}, types: TypeSet::of(&[{}]), subtypes: SubtypeSet::of(&[{}]), supertypes: Supertypes {{ basic: {}, legendary: {}, snow: {} }}, colors: {colors}, power: {}, toughness: {}, loyalty: {}, defense: {}, keywords: Keywords::of(&[{}]), protection: ColorSet({protection}), spell: {spell}, abilities: &[{}], statics: &[{}], replacements: &[{}], preventions: &[{}], block_rules: &[{}], block_requirements: &[{}], attack_rules: &[{}], untap_bans: &[{}], delayed: &[{}], enters: {enters}, modal: {modal}, enchant: {enchant}, {rest}..CardDef::BLANK }};\npub static EXTRA: &[&CardDef] = &[{}];\n",
         SCHEMA_VERSION,
@@ -1416,6 +1509,12 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
         c.delayed.join(","),
         c.extras.iter().map(|p|format!("&{p}")).collect::<Vec<_>>().join(",")
     );
+    // The creature and the Aura it is while bestowed have one text (CR 702.103b).
+    let rust = match bestow {
+        Some(cost) => rust.replacen("pub static CARD: CardDef = CardDef {", "const FACE: CardDef = CardDef {", 1)
+            + &format!("\npub static BESTOWED: CardDef = cantrip_mechanics::bestow::bestowed(FACE);\npub static CARD: CardDef = CardDef {{ bestow: Some(&BESTOWED), bestow_cost: {cost}, ..FACE }};\n"),
+        None => rust,
+    };
     Ok(EmittedModule {
         rust,
         extras: c.extras,

@@ -93,6 +93,9 @@ pub(super) struct Frame {
     pub amount: Option<Carried>,
     pub damage_source: Option<Carried>,
     pub damage_recipient: Option<Carried>,
+    pub stack_object: Option<Carried>,
+    pub attacker: Option<Carried>,
+    pub blocker: Option<Carried>,
 }
 impl Frame {
     /// What every branch of an alternative event binds the same way.
@@ -109,6 +112,9 @@ impl Frame {
             amount: same(self.amount, other.amount),
             damage_source: same(self.damage_source, other.damage_source),
             damage_recipient: same(self.damage_recipient, other.damage_recipient),
+            stack_object: same(self.stack_object, other.stack_object),
+            attacker: same(self.attacker, other.attacker),
+            blocker: same(self.blocker, other.blocker),
         }
     }
 }
@@ -126,6 +132,14 @@ pub(super) enum EventAt {
     TargetFilter,
     /// An `Enters` callback: the subject is what is entering, its source.
     Entering,
+}
+
+/// Whether `changes` read the object each is applied to, `ObjectRef::Affected`,
+/// rather than what an earlier result affected, `ObjectSet::Affected`.
+pub(super) fn reads_affected(changes: impl std::fmt::Debug) -> bool {
+    format!("{changes:?}")
+        .replace("Affected(", "")
+        .contains("Affected")
 }
 
 pub(super) fn compare(left: &str, comparison: &Comparison, right: &str) -> String {
@@ -236,7 +250,7 @@ impl Compiler {
         }
         Ok(Some(format!("q.chosen_targets().get({at}).copied()")))
     }
-    fn slot(&self, slot: &Slot) -> Result<usize> {
+    pub(super) fn slot(&self, slot: &Slot) -> Result<usize> {
         if self.reader != Reader::Resolution || !self.stack_item {
             return Err(gap("target reference outside a resolving ability"));
         }
@@ -257,6 +271,9 @@ impl Compiler {
             ObjectRef::Source => "Some(asker.source)".into(),
             // Inside a history question the event is what is being tested, and
             // the candidate is still the object the enclosing filter asks about.
+            ObjectRef::Affected if self.affected_object.is_some() => {
+                format!("Some({})", self.affected_object.unwrap_or_default())
+            }
             ObjectRef::Candidate if self.history.is_some() => match &self.history {
                 Some(History { outer: Some(outer) }) => format!("Some({outer})"),
                 _ => {
@@ -292,6 +309,12 @@ impl Compiler {
             ObjectRef::EventSubject => self.carried_object(self.frame.object)?,
             ObjectRef::EventDestination => self.carried_object(self.frame.destination)?,
             ObjectRef::EventOther => self.carried_object(self.frame.other)?,
+            ObjectRef::EventStackObject => self.carried_object(self.frame.stack_object)?,
+            ObjectRef::BlockPair(BlockRole::Attacker) => {
+                self.carried_object(self.frame.attacker)?
+            }
+            ObjectRef::BlockPair(BlockRole::Blocker) => self.carried_object(self.frame.blocker)?,
+            ObjectRef::BlockPair(BlockRole::Other) => self.carried_object(self.frame.other)?,
             ObjectRef::Damage(DamageSubject::Source) => {
                 self.carried_object(self.frame.damage_source)?
             }
@@ -419,7 +442,9 @@ impl Compiler {
                 "q.state().battlefield().iter().copied().filter(|&id| {}).collect::<Vec<ObjectId>>()",
                 self.filter(filter, &Candidate::of("id"))?
             ),
-            ObjectSet::Selected(result) | ObjectSet::Observed(result) => self.selected(result)?,
+            ObjectSet::Selected(result)
+            | ObjectSet::Observed(result)
+            | ObjectSet::Affected(result) => self.selected(result)?,
             ObjectSet::CostObjects {
                 payment,
                 component,
@@ -769,9 +794,6 @@ impl Compiler {
                 window,
                 measure,
             } => {
-                if self.reader == Reader::Layer {
-                    return Err(gap("event history in a layer"));
-                }
                 let scope = match window {
                     HistoryWindow::ThisTurn => "q.history().this_turn().iter()",
                     HistoryWindow::ThisGame => "q.history().all().iter()",
@@ -936,16 +958,18 @@ impl Compiler {
                     None => return Err(gap("result this instruction does not report")),
                 }
             }
-            Expr::BoundValue(result) => match self.values.get(&result.0) {
-                Some(local) => Number {
-                    code: local.clone(),
-                    min: i64::MIN.into(),
-                    max: i64::MAX.into(),
-                    dynamic: true,
-                },
-                None if self.failed.contains(&result.0) => return Err(gap(FOLLOWS_GAP)),
-                None => return Err(gap("value outside generated scope")),
-            },
+            Expr::BoundValue(result) | Expr::DieResult(result) => {
+                match self.values.get(&result.0) {
+                    Some(local) => Number {
+                        code: local.clone(),
+                        min: i64::MIN.into(),
+                        max: i64::MAX.into(),
+                        dynamic: true,
+                    },
+                    None if self.failed.contains(&result.0) => return Err(gap(FOLLOWS_GAP)),
+                    None => return Err(gap("value outside generated scope")),
+                }
+            }
             Expr::Add(a, b) | Expr::Subtract(a, b) | Expr::Multiply(a, b) => {
                 let a = self.number(a)?;
                 let b = self.number(b)?;
@@ -1066,6 +1090,27 @@ impl Compiler {
                     dynamic: true,
                 }
             }
+            Expr::PartySize(player) => {
+                let party = self.party("player")?;
+                Number {
+                    code: format!(
+                        "{}.map_or(0, |player: PlayerId| {party})",
+                        self.player(player)?
+                    ),
+                    min: 0,
+                    max: 4,
+                    dynamic: true,
+                }
+            }
+            Expr::StartingLife(player) => Number {
+                code: format!(
+                    "{}.map_or(0, |player: PlayerId| i64::from(q.state().player(player).starting_life))",
+                    self.player(player)?
+                ),
+                min: i32::MIN.into(),
+                max: i32::MAX.into(),
+                dynamic: true,
+            },
             other => return Err(gap(format!("numeric expression {}", form(other)))),
         })
     }
@@ -1148,6 +1193,7 @@ impl Compiler {
                 color(c)?
             ),
             ObjectFilter::Colorless => format!("{chars}.colors.is_empty()"),
+            ObjectFilter::Chosen(kind) => self.chosen_filter(*kind, chars, id)?,
             ObjectFilter::ControlledBy(players) => self.player_in(players, &c.controller)?,
             ObjectFilter::OwnedBy(players) => {
                 self.player_in(players, &format!("q.state().obj({id}).owner"))?
@@ -1228,6 +1274,33 @@ impl Compiler {
                     self.object(with)?
                 )
             }
+            ObjectFilter::State(ObjectState::Kicked) => {
+                format!("q.state().obj({id}).kicked > 0")
+            }
+            ObjectFilter::State(ObjectState::Commander) => {
+                return Err(gap("engine: no commander"))
+            }
+            ObjectFilter::State(ObjectState::Saddled) => {
+                format!("q.state().obj({id}).marks.saddled_turn == q.state().turn.number")
+            }
+            // Attachments are read as a layer may: by the state, and by what
+            // the layers before it have made the attachment.
+            ObjectFilter::State(state) => format!(
+                "q.state().battlefield().iter().any(|&a| q.state().obj(a).attached_to == Some({id}) && q.chars(a).has_subtype(Subtype::{}))",
+                if *state == ObjectState::Equipped { "Equipment" } else { "Aura" }
+            ),
+            // Layers read the host only by which object it is.
+            ObjectFilter::AttachedTo(host)
+                if self.reader != Reader::Layer
+                    || matches!(**host, ObjectFilter::SameObject(_)) =>
+            {
+                let test = self.filter(host, &Candidate::of("host"))?;
+                format!("q.state().obj({id}).attached_to.is_some_and(|host| {test})")
+            }
+            ObjectFilter::BlockingObject(attacker) => format!(
+                "{{ let attacker = {}; q.state().blocks.iter().any(|b| b.blocker == {id} && Some(b.attacker) == attacker) }}",
+                self.object(attacker)?
+            ),
             ObjectFilter::Modified if self.reader != Reader::Layer => format!("modified(q, {id})"),
             ObjectFilter::SharesNameWith(object) if self.reader != Reader::Layer => format!(
                 "{}.is_some_and(|o: ObjectId| cantrip_mechanics::same_name(q, {id}, o))",
@@ -1391,8 +1464,85 @@ impl Compiler {
                     CoinOutcome::Lost | CoinOutcome::Tails => format!("!{local}"),
                 }
             }
+            Condition::Window(window) => {
+                let step = "(q.state().turn.step() as u8)";
+                match window {
+                    TurnWindow::BeforeAttackersDeclared => {
+                        format!("{step} < (Step::DeclareAttackers as u8)")
+                    }
+                    TurnWindow::Combat => format!(
+                        "((Step::BeginCombat as u8)..=(Step::EndOfCombat as u8)).contains(&{step})"
+                    ),
+                    TurnWindow::Upkeep => "q.state().turn.step() == Step::Upkeep".into(),
+                    TurnWindow::EndStep => "q.state().turn.step() == Step::End".into(),
+                    TurnWindow::BeforeCombatDamage => {
+                        format!("{step} < (Step::CombatDamage as u8)")
+                    }
+                    TurnWindow::DeclareAttackers => {
+                        "q.state().turn.step() == Step::DeclareAttackers".into()
+                    }
+                }
+            }
+            Condition::PlayerState { player, state } => format!(
+                "{}.is_some_and(|player: PlayerId| {})",
+                self.player(player)?,
+                self.player_state(state)?
+            ),
             other => return Err(gap(format!("condition {}", form(other)))),
         })
+    }
+    /// Whether `player` is in this state.
+    fn player_state(&self, state: &PlayerState) -> Result<String> {
+        let active = "q.state().turn.active == player";
+        let step = "q.state().turn.step()";
+        Ok(match state {
+            PlayerState::Monarch => "q.state().player(player).monarch".into(),
+            PlayerState::CitysBlessing => "q.state().player(player).citys_blessing".into(),
+            PlayerState::EnduringStory => "q.state().player(player).enduring_story".into(),
+            PlayerState::Initiative => "q.state().player(player).initiative".into(),
+            PlayerState::StartingPlayer => "q.state().turn.starting == player".into(),
+            PlayerState::InTheirUpkeep => format!("{active} && {step} == Step::Upkeep"),
+            PlayerState::InTheirMainPhase => format!(
+                "{active} && matches!({step}, Step::PrecombatMain | Step::PostcombatMain)"
+            ),
+            PlayerState::CompletedDungeon => {
+                "q.history().any(EventQuery::kind(EventMask::DUNGEON_COMPLETED).player(player))"
+                    .into()
+            }
+            PlayerState::CommittedCrime => {
+                "q.history().any(EventQuery::kind(EventMask::CRIME).this_turn().player(player))"
+                    .into()
+            }
+            PlayerState::BeingAttacked => {
+                "q.state().attackers.iter().any(|a| a.target == Target::Player(player))".into()
+            }
+            // CR 700.11: a permanent card went to their graveyard this turn.
+            PlayerState::Descended => format!(
+                "q.history().this_turn().iter().any(|r| matches!(r.event, Event::ZoneChange {{ new, to, .. }} if to == Zone::graveyard(player) && !q.state().obj(new).token && [{}].iter().any(|&t| q.chars(new).is(t))))",
+                [
+                    "Artifact",
+                    "Battle",
+                    "Creature",
+                    "Enchantment",
+                    "Land",
+                    "Planeswalker"
+                ]
+                .map(|t| format!("CardType::{t}"))
+                .join(", ")
+            ),
+            PlayerState::FullParty => format!("{} == 4", self.party("player")?),
+        })
+    }
+    /// `i64` the creatures of `player`'s party (CR 700.8): the most of Cleric,
+    /// Rogue, Warrior and Wizard they can fill one creature to one role, by
+    /// the deficiency form of Hall's theorem over the 16 sets of roles.
+    pub(super) fn party(&self, player: &str) -> Result<String> {
+        if self.reader == Reader::Layer {
+            return Err(gap("a party read in a layer"));
+        }
+        Ok(format!(
+            "{{ let creatures: Vec<ObjectId> = q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == {player} && q.chars(id).is(CardType::Creature)).collect(); (0u8..16).map(|roles: u8| creatures.iter().filter(|&&id| [Subtype::Cleric, Subtype::Rogue, Subtype::Warrior, Subtype::Wizard].iter().enumerate().any(|(i, &role)| (roles >> i) & 1 == 1 && q.chars(id).has_subtype(role))).count() as i64 + 4 - i64::from(roles.count_ones())).min().unwrap_or(0) }}"
+        ))
     }
 }
 

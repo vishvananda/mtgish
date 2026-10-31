@@ -44,11 +44,17 @@ impl Compiler {
                     || self.moved.contains_key(&result.0)
             }
             ObjectRef::Target { slot, .. } => self.slots.contains_key(&slot.0),
-            ObjectRef::RecipientObject { .. }
-            | ObjectRef::EventSubject
-            | ObjectRef::EventDestination
-            | ObjectRef::EventOther
-            | ObjectRef::Damage(_) => false,
+            // A body watching for an event of its own reads that event.
+            ObjectRef::EventSubject => self.frame.object.is_some(),
+            ObjectRef::EventDestination => self.frame.destination.is_some(),
+            ObjectRef::EventOther => self.frame.other.is_some(),
+            ObjectRef::EventStackObject => self.frame.stack_object.is_some(),
+            ObjectRef::BlockPair(BlockRole::Attacker) => self.frame.attacker.is_some(),
+            ObjectRef::BlockPair(BlockRole::Blocker) => self.frame.blocker.is_some(),
+            ObjectRef::BlockPair(BlockRole::Other) => self.frame.other.is_some(),
+            ObjectRef::Damage(DamageSubject::Source) => self.frame.damage_source.is_some(),
+            ObjectRef::Damage(DamageSubject::Recipient) => self.frame.damage_recipient.is_some(),
+            ObjectRef::RecipientObject { .. } => false,
             _ => true,
         }
     }
@@ -88,6 +94,7 @@ impl Compiler {
                 self.selections.contains_key(&result.0)
             }
             ObjectSet::Created(result) => self.creations.contains_key(&result.0),
+            ObjectSet::Affected(result) => self.selections.contains_key(&result.0),
             ObjectSet::Transition { result, .. } => self.moved.contains_key(&result.0),
             ObjectSet::Targets(slot) => self.slots.contains_key(&slot.0),
             ObjectSet::CostObjects { .. } => false,
@@ -116,7 +123,8 @@ impl Compiler {
         };
         let local = match player {
             PlayerRef::Target { slot, .. } => self.slots.contains_key(&slot.0),
-            PlayerRef::EventSubject | PlayerRef::EventOtherPlayer => false,
+            PlayerRef::EventSubject => self.frame.player.is_some(),
+            PlayerRef::EventOtherPlayer => self.frame.other_player.is_some(),
             _ => true,
         };
         if local {
@@ -272,6 +280,8 @@ impl Compiler {
         let label = format!("watch_{}", self.fresh());
         let limits = TriggerLimits::default();
         let (outer, def) = self.closing(false, |c| {
+            // Its matcher is a function of its own: no local reaches it.
+            c.reset_results();
             c.triggered(&label, &event, None, &limits, announcement, body)
         })?;
         if !outer.objects.borrow().is_empty() || outer.player.borrow().is_some() {

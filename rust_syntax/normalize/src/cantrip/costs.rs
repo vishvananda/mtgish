@@ -339,6 +339,9 @@ impl Compiler {
                 {
                     loyalty_delta = Some(*n)
                 }
+                CostPart::Energy(Expr::Constant(n)) if (0..=255).contains(n) => {
+                    others.push(format!("Cost {{ energy: {n}, ..Cost::NONE }}"))
+                }
                 other => others.push(self.cost_part(other, label)?),
             }
         }
@@ -477,9 +480,14 @@ impl Compiler {
         {
             let adds = self.mana_ability(body, &format!("{label}_mana"))?;
             format!(
-                "mana_ability({}, {adds}, {})",
+                "mana_ability({}, {adds}, {}){}",
                 self.cost(price, label)?,
-                quoted(&text)
+                quoted(&text),
+                if chosen::makes_chosen_color(body) {
+                    ".colors_from(cantrip_mechanics::lands::chosen_color)"
+                } else {
+                    ""
+                }
             )
         } else {
             let targets = self.announcement(announcement, label)?;
@@ -545,6 +553,9 @@ impl Compiler {
                     Keyword::Prowess => parts
                         .abilities
                         .push("cantrip_mechanics::triggers::PROWESS".into()),
+                    Keyword::Flanking => parts
+                        .abilities
+                        .push("cantrip_mechanics::flanking::TRIGGER".into()),
                     Keyword::Ward(cost) => {
                         let ward = match cost.parts.as_slice() {
                         [CostPart::Mana(symbols)] => match symbols.as_slice() {
@@ -754,6 +765,19 @@ impl Compiler {
                 event,
                 body,
             } => self.replacement(label, active, event, body, parts)?,
+            Ability::Mechanic {
+                mechanic,
+                cost,
+                amount,
+                filter,
+            } => self.mechanic(
+                *mechanic,
+                cost.as_ref(),
+                amount.as_ref(),
+                filter.as_ref(),
+                label,
+                parts,
+            )?,
             Ability::Primitive { name, .. } => {
                 return Err(gap(format!("primitive ability {name}")))
             }

@@ -22,6 +22,8 @@ pub(super) struct Matched {
     batch: Option<bool>,
     /// A batch's events about one subject are one event of their total.
     sums: bool,
+    /// Tapping for mana, which the engine shows only to mana abilities.
+    mana: bool,
     pub phrase: String,
 }
 
@@ -47,6 +49,7 @@ fn single(mask: &'static str, arm: Arm, frame: Frame, phrase: &str) -> Matched {
         functions: None,
         batch: None,
         sums: false,
+        mana: false,
         phrase: phrase.into(),
     }
 }
@@ -77,7 +80,12 @@ impl Compiler {
         part: impl FnOnce(&Self) -> Result<T>,
     ) -> Result<T> {
         let saved = (self.reader, self.event_at, self.frame);
-        (self.reader, self.event_at, self.frame) = (Reader::Query, EventAt::Matcher, frame);
+        // A question a layer asks of the history keeps to what a layer can read.
+        let reader = match (self.reader, &self.history) {
+            (Reader::Layer, Some(_)) => Reader::Layer,
+            _ => Reader::Query,
+        };
+        (self.reader, self.event_at, self.frame) = (reader, EventAt::Matcher, frame);
         let compiled = part(self);
         (self.reader, self.event_at, self.frame) = saved;
         compiled
@@ -237,13 +245,42 @@ impl Compiler {
                 None,
                 "Whenever this is turned face up",
             ),
+            ObjectEvent::Transforms => (
+                "TRANSFORMED",
+                "Event::Transformed { object }",
+                "*object",
+                "u32::MAX",
+                plain,
+                None,
+                "Whenever this transforms",
+            ),
+            ObjectEvent::BecomesMonstrous => (
+                "MONSTROUS",
+                "Event::Monstrous { permanent }",
+                "*permanent",
+                "u32::MAX",
+                plain,
+                None,
+                "Whenever this becomes monstrous",
+            ),
+            ObjectEvent::TappedForMana => (
+                "TAPPED",
+                "Event::TappedForMana { permanent, .. }",
+                "*permanent",
+                "u32::MAX",
+                plain,
+                None,
+                "Whenever this is tapped for mana",
+            ),
             // The engine records no event for a permanent untapping.
             ObjectEvent::BecomesUntapped => return Err(gap("engine: no untap event")),
+            ObjectEvent::Mutates => return Err(gap("engine: no mutate event")),
+            ObjectEvent::Specializes => return Err(gap("engine: no specialize event")),
             other => return Err(gap(format!("trigger event Object {}", form(other)))),
         };
         let mut tests: Vec<String> = extra.map(Into::into).into_iter().collect();
         tests.push(self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?);
-        Ok(single(
+        let mut matched = single(
             mask,
             Arm {
                 pattern: pattern.into(),
@@ -252,7 +289,508 @@ impl Compiler {
             },
             frame,
             phrase,
+        );
+        matched.mana = matches!(event, ObjectEvent::TappedForMana);
+        Ok(matched)
+    }
+    /// `EventSpec::Player`. The arms name the player `player`, by reference or
+    /// not as `who` says, and whatever else was done to `id`.
+    fn player_event(
+        &mut self,
+        event: &PlayerEvent,
+        players: &PlayerSet,
+        objects: Option<&ObjectFilter>,
+    ) -> Result<Matched> {
+        const ONE: &str = "let subject = Target::Player(*player); let data = [0u32; 2];";
+        let about = Frame {
+            player: Some(Carried::Subject),
+            ..Frame::default()
+        };
+        let life = Frame {
+            amount: Some(Carried::Data(0)),
+            ..about
+        };
+        let acted = Frame {
+            object: Some(Carried::Subject),
+            player: Some(Carried::Data(0)),
+            ..Frame::default()
+        };
+        let (mask, pattern, locals, who, frame, test, phrase) = match event {
+            PlayerEvent::GainsLife | PlayerEvent::LosesLife => (
+                "LIFE_CHANGE",
+                "Event::LifeChange { player, delta }",
+                "let subject = Target::Player(*player); let data = [delta.unsigned_abs(), 0];",
+                "*player",
+                life,
+                Some(match event {
+                    PlayerEvent::GainsLife => "*delta > 0",
+                    _ => "*delta < 0",
+                }),
+                "Whenever a player's life total changes",
+            ),
+            PlayerEvent::Draws => (
+                "DREW",
+                "Event::Drew { player, .. }",
+                ONE,
+                "*player",
+                about,
+                None,
+                "Whenever a player draws a card",
+            ),
+            PlayerEvent::Attacks => (
+                "ATTACKERS_DECLARED",
+                "Event::AttackersDeclared { player, count }",
+                ONE,
+                "*player",
+                about,
+                Some("*count > 0"),
+                "Whenever a player attacks",
+            ),
+            PlayerEvent::Scries => (
+                "SCRIED",
+                "Event::Scried { player, looked, .. }",
+                "let subject = Target::Player(*player); let data = [*looked as u32, 0];",
+                "*player",
+                life,
+                None,
+                "Whenever a player scries",
+            ),
+            PlayerEvent::Surveils => (
+                "SURVEILLED",
+                "Event::Surveilled { player, .. }",
+                ONE,
+                "*player",
+                about,
+                None,
+                "Whenever a player surveils",
+            ),
+            PlayerEvent::CommitsCrime => (
+                "CRIME",
+                "Event::CrimeCommitted { player, .. }",
+                ONE,
+                "*player",
+                about,
+                None,
+                "Whenever a player commits a crime",
+            ),
+            PlayerEvent::SearchesLibrary => (
+                "SEARCHED",
+                "Event::Searched { player, library }",
+                ONE,
+                "*player",
+                about,
+                Some("player == library"),
+                "Whenever a player searches their library",
+            ),
+            PlayerEvent::WinsCoinFlip => (
+                "COIN_FLIPPED",
+                "Event::CoinFlipped { player, result: CoinFlip::Won }",
+                ONE,
+                "*player",
+                about,
+                None,
+                "Whenever a player wins a coin flip",
+            ),
+            PlayerEvent::Sacrifices => (
+                "ZONE_CHANGE",
+                "Event::ZoneChange { old, new, from, reason: ZoneReason::Sacrifice, .. }",
+                "let id = *old; let player = q.controller(id); let subject = Target::Object(id); let data = [new.0, u32::from(player.0)];",
+                "player",
+                Frame {
+                    object: Some(Carried::Subject),
+                    destination: Some(Carried::Data(0)),
+                    player: Some(Carried::Data(1)),
+                    ..Frame::default()
+                },
+                Some("from.is(ZoneKind::Battlefield)"),
+                "Whenever a player sacrifices a permanent",
+            ),
+            PlayerEvent::PlaysLand => (
+                "ZONE_CHANGE",
+                "Event::ZoneChange { new, to, reason: ZoneReason::PlayLand, .. }",
+                "let id = *new; let player = q.controller(id); let subject = Target::Object(id); let data = [u32::from(player.0), 0];",
+                "player",
+                acted,
+                Some("to.is(ZoneKind::Battlefield)"),
+                "Whenever a player plays a land",
+            ),
+            PlayerEvent::TapsForMana => (
+                "TAPPED",
+                "Event::TappedForMana { permanent, player, .. }",
+                "let id = *permanent; let subject = Target::Object(id); let data = [u32::from(player.0), 0];",
+                "*player",
+                acted,
+                None,
+                "Whenever a player taps a permanent for mana",
+            ),
+            // `Event::GameLost` is filed in the history only.
+            PlayerEvent::LosesGame => {
+                return Err(gap("engine: no ability triggers on losing the game"))
+            }
+            // Each die is an event of its own, not "one or more dice" at once.
+            PlayerEvent::RollsDice => {
+                return Err(gap("engine: no event for dice rolled together"))
+            }
+            other => return Err(gap(format!("trigger event Player {}", form(other)))),
+        };
+        let mut tests: Vec<String> = test.map(Into::into).into_iter().collect();
+        tests.push(self.matching(frame, |c| c.player_in(players, who))?);
+        match objects {
+            Some(objects) if frame.object.is_some() => {
+                tests.push(self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?)
+            }
+            None if frame.object.is_none() => {}
+            _ => return Err(gap(format!("trigger event Player {} objects", form(event)))),
+        }
+        let mut matched = single(
+            mask,
+            Arm {
+                pattern: pattern.into(),
+                locals: locals.into(),
+                tests,
+            },
+            frame,
+            phrase,
+        );
+        matched.mana = matches!(event, PlayerEvent::TapsForMana);
+        Ok(matched)
+    }
+    /// `EventSpec::Pair`: `id` is the object the event is about, `other` the
+    /// second one it binds.
+    fn pair_event(
+        &mut self,
+        event: &PairEvent,
+        objects: &ObjectFilter,
+        others: &ObjectFilter,
+    ) -> Result<Matched> {
+        let about = Frame {
+            object: Some(Carried::Subject),
+            other: Some(Carried::Data(0)),
+            ..Frame::default()
+        };
+        let (mask, pattern, id, other, frame, phrase) = match event {
+            PairEvent::Blocks => (
+                "BLOCKS",
+                "Event::Blocks { blocker, attacker, .. }",
+                "*blocker",
+                "*attacker",
+                Frame {
+                    blocker: Some(Carried::Subject),
+                    attacker: Some(Carried::Data(0)),
+                    ..about
+                },
+                "Whenever a creature blocks a creature",
+            ),
+            PairEvent::BecomesBlockedBy => (
+                "BLOCKS",
+                "Event::Blocks { blocker, attacker, .. }",
+                "*attacker",
+                "*blocker",
+                Frame {
+                    attacker: Some(Carried::Subject),
+                    blocker: Some(Carried::Data(0)),
+                    ..about
+                },
+                "Whenever a creature becomes blocked by a creature",
+            ),
+            PairEvent::BecomesAttachedTo => (
+                "ATTACHED",
+                "Event::Attached { attachment, to: Target::Object(host) }",
+                "*attachment",
+                "*host",
+                about,
+                "Whenever this becomes attached",
+            ),
+            PairEvent::Crews => return Err(gap("engine: no crew event")),
+            PairEvent::Saddles => return Err(gap("engine: no saddle event")),
+            PairEvent::Exploits => return Err(gap("engine: no exploit event")),
+        };
+        let tests = vec![
+            self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?,
+            self.matching(frame, |c| c.filter(others, &Candidate::of("other")))?,
+        ];
+        Ok(single(
+            mask,
+            Arm {
+                pattern: pattern.into(),
+                locals: format!("let id = {id}; let other = {other}; let subject = Target::Object(id); let data = [other.0, u32::MAX];"),
+                tests,
+            },
+            frame,
+            phrase,
         ))
+    }
+    /// `EventSpec::BecomesTarget`. The engine names the object on the stack by
+    /// `by`, which for an ability is its source, so only a spell is that object.
+    fn becomes_target(
+        &mut self,
+        objects: &ObjectFilter,
+        kind: &TargetingKind,
+        by: &Operand,
+    ) -> Result<Matched> {
+        const IS_SPELL: &str =
+            "q.state().stack.iter().any(|i| i.kind == StackKind::Spell && i.object == by)";
+        let frame = Frame {
+            object: Some(Carried::Subject),
+            stack_object: matches!(kind, TargetingKind::Spell).then_some(Carried::Data(0)),
+            ..Frame::default()
+        };
+        let mut tests = vec![self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?];
+        match kind {
+            TargetingKind::SpellOrAbility => {}
+            _ if self.history.is_some() => {
+                return Err(gap("what targeted an object, in a history question"))
+            }
+            TargetingKind::Spell => tests.push(IS_SPELL.into()),
+            TargetingKind::Ability => tests.push(format!("!{IS_SPELL}")),
+        }
+        match by {
+            Operand::Filter(filter) => {
+                tests.push(self.matching(frame, |c| c.filter(filter, &Candidate::of("by")))?)
+            }
+            Operand::Term { form, operands, .. } => match (form.as_str(), operands.as_slice()) {
+                ("AnySpellOrAbility", []) => {}
+                ("ControlledByAPlayer", [Operand::Players(players)]) => {
+                    tests.push(self.matching(frame, |c| c.player_in(players, "controller"))?)
+                }
+                (other, _) => return Err(gap(format!("targeted by {other}"))),
+            },
+            other => return Err(gap(format!("targeted by {}", form(other)))),
+        }
+        Ok(single(
+            "BECAME_TARGET",
+            Arm {
+                pattern: "Event::BecameTarget { target: Target::Object(target), by, controller }".into(),
+                locals: "let id = *target; let by = *by; let controller = *controller; let subject = Target::Object(id); let data = [by.0, u32::from(controller.0)];".into(),
+                tests,
+            },
+            frame,
+            "Whenever this becomes a target",
+        ))
+    }
+    /// Whether the `Target` `defender` is one of `defenders`.
+    fn attacked(&self, defenders: &AttackDefenders) -> Result<String> {
+        Ok(match defenders {
+            AttackDefenders::Any => "true".into(),
+            AttackDefenders::Objects(filter) => format!(
+                "match *defender {{ Target::Object(o) => {}, _ => false }}",
+                self.filter(filter, &Candidate::of("o"))?
+            ),
+            AttackDefenders::Players(players) => format!(
+                "match *defender {{ Target::Player(p) => {}, _ => false }}",
+                self.player_in(players, "p")?
+            ),
+            AttackDefenders::PlayersAndPlaneswalkers(players) => format!(
+                "match *defender {{ Target::Player(p) => {}, Target::Object(o) => q.chars(o).is(CardType::Planeswalker) && {}, _ => false }}",
+                self.player_in(players, "p")?,
+                self.player_in(players, "q.controller(o)")?
+            ),
+        })
+    }
+    /// `EventSpec::Attack`. `data` is the attacker's controller, then its
+    /// defending player, which is what a batch of them is split by.
+    fn attack_event(
+        &mut self,
+        attackers: &ObjectFilter,
+        by: Option<&PlayerSet>,
+        defenders: &AttackDefenders,
+    ) -> Result<(Matched, Vec<String>)> {
+        let named = !matches!(defenders, AttackDefenders::Any);
+        let frame = Frame {
+            object: Some(Carried::Subject),
+            player: match (by, named) {
+                (Some(_), _) => Some(Carried::Data(0)),
+                (None, true) => Some(Carried::Data(1)),
+                (None, false) => None,
+            },
+            other_player: (by.is_some() && named).then_some(Carried::Data(1)),
+            ..Frame::default()
+        };
+        let tests = self.matching(frame, |c| {
+            let mut tests = vec![c.filter(attackers, &Candidate::of("id"))?];
+            if let Some(by) = by {
+                tests.push(c.player_in(by, "q.controller(id)")?);
+            }
+            tests.push(c.attacked(defenders)?);
+            Ok(tests)
+        })?;
+        let arm = Arm {
+            pattern: "Event::Attacks { attacker, defender, defending, .. }".into(),
+            locals: "let id = *attacker; let subject = Target::Object(id); let data = [u32::from(q.controller(id).0), u32::from(defending.0)];".into(),
+            tests: tests.clone(),
+        };
+        Ok((
+            single("ATTACKS", arm, frame, "Whenever a creature attacks"),
+            tests,
+        ))
+    }
+    /// Creatures attacking at once. The declaration is whole by the time its
+    /// events are matched, so the attackers state how many there are.
+    fn attack_batch(
+        &mut self,
+        event: &EventSpec,
+        per: &BatchPer,
+        count: Option<&(Comparison, Expr)>,
+        including: Option<&ObjectRef>,
+    ) -> Result<Matched> {
+        let EventSpec::Attack {
+            attackers,
+            by,
+            defenders,
+        } = event
+        else {
+            return Err(gap("attack batch of another event"));
+        };
+        let (mut matched, tests) = self.attack_event(attackers, by.as_ref(), defenders)?;
+        let keyed = match per {
+            BatchPer::Whole => false,
+            BatchPer::Defender => true,
+            BatchPer::Subject => return Err(gap("attack batch by attacker")),
+        };
+        matched.batch = Some(keyed);
+        let frame = matched.frame;
+        let mut each = tests;
+        if keyed {
+            each.push("a.defending == *defending".into());
+        }
+        let mut extra = Vec::new();
+        if let Some(one) = including {
+            let one = self.matching(frame, |c| c.object(one))?;
+            extra.push(format!(
+                "q.state().attackers.iter().any(|a| Some(a.id) == {one})"
+            ));
+            // Its count is of the others, as "and at least two other creatures".
+            each.push(format!("Some(a.id) != {one}"));
+        }
+        if let Some((comparison, value)) = count {
+            let value = self.matching(frame, |c| Ok(c.number(value)?.code))?;
+            let many = format!(
+                "q.state().attackers.iter().filter(|a| {{ let (id, defender) = (a.id, &a.target); {} }}).count() as i64",
+                each.join(" && ")
+            );
+            extra.push(read::compare(&many, comparison, &value));
+        }
+        for arm in &mut matched.arms {
+            arm.tests.extend(extra.iter().cloned());
+        }
+        Ok(matched)
+    }
+    /// `EventSpec::Counters` put at once. `data[1]` is the object, which keeps
+    /// one object's counters apart from another's when split by subject.
+    fn counters_batch(
+        &mut self,
+        change: &CounterChange,
+        kind: Option<&crate::counter::CounterKind>,
+        objects: &ObjectFilter,
+        by: Option<&PlayerSet>,
+        per: &BatchPer,
+    ) -> Result<Matched> {
+        if *change != CounterChange::Put {
+            return Err(gap("engine: no event for a counter being removed"));
+        }
+        let frame = Frame {
+            object: Some(Carried::Subject),
+            amount: Some(Carried::Data(0)),
+            ..Frame::default()
+        };
+        let mut tests = vec![self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?];
+        if let Some(kind) = kind {
+            tests.push(format!("*kind == {}", read::counter_kind(kind)?));
+        }
+        if let Some(by) = by {
+            tests.push(self.matching(frame, |c| c.player_in(by, "*by"))?);
+        }
+        let mut matched = single(
+            "COUNTERS",
+            Arm {
+                pattern: "Event::CountersPut { object, kind, amount, by, .. }".into(),
+                locals: "let id = *object; let subject = Target::Object(id); let data = [*amount as u32, id.0];".into(),
+                tests,
+            },
+            frame,
+            "Whenever counters are put on a permanent",
+        );
+        matched.batch = Some(match per {
+            BatchPer::Whole => false,
+            BatchPer::Subject => true,
+            BatchPer::Defender => return Err(gap("counters batch by defender")),
+        });
+        Ok(matched)
+    }
+    /// `EventSpec::Batch`: however many of an event happen at once.
+    fn batch_event(
+        &mut self,
+        event: &EventSpec,
+        per: &BatchPer,
+        count: Option<&(Comparison, Expr)>,
+        including: Option<&ObjectRef>,
+    ) -> Result<Matched> {
+        let mut matched = match event {
+            EventSpec::Attack { .. } => self.attack_batch(event, per, count, including)?,
+            EventSpec::Counters {
+                change,
+                kind,
+                objects,
+                by,
+            } if count.is_none() && including.is_none() => {
+                self.counters_batch(change, kind.as_ref(), objects, by.as_ref(), per)?
+            }
+            other => {
+                if count.is_some() || including.is_some() || *per != BatchPer::Whole {
+                    return Err(gap(format!("batch of {}", form(other))));
+                }
+                let mut matched = self.event(other)?;
+                if matched.batch.is_some() || matched.sums {
+                    return Err(gap("a batch of grouped events"));
+                }
+                matched.batch = Some(false);
+                matched
+            }
+        };
+        // No one of a whole batch is the event's, however the form binds it.
+        if *per == BatchPer::Whole {
+            matched.frame.object = None;
+        }
+        matched.frame.amount = matched.frame.amount.filter(|_| *per == BatchPer::Subject);
+        Ok(matched)
+    }
+    /// An event by how many came before it this turn, of its own player's when
+    /// `by_player`. The history a matcher sees stops short of its event.
+    fn ordinal_event(
+        &mut self,
+        event: &EventSpec,
+        comparison: &Comparison,
+        value: &Expr,
+        by_player: bool,
+    ) -> Result<Matched> {
+        if self.history.is_some() {
+            return Err(gap("an ordinal event in a history question"));
+        }
+        let mut matched = self.event(event)?;
+        if matched.batch.is_some() || matched.sums {
+            return Err(gap("an ordinal of grouped events"));
+        }
+        let same = match (by_player, matched.frame.player) {
+            (false, _) => String::new(),
+            (true, Some(Carried::Subject)) => ".filter(|f: &Fired| f.subject == subject)".into(),
+            (true, Some(Carried::Data(i))) => {
+                format!(".filter(|f: &Fired| f.data[{i}] == data[{i}])")
+            }
+            (true, None) => return Err(gap("an ordinal of an event with no player")),
+        };
+        let mut asked = self.clone();
+        asked.history = Some(History { outer: None });
+        let past = asked.event(event)?;
+        let value = self.matching(matched.frame, |c| Ok(c.number(value)?.code))?;
+        let count = format!(
+            "q.history().this_turn().iter().filter_map({}){same}.count() as i64 + 1",
+            past.history_test()
+        );
+        let test = read::compare(&count, comparison, &value);
+        for arm in &mut matched.arms {
+            arm.tests.push(test.clone());
+        }
+        Ok(matched)
     }
     /// What damage binds and what it must pass, read from the locals `source`,
     /// `target` (a reference), `amount` and `combat`; replacement effects and
@@ -523,6 +1061,7 @@ impl Compiler {
                             if all.functions != next.functions
                                 || all.batch != next.batch
                                 || all.sums != next.sums
+                                || all.mana != next.mana
                             {
                                 return Err(gap("alternative events with different rules"));
                             }
@@ -547,6 +1086,40 @@ impl Compiler {
                 }
                 Ok(matched)
             }
+            EventSpec::Player {
+                event,
+                players,
+                objects,
+            } => self.player_event(event, players, objects.as_ref()),
+            EventSpec::Pair {
+                event,
+                objects,
+                others,
+            } => self.pair_event(event, objects, others),
+            EventSpec::BecomesTarget { objects, kind, by } => {
+                self.becomes_target(objects, kind, by)
+            }
+            EventSpec::NthEachTurn {
+                event,
+                comparison,
+                value,
+            } => self.ordinal_event(event, comparison, value, true),
+            EventSpec::FirstEachTurn(event) => {
+                self.ordinal_event(event, &Comparison::Equal, &Expr::Constant(1), false)
+            }
+            EventSpec::Attack {
+                attackers,
+                by,
+                defenders,
+            } => Ok(self.attack_event(attackers, by.as_ref(), defenders)?.0),
+            EventSpec::Batch {
+                event,
+                per,
+                count,
+                including,
+            } => self.batch_event(event, per, count.as_ref(), including.as_ref()),
+            // The engine's event is one put, and each counter is one of these.
+            EventSpec::Counters { .. } => Err(gap("engine: no event for each counter put")),
             EventSpec::Primitive { name, .. } => {
                 Err(gap(format!("primitive trigger event {name}")))
             }
@@ -627,6 +1200,24 @@ impl Compiler {
             return Ok(def);
         }
         let matched = self.event(event)?;
+        let adds_mana = |i: &Instruction| {
+            matches!(
+                i,
+                Instruction::Effect {
+                    operation: Operation::AddMana { .. },
+                    ..
+                }
+            )
+        };
+        if matched.mana
+            && (announcement.modes.is_some()
+                || !announcement.targets.is_empty()
+                || !body.instructions.iter().all(adds_mana))
+        {
+            return Err(gap(
+                "engine: only a mana ability triggers on tapping for mana",
+            ));
+        }
         if announcement.modes.is_some() {
             return self.modal_triggered(
                 label,
@@ -682,6 +1273,9 @@ impl Compiler {
         }
         if matched.sums {
             def.push_str(".sums_per_subject()");
+        }
+        if matched.mana {
+            def.push_str(".mana_ability(TriggeredMana::Unstated)");
         }
         if let Some(per_turn) = limits.per_turn {
             def.push_str(&format!(".triggers_each_turn({per_turn})"));
