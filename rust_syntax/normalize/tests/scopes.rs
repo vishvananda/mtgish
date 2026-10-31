@@ -1429,3 +1429,23 @@ fn mana_riders_and_optional_inspection_steps() {
     assert!(keeper.contains("PlayCards"), "{keeper}");
     assert!(keeper.contains("cost: Free"), "{keeper}");
 }
+
+#[test]
+fn conditional_delayed_triggers_and_copiable_choices() {
+    let throne = lowered(
+        "SpellActions(Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([CreateTriggerUntilI(WhenAPermanentDies(SinglePermanent(Ref_TargetPermanent)), PlayerPassesFilter(You, ControlsA(IsYourCommander)), ActionList([BecomeTheMonarch]), UntilEndOfTurn)])))",
+    );
+    assert!(throne.contains("intervening_if: Some"), "{throne}");
+
+    let elves = lowered(
+        "TriggerA(WhenAPlayerCastsASpell(SinglePlayer(You), IsCreatureType(Elf)), ActionList([CreatePermanentSpellLayerEffect(UntilEndOfTurn, Trigger_ThatSpell, [AddAbility([Haste])])]))",
+    );
+    assert!(elves.contains("Continuing"), "{elves}");
+    assert!(elves.contains("until: EndOfTurn"), "{elves}");
+
+    let clay = lowered(
+        "AsPermanentEnters(ThisPermanent, [EntersWithLayerEffectOfChoice([[SetCopiablePT(PT(3, 3)), AddCopiableCardtype(Creature)], [SetCopiablePT(PT(2, 2)), AddCopiableAbility([Flying])]])])",
+    );
+    assert!(clay.contains("ChooseChanges"), "{clay}");
+    assert!(clay.contains("Copiable"), "{clay}");
+}

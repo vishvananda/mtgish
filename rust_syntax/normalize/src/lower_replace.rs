@@ -30,7 +30,7 @@ fn retag(value: &mut serde_json::Value, rename: &impl Fn(&str) -> Option<&'stati
 
 /// Forms that say what becomes of the event, so a body using one is explicit.
 /// A regeneration shield belongs here because it applies to the event itself.
-const EVENT_FORMS: [&str; 32] = [
+const EVENT_FORMS: [&str; 33] = [
     "EntersTapped",
     "EntersWithACounter",
     "EntersUnderPlayersControl",
@@ -49,6 +49,7 @@ const EVENT_FORMS: [&str; 32] = [
     "WouldProduceMana_ReplaceType",
     "WouldProduceMana_ReplaceColorWithTheChosenColor",
     "EntersWithLayerEffect",
+    "EntersWithLayerEffectOfChoice",
     "CreateTokensInstead",
     "DealToPlayerInstead",
     "DealToCreatureOrPlaneswalkerInstead",
@@ -303,6 +304,23 @@ impl Context {
                     .map(decode_step)
                     .collect::<Result<Vec<source::LayerEffect>>>()?;
                 vec![EventChange::Entry(EntryState::Changes(self.changes(&effects)?))]
+            }
+            "EntersWithLayerEffectOfChoice" => {
+                let options = args
+                    .as_array()
+                    .map_or(&[][..], |a| a)
+                    .iter()
+                    .map(|option| {
+                        let effects = option
+                            .as_array()
+                            .map_or(&[][..], |a| a)
+                            .iter()
+                            .map(decode_step)
+                            .collect::<Result<Vec<source::LayerEffect>>>()?;
+                        self.changes(&effects)
+                    })
+                    .collect::<Result<_>>()?;
+                vec![EventChange::Entry(EntryState::ChooseChanges(options))]
             }
             "CreateTokensInstead" => {
                 let mut copies = 0;

@@ -1144,6 +1144,7 @@ impl Context {
             },
             body,
             once: true,
+            intervening_if: None,
         })
     }
 
@@ -2094,6 +2095,28 @@ impl Context {
                     S::SetCreatureType(ty) => vec![Change::CreatureTypes { mode:ChangeMode::Set,types:CreatureTypeSet::Listed(vec![ty.clone()]) }],
                     S::SetCreatureTypes(types) => vec![Change::CreatureTypes { mode:ChangeMode::Set,types:CreatureTypeSet::Listed(types.clone()) }],
                     S::AddCreatureType(ty) => vec![Change::CreatureTypes { mode:ChangeMode::Add,types:CreatureTypeSet::Listed(vec![ty.clone()]) }],
+                    S::SetCopiablePT(pt) => vec![Change::Copiable(
+                        self.layer_changes(&[S::SetPT(pt.clone())])?,
+                    )],
+                    S::AddCopiableCardtype(ty) => vec![Change::Copiable(
+                        self.layer_changes(&[S::AddCardtype(ty.clone())])?,
+                    )],
+                    S::AddCopiableCreatureType(ty) => vec![Change::Copiable(
+                        self.layer_changes(&[S::AddCreatureType(ty.clone())])?,
+                    )],
+                    // Copied as text, so characteristic-defining rules stay rules.
+                    S::AddCopiableAbility(rules) => vec![Change::Copiable(
+                        rules
+                            .iter()
+                            .map(|rule| match self.keyword(rule) {
+                                Ok(keyword) => Ok(Change::GrantKeyword(keyword)),
+                                Err(_) => self
+                                    .fresh()
+                                    .ability(rule)
+                                    .map(|ability| Change::GrantAbility(Box::new(ability))),
+                            })
+                            .collect::<Result<_>>()?,
+                    )],
                     S::AddCardtype(ty) => vec![Change::AddCardType(ty.clone())],
                     S::RemoveCardtype(ty) => vec![Change::RemoveCardType(ty.clone())],
                     S::AddSupertype(ty) => vec![Change::AddSupertype(ty.clone())],
@@ -2473,6 +2496,7 @@ impl Context {
                     },
                     body,
                     once: true,
+                    intervening_if: None,
                 }
             }
             S::CreateFutureTrigger(event, actions) | S::CreateFutureTriggerI(event, _, actions) => {
@@ -2625,11 +2649,15 @@ impl Context {
             S::Exile(items, flags) => return self.exile(items, flags, actor),
             S::CreateTrigger(trigger, actions)
             | S::CreateTriggerOnce(_, trigger, actions)
-            | S::CreateTriggerUntil(trigger, actions, _) => {
+            | S::CreateTriggerUntil(trigger, actions, _)
+            | S::CreateTriggerUntilI(trigger, _, actions, _) => {
                 let event = self.trigger(trigger)?;
                 let (duration, once) = match value {
                     S::CreateTriggerOnce(duration, ..) => (self.duration(duration)?, true),
-                    S::CreateTriggerUntil(_, _, duration) => (self.duration(duration)?, false),
+                    S::CreateTriggerUntil(_, _, duration)
+                    | S::CreateTriggerUntilI(_, _, _, duration) => {
+                        (self.duration(duration)?, false)
+                    }
                     _ => (Duration::Indefinite, false),
                 };
                 let mut child = self.clone();
@@ -2637,6 +2665,10 @@ impl Context {
                 child.event = crate::semantics::event_bindings(&event);
                 let known = child.targets.len();
                 child.outer_targets = known;
+                let intervening_if = match value {
+                    S::CreateTriggerUntilI(_, condition, ..) => Some(child.condition(condition)?),
+                    _ => None,
+                };
                 let body = child.actions(actions)?;
                 self.result = child.result;
                 Operation::CreateTrigger {
@@ -2648,8 +2680,16 @@ impl Context {
                     },
                     body,
                     once,
+                    intervening_if,
                 }
             }
+            S::CreatePermanentSpellLayerEffect(until, spell, effects) => Operation::ChangeSpell {
+                subject: SpellSubject::One(self.spell(spell)?),
+                changes: vec![Change::Continuing {
+                    changes: self.changes(effects)?,
+                    until: self.duration(until)?,
+                }],
+            },
             S::DiscardCard(card) => Operation::DiscardObjects {
                 objects: ObjectSet::One(self.hand_card(card)?),
             },
@@ -3406,6 +3446,7 @@ impl Context {
                     },
                     body,
                     once: true,
+                    intervening_if: None,
                 }
             }
             S::RevealTopCardOfLibrary => {

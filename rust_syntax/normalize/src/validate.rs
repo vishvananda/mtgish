@@ -525,6 +525,9 @@ impl<'a> Scope<'a> {
             EntryState::AttachedToChosen(filter) => self.filter(filter),
             EntryState::AttachedToPlayer(player) => self.player(player),
             EntryState::Changes(changes) => self.entering_changes(changes),
+            EntryState::ChooseChanges(options) => options
+                .iter()
+                .try_for_each(|changes| self.entering_changes(changes)),
             EntryState::When { filter, entry } => {
                 self.filter(filter)?;
                 self.entry(entry)
@@ -1224,6 +1227,15 @@ impl<'a> Scope<'a> {
     }
     fn change(&self, change: &Change) -> Result {
         match change {
+            Change::Continuing { changes, until } => {
+                self.duration(until)?;
+                changes.iter().try_for_each(|c| self.change(c))
+            }
+            // Copiable text is the object's own, so it may define characteristics.
+            Change::Copiable(changes) => changes.iter().try_for_each(|c| match c {
+                Change::GrantAbility(ability) => validate_ability(ability),
+                _ => self.change(c),
+            }),
             Change::Primitive { name, operands } => self.primitive(name, operands),
             Change::GrantKeyword(keyword) => self.keyword(keyword),
             Change::PlayerRule(rule) => self.player_rule(rule),
@@ -2327,6 +2339,7 @@ impl<'a> Scope<'a> {
                 duration,
                 announcement,
                 body,
+                intervening_if,
                 ..
             } => {
                 self.duration(duration)?;
@@ -2335,6 +2348,9 @@ impl<'a> Scope<'a> {
                 child.replacement = false;
                 child.open_searches.clear();
                 child.event = crate::semantics::event_bindings(event);
+                intervening_if
+                    .iter()
+                    .try_for_each(|condition| child.condition(condition))?;
                 child.announcement(announcement)?;
                 child.program(body)
             }

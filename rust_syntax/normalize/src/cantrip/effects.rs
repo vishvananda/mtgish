@@ -1068,7 +1068,9 @@ impl Compiler {
                 announcement,
                 body,
                 once,
+                intervening_if: None,
             } => self.create_trigger(event, duration, announcement, body, *once, out)?,
+            Operation::CreateTrigger { .. } => return Err(gap("conditional delayed trigger")),
             Operation::CreateDelayedTrigger {
                 event,
                 start,

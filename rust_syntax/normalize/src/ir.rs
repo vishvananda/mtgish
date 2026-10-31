@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 114;
+pub const SCHEMA_VERSION: u32 = 115;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -944,6 +944,7 @@ pub enum Operation {
         body: Program,
         /// Ends once it has triggered, as for "your next spell this turn".
         once: bool,
+        intervening_if: Option<Condition>,
     },
     /// Repeat the nearest enclosing `Instruction::Repeatable` or `Times`.
     RepeatProcess,
@@ -1941,6 +1942,8 @@ pub enum EntryState {
     ExilePile {
         shuffled: bool,
     },
+    /// One set of changes, chosen as it enters.
+    ChooseChanges(Vec<Vec<Change>>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2047,6 +2050,13 @@ pub enum Change {
         from: Box<Operand>,
         to: Box<Operand>,
     },
+    /// On a spell and on the permanent it becomes, until this expires.
+    Continuing {
+        changes: Vec<Change>,
+        until: Duration,
+    },
+    /// Part of the object's copiable values (707.2).
+    Copiable(Vec<Change>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

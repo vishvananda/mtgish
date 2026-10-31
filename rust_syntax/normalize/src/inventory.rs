@@ -751,10 +751,12 @@ impl Inventory<'_> {
                 duration,
                 announcement,
                 body,
+                intervening_if,
                 ..
             } => {
                 self.event(event);
                 self.duration(duration);
+                intervening_if.iter().for_each(|c| self.condition(c));
                 self.announcement(announcement);
                 self.program(body);
             }
@@ -1452,6 +1454,11 @@ impl Inventory<'_> {
     fn change(&mut self, c: &Change) {
         self.form("Change", c);
         match c {
+            Change::Continuing { changes, until } => {
+                self.duration(until);
+                changes.iter().for_each(|c| self.change(c));
+            }
+            Change::Copiable(changes) => changes.iter().for_each(|c| self.change(c)),
             Change::Primitive { name, .. } => self.primitive(name),
             Change::PlayerRule(rule) => self.player_rule(rule),
             Change::Rule(rule) => self.rule(rule),

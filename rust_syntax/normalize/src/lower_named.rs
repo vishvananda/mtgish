@@ -536,6 +536,14 @@ impl Context {
             }))
         };
         let change = match value {
+            S::EntersWithLayerEffectUntil(effects, until) => Change::Continuing {
+                changes: self.changes(effects).ok()?,
+                until: self.duration(until).ok()?,
+            },
+            S::EntersWithLayerEffect(effects) => Change::Continuing {
+                changes: self.changes(effects).ok()?,
+                until: Duration::Indefinite,
+            },
             S::EntersWithACounter(kind) => Change::EntersWithCounters {
                 kind: crate::counter::lower(kind),
                 amount: Expr::Constant(1),
