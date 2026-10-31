@@ -11339,5 +11339,17 @@
     "excludes": [
       " [EntersAsFaceDownLand(Forest)]))]))], CardPT: (Power: 5, To"
     ]
+  },
+  {
+    "name": "Peer into the Abyss",
+    "issues": [
+      70
+    ],
+    "contains": [
+      "PlayerAction(Ref_TargetPlayer, LoseLife(HalfRoundedUp(LifeTotalOfPlayer(ActionPlayer))))"
+    ],
+    "excludes": [
+      "))), LoseLife(HalfRoundedUp(LifeTotalOfPlayer(ActionPlayer)))"
+    ]
   }
 ]

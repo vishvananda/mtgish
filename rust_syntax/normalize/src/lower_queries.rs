@@ -151,6 +151,9 @@ impl Context {
                 Ok(ObjectRef::EventSubject)
             }
             source::Spell::Trigger_ThatSpell if self.event.spell => Ok(ObjectRef::EventSubject),
+            source::Spell::Trigger_ThatSpell if self.event.stack_object => {
+                Ok(ObjectRef::EventStackObject)
+            }
             _ => Err(unsupported(value)),
         }
     }

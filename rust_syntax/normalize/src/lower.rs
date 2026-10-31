@@ -86,6 +86,8 @@ struct Context {
     revealed: Option<ObjectSet>,
     /// The player "they" means in an effect several players carry out.
     iterated: Option<PlayerRef>,
+    /// The one player performing the current action.
+    acting: Option<PlayerRef>,
     removed_counters: Option<ResultId>,
     announcing: bool,
     you: Option<PlayerRef>,
@@ -475,8 +477,12 @@ impl Context {
                     index: 0,
                 });
             }
+            S::Trigger_ThatVehicle if self.event.other => return Ok(ObjectRef::EventOther),
             S::Trigger_ThatPermanent
             | S::Trigger_ThatCreature
+            | S::Trigger_ThatLand
+            | S::Trigger_ThatArtifact
+            | S::Trigger_ThatVehicle
             | S::Trigger_ThatDeadPermanent
             | S::ThatEnteringPermanent
             | S::WouldDealDamage_ThatPermanent
@@ -492,6 +498,11 @@ impl Context {
                 if self.event.damage_recipient =>
             {
                 return Ok(ObjectRef::Damage(DamageSubject::Recipient))
+            }
+            S::Trigger_ThatCreatureOrPlaneswalker | S::Trigger_ThatSacrificedPermanent
+                if self.event.permanent =>
+            {
+                return Ok(ObjectRef::EventSubject)
             }
             S::Trigger_TheAttackingCreature if self.event.block_pair => {
                 return Ok(ObjectRef::BlockPair(BlockRole::Attacker))
@@ -537,6 +548,8 @@ impl Context {
             {
                 self.iterated.clone().unwrap()
             }
+            S::ActionPlayer if self.payer.is_some() => self.payer.clone().unwrap(),
+            S::ActionPlayer if self.acting.is_some() => self.acting.clone().unwrap(),
             S::HostController => PlayerRef::ControllerOf(Box::new(ObjectRef::AttachedTo(
                 Box::new(ObjectRef::Source),
             ))),
@@ -1002,6 +1015,7 @@ impl Context {
             | S::Trigger_AmountOfDamageDealt
             | S::Trigger_AmountOfExcessDamage
             | S::Trigger_AmountOfDamagePrevented
+            | S::Trigger_AmountOfCards
             | S::Trigger_AmountOfLifeGained
             | S::Trigger_AmountOfLifeLost
             | S::WouldDealDamage_ThatMuchDamage
@@ -1741,7 +1755,27 @@ impl Context {
         })
     }
 
+    /// One player acting is who `ActionPlayer` reads; a batch has no such player.
+    fn acted_by<T>(
+        &mut self,
+        actor: &PlayerSet,
+        lower: impl FnOnce(&mut Self) -> Result<T>,
+    ) -> Result<T> {
+        let acting = match actor {
+            PlayerSet::One(player) => Some(player.clone()),
+            _ => None,
+        };
+        let outer = std::mem::replace(&mut self.acting, acting);
+        let lowered = lower(self);
+        self.acting = outer;
+        lowered
+    }
+
     fn action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
+        self.acted_by(actor, |context| context.acted_action(value, actor))
+    }
+
+    fn acted_action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
         let before = self.clone();
         let reduced = match self
             .dead_action(value, actor)
@@ -2663,18 +2697,34 @@ impl Context {
             }
             S::EachPlayerCreatesTokens(players, tokens, flags) => {
                 let players = self.players(players)?;
-                Operation::CreateTokens {
-                    players,
-                    tokens: tokens
-                        .iter()
-                        .enumerate()
-                        .map(|(i, token)| {
-                            self.token(token, 0)
-                                .map_err(|e| e.at(format!("tokens[{i}]")))
-                        })
-                        .collect::<Result<_>>()?,
-                    entry: self.token_entry(flags)?,
+                let create = |context: &mut Self, players: &PlayerSet| {
+                    Ok(context.effect(Operation::CreateTokens {
+                        players: players.clone(),
+                        tokens: tokens
+                            .iter()
+                            .enumerate()
+                            .map(|(i, token)| {
+                                context
+                                    .token(token, 0)
+                                    .map_err(|e| e.at(format!("tokens[{i}]")))
+                            })
+                            .collect::<Result<_>>()?,
+                        entry: context.token_entry(flags)?,
+                    }))
+                };
+                // Tokens counted per player need that player bound.
+                let per_player = format!("{tokens:?}");
+                if per_player.contains("EachablePlayer") || per_player.contains("ActionPlayer") {
+                    return self.for_each_player(players, create);
                 }
+                return create(self, &players);
+            }
+            S::APlayerAction(players, action) => {
+                let chosen = PlayerRef::OneOf(Box::new(self.players(players)?));
+                let outer = self.iterated.replace(chosen.clone());
+                let instruction = self.action(action, &PlayerSet::One(chosen));
+                self.iterated = outer;
+                return instruction;
             }
             S::DoNothing => return Ok(Instruction::Group(Program::empty())),
             S::RepeatThisProcess => Operation::RepeatProcess,
@@ -3708,6 +3758,7 @@ impl Context {
             .ok_or_else(|| unsupported(value))?;
         let player = self.payer.clone().unwrap_or(PlayerRef::AbilityController);
         let mut child = self.clone();
+        child.iterated = Some(player.clone());
         // Results inside a cost never collide with this scope or another cost's.
         child.result = self.result.saturating_mul(1 << 8).saturating_add(1 << 20);
         let instruction = child.action(&action, &PlayerSet::One(player.clone()))?;

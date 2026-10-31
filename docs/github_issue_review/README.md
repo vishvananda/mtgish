@@ -104,6 +104,7 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#66](https://github.com/i5jb/mtgish/issues/66): Breena's "that opponent" names the attacker.
 - [#68](https://github.com/i5jb/mtgish/issues/68): "that player controls" dropped from choices (3 cards).
 - [#69](https://github.com/i5jb/mtgish/issues/69): Benthic Anomaly token is a Zombie.
+- [#70](https://github.com/i5jb/mtgish/issues/70): Peer into the Abyss: caster loses the life instead of the target.
 
 [#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
 

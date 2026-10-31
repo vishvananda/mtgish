@@ -960414,7 +960414,10 @@ Card(
           Ref_TargetPlayer,
           DrawNumberCards(HalfRoundedUp(NumCardsInPlayersLibrary(ActionPlayer))),
         ),
-        LoseLife(HalfRoundedUp(LifeTotalOfPlayer(ActionPlayer))),
+        PlayerAction(
+          Ref_TargetPlayer,
+          LoseLife(HalfRoundedUp(LifeTotalOfPlayer(ActionPlayer))),
+        ),
       ]),
     )),
   ],

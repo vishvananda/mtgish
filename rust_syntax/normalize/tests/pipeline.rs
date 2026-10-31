@@ -2162,8 +2162,8 @@ fn x_paid_during_resolution_is_read_from_that_payment() {
 #[test]
 fn a_damage_cost_keeps_its_recipient_bound() {
     let text = ability_json("SpellActions(ActionList([MayCost(HavePermanentDealDamage(ThisPermanent,Integer(2),Player(You))),If(CostWasPaid,[DrawACard])]))");
-    assert!(text.contains("Cost::HavePermanentDealDamage"), "{text}");
-    assert!(text.contains("Recipients"), "{text}");
+    assert!(text.contains("DealDamage"), "{text}");
+    assert!(text.contains("\"recipients\":{\"kind\":\"Players\""), "{text}");
 }
 
 #[test]
@@ -2752,4 +2752,36 @@ fn excess_and_recipients_read_back_from_the_damage_that_dealt_them() {
     assert!(player.contains("DamagedBy"), "{player}");
     let source = custom("SpellActions(ActionList([If(ExcessDamageWasDealtThisWay,[DrawACard])]))");
     assert!(pipeline::finalize(&source).is_err());
+}
+
+#[test]
+fn an_action_player_is_whoever_acts() {
+    let cost = ability_json("SpellActions(Targeted([TargetPlayer(AnyPlayer)],ActionList([PlayerMayCost(Ref_TargetPlayer,HaveSpellDealDamage(ThisSpell,Integer(4),Player(ActionPlayer)))])))");
+    assert!(cost.contains("PlayerAction"), "{cost}");
+    assert!(!cost.contains("Primitive"), "{cost}");
+    let recipient = "\"recipients\":{\"kind\":\"Players\",\"args\":{\"kind\":\"One\",\"args\":{\"kind\":\"Target\"";
+    assert!(cost.contains(recipient), "{cost}");
+    let bare = ability_json(
+        "SpellActions(ActionList([LoseLife(HalfRoundedUp(LifeTotalOfPlayer(ActionPlayer)))]))",
+    );
+    assert!(bare.contains("AbilityController"), "{bare}");
+    let batch = ability_json("SpellActions(ActionList([EachPlayerAction(Opponent,MillNumberCards(HalfRoundedUp(NumCardsInPlayersLibrary(ActionPlayer))))]))");
+    assert!(batch.contains("ForEachPlayer"), "{batch}");
+    let chosen = ability_json("SpellActions(ActionList([APlayerAction(Opponent,DrawNumberCards(LifeTotalOfPlayer(ActionPlayer)))]))");
+    assert!(chosen.contains("OneOf"), "{chosen}");
+    assert!(!chosen.contains("Primitive"), "{chosen}");
+}
+
+#[test]
+fn tokens_counted_per_player_loop_over_the_players() {
+    let text = ability_json("SpellActions(ActionList([EachPlayerCreatesTokens(AnyPlayer,[NumberTokens(TheNumberOfPermanentsOnTheBattlefield(ControlledByAPlayer(SinglePlayer(ActionPlayer))),TreasureToken)],[])]))");
+    assert!(text.contains("ForEachPlayer"), "{text}");
+}
+
+#[test]
+fn trigger_rows_bind_what_their_bodies_read() {
+    let exile = ability_json("TriggerA(WhenAPermanentIsExiled(AnyPermanent),ActionList([ReturnAnExiledCardToBattlefield(SingleExiledCard(Trigger_ThatExiledCard),[])]))");
+    assert!(exile.contains("EventDestination"), "{exile}");
+    let spell = ability_json("TriggerA(WhenAPermanentBecomesTheTargetOfASpell(SinglePermanent(ThisPermanent),AnySpell),ActionList([PermanentDealsDamage(ThisPermanent,Integer(2),Player(ControllerOfSpell(Trigger_ThatSpell)))]))");
+    assert!(spell.contains("EventStackObject"), "{spell}");
 }

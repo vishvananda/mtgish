@@ -135,6 +135,13 @@ impl Context {
                     index: 0,
                 })
             }
+            S::Trigger_ThatExiledCard if self.event.moved => Ok(ObjectRef::Query {
+                objects: Box::new(ObjectSet::InZone {
+                    objects: Box::new(ObjectSet::One(ObjectRef::EventDestination)),
+                    zone: EventZone::Exile,
+                }),
+                index: 0,
+            }),
             S::Ref_TargetExiledCard | S::Ref_TargetExiledCard1 => {
                 self.object_target(ObjectDomain::card(EventZone::Exile), 0)
             }
@@ -234,6 +241,7 @@ impl Context {
     fn grave_cards(&self, value: &source::CardsInGraveyards) -> Result<ObjectSet> {
         use source::CardsInGraveyards as S;
         Ok(match value {
+            S::Trigger_ThoseGraveyardCards if self.event.group => ObjectSet::EventGroup,
             S::Ref_TargetGraveyardCards | S::Ref_TargetGraveyardCards1 => {
                 ObjectSet::Targets(self.target(
                     TargetKind::Object(ObjectDomain::card(EventZone::Graveyard)),
@@ -279,6 +287,9 @@ impl Context {
     }
     fn exile_cards(&self, value: &source::CardsInExile) -> Result<ObjectSet> {
         Ok(match value {
+            source::CardsInExile::Trigger_ThoseExiledCards if self.event.group => {
+                ObjectSet::EventGroup
+            }
             source::CardsInExile::TheExiledCardsChosenThisWay if self.exile_choice.is_some() => {
                 ObjectSet::Selected(self.exile_choice.clone().unwrap())
             }

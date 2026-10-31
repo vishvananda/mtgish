@@ -103,7 +103,9 @@ impl Context {
         let instruction = match recipe {
             R::Source(ProgramSource::Action(a)) => self.action(a, actor)?,
             R::Source(ProgramSource::Actions(a)) => return self.actions(a),
-            R::Effect(effect) => self.bind_pipeline_recipe(effect.clone(), actor)?,
+            R::Effect(effect) => self.acted_by(actor, |context| {
+                context.bind_pipeline_recipe(effect.clone(), actor)
+            })?,
             R::Sequence(actions) => {
                 return Ok(Program {
                     instructions: actions
@@ -169,7 +171,10 @@ impl Context {
                     let PlayerSet::One(decider) = players else {
                         return Err(invalid("optional choice requires one decider"));
                     };
-                    let body = context.nested_program_recipe(body, players)?;
+                    let outer = context.iterated.replace(decider.clone());
+                    let body = context.nested_program_recipe(body, players);
+                    context.iterated = outer;
+                    let body = body?;
                     context.note_moves(&body);
                     Ok(Instruction::Optional {
                         decider: decider.clone(),
