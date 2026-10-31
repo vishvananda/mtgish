@@ -656,6 +656,12 @@ impl Compiler {
                 self.flips.insert(result.0, format!("flip_{id}"));
             }
             Operation::ModifyEvent { change } => self.modify_entering(change, out)?,
+            Operation::CreateReplacement {
+                event,
+                limit,
+                duration,
+                body,
+            } => self.create_replacement(event, limit, duration, body, out)?,
             Operation::PayCost {
                 player,
                 cost,
@@ -856,7 +862,7 @@ impl Compiler {
         self.moved.insert(result.0, format!("sacrificed_{id}"));
         Ok(())
     }
-    fn duration(&self, duration: &crate::ir::Duration) -> Result<String> {
+    pub(super) fn duration(&self, duration: &crate::ir::Duration) -> Result<String> {
         use crate::ir::Duration as D;
         Ok(match duration {
             D::EndOfTurn => "Duration::EndOfTurn".into(),

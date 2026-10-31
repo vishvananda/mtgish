@@ -241,6 +241,9 @@ struct Compiler {
     /// Abilities that are no part of the card until a grant or an event names
     /// them: `CardDef::delayed`.
     delayed: Vec<String>,
+    /// `CardDef::granted_preventions` and `granted_replacements`.
+    made_preventions: Vec<String>,
+    made_replacements: Vec<String>,
     granting: bool,
     functions: String,
     next: usize,
@@ -414,6 +417,8 @@ impl Compiler {
             helpers: BTreeSet::new(),
             extras: Vec::new(),
             delayed: Vec::new(),
+            made_preventions: Vec::new(),
+            made_replacements: Vec::new(),
             granting: false,
             functions: String::new(),
             next: 0,
@@ -1019,6 +1024,12 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
             "pay_question" => PAY_QUESTION,
             other => unreachable!("no helper {other}"),
         });
+    }
+    for made in std::mem::take(&mut c.made_preventions) {
+        parts.table("granted_preventions", made);
+    }
+    for made in std::mem::take(&mut c.made_replacements) {
+        parts.table("granted_replacements", made);
     }
     let rest = parts.rest();
     let Parts {
