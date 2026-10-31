@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 95;
+pub const SCHEMA_VERSION: u32 = 96;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1130,8 +1130,13 @@ pub enum Operation {
     /// Creates a named card from outside the game in this zone (Alchemy).
     Conjure {
         actor: PlayerSet,
-        card: String,
+        card: ConjuredCard,
+        count: Expr,
         zone: EventZone,
+        /// Whose zone, when it isn't `actor`'s.
+        owner: Option<PlayerRef>,
+        /// Where in a library. None is a random position.
+        spot: Option<ConjureSpot>,
         entry: Vec<Operand>,
     },
     /// Choose `count` values of this kind. A read of one goes through
@@ -1163,12 +1168,28 @@ pub enum Operation {
         amount: Option<Expr>,
         subtype: Option<String>,
     },
-    /// Goad each of these together. No `until` is the usual until `actor`'s
-    /// next turn (CR 701.38a).
-    Goad {
+    /// One keyword action on each of a set. No `until` is the action's own
+    /// duration: for goad, until `actor`'s next turn (CR 701.38a).
+    KeywordEach {
         actor: PlayerSet,
+        action: KeywordAction,
         objects: ObjectSet,
         until: Option<Duration>,
+    },
+    /// Copy a spell or ability on the stack `times` times, as Forge's
+    /// `CopySpellAbility`. `effects` change the copies.
+    CopyOnStack {
+        actor: PlayerSet,
+        object: ObjectRef,
+        times: Expr,
+        targets: NewTargets,
+        effects: Vec<Operand>,
+    },
+    /// Change what a spell or ability targets, as Forge's `ChangeTargets`.
+    Retarget {
+        actor: PlayerSet,
+        object: ObjectRef,
+        targets: NewTargets,
     },
     /// Each clashing player reveals; `won` runs if `actor` won, else `lost`
     /// (CR 701.30). Inside these, `PlayerRef::ClashOpponent` is the opponent.
@@ -1871,6 +1892,45 @@ impl From<PlayerSet> for EffectSubjects {
 pub struct SpreeMode {
     pub cost: Cost,
     pub ability: Box<Ability>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum NewTargets {
+    Same,
+    /// "You may choose new targets."
+    May,
+    /// "Change the target of": it changes if there is another legal one.
+    Must,
+    /// To the object or objects in this set.
+    To(ObjectSet),
+    /// One copy for each of these, targeting it.
+    Each(ObjectSet),
+    ToPlayers(PlayerSet),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ConjuredCard {
+    Named(String),
+    /// A duplicate of each of these, with any perpetual changes.
+    Duplicate(ObjectSet),
+    Spellbook {
+        book: String,
+        pick: SpellbookPick,
+    },
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum SpellbookPick {
+    Choice,
+    Random,
+    Each,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ConjureSpot {
+    Shuffled,
+    Top,
+    /// At random among the top this many cards.
+    AmongTop(Expr),
+    FromTop(Expr),
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

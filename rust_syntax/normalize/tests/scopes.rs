@@ -834,7 +834,7 @@ fn support_is_counters_and_goading_a_set_is_one_operation() {
     assert!(body.contains("PutCounters {"), "{body}");
     assert!(body.contains("PowerToughness(1, 1)"), "{body}");
     let body = lowered("SpellActions(ActionList([GoadEachCreature(IsCardtype(Creature))]))");
-    assert!(body.contains("Goad {"), "{body}");
+    assert!(body.contains("action: Goad"), "{body}");
     assert!(body.contains("until: None"), "{body}");
     let body = lowered("PermanentRuleEffect(HostPermanent, [IsGoadedByPlayer(You)])");
     assert!(body.contains("GoadedBy("), "{body}");
@@ -992,4 +992,49 @@ fn doubling_triggers_names_the_event_that_causes_them() {
     assert!(body.contains("abilities: None"), "{body}");
     let body = lowered("TheLegendsRuleDoesntApplyToPermanents(IsCardtype(Creature))");
     assert!(body.contains("LegendRuleExempt"), "{body}");
+}
+
+#[test]
+fn copying_and_retargeting_keep_what_happens_to_the_targets() {
+    let body = lowered(
+        "FromStack(TriggerA(WhenAPlayerCastsASpell(SinglePlayer(You), SingleSpell(ThisSpell)), ActionList([CopySpellNumberTimesAndMayChooseNewTargets(ThisSpell, ValueX)])))",
+    );
+    assert!(body.contains("CopyOnStack {"), "{body}");
+    assert!(body.contains("targets: May"), "{body}");
+    let body = lowered(
+        "SpellActions(Targeted([TargetSpell(HasASingleTarget)], ActionList([ChangeTargetsOfSpell(Ref_TargetSpell)])))",
+    );
+    assert!(body.contains("Retarget {"), "{body}");
+    assert!(body.contains("targets: Must"), "{body}");
+}
+
+#[test]
+fn conjuring_names_the_card_the_count_and_the_place() {
+    let body = lowered(
+        "TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([ConjureNumberCardsOnTopOfLibrary(Integer(7), \"Seven Dwarves\")]))",
+    );
+    assert!(body.contains("card: Named(\"Seven Dwarves\")"), "{body}");
+    assert!(body.contains("count: Constant(7)"), "{body}");
+    assert!(body.contains("spot: Some(Top)"), "{body}");
+    let body = lowered(
+        "TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([ConjureACardOfChoiceFromSpellBookIntoHand(\"Paradigm\")]))",
+    );
+    assert!(
+        body.contains("Spellbook { book: \"Paradigm\", pick: Choice }"),
+        "{body}"
+    );
+    let body = lowered(
+        "TriggerA(WhenACreatureAttacks(SinglePermanent(ThisPermanent)), Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([ConjureDuplicateOfPermanentIntoHand(Ref_TargetPermanent)])))",
+    );
+    assert!(body.contains("card: Duplicate("), "{body}");
+    assert!(body.contains("zone: Hand"), "{body}");
+}
+
+#[test]
+fn a_keyword_action_on_a_set_names_the_action() {
+    let body = lowered(
+        "SpellActions(Targeted([UptoNumberTargetPermanents(ValueX, IsCardtype(Creature))], ActionList([PhaseOutEachPermanent(Ref_TargetPermanents)])))",
+    );
+    assert!(body.contains("KeywordEach {"), "{body}");
+    assert!(body.contains("action: PhaseOut"), "{body}");
 }

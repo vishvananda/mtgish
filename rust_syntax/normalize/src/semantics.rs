@@ -205,8 +205,14 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
             zone: EventZone::Hand,
             ..
         } => "Action::ConjureCardIntoHand",
-        Operation::Conjure { .. } => "Action::ConjureCardOntoBattlefield",
-        Operation::Goad { .. } => "Action::GoadEachCreature",
+        Operation::Conjure {
+            zone: EventZone::Battlefield,
+            ..
+        } => "Action::ConjureCardOntoBattlefield",
+        Operation::KeywordEach {
+            action: KeywordAction::Goad,
+            ..
+        } => "Action::GoadEachCreature",
         Operation::DraftFromSpellbook { .. } => "Action::DraftACardFromSpellBook",
         _ => return None,
     };
@@ -479,22 +485,6 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
                     .collect(),
             }
         }
-        ("Action::ConjureCardIntoHand", [Operand::Text(card)]) => {
-            return Operation::Conjure {
-                actor,
-                card: card.clone(),
-                zone: EventZone::Hand,
-                entry: vec![],
-            }
-        }
-        ("Action::ConjureCardOntoBattlefield", [Operand::Text(card), flags @ ..]) => {
-            return Operation::Conjure {
-                actor,
-                card: card.clone(),
-                zone: EventZone::Battlefield,
-                entry: flags.to_vec(),
-            }
-        }
         _ => {}
     }
     if let Some(operation) =
@@ -502,7 +492,10 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
     {
         return operation;
     }
-    if let Some(operation) = reduce_named_action(&actor, &name, &operands) {
+    if let Some(operation) = reduce_named_action(&actor, &name, &operands)
+        .or_else(|| reduce_conjure(&actor, &name, &operands))
+        .or_else(|| reduce_stack_copy(&actor, &name, &operands))
+    {
         return operation;
     }
     if let ("Action::CounterAbility", [Operand::Object(object)]) =
@@ -589,19 +582,37 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
         spellbook: spellbook.clone(),
         times,
     };
-    let goad = |objects: ObjectSet, until: Option<&crate::ir::Duration>| Operation::Goad {
-        actor: actor.clone(),
-        objects,
-        until: until.cloned(),
-    };
+    let each =
+        |action, objects: &ObjectSet, until: Option<&crate::ir::Duration>| Operation::KeywordEach {
+            actor: actor.clone(),
+            action,
+            objects: objects.clone(),
+            until: until.cloned(),
+        };
     Some(match (name.strip_prefix("Action::")?, operands) {
-        ("GoadEachCreature", [Objects(objects)]) => goad(objects.clone(), None),
+        ("GoadEachCreature", [Objects(objects)]) => each(KeywordAction::Goad, objects, None),
         ("GoadEachCreatureUntil", [Objects(objects), Duration(until)]) => {
-            goad(objects.clone(), Some(until))
+            each(KeywordAction::Goad, objects, Some(until))
         }
-        ("GoadCreatureUntil", [Object(object), Duration(until)]) => {
-            goad(ObjectSet::One(object.clone()), Some(until))
+        ("GoadCreatureUntil", [Object(object), Duration(until)]) => each(
+            KeywordAction::Goad,
+            &ObjectSet::One(object.clone()),
+            Some(until),
+        ),
+        ("PhaseOutEachPermanent", [Objects(objects)]) => {
+            each(KeywordAction::PhaseOut, objects, None)
         }
+        ("PhaseOutEachPermanentUntil", [Objects(objects), Duration(until)]) => {
+            each(KeywordAction::PhaseOut, objects, Some(until))
+        }
+        ("PhaseOutPermanentUntil", [Object(object), Duration(until)]) => each(
+            KeywordAction::PhaseOut,
+            &ObjectSet::One(object.clone()),
+            Some(until),
+        ),
+        ("SuspectEachPermanent", [Objects(objects)]) => each(KeywordAction::Suspect, objects, None),
+        ("DetainEachPermanent", [Objects(objects)]) => each(KeywordAction::Detain, objects, None),
+        ("AirbendPermanents", [Objects(objects)]) => each(KeywordAction::Airbend, objects, None),
         // CR 701.34a: a +1/+1 counter on each of up to N other target creatures.
         ("Support", [Objects(objects)]) => Operation::PutCounters {
             placements: vec![CounterPlacement {
@@ -620,6 +631,247 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
         ("DraftACardFromSpellBook", [Text(spellbook)]) => draft(spellbook, Expr::Constant(1)),
         ("DraftACardFromSpellBookNumberTimes", [Text(spellbook), Number(times)]) => {
             draft(spellbook, times.clone())
+        }
+        _ => return None,
+    })
+}
+
+/// Conjuring, from its several dozen rows: what, how many, and where to.
+fn reduce_conjure(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option<Operation> {
+    use ConjureSpot as Spot;
+    use ConjuredCard as C;
+    use EventZone as Z;
+    use Operand::{Number, Object, Objects, Player, Text};
+    use SpellbookPick as Pick;
+    let form = name.strip_prefix("Action::Conjure")?;
+    let one = Expr::Constant(1);
+    let named = |card: &String| C::Named(card.clone());
+    let dup = |object: &ObjectRef| C::Duplicate(ObjectSet::One(object.clone()));
+    let dups = |objects: &ObjectSet| C::Duplicate(objects.clone());
+    let book = |book: &String, pick| C::Spellbook {
+        book: book.clone(),
+        pick,
+    };
+    let (card, count, zone, owner, spot, entry): (_, _, _, Option<&PlayerRef>, _, &[Operand]) =
+        match (form, operands) {
+            ("CardIntoHand", [Text(c)]) => (named(c), one, Z::Hand, None, None, &[]),
+            ("CardOntoBattlefield", [Text(c), flags @ ..]) => {
+                (named(c), one, Z::Battlefield, None, None, flags)
+            }
+            ("ACardIntoGraveyard", [Text(c)]) => (named(c), one, Z::Graveyard, None, None, &[]),
+            ("CardsIntoGraveyard", [Number(n), Text(c)]) => {
+                (named(c), n.clone(), Z::Graveyard, None, None, &[])
+            }
+            ("NumberCardsIntoHand", [Number(n), Text(c)]) => {
+                (named(c), n.clone(), Z::Hand, None, None, &[])
+            }
+            ("NumberCardsOntoBattlefield", [Number(n), Text(c), flags @ ..]) => {
+                (named(c), n.clone(), Z::Battlefield, None, None, flags)
+            }
+            ("NumberCardsIntoLibrary", [Number(n), Text(c)]) => {
+                (named(c), n.clone(), Z::Library, None, None, &[])
+            }
+            ("NumberCardsIntoLibraryAndShuffle", [Number(n), Text(c)]) => (
+                named(c),
+                n.clone(),
+                Z::Library,
+                None,
+                Some(Spot::Shuffled),
+                &[],
+            ),
+            ("NumberCardsOnTopOfLibrary", [Number(n), Text(c)]) => {
+                (named(c), n.clone(), Z::Library, None, Some(Spot::Top), &[])
+            }
+            ("NumberCardsIntoPlayersGraveyard", [Number(n), Text(c), Player(p)]) => {
+                (named(c), n.clone(), Z::Graveyard, Some(p), None, &[])
+            }
+            ("CardIntoTheTopNumberCardsOfLibraryAtRandom", [Text(c), Number(n)]) => (
+                named(c),
+                one,
+                Z::Library,
+                None,
+                Some(Spot::AmongTop(n.clone())),
+                &[],
+            ),
+            ("CardIntoLibraryNthFromTop", [Text(c), Number(n)]) => (
+                named(c),
+                one,
+                Z::Library,
+                None,
+                Some(Spot::FromTop(n.clone())),
+                &[],
+            ),
+            (
+                "DuplicateOfPermanentIntoHand"
+                | "DuplicateOfSpellIntoHand"
+                | "DuplicateOfGraveyardCardIntoHand"
+                | "DuplicateOfCardInHandIntoHand"
+                | "DuplicateOfExiledCardIntoHand",
+                [Object(o)],
+            ) => (dup(o), one, Z::Hand, None, None, &[]),
+            (
+                "DuplicateOfEachPermanentIntoHand"
+                | "DuplicateOfEachExiledCardIntoHand"
+                | "DuplicateOfEachDestroyedPermanentIntoHand",
+                [Objects(o)],
+            ) => (dups(o), one, Z::Hand, None, None, &[]),
+            (
+                "ADuplicateOfPermanentOntoTheBattlefield"
+                | "ADuplicateOfSpellCardOntoTheBattlefield",
+                [Object(o), flags @ ..],
+            ) => (dup(o), one, Z::Battlefield, None, None, flags),
+            ("ADuplicateOfEachPermanentOntoTheBattlefield", [Objects(o), flags @ ..]) => {
+                (dups(o), one, Z::Battlefield, None, None, flags)
+            }
+            (
+                "DuplicateOfPermanentIntoPlayersGraveyard"
+                | "DuplicateOfGraveyardCardIntoPlayersGraveyard"
+                | "DuplicateOfExiledCardIntoPlayersGraveyard",
+                [Object(o), Player(p)],
+            ) => (dup(o), one, Z::Graveyard, Some(p), None, &[]),
+            ("ADuplicateOfEachPermanentIntoGraveyard", [Objects(o)]) => {
+                (dups(o), one, Z::Graveyard, None, None, &[])
+            }
+            ("NumberDuplicateCardsIntoGraveyard", [Number(n), Object(o)]) => {
+                (dup(o), n.clone(), Z::Graveyard, None, None, &[])
+            }
+            ("DuplicateOfPermanentIntoExile", [Object(o)]) => {
+                (dup(o), one, Z::Exile, None, None, &[])
+            }
+            ("DuplicateOfGraveyardCardOnTopOfPlayersLibrary", [Object(o), Player(p)]) => {
+                (dup(o), one, Z::Library, Some(p), Some(Spot::Top), &[])
+            }
+            (
+                "DuplicateOfExiledCardIntoTheTopNumberCardsOfLibraryAtRandom",
+                [Object(o), Number(n)],
+            ) => (
+                dup(o),
+                one,
+                Z::Library,
+                None,
+                Some(Spot::AmongTop(n.clone())),
+                &[],
+            ),
+            ("ACardOfChoiceFromSpellBookIntoHand", [Text(b)]) => {
+                (book(b, Pick::Choice), one, Z::Hand, None, None, &[])
+            }
+            ("NumberCardsOfChoiceFromSpellBookIntoHand", [Number(n), Text(b)]) => {
+                (book(b, Pick::Choice), n.clone(), Z::Hand, None, None, &[])
+            }
+            ("ACardOfChoiceFromSpellBookOntoBattlefield", [Text(b), flags @ ..]) => (
+                book(b, Pick::Choice),
+                one,
+                Z::Battlefield,
+                None,
+                None,
+                flags,
+            ),
+            ("ARandomCardFromSpellBookIntoHand", [Text(b)]) => {
+                (book(b, Pick::Random), one, Z::Hand, None, None, &[])
+            }
+            ("NumberRandomCardsFromSpellBookIntoHand", [Number(n), Text(b)]) => {
+                (book(b, Pick::Random), n.clone(), Z::Hand, None, None, &[])
+            }
+            ("ARandomCardFromSpellBookOntoBattlefield", [Text(b), flags @ ..]) => (
+                book(b, Pick::Random),
+                one,
+                Z::Battlefield,
+                None,
+                None,
+                flags,
+            ),
+            ("ARandomCardFromSpellBookIntoExile", [Text(b)]) => {
+                (book(b, Pick::Random), one, Z::Exile, None, None, &[])
+            }
+            ("ARandomCardFromSpellbookIntoTheTopNumberCardsOfLibrary", [Text(b), Number(n)]) => (
+                book(b, Pick::Random),
+                one,
+                Z::Library,
+                None,
+                Some(Spot::AmongTop(n.clone())),
+                &[],
+            ),
+            ("EachCardFromSpellBookIntoLibrary", [Text(b)]) => {
+                (book(b, Pick::Each), one, Z::Library, None, None, &[])
+            }
+            ("EachCardFromSpellBookOntoTheBattlefield", [Text(b), flags @ ..]) => {
+                (book(b, Pick::Each), one, Z::Battlefield, None, None, flags)
+            }
+            _ => return None,
+        };
+    Some(Operation::Conjure {
+        actor: actor.clone(),
+        card,
+        count,
+        zone,
+        owner: owner.cloned(),
+        spot,
+        entry: entry.to_vec(),
+    })
+}
+
+/// Copying and retargeting a spell or ability, as Forge has one of each.
+fn reduce_stack_copy(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option<Operation> {
+    use NewTargets as T;
+    use Operand::{List, Number, Object, Objects, Players};
+    let one = || Expr::Constant(1);
+    let copy =
+        |object: &ObjectRef, times: Expr, targets, effects: &[Operand]| Operation::CopyOnStack {
+            actor: actor.clone(),
+            object: object.clone(),
+            times,
+            targets,
+            effects: effects.to_vec(),
+        };
+    let retarget = |object: &ObjectRef, targets| Operation::Retarget {
+        actor: actor.clone(),
+        object: object.clone(),
+        targets,
+    };
+    Some(match (name.strip_prefix("Action::")?, operands) {
+        ("CopySpell", [Object(o)]) => copy(o, one(), T::Same, &[]),
+        ("CopySpellNumberTimes" | "CopySpellForEach", [Object(o), Number(n)]) => {
+            copy(o, n.clone(), T::Same, &[])
+        }
+        (
+            "CopySpellNumberTimesAndMayChooseNewTargets"
+            | "CopySpellForEachAndMayChooseNewTargets"
+            | "CopyAbilityNumberTimesAndMayChooseNewTargets",
+            [Object(o), Number(n)],
+        ) => copy(o, n.clone(), T::May, &[]),
+        ("CopySpellOrAbilityAndMayChooseNewTargets", [Object(o)]) => copy(o, one(), T::May, &[]),
+        ("CopySpellWithModifiers", [Object(o), List(effects)]) => copy(o, one(), T::Same, effects),
+        ("CopySpellAndMayChooseNewTargetsWithEffects", [Object(o), List(effects)]) => {
+            copy(o, one(), T::May, effects)
+        }
+        ("CopySpellAndMustChooseNewTarget", [Object(o), Object(to)]) => {
+            copy(o, one(), T::To(ObjectSet::One(to.clone())), &[])
+        }
+        (
+            "CopySpellForEachPermanentAndMustChooseItAsNewTarget"
+            | "CopyAbilityForEachPermanentItCouldTarget",
+            [Object(o), Objects(each)],
+        ) => copy(o, one(), T::Each(each.clone()), &[]),
+        ("ChooseNewTargetsForSpell" | "ChooseNewTargetsForSpellOrAbility", [Object(o)]) => {
+            retarget(o, T::May)
+        }
+        (
+            "ChangeTargetsOfSpell"
+            | "ChangeTargetsOfAbility"
+            | "ChangeTargetsOfSpellOrAbility"
+            | "ChangeTheTargetOfSpell"
+            | "ChangeTheTargetOfAbility"
+            | "ChangeTheTargetOfSpellOrAbility",
+            [Object(o)],
+        ) => retarget(o, T::Must),
+        ("ChangeTheTargetOfSpellToPermanent", [Object(o), Object(to)]) => {
+            retarget(o, T::To(ObjectSet::One(to.clone())))
+        }
+        ("ChangeTheTargetOfSpellToAPermanent", [Object(o), Objects(to)]) => {
+            retarget(o, T::To(to.clone()))
+        }
+        ("ChangeTheTargetsOfSpellToAPlayer", [Object(o), Players(to)]) => {
+            retarget(o, T::ToPlayers(to.clone()))
         }
         _ => return None,
     })
@@ -2644,7 +2896,9 @@ impl Effects {
                     | Operation::PlayCards { .. }
                     | Operation::CopyCards { .. }
                     | Operation::ChangeSpell { .. }
-                    | Operation::Goad { .. }
+                    | Operation::KeywordEach { .. }
+                    | Operation::CopyOnStack { .. }
+                    | Operation::Retarget { .. }
                     | Operation::Clash { .. }
                     | Operation::DraftFromSpellbook { .. }
                     | Operation::Conjure { .. } => self.library = true,

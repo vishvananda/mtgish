@@ -1716,6 +1716,13 @@ impl<'a> Scope<'a> {
             }
         }
     }
+    fn new_targets(&self, targets: &NewTargets) -> Result {
+        match targets {
+            NewTargets::To(objects) | NewTargets::Each(objects) => self.objects(objects),
+            NewTargets::ToPlayers(players) => self.players(players),
+            NewTargets::Same | NewTargets::May | NewTargets::Must => Ok(()),
+        }
+    }
     fn operation(&self, operation: &Operation) -> Result {
         match operation {
             Operation::NoteObjects { objects } => self.objects(objects),
@@ -1735,14 +1742,37 @@ impl<'a> Scope<'a> {
                 self.objects(objects)?;
                 self.entering_changes(changes)
             }
-            Operation::Goad {
+            Operation::KeywordEach {
                 actor,
                 objects,
                 until,
+                ..
             } => {
                 self.players(actor)?;
                 self.objects(objects)?;
                 until.iter().try_for_each(|until| self.duration(until))
+            }
+            Operation::CopyOnStack {
+                actor,
+                object,
+                times,
+                targets,
+                effects,
+            } => {
+                self.players(actor)?;
+                self.object(object)?;
+                self.expr(times)?;
+                self.new_targets(targets)?;
+                effects.iter().try_for_each(|o| self.operand(o))
+            }
+            Operation::Retarget {
+                actor,
+                object,
+                targets,
+            } => {
+                self.players(actor)?;
+                self.object(object)?;
+                self.new_targets(targets)
             }
             Operation::Clash {
                 actor,
@@ -1785,8 +1815,26 @@ impl<'a> Scope<'a> {
                 }
             }
             Operation::DoubleCounters { objects, .. } => self.objects(objects),
-            Operation::Conjure { actor, entry, .. } => {
+            Operation::Conjure {
+                actor,
+                card,
+                count,
+                owner,
+                spot,
+                entry,
+                ..
+            } => {
                 self.players(actor)?;
+                self.expr(count)?;
+                if let ConjuredCard::Duplicate(objects) = card {
+                    self.objects(objects)?;
+                }
+                if let Some(owner) = owner {
+                    self.player(owner)?;
+                }
+                if let Some(ConjureSpot::AmongTop(n) | ConjureSpot::FromTop(n)) = spot {
+                    self.expr(n)?;
+                }
                 entry.iter().try_for_each(|o| self.operand(o))
             }
             Operation::ChangeSpell { subject, changes } => {

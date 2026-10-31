@@ -288,6 +288,14 @@ impl Inventory<'_> {
             }
         }
     }
+    fn new_targets(&mut self, targets: &NewTargets) {
+        self.form("NewTargets", targets);
+        match targets {
+            NewTargets::To(objects) | NewTargets::Each(objects) => self.objects(objects),
+            NewTargets::ToPlayers(players) => self.players(players),
+            NewTargets::Same | NewTargets::May | NewTargets::Must => {}
+        }
+    }
     fn program(&mut self, p: &Program) {
         for i in &p.instructions {
             self.form("Instruction", i);
@@ -350,16 +358,39 @@ impl Inventory<'_> {
                     self.change(change);
                 }
             }
-            Operation::Goad {
+            Operation::KeywordEach {
                 actor,
+                action,
                 objects,
                 until,
             } => {
+                self.form("KeywordAction", action);
                 self.players(actor);
                 self.objects(objects);
                 if let Some(until) = until {
                     self.duration(until);
                 }
+            }
+            Operation::CopyOnStack {
+                actor,
+                object,
+                times,
+                targets,
+                ..
+            } => {
+                self.players(actor);
+                self.object(object);
+                self.expr(times);
+                self.new_targets(targets);
+            }
+            Operation::Retarget {
+                actor,
+                object,
+                targets,
+            } => {
+                self.players(actor);
+                self.object(object);
+                self.new_targets(targets);
             }
             Operation::Clash {
                 actor,
@@ -399,9 +430,28 @@ impl Inventory<'_> {
                 }
             }
             Operation::DoubleCounters { objects, .. } => self.objects(objects),
-            Operation::Conjure { actor, zone, .. } => {
+            Operation::Conjure {
+                actor,
+                card,
+                count,
+                zone,
+                owner,
+                spot,
+                ..
+            } => {
                 self.form("EventZone", zone);
+                self.form("ConjuredCard", card);
                 self.players(actor);
+                self.expr(count);
+                if let ConjuredCard::Duplicate(objects) = card {
+                    self.objects(objects);
+                }
+                if let Some(owner) = owner {
+                    self.player(owner);
+                }
+                if let Some(ConjureSpot::AmongTop(n) | ConjureSpot::FromTop(n)) = spot {
+                    self.expr(n);
+                }
             }
             Operation::ChangeSpell { subject, changes } => {
                 match subject {
