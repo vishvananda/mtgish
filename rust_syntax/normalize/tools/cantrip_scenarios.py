@@ -602,9 +602,13 @@ def trigger_pump_scripts(card, frame, keywords, claim, pieces):
 
 def keyword_scripts(card, keywords):
     name, slug = card["name"], slug_of(card["name"])
+    if not card.get("manaCost"):
+        raise Unwritable("a permanent with no mana cost is not cast this way (CR 202.1b, 305.1)")
     sources = spell_setup(card, name)
     if not isinstance(card.get("power"), int) or not isinstance(card.get("toughness"), int):
         raise Unwritable("a creature with a number in its P/T only the rules can read")
+    if card["toughness"] < 1:
+        raise Unwritable("a creature with no toughness of its own dies as it enters (CR 704.5f)")
     actions = casts("Bot1", sources) + [activate("Bot1", s, a) for s, a in sources]
     actions += [f"Bot1.Hand.{name}.Cast", "? Bot1.Mana =", "Bot1.Pass", "Bot2.Pass"]
     what = ", ".join(keywords) if keywords else "no abilities"
