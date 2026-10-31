@@ -82,16 +82,30 @@ Cost is token counts as the backend reports them. Where it reports no price, `us
 
 ## The gates
 
-`check` runs every gate. Each one is listed in the skill's source, `check()` in `card_lane.py`, cheapest first. They run
-Cantrip's own `card-lint.py`, `cr.py check`, `corpus`, `card-coverage.py`, `card-mutate.py` and `layer_pass_cases`
-unmodified, with `CANTRIP_VERIFY=1`, and add what those tools do not catch:
+`check` runs Cantrip's own tools unmodified, with `CANTRIP_VERIFY=1`, cheapest first. `check --fast` stops after
+`liveness`. A commit needs all of them.
 
-- every new scenario, played alone, must execute at least one line of the card's file (`liveness`);
-- no placeholder remains, and each ability's text is printed on the card (`scenarios`, `style`);
-- every `fn` has a doc comment that quotes the Oracle and cites the CR (`style`). This is stricter than Cantrip's practice;
-  on the last 150 cards landed upstream, 93 pass it unchanged;
-- every test point is paired with a line that can catch it, and every mutant that survived, LOOK and repeated function is
-  answered in the worker's report (`report`).
+| Gate | Fails when |
+| --- | --- |
+| `scope` | Anything changed but the card's content file, its card file and new scenarios |
+| `oracle` | `new-card.py` says the content differs from Scryfall's current card |
+| `scenarios` | A placeholder or TODO remains, or a scenario says `Known bug`, has no opening comment or has no `[Expect]` |
+| `style` | Ability text not printed on the card, generator scaffolding left in, or a `fn` without a doc comment quoting the Oracle and citing the CR |
+| `lint` | `card-lint.py` reports a NEVER |
+| `citations` | `cr.py check` finds a rule that does not exist |
+| `corpus` | One of the card's scenarios fails |
+| `warnings` | The build warns about the card's file |
+| `coverage` | `card-coverage.py` finds a line never run |
+| `liveness` | One scenario, played alone, runs none of the card's lines |
+| `mutation` | `card-mutate.py` could not finish, or the card has more than 40 possible changes |
+| `layers` | With a static ability, `layer_pass_cases` fails |
+| `report` | A test point is unpaired, or a LOOK, a surviving mutant or a function copied from another card is unanswered |
+
+`liveness` exists because `card-coverage.py` judges a card's scenarios together, so one that plays nothing of the card hides
+among them. The doc-comment rule in `style` is stricter than Cantrip's practice: 93 of the last 150 cards landed upstream
+pass it unchanged.
+
+No gate reads the rules. The skill's last section says what that leaves to a review.
 
 ## Tests
 
