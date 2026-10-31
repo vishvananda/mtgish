@@ -11617,5 +11617,136 @@
     "excludes": [
       "APermanentExploredThisTurn"
     ]
+  },
+  {
+    "name": "Kolaghan Aspirant",
+    "issues": [
+      80
+    ],
+    "contains": [
+      "Permanent(Trigger_TheBlockingCreature)"
+    ],
+    "excludes": [
+      "Trigger_TheAttackingCreature"
+    ]
+  },
+  {
+    "name": "Somberwald Vigilante",
+    "issues": [
+      80
+    ],
+    "contains": [
+      "Permanent(Trigger_TheBlockingCreature)"
+    ],
+    "excludes": [
+      "Trigger_TheAttackingCreature"
+    ]
+  },
+  {
+    "name": "Grasping Giant",
+    "issues": [
+      80
+    ],
+    "contains": [
+      "Permanent(Trigger_TheBlockingCreature)"
+    ],
+    "excludes": [
+      "Trigger_TheAttackingCreature"
+    ]
+  },
+  {
+    "name": "Barrow-Blade",
+    "issues": [
+      80
+    ],
+    "contains": [
+      "Trigger_TheBlockingCreature",
+      "Trigger_ThatOtherCreature"
+    ],
+    "excludes": [
+      "Trigger_TheAttackingCreature"
+    ]
+  },
+  {
+    "name": "Wooden Stake",
+    "issues": [
+      80
+    ],
+    "contains": [
+      "DestroyPermanentNoRegen(Trigger_TheBlockingCreature)"
+    ],
+    "excludes": [
+      "Trigger_TheAttackingCreature"
+    ]
+  },
+  {
+    "name": "Shifty Doppelganger",
+    "issues": [
+      81
+    ],
+    "contains": [
+      "SacrificeEachPermanent(ThePermanentsPutOnTheBattlefieldThisWay)"
+    ],
+    "excludes": [
+      "TheTokensCreatedThisWay"
+    ]
+  },
+  {
+    "name": "Wall of Caltrops",
+    "issues": [
+      81
+    ],
+    "contains": [
+      "Other(ThisPermanent)"
+    ],
+    "excludes": [
+      "Other(Trigger_ThatCreature)"
+    ]
+  },
+  {
+    "name": "Infinite Authority",
+    "issues": [
+      81
+    ],
+    "contains": [
+      "HostPermanent)])"
+    ],
+    "excludes": [
+      "PTCounter(+1, +1), Trigger_ThatCreature"
+    ]
+  },
+  {
+    "name": "Siege Dragon",
+    "issues": [
+      81
+    ],
+    "contains": [
+      "ControlledByAPlayer(SinglePlayer(Trigger_DefendingPlayer))"
+    ],
+    "excludes": [
+      "Trigger_ThatPlayer"
+    ]
+  },
+  {
+    "name": "Mythos of Snapdax",
+    "issues": [
+      81
+    ],
+    "contains": [
+      "EachPlayerAction(AnyPlayer, SacrificeEachPermanent("
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Mirror Shield",
+    "issues": [
+      81
+    ],
+    "contains": [
+      "DestroyPermanent(Trigger_ThatOtherCreature)"
+    ],
+    "excludes": [
+      "DestroyPermanent(Trigger_ThatCreature)"
+    ]
   }
 ]
