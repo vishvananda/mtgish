@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 64;
+pub const SCHEMA_VERSION: u32 = 65;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2219,6 +2219,11 @@ pub enum Duration {
     WhileAnyExiled(ObjectSet),
     /// Ends when this card is cast from exile.
     UntilCast(ObjectRef),
+    /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.

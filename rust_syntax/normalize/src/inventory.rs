@@ -1524,6 +1524,7 @@ impl Inventory<'_> {
     fn duration(&mut self, d: &Duration) {
         self.form("Duration", d);
         match d {
+            Duration::Primitive { name, .. } => self.primitive(name),
             Duration::EndOfTurn
             | Duration::EndOfCombat
             | Duration::Indefinite

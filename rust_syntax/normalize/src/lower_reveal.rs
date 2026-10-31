@@ -229,9 +229,17 @@ impl Context {
             }
             _ => {
                 let Some(step) = look_step(action) else {
-                    return self
-                        .sibling_step(action, player, instructions)
-                        .unwrap_or_else(|| Err(unsupported(action)));
+                    if let Some(step) = self.sibling_step(action, player, instructions) {
+                        return step;
+                    }
+                    let objects = state.remaining();
+                    instructions.push(self.primitive_step(
+                        "RevealTheTopNumberCardsOfLibraryAction",
+                        action,
+                        player,
+                        objects,
+                    )?);
+                    return Ok(());
                 };
                 let library = player.clone();
                 return self.inspection_step(player, &library, state, &step, false, instructions);

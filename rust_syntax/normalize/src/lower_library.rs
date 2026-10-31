@@ -47,7 +47,9 @@ impl Context {
                     source::Permanents::IsLandType(source::LandType::Forest),
                 ]))
             }
-            _ => self.as_card_filter(value, unsupported(value)),
+            _ => self
+                .as_card_filter(value, unsupported(value))
+                .or_else(|error| rescue(error, || self.primitive_predicate("CardsInLibrary", value))),
         }
     }
     fn search_find(
@@ -348,7 +350,15 @@ impl Context {
                 _ => {
                     match self.sibling_step(action, player, instructions) {
                         Some(step) => step.map_err(|e| e.at(format!("search[{i}]")))?,
-                        None => return Err(unsupported(action).at(format!("search[{i}]"))),
+                        None => instructions.push(
+                            self.primitive_step(
+                                "SearchLibraryAction",
+                                action,
+                                player,
+                                ObjectSet::Selected(result.clone()),
+                            )
+                            .map_err(|e| e.at(format!("search[{i}]")))?,
+                        ),
                     }
                     continue;
                 }

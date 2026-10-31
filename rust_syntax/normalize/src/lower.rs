@@ -1518,7 +1518,12 @@ impl Context {
                     .map(|value| self.duration(value))
                     .collect::<Result<_>>()?,
             ),
-            _ => return Err(unsupported(value)),
+            _ => {
+                return self
+                    .primitive("Expiration", value)
+                    .map(|(name, operands)| Duration::Primitive { name, operands })
+                    .ok_or_else(|| unsupported(value))
+            }
         })
     }
 

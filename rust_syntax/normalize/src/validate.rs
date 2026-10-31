@@ -410,6 +410,7 @@ impl<'a> Scope<'a> {
 
     fn duration(&self, duration: &Duration) -> Result {
         match duration {
+            Duration::Primitive { name, operands } => self.primitive(name, operands),
             Duration::EndOfTurn
             | Duration::EndOfCombat
             | Duration::Indefinite
