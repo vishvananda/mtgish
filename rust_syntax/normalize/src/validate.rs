@@ -958,6 +958,9 @@ impl<'a> Scope<'a> {
             ObjectFilter::DamagedBy(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectFilter::Primitive { name, operands } => self.primitive(name, operands),
             ObjectFilter::Condition(condition) => self.condition(condition),
+            ObjectFilter::KickedWith(kicker) => {
+                kicker.iter().try_for_each(|operand| self.operand(operand))
+            }
             ObjectFilter::NthCast {
                 ordinal,
                 spells,
@@ -1033,6 +1036,10 @@ impl<'a> Scope<'a> {
             Condition::ItsNeitherDayNorNight => Ok(()),
             Condition::MostVotes { option, .. } | Condition::Voted(option) => {
                 self.vote_option(option)
+            }
+            Condition::SameTeam { player, other } => {
+                self.player(player)?;
+                self.player(other)
             }
             Condition::VotedFor { player, option } => {
                 self.player(player)?;
@@ -1240,7 +1247,9 @@ impl<'a> Scope<'a> {
             Change::ActivationRule(_) => {
                 Err("an activation rule belongs to an activated ability".into())
             }
-            Change::LosesAbility(operand) | Change::SetLandType(operand) => self.operand(operand),
+            Change::AddEnchantmentType(operand)
+            | Change::LosesAbility(operand)
+            | Change::SetLandType(operand) => self.operand(operand),
             Change::CopyOf { object, effects } => {
                 self.object(object)?;
                 self.operand(effects)
@@ -1882,6 +1891,25 @@ impl<'a> Scope<'a> {
                 self.object(object)?;
                 self.new_targets(targets)
             }
+            Operation::AbandonScheme { actor } => self.players(actor),
+            Operation::PutSticker { actor, objects, .. } => {
+                self.players(actor)?;
+                self.objects(objects)
+            }
+            Operation::BeginOnBattlefield { actor, flags } => {
+                self.players(actor)?;
+                self.operand(flags)
+            }
+            Operation::Manifest { actor, source, .. } => {
+                self.players(actor)?;
+                match source {
+                    ManifestSource::TopOfLibrary { player, count } => {
+                        self.player(player)?;
+                        self.expr(count)
+                    }
+                    ManifestSource::Cards(cards) => self.objects(cards),
+                }
+            }
             Operation::Vote { actor, ballot, .. } => {
                 self.players(actor)?;
                 match ballot {
@@ -2488,6 +2516,8 @@ impl<'a> Scope<'a> {
 
     fn mana(&self, mana: &ManaProduction) -> Result {
         match mana {
+            ManaProduction::SameTypeAsProduced | ManaProduction::CommanderIdentity => Ok(()),
+            ManaProduction::CouldProduce { objects, .. } => self.objects(objects),
             ManaProduction::Primitive { name, operands } => self.primitive(name, operands),
             ManaProduction::Amount { amount, .. } => self.count(&Count::Exactly(amount.clone())),
             ManaProduction::All(v) | ManaProduction::ChooseOne(v) => {
@@ -2517,6 +2547,7 @@ impl<'a> Scope<'a> {
                 Ok(())
             }
             ManaUse::Not(r) => self.mana_use(r),
+            ManaUse::Persists(until) => self.duration(until),
             ManaUse::Primitive { name, operands } => self.primitive(name, operands),
         }
     }

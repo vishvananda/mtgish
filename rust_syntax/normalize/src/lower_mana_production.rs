@@ -9,7 +9,27 @@ impl Context {
                     amount: Expr::Constant(1),
                 });
             }
-            Ok(ManaProduction::Primitive { name, operands })
+            Ok(match (name.as_str(), operands.as_slice()) {
+                ("ManaProduce::Trigger_AnyManaTypeProduced", []) => {
+                    ManaProduction::SameTypeAsProduced
+                }
+                ("ManaProduce::AnyManaTypeAPermanentCouldProduce", [Operand::Objects(objects)]) => {
+                    ManaProduction::CouldProduce {
+                        objects: objects.clone(),
+                        colors_only: false,
+                    }
+                }
+                ("ManaProduce::AnyManaColorAPermanentCouldProduce", [Operand::Objects(objects)]) => {
+                    ManaProduction::CouldProduce {
+                        objects: objects.clone(),
+                        colors_only: true,
+                    }
+                }
+                ("ManaProduce::AnyManaColorInCommanderColorIdentity", []) => {
+                    ManaProduction::CommanderIdentity
+                }
+                _ => ManaProduction::Primitive { name, operands },
+            })
         })
     }
 
@@ -83,7 +103,13 @@ impl Context {
         self.reduced_mana_use(value).or_else(|error| {
             rescue(error, || {
                 self.primitive("ManaUseModifier", value)
-                    .map(|(name, operands)| ManaUse::Primitive { name, operands })
+                    .map(|(name, operands)| match (name.as_str(), operands.as_slice()) {
+                        (
+                            "ManaUseModifier::DontLoseAsStepsAndPhasesEnd",
+                            [Operand::Duration(until)],
+                        ) => ManaUse::Persists(until.clone()),
+                        _ => ManaUse::Primitive { name, operands },
+                    })
             })
         })
     }

@@ -802,6 +802,7 @@ impl Context {
     fn primitive_object(&self, value: &source::Permanent) -> Option<ObjectRef> {
         let (name, operands) = self.primitive("Permanent", value)?;
         Some(match (name.as_str(), operands.as_slice()) {
+            ("Permanent::ThisGuest", []) => ObjectRef::Granter,
             ("Permanent::TheCreaturePairedWithPermanent", [Operand::Object(object)]) => {
                 ObjectRef::PairedWith(Box::new(object.clone()))
             }

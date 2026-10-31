@@ -223,6 +223,18 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
             ..
         } => "Action::RevealACardFromHand",
         Operation::DraftFromSpellbook { .. } => "Action::DraftACardFromSpellBook",
+        Operation::Manifest {
+            source:
+                ManifestSource::TopOfLibrary {
+                    count: Expr::Constant(1),
+                    ..
+                },
+            ..
+        } => "Action::ManifestTheTopCardOfPlayersLibrary",
+        Operation::Manifest {
+            source: ManifestSource::Cards(ObjectSet::One(_)),
+            ..
+        } => "Action::CloakCardFromHand",
         _ => return None,
     };
     crate::primitive_spec::lookup(name)?.yields.as_deref()
@@ -250,6 +262,7 @@ const KEYWORD_ACTIONS: &[(&str, KeywordAction)] = &[
     ("Action::Earthbend", KeywordAction::Earthbend),
     ("Action::VentureIntoTheDungeon", KeywordAction::Venture),
     ("Action::ManifestDread", KeywordAction::ManifestDread),
+    ("Action::Recruit", KeywordAction::Recruit),
     ("Action::Monstrosity", KeywordAction::Monstrosity),
     ("Action::Discover", KeywordAction::Discover),
     ("Action::GetEnergy", KeywordAction::GainEnergy),
@@ -628,9 +641,80 @@ fn reduce_vote(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option<Op
     None
 }
 
+/// Manifest or cloak in generic form.
+fn reduce_manifest(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option<Operation> {
+    let form = name.strip_prefix("Action::")?;
+    let cloak = form.starts_with("Cloak");
+    let top = |player: &PlayerRef, count| ManifestSource::TopOfLibrary {
+        player: player.clone(),
+        count,
+    };
+    let source = match (form, operands) {
+        (
+            "ManifestTheTopCardOfPlayersLibrary" | "CloakTheTopCardOfPlayersLibrary",
+            [Operand::Player(player)],
+        ) => top(player, Expr::Constant(1)),
+        (
+            "ManifestTheTopNumberCardsOfPlayersLibrary",
+            [Operand::Number(count), Operand::Player(player)],
+        ) => top(player, count.clone()),
+        ("ManifestEachExiledCard" | "CloakEachExiledCard", [Operand::Objects(cards)]) => {
+            ManifestSource::Cards(cards.clone())
+        }
+        ("ManifestCardFromHand" | "CloakCardFromHand", [Operand::Object(card)]) => {
+            ManifestSource::Cards(ObjectSet::One(card.clone()))
+        }
+        _ => return None,
+    };
+    Some(Operation::Manifest {
+        actor: actor.clone(),
+        source,
+        cloak,
+    })
+}
+
 fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option<Operation> {
     if let Some(vote) = reduce_vote(actor, name, operands) {
         return Some(vote);
+    }
+    if let Some(manifest) = reduce_manifest(actor, name, operands) {
+        return Some(manifest);
+    }
+    match (name, operands) {
+        ("Action::AbandonScheme", [_]) => {
+            return Some(Operation::AbandonScheme {
+                actor: actor.clone(),
+            })
+        }
+        ("Action::Cipher", [Operand::Object(spell)]) => {
+            return Some(Operation::KeywordEach {
+                actor: actor.clone(),
+                action: KeywordAction::Cipher,
+                objects: ObjectSet::One(spell.clone()),
+                until: None,
+            })
+        }
+        ("Action::PutAStickerOnAPermanent", [Operand::Objects(objects)]) => {
+            return Some(Operation::PutSticker {
+                actor: actor.clone(),
+                objects: objects.clone(),
+                name_only: false,
+            })
+        }
+        ("Action::PutANameStickerOnPermanent", [Operand::Object(object)]) => {
+            return Some(Operation::PutSticker {
+                actor: actor.clone(),
+                objects: ObjectSet::One(object.clone()),
+                name_only: true,
+            })
+        }
+        ("Action::BeginGameWithCardOnBattlefield", [Operand::Vocabulary { .. }, flags]) => {
+            return Some(Operation::BeginOnBattlefield {
+                actor: actor.clone(),
+                flags: Box::new(flags.clone()),
+            })
+        }
+        _ => {}
     }
     use Operand::{Duration, List, Number, Object, Objects, Players, Text};
     let draft = |spellbook: &String, times: Expr| Operation::DraftFromSpellbook {
@@ -1051,6 +1135,7 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
         }
     };
     match (form, operands.as_slice()) {
+        ("WasKickedWithKicker", kicker) => return ObjectFilter::KickedWith(kicker.to_vec()),
         ("TheNthSpellCastThisTurn", [Operand::Number(ordinal)]) => {
             return nth(ordinal, None, None, CastScope::Turn)
         }
@@ -1272,6 +1357,12 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
         ("Condition::WordWasVotedFor", [Operand::Text(word)]) => {
             return Condition::Voted(VoteOption::Word(word.clone()))
         }
+        ("Players::YourTeam", [Operand::Player(player)]) => {
+            return Condition::SameTeam {
+                player: player.clone(),
+                other: PlayerRef::AbilityController,
+            }
+        }
         (
             "Players::VotedForWord" | "Players::ChoseWord",
             [Operand::Player(player), Operand::Text(word)],
@@ -1350,6 +1441,9 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
         },
         ("LayerEffect::LosesAbility", [ability]) => Change::LosesAbility(Box::new(ability.clone())),
         ("LayerEffect::SetLandType", [land]) => Change::SetLandType(Box::new(land.clone())),
+        ("LayerEffect::AddEnchantmentType", [kind]) => {
+            Change::AddEnchantmentType(Box::new(kind.clone()))
+        }
         ("LayerEffect::IsACopyOfPermanent", [Operand::Object(object), effects]) => Change::CopyOf {
             object: object.clone(),
             effects: Box::new(effects.clone()),
@@ -1373,6 +1467,13 @@ pub fn reduce_cost(name: String, operands: Vec<Operand>) -> CostPart {
         ("BlightX", []) => keyword(CostKeyword::Blight, Some(&Expr::AnnouncedX)),
         ("Forage", []) => keyword(CostKeyword::Forage, None),
         ("DiscardHand", []) => CostPart::DiscardHand,
+        ("RevealCardFromHand", [Operand::Vocabulary { form, .. }]) if form == "ThisCardInHand" => {
+            CostPart::Reveal {
+                count: Count::Exactly(Expr::Constant(1)),
+                filter: ObjectFilter::SameObject(ObjectRef::Source),
+                random: false,
+            }
+        }
         ("ExertPermanent", [Operand::Object(object)]) => CostPart::Exert(object.clone()),
         ("UnattachPermanent", [Operand::Object(object)]) => CostPart::Unattach(object.clone()),
         ("UnspecializeGraveyardCard", [Operand::Object(object)]) => {
@@ -4088,6 +4189,10 @@ impl Effects {
                     | Operation::Retarget { .. }
                     | Operation::Clash { .. }
                     | Operation::Vote { .. }
+                    | Operation::AbandonScheme { .. }
+                    | Operation::PutSticker { .. }
+                    | Operation::BeginOnBattlefield { .. }
+                    | Operation::Manifest { .. }
                     | Operation::DraftFromSpellbook { .. }
                     | Operation::Conjure { .. } => self.library = true,
                 },

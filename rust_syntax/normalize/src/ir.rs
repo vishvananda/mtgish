@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 100;
+pub const SCHEMA_VERSION: u32 = 101;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1234,6 +1234,26 @@ pub enum Operation {
         ballot: Ballot,
         secret: bool,
     },
+    /// CR 701.40, 701.58: a card becomes a face-down 2/2, with ward {2} if cloaked.
+    Manifest {
+        actor: PlayerSet,
+        source: ManifestSource,
+        cloak: bool,
+    },
+    AbandonScheme {
+        actor: PlayerSet,
+    },
+    /// Puts a sticker on each object, chosen from the sheet unless named.
+    PutSticker {
+        actor: PlayerSet,
+        objects: ObjectSet,
+        name_only: bool,
+    },
+    /// The player may begin the game with this card on the battlefield.
+    BeginOnBattlefield {
+        actor: PlayerSet,
+        flags: Box<Operand>,
+    },
 }
 /// Defines the keyword abilities with one table, so the enum and the rows that
 /// lower to it cannot disagree.
@@ -1470,6 +1490,8 @@ pub enum KeywordAction {
     Fateseal,
     Skip(SkippedPart),
     AdditionalPhase(AddedPhases),
+    Cipher,
+    Recruit,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum MovedCounters {
@@ -1638,6 +1660,14 @@ pub enum ManaProduction {
         production: Box<ManaProduction>,
         choice: ManaChoiceTiming,
     },
+    /// One mana of any type the triggering tap produced (CR 605.5).
+    SameTypeAsProduced,
+    /// One mana of a color or type that one of these could produce (CR 106.7).
+    CouldProduce {
+        objects: ObjectSet,
+        colors_only: bool,
+    },
+    CommanderIdentity,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ManaChoiceTiming {
@@ -1662,6 +1692,8 @@ pub enum ManaUse {
         name: String,
         operands: Vec<Operand>,
     },
+    /// Mana that stays through step and phase ends until this expires (CR 106.4).
+    Persists(Duration),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1881,6 +1913,7 @@ pub enum Change {
         object: ObjectRef,
         effects: Box<Operand>,
     },
+    AddEnchantmentType(Box<Operand>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2576,6 +2609,11 @@ pub enum CostKeyword {
     Forage,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ManifestSource {
+    TopOfLibrary { player: PlayerRef, count: Expr },
+    Cards(ObjectSet),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PlayerNumber {
     Life,
     CardsInHand,
@@ -3067,6 +3105,8 @@ pub enum ObjectFilter {
         by: Option<PlayerSet>,
         scope: CastScope,
     },
+    /// Was kicked with this kicker (CR 702.33d).
+    KickedWith(Vec<Operand>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3184,6 +3224,11 @@ pub enum Condition {
     /// Anyone voted for this option.
     Voted(VoteOption),
     ItsNeitherDayNorNight,
+    /// CR 810: this player is on `other`'s team.
+    SameTeam {
+        player: PlayerRef,
+        other: PlayerRef,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

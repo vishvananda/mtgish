@@ -412,6 +412,23 @@ impl Inventory<'_> {
                 self.object(object);
                 self.new_targets(targets);
             }
+            Operation::AbandonScheme { actor } | Operation::BeginOnBattlefield { actor, .. } => {
+                self.players(actor)
+            }
+            Operation::PutSticker { actor, objects, .. } => {
+                self.players(actor);
+                self.objects(objects);
+            }
+            Operation::Manifest { actor, source, .. } => {
+                self.players(actor);
+                match source {
+                    ManifestSource::TopOfLibrary { player, count } => {
+                        self.player(player);
+                        self.expr(count);
+                    }
+                    ManifestSource::Cards(cards) => self.objects(cards),
+                }
+            }
             Operation::Vote { actor, ballot, .. } => {
                 self.players(actor);
                 match ballot {
@@ -1206,6 +1223,8 @@ impl Inventory<'_> {
     fn mana(&mut self, mana: &ManaProduction) {
         self.form("ManaProduction", mana);
         match mana {
+            ManaProduction::SameTypeAsProduced | ManaProduction::CommanderIdentity => {}
+            ManaProduction::CouldProduce { objects, .. } => self.objects(objects),
             ManaProduction::Primitive { name, .. } => self.primitive(name),
             ManaProduction::Amount { color, amount } => {
                 self.form("ManaColor", color);
@@ -1237,6 +1256,7 @@ impl Inventory<'_> {
                 }
             }
             ManaUse::Not(r) => self.mana_use(r),
+            ManaUse::Persists(until) => self.duration(until),
             ManaUse::Primitive { name, .. } => self.primitive(name),
         }
     }
@@ -1379,6 +1399,7 @@ impl Inventory<'_> {
             | Change::RemoveAllAbilities
             | Change::SwitchPowerToughness
             | Change::LosesAbility(_)
+            | Change::AddEnchantmentType(_)
             | Change::SetLandType(_) => {}
             Change::EntersWithCounters { kind, amount } => {
                 self.form("CounterKind", kind);
@@ -1836,6 +1857,7 @@ impl Inventory<'_> {
             ObjectFilter::AttachedTo(filter) => self.filter(filter),
             ObjectFilter::BlockingObject(object) => self.object(object),
             ObjectFilter::Condition(condition) => self.condition(condition),
+            ObjectFilter::KickedWith(_) => {}
             ObjectFilter::NthCast {
                 ordinal,
                 spells,
@@ -1925,6 +1947,10 @@ impl Inventory<'_> {
             Condition::ItsNeitherDayNorNight => {}
             Condition::MostVotes { option, .. } | Condition::Voted(option) => {
                 self.vote_option(option)
+            }
+            Condition::SameTeam { player, other } => {
+                self.player(player);
+                self.player(other);
             }
             Condition::VotedFor { player, option } => {
                 self.player(player);

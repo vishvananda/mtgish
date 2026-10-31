@@ -421,6 +421,11 @@ fn mana_plan(value: &ManaProduction) -> Result<ManaPlan> {
         ManaProduction::Primitive { name, .. } => {
             return Err(gap(format!("primitive mana production {name}")))
         }
+        other @ (ManaProduction::SameTypeAsProduced
+        | ManaProduction::CouldProduce { .. }
+        | ManaProduction::CommanderIdentity) => {
+            return Err(gap(format!("mana production {}", form(other))))
+        }
         ManaProduction::Amount { color, amount } => {
             ManaPlan::Fixed(vec![(color.clone(), amount.clone())])
         }

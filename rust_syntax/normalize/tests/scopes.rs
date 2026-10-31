@@ -1191,3 +1191,23 @@ fn keyword_costs_are_generic() {
     );
     assert!(exert.contains("Exert(Source)"), "{exert}");
 }
+
+#[test]
+fn manifesting_keeps_what_entered() {
+    let body = lowered("SpellActions(ActionList([ManifestTheTopCardOfPlayersLibrary(You)]))");
+    assert!(body.contains("Manifest {") && body.contains("TopOfLibrary"), "{body}");
+    let cloak = lowered("SpellActions(ActionList([CloakTheTopCardOfPlayersLibrary(You)]))");
+    assert!(cloak.contains("cloak: true"), "{cloak}");
+}
+
+#[test]
+fn mana_that_stays_and_mana_like_what_was_produced() {
+    let body = lowered(
+        "TriggerA(AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)), ActionList([AddManaWithModifiers(ManaProduceG, DontLoseAsStepsAndPhasesEnd(UntilEndOfTurn))]))",
+    );
+    assert!(body.contains("Persists"), "{body}");
+    let same = lowered(
+        "TriggerA(WhenAPlayerTapsAPermanentForMana(SinglePlayer(You), IsCardtype(Land)), ActionList([AddMana(Trigger_AnyManaTypeProduced)]))",
+    );
+    assert!(same.contains("SameTypeAsProduced"), "{same}");
+}
