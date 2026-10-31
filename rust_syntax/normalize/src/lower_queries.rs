@@ -1,13 +1,17 @@
 // Shared typed queries used by event matching, production restrictions, and effects.
 impl Context {
     fn player_matches(&self, player: PlayerRef, filter: &source::Players) -> Result<Condition> {
-        self.reduced_player_check(player.clone(), filter)
+        let outer = self.self_player.replace(Some(player.clone()));
+        let check = self
+            .reduced_player_check(player.clone(), filter)
             .or_else(|error| {
                 match self.history_player_check(&player, filter) {
                     Some(check) => Ok(check),
                     None => rescue(error, || self.primitive_player_check(&player, filter)),
                 }
-            })
+            });
+        self.self_player.replace(outer);
+        check
     }
 
     fn reduced_player_check(
@@ -173,6 +177,9 @@ impl Context {
         if let Some(result)=self.pipeline_selector(crate::pipeline::selectors::SelectorRef::Spells(value)) {return result;}
         use source::Spells as S;
         Ok(match value {
+            S::Ref_TargetSpells => ObjectFilter::InSet(Box::new(ObjectSet::Targets(
+                self.target(TargetKind::Object(ObjectDomain::spell()), 0, 0)?,
+            ))),
             S::CastByPlayer(p) => self.cast_by(PlayerSet::One(self.player(p)?)),
             S::CastByAPlayer(p) => self.cast_by(self.players(p)?),
             S::CastByPlayerFromHand(p, owner) => self.cast_history_filter(

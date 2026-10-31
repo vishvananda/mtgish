@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 68);
+    assert_eq!(card.schema_version, 69);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2955,6 +2955,12 @@ fn zone_history_reads_this_turn_and_where_a_card_came_from() {
     let attacked = ability_json("TriggerI(AtTheBeginningOfAPlayersEndStep(SinglePlayer(You)),PlayerPassesFilter(You,AttackedWithACreatureThisTurn(AnyPermanent)),ActionList([DrawACard]))");
     assert!(attacked.contains("Attacks"), "{attacked}");
     assert!(attacked.contains("EventHistory"), "{attacked}");
+}
+
+#[test]
+fn a_duration_can_name_the_extra_turn_this_way_made() {
+    let text = ability_json("SpellActions(ActionList([TakeAnExtraTurn,CreateGameEffect(DuringTheExtraTurnCreatedThisWay,CreaturesCantBlock)]))");
+    assert!(text.contains("ExtraTurn"), "{text}");
 }
 
 #[test]

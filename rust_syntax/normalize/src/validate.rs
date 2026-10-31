@@ -411,6 +411,8 @@ impl<'a> Scope<'a> {
     fn duration(&self, duration: &Duration) -> Result {
         match duration {
             Duration::Primitive { name, operands } => self.primitive(name, operands),
+            Duration::ExtraTurn(result) if self.results.contains_key(&result.0) => Ok(()),
+            Duration::ExtraTurn(result) => Err(format!("result {} is unavailable", result.0)),
             Duration::EndOfTurn
             | Duration::EndOfCombat
             | Duration::Indefinite

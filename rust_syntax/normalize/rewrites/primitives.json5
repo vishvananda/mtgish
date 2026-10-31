@@ -2,6 +2,7 @@
   "version": 1,
   "vocabularies": ["CounterType"],
   "terms": [
+    "Comparison",
     "CardtypeVariable", "Commanders", "CostPlayerAction", "DeckConstruction", "FaceUpDraftEffect", "ActivateModifier", "NameFilter", "CastModifier", "GroupFilter", "Letter", "ManaProduce", "ChoosableCreatureType", "MoveCountersCost", "PermanentsAndGraveyardCards", "EnterOrFaceUpAction", "FaceUpAction", "SingleDungeon", "ConspiracyDeck", "ManaSpent", "ManaSources", "LibraryCardEffect", "PregameAction", "DamageToRecipients", "AttackAssignment", "CardEffect", "AdditionalCostOption", "ActionOption",
     "Emblem", "SingleVanguard", "Plane", "CardInLibrary", "ResolveAction",
     "Abilities", "ActivatedAbilities", "CardInHand", "CardsInGraveyards", "CardsInHand", "Companion",
@@ -1546,7 +1547,7 @@
     {"source": "Players::DoesntHaveMaxSpeed", "text": "speed"},
     {"source": "Players::DoesntControlPermanent", "text": "control"},
     {"source": "Players::CouldMulligan", "text": "mulligan"},
-    {"source": "Players::ControlsNum", "text": "controls"},
+    {"source": "Players::ControlsNum", "text": "controls|control"},
     {"source": "Players::ControlsLessPermanentsThanEachPlayer", "text": "than"},
     {"source": "Players::ControlsAll", "text": "controls"},
     {"source": "Players::ControlsAPermanentOfEachColor", "text": "color"},
@@ -2507,6 +2508,10 @@
     {"source": "Action::PutACardFromOutsideGameOnTopOfLibrary", "text": "outside game"},
     {"source": "Action::PutACardFromGraveyardIntoHandExceptForGraveyardCard", "text": "graveyard hand"},
     {"source": "Action::PutACardFromEachPlayersGraveyardOntoTheBattlefield", "text": "onto battlefield"},
-    {"source": "Action::PutACardAndOrACardFromHandOnBattlefield", "text": "battlefield hand"}
+    {"source": "Action::PutACardAndOrACardFromHandOnBattlefield", "text": "battlefield hand"},
+    {"source": "Cards::SharesACreatureTypeWithMostPrevalentCreatureTypeInPlayersLibrary", "text": "prevalent"},
+    {"source": "Cards::NumberOfDifferentManaColorSymbolsInCostIs", "text": "mana|color|colors"},
+    {"source": "CheckHasable::Soulbond", "text": "soulbond"},
+    {"source": "Rule::DamageIsntRemovedFromCreatureDuringCleanup", "text": "damage"}
   ]
 }

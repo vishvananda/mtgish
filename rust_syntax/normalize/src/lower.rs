@@ -93,6 +93,8 @@ struct Context {
     /// The Army the last amass put counters on.
     amassed: Option<ResultId>,
     seeked: Vec<ResultId>,
+    /// The player a player filter is testing.
+    self_player: std::cell::RefCell<Option<PlayerRef>>,
     /// The cards the search being resolved found.
     found: Option<ObjectSet>,
     /// The last effect a player chose to take, and who was last offered a batch.
@@ -595,6 +597,9 @@ impl Context {
         use source::Player as S;
         Ok(match value {
             S::You => self.you.clone().unwrap_or(PlayerRef::AbilityController),
+            S::SelfPlayer if self.self_player.borrow().is_some() => {
+                self.self_player.borrow().clone().unwrap()
+            }
             S::ActionPlayer
             | S::EachablePlayer
             | S::PlayerAction_ThatPlayer
@@ -1547,6 +1552,11 @@ impl Context {
         Ok(match value {
             source::Expiration::UntilEndOfTurn => Duration::EndOfTurn,
             source::Expiration::UntilEndOfCombat => Duration::EndOfCombat,
+            source::Expiration::DuringTheExtraTurnCreatedThisWay => Duration::ExtraTurn(
+                self.extra_turn
+                    .clone()
+                    .ok_or_else(|| invalid("no extra turn was created in this scope"))?,
+            ),
             source::Expiration::UntilCardsAreNoLongerExiled(cards) => {
                 Duration::WhileAnyExiled(self.exile_cards(cards)?)
             }

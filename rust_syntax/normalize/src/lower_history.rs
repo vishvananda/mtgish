@@ -445,6 +445,17 @@ impl Context {
                     Self::happened(Self::entered_event(this()), W::ThisTurn)
                 }
                 S::AttackedThisTurn => attacked(),
+                S::AttackedThisCombat | S::BlockedThisCombat => Self::happened(
+                    EventSpec::Object {
+                        event: if matches!(value, S::AttackedThisCombat) {
+                            ObjectEvent::Attacks
+                        } else {
+                            ObjectEvent::Blocks
+                        },
+                        objects: this(),
+                    },
+                    W::ThisCombat,
+                ),
                 S::DidntAttackThisTurn => Condition::Not(Box::new(attacked())),
                 S::WasDealtDamageThisTurn => {
                     happened(to_it(anything(), DamageKind::Any), W::ThisTurn)

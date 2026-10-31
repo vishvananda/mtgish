@@ -1528,6 +1528,7 @@ impl Inventory<'_> {
         self.form("Duration", d);
         match d {
             Duration::Primitive { name, .. } => self.primitive(name),
+            Duration::ExtraTurn(_) => {}
             Duration::EndOfTurn
             | Duration::EndOfCombat
             | Duration::Indefinite
