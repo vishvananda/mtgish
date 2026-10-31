@@ -241,6 +241,12 @@ struct Compiler {
     /// The block to leave if the payment about to be compiled is declined: a
     /// "you may" that is its first payment asks one question, not two.
     asking: Option<usize>,
+    /// The cost of the activated ability being compiled.
+    activation_cost: Option<Cost>,
+    /// Each additional cost this card declares, by its ability's index.
+    casting_costs: BTreeMap<u32, Cost>,
+    /// The announcement slot whose filter is being compiled.
+    choosing: Option<usize>,
     performed: BTreeMap<u32, String>,
     values: BTreeMap<u32, String>,
     flips: BTreeMap<u32, String>,
@@ -426,6 +432,9 @@ impl Compiler {
             moved: BTreeMap::new(),
             before: BTreeMap::new(),
             asking: None,
+            activation_cost: None,
+            casting_costs: BTreeMap::new(),
+            choosing: None,
             performed: BTreeMap::new(),
             values: BTreeMap::new(),
             flips: BTreeMap::new(),
@@ -600,7 +609,10 @@ impl Compiler {
                     .push("cantrip_mechanics::targets::ANY.filter".into());
                 continue;
             }
-            let test = self.target_test(spec).map_err(|e| e.at(&at))?;
+            self.choosing = Some(i);
+            let test = self.target_test(spec).map_err(|e| e.at(&at));
+            self.choosing = None;
+            let test = test?;
             let function = format!("{label}_target_{i}");
             writeln!(
                 self.functions,
@@ -1021,6 +1033,11 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     })?;
     let mut c = Compiler::new();
     let mut parts = Parts::default();
+    for (i, a) in card.abilities.iter().enumerate() {
+        if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
+            c.casting_costs.insert(i as u32, cost.clone());
+        }
+    }
     for (i, a) in card.abilities.iter().enumerate() {
         c.attempt(format!("abilities[{i}]"), |c| {
             c.ability(a, &format!("ability_{i}"), &mut parts, None)

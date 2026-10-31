@@ -215,6 +215,27 @@ impl Compiler {
             Carried::Data(i) => format!("Some(PlayerId({data}[{i}] as u8))"),
         })
     }
+    /// `Option<Target>` of a target announced ahead of the slot whose filter is
+    /// being read, which the engine lists without saying whose each is.
+    fn earlier_target(&self, slot: &Slot, index: u16) -> Result<Option<String>> {
+        let Some(choosing) = self.choosing else {
+            return Ok(None);
+        };
+        let referred = match self.slots.get(&slot.0) {
+            Some((i, _)) if *i < choosing => *i,
+            _ => return Err(gap("target reference to no earlier slot")),
+        };
+        let mut at = usize::from(index);
+        for (i, spec) in self.slots.values() {
+            if *i < referred {
+                let Count::Exactly(Expr::Constant(n)) = &spec.count else {
+                    return Err(gap("target reference past a slot of no fixed size"));
+                };
+                at += *n as usize;
+            }
+        }
+        Ok(Some(format!("q.chosen_targets().get({at}).copied()")))
+    }
     fn slot(&self, slot: &Slot) -> Result<usize> {
         if self.reader != Reader::Resolution || !self.stack_item {
             return Err(gap("target reference outside a resolving ability"));
@@ -251,6 +272,10 @@ impl Compiler {
             ObjectRef::AttachedTo(host) => format!(
                 "{}.and_then(|o: ObjectId| q.state().obj(o).attached_to)",
                 self.object(host)?
+            ),
+            ObjectRef::Target { slot, index } if self.choosing.is_some() => format!(
+                "{}.and_then(|t: Target| t.object())",
+                self.earlier_target(slot, *index)?.expect("choosing")
             ),
             ObjectRef::Target { slot, index } => format!(
                 "t_{}_raw.get({index}).copied().and_then(|t: Target| t.object())",
@@ -311,6 +336,10 @@ impl Compiler {
                 "{}.map(|o: ObjectId| q.state().obj(o).owner)",
                 self.object(object)?
             ),
+            PlayerRef::Target { slot, index } if self.choosing.is_some() => format!(
+                "{}.and_then(|t: Target| t.player())",
+                self.earlier_target(slot, *index)?.expect("choosing")
+            ),
             PlayerRef::Target { slot, index } => format!(
                 "t_{}_raw.get({index}).copied().and_then(|t: Target| t.player())",
                 self.slot(slot)?
@@ -368,6 +397,9 @@ impl Compiler {
             return Ok(carried);
         }
         Ok(match objects {
+            ObjectSet::One(object @ ObjectRef::Target { .. }) if self.choosing.is_some() => {
+                format!("{}.into_iter().collect::<Vec<ObjectId>>()", self.object(object)?)
+            }
             ObjectSet::One(ObjectRef::Target { slot, index }) => format!(
                 "t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).and_then(|t: Target| t.object()).into_iter().collect::<Vec<_>>()",
                 i = self.slot(slot)?
@@ -384,6 +416,12 @@ impl Compiler {
                 self.filter(filter, &Candidate::of("id"))?
             ),
             ObjectSet::Selected(result) | ObjectSet::Observed(result) => self.selected(result)?,
+            ObjectSet::CostObjects {
+                payment,
+                component,
+                phase: ObjectPhase::Before,
+                ..
+            } => self.cost_objects(payment, component)?,
             ObjectSet::Created(result) => self.created(result)?,
             ObjectSet::Transition { result, phase } => self.transition(result, phase)?,
             ObjectSet::Matching { objects, filter } => format!(
@@ -450,6 +488,66 @@ impl Compiler {
             }
             other => return Err(gap(format!("object collection {}", form(other)))),
         })
+    }
+    /// `Vec<ObjectId>` of what paid part of a cost, as it was when it did. The
+    /// engine keeps what an activation's cost chose of the battlefield, and
+    /// what a spell sacrificed is in the history ahead of its cast.
+    fn cost_objects(&self, payment: &PaymentRef, component: &[u32]) -> Result<String> {
+        if self.reader != Reader::Resolution || !self.stack_item {
+            return Err(gap("cost objects outside a resolving ability"));
+        }
+        let part = |cost: &'_ Cost| -> Result<CostPart> {
+            let [index] = component else {
+                return Err(gap("cost objects of a nested cost part"));
+            };
+            cost.parts
+                .get(*index as usize)
+                .cloned()
+                .ok_or_else(|| gap("cost objects of no cost part"))
+        };
+        let chooses = |part: &CostPart| match part {
+            CostPart::Sacrifice { choose, .. } => choose.is_some(),
+            CostPart::ChangeTapState { selections, .. } => {
+                selections.iter().any(|s| s.choose.is_some())
+            }
+            _ => false,
+        };
+        match payment {
+            PaymentRef::Activation => {
+                let cost = self
+                    .activation_cost
+                    .as_ref()
+                    .ok_or_else(|| gap("cost objects outside an activation"))?;
+                let paid = part(cost)?;
+                if let CostPart::Sacrifice {
+                    objects: ObjectSet::One(ObjectRef::Source),
+                    choose: None,
+                } = paid
+                {
+                    return Ok("vec![item.object]".into());
+                }
+                if !chooses(&paid) || cost.parts.iter().filter(|p| chooses(p)).count() != 1 {
+                    return Err(gap(format!("cost objects of {}", form(&paid))));
+                }
+                Ok("q.cost_objects(item).to_vec()".into())
+            }
+            PaymentRef::Casting { ability } => {
+                let cost = self
+                    .casting_costs
+                    .get(ability)
+                    .ok_or_else(|| gap("cost objects of no additional cost"))?;
+                let paid = part(cost)?;
+                let CostPart::Sacrifice {
+                    choose: Some(Count::Exactly(Expr::Constant(n))),
+                    ..
+                } = paid
+                else {
+                    return Err(gap(format!("cost objects of {}", form(&paid))));
+                };
+                Ok(format!("{{ let records = q.history().all(); let spell = q.history().original_spell(item.object); records.iter().rposition(|r| matches!(r.event, Event::Cast(c) if c.spell == spell)).map_or_else(Vec::new, |cast| records[..cast].iter().rev().filter_map(|r| match r.event {{ Event::ZoneChange {{ old, from, reason: ZoneReason::Sacrifice, .. }} if from.is(ZoneKind::Battlefield) => Some(old), _ => None }}).take({n}).collect::<Vec<ObjectId>>()) }}"))
+            }
+            other => Err(gap(format!("cost objects of {}", form(other)))),
+        }
     }
     /// `Vec<ObjectId>` of one zone, each library top first.
     fn zone(&self, scope: &ZoneScope) -> Result<String> {
@@ -629,6 +727,33 @@ impl Compiler {
                     }
                     other => return Err(gap(format!("history measure {}", form(other)))),
                 })
+            }
+            Expr::ManaSpent {
+                object,
+                filter,
+                aggregation,
+            } => {
+                if filter.snow {
+                    return Err(gap("snow mana spent"));
+                }
+                let kinds = match &filter.colors {
+                    None => "[Mana::W, Mana::U, Mana::B, Mana::R, Mana::G, Mana::C]".to_string(),
+                    Some(colors) => format!(
+                        "[{}]",
+                        colors
+                            .iter()
+                            .map(|c| color_index(c).map(|i| format!("Mana::{}", ["W", "U", "B", "R", "G", "C"][i])))
+                            .collect::<Result<Vec<_>>>()?
+                            .join(", ")
+                    ),
+                };
+                let colored = "filter(|mana| *mana != Mana::C)";
+                let read = match aggregation {
+                    SpentManaAggregation::Count => format!("{kinds}.into_iter().map(|mana| i64::from(spent.get(mana))).sum::<i64>()"),
+                    SpentManaAggregation::DistinctColors => format!("{kinds}.into_iter().{colored}.filter(|mana| spent.get(*mana) > 0).count() as i64"),
+                    SpentManaAggregation::MaximumPerColor => format!("{kinds}.into_iter().{colored}.map(|mana| i64::from(spent.get(mana))).max().unwrap_or(0)"),
+                };
+                count(format!("{}.map_or(0, |o: ObjectId| {{ let spent = q.obj(o).spent; {read} }})", self.object(object)?))
             }
             Expr::CountObjects(objects) => {
                 count(format!("({}).len() as i64", self.objects(objects)?))

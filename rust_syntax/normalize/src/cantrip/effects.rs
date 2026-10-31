@@ -98,6 +98,11 @@ fn asks_by_paying(decider: &PlayerRef, body: &Program) -> bool {
     }
 }
 
+/// Whether a token copy's adjustment changes anything about the copy.
+fn adjusts(adjustment: &Operand) -> bool {
+    !matches!(adjustment, Operand::Term { form, .. } if form == "NoTokenCopyEffects")
+}
+
 /// `list` less what stayed: a transition is of what moved, not what was asked to.
 fn gone(list: &str) -> String {
     format!("{list}.iter().copied().filter(|&o| q.state().obj(o).became.is_some()).collect::<Vec<ObjectId>>()")
@@ -921,7 +926,7 @@ impl Compiler {
             ..
         }] = tokens
         {
-            if !adjustments.is_empty() || !entry.counters.is_empty() || entry.tapped {
+            if adjustments.iter().any(adjusts) || !entry.counters.is_empty() || entry.tapped {
                 return Err(gap("adjusted token copy"));
             }
             let PlayerSet::One(player) = players else {
@@ -947,6 +952,25 @@ impl Compiler {
                 counters.push(format!("({}, {})", counter_kind(kind)?, self.fetch(n)));
             }
             writeln!(out, "let count_{id} = {}; let player_{id} = {}; let def_{id} = g.card_id(&{definition}); let words_{id} = {words}; let counters_{id} = [{}]; let created_{id} = g.create_tokens_with_counters(def_{id}, player_{id}, count_{id}, {}, &counters_{id}, words_{id})?;", self.fetch(amount), self.fetch(self.certain_player(player)?), counters.join(", "), entry.tapped).unwrap();
+            self.creations.insert(result.0, format!("created_{id}"));
+            return Ok(());
+        }
+        if let [TokenSpec {
+            amount: Expr::Constant(1),
+            recipe: TokenRecipe::CopyEach {
+                objects,
+                adjustments,
+            },
+            ..
+        }] = tokens
+        {
+            if adjustments.iter().any(adjusts) || !entry.counters.is_empty() || entry.tapped {
+                return Err(gap("adjusted token copy"));
+            }
+            let PlayerSet::One(player) = players else {
+                return Err(gap("token copies for several players"));
+            };
+            writeln!(out, "let originals_{id} = {}; let player_{id} = {}; let created_{id} = if let Some(player) = player_{id} {{ let copies: Vec<(Copiable, PlayerId)> = originals_{id}.iter().map(|&original| (g.copiable_values(original), player)).collect(); g.create_token_copies_together(&copies)? }} else {{ Vec::new() }};", self.fetch(self.objects(objects)?), self.fetch(self.player(player)?)).unwrap();
             self.creations.insert(result.0, format!("created_{id}"));
             return Ok(());
         }

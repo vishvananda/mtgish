@@ -46,6 +46,52 @@ fn crew(price: &Cost, text: &str) -> Result<String> {
     Err(gap("crew with a different cost"))
 }
 
+/// The cards of a graveyard cost with every graveyard narrowed to the payer's
+/// spelled as that scope, which is what the engine's cost can pay.
+fn own_graveyard(objects: &ObjectSet) -> Option<ObjectSet> {
+    let ObjectSet::Zone {
+        scope:
+            ZoneScope::Players {
+                zone: EventZone::Graveyard,
+                players: PlayerSet::All,
+            },
+        kind,
+        filter,
+    } = objects
+    else {
+        return None;
+    };
+    let is_yours = |f: &ObjectFilter| {
+        matches!(
+            f,
+            ObjectFilter::InZone(ZoneScope::Players {
+                zone: EventZone::Graveyard,
+                players: PlayerSet::One(PlayerRef::AbilityController),
+            })
+        )
+    };
+    let filter = match filter {
+        filter if is_yours(filter) => ObjectFilter::Any,
+        ObjectFilter::All(items) if items.iter().any(is_yours) => {
+            let mut rest: Vec<ObjectFilter> =
+                items.iter().filter(|f| !is_yours(f)).cloned().collect();
+            match rest.len() {
+                1 => rest.remove(0),
+                _ => ObjectFilter::All(rest),
+            }
+        }
+        _ => return None,
+    };
+    Some(ObjectSet::Zone {
+        scope: ZoneScope::Players {
+            zone: EventZone::Graveyard,
+            players: PlayerSet::One(PlayerRef::AbilityController),
+        },
+        kind: kind.clone(),
+        filter,
+    })
+}
+
 impl Compiler {
     /// A generated `ObjectFilter`: what a cost accepts of an object.
     fn cost_filter(&mut self, filter: &ObjectFilter, label: &str) -> Result<String> {
@@ -126,6 +172,8 @@ impl Compiler {
                     return Err(gap("move cost shape"));
                 };
                 let n = exactly_u8(choose.as_ref()).ok_or_else(|| gap("move cost without a fixed count"))?;
+                let yours = own_graveyard(objects);
+                let objects = yours.as_ref().unwrap_or(objects);
                 match (destination, objects) {
                     (Destination::OwnersHand, ObjectSet::Battlefield(filter)) => {
                         format!("return_to_hand({n}, {})", self.cost_filter(filter, label)?)
@@ -520,8 +568,10 @@ impl Compiler {
                 announcement,
                 body,
             } => {
-                let def = self.activated(label, origin, cost, limits, announcement, body, scope)?;
-                parts.abilities.push(def);
+                self.activation_cost = Some(cost.clone());
+                let def = self.activated(label, origin, cost, limits, announcement, body, scope);
+                self.activation_cost = None;
+                parts.abilities.push(def?);
             }
             Ability::Triggered {
                 event,

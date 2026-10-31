@@ -43,8 +43,8 @@ impl Compiler {
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)
             }
-            ObjectRef::Target { .. }
-            | ObjectRef::RecipientObject { .. }
+            ObjectRef::Target { slot, .. } => self.slots.contains_key(&slot.0),
+            ObjectRef::RecipientObject { .. }
             | ObjectRef::EventSubject
             | ObjectRef::EventDestination
             | ObjectRef::EventOther
@@ -83,7 +83,8 @@ impl Compiler {
             }
             ObjectSet::Created(result) => self.creations.contains_key(&result.0),
             ObjectSet::Transition { result, .. } => self.moved.contains_key(&result.0),
-            ObjectSet::Targets(_) => false,
+            ObjectSet::Targets(slot) => self.slots.contains_key(&slot.0),
+            ObjectSet::CostObjects { .. } => false,
             ObjectSet::One(object) => self.reads_itself(object),
             _ => true,
         };
@@ -107,10 +108,12 @@ impl Compiler {
         let Some(outer) = self.carrying() else {
             return Ok(None);
         };
-        if !matches!(
-            player,
-            PlayerRef::Target { .. } | PlayerRef::EventSubject | PlayerRef::EventOtherPlayer
-        ) {
+        let local = match player {
+            PlayerRef::Target { slot, .. } => self.slots.contains_key(&slot.0),
+            PlayerRef::EventSubject | PlayerRef::EventOtherPlayer => false,
+            _ => true,
+        };
+        if local {
             return Ok(None);
         }
         let code = outer.compiler.player(player)?;
