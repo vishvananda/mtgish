@@ -409,7 +409,6 @@ fn deferred_program_validation_retains_scope_and_rejects_unrepresented_future_ev
 #[test]
 fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
     let incomplete = [
-        "Abomination",
         "Alchemist's Gambit",
         "Aleatory",
         "Arcane Denial",
@@ -451,5 +450,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 35);
+    assert_eq!(complete, 36);
 }

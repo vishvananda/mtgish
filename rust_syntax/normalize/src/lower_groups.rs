@@ -13,6 +13,14 @@ impl Context {
             S::ShareAColor => SelectionConstraint::CommonProperty(DistinctProperty::Colors),
             S::SameNames => SelectionConstraint::CommonProperty(DistinctProperty::Names),
             S::ShareALandType => SelectionConstraint::CommonProperty(DistinctProperty::LandTypes),
+            S::ShareAGraveyard => SelectionConstraint::CommonProperty(DistinctProperty::Owners),
+            S::ControlledByTheSamePlayer => {
+                SelectionConstraint::CommonProperty(DistinctProperty::Controllers)
+            }
+            S::SameToughness => SelectionConstraint::CommonProperty(DistinctProperty::Toughness),
+            S::ControlledByDifferentPlayers | S::DifferentControllers => {
+                SelectionConstraint::DifferentControllers
+            }
             S::TotalPowerIs(c) | S::TotalManaValueIs(c) => {
                 let (comparison, amount) = self.comparison(c)?;
                 SelectionConstraint::TotalProperty {

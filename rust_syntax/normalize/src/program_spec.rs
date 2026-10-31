@@ -55,6 +55,7 @@ pub enum Bounds {
     UpTo { count: i64 },
     UpToSource { argument: usize },
     RepeatSource { argument: usize },
+    OneOrBothIf { argument: usize },
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", deny_unknown_fields)]
@@ -135,7 +136,9 @@ impl Actor {
 impl Bounds {
     fn arguments(&self, out: &mut Vec<usize>) {
         match self {
-            Self::UpToSource { argument } | Self::RepeatSource { argument } => out.push(*argument),
+            Self::UpToSource { argument }
+            | Self::RepeatSource { argument }
+            | Self::OneOrBothIf { argument } => out.push(*argument),
             _ => {}
         }
     }
@@ -152,6 +155,9 @@ impl Bounds {
             }
             Self::RepeatSource { argument } => {
                 format!("ModeBounds::RepeatSource(number_tree(a{argument}))")
+            }
+            Self::OneOrBothIf { argument } => {
+                format!("ModeBounds::OneOrBothIf(source::Condition::clone(a{argument}))")
             }
         }
     }

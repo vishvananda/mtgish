@@ -80,7 +80,6 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         "Malcolm, Keen-Eyed Navigator",
         "Neheb, Dreadhorde Champion",
         "Norn's Decree",
-        "Sakashima's Will",
         "Screaming Nemesis",
         "The Gitrog, Ravenous Ride",
         "Vengeful Ancestor",
@@ -110,7 +109,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 67);
+    assert_eq!(complete, 68);
 }
 
 #[test]

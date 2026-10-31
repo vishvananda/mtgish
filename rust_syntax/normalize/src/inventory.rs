@@ -193,6 +193,9 @@ impl Inventory<'_> {
             }
             self.count(&target.count);
             self.filter(&target.filter);
+            for constraint in &target.constraints {
+                self.selection_constraint(constraint);
+            }
             if let Some(p) = &target.players {
                 self.players(p);
             }
@@ -416,6 +419,11 @@ impl Inventory<'_> {
                         TokenRecipe::Copy { object, .. } => {
                             self.form("TokenRecipe", &"Copy");
                             self.object(object);
+                            continue;
+                        }
+                        TokenRecipe::CopyEach { objects, .. } => {
+                            self.form("TokenRecipe", &"CopyEach");
+                            self.objects(objects);
                             continue;
                         }
                     };
@@ -944,6 +952,7 @@ impl Inventory<'_> {
                     self.form("ManaColor", color);
                 }
             }
+            Change::ChosenColor { mode } => self.form("ChangeMode", mode),
             Change::AddCardType(_)
             | Change::RemoveCardType(_)
             | Change::AddSupertype(_)
@@ -1253,6 +1262,15 @@ impl Inventory<'_> {
                 self.expr(a);
                 self.expr(b);
             }
+            Expr::Conditional {
+                condition,
+                then,
+                otherwise,
+            } => {
+                self.condition(condition);
+                self.expr(then);
+                self.expr(otherwise);
+            }
             Expr::Divide {
                 numerator,
                 denominator,
@@ -1325,7 +1343,7 @@ impl Inventory<'_> {
             }
             ObjectFilter::Not(f) => self.filter(f),
             ObjectFilter::ControlledBy(p) | ObjectFilter::OwnedBy(p) => self.players(p),
-            ObjectFilter::SameObject(o) => self.object(o),
+            ObjectFilter::SameObject(o) | ObjectFilter::SharesNameWith(o) => self.object(o),
             ObjectFilter::Property {
                 property,
                 comparison,

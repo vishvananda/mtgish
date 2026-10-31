@@ -79,6 +79,36 @@ impl Context {
                 },
             });
         }
+        if let S::TokenCopyOfExiledCard(card, effects) = value {
+            let inspected = crate::inspect::value(effects)
+                .map_err(|_| invalid("copy adjustments do not serialize"))?;
+            let Some(term) = self.term("TokenCopyEffects", &inspected) else {
+                return Err(unsupported(effects));
+            };
+            return Ok(TokenSpec {
+                amount: Expr::Constant(1),
+                words: TokenWords::CreatingEffect,
+                recipe: TokenRecipe::Copy {
+                    object: self.exiled_card(card)?,
+                    adjustments: vec![term],
+                },
+            });
+        }
+        if let S::TokenCopyOfEachPermanent(objects, effects) = value {
+            let inspected = crate::inspect::value(effects)
+                .map_err(|_| invalid("copy adjustments do not serialize"))?;
+            let Some(term) = self.term("TokenCopyEffects", &inspected) else {
+                return Err(unsupported(effects));
+            };
+            return Ok(TokenSpec {
+                amount: Expr::Constant(1),
+                words: TokenWords::CreatingEffect,
+                recipe: TokenRecipe::CopyEach {
+                    objects: self.objects(objects)?,
+                    adjustments: vec![term],
+                },
+            });
+        }
         if let Some(name) = named_recipe {
             let recipe = predefined_tokens()?
                 .get(name)

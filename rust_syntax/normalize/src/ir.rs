@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 42;
+pub const SCHEMA_VERSION: u32 = 43;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -473,6 +473,8 @@ pub struct TargetSpec {
     /// A total split among this slot's targets when they are chosen (601.2d).
     /// Each target's part is `Expr::DistributedShare`.
     pub distribute: Option<Expr>,
+    /// What the targets chosen for this slot must satisfy together.
+    pub constraints: Vec<SelectionConstraint>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -880,6 +882,8 @@ pub enum SelectionConstraint {
     CommonProperty(DistinctProperty),
     /// Pairwise different scalar values, not different totals or type sets.
     DifferentProperty(Property),
+    /// No two selected objects share a controller.
+    DifferentControllers,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CardOrder {
@@ -947,13 +951,13 @@ impl TokenSpec {
     pub fn definition(&self) -> Option<&TokenDefinition> {
         match &self.recipe {
             TokenRecipe::Defined(definition) => Some(definition),
-            TokenRecipe::Copy { .. } => None,
+            TokenRecipe::Copy { .. } | TokenRecipe::CopyEach { .. } => None,
         }
     }
     pub fn definition_mut(&mut self) -> Option<&mut TokenDefinition> {
         match &mut self.recipe {
             TokenRecipe::Defined(definition) => Some(definition),
-            TokenRecipe::Copy { .. } => None,
+            TokenRecipe::Copy { .. } | TokenRecipe::CopyEach { .. } => None,
         }
     }
 }
@@ -964,6 +968,11 @@ pub enum TokenRecipe {
     /// A copy of `object` (707.2), with `adjustments` to the copiable values.
     Copy {
         object: ObjectRef,
+        adjustments: Vec<Operand>,
+    },
+    /// One copy of each of `objects`.
+    CopyEach {
+        objects: ObjectSet,
         adjustments: Vec<Operand>,
     },
 }
@@ -1060,6 +1069,10 @@ pub enum Change {
     Colors {
         mode: ChangeMode,
         colors: Vec<ManaColor>,
+    },
+    /// The color chosen by this ability or as this object entered.
+    ChosenColor {
+        mode: ChangeMode,
     },
     AddCardType(CardType),
     RemoveCardType(CardType),
@@ -1478,6 +1491,11 @@ pub enum Expr {
     Multiply(Box<Expr>, Box<Expr>),
     Minimum(Box<Expr>, Box<Expr>),
     Maximum(Box<Expr>, Box<Expr>),
+    Conditional {
+        condition: Box<Condition>,
+        then: Box<Expr>,
+        otherwise: Box<Expr>,
+    },
     Divide {
         numerator: Box<Expr>,
         denominator: Box<Expr>,
@@ -1534,6 +1552,10 @@ pub enum DistinctProperty {
     BasicLandTypes,
     /// All land subtypes, including nonbasic types; distinct from domain.
     LandTypes,
+    /// Selected from a single graveyard: a card there is its owner's.
+    Owners,
+    Controllers,
+    Toughness,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1553,6 +1575,13 @@ pub enum Property {
     BasePower,
     BaseToughness,
     Loyalty,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum BlockRole {
+    Attacker,
+    Blocker,
+    /// Whichever of the two is not the object the event was asked about.
+    Other,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum Rounding {
@@ -1599,6 +1628,8 @@ pub enum ObjectRef {
     /// The matched event's distinguished object: e.g. the entering/leaving,
     /// attacking, or damaged permanent, or the spell that was cast/copied.
     EventSubject,
+    /// A creature of the attacker and blocker paired by a block event.
+    BlockPair(BlockRole),
     /// The new object a matched zone change put in its destination (CR 400.7).
     /// Selects nothing once that object leaves the zone.
     EventDestination,
@@ -1846,6 +1877,8 @@ pub enum ObjectFilter {
     ControlledBy(PlayerSet),
     OwnedBy(PlayerSet),
     SameObject(ObjectRef),
+    /// Has a name in common with this object (CR 201.2a).
+    SharesNameWith(ObjectRef),
     Property {
         property: Property,
         comparison: Comparison,

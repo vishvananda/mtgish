@@ -64,6 +64,7 @@ pub enum ModeBounds {
     UpTo(i64),
     UpToSource(Quantity),
     RepeatSource(Quantity),
+    OneOrBothIf(source::Condition),
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ProgramSource {

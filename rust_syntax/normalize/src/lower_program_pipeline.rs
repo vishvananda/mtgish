@@ -226,6 +226,15 @@ impl Context {
                         let amount = self.proposal().pipeline_quantity(n)?;
                         (amount.clone(), amount, true)
                     }
+                    B::OneOrBothIf(condition) => (
+                        Expr::Constant(1),
+                        Expr::Conditional {
+                            condition: Box::new(self.proposal().condition(condition)?),
+                            then: Box::new(Expr::Constant(2)),
+                            otherwise: Box::new(Expr::Constant(1)),
+                        },
+                        false,
+                    ),
                 };
                 let modes = modes
                     .iter()

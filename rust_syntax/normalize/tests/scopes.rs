@@ -77,7 +77,6 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         "Narcomoeba",
         "Nether Shadow",
         "Shadow of the Grave",
-        "The Ur-Dragon",
         "Valiant Rescuer",
         "Writ of Passage",
     ];
@@ -104,7 +103,7 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 82);
+    assert_eq!(complete, 83);
 }
 
 #[test]

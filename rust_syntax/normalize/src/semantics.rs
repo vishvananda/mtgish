@@ -37,6 +37,7 @@ pub struct EventBindings {
     pub discard: bool,
     pub discarded: bool,
     pub activation_x: bool,
+    pub block_pair: bool,
 }
 impl EventBindings {
     /// What every alternative of an either-event still binds.
@@ -48,6 +49,7 @@ impl EventBindings {
             player: a.player && b.player,
             amount: a.amount && b.amount,
             moved: a.moved && b.moved,
+            block_pair: a.block_pair && b.block_pair,
             damage: a.damage && b.damage,
             damage_source: a.damage_source && b.damage_source,
             damage_source_permanent: a.damage_source_permanent && b.damage_source_permanent,
@@ -152,12 +154,14 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 spell: has("spell"),
                 player: has("player"),
                 amount: has("amount"),
+                block_pair: has("block_pair"),
                 ..EventBindings::default()
             }
         }
         EventSpec::Discard { grouping, kind, .. } => EventBindings {
             object: matches!(grouping, DiscardGrouping::Card),
             player: true,
+            amount: matches!(grouping, DiscardGrouping::Player),
             discard: true,
             discarded: matches!(grouping, DiscardGrouping::Card),
             activation_x: matches!(kind, DiscardKind::Cycling),
@@ -207,6 +211,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 damage_source_permanent: source
                     && matches!(event.source_kind, ObjectKind::Permanent),
                 damage_recipient: recipient && objects,
+                block_pair: false,
                 damage_objects: !players,
                 damage_players: !objects,
                 damage_subject: Some(event.subject),
@@ -361,6 +366,7 @@ impl Effects {
             | ObjectRef::AttachedTo(_)
             | ObjectRef::Affected
             | ObjectRef::EventSubject
+            | ObjectRef::BlockPair(_)
             | ObjectRef::EventDestination
             | ObjectRef::Chosen
             | ObjectRef::Primitive { .. }

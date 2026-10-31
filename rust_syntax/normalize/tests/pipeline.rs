@@ -1786,10 +1786,10 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 }
 
 #[test]
-fn schema_42_costs_roundtrip_and_reject_previous_versions_at_validation() {
+fn schema_43_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 42);
+    assert_eq!(card.schema_version, 43);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2174,4 +2174,63 @@ fn a_damage_cost_keeps_its_recipient_bound() {
     let text = ability_json("SpellActions(ActionList([MayCost(HavePermanentDealDamage(ThisPermanent,Integer(2),Player(You))),If(CostWasPaid,[DrawACard])]))");
     assert!(text.contains("Cost::HavePermanentDealDamage"), "{text}");
     assert!(text.contains("Recipients"), "{text}");
+}
+
+#[test]
+fn group_targets_keep_their_shared_requirement() {
+    let text = ability_json("SpellActions(Targeted([UptoNumberTargetGroupGraveyardCards(Integer(2),AnyCardInAnyGraveyard,ShareAGraveyard)],ActionList([Exile([EachCardInGraveyards(Ref_TargetGraveyardCards)],[])])))");
+    assert!(text.contains("Owners"), "{text}");
+    let text = ability_json("SpellActions(Targeted([NumberTargetGroupPermanents(Integer(2),IsCardtype(Creature),ControlledByDifferentPlayers)],ActionList([DestroyEachPermanent(Ref_TargetPermanents)])))");
+    assert!(text.contains("DifferentControllers"), "{text}");
+}
+
+#[test]
+fn a_shared_name_is_read_from_the_named_object() {
+    let text = ability_json("SpellActions(Targeted([TargetPermanent(AnyPermanent)],ActionList([DestroyEachPermanent(SharesANameWithPermanent(Ref_TargetPermanent))])))");
+    assert!(text.contains("SharesNameWith"), "{text}");
+}
+
+#[test]
+fn choosing_both_depends_on_the_condition() {
+    let text = ability_json("SpellActions(Modal_ChooseOneOrBothIf(PlayerPassesFilter(You,LifeTotalIs(EqualTo(Integer(13)))),[ActionList([DrawACard]),ActionList([GainLife(Integer(1))])]))");
+    assert!(text.contains("Conditional"), "{text}");
+}
+
+#[test]
+fn a_block_event_names_each_creature_of_the_pair() {
+    let text = ability_json("TriggerA(WhenACreatureBecomesBlockedByACreature(SinglePermanent(ThisPermanent),IsCardtype(Creature)),ActionList([DestroyPermanent(Trigger_TheBlockingCreature)]))");
+    assert!(text.contains("Blocker"), "{text}");
+    let text = ability_json("TriggerA(WhenACreatureBlocksACreature(SinglePermanent(ThisPermanent),IsCardtype(Creature)),ActionList([DestroyPermanent(Trigger_ThatOtherPermanent)]))");
+    assert!(text.contains("BlockPair"), "{text}");
+    assert!(text.contains("Other"), "{text}");
+}
+
+#[test]
+fn a_player_who_refuses_the_cost_takes_the_fallback() {
+    let text = ability_json("SpellActions(ActionList([EachPlayerMayCostOrFallback(Opponent,[DiscardACardOfType(AnyCard)],LoseLife(Integer(3)))]))");
+    assert!(text.contains("ForEachPlayer"), "{text}");
+    assert!(text.contains("PaymentChosen"), "{text}");
+    assert!(text.contains("Not"), "{text}");
+}
+
+#[test]
+fn token_copies_of_an_exiled_card_and_of_each_permanent() {
+    let text = ability_json("SpellActions(ActionList([Exile([TheTopCardOfLibrary],[]),CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay,NoTokenCopyEffects)],[])]))");
+    assert!(text.contains("Copy"), "{text}");
+    let text = ability_json("SpellActions(ActionList([CreateTokens([TokenCopyOfEachPermanent(IsCardtype(Creature),NoTokenCopyEffects)],[])]))");
+    assert!(text.contains("CopyEach"), "{text}");
+}
+
+#[test]
+fn the_chosen_color_is_a_change_of_its_own() {
+    let text = ability_json("PermanentLayerEffect(ThisPermanent,[SetColor(TheChosenColor)])");
+    assert!(text.contains("ChosenColor"), "{text}");
+}
+
+#[test]
+fn the_revealed_card_and_the_exiled_card_are_read_after_their_action() {
+    let text = ability_json("SpellActions(ActionList([RevealTopCardOfLibrary,PutTopOfLibraryInHand,LoseLife(ManaValueOfTheCardRevealedThisWay)]))");
+    assert!(text.contains("ManaValue"), "{text}");
+    let text = ability_json("SpellActions(ActionList([Exile([TheTopCardOfLibrary],[]),If(ExiledCardPassesFilter(TheCardExiledThisWay,IsCardtype(Land)),[DrawACard])]))");
+    assert!(text.contains("ObjectMatches"), "{text}");
 }

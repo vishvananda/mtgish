@@ -323,6 +323,8 @@ impl<'a> Scope<'a> {
                 TargetKind::Object(ObjectDomain::permanent()),
             ),
             ObjectRef::EventSubject if self.event.object => Ok(()),
+            ObjectRef::BlockPair(_) if self.event.block_pair => Ok(()),
+            ObjectRef::BlockPair(_) => Err("this event pairs no attacker and blocker".into()),
             ObjectRef::EventDestination if self.event.moved => Ok(()),
             ObjectRef::EventDestination => Err("this event moves no object".into()),
             ObjectRef::Chosen => Ok(()),
@@ -656,6 +658,15 @@ impl<'a> Scope<'a> {
                 self.expr(a)?;
                 self.expr(b)
             }
+            Expr::Conditional {
+                condition,
+                then,
+                otherwise,
+            } => {
+                self.condition(condition)?;
+                self.expr(then)?;
+                self.expr(otherwise)
+            }
             Expr::Divide {
                 numerator,
                 denominator,
@@ -752,7 +763,9 @@ impl<'a> Scope<'a> {
             ObjectFilter::ControlledBy(players) | ObjectFilter::OwnedBy(players) => {
                 self.players(players)
             }
-            ObjectFilter::SameObject(object) => self.object(object),
+            ObjectFilter::SameObject(object) | ObjectFilter::SharesNameWith(object) => {
+                self.object(object)
+            }
             ObjectFilter::Property { value, .. } => self.expr(value),
             ObjectFilter::Counters { value, .. } => self.expr(value),
         }
@@ -920,6 +933,7 @@ impl<'a> Scope<'a> {
                 Err("colorless is an empty color set, not a color".into())
             }
             Change::Colors { .. }
+            | Change::ChosenColor { .. }
             | Change::CreatureTypes { .. }
             | Change::AddCardType(_)
             | Change::RemoveCardType(_)
@@ -1615,6 +1629,14 @@ impl<'a> Scope<'a> {
                             adjustments.iter().try_for_each(operand)?;
                             continue;
                         }
+                        TokenRecipe::CopyEach {
+                            objects,
+                            adjustments,
+                        } => {
+                            self.objects(objects)?;
+                            adjustments.iter().try_for_each(operand)?;
+                            continue;
+                        }
                     };
                     if matches!(&definition.name, TokenName::Explicit(name) if name.is_empty()) {
                         return Err("explicit token name is empty".into());
@@ -1985,6 +2007,7 @@ impl<'a> Scope<'a> {
             }
             proposal.count(&target.count)?;
             proposal.filter(&target.filter)?;
+            proposal.selection_constraints(&target.constraints)?;
             if let Some(total) = &target.distribute {
                 proposal.expr(total)?;
             }
@@ -2281,6 +2304,7 @@ fn validate_ability_in(
                             | Change::SetToughness(_)
                             | Change::SetBasePowerToughness { .. }
                             | Change::Colors { .. }
+                            | Change::ChosenColor { .. }
                             | Change::CreatureTypes { .. }
                     )
                 }) {

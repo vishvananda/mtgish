@@ -356,6 +356,17 @@ impl Context {
             {
                 return Ok(ObjectRef::Damage(DamageSubject::Recipient))
             }
+            S::Trigger_TheAttackingCreature if self.event.block_pair => {
+                return Ok(ObjectRef::BlockPair(BlockRole::Attacker))
+            }
+            S::Trigger_TheBlockingCreature if self.event.block_pair => {
+                return Ok(ObjectRef::BlockPair(BlockRole::Blocker))
+            }
+            S::Trigger_ThatOtherPermanent | S::Trigger_ThatOtherCreature
+                if self.event.block_pair =>
+            {
+                return Ok(ObjectRef::BlockPair(BlockRole::Other))
+            }
             _ => return Err(unsupported(value)),
         };
         Ok(ObjectRef::Target {
@@ -684,6 +695,7 @@ impl Context {
                 .unwrap_or(Expr::AnnouncedX),
             S::Trigger_ThatMuch
             | S::Trigger_AmountOfDamageDealt
+            | S::Trigger_AmountOfLifeGained
             | S::WouldDealDamage_ThatMuchDamage
             | S::WouldGainLife_LifeAmount
             | S::WouldLoseLife_ThatMuch
@@ -696,6 +708,18 @@ impl Context {
                 Expr::EventAmount
             }
             S::TheDiceResult => self.die_result()?,
+            S::ManaValueOfTheCardRevealedThisWay => Expr::ObjectProperty {
+                object: ObjectRef::Query {
+                    objects: Box::new(
+                        self.revealed
+                            .clone()
+                            .ok_or_else(|| invalid("no card was revealed in this scope"))?,
+                    ),
+                    index: 0,
+                },
+                property: Property::ManaValue,
+                information: Information::CurrentOrLastKnown,
+            },
             S::Trigger_ValueXOfThatSpell if self.event.spell => Expr::ObjectProperty {
                 object: ObjectRef::EventSubject,
                 property: Property::SpellX,
@@ -784,6 +808,10 @@ impl Context {
             S::GraveyardCardPassesFilter(card, filter) => Condition::ObjectMatches {
                 object: self.grave_card(card)?,
                 filter: self.card_filter(filter)?,
+            },
+            S::ExiledCardPassesFilter(card, filter) => Condition::ObjectMatches {
+                object: self.exiled_card(card)?,
+                filter: self.exile_filter(filter)?,
             },
             S::EnteringPermanentPassesFilter(filter) => Condition::ObjectMatches {
                 object: if self.event.permanent {
@@ -1100,6 +1128,12 @@ impl Context {
                             }
                         })
                         .collect::<Result<_>>()?,
+                    S::SetColor(source::SettableColor::TheChosenColor) => {
+                        vec![Change::ChosenColor { mode: ChangeMode::Set }]
+                    }
+                    S::AddColor(source::SettableColor::TheChosenColor) => {
+                        vec![Change::ChosenColor { mode: ChangeMode::Add }]
+                    }
                     S::SetColor(c) | S::AddColor(c) => vec![Change::Colors { mode:if matches!(value,S::SetColor(_)) {ChangeMode::Set} else {ChangeMode::Add},colors:self.fixed_colors(c)? }],
                     S::HasAllCreatureTypes => vec![Change::CreatureTypes {mode:ChangeMode::Set,types:CreatureTypeSet::All}],
                     S::RemoveAllCreatureTypes => vec![Change::CreatureTypes {mode:ChangeMode::Set,types:CreatureTypeSet::Listed(vec![])}],
@@ -1548,6 +1582,21 @@ impl Context {
                     once: false,
                 }
             }
+            S::PutTopOfLibraryInHand => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("moving a library card needs one player"));
+                };
+                Operation::Move {
+                    objects: self.library_slice(
+                        player.clone(),
+                        Expr::Constant(1),
+                        SequenceEnd::Top,
+                    ),
+                    destination: Destination::OwnersHand,
+                    entry: EntrySpec::default(),
+                    face_down: false,
+                }
+            }
             S::RevealTopCardOfLibrary => {
                 let PlayerSet::One(player) = actor else {
                     return Err(invalid("revealing a library needs one player"));
@@ -1885,6 +1934,43 @@ impl Context {
                     operands,
                 }
             }
+            S::EachPlayerMayCostOrFallback(players, costs, fallback) => {
+                let players = self.players(players)?;
+                return self.for_each_player(players, |context, each| {
+                    let PlayerSet::One(payer) = each else {
+                        return Err(invalid("a payment has one payer"));
+                    };
+                    let mut parts = vec![];
+                    for cost in costs {
+                        parts.extend(context.cost_for(cost, payer)?.parts);
+                    }
+                    let payment = context.effect(Operation::PayCost {
+                        cost: Cost { parts },
+                        player: payer.clone(),
+                        optional: true,
+                    });
+                    let paid = context
+                        .payment
+                        .clone()
+                        .ok_or_else(|| invalid("a payment records its result"))?;
+                    let otherwise = context.conditional(
+                        Condition::Not(Box::new(Condition::PaymentChosen(paid))),
+                        |c| {
+                            Ok(Program {
+                                instructions: vec![c.action(fallback, each)?],
+                            })
+                        },
+                        |_| {
+                            Ok(Program {
+                                instructions: vec![],
+                            })
+                        },
+                    )?;
+                    Ok(Instruction::Group(Program {
+                        instructions: vec![payment, otherwise],
+                    }))
+                });
+            }
             S::AnyPlayerMayCost(players, cost) => {
                 let willing = PlayerRef::FirstWilling(Box::new(self.players(players)?));
                 let outer = self.iterated.replace(willing.clone());
@@ -2090,6 +2176,7 @@ impl Context {
                 filter: ObjectFilter::Any,
                 players: None,
                 distribute: None,
+                constraints: vec![],
             };
             match value {
                 S::TargetSpellOrAbility(_) => {
@@ -2148,6 +2235,33 @@ impl Context {
                         S::UptoNumberTargetGraveyardCards(n, _) => Count::UpTo(self.number(n)?),
                         S::AnyNumberOfTargetGraveyardCards(_) => Count::AnyNumber,
                         _ => Count::Exactly(Expr::Constant(1)),
+                    };
+                }
+                S::NumberTargetGroupGraveyardCards(_, c, group)
+                | S::UptoNumberTargetGroupGraveyardCards(_, c, group)
+                | S::AnyNumberOfTargetGroupGraveyardCards(c, group) => {
+                    target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
+                    target.filter = self.grave_filter(c)?;
+                    target.constraints = self.group_constraints(group)?;
+                    target.count = match value {
+                        S::NumberTargetGroupGraveyardCards(n, ..) => {
+                            Count::Exactly(self.number(n)?)
+                        }
+                        S::UptoNumberTargetGroupGraveyardCards(n, ..) => {
+                            Count::UpTo(self.number(n)?)
+                        }
+                        _ => Count::AnyNumber,
+                    };
+                }
+                S::NumberTargetGroupPermanents(_, p, group)
+                | S::UptoNumberTargetGroupPermanents(_, p, group)
+                | S::AnyNumberOfTargetGroupPermanents(p, group) => {
+                    target.filter = self.filter(p)?;
+                    target.constraints = self.group_constraints(group)?;
+                    target.count = match value {
+                        S::NumberTargetGroupPermanents(n, ..) => Count::Exactly(self.number(n)?),
+                        S::UptoNumberTargetGroupPermanents(n, ..) => Count::UpTo(self.number(n)?),
+                        _ => Count::AnyNumber,
                     };
                 }
                 S::TargetExiledCard(c) | S::UptoOneTargetExiledCard(c) => {
@@ -2616,6 +2730,7 @@ impl Context {
                             ]),
                             players: None,
                             distribute: None,
+                            constraints: vec![],
                         }],
                         modes: None,
                     },

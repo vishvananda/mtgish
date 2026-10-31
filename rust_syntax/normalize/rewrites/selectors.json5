@@ -745,6 +745,50 @@
       }
     },
     {
+      "id": "selector.Permanents.SharesANameWithExiled",
+      "domain": "Permanents",
+      "source": "SharesANameWithExiled",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "CardInExile",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.SharesANameWithGraveyardCard",
+      "domain": "Permanents",
+      "source": "SharesANameWithGraveyardCard",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "CardInGraveyards",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.SharesANameWithPermanent",
+      "domain": "Permanents",
+      "source": "SharesANameWithPermanent",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "Permanent",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Permanents.SharesANameWithSpell",
+      "domain": "Permanents",
+      "source": "SharesANameWithSpell",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "Spell",
+        "argument": 0
+      }
+    },
+    {
       "id": "selector.Permanents.Other",
       "domain": "Permanents",
       "source": "Other",
@@ -1279,6 +1323,39 @@
       }
     },
     {
+      "id": "selector.Cards.SharesANameWithGraveyardCard",
+      "domain": "Cards",
+      "source": "SharesANameWithGraveyardCard",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "CardInGraveyards",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Cards.SharesANameWithPermanent",
+      "domain": "Cards",
+      "source": "SharesANameWithPermanent",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "Permanent",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Cards.SharesANameWithSpell",
+      "domain": "Cards",
+      "source": "SharesANameWithSpell",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "Spell",
+        "argument": 0
+      }
+    },
+    {
       "id": "selector.Cards.Other",
       "domain": "Cards",
       "source": "Other",
@@ -1768,6 +1845,28 @@
       }
     },
     {
+      "id": "selector.Spells.SharesANameWithExiled",
+      "domain": "Spells",
+      "source": "SharesANameWithExiled",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "CardInExile",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.Spells.SharesANameWithPermanent",
+      "domain": "Spells",
+      "source": "SharesANameWithPermanent",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "Permanent",
+        "argument": 0
+      }
+    },
+    {
       "id": "selector.Spells.Other",
       "domain": "Spells",
       "source": "Other",
@@ -2235,6 +2334,39 @@
       }
     },
     {
+      "id": "selector.CardsInGraveyards.SharesANameWithPermanent",
+      "domain": "CardsInGraveyards",
+      "source": "SharesANameWithPermanent",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "Permanent",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.SharesANameWithGraveyardCard",
+      "domain": "CardsInGraveyards",
+      "source": "SharesANameWithGraveyardCard",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "CardInGraveyards",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInGraveyards.SharesANameWithSpell",
+      "domain": "CardsInGraveyards",
+      "source": "SharesANameWithSpell",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "Spell",
+        "argument": 0
+      }
+    },
+    {
       "id": "selector.CardsInGraveyards.Other",
       "domain": "CardsInGraveyards",
       "source": "Other",
@@ -2614,6 +2746,28 @@
       }
     },
     {
+      "id": "selector.CardsInHand.SharesANameWithPermanent",
+      "domain": "CardsInHand",
+      "source": "SharesANameWithPermanent",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "Permanent",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInHand.SharesANameWithSpell",
+      "domain": "CardsInHand",
+      "source": "SharesANameWithSpell",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "Spell",
+        "argument": 0
+      }
+    },
+    {
       "id": "selector.CardsInHand.Other",
       "domain": "CardsInHand",
       "source": "Other",
@@ -2925,6 +3079,17 @@
       "predicate": {
         "kind": "SameObject",
         "domain": "CardInExile",
+        "argument": 0
+      }
+    },
+    {
+      "id": "selector.CardsInExile.SharesANameWithSpell",
+      "domain": "CardsInExile",
+      "source": "SharesANameWithSpell",
+      "arity": 1,
+      "predicate": {
+        "kind": "SharesName",
+        "domain": "Spell",
         "argument": 0
       }
     },
