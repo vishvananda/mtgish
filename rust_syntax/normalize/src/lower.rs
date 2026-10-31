@@ -99,6 +99,9 @@ struct Context {
     found: Option<ObjectSet>,
     /// The last effect a player chose to take, and who was last offered a batch.
     took: Option<ResultId>,
+    chosen_pt: Option<ResultId>,
+    /// A later step of this list may read what this branch did.
+    reads_later: bool,
     offered: Option<PlayerSet>,
     removed_counters: Option<ResultId>,
     announcing: bool,
@@ -220,7 +223,9 @@ impl Context {
 
     /// What a move leaves for a later "this way" to name.
     fn note_move(&mut self, operation: &Operation, result: ResultId) {
-        let Operation::Move { destination, .. } = operation else {
+        let (Operation::Move { destination, .. } | Operation::Counter { destination, .. }) =
+            operation
+        else {
             return;
         };
         match destination {
@@ -1163,6 +1168,25 @@ impl Context {
                 Expr::EventAmount
             }
             S::TheDiceResult => self.die_result()?,
+            S::TheFirstDiceResult | S::TheSecondDiceResult => {
+                let Expr::DieResult(result) = self.die_result()? else {
+                    unreachable!()
+                };
+                Expr::DieResultAt {
+                    result,
+                    index: u32::from(matches!(value, S::TheSecondDiceResult)),
+                }
+            }
+            S::TheNumberOfPlayersThatDidntPayCost => {
+                let offered = self
+                    .offered
+                    .clone()
+                    .ok_or_else(|| invalid("no players were asked to pay in this scope"))?;
+                Expr::CountPlayers(PlayerSet::Intersection(vec![
+                    offered,
+                    self.players(&source::Players::DidntPayCost)?,
+                ]))
+            }
             S::TheAmountOfDamagePreventedThisWay if self.did.contains_key(&Done::Prevented) => {
                 Expr::Performed(self.done(Done::Prevented)?)
             }
@@ -1669,6 +1693,22 @@ impl Context {
                         power: Expr::Constant((*power).into()),
                         toughness: Expr::Constant((*toughness).into()),
                     }],
+                    S::AdjustPTTheChosenPTMod => {
+                        let result = self
+                            .chosen_pt
+                            .clone()
+                            .ok_or_else(|| invalid("no adjustment was chosen in this scope"))?;
+                        vec![Change::Pump {
+                            power: Expr::ChosenPowerToughness {
+                                result: result.clone(),
+                                toughness: false,
+                            },
+                            toughness: Expr::ChosenPowerToughness {
+                                result,
+                                toughness: true,
+                            },
+                        }]
+                    }
                     S::AdjustPTX(power, toughness, x) => {
                         let x = self.number(x)?;
                         vec![Change::Pump {
@@ -3004,6 +3044,7 @@ impl Context {
                     return Err(invalid("a choice of actions needs one player"));
                 };
                 let mut programs = Vec::new();
+                let mut branches = Vec::new();
                 for option in options {
                     let mut child = self.clone();
                     let instructions = option
@@ -3013,11 +3054,13 @@ impl Context {
                     self.result = child.result;
                     self.invalidate_child_bindings(&child);
                     programs.push(Program { instructions });
+                    branches.push(child);
                 }
-                return Ok(Instruction::ChooseOne {
+                let branch = Instruction::ChooseOne {
                     decider: decider.clone(),
                     options: programs,
-                });
+                };
+                return Ok(self.joined(branch, &branches.iter().collect::<Vec<_>>()));
             }
             S::EachPlayerMakesAVillainousChoice(players, options) => {
                 let players = self.players(players)?;
@@ -3333,6 +3376,42 @@ impl Context {
                     name,
                     operands,
                 }
+            }
+            S::ChoosePTMod(options) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("a choice needs one player"));
+                };
+                let choice = self.effect(Operation::ChoosePowerToughness {
+                    player: player.clone(),
+                    options: options
+                        .iter()
+                        .map(|source::PTMod::PTMod(p, t)| ((*p).into(), (*t).into()))
+                        .collect(),
+                });
+                if let Instruction::Effect { result, .. } = &choice {
+                    self.chosen_pt = Some(result.clone());
+                }
+                return Ok(choice);
+            }
+            S::EachPlayerMayCost(players, cost) | S::EachPlayerMustCost(players, cost) => {
+                let players = self.players(players)?;
+                self.offered = Some(players.clone());
+                let optional = matches!(value, S::EachPlayerMayCost(..));
+                return self.for_each_player(players, |context, each| {
+                    let PlayerSet::One(payer) = each else {
+                        return Err(invalid("a payment has one payer"));
+                    };
+                    let cost = context.cost_for(cost, payer)?;
+                    let payment = context.effect(Operation::PayCost {
+                        cost,
+                        player: payer.clone(),
+                        optional,
+                    });
+                    if let Instruction::Effect { result, .. } = &payment {
+                        context.took = Some(result.clone());
+                    }
+                    Ok(payment)
+                });
             }
             S::EachPlayerMayCostOrFallback(players, costs, fallback) => {
                 let players = self.players(players)?;
@@ -4062,11 +4141,27 @@ impl Context {
                     }],
                 });
             }
-            source::Cost::RevealACardOfTypeFromHand(cards) => {
+            source::Cost::RevealACardOfTypeFromHand(cards)
+            | source::Cost::RevealAnyNumberOfCardsOfTypeFromHand(cards) => {
                 return Ok(Cost {
                     parts: vec![CostPart::Reveal {
-                        count: Expr::Constant(1),
+                        count: match value {
+                            source::Cost::RevealACardOfTypeFromHand(_) => {
+                                Count::Exactly(Expr::Constant(1))
+                            }
+                            _ => Count::AnyNumber,
+                        },
                         filter: self.card_filter(cards)?,
+                        random: false,
+                    }],
+                })
+            }
+            source::Cost::RevealACardFromHandAtRandom => {
+                return Ok(Cost {
+                    parts: vec![CostPart::Reveal {
+                        count: Count::Exactly(Expr::Constant(1)),
+                        filter: ObjectFilter::Any,
+                        random: true,
                     }],
                 })
             }
@@ -5016,3 +5111,4 @@ include!("lower_took.rs");
 include!("lower_reflexive.rs");
 include!("lower_reveal.rs");
 include!("lower_replace.rs");
+include!("lower_play.rs");

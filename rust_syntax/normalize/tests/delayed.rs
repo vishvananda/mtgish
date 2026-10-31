@@ -447,7 +447,6 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         "Bounty of the Hunt",
         "Chancellor of the Tangle",
         "Come Back Wrong",
-        "Feldon of the Third Path",
         "Feral Encounter",
         "Fortune, Loyal Steed",
         "Gaze of the Gorgon",
@@ -476,5 +475,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 45);
+    assert_eq!(complete, 46);
 }

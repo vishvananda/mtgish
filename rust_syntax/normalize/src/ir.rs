@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 71;
+pub const SCHEMA_VERSION: u32 = 72;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -74,6 +74,8 @@ pub enum Operand {
     Program(Program),
     Filter(ObjectFilter),
     Comparison(Comparison, Expr),
+    /// The event a row holds; its other operands can name what it binds.
+    Event(Box<EventSpec>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -931,6 +933,15 @@ pub enum Operation {
     FlipCoin {
         player: PlayerRef,
     },
+    /// One result standing for whichever of these branch results was made.
+    JoinResults {
+        results: Vec<ResultId>,
+    },
+    /// Choose one of these power/toughness adjustments.
+    ChoosePowerToughness {
+        player: PlayerRef,
+        options: Vec<(i64, i64)>,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct SearchChoice {
@@ -1043,13 +1054,13 @@ impl TokenSpec {
     pub fn definition(&self) -> Option<&TokenDefinition> {
         match &self.recipe {
             TokenRecipe::Defined(definition) => Some(definition),
-            TokenRecipe::Copy { .. } | TokenRecipe::CopyEach { .. } | TokenRecipe::Named(_) => None,
+            _ => None,
         }
     }
     pub fn definition_mut(&mut self) -> Option<&mut TokenDefinition> {
         match &mut self.recipe {
             TokenRecipe::Defined(definition) => Some(definition),
-            TokenRecipe::Copy { .. } | TokenRecipe::CopyEach { .. } | TokenRecipe::Named(_) => None,
+            _ => None,
         }
     }
 }
@@ -1069,6 +1080,20 @@ pub enum TokenRecipe {
     },
     /// The token Oracle gives this name, defined outside the card that makes it.
     Named(String),
+    /// A copy of one of `objects`, picked as the effect resolves.
+    CopyOne {
+        objects: ObjectSet,
+        adjustments: Vec<Operand>,
+    },
+    /// A copy of the Oracle card with this name, which is not in the game.
+    CopyNamed {
+        name: String,
+        adjustments: Vec<Operand>,
+    },
+    /// A copy of a random Oracle card matching `cards`.
+    CopyAtRandom {
+        cards: Operand,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1290,6 +1315,11 @@ pub enum PlayerRule {
     /// Player abilities, as distinct from prohibitions or abilities granted
     /// to objects. Their ordinary targeting definitions apply to the player.
     GrantKeyword(PlayerKeyword),
+    /// A `PlayPermission` under terms the plain form lacks.
+    PlayPermissionWith {
+        permission: Box<PlayerRule>,
+        terms: PlayTerms,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PlayerAction {
@@ -1360,6 +1390,42 @@ pub enum PlayerKeyword {
     Hexproof,
     Shroud,
 }
+/// The terms of a permission, the parameters Forge's `MayPlay` takes.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct PlayTerms {
+    pub limit: Option<PlayLimit>,
+    /// Only during these players' turns.
+    pub during: Option<PlayerSet>,
+    pub cost: PlayCost,
+    pub spend_as: Option<SpendAs>,
+    /// A card cast this way is exiled instead of going anywhere else.
+    pub into_exile: bool,
+    pub condition: Option<Condition>,
+    /// What a card played this way gets: spell effects, entry flags or a trigger.
+    pub effects: Vec<Operand>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PlayLimit {
+    /// This many cards while the permission lasts.
+    Total(i64),
+    EachTurn(i64),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PlayCost {
+    Normal,
+    Free,
+    Alternate(Operand),
+    Additional(Operand),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum SpendAs {
+    AnyColor,
+    AnyType,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CardPlayAction {
     CastSpell,
@@ -1629,6 +1695,16 @@ pub enum Expr {
     },
     /// How many times this ability has been activated this turn.
     TimesActivatedThisTurn,
+    /// One half of the adjustment `ChoosePowerToughness` picked.
+    ChosenPowerToughness {
+        result: ResultId,
+        toughness: bool,
+    },
+    /// One of the dice a roll kept, in the order the roller chose.
+    DieResultAt {
+        result: ResultId,
+        index: u32,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2323,8 +2399,9 @@ pub enum CostPart {
     },
     /// Reveal cards from the payer's hand; they stay there.
     Reveal {
-        count: Expr,
+        count: Count,
         filter: ObjectFilter,
+        random: bool,
     },
     /// Pay `part` once per `times`, counted when the cost is paid.
     Repeated {

@@ -693,7 +693,16 @@ impl<'a> Scope<'a> {
                 self.filter(to)
             }
             Expr::ExcessDamage { result, .. } => Err(format!("result {} is unavailable", result.0)),
-            Expr::Performed(result) if self.results.contains_key(&result.0) => Ok(()),
+            Expr::Performed(result)
+            | Expr::ChosenPowerToughness { result, .. }
+            | Expr::DieResultAt { result, .. }
+                if self.results.contains_key(&result.0) =>
+            {
+                Ok(())
+            }
+            Expr::ChosenPowerToughness { result, .. } | Expr::DieResultAt { result, .. } => {
+                Err(format!("result {} is unavailable", result.0))
+            }
             Expr::Performed(result) => Err(format!("result {} is unavailable", result.0)),
             Expr::PaidCountersRemoved { payment, component } => {
                 self.paid_component(payment, component).map(|_| ())
@@ -1097,6 +1106,19 @@ impl<'a> Scope<'a> {
                 self.require_zone(cards, from.clone())?;
                 self.filter(filter)
             }
+            PlayerRule::PlayPermissionWith { permission, terms } => {
+                self.player_rule(permission)?;
+                if let Some(players) = &terms.during {
+                    self.players(players)?;
+                }
+                if let PlayCost::Alternate(cost) | PlayCost::Additional(cost) = &terms.cost {
+                    self.operand(cost)?;
+                }
+                if let Some(condition) = &terms.condition {
+                    self.condition(condition)?;
+                }
+                terms.effects.iter().try_for_each(|o| self.operand(o))
+            }
             PlayerRule::Primitive { name, operands } => self.primitive(name, operands),
             PlayerRule::Prohibit(action) => self.player_action(action),
             PlayerRule::LimitPerTurn { action, amount } => {
@@ -1302,8 +1324,8 @@ impl<'a> Scope<'a> {
                     self.player(player)?;
                     self.clone().program(body)?;
                 }
-                CostPart::Reveal { count, filter } => {
-                    self.count(&Count::Exactly(count.clone()))?;
+                CostPart::Reveal { count, filter, .. } => {
+                    self.count(count)?;
                     self.filter(filter)?;
                 }
                 CostPart::Repeated { part, times } => {
@@ -1417,7 +1439,17 @@ impl<'a> Scope<'a> {
         if crate::primitive_spec::lookup(name).is_none() {
             return Err(format!("{name} is not a reviewed primitive"));
         }
-        operands.iter().try_for_each(|o| self.operand(o))
+        let mut scoped = self.clone();
+        if crate::primitive_spec::lookup(name).is_some_and(|row| !row.binds.is_empty()) {
+            scoped.event = crate::semantics::with_row(&self.event, name);
+        }
+        if let Some(event) = operands.iter().find_map(|o| match o {
+            Operand::Event(event) => Some(event),
+            _ => None,
+        }) {
+            scoped.event = crate::semantics::event_bindings(event);
+        }
+        operands.iter().try_for_each(|o| scoped.operand(o))
     }
     fn named(&self, named: &Named) -> Result {
         named.operands.iter().try_for_each(|o| self.operand(o))
@@ -1453,6 +1485,7 @@ impl<'a> Scope<'a> {
             Operand::Comparison(_, expression) => self.expr(expression),
             Operand::Cost(cost) => self.cost(cost),
             Operand::Ability(ability) => validate_ability(ability),
+            Operand::Event(event) => self.event(event),
             Operand::Program(program) => {
                 let mut child = self.clone();
                 child.open_searches.clear();
@@ -1582,6 +1615,11 @@ impl<'a> Scope<'a> {
                 self.players(players)?;
                 self.count(&Count::Exactly(amount.clone()))
             }
+            Operation::JoinResults { results } if results.len() < 2 => {
+                Err("a join needs at least two branches".into())
+            }
+            Operation::JoinResults { .. } => Ok(()),
+            Operation::ChoosePowerToughness { player, .. } => self.player(player),
             Operation::Counter {
                 objects,
                 destination,
@@ -1739,6 +1777,10 @@ impl<'a> Scope<'a> {
                         TokenRecipe::CopyEach {
                             objects,
                             adjustments,
+                        }
+                        | TokenRecipe::CopyOne {
+                            objects,
+                            adjustments,
                         } => {
                             self.objects(objects)?;
                             adjustments.iter().try_for_each(|o| self.operand(o))?;
@@ -1746,6 +1788,17 @@ impl<'a> Scope<'a> {
                         }
                         TokenRecipe::Named(name) if name.is_empty() => {
                             return Err("named token recipe is empty".into());
+                        }
+                        TokenRecipe::CopyNamed { name, .. } if name.is_empty() => {
+                            return Err("named token recipe is empty".into());
+                        }
+                        TokenRecipe::CopyNamed { adjustments, .. } => {
+                            adjustments.iter().try_for_each(|o| self.operand(o))?;
+                            continue;
+                        }
+                        TokenRecipe::CopyAtRandom { cards } => {
+                            self.operand(cards)?;
+                            continue;
                         }
                         TokenRecipe::Named(_) => continue,
                     };
@@ -2091,6 +2144,7 @@ impl<'a> Scope<'a> {
                             | Operation::Discard { .. }
                             | Operation::DiscardObjects { .. }
                             | Operation::Sacrifice { .. }
+                            | Operation::JoinResults { .. }
                             | Operation::Mill { .. } => ResultKind::ObjectTransition,
                             other => match crate::semantics::yields(other) {
                                 Some("observed") => ResultKind::Observation,

@@ -39,11 +39,55 @@ impl Context {
         self.result = other_context.result;
         self.invalidate_child_bindings(&then_context);
         self.invalidate_child_bindings(&other_context);
-        Ok(Instruction::If {
+        let branch = Instruction::If {
             condition,
             then,
             otherwise,
-        })
+        };
+        Ok(self.joined(branch, &[&then_context, &other_context]))
+    }
+
+    /// Exactly one branch ran, so a result every branch made is one result after.
+    fn joined(&mut self, branch: Instruction, branches: &[&Self]) -> Instruction {
+        if !self.reads_later {
+            return branch;
+        }
+        let mut instructions = vec![branch];
+        let mut join = |context: &mut Self, results: Vec<ResultId>| {
+            let result = ResultId(context.result);
+            context.result += 1;
+            instructions.push(Instruction::Effect {
+                result: result.clone(),
+                operation: Operation::JoinResults { results },
+            });
+            result
+        };
+        let every = |read: &dyn Fn(&Self) -> Option<ResultId>| -> Option<Vec<ResultId>> {
+            branches.iter().map(|branch| read(branch)).collect()
+        };
+        if self.exiled.is_none() {
+            if let Some(results) = every(&|c| c.exiled.clone()) {
+                self.exiled_permanents = branches.iter().all(|c| c.exiled_permanents);
+                self.exiled = Some(join(self, results));
+            }
+        }
+        if self.entered.is_none() {
+            if let Some(results) = every(&|c| c.entered.clone()) {
+                self.entered = Some(join(self, results));
+            }
+        }
+        for kind in branches[0].did.keys() {
+            if !self.did.contains_key(kind) {
+                if let Some(results) = every(&|c| c.did.get(kind).cloned()) {
+                    let result = join(self, results);
+                    self.did.insert(*kind, result);
+                }
+            }
+        }
+        if instructions.len() == 1 {
+            return instructions.remove(0);
+        }
+        Instruction::Group(Program { instructions })
     }
 
     fn entry_actions(&mut self, values: &[source::ReplacementActionWouldEnter]) -> Result<Program> {

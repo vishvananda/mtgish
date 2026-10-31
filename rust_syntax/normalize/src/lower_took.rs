@@ -47,8 +47,8 @@ impl Context {
             })
         };
         Ok(Some(match value {
-            S::PlayerWhoTookActionThisWay => took()?,
-            S::DidntTakeAction => Condition::Not(Box::new(took()?)),
+            S::PlayerWhoTookActionThisWay | S::PaidCost => took()?,
+            S::DidntTakeAction | S::DidntPayCost => Condition::Not(Box::new(took()?)),
             S::SacrificedAPermanentThisWay(filter) => some(self.moved_by(
                 Done::Sacrificed,
                 Before,

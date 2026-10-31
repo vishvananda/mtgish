@@ -121,16 +121,28 @@ impl Context {
                 context.bind_pipeline_recipe(effect.clone(), actor)
             })?,
             R::Sequence(actions) => {
+                let outer = self.reads_later;
+                let instructions = actions
+                    .iter()
+                    .enumerate()
+                    .map(|(i, a)| {
+                        // Only a branch something later reads joins its results.
+                        self.reads_later = outer
+                            || matches!(
+                                a,
+                                R::Conditional { .. }
+                                    | R::Source(ProgramSource::Action(
+                                        source::Action::ChooseAnAction(..)
+                                    ))
+                            ) && format!("{:?}", &actions[i + 1..]).contains("ThisWay");
+                        self.program_instruction(a, actor)
+                            .map_err(|e| e.at(format!("actions[{i}]")))
+                    })
+                    .collect::<Result<_>>();
+                self.reads_later = outer;
                 return Ok(Program {
-                    instructions: actions
-                        .iter()
-                        .enumerate()
-                        .map(|(i, a)| {
-                            self.program_instruction(a, actor)
-                                .map_err(|e| e.at(format!("actions[{i}]")))
-                        })
-                        .collect::<Result<_>>()?,
-                })
+                    instructions: instructions?,
+                });
             }
             R::Actor { actor: input, body } => {
                 let players = match input {

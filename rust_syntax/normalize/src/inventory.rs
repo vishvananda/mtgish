@@ -350,6 +350,8 @@ impl Inventory<'_> {
                 self.players(players);
                 self.expr(amount);
             }
+            Operation::JoinResults { .. } => {}
+            Operation::ChoosePowerToughness { player, .. } => self.player(player),
             Operation::Counter {
                 objects,
                 destination,
@@ -455,6 +457,19 @@ impl Inventory<'_> {
                         TokenRecipe::CopyEach { objects, .. } => {
                             self.form("TokenRecipe", &"CopyEach");
                             self.objects(objects);
+                            continue;
+                        }
+                        TokenRecipe::CopyOne { objects, .. } => {
+                            self.form("TokenRecipe", &"CopyOne");
+                            self.objects(objects);
+                            continue;
+                        }
+                        TokenRecipe::CopyNamed { .. } => {
+                            self.form("TokenRecipe", &"CopyNamed");
+                            continue;
+                        }
+                        TokenRecipe::CopyAtRandom { .. } => {
+                            self.form("TokenRecipe", &"CopyAtRandom");
                             continue;
                         }
                         TokenRecipe::Named(_) => {
@@ -786,8 +801,8 @@ impl Inventory<'_> {
                     self.player(player);
                     self.program(body);
                 }
-                CostPart::Reveal { count, filter } => {
-                    self.expr(count);
+                CostPart::Reveal { count, filter, .. } => {
+                    self.count(count);
                     self.filter(filter);
                 }
                 CostPart::Repeated { times, .. } => self.expr(times),
@@ -1058,6 +1073,15 @@ impl Inventory<'_> {
     fn player_rule(&mut self, rule: &PlayerRule) {
         self.form("PlayerRule", rule);
         match rule {
+            PlayerRule::PlayPermissionWith { permission, terms } => {
+                self.player_rule(permission);
+                if let Some(players) = &terms.during {
+                    self.players(players);
+                }
+                if let Some(condition) = &terms.condition {
+                    self.condition(condition);
+                }
+            }
             PlayerRule::PlayPermission {
                 cards,
                 from,
@@ -1286,6 +1310,8 @@ impl Inventory<'_> {
             | Expr::CountersRemoved(_)
             | Expr::PaidCountersRemoved { .. }
             | Expr::Performed(_)
+            | Expr::ChosenPowerToughness { .. }
+            | Expr::DieResultAt { .. }
             | Expr::DistributedShare(_)
             | Expr::DieResult(_) => {}
             Expr::ExcessDamage { to, .. } => self.filter(to),

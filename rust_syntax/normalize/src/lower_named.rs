@@ -115,6 +115,7 @@ impl Context {
                 Operand::Ability(Box::new(self.fresh().ability(&rule).ok()?))
             }
             "Spell" => Operand::Object(self.spell(&decode(value).ok()?).ok()?),
+            "Trigger" => Operand::Event(Box::new(self.trigger(&decode(value).ok()?).ok()?)),
             "Ability" => match decode(value).ok()? {
                 source::Ability::Ref_TargetAbility => {
                     Operand::Object(self.object_target(ObjectDomain::ability(), 0).ok()?)
@@ -228,14 +229,26 @@ impl Context {
         inspected: &serde_json::Value,
     ) -> Option<(String, Vec<Operand>)> {
         let name = format!("{family}::{}", inspected["variant"].as_str()?);
-        crate::primitive_spec::lookup(&name)?;
+        let row = crate::primitive_spec::lookup(&name)?;
+        // What the row binds, or the trigger it holds, names things for its operands.
+        let mut scoped = self.clone();
+        if !row.binds.is_empty() {
+            scoped.event = crate::semantics::with_row(&self.event, &name);
+        }
         let operands = match &inspected["args"] {
             serde_json::Value::Null => vec![],
-            serde_json::Value::Array(items) => items
-                .iter()
-                .map(|v| self.bound_operand(v))
-                .collect::<Option<_>>()?,
-            other => vec![self.bound_operand(other)?],
+            serde_json::Value::Array(items) => {
+                let held = items.iter().find(|v| v["enum"] == "Trigger");
+                let held = held.and_then(|v| crate::pipeline::source_tree::decode(v).ok());
+                if let Some(event) = held.and_then(|trigger| self.trigger(&trigger).ok()) {
+                    scoped.event = crate::semantics::event_bindings(&event);
+                }
+                items
+                    .iter()
+                    .map(|v| scoped.bound_operand(v))
+                    .collect::<Option<_>>()?
+            }
+            other => vec![scoped.bound_operand(other)?],
         };
         Some((name, operands))
     }

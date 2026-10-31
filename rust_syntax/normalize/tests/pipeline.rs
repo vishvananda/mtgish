@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 71);
+    assert_eq!(card.schema_version, 72);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -3009,7 +3009,9 @@ fn counters_removed_from_among_permanents_are_spread_by_the_player() {
 
 #[test]
 fn a_replacement_reveals_and_shuffles_the_card_it_saves() {
-    let text = ability_json("AsPutIntoAGraveyardFromAnywhere(ThisCard, [RevealItAndShuffleItIntoLibraryInstead])");
+    let text = ability_json(
+        "AsPutIntoAGraveyardFromAnywhere(ThisCard, [RevealItAndShuffleItIntoLibraryInstead])",
+    );
     assert!(text.contains("Reveal"), "{text}");
     assert!(text.contains("OwnersLibraryShuffled"), "{text}");
 }
@@ -3034,6 +3036,79 @@ fn a_move_keeps_how_the_object_enters() {
     assert!(text.contains("FaceDown"), "{text}");
     let text = ability_json("SpellActions(ActionList([Exile([Permanent(ThisPermanent)], []), PutExiledCardOntoBattlefield(TheCardExiledThisWay, [EntersUnderAPlayersControl(Opponent)])]))");
     assert!(text.contains("OneOf"), "{text}");
+}
+
+#[test]
+fn a_cost_reveals_any_number_of_cards_and_counts_them() {
+    let text = ability_json("AsPermanentEnters(ThisPermanent, [MayCost(RevealAnyNumberOfCardsOfTypeFromHand(IsCardtype(Artifact))), If(CostWasPaid, [EntersWithNumberCounters(TheNumberOfCardsInHandRevealedThisWay, PTCounter(+1, +1))])])");
+    assert!(text.contains("AnyNumber"), "{text}");
+    assert!(text.contains("CostObjects"), "{text}");
+}
+
+#[test]
+fn a_token_can_copy_any_object_or_one_of_a_set() {
+    let text = ability_json("SpellActions(Targeted([TargetGraveyardCard(IsCardtype(Creature))], ActionList([CreateTokens([TokenCopyOfGraveyardCard(Ref_TargetGraveyardCard, NoTokenCopyEffects)], [])])))");
+    assert!(text.contains(r#""Copy":{"object""#), "{text}");
+    let text = ability_json("SpellActions(ActionList([CreateTokens([TokenCopyOfAPermanent(ControlledByAPlayer(SinglePlayer(You)), NoTokenCopyEffects)], [])]))");
+    assert!(text.contains("CopyOne"), "{text}");
+    let text = ability_json("SpellActions(ActionList([CreateTokens([TokenCopyOfACardAtRandom(IsCardtype(Creature))], [])]))");
+    assert!(text.contains("CopyAtRandom"), "{text}");
+}
+
+#[test]
+fn a_countered_spell_sent_to_exile_is_what_was_exiled() {
+    let text = ability_json("SpellActions(Targeted([TargetSpell(AnySpell)], ActionList([CounterSpellIntoExile(Ref_TargetSpell), CreatePlayerEffectUntil(You, [MayCastExiledCard(TheCardExiledThisWay)], UntilEndOfTurn)])))");
+    assert!(text.contains(r#""phase":"After""#), "{text}");
+}
+
+#[test]
+fn either_branch_leaves_one_result() {
+    let text = ability_json("SpellActions(ActionList([IfElse(FreerunningCostWasPaid, [Exile([TheTopNumberCardsOfLibrary(ValueX)], [])], [Exile([TheTopNumberCardsOfLibrary(Integer(2))], [])]), CreatePlayerEffectUntil(You, [MayPlayExiledCards(TheCardsExiledThisWay)], UntilEndOfTurn)]))");
+    assert!(text.contains("JoinResults"), "{text}");
+    let text = ability_json("SpellActions(ActionList([ChooseAnAction([[DestroyEachPermanentNoRegen(IsColor(Green))], [DestroyEachPermanentNoRegen(IsColor(White))]]), LoseLifeForEach(Integer(2), NumPermanentsDestroyedThisWay(IsCardtype(Creature)))]))");
+    assert!(text.contains("JoinResults"), "{text}");
+}
+
+#[test]
+fn a_mana_rider_names_the_spell_it_paid_for() {
+    let text = ability_json("Activated(TapPermanent(ThisPermanent), ActionList([AddManaWithModifiers(ManaProduceR, TriggerSpentOnSpell(IsColor(Red), ActionList([CopySpellAndMayChooseNewTargets(Trigger_ThatSpell)])))]))");
+    assert!(text.contains("TriggerSpentOnSpell"), "{text}");
+    assert!(text.contains("EventSubject"), "{text}");
+}
+
+#[test]
+fn a_play_permission_keeps_its_terms() {
+    let text = ability_json("PlayerEffect(You, [MayCastASpellFromGraveyardOnceEachPlayersTurn(IsCardtype(Creature), You)])");
+    assert!(text.contains(r#""EachTurn":1"#), "{text}");
+    assert!(text.contains(r#""during":{"kind":"One""#), "{text}");
+    let text = ability_json("SpellActions(ActionList([Exile([TheTopCardOfLibrary], []), CreatePlayerEffectUntil(You, [MayPlayOneCardFromAmongExiled(TheCardsExiledThisWay)], UntilEndOfTurn)]))");
+    assert!(text.contains(r#""Total":1"#), "{text}");
+    assert!(text.contains(r#""from":"Exile""#), "{text}");
+    let text = ability_json("PlayerEffect(You, [MayCastSpellsFromGraveyardForAdditionalCostWithEffect(IsCardtype(Creature), You, Forage, [EntersWithACounter(FinalityCounter)])])");
+    assert!(text.contains(r#""Additional":{"kind":"Cost""#), "{text}");
+    assert!(text.contains("EntersWithACounter"), "{text}");
+}
+
+#[test]
+fn each_payer_is_offered_and_the_refusers_are_counted() {
+    let text = ability_json("SpellActions(ActionList([EachPlayerMustCost(Opponent, DiscardACard), DrawNumberCards(TheNumberOfPlayersThatDidntPayCost)]))");
+    assert!(text.contains("PayCost"), "{text}");
+    assert!(text.contains("Intersection"), "{text}");
+    assert!(text.contains("PlayerTook"), "{text}");
+}
+
+#[test]
+fn a_chosen_power_change_is_read_where_it_applies() {
+    let text = ability_json("Activated(PayMana([ManaCostGeneric(1)]), ActionList([ChoosePTMod([PTMod(+1, -1), PTMod(-1, +1)]), CreatePermanentLayerEffectUntil(ThisPermanent, [AdjustPT_TheChosenPTMod], UntilEndOfTurn)]))");
+    assert!(text.contains("ChoosePowerToughness"), "{text}");
+    assert!(text.contains("ChosenPowerToughness"), "{text}");
+}
+
+#[test]
+fn ordered_dice_keep_their_positions() {
+    let text = ability_json("SpellActions(ActionList([RollTwoD8AndChooseAnOrder, DrawNumberCards(TheFirstDiceResult), GainLife(TheSecondDiceResult)]))");
+    assert!(text.contains(r#""DieResultAt""#), "{text}");
+    assert!(text.contains(r#""index":1"#), "{text}");
 }
 
 #[test]

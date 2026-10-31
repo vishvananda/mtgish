@@ -170,28 +170,50 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
     crate::primitive_spec::lookup(name)?.yields.as_deref()
 }
 
+/// What a reviewed row says its body can name.
+pub fn row_bindings(name: &str) -> EventBindings {
+    let binds = crate::primitive_spec::lookup(name).map_or(&[][..], |r| &r.binds);
+    let has = |field: &str| binds.iter().any(|b| b == field);
+    EventBindings {
+        object: has("object"),
+        permanent: has("permanent"),
+        spell: has("spell"),
+        player: has("player"),
+        amount: has("amount"),
+        block_pair: has("block_pair"),
+        group: has("group"),
+        stack_object: has("stack_object"),
+        other: has("other"),
+        other_player: has("other_player"),
+        moved: has("moved"),
+        ..EventBindings::default()
+    }
+}
+
+/// `outer` with what a reviewed row adds for its own operands.
+pub fn with_row(outer: &EventBindings, name: &str) -> EventBindings {
+    let row = row_bindings(name);
+    EventBindings {
+        object: outer.object || row.object,
+        permanent: outer.permanent || row.permanent,
+        spell: outer.spell || row.spell,
+        player: outer.player || row.player,
+        amount: outer.amount || row.amount,
+        block_pair: outer.block_pair || row.block_pair,
+        group: outer.group || row.group,
+        stack_object: outer.stack_object || row.stack_object,
+        other: outer.other || row.other,
+        other_player: outer.other_player || row.other_player,
+        moved: outer.moved || row.moved,
+        ..*outer
+    }
+}
+
 pub fn event_bindings(event: &EventSpec) -> EventBindings {
     match event {
         EventSpec::SagaChapter(_) => EventBindings::default(),
         EventSpec::FirstEachTurn(event) => event_bindings(event),
-        EventSpec::Primitive { name, .. } => {
-            let binds = crate::primitive_spec::lookup(name).map_or(&[][..], |r| &r.binds);
-            let has = |field: &str| binds.iter().any(|b| b == field);
-            EventBindings {
-                object: has("object"),
-                permanent: has("permanent"),
-                spell: has("spell"),
-                player: has("player"),
-                amount: has("amount"),
-                block_pair: has("block_pair"),
-                group: has("group"),
-                stack_object: has("stack_object"),
-                other: has("other"),
-                other_player: has("other_player"),
-                moved: has("moved"),
-                ..EventBindings::default()
-            }
-        }
+        EventSpec::Primitive { name, .. } => row_bindings(name),
         EventSpec::Discard { grouping, kind, .. } => EventBindings {
             object: matches!(grouping, DiscardGrouping::Card),
             player: true,
@@ -297,7 +319,14 @@ impl Effects {
         for instruction in &program.instructions {
             match instruction {
                 Instruction::Effect { result, operation } => match operation {
-                    Operation::FlipCoin { .. } => {}
+                    Operation::FlipCoin { .. } | Operation::ChoosePowerToughness { .. } => {}
+                    Operation::JoinResults { results } => {
+                        let joined = results
+                            .iter()
+                            .filter_map(|r| self.objects.get(&r.0))
+                            .fold((false, false), |a, b| (a.0 | b.0, a.1 | b.1));
+                        self.objects.insert(result.0, joined);
+                    }
                     Operation::AddMana { .. } => self.mana = true,
                     Operation::Draw { .. } | Operation::Mill { .. } => self.library = true,
                     Operation::Move {
