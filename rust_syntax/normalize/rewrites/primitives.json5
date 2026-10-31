@@ -1271,7 +1271,7 @@
     {"source": "Action::DraftACardFromSpellBookNumberTimes", "text": "draft", "keeps": true},
     {"source": "Action::DigitallySearchLibrary", "text": "library"},
     {"source": "Action::CreatureMustAttackDuringControllersNextCombatPhase", "text": "phase"},
-    {"source": "Action::CreatePerpetualEachExiledCardEffect", "text": "perpetual"},
+    {"source": "Action::CreatePerpetualEachExiledCardEffect", "text": "perpetual", "keeps": true},
     {"source": "Action::CounterEachAbility", "text": "counter"},
     {"source": "Action::CopySpellOrAbilityAndMayChooseNewTargets", "text": "new", "keeps": true},
     {"source": "Action::ConjureDuplicateOfEachPermanentIntoHand", "text": "duplicate", "keeps": true},
@@ -1966,7 +1966,7 @@
     {"source": "Action::GoadCreatureUntil", "text": "goad", "keeps": true},
     {"source": "Action::GetOneTimeConditionalBoon", "text": "boon"},
     {"source": "Action::GainControlOfPlayerDuringTheirNextCombatStep", "text": "during"},
-    {"source": "Action::GainControlOfAPermanentControlledByEachPlayerUntil", "text": "gain"},
+    {"source": "Action::GainControlOfAPermanentControlledByEachPlayerUntil", "text": "gain", "yields": "effect"},
     {"source": "Action::ForEachValueInRangeConjureDuplicateOfARandomCardOfTypeOntoBattlefield", "text": "conjure"},
     {"source": "Action::ForEachPlayerSearchLibrary", "text": "search", "yields": "exiled"},
     {"source": "Action::ForEachPermanentConjureCardOntoBattlefield", "text": "conjure"},
@@ -2431,7 +2431,7 @@
     {"source": "Action::PutUptoNumberCardsFromHandAndOrGraveyardOnBattlefield", "text": "battlefield graveyard"},
     {"source": "Action::PutTopOfOtherLibraryInGraveyard", "text": "top library"},
     {"source": "Action::PutTheTopNumberCardsOfPlayersLibraryOntoBattlefieldAsFaceDownArtifactCreatures", "text": "down face"},
-    {"source": "Action::PutTheTopNumberCardsOfLibraryInHand", "text": "top library"},
+    {"source": "Action::PutTheTopNumberCardsOfLibraryInHand", "text": "top library", "keeps": true},
     {"source": "Action::PutGraveyardCardIntoHandOrOntoBattlefield", "text": "battlefield graveyard"},
     {"source": "Action::PutExiledPileIntoOwnersHand", "text": "pile into"},
     {"source": "Action::PutEachGraveyardCardOntoBattlefieldFaceDownAsAnArtifactCreature", "text": "down face"},
@@ -3071,6 +3071,13 @@
     {"source": "Player::DealsDamage_ThatPlayer", "text": "that"},
     {"source": "Permanent::ThePermanentThatCreatedThisEmblem", "text": "exiled"},
     {"source": "GameNumber::TheTotalManaValueOfThePermanentsThisSpellTargets", "text": "mana"},
-    {"source": "GameNumber::Trigger_NumberOfPlayersBeingAttacked", "text": "attack|attacked"}
+    {"source": "GameNumber::Trigger_NumberOfPlayersBeingAttacked", "text": "attack|attacked"},
+    {"source": "GameNumber::AmountOfGenericManaInSpellsManaCost", "text": "generic"},
+    {"source": "Cards::NumCreatureTypesIs", "text": "creature"},
+    {"source": "Action::SacrificedPermanentDealsDistributedDamage", "text": "damage"},
+    {"source": "GameNumber::PowerOfTheSacrificedCreature", "text": "power"},
+    {"source": "Condition::ANumberOfSourcesDealtDamageThisTurn", "text": "damage"},
+    {"source": "GameNumber::AManaValueOfAnExiledCard", "text": "mana"},
+    {"source": "CardsInExile::WasExiledWithPermanentsDelveAbility", "text": "delve"}
   ]
 }

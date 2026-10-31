@@ -246,6 +246,20 @@ impl Context {
                     instructions.push(choice);
                     continue;
                 }
+                S::ChooseAFoundCardAtRandom => {
+                    let choice = self.effect(Operation::ChooseObjects {
+                        constraints: vec![SelectionConstraint::AtRandom],
+                        player: player.clone(),
+                        objects: found.clone(),
+                        count: Count::AsManyAsCan(Expr::Constant(1)),
+                    });
+                    let Instruction::Effect { result: chosen, .. } = &choice else {
+                        unreachable!()
+                    };
+                    picked = Some(chosen.clone());
+                    instructions.push(choice);
+                    continue;
+                }
                 S::PutChosenFoundCardsIntoGraveyard
                 | S::PutChosenFoundCardIntoHand
                 | S::PutChosenFoundCardsIntoHand => {

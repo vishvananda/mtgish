@@ -1201,7 +1201,16 @@ impl Context {
             self.future_turn(event)
                 .or_else(|error| match self.future_event(event) {
                     Ok(event) => Ok((event, DelayedStart::Immediately, None)),
-                    Err(_) => Err(error),
+                    Err(_) => self
+                        .primitive("FutureTrigger", event)
+                        .map(|(name, operands)| {
+                            (
+                                EventSpec::Primitive { name, operands },
+                                DelayedStart::Immediately,
+                                None,
+                            )
+                        })
+                        .ok_or(error),
                 })?;
         let mut child = self.clone();
         // Deferred work has its own search episode and result scope.
@@ -5194,6 +5203,25 @@ impl Context {
     }
 
     fn actions(&mut self, value: &source::Actions) -> Result<Program> {
+        // "Different target" is one word per slot, so 601.2c alone does not keep them apart.
+        if let source::Actions::Targeted_DifferentTargets(targets, body) = value {
+            let first = self.targets.len();
+            let program =
+                self.actions(&source::Actions::Targeted(targets.clone(), body.clone()))?;
+            let slots: Vec<Slot> = self.targets[first..]
+                .iter()
+                .map(|t| t.slot.clone())
+                .collect();
+            for (later, target) in self.targets[first..].iter_mut().enumerate() {
+                target.constraints.extend(
+                    slots[..later]
+                        .iter()
+                        .cloned()
+                        .map(SelectionConstraint::DifferentFromTarget),
+                );
+            }
+            return Ok(program);
+        }
         if let Some(recipe) =
             self.prepared_program(crate::pipeline::programs::ProgramRef::Actions(value))
         {

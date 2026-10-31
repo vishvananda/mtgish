@@ -1823,3 +1823,26 @@ fn spell_exceptions_read_the_spell_they_except() {
     );
     assert!(stitcher.contains("Not(SameObject(Primitive"), "{stitcher}");
 }
+
+#[test]
+fn different_targets_and_future_rows_lower_with_their_scope() {
+    let evil = lowered(
+        "SpellActions(Targeted_DifferentTargets([UptoOneTargetPlayer(Opponent), UptoOneTargetPlayer(Opponent)], ActionList([PlayerAction(Ref_TargetPlayer1, DrawACard)])))",
+    );
+    assert!(evil.contains("DifferentFromTarget"), "{evil}");
+    let ambush = lowered(
+        "SpellActions(Targeted([TargetPermanent(AnyPermanent), TargetPermanent(AnyPermanent)], ActionList([CreateFutureTrigger(WhenPermanentWinsAFightAgainstPermanent(Ref_TargetPermanent1, Ref_TargetPermanent2), ActionList([DrawACard]))])))",
+    );
+    assert!(
+        ambush.contains("WhenPermanentWinsAFightAgainstPermanent"),
+        "{ambush}"
+    );
+}
+
+#[test]
+fn a_random_found_card_is_a_random_selection() {
+    let clans = lowered(
+        "SpellActions(ActionList([SearchLibrary([FindNumberGroupCards(Integer(3), IsCardtype(Creature), DifferentNames), RevealFoundCards, ChooseAFoundCardAtRandom, PutChosenFoundCardIntoHand, Shuffle])]))",
+    );
+    assert!(clans.contains("constraints: [AtRandom]"), "{clans}");
+}

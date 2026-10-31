@@ -152,7 +152,18 @@ impl Context {
         Some(match ty {
             "Permanent" => Operand::Object(self.object(&decode(value).ok()?).ok()?),
             "Permanents" => Operand::Objects(self.objects(&decode(value).ok()?).ok()?),
-            "CardsInExile" => Operand::Objects(self.exile_cards(&decode(value).ok()?).ok()?),
+            "CardsInExile" => {
+                let cards = decode(value).ok()?;
+                Operand::Objects(match self.exile_cards(&cards) {
+                    Ok(cards) => cards,
+                    // A compound description of exiled cards, as "exiled this way that ...".
+                    Err(_) => ObjectSet::Zone {
+                        scope: ZoneScope::Shared(EventZone::Exile),
+                        kind: ObjectKind::Card,
+                        filter: self.exile_filter(&cards).ok()?,
+                    },
+                })
+            }
             "DamageRecipient" => Operand::Recipients(self.recipients(&decode(value).ok()?).ok()?),
             "DamageRecipientsList" => {
                 use source::DamageRecipientsList as List;
