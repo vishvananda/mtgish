@@ -68,13 +68,9 @@ fn effect(operation: Operation) -> Instruction {
 #[test]
 fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
     let incomplete = [
-        "Aegar, the Freezing Flame",
         "Curious Obsession",
-        "Fall of Cair Andros",
-        "Maarika, Brutal Gladiator",
         "Neheb, Dreadhorde Champion",
         "Norn's Decree",
-        "Screaming Nemesis",
         "The Gitrog, Ravenous Ride",
         "Lost Vale",
         "Vault of Catlacan",
@@ -102,7 +98,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 75);
+    assert_eq!(complete, 79);
 }
 
 #[test]
@@ -383,10 +379,11 @@ fn ambiguous_legacy_roles_and_first_occurrence_history_remain_explicit_gaps() {
     assert!(serde_json::to_string(&first)
         .unwrap()
         .contains("FirstEachTurn"));
-    assert!(custom(
-        "TriggerA(WhenAPermanentIsDealtExcessDamage(AnyPermanent), ActionList([DrawACard]))"
+    let excess = custom(
+        "TriggerA(WhenAPermanentIsDealtExcessDamage(AnyPermanent), ActionList([DrawACard]))",
     )
-    .is_err());
+    .unwrap();
+    assert!(serde_json::to_string(&excess).unwrap().contains("Excess"));
 }
 
 #[test]

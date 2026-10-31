@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 58;
+pub const SCHEMA_VERSION: u32 = 59;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -907,6 +907,13 @@ pub enum Operation {
         chooser: PlayerRef,
         objects: ObjectSet,
     },
+    /// Damage that reaches its recipients the way the rider says.
+    DealDamageWith {
+        source: ObjectRef,
+        recipients: Recipients,
+        amount: Expr,
+        rider: DamageRider,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct SearchChoice {
@@ -1584,6 +1591,11 @@ pub enum Expr {
     },
     /// What an odd-or-even choice named: 0 for even, 1 for odd.
     ChosenParity,
+    /// Damage past lethal dealt by this earlier instruction to these objects.
+    ExcessDamage {
+        result: ResultId,
+        to: Box<ObjectFilter>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1597,11 +1609,15 @@ pub struct SpentManaFilter {
 pub enum HistoryWindow {
     ThisTurn,
     LastTurn,
+    ThisCombat,
+    ThisGame,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum HistoryMeasure {
     Occurrences,
     TotalAmount,
+    /// How many different sources did it.
+    DistinctSources,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum SpentManaAggregation {
@@ -1660,6 +1676,17 @@ pub enum BlockRole {
     /// Whichever of the two is not the object the event was asked about.
     Other,
 }
+/// How one damage effect differs from dealing `amount` to each recipient.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DamageRider {
+    /// `amount` is a total shared evenly among the recipients.
+    DividedEvenly(Rounding),
+    /// Damage beyond what is lethal goes to this player instead.
+    ExcessTo(PlayerRef),
+    /// This much of the damage is prevented.
+    Prevented(Expr),
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum Rounding {
     Down,
@@ -1918,6 +1945,8 @@ pub enum PlayerSet {
     OpponentsOf(PlayerRef),
     OthersThan(PlayerRef),
     Targets(Slot),
+    /// Dealt damage by this earlier instruction of the same resolution.
+    DamagedBy(ResultId),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2008,6 +2037,8 @@ pub enum ObjectFilter {
     },
     /// Has the same name as any of these objects.
     SharesNameWithAny(Box<ObjectSet>),
+    /// Dealt more than lethal damage by this earlier instruction.
+    DealtExcessBy(ResultId),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2389,6 +2420,9 @@ pub enum DamageKind {
     Any,
     Combat,
     Noncombat,
+    /// Only what went past lethal counts, and an amount reads that excess.
+    Excess,
+    ExcessNoncombat,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DamageGrouping {

@@ -9,6 +9,22 @@ impl Context {
         }
     }
 
+    fn damage_query(
+        (source_kind, sources): (ObjectKind, ObjectFilter),
+        recipients: DamageRecipients,
+        kind: DamageKind,
+        subject: DamageSubject,
+    ) -> EventSpec {
+        EventSpec::Damage(DamageEvent {
+            source_kind,
+            sources,
+            recipients,
+            kind,
+            grouping: DamageGrouping::SourceRecipient,
+            subject,
+        })
+    }
+
     fn happened(event: EventSpec, window: HistoryWindow) -> Condition {
         Condition::Compare {
             left: Self::history(event, window, HistoryMeasure::Occurrences),
@@ -156,6 +172,23 @@ impl Context {
         use HistoryMeasure as M;
         use HistoryWindow as W;
         let one = || PlayerSet::One(player.clone());
+        let anything = || (ObjectKind::Any, ObjectFilter::Any);
+        let any_of = |p: &source::Permanents| {
+            self.filter(p).map(|sources| (ObjectKind::Permanent, sources))
+        };
+        let this_one = |p: &source::Permanent| {
+            self.object(p)
+                .map(|source| (ObjectKind::Permanent, ObjectFilter::SameObject(source)))
+        };
+        let to_them = |sources, kind| {
+            Self::damage_query(
+                sources,
+                DamageRecipients::Players(one()),
+                kind,
+                DamageSubject::Recipient,
+            )
+        };
+        let dealt = |sources, kind, window| Self::happened(to_them(sources, kind), window);
         (|| -> Result<Condition> {
             Ok(match value {
                 S::CastASpellThisTurn(spells) => Self::happened(
@@ -205,6 +238,73 @@ impl Context {
                 S::DiscardedACardThisTurn => {
                     Self::happened(Self::discard_event(one()), W::ThisTurn)
                 }
+                S::WasDealtDamageThisTurn => dealt(anything(), DamageKind::Any, W::ThisTurn),
+                S::WasDealtCombatDamageThisTurn => {
+                    dealt(anything(), DamageKind::Combat, W::ThisTurn)
+                }
+                S::WasDealtNoncombatDamageThisTurn => {
+                    dealt(anything(), DamageKind::Noncombat, W::ThisTurn)
+                }
+                S::WasDealtNoncombatDamageLastTurn => {
+                    dealt(anything(), DamageKind::Noncombat, W::LastTurn)
+                }
+                S::WasDealtAnAmountOfDamageThisTurn(comparison) => self.history_compare(
+                    Self::history(
+                        to_them(anything(), DamageKind::Any),
+                        W::ThisTurn,
+                        M::TotalAmount,
+                    ),
+                    comparison,
+                )?,
+                S::WasDealtAnAmountOfCombatDamageThisTurn(comparison) => self.history_compare(
+                    Self::history(
+                        to_them(anything(), DamageKind::Combat),
+                        W::ThisTurn,
+                        M::TotalAmount,
+                    ),
+                    comparison,
+                )?,
+                S::WasDealtCombatDamageByAPermanentThisTurn(sources) => {
+                    dealt(any_of(sources)?, DamageKind::Combat, W::ThisTurn)
+                }
+                S::WasDealtCombatDamageByAPermanentThisGame(sources) => {
+                    dealt(any_of(sources)?, DamageKind::Combat, W::ThisGame)
+                }
+                S::WasDealtCombatDamageByPermanentThisTurn(source) => {
+                    dealt(this_one(source)?, DamageKind::Combat, W::ThisTurn)
+                }
+                S::WasDealtDamageByPermanentThisTurn(source) => {
+                    dealt(this_one(source)?, DamageKind::Any, W::ThisTurn)
+                }
+                S::WasDealtDamageByPermanentThisCombat(source) => {
+                    dealt(this_one(source)?, DamageKind::Any, W::ThisCombat)
+                }
+                S::WasDealtDamageByPermanentThisGame(source) => {
+                    dealt(this_one(source)?, DamageKind::Any, W::ThisGame)
+                }
+                S::WasDealtDamageBySpellThisTurn(sources) => dealt(
+                    (ObjectKind::Spell, self.spell_filter(sources)?),
+                    DamageKind::Any,
+                    W::ThisTurn,
+                ),
+                S::WasDealtCombatDamageByNumPermanentsThisTurn(comparison, sources) => self
+                    .history_compare(
+                        Self::history(
+                            to_them(any_of(sources)?, DamageKind::Combat),
+                            W::ThisTurn,
+                            M::DistinctSources,
+                        ),
+                        comparison,
+                    )?,
+                S::WasDealtDamageByNumPermantsThisTurn(comparison, sources) => self
+                    .history_compare(
+                        Self::history(
+                            to_them(any_of(sources)?, DamageKind::Any),
+                            W::ThisTurn,
+                            M::DistinctSources,
+                        ),
+                        comparison,
+                    )?,
                 S::HadAPermanentEnterTheBattlefieldUnderTheirControlThisTurn(objects) => {
                     Self::happened(
                         Self::entered_event(ObjectFilter::All(vec![
@@ -233,17 +333,38 @@ impl Context {
                 W::ThisTurn,
             )
         };
-        let damage = |recipients, sources, subject, source_kind| {
-            Self::happened(
-                EventSpec::Damage(DamageEvent {
-                    source_kind,
-                    sources,
-                    recipients,
-                    kind: DamageKind::Any,
-                    grouping: DamageGrouping::SourceRecipient,
-                    subject,
-                }),
-                W::ThisTurn,
+        let anything = || (ObjectKind::Any, ObjectFilter::Any);
+        let permanent = |p: &source::Permanent| {
+            let source = self.object(p)?;
+            Ok::<_, Diagnostic>((ObjectKind::Permanent, ObjectFilter::SameObject(source)))
+        };
+        let to_it = |sources, kind| {
+            Self::damage_query(
+                sources,
+                DamageRecipients::Objects(this()),
+                kind,
+                DamageSubject::Recipient,
+            )
+        };
+        let by_it = |recipients, kind| {
+            Self::damage_query(
+                (ObjectKind::Permanent, this()),
+                recipients,
+                kind,
+                DamageSubject::Source,
+            )
+        };
+        let to_player = |p: &source::Player| {
+            self.player(p)
+                .map(|p| DamageRecipients::Players(PlayerSet::One(p)))
+        };
+        let any_player = |p: &source::Players| self.players(p).map(DamageRecipients::Players);
+        let any_of = |p: &source::Permanents| self.filter(p).map(DamageRecipients::Objects);
+        let happened = Self::happened;
+        let total = |event, comparison| {
+            self.history_compare(
+                Self::history(event, W::ThisTurn, HistoryMeasure::TotalAmount),
+                comparison,
             )
         };
         let condition = (|| -> Result<Condition> {
@@ -253,30 +374,91 @@ impl Context {
                 }
                 S::AttackedThisTurn => attacked(),
                 S::DidntAttackThisTurn => Condition::Not(Box::new(attacked())),
-                S::WasDealtDamageThisTurn => damage(
-                    DamageRecipients::Objects(this()),
-                    ObjectFilter::Any,
-                    DamageSubject::Recipient,
-                    ObjectKind::Any,
+                S::WasDealtDamageThisTurn => {
+                    happened(to_it(anything(), DamageKind::Any), W::ThisTurn)
+                }
+                S::WasntDealtDamageThisTurn => Condition::Not(Box::new(happened(
+                    to_it(anything(), DamageKind::Any),
+                    W::ThisTurn,
+                ))),
+                S::WasDealtNoncombatDamageThisTurn => {
+                    happened(to_it(anything(), DamageKind::Noncombat), W::ThisTurn)
+                }
+                S::WasDealtExcessDamageThisTurn => {
+                    happened(to_it(anything(), DamageKind::Excess), W::ThisTurn)
+                }
+                S::WasDealtAnAmountOfDamageThisTurn(comparison) => {
+                    total(to_it(anything(), DamageKind::Any), comparison)?
+                }
+                S::WasDealtDamageByPermanentThisTurn(source) => {
+                    happened(to_it(permanent(source)?, DamageKind::Any), W::ThisTurn)
+                }
+                S::WasDealtDamageByPermanentThisGame(source) => {
+                    happened(to_it(permanent(source)?, DamageKind::Any), W::ThisGame)
+                }
+                S::WasDealtDamageByAnyPermanentThisTurn(sources) => happened(
+                    to_it(
+                        (ObjectKind::Permanent, self.filter(sources)?),
+                        DamageKind::Any,
+                    ),
+                    W::ThisTurn,
                 ),
-                S::WasDealtDamageByPermanentThisTurn(source) => damage(
-                    DamageRecipients::Objects(this()),
-                    ObjectFilter::SameObject(self.object(source)?),
-                    DamageSubject::Recipient,
-                    ObjectKind::Permanent,
+                S::WasDealtDamageByASourceThisTurn(sources) => happened(
+                    to_it(
+                        (ObjectKind::Any, self.damage_sources(sources)?),
+                        DamageKind::Any,
+                    ),
+                    W::ThisTurn,
                 ),
-                S::DealtDamageThisTurn => damage(
-                    DamageRecipients::Any,
-                    this(),
-                    DamageSubject::Source,
-                    ObjectKind::Permanent,
+                S::WasDealtDamageBySpellThisTurn(sources) => happened(
+                    to_it(
+                        (ObjectKind::Spell, self.spell_filter(sources)?),
+                        DamageKind::Any,
+                    ),
+                    W::ThisTurn,
                 ),
-                S::DealtDamageToPlayerThisTurn(player) => damage(
-                    DamageRecipients::Players(PlayerSet::One(self.player(player)?)),
-                    this(),
-                    DamageSubject::Source,
-                    ObjectKind::Permanent,
+                S::DealtDamageThisTurn => {
+                    happened(by_it(DamageRecipients::Any, DamageKind::Any), W::ThisTurn)
+                }
+                S::HasDealtDamageThisGame => {
+                    happened(by_it(DamageRecipients::Any, DamageKind::Any), W::ThisGame)
+                }
+                S::HasntDealtDamageThisGame => Condition::Not(Box::new(happened(
+                    by_it(DamageRecipients::Any, DamageKind::Any),
+                    W::ThisGame,
+                ))),
+                S::DealtDamageAmountThisTurn(comparison) => {
+                    total(by_it(DamageRecipients::Any, DamageKind::Any), comparison)?
+                }
+                S::DealtDamageAmountToPlayerThisTurn(comparison, player) => {
+                    total(by_it(to_player(player)?, DamageKind::Any), comparison)?
+                }
+                S::DealtDamageToPlayerThisTurn(player) => {
+                    happened(by_it(to_player(player)?, DamageKind::Any), W::ThisTurn)
+                }
+                S::DealtDamageToAnyPlayerThisTurn(players) => {
+                    happened(by_it(any_player(players)?, DamageKind::Any), W::ThisTurn)
+                }
+                S::DealtCombatDamageToAPlayerThisTurn(players) => {
+                    happened(by_it(any_player(players)?, DamageKind::Combat), W::ThisTurn)
+                }
+                S::DealtCombatDamageToAPlayerThisCombat(players) => happened(
+                    by_it(any_player(players)?, DamageKind::Combat),
+                    W::ThisCombat,
                 ),
+                S::DealtDamageToPermanentThisTurn(object) => happened(
+                    by_it(
+                        DamageRecipients::Objects(ObjectFilter::SameObject(self.object(object)?)),
+                        DamageKind::Any,
+                    ),
+                    W::ThisTurn,
+                ),
+                S::DealtDamageToAPermanentThisTurn(objects) => {
+                    happened(by_it(any_of(objects)?, DamageKind::Any), W::ThisTurn)
+                }
+                S::DealtCombatDamageToCreatureThisTurn(objects) => {
+                    happened(by_it(any_of(objects)?, DamageKind::Combat), W::ThisTurn)
+                }
                 _ => return Err(unsupported(value)),
             })
         })()
@@ -289,6 +471,22 @@ impl Context {
         use HistoryMeasure as M;
         use HistoryWindow as W;
         let one = |p: &source::Player| self.player(p).ok().map(PlayerSet::One);
+        let same = |object: &source::Permanent| {
+            let object = self.object(object).ok()?;
+            Some(DamageRecipients::Objects(ObjectFilter::SameObject(object)))
+        };
+        let total_to = |recipients, kind| {
+            Self::history(
+                Self::damage_query(
+                    (ObjectKind::Any, ObjectFilter::Any),
+                    recipients,
+                    kind,
+                    DamageSubject::Recipient,
+                ),
+                W::ThisTurn,
+                M::TotalAmount,
+            )
+        };
         Some(match value {
             S::NumCreaturesOrPlaneswalkersThatDiedThisTurn(objects) => Self::history(
                 Self::died_event(self.filter(objects).ok()?),
@@ -318,6 +516,45 @@ impl Context {
                 Self::history(Self::discard_event(one(p)?), W::ThisTurn, M::Occurrences)
             }
             S::NumPlayers(players) => Expr::CountPlayers(self.players(players).ok()?),
+            S::DamageDealtToPlayerThisTurn(p) => {
+                total_to(DamageRecipients::Players(one(p)?), DamageKind::Any)
+            }
+            S::DamageDealtToAnyPlayerThisTurn(players) => total_to(
+                DamageRecipients::Players(self.players(players).ok()?),
+                DamageKind::Any,
+            ),
+            S::TotalNoncombatDamageDealtToPlayersThisTurn(players) => total_to(
+                DamageRecipients::Players(self.players(players).ok()?),
+                DamageKind::Noncombat,
+            ),
+            S::DamageDealtToPlayerThisTurnByPermanents(p, sources) => Self::history(
+                Self::damage_query(
+                    (ObjectKind::Permanent, self.filter(sources).ok()?),
+                    DamageRecipients::Players(one(p)?),
+                    DamageKind::Any,
+                    DamageSubject::Recipient,
+                ),
+                W::ThisTurn,
+                M::TotalAmount,
+            ),
+            S::TheAmountOfDamageDealtToPermanentThisTurn(object) => {
+                total_to(same(object)?, DamageKind::Any)
+            }
+            S::AmountOfExcessDamageDealtToPermanentThisTurn(object) => {
+                total_to(same(object)?, DamageKind::Excess)
+            }
+            S::TheAmountOfDamageDealtToPermanentThisTurnBySources(object, sources) => {
+                Self::history(
+                    Self::damage_query(
+                        (ObjectKind::Any, self.damage_sources(sources).ok()?),
+                        same(object)?,
+                        DamageKind::Any,
+                        DamageSubject::Recipient,
+                    ),
+                    W::ThisTurn,
+                    M::TotalAmount,
+                )
+            }
             _ => return None,
         })
     }

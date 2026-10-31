@@ -426,6 +426,22 @@ fn a_delayed_body_reads_the_creators_scope_not_the_future_events() {
 }
 
 #[test]
+fn only_an_object_has_lethal_damage_to_exceed() {
+    let c = spell(Program {
+        instructions: vec![Instruction::Effect {
+            result: ResultId(0),
+            operation: Operation::DealDamageWith {
+                source: ObjectRef::Source,
+                recipients: Recipients::Players(PlayerSet::All),
+                amount: Expr::Constant(1),
+                rider: DamageRider::ExcessTo(PlayerRef::AbilityController),
+            },
+        }],
+    });
+    assert!(validate::card(&c).unwrap_err().contains("lethal"));
+}
+
+#[test]
 fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
     let incomplete = [
         "Alchemist's Gambit",
@@ -438,7 +454,6 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         "Fortune, Loyal Steed",
         "Gaze of the Gorgon",
         "Pygmy Hippo",
-        "Vivien's Stampede",
     ];
     let mut complete = 0;
     for s in sources() {
@@ -463,5 +478,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 42);
+    assert_eq!(complete, 43);
 }

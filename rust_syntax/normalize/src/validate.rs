@@ -491,6 +491,8 @@ impl<'a> Scope<'a> {
             PlayerSet::One(p) | PlayerSet::OpponentsOf(p) | PlayerSet::OthersThan(p) => {
                 self.player(p)
             }
+            PlayerSet::DamagedBy(result) if self.results.contains_key(&result.0) => Ok(()),
+            PlayerSet::DamagedBy(result) => Err(format!("result {} is unavailable", result.0)),
             PlayerSet::Targets(slot) => self.target(slot, None, TargetKind::Player),
             PlayerSet::All => Ok(()),
         }
@@ -669,6 +671,10 @@ impl<'a> Scope<'a> {
                 Some(target) if target.distribute.is_some() => Ok(()),
                 _ => Err(format!("target slot {} announces no distribution", slot.0)),
             },
+            Expr::ExcessDamage { result, to } if self.results.contains_key(&result.0) => {
+                self.filter(to)
+            }
+            Expr::ExcessDamage { result, .. } => Err(format!("result {} is unavailable", result.0)),
             Expr::Performed(result) if self.results.contains_key(&result.0) => Ok(()),
             Expr::Performed(result) => Err(format!("result {} is unavailable", result.0)),
             Expr::PaidCountersRemoved { payment, component } => {
@@ -757,6 +763,10 @@ impl<'a> Scope<'a> {
     fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
             ObjectFilter::ExiledWith(object) => self.object(object),
+            ObjectFilter::DealtExcessBy(result) if self.results.contains_key(&result.0) => Ok(()),
+            ObjectFilter::DealtExcessBy(result) => {
+                Err(format!("result {} is unavailable", result.0))
+            }
             ObjectFilter::DamagedBy(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectFilter::DamagedBy(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectFilter::Primitive { name, operands } => self.primitive(name, operands),
@@ -1790,6 +1800,24 @@ impl<'a> Scope<'a> {
                 self.object(source)?;
                 self.recipients(recipients)?;
                 self.expr(amount)
+            }
+            Operation::DealDamageWith {
+                source,
+                recipients,
+                amount,
+                rider,
+            } => {
+                self.object(source)?;
+                self.recipients(recipients)?;
+                self.expr(amount)?;
+                match rider {
+                    DamageRider::DividedEvenly(_) => Ok(()),
+                    DamageRider::ExcessTo(_) if matches!(recipients, Recipients::Players(_)) => {
+                        Err("a player has no lethal damage to exceed".into())
+                    }
+                    DamageRider::ExcessTo(player) => self.player(player),
+                    DamageRider::Prevented(prevented) => self.expr(prevented),
+                }
             }
             Operation::DealDamageParts { source, parts, .. } => {
                 self.object(source)?;

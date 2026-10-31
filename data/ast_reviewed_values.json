@@ -10,5 +10,6 @@
   "TheChosenGraveyardCard": "Lowers to the selection result.",
   "TheChosenGraveyardCards": "Lowers to the selection result.",
   "TheChosenPermanents": "Lowers to the selection result.",
+  "ThisPlane": "Lowers to the ability source.",
   "XCantBeZero": "Lowers to a casting requirement that X is greater than zero."
 }

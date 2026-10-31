@@ -44,6 +44,29 @@ impl Context {
         })
     }
 
+    fn excess_dealt(&self, to: ObjectFilter) -> Result<Expr> {
+        Ok(Expr::ExcessDamage {
+            result: self.done(Done::Damage)?,
+            to: Box::new(to),
+        })
+    }
+
+    fn damaged_this_way(&self, filter: ObjectFilter) -> Result<Expr> {
+        Ok(Expr::CountObjects(Box::new(ObjectSet::Battlefield(
+            ObjectFilter::All(vec![
+                ObjectFilter::DamagedBy(self.done(Done::Damage)?),
+                filter,
+            ]),
+        ))))
+    }
+
+    fn players_damaged_this_way(&self, players: PlayerSet) -> Result<Expr> {
+        Ok(Expr::CountPlayers(PlayerSet::Intersection(vec![
+            PlayerSet::DamagedBy(self.done(Done::Damage)?),
+            players,
+        ])))
+    }
+
     /// `None` for forms this table does not read.
     fn this_way_number(&self, value: &source::GameNumber) -> Option<Result<Expr>> {
         use ObjectPhase::{After, Before};
@@ -51,6 +74,10 @@ impl Context {
         let cards = |c: &source::Cards| self.card_filter(c).map(Some);
         let permanents = |p: &source::Permanents| self.filter(p).map(Some);
         Some((|| match value {
+            S::AmountOfExcessDamageDealtThisWay => self.excess_dealt(ObjectFilter::Any),
+            S::AmountOfExcessDamageDealtToPermanentsThisWay(p) => {
+                self.excess_dealt(self.filter(p)?)
+            }
             S::NumCardsShuffledIntoLibraryThisWay | S::NumCardsPutIntoLibraryThisWay => {
                 self.this_way_count(Done::Library, Before, None)
             }
@@ -140,6 +167,21 @@ impl Context {
         let cards = |c: &source::Cards| self.card_filter(c).map(Some);
         let permanents = |p: &source::Permanents| self.filter(p).map(Some);
         Some((|| match value {
+            S::ExcessDamageWasDealtThisWay => any(self.excess_dealt(ObjectFilter::Any)),
+            S::ExcessDamageWasDealtToAPermanentThisWay(p) => any(self.excess_dealt(self.filter(p)?)),
+            S::AnAmountOfExcessDamageWasDealtThisWay(comparison) => {
+                measured(self.excess_dealt(ObjectFilter::Any), comparison)
+            }
+            S::ACreatureOrPlaneswalkerWasDealtDamageThisWay(p)
+            | S::PermanentDealtDamageToACreatureOrPlaneswalkerThisWay(_, p) => {
+                any(self.damaged_this_way(self.filter(p)?))
+            }
+            S::APlayerWasDealtDamageThisWay(players) => {
+                any(self.players_damaged_this_way(self.players(players)?))
+            }
+            S::PermanentDealtDamageToPlayerThisWay(_, player) => {
+                any(self.players_damaged_this_way(PlayerSet::One(self.player(player)?)))
+            }
             S::ACardWasPutIntoHandThisWay(c) | S::TheCardReturnedToHandThisWayPassesFilter(c) => {
                 any(self.this_way_count(Done::Returned, After, cards(c)?))
             }

@@ -145,7 +145,8 @@ impl Done {
         Some(match operation {
             Operation::DealDamage { .. }
             | Operation::DealDamageParts { .. }
-            | Operation::DealDamageFromEach { .. } => Self::Damage,
+            | Operation::DealDamageFromEach { .. }
+            | Operation::DealDamageWith { .. } => Self::Damage,
             Operation::Destroy { .. } => Self::Destroyed,
             Operation::Draw { .. } => Self::Drew,
             Operation::PutCounters { .. } => Self::Counters,
@@ -620,6 +621,9 @@ impl Context {
     fn players(&self, value: &source::Players) -> Result<PlayerSet> {
         use source::Players as S;
         Ok(match value {
+            S::WasDealtDamageThisWay | S::PlayerDealtDamageThisWay => {
+                PlayerSet::DamagedBy(self.done(Done::Damage)?)
+            }
             S::Trigger_ThosePlayers if self.event.damage_players => PlayerSet::DamageRecipients,
             S::Or(values) => PlayerSet::Union(
                 values
@@ -834,6 +838,9 @@ impl Context {
         if matches!(value, source::Permanents::WasDealtDamageThisWay) {
             return Ok(ObjectFilter::DamagedBy(self.done(Done::Damage)?));
         }
+        if matches!(value, source::Permanents::WasDealtExcessDamageThisWay) {
+            return Ok(ObjectFilter::DealtExcessBy(self.done(Done::Damage)?));
+        }
         if matches!(
             value,
             source::Permanents::Ref_TargetPermanents
@@ -986,6 +993,7 @@ impl Context {
                 .unwrap_or(Expr::AnnouncedX),
             S::Trigger_ThatMuch
             | S::Trigger_AmountOfDamageDealt
+            | S::Trigger_AmountOfExcessDamage
             | S::Trigger_AmountOfLifeGained
             | S::Trigger_AmountOfLifeLost
             | S::WouldDealDamage_ThatMuchDamage
@@ -1724,7 +1732,10 @@ impl Context {
 
     fn action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
         let before = self.clone();
-        let reduced = match self.dead_action(value, actor) {
+        let reduced = match self
+            .dead_action(value, actor)
+            .or_else(|| self.damage_action(value))
+        {
             Some(result) => result,
             None => self.reduced_action(value, actor),
         };
@@ -3665,7 +3676,14 @@ impl Context {
 
     fn cost_as_action(&self, value: &source::Cost) -> Result<Cost> {
         // Some actions name the zone themselves, where the cost types the operand by it.
-        let action: source::Action = as_family(value, "Action")
+        let dealt = match value {
+            source::Cost::HaveSpellDealDamage(spell, amount, recipient) => Some(
+                source::Action::SpellDealsDamage(spell.clone(), amount.clone(), recipient.clone()),
+            ),
+            _ => None,
+        };
+        let action: source::Action = dealt
+            .or_else(|| as_family(value, "Action"))
             .or_else(|| {
                 cast(
                     value,

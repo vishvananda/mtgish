@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 58);
+    assert_eq!(card.schema_version, 59);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2721,4 +2721,35 @@ fn an_opponents_choice_among_revealed_cards_leaves_the_rest() {
     let text = ability_json("SpellActions(ActionList([RevealTheTopNumberCardsOfLibrary(Integer(3),[APlayerChoosesAGenericCard(Opponent),PutTheChosenCardIntoGraveyard,PutTheRemainingCardsIntoHand])]))");
     assert!(text.contains("OneOf"), "{text}");
     assert!(text.contains("Difference"), "{text}");
+}
+
+#[test]
+fn a_damage_rider_is_data_on_one_operation() {
+    let target = "Targeted([TargetPermanent(IsCardtype(Creature))],ActionList([";
+    let excess = ability_json(&format!("SpellActions({target}SpellDealsDamageExcessReplacable(ThisSpell,Integer(4),Permanent(Ref_TargetPermanent),[WouldDealExcessDamage_DealExcessToPlayerInstead(ControllerOfPermanent(Ref_TargetPermanent))])])))"));
+    assert!(excess.contains("ExcessTo"), "{excess}");
+    let even = ability_json("SpellActions(Targeted([AnyNumberOfAnyTargets],ActionList([SpellDealsDamageDividedAmongRecipientsRoundedDown(ThisSpell,ValueX,Ref_AnyTargets)])))");
+    assert!(even.contains("DividedEvenly"), "{even}");
+    let scaled = ability_json("SpellActions(ActionList([SpellDealsDamageForEach(ThisSpell,Integer(2),EachPlayer(Opponent),TheNumberOfPermanentsOnTheBattlefield(IsCardtype(Creature)))]))");
+    assert!(scaled.contains("Multiply"), "{scaled}");
+}
+
+#[test]
+fn damage_history_is_one_query_over_windows_and_kinds() {
+    let distinct = ability_json("SpellActions(ActionList([If(PlayerPassesFilter(You,WasDealtCombatDamageByNumPermanentsThisTurn(GreaterThanOrEqualTo(Integer(3)),IsCardtype(Creature))),[DrawACard])]))");
+    assert!(distinct.contains("DistinctSources"), "{distinct}");
+    let game = ability_json("SpellActions(ActionList([If(PlayerPassesFilter(You,WasDealtDamageByPermanentThisGame(ThisPermanent)),[DrawACard])]))");
+    assert!(game.contains("ThisGame"), "{game}");
+    let combat = ability_json("SpellActions(ActionList([If(PlayerPassesFilter(You,WasDealtDamageByPermanentThisCombat(ThisPermanent)),[DrawACard])]))");
+    assert!(combat.contains("ThisCombat"), "{combat}");
+}
+
+#[test]
+fn excess_and_recipients_read_back_from_the_damage_that_dealt_them() {
+    let excess = ability_json("SpellActions(Targeted([AnyTarget],ActionList([SpellDealsDamage(ThisSpell,Integer(5),Ref_AnyTarget),If(ExcessDamageWasDealtToAPermanentThisWay(AnyPermanent),[DrawACard])])))");
+    assert!(excess.contains("ExcessDamage"), "{excess}");
+    let player = ability_json("SpellActions(Targeted([AnyTarget],ActionList([SpellDealsDamage(ThisSpell,Integer(2),Ref_AnyTarget),If(APlayerWasDealtDamageThisWay(AnyPlayer),[DrawACard])])))");
+    assert!(player.contains("DamagedBy"), "{player}");
+    let source = custom("SpellActions(ActionList([If(ExcessDamageWasDealtThisWay,[DrawACard])]))");
+    assert!(pipeline::finalize(&source).is_err());
 }

@@ -140,6 +140,8 @@ impl Context {
             S::WhenAPermanentIsDealtDamage(p)
             | S::WhenAPermanentIsDealtCombatDamage(p)
             | S::WhenAPermanentIsDealtNoncombatDamage(p)
+            | S::WhenAPermanentIsDealtExcessDamage(p)
+            | S::WhenAPermanentIsDealtExcessNoncombatDamage(p)
             | S::WhenAPermanentIsDealtAnAmountOfDamage(p, _) => {
                 event.recipients = DamageRecipients::Objects(self.filter(p)?);
                 event.subject = DamageSubject::Recipient;
@@ -147,6 +149,8 @@ impl Context {
                 event.kind = match value {
                     S::WhenAPermanentIsDealtCombatDamage(_) => DamageKind::Combat,
                     S::WhenAPermanentIsDealtNoncombatDamage(_) => DamageKind::Noncombat,
+                    S::WhenAPermanentIsDealtExcessDamage(_) => DamageKind::Excess,
+                    S::WhenAPermanentIsDealtExcessNoncombatDamage(_) => DamageKind::ExcessNoncombat,
                     _ => DamageKind::Any,
                 };
                 if let S::WhenAPermanentIsDealtAnAmountOfDamage(_, c) = value {
@@ -327,5 +331,159 @@ fn legacy_damage_permanent_role(event: &EventSpec) -> Option<LegacyPermanentRef>
                 .then_some(first)
         }
         _ => Some(LegacyPermanentRef::Subject),
+    }
+}
+
+impl Context {
+    /// Who deals the damage of a spell's own effect.
+    fn spell_source(&self, spell: &source::Spell) -> Result<ObjectRef> {
+        match spell {
+            source::Spell::ThisSpell => Ok(ObjectRef::Source),
+            _ => Err(unsupported(spell)),
+        }
+    }
+
+    fn per_each(&self, amount: &source::GameNumber, each: &source::GameNumber) -> Result<Expr> {
+        Ok(Expr::Multiply(
+            Box::new(self.number(amount)?),
+            Box::new(self.number(each)?),
+        ))
+    }
+
+    fn deal(
+        &self,
+        source: Result<ObjectRef>,
+        amount: Result<Expr>,
+        recipients: &source::DamageRecipient,
+    ) -> Result<Operation> {
+        Ok(Operation::DealDamage {
+            source: source?,
+            recipients: self.recipients(recipients)?,
+            amount: amount?,
+            preventable: true,
+        })
+    }
+
+    fn deal_with(
+        &self,
+        source: Result<ObjectRef>,
+        amount: &source::GameNumber,
+        recipients: &source::DamageRecipient,
+        rider: Result<DamageRider>,
+    ) -> Result<Operation> {
+        Ok(Operation::DealDamageWith {
+            source: source?,
+            recipients: self.recipients(recipients)?,
+            amount: self.number(amount)?,
+            rider: rider?,
+        })
+    }
+
+    fn excess_rider(&self, instead: &[source::Action]) -> Result<DamageRider> {
+        match instead {
+            [source::Action::WouldDealExcessDamage_DealExcessToPlayerInstead(player)] => {
+                Ok(DamageRider::ExcessTo(self.player(player)?))
+            }
+            _ => Err(invalid("excess damage goes only to one player")),
+        }
+    }
+
+    /// Damage forms that differ only in who deals it and how the amount is read.
+    fn damage_action(&mut self, value: &source::Action) -> Option<Result<Instruction>> {
+        use source::Action as S;
+        let source = Ok(ObjectRef::Source);
+        let operation = match value {
+            S::PermanentDealsDamageForEach(permanent, amount, recipients, each) => {
+                self.deal(self.object(permanent), self.per_each(amount, each), recipients)
+            }
+            S::SpellDealsDamageForEach(spell, amount, recipients, each) => self.deal(
+                self.spell_source(spell),
+                self.per_each(amount, each),
+                recipients,
+            ),
+            S::GraveyardCardDealsDamage(card, amount, recipients) => {
+                self.deal(self.grave_card(card), self.number(amount), recipients)
+            }
+            S::ExiledCardDealsDamage(card, amount, recipients) => {
+                self.deal(self.exiled_card(card), self.number(amount), recipients)
+            }
+            S::SacrificedPermanentDealsDamage(amount, recipients) => self.deal(
+                self.object(&source::Permanent::TheSacrificedPermanent),
+                self.number(amount),
+                recipients,
+            ),
+            S::SchemeDealsDamage(_, amount, recipients)
+            | S::PlaneDealsDamage(_, amount, recipients)
+            | S::VanguardDealsDamage(_, amount, recipients)
+            | S::BoonDealsDamage(_, amount, recipients)
+            | S::EmblemDealsDamage(source::Emblem::ThisEmblem, amount, recipients)
+            | S::DeadGuestPermanentDealsDamage(amount, recipients)
+            | S::PermanentOrDeadPermanentDealsDamage(amount, recipients) => {
+                self.deal(source, self.number(amount), recipients)
+            }
+            S::SpellDealsDamageDividedAmongRecipientsRoundedDown(spell, amount, recipients) => self
+                .deal_with(
+                    self.spell_source(spell),
+                    amount,
+                    recipients,
+                    Ok(DamageRider::DividedEvenly(Rounding::Down)),
+                ),
+            S::PermanentDealsDamageAndPreventSomeOfIt(permanent, amount, recipients, prevented) => {
+                self.deal_with(
+                    self.object(permanent),
+                    amount,
+                    recipients,
+                    self.number(prevented).map(DamageRider::Prevented),
+                )
+            }
+            S::SpellDealsDamageExcessReplacable(spell, amount, recipients, instead) => self
+                .deal_with(
+                    self.spell_source(spell),
+                    amount,
+                    recipients,
+                    self.excess_rider(instead),
+                ),
+            S::PermanentDealsDamageExcessReplacable(permanent, amount, recipients, instead) => self
+                .deal_with(
+                    self.object(permanent),
+                    amount,
+                    recipients,
+                    self.excess_rider(instead),
+                ),
+            S::SpellDealsDamageEachPlayer(players, spell, amount, recipients) => {
+                return Some(self.spell_damage_each_player(players, spell, amount, None, recipients))
+            }
+            S::SpellDealsDamageEachPlayerForEach(players, spell, amount, recipients, each) => {
+                return Some(self.spell_damage_each_player(
+                    players,
+                    spell,
+                    amount,
+                    Some(each),
+                    recipients,
+                ))
+            }
+            _ => return None,
+        };
+        Some(operation.map(|operation| self.effect(operation)))
+    }
+
+    fn spell_damage_each_player(
+        &mut self,
+        players: &source::Players,
+        spell: &source::Spell,
+        amount: &source::GameNumber,
+        each: Option<&source::GameNumber>,
+        recipients: &source::DamageRecipient,
+    ) -> Result<Instruction> {
+        let source = self.spell_source(spell);
+        let players = self.players(players)?;
+        self.for_each_player(players, |context, _| {
+            let amount = match each {
+                Some(each) => context.per_each(amount, each),
+                None => context.number(amount),
+            };
+            let operation = context.deal(source, amount, recipients)?;
+            Ok(context.effect(operation))
+        })
     }
 }

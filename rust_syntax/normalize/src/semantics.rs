@@ -345,6 +345,7 @@ impl Effects {
                     | Operation::DealDamage { .. }
                     | Operation::DealDamageParts { .. }
                     | Operation::DealDamageFromEach { .. }
+                    | Operation::DealDamageWith { .. }
                     | Operation::Destroy { .. }
                     | Operation::Tap { .. }
                     | Operation::Sacrifice { .. }

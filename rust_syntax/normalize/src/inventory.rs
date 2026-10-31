@@ -538,6 +538,21 @@ impl Inventory<'_> {
                 self.recipients(recipients);
                 self.expr(amount);
             }
+            Operation::DealDamageWith {
+                source,
+                recipients,
+                amount,
+                rider,
+            } => {
+                self.object(source);
+                self.recipients(recipients);
+                self.expr(amount);
+                match rider {
+                    DamageRider::DividedEvenly(_) => {}
+                    DamageRider::ExcessTo(player) => self.player(player),
+                    DamageRider::Prevented(prevented) => self.expr(prevented),
+                }
+            }
             Operation::DealDamageParts {
                 source,
                 parts,
@@ -1227,7 +1242,10 @@ impl Inventory<'_> {
             PlayerSet::One(p) | PlayerSet::OpponentsOf(p) | PlayerSet::OthersThan(p) => {
                 self.player(p)
             }
-            PlayerSet::All | PlayerSet::Targets(_) | PlayerSet::DamageRecipients => {}
+            PlayerSet::All
+            | PlayerSet::Targets(_)
+            | PlayerSet::DamageRecipients
+            | PlayerSet::DamagedBy(_) => {}
         }
     }
     fn recipients(&mut self, r: &Recipients) {
@@ -1254,6 +1272,7 @@ impl Inventory<'_> {
             | Expr::Performed(_)
             | Expr::DistributedShare(_)
             | Expr::DieResult(_) => {}
+            Expr::ExcessDamage { to, .. } => self.filter(to),
             Expr::Primitive { name, .. } => self.primitive(name),
             Expr::EventHistory {
                 event,
@@ -1370,7 +1389,7 @@ impl Inventory<'_> {
         self.form("ObjectFilter", f);
         match f {
             ObjectFilter::ExiledWith(object) => self.object(object),
-            ObjectFilter::DamagedBy(_) => {}
+            ObjectFilter::DamagedBy(_) | ObjectFilter::DealtExcessBy(_) => {}
             ObjectFilter::Primitive { name, .. } => self.primitive(name),
             ObjectFilter::Condition(condition) => self.condition(condition),
             ObjectFilter::Cast { by, from } => {
