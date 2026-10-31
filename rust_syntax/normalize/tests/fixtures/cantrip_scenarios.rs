@@ -174,7 +174,7 @@ mod scenarios {
         extras: &[(&str, PlayerId)],
         starting_mana: u32,
     ) -> (RulesGame, ObjectId, Option<ObjectId>, Vec<ObjectId>) {
-        game_with_graveyard(hand, permanent, land_count, extras, starting_mana, &[])
+        game_with_zones(hand, permanent, land_count, extras, starting_mana, &[], &[])
     }
     fn game_with_graveyard(
         hand: &str,
@@ -183,6 +183,25 @@ mod scenarios {
         extras: &[(&str, PlayerId)],
         starting_mana: u32,
         graveyard: &[&str],
+    ) -> (RulesGame, ObjectId, Option<ObjectId>, Vec<ObjectId>) {
+        game_with_zones(
+            hand,
+            permanent,
+            land_count,
+            extras,
+            starting_mana,
+            graveyard,
+            &[],
+        )
+    }
+    fn game_with_zones(
+        hand: &str,
+        permanent: Option<&str>,
+        land_count: usize,
+        extras: &[(&str, PlayerId)],
+        starting_mana: u32,
+        graveyard: &[&str],
+        also_in_hand: &[&str],
     ) -> (RulesGame, ObjectId, Option<ObjectId>, Vec<ObjectId>) {
         let mut definitions = vec![
             &divination::CARD,
@@ -240,6 +259,18 @@ mod scenarios {
             &bolt::CARD,
             &blade::CARD,
             &bears::CARD,
+            &melee::CARD,
+            &crucible::CARD,
+            &mending::CARD,
+            &blink::CARD,
+            &looting::CARD,
+            &reap::CARD,
+            &wastes::CARD,
+            &cliffs::CARD,
+            &impulse::CARD,
+            &cindermaw::CARD,
+            &ghostway::CARD,
+            &wine::CARD,
         ];
         for extras in [
             alarm::EXTRA,
@@ -318,6 +349,11 @@ mod scenarios {
             let dead = Obj::new(table.find(name).unwrap(), ME, Zone::graveyard(ME));
             let id = g.state.push_obj(dead);
             g.state.zone_push(Zone::graveyard(ME), id);
+        }
+        for name in also_in_hand {
+            let card = Obj::new(table.find(name).unwrap(), ME, Zone::hand(ME));
+            let id = g.state.push_obj(card);
+            g.state.zone_push(Zone::hand(ME), id);
         }
         g.state.see_statics();
         g.state.frame_push(Frame::new(FrameKind::Priority));
@@ -864,7 +900,10 @@ mod scenarios {
     }
     /// Resolve the stack, answering everything but priority and mana through
     /// `answer`, for cards whose questions the fixed answers above do not know.
-    fn resolve_asking(g: &mut RulesGame, answer: &mut dyn FnMut(&RulesGame, &RequestKind) -> Answer) {
+    fn resolve_asking(
+        g: &mut RulesGame,
+        answer: &mut dyn FnMut(&RulesGame, &RequestKind) -> Answer,
+    ) {
         let mut saw_stack = false;
         for _ in 0..96 {
             g.run();
@@ -937,12 +976,15 @@ mod scenarios {
         );
         let powers: Vec<_> = permanents_named(&g, "Grizzly Bears")
             .into_iter()
-            .map(|id| (g.state.obj(id).controller, g.chars(id).power, g.chars(id).toughness))
+            .map(|id| {
+                (
+                    g.state.obj(id).controller,
+                    g.chars(id).power,
+                    g.chars(id).toughness,
+                )
+            })
             .collect();
-        assert_eq!(
-            powers,
-            [(ME, Some(3), Some(3)), (THEM, Some(2), Some(2))]
-        );
+        assert_eq!(powers, [(ME, Some(3), Some(3)), (THEM, Some(2), Some(2))]);
     }
     #[test]
     fn aura_attaches_to_its_target_and_changes_it() {
@@ -1051,8 +1093,12 @@ mod scenarios {
     }
     #[test]
     fn equip_moves_the_bonus_to_the_equipped_creature() {
-        let (mut g, _, splitter, _) =
-            game_with_extras("Divination", Some("Bonesplitter"), 0, &[("Grizzly Bears", ME)]);
+        let (mut g, _, splitter, _) = game_with_extras(
+            "Divination",
+            Some("Bonesplitter"),
+            0,
+            &[("Grizzly Bears", ME)],
+        );
         let bears = permanents_named(&g, "Grizzly Bears")[0];
         announce(&mut g, splitter.unwrap(), ActionKind::ActivateAbility);
         resolve(&mut g, Some(bears), false);
@@ -1075,5 +1121,232 @@ mod scenarios {
         announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(bears));
         resolve(&mut g, None, false);
         assert!(g.state.obj(bears).became.is_some());
+    }
+    /// Pass until `done`, as far as the turn goes, declaring nothing.
+    fn advance(g: &mut RulesGame, done: &dyn Fn(&RulesGame) -> bool) {
+        for _ in 0..512 {
+            g.run();
+            if done(g) {
+                return;
+            }
+            let request = g.pending().cloned().expect("pending answer");
+            let reply = match &request.kind {
+                RequestKind::Priority { .. } => Answer::Pass,
+                RequestKind::DeclareAttackers { .. } => Answer::Attack(vec![]),
+                RequestKind::DeclareBlockers { .. } => Answer::Block(vec![]),
+                RequestKind::DiscardToHandSize { .. } => Answer::Cards(vec![]),
+                RequestKind::OrderTriggers { sources, .. } => {
+                    Answer::Order((0..sources.len() as u32).collect())
+                }
+                other => panic!("unexpected question {other:?}"),
+            };
+            g.answer(request.id, request.player, reply).unwrap();
+        }
+        panic!("the game did not get there");
+    }
+    fn hand_card(g: &RulesGame, name: &str) -> ObjectId {
+        let card = g.cards.find(name).unwrap();
+        *g.state
+            .zone(Zone::hand(ME))
+            .iter()
+            .find(|&&id| g.state.obj(id).card == card)
+            .unwrap()
+    }
+    fn offers(g: &RulesGame, kind: ActionKind, source: ObjectId) -> bool {
+        let RequestKind::Priority { options } = &g.pending().unwrap().kind else {
+            panic!("{:?}", g.pending())
+        };
+        options
+            .iter()
+            .any(|o| o.kind == kind && o.source == Some(source))
+    }
+    #[test]
+    fn a_static_cost_reduction_is_taken_off_what_is_paid() {
+        let (mut g, spell, _) = game("Divination", Some("Arcane Melee"));
+        let before: u32 = g.state.player(ME).pool.0.iter().sum();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        let after: u32 = g.state.player(ME).pool.0.iter().sum();
+        assert_eq!(before - after, 1);
+    }
+    #[test]
+    fn a_player_rule_stops_life_gain_for_everyone() {
+        let (mut g, spell, _) = game("Blessed Wine", Some("Giant Cindermaw"));
+        let life = g.state.player(ME).life;
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.player(ME).life, life);
+    }
+    #[test]
+    fn a_land_in_the_graveyard_can_be_played_by_a_permission() {
+        let (mut g, _, _, _) = game_with_graveyard(
+            "Divination",
+            Some("Crucible of Worlds"),
+            0,
+            &[],
+            100,
+            &["Azorius Guildgate"],
+        );
+        let land = g.state.zone(Zone::graveyard(ME))[0];
+        assert!(offers(&g, ActionKind::PlayLand, land));
+        announce(&mut g, land, ActionKind::PlayLand);
+        g.run();
+        assert_eq!(permanents_named(&g, "Azorius Guildgate").len(), 1);
+    }
+    #[test]
+    fn a_shield_prevents_only_the_damage_it_has_left() {
+        let (mut g, spell, bears, _) = game_with_zones(
+            "Mending Hands",
+            Some("Grizzly Bears"),
+            0,
+            &[],
+            100,
+            &[],
+            &["Lightning Bolt", "Lightning Bolt"],
+        );
+        let bears = bears.unwrap();
+        announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(bears));
+        resolve(&mut g, None, false);
+        let bolt = hand_card(&g, "Lightning Bolt");
+        announce_at(&mut g, bolt, ActionKind::CastSpell, Target::Object(bears));
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.obj(bears).damage, 0);
+        let bolt = hand_card(&g, "Lightning Bolt");
+        announce_at(&mut g, bolt, ActionKind::CastSpell, Target::Object(bears));
+        resolve(&mut g, None, false);
+        assert!(permanents_named(&g, "Grizzly Bears").is_empty());
+    }
+    #[test]
+    fn flashback_casts_from_the_graveyard_and_exiles_after() {
+        let (mut g, _, _, _) =
+            game_with_graveyard("Divination", None, 0, &[], 100, &["Faithless Looting"]);
+        let spell = g.state.zone(Zone::graveyard(ME))[0];
+        let hand = g.state.zone(Zone::hand(ME)).len();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { cards, .. } => Answer::Cards(cards[..2].to_vec()),
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand);
+        assert!(g
+            .state
+            .zone(Zone::graveyard(ME))
+            .iter()
+            .all(|&id| g.state.obj(id).card != g.cards.find("Faithless Looting").unwrap()));
+        assert_eq!(g.state.zone(Zone::exile(ME)).len(), 1);
+    }
+    #[test]
+    fn an_additional_cost_is_paid_as_the_spell_is_cast() {
+        let (mut g, spell, bears) = game("Altar's Reap", Some("Grizzly Bears"));
+        let hand = g.state.zone(Zone::hand(ME)).len();
+        let bears = bears.unwrap();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { cards, .. } => {
+                assert_eq!(cards, &vec![bears]);
+                Answer::Cards(vec![bears])
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert!(g.state.obj(bears).became.is_some());
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand - 1 + 2);
+    }
+    #[test]
+    fn a_painland_hurts_for_colored_mana_only() {
+        let (mut g, _, wastes) = game("Divination", Some("Adarkar Wastes"));
+        let wastes = wastes.unwrap();
+        let life = g.state.player(ME).life;
+        let request = g.pending().cloned().unwrap();
+        let RequestKind::Priority { options } = &request.kind else {
+            panic!()
+        };
+        let abilities: Vec<_> = options
+            .iter()
+            .filter(|o| o.source == Some(wastes) && o.kind == ActionKind::ActivateAbility)
+            .collect();
+        assert!(abilities.len() >= 2, "{options:?}");
+        let mut action = Action::of(abilities[abilities.len() - 1]);
+        action.color = Some(Color::White);
+        g.answer(request.id, request.player, Answer::Act(action))
+            .unwrap();
+        finish_payment(&mut g, true);
+        assert_eq!(g.state.player(ME).life, life - 1);
+    }
+    #[test]
+    fn a_fastland_counts_the_other_lands_as_it_enters() {
+        for (lands, tapped) in [(2, false), (3, true)] {
+            let extras = vec![("Azorius Guildgate", ME); lands];
+            let (mut g, land, _, _) = game_with_extras("Blackcleave Cliffs", None, 0, &extras);
+            announce(&mut g, land, ActionKind::PlayLand);
+            g.run();
+            let cliffs = permanents_named(&g, "Blackcleave Cliffs");
+            assert_eq!(g.state.obj(cliffs[0]).tapped, tapped);
+        }
+    }
+    #[test]
+    fn impulse_lets_the_exiled_cards_be_played_this_turn() {
+        let (mut g, spell, _) = game("Act on Impulse", None);
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        let exiled = g.state.zone(Zone::exile(ME)).to_vec();
+        assert_eq!(exiled.len(), 3);
+        assert_eq!(g.state.permissions.len(), 3);
+    }
+    #[test]
+    fn a_delayed_ability_brings_back_what_its_maker_exiled() {
+        let (mut g, spell, bears) = game("Ghostway", Some("Grizzly Bears"));
+        let bears = bears.unwrap();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        assert!(g.state.obj(bears).became.is_some());
+        assert!(permanents_named(&g, "Grizzly Bears").is_empty());
+        advance(&mut g, &|g| {
+            !permanents_named(g, "Grizzly Bears").is_empty()
+        });
+        assert_eq!(g.state.turn.step(), Step::End);
+    }
+    #[test]
+    fn a_delayed_draw_waits_for_the_next_upkeep() {
+        let (mut g, spell, _) = game("Blessed Wine", None);
+        let life = g.state.player(ME).life;
+        let hand = g.state.zone(Zone::hand(ME)).len();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.player(ME).life, life + 1);
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand - 1);
+        advance(&mut g, &|g| g.state.zone(Zone::hand(ME)).len() == hand);
+        assert_eq!(g.state.turn.step(), Step::Upkeep);
+        assert_eq!(g.state.turn.active, THEM);
+    }
+    fn blink(kicked: u32) -> (usize, usize) {
+        let (mut g, spell, bears) = game("Blink of an Eye", Some("Grizzly Bears"));
+        let hand = g.state.zone(Zone::hand(ME)).len();
+        let bears = bears.unwrap();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        if kicked > 0 {
+            g.run();
+            let request = g.pending().cloned().unwrap();
+            assert!(
+                matches!(request.kind, RequestKind::PayCosts { .. }),
+                "{:?}",
+                request.kind
+            );
+            g.answer(request.id, request.player, Answer::Announce(kicked))
+                .unwrap();
+        }
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseTarget { .. } => Answer::Targets(vec![Target::Object(bears)]),
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert!(g.state.obj(bears).became.is_some());
+        (hand, g.state.zone(Zone::hand(ME)).len())
+    }
+    #[test]
+    fn a_kicked_branch_is_not_taken_unless_the_kicker_is_paid() {
+        // The bounced Bears replaces the spell; the kicker's draw is on top.
+        let (before, after) = blink(0);
+        assert_eq!(after, before);
+        let (before, after) = blink(1);
+        assert_eq!(after, before + 1);
     }
 }

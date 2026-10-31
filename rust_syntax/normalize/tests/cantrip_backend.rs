@@ -185,6 +185,18 @@ fn generated_modules_execute_in_cantrip() {
         ("bolt", "Lightning Bolt"),
         ("blade", "Doom Blade"),
         ("bears", "Grizzly Bears"),
+        ("melee", "Arcane Melee"),
+        ("crucible", "Crucible of Worlds"),
+        ("mending", "Mending Hands"),
+        ("blink", "Blink of an Eye"),
+        ("looting", "Faithless Looting"),
+        ("reap", "Altar's Reap"),
+        ("wastes", "Adarkar Wastes"),
+        ("cliffs", "Blackcleave Cliffs"),
+        ("impulse", "Act on Impulse"),
+        ("cindermaw", "Giant Cindermaw"),
+        ("ghostway", "Ghostway"),
+        ("wine", "Blessed Wine"),
     ];
     let mut lib = String::new();
     for (module, name) in names {

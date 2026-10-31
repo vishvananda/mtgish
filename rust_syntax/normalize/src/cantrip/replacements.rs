@@ -482,20 +482,22 @@ impl Compiler {
         self.affected_in_scope = scope;
         self.restore_results(results);
         let kind = compiled?;
-        let about = match about {
-            Some(object) => self.fetch(object),
-            None => "Some(item.object)".into(),
-        };
         let to = to.map_or_else(
             || "Some(Target::None)".to_string(),
             |to| self.fetch(format!("({to}).first().copied()")),
         );
+        // Without one of its own the effect is about whom it protects, which
+        // keeps it once the spell that made it has gone (CR 400.7).
+        let about = match about {
+            Some(object) => self.fetch(object),
+            None => "to.and_then(|to: Target| to.object()).or(Some(item.object))".into(),
+        };
         let (shield, kind) = kind;
         let shield = shield.map_or(Ok(String::new()), |n| {
             Ok::<_, Diagnostic>(format!("let shield = {};", self.fetch(n)))
         })?;
         let effect = kind.replace("DURATION", &duration);
-        writeln!(out, "{{ {shield} let (to, about) = ({to}, {about}); if let (Some(to), Some(about)) = (to, about) {{ {effect} }} }}").unwrap();
+        writeln!(out, "{{ {shield} let to = {to}; let about = {about}; if let (Some(to), Some(about)) = (to, about) {{ {effect} }} }}").unwrap();
         Ok(())
     }
     /// The definition a created effect names, and how to make the effect: a
