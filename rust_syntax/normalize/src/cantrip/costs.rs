@@ -182,6 +182,30 @@ impl Compiler {
         let mut sacrifice_this = false;
         let mut others = Vec::new();
         for part in &value.parts {
+            if let CostPart::Move {
+                selections,
+                destination,
+                entry,
+                face_down: false,
+            } = part
+            {
+                // The source itself is no choice of how many.
+                if let ([CostObjectSelection { objects: ObjectSet::One(ObjectRef::Source), choose: None }], true) =
+                    (selections.as_slice(), entry.counters.is_empty() && entry.states.is_empty() && !entry.tapped)
+                {
+                    match destination {
+                        Destination::Exile => {
+                            others.push("EXILE_THIS".to_string());
+                            continue;
+                        }
+                        Destination::OwnersHand => {
+                            others.push("RETURN_THIS".to_string());
+                            continue;
+                        }
+                        _ => {}
+                    }
+                }
+            }
             match part {
                 CostPart::Mana(mana) => symbols.extend(mana.iter().cloned()),
                 CostPart::TapSymbol if !tap => tap = true,
@@ -402,6 +426,26 @@ impl Compiler {
                 Keyword::Prowess => parts
                     .abilities
                     .push("cantrip_mechanics::triggers::PROWESS".into()),
+                Keyword::Ward(cost) => {
+                    let ward = match cost.parts.as_slice() {
+                        [CostPart::Mana(symbols)] => match symbols.as_slice() {
+                            [ManaSymbol::Generic(n)] if u8::try_from(*n).is_ok() => {
+                                format!("cantrip_mechanics::triggers::ward::<{n}>(\"Ward {{{n}}}\")")
+                            }
+                            _ => return Err(gap("ward with colored mana")),
+                        },
+                        [CostPart::Life(Expr::Constant(n))] if u8::try_from(*n).is_ok() => {
+                            format!("cantrip_mechanics::triggers::ward_life::<{n}>(\"Ward--Pay {n} life\")")
+                        }
+                        [CostPart::Discard {
+                            count: Expr::Constant(1),
+                            filter: ObjectFilter::Any,
+                            random: false,
+                        }] => "cantrip_mechanics::triggers::ward_discard(\"Ward--Discard a card\")".into(),
+                        other => return Err(gap(format!("ward cost {}", form(&other[0])))),
+                    };
+                    parts.abilities.push(ward);
+                }
                 Keyword::Landwalk(land) => {
                     use crate::mtg_types::SubType;
                     let word = match land.as_ref() {

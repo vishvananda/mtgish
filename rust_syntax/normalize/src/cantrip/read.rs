@@ -627,6 +627,40 @@ impl Compiler {
             Expr::CountObjects(objects) => {
                 count(format!("({}).len() as i64", self.objects(objects)?))
             }
+            Expr::CountDistinct { objects, property } => {
+                let objects = self.objects(objects)?;
+                let gather = |empty: &str, each: &str| {
+                    format!("{{ let mut seen = {empty}; for id in {objects} {{ {each} }} seen.iter().count() as i64 }}")
+                };
+                let list = |value: &str| {
+                    format!("{{ let mut seen = Vec::new(); for id in {objects} {{ let value = {value}; if !seen.contains(&value) {{ seen.push(value); }} }} seen.len() as i64 }}")
+                };
+                let subtypes = |test: &str| {
+                    gather(
+                        "SubtypeSet::NONE",
+                        &format!("for kind in q.chars(id).subtypes.iter().filter(|kind| {test}) {{ seen = seen.with(kind); }}"),
+                    )
+                };
+                count(match property {
+                    DistinctProperty::CardTypes => gather(
+                        "TypeSet::NONE",
+                        "for kind in q.chars(id).types.iter() { seen = seen.with(kind); }",
+                    ),
+                    DistinctProperty::Colors => gather(
+                        "ColorSet::NONE",
+                        "for color in q.chars(id).colors.iter() { seen = seen.with(color); }",
+                    ),
+                    DistinctProperty::BasicLandTypes => subtypes("kind.basic_mana().is_some()"),
+                    DistinctProperty::CreatureTypes => {
+                        subtypes("SubtypeSet::CREATURE_TYPES.has(*kind)")
+                    }
+                    DistinctProperty::LandTypes => subtypes("SubtypeSet::LAND_TYPES.has(*kind)"),
+                    DistinctProperty::Names => list("q.chars(id).name"),
+                    DistinctProperty::Controllers => list("q.controller(id)"),
+                    DistinctProperty::Owners => list("q.state().obj(id).owner"),
+                    other => return Err(gap(format!("distinct {}", form(other)))),
+                })
+            }
             Expr::CountPlayers(players) => {
                 count(format!("({}).len() as i64", self.players(players)?))
             }
@@ -969,6 +1003,20 @@ impl Compiler {
             Condition::All(items) => combine(items, " && ", "true")?,
             Condition::Either(items) => combine(items, " || ", "false")?,
             Condition::Not(c) => format!("!({})", self.condition(c)?),
+            Condition::ExistsPlayer {
+                players,
+                binding,
+                condition,
+            } => {
+                let mut inner = self.clone();
+                inner.bound_players.insert(binding.0);
+                format!(
+                    "({}).into_iter().any(|bound_{}: PlayerId| {})",
+                    self.players(players)?,
+                    binding.0,
+                    inner.condition(condition)?
+                )
+            }
             Condition::PlayerIsActive(player) => {
                 format!("{} == Some(q.state().turn.active)", self.player(player)?)
             }

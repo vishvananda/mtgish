@@ -245,7 +245,7 @@ impl Compiler {
                 origin,
                 player: PlayerRef::OwnerOf(owner),
                 from: ZoneScope::Players { zone: EventZone::Graveyard, .. },
-                require: ObjectFilter::Any,
+                require,
                 cost,
                 leave_stack,
             } if matches!(**owner, ObjectRef::Source) => {
@@ -259,6 +259,17 @@ impl Compiler {
                 let mut def = format!("way({cost}, ZoneKind::Graveyard, {text}).only_from()");
                 if exile {
                     def.push_str(".exile_after()");
+                }
+                if !matches!(require, ObjectFilter::Any) {
+                    if condition.is_some() {
+                        return Err(gap("permission with a requirement and a condition"));
+                    }
+                    let saved = std::mem::replace(&mut self.reader, Reader::Query);
+                    let test = self.filter(require, &Candidate::of("asker.source"));
+                    self.reader = saved;
+                    let function = format!("{label}_require");
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ {} }}", test?).unwrap();
+                    def.push_str(&format!(".condition({function})"));
                 }
                 let def = way(self, def, label)?;
                 parts.table("ways", def);
