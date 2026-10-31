@@ -197,6 +197,12 @@ fn generated_modules_execute_in_cantrip() {
         ("cindermaw", "Giant Cindermaw"),
         ("ghostway", "Ghostway"),
         ("wine", "Blessed Wine"),
+        ("index", "Index"),
+        ("seal", "Imperial Seal"),
+        ("impulse_look", "Impulse"),
+        ("stirrings", "Ancient Stirrings"),
+        ("litho", "Lithobraking"),
+        ("agent", "Agent of the Fates"),
     ];
     let mut lib = String::new();
     for (module, name) in names {

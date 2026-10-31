@@ -271,6 +271,12 @@ mod scenarios {
             &cindermaw::CARD,
             &ghostway::CARD,
             &wine::CARD,
+            &index::CARD,
+            &seal::CARD,
+            &impulse_look::CARD,
+            &stirrings::CARD,
+            &litho::CARD,
+            &agent::CARD,
         ];
         for extras in [
             alarm::EXTRA,
@@ -283,6 +289,7 @@ mod scenarios {
             opportunist::EXTRA,
             pirates::EXTRA,
             traveler::EXTRA,
+            litho::EXTRA,
         ] {
             definitions.extend_from_slice(extras);
         }
@@ -1348,5 +1355,129 @@ mod scenarios {
         assert_eq!(after, before);
         let (before, after) = blink(1);
         assert_eq!(after, before + 1);
+    }
+    fn top_of(g: &RulesGame, count: usize) -> Vec<ObjectId> {
+        g.state.zone(Zone::library(ME))[..count].to_vec()
+    }
+    #[test]
+    fn cards_looked_at_go_back_in_the_chosen_order() {
+        let (mut g, spell, _) = game("Index", None);
+        let top = top_of(&g, 5);
+        let mut reversed = top.clone();
+        reversed.reverse();
+        let chosen = reversed.clone();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::DistributeCards { cards, .. } => {
+                assert_eq!(cards, &top);
+                Answer::Placements {
+                    placements: vec![chosen.clone()],
+                    shuffle: false,
+                }
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(top_of(&g, 5), reversed);
+    }
+    #[test]
+    fn a_tutored_card_stays_on_top_of_the_shuffle() {
+        let (mut g, spell, _) = game("Imperial Seal", None);
+        let life = g.state.player(ME).life;
+        let mut found = None;
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::SearchLibrary { library, .. } => {
+                let card = *library.last().unwrap();
+                found = Some(card);
+                Answer::Cards(vec![card])
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(top_of(&g, 1), vec![found.unwrap()]);
+        assert_eq!(g.state.player(ME).life, life - 2);
+    }
+    #[test]
+    fn the_rest_of_a_look_goes_to_the_bottom_in_order() {
+        let (mut g, spell, _) = game("Impulse", None);
+        let top = top_of(&g, 4);
+        let hand = g.state.zone(Zone::hand(ME)).len();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        let rest: Vec<ObjectId> = top[1..].iter().rev().copied().collect();
+        let order = rest.clone();
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { cards, .. } => {
+                assert_eq!(cards, &top);
+                Answer::Cards(vec![top[0]])
+            }
+            RequestKind::DistributeCards { cards, .. } => {
+                assert_eq!(cards.len(), 3, "what was taken is not in the rest");
+                Answer::Placements {
+                    placements: vec![order.clone()],
+                    shuffle: false,
+                }
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand);
+        let library = g.state.zone(Zone::library(ME));
+        assert_eq!(library[library.len() - 3..], rest);
+    }
+    #[test]
+    fn nothing_to_take_still_sends_the_look_to_the_bottom() {
+        let (mut g, spell, _) = game("Ancient Stirrings", None);
+        let top = top_of(&g, 5);
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { .. } => Answer::Cards(vec![]),
+            RequestKind::DistributeCards { cards, .. } => Answer::Placements {
+                placements: vec![cards.clone()],
+                shuffle: false,
+            },
+            other => panic!("unexpected question {other:?}"),
+        });
+        let library = g.state.zone(Zone::library(ME));
+        assert_eq!(library[library.len() - 5..], top);
+    }
+    #[test]
+    fn a_reflexive_ability_runs_when_the_may_was_done() {
+        for accept in [true, false] {
+            let (mut g, spell, bears) = game("Lithobraking", Some("Grizzly Bears"));
+            let bears = bears.unwrap();
+            announce(&mut g, spell, ActionKind::CastSpell);
+            resolve_asking(&mut g, &mut |_, kind| match kind {
+                RequestKind::May { .. } if accept => Answer::Yes,
+                RequestKind::May { .. } => Answer::No,
+                RequestKind::ChooseCards { cards, .. } => Answer::Cards(vec![cards[0]]),
+                other => panic!("unexpected question {other:?}"),
+            });
+            assert_eq!(g.state.obj(bears).became.is_some(), accept);
+        }
+    }
+    #[test]
+    fn a_spell_that_targets_this_is_seen_as_it_is_cast() {
+        for at_agent in [true, false] {
+            let (mut g, bolt, agent, _) = game_with_extras(
+                "Lightning Bolt",
+                Some("Agent of the Fates"),
+                0,
+                &[("Grizzly Bears", THEM), ("Grizzly Bears", ME)],
+            );
+            let bears = permanents_named(&g, "Grizzly Bears");
+            let theirs = *bears
+                .iter()
+                .find(|&&id| g.state.obj(id).owner == THEM)
+                .unwrap();
+            let mine = *bears
+                .iter()
+                .find(|&&id| g.state.obj(id).owner == ME)
+                .unwrap();
+            let target = if at_agent { agent.unwrap() } else { mine };
+            announce_at(&mut g, bolt, ActionKind::CastSpell, Target::Object(target));
+            resolve_asking(&mut g, &mut |_, kind| match kind {
+                RequestKind::ChooseCards { cards, .. } => Answer::Cards(vec![cards[0]]),
+                other => panic!("unexpected question {other:?}"),
+            });
+            assert_eq!(g.state.obj(theirs).became.is_some(), at_agent);
+        }
     }
 }
