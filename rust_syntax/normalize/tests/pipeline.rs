@@ -3139,13 +3139,48 @@ fn a_cost_paying_twice_reads_both_payments() {
 #[test]
 fn a_mode_reads_what_the_ability_already_did() {
     let text = ability_json("SpellActions(ActionList([Reflexive_Exile_WhenYouDo([ACardInGraveyards(AnyCardInAnyGraveyard)], [], Modal_ChooseOne([ActionList([GainLife(ManaValueOfExiled(TheCardExiledThisWay))]), ActionList([DrawACard])]))]))");
-    assert!(text.contains(r#""object":{"kind":"Result","args":{"result":1"#), "{text}");
+    assert!(
+        text.contains(r#""object":{"kind":"Result","args":{"result":1"#),
+        "{text}"
+    );
 }
 
 #[test]
 fn numbered_any_targets_are_read_by_position() {
     let text = ability_json("SpellActions(Targeted([NumberAnyTargets(Integer(2))], ActionList([SpellDealsDamage(ThisSpell, Integer(3), Ref_AnyTarget1), SpellDealsDamage(ThisSpell, Integer(3), Ref_AnyTarget2)])))");
     assert!(text.contains(r#""index":1"#), "{text}");
+}
+
+#[test]
+fn reflexive_triggers_name_their_base_and_who_does_it() {
+    let text = ability_json("SpellActions(ActionList([Reflexive_Discard_Draw_WhenYouDo(ACard, ACard, ActionList([GainLife(Integer(1))]))]))");
+    assert!(text.contains("ReflexiveTrigger"), "{text}");
+    assert!(text.contains("Discard") && text.contains("Draw"), "{text}");
+    let text = ability_json("SpellActions(ActionList([Reflexive_RollDice_WhenYouDo(D20, ActionList([GainLife(TheDiceResult)]))]))");
+    assert!(text.contains("Action::RollAD20"), "{text}");
+    let text = ability_json("SpellActions(ActionList([Reflexive_PlayerSacrifices_WhenTheyDo(You, [APermanent(IsCardtype(Creature))], ActionList([DrawACard]))]))");
+    assert!(text.contains("ReflexiveTrigger"), "{text}");
+}
+
+#[test]
+fn a_set_acted_on_this_way_is_walked_one_object_at_a_time() {
+    let text = ability_json("SpellActions(Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([DestroyPermanent(Ref_TargetPermanent), ActionForEachPermanentDestroyedThisWay([PlayerAction(ControllerOfPermanent(EachablePermanent), DrawACard)])])))");
+    assert!(text.contains("ForEachObject"), "{text}");
+    assert!(text.contains(r#""kind":"Transition""#), "{text}");
+}
+
+#[test]
+fn a_trigger_made_for_good_or_once_keeps_how_long_it_lasts() {
+    let text = ability_json("SpellActions(ActionList([CreateTrigger(WhenACreatureAttacks(SinglePermanent(ThisPermanent)), ActionList([DrawACard]))]))");
+    assert!(text.contains(r#""once":false"#), "{text}");
+    let text = ability_json("SpellActions(ActionList([CreateTriggerOnce(UntilEndOfTurn, WhenACreatureAttacks(SinglePermanent(ThisPermanent)), ActionList([DrawACard]))]))");
+    assert!(text.contains(r#""once":true"#), "{text}");
+}
+
+#[test]
+fn what_was_revealed_this_way_is_tested_as_a_set() {
+    let text = ability_json("SpellActions(ActionList([RevealTheTopNumberCardsOfLibrary(Integer(1), []), If(NoCardsOfTypeWereRevealedThisWay(IsCardtype(Land)), [DrawACard])]))");
+    assert!(text.contains("Matching"), "{text}");
 }
 
 #[test]

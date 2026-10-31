@@ -130,7 +130,6 @@ fn real_inspection_programs_roundtrip_and_unimplemented_nested_programs_remain_d
         "Break Out",
         "Birthing Ritual",
         "Lim-Dûl's Vault",
-        "Moonlight Bargain",
         "Planar Genesis",
     ];
     let mut complete = 0;
@@ -156,7 +155,7 @@ fn real_inspection_programs_roundtrip_and_unimplemented_nested_programs_remain_d
         }
         complete += 1;
     }
-    assert_eq!(complete, 48);
+    assert_eq!(complete, 49);
 }
 
 #[test]

@@ -341,6 +341,105 @@ impl Context {
             S::PermanentWasDestroyedThisWay => {
                 any(self.this_way_count(Done::Destroyed, Before, None))
             }
+            S::ACardWasntDrawnThisWay | S::PlayerDidntDrawACardThisWay => {
+                self.done(Done::Drew).map(|result| {
+                    self.this_way_compare(Expr::Performed(result), Comparison::Equal, 0)
+                })
+            }
+            S::ALibraryCardWasPutIntoHandThisWay => {
+                any(self.this_way_count(Done::Returned, After, None))
+            }
+            S::AGraveyardCardWasReturnedToHandThisWay(c) => {
+                any(self.this_way_count(Done::Returned, After, cards(c)?))
+            }
+            S::ANumberOfGraveyardCardsWereReturnedToHandThisWay(comparison) => {
+                measured(self.this_way_count(Done::Returned, Before, None), comparison)
+            }
+            S::ANumberOfCardsWereExildThisWay(comparison, c) => {
+                measured(self.this_way_count(Done::Exiled, After, cards(c)?), comparison)
+            }
+            S::PermanentDiesThisWay => any(self.this_way_count(Done::Graveyard, Before, None)),
+            S::APermanentDiesThisWay(p) => {
+                any(self.this_way_count(Done::Graveyard, Before, permanents(p)?))
+            }
+            S::APermanentWasntSacrificedThisWay(p) => self
+                .this_way_count(Done::Sacrificed, Before, permanents(p)?)
+                .map(|left| self.this_way_compare(left, Comparison::Equal, 0)),
+            S::NumberOfCardTypesAmongThePermanentsSacrificedThisWayIs(comparison) => {
+                measured(self.this_way_types(Done::Sacrificed, Before), comparison)
+            }
+            S::NumberPermanentsEnteredTheBattlefieldThisWay(comparison, p) => {
+                measured(self.this_way_count(Done::Entered, After, permanents(p)?), comparison)
+            }
+            S::NoCardsWereRevealedThisWay => self.revealed_objects().map(|objects| {
+                self.this_way_compare(Expr::CountObjects(Box::new(objects)), Comparison::Equal, 0)
+            }),
+            S::NoCardsOfTypeWereRevealedThisWay(c) => {
+                let objects = ObjectSet::Matching {
+                    objects: Box::new(self.revealed_objects()?),
+                    filter: self.card_filter(c)?,
+                };
+                Ok(self.this_way_compare(
+                    Expr::CountObjects(Box::new(objects)),
+                    Comparison::Equal,
+                    0,
+                ))
+            }
+            S::AllCardsRevealedThisWayAreCardsOfType(c) => {
+                let objects = ObjectSet::Matching {
+                    objects: Box::new(self.revealed_objects()?),
+                    filter: ObjectFilter::Not(Box::new(self.card_filter(c)?)),
+                };
+                Ok(self.this_way_compare(
+                    Expr::CountObjects(Box::new(objects)),
+                    Comparison::Equal,
+                    0,
+                ))
+            }
+            S::ANumberOfCardsWereRevealedThisWay(comparison, c) => {
+                let objects = ObjectSet::Matching {
+                    objects: Box::new(self.revealed_objects()?),
+                    filter: self.card_filter(c)?,
+                };
+                measured(Ok(Expr::CountObjects(Box::new(objects))), comparison)
+            }
+            S::ACardWasFoundThisWay => {
+                let found = self
+                    .found
+                    .clone()
+                    .ok_or_else(|| invalid("no card was found in this scope"))?;
+                any(Ok(Expr::CountObjects(Box::new(found))))
+            }
+            S::ATokenWasCreatedThisWay => {
+                let result = self
+                    .created_tokens
+                    .clone()
+                    .ok_or_else(|| invalid("tokens-created reference has no creation in this scope"))?;
+                any(Ok(Expr::CountObjects(Box::new(ObjectSet::Created(result)))))
+            }
+            S::NoOneTookAnActionThisWay => {
+                let took = self.players(&source::Players::PlayerWhoTookActionThisWay)?;
+                Ok(self.this_way_compare(
+                    Expr::CountPlayers(took),
+                    Comparison::Equal,
+                    0,
+                ))
+            }
+            S::AllPermanentsPassFilter(objects, filter) => {
+                let rest = ObjectSet::Matching {
+                    objects: Box::new(self.objects(objects)?),
+                    filter: ObjectFilter::Not(Box::new(self.filter(filter)?)),
+                };
+                Ok(self.this_way_compare(
+                    Expr::CountObjects(Box::new(rest)),
+                    Comparison::Equal,
+                    0,
+                ))
+            }
+            S::DeadCardPassesFilter(filter) => Ok(Condition::ObjectMatches {
+                object: self.grave_card(&source::CardInGraveyards::Trigger_ThatGraveyardCard)?,
+                filter: self.card_filter(filter)?,
+            }),
             S::NoCardsWerePutIntoHandThisWay => self
                 .this_way_count(Done::Returned, Before, None)
                 .map(|left| self.this_way_compare(left, Comparison::Equal, 0)),

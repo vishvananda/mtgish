@@ -658,6 +658,12 @@ impl Context {
             S::TheActivePlayer => PlayerRef::Active,
             S::HostPlayer => PlayerRef::EnchantedBy(Box::new(ObjectRef::Source)),
             S::ControllerOfPermanent(p) => PlayerRef::ControllerOf(Box::new(self.object(p)?)),
+            S::ControllerOfEachableExiledPermanent | S::ControllerOfEachableRemovedPermanent
+                if self.iterated_object.is_some() =>
+            {
+                let each = self.iterated_object.clone().unwrap();
+                PlayerRef::ControllerOf(Box::new(ObjectRef::Bound(each)))
+            }
             S::SingleControllerOfTargetPermanents => PlayerRef::ControllerOf(Box::new(
                 self.object(&source::Permanent::Ref_TargetPermanents_0)?,
             )),
@@ -1172,6 +1178,11 @@ impl Context {
                     HistoryMeasure::Occurrences,
                 )
             }
+            S::NumTimesPaidMana => Expr::Performed(
+                self.payment
+                    .clone()
+                    .ok_or_else(|| invalid("payment reference has no cost in this scope"))?,
+            ),
             S::AmountOfManaPaidThisWay | S::AmountOfLifePaidThisWay => {
                 Expr::Performed(match (self.done(Done::Paid), &self.payment) {
                     (Ok(result), _) => result,
@@ -2393,9 +2404,15 @@ impl Context {
                 excluding: None,
             },
             S::Exile(items, flags) => return self.exile(items, flags, actor),
-            S::CreateTriggerUntil(trigger, actions, duration) => {
+            S::CreateTrigger(trigger, actions)
+            | S::CreateTriggerOnce(_, trigger, actions)
+            | S::CreateTriggerUntil(trigger, actions, _) => {
                 let event = self.trigger(trigger)?;
-                let duration = self.duration(duration)?;
+                let (duration, once) = match value {
+                    S::CreateTriggerOnce(duration, ..) => (self.duration(duration)?, true),
+                    S::CreateTriggerUntil(_, _, duration) => (self.duration(duration)?, false),
+                    _ => (Duration::Indefinite, false),
+                };
                 let mut child = self.clone();
                 child.open_searches.clear();
                 child.event = crate::semantics::event_bindings(&event);
@@ -2411,7 +2428,7 @@ impl Context {
                         modes: child.modes,
                     },
                     body,
-                    once: false,
+                    once,
                 }
             }
             S::DiscardCard(card) => Operation::DiscardObjects {
@@ -2679,6 +2696,47 @@ impl Context {
                         .map(|action| context.action(action, actor))
                         .collect::<Result<_>>()?;
                     Ok(Program { instructions })
+                });
+            }
+            S::ActionForEachPermanentDestroyedThisWay(actions)
+            | S::ActionForEachPermanentExiledThisWay(actions)
+            | S::ActionForEachPermanentPutInGraveyardThisWay(actions)
+            | S::ActionForEachPermanentThatDiedThisWay(actions) => {
+                let done = match value {
+                    S::ActionForEachPermanentDestroyedThisWay(_) => Done::Destroyed,
+                    S::ActionForEachPermanentExiledThisWay(_) => Done::Exiled,
+                    _ => Done::Graveyard,
+                };
+                let objects = self.this_way_set(done, ObjectPhase::Before, None)?;
+                return self.for_each_object(objects, |context| {
+                    let instructions = actions
+                        .iter()
+                        .map(|action| context.action(action, actor))
+                        .collect::<Result<_>>()?;
+                    Ok(Program { instructions })
+                });
+            }
+            S::ActionForEachExiledCard(cards, actions) => {
+                let objects = self.exile_cards(cards)?;
+                return self.for_each_object(objects, |context| {
+                    let instructions = actions
+                        .iter()
+                        .map(|action| context.action(action, actor))
+                        .collect::<Result<_>>()?;
+                    Ok(Program { instructions })
+                });
+            }
+            S::ActionNumberTimes(amount, actions) => {
+                return self.action(
+                    &S::RepeatableActionsNumTimes(amount.clone(), actions.clone()),
+                    actor,
+                );
+            }
+            S::EachPlayerChoosesAnAction(players, actions) => {
+                let players = self.players(players)?;
+                let choice = S::ChooseAnAction(actions.iter().map(|a| vec![a.clone()]).collect());
+                return self.for_each_player(players, |context, player| {
+                    context.action(&choice, player)
                 });
             }
             S::CreateTokensForEachPermanent(objects, tokens, flags) => {
