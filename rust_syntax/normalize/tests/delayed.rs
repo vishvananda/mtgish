@@ -443,11 +443,7 @@ fn only_an_object_has_lethal_damage_to_exceed() {
 
 #[test]
 fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
-    let incomplete = [
-        "Bounty of the Hunt",
-        "Chancellor of the Tangle",
-        "Pygmy Hippo",
-    ];
+    let incomplete = ["Bounty of the Hunt", "Chancellor of the Tangle"];
     let mut complete = 0;
     for s in sources() {
         let name = corpus::Identity::of(&s).unwrap().names.remove(0);
@@ -471,5 +467,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 50);
+    assert_eq!(complete, 51);
 }

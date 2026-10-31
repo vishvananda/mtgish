@@ -52,6 +52,45 @@ pub fn reads_scope(form: &str) -> bool {
         || form.ends_with("ThisWay") && form != "TheNameStickerPutOnPermanentThisWay"
 }
 
+/// The word in a "this way" row's name, and the words of the instruction it
+/// reads. A row whose word no instruction here has reads a cost or an event.
+const THIS_WAY: &[(&[&str], &[&str])] = &[
+    (&["Energy"], &["Energy"]),
+    (&["Evidence"], &["Evidence"]),
+    (&["Exploited"], &["Exploit"]),
+    (&["CountersOfType"], &["Counters"]),
+    (&["Discard"], &["Discard"]),
+    (&["Exile"], &["Exile"]),
+    (&["Milled"], &["Mill"]),
+    (&["Surveil"], &["Surveil"]),
+    (&["Died"], &["Destroy", "Sacrifice", "Damage"]),
+    (&["Destroy"], &["Destroy"]),
+    (&["Sacrifice"], &["Sacrifice"]),
+    (&["Countered"], &["Counter"]),
+    (&["Reveal"], &["Reveal", "LookAt"]),
+    (&["Tapped"], &["Tap"]),
+    (&["Token"], &["Token"]),
+    (&["Damage"], &["Damage"]),
+    (&["Paid"], &["Pay"]),
+    (&["Chosen", "Chose"], &["Choose", "Choice", "StartingWith"]),
+    (&["Cast"], &["Cast"]),
+    (&["Copied"], &["Copy"]),
+    (&["Unattached", "Unequipped"], &["Attach"]),
+    (&["Control"], &["Control"]),
+    (&["Goaded"], &["Goad"]),
+    (&["Phased"], &["Phase"]),
+    (&["Cloaked"], &["Cloak"]),
+    (&["Manifested"], &["Manifest"]),
+    (&["Shuffled"], &["Shuffle"]),
+    (&["Seeked"], &["Seek"]),
+    (&["Discovered"], &["Discover"]),
+    (&["Guessed"], &["Guess"]),
+    (&["Subgame"], &["Subgame"]),
+    (&["Votes"], &["Vote"]),
+    (&["Lost"], &["Lose"]),
+    (&["Returned", "PutInto", "PutOn", "Left"], &["Move", "Return"]),
+];
+
 /// A row reporting what an earlier action did, which it must name.
 fn reads_last(name: &str) -> bool {
     name.ends_with("ThisWay") && !name.contains("::Reflexive_") && !name.contains("_When")
@@ -340,8 +379,8 @@ impl Context {
             other => vec![scoped.bound_operand(other)?],
         };
         let mut operands = operands;
-        if let (true, Some(last)) = (reads_last(&name), &self.last_result) {
-            operands.push(Operand::Result(last.clone()));
+        if let Some(result) = self.this_way_result(&name) {
+            operands.push(Operand::Result(result));
         }
         Some((name, operands))
     }
@@ -380,7 +419,7 @@ impl Context {
         }
         let result = ResultId(self.result);
         self.result += 1;
-        self.last_result = Some(result.clone());
+        self.reported.push((result.clone(), name.clone()));
         if name.starts_with("Action::Roll") {
             self.rolled = Some(result.clone());
         }
@@ -502,11 +541,29 @@ impl Context {
         Some(EventSpec::Primitive { name, operands })
     }
 
+    /// The nearest instruction doing what a "this way" row reports.
+    fn this_way_result(&self, name: &str) -> Option<ResultId> {
+        if !reads_last(name) {
+            return None;
+        }
+        let form = name.split("::").nth(1).unwrap_or(name);
+        let words = THIS_WAY
+            .iter()
+            .find(|(row, _)| row.iter().any(|word| form.contains(word)))
+            .map_or(&[][..], |(_, words)| *words);
+        self.reported
+            .iter()
+            .rev()
+            .filter(|(_, text)| !text.contains(form))
+            .find(|(_, text)| words.is_empty() || words.iter().any(|word| text.contains(word)))
+            .map(|(result, _)| result.clone())
+    }
+
     fn named_action(&mut self, value: &source::Action, actor: &PlayerSet) -> Instruction {
         self.forget_results();
         let result = ResultId(self.result);
         self.result += 1;
-        self.last_result = Some(result.clone());
+        self.reported.push((result.clone(), format!("{:?}", named_value(value))));
         Instruction::Effect {
             result,
             operation: Operation::Named {

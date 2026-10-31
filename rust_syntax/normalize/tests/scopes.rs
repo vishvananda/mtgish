@@ -403,9 +403,17 @@ fn a_cost_any_player_may_pay_is_paid_by_that_player() {
 }
 
 #[test]
+fn a_this_way_row_binds_nothing_when_no_instruction_has_its_verb() {
+    let body = lowered(
+        "SpellActions(ActionList([Surveil(Integer(1)), DrawACard, If(APermanentWasCopiedThisWay(AnyPermanent), [Scry(Integer(2))])]))",
+    );
+    assert!(!body.contains("Result(ResultId("), "{body}");
+}
+
+#[test]
 fn a_this_way_row_names_the_instruction_it_reads() {
     let body = lowered(
-        "SpellActions(ActionList([DrawACard, If(APermanentWasCopiedThisWay(AnyPermanent), [Scry(Integer(1))]), If(APermanentWasCopiedThisWay(AnyPermanent), [Scry(Integer(2))])]))",
+        "SpellActions(ActionList([Surveil(Integer(1)), DrawACard, If(ACardWasSurveiledIntoGraveyardThisWay(IsCardtype(Creature)), [Scry(Integer(1))])]))",
     );
-    assert_eq!(body.matches("Result(ResultId(0))").count(), 2, "{body}");
+    assert!(body.contains("Result(ResultId(0))"), "{body}");
 }

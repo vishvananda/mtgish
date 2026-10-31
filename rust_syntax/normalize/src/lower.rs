@@ -65,8 +65,8 @@ struct Context {
     outer_targets: usize,
     modes: Option<ModeSelection>,
     result: u32,
-    /// The last instruction of this list; children read but do not set it.
-    last_result: Option<ResultId>,
+    /// This list's instructions so far; children read but do not extend it.
+    reported: Vec<(ResultId, String)>,
     affected: bool,
     keyword_host: bool,
     candidate: bool,
@@ -413,7 +413,8 @@ impl Context {
         }
         let result = ResultId(self.result);
         self.result += 1;
-        self.last_result = Some(result.clone());
+        self.reported
+            .push((result.clone(), format!("{operation:?}")));
         Instruction::Effect { result, operation }
     }
 
