@@ -14,6 +14,7 @@ mod casting;
 mod costs;
 mod delayed;
 mod effects;
+mod mechanics;
 mod players;
 mod read;
 mod replacements;
@@ -364,6 +365,8 @@ struct Compiler {
     bound_objects: BTreeSet<u32>,
     bound_players: BTreeSet<u32>,
     /// Small generated functions that this module uses.
+    /// A mechanic asks for the first way, so no other way may come before it.
+    only_way: bool,
     /// Inside a spell's cost change, which has `targets` in reach.
     costing_targets: bool,
     helpers: BTreeSet<&'static str>,
@@ -616,6 +619,7 @@ impl Compiler {
             bound_objects: BTreeSet::new(),
             bound_players: BTreeSet::new(),
             costing_targets: false,
+            only_way: false,
             helpers: BTreeSet::new(),
             extras: Vec::new(),
             delayed: Vec::new(),
@@ -1187,6 +1191,8 @@ struct Parts {
     modal: String,
     enchant: String,
     protection: u8,
+    /// The `PayWith` fields a card's keywords set.
+    pay_with: BTreeSet<&'static str>,
 }
 impl Parts {
     fn table(&mut self, table: &'static str, entry: String) {
@@ -1226,6 +1232,7 @@ impl Default for Parts {
             modal: "None".into(),
             enchant: "None".into(),
             protection: 0,
+            pay_with: BTreeSet::new(),
         }
     }
 }
@@ -1263,6 +1270,22 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
             c.casting_costs.insert(i as u32, cost.clone());
         }
     }
+    let firsts: Vec<String> = card
+        .abilities
+        .iter()
+        .filter_map(|a| match a {
+            Ability::Mechanic { mechanic, .. } => mechanics::first_delayed(*mechanic),
+            _ => None,
+        })
+        .collect();
+    c.attempt("abilities".into(), |c| match firsts.as_slice() {
+        [] => Ok(()),
+        [first] => {
+            c.delayed.push(first.clone());
+            Ok(())
+        }
+        _ => Err(gap("two mechanics that need the first delayed ability")),
+    });
     for (i, a) in card.abilities.iter().enumerate() {
         c.attempt(format!("abilities[{i}]"), |c| {
             let compiled = c.ability(a, &format!("ability_{i}"), &mut parts, None);
@@ -1271,6 +1294,24 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
             }
             compiled
         });
+    }
+    c.attempt("abilities".into(), |c| {
+        let ways = parts.tables.get("ways").map_or(0, Vec::len);
+        match c.only_way && ways != 1 {
+            true => Err(gap("another way beside a mechanic's only way")),
+            false => Ok(()),
+        }
+    });
+    if !parts.pay_with.is_empty() {
+        let fields: Vec<String> = parts
+            .pay_with
+            .iter()
+            .map(|f| format!("{f}: true"))
+            .collect();
+        parts.field(
+            "pay_with",
+            format!("PayWith {{ {}, ..PayWith::NONE }}", fields.join(", ")),
+        );
     }
     let ch = &card.characteristics;
     let types = ch

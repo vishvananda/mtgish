@@ -751,6 +751,19 @@ impl Compiler {
                 event,
                 body,
             } => self.replacement(label, active, event, body, parts)?,
+            Ability::Mechanic {
+                mechanic,
+                cost,
+                amount,
+                filter,
+            } => self.mechanic(
+                *mechanic,
+                cost.as_ref(),
+                amount.as_ref(),
+                filter.as_ref(),
+                label,
+                parts,
+            )?,
             Ability::Primitive { name, .. } => {
                 return Err(gap(format!("primitive ability {name}")))
             }
