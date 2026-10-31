@@ -260,6 +260,33 @@ pub fn makes_card(operation: &Operation) -> bool {
         if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft"))
 }
 
+/// A row's ability in generic form, or the row itself when it has none.
+pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
+    let Some((_, mechanic)) = MECHANICS.iter().find(|(row, _)| *row == name) else {
+        return Ability::Primitive { name, operands };
+    };
+    let (mut cost, mut amount, mut filter) = (None, None, None);
+    for operand in &operands {
+        match operand {
+            Operand::Cost(value) => cost = Some(value.clone()),
+            Operand::Number(value) => amount = Some(value.clone()),
+            Operand::Integer(value) => amount = Some(Expr::Constant(*value)),
+            Operand::Filter(value) => filter = Some(value.clone()),
+            Operand::Objects(objects) => match event_filter(objects) {
+                Some(value) => filter = Some(value),
+                None => return Ability::Primitive { name, operands },
+            },
+            _ => return Ability::Primitive { name, operands },
+        }
+    }
+    Ability::Mechanic {
+        mechanic: *mechanic,
+        cost,
+        amount,
+        filter,
+    }
+}
+
 /// What a reviewed row says its body can name.
 pub fn row_bindings(name: &str) -> EventBindings {
     let binds = crate::primitive_spec::lookup(name).map_or(&[][..], |r| &r.binds);

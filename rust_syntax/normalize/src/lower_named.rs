@@ -475,7 +475,7 @@ impl Context {
             source::Rule::DeckConstruction(deck) => self.primitive("DeckConstruction", deck)?,
             _ => self.primitive("Rule", value)?,
         };
-        Some(Ability::Primitive { name, operands })
+        Some(crate::semantics::reduce_ability(name, operands))
     }
 
     fn primitive_cost(&self, value: &source::Cost) -> Option<Cost> {

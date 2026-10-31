@@ -2632,6 +2632,16 @@ fn validate_ability_in(
     let (announcement, body) = match ability {
         Ability::Named(named) => return scope.named(named),
         Ability::Primitive { name, operands } => return scope.primitive(name, operands),
+        Ability::Mechanic {
+            cost,
+            amount,
+            filter,
+            ..
+        } => {
+            cost.iter().try_for_each(|cost| scope.cost(cost))?;
+            amount.iter().try_for_each(|amount| scope.expr(amount))?;
+            return filter.iter().try_for_each(|filter| scope.filter(filter));
+        }
         Ability::CostBranch {
             cost, paid, unpaid, ..
         } => {

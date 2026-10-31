@@ -59,6 +59,23 @@ impl Inventory<'_> {
         match a {
             Ability::Named(_) => {}
             Ability::Primitive { name, .. } => self.primitive(name),
+            Ability::Mechanic {
+                mechanic,
+                cost,
+                amount,
+                filter,
+            } => {
+                self.form("Mechanic", mechanic);
+                if let Some(cost) = cost {
+                    self.cost(cost);
+                }
+                if let Some(amount) = amount {
+                    self.expr(amount);
+                }
+                if let Some(filter) = filter {
+                    self.filter(filter);
+                }
+            }
             Ability::CostBranch {
                 cost, paid, unpaid, ..
             } => {

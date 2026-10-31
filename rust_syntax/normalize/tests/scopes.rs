@@ -460,3 +460,15 @@ fn a_keyword_action_row_is_one_generic_operation_and_keeps_its_result() {
     assert!(body.contains("action: Amass"), "{body}");
     assert!(body.contains("subtype: Some(\"Zombie\")"), "{body}");
 }
+
+#[test]
+fn a_keyword_ability_row_carries_typed_parameters() {
+    let body = lowered("Morph(PayMana([ManaCostGeneric(3)]))");
+    assert!(body.contains("Mechanic { mechanic: Morph, cost: Some("), "{body}");
+    let body = lowered("Toxic(2)");
+    assert!(body.contains("mechanic: Toxic"), "{body}");
+    assert!(body.contains("amount: Some(Constant(2))"), "{body}");
+    let body = lowered("Affinity(IsCardtype(Artifact))");
+    assert!(body.contains("mechanic: Affinity"), "{body}");
+    assert!(!body.contains("filter: None"), "{body}");
+}
