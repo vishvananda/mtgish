@@ -95,6 +95,10 @@ impl<'a> Scope<'a> {
         if let ObjectSet::Transition { result, .. } | ObjectSet::Observed(result) = objects {
             return self.singular.contains(&result.0);
         }
+        // "The spell cast this way".
+        if matches!(objects, ObjectSet::Affected(_)) {
+            return true;
+        }
         let ObjectSet::CostObjects {
             payment,
             component,
@@ -1089,6 +1093,16 @@ impl<'a> Scope<'a> {
     fn condition(&self, condition: &Condition) -> Result {
         match condition {
             Condition::Primitive { name, operands } => self.primitive(name, operands),
+            Condition::SubsetMeets {
+                objects,
+                amount,
+                constraints,
+                ..
+            } => {
+                self.objects(objects)?;
+                self.expr(amount)?;
+                self.selection_constraints(constraints)
+            }
             Condition::Window(_) => Ok(()),
             Condition::PlayerState { player, .. } => self.player(player),
             Condition::ItsNeitherDayNorNight | Condition::ItsNight => Ok(()),

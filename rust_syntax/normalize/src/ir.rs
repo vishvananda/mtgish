@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 130;
+pub const SCHEMA_VERSION: u32 = 131;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2875,6 +2875,8 @@ pub enum PlayerNumber {
     /// Permanents the player controls that match.
     Permanents(Box<ObjectFilter>),
     UnspentMana,
+    /// What the player secretly chose; players who chose none are left out.
+    ChosenNumber,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DistinctProperty {
@@ -3540,6 +3542,13 @@ pub enum Condition {
     PlayerAttacks {
         attacker: PlayerRef,
         defender: PlayerRef,
+    },
+    /// Some subset of these meets the constraints and has this many objects.
+    SubsetMeets {
+        objects: ObjectSet,
+        comparison: Comparison,
+        amount: Expr,
+        constraints: Vec<SelectionConstraint>,
     },
 }
 

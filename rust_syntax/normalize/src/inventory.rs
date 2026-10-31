@@ -2104,6 +2104,12 @@ impl Inventory<'_> {
         self.form("Condition", c);
         match c {
             Condition::Primitive { name, .. } => self.primitive(name),
+            Condition::SubsetMeets {
+                objects, amount, ..
+            } => {
+                self.objects(objects);
+                self.expr(amount);
+            }
             Condition::Window(window) => self.form("TurnWindow", window),
             Condition::ItsNeitherDayNorNight | Condition::ItsNight => {}
             Condition::MostVotes { option, .. } | Condition::Voted(option) => {

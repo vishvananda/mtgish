@@ -1760,3 +1760,27 @@ fn a_cost_reduction_reads_the_spell_it_reduces() {
     );
     assert!(locket.contains("SharesNameWith(Affected)"), "{locket}");
 }
+
+#[test]
+fn secret_numbers_and_subset_conditions_read_what_was_chosen() {
+    let wheel = lowered(
+        "SpellActions(ActionList([EachPlayerAction(AnyPlayer, SecretlyChooseANumber), RevealSecretlyChosenNumbers, SpellDealsDamage(ThisSpell, TheHighestNumberChosen, EachPlayer(ChoseHighestNumber))]))",
+    );
+    assert!(wheel.contains("number: ChosenNumber"), "{wheel}");
+    let crew = lowered(
+        "SpellActions(ActionList([DrawNumberCards(Integer(3)), DiscardNumberCardsAtRandom(Integer(2)), If(NumCardsDiscardedThisWayPassGroupFilter(GreaterThanOrEqualTo(Integer(2)), AnyCard, ShareACardType), [DrawACard])]))",
+    );
+    assert!(crew.contains("SubsetMeets"), "{crew}");
+}
+
+#[test]
+fn spells_cast_this_way_and_replaced_returns_name_their_objects() {
+    let cast = lowered(
+        "SpellActions(ActionList([Exile([TheTopCardOfLibrary], []), CastExiledCardWithoutPaying(TheCardExiledThisWay), If(ASpellWasCastThisWay(IsCardtype(Creature)), [CreateSpellEffect(TheSpellCastThisWay, [AddAbility([Haste])])])]))",
+    );
+    assert!(cast.contains("Affected(ResultId"), "{cast}");
+    let phoenix = lowered(
+        "ReplaceWouldPutIntoGraveyard(APermanentWouldDie(SinglePermanent(ThisPermanent)), [PutItInOwnersHandInstead, CreatePlayerEffectUntil(OwnerOfTheCardReturnedToHandThisWay, [PlaysWithCardInHandRevealed(TheCardReturnedToHandThisWay)], UntilPlayersNextTurn(OwnerOfTheCardReturnedToHandThisWay))])",
+    );
+    assert!(phoenix.contains("EventDestination"), "{phoenix}");
+}

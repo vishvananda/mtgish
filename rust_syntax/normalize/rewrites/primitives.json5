@@ -3046,6 +3046,10 @@
     {"source": "Player::TheOtherChosenPlayer", "text": "other"},
     {"source": "Rule::EachPermanentAndSpellEffect", "text": "color"},
     {"source": "CardInHand::TheLastCardDrawnThisTurn", "text": "last"},
-    {"source": "DamageRecipient::CreatureOrPlaneswalkerChosenAtRandom", "text": "random"}
+    {"source": "DamageRecipient::CreatureOrPlaneswalkerChosenAtRandom", "text": "random"},
+    {"source": "GameNumber::TheHighestNumberChosen", "text": "highest"},
+    {"source": "Condition::TheChosenNumbersMatch", "text": "match|same"},
+    {"source": "GameNumber::TotalManaValueOfSpells", "text": "mana"},
+    {"source": "PlayerEffect::CantPlayCardInHand", "text": "play"}
   ]
 }

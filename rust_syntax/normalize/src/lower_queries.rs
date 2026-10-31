@@ -182,6 +182,10 @@ impl Context {
                 Ok(ObjectRef::EventStackObject)
             }
             source::Spell::DecreaseSpellCost_ThatSpell if self.affected => Ok(ObjectRef::Affected),
+            source::Spell::TheSpellCastThisWay => Ok(ObjectRef::Query {
+                objects: Box::new(ObjectSet::Affected(self.done(Done::Cast)?)),
+                index: 0,
+            }),
             _ => self
                 .primitive("Spell", value)
                 .map(|(name, operands)| ObjectRef::Primitive { name, operands })
@@ -206,6 +210,9 @@ impl Context {
         use source::Spells as S;
         Ok(match value {
             S::ExceptFor(spells) => ObjectFilter::Not(Box::new(self.spell_filter(spells)?)),
+            S::TheSpellsCastThisWay => ObjectFilter::InSet(Box::new(ObjectSet::Affected(
+                self.done(Done::Cast)?,
+            ))),
             S::Ref_TargetSpells => ObjectFilter::InSet(Box::new(ObjectSet::Targets(
                 self.target(TargetKind::Object(ObjectDomain::spell()), 0, 0)?,
             ))),

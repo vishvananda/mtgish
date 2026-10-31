@@ -347,6 +347,28 @@ impl Context {
             S::ACardWasPutIntoGraveyardThisWay(c) => {
                 any(self.this_way_count(Done::Graveyard, After, cards(c)?))
             }
+            S::NumCardsDiscardedThisWayPassGroupFilter(comparison, c, group)
+            | S::NumCardsFromHandRevealedThisWayPassGroupFilter(comparison, c, group) => {
+                let subset = || -> Result<Condition> {
+                    let (comparison, amount) = self.comparison(comparison)?;
+                    let objects = match value {
+                        S::NumCardsDiscardedThisWayPassGroupFilter(..) => {
+                            self.this_way_set(Done::Discarded, After, None)?
+                        }
+                        _ => self.revealed_objects()?,
+                    };
+                    Ok(Condition::SubsetMeets {
+                        objects: ObjectSet::Matching {
+                            objects: Box::new(objects),
+                            filter: self.card_filter(c)?,
+                        },
+                        comparison,
+                        amount,
+                        constraints: self.group_constraints(group)?,
+                    })
+                };
+                subset()
+            }
             S::ACardWasExiledThisWay(c) => any(self.this_way_count(Done::Exiled, After, cards(c)?)),
             S::APermanentWasExiledThisWay(p) => {
                 any(self.this_way_count(Done::Exiled, Before, permanents(p)?))

@@ -1833,6 +1833,21 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
         _ => {}
     }
     match (name.as_str(), operands.as_slice()) {
+        ("Condition::TheChosenNumbersMatch", []) => {
+            return Condition::Compare {
+                left: among(
+                    &PlayerSet::All,
+                    PlayerNumber::ChosenNumber,
+                    Aggregation::Maximum,
+                ),
+                comparison: Comparison::Equal,
+                right: among(
+                    &PlayerSet::All,
+                    PlayerNumber::ChosenNumber,
+                    Aggregation::Minimum,
+                ),
+            }
+        }
         ("Condition::ASpellWasWarpedThisTurn", []) => {
             return Condition::Compare {
                 left: Expr::EventHistory {
@@ -4231,6 +4246,11 @@ fn distinct(objects: &ObjectSet, property: DistinctProperty) -> Expr {
 pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
     match (name.as_str(), operands.as_slice()) {
         ("GameNumber::TheChosenNumber", []) => Expr::ChosenNumber,
+        ("GameNumber::TheHighestNumberChosen", []) => among(
+            &PlayerSet::All,
+            PlayerNumber::ChosenNumber,
+            Aggregation::Maximum,
+        ),
         ("GameNumber::NumCreaturesInPlayersParty", [Operand::Player(player)]) => {
             Expr::PartySize(player.clone())
         }

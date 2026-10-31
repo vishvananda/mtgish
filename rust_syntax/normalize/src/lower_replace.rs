@@ -440,6 +440,7 @@ impl Context {
                 )]
             }
             "PutItInOwnersHandInstead" => {
+                self.replaced_hand = true;
                 vec![EventChange::SetDestination(Destination::OwnersHand)]
             }
             "PutIntoGraveyardInstead" => {

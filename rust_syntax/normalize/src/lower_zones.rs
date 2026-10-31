@@ -305,6 +305,15 @@ impl Context {
                     index: 0,
                 })
             }
+            source::CardInHand::TheCardReturnedToHandThisWay if self.replaced_hand => {
+                Ok(ObjectRef::Query {
+                    objects: Box::new(ObjectSet::InZone {
+                        objects: Box::new(ObjectSet::One(ObjectRef::EventDestination)),
+                        zone: EventZone::Hand,
+                    }),
+                    index: 0,
+                })
+            }
             source::CardInHand::TheCardReturnedToHandThisWay
             | source::CardInHand::TheCardPutInHandThisWay => Ok(ObjectRef::Result {
                 result: self

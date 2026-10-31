@@ -184,6 +184,7 @@ struct Context {
     picks: Vec<(Option<PlayerRef>, ResultId)>,
     exile_choice: Option<ResultId>,
     replaced_exile: bool,
+    replaced_hand: bool,
     grave_choice: Option<ResultId>,
     narrowed_choice: Option<ResultId>,
     extra_turn: Option<ResultId>,
@@ -215,6 +216,7 @@ enum Done {
     Paid,
     Untapped,
     PhasedOut,
+    Cast,
 }
 impl Done {
     fn of(operation: &Operation) -> Option<Self> {
@@ -230,6 +232,10 @@ impl Done {
                     | EventChange::PreventAllButDamage(_),
             } => Self::Prevented,
             Operation::Destroy { .. } => Self::Destroyed,
+            Operation::PlayCards {
+                action: CardPlayAction::CastSpell,
+                ..
+            } => Self::Cast,
             Operation::Draw { .. } => Self::Drew,
             Operation::Tap { tapped: false, .. } => Self::Untapped,
             Operation::PutCounters { .. } => Self::Counters,
@@ -911,6 +917,9 @@ impl Context {
                 self.damage_player.clone().unwrap()
             }
             S::OwnerOfExiledCard(card) => PlayerRef::OwnerOf(Box::new(self.exiled_card(card)?)),
+            S::OwnerOfTheCardReturnedToHandThisWay => PlayerRef::OwnerOf(Box::new(
+                self.hand_card(&source::CardInHand::TheCardReturnedToHandThisWay)?,
+            )),
             S::OwnerOfGraveyrdCard(card) => PlayerRef::OwnerOf(Box::new(self.grave_card(card)?)),
             S::ControllerOfSpellOrAbility(object) if self.stack_object(object).is_ok() => {
                 PlayerRef::ControllerOf(Box::new(self.stack_object(object)?))
@@ -1615,6 +1624,7 @@ impl Context {
             {
                 Expr::EventAmount
             }
+            S::TheNumberChosenThisWay => Expr::ChosenNumber,
             S::TheDiceResult => self.die_result()?,
             S::TheNumberOfCoinsThatCameUpHeads => Expr::HeadsFlipped(
                 self.flipped
