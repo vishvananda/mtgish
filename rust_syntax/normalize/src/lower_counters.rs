@@ -229,6 +229,33 @@ impl Context {
                 CounterAmount::Count(Count::UpTo(self.number(n)?)),
                 None,
             ),
+            S::NumberCountersOfTypeFromAmongPermanents(n, k, p) => (
+                each(p)?,
+                Some(k),
+                CounterAmount::AmongThem(Count::Exactly(self.number(n)?)),
+                None,
+            ),
+            S::UptoNumberCountersOfTypeFromAmongPermanents(n, k, p) => (
+                each(p)?,
+                Some(k),
+                CounterAmount::AmongThem(Count::UpTo(self.number(n)?)),
+                None,
+            ),
+            S::AnyNumberOfCountersFromAmongPermanents(p) => (
+                each(p)?,
+                None,
+                CounterAmount::AmongThem(Count::AnyNumber),
+                None,
+            ),
+            S::TheCountersDistributedThisWay => {
+                let (recipients, share) = self.distribution()?;
+                let kind = self
+                    .distributed_kind
+                    .as_ref()
+                    .ok_or_else(|| invalid("no counters were distributed in this scope"))?;
+                let amount = CounterAmount::Count(Count::Exactly(share));
+                (recipients, Some(kind), amount, None)
+            }
             _ => return Err(unsupported(value)),
         };
         self.removal(recipients, kind, amount, choose, actor)

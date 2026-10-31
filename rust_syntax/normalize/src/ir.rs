@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 120;
+pub const SCHEMA_VERSION: u32 = 121;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -885,6 +885,8 @@ pub enum Operation {
         filter: ObjectFilter,
         /// How many matching cards end the reveal.
         count: Expr,
+        /// The most cards revealed, whichever comes first.
+        at_most: Option<Expr>,
     },
     /// Reordering is within each library, without zone changes. Exclusions hold
     /// selected cards out of the shuffle while they remain in that library.

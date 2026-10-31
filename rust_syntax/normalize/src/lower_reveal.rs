@@ -95,23 +95,207 @@ impl Context {
             did: None,
         };
         let mut instructions = vec![reveal];
+        self.reveal_steps(&player, &player, state, actions, &mut instructions)?;
+        Ok(Instruction::Group(Program { instructions }))
+    }
+
+    /// A branch carries the steps after it, so each arm sees what the other moved.
+    fn reveal_steps(
+        &mut self,
+        player: &PlayerRef,
+        library: &PlayerRef,
+        mut state: InspectionState,
+        actions: &[source::RevealTheTopNumberCardsOfLibraryAction],
+        instructions: &mut Vec<Instruction>,
+    ) -> Result<()> {
+        use source::RevealTheTopNumberCardsOfLibraryAction as S;
         for (i, action) in actions.iter().enumerate() {
-            self.reveal_step(&player, &mut state, action, &mut instructions)
+            if let S::If(condition, then) | S::IfElse(condition, then, _) = action {
+                if state.found.is_some() {
+                    self.found = state.found.clone();
+                }
+                let condition = self.condition(condition)?;
+                let mut yes = then.clone();
+                yes.extend_from_slice(&actions[i + 1..]);
+                let mut no = if let S::IfElse(_, _, otherwise) = action {
+                    otherwise.clone()
+                } else {
+                    vec![]
+                };
+                no.extend_from_slice(&actions[i + 1..]);
+                let mut then = vec![];
+                let mut yes_context = self.clone();
+                yes_context.reveal_steps(player, library, state.clone(), &yes, &mut then)?;
+                self.result = yes_context.result;
+                let mut otherwise = vec![];
+                let mut no_context = self.clone();
+                no_context.reveal_steps(player, library, state, &no, &mut otherwise)?;
+                self.result = no_context.result;
+                self.invalidate_child_bindings(&yes_context);
+                self.invalidate_child_bindings(&no_context);
+                instructions.push(Instruction::If {
+                    condition,
+                    then: Program { instructions: then },
+                    otherwise: Program {
+                        instructions: otherwise,
+                    },
+                });
+                return Ok(());
+            }
+            self.reveal_step(player, library, &mut state, action, instructions)
                 .map_err(|e| e.at(format!("reveal[{i}]")))?;
         }
-        Ok(Instruction::Group(Program { instructions }))
+        Ok(())
     }
 
     fn reveal_step(
         &mut self,
         player: &PlayerRef,
+        library: &PlayerRef,
         state: &mut InspectionState,
         action: &source::RevealTheTopNumberCardsOfLibraryAction,
         instructions: &mut Vec<Instruction>,
     ) -> Result<()> {
         use source::RevealTheTopNumberCardsOfLibraryAction as S;
         let one = || Expr::Constant(1);
+        let found = |state: &InspectionState| {
+            state
+                .found
+                .clone()
+                .ok_or_else(|| invalid("inspection has no preceding found-card choice"))
+        };
         match action {
+            S::PlayerAction(who, step) => {
+                let who = self.player(who)?;
+                return self.reveal_step(&who, library, state, step, instructions);
+            }
+            S::ChooseAnyNumberOfCards(cards) => {
+                let filter = self.card_filter(cards)?;
+                state.found = Some(self.inspection_choice(
+                    player,
+                    state.remaining(),
+                    filter,
+                    Count::AnyNumber,
+                    vec![],
+                    instructions,
+                ));
+                return Ok(());
+            }
+            S::ChooseMultipleCardsOfType(cards) => {
+                let filters = cards
+                    .iter()
+                    .map(|cards| self.card_filter(cards))
+                    .collect::<Result<Vec<_>>>()?;
+                state.found = Some(self.inspection_choice(
+                    player,
+                    state.remaining(),
+                    ObjectFilter::Any,
+                    Count::UpTo(Expr::Constant(filters.len() as i64)),
+                    vec![SelectionConstraint::OneForEach(filters)],
+                    instructions,
+                ));
+                return Ok(());
+            }
+            S::PutTheCardsFoundThisWayIntoGraveyard => {
+                self.reveal_move(found(state)?, Destination::OwnersGraveyard, state, instructions);
+                return Ok(());
+            }
+            S::PutTheCardsNotFoundThisWayIntoGraveyard => {
+                let objects = ObjectSet::Difference {
+                    objects: Box::new(state.remaining()),
+                    excluding: Box::new(found(state)?),
+                };
+                self.reveal_move(objects, Destination::OwnersGraveyard, state, instructions);
+                return Ok(());
+            }
+            S::PutTheCardFoundThisWayOnTopOfLibrary => {
+                let operation = Operation::ReorderLibrary {
+                    player: player.clone(),
+                    library: library.clone(),
+                    objects: found(state)?,
+                    end: SequenceEnd::Top,
+                    order: CardOrder::Chosen,
+                };
+                self.inspection_assignment(operation, state, instructions);
+                return Ok(());
+            }
+            S::ExileTheCardFoundThisWayWithNumberCountersOfType(amount, kind) => {
+                let operation = Operation::Move {
+                    objects: found(state)?,
+                    destination: Destination::Exile,
+                    entry: EntrySpec {
+                        counters: vec![(crate::counter::lower(kind), self.number(amount)?)],
+                        ..EntrySpec::default()
+                    },
+                    face_down: false,
+                };
+                self.inspection_assignment(operation, state, instructions);
+                return Ok(());
+            }
+            S::PutEachCardOfTypeChosenThisWayOntoTheBattlefield(cards, flags) => {
+                let objects = ObjectSet::Matching {
+                    objects: Box::new(found(state)?),
+                    filter: self.card_filter(cards)?,
+                };
+                let (destination, entry) = self.move_entry(flags, player.clone())?;
+                let operation = Operation::Move {
+                    objects,
+                    destination,
+                    entry,
+                    face_down: false,
+                };
+                self.inspection_assignment(operation, state, instructions);
+                return Ok(());
+            }
+            // One of the chosen cards goes first; the rest stay chosen for the next step.
+            S::PutAChosenCardOntoTheBattlefield(flags)
+            | S::PutACardFoundThisWayOntoTheBattlefield(flags) => {
+                let chosen = found(state)?;
+                let (destination, entry) = self.move_entry(flags, player.clone())?;
+                let objects = self.inspection_choice(
+                    player,
+                    chosen.clone(),
+                    ObjectFilter::Any,
+                    Count::AsManyAsCan(one()),
+                    vec![SelectionConstraint::CanMoveTo {
+                        destination: destination.clone(),
+                        entry: entry.clone(),
+                        face_down: false,
+                    }],
+                    instructions,
+                );
+                state.found = Some(ObjectSet::Difference {
+                    objects: Box::new(chosen),
+                    excluding: Box::new(objects.clone()),
+                });
+                let operation = Operation::Move {
+                    objects,
+                    destination,
+                    entry,
+                    face_down: false,
+                };
+                self.inspection_assignment(operation, state, instructions);
+                return Ok(());
+            }
+            S::PutAGenericCardFromTheChosenPileIntoHand => {
+                let pile = found(state)?;
+                let objects = self.inspection_choice(
+                    player,
+                    pile,
+                    ObjectFilter::Any,
+                    Count::AsManyAsCan(one()),
+                    vec![],
+                    instructions,
+                );
+                self.reveal_move(objects, Destination::OwnersHand, state, instructions);
+                return Ok(());
+            }
+            S::PlayerMillsNumberCards(who, amount) => {
+                let players = PlayerSet::One(self.player(who)?);
+                let amount = self.number(amount)?;
+                instructions.push(self.effect(Operation::Mill { players, amount }));
+                return Ok(());
+            }
             S::SeperateThoseCardsIntoTwoPiles => return Ok(()),
             S::APlayerSeparatesThoseCardsIntoTwoPiles(players) => {
                 let separator = self.one_of(players)?;
@@ -257,8 +441,7 @@ impl Context {
                     )?);
                     return Ok(());
                 };
-                let library = player.clone();
-                return self.inspection_step(player, &library, state, &step, false, instructions);
+                return self.inspection_step(player, library, state, &step, false, instructions);
             }
         };
         let filter = self.card_filter(filter)?;

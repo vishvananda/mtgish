@@ -984,6 +984,7 @@ impl Compiler {
                 library,
                 filter,
                 count,
+                at_most: None,
             } => {
                 let owner = self.fetch(self.certain_player(library)?);
                 let count = self.fetch(self.number(count)?.amount(u32::MAX.into(), "usize")?);

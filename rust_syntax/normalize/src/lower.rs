@@ -116,6 +116,8 @@ struct Context {
     self_player: std::cell::RefCell<Option<PlayerRef>>,
     /// The cards the search being resolved found.
     found: Option<ObjectSet>,
+    /// What "the counters distributed this way" were.
+    distributed_kind: Option<source::CounterType>,
     /// The last effect a player chose to take, and who was last offered a batch.
     took: Option<ResultId>,
     /// How many times the last repeated payment could have been made.
@@ -2290,6 +2292,30 @@ impl Context {
                 Expr::Constant(1),
                 None,
             ),
+            S::ACounterOfTypeOnCardInExile(kind, card) => (
+                Recipients::Objects(ObjectSet::One(self.exiled_card(card)?)),
+                kind,
+                Expr::Constant(1),
+                None,
+            ),
+            S::ACounterOfTypeOnEachCardInExile(kind, cards) => (
+                Recipients::Objects(self.exile_cards(cards)?),
+                kind,
+                Expr::Constant(1),
+                None,
+            ),
+            S::NumberCountersOfTypeOnCardInGraveyard(n, kind, card) => (
+                Recipients::Objects(ObjectSet::One(self.grave_card(card)?)),
+                kind,
+                self.number(n)?,
+                None,
+            ),
+            S::NumberCountersOfTypeOnEachCardInExile(n, kind, cards) => (
+                Recipients::Objects(self.exile_cards(cards)?),
+                kind,
+                self.number(n)?,
+                None,
+            ),
             S::ACounterOfTypeOnAPermanent(kind, objects) => (
                 Recipients::Objects(self.objects(objects)?),
                 kind,
@@ -3118,6 +3144,31 @@ impl Context {
                     Ok(Program { instructions })
                 });
             }
+            S::ActionForEachCardInHand(cards, actions) => {
+                let filter = self.hand_filter(cards)?;
+                let objects = self.private_cards(EventZone::Hand, actor.clone(), filter);
+                return self.for_each_object(objects, |context| {
+                    let instructions = actions
+                        .iter()
+                        .map(|action| context.action(action, actor))
+                        .collect::<Result<_>>()?;
+                    Ok(Program { instructions })
+                });
+            }
+            S::ActionForEachSpellAndAbility(spells, actions) => {
+                let objects = ObjectSet::Zone {
+                    scope: ZoneScope::Shared(EventZone::Stack),
+                    kind: ObjectKind::Any,
+                    filter: self.stack_filter(spells)?,
+                };
+                return self.for_each_object(objects, |context| {
+                    let instructions = actions
+                        .iter()
+                        .map(|action| context.action(action, actor))
+                        .collect::<Result<_>>()?;
+                    Ok(Program { instructions })
+                });
+            }
             S::ActionNumberTimes(amount, actions) => {
                 return self.action(
                     &S::RepeatableActionsNumTimes(amount.clone(), actions.clone()),
@@ -3578,6 +3629,24 @@ impl Context {
                     library: player.clone(),
                     filter: filter.clone(),
                     count: Expr::Constant(1),
+                    at_most: None,
+                };
+                return self.reveal_library(player.clone(), reveal, Some(filter), actions);
+            }
+            S::RevealCardsFromTheTopOfLibraryUntilACardOfTypeIsRevealedOrUntilNumberCardsAreRevealed(
+                cards,
+                amount,
+                actions,
+            ) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("revealing a library needs one player"));
+                };
+                let filter = self.card_filter(cards)?;
+                let reveal = Operation::RevealUntil {
+                    library: player.clone(),
+                    filter: filter.clone(),
+                    count: Expr::Constant(1),
+                    at_most: Some(self.number(amount)?),
                 };
                 return self.reveal_library(player.clone(), reveal, Some(filter), actions);
             }
@@ -3594,6 +3663,7 @@ impl Context {
                     library: player.clone(),
                     filter: filter.clone(),
                     count: self.number(amount)?,
+                    at_most: None,
                 };
                 return self.reveal_library(player.clone(), reveal, Some(filter), actions);
             }
@@ -4165,7 +4235,13 @@ impl Context {
                     actor,
                 )
             }
-            S::PutCounters(placements) => Operation::PutCounters {
+            S::PutCounters(placements) => {
+                for placement in placements {
+                    if let source::PutCountersAction::DistributedCounters(kind) = placement {
+                        self.distributed_kind = Some(kind.clone());
+                    }
+                }
+                Operation::PutCounters {
                 placements: placements
                     .iter()
                     .enumerate()
@@ -4174,7 +4250,8 @@ impl Context {
                             .map_err(|e| e.at(format!("placements[{i}]")))
                     })
                     .collect::<Result<_>>()?,
-            },
+                }
+            }
             S::AddMana(mana) | S::AddManaWithModifiers(mana, _) => Operation::AddMana {
                 players: actor.clone(),
                 mana: self.mana_production(mana)?,
@@ -4351,8 +4428,21 @@ impl Context {
         })
     }
 
+    fn stack_filter(&self, value: &source::SpellsAndAbilities) -> Result<ObjectFilter> {
+        match value {
+            source::SpellsAndAbilities::AnySpellOrAbility => Ok(ObjectFilter::Any),
+            source::SpellsAndAbilities::ControlledByAPlayer(players) => {
+                Ok(ObjectFilter::ControlledBy(self.players(players)?))
+            }
+            _ => Err(unsupported(value)),
+        }
+    }
+
     fn stack_object(&self, value: &source::SpellOrAbility) -> Result<ObjectRef> {
         match value {
+            source::SpellOrAbility::EachableSpellOrAbility if self.iterated_object.is_some() => {
+                Ok(ObjectRef::Bound(self.iterated_object.clone().unwrap()))
+            }
             source::SpellOrAbility::Ref_TargetSpellOrAbility => self.target_on_stack(),
             source::SpellOrAbility::Trigger_ThatSpellOrAbility if self.event.stack_object => {
                 Ok(ObjectRef::EventStackObject)
@@ -5804,8 +5894,8 @@ fn bind_face(
         && mana_cost
             .as_ref()
             .is_some_and(|m| m.iter().any(|s| mana_symbol_x(s).is_err()));
-    let loyalty_failed =
-        lenient && matches!(loyalty, Some(l) if !matches!(l, source::LoyaltyNumber::Integer(_)));
+    let loyalty_failed = lenient
+        && matches!(loyalty, Some(l) if !matches!(l, source::LoyaltyNumber::Integer(_) | source::LoyaltyNumber::LoyaltyX));
     if mana_failed {
         unreduced.push(Ability::Named(named_field("ManaCost", mana_cost)));
     }
@@ -5839,6 +5929,7 @@ fn bind_face(
             loyalty: loyalty
                 .map(|l| match l {
                     source::LoyaltyNumber::Integer(n) => Ok(Expr::Constant((*n).into())),
+                    source::LoyaltyNumber::LoyaltyX => Ok(Expr::AnnouncedX),
                     _ => Err(unsupported(l)),
                 })
                 .transpose()?,

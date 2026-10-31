@@ -115,6 +115,13 @@ impl Context {
         {
             return Ok(ObjectFilter::InSet(Box::new(self.conjured_cards()?)));
         }
+        if let (source::CardsInHand::TheChosenCardsInHand, Some(result)) =
+            (value, &self.hand_choice)
+        {
+            return Ok(ObjectFilter::InSet(Box::new(ObjectSet::Selected(
+                result.clone(),
+            ))));
+        }
         if let (source::CardsInHand::TheCardsInHandNotChosenThisWay, Some(result)) =
             (value, &self.hand_choice)
         {

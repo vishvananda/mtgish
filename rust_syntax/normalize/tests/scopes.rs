@@ -1567,3 +1567,25 @@ fn listed_values_negative_power_and_copied_stack_objects() {
     assert!(copied.contains("CopyOnStack {"), "{copied}");
     assert!(copied.contains("targets: May"), "{copied}");
 }
+
+#[test]
+fn reveal_branches_counters_among_objects_and_stack_loops() {
+    let branched = lowered(
+        "SpellActions(ActionList([RevealCardsFromTheTopOfLibraryUntilACardOfTypeIsRevealed(IsCardtype(Creature), [IfElse(ACardWasFoundThisWay, [PutTheCardFoundThisWayOnTopOfLibrary, PutTheRemainingCardsIntoGraveyard], [PutTheRemainingCardsBackIntoLibraryAndShuffle])])]))",
+    );
+    assert!(branched.contains("If {"), "{branched}");
+    assert!(branched.contains("ReorderLibrary"), "{branched}");
+    let bounded = lowered(
+        "SpellActions(ActionList([RevealCardsFromTheTopOfLibraryUntilACardOfTypeIsRevealedOrUntilNumberCardsAreRevealed(IsCardtype(Artifact), Integer(3), [PutTheRemainingCardsIntoGraveyard])]))",
+    );
+    assert!(bounded.contains("at_most: Some(Constant(3))"), "{bounded}");
+    let among = lowered(
+        "SpellActions(ActionList([RemoveCounters([UptoNumberCountersOfTypeFromAmongPermanents(Integer(3), StunCounter, AnyPermanent)])]))",
+    );
+    assert!(among.contains("AmongThem(UpTo(Constant(3)))"), "{among}");
+    let stack = lowered(
+        "SpellActions(ActionList([ActionForEachSpellAndAbility(ControlledByAPlayer(Opponent), [CounterSpellOrAbility(EachableSpellOrAbility)])]))",
+    );
+    assert!(stack.contains("ForEachObject"), "{stack}");
+    assert!(stack.contains("Shared(Stack)"), "{stack}");
+}

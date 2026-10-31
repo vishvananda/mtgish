@@ -229,6 +229,9 @@ impl Context {
     fn hand_card(&self, value: &source::CardInHand) -> Result<ObjectRef> {
         match value {
             source::CardInHand::ThisCardInHand => Ok(ObjectRef::Source),
+            source::CardInHand::EachableCardInHand if self.iterated_object.is_some() => {
+                Ok(ObjectRef::Bound(self.iterated_object.clone().unwrap()))
+            }
             source::CardInHand::TheCardConjuredIntoHandThisWay
             | source::CardInHand::TheCardConjuredThisWay
             | source::CardInHand::TheCardDraftedThisWay
@@ -763,6 +766,7 @@ impl Context {
                     library: player.clone(),
                     filter: filter.clone(),
                     count,
+                    at_most: None,
                 });
                 let Instruction::Effect { result, .. } = &seen else {
                     unreachable!()

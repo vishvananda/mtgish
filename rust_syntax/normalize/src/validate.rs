@@ -2249,9 +2249,13 @@ impl<'a> Scope<'a> {
                 library,
                 filter,
                 count,
+                at_most,
             } => {
                 self.player(library)?;
                 self.expr(count)?;
+                if let Some(at_most) = at_most {
+                    self.expr(at_most)?;
+                }
                 self.filter(filter)
             }
             Operation::RevealUntilGroup {

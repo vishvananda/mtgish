@@ -1,3 +1,15 @@
+fn symbol_color(color: &source::Color) -> Result<ManaColor> {
+    Ok(match color {
+        source::Color::White => ManaColor::White,
+        source::Color::Blue => ManaColor::Blue,
+        source::Color::Black => ManaColor::Black,
+        source::Color::Red => ManaColor::Red,
+        source::Color::Green => ManaColor::Green,
+        source::Color::TheChosenColor => ManaColor::Chosen,
+        _ => return Err(unsupported(color)),
+    })
+}
+
 impl Context {
     fn fixed_colors(&self, color: &source::SettableColor) -> Result<Vec<ManaColor>> {
         use source::SettableColor as S;
@@ -81,15 +93,14 @@ impl Context {
                 objects: Box::new(ObjectSet::Battlefield(ObjectFilter::ControlledBy(
                     PlayerSet::One(self.player(player)?),
                 ))),
-                colors: vec![match color {
-                    source::Color::White => ManaColor::White,
-                    source::Color::Blue => ManaColor::Blue,
-                    source::Color::Black => ManaColor::Black,
-                    source::Color::Red => ManaColor::Red,
-                    source::Color::Green => ManaColor::Green,
-                    source::Color::TheChosenColor => ManaColor::Chosen,
-                    _ => return Err(unsupported(color)),
-                }],
+                colors: vec![symbol_color(color)?],
+            },
+            S::TheTotalNumberOfColorManaSymbolsInManaCostsOfTheCardsInHandRevealedThisWay(color)
+            | S::TheTotalNumberOfColorManaSymbolsInManaCostsOfTheLibraryCardsRevealedThisWay(
+                color,
+            ) => Expr::CountManaSymbols {
+                objects: Box::new(self.revealed_objects()?),
+                colors: vec![symbol_color(color)?],
             },
             _ => return Err(unsupported(value)),
         })
