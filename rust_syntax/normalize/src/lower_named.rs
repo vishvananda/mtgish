@@ -480,9 +480,11 @@ impl Context {
 
     fn primitive_cost(&self, value: &source::Cost) -> Option<Cost> {
         let (name, operands) = self.primitive("Cost", value)?;
-        Some(Cost {
-            parts: vec![CostPart::Primitive { name, operands }],
-        })
+        let part = match (name.as_str(), operands.as_slice()) {
+            ("Cost::PayEnergy", [Operand::Number(amount)]) => CostPart::Energy(amount.clone()),
+            _ => CostPart::Primitive { name, operands },
+        };
+        Some(Cost { parts: vec![part] })
     }
 
     fn primitive_condition(&self, value: &source::Condition) -> Option<Condition> {
@@ -496,7 +498,7 @@ impl Context {
 
     fn primitive_predicate(&self, family: &str, value: &impl Serialize) -> Option<ObjectFilter> {
         let (name, operands) = self.primitive(family, value)?;
-        Some(ObjectFilter::Primitive { name, operands })
+        Some(crate::semantics::reduce_filter(name, operands))
     }
 
     fn primitive_object(&self, value: &source::Permanent) -> Option<ObjectRef> {
@@ -516,7 +518,7 @@ impl Context {
 
     fn primitive_change(&self, value: &source::LayerEffect) -> Option<Change> {
         let (name, operands) = self.primitive("LayerEffect", value)?;
-        Some(Change::Primitive { name, operands })
+        Some(crate::semantics::reduce_change(name, operands))
     }
 
     /// The tested player comes first, then the form's own operands.

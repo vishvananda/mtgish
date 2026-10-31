@@ -260,6 +260,51 @@ pub fn makes_card(operation: &Operation) -> bool {
         if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft"))
 }
 
+/// A row's filter in generic form, or the row itself when it has none.
+pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
+    let form = name.split("::").nth(1).unwrap_or(&name);
+    let state = match form {
+        "IsEnchanted" => Some(ObjectState::Enchanted),
+        "IsEquipped" => Some(ObjectState::Equipped),
+        "IsSaddled" => Some(ObjectState::Saddled),
+        "IsACommander" => Some(ObjectState::Commander),
+        "WasKicked" => Some(ObjectState::Kicked),
+        _ => None,
+    };
+    match (state, form, operands.as_slice()) {
+        (Some(state), _, []) => ObjectFilter::State(state),
+        (_, "IsYourCommander", []) => ObjectFilter::All(vec![
+            ObjectFilter::State(ObjectState::Commander),
+            ObjectFilter::OwnedBy(PlayerSet::One(PlayerRef::AbilityController)),
+        ]),
+        (_, "AttachedToPermanent", [Operand::Object(object)]) => {
+            ObjectFilter::AttachedTo(Box::new(ObjectFilter::SameObject(object.clone())))
+        }
+        (_, "AttachedToAPermanent", [Operand::Objects(objects)]) => match event_filter(objects) {
+            Some(filter) => ObjectFilter::AttachedTo(Box::new(filter)),
+            None => ObjectFilter::Primitive { name, operands },
+        },
+        (_, "IsBlockingAttacker", [Operand::Object(object)]) => {
+            ObjectFilter::BlockingObject(object.clone())
+        }
+        _ => ObjectFilter::Primitive { name, operands },
+    }
+}
+
+/// A row's change in generic form, or the row itself when it has none.
+pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
+    match (name.as_str(), operands.as_slice()) {
+        ("LayerEffect::SwitchPT", []) => Change::SwitchPowerToughness,
+        ("LayerEffect::LosesAbility", [ability]) => Change::LosesAbility(Box::new(ability.clone())),
+        ("LayerEffect::SetLandType", [land]) => Change::SetLandType(Box::new(land.clone())),
+        ("LayerEffect::IsACopyOfPermanent", [Operand::Object(object), effects]) => Change::CopyOf {
+            object: object.clone(),
+            effects: Box::new(effects.clone()),
+        },
+        _ => Change::Primitive { name, operands },
+    }
+}
+
 /// A row's ability in generic form, or the row itself when it has none.
 pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
     let Some((_, mechanic)) = MECHANICS.iter().find(|(row, _)| *row == name) else {
@@ -868,6 +913,7 @@ impl Effects {
                 | CostPart::ChangeTapState { .. }
                 | CostPart::TapSymbol
                 | CostPart::Life(_)
+                | CostPart::Energy(_)
                 | CostPart::Sacrifice { .. }
                 | CostPart::Discard { .. } => {}
             }

@@ -464,11 +464,28 @@ fn a_keyword_action_row_is_one_generic_operation_and_keeps_its_result() {
 #[test]
 fn a_keyword_ability_row_carries_typed_parameters() {
     let body = lowered("Morph(PayMana([ManaCostGeneric(3)]))");
-    assert!(body.contains("Mechanic { mechanic: Morph, cost: Some("), "{body}");
+    assert!(
+        body.contains("Mechanic { mechanic: Morph, cost: Some("),
+        "{body}"
+    );
     let body = lowered("Toxic(2)");
     assert!(body.contains("mechanic: Toxic"), "{body}");
     assert!(body.contains("amount: Some(Constant(2))"), "{body}");
     let body = lowered("Affinity(IsCardtype(Artifact))");
     assert!(body.contains("mechanic: Affinity"), "{body}");
     assert!(!body.contains("filter: None"), "{body}");
+}
+
+#[test]
+fn object_state_rows_are_filters_that_compose() {
+    let body = lowered(
+        "SpellActions(ActionList([DestroyEachPermanent(And([IsCardtype(Creature), IsEnchanted]))]))",
+    );
+    assert!(body.contains("State(Enchanted)"), "{body}");
+    assert!(!body.contains("Permanents::IsEnchanted"), "{body}");
+    let body = lowered(
+        "SpellActions(ActionList([DestroyEachPermanent(And([IsCardtype(Creature), IsYourCommander]))]))",
+    );
+    assert!(body.contains("State(Commander)"), "{body}");
+    assert!(body.contains("OwnedBy(One(AbilityController))"), "{body}");
 }

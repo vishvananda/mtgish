@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 81;
+pub const SCHEMA_VERSION: u32 = 82;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1457,6 +1457,14 @@ pub enum Change {
     SetToughness(Expr),
     SetArtifactType(crate::mtg_types::ArtifactType),
     RemoveSupertype(SuperType),
+    SwitchPowerToughness,
+    LosesAbility(Box<Operand>),
+    SetLandType(Box<Operand>),
+    /// Copiable values come from `object`; `effects` are the exceptions.
+    CopyOf {
+        object: ObjectRef,
+        effects: Box<Operand>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2418,6 +2426,11 @@ pub enum ObjectFilter {
     },
     /// Was attached to this object as it last existed.
     WasAttachedTo(ObjectRef),
+    /// A state the rules define for an object, which no other filter reads.
+    State(ObjectState),
+    AttachedTo(Box<ObjectFilter>),
+    /// Blocking this attacker, not merely blocking.
+    BlockingObject(ObjectRef),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2667,6 +2680,7 @@ pub enum CostPart {
         player: PlayerRef,
         body: Program,
     },
+    Energy(Expr),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct CostObjectSelection {
@@ -2895,6 +2909,16 @@ pub enum ObjectEvent {
     Mutates,
     Specializes,
     TappedForMana,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum ObjectState {
+    Enchanted,
+    Equipped,
+    Saddled,
+    Commander,
+    Kicked,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

@@ -227,8 +227,8 @@ fn primitives_in_every_family_bind_their_operands() {
     };
     for (rule, name) in [
         (
-            "Activated(PayEnergy(Integer(1)), ActionList([DrawACard]))",
-            "Cost::PayEnergy",
+            "Activated(RevealTopCardOfLibrary, ActionList([DrawACard]))",
+            "Cost::RevealTopCardOfLibrary",
         ),
         (
             "TriggerA(WhenAPlayerSetsASchemeInMotion(SinglePlayer(You), SingleScheme(ThisScheme)), ActionList([DrawACard]))",

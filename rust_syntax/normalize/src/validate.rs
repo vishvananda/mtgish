@@ -871,6 +871,9 @@ impl<'a> Scope<'a> {
             | ObjectFilter::Tapped
             | ObjectFilter::Attacking
             | ObjectFilter::Blocking => Ok(()),
+            ObjectFilter::State(_) => Ok(()),
+            ObjectFilter::AttachedTo(filter) => self.filter(filter),
+            ObjectFilter::BlockingObject(object) => self.object(object),
             ObjectFilter::All(items) | ObjectFilter::Either(items) => {
                 for item in items {
                     self.filter(item)?;
@@ -1074,7 +1077,13 @@ impl<'a> Scope<'a> {
             | Change::AddArtifactType(_)
             | Change::SetArtifactType(_)
             | Change::SetCardTypes(_)
-            | Change::RemoveAllAbilities => Ok(()),
+            | Change::RemoveAllAbilities
+            | Change::SwitchPowerToughness => Ok(()),
+            Change::LosesAbility(operand) | Change::SetLandType(operand) => self.operand(operand),
+            Change::CopyOf { object, effects } => {
+                self.object(object)?;
+                self.operand(effects)
+            }
         }
     }
 
@@ -1360,7 +1369,7 @@ impl<'a> Scope<'a> {
                 CostPart::RemoveCounters { removals } => self.removals(removals)?,
                 CostPart::Mana(_) | CostPart::TapSymbol => {}
                 CostPart::Life(amount) => self.count(&Count::Exactly(amount.clone()))?,
-                CostPart::Loyalty(delta) => self.expr(delta)?,
+                CostPart::Loyalty(delta) | CostPart::Energy(delta) => self.expr(delta)?,
                 CostPart::Draw { count } | CostPart::Mill { count } => {
                     self.count(&Count::Exactly(count.clone()))?
                 }

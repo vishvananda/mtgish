@@ -837,6 +837,7 @@ impl Inventory<'_> {
                 }
                 CostPart::TapSymbol => {}
                 CostPart::Life(n)
+                | CostPart::Energy(n)
                 | CostPart::Loyalty(n)
                 | CostPart::Draw { count: n }
                 | CostPart::Mill { count: n } => self.expr(n),
@@ -1086,7 +1087,11 @@ impl Inventory<'_> {
             | Change::AddArtifactType(_)
             | Change::SetArtifactType(_)
             | Change::SetCardTypes(_)
-            | Change::RemoveAllAbilities => {}
+            | Change::RemoveAllAbilities
+            | Change::SwitchPowerToughness
+            | Change::LosesAbility(_)
+            | Change::SetLandType(_) => {}
+            Change::CopyOf { object, .. } => self.object(object),
         }
     }
     fn subjects(&mut self, subjects: &EffectSubjects) {
@@ -1479,6 +1484,8 @@ impl Inventory<'_> {
             | ObjectFilter::WasAttachedTo(object) => self.object(object),
             ObjectFilter::DamagedBy(_) | ObjectFilter::DealtExcessBy(_) => {}
             ObjectFilter::Primitive { name, .. } => self.primitive(name),
+            ObjectFilter::AttachedTo(filter) => self.filter(filter),
+            ObjectFilter::BlockingObject(object) => self.object(object),
             ObjectFilter::Condition(condition) => self.condition(condition),
             ObjectFilter::Cast { by, from } => {
                 if let Some(players) = by {
@@ -1539,6 +1546,7 @@ impl Inventory<'_> {
             | ObjectFilter::Tapped
             | ObjectFilter::Attacking
             | ObjectFilter::Blocking
+            | ObjectFilter::State(_)
             | ObjectFilter::Modified => {}
         }
     }
