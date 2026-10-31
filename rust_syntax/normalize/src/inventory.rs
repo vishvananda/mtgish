@@ -743,6 +743,7 @@ impl Inventory<'_> {
                     | EventChange::AddMana(_)
                     | EventChange::ReplaceMana(_)
                     | EventChange::ReplaceColoredMana(_)
+                    | EventChange::RollExtraDie(_)
                     | EventChange::ReplaceTokens { .. } => {}
                 }
             }
@@ -1028,6 +1029,13 @@ impl Inventory<'_> {
                 self.form("DistinctProperty", property)
             }
             SelectionConstraint::DifferentProperty(property) => self.form("Property", property),
+            SelectionConstraint::DistinctCount {
+                property, amount, ..
+            } => {
+                self.form("DistinctProperty", property);
+                self.expr(amount);
+            }
+            SelectionConstraint::TotalManaSymbols { amount, .. } => self.expr(amount),
             _ => {}
         }
         if let SelectionConstraint::TotalProperty {
@@ -2228,6 +2236,7 @@ impl Inventory<'_> {
                 self.replacement_event(event);
                 self.expr(amount);
             }
+            ReplacementEvent::FirstEachTurn(event) => self.replacement_event(event),
             ReplacementEvent::Either(events) => {
                 for event in events {
                     self.replacement_event(event);
@@ -2243,7 +2252,9 @@ impl Inventory<'_> {
                 self.filter(objects);
                 self.expr(level);
             }
-            EventSpec::FirstEachTurn(event) => self.event(event),
+            EventSpec::FirstEachTurn(event) | EventSpec::FirstForObjectEachTurn(event) => {
+                self.event(event)
+            }
             EventSpec::Player {
                 event,
                 players,

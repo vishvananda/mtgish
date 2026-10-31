@@ -284,6 +284,9 @@ impl Context {
                 (self.grave_cards(c)?, Some(Count::AtLeast(self.number(n)?)))
             }
             S::AnyNumberOfCardsInGraveyards(c) => (self.grave_cards(c)?, Some(Count::AnyNumber)),
+            S::AnyNumberOfGroupCardsInGraveyards(c, _) => {
+                (self.grave_cards(c)?, Some(Count::AnyNumber))
+            }
             S::CardInHand(c) => (ObjectSet::One(self.hand_card(c)?), None),
             S::ACardFromHand => (
                 hand(ObjectFilter::Any),

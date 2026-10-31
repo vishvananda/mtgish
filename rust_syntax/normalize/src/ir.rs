@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 115;
+pub const SCHEMA_VERSION: u32 = 116;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -489,6 +489,8 @@ pub enum ReplacementEvent {
         sources: ObjectFilter,
         by: Option<PlayerRef>,
     },
+    /// The first such event each turn, as for `EventSpec::FirstEachTurn`.
+    FirstEachTurn(Box<ReplacementEvent>),
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -531,6 +533,12 @@ pub enum ReplacementLimit {
     DamageToEach(Expr),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DiceIgnore {
+    Lowest,
+    ChosenBy(PlayerRef),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum EventChange {
     SetTapped(bool),
     AddCounters {
@@ -563,6 +571,8 @@ pub enum EventChange {
         copies: u32,
         tokens: Vec<TokenSpec>,
     },
+    /// Roll one more die than the event would, and ignore one of the results.
+    RollExtraDie(DiceIgnore),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1743,6 +1753,18 @@ pub enum SelectionConstraint {
     DifferentFromTarget(Slot),
     /// Each pick has the name of a different one of these objects.
     NamedAfterOneEach(ObjectSet),
+    /// A number of distinct values of this property among the chosen objects.
+    DistinctCount {
+        property: DistinctProperty,
+        comparison: Comparison,
+        amount: Expr,
+    },
+    /// A number of mana symbols of this color among the chosen objects' mana costs.
+    TotalManaSymbols {
+        color: ManaColor,
+        comparison: Comparison,
+        amount: Expr,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CardOrder {
@@ -3869,6 +3891,9 @@ pub enum EventSpec {
         objects: ObjectFilter,
         level: Expr,
     },
+    /// The first such event for each object each turn, unlike `FirstEachTurn`,
+    /// which is the first for any object.
+    FirstForObjectEachTurn(Box<EventSpec>),
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

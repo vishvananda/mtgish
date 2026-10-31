@@ -36,6 +36,30 @@ impl Context {
                     amount,
                 }
             }
+            S::ANumberOfDifferentCardTypes(c) => {
+                let (comparison, amount) = self.comparison(c)?;
+                SelectionConstraint::DistinctCount {
+                    property: DistinctProperty::CardTypes,
+                    comparison,
+                    amount,
+                }
+            }
+            S::HasNumberSymbolsAmongCosts(c, symbol) => {
+                use source::ManaProduceSymbol as M;
+                let (comparison, amount) = self.comparison(c)?;
+                SelectionConstraint::TotalManaSymbols {
+                    color: match symbol {
+                        M::ManaProduceW => ManaColor::White,
+                        M::ManaProduceU => ManaColor::Blue,
+                        M::ManaProduceB => ManaColor::Black,
+                        M::ManaProduceR => ManaColor::Red,
+                        M::ManaProduceG => ManaColor::Green,
+                        M::ManaProduceC => return Err(unsupported(value)),
+                    },
+                    comparison,
+                    amount,
+                }
+            }
             _ => return Err(unsupported(value)),
         }])
     }

@@ -251,6 +251,7 @@ impl<'a> Scope<'a> {
                 self.replacement_event(event)?;
                 self.expr(amount)
             }
+            ReplacementEvent::FirstEachTurn(event) => self.replacement_event(event),
             ReplacementEvent::Either(events) => {
                 if events.is_empty() {
                     return Err("replacement event alternatives are empty".into());
@@ -266,7 +267,9 @@ impl<'a> Scope<'a> {
                 self.filter(objects)?;
                 self.expr(level)
             }
-            EventSpec::FirstEachTurn(event) => self.event(event),
+            EventSpec::FirstEachTurn(event) | EventSpec::FirstForObjectEachTurn(event) => {
+                self.event(event)
+            }
             EventSpec::Player {
                 players, objects, ..
             } => {
@@ -2329,6 +2332,8 @@ impl<'a> Scope<'a> {
                     EventChange::AddMana(mana)
                     | EventChange::ReplaceMana(mana)
                     | EventChange::ReplaceColoredMana(mana) => self.mana(mana),
+                    EventChange::RollExtraDie(DiceIgnore::Lowest) => Ok(()),
+                    EventChange::RollExtraDie(DiceIgnore::ChosenBy(player)) => self.player(player),
                     EventChange::ReplaceTokens { tokens, .. } => tokens
                         .iter()
                         .try_for_each(|token| self.count(&Count::Exactly(token.amount.clone()))),
@@ -2631,7 +2636,10 @@ impl<'a> Scope<'a> {
 
     fn selection_constraints(&self, constraints: &[SelectionConstraint]) -> Result {
         for constraint in constraints {
-            if let SelectionConstraint::TotalProperty { amount, .. } = constraint {
+            if let SelectionConstraint::TotalProperty { amount, .. }
+            | SelectionConstraint::DistinctCount { amount, .. }
+            | SelectionConstraint::TotalManaSymbols { amount, .. } = constraint
+            {
                 self.expr(amount)?;
             }
             if let SelectionConstraint::NamedAfterOneEach(objects) = constraint {

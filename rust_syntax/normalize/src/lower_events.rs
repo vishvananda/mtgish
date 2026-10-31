@@ -199,9 +199,15 @@ impl Context {
             .as_str()?
             .strip_suffix("ForTheFirstTimeEachTurn")?
             .to_string();
-        inspected["variant"] = base.into();
+        let for_object = base.contains("ASpecificPermanent");
+        inspected["variant"] = base.replace("ASpecificPermanent", "APermanent").into();
         let base: source::Trigger = crate::pipeline::source_tree::decode(&inspected).ok()?;
-        Some(EventSpec::FirstEachTurn(Box::new(self.trigger(&base).ok()?)))
+        let event = Box::new(self.trigger(&base).ok()?);
+        Some(if for_object {
+            EventSpec::FirstForObjectEachTurn(event)
+        } else {
+            EventSpec::FirstEachTurn(event)
+        })
     }
 
     fn reduced_trigger(&self, value: &source::Trigger) -> Result<EventSpec> {

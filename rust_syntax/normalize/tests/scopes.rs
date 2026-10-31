@@ -1449,3 +1449,34 @@ fn conditional_delayed_triggers_and_copiable_choices() {
     assert!(clay.contains("ChooseChanges"), "{clay}");
     assert!(clay.contains("Copiable"), "{clay}");
 }
+
+#[test]
+fn first_events_for_an_object_dice_and_group_exile() {
+    let successor = lowered(
+        "TriggerA(WhenAnyNumberOfCountersArePutOnASpecificPermanentForTheFirstTimeEachTurn(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))])), ActionList([DrawACard]))",
+    );
+    assert!(successor.contains("FirstForObjectEachTurn"), "{successor}");
+
+    let dice = lowered(
+        "ReplaceWouldRollDice(APlayerWouldRollANumberOfDice(SinglePlayer(You)), [RollThatManyPlusOneAndIgnoreLowestInstead])",
+    );
+    assert!(dice.contains("RollExtraDie(Lowest)"), "{dice}");
+    assert!(!dice.contains("Cancel"), "{dice}");
+
+    let triad = lowered(
+        "Activated(Exile([AnyNumberOfGroupCardsInGraveyards(And([IsHistoric, InAPlayersGraveyard(SinglePlayer(You))]), TotalManaValueIs(GreaterThanOrEqualTo(Integer(30))))], []), ActionList([DrawACard]))",
+    );
+    assert!(triad.contains("Constrained"), "{triad}");
+    assert!(triad.contains("TotalProperty"), "{triad}");
+
+    let winter = lowered(
+        "Activated(Exile([AnyNumberOfGroupCardsInGraveyards(InAPlayersGraveyard(SinglePlayer(You)), ANumberOfDifferentCardTypes(GreaterThanOrEqualTo(Integer(4))))], []), ActionList([DrawACard]))",
+    );
+    assert!(winter.contains("DistinctCount"), "{winter}");
+
+    let crown = lowered(
+        "ReplaceAPlayerWouldCreateTokens(APlayerWouldCreateTokensForTheFirstTimeEachTurn(SinglePlayer(You), AnyPermanent), [ChooseAnAction([[CreateTokensInstead([NumberTokens(WouldCreateTokens_NumberTokens, TokenCopyOfPermanent(HostPermanent, NoTokenCopyEffects))])], [CreateTokensInstead([TreasureToken])]])])",
+    );
+    assert!(crown.contains("FirstEachTurn"), "{crown}");
+    assert!(crown.contains("ChooseAction"), "{crown}");
+}

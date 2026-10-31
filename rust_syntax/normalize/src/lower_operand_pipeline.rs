@@ -148,7 +148,7 @@ impl Context {
             }],
             R::Exile { items, flags } => {
                 let (entry, face_down) = self.exile_entry(flags)?;
-                vec![CostPart::Move {
+                let exile = CostPart::Move {
                     destination: Destination::Exile,
                     selections: items
                         .iter()
@@ -160,6 +160,21 @@ impl Context {
                         .collect::<Result<_>>()?,
                     entry,
                     face_down,
+                };
+                let mut constraints = vec![];
+                for item in items {
+                    if let source::ExilableCost::AnyNumberOfGroupCardsInGraveyards(_, group) = item
+                    {
+                        constraints.extend(self.group_constraints(group)?);
+                    }
+                }
+                vec![if constraints.is_empty() {
+                    exile
+                } else {
+                    CostPart::Constrained {
+                        part: Box::new(exile),
+                        constraints,
+                    }
                 }]
             }
             R::RemoveCounters(removals) => vec![CostPart::RemoveCounters {

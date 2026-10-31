@@ -129,6 +129,7 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
             amount: true,
             ..Default::default()
         },
+        ReplacementEvent::FirstEachTurn(event) => replacement_bindings(event),
         ReplacementEvent::Either(events) => events
             .iter()
             .map(replacement_bindings)
@@ -4568,6 +4569,10 @@ fn reduced_replacement(name: &str, operands: &[Operand]) -> Option<ReplacementEv
         ("APlayerWouldCreateTokens", [Players(p), Objects(t)]) => {
             tokens(t, None, Some(p), false, false)
         }
+        ("APlayerWouldCreateTokensForTheFirstTimeEachTurn", [Players(p), Objects(t)]) => {
+            tokens(t, None, Some(p), false, false)
+                .map(|event| ReplacementEvent::FirstEachTurn(Box::new(event)))
+        }
         ("CountersOfTypeWouldBePointOnAPermanent", [kind, Objects(o)]) => {
             counters(Some(kind), o, None, None, false)
         }
@@ -4608,7 +4613,9 @@ pub fn body_replaces(event: &ReplacementEvent) -> bool {
         | ReplacementEvent::Tokens { .. }
         | ReplacementEvent::Counters { .. }
         | ReplacementEvent::ProduceMana { .. } => true,
-        ReplacementEvent::Measured { event, .. } => body_replaces(event),
+        ReplacementEvent::Measured { event, .. } | ReplacementEvent::FirstEachTurn(event) => {
+            body_replaces(event)
+        }
         _ => false,
     }
 }
@@ -4929,7 +4936,9 @@ fn with_bindings(outer: &EventBindings, row: &EventBindings) -> EventBindings {
 pub fn event_bindings(event: &EventSpec) -> EventBindings {
     match event {
         EventSpec::SagaChapter(_) => EventBindings::default(),
-        EventSpec::FirstEachTurn(event) => event_bindings(event),
+        EventSpec::FirstEachTurn(event) | EventSpec::FirstForObjectEachTurn(event) => {
+            event_bindings(event)
+        }
         EventSpec::NthEachTurn { event, .. } => event_bindings(event),
         EventSpec::Primitive { name, .. } => row_bindings(name),
         EventSpec::Player { event, .. } => PLAYER_EVENTS

@@ -30,7 +30,7 @@ fn retag(value: &mut serde_json::Value, rename: &impl Fn(&str) -> Option<&'stati
 
 /// Forms that say what becomes of the event, so a body using one is explicit.
 /// A regeneration shield belongs here because it applies to the event itself.
-const EVENT_FORMS: [&str; 33] = [
+const EVENT_FORMS: [&str; 35] = [
     "EntersTapped",
     "EntersWithACounter",
     "EntersUnderPlayersControl",
@@ -50,6 +50,8 @@ const EVENT_FORMS: [&str; 33] = [
     "WouldProduceMana_ReplaceColorWithTheChosenColor",
     "EntersWithLayerEffect",
     "EntersWithLayerEffectOfChoice",
+    "RollThatManyPlusOneAndIgnoreLowestInstead",
+    "RollThatManyPlusOneAndPlayerChoosesOneToIgnore",
     "CreateTokensInstead",
     "DealToPlayerInstead",
     "DealToCreatureOrPlaneswalkerInstead",
@@ -305,6 +307,14 @@ impl Context {
                     .collect::<Result<Vec<source::LayerEffect>>>()?;
                 vec![EventChange::Entry(EntryState::Changes(self.changes(&effects)?))]
             }
+            "RollThatManyPlusOneAndIgnoreLowestInstead" => {
+                vec![EventChange::RollExtraDie(DiceIgnore::Lowest)]
+            }
+            "RollThatManyPlusOneAndPlayerChoosesOneToIgnore" => {
+                vec![EventChange::RollExtraDie(DiceIgnore::ChosenBy(
+                    self.player(&decode_step(args)?)?,
+                ))]
+            }
             "EntersWithLayerEffectOfChoice" => {
                 let options = args
                     .as_array()
@@ -472,6 +482,20 @@ impl Context {
                     |c| c.replacement_steps(&then, actor),
                     |c| c.replacement_steps(&otherwise, actor),
                 )?
+            }
+            "ChooseAnAction" => {
+                let options = list(args)
+                    .iter()
+                    .map(|option| {
+                        self.replacement_child(&list(option), actor)
+                            .map(Operand::Program)
+                    })
+                    .collect::<Result<_>>()?;
+                self.effect(Operation::ChooseAction {
+                    actor: PlayerSet::One(actor.clone()),
+                    options,
+                    villainous: false,
+                })
             }
             "MayAction" => Instruction::Optional {
                 decider: actor.clone(),
