@@ -611,7 +611,9 @@ impl<'a> Scope<'a> {
         match recipients {
             Recipients::Objects(objects) => self.objects(objects),
             Recipients::Players(players) => self.players(players),
-            Recipients::Targets(slot) => self.target(slot, None, TargetKind::DamageRecipient),
+            Recipients::Targets(slot) | Recipients::Target { slot, .. } => {
+                self.target(slot, None, TargetKind::DamageRecipient)
+            }
             Recipients::AttackedBy(attacker) => self.object(attacker),
             Recipients::Union(items) => {
                 for item in items {
@@ -2220,6 +2222,13 @@ impl<'a> Scope<'a> {
             proposal.count(&target.count)?;
             proposal.filter(&target.filter)?;
             proposal.selection_constraints(&target.constraints)?;
+            for constraint in &target.constraints {
+                if let SelectionConstraint::DifferentFromTarget(slot) = constraint {
+                    if !self.slots.contains_key(&slot.0) {
+                        return Err(format!("target excludes unannounced slot {}", slot.0));
+                    }
+                }
+            }
             if let Some(chooser) = &target.chooser {
                 proposal.player(chooser)?;
             }

@@ -1266,7 +1266,7 @@ impl Inventory<'_> {
                     self.recipients(r);
                 }
             }
-            Recipients::Targets(_) => {}
+            Recipients::Targets(_) | Recipients::Target { .. } => {}
         }
     }
     fn expr(&mut self, e: &Expr) {

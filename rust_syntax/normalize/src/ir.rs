@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 61;
+pub const SCHEMA_VERSION: u32 = 62;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -971,6 +971,9 @@ pub enum SelectionConstraint {
     AtRandom,
     /// One object for each filter; an object fills only one of them.
     OneForEach(Vec<ObjectFilter>),
+    /// None of these may be what that earlier slot chose: "another target" is a
+    /// second use of the word, so 601.2c alone does not keep them apart.
+    DifferentFromTarget(Slot),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CardOrder {
@@ -1977,6 +1980,11 @@ pub enum Recipients {
     Union(Vec<Recipients>),
     /// The player, planeswalker or battle this creature is attacking (506.2).
     AttackedBy(ObjectRef),
+    /// One of the things a plural slot targeted.
+    Target {
+        slot: Slot,
+        index: u16,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

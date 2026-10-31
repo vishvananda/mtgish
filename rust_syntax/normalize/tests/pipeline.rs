@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 61);
+    assert_eq!(card.schema_version, 62);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2850,6 +2850,23 @@ fn a_populated_token_and_an_investigation_leave_their_antecedents_readable() {
     assert!(populated.contains("Created"), "{populated}");
     let kept = ability_json("SpellActions(Targeted([TargetPermanent(IsCardtype(Creature))],ActionList([Exile([Permanent(Ref_TargetPermanent)],[]),Investigate,PutExiledCardOntoBattlefield(TheCardExiledThisWay,[EntersNormally])])))");
     assert!(kept.contains("\"kind\":\"Result\""), "{kept}");
+}
+
+#[test]
+fn a_target_says_how_many_who_chooses_and_what_it_avoids() {
+    let other = ability_json("SpellActions(Targeted([AnyTarget,AnyOtherTarget(Ref_AnyTarget1)],ActionList([SpellDealsMultipleDamage(ThisSpell,[DamageToRecipients(Integer(2),Ref_AnyTarget1),DamageToRecipients(Integer(1),Ref_AnyTarget2)])])))");
+    assert!(other.contains("DifferentFromTarget"), "{other}");
+    assert!(!other.contains("Primitive"), "{other}");
+    let chosen = ability_json("SpellActions(Targeted([TargetPermanentOfAPlayersChoiceTheyControl(IsCardtype(Creature),Opponent)],ActionList([DestroyPermanent(Ref_TargetPermanent)])))");
+    assert!(
+        chosen.contains("\"chooser\":{\"kind\":\"OneOf\""),
+        "{chosen}"
+    );
+    assert!(chosen.contains("ControlledBy"), "{chosen}");
+    let random = ability_json("SpellActions(Targeted([TargetPlayerAtRandom(AnyPlayer)],ActionList([PlayerAction(Ref_TargetPlayer,DiscardACard)])))");
+    assert!(random.contains("AtRandom"), "{random}");
+    let colors = ability_json("SpellActions(Targeted([UptoOneTargetGraveyardCardOfEachColor(InAPlayersGraveyard(SinglePlayer(You)))],ActionList([PutEachGraveyardCardIntoHand(Ref_TargetGraveyardCards)])))");
+    assert!(colors.contains("OneForEach"), "{colors}");
 }
 
 #[test]

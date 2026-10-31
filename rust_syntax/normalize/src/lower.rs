@@ -1764,6 +1764,20 @@ impl Context {
             | S::Ref_TargetPlayerOrPermanent => {
                 Recipients::Targets(self.target(TargetKind::DamageRecipient, 0, 0)?)
             }
+            S::Ref_AnyTarget2 => {
+                Recipients::Targets(self.target(TargetKind::DamageRecipient, 1, 0)?)
+            }
+            S::Ref_AnyTargets_1 | S::Ref_AnyTargets_2 | S::Ref_AnyTargets_3 => {
+                let index = match value {
+                    S::Ref_AnyTargets_1 => 0,
+                    S::Ref_AnyTargets_2 => 1,
+                    _ => 2,
+                };
+                Recipients::Target {
+                    slot: self.target(TargetKind::DamageRecipient, 0, index)?,
+                    index,
+                }
+            }
             S::MultipleRecipients(items) => Recipients::Union(
                 items
                     .iter()
@@ -3311,7 +3325,7 @@ impl Context {
                 constraints: vec![],
             };
             match value {
-                S::TargetSpellOrAbility(_) => {
+                S::TargetSpellOrAbility(_) | S::UptoNumberTargetSpellsOrAbilities(..) => {
                     target.kind = TargetKind::Object(ObjectDomain {
                         kind: ObjectKind::Any,
                         zones: vec![EventZone::Stack],
@@ -3319,6 +3333,119 @@ impl Context {
                     target.filter = self
                         .primitive_predicate("Target", value)
                         .ok_or_else(|| unsupported(value))?;
+                    if let S::UptoNumberTargetSpellsOrAbilities(n, _) = value {
+                        target.count = Count::UpTo(self.number(n)?);
+                    }
+                }
+                S::OneOrMoreTargetPermanents(p) => {
+                    target.filter = self.filter(p)?;
+                    target.count = Count::AtLeast(Expr::Constant(1));
+                }
+                S::OneOrTwoTargetGraveyardCards(c)
+                | S::BetweenOneAndNumberTargetGraveyardCards(_, c) => {
+                    target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
+                    target.filter = self.grave_filter(c)?;
+                    target.count = Count::Between {
+                        minimum: Expr::Constant(1),
+                        maximum: match value {
+                            S::BetweenOneAndNumberTargetGraveyardCards(n, _) => self.number(n)?,
+                            _ => Expr::Constant(2),
+                        },
+                    };
+                }
+                S::TargetPermanentOfAPlayersChoice(p, players) => {
+                    target.filter = self.filter(p)?;
+                    target.chooser = Some(PlayerRef::OneOf(Box::new(self.players(players)?)));
+                }
+                S::TargetPermanentOfAPlayersChoiceTheyControl(p, players) => {
+                    let chooser = PlayerRef::OneOf(Box::new(self.players(players)?));
+                    target.filter = ObjectFilter::All(vec![
+                        self.filter(p)?,
+                        ObjectFilter::ControlledBy(PlayerSet::One(chooser.clone())),
+                    ]);
+                    target.chooser = Some(chooser);
+                }
+                S::TargetGraveyardCardOfAPlayersChoice(c, players) => {
+                    target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
+                    target.filter = self.grave_filter(c)?;
+                    target.chooser = Some(PlayerRef::OneOf(Box::new(self.players(players)?)));
+                }
+                S::AnyTargetOfAPlayersChoice(players) => {
+                    target.kind = TargetKind::DamageRecipient;
+                    target.chooser = Some(PlayerRef::OneOf(Box::new(self.players(players)?)));
+                }
+                S::AnyTargetOfPlayersChoice(chooser) => {
+                    target.kind = TargetKind::DamageRecipient;
+                    target.chooser = Some(self.player(chooser)?);
+                }
+                S::TargetPlayerOfPlayersChoice(players, chooser) => {
+                    target.kind = TargetKind::Player;
+                    target.players = Some(self.players(players)?);
+                    target.chooser = Some(self.player(chooser)?);
+                }
+                S::TargetPermanentAtRandom(p) => {
+                    target.filter = self.filter(p)?;
+                    target.constraints = vec![SelectionConstraint::AtRandom];
+                }
+                S::TargetGraveyardCardAtRandom(c) => {
+                    target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
+                    target.filter = self.grave_filter(c)?;
+                    target.constraints = vec![SelectionConstraint::AtRandom];
+                }
+                S::TargetPlayerAtRandom(players) => {
+                    target.kind = TargetKind::Player;
+                    target.players = Some(self.players(players)?);
+                    target.constraints = vec![SelectionConstraint::AtRandom];
+                }
+                S::AnyTargetChosenAtRandom => {
+                    target.kind = TargetKind::DamageRecipient;
+                    target.constraints = vec![SelectionConstraint::AtRandom];
+                }
+                S::UptoOneTargetGraveyardCardOfEachColor(c) => {
+                    use ManaColor::{Black, Blue, Green, Red, White};
+                    let each: Vec<_> = [White, Blue, Black, Red, Green]
+                        .into_iter()
+                        .map(ObjectFilter::Color)
+                        .collect();
+                    target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
+                    target.filter = self.grave_filter(c)?;
+                    target.count = Count::UpTo(Expr::Constant(5));
+                    target.constraints = vec![SelectionConstraint::OneForEach(each)];
+                }
+                S::TargetGraveyardCardInEachPlayersGraveyard(c, players) => {
+                    let players = self.players(players)?;
+                    target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
+                    target.filter = ObjectFilter::All(vec![
+                        self.grave_filter(c)?,
+                        ObjectFilter::OwnedBy(players.clone()),
+                    ]);
+                    target.count = Count::Exactly(Expr::CountPlayers(players));
+                    target.constraints = vec![SelectionConstraint::DifferentOwners];
+                }
+                S::AnyOtherTarget(other) | S::UptoNumberAnyTargetsExcept(_, other) => {
+                    use source::OtherTarget as O;
+                    target.kind = TargetKind::DamageRecipient;
+                    if let S::UptoNumberAnyTargetsExcept(n, _) = value {
+                        target.count = Count::UpTo(self.number(n)?);
+                    }
+                    match other {
+                        O::ThisPermanent => {
+                            target.filter = ObjectFilter::Not(Box::new(ObjectFilter::SameObject(
+                                ObjectRef::Source,
+                            )));
+                        }
+                        O::Ref_TargetPermanent => {
+                            let earlier =
+                                self.target(TargetKind::Object(ObjectDomain::permanent()), 0, 0)?;
+                            target.constraints =
+                                vec![SelectionConstraint::DifferentFromTarget(earlier)];
+                        }
+                        O::Ref_AnyTarget | O::Ref_AnyTarget1 => {
+                            let earlier = self.target(TargetKind::DamageRecipient, 0, 0)?;
+                            target.constraints =
+                                vec![SelectionConstraint::DifferentFromTarget(earlier)];
+                        }
+                    }
                 }
                 S::OneOrTwoTargetPermanents(p) => {
                     target.filter = self.filter(p)?;
@@ -3768,17 +3895,26 @@ impl Context {
                 })
                 .ok_or_else(|| unsupported(value))
         };
-        let player = self.payer.clone().unwrap_or(PlayerRef::AbilityController);
+        let (player, action) = match value {
+            source::Cost::HaveAPlayerTakeAction(players, taken) => (
+                match self.players(players)? {
+                    PlayerSet::One(player) => player,
+                    players => PlayerRef::OneOf(Box::new(players)),
+                },
+                as_family(taken, "Action").ok_or_else(|| unsupported(value)),
+            ),
+            _ => (
+                self.payer.clone().unwrap_or(PlayerRef::AbilityController),
+                action(),
+            ),
+        };
         let mut child = self.clone();
         child.iterated = Some(player.clone());
         // Results inside a cost never collide with this scope or another cost's.
         child.result = self.result.saturating_mul(1 << 8).saturating_add(1 << 20);
         let instruction = match child.hand_cost(value)? {
             Some(instruction) => instruction,
-            None => {
-                let action = action()?;
-                child.action(&action, &PlayerSet::One(player.clone()))?
-            }
+            None => child.action(&action?, &PlayerSet::One(player.clone()))?,
         };
         Ok(Cost {
             parts: vec![CostPart::PlayerAction {
