@@ -966,6 +966,21 @@ impl Compiler {
             Operation::CreatePerpetualEffect { .. } => {
                 return Err(gap("engine: no perpetual effects"));
             }
+            // Each count is read before any counter goes on, and all go on as one
+            // event (701.10e, 603.2c).
+            Operation::DoubleCounters { objects, kind } => {
+                let objects = self.fetch(self.objects(objects)?);
+                writeln!(out, "let objects_{id}: Vec<ObjectId> = {objects};").unwrap();
+                match kind {
+                    Some(kind) => writeln!(
+                        out,
+                        "cantrip_mechanics::double::counters(g, &objects_{id}, {});",
+                        counter_kind(kind)?
+                    )
+                    .unwrap(),
+                    None => writeln!(out, "let puts_{id}: Vec<(ObjectId, CounterKind, i16)> = objects_{id}.iter().flat_map(|&o| {{ let have = g.obj(o).counter_array(); CounterKind::ALL.into_iter().filter(move |&kind| have[kind as usize] > 0).map(move |kind| (o, kind, have[kind as usize])).collect::<Vec<_>>() }}).collect(); g.add_counters_together(&puts_{id});").unwrap(),
+                }
+            }
             Operation::LookAt { player, objects } => {
                 writeln!(
                     out,

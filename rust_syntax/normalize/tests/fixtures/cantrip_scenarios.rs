@@ -136,6 +136,20 @@ mod scenarios {
         spell: spell(&[], prepare_replay),
         ..CardDef::BLANK
     };
+    fn counters_on_my_creatures(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+        for id in g.permanents_of(item.controller) {
+            g.add_counters(id, CounterKind::PlusOne, 2);
+            g.add_counters(id, CounterKind::Stun, 3);
+        }
+        Ok(())
+    }
+    static COUNTERS: CardDef = CardDef {
+        name: "Counters fixture",
+        has_cost: true,
+        types: TypeSet::of(&[CardType::Sorcery]),
+        spell: spell(&[], counters_on_my_creatures),
+        ..CardDef::BLANK
+    };
     fn all_three_present(q: &dyn Query, source: ObjectId, event: &Event) -> Option<Fired> {
         if matches!(event,Event::ZoneChange{new,to,reason:ZoneReason::Created,..} if to.is(ZoneKind::Battlefield)&&q.obj(*new).token)
             && q.permanents_of(q.controller(source))
@@ -431,6 +445,7 @@ mod scenarios {
             &FLASH_CREATURE,
             &ISLAND_LAND,
             &BASIC_LAND,
+            &COUNTERS,
             &sea_monster::CARD,
             &treasure_hunt::CARD,
             &mind_funeral::CARD,
@@ -440,6 +455,8 @@ mod scenarios {
             &lay_of_the_land::CARD,
             &worldly_tutor::CARD,
             &dark_confidant::CARD,
+            &growth_curve::CARD,
+            &vorel::CARD,
         ];
         for extras in [
             alarm::EXTRA,
@@ -2239,6 +2256,48 @@ mod scenarios {
         let arrived = g.state.obj(top).became.unwrap();
         assert!(g.state.zone(Zone::hand(ME)).contains(&arrived));
         assert_eq!(g.state.player(ME).life, life - 3);
+    }
+    #[test]
+    fn doubling_counts_the_counters_there_as_it_happens() {
+        // One goes on, then the count is read, so a second casting makes six.
+        // Reading it before that counter went on would make five.
+        let (mut g, _, bears, _) = game_with_zones(
+            "Growth Curve",
+            Some("Grizzly Bears"),
+            0,
+            &[],
+            100,
+            &[],
+            &["Growth Curve"],
+        );
+        let bears = bears.unwrap();
+        for after in [2, 6] {
+            let spell = hand_card(&g, "Growth Curve");
+            announce(&mut g, spell, ActionKind::CastSpell);
+            resolve(&mut g, None, false);
+            assert_eq!(g.state.obj(bears).counters(CounterKind::PlusOne), after);
+        }
+    }
+    #[test]
+    fn each_kind_of_counter_doubles_on_its_own_and_only_on_the_target() {
+        let (mut g, spell, vorel, _) = game_with_extras(
+            COUNTERS.name,
+            Some("Vorel of the Hull Clade"),
+            0,
+            &[("Grizzly Bears", ME)],
+        );
+        let (vorel, bears) = (vorel.unwrap(), permanents_named(&g, "Grizzly Bears")[0]);
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.obj(bears).counters(CounterKind::Stun), 3);
+        announce_at(&mut g, vorel, ActionKind::ActivateAbility, Target::Object(bears));
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.obj(bears).counters(CounterKind::PlusOne), 4);
+        assert_eq!(g.state.obj(bears).counters(CounterKind::Stun), 6);
+        assert_eq!(g.state.obj(bears).counters(CounterKind::Ice), 0);
+        // Vorel has the same counters and was not the target.
+        assert_eq!(g.state.obj(vorel).counters(CounterKind::PlusOne), 2);
+        assert_eq!(g.state.obj(vorel).counters(CounterKind::Stun), 3);
     }
     #[test]
     fn a_deck_rule_leaves_the_rest_of_the_card_as_printed() {

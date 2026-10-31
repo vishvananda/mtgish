@@ -302,6 +302,8 @@ fn generated_modules_execute_in_cantrip() {
         ("lay_of_the_land", "Lay of the Land"),
         ("worldly_tutor", "Worldly Tutor"),
         ("dark_confidant", "Dark Confidant"),
+        ("growth_curve", "Growth Curve"),
+        ("vorel", "Vorel of the Hull Clade"),
     ];
     let mut lib = String::new();
     for (module, name) in names {
