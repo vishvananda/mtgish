@@ -485,8 +485,25 @@ mod scenarios {
             &anoint::CARD,
             &apostle::CARD,
             &kalemne::CARD,
+            &valkyrie::CARD,
+            &berserker::CARD,
+            &escort::CARD,
+            &leaper::CARD,
+            &devoted_druid::CARD,
+            &butcher::CARD,
+            &esquire::CARD,
+            &changeling::CARD,
+            &shaman::CARD,
+            &construct::CARD,
+            &searblades::CARD,
+            &lair::CARD,
+            &jockey::CARD,
+            &expert::CARD,
+            &ajani::CARD,
+            &mauler::CARD,
         ];
         for extras in [
+            ajani::EXTRA,
             alarm::EXTRA,
             pulse::EXTRA,
             zealot::EXTRA,
@@ -2326,6 +2343,350 @@ mod scenarios {
         // Vorel has the same counters and was not the target.
         assert_eq!(g.state.obj(vorel).counters(CounterKind::PlusOne), 2);
         assert_eq!(g.state.obj(vorel).counters(CounterKind::Stun), 3);
+    }
+    /// Whether the ability at `index` of `source` is offered now.
+    fn offers_ability(g: &RulesGame, source: ObjectId, index: u8) -> bool {
+        let RequestKind::Priority { options } = &g.pending().unwrap().kind else {
+            panic!("{:?}", g.pending())
+        };
+        options.iter().any(|o| {
+            o.kind == ActionKind::ActivateAbility && o.source == Some(source) && o.index == index
+        })
+    }
+    /// Activate the ability at `index` of `source`, which asks no target.
+    fn activate_ability(g: &mut RulesGame, source: ObjectId, index: u8) {
+        let request = g.pending().cloned().unwrap();
+        let RequestKind::Priority { options } = &request.kind else {
+            panic!("{:?}", request.kind)
+        };
+        let option = options
+            .iter()
+            .find(|o| {
+                o.kind == ActionKind::ActivateAbility
+                    && o.source == Some(source)
+                    && o.index == index
+            })
+            .unwrap_or_else(|| panic!("no ability {index} of {source:?}: {options:?}"));
+        let action = Action::of(option);
+        g.answer(request.id, request.player, Answer::Act(action))
+            .unwrap();
+    }
+    fn mana_left(g: &RulesGame) -> u32 {
+        g.state.player(ME).pool.0.iter().sum()
+    }
+    #[test]
+    fn backup_on_another_creature_gives_it_the_listed_keywords_until_end_of_turn() {
+        let extras = [("Grizzly Bears", ME)];
+        let (mut g, spell, _, _) = game_with_extras("Boon-Bringer Valkyrie", None, 0, &extras);
+        let bears = permanents_named(&g, "Grizzly Bears")[0];
+        let turn = g.state.turn.number;
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, Some(bears), false);
+        let c = g.chars(bears);
+        assert_eq!((c.power, c.toughness), (Some(3), Some(3)));
+        for keyword in [Keyword::Flying, Keyword::FirstStrike, Keyword::Lifelink] {
+            assert!(c.has(keyword), "{keyword:?}");
+        }
+        advance(&mut g, &|g| g.state.turn.number > turn);
+        let c = g.chars(bears);
+        assert_eq!(c.power, Some(3), "the counter stays");
+        assert!(!c.has(Keyword::Flying), "the keyword ends with the turn");
+    }
+    #[test]
+    fn backup_on_itself_is_only_the_counter() {
+        let extras = [("Grizzly Bears", ME)];
+        let (mut g, spell, _, _) = game_with_extras("Boon-Bringer Valkyrie", None, 0, &extras);
+        let bears = permanents_named(&g, "Grizzly Bears")[0];
+        announce(&mut g, spell, ActionKind::CastSpell);
+        // The Valkyrie is on the battlefield by the time its trigger asks.
+        resolve_asking(&mut g, &mut |g, kind| match kind {
+            RequestKind::ChooseTarget { .. } => Answer::Targets(vec![Target::Object(
+                permanents_named(g, "Boon-Bringer Valkyrie")[0],
+            )]),
+            other => panic!("{other:?}"),
+        });
+        let valkyrie = permanents_named(&g, "Boon-Bringer Valkyrie")[0];
+        assert_eq!(g.chars(valkyrie).power, Some(5));
+        assert_eq!(g.chars(bears).power, Some(2));
+        assert!(!g.chars(bears).has(Keyword::Flying));
+    }
+    #[test]
+    fn backup_gives_another_creature_the_activated_ability_it_lists() {
+        let extras = [("Grizzly Bears", ME)];
+        let (mut g, spell, _, _) = game_with_extras("Scorn-Blade Berserker", None, 0, &extras);
+        let bears = permanents_named(&g, "Grizzly Bears")[0];
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, Some(bears), false);
+        assert!(offers(&g, ActionKind::ActivateAbility, bears));
+        let hand = g.state.zone(Zone::hand(ME)).len();
+        announce(&mut g, bears, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert!(permanents_named(&g, "Grizzly Bears").is_empty());
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand + 1);
+    }
+    #[test]
+    fn a_creature_backup_skips_gains_no_ability() {
+        let extras = [("Grizzly Bears", ME)];
+        let (mut g, spell, _, _) = game_with_extras("Scorn-Blade Berserker", None, 0, &extras);
+        let bears = permanents_named(&g, "Grizzly Bears")[0];
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |g, kind| match kind {
+            RequestKind::ChooseTarget { .. } => Answer::Targets(vec![Target::Object(
+                permanents_named(g, "Scorn-Blade Berserker")[0],
+            )]),
+            other => panic!("{other:?}"),
+        });
+        assert!(!offers(&g, ActionKind::ActivateAbility, bears));
+        let berserker = permanents_named(&g, "Scorn-Blade Berserker")[0];
+        assert!(offers(&g, ActionKind::ActivateAbility, berserker));
+    }
+    #[test]
+    fn level_stages_turn_on_and_off_at_their_exact_counts() {
+        let (mut g, _, escort) = game("Divination", Some("Caravan Escort"));
+        let escort = escort.unwrap();
+        assert_eq!(g.chars(escort).power, Some(1), "printed, at no levels");
+        for (level, size, first_strike) in [
+            (1, 2, false),
+            (2, 2, false),
+            (3, 2, false),
+            (4, 2, false),
+            (5, 5, true),
+            (6, 5, true),
+        ] {
+            let left = mana_left(&g);
+            announce(&mut g, escort, ActionKind::ActivateAbility);
+            resolve(&mut g, None, false);
+            assert_eq!(left - mana_left(&g), 2, "Level up {{2}}");
+            assert_eq!(g.state.obj(escort).counters(CounterKind::Level), level);
+            let c = g.chars(escort);
+            assert_eq!((c.power, c.toughness), (Some(size), Some(size)), "level {level}");
+            assert_eq!(c.has(Keyword::FirstStrike), first_strike, "level {level}");
+        }
+    }
+    #[test]
+    fn waterbend_lets_each_of_your_artifacts_and_creatures_pay_one_generic() {
+        // Waterbend {4} with an empty pool: the Leaper is one of the four, and the
+        // opponent's creature is offered as nothing.
+        let mine = ("Grizzly Bears", ME);
+        let extras = [mine, mine, mine, ("Grizzly Bears", THEM)];
+        let (mut g, _, leaper, _) =
+            game_with_pool("Divination", Some("Geyser Leaper"), 0, &extras, 0);
+        let leaper = leaper.unwrap();
+        let hand = g.state.zone(Zone::hand(ME)).len();
+        announce(&mut g, leaper, ActionKind::ActivateAbility);
+        let mut tapped = 0;
+        loop {
+            g.run();
+            let request = g.pending().cloned().unwrap();
+            let RequestKind::PayCosts { options, .. } = &request.kind else {
+                break;
+            };
+            let confirm = options.iter().find(|o| o.kind == ActionKind::ConfirmCasting);
+            assert_eq!(confirm.is_some(), tapped == 4, "after {tapped} tapped");
+            let option = match confirm {
+                Some(confirm) => confirm,
+                None => {
+                    tapped += 1;
+                    let tap = options.iter().find(|o| o.kind == ActionKind::TapToPay).unwrap();
+                    assert_eq!(g.state.obj(tap.source.unwrap()).controller, ME);
+                    tap
+                }
+            };
+            g.answer(request.id, request.player, Answer::Act(Action::of(option)))
+                .unwrap();
+        }
+        assert_eq!(tapped, 4);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { cards, .. } => Answer::Cards(vec![cards[0]]),
+            other => panic!("{other:?}"),
+        });
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand, "drew, then discarded");
+        assert_eq!(g.state.zone(Zone::graveyard(ME)).len(), 1);
+    }
+    #[test]
+    fn a_counter_put_as_a_cost_stays_on_the_creature_that_paid_it() {
+        let (mut g, _, druid) = game("Divination", Some("Devoted Druid"));
+        let druid = druid.unwrap();
+        activate_ability(&mut g, druid, 0);
+        finish_payment(&mut g, true);
+        assert!(g.state.obj(druid).tapped);
+        activate_ability(&mut g, druid, 1);
+        resolve(&mut g, None, false);
+        assert!(!g.state.obj(druid).tapped);
+        assert_eq!(g.state.obj(druid).counters(CounterKind::MinusOne), 1);
+        assert_eq!(g.chars(druid).toughness, Some(1));
+    }
+    #[test]
+    fn an_ability_costs_less_for_each_creature_card_in_your_graveyard() {
+        for (dead, paid) in [
+            (&[][..], 5),
+            (&["Grizzly Bears"][..], 4),
+            (&["Grizzly Bears", "Grizzly Bears", "Divination"][..], 3),
+        ] {
+            let (mut g, _, butcher, _) =
+                game_with_graveyard("Divination", Some("Battlefield Butcher"), 0, &[], 100, dead);
+            let before = mana_left(&g);
+            announce(&mut g, butcher.unwrap(), ActionKind::ActivateAbility);
+            resolve(&mut g, None, false);
+            assert_eq!(before - mana_left(&g), paid, "{dead:?}");
+            assert_eq!(g.state.player(THEM).life, 18);
+        }
+    }
+    #[test]
+    fn an_ability_costs_less_only_while_you_control_what_it_says() {
+        for (extras, paid) in [
+            (&[][..], 5),
+            (&[("Rograkh, Son of Rohgahh", ME)][..], 3),
+            (&[("Rograkh, Son of Rohgahh", THEM)][..], 5),
+            (&[("Grizzly Bears", ME)][..], 5),
+        ] {
+            let (mut g, _, esquire, _) =
+                game_with_extras("Divination", Some("Esquire of the King"), 0, extras);
+            let before = mana_left(&g);
+            announce(&mut g, esquire.unwrap(), ActionKind::ActivateAbility);
+            resolve(&mut g, None, false);
+            assert_eq!(before - mana_left(&g), paid, "{extras:?}");
+        }
+    }
+    #[test]
+    fn no_more_than_twice_each_turn_counts_per_permanent_and_starts_again_each_turn() {
+        // The Birds' mana is what is left once the pool has emptied.
+        let extras = [("Fire-Belly Changeling", ME), ("Birds of Paradise", ME)];
+        let (mut g, _, first, _) =
+            game_with_extras("Divination", Some("Fire-Belly Changeling"), 0, &extras);
+        let first = first.unwrap();
+        let other = *permanents_named(&g, "Fire-Belly Changeling")
+            .iter()
+            .find(|&&id| id != first)
+            .unwrap();
+        let turn = g.state.turn.number;
+        for power in [2, 3] {
+            assert!(offers(&g, ActionKind::ActivateAbility, first));
+            announce(&mut g, first, ActionKind::ActivateAbility);
+            resolve(&mut g, None, false);
+            assert_eq!(g.chars(first).power, Some(power));
+        }
+        assert!(!offers(&g, ActionKind::ActivateAbility, first), "a third time");
+        assert!(offers(&g, ActionKind::ActivateAbility, other), "another permanent");
+        // "Each turn" is the opponent's too, and I get priority in their upkeep.
+        advance(&mut g, &|g| {
+            g.state.turn.number == turn + 1 && g.pending().is_some_and(|r| r.player == ME)
+        });
+        assert!(offers(&g, ActionKind::ActivateAbility, first), "the next turn");
+    }
+    #[test]
+    fn x_cant_be_zero_asks_for_mana_for_an_x_of_one() {
+        // {X}{G} with no pool: the Lair's own {T} makes the {G}, so an X of 0 could
+        // be paid and only "X can't be 0" keeps the ability from being offered.
+        let offered = |extras: &[(&str, PlayerId)]| {
+            let (g, _, lair, _) =
+                game_with_pool("Divination", Some("Lair of the Hydra"), 0, extras, 0);
+            offers_ability(&g, lair.unwrap(), 1)
+        };
+        assert!(!offered(&[]));
+        assert!(offered(&[("Llanowar Elves", ME)]));
+    }
+    #[test]
+    fn an_activation_trigger_hits_the_player_who_activated_and_skips_mana_abilities() {
+        let extras = [
+            ("Burning-Tree Shaman", THEM),
+            ("Shivan Dragon", ME),
+            ("Llanowar Elves", ME),
+        ];
+        let (mut g, _, _, _) = game_with_extras("Divination", None, 0, &extras);
+        let dragon = permanents_named(&g, "Shivan Dragon")[0];
+        let elves = permanents_named(&g, "Llanowar Elves")[0];
+        announce(&mut g, elves, ActionKind::ActivateAbility);
+        finish_payment(&mut g, true);
+        assert!(g.state.stack.is_empty(), "a mana ability triggers nothing");
+        assert_eq!(g.state.player(ME).life, 20);
+        announce(&mut g, dragon, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.player(ME).life, 19);
+        assert_eq!(g.state.player(THEM).life, 20);
+    }
+    #[test]
+    fn your_activation_of_an_artifact_or_creature_ability_is_what_counts() {
+        let also = ["Barkhide Mauler"];
+        let extras = [("Crackdown Construct", ME), ("Shivan Dragon", ME), ("Llanowar Elves", ME)];
+        let (mut g, _, _, _) = game_with_zones("Divination", None, 0, &extras, 100, &[], &also);
+        let construct = permanents_named(&g, "Crackdown Construct")[0];
+        let dragon = permanents_named(&g, "Shivan Dragon")[0];
+        let elves = permanents_named(&g, "Llanowar Elves")[0];
+        let mauler = hand_card(&g, "Barkhide Mauler");
+        // A creature card in a hand is no creature (109.2), and mana abilities are out.
+        announce(&mut g, mauler, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert_eq!(g.chars(construct).power, Some(2), "cycling");
+        announce(&mut g, elves, ActionKind::ActivateAbility);
+        finish_payment(&mut g, true);
+        assert_eq!(g.chars(construct).power, Some(2), "mana ability");
+        announce(&mut g, dragon, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert_eq!(g.chars(construct).power, Some(3), "a creature's ability");
+        assert_eq!(g.chars(construct).toughness, Some(3));
+    }
+    #[test]
+    fn an_opponents_activation_is_not_yours() {
+        let extras = [("Crackdown Construct", THEM), ("Shivan Dragon", ME)];
+        let (mut g, _, _, _) = game_with_extras("Divination", None, 0, &extras);
+        let construct = permanents_named(&g, "Crackdown Construct")[0];
+        let dragon = permanents_named(&g, "Shivan Dragon")[0];
+        announce(&mut g, dragon, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert_eq!(g.chars(construct).power, Some(2));
+    }
+    #[test]
+    fn an_activation_trigger_reads_the_type_of_the_object_with_the_ability() {
+        let extras = [
+            ("Ceaseless Searblades", ME),
+            ("Shivan Dragon", ME),
+            ("Fire-Belly Changeling", ME),
+        ];
+        let (mut g, _, _, _) = game_with_extras("Divination", None, 0, &extras);
+        let blades = permanents_named(&g, "Ceaseless Searblades")[0];
+        let dragon = permanents_named(&g, "Shivan Dragon")[0];
+        let changeling = permanents_named(&g, "Fire-Belly Changeling")[0];
+        announce(&mut g, dragon, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert_eq!(g.chars(blades).power, Some(2), "a Dragon is no Elemental");
+        announce(&mut g, changeling, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert_eq!(g.chars(blades).power, Some(3), "a changeling is an Elemental");
+    }
+    #[test]
+    fn an_exhaust_trigger_needs_an_exhaust_ability() {
+        let extras = [
+            ("Adrenaline Jockey", ME),
+            ("Shivan Dragon", ME),
+            ("Afterburner Expert", ME),
+        ];
+        let (mut g, _, _, _) = game_with_extras("Divination", None, 0, &extras);
+        let jockey = permanents_named(&g, "Adrenaline Jockey")[0];
+        let dragon = permanents_named(&g, "Shivan Dragon")[0];
+        let expert = permanents_named(&g, "Afterburner Expert")[0];
+        announce(&mut g, dragon, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.obj(jockey).counters(CounterKind::PlusOne), 0);
+        announce(&mut g, expert, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.obj(jockey).counters(CounterKind::PlusOne), 1);
+        assert_eq!(g.state.obj(expert).counters(CounterKind::PlusOne), 2);
+    }
+    #[test]
+    fn a_loyalty_trigger_needs_a_loyalty_ability() {
+        let extras = [("Shivan Dragon", ME)];
+        let (mut g, spell, _, _) = game_with_extras("Ajani Unrelenting", None, 0, &extras);
+        let dragon = permanents_named(&g, "Shivan Dragon")[0];
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        let ajani = permanents_named(&g, "Ajani Unrelenting")[0];
+        announce(&mut g, dragon, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert!(permanents_named(&g, "Cadet").is_empty());
+        announce(&mut g, ajani, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert_eq!(permanents_named(&g, "Cadet").len(), 1);
     }
     /// A game with `copies` of a fixture spell in hand, each cast and resolved.
     fn after_casting(

@@ -307,6 +307,22 @@ fn generated_modules_execute_in_cantrip() {
         ("anoint", "Anoint with Affliction"),
         ("apostle", "Apostle of Invasion"),
         ("kalemne", "Kalemne, Disciple of Iroas"),
+        ("valkyrie", "Boon-Bringer Valkyrie"),
+        ("berserker", "Scorn-Blade Berserker"),
+        ("escort", "Caravan Escort"),
+        ("leaper", "Geyser Leaper"),
+        ("devoted_druid", "Devoted Druid"),
+        ("butcher", "Battlefield Butcher"),
+        ("esquire", "Esquire of the King"),
+        ("changeling", "Fire-Belly Changeling"),
+        ("shaman", "Burning-Tree Shaman"),
+        ("construct", "Crackdown Construct"),
+        ("searblades", "Ceaseless Searblades"),
+        ("lair", "Lair of the Hydra"),
+        ("jockey", "Adrenaline Jockey"),
+        ("expert", "Afterburner Expert"),
+        ("ajani", "Ajani Unrelenting"),
+        ("mauler", "Barkhide Mauler"),
     ];
     let mut lib = String::new();
     for (module, name) in names {

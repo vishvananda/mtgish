@@ -587,6 +587,58 @@ impl Compiler {
             ),
         })
     }
+    /// `EventSpec::Activated`: a mana ability's activation is one too (605.3).
+    /// The player is "that player" and the ability's object "that permanent".
+    fn activated_event(&mut self, players: &PlayerSet, abilities: &ObjectFilter) -> Result<Matched> {
+        let frame = Frame {
+            player: Some(Carried::Subject),
+            object: Some(Carried::Data(0)),
+            ..Frame::default()
+        };
+        let tests = vec![
+            "def.is_some()".to_string(),
+            self.matching(frame, |c| c.player_in(players, "*player"))?,
+            self.activation_test(abilities, frame)?,
+        ];
+        Ok(single(
+            "ABILITY_ACTIVATED",
+            Arm {
+                pattern: "Event::AbilityActivated { source, ability, player, .. }".into(),
+                locals: "let id = *source; let def = q.activated_ability(*ability); let subject = Target::Player(*player); let data = [id.0, 0];".into(),
+                tests,
+            },
+            frame,
+            "Whenever a player activates an ability",
+        ))
+    }
+    /// What an activation trigger asks of the ability. "Of a creature" means a
+    /// permanent (109.2), so cycling a creature card is no such ability.
+    fn activation_test(&mut self, filter: &ObjectFilter, frame: Frame) -> Result<String> {
+        let def = |test: &str| format!("def.is_some_and(|d| {test})");
+        Ok(match filter {
+            ObjectFilter::Any => "true".into(),
+            ObjectFilter::All(filters) | ObjectFilter::Either(filters) => {
+                let tests = filters
+                    .iter()
+                    .map(|f| self.activation_test(f, frame))
+                    .collect::<Result<Vec<_>>>()?;
+                let joint = if matches!(filter, ObjectFilter::All(_)) { " && " } else { " || " };
+                format!("({})", tests.join(joint))
+            }
+            ObjectFilter::Not(inner) => format!("!({})", self.activation_test(inner, frame)?),
+            ObjectFilter::OnStack(StackTrait::Activated) => "true".into(),
+            ObjectFilter::OnStack(StackTrait::Mana) => def("d.is_mana_ability()"),
+            ObjectFilter::OnStack(StackTrait::Loyalty) => def("d.is_loyalty_ability()"),
+            ObjectFilter::OnStack(StackTrait::TapSymbolInCost) => def("d.cost.tap"),
+            ObjectFilter::OnStack(StackTrait::XInCost) => def("d.cost.mana.x > 0"),
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Exhaust)) => def("d.exhaust"),
+            ObjectFilter::AbilityOf(objects) => {
+                let of = self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?;
+                format!("(def.is_some_and(|d| d.from == ZoneKind::Battlefield) && {of})")
+            }
+            other => return Err(gap(format!("activated ability {}", form(other)))),
+        })
+    }
     /// `EventSpec::Attack`. `data` is the attacker's controller, then its
     /// defending player, which is what a batch of them is split by.
     fn attack_event(
@@ -1125,6 +1177,7 @@ impl Compiler {
             } => self.batch_event(event, per, count.as_ref(), including.as_ref()),
             // The engine's event is one put, and each counter is one of these.
             EventSpec::Counters { .. } => Err(gap("engine: no event for each counter put")),
+            EventSpec::Activated { players, abilities } => self.activated_event(players, abilities),
             EventSpec::Primitive { name, .. } => {
                 Err(gap(format!("primitive trigger event {name}")))
             }
