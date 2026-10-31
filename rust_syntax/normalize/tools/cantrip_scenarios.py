@@ -444,6 +444,21 @@ def destroy_scripts(card, claim, pieces):
          "targets. The pool is checked right after the cast, so the cost is exact."],
         bot1, cards, actions,
         [gone, f"Bot2.Graveyard = {theirs}", *graveyard_keys("Bot1", [name], sources)])]
+    if scope == "land":
+        mine, setup, listed = "Island", ["Bot1.Hand.Island.Play"], []
+    else:
+        spare = [m for m in MOX.values() if m not in [s for s, _ in sources]]
+        mine = pieces.creature(1)["name"] if scope == "creature" else spare[0]
+        setup, listed = casts("Bot1", [(mine, "")]), [mine]
+    actions = setup + casts("Bot1", sources) + ["[T3 Bot1.Main1]"]
+    actions += [activate("Bot1", s, a) for s, a in sources]
+    actions += [f"Bot1.Hand.{name}.Cast(Bot1.Battlefield.{mine})", "Bot1.Pass", "Bot2.Pass"]
+    out.append(Script(
+        f"{slug}-can-target-your-own-{slug_of(scope)}",
+        [f"\"Destroy target {scope}.\" \"Target\" reads either player's: Bot1's own {mine} goes to its owner's graveyard (CR 115.1, 701.8a).",
+         f"The spell goes there as the last step of resolving, so it is on top (CR {rule_of_resolving(card)})."],
+        [*listed, *bot1], [], actions,
+        [f"Bot1.Battlefield.{mine} = (absent)", *graveyard_keys("Bot1", [name, mine], sources)]))
     return out
 
 
@@ -547,7 +562,18 @@ def trigger_pump_scripts(card, frame, keywords, claim, pieces):
     if frame == "enters":
         actions = start + cast + choose + ["Bot1.Pass", "Bot2.Pass", *during, "[T4 Bot2.Main1]"]
         keys = permanent_keys(card, name, keywords)
+        size = card["power"] + p, card["toughness"] + t
+        own_case = []
+        if size[1] > 0:
+            mine = [f"? Bot1.Battlefield.{name}.Power = {size[0]}", f"? Bot1.Battlefield.{name}.Toughness = {size[1]}"]
+            own_case = [Script(
+                f"{slug}-entering-can-target-itself",
+                [f"\"When this creature enters, {text}\" \"Target creature\" reads either player's, and this creature is on the battlefield",
+                 f"by the time the trigger goes on the stack (CR 603.3d, 115.1): chosen over Bot2's {v}, it is {size[0]}/{size[1]} until the turn ends (CR 514.2)."],
+                bot1, cards, start + cast + [f"Bot1.Target(Bot1.Battlefield.{name})", "Bot1.Pass", "Bot2.Pass", *mine, "[T4 Bot2.Main1]"],
+                [f"Bot2.Battlefield.{v}.Power = {victim['power']}", *keys])]
     else:
+        own_case = []
         if REMOVAL not in pieces.names or "Black Lotus" not in pieces.names:
             raise Unwritable("no plain removal")
         cards = cards + ["Black Lotus", REMOVAL]
@@ -558,7 +584,7 @@ def trigger_pump_scripts(card, frame, keywords, claim, pieces):
         [f"\"When this creature {'enters' if frame == 'enters' else 'dies'}, {text}\" The target is chosen as the trigger goes on the stack (CR 603.3d):",
          f"a Mox and a player are refused, Bot2's {v} ({victim['power']}/{victim['toughness']}) is taken over the other creature, and has exactly that until the turn ends (CR 611.2a, 514.2)."],
         bot1, cards, actions,
-        [f"Bot2.Battlefield.{v}.Power = {victim['power']}", f"Bot2.Battlefield.{v}.Toughness = {victim['toughness']}", *keys])]
+        [f"Bot2.Battlefield.{v}.Power = {victim['power']}", f"Bot2.Battlefield.{v}.Toughness = {victim['toughness']}", *keys]), *own_case]
 
 
 def keyword_scripts(card, keywords):
