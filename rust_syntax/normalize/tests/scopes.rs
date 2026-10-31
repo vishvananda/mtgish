@@ -1504,3 +1504,16 @@ fn own_colors_chosen_token_types_and_explored_replacements() {
     assert_eq!(tracker.matches("Explore").count() >= 2, true, "{tracker}");
     assert!(tracker.contains("Cancel"), "{tracker}");
 }
+
+#[test]
+fn replacement_steps_with_rows_keep_their_operands() {
+    let censor = lowered(
+        "ReplaceWouldSearchLibrary(APlayerWouldSearchTheirLibrary(Opponent), [SearchTopNumberCardsOfLibraryInstead(Integer(4))])",
+    );
+    assert!(
+        censor
+            .contains("ReplacementActionWouldSearchLibrary::SearchTopNumberCardsOfLibraryInstead"),
+        "{censor}"
+    );
+    assert!(censor.contains("Constant(4)"), "{censor}");
+}

@@ -521,9 +521,20 @@ impl Context {
             _ => {
                 let mut ordinary = step.clone();
                 retag(&mut ordinary, &ordinary_enum);
-                let action: source::Action = crate::pipeline::source_tree::decode(&ordinary)
-                    .map_err(|_| unsupported_step(step))?;
-                self.action(&action, &PlayerSet::One(actor.clone()))?
+                match crate::pipeline::source_tree::decode::<source::Action>(&ordinary) {
+                    Ok(action) => self.action(&action, &PlayerSet::One(actor.clone()))?,
+                    Err(_) => {
+                        let family = step["enum"].as_str().unwrap_or_default();
+                        let (name, operands) = self
+                            .primitive_inspected(family, step)
+                            .ok_or_else(|| unsupported_step(step))?;
+                        self.effect(Operation::Primitive {
+                            actor: PlayerSet::One(actor.clone()),
+                            name,
+                            operands,
+                        })
+                    }
+                }
             }
         }))
     }

@@ -40,15 +40,10 @@ fn casting(c: &Card) -> &CastingRule {
 }
 
 #[test]
-fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
-    let incomplete = ["Ertai's Meddling", "Soul Burn"];
+fn real_casting_families_roundtrip() {
     let mut complete = 0;
     for source in sources() {
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);
-        if incomplete.contains(&name.as_str()) {
-            assert!(lower::card(&source).is_err(), "{name}");
-            continue;
-        }
         let c = lower::card(&source).unwrap_or_else(|e| panic!("{name}: {e:?}"));
         let expected = serde_json::to_value(&c).unwrap();
         let bytes = bincode::encode_to_vec(&c, bincode::config::standard()).unwrap();
@@ -65,7 +60,7 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 75);
+    assert_eq!(complete, 77);
 }
 
 #[test]
