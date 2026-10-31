@@ -17,10 +17,13 @@ impl Context {
         paid: &source::Actions,
         unpaid: &source::Actions,
     ) -> Result<Ability> {
+        let cost = self.cost(cost)?;
+        let mut paid_context = self.fresh();
+        paid_context.install_paid_history(&cost, PaymentRef::Branch);
         Ok(Ability::CostBranch {
             keyword: keyword.into(),
-            cost: self.cost(cost)?,
-            paid: Box::new(self.fresh().spell_ability(paid)?),
+            cost,
+            paid: Box::new(paid_context.spell_ability(paid)?),
             unpaid: Box::new(self.fresh().spell_ability(unpaid)?),
         })
     }

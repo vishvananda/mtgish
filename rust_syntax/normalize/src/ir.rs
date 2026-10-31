@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 137;
+pub const SCHEMA_VERSION: u32 = 138;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -3038,6 +3038,8 @@ pub enum PaymentRef {
     },
     /// An earlier PayCost instruction in this lexical result frame.
     Resolution(ResultId),
+    /// The cost of the enclosing `Ability::CostBranch`, read in its paid branch.
+    Branch,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CostObjectView {

@@ -53,6 +53,15 @@ fn capture(event: &mut ReplacementEvent, found: &mut Vec<ObjectRef>) {
     }
 }
 
+/// A replacement runs after the ability that made it, without its targets.
+fn names_target(recipients: &Recipients) -> bool {
+    match recipients {
+        Recipients::Targets(_) | Recipients::Target { .. } => true,
+        Recipients::Union(parts) => parts.iter().any(names_target),
+        _ => false,
+    }
+}
+
 impl Compiler {
     fn watched(&mut self, event: &ReplacementEvent) -> Result<(Vec<Watched>, Frame)> {
         Ok(match event {
@@ -181,6 +190,9 @@ impl Compiler {
             }
             ("Damage", EventChange::Cancel) => "e.amount = 0;".into(),
             ("Damage", EventChange::RedirectDamage(recipients)) => {
+                if names_target(recipients) {
+                    return Err(gap("redirect to a target the callback cannot read"));
+                }
                 let recipients = self.matching(frame, |c| c.recipients(recipients))?;
                 format!("if let Some(recipient) = ({recipients}).first().copied() {{ e.target = recipient; }}")
             }

@@ -4,6 +4,9 @@
 use crate::ir::*;
 use std::collections::{BTreeMap, BTreeSet};
 
+/// The slot in `casting_costs` that holds the enclosing cost branch's cost.
+const BRANCH_COST: u32 = u32::MAX;
+
 #[derive(Clone, Copy)]
 enum ResultKind {
     Observation,
@@ -54,6 +57,7 @@ impl<'a> Scope<'a> {
             PaymentRef::Activation => self.activation_cost.as_ref(),
             PaymentRef::Casting { ability } => self.casting_costs.get(ability),
             PaymentRef::Resolution(result) => self.payment_costs.get(&result.0),
+            PaymentRef::Branch => self.casting_costs.get(&BRANCH_COST),
         }
         .ok_or("payment history has no declaration in this scope")?;
         crate::cost_history::component(cost, path)
@@ -682,7 +686,9 @@ impl<'a> Scope<'a> {
                     let known = matches!(
                         (payment, view, phase),
                         (
-                            PaymentRef::Activation | PaymentRef::Casting { .. },
+                            PaymentRef::Activation
+                                | PaymentRef::Casting { .. }
+                                | PaymentRef::Branch,
                             CostObjectView::Inputs,
                             ObjectPhase::Before
                         )
@@ -2929,6 +2935,7 @@ impl<'a> Scope<'a> {
                                 Some("extra_turn") => ResultKind::Other,
                                 Some("created") => ResultKind::CreatedObjects,
                                 Some("paid") => ResultKind::Other,
+                                Some("chosen") => ResultKind::Selection,
                                 Some(_) => ResultKind::ObjectTransition,
                                 None => ResultKind::Other,
                             },
@@ -3393,7 +3400,9 @@ fn validate_ability_in(
             cost, paid, unpaid, ..
         } => {
             scope.cost(cost)?;
-            validate_ability_in(paid, zones, casting_costs)?;
+            let mut paid_costs = casting_costs.clone();
+            paid_costs.insert(BRANCH_COST, cost.clone());
+            validate_ability_in(paid, zones, &paid_costs)?;
             return validate_ability_in(unpaid, zones, casting_costs);
         }
         Ability::Gift {

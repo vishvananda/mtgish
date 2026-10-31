@@ -286,6 +286,9 @@ impl Context {
             ),
             "CardInGraveyards" => Operand::Object(self.grave_card(&decode(value).ok()?).ok()?),
             "CardInExile" => Operand::Object(self.exiled_card(&decode(value).ok()?).ok()?),
+            "Commander" if value["variant"] == "TheCommanderChosenThisWay" => {
+                Operand::Object(self.result_object(self.row_choice.as_ref(), 0).ok()?)
+            }
             "Actions" => {
                 let actions: source::Actions = decode(value).ok()?;
                 let mut child = self.nested_program();
@@ -679,6 +682,7 @@ impl Context {
                 self.did.insert(Done::Damage, result.clone());
             }
             Some("seeked") => self.seeked.push(result.clone()),
+            Some("chosen") => self.row_choice = Some(result.clone()),
             _ => {}
         }
         if crate::semantics::singular_operation(&operation, |_| false) {
@@ -1023,6 +1027,7 @@ impl Context {
         self.seeked.clear();
         self.conjured = None;
         self.acted_on = None;
+        self.row_choice = None;
         self.tapped = None;
         self.chosen_pile = None;
         self.found = None;

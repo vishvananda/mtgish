@@ -108,6 +108,9 @@ impl Context {
             {
                 return self.result_object(self.grave_choice.as_ref(), 0);
             }
+            S::TheGraveyardCardChosenThisWay if self.row_choice.is_some() => {
+                return self.result_object(self.row_choice.as_ref(), 0);
+            }
             S::Trigger_ThatGraveyardCard if self.event.moved || self.event.discarded => {
                 let object = if self.event.moved {
                     ObjectRef::EventDestination

@@ -1846,3 +1846,23 @@ fn a_random_found_card_is_a_random_selection() {
     );
     assert!(clans.contains("constraints: [AtRandom]"), "{clans}");
 }
+
+#[test]
+fn costs_name_the_object_they_chose() {
+    let strike = lowered(
+        "SpellActions(AdditionalCost_Modal([AdditionalCost(BeholdA(IsCardtype(Creature)), ActionList([CreatePerpetualPermanentEffect(ThePermanentBeheldThisWay, [AdjustPT(+2, +2)])])), NoAdditionalCost(ActionList([DrawACard]))]))",
+    );
+    assert!(strike.contains("payment: Branch"), "{strike}");
+    let auntie = lowered(
+        "TriggerA(WhenACreatureAttacks(SinglePermanent(ThisPermanent)), ActionList([MayCost(Blight(Integer(1))), If(CostWasPaid, [TapPermanent(ThePermanentBlightedThisWay)])]))",
+    );
+    assert!(auntie.contains("payment: Resolution"), "{auntie}");
+}
+
+#[test]
+fn choosing_rows_name_their_choice_later() {
+    let study = lowered(
+        "SpellActions(ActionList([ChooseACommanderOnTheBattlefieldOrInTheCommandZone(OwnedByAPlayer(SinglePlayer(You))), CreateValueX(TheManaValueOfCommander(TheCommanderChosenThisWay)), DrawNumberCards(ValueX)]))",
+    );
+    assert!(study.contains("result: ResultId(0)"), "{study}");
+}

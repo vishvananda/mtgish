@@ -120,6 +120,8 @@ struct Context {
     phased: Option<ObjectRef>,
     /// What a keyword action just acted on, as "the transformed permanent".
     acted_on: Option<ObjectRef>,
+    /// The last object a reviewed row chose, as "the card chosen this way".
+    row_choice: Option<ResultId>,
     /// Zones the next search looks through besides a library, and whether it's "and/or".
     search_also: Vec<EventZone>,
     search_either: bool,
@@ -688,6 +690,11 @@ impl Context {
             // Transforming as a cost leaves no action to read; it transformed this object.
             S::TheTransformedPermanent => {
                 return Ok(self.acted_on.clone().unwrap_or(ObjectRef::Source));
+            }
+            S::ThePermanentAttachedThisWay
+            | S::ThePermanentBeheldThisWay
+            | S::ThePermanentBlightedThisWay => {
+                return self.paid_object(crate::number_spec::PaymentAction::Choose);
             }
             S::TheCreatureBolsteredThisWay => {
                 return self

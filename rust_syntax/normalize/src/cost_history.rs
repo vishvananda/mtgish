@@ -28,6 +28,27 @@ pub fn action(part: &CostPart) -> Option<PaymentAction> {
         CostPart::Reveal { .. } => Some(PaymentAction::Reveal),
         CostPart::Draw { .. } => Some(PaymentAction::Draw),
         CostPart::Mill { .. } => Some(PaymentAction::Mill),
+        CostPart::Behold { .. }
+        | CostPart::Keyword {
+            action: CostKeyword::Blight,
+            ..
+        } => Some(PaymentAction::Choose),
+        // A cost paid as an action that picks one object and leaves it there.
+        CostPart::PlayerAction { body, .. } => match body.instructions.as_slice() {
+            [Instruction::Effect {
+                operation:
+                    Operation::Keyword {
+                        action: KeywordAction::Blight,
+                        ..
+                    }
+                    | Operation::AttachChosen {
+                        count: Count::Exactly(Expr::Constant(1)),
+                        ..
+                    },
+                ..
+            }] => Some(PaymentAction::Choose),
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -90,6 +111,16 @@ pub fn singular(part: &CostPart) -> bool {
         CostPart::Sacrifice { objects, choose } => choose
             .as_ref()
             .map_or(matches!(objects, ObjectSet::One(_)), one),
+        // Blighting any amount picks one creature.
+        CostPart::Keyword {
+            action: CostKeyword::Blight,
+            ..
+        }
+        | CostPart::PlayerAction { .. } => action(part).is_some(),
+        CostPart::Behold {
+            count: Expr::Constant(1),
+            ..
+        } => true,
         CostPart::ChangeTapState { selections, .. } | CostPart::Move { selections, .. } => {
             matches!(selections.as_slice(),[CostObjectSelection {objects,choose}] if choose.as_ref().map_or(matches!(objects,ObjectSet::One(_)),one))
         }
