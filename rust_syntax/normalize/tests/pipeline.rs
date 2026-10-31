@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 82);
+    assert_eq!(card.schema_version, 86);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2042,7 +2042,7 @@ fn counts_and_primitive_rule_families_keep_their_operands() {
     let text = ability_json(
         "Activated(TapPermanent(ThisPermanent),ActionList([InvestigateTimes(Integer(2))]))",
     );
-    assert!(text.contains("Action::InvestigateTimes"), "{text}");
+    assert!(text.contains(r#""action":"Investigate""#), "{text}");
     assert!(
         text.contains(r#""Integer":2"#) || text.contains("2"),
         "{text}"
@@ -3157,7 +3157,7 @@ fn reflexive_triggers_name_their_base_and_who_does_it() {
     assert!(text.contains("ReflexiveTrigger"), "{text}");
     assert!(text.contains("Discard") && text.contains("Draw"), "{text}");
     let text = ability_json("SpellActions(ActionList([Reflexive_RollDice_WhenYouDo(D20, ActionList([GainLife(TheDiceResult)]))]))");
-    assert!(text.contains("RollD20"), "{text}");
+    assert!(text.contains("RollDie"), "{text}");
     let text = ability_json("SpellActions(ActionList([Reflexive_PlayerSacrifices_WhenTheyDo(You, [APermanent(IsCardtype(Creature))], ActionList([DrawACard]))]))");
     assert!(text.contains("ReflexiveTrigger"), "{text}");
 }

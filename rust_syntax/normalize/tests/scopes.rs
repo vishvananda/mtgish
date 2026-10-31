@@ -427,6 +427,125 @@ fn a_player_event_row_is_one_generic_event() {
 }
 
 #[test]
+fn attacks_are_one_event_and_a_batch_wraps_it() {
+    let body = lowered(
+        "TriggerA(WhenACreatureAttacksAPlayer(IsCardtype(Creature), Opponent), ActionList([DrawACard]))",
+    );
+    assert!(
+        body.contains("Attack { attackers: CardType(Creature)"),
+        "{body}"
+    );
+    assert!(body.contains("defenders: Players(OpponentsOf"), "{body}");
+    let body = lowered(
+        "TriggerA(WhenAPlayerAttacksWithAnyNumberOfCreatures(SinglePlayer(You), IsCardtype(Creature)), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("Batch { event: Attack"), "{body}");
+    assert!(body.contains("per: Whole"), "{body}");
+    assert!(!body.contains("WhenAPlayerAttacks"), "{body}");
+    let body = lowered(
+        "TriggerA(WhenAPlayerAttacksAPlayer(SinglePlayer(You), Opponent), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("per: Defender"), "{body}");
+}
+
+#[test]
+fn battalion_names_the_creature_that_must_be_among_the_attackers() {
+    let body = lowered(
+        "TriggerA(WhenASingleCreatureAndANumberOfOtherCreaturesAttack(ThisPermanent, GreaterThanOrEqualTo(Integer(2)), IsCardtype(Creature)), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("including: Some(Source)"), "{body}");
+    assert!(body.contains("count: Some((GreaterOrEqual"), "{body}");
+}
+
+#[test]
+fn a_batch_of_an_exact_group_cannot_read_one_of_its_objects() {
+    let event = EventSpec::Batch {
+        event: Box::new(EventSpec::ZoneChange {
+            objects: ObjectFilter::Any,
+            from: None,
+            to: EventZone::Battlefield,
+        }),
+        per: BatchPer::Whole,
+        count: Some((Comparison::GreaterOrEqual, Expr::Constant(2))),
+        including: None,
+    };
+    let bindings = semantics::event_bindings(&event);
+    assert!(!bindings.object && bindings.group && bindings.amount);
+}
+
+#[test]
+fn counter_events_keep_their_kind_and_group_by_object() {
+    let body = lowered(
+        "TriggerA(WhenAnyNumberOfCountersOfTypeArePutOnAPermanent(PTCounter(1, 1), IsCardtype(Creature)), ActionList([DrawACard]))",
+    );
+    assert!(
+        body.contains("Batch { event: Counters { change: Put"),
+        "{body}"
+    );
+    assert!(body.contains("kind: Some(PowerToughness(1, 1))"), "{body}");
+    assert!(body.contains("per: Subject"), "{body}");
+}
+
+#[test]
+fn a_plane_or_scheme_event_reads_this_card() {
+    let body = lowered(
+        "TriggerA(WhenAPlayerSetsASchemeInMotion(SinglePlayer(You), SingleScheme(ThisScheme)), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("event: SetsSchemeInMotion"), "{body}");
+    assert!(body.contains("objects: Some(SameObject(Source))"), "{body}");
+}
+
+#[test]
+fn a_chosen_value_is_one_choice_read_by_kind() {
+    let body = lowered("SpellActions(ActionList([ChooseACreatureType]))");
+    assert!(body.contains("ChooseValue"), "{body}");
+    assert!(body.contains("kind: CreatureType, count: 1"), "{body}");
+    let body = lowered(
+        "PermanentLayerEffect(HostPermanent, [AddCreatureTypeVariable(TheChosenCreatureType)])",
+    );
+    assert!(
+        body.contains("ChosenType { kind: CreatureType, mode: Add }"),
+        "{body}"
+    );
+}
+
+#[test]
+fn a_noted_type_is_not_a_chosen_one() {
+    let body = lowered(
+        "SpellActions(ActionList([DestroyEachPermanent(IsCreatureTypeVariable(TheNotedCreatureType))]))",
+    );
+    assert!(
+        body.contains("Permanents::IsCreatureTypeVariable"),
+        "{body}"
+    );
+    assert!(!body.contains("Chosen(CreatureType)"), "{body}");
+}
+
+#[test]
+fn a_player_comparison_is_an_ordinary_count() {
+    let body = lowered(
+        "TriggerI(WhenACreatureAttacks(SinglePermanent(ThisPermanent)), PlayerPassesFilter(Trigger_DefendingPlayer, ControlsMorePermanentThanPlayer(You, IsCardtype(Land))), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("Compare"), "{body}");
+    assert!(body.contains("comparison: Greater"), "{body}");
+    assert!(!body.contains("ControlsMorePermanentThanPlayer"), "{body}");
+}
+
+#[test]
+fn party_size_and_starting_life_are_numbers() {
+    let body = lowered(
+        "SpellActions(ActionList([DrawNumberCards(NumCreaturesInPlayersParty(You))]))",
+    );
+    assert!(body.contains("PartySize(AbilityController)"), "{body}");
+}
+
+#[test]
+fn rolling_a_die_says_how_many_sides() {
+    let body = lowered("SpellActions(ActionList([RollAD6]))");
+    assert!(body.contains("RollDie(6)"), "{body}");
+}
+
+#[test]
 fn the_nth_event_each_turn_wraps_the_plain_event() {
     let body = lowered(
         "TriggerA(WhenAPlayerDrawsTheirNthCardEachTurn(SinglePlayer(You), EqualTo(Integer(2))), ActionList([DrawACard]))",
@@ -488,4 +607,20 @@ fn object_state_rows_are_filters_that_compose() {
     );
     assert!(body.contains("State(Commander)"), "{body}");
     assert!(body.contains("OwnedBy(One(AbilityController))"), "{body}");
+}
+
+#[test]
+fn an_outlaw_is_its_five_creature_types() {
+    let body = lowered("SpellActions(ActionList([DestroyEachPermanent(IsAnOutlaw)]))");
+    assert!(body.contains("Either(["), "{body}");
+    assert_eq!(body.matches("Subtype(").count(), 5, "{body}");
+}
+
+#[test]
+fn turn_windows_and_player_states_are_generic_conditions() {
+    let body = lowered("If(IsDuringCombat, [PlayerEffect(You, [CantGainLife])])");
+    assert!(body.contains("Window(Combat)"), "{body}");
+    let body =
+        lowered("If(PlayerPassesFilter(You, IsTheMonarch), [PlayerEffect(You, [CantGainLife])])");
+    assert!(body.contains("state: Monarch"), "{body}");
 }

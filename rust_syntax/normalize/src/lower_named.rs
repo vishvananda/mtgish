@@ -489,7 +489,7 @@ impl Context {
 
     fn primitive_condition(&self, value: &source::Condition) -> Option<Condition> {
         let (name, operands) = self.primitive("Condition", value)?;
-        Some(Condition::Primitive { name, operands })
+        Some(crate::semantics::reduce_condition(name, operands))
     }
 
     fn primitive_filter(&self, value: &source::Permanents) -> Option<ObjectFilter> {
@@ -513,7 +513,7 @@ impl Context {
 
     fn primitive_number(&self, value: &source::GameNumber) -> Option<Expr> {
         let (name, operands) = self.primitive("GameNumber", value)?;
-        Some(Expr::Primitive { name, operands })
+        Some(crate::semantics::reduce_number(name, operands))
     }
 
     fn primitive_change(&self, value: &source::LayerEffect) -> Option<Change> {
@@ -527,9 +527,25 @@ impl Context {
         player: &PlayerRef,
         value: &source::Players,
     ) -> Option<Condition> {
+        if let source::Players::HasACardInGraveyard(cards) = value {
+            if let Ok(ObjectSet::Zone { kind, filter, .. }) = self.grave_cards(cards) {
+                return Some(Condition::Compare {
+                    left: Expr::CountObjects(Box::new(ObjectSet::Zone {
+                        scope: ZoneScope::Players {
+                            zone: EventZone::Graveyard,
+                            players: PlayerSet::One(player.clone()),
+                        },
+                        kind,
+                        filter,
+                    })),
+                    comparison: Comparison::GreaterOrEqual,
+                    right: Expr::Constant(1),
+                });
+            }
+        }
         let (name, mut operands) = self.primitive("Players", value)?;
         operands.insert(0, Operand::Player(player.clone()));
-        Some(Condition::Primitive { name, operands })
+        Some(crate::semantics::reduce_condition(name, operands))
     }
 
     fn primitive_trigger(&self, value: &source::Trigger) -> Option<EventSpec> {

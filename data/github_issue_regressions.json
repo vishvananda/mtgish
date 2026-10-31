@@ -12096,5 +12096,55 @@
     "excludes": [
       "ThePermanentsList"
     ]
+  },
+  {
+    "name": "Shambling Vent",
+    "issues": [
+      87
+    ],
+    "contains": [
+      "SetColor(SimpleColorList([White, Black]))"
+    ],
+    "excludes": [
+      "AddColor("
+    ]
+  },
+  {
+    "name": "Orzhov Keyrune",
+    "issues": [
+      87
+    ],
+    "contains": [
+      "SetColor(SimpleColorList([White, Black]))"
+    ],
+    "excludes": [
+      "AddColor("
+    ]
+  },
+  {
+    "name": "Genju of the Fields",
+    "issues": [
+      87
+    ],
+    "contains": [
+      "SetColor("
+    ],
+    "excludes": [
+      "AddColor("
+    ]
+  },
+  {
+    "name": "Ward of Bones",
+    "issues": [
+      88
+    ],
+    "contains": [
+      "And([Opponent, ControlsMorePermanentThanPlayer(You, IsCardtype(Creature))])",
+      "And([Opponent, ControlsMorePermanentThanPlayer(You, IsCardtype(Artifact))])",
+      "And([Opponent, ControlsMorePermanentThanPlayer(You, IsCardtype(Enchantment))])"
+    ],
+    "excludes": [
+      "EachPlayerEffect(ControlsMorePermanentThanPlayer"
+    ]
   }
 ]

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 82;
+pub const SCHEMA_VERSION: u32 = 86;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -393,6 +393,8 @@ pub enum EventChange {
     /// How the entering object enters.
     Entry(EntryState),
     AddMana(ManaProduction),
+    /// Each mana produced is replaced, so an amount here is per mana: a land
+    /// that makes two still makes two.
     ReplaceMana(ManaProduction),
     /// Only colored mana is replaced; colorless mana is produced as it was.
     ReplaceColoredMana(ManaProduction),
@@ -952,6 +954,14 @@ pub enum Operation {
     JoinResults {
         results: Vec<ResultId>,
     },
+    /// Choose `count` values of this kind. A read of one goes through
+    /// `ObjectFilter::Chosen`, `Change::ChosenType` or `Expr::ChosenNumber`.
+    ChooseValue {
+        actor: PlayerSet,
+        kind: ValueKind,
+        count: u32,
+        options: Vec<Operand>,
+    },
     /// Choose one of these power/toughness adjustments.
     ChoosePowerToughness {
         player: PlayerRef,
@@ -1170,7 +1180,77 @@ pub enum KeywordAction {
     Prepare,
     TapOrUntap,
     ExchangeControl,
-    RollD20,
+    RollDie(u32),
+    EmpowerJace,
+    Incubate,
+    Adapt,
+    Populate,
+    Bolster,
+    Learn,
+    TakeInitiative,
+    OpenAttraction,
+    GetTickets,
+    RemoveFromCombat,
+    Flip,
+    Awaken,
+    Planeswalk,
+    Convert,
+    Suspect,
+    Endure,
+    Blight,
+    TurnFaceUp,
+    TurnFaceDown,
+    Detain,
+    EndTheTurn,
+    TimeTravel,
+    Intensify,
+    Forage,
+    Ascend,
+    BecomeDay,
+    BecomeNight,
+    ChaosEnsues,
+    Airbend,
+    Saddle,
+    Harness,
+    Unattach,
+    Fateseal,
+    Skip(SkippedPart),
+    AdditionalPhase(AddedPhases),
+}
+/// What a choice of a value picks, as Forge's `ChooseColor`, `ChooseType`,
+/// `NameCard` and `ChooseNumber`.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum ValueKind {
+    Color,
+    ColorOrColorless,
+    CreatureType,
+    LandType,
+    BasicLandType,
+    CardType,
+    CardName,
+    Number,
+    Parity,
+    Direction,
+    Word,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum SkippedPart {
+    Turn,
+    UntapStep,
+    DrawStep,
+    CombatPhase,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum AddedPhases {
+    Combat,
+    CombatAndMain,
+    Beginning,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct SearchChoice {
@@ -1440,6 +1520,11 @@ pub enum Change {
     ChosenAbility,
     /// The color chosen by this ability or as this object entered.
     ChosenColor {
+        mode: ChangeMode,
+    },
+    /// The type chosen by this ability or as this object entered.
+    ChosenType {
+        kind: ValueKind,
         mode: ChangeMode,
     },
     AddCardType(CardType),
@@ -1930,6 +2015,13 @@ pub enum Expr {
     },
     /// What an odd-or-even choice named: 0 for even, 1 for odd.
     ChosenParity,
+    /// The number chosen by this ability or as this object entered.
+    ChosenNumber,
+    /// How many creatures are in this player's party (700.8).
+    PartySize(PlayerRef),
+    StartingLife(PlayerRef),
+    TimesKicked(ObjectRef),
+    TimesResolvedThisTurn,
     /// Damage past lethal dealt by this earlier instruction to these objects.
     ExcessDamage {
         result: ResultId,
@@ -1988,6 +2080,7 @@ pub enum Aggregation {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DistinctProperty {
+    Powers,
     CardTypes,
     CreatureTypes,
     Colors,
@@ -2369,6 +2462,12 @@ pub enum ObjectFilter {
     InSet(Box<ObjectSet>),
     Name(String),
     InZone(ZoneScope),
+    /// Blocked by this object.
+    BlockedByObject(ObjectRef),
+    /// Attacking one of these.
+    AttackingDefender(Box<AttackDefenders>),
+    /// Has the value of this kind chosen by this ability or as this object entered.
+    Chosen(ValueKind),
     IsCard,
     Any,
     All(Vec<ObjectFilter>),
@@ -2525,6 +2624,12 @@ pub enum Condition {
     PlayerTook {
         player: PlayerRef,
         result: ResultId,
+    },
+    /// True during this part of the turn, whoever's turn it is.
+    Window(TurnWindow),
+    PlayerState {
+        player: PlayerRef,
+        state: PlayerState,
     },
 }
 
@@ -2830,6 +2935,49 @@ pub enum EventSpec {
         kind: TargetingKind,
         by: Box<Operand>,
     },
+    /// One creature attacking, as Forge's `Attacks`. `by` is the attacking
+    /// player, when the form names one.
+    Attack {
+        attackers: ObjectFilter,
+        by: Option<PlayerSet>,
+        defenders: AttackDefenders,
+    },
+    /// Everything `event` matches at the same time is one occurrence, as
+    /// Forge's `AttackersDeclared` and `ChangesZoneAll`. `count` is how many it
+    /// takes, and `including` is one object that has to be among them.
+    Batch {
+        event: Box<EventSpec>,
+        per: BatchPer,
+        count: Option<(Comparison, Expr)>,
+        including: Option<ObjectRef>,
+    },
+    /// Counters changing on one object, as Forge's `CounterAdded`. `by` is the
+    /// player doing it, when the form names one; no `kind` means any counter.
+    Counters {
+        change: CounterChange,
+        kind: Option<crate::counter::CounterKind>,
+        objects: ObjectFilter,
+        by: Option<PlayerSet>,
+    },
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum BatchPer {
+    /// One occurrence for all of it.
+    Whole,
+    /// One occurrence for each player or planeswalker attacked.
+    Defender,
+    /// One occurrence for each object the event is about.
+    Subject,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum CounterChange {
+    Put,
+    Removed,
+    LastRemoved,
 }
 /// Match actual positive damage, after prevention/replacement, using event
 /// information (including a departed source's last-known characteristics).
@@ -2919,6 +3067,48 @@ pub enum ObjectState {
     Saddled,
     Commander,
     Kicked,
+    FaceDown,
+    Monstrous,
+    Renowned,
+    Unblocked,
+    Blocked,
+    AttackingAlone,
+    Bargained,
+    Goaded,
+    Paired,
+    Suspected,
+    Damaged,
+    TributeNotPaid,
+    CastDuringOwnMainPhase,
+    HasX,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum TurnWindow {
+    BeforeAttackersDeclared,
+    Combat,
+    Upkeep,
+    EndStep,
+    BeforeCombatDamage,
+    DeclareAttackers,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum PlayerState {
+    Monarch,
+    CitysBlessing,
+    FullParty,
+    StartingPlayer,
+    InTheirUpkeep,
+    InTheirMainPhase,
+    CompletedDungeon,
+    Initiative,
+    Descended,
+    CommittedCrime,
+    BeingAttacked,
+    EnduringStory,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -2958,6 +3148,12 @@ pub enum PlayerEvent {
     PlaysLand,
     UnlocksDoor,
     TapsForMana,
+    ChaosEnsues,
+    SetsSchemeInMotion,
+    Planeswalks,
+    EncountersPhenomenon,
+    FullyUnlocksRoom,
+    Expends,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum TurnPoint {

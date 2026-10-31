@@ -207,11 +207,116 @@ const KEYWORD_ACTIONS: &[(&str, KeywordAction)] = &[
     ("Action::PreparePermanent", KeywordAction::Prepare),
     ("Action::TapOrUntapPermanent", KeywordAction::TapOrUntap),
     ("Action::ExchangeControl", KeywordAction::ExchangeControl),
-    ("Action::RollAD20", KeywordAction::RollD20),
+    ("Action::RollAD20", KeywordAction::RollDie(20)),
+    ("Action::RollAD10", KeywordAction::RollDie(10)),
+    ("Action::RollAD6", KeywordAction::RollDie(6)),
+    ("Action::RollNumberD6", KeywordAction::RollDie(6)),
+    ("Action::RollAD4", KeywordAction::RollDie(4)),
+    ("Action::EmpowerJace", KeywordAction::EmpowerJace),
+    ("Action::Incubate", KeywordAction::Incubate),
+    ("Action::Adapt", KeywordAction::Adapt),
+    ("Action::Populate", KeywordAction::Populate),
+    ("Action::InvestigateTimes", KeywordAction::Investigate),
+    ("Action::ProliferateNumberTimes", KeywordAction::Proliferate),
+    ("Action::CreatureConnivesNumber", KeywordAction::Connive),
+    ("Action::Bolster", KeywordAction::Bolster),
+    ("Action::Learn", KeywordAction::Learn),
+    ("Action::TakeTheInitiative", KeywordAction::TakeInitiative),
+    ("Action::OpenAnAttraction", KeywordAction::OpenAttraction),
+    ("Action::GetNumberTickets", KeywordAction::GetTickets),
+    (
+        "Action::RemoveCreatureFromCombat",
+        KeywordAction::RemoveFromCombat,
+    ),
+    ("Action::FlipPermanent", KeywordAction::Flip),
+    ("Action::AwakenPermanent", KeywordAction::Awaken),
+    ("Action::Planeswalk", KeywordAction::Planeswalk),
+    ("Action::ConvertPermanent", KeywordAction::Convert),
+    ("Action::SuspectPermanent", KeywordAction::Suspect),
+    ("Action::EndureWithPermanent", KeywordAction::Endure),
+    ("Action::Blight", KeywordAction::Blight),
+    ("Action::TurnPermanentFaceUp", KeywordAction::TurnFaceUp),
+    ("Action::TurnPermanentFaceDown", KeywordAction::TurnFaceDown),
+    ("Action::DetainPermanent", KeywordAction::Detain),
+    ("Action::EndTheTurn", KeywordAction::EndTheTurn),
+    ("Action::TimeTravel", KeywordAction::TimeTravel),
+    ("Action::IntensifyPermanent", KeywordAction::Intensify),
+    ("Action::Forage", KeywordAction::Forage),
+    ("Action::Ascend", KeywordAction::Ascend),
+    ("Action::BecomeDay", KeywordAction::BecomeDay),
+    ("Action::BecomeNight", KeywordAction::BecomeNight),
+    ("Action::ChaosEnsues", KeywordAction::ChaosEnsues),
+    ("Action::AirbendPermanent", KeywordAction::Airbend),
+    ("Action::SaddlePermanent", KeywordAction::Saddle),
+    ("Action::HarnessPermanent", KeywordAction::Harness),
+    ("Action::UnattachPermanent", KeywordAction::Unattach),
+    ("Action::Fateseal", KeywordAction::Fateseal),
+    (
+        "Action::SkipNextTurn",
+        KeywordAction::Skip(SkippedPart::Turn),
+    ),
+    (
+        "Action::SkipNextUntapStep",
+        KeywordAction::Skip(SkippedPart::UntapStep),
+    ),
+    (
+        "Action::SkipNextDrawStep",
+        KeywordAction::Skip(SkippedPart::DrawStep),
+    ),
+    (
+        "Action::SkipNextCombatPhase",
+        KeywordAction::Skip(SkippedPart::CombatPhase),
+    ),
+    (
+        "Action::ThereIsAnAdditionalCombatPhase",
+        KeywordAction::AdditionalPhase(AddedPhases::Combat),
+    ),
+    (
+        "Action::ThereIsAnAdditionalCombatPhaseAndAnAdditionalMainPhase",
+        KeywordAction::AdditionalPhase(AddedPhases::CombatAndMain),
+    ),
+    (
+        "Action::ThereIsAnAdditionalBeginningPhase",
+        KeywordAction::AdditionalPhase(AddedPhases::Beginning),
+    ),
+];
+
+/// Rows that choose a value, and how many, for an action or an entering object.
+const VALUE_CHOICES: &[(&str, ValueKind, u32)] = &[
+    ("ChooseAColor", ValueKind::Color, 1),
+    ("ChooseTwoColors", ValueKind::Color, 2),
+    ("ChooseAColorOrColorless", ValueKind::ColorOrColorless, 1),
+    ("ChooseACreatureType", ValueKind::CreatureType, 1),
+    ("ChooseACreatureTypeFromList", ValueKind::CreatureType, 1),
+    ("ChooseALandType", ValueKind::LandType, 1),
+    ("ChooseLandType", ValueKind::LandType, 1),
+    ("ChooseABasicLandType", ValueKind::BasicLandType, 1),
+    ("ChooseTwoBasicLandTypes", ValueKind::BasicLandType, 2),
+    ("ChooseACardtype", ValueKind::CardType, 1),
+    ("ChooseACardtypeFromList", ValueKind::CardType, 1),
+    ("ChooseACardName", ValueKind::CardName, 1),
+    ("ChooseANumber", ValueKind::Number, 1),
+    ("ChooseANumberBetween", ValueKind::Number, 1),
+    ("ChooseEvenOrOdd", ValueKind::Parity, 1),
+    ("ChooseLeftOrRight", ValueKind::Direction, 1),
+    ("ChooseADirection", ValueKind::Direction, 1),
+    ("ChooseWord", ValueKind::Word, 1),
 ];
 
 /// A row's action in generic form, or the row itself when it has none.
 pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> Operation {
+    let choice = name
+        .strip_prefix("Action::")
+        .or_else(|| name.strip_prefix("ReplacementActionWouldEnter::"))
+        .and_then(|form| VALUE_CHOICES.iter().find(|(row, ..)| *row == form));
+    if let Some((_, kind, count)) = choice {
+        return Operation::ChooseValue {
+            actor,
+            kind: *kind,
+            count: *count,
+            options: operands,
+        };
+    }
     let action = KEYWORD_ACTIONS
         .iter()
         .find(|(row, _)| *row == name)
@@ -228,6 +333,9 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
         }
         [Operand::Number(amount), Operand::Vocabulary { form, .. }] => {
             (None, None, Some(amount.clone()), Some(form.clone()))
+        }
+        [Operand::Number(amount), Operand::Object(object)] => {
+            (Some(object.clone()), None, Some(amount.clone()), None)
         }
         _ => {
             return Operation::Primitive {
@@ -260,15 +368,52 @@ pub fn makes_card(operation: &Operation) -> bool {
         if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft"))
 }
 
+/// The kind of value a variable form reads, when it is the one chosen.
+fn chosen_kind(operand: &Operand) -> Option<ValueKind> {
+    let Operand::Term { form, .. } = operand else {
+        return None;
+    };
+    match form.as_str() {
+        "TheChosenCreatureType" | "TheChosenCreatureTypes" => Some(ValueKind::CreatureType),
+        "TheChosenLandType" => Some(ValueKind::LandType),
+        "TheChosenCardtype" => Some(ValueKind::CardType),
+        _ => None,
+    }
+}
+
 /// A row's filter in generic form, or the row itself when it has none.
 pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
     let form = name.split("::").nth(1).unwrap_or(&name);
+    match (name.as_str(), operands.as_slice()) {
+        ("Color::TheChosenColor", []) => return ObjectFilter::Chosen(ValueKind::Color),
+        ("NameFilter::TheChosenName", []) => return ObjectFilter::Chosen(ValueKind::CardName),
+        (_, [variable]) if form.ends_with("TypeVariable") || form == "IsCardtypeVariable" => {
+            if let Some(kind) = chosen_kind(variable) {
+                return ObjectFilter::Chosen(kind);
+            }
+        }
+        _ => {}
+    }
     let state = match form {
         "IsEnchanted" => Some(ObjectState::Enchanted),
         "IsEquipped" => Some(ObjectState::Equipped),
         "IsSaddled" => Some(ObjectState::Saddled),
         "IsACommander" => Some(ObjectState::Commander),
         "WasKicked" => Some(ObjectState::Kicked),
+        "IsFaceDown" => Some(ObjectState::FaceDown),
+        "IsMonstrous" => Some(ObjectState::Monstrous),
+        "IsRenowned" => Some(ObjectState::Renowned),
+        "IsUnblocked" => Some(ObjectState::Unblocked),
+        "IsBlocked" => Some(ObjectState::Blocked),
+        "IsAttackingAlone" => Some(ObjectState::AttackingAlone),
+        "WasBargained" => Some(ObjectState::Bargained),
+        "HasBeenGoaded" => Some(ObjectState::Goaded),
+        "IsPaired" => Some(ObjectState::Paired),
+        "IsSuspected" => Some(ObjectState::Suspected),
+        "IsDamaged" => Some(ObjectState::Damaged),
+        "TributeWasntPaid" => Some(ObjectState::TributeNotPaid),
+        "WasCastByPlayerDuringTheirMainPhase" => Some(ObjectState::CastDuringOwnMainPhase),
+        "HasXInManaCost" | "HasXInCost" => Some(ObjectState::HasX),
         _ => None,
     };
     match (state, form, operands.as_slice()) {
@@ -277,6 +422,19 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
             ObjectFilter::State(ObjectState::Commander),
             ObjectFilter::OwnedBy(PlayerSet::One(PlayerRef::AbilityController)),
         ]),
+        (_, "IsntEnchanted", []) => {
+            ObjectFilter::Not(Box::new(ObjectFilter::State(ObjectState::Enchanted)))
+        }
+        // An outlaw is any of these five creature types.
+        (_, "IsAnOutlaw", []) => {
+            use crate::mtg_types::CreatureType as C;
+            ObjectFilter::Either(
+                [C::Assassin, C::Mercenary, C::Pirate, C::Rogue, C::Warlock]
+                    .iter()
+                    .map(|ty| ObjectFilter::Subtype(crate::subtype::creature_type(ty)))
+                    .collect(),
+            )
+        }
         (_, "AttachedToPermanent", [Operand::Object(object)]) => {
             ObjectFilter::AttachedTo(Box::new(ObjectFilter::SameObject(object.clone())))
         }
@@ -287,7 +445,161 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
         (_, "IsBlockingAttacker", [Operand::Object(object)]) => {
             ObjectFilter::BlockingObject(object.clone())
         }
+        (_, "IsBlockedByDefender", [Operand::Object(object)]) => {
+            ObjectFilter::BlockedByObject(object.clone())
+        }
+        (_, "IsAttackingPlayer", [Operand::Player(player)]) => ObjectFilter::AttackingDefender(
+            Box::new(AttackDefenders::Players(PlayerSet::One(player.clone()))),
+        ),
+        (_, "IsAttackingAPlayer", [Operand::Players(players)]) => {
+            ObjectFilter::AttackingDefender(Box::new(AttackDefenders::Players(players.clone())))
+        }
         _ => ObjectFilter::Primitive { name, operands },
+    }
+}
+
+/// A color word's mana color.
+fn simple_color(operand: &Operand) -> Option<ManaColor> {
+    let Operand::Vocabulary { form, .. } = operand else {
+        return None;
+    };
+    match form.as_str() {
+        "White" => Some(ManaColor::White),
+        "Blue" => Some(ManaColor::Blue),
+        "Black" => Some(ManaColor::Black),
+        "Red" => Some(ManaColor::Red),
+        "Green" => Some(ManaColor::Green),
+        _ => None,
+    }
+}
+
+/// A row that compares a number the AST can already state.
+fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
+    use Operand::{Comparison as Than, Objects, Player};
+    let controlled = |player: &PlayerRef, objects: &ObjectSet| {
+        Some(ObjectSet::Battlefield(ObjectFilter::All(vec![
+            event_filter(objects)?,
+            ObjectFilter::ControlledBy(PlayerSet::One(player.clone())),
+        ])))
+    };
+    let count = |objects: ObjectSet| Expr::CountObjects(Box::new(objects));
+    let compare = |left, comparison: &Comparison, right: &Expr| {
+        Some(Condition::Compare {
+            left,
+            comparison: comparison.clone(),
+            right: right.clone(),
+        })
+    };
+    match (name, operands) {
+        ("Players::ControlsMorePermanentThanPlayer", [Player(p), Player(other), Objects(s)]) => {
+            compare(
+                count(controlled(p, s)?),
+                &Comparison::Greater,
+                &count(controlled(other, s)?),
+            )
+        }
+        ("Players::DevotionToColorsIs", [Player(p), Operand::List(colors), Than(c, v)]) => compare(
+            Expr::CountManaSymbols {
+                objects: Box::new(ObjectSet::Battlefield(ObjectFilter::ControlledBy(
+                    PlayerSet::One(p.clone()),
+                ))),
+                colors: colors.iter().map(simple_color).collect::<Option<_>>()?,
+            },
+            c,
+            v,
+        ),
+        ("Players::ControlsNumWithDifferentPowers", [Player(p), Than(c, v), Objects(s)]) => {
+            compare(
+                Expr::CountDistinct {
+                    objects: Box::new(controlled(p, s)?),
+                    property: DistinctProperty::Powers,
+                },
+                c,
+                v,
+            )
+        }
+        ("Players::ControlsNumWithDifferentNames", [Player(p), Than(c, v), Objects(s)]) => compare(
+            Expr::CountDistinct {
+                objects: Box::new(controlled(p, s)?),
+                property: DistinctProperty::Names,
+            },
+            c,
+            v,
+        ),
+        ("Players::NumCardsInLibraryIs", [Player(p), Than(c, v)]) => compare(
+            count(ObjectSet::Zone {
+                scope: ZoneScope::Players {
+                    zone: EventZone::Library,
+                    players: PlayerSet::One(p.clone()),
+                },
+                kind: ObjectKind::Card,
+                filter: ObjectFilter::Any,
+            }),
+            c,
+            v,
+        ),
+        ("Players::NumOpponentsIs", [Player(p), Than(c, v)]) => {
+            compare(Expr::CountPlayers(PlayerSet::OpponentsOf(p.clone())), c, v)
+        }
+        ("Condition::TotalPowerOfPermanentsIs", [Than(c, v), Objects(s)]) => compare(
+            Expr::Aggregate {
+                objects: Box::new(s.clone()),
+                property: Property::Power,
+                aggregation: Aggregation::Sum,
+            },
+            c,
+            v,
+        ),
+        ("Condition::TimesThisAbilityHasResolvedThisTurnIs", [Than(c, v)]) => {
+            compare(Expr::TimesResolvedThisTurn, c, v)
+        }
+        _ => None,
+    }
+}
+
+/// A row's condition in generic form, or the row itself when it has none.
+pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
+    if let Some(condition) = reduce_comparison(&name, &operands) {
+        return condition;
+    }
+    let window = match name.as_str() {
+        "Condition::IsBeforeAttackersDeclared" => Some(TurnWindow::BeforeAttackersDeclared),
+        "Condition::IsDuringCombat" => Some(TurnWindow::Combat),
+        "Condition::IsDuringUpkeep" => Some(TurnWindow::Upkeep),
+        "Condition::IsDuringEndStep" => Some(TurnWindow::EndStep),
+        "Condition::IsBeforeCombatDamageStep" => Some(TurnWindow::BeforeCombatDamage),
+        "Condition::IsDuringDeclareAttackersStep" => Some(TurnWindow::DeclareAttackers),
+        _ => None,
+    };
+    let state = match name.as_str() {
+        "Players::IsTheMonarch" => Some((PlayerState::Monarch, false)),
+        "Players::HasTheCitysBlessing" => Some((PlayerState::CitysBlessing, false)),
+        "Players::HasAFullParty" => Some((PlayerState::FullParty, false)),
+        "Players::IsNotTheStartingPlayer" => Some((PlayerState::StartingPlayer, true)),
+        "Players::IsTheirUpkeep" => Some((PlayerState::InTheirUpkeep, false)),
+        "Players::IsTheirMainPhase" => Some((PlayerState::InTheirMainPhase, false)),
+        "Players::CompletedADungeon" => Some((PlayerState::CompletedDungeon, false)),
+        "Players::HasTheInitiative" => Some((PlayerState::Initiative, false)),
+        "Players::Descended" => Some((PlayerState::Descended, false)),
+        "Players::CommitedACrimeThisTurn" => Some((PlayerState::CommittedCrime, false)),
+        "Players::IsAttacked" => Some((PlayerState::BeingAttacked, false)),
+        "Players::HasAnEnduringStory" => Some((PlayerState::EnduringStory, false)),
+        _ => None,
+    };
+    match (window, state, operands.as_slice()) {
+        (Some(window), _, []) => Condition::Window(window),
+        (_, Some((state, negated)), [Operand::Player(player)]) => {
+            let held = Condition::PlayerState {
+                player: player.clone(),
+                state,
+            };
+            if negated {
+                Condition::Not(Box::new(held))
+            } else {
+                held
+            }
+        }
+        _ => Condition::Primitive { name, operands },
     }
 }
 
@@ -295,6 +607,20 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
 pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
     match (name.as_str(), operands.as_slice()) {
         ("LayerEffect::SwitchPT", []) => Change::SwitchPowerToughness,
+        (
+            "LayerEffect::AddCreatureTypeVariable" | "LayerEffect::AddLandTypeVariable",
+            [variable],
+        ) if chosen_kind(variable).is_some() => Change::ChosenType {
+            kind: chosen_kind(variable).unwrap(),
+            mode: ChangeMode::Add,
+        },
+        (
+            "LayerEffect::SetCreatureTypeVariable" | "LayerEffect::SetLandTypeVariable",
+            [variable],
+        ) if chosen_kind(variable).is_some() => Change::ChosenType {
+            kind: chosen_kind(variable).unwrap(),
+            mode: ChangeMode::Set,
+        },
         ("LayerEffect::LosesAbility", [ability]) => Change::LosesAbility(Box::new(ability.clone())),
         ("LayerEffect::SetLandType", [land]) => Change::SetLandType(Box::new(land.clone())),
         ("LayerEffect::IsACopyOfPermanent", [Operand::Object(object), effects]) => Change::CopyOf {
@@ -384,6 +710,23 @@ const PLAYER_EVENTS: &[(&str, PlayerEvent)] = &[
     ),
     ("Trigger::WhenAPlayerPlaysALand", PlayerEvent::PlaysLand),
     ("Trigger::WhenAPlayerUnlocksADoor", PlayerEvent::UnlocksDoor),
+    ("Trigger::WhenChaosEnsues", PlayerEvent::ChaosEnsues),
+    (
+        "Trigger::WhenAPlayerSetsASchemeInMotion",
+        PlayerEvent::SetsSchemeInMotion,
+    ),
+    (
+        "Trigger::WhenAPlayerPlaneswalksToAPlane",
+        PlayerEvent::Planeswalks,
+    ),
+    (
+        "Trigger::WhenAPlayerEncountersAPhenomenon",
+        PlayerEvent::EncountersPhenomenon,
+    ),
+    (
+        "Trigger::WhenAPlayerFullyUnlocksARoom",
+        PlayerEvent::FullyUnlocksRoom,
+    ),
     (
         "Trigger::WhenAPlayerTapsAPermanentForMana",
         PlayerEvent::TapsForMana,
@@ -449,6 +792,261 @@ fn event_filter(objects: &ObjectSet) -> Option<ObjectFilter> {
     }
 }
 
+/// An attack in generic form. A batch names how the attackers group.
+fn reduce_attack(name: &str, operands: &[Operand]) -> Option<EventSpec> {
+    use AttackDefenders as D;
+    use Operand::{Comparison as Compare, Objects, Players};
+    let attack = |attackers: Option<&ObjectSet>, by: Option<&PlayerSet>, defenders| {
+        Some(EventSpec::Attack {
+            attackers: attackers.map_or(Some(ObjectFilter::Any), event_filter)?,
+            by: by.cloned(),
+            defenders,
+        })
+    };
+    let batch = |event: Option<EventSpec>, per, count: Option<(&Comparison, &Expr)>| {
+        Some(EventSpec::Batch {
+            event: Box::new(event?),
+            per,
+            count: count.map(|(comparison, value)| (comparison.clone(), value.clone())),
+            including: None,
+        })
+    };
+    let to = |players: &PlayerSet| D::Players(players.clone());
+    let or_walkers = |players: &PlayerSet| D::PlayersAndPlaneswalkers(players.clone());
+    match (name.strip_prefix("Trigger::")?, operands) {
+        ("WhenACreatureAttacksAPlayer", [Objects(a), Players(d)]) => attack(Some(a), None, to(d)),
+        ("WhenACreatureAttacksAPlayerOrPlaneswalkerTheyControl", [Objects(a), Players(d)]) => {
+            attack(Some(a), None, or_walkers(d))
+        }
+        (
+            "WhenACreatureAttacksAPlaneswalker" | "WhenACreatureAttacksABattle",
+            [Objects(a), Objects(d)],
+        ) => attack(Some(a), None, D::Objects(event_filter(d)?)),
+        ("WhenAPlayerAttacksWithACreature", [Players(p), Objects(a)]) => {
+            attack(Some(a), Some(p), D::Any)
+        }
+        ("WhenAnyNumberOfCreaturesAttack", [Objects(a)]) => {
+            batch(attack(Some(a), None, D::Any), BatchPer::Whole, None)
+        }
+        ("WhenAnyNumberOfCreaturesAttackAPlayer", [Objects(a), Players(d)]) => {
+            batch(attack(Some(a), None, to(d)), BatchPer::Defender, None)
+        }
+        (
+            "WhenAnyNumberOfCreaturesAttackAPlayerOrPlaneswalkerTheyControl",
+            [Objects(a), Players(d)],
+        ) => batch(
+            attack(Some(a), None, or_walkers(d)),
+            BatchPer::Defender,
+            None,
+        ),
+        ("WhenAPlayerAttacksWithAnyNumberOfCreatures", [Players(p), Objects(a)]) => {
+            batch(attack(Some(a), Some(p), D::Any), BatchPer::Whole, None)
+        }
+        ("WhenAPlayerAttacksWithANumberOfCreatures", [Players(p), Compare(c, v), Objects(a)]) => {
+            batch(
+                attack(Some(a), Some(p), D::Any),
+                BatchPer::Whole,
+                Some((c, v)),
+            )
+        }
+        ("WhenANumberOfCreaturesAttack", [Compare(c, v), Objects(a)]) => {
+            batch(attack(Some(a), None, D::Any), BatchPer::Whole, Some((c, v)))
+        }
+        ("WhenANumberOfCreaturesAttackAPlayer", [Compare(c, v), Objects(a), Players(d)]) => batch(
+            attack(Some(a), None, to(d)),
+            BatchPer::Defender,
+            Some((c, v)),
+        ),
+        ("WhenAPlayerAttacksAPlayer", [Players(p), Players(d)]) => {
+            batch(attack(None, Some(p), to(d)), BatchPer::Defender, None)
+        }
+        ("WhenAPlayerAttacksAPlayerAndOrPlaneswalkerTheyControl", [Players(p), Players(d)]) => {
+            batch(
+                attack(None, Some(p), or_walkers(d)),
+                BatchPer::Defender,
+                None,
+            )
+        }
+        (
+            "WhenAPlayerAttacksAPlayerWithAnyNumberOfCreatures",
+            [Players(p), Players(d), Objects(a)],
+        ) => batch(attack(Some(a), Some(p), to(d)), BatchPer::Defender, None),
+        (
+            "WhenAPlayerAttacksAPlayerWithANumberOfCreatures",
+            [Players(p), Players(d), Compare(c, v), Objects(a)],
+        ) => batch(
+            attack(Some(a), Some(p), to(d)),
+            BatchPer::Defender,
+            Some((c, v)),
+        ),
+        (
+            "WhenASingleCreatureAndANumberOfOtherCreaturesAttack",
+            [Operand::Object(one), Compare(c, v), Objects(a)],
+        ) => {
+            let Some(EventSpec::Batch {
+                event, per, count, ..
+            }) = batch(attack(Some(a), None, D::Any), BatchPer::Whole, Some((c, v)))
+            else {
+                return None;
+            };
+            Some(EventSpec::Batch {
+                event,
+                per,
+                count,
+                including: Some(one.clone()),
+            })
+        }
+        _ => None,
+    }
+}
+
+/// A counter's kind, read from its operand.
+fn counter_kind(operand: &Operand) -> Option<crate::counter::CounterKind> {
+    use crate::counter::CounterKind;
+    match operand {
+        Operand::Term {
+            family,
+            form,
+            operands,
+        } if family == "CounterType" && form == "PTCounter" => match operands.as_slice() {
+            [Operand::Integer(power), Operand::Integer(toughness)] => {
+                Some(CounterKind::PowerToughness(
+                    (*power).try_into().ok()?,
+                    (*toughness).try_into().ok()?,
+                ))
+            }
+            _ => None,
+        },
+        Operand::Vocabulary { family, form } if family == "CounterType" => {
+            let value = serde_json::from_value(serde_json::Value::String(form.clone())).ok()?;
+            Some(crate::counter::lower(&value))
+        }
+        _ => None,
+    }
+}
+
+/// A counter event in generic form. "Any number of" is a batch for each object.
+fn reduce_counters(name: &str, operands: &[Operand]) -> Option<EventSpec> {
+    use CounterChange::{LastRemoved, Put, Removed};
+    let (change, batched, whole) = match name.strip_prefix("Trigger::")? {
+        "WhenACounterOfTypeIsPutOnAPermanent" | "WhenAPlayerPutsACounterOfTypeOnAPermanent" => {
+            (Put, false, false)
+        }
+        "WhenAnyNumberOfCountersOfTypeArePutOnAPermanent"
+        | "WhenAnyNumberOfCountersArePutOnAPermanent"
+        | "WhenAPlayerPutsAnyNumberOfCountersOfTypeOnAPermanent"
+        | "WhenAPlayerPutsAnyNumberOfCountersOnAPermanent" => (Put, true, false),
+        "WhenAnyNumberOfCountersOfTypeArePutOnAnyNumberOfPermanents"
+        | "WhenAPlayerPutsAnyNumberOfCountersOfTypeOnAnyNumberOfPermanents" => (Put, true, true),
+        "WhenACounterOfTypeIsRemovedFromAPermanent" => (Removed, false, false),
+        "WhenAnyNumberOfCountersOfTypeAreRemovedFromAPermanent"
+        | "WhenAnyNumberOfCountersAreRemovedFromAPermanent" => (Removed, true, false),
+        "WhenTheLastCounterOfTypeIsRemovedFromAPermanent"
+        | "WhenAPlayerRemovesTheLastCounterOfTypeFromAPermanent" => (LastRemoved, false, false),
+        _ => return None,
+    };
+    let (by, kind, objects) = match operands {
+        [Operand::Objects(objects)] => (None, None, objects),
+        [kind, Operand::Objects(objects)] if counter_kind(kind).is_some() => {
+            (None, counter_kind(kind), objects)
+        }
+        [Operand::Players(by), Operand::Objects(objects)] => (Some(by.clone()), None, objects),
+        [Operand::Players(by), kind, Operand::Objects(objects)] => {
+            (Some(by.clone()), Some(counter_kind(kind)?), objects)
+        }
+        _ => return None,
+    };
+    let event = EventSpec::Counters {
+        change,
+        kind,
+        objects: event_filter(objects)?,
+        by,
+    };
+    Some(if batched {
+        EventSpec::Batch {
+            event: Box::new(event),
+            per: if whole {
+                BatchPer::Whole
+            } else {
+                BatchPer::Subject
+            },
+            count: None,
+            including: None,
+        }
+    } else {
+        event
+    })
+}
+
+/// An event where any number of objects share one occurrence.
+fn reduce_batch(name: &str, operands: &[Operand]) -> Option<EventSpec> {
+    let form = name.strip_prefix("Trigger::")?;
+    let whole = |event| {
+        Some(EventSpec::Batch {
+            event: Box::new(event),
+            per: BatchPer::Whole,
+            count: None,
+            including: None,
+        })
+    };
+    let moved = |objects: ObjectFilter, from, to| EventSpec::ZoneChange { objects, from, to };
+    let owned = |cards: &ObjectFilter, owners: &PlayerSet| {
+        ObjectFilter::All(vec![cards.clone(), ObjectFilter::OwnedBy(owners.clone())])
+    };
+    match (form, operands) {
+        (
+            "WhenAnyNumberOfCardsArePutIntoAPlayersGraveyardFromTheirLibrary",
+            [Operand::Filter(cards), Operand::Players(owners)],
+        ) => {
+            return whole(moved(
+                owned(cards, owners),
+                Some(EventZone::Library),
+                EventZone::Graveyard,
+            ))
+        }
+        (
+            "WhenAnyNumberOfCardsArePutIntoAPlayersGraveyardFromAnywhere",
+            [Operand::Filter(cards), Operand::Players(owners)],
+        ) => {
+            let cards = ObjectFilter::All(vec![
+                owned(cards, owners),
+                ObjectFilter::Not(Box::new(ObjectFilter::Token)),
+            ]);
+            return whole(moved(cards, None, EventZone::Graveyard));
+        }
+        _ => {}
+    }
+    let [Operand::Objects(objects)] = operands else {
+        return None;
+    };
+    let objects = event_filter(objects)?;
+    let object = |event, objects| EventSpec::Object { event, objects };
+    whole(match form {
+        "WhenAnyNumberOfPermanentsEnterTheBattlefield" => {
+            moved(objects, None, EventZone::Battlefield)
+        }
+        "WhenAnyNumberOfCreaturesOrPlaneswalkersDie" => {
+            moved(objects, Some(EventZone::Battlefield), EventZone::Graveyard)
+        }
+        "WhenAnyNumberOfPermanentsLeaveTheBattlefield" => {
+            object(ObjectEvent::LeavesBattlefield, objects)
+        }
+        "WhenAnyNumberOfPermanentsBecomeTapped" => object(ObjectEvent::BecomesTapped, objects),
+        "WhenAnyNumberOfCreaturesBecomeBlocked" => object(ObjectEvent::BecomesBlocked, objects),
+        "WhenAnyNumberOfCreaturesBlock" => object(ObjectEvent::Blocks, objects),
+        _ => return None,
+    })
+}
+
+/// A plane, scheme or phenomenon event's card, when it is this card.
+fn this_card(operand: &Operand) -> bool {
+    matches!(operand, Operand::Term { family, form, .. }
+    if matches!(
+        (family.as_str(), form.as_str()),
+        ("Schemes", "SingleScheme") | ("Planes", "SinglePlane") | ("Phenomena", "SinglePhenomenon")
+    ))
+}
+
 fn reduce_object_event(name: &str, operands: &[Operand]) -> Option<EventSpec> {
     match operands {
         [Operand::Objects(objects)] => {
@@ -480,9 +1078,42 @@ fn reduce_object_event(name: &str, operands: &[Operand]) -> Option<EventSpec> {
     }
 }
 
+/// A row's number in generic form, or the row itself when it has none.
+pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
+    match (name.as_str(), operands.as_slice()) {
+        ("GameNumber::TheChosenNumber", []) => Expr::ChosenNumber,
+        ("GameNumber::NumCreaturesInPlayersParty", [Operand::Player(player)]) => {
+            Expr::PartySize(player.clone())
+        }
+        ("GameNumber::StartingLifeTotalOfPlayer", [Operand::Player(player)]) => {
+            Expr::StartingLife(player.clone())
+        }
+        ("GameNumber::NumTimesSpellWasKicked", [Operand::Object(object)]) => {
+            Expr::TimesKicked(object.clone())
+        }
+        _ => Expr::Primitive { name, operands },
+    }
+}
+
+/// Say who did `event`, for history that asks about one player.
+pub fn set_event_player(event: &mut EventSpec, player: PlayerSet) -> bool {
+    match event {
+        EventSpec::Primitive { operands, .. } => operands[0] = Operand::Players(player),
+        EventSpec::Player { players, .. } => *players = player,
+        EventSpec::Attack { by, .. } | EventSpec::Counters { by, .. } => *by = Some(player),
+        EventSpec::Batch { event, .. } => return set_event_player(event, player),
+        _ => return false,
+    }
+    true
+}
+
 /// A row's event in generic form, or the row itself when it has none.
 pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
-    if let Some(event) = reduce_object_event(&name, &operands) {
+    let reduced = reduce_attack(&name, &operands)
+        .or_else(|| reduce_counters(&name, &operands))
+        .or_else(|| reduce_batch(&name, &operands))
+        .or_else(|| reduce_object_event(&name, &operands));
+    if let Some(event) = reduced {
         return event;
     }
     let event = PLAYER_EVENTS
@@ -490,6 +1121,20 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
         .find(|(row, _)| *row == name)
         .map(|(_, event)| *event);
     match (event, operands.as_slice()) {
+        (Some(event), []) => {
+            return EventSpec::Player {
+                event,
+                players: PlayerSet::All,
+                objects: None,
+            }
+        }
+        (Some(event), [Operand::Players(players), card]) if this_card(card) => {
+            return EventSpec::Player {
+                event,
+                players: players.clone(),
+                objects: Some(ObjectFilter::SameObject(ObjectRef::Source)),
+            }
+        }
         (Some(event), [Operand::Players(players)]) => {
             return EventSpec::Player {
                 event,
@@ -511,11 +1156,38 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
     }
     match (name.as_str(), operands.as_slice()) {
         (
+            "Trigger::WhenAPlayerControlsNoPermanents",
+            [Operand::Players(players), Operand::Objects(objects)],
+        ) => match event_filter(objects) {
+            Some(filter) => EventSpec::State {
+                condition: Condition::Compare {
+                    left: Expr::CountObjects(Box::new(ObjectSet::Battlefield(ObjectFilter::All(
+                        vec![filter, ObjectFilter::ControlledBy(players.clone())],
+                    )))),
+                    comparison: Comparison::Equal,
+                    right: Expr::Constant(0),
+                },
+            },
+            None => EventSpec::Primitive { name, operands },
+        },
+        (
             "Trigger::WhenAPlayerDrawsTheirNthCardEachTurn",
             [Operand::Players(players), Operand::Comparison(comparison, value)],
         ) => EventSpec::NthEachTurn {
             event: Box::new(EventSpec::Player {
                 event: PlayerEvent::Draws,
+                players: players.clone(),
+                objects: None,
+            }),
+            comparison: comparison.clone(),
+            value: value.clone(),
+        },
+        (
+            "Trigger::WhenAPlayerExpendsAnAmount",
+            [Operand::Players(players), Operand::Comparison(comparison, value)],
+        ) => EventSpec::NthEachTurn {
+            event: Box::new(EventSpec::Player {
+                event: PlayerEvent::Expends,
                 players: players.clone(),
                 objects: None,
             }),
@@ -610,6 +1282,39 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             stack_object: true,
             ..EventBindings::default()
         },
+        EventSpec::Attack { by, defenders, .. } => {
+            let attacked = !matches!(defenders, AttackDefenders::Any);
+            EventBindings {
+                object: true,
+                permanent: true,
+                player: by.is_some() || attacked,
+                other_player: by.is_some() && attacked,
+                ..EventBindings::default()
+            }
+        }
+        EventSpec::Counters { by, .. } => EventBindings {
+            object: true,
+            permanent: true,
+            player: by.is_some(),
+            ..EventBindings::default()
+        },
+        EventSpec::Batch {
+            event,
+            per,
+            count,
+            including,
+        } => {
+            let inner = event_bindings(event);
+            let one = matches!(per, BatchPer::Subject)
+                || count.is_none() && including.is_none() && !matches!(per, BatchPer::Defender);
+            EventBindings {
+                object: inner.object && one,
+                permanent: inner.permanent && one,
+                amount: true,
+                group: !matches!(per, BatchPer::Subject),
+                ..inner
+            }
+        }
         EventSpec::Damage(event) => {
             let source = matches!(
                 event.grouping,
@@ -694,7 +1399,9 @@ impl Effects {
         for instruction in &program.instructions {
             match instruction {
                 Instruction::Effect { result, operation } => match operation {
-                    Operation::FlipCoin { .. } | Operation::ChoosePowerToughness { .. } => {}
+                    Operation::FlipCoin { .. }
+                    | Operation::ChoosePowerToughness { .. }
+                    | Operation::ChooseValue { .. } => {}
                     Operation::JoinResults { results } => {
                         let joined = results
                             .iter()

@@ -288,6 +288,10 @@ impl Inventory<'_> {
             Operation::Named { .. } => {}
             Operation::NoteObjects { objects } => self.objects(objects),
             Operation::Primitive { name, .. } => self.primitive(name),
+            Operation::ChooseValue { actor, kind, .. } => {
+                self.form("ValueKind", kind);
+                self.players(actor);
+            }
             Operation::Keyword {
                 actor,
                 action,
@@ -1078,6 +1082,10 @@ impl Inventory<'_> {
                 }
             }
             Change::ChosenColor { mode } => self.form("ChangeMode", mode),
+            Change::ChosenType { kind, mode } => {
+                self.form("ValueKind", kind);
+                self.form("ChangeMode", mode);
+            }
             Change::ChosenAbility => {}
             Change::AddCardType(_)
             | Change::RemoveCardType(_)
@@ -1352,9 +1360,12 @@ impl Inventory<'_> {
     fn expr(&mut self, e: &Expr) {
         self.form("Expr", e);
         match e {
-            Expr::TimesActivatedThisTurn => {}
+            Expr::TimesActivatedThisTurn | Expr::TimesResolvedThisTurn => {}
+            Expr::PartySize(player) | Expr::StartingLife(player) => self.player(player),
+            Expr::TimesKicked(object) => self.object(object),
             Expr::BoundValue(_)
             | Expr::ChosenParity
+            | Expr::ChosenNumber
             | Expr::CountersRemoved(_)
             | Expr::PaidCountersRemoved { .. }
             | Expr::Performed(_)
@@ -1535,6 +1546,8 @@ impl Inventory<'_> {
                 self.form("Comparison", comparison);
                 self.expr(value);
             }
+            ObjectFilter::BlockedByObject(object) => self.object(object),
+            ObjectFilter::AttackingDefender(defenders) => self.defenders(defenders),
             ObjectFilter::Any
             | ObjectFilter::IsCard
             | ObjectFilter::Name(_)
@@ -1547,6 +1560,7 @@ impl Inventory<'_> {
             | ObjectFilter::Attacking
             | ObjectFilter::Blocking
             | ObjectFilter::State(_)
+            | ObjectFilter::Chosen(_)
             | ObjectFilter::Modified => {}
         }
     }
@@ -1554,6 +1568,11 @@ impl Inventory<'_> {
         self.form("Condition", c);
         match c {
             Condition::Primitive { name, .. } => self.primitive(name),
+            Condition::Window(window) => self.form("TurnWindow", window),
+            Condition::PlayerState { player, state } => {
+                self.form("PlayerState", state);
+                self.player(player);
+            }
             Condition::Searched(_) => {}
             Condition::PlayerTook { player, .. } => self.player(player),
             Condition::TargetsMatch {
@@ -1694,6 +1713,44 @@ impl Inventory<'_> {
             EventSpec::BecomesTarget { objects, kind, .. } => {
                 self.form("TargetingKind", kind);
                 self.filter(objects);
+            }
+            EventSpec::Attack {
+                attackers,
+                by,
+                defenders,
+            } => {
+                self.filter(attackers);
+                if let Some(by) = by {
+                    self.players(by);
+                }
+                self.defenders(defenders);
+            }
+            EventSpec::Batch {
+                event,
+                per,
+                count,
+                including,
+            } => {
+                self.form("BatchPer", per);
+                self.event(event);
+                if let Some((_, value)) = count {
+                    self.expr(value);
+                }
+                if let Some(object) = including {
+                    self.object(object);
+                }
+            }
+            EventSpec::Counters {
+                change,
+                objects,
+                by,
+                ..
+            } => {
+                self.form("CounterChange", change);
+                self.filter(objects);
+                if let Some(by) = by {
+                    self.players(by);
+                }
             }
             EventSpec::SagaChapter(_) => {}
             EventSpec::Discard {

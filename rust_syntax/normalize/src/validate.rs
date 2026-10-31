@@ -258,6 +258,43 @@ impl<'a> Scope<'a> {
                 scoped.filter(objects)?;
                 scoped.operand(by)
             }
+            EventSpec::Attack {
+                attackers,
+                by,
+                defenders,
+            } => {
+                let mut scoped = self.clone();
+                scoped.event = crate::semantics::with_event(&self.event, event);
+                scoped.filter(attackers)?;
+                if let Some(by) = by {
+                    self.players(by)?;
+                }
+                self.defenders(defenders)
+            }
+            EventSpec::Batch {
+                event: inner,
+                count,
+                including,
+                ..
+            } => {
+                self.event(inner)?;
+                if let Some((_, value)) = count {
+                    self.expr(value)?;
+                }
+                match including {
+                    Some(object) => self.object(object),
+                    None => Ok(()),
+                }
+            }
+            EventSpec::Counters { objects, by, .. } => {
+                let mut scoped = self.clone();
+                scoped.event = crate::semantics::with_event(&self.event, event);
+                scoped.filter(objects)?;
+                match by {
+                    Some(by) => self.players(by),
+                    None => Ok(()),
+                }
+            }
             EventSpec::SagaChapter(_) => Ok(()),
             EventSpec::Discard { players, cards, .. } => {
                 self.players(players)?;
@@ -680,7 +717,9 @@ impl<'a> Scope<'a> {
         match expression {
             Expr::TimesActivatedThisTurn => Ok(()),
             Expr::Primitive { name, operands } => self.primitive(name, operands),
-            Expr::ChosenParity => Ok(()),
+            Expr::ChosenParity | Expr::ChosenNumber | Expr::TimesResolvedThisTurn => Ok(()),
+            Expr::PartySize(player) | Expr::StartingLife(player) => self.player(player),
+            Expr::TimesKicked(object) => self.object(object),
             Expr::EventHistory { event, .. } => self.event(event),
             Expr::CountPlayers(players) => self.players(players),
             Expr::ManaSpent { object, filter, .. } => {
@@ -871,7 +910,9 @@ impl<'a> Scope<'a> {
             | ObjectFilter::Tapped
             | ObjectFilter::Attacking
             | ObjectFilter::Blocking => Ok(()),
-            ObjectFilter::State(_) => Ok(()),
+            ObjectFilter::State(_) | ObjectFilter::Chosen(_) => Ok(()),
+            ObjectFilter::BlockedByObject(object) => self.object(object),
+            ObjectFilter::AttackingDefender(defenders) => self.defenders(defenders),
             ObjectFilter::AttachedTo(filter) => self.filter(filter),
             ObjectFilter::BlockingObject(object) => self.object(object),
             ObjectFilter::All(items) | ObjectFilter::Either(items) => {
@@ -897,6 +938,8 @@ impl<'a> Scope<'a> {
     fn condition(&self, condition: &Condition) -> Result {
         match condition {
             Condition::Primitive { name, operands } => self.primitive(name, operands),
+            Condition::Window(_) => Ok(()),
+            Condition::PlayerState { player, .. } => self.player(player),
             Condition::PlayerTook { player, result } => {
                 self.player(player)?;
                 if self.results.contains_key(&result.0) {
@@ -1078,6 +1121,7 @@ impl<'a> Scope<'a> {
             | Change::SetArtifactType(_)
             | Change::SetCardTypes(_)
             | Change::RemoveAllAbilities
+            | Change::ChosenType { .. }
             | Change::SwitchPowerToughness => Ok(()),
             Change::LosesAbility(operand) | Change::SetLandType(operand) => self.operand(operand),
             Change::CopyOf { object, effects } => {
@@ -1577,6 +1621,10 @@ impl<'a> Scope<'a> {
             } => {
                 self.players(actor)?;
                 self.primitive(name, operands)
+            }
+            Operation::ChooseValue { actor, options, .. } => {
+                self.players(actor)?;
+                options.iter().try_for_each(|o| self.operand(o))
             }
             Operation::Keyword {
                 actor,
@@ -2763,6 +2811,7 @@ fn validate_ability_in(
                             | Change::SetBasePowerToughness { .. }
                             | Change::Colors { .. }
                             | Change::ChosenColor { .. }
+                            | Change::ChosenType { .. }
                             | Change::CreatureTypes { .. }
                             | Change::Primitive { .. }
                     )

@@ -131,16 +131,13 @@ fn layout_fields_outside_a_face_are_kept_as_data() {
 #[test]
 fn a_primitive_binds_its_operands_in_scope_and_is_complete() {
     let card = parse(
-        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Sorcery],Subtypes:[]),Rules:[SpellActions(ActionList([ThereIsAnAdditionalCombatPhase]))])"#,
+        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Sorcery],Subtypes:[]),Rules:[SpellActions(ActionList([ReverseTurnOrder]))])"#,
     );
     let strict = lower::card(&card).unwrap();
     validate::card(&strict).unwrap();
     let forms = unified::forms(&strict);
     assert!(forms.named.is_empty());
-    assert_eq!(
-        forms.primitives["Action::ThereIsAnAdditionalCombatPhase"],
-        1
-    );
+    assert_eq!(forms.primitives["Action::ReverseTurnOrder"], 1);
 }
 
 #[test]
@@ -169,11 +166,11 @@ fn every_primitive_row_is_a_real_source_form() {
 #[test]
 fn trigger_primitives_are_counted_for_the_audit() {
     let card = parse(
-        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Enchantment],Subtypes:[]),Rules:[TriggerA(WhenChaosEnsues,ActionList([DrawACard]))])"#,
+        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Enchantment],Subtypes:[]),Rules:[TriggerA(WhenDayBecomesNightOrNightBecomesDay,ActionList([DrawACard]))])"#,
     );
     let strict = lower::card(&card).unwrap();
     assert_eq!(
-        unified::forms(&strict).primitives["Trigger::WhenChaosEnsues"],
+        unified::forms(&strict).primitives["Trigger::WhenDayBecomesNightOrNightBecomesDay"],
         1
     );
 }
@@ -231,8 +228,8 @@ fn primitives_in_every_family_bind_their_operands() {
             "Cost::RevealTopCardOfLibrary",
         ),
         (
-            "TriggerA(WhenAPlayerSetsASchemeInMotion(SinglePlayer(You), SingleScheme(ThisScheme)), ActionList([DrawACard]))",
-            "Trigger::WhenAPlayerSetsASchemeInMotion",
+            "TriggerA(WhenDayBecomesNightOrNightBecomesDay, ActionList([DrawACard]))",
+            "Trigger::WhenDayBecomesNightOrNightBecomesDay",
         ),
     ] {
         let json = lowered(rule).unwrap();
@@ -254,7 +251,7 @@ fn player_predicates_in_a_set_bind_the_tested_player() {
     validate::card(&card).unwrap();
     let json = serde_json::to_string(&card).unwrap();
     assert!(json.contains("Intersection"), "{json}");
-    assert!(json.contains("Players::IsTheMonarch"), "{json}");
+    assert!(json.contains("\"state\":\"Monarch\""), "{json}");
 }
 
 #[test]
