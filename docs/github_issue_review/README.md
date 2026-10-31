@@ -123,6 +123,7 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#86](https://github.com/i5jb/mtgish/issues/86): Valley Floodcaller: pump reads no group.
 - [#87](https://github.com/i5jb/mtgish/issues/87): "becomes" a colored creature adds the color, 64 cards.
 - [#88](https://github.com/i5jb/mtgish/issues/88): Ward of Bones applies to every player.
+- [#89](https://github.com/i5jb/mtgish/issues/89): "same name as another" matches the object itself, six cards.
 
 [#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
 

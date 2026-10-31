@@ -1557,6 +1557,7 @@ impl Inventory<'_> {
             | ObjectFilter::SharesNameWith(o)
             | ObjectFilter::Shares { with: o, .. } => self.object(o),
             ObjectFilter::SharesNameWithAny(objects)
+            | ObjectFilter::SharesNameWithAnother(objects)
             | ObjectFilter::SharesWithAny { with: objects, .. } => self.objects(objects),
             ObjectFilter::Property {
                 property,

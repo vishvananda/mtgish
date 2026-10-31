@@ -496,6 +496,19 @@ fn a_plane_or_scheme_event_reads_this_card() {
 }
 
 #[test]
+fn another_of_the_same_name_never_counts_the_object_itself() {
+    let body = lowered(
+        "SpellActions(ActionList([DestroyEachPermanent(SharesANameWithAnotherPermanent(AnyPermanent))]))",
+    );
+    assert!(body.contains("SharesNameWithAnother("), "{body}");
+    assert!(!body.contains("SharesNameWithAny"), "{body}");
+    let body = lowered(
+        "SpellActions(ActionList([DestroyEachPermanent(DoesntShareANameWithAnotherPermanent(AnyPermanent))]))",
+    );
+    assert!(body.contains("Not(SharesNameWithAnother("), "{body}");
+}
+
+#[test]
 fn a_chosen_value_is_one_choice_read_by_kind() {
     let body = lowered("SpellActions(ActionList([ChooseACreatureType]))");
     assert!(body.contains("ChooseValue"), "{body}");

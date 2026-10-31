@@ -1184,6 +1184,16 @@ impl Context {
                     self.objects(objects)?,
                 )));
             }
+            source::Permanents::SharesANameWithAnotherPermanent(objects) => {
+                return Ok(ObjectFilter::SharesNameWithAnother(Box::new(
+                    self.objects(objects)?,
+                )));
+            }
+            source::Permanents::DoesntShareANameWithAnotherPermanent(objects) => {
+                return Ok(ObjectFilter::Not(Box::new(
+                    ObjectFilter::SharesNameWithAnother(Box::new(self.objects(objects)?)),
+                )));
+            }
             source::Permanents::ExceptFor(objects) => {
                 return Ok(ObjectFilter::Not(Box::new(self.filter(objects)?)));
             }
