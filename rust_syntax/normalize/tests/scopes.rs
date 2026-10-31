@@ -1392,3 +1392,13 @@ fn the_rest_of_a_search_and_chosen_token_colors() {
     assert!(gifts.contains("Unselected"), "{gifts}");
     assert!(gifts.contains("OwnersGraveyard"), "{gifts}");
 }
+
+#[test]
+fn chosen_damage_recipients() {
+    let curse = lowered(
+        "TriggerA(AtTheBeginningOfAPlayersUpkeep(SinglePlayer(HostPlayer)), ActionList([ChooseADamageRecipient(APlayerOrAPermanent(SinglePlayer(Trigger_ThatPlayer), And([IsCardtype(Planeswalker), ControlledByAPlayer(SinglePlayer(Trigger_ThatPlayer))]))), PermanentDealsDamage(ThisPermanent, Integer(1), TheChosenDamageRecipient)]))",
+    );
+    assert!(curse.contains("kind: Recipient"), "{curse}");
+    assert!(curse.contains("Union"), "{curse}");
+    assert!(curse.contains("Chosen"), "{curse}");
+}

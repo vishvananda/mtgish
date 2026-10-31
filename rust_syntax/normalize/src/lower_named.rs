@@ -154,6 +154,20 @@ impl Context {
             "Permanents" => Operand::Objects(self.objects(&decode(value).ok()?).ok()?),
             "CardsInExile" => Operand::Objects(self.exile_cards(&decode(value).ok()?).ok()?),
             "DamageRecipient" => Operand::Recipients(self.recipients(&decode(value).ok()?).ok()?),
+            "DamageRecipientsList" => {
+                use source::DamageRecipientsList as List;
+                let list: List = decode(value).ok()?;
+                Operand::Recipients(match list {
+                    List::APermanent(objects) => {
+                        Recipients::Objects(self.objects(&objects).ok()?)
+                    }
+                    List::APlayer(players) => Recipients::Players(self.players(&players).ok()?),
+                    List::APlayerOrAPermanent(players, objects) => Recipients::Union(vec![
+                        Recipients::Players(self.players(&players).ok()?),
+                        Recipients::Objects(self.objects(&objects).ok()?),
+                    ]),
+                })
+            }
             "Player" => Operand::Player(self.player(&decode(value).ok()?).ok()?),
             "Players" => Operand::Players(self.players(&decode(value).ok()?).ok()?),
             "GameNumber" => Operand::Number(self.number(&decode(value).ok()?).ok()?),

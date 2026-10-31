@@ -2305,6 +2305,7 @@ impl Context {
     fn recipients(&self, value: &source::DamageRecipient) -> Result<Recipients> {
         use source::DamageRecipient as S;
         Ok(match value {
+            S::TheChosenDamageRecipient => Recipients::Chosen,
             S::Permanent(p) => Recipients::Objects(ObjectSet::One(self.object(p)?)),
             S::Player(p) => Recipients::Players(PlayerSet::One(self.player(p)?)),
             S::EachPermanent(p) => Recipients::Objects(self.objects(p)?),

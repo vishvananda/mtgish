@@ -1136,6 +1136,7 @@ impl Inventory<'_> {
                     }
                 }
                 CostPart::DiscardHand => {}
+                CostPart::BeholdAndExile(_) => {}
                 CostPart::Behold { count, .. } => self.expr(count),
                 CostPart::ExiledToGraveyard(cards) => self.objects(cards),
                 CostPart::RevealTop(filter) => self.filter(filter),
@@ -1786,6 +1787,7 @@ impl Inventory<'_> {
         match r {
             Recipients::Objects(o) => self.objects(o),
             Recipients::Players(p) => self.players(p),
+            Recipients::Chosen => {}
             Recipients::AttackedBy(attacker) => self.object(attacker),
             Recipients::Union(items) => {
                 for r in items {

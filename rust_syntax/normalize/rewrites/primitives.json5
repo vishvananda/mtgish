@@ -2935,6 +2935,7 @@
     {"source": "Player::PlayerAction_ThatPlayer", "text": "their|that|his|her"},
     {"source": "Player::SpellDealsDamage_ThatPlayer", "text": "that"},
     {"source": "Player::Condition_ThatPlayer", "text": "their|that"},
-    {"source": "Condition::TheChosenWordWas", "text": "if|is|was"}
+    {"source": "Condition::TheChosenWordWas", "text": "if|is|was"},
+    {"source": "Cost::BeholdAndExile", "text": "behold"}
   ]
 }

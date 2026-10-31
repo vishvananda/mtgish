@@ -760,6 +760,7 @@ impl<'a> Scope<'a> {
             Recipients::Targets(slot) | Recipients::Target { slot, .. } => {
                 self.target(slot, None, TargetKind::DamageRecipient)
             }
+            Recipients::Chosen => Ok(()),
             Recipients::AttackedBy(attacker) => self.object(attacker),
             Recipients::Union(items) => {
                 for item in items {
@@ -1654,6 +1655,7 @@ impl<'a> Scope<'a> {
                     }
                 }
                 CostPart::DiscardHand => {}
+                CostPart::BeholdAndExile(what) => self.operand(what)?,
                 CostPart::Behold { count, what } => {
                     self.expr(count)?;
                     self.operand(what)?;

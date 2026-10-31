@@ -388,6 +388,7 @@ const VALUE_CHOICES: &[(&str, ValueKind, u32)] = &[
     ("ChooseColors", ValueKind::Color, 0),
     ("ChooseTwoColorWords", ValueKind::ColorWord, 2),
     ("ChooseAPlaneswalkerType", ValueKind::PlaneswalkerType, 1),
+    ("ChooseADamageRecipient", ValueKind::Recipient, 1),
 ];
 
 /// One counter move as a table: how many, of what, from where, to where.
@@ -2134,6 +2135,7 @@ pub fn reduce_cost(name: String, operands: Vec<Operand>) -> CostPart {
         ("UnspecializeGraveyardCard", [Operand::Object(object)]) => {
             CostPart::Unspecialize(object.clone())
         }
+        ("BeholdAndExile", [what]) => CostPart::BeholdAndExile(Box::new(what.clone())),
         ("BeholdA", [what]) => CostPart::Behold {
             count: Expr::Constant(1),
             what: Box::new(what.clone()),
@@ -4935,6 +4937,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             .find(|(_, row)| row == event)
             .map_or_else(EventBindings::default, |(name, _)| row_bindings(name)),
         EventSpec::Discard { grouping, kind, .. } => EventBindings {
+            group: matches!(grouping, DiscardGrouping::Player),
             object: matches!(grouping, DiscardGrouping::Card),
             player: true,
             amount: matches!(grouping, DiscardGrouping::Player),
@@ -5344,6 +5347,7 @@ impl Effects {
                 | CostPart::Unattach(_)
                 | CostPart::Unspecialize(_)
                 | CostPart::Behold { .. }
+                | CostPart::BeholdAndExile(_)
                 | CostPart::PutCounters(_) => {}
                 CostPart::ExiledToGraveyard(_) => {}
                 CostPart::RevealTop(_) => self.library = true,

@@ -1455,7 +1455,7 @@ fn cost_selection_remains_strict_while_effect_selection_does_as_much_as_possible
 #[test]
 fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
     use pipeline::operands::CostRecipe as R;
-    let source=custom("Activated(And([PayLifeForEach(Integer(2),Integer(3)),BeholdAndExile(IsCardtype(Creature))]),ActionList([DrawACard]))");
+    let source=custom("Activated(And([PayLifeForEach(Integer(2),Integer(3)),PayItsSuspendCost]),ActionList([DrawACard]))");
     let stage = pipeline::Intermediate::new(&source).unwrap();
     let root = stage
         .structural
@@ -1464,10 +1464,13 @@ fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
         .find(|r| r.rule == "operand.Cost.And")
         .unwrap();
     assert!(
-        matches!(&root.recipe,pipeline::operands::OperandRecipe::Cost(R::All(items)) if matches!(items.as_slice(),[R::Amount {..},R::Source(source::Cost::BeholdAndExile(..))]))
+        matches!(&root.recipe,pipeline::operands::OperandRecipe::Cost(R::All(items)) if matches!(items.as_slice(),[R::Amount {..},R::Source(source::Cost::PayItsSuspendCost)]))
     );
     assert!(stage.final_card.is_none());
-    assert!(stage.diagnostics.iter().any(|d| d.form == "BeholdAndExile"));
+    assert!(stage
+        .diagnostics
+        .iter()
+        .any(|d| d.form == "PayItsSuspendCost"));
     for cost in ["TapPermanent(Ref_TargetPermanent)"] {
         let source = custom(&format!("Activated({cost},ActionList([DrawACard]))"));
         let stage = pipeline::Intermediate::new(&source).unwrap();
@@ -1783,7 +1786,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 112);
+    assert_eq!(card.schema_version, 113);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 112;
+pub const SCHEMA_VERSION: u32 = 113;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1679,6 +1679,7 @@ pub enum ValueKind {
     Ability,
     ColorWord,
     PlaneswalkerType,
+    Recipient,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -3175,6 +3176,8 @@ pub enum Recipients {
         slot: Slot,
         index: u16,
     },
+    /// What `ValueKind::Recipient` chose.
+    Chosen,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3644,6 +3647,8 @@ pub enum CostPart {
     RevealTop(ObjectFilter),
     /// Puts one of these exiled cards into its owner's graveyard.
     ExiledToGraveyard(ObjectSet),
+    /// Beholds a card and exiles it, linked to this object.
+    BeholdAndExile(Box<Operand>),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct CostObjectSelection {
