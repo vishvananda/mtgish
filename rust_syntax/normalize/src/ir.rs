@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 45;
+pub const SCHEMA_VERSION: u32 = 46;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -457,6 +457,8 @@ pub struct ModeSelection {
     pub implied: bool,
     /// Only modes not yet chosen for this ability are available.
     pub unchosen: Option<ModeHistory>,
+    /// Paid once for each mode chosen beyond the first, as for escalate (702.120).
+    pub surcharge: Option<Cost>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -483,6 +485,8 @@ pub struct TargetSpec {
     pub distribute: Option<Expr>,
     /// What the targets chosen for this slot must satisfy together.
     pub constraints: Vec<SelectionConstraint>,
+    /// Who chooses this slot's targets, when not the ability's controller.
+    pub chooser: Option<PlayerRef>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1655,6 +1659,14 @@ pub enum ObjectRef {
         phase: ObjectPhase,
         index: u32,
     },
+    /// The spell or ability that made this event's subject a target (603.2).
+    EventStackObject,
+    /// The permanent chosen for a damage-recipient slot. A player chosen
+    /// there leaves this undefined, so tests of it are false.
+    RecipientObject {
+        slot: Slot,
+        index: u16,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1753,6 +1765,8 @@ pub enum ObjectSet {
     DamageSources(ObjectFilter),
     /// The objects an earlier continuous effect in this resolution applied to.
     Affected(ResultId),
+    /// Every object of a one-or-more event, grouped under one trigger (603.2c).
+    EventGroup,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -2025,6 +2039,12 @@ pub enum Duration {
     DuringNextTurn(PlayerRef),
     /// Ends when the first of these ends.
     Either(Vec<Duration>),
+    /// Ends when this player pays the cost, a special action they may take
+    /// any time they have priority.
+    UntilPaid {
+        player: PlayerRef,
+        cost: Cost,
+    },
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.

@@ -18,7 +18,9 @@ impl Context {
             | source::CardsInGraveyards::Ref_TargetGraveyardCards2 => {
                 Ok(ObjectFilter::InSet(Box::new(self.grave_cards(value)?)))
             }
-            _ => Err(unsupported(value)),
+            _ => self
+                .primitive_predicate("CardsInGraveyards", value)
+                .ok_or_else(|| unsupported(value)),
         }
     }
     fn hand_filter(&self, value: &source::CardsInHand) -> Result<ObjectFilter> {
@@ -38,7 +40,9 @@ impl Context {
             source::CardsInExile::WasExiledWithPermanent(p) => {
                 Ok(ObjectFilter::ExiledWith(self.object(p)?))
             }
-            _ => Err(unsupported(value)),
+            _ => self
+                .primitive_predicate("CardsInExile", value)
+                .ok_or_else(|| unsupported(value)),
         }
     }
 }

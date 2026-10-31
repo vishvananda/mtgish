@@ -222,7 +222,9 @@ impl Context {
                         Expr::Constant(modes.len() as i64),
                         false,
                     ),
-                    B::OneOrMore => (Expr::Constant(1), Expr::Constant(modes.len() as i64), false),
+                    B::OneOrMore | B::Escalate(_) => {
+                        (Expr::Constant(1), Expr::Constant(modes.len() as i64), false)
+                    }
                     B::AnyNumber => (Expr::Constant(0), Expr::Constant(modes.len() as i64), false),
                     B::UpTo(n) => (Expr::Constant(0), Expr::Constant(*n), false),
                     B::UpToSource(n) => (
@@ -290,8 +292,13 @@ impl Context {
                     B::Unchosen(false) => Some(ModeHistory::ThisGame),
                     _ => None,
                 };
+                let surcharge = match bounds {
+                    B::Escalate(cost) => Some(self.proposal().cost(cost)?),
+                    _ => None,
+                };
                 self.modes = Some(ModeSelection {
                     unchosen,
+                    surcharge,
                     minimum,
                     maximum,
                     repeat,

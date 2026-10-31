@@ -38,6 +38,8 @@ pub struct EventBindings {
     pub discarded: bool,
     pub activation_x: bool,
     pub block_pair: bool,
+    pub group: bool,
+    pub stack_object: bool,
 }
 impl EventBindings {
     /// What every alternative of an either-event still binds.
@@ -50,6 +52,8 @@ impl EventBindings {
             amount: a.amount && b.amount,
             moved: a.moved && b.moved,
             block_pair: a.block_pair && b.block_pair,
+            group: a.group && b.group,
+            stack_object: a.stack_object && b.stack_object,
             damage: a.damage && b.damage,
             damage_source: a.damage_source && b.damage_source,
             damage_source_permanent: a.damage_source_permanent && b.damage_source_permanent,
@@ -155,6 +159,8 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 player: has("player"),
                 amount: has("amount"),
                 block_pair: has("block_pair"),
+                group: has("group"),
+                stack_object: has("stack_object"),
                 ..EventBindings::default()
             }
         }
@@ -212,6 +218,8 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                     && matches!(event.source_kind, ObjectKind::Permanent),
                 damage_recipient: recipient && objects,
                 block_pair: false,
+                group: false,
+                stack_object: false,
                 damage_objects: !players,
                 damage_players: !objects,
                 damage_subject: Some(event.subject),
@@ -366,6 +374,8 @@ impl Effects {
             | ObjectRef::AttachedTo(_)
             | ObjectRef::Affected
             | ObjectRef::EventSubject
+            | ObjectRef::EventStackObject
+            | ObjectRef::RecipientObject { .. }
             | ObjectRef::BlockPair(_)
             | ObjectRef::EventDestination
             | ObjectRef::Chosen
@@ -404,7 +414,10 @@ impl Effects {
             ObjectSet::Battlefield(_) | ObjectSet::Created(_) | ObjectSet::DamageSources(_) => {
                 false
             }
-            ObjectSet::Damage(_) | ObjectSet::CostObjects { .. } | ObjectSet::Affected(_) => false,
+            ObjectSet::EventGroup
+            | ObjectSet::Damage(_)
+            | ObjectSet::CostObjects { .. }
+            | ObjectSet::Affected(_) => false,
         }
     }
     fn cost(&mut self, cost: &Cost) -> bool {

@@ -75,7 +75,6 @@ fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps
         "Earnest Fellowship",
         "Volatile Stormdrake",
         "Aboleth Spawn",
-        "Spectra Ward",
         "Samite Elder",
     ];
     let mut complete = 0;
@@ -101,7 +100,7 @@ fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps
         }
         complete += 1;
     }
-    assert_eq!(complete, 42);
+    assert_eq!(complete, 43);
 }
 
 #[test]

@@ -90,6 +90,16 @@ impl Context {
                     index: 0,
                 })
             }
+            S::TopCardOfTypeOfPlayersGraveyard(cards, p) => {
+                return Ok(ObjectRef::Query {
+                    objects: Box::new(self.private_cards(
+                        EventZone::Graveyard,
+                        PlayerSet::One(self.player(p)?),
+                        self.card_filter(cards)?,
+                    )),
+                    index: 0,
+                })
+            }
             S::TheBottomCardOfPlayersGraveyard(p) => {
                 return Ok(ObjectRef::Query {
                     objects: Box::new(ObjectSet::Take {

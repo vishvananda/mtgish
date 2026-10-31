@@ -325,6 +325,11 @@ impl<'a> Scope<'a> {
                 TargetKind::Object(ObjectDomain::permanent()),
             ),
             ObjectRef::EventSubject if self.event.object => Ok(()),
+            ObjectRef::EventStackObject if self.event.stack_object => Ok(()),
+            ObjectRef::EventStackObject => Err("this event names no spell or ability".into()),
+            ObjectRef::RecipientObject { slot, index } => {
+                self.target(slot, Some(*index), TargetKind::DamageRecipient)
+            }
             ObjectRef::BlockPair(_) if self.event.block_pair => Ok(()),
             ObjectRef::BlockPair(_) => Err("this event pairs no attacker and blocker".into()),
             ObjectRef::EventDestination if self.event.moved => Ok(()),
@@ -399,6 +404,10 @@ impl<'a> Scope<'a> {
             Duration::WhileControlled { player, object } => {
                 self.player(player)?;
                 self.object(object)
+            }
+            Duration::UntilPaid { player, cost } => {
+                self.player(player)?;
+                self.cost(cost)
             }
             Duration::WhileMatches { object, filter } => {
                 self.object(object)?;
@@ -510,6 +519,8 @@ impl<'a> Scope<'a> {
             }
             ObjectSet::Damage(DamageSubject::Source) if self.event.damage => Ok(()),
             ObjectSet::Damage(DamageSubject::Recipient) if self.event.damage_objects => Ok(()),
+            ObjectSet::EventGroup if self.event.group => Ok(()),
+            ObjectSet::EventGroup => Err("this event groups no objects".into()),
             ObjectSet::Damage(_) => Err("damage event does not bind this object collection".into()),
             ObjectSet::Zone {
                 scope,
@@ -2025,6 +2036,9 @@ impl<'a> Scope<'a> {
             proposal.count(&target.count)?;
             proposal.filter(&target.filter)?;
             proposal.selection_constraints(&target.constraints)?;
+            if let Some(chooser) = &target.chooser {
+                proposal.player(chooser)?;
+            }
             if let Some(total) = &target.distribute {
                 proposal.expr(total)?;
             }
@@ -2039,6 +2053,9 @@ impl<'a> Scope<'a> {
         if let Some(selection) = &announcement.modes {
             proposal.expr(&selection.minimum)?;
             proposal.expr(&selection.maximum)?;
+            if let Some(cost) = &selection.surcharge {
+                proposal.cost(cost)?;
+            }
             if let (Expr::Constant(min), Expr::Constant(max)) =
                 (&selection.minimum, &selection.maximum)
             {

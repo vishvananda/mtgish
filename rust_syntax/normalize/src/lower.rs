@@ -351,6 +351,13 @@ impl Context {
             S::Ref_TargetPermanent4 => (3, 0),
             S::Ref_TargetPermanent5 => (4, 0),
             S::Ref_TargetPermanents_1 => (0, 1),
+            S::AnyTargetAsAPermanent => {
+                let target = self.target(TargetKind::DamageRecipient, 0, 0)?;
+                return Ok(ObjectRef::RecipientObject {
+                    slot: target,
+                    index: 0,
+                });
+            }
             S::Trigger_ThatPermanent
             | S::Trigger_ThatCreature
             | S::Trigger_ThatDeadPermanent
@@ -453,8 +460,8 @@ impl Context {
             }
             S::OwnerOfExiledCard(card) => PlayerRef::OwnerOf(Box::new(self.exiled_card(card)?)),
             S::OwnerOfGraveyrdCard(card) => PlayerRef::OwnerOf(Box::new(self.grave_card(card)?)),
-            S::ControllerOfSpellOrAbility(source::SpellOrAbility::Ref_TargetSpellOrAbility) => {
-                PlayerRef::ControllerOf(Box::new(self.target_on_stack()?))
+            S::ControllerOfSpellOrAbility(object) if self.stack_object(object).is_ok() => {
+                PlayerRef::ControllerOf(Box::new(self.stack_object(object)?))
             }
             S::Trigger_DefendingPlayer if self.event.permanent => {
                 PlayerRef::DefendingPlayerOf(Box::new(ObjectRef::EventSubject))
@@ -548,6 +555,9 @@ impl Context {
                 if role == DamageSubject::Source || self.event.damage_objects {
                     return Ok(ObjectSet::Damage(role));
                 }
+            }
+            if self.event.group {
+                return Ok(ObjectSet::EventGroup);
             }
         }
         if matches!(value, source::Permanents::HadCountersPutOnItThisWay) {
@@ -776,6 +786,16 @@ impl Context {
                 property: Property::ManaValue,
                 information: Information::CurrentOrLastKnown,
             },
+            S::NumColorsManaSpentToCastEnteringPermanent if self.event.permanent => {
+                Expr::ManaSpent {
+                    object: ObjectRef::EventSubject,
+                    filter: SpentManaFilter {
+                        colors: None,
+                        snow: false,
+                    },
+                    aggregation: SpentManaAggregation::DistinctColors,
+                }
+            }
             S::Trigger_ValueXOfThatSpell if self.event.spell => Expr::ObjectProperty {
                 object: ObjectRef::EventSubject,
                 property: Property::SpellX,
@@ -1023,6 +1043,10 @@ impl Context {
         Ok(match value {
             source::Expiration::UntilEndOfTurn => Duration::EndOfTurn,
             source::Expiration::UntilEndOfCombat => Duration::EndOfCombat,
+            source::Expiration::UntilPlayerPaysMana(player, mana) => Duration::UntilPaid {
+                player: self.player(player)?,
+                cost: self.cost(&source::Cost::PayMana(mana.clone()))?,
+            },
             source::Expiration::UntilEndOfGame => Duration::Indefinite,
             source::Expiration::UntilPlayersNextTurn(p) => Duration::UntilNextTurn(self.player(p)?),
             source::Expiration::UntilTheEndOfPlayersNextTurn(p) => {
@@ -1235,8 +1259,16 @@ impl Context {
                 S::HasAllCreatureTypes => T::HasAllCreatureTypes,
                 S::RemoveAllCreatureTypes => T::RemoveAllCreatureTypes,
                 S::LosesAllAbilities => T::LosesAllAbilities,
-                _ => as_family::<T>(value, "LayerEffect")
-                    .ok_or_else(|| unsupported(value).at(format!("changes[{i}]")))?,
+                _ => match as_family::<T>(value, "LayerEffect") {
+                    Some(change) => change,
+                    None => {
+                        let (name, operands) = self
+                            .primitive("StaticLayerEffect", value)
+                            .ok_or_else(|| unsupported(value).at(format!("changes[{i}]")))?;
+                        changes.push(Change::Primitive { name, operands });
+                        continue;
+                    }
+                },
             };
             changes.extend(
                 self.changes(&[change])
@@ -1649,6 +1681,18 @@ impl Context {
                 let create = S::CreateTokens(tokens.clone(), flags.clone());
                 return self.for_each_player(players, |context, _| context.action(&create, actor));
             }
+            S::ReturnEnchantingGraveyardCardToHand => Operation::Move {
+                objects: ObjectSet::One(ObjectRef::Source),
+                destination: Destination::OwnersHand,
+                entry: EntrySpec::default(),
+                face_down: false,
+            },
+            S::ReturnGraveyardCardsToTopOfLibraryInAnyOrder(cards) => Operation::Move {
+                objects: self.grave_cards(cards)?,
+                destination: Destination::OwnersLibraryTop,
+                entry: EntrySpec::default(),
+                face_down: false,
+            },
             S::ReturnACardFromGraveyardToBattlefield(cards, _)
             | S::ReturnAGraveyardCardToHand(cards) => {
                 let PlayerSet::One(player) = actor else {
@@ -2179,9 +2223,9 @@ impl Context {
                     evaluation: EffectEvaluation::Snapshot,
                 }
             }
-            S::CounterSpellOrAbility(source::SpellOrAbility::Ref_TargetSpellOrAbility) => {
+            S::CounterSpellOrAbility(object) if self.stack_object(object).is_ok() => {
                 Operation::Counter {
-                    objects: ObjectSet::One(self.target_on_stack()?),
+                    objects: ObjectSet::One(self.stack_object(object)?),
                     destination: Destination::OwnersGraveyard,
                 }
             }
@@ -2450,6 +2494,16 @@ impl Context {
         })
     }
 
+    fn stack_object(&self, value: &source::SpellOrAbility) -> Result<ObjectRef> {
+        match value {
+            source::SpellOrAbility::Ref_TargetSpellOrAbility => self.target_on_stack(),
+            source::SpellOrAbility::Trigger_ThatSpellOrAbility if self.event.stack_object => {
+                Ok(ObjectRef::EventStackObject)
+            }
+            _ => Err(unsupported(value)),
+        }
+    }
+
     fn target_on_stack(&self) -> Result<ObjectRef> {
         self.object_target(
             ObjectDomain {
@@ -2522,6 +2576,7 @@ impl Context {
                 filter: ObjectFilter::Any,
                 players: None,
                 distribute: None,
+                chooser: None,
                 constraints: vec![],
             };
             match value {
@@ -2649,6 +2704,19 @@ impl Context {
                     }
                 }
                 S::AnyTarget => target.kind = TargetKind::DamageRecipient,
+                S::AnyTargetExceptPermanent(p) => {
+                    target.kind = TargetKind::DamageRecipient;
+                    target.filter =
+                        ObjectFilter::Not(Box::new(ObjectFilter::SameObject(self.object(p)?)));
+                }
+                S::AnyTargetExceptAPermanent(p) => {
+                    target.kind = TargetKind::DamageRecipient;
+                    target.filter = ObjectFilter::Not(Box::new(self.filter(p)?));
+                }
+                S::TargetPermanentOfPlayersChoice(p, chooser) => {
+                    target.filter = self.filter(p)?;
+                    target.chooser = Some(self.player(chooser)?);
+                }
                 S::TargetPlayerOrPermanent(players, objects) => {
                     target.kind = TargetKind::DamageRecipient;
                     target.filter = self.filter(objects)?;
@@ -3060,7 +3128,7 @@ impl Context {
             S::EnchantPlayer(players) => Ok(Ability::Enchant {
                 hosts: EnchantHosts::Players(self.players(players)?),
             }),
-            S::Equip(quality, cost) => {
+            S::Equip(quality, cost) | S::EquipWithModifiers(quality, cost, _) => {
                 let filter = self.filter(quality)?;
                 fn planeswalker(f: &ObjectFilter) -> bool {
                     match f {
@@ -3078,13 +3146,17 @@ impl Context {
                     ));
                 }
                 let slot = Slot(0);
+                let mut limits = ActivationLimits {
+                    sorcery: true,
+                    ..ActivationLimits::unrestricted()
+                };
+                if let S::EquipWithModifiers(_, _, modifier) = value {
+                    self.limits(modifier, &mut limits)?;
+                }
                 Ok(Ability::Activated {
                     origin: ActivationOrigin::Equip,
                     cost: self.cost(cost)?,
-                    limits: ActivationLimits {
-                        sorcery: true,
-                        ..ActivationLimits::unrestricted()
-                    },
+                    limits,
                     announcement: Announcement {
                         targets: vec![TargetSpec {
                             slot: slot.clone(),
@@ -3098,6 +3170,7 @@ impl Context {
                             ]),
                             players: None,
                             distribute: None,
+                            chooser: None,
                             constraints: vec![],
                         }],
                         modes: None,

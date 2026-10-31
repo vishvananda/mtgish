@@ -57,6 +57,7 @@ pub enum Bounds {
     RepeatSource { argument: usize },
     OneOrBothIf { argument: usize },
     Unchosen { turn: bool },
+    Escalate { argument: usize },
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", deny_unknown_fields)]
@@ -139,7 +140,8 @@ impl Bounds {
         match self {
             Self::UpToSource { argument }
             | Self::RepeatSource { argument }
-            | Self::OneOrBothIf { argument } => out.push(*argument),
+            | Self::OneOrBothIf { argument }
+            | Self::Escalate { argument } => out.push(*argument),
             _ => {}
         }
     }
@@ -161,6 +163,9 @@ impl Bounds {
                 format!("ModeBounds::OneOrBothIf(source::Condition::clone(a{argument}))")
             }
             Self::Unchosen { turn } => format!("ModeBounds::Unchosen({turn})"),
+            Self::Escalate { argument } => {
+                format!("ModeBounds::Escalate(source::Cost::clone(a{argument}))")
+            }
         }
     }
 }

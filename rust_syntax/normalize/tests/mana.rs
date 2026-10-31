@@ -135,6 +135,7 @@ fn classification_accounts_for_targets_loyalty_library_moves_and_nested_definiti
         filter: ObjectFilter::Any,
         players: None,
         distribute: None,
+        chooser: None,
         constraints: vec![],
     });
     assert_eq!(

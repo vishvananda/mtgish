@@ -184,6 +184,9 @@ impl Inventory<'_> {
     }
     fn announcement(&mut self, a: &Announcement) {
         for target in &a.targets {
+            if let Some(chooser) = &target.chooser {
+                self.player(chooser);
+            }
             self.form("TargetKind", &target.kind);
             if let TargetKind::Object(domain) = &target.kind {
                 self.form("ObjectKind", &domain.kind);
@@ -203,6 +206,9 @@ impl Inventory<'_> {
         if let Some(m) = &a.modes {
             self.expr(&m.minimum);
             self.expr(&m.maximum);
+            if let Some(cost) = &m.surcharge {
+                self.cost(cost);
+            }
             for mode in &m.modes {
                 self.announcement(&mode.announcement);
                 self.program(&mode.body);
@@ -1133,6 +1139,7 @@ impl Inventory<'_> {
                 self.objects(objects);
                 self.filter(filter);
             }
+            ObjectSet::EventGroup => {}
             ObjectSet::Damage(role) => self.form("DamageSubject", role),
             ObjectSet::Zone {
                 scope,
@@ -1464,6 +1471,10 @@ impl Inventory<'_> {
             | Duration::DuringNextTurn(p) => self.player(p),
             Duration::WhileOnBattlefield(object) | Duration::WhileExiled(object) => {
                 self.object(object)
+            }
+            Duration::UntilPaid { player, cost } => {
+                self.player(player);
+                self.cost(cost);
             }
             Duration::WhileControlled { player, object } => {
                 self.player(player);

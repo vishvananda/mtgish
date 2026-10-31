@@ -1784,10 +1784,10 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 }
 
 #[test]
-fn schema_45_costs_roundtrip_and_reject_previous_versions_at_validation() {
+fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 45);
+    assert_eq!(card.schema_version, 46);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2332,4 +2332,44 @@ fn x_can_be_defined_by_the_cost_itself() {
     let text =
         ability_json("Encore(PayManaX([ManaCostX],ManaValueOfGraveyardCard(ThisGraveyardCard)))");
     assert!(text.contains("Cost::PayManaX"), "{text}");
+}
+
+#[test]
+fn escalate_charges_each_mode_past_the_first() {
+    let text = ability_json("SpellActions(Modal_ChooseOneOrMore_Escalate(PayMana([ManaCostGeneric(1)]),[ActionList([DrawACard]),ActionList([GainLife(Integer(2))])]))");
+    assert!(text.contains("surcharge"), "{text}");
+    assert!(!text.contains("\"surcharge\":null"), "{text}");
+}
+
+#[test]
+fn any_other_target_excludes_one_object() {
+    let text = ability_json("Activated(TapPermanent(ThisPermanent),Targeted([AnyTargetExceptPermanent(ThisPermanent)],ActionList([PermanentDealsDamage(ThisPermanent,Integer(1),Ref_AnyTarget)])))");
+    assert!(text.contains("DamageRecipient"), "{text}");
+    assert!(text.contains("SameObject"), "{text}");
+}
+
+#[test]
+fn a_damage_recipient_can_be_tested_as_a_permanent() {
+    let text = ability_json("SpellActions(Targeted([AnyTarget],ActionList([SpellDealsDamage(ThisSpell,Integer(3),Ref_AnyTarget),If(PermanentPassesFilter(AnyTargetAsAPermanent,IsCardtype(Creature)),[DrawACard])])))");
+    assert!(text.contains("RecipientObject"), "{text}");
+}
+
+#[test]
+fn another_player_can_choose_a_target() {
+    let text = ability_json("TriggerA(WhenACreatureDealsCombatDamageToAPlayer(SinglePermanent(ThisPermanent),AnyPlayer),Targeted([TargetPermanentOfPlayersChoice(IsCardtype(Land),Trigger_ThatPlayer)],ActionList([DestroyPermanent(Ref_TargetPermanent)])))");
+    assert!(text.contains("\"chooser\":{"), "{text}");
+}
+
+#[test]
+fn a_group_event_names_its_objects_and_a_targeting_event_its_source() {
+    let text = ability_json("TriggerA(WhenAPlayerAttacksWithANumberOfCreatures(SinglePlayer(You),GreaterThanOrEqualTo(Integer(2)),IsCardtype(Creature)),ActionList([PutCounters([ACounterOfTypeOnEachPermanent(PTCounter(+1,+1),Trigger_ThoseCreatures)])]))");
+    assert!(text.contains("EventGroup"), "{text}");
+    let text = ability_json("TriggerA(WhenAPermanentBecomesTheTargetOfASpellOrAbility(SinglePermanent(ThisPermanent),ControlledByAPlayer(Opponent)),ActionList([PlayerMayCost(ControllerOfSpellOrAbility(Trigger_ThatSpellOrAbility),PayMana([ManaCostGeneric(2)])),Unless(CostWasPaid,[CounterSpellOrAbility(Trigger_ThatSpellOrAbility)])]))");
+    assert_eq!(text.matches("EventStackObject").count(), 2, "{text}");
+}
+
+#[test]
+fn an_effect_can_last_until_a_player_pays() {
+    let text = ability_json("Activated(TapPermanent(ThisPermanent),ActionList([CreatePermanentLayerEffectUntil(ThisPermanent,[AddCardtype(Enchantment)],UntilPlayerPaysMana(You,[ManaCostW]))]))");
+    assert!(text.contains("UntilPaid"), "{text}");
 }

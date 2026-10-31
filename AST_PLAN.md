@@ -15,15 +15,15 @@ The priorities, in order, are:
 
 ### Where things stand
 
-Unified, complete and blocker rows are current at schema 45. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
+Unified, complete and blocker rows are current at schema 46. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
 
 | Measure | Value |
 |---|---|
 | Records | 33,529 |
-| Unified, schema 45 | 33,529 (100%) |
-| Complete | 27,457 (81.9%) |
-| Complete with no primitive | 18,910 (56.4%) |
-| Distinct forms blocking the rest | 3,152 |
+| Unified, schema 46 | 33,529 (100%) |
+| Complete | 27,743 (82.7%) |
+| Complete with no primitive | 19,320 (57.6%) |
+| Distinct forms blocking the rest | 3,090 |
 | Structurally preserved | 33,529 |
 | Source enums / declared variants | 346 / 8,668 |
 | Distinct forms in the corpus | 8,247 |

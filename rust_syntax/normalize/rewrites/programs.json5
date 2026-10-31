@@ -375,6 +375,20 @@
       }
     },
     {
+      "id": "program.Actions.Modal_ChooseOneOrMore_Escalate",
+      "domain": "Actions",
+      "source": "Modal_ChooseOneOrMore_Escalate",
+      "arity": 2,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "Escalate",
+          "argument": 0
+        },
+        "modes": 1
+      }
+    },
+    {
       "id": "program.Actions.Modal_ChooseOneOrBothIf",
       "domain": "Actions",
       "source": "Modal_ChooseOneOrBothIf",
