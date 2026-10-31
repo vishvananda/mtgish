@@ -2386,7 +2386,6 @@
     {"source": "Cost::PayLifeEqualToItsManaValue", "text": "life"},
     {"source": "Cost::ItsManaCostReducedBy", "text": "cost"},
     {"source": "Rule::CardEffect", "text": "card|cards"},
-    {"source": "PutIntoGraveyardAction::RevealItAndShuffleItIntoLibraryInstead", "text": "shuffle"},
     {"source": "Action::DiscardEachCard", "text": "discard"},
     {"source": "SearchLibraryAction::APlayerChoosesNumberFoundCards", "text": "chooses"},
     {"source": "SearchLibraryAction::MayPutFoundCardsOntoBattlefield", "text": "onto battlefield"},

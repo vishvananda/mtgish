@@ -85,6 +85,30 @@ impl Context {
                 one(),
                 Some(Count::Exactly(self.number(n)?)),
             ),
+            S::NumberCountersFromAmongPermanents(n, p) => (
+                self.objects(p)?,
+                None,
+                CounterAmount::AmongThem(Count::Exactly(self.number(n)?)),
+                None,
+            ),
+            S::NumberCountersOfTypeFromAmongPermanents(n, k, p) => (
+                self.objects(p)?,
+                Some(k),
+                CounterAmount::AmongThem(Count::Exactly(self.number(n)?)),
+                None,
+            ),
+            S::NumberOrMoreCountersOfTypeFromAmongPermanents(n, k, p) => (
+                self.objects(p)?,
+                Some(k),
+                CounterAmount::AmongThem(Count::AtLeast(self.number(n)?)),
+                None,
+            ),
+            S::AnyNumberOfCountersOfTypeFromAmongPermanents(k, p) => (
+                self.objects(p)?,
+                Some(k),
+                CounterAmount::AmongThem(Count::AnyNumber),
+                None,
+            ),
             _ => return Err(unsupported(value)),
         };
         self.removal(

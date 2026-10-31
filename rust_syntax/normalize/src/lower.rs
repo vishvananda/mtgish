@@ -2513,12 +2513,17 @@ impl Context {
                 let objects = self.objects(objects)?;
                 return self.for_each_object(objects, |context| {
                     let each = ObjectRef::Bound(context.iterated_object.clone().unwrap());
-                    let controller = PlayerSet::One(PlayerRef::ControllerOf(Box::new(each)));
+                    let controller = PlayerRef::ControllerOf(Box::new(each));
+                    let outer = context.iterated.replace(controller.clone());
+                    let controller = PlayerSet::One(controller);
                     let instructions = actions
                         .iter()
                         .map(|action| context.action(action, &controller))
-                        .collect::<Result<_>>()?;
-                    Ok(Program { instructions })
+                        .collect::<Result<_>>();
+                    context.iterated = outer;
+                    Ok(Program {
+                        instructions: instructions?,
+                    })
                 });
             }
             S::ActionForEachPermanent(objects, actions) => {
@@ -3516,13 +3521,22 @@ impl Context {
                 }
             }
             S::CreateEachPlayerEffectUntil(players, rules, duration) => {
-                Operation::CreateContinuousEffect {
-                    source: ObjectRef::Source,
-                    affected: EffectSubjects::Players(self.players(players)?),
-                    changes: self.player_changes(rules)?,
-                    duration: self.duration(duration)?,
-                    evaluation: EffectEvaluation::LiveObjects,
+                let create = |context: &mut Self, affected: &PlayerSet| {
+                    let operation = Operation::CreateContinuousEffect {
+                        source: ObjectRef::Source,
+                        affected: EffectSubjects::Players(affected.clone()),
+                        changes: context.player_changes(rules)?,
+                        duration: context.duration(duration)?,
+                        evaluation: EffectEvaluation::LiveObjects,
+                    };
+                    Ok(context.effect(operation))
+                };
+                let players = self.players(players)?;
+                // An effect naming each of them needs that one bound.
+                if format!("{rules:?}{duration:?}").contains("EachablePlayer") {
+                    return self.for_each_player(players, create);
                 }
+                return create(self, &players);
             }
             _ => return Err(unsupported(value)),
         };

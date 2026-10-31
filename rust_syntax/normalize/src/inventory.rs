@@ -659,6 +659,9 @@ impl Inventory<'_> {
             self.form("Comparison", comparison);
             self.expr(amount);
         }
+        if let SelectionConstraint::NamedAfterOneEach(objects) = c {
+            self.objects(objects);
+        }
         if let SelectionConstraint::CanMoveTo {
             destination, entry, ..
         } = c
@@ -710,7 +713,7 @@ impl Inventory<'_> {
                 self.counter(kind);
             }
             self.form("CounterAmount", &removal.amount);
-            if let CounterAmount::Count(count) = &removal.amount {
+            if let CounterAmount::Count(count) | CounterAmount::AmongThem(count) = &removal.amount {
                 self.count(count);
             }
             if let Some(selection) = &removal.selection {

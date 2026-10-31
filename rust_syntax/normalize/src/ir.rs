@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 70;
+pub const SCHEMA_VERSION: u32 = 71;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -974,6 +974,8 @@ pub enum SelectionConstraint {
     /// None of these may be what that earlier slot chose: "another target" is a
     /// second use of the word, so 601.2c alone does not keep them apart.
     DifferentFromTarget(Slot),
+    /// Each pick has the name of a different one of these objects.
+    NamedAfterOneEach(ObjectSet),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CardOrder {
@@ -1125,6 +1127,8 @@ pub enum EntryState {
         filter: ObjectFilter,
         entry: Box<EntrySpec>,
     },
+    FaceDown,
+    Flipped,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1508,6 +1512,8 @@ pub enum CounterAmount {
     Count(Count),
     /// All counters present, including zero; distinct from choosing any number.
     All,
+    /// This many in total, spread however the player likes among the recipients.
+    AmongThem(Count),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

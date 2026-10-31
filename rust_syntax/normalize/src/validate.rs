@@ -391,7 +391,7 @@ impl<'a> Scope<'a> {
             self.count(&Count::Exactly(amount.clone()))?;
         }
         entry.states.iter().try_for_each(|state| match state {
-            EntryState::Transformed => Ok(()),
+            EntryState::Transformed | EntryState::FaceDown | EntryState::Flipped => Ok(()),
             EntryState::Attacking { player, .. } => player.iter().try_for_each(|p| self.player(p)),
             EntryState::Blocking(object) | EntryState::AttachedTo(object) => self.object(object),
             EntryState::AttachedToChosen(filter) => self.filter(filter),
@@ -1187,7 +1187,7 @@ impl<'a> Scope<'a> {
         for removal in removals {
             self.player(&removal.player)?;
             self.recipients(&removal.recipients)?;
-            if let CounterAmount::Count(count) = &removal.amount {
+            if let CounterAmount::Count(count) | CounterAmount::AmongThem(count) = &removal.amount {
                 self.count(count)?;
             }
             if let Some(selection) = &removal.selection {
@@ -1920,6 +1920,9 @@ impl<'a> Scope<'a> {
         for constraint in constraints {
             if let SelectionConstraint::TotalProperty { amount, .. } = constraint {
                 self.expr(amount)?;
+            }
+            if let SelectionConstraint::NamedAfterOneEach(objects) = constraint {
+                self.objects(objects)?;
             }
             if let SelectionConstraint::OneForEach(filters) = constraint {
                 for filter in filters {

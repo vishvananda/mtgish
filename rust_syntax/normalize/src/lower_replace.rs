@@ -30,7 +30,12 @@ fn retag(value: &mut serde_json::Value, rename: &impl Fn(&str) -> Option<&'stati
 
 /// Forms that say what becomes of the event, so a body using one is explicit.
 /// A regeneration shield belongs here because it applies to the event itself.
-const EVENT_FORMS: [&str; 27] = [
+const EVENT_FORMS: [&str; 32] = [
+    "EntersTapped",
+    "EntersWithACounter",
+    "EntersUnderPlayersControl",
+    "ShuffleItIntoLibraryInstead",
+    "RevealItAndShuffleItIntoLibraryInstead",
     "ContinueDealingDamage",
     "CancelThatDamage",
     "SkipThatDraw",
@@ -267,6 +272,9 @@ impl Context {
         let exile = EventChange::SetDestination(Destination::Exile);
         Ok(Some(match variant {
             "ContinueDealingDamage" => vec![],
+            "ShuffleItIntoLibraryInstead" => {
+                vec![EventChange::SetDestination(Destination::OwnersLibraryShuffled)]
+            }
             "CancelThatDamage" | "SkipThatDraw" | "SkipTurn" | "CancelDestroy"
             | "GainNoLifeInstead" => vec![EventChange::Cancel],
             "DealDamageInstead" | "PutNewAmount" => vec![EventChange::SetAmount(
@@ -390,6 +398,27 @@ impl Context {
     ) -> Result<Option<Instruction>> {
         let variant = step["variant"].as_str().unwrap_or_default();
         let args = &step["args"];
+        if variant == "RevealItAndShuffleItIntoLibraryInstead" {
+            let instructions = vec![
+                self.effect(Operation::Reveal {
+                    objects: ObjectSet::One(ObjectRef::EventSubject),
+                }),
+                self.effect(Operation::ModifyEvent {
+                    change: EventChange::SetDestination(Destination::OwnersLibraryShuffled),
+                }),
+            ];
+            return Ok(Some(Instruction::Group(Program { instructions })));
+        }
+        // A timed entry replacement says what an "as this enters" one says.
+        if step["enum"] == "ReplacementActionWouldEnter"
+            && matches!(
+                variant,
+                "EntersTapped" | "EntersWithACounter" | "EntersUnderPlayersControl"
+            )
+        {
+            let value: source::ReplacementActionWouldEnter = decode_step(step)?;
+            return self.entry_action(&value).map(Some);
+        }
         if let Some(mut changes) = self.event_change(variant, args)? {
             let mut instructions: Vec<_> = changes
                 .drain(..)

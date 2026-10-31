@@ -110,6 +110,11 @@ impl Context {
                     })
                 })
                 .collect::<Result<_>>()?,
+            S::FindAnyNumberOfGroupCards(f, g) => vec![SearchChoice {
+                filter: self.library_filter(f)?,
+                count: Count::AnyNumber,
+                constraints: self.group_constraints(g)?,
+            }],
             S::FindNumberGroupCards(n, f, g) | S::FindUptoNumberGroupCards(n, f, g) => {
                 let constraints = self.group_constraints(g)?;
                 vec![SearchChoice {
