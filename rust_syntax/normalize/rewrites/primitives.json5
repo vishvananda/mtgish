@@ -3082,6 +3082,8 @@
     {"source": "CardsInExile::WasExiledThisTurn", "text": "exiled"},
     {"source": "CardsInExile::WasExiledWithAnAbility", "text": "exiled|exile"},
     {"source": "Spell::ThatSpell", "text": "life"},
-    {"source": "Action::PhaseInEachPermanent", "text": "phase"}
+    {"source": "Action::PhaseInEachPermanent", "text": "phase"},
+    {"source": "Player::TheSecondPlayerChosenThisWay", "text": "choose|chosen|player"},
+    {"source": "Player::TheThirdPlayerChosenThisWay", "text": "choose|chosen|player"}
   ]
 }
