@@ -1236,7 +1236,9 @@ fn effects_on_spells_and_game_rules_are_operations() {
         "TriggerA(WhenAPermanentDealsDamage(SinglePermanent(ThisPermanent)), ActionList([Exile([Permanent(ThisPermanent)], [ExilesFaceDown]), CreateExiledCardEffect(TheCardExiledThisWay, [IsForetold])]))",
     );
     assert!(exiled.contains("EffectOn"), "{exiled}");
-    let game = lowered("SpellActions(ActionList([CreateGameEffect(UntilEndOfTurn, DamageCantBePrevented)]))");
+    let game = lowered(
+        "SpellActions(ActionList([CreateGameEffect(UntilEndOfTurn, DamageCantBePrevented)]))",
+    );
     assert!(game.contains("GameEffect"), "{game}");
 }
 
@@ -1246,4 +1248,14 @@ fn keeping_some_and_sacrificing_the_rest() {
         "TriggerA(AtTheBeginningOfAPlayersEndStep(Opponent), ActionList([PlayerAction(Trigger_ThatPlayer, SacrificeAllPermanentsExceptForNum(IsCardtype(Creature), Integer(2)))]))",
     );
     assert!(body.contains("SacrificeAllBut"), "{body}");
+}
+
+#[test]
+fn deck_and_draft_rules_are_abilities() {
+    let craft = lowered("CraftWithACraftable(IsLandType(Cave), [ManaCostGeneric(5), ManaCostG])");
+    assert!(craft.contains("Craft {"), "{craft}");
+    let offering = lowered("Offering(IsCreatureType(Fox))");
+    assert!(offering.contains("Offering(Subtype"), "{offering}");
+    let draft = lowered("AsSelfDraft([DraftFaceUp])");
+    assert!(draft.contains("DraftRule"), "{draft}");
 }

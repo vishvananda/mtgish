@@ -75,6 +75,20 @@ impl Inventory<'_> {
             Ability::Backup { abilities, .. } => {
                 abilities.iter().for_each(|a| self.ability(a));
             }
+            Ability::Mystery {
+                condition,
+                abilities,
+            } => {
+                self.condition(condition);
+                abilities.iter().for_each(|a| self.ability(a));
+            }
+            Ability::DraftRule(_)
+            | Ability::Companion(_)
+            | Ability::CommanderDeckRule(_)
+            | Ability::Craft { .. } => {}
+            Ability::Offering(filter) => self.filter(filter),
+            Ability::FlashIf(condition) => self.condition(condition),
+            Ability::ProtectionExcept { keeps, .. } => self.objects(keeps),
             Ability::DeckRule(rule) => self.form("DeckRule", rule),
             Ability::Mechanic {
                 mechanic,
@@ -1999,7 +2013,7 @@ impl Inventory<'_> {
         match c {
             Condition::Primitive { name, .. } => self.primitive(name),
             Condition::Window(window) => self.form("TurnWindow", window),
-            Condition::ItsNeitherDayNorNight => {}
+            Condition::ItsNeitherDayNorNight | Condition::ItsNight => {}
             Condition::MostVotes { option, .. } | Condition::Voted(option) => {
                 self.vote_option(option)
             }

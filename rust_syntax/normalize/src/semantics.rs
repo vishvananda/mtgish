@@ -1316,6 +1316,42 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
     match (form, operands.as_slice()) {
         ("WasKickedWithKicker", kicker) => return ObjectFilter::KickedWith(kicker.to_vec()),
         ("IsSuspended", []) => return ObjectFilter::State(ObjectState::Suspended),
+        ("HasASticker", []) => return ObjectFilter::State(ObjectState::HasSticker),
+        ("PowerIsLessThanToughness", []) => {
+            return ObjectFilter::State(ObjectState::PowerBelowToughness)
+        }
+        ("IsTransformed", []) => return ObjectFilter::State(ObjectState::Transformed),
+        ("HasNoAbilities", []) => return ObjectFilter::State(ObjectState::NoAbilities),
+        ("ControlledSinceBeginningOfTurn", []) => {
+            return ObjectFilter::State(ObjectState::ControlledSinceTurnBegan)
+        }
+        ("NotControlledSinceBeginningOfTurn", []) => {
+            return ObjectFilter::Not(Box::new(ObjectFilter::State(
+                ObjectState::ControlledSinceTurnBegan,
+            )))
+        }
+        ("TargetsOnlyASingleTarget", []) => return ObjectFilter::OnStack(StackTrait::SingleTarget),
+        ("IsCreatureTypeVariable" | "IsLandTypeVariable", [variable])
+            if chosen_kind(variable).is_some() =>
+        {
+            return ObjectFilter::Chosen(chosen_kind(variable).unwrap())
+        }
+        ("ManaAmountOfTypeWasSpentToCastIt", [Operand::Comparison(comparison, value), color])
+            if simple_color(color).is_some() =>
+        {
+            return ObjectFilter::Condition(Box::new(Condition::Compare {
+                left: Expr::ManaSpent {
+                    object: ObjectRef::Candidate,
+                    filter: SpentManaFilter {
+                        colors: Some(vec![simple_color(color).unwrap()]),
+                        snow: false,
+                    },
+                    aggregation: SpentManaAggregation::Count,
+                },
+                comparison: comparison.clone(),
+                right: value.clone(),
+            }))
+        }
         ("HasAnAdventure", []) => return ObjectFilter::State(ObjectState::HasAdventure),
         ("BlockedThisTurn", []) => return ObjectFilter::State(ObjectState::BlockedThisTurn),
         ("IsFaceUp", []) => {
@@ -1488,6 +1524,9 @@ fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
         ("Condition::NumCardsInExileIs", [Than(c, v), Objects(s)]) => {
             compare(count(s.clone()), c, v)
         }
+        ("Condition::TotalToughnessOfPermanentsIs", [Than(c, v), Objects(s)]) => {
+            compare(aggregate(s, Property::Toughness, Aggregation::Sum), c, v)
+        }
         ("Condition::ThereAreNumberCardTypesInPlayersGraveyard", [Than(c, v), Player(p)]) => {
             compare(
                 distinct(
@@ -1587,6 +1626,7 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
         "Condition::TheGiftWasPromised" => return Condition::GiftPromised(true),
         "Condition::TheGiftWasntPromised" => return Condition::GiftPromised(false),
         "Condition::ItsNeitherDayOrNight" => return Condition::ItsNeitherDayNorNight,
+        "Condition::ItsNight" => return Condition::ItsNight,
         _ => {}
     }
     if let ("Condition::CardIsExiled", [Operand::Object(object)]) =
@@ -2464,6 +2504,51 @@ pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
         return ability;
     }
     match (name.as_str(), operands.as_slice()) {
+        (
+            "Rule::AsSelfDraft"
+            | "Rule::FaceUpDraftEffect"
+            | "Rule::BeforeShufflingDeckToStartTheGame",
+            effects,
+        ) => return Ability::DraftRule(effects.to_vec()),
+        ("Rule::Companion", [condition]) => return Ability::Companion(Box::new(condition.clone())),
+        ("Rule::DeckConstructionIfCommander" | "Rule::DeckBuildingIfCommander", [rule]) => {
+            return Ability::CommanderDeckRule(Box::new(rule.clone()))
+        }
+        ("Rule::Offering", [Operand::Filter(filter)]) => return Ability::Offering(filter.clone()),
+        ("Rule::FlashForCasters", [Operand::Condition(condition)]) => {
+            return Ability::FlashIf(condition.clone())
+        }
+        ("Rule::CraftWithACraftable", [materials, cost]) => {
+            return Ability::Craft {
+                materials: Box::new(materials.clone()),
+                count: None,
+                cost: Box::new(cost.clone()),
+            }
+        }
+        (
+            "Rule::CraftWithANumberOfCraftables",
+            [Operand::Comparison(comparison, value), materials, cost],
+        ) => {
+            return Ability::Craft {
+                materials: Box::new(materials.clone()),
+                count: Some((comparison.clone(), value.clone())),
+                cost: Box::new(cost.clone()),
+            }
+        }
+        ("Rule::Mystery", [Operand::Condition(condition), Operand::List(abilities)]) => {
+            if let Some(abilities) = ability_list(abilities) {
+                return Ability::Mystery {
+                    condition: condition.clone(),
+                    abilities,
+                };
+            }
+        }
+        ("Rule::ProtectionAndDoesntRemovePermanents", [from, Operand::Objects(keeps)]) => {
+            return Ability::ProtectionExcept {
+                from: Box::new(from.clone()),
+                keeps: keeps.clone(),
+            }
+        }
         ("Rule::MaxSpeed", [Operand::Ability(ability)]) => {
             return Ability::Conditional {
                 condition: Condition::PlayerState {

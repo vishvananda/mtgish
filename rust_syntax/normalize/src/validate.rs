@@ -1036,7 +1036,7 @@ impl<'a> Scope<'a> {
             Condition::Primitive { name, operands } => self.primitive(name, operands),
             Condition::Window(_) => Ok(()),
             Condition::PlayerState { player, .. } => self.player(player),
-            Condition::ItsNeitherDayNorNight => Ok(()),
+            Condition::ItsNeitherDayNorNight | Condition::ItsNight => Ok(()),
             Condition::MostVotes { option, .. } | Condition::Voted(option) => {
                 self.vote_option(option)
             }
@@ -3165,6 +3165,37 @@ fn validate_ability_in(
                 validate_ability_in(ability, zones, casting_costs)?;
             }
             return Ok(());
+        }
+        Ability::Mystery {
+            condition,
+            abilities,
+        } => {
+            scope.condition(condition)?;
+            for ability in abilities {
+                validate_ability_in(ability, zones, casting_costs)?;
+            }
+            return Ok(());
+        }
+        Ability::DraftRule(effects) => {
+            return effects.iter().try_for_each(|effect| scope.operand(effect))
+        }
+        Ability::Companion(rule) | Ability::CommanderDeckRule(rule) => return scope.operand(rule),
+        Ability::Offering(filter) => return scope.filter(filter),
+        Ability::FlashIf(condition) => return scope.condition(condition),
+        Ability::Craft {
+            materials,
+            count,
+            cost,
+        } => {
+            scope.operand(materials)?;
+            if let Some((_, value)) = count {
+                scope.expr(value)?;
+            }
+            return scope.operand(cost);
+        }
+        Ability::ProtectionExcept { from, keeps } => {
+            scope.operand(from)?;
+            return scope.objects(keeps);
         }
         Ability::DeckRule(rule) => {
             return match rule {

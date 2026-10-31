@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 103;
+pub const SCHEMA_VERSION: u32 = 104;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -264,6 +264,32 @@ pub enum Ability {
         cause: Option<EventSpec>,
         abilities: Option<ObjectFilter>,
         rule: TriggerRule,
+    },
+    /// What this card does in a draft or before the game (Conspiracy).
+    DraftRule(Vec<Operand>),
+    /// CR 702.139: the condition a starting deck has to meet.
+    Companion(Box<Operand>),
+    /// A deck rule that only applies with this card as commander.
+    CommanderDeckRule(Box<Operand>),
+    /// CR 702.48: cast by sacrificing a matching permanent.
+    Offering(ObjectFilter),
+    /// Has flash for players while this holds.
+    FlashIf(Condition),
+    /// CR 702.167: exile this and materials, return transformed.
+    Craft {
+        materials: Box<Operand>,
+        count: Option<(Comparison, Expr)>,
+        cost: Box<Operand>,
+    },
+    /// These abilities apply while the condition holds.
+    Mystery {
+        condition: Condition,
+        abilities: Vec<Ability>,
+    },
+    /// Protection that does not remove these permanents already attached.
+    ProtectionExcept {
+        from: Box<Operand>,
+        keeps: ObjectSet,
     },
 }
 
@@ -3319,6 +3345,7 @@ pub enum Condition {
         player: PlayerRef,
         other: PlayerRef,
     },
+    ItsNight,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3843,6 +3870,12 @@ pub enum ObjectState {
     Suspended,
     HasAdventure,
     BlockedThisTurn,
+    HasSticker,
+    PowerBelowToughness,
+    Transformed,
+    NoAbilities,
+    /// Controlled continuously since the turn began (CR 302.6).
+    ControlledSinceTurnBegan,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
