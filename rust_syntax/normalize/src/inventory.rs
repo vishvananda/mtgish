@@ -1874,7 +1874,8 @@ impl Inventory<'_> {
             | Expr::ChosenPowerToughness { .. }
             | Expr::DieResultAt { .. }
             | Expr::DistributedShare(_)
-            | Expr::DieResult(_) => {}
+            | Expr::DieResult(_)
+            | Expr::HeadsFlipped(_) => {}
             Expr::ExcessDamage { to, .. } => self.filter(to),
             Expr::Primitive { name, .. } => self.primitive(name),
             Expr::EventHistory {
@@ -2033,7 +2034,9 @@ impl Inventory<'_> {
             ObjectFilter::OnStack(stack) => self.form("StackTrait", stack),
             ObjectFilter::AbilityOf(sources) => self.filter(sources),
             ObjectFilter::HasActivatedAbility(filter) => self.activation_filter(filter),
-            ObjectFilter::InSet(objects) => self.objects(objects),
+            ObjectFilter::InSet(objects) | ObjectFilter::SharesColorWithAny(objects) => {
+                self.objects(objects)
+            }
             ObjectFilter::InZone(scope) => self.zone_scope(scope),
             ObjectFilter::HasKeyword(k) => self.keyword(k),
             ObjectFilter::Supertype(ty) => self.form("SuperType", ty),

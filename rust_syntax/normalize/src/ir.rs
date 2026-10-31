@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 123;
+pub const SCHEMA_VERSION: u32 = 124;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2748,6 +2748,8 @@ pub enum Expr {
     TimesMutated(ObjectRef),
     /// Any of these values, for a comparison against a listed set.
     AnyOf(Vec<Expr>),
+    /// How many of the coins a `FlipCoins` flipped came up heads.
+    HeadsFlipped(ResultId),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3369,6 +3371,8 @@ pub enum ObjectFilter {
     SharesColorWith(ObjectRef),
     /// The filter chosen by a `ChooseValue` of `ValueKind::Filter`.
     ChosenFilter,
+    /// Shares a color with any of a set, as protection from the colors of permanents.
+    SharesColorWithAny(Box<ObjectSet>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

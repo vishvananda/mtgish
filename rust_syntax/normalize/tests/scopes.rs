@@ -1622,3 +1622,19 @@ fn chosen_pairs_damage_source_operands_and_hexproof_from_abilities() {
     assert!(hexproof.contains("OnStack(Activated)"), "{hexproof}");
     assert!(hexproof.contains("OnStack(Triggered)"), "{hexproof}");
 }
+
+#[test]
+fn flipped_heads_shared_colors_and_replaced_players() {
+    let coins = lowered(
+        "SpellActions(ActionList([FlipCoins(Integer(5)), TakeANumberOfExtraTurns(TheNumberOfCoinsThatCameUpHeads)]))",
+    );
+    assert!(coins.contains("HeadsFlipped"), "{coins}");
+    let colors = lowered(
+        "Protection(FromColor(ColorsOfPermanents(ControlledByAPlayer(SinglePlayer(You)))))",
+    );
+    assert!(colors.contains("SharesColorWithAny"), "{colors}");
+    let gore = lowered(
+        "ReplaceWouldGainLife(ASpellOrAbilityWouldCauseItsControllerToGainLife(AnySpellOrAbility), [PlayerAction(WouldGainLife_ThatPlayer, LoseLife(WouldGainLife_LifeAmount))])",
+    );
+    assert!(gore.contains("EventSubject"), "{gore}");
+}

@@ -855,6 +855,16 @@ impl<'a> Scope<'a> {
             Expr::EventActivationX if self.event.activation_x => Ok(()),
             Expr::EventActivationX => Err("event activation X used outside a cycling event".into()),
             Expr::Constant(_) | Expr::AnnouncedX => Ok(()),
+            Expr::HeadsFlipped(result) => {
+                if self.results.contains_key(&result.0) {
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "result {} flipped no coins in this scope",
+                        result.0
+                    ))
+                }
+            }
             Expr::DieResult(result) => {
                 if self.results.contains_key(&result.0) {
                     Ok(())
@@ -1014,7 +1024,9 @@ impl<'a> Scope<'a> {
             ObjectFilter::AbilityOf(sources) => self.filter(sources),
             ObjectFilter::HasActivatedAbility(filter) => self.activation_filter(filter),
             ObjectFilter::InZone(scope) => self.zone_scope(scope),
-            ObjectFilter::InSet(objects) => self.objects(objects),
+            ObjectFilter::InSet(objects) | ObjectFilter::SharesColorWithAny(objects) => {
+                self.objects(objects)
+            }
             ObjectFilter::Any
             | ObjectFilter::CardType(_)
             | ObjectFilter::Supertype(_)

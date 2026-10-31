@@ -3,7 +3,10 @@ impl Context {
     fn mana_production(&self, value: &source::ManaProduce) -> Result<ManaProduction> {
         self.reduced_mana_production(value).or_else(|error| {
             let (name, operands) = rescue(error, || self.primitive("ManaProduce", value))?;
-            if name == "ManaProduce::ManaOfTheChosenColor" {
+            if matches!(
+                name.as_str(),
+                "ManaProduce::ManaOfTheChosenColor" | "ManaProduce::ManaOfAChosenColor"
+            ) {
                 return Ok(ManaProduction::Amount {
                     color: ManaColor::Chosen,
                     amount: Expr::Constant(1),

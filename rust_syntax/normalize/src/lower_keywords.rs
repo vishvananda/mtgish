@@ -137,6 +137,10 @@ impl Context {
                         ObjectKind::Any,
                         ObjectFilter::SharesColorWith(self.object(object)?),
                     ),
+                    C::ColorsOfPermanents(permanents) => objects(
+                        ObjectKind::Any,
+                        ObjectFilter::SharesColorWithAny(Box::new(self.objects(permanents)?)),
+                    ),
                     C::TheColorsOfSpell(spell) => objects(
                         ObjectKind::Any,
                         ObjectFilter::SharesColorWith(self.spell(spell)?),

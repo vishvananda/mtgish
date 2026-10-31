@@ -602,6 +602,9 @@ impl Context {
         if name.starts_with("Action::Roll") {
             self.rolled = Some(result.clone());
         }
+        if name == "Action::FlipCoins" {
+            self.flipped = Some(result.clone());
+        }
         if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft") {
             self.conjured = Some(result.clone());
         }

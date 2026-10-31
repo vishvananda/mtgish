@@ -89,6 +89,7 @@ struct Context {
     defending: Option<PlayerRef>,
     /// The latest die rolled in this scope.
     rolled: Option<ResultId>,
+    flipped: Option<ResultId>,
     /// Zones the next search looks through besides a library, and whether it's "and/or".
     search_also: Vec<EventZone>,
     search_either: bool,
@@ -690,7 +691,9 @@ impl Context {
                 outer.outer_targets = 0;
                 return outer.object(&S::Ref_TargetPermanent);
             }
-            S::Ref_TargetPermanent | S::Ref_TargetPermanent1 => (self.permanent_slot(false, 0), 0),
+            S::Ref_TargetPermanent
+            | S::Ref_TargetPermanent1
+            | S::Ref_TargetPermanentOfPlayersChoice => (self.permanent_slot(false, 0), 0),
             S::Ref_TargetPermanents_0 => (0, 0),
             S::Ref_TargetPermanent2 => (self.permanent_slot(false, 1), 0),
             S::Ref_TargetPermanent3 => (2, 0),
@@ -832,6 +835,7 @@ impl Context {
             S::Trigger_ThatPlayer
             | S::WouldDrawACard_ThatPlayer
             | S::WouldGainLife_ThatPlayer
+            | S::WouldPutAPermanentOnBattlefield_ThatPlayer
             | S::WouldDealDamage_DamageRecipientPlayer
                 if self.event.player =>
             {
@@ -1550,6 +1554,7 @@ impl Context {
             | S::Trigger_AmountOfCards
             | S::Trigger_AmountOfLifeGained
             | S::Trigger_AmountOfLifeLost
+            | S::Trigger_DiscoverValue
             | S::WouldDealDamage_ThatMuchDamage
             | S::WouldGainLife_LifeAmount
             | S::WouldLoseLife_ThatMuch
@@ -1562,6 +1567,11 @@ impl Context {
                 Expr::EventAmount
             }
             S::TheDiceResult => self.die_result()?,
+            S::TheNumberOfCoinsThatCameUpHeads => Expr::HeadsFlipped(
+                self.flipped
+                    .clone()
+                    .ok_or_else(|| invalid("no coins were flipped in this scope"))?,
+            ),
             S::TheFirstDiceResult | S::TheSecondDiceResult => {
                 let Expr::DieResult(result) = self.die_result()? else {
                     unreachable!()
@@ -4772,7 +4782,7 @@ impl Context {
                         each: Box::new(Count::UpTo(Expr::Constant(1))),
                     };
                 }
-                S::UptoOneTargetPermanent(p) => {
+                S::UptoOneTargetPermanent(p) | S::UptoOneTargetPermanent_Optional(p) => {
                     target.filter = self.filter(p)?;
                     target.count = Count::UpTo(Expr::Constant(1));
                 }
