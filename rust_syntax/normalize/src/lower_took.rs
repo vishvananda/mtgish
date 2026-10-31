@@ -77,6 +77,24 @@ impl Context {
             S::ExiledACardThisWay => some(self.moved_by(Done::Exiled, After, player, None)?),
             S::ControlledAPermanentDestroyedThisWay => controlled(Done::Destroyed)?,
             S::ControlledAPermanentExiledThisWay => controlled(Done::Exiled)?,
+            S::ControlledAPermanentReturnToHandThisWay => controlled(Done::Returned)?,
+            S::ControlledAPermanentShuffledIntoLibraryThisWay => controlled(Done::Library)?,
+            S::ShuffledAPermanentIntoTheirLibraryThisWay(filter) => some(self.moved_by(
+                Done::Library,
+                Before,
+                player,
+                Some(self.filter(filter)?),
+            )?),
+            S::CreatedATokenThisWay => {
+                let result = self
+                    .created_tokens
+                    .clone()
+                    .ok_or_else(|| invalid("tokens-created reference has no creation in this scope"))?;
+                some(ObjectSet::Matching {
+                    objects: Box::new(ObjectSet::Created(result)),
+                    filter: ObjectFilter::ControlledBy(PlayerSet::One(player.clone())),
+                })
+            }
             _ => return Ok(None),
         }))
     }

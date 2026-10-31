@@ -1,6 +1,6 @@
 /// Why a reflexive trigger's event is the base action having happened. Forms that
 /// test what happened carry an operand and stay out of this list.
-const REFLEXIVE_EVENTS: [&str; 13] = [
+const REFLEXIVE_EVENTS: [&str; 15] = [
     "YouDo",
     "TheyDo",
     "ItConnivesThisWay",
@@ -14,6 +14,8 @@ const REFLEXIVE_EVENTS: [&str; 13] = [
     "YouDiscardOneOrMoreCardsThisWay",
     "YouPutAnyNumberOfPermanentsOnTheBattlefieldThisWay",
     "YouSearchYourLibraryThisWay",
+    "YouPayOneOrMoreTimes",
+    "APermanentIsPutOnTheBattlefieldThisWay",
 ];
 
 enum Base {
@@ -23,6 +25,10 @@ enum Base {
 
 fn base_form(name: &str, args: &serde_json::Value) -> Option<Base> {
     use crate::pipeline::source_tree::decode;
+    let name = name.replace("RollDiceD", "RollAD").replace(
+        "PutAPermanentInOwnersHand",
+        "PutAPermanentIntoItsOwnersHand",
+    );
     let form = |ty| serde_json::json!({ "enum": ty, "variant": name, "args": args });
     let mut action = form("Action");
     retag(&mut action, &|n: &str| (n == "CardsInHand").then_some("Cards"));
@@ -38,6 +44,34 @@ fn base_forms(name: &str, args: &serde_json::Value) -> Option<Vec<Base>> {
     if let Some(base) = base_form(name, args) {
         return Some(vec![base]);
     }
+    if let (Some((first, rest)), serde_json::Value::Array(items)) = (name.split_once('_'), args) {
+        if let [one, two] = items.as_slice() {
+            let mut bases = base_forms(first, one)?;
+            bases.extend(base_forms(rest, two)?);
+            return Some(bases);
+        }
+    }
+    if name == "PutOnBattlefield" {
+        let serde_json::Value::Array(items) = args else {
+            return None;
+        };
+        let [wrappers, flags] = items.as_slice() else {
+            return None;
+        };
+        let [wrapper] = wrappers.as_array()?.as_slice() else {
+            return None;
+        };
+        let form = match wrapper["variant"].as_str()? {
+            "CardInGraveyard" => "PutGraveyardCardOntoBattlefield",
+            "TheTopCardOfLibrary" => "PutTopOfLibraryOnBattlefield",
+            _ => return None,
+        };
+        let operands = match &wrapper["args"] {
+            serde_json::Value::Null => flags.clone(),
+            one => serde_json::Value::Array(vec![one.clone(), flags.clone()]),
+        };
+        return base_form(form, &operands).map(|base| vec![base]);
+    }
     let wrappers = match args {
         serde_json::Value::Array(items) => items.as_slice(),
         one => std::slice::from_ref(one),
@@ -51,7 +85,10 @@ fn base_forms(name: &str, args: &serde_json::Value) -> Option<Vec<Base>> {
 fn last_result(instruction: &Instruction) -> Option<ResultId> {
     match instruction {
         Instruction::Effect { result, .. } => Some(result.clone()),
-        Instruction::Group(program) => program.instructions.last().and_then(last_result),
+        Instruction::Group(program)
+        | Instruction::ForEachPlayer { body: program, .. } => {
+            program.instructions.last().and_then(last_result)
+        }
         _ => None,
     }
 }
@@ -73,10 +110,15 @@ impl Context {
             Some(event) => (event, true),
             None => (event, false),
         };
-        let filtered = matches!(
+        let discarded = matches!(
             event,
             "ACardOfTypeIsDiscardedThisWay" | "YouDiscardOneOrMoreCardsOfTypeThisWay"
         );
+        let exiled = matches!(
+            event,
+            "ACardOfTypeIsExiledThisWay" | "AnyNumberOfCardsOfTypeAreExiledThisWay"
+        );
+        let filtered = discarded || exiled;
         if !REFLEXIVE_EVENTS.contains(&event) && !filtered {
             return None;
         }
@@ -92,16 +134,44 @@ impl Context {
                 retag(&mut cards, &|n: &str| {
                     matches!(n, "CardsInHand" | "CardsInLibrary").then_some("Cards")
                 });
-                Some(source::Condition::ACardWasDiscardedThisWay(decode(&cards).ok()?))
+                let cards = decode(&cards).ok()?;
+                Some(if exiled {
+                    source::Condition::ACardWasExiledThisWay(cards)
+                } else {
+                    source::Condition::ACardWasDiscardedThisWay(cards)
+                })
             }
             _ => None,
         };
+        // "Each player" and "a player" name who does the base action.
+        let (performer, base) = match base {
+            "EachPlayerExiles" => (Some("EachPlayerAction"), "Exile"),
+            "EachPlayerMills" => (Some("EachPlayerAction"), "Mill"),
+            "PlayerSacrifices" => (Some("PlayerAction"), "Sacrifice"),
+            _ => (None, base),
+        };
+        let who = performer.map(|_| args.remove(0));
         let args = match args.len() {
             0 => serde_json::Value::Null,
             1 => args.pop()?,
             _ => serde_json::Value::Array(args),
         };
-        let bases = base_forms(base, &args)?;
+        let mut bases = base_forms(base, &args)?;
+        if let (Some(form), Some(who)) = (performer, who) {
+            bases = bases
+                .into_iter()
+                .map(|base| match base {
+                    Base::Action(action) => {
+                        let action = crate::inspect::value(&action).ok()?;
+                        let wrapped = serde_json::json!({
+                            "enum": "Action", "variant": form, "args": [who, action],
+                        });
+                        decode(&wrapped).ok().map(Base::Action)
+                    }
+                    Base::Cost(_) => None,
+                })
+                .collect::<Option<_>>()?;
+        }
         let before = self.clone();
         let lowered = self.reflexive_body(&bases, condition.as_ref(), &actions, actor);
         if lowered.is_err() {

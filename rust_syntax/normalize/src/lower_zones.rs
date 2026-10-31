@@ -133,6 +133,9 @@ impl Context {
     fn exiled_card(&self, value: &source::CardInExile) -> Result<ObjectRef> {
         use source::CardInExile as S;
         match value {
+            S::EachableExiled if self.iterated_object.is_some() => {
+                Ok(ObjectRef::Bound(self.iterated_object.clone().unwrap()))
+            }
             S::TheExiledCardChosenThisWay | S::TheChosenExiledCard
                 if self.exile_choice.is_some() =>
             {

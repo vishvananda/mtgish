@@ -196,11 +196,14 @@ impl Context {
 
     /// A descriptive enum the registry lists, with every operand bound.
     fn term(&self, ty: &str, value: &serde_json::Value) -> Option<Operand> {
-        if !crate::primitive_spec::registry()
+        let listed = crate::primitive_spec::registry()
             .terms
             .iter()
-            .any(|t| t == ty)
-        {
+            .any(|t| t == ty);
+        let reviewed = value["variant"]
+            .as_str()
+            .is_some_and(|form| crate::primitive_spec::lookup(&format!("{ty}::{form}")).is_some());
+        if !listed && !reviewed {
             return None;
         }
         let operands = match &value["args"] {
