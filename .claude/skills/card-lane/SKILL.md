@@ -21,7 +21,7 @@ Each command sets up its own build environment. Run them from anywhere.
 | Command | What it does |
 | --- | --- |
 | `card_lane.py next` | Takes the next card, writes its code, placeholders and packet, and prints its brief. Prints the same brief again if a card is already open |
-| `card_lane.py corpus --card "Name" --brief` | Plays the card's scenarios. Also `--next`, `--dump`, `--diff N`, `--file PATH` |
+| `card_lane.py corpus --card "Name" --brief` | Plays the card's scenarios. Also `--next`, `--dump`, `--diff N`, `--file PATH`, `--scenario NAME`. Use this, not the `cargo` line in a placeholder's header |
 | `card_lane.py check "Name" --fast` | The gates that take seconds, your report included. Prints what failed |
 | `card_lane.py check "Name"` | Every gate, including breaking the card. Takes minutes, so run it when the fast gates pass |
 | `card_lane.py commit "Name"` | Every gate, then exactly one commit, or no commit |
@@ -85,7 +85,7 @@ A card that is wrong is worse than a card that is missing.
    or, for a card with none, play the card itself. A keyword gets a scenario that fails without it: the flier that cannot be blocked,
    the first striker that takes no damage back. Give every test point an expectation that fails if the card gets it wrong:
    the exact amount, both players' objects for "each", "target" or "you control", an earlier turn for "this turn". A spell or
-   creature with a cost gets `? Bot1.Mana =` right after its cast, so a cost too low fails. Before you move on, read each
+   creature with a cost gets `? Bot1.Mana =`, nothing after the `=`, right after its cast, so a cost too low fails. Before you move on, read each
    opening comment again: it claims only what an expectation checks, and point the report at the line that catches the
    behavior, not one that says a keyword is present.
 
@@ -122,7 +122,7 @@ A card that is wrong is worse than a card that is missing.
 
 ## Limits
 
-- Write only new files under `scenarios/` and the packet's `report.json`. The card's file and content file are read-only,
+- Write only new files under `scenarios/`, deleting the placeholders you replace, and the packet's `report.json`. The card's file and content file are read-only,
   and the `generated` gate holds them to what the tools wrote. Edit nothing else: not `cantrip-mechanics`, not the core, not
   the client.
 - If the card is wrong, or a scenario shows it does something other than the text says, do not work around it. Set
