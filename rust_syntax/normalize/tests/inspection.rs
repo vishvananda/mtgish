@@ -61,6 +61,7 @@ fn operations(c: &Card) -> Vec<&Operation> {
                 | Instruction::Optional { body: p, .. }
                 | Instruction::Repeatable(p)
                 | Instruction::Times { body: p, .. }
+                | Instruction::ForEachObject { body: p, .. }
                 | Instruction::ForEachPlayer { body: p, .. } => program(p, out),
                 Instruction::If {
                     then, otherwise, ..

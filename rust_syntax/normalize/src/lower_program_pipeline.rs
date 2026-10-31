@@ -53,6 +53,29 @@ impl Context {
         })
     }
 
+    /// Run `lower`'s body once per object; earlier bindings stay readable.
+    fn for_each_object(
+        &mut self,
+        objects: ObjectSet,
+        lower: impl FnOnce(&mut Self) -> Result<Program>,
+    ) -> Result<Instruction> {
+        let binding = Binding(self.binding_depth);
+        let mut child = self.clone();
+        child.binding_depth = self
+            .binding_depth
+            .checked_add(1)
+            .ok_or_else(|| invalid("object iteration nesting is too deep"))?;
+        child.iterated_object = Some(binding.clone());
+        let body = lower(&mut child)?;
+        self.result = child.result;
+        self.invalidate_child_bindings(&child);
+        Ok(Instruction::ForEachObject {
+            objects,
+            binding,
+            body,
+        })
+    }
+
     fn nested_program_recipe(
         &mut self,
         recipe: &crate::pipeline::programs::InstructionRecipe,
@@ -222,7 +245,7 @@ impl Context {
                         Expr::Constant(modes.len() as i64),
                         false,
                     ),
-                    B::OneOrMore | B::Escalate(_) => {
+                    B::OneOrMore | B::Escalate(_) | B::DifferentTargets => {
                         (Expr::Constant(1), Expr::Constant(modes.len() as i64), false)
                     }
                     B::AnyNumber => (Expr::Constant(0), Expr::Constant(modes.len() as i64), false),
@@ -299,6 +322,7 @@ impl Context {
                 self.modes = Some(ModeSelection {
                     unchosen,
                     surcharge,
+                    distinct_targets: matches!(bounds, B::DifferentTargets),
                     minimum,
                     maximum,
                     repeat,

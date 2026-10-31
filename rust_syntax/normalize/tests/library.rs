@@ -82,7 +82,6 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         "Claim Jumper",
         "Land Grant",
         "Plunge into Darkness",
-        "Snooping Newsie",
         "Tooth and Nail",
         "Urza's Saga",
         "Wishclaw Talisman",
@@ -110,7 +109,7 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 80);
+    assert_eq!(complete, 81);
 }
 
 #[test]

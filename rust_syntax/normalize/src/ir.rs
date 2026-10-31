@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 49;
+pub const SCHEMA_VERSION: u32 = 50;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -459,6 +459,8 @@ pub struct ModeSelection {
     pub unchosen: Option<ModeHistory>,
     /// Paid once for each mode chosen beyond the first, as for escalate (702.120).
     pub surcharge: Option<Cost>,
+    /// No two chosen modes may share a target.
+    pub distinct_targets: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -586,6 +588,12 @@ pub enum Instruction {
     /// at most this many runs in all: "repeat this process X more times".
     Times {
         amount: Expr,
+        body: Program,
+    },
+    /// Run `body` once for each of these objects, read as `ObjectRef::Bound`.
+    ForEachObject {
+        objects: ObjectSet,
+        binding: Binding,
         body: Program,
     },
 }
@@ -2066,6 +2074,10 @@ pub enum Duration {
         player: PlayerRef,
         cost: Cost,
     },
+    /// Ends when none of these cards remain in exile.
+    WhileAnyExiled(ObjectSet),
+    /// Ends when this card is cast from exile.
+    UntilCast(ObjectRef),
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.

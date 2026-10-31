@@ -341,6 +341,7 @@ impl Effects {
                     self.program(otherwise);
                 }
                 Instruction::Times { body, .. }
+                | Instruction::ForEachObject { body, .. }
                 | Instruction::ForEachPlayer { body, .. }
                 | Instruction::Repeatable(body) => self.program(body),
                 Instruction::ChooseOne { options, .. } => {

@@ -238,6 +238,10 @@ impl Inventory<'_> {
                     self.program(body);
                 }
                 Instruction::Repeatable(body) => self.program(body),
+                Instruction::ForEachObject { objects, body, .. } => {
+                    self.objects(objects);
+                    self.program(body);
+                }
                 Instruction::Times { amount, body } => {
                     self.expr(amount);
                     self.program(body);
@@ -1488,6 +1492,8 @@ impl Inventory<'_> {
                 self.player(player);
                 self.cost(cost);
             }
+            Duration::WhileAnyExiled(objects) => self.objects(objects),
+            Duration::UntilCast(object) => self.object(object),
             Duration::WhileControlled { player, object } => {
                 self.player(player);
                 self.object(object);

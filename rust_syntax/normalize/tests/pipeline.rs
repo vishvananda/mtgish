@@ -1784,7 +1784,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 49);
+    assert_eq!(card.schema_version, 50);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2470,4 +2470,24 @@ fn life_lost_is_the_event_amount() {
 fn a_chosen_hand_card_can_go_to_the_bottom_of_the_library() {
     let text = ability_json("SpellActions(ActionList([PutACardFromHandOnBottomOfLibrary]))");
     assert!(text.contains("OwnersLibraryBottom"), "{text}");
+}
+
+#[test]
+fn for_each_object_binds_the_object_for_its_body() {
+    let text = ability_json("SpellActions(ActionList([ActionForEachPermanent(IsCardtype(Creature),[DestroyPermanent(EachablePermanent)])]))");
+    assert!(text.contains("ForEachObject"), "{text}");
+    assert!(text.contains("Bound"), "{text}");
+}
+
+#[test]
+fn a_chosen_permanent_is_read_from_its_choice() {
+    let text = ability_json("SpellActions(ActionList([ChooseAPermanent(IsCardtype(Creature)),DestroyPermanent(ThePermanentChosenThisWay)]))");
+    assert!(text.contains("ChooseObjects"), "{text}");
+    assert!(text.contains("\"Result\""), "{text}");
+}
+
+#[test]
+fn modes_can_require_different_targets() {
+    let text = ability_json("SpellActions(Modal_ChooseOneOrMore_DifferentTargets([ActionList([DrawACard]),ActionList([GainLife(Integer(2))])]))");
+    assert!(text.contains("\"distinct_targets\":true"), "{text}");
 }

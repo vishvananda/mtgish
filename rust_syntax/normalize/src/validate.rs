@@ -27,6 +27,7 @@ struct Scope<'a> {
     casting_costs: BTreeMap<u32, Cost>,
     payment_costs: BTreeMap<u32, Cost>,
     ordered_results: BTreeSet<u32>,
+    bound_objects: BTreeSet<u32>,
     singular: BTreeSet<u32>,
     repeatable: bool,
     open_searches: Vec<PlayerRef>,
@@ -355,6 +356,7 @@ impl<'a> Scope<'a> {
             {
                 Ok(())
             }
+            ObjectRef::Bound(binding) if self.bound_objects.contains(&binding.0) => Ok(()),
             ObjectRef::Bound(_) => Err("object binding has no declaration".into()),
             ObjectRef::EventSubject => Err("event subject used outside a triggered ability".into()),
             ObjectRef::Result { result, .. } => Err(format!(
@@ -409,6 +411,8 @@ impl<'a> Scope<'a> {
                 self.player(player)?;
                 self.cost(cost)
             }
+            Duration::WhileAnyExiled(objects) => self.objects(objects),
+            Duration::UntilCast(object) => self.object(object),
             Duration::WhileMatches { object, filter } => {
                 self.object(object)?;
                 self.filter(filter)
@@ -1978,6 +1982,16 @@ impl<'a> Scope<'a> {
                                 }
                             }
                         }
+                    }
+                    Instruction::ForEachObject {
+                        objects,
+                        binding,
+                        body,
+                    } => {
+                        self.objects(objects)?;
+                        let mut iterated = self.clone();
+                        iterated.bound_objects.insert(binding.0);
+                        iterated.program(body)?;
                     }
                     Instruction::Times { amount, body } => {
                         self.expr(amount)?;

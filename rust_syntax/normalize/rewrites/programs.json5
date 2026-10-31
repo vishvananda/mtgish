@@ -375,6 +375,19 @@
       }
     },
     {
+      "id": "program.Actions.Modal_ChooseOneOrMore_DifferentTargets",
+      "domain": "Actions",
+      "source": "Modal_ChooseOneOrMore_DifferentTargets",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "DifferentTargets"
+        },
+        "modes": 0
+      }
+    },
+    {
       "id": "program.Actions.Modal_ChooseOneOrMore_Escalate",
       "domain": "Actions",
       "source": "Modal_ChooseOneOrMore_Escalate",

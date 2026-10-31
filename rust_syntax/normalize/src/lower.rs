@@ -110,6 +110,9 @@ struct Context {
     /// "defending player" in an activation limit is no attacker's.
     activation_limit: bool,
     hand_choice: Option<ResultId>,
+    permanent_choice: Option<ResultId>,
+    exile_choice: Option<ResultId>,
+    iterated_object: Option<Binding>,
 }
 
 /// Actions a later "this way" can name in the same resolution.
@@ -285,6 +288,14 @@ impl Context {
         if self.hand_choice.as_ref().map(|r| r.0) != child.hand_choice.as_ref().map(|r| r.0) {
             self.hand_choice = None;
         }
+        if self.permanent_choice.as_ref().map(|r| r.0)
+            != child.permanent_choice.as_ref().map(|r| r.0)
+        {
+            self.permanent_choice = None;
+        }
+        if self.exile_choice.as_ref().map(|r| r.0) != child.exile_choice.as_ref().map(|r| r.0) {
+            self.exile_choice = None;
+        }
         if self.entered.as_ref().map(|r| r.0) != child.entered.as_ref().map(|r| r.0) {
             self.entered = None;
         }
@@ -324,8 +335,20 @@ impl Context {
                 return self.paid_object(crate::number_spec::PaymentAction::Tap)
             }
 
+            S::EachablePermanent if self.iterated_object.is_some() => {
+                return Ok(ObjectRef::Bound(self.iterated_object.clone().unwrap()));
+            }
             S::EachablePermanent if self.candidate => return Ok(ObjectRef::Candidate),
             S::EachablePermanent => return Ok(ObjectRef::Affected),
+            S::ThePermanentChosenThisWay | S::TheChosenPermanent
+                if self.permanent_choice.is_some() =>
+            {
+                return Ok(ObjectRef::Result {
+                    result: self.permanent_choice.clone().unwrap(),
+                    phase: ObjectPhase::After,
+                    index: 0,
+                });
+            }
             S::TheChosenPermanent => return Ok(ObjectRef::Chosen),
             S::ThePermanentPutOnTheBattlefieldThisWay => {
                 let token = self
@@ -576,6 +599,14 @@ impl Context {
                 })
                 .ok_or_else(|| invalid("movement reference has no transition in this scope"));
         }
+        if let (
+            source::Permanents::ThePermanentsChosenThisWay
+            | source::Permanents::TheChosenPermanents,
+            Some(result),
+        ) = (value, &self.permanent_choice)
+        {
+            return Ok(ObjectSet::Selected(result.clone()));
+        }
         if matches!(
             value,
             source::Permanents::ThePermanentsAffectedThisWay
@@ -648,6 +679,12 @@ impl Context {
                 return Ok(ObjectFilter::SharesNameWithAny(Box::new(
                     self.objects(objects)?,
                 )));
+            }
+            source::Permanents::IsNonCreatureTypeVariable(variable) => {
+                let matching = self.filter_inner(&source::Permanents::IsCreatureTypeVariable(
+                    variable.clone(),
+                ))?;
+                return Ok(ObjectFilter::Not(Box::new(matching)));
             }
             source::Permanents::IsntAttacking => {
                 let attacking = self.filter_inner(&source::Permanents::IsAttacking)?;
@@ -821,6 +858,18 @@ impl Context {
                 Expr::CountDistinct {
                     objects: Box::new(self.objects(objects)?),
                     property: DistinctProperty::Names,
+                }
+            }
+            S::WhenAPermanentEntersTheBattlefield_AmountOfManaSpentToCast
+                if self.event.permanent =>
+            {
+                Expr::ManaSpent {
+                    object: ObjectRef::EventSubject,
+                    filter: SpentManaFilter {
+                        colors: None,
+                        snow: false,
+                    },
+                    aggregation: SpentManaAggregation::Count,
                 }
             }
             S::NumColorsManaSpentToCastEnteringPermanent if self.event.permanent => {
@@ -1035,6 +1084,20 @@ impl Context {
                 comparison: Comparison::Greater,
                 right: Expr::Constant(0),
             },
+            S::APermanentWasPutOntoTheBattlefieldThisWay(objects) => {
+                let result = self.entered.clone().ok_or_else(|| unsupported(value))?;
+                Condition::Compare {
+                    left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                        objects: Box::new(ObjectSet::Transition {
+                            result,
+                            phase: ObjectPhase::After,
+                        }),
+                        filter: self.filter(objects)?,
+                    })),
+                    comparison: Comparison::Greater,
+                    right: Expr::Constant(0),
+                }
+            }
             S::ACardWasPutIntoHandThisWay(cards) => {
                 let results = self
                     .inspection_hand
@@ -1091,6 +1154,12 @@ impl Context {
         Ok(match value {
             source::Expiration::UntilEndOfTurn => Duration::EndOfTurn,
             source::Expiration::UntilEndOfCombat => Duration::EndOfCombat,
+            source::Expiration::UntilCardsAreNoLongerExiled(cards) => {
+                Duration::WhileAnyExiled(self.exile_cards(cards)?)
+            }
+            source::Expiration::UntilCardIsCastFromExile(card) => {
+                Duration::UntilCast(self.exiled_card(card)?)
+            }
             source::Expiration::UntilPlayerPaysMana(player, mana) => Duration::UntilPaid {
                 player: self.player(player)?,
                 cost: self.cost(&source::Cost::PayMana(mana.clone()))?,
@@ -1260,10 +1329,14 @@ impl Context {
                     S::AddAbilityVariable(source::AbilityVariable::TheChosenAbility) => {
                         vec![Change::ChosenAbility]
                     }
-                    S::SetColor(source::SettableColor::TheChosenColor) => {
+                    S::SetColor(
+                        source::SettableColor::TheChosenColor | source::SettableColor::TheChosenColors,
+                    ) => {
                         vec![Change::ChosenColor { mode: ChangeMode::Set }]
                     }
-                    S::AddColor(source::SettableColor::TheChosenColor) => {
+                    S::AddColor(
+                        source::SettableColor::TheChosenColor | source::SettableColor::TheChosenColors,
+                    ) => {
                         vec![Change::ChosenColor { mode: ChangeMode::Add }]
                     }
                     S::SetColor(c) | S::AddColor(c) => vec![Change::Colors { mode:if matches!(value,S::SetColor(_)) {ChangeMode::Set} else {ChangeMode::Add},colors:self.fixed_colors(c)? }],
@@ -1732,6 +1805,65 @@ impl Context {
                 let players = self.players(players)?;
                 let create = S::CreateTokens(tokens.clone(), flags.clone());
                 return self.for_each_player(players, |context, _| context.action(&create, actor));
+            }
+            // Choosing among earlier choices stays a row: they have no result to read.
+            S::ChooseAPermanent(objects) | S::ChooseUptoOnePermanent(objects)
+                if matches!(actor, PlayerSet::One(_))
+                    && !matches!(**objects, source::Permanents::TheChosenPermanents) =>
+            {
+                let PlayerSet::One(player) = actor else {
+                    unreachable!()
+                };
+                let choice = self.effect(Operation::ChooseObjects {
+                    constraints: vec![],
+                    player: player.clone(),
+                    objects: self.objects(objects)?,
+                    count: if matches!(value, S::ChooseUptoOnePermanent(_)) {
+                        Count::UpTo(Expr::Constant(1))
+                    } else {
+                        Count::AsManyAsCan(Expr::Constant(1))
+                    },
+                });
+                let Instruction::Effect { result, .. } = &choice else {
+                    unreachable!()
+                };
+                self.permanent_choice = Some(result.clone());
+                return Ok(choice);
+            }
+            S::ChooseAnExiledCard(cards) if matches!(actor, PlayerSet::One(_)) => {
+                let PlayerSet::One(player) = actor else {
+                    unreachable!()
+                };
+                let choice = self.effect(Operation::ChooseObjects {
+                    constraints: vec![],
+                    player: player.clone(),
+                    objects: self.exile_cards(cards)?,
+                    count: Count::AsManyAsCan(Expr::Constant(1)),
+                });
+                let Instruction::Effect { result, .. } = &choice else {
+                    unreachable!()
+                };
+                self.exile_choice = Some(result.clone());
+                return Ok(choice);
+            }
+            S::ActionForEachPermanent(objects, actions) => {
+                let objects = self.objects(objects)?;
+                return self.for_each_object(objects, |context| {
+                    let instructions = actions
+                        .iter()
+                        .map(|action| context.action(action, actor))
+                        .collect::<Result<_>>()?;
+                    Ok(Program { instructions })
+                });
+            }
+            S::CreateTokensForEachPermanent(objects, tokens, flags) => {
+                let objects = self.objects(objects)?;
+                let create = S::CreateTokens(tokens.clone(), flags.clone());
+                return self.for_each_object(objects, |context| {
+                    Ok(Program {
+                        instructions: vec![context.action(&create, actor)?],
+                    })
+                });
             }
             S::ActionForEachPlayer(players, actions) => {
                 let players = self.players(players)?;

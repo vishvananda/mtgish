@@ -121,6 +121,15 @@ impl Context {
     fn exiled_card(&self, value: &source::CardInExile) -> Result<ObjectRef> {
         use source::CardInExile as S;
         match value {
+            S::TheExiledCardChosenThisWay | S::TheChosenExiledCard
+                if self.exile_choice.is_some() =>
+            {
+                Ok(ObjectRef::Result {
+                    result: self.exile_choice.clone().unwrap(),
+                    phase: ObjectPhase::After,
+                    index: 0,
+                })
+            }
             S::Ref_TargetExiledCard | S::Ref_TargetExiledCard1 => {
                 self.object_target(ObjectDomain::card(EventZone::Exile), 0)
             }
@@ -296,6 +305,14 @@ impl Context {
             S::EachCardInGraveyards(c) => (self.grave_cards(c)?, None),
             S::ACardFromHand => (
                 self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
+                Some(Count::AsManyAsCan(Expr::Constant(1))),
+            ),
+            S::ACardOfTypeFromPlayersHand(cards, player) => (
+                self.private_cards(
+                    EventZone::Hand,
+                    PlayerSet::One(self.player(player)?),
+                    self.hand_filter(cards)?,
+                ),
                 Some(Count::AsManyAsCan(Expr::Constant(1))),
             ),
             S::NumberCardsFromHand(n) => (

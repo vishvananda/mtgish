@@ -67,6 +67,7 @@ pub enum ModeBounds {
     OneOrBothIf(source::Condition),
     Unchosen(bool),
     Escalate(source::Cost),
+    DifferentTargets,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ProgramSource {
