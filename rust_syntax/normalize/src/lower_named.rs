@@ -208,6 +208,7 @@ impl Context {
             "CardsInGraveyards" if scoped => {
                 Operand::Objects(self.grave_cards(&decode(value).ok()?).ok()?)
             }
+            "CardsInGraveyards" => Operand::Filter(self.grave_filter(&decode(value).ok()?).ok()?),
             "Targets" => Operand::Recipients(Recipients::Targets(
                 self.target(TargetKind::DamageRecipient, 0, 0).ok()?,
             )),
@@ -739,12 +740,23 @@ impl Context {
 
     fn primitive_object(&self, value: &source::Permanent) -> Option<ObjectRef> {
         let (name, operands) = self.primitive("Permanent", value)?;
-        Some(ObjectRef::Primitive { name, operands })
+        Some(match (name.as_str(), operands.as_slice()) {
+            ("Permanent::TheCreaturePairedWithPermanent", [Operand::Object(object)]) => {
+                ObjectRef::PairedWith(Box::new(object.clone()))
+            }
+            _ => ObjectRef::Primitive { name, operands },
+        })
     }
 
     fn primitive_player(&self, value: &source::Player) -> Option<PlayerRef> {
         let (name, operands) = self.primitive("Player", value)?;
-        Some(PlayerRef::Primitive { name, operands })
+        Some(match (name.as_str(), operands.as_slice()) {
+            ("Player::ClashOpponent", []) => PlayerRef::ClashOpponent,
+            ("Player::PlayerOrControllerOfPermanent", [Operand::Recipients(recipient)]) => {
+                PlayerRef::PlayerOrControllerOf(Box::new(recipient.clone()))
+            }
+            _ => PlayerRef::Primitive { name, operands },
+        })
     }
 
     fn primitive_number(&self, value: &source::GameNumber) -> Option<Expr> {

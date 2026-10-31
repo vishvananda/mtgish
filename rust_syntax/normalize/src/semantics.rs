@@ -178,6 +178,8 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
             ..
         } => "Action::ConjureCardIntoHand",
         Operation::Conjure { .. } => "Action::ConjureCardOntoBattlefield",
+        Operation::Goad { .. } => "Action::GoadEachCreature",
+        Operation::DraftFromSpellbook { .. } => "Action::DraftACardFromSpellBook",
         _ => return None,
     };
     crate::primitive_spec::lookup(name)?.yields.as_deref()
@@ -472,6 +474,9 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
     {
         return operation;
     }
+    if let Some(operation) = reduce_named_action(&actor, &name, &operands) {
+        return operation;
+    }
     if let ("Action::CounterAbility", [Operand::Object(object)]) =
         (name.as_str(), operands.as_slice())
     {
@@ -537,10 +542,67 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
     }
 }
 
+/// The ordered steps of a list of programs, when every entry is one.
+fn program_list(operands: &[Operand]) -> Option<Vec<Program>> {
+    operands
+        .iter()
+        .map(|operand| match operand {
+            Operand::Program(program) => Some(program.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Named actions with one meaning, each its own operation or an ordinary one.
+fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option<Operation> {
+    use Operand::{Duration, List, Number, Object, Objects, Players, Text};
+    let draft = |spellbook: &String, times: Expr| Operation::DraftFromSpellbook {
+        actor: actor.clone(),
+        spellbook: spellbook.clone(),
+        times,
+    };
+    let goad = |objects: ObjectSet, until: Option<&crate::ir::Duration>| Operation::Goad {
+        actor: actor.clone(),
+        objects,
+        until: until.cloned(),
+    };
+    Some(match (name.strip_prefix("Action::")?, operands) {
+        ("GoadEachCreature", [Objects(objects)]) => goad(objects.clone(), None),
+        ("GoadEachCreatureUntil", [Objects(objects), Duration(until)]) => {
+            goad(objects.clone(), Some(until))
+        }
+        ("GoadCreatureUntil", [Object(object), Duration(until)]) => {
+            goad(ObjectSet::One(object.clone()), Some(until))
+        }
+        // CR 701.34a: a +1/+1 counter on each of up to N other target creatures.
+        ("Support", [Objects(objects)]) => Operation::PutCounters {
+            placements: vec![CounterPlacement {
+                recipients: Recipients::Objects(objects.clone()),
+                kind: crate::counter::CounterKind::PowerToughness(1, 1),
+                amount: Expr::Constant(1),
+                selection: None,
+            }],
+        },
+        ("Clash", [Players(opponents), List(won), List(lost)]) => Operation::Clash {
+            actor: actor.clone(),
+            opponents: opponents.clone(),
+            won: program_list(won)?,
+            lost: program_list(lost)?,
+        },
+        ("DraftACardFromSpellBook", [Text(spellbook)]) => draft(spellbook, Expr::Constant(1)),
+        ("DraftACardFromSpellBookNumberTimes", [Text(spellbook), Number(times)]) => {
+            draft(spellbook, times.clone())
+        }
+        _ => return None,
+    })
+}
+
 /// A reviewed row that makes a card a later reference can read.
 pub fn makes_card(operation: &Operation) -> bool {
-    matches!(operation, Operation::Conjure { .. })
-        || matches!(operation, Operation::Primitive { name, .. }
+    matches!(
+        operation,
+        Operation::Conjure { .. } | Operation::DraftFromSpellbook { .. }
+    ) || matches!(operation, Operation::Primitive { name, .. }
             if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft"))
 }
 
@@ -560,6 +622,28 @@ fn chosen_kind(operand: &Operand) -> Option<ValueKind> {
 /// A row's filter in generic form, or the row itself when it has none.
 pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
     let form = name.split("::").nth(1).unwrap_or(&name);
+    let nth = |ordinal: &Expr, spells: Option<&ObjectFilter>, by: Option<&PlayerRef>, scope| {
+        ObjectFilter::NthCast {
+            ordinal: ordinal.clone(),
+            spells: Box::new(spells.cloned().unwrap_or(ObjectFilter::Any)),
+            by: by.map(|player| PlayerSet::One(player.clone())),
+            scope,
+        }
+    };
+    match (form, operands.as_slice()) {
+        ("TheNthSpellCastThisTurn", [Operand::Number(ordinal)]) => {
+            return nth(ordinal, None, None, CastScope::Turn)
+        }
+        (
+            "TheNthSpellCastByPlayerThisTurn",
+            [Operand::Number(ordinal), Operand::Filter(spells), Operand::Player(player)],
+        ) => return nth(ordinal, Some(spells), Some(player), CastScope::Turn),
+        (
+            "TheNthSpellCastByPlayerThisGame",
+            [Operand::Number(ordinal), Operand::Filter(spells), Operand::Player(player)],
+        ) => return nth(ordinal, Some(spells), Some(player), CastScope::Game),
+        _ => {}
+    }
     match (name.as_str(), operands.as_slice()) {
         (
             "Target::TargetAbility"
@@ -1056,6 +1140,30 @@ fn deck_rule(name: &str, operands: &[Operand]) -> Option<DeckRule> {
     })
 }
 
+/// What "each card in a graveyard has" gives those cards.
+fn graveyard_changes(effects: &[Operand]) -> Option<Vec<Change>> {
+    let mut changes = vec![];
+    for effect in effects {
+        let Operand::Term { form, operands, .. } = effect else {
+            return None;
+        };
+        match (form.as_str(), operands.as_slice()) {
+            ("AddAbility", abilities) => changes.extend(
+                ability_list(abilities)?
+                    .into_iter()
+                    .map(|ability| Change::GrantAbility(Box::new(ability))),
+            ),
+            ("LosesAllAbilities", []) => changes.push(Change::RemoveAllAbilities),
+            ("AddCreatureTypeVariable", [variable]) => changes.push(Change::ChosenType {
+                kind: chosen_kind(variable)?,
+                mode: ChangeMode::Add,
+            }),
+            _ => return None,
+        }
+    }
+    Some(changes)
+}
+
 /// A row's ability in generic form, or the row itself when it has none.
 pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
     if let Some(rule) = deck_rule(&name, &operands) {
@@ -1073,6 +1181,25 @@ pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
                 },
                 then: vec![(**ability).clone()],
                 otherwise: vec![],
+            }
+        }
+        (
+            "Rule::EachCardInGraveyardEffect",
+            [Operand::Filter(cards), Operand::Player(owner), Operand::List(effects)],
+        ) => {
+            if let Some(changes) = graveyard_changes(effects) {
+                return Ability::Static {
+                    kind: StaticKind::Ordinary,
+                    affected: EffectSubjects::Objects(ObjectSet::Zone {
+                        scope: ZoneScope::Players {
+                            zone: EventZone::Graveyard,
+                            players: PlayerSet::One(owner.clone()),
+                        },
+                        kind: ObjectKind::Card,
+                        filter: cards.clone(),
+                    }),
+                    changes,
+                };
             }
         }
         ("Rule::Backup", [Operand::Integer(amount), Operand::List(abilities)]) => {
@@ -1134,6 +1261,14 @@ pub fn row_bindings(name: &str) -> EventBindings {
 /// Trigger rows that are one player event. Each keeps its reviewed `binds`.
 const PLAYER_EVENTS: &[(&str, PlayerEvent)] = &[
     ("Trigger::WhenAPlayerGainsLife", PlayerEvent::GainsLife),
+    (
+        "Trigger::WhenAPermanentEntersTheBattlefieldUnderAPlayersControl",
+        PlayerEvent::EntersUnderControl,
+    ),
+    (
+        "Trigger::WhenAPermanentEntersTheBattlefieldUnderAPlayersControlWithoutBeingPlayed",
+        PlayerEvent::EntersUnplayed,
+    ),
     ("Trigger::WhenAPlayerLosesLife", PlayerEvent::LosesLife),
     ("Trigger::WhenAPlayerDrawsACard", PlayerEvent::Draws),
     ("Trigger::WhenAPlayerAttacks", PlayerEvent::Attacks),
@@ -1538,6 +1673,12 @@ fn reduce_batch(name: &str, operands: &[Operand]) -> Option<EventSpec> {
         ObjectFilter::All(vec![cards.clone(), ObjectFilter::OwnedBy(owners.clone())])
     };
     match (form, operands) {
+        ("WhenAnyNumberOfGraveyardCardsLeave", [Operand::Filter(cards)]) => {
+            return whole(EventSpec::Object {
+                event: ObjectEvent::LeavesGraveyard,
+                objects: cards.clone(),
+            })
+        }
         (
             "WhenAnyNumberOfCardsArePutIntoAPlayersGraveyardFromTheirLibrary",
             [Operand::Filter(cards), Operand::Players(owners)],
@@ -1707,7 +1848,8 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
                 objects: None,
             }
         }
-        (Some(event), [Operand::Players(players), Operand::Objects(objects)]) => {
+        (Some(event), [Operand::Objects(objects), Operand::Players(players)])
+        | (Some(event), [Operand::Players(players), Operand::Objects(objects)]) => {
             let filter = event_filter(objects);
             if filter.is_some() {
                 return EventSpec::Player {
@@ -2061,6 +2203,9 @@ impl Effects {
                     | Operation::PlayCards { .. }
                     | Operation::CopyCards { .. }
                     | Operation::ChangeSpell { .. }
+                    | Operation::Goad { .. }
+                    | Operation::Clash { .. }
+                    | Operation::DraftFromSpellbook { .. }
                     | Operation::Conjure { .. } => self.library = true,
                 },
                 Instruction::Group(p) | Instruction::Optional { body: p, .. } => self.program(p),
@@ -2109,6 +2254,7 @@ impl Effects {
             | ObjectRef::Damage(_)
             | ObjectRef::Candidate
             | ObjectRef::AttachedTo(_)
+            | ObjectRef::PairedWith(_)
             | ObjectRef::Affected
             | ObjectRef::EventSubject
             | ObjectRef::EventStackObject

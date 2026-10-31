@@ -808,3 +808,87 @@ fn turn_windows_and_player_states_are_generic_conditions() {
         lowered("If(PlayerPassesFilter(You, IsTheMonarch), [PlayerEffect(You, [CantGainLife])])");
     assert!(body.contains("state: Monarch"), "{body}");
 }
+
+#[test]
+fn a_clash_keeps_both_outcomes_and_its_opponent_only_exists_inside_them() {
+    let frozen = "CreateEachPermanentRuleEffectUntil(And([IsCardtype(Creature), ControlledByPlayer(ClashOpponent)]), [DoesntUntapDuringControllersUntap], DuringPlayersNextUntapStep(ClashOpponent))";
+    let body = lowered(&format!(
+        "SpellActions(ActionList([Clash(Opponent, [{frozen}], [DoNothing])]))"
+    ));
+    assert!(body.contains("Clash {"), "{body}");
+    assert!(body.contains("won: ["), "{body}");
+    assert!(body.contains("lost: ["), "{body}");
+    assert!(body.contains("ClashOpponent"), "{body}");
+    assert!(!body.contains("Action::Clash"), "{body}");
+    let inside = format!("SpellActions(ActionList([Clash(Opponent, [{frozen}], [DoNothing])]))");
+    validate::card(&custom(&inside).unwrap()).unwrap();
+    let outside = custom(&format!("SpellActions(ActionList([{frozen}]))")).unwrap();
+    assert!(validate::card(&outside).is_err());
+}
+
+#[test]
+fn support_is_counters_and_goading_a_set_is_one_operation() {
+    let body = lowered(
+        "SpellActions(Targeted([UptoNumberTargetPermanents(Integer(2), IsCardtype(Creature))], ActionList([Support(Ref_TargetPermanents)])))",
+    );
+    assert!(body.contains("PutCounters {"), "{body}");
+    assert!(body.contains("PowerToughness(1, 1)"), "{body}");
+    let body = lowered("SpellActions(ActionList([GoadEachCreature(IsCardtype(Creature))]))");
+    assert!(body.contains("Goad {"), "{body}");
+    assert!(body.contains("until: None"), "{body}");
+    let body = lowered("PermanentRuleEffect(HostPermanent, [IsGoadedByPlayer(You)])");
+    assert!(body.contains("GoadedBy("), "{body}");
+}
+
+#[test]
+fn spellbooks_pairs_and_recipients_are_typed_references() {
+    let body = lowered("SpellActions(ActionList([DraftACardFromSpellBook(\"Planets\")]))");
+    assert!(
+        body.contains("DraftFromSpellbook") && body.contains("spellbook: \"Planets\""),
+        "{body}"
+    );
+    let body = lowered(
+        "If(PermanentPassesFilter(ThisPermanent, IsPaired), [EachPermanentLayerEffect(SinglePermanent(TheCreaturePairedWithPermanent(ThisPermanent)), [AdjustPT(+2, +2)])])",
+    );
+    assert!(body.contains("PairedWith(Source)"), "{body}");
+    let body = lowered(
+        "SpellActions(Targeted([TargetPlayerOrPermanent(Opponent, IsCardtype(Planeswalker))], ActionList([PlayerAction(PlayerOrControllerOfPermanent(Ref_TargetPlayerOrPermanent), DrawACard)])))",
+    );
+    assert!(body.contains("PlayerOrControllerOf("), "{body}");
+}
+
+#[test]
+fn the_nth_spell_counts_among_its_own_filter() {
+    let body = lowered(
+        "StackSpellsEffect(TheNthSpellCastByPlayerThisTurn(Integer(2), IsCardtype(Instant), You), [Cascade])",
+    );
+    assert!(body.contains("NthCast { ordinal: Constant(2)"), "{body}");
+    assert!(body.contains("spells: CardType(Instant)"), "{body}");
+    assert!(body.contains("scope: Turn"), "{body}");
+}
+
+#[test]
+fn entering_under_control_binds_the_controller_and_leaving_a_graveyard_is_a_batch() {
+    let body = lowered(
+        "TriggerA(WhenAPermanentEntersTheBattlefieldUnderAPlayersControl(IsCardtype(Land), Opponent), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("event: EntersUnderControl"), "{body}");
+    assert!(body.contains("objects: Some(CardType(Land))"), "{body}");
+    let body = lowered(
+        "TriggerA(WhenAnyNumberOfGraveyardCardsLeave(InAPlayersGraveyard(SinglePlayer(You))), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("Batch {"), "{body}");
+    assert!(body.contains("event: LeavesGraveyard"), "{body}");
+    assert!(body.contains("per: Whole"), "{body}");
+}
+
+#[test]
+fn a_graveyard_static_reaches_cards_in_that_graveyard() {
+    let body = lowered(
+        "EachCardInGraveyardEffect(IsCardtype(Land), You, [AddAbility([Dredge(Integer(2))])])",
+    );
+    assert!(body.contains("Static {"), "{body}");
+    assert!(body.contains("zone: Graveyard"), "{body}");
+    assert!(body.contains("GrantAbility"), "{body}");
+    assert!(!body.contains("EachCardInGraveyardEffect"), "{body}");
+}

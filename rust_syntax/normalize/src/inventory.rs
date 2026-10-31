@@ -311,6 +311,33 @@ impl Inventory<'_> {
                     self.change(change);
                 }
             }
+            Operation::Goad {
+                actor,
+                objects,
+                until,
+            } => {
+                self.players(actor);
+                self.objects(objects);
+                if let Some(until) = until {
+                    self.duration(until);
+                }
+            }
+            Operation::Clash {
+                actor,
+                opponents,
+                won,
+                lost,
+            } => {
+                self.players(actor);
+                self.players(opponents);
+                for program in won.iter().chain(lost) {
+                    self.program(program);
+                }
+            }
+            Operation::DraftFromSpellbook { actor, times, .. } => {
+                self.players(actor);
+                self.expr(times);
+            }
             Operation::CreateEmblem { actor, abilities } => {
                 self.players(actor);
                 for ability in abilities {
@@ -1123,6 +1150,7 @@ impl Inventory<'_> {
         match rule {
             RuleChange::Primitive { name, .. } => self.primitive(name),
             RuleChange::Prohibit(a) => self.object_action(a),
+            RuleChange::GoadedBy(player) => self.player(player),
             RuleChange::RequireCombat { action, amount } => {
                 self.object_action(action);
                 self.form("RequirementAmount", amount);
@@ -1363,7 +1391,7 @@ impl Inventory<'_> {
         if let ObjectRef::Query { objects, .. } = r {
             self.objects(objects);
         }
-        if let ObjectRef::AttachedTo(attachment) = r {
+        if let ObjectRef::AttachedTo(attachment) | ObjectRef::PairedWith(attachment) = r {
             self.object(attachment);
         }
         if let ObjectRef::Result { phase, .. } = r {
@@ -1446,6 +1474,9 @@ impl Inventory<'_> {
         | PlayerRef::EnchantedBy(r) = r
         {
             self.object(r);
+        }
+        if let PlayerRef::PlayerOrControllerOf(recipient) = r {
+            self.recipients(recipient);
         }
     }
     fn players(&mut self, r: &PlayerSet) {
@@ -1626,6 +1657,18 @@ impl Inventory<'_> {
             ObjectFilter::AttachedTo(filter) => self.filter(filter),
             ObjectFilter::BlockingObject(object) => self.object(object),
             ObjectFilter::Condition(condition) => self.condition(condition),
+            ObjectFilter::NthCast {
+                ordinal,
+                spells,
+                by,
+                ..
+            } => {
+                self.expr(ordinal);
+                self.filter(spells);
+                if let Some(by) = by {
+                    self.players(by);
+                }
+            }
             ObjectFilter::Cast { by, from } => {
                 if let Some(players) = by {
                     self.players(players);

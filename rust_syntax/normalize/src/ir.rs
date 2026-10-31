@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 92;
+pub const SCHEMA_VERSION: u32 = 93;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1065,6 +1065,27 @@ pub enum Operation {
         amount: Option<Expr>,
         subtype: Option<String>,
     },
+    /// Goad each of these together. No `until` is the usual until `actor`'s
+    /// next turn (CR 701.38a).
+    Goad {
+        actor: PlayerSet,
+        objects: ObjectSet,
+        until: Option<Duration>,
+    },
+    /// Each clashing player reveals; `won` runs if `actor` won, else `lost`
+    /// (CR 701.30). Inside these, `PlayerRef::ClashOpponent` is the opponent.
+    Clash {
+        actor: PlayerSet,
+        opponents: PlayerSet,
+        won: Vec<Program>,
+        lost: Vec<Program>,
+    },
+    /// Draft a card from a named card's spellbook, `times` times, into hand.
+    DraftFromSpellbook {
+        actor: PlayerSet,
+        spellbook: String,
+        times: Expr,
+    },
 }
 /// Defines the keyword abilities with one table, so the enum and the rows that
 /// lower to it cannot disagree.
@@ -1746,6 +1767,14 @@ impl From<PlayerSet> for EffectSubjects {
     }
 }
 
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum CastScope {
+    Turn,
+    Game,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PlayerRule {
     /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
@@ -1968,6 +1997,8 @@ pub enum RuleChange {
         players: PlayerSet,
         behavior: UntapBehavior,
     },
+    /// Attacks each combat if able, and not its goader if able (CR 701.38).
+    GoadedBy(PlayerRef),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ObjectAction {
@@ -2367,6 +2398,8 @@ pub enum ObjectRef {
     },
     /// The permanent whose effect gave the source this ability, or made it.
     Granter,
+    /// The creature `object` is paired with (CR 702.95b), if any.
+    PairedWith(Box<ObjectRef>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2547,6 +2580,10 @@ pub enum PlayerRef {
     OneOf(Box<PlayerSet>),
     /// Who chose this spell's or ability's modes, when it isn't the controller.
     ModeChooser,
+    /// This recipient if it is a player, or else its controller.
+    PlayerOrControllerOf(Box<Recipients>),
+    /// The opponent `actor` clashed with, inside `Operation::Clash`.
+    ClashOpponent,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2696,6 +2733,14 @@ pub enum ObjectFilter {
     AttachedTo(Box<ObjectFilter>),
     /// Blocking this attacker, not merely blocking.
     BlockingObject(ObjectRef),
+    /// The spell cast at `ordinal` among the `spells` cast in `scope`, by
+    /// `by` when that is named. Counts earlier casts, not this ability's life.
+    NthCast {
+        ordinal: Expr,
+        spells: Box<ObjectFilter>,
+        by: Option<PlayerSet>,
+        scope: CastScope,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3255,6 +3300,8 @@ pub enum ObjectEvent {
     Mutates,
     Specializes,
     TappedForMana,
+    /// Matches on the view before the card left, as `LeavesBattlefield` does.
+    LeavesGraveyard,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -3353,6 +3400,11 @@ pub enum PlayerEvent {
     EncountersPhenomenon,
     FullyUnlocksRoom,
     Expends,
+    /// A permanent entered under this player's control; `objects` is that
+    /// permanent. The player binding is that controller, who did nothing.
+    EntersUnderControl,
+    /// As `EntersUnderControl`, for a land that wasn't played or a spell not cast.
+    EntersUnplayed,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum TurnPoint {

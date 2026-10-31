@@ -33,6 +33,8 @@ struct Scope<'a> {
     gathered: BTreeSet<u32>,
     repeatable: bool,
     open_searches: Vec<PlayerRef>,
+    /// Inside `Operation::Clash`, where `PlayerRef::ClashOpponent` has a value.
+    clashing: bool,
     search_libraries: BTreeMap<u32, PlayerRef>,
     event: crate::semantics::EventBindings,
     affected: bool,
@@ -405,7 +407,9 @@ impl<'a> Scope<'a> {
             ObjectRef::KeywordHost => {
                 Err("keyword host used outside its keyword definition".into())
             }
-            ObjectRef::AttachedTo(attachment) => self.object(attachment),
+            ObjectRef::AttachedTo(attachment) | ObjectRef::PairedWith(attachment) => {
+                self.object(attachment)
+            }
             ObjectRef::Affected if self.affected => Ok(()),
             ObjectRef::Affected => {
                 Err("affected object used outside a characteristic change".into())
@@ -541,6 +545,9 @@ impl<'a> Scope<'a> {
                 Err("affected player used outside a player continuous effect".into())
             }
             PlayerRef::EnchantedBy(object) => self.object(object),
+            PlayerRef::PlayerOrControllerOf(recipient) => self.recipients(recipient),
+            PlayerRef::ClashOpponent if self.clashing => Ok(()),
+            PlayerRef::ClashOpponent => Err("a clash opponent outside a clash".into()),
             PlayerRef::DeclaringPlayer if self.declaration => Ok(()),
             PlayerRef::DeclaringPlayer => {
                 Err("declaring player used outside a combat declaration cost".into())
@@ -894,6 +901,16 @@ impl<'a> Scope<'a> {
             ObjectFilter::DamagedBy(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectFilter::Primitive { name, operands } => self.primitive(name, operands),
             ObjectFilter::Condition(condition) => self.condition(condition),
+            ObjectFilter::NthCast {
+                ordinal,
+                spells,
+                by,
+                ..
+            } => {
+                self.expr(ordinal)?;
+                self.filter(spells)?;
+                by.iter().try_for_each(|players| self.players(players))
+            }
             ObjectFilter::Cast { by, from } => {
                 if let Some(players) = by {
                     self.players(players)?;
@@ -1063,6 +1080,7 @@ impl<'a> Scope<'a> {
         match rule {
             RuleChange::Primitive { name, operands } => self.primitive(name, operands),
             RuleChange::Prohibit(action) => self.object_action(action),
+            RuleChange::GoadedBy(player) => self.player(player),
             RuleChange::RequireCombat { action, amount } => {
                 self.combat_action(action)?;
                 if let RequirementAmount::AtLeast(n) = amount {
@@ -1683,6 +1701,34 @@ impl<'a> Scope<'a> {
             Operation::CreatePerpetualEffect { objects, changes } => {
                 self.objects(objects)?;
                 self.entering_changes(changes)
+            }
+            Operation::Goad {
+                actor,
+                objects,
+                until,
+            } => {
+                self.players(actor)?;
+                self.objects(objects)?;
+                until.iter().try_for_each(|until| self.duration(until))
+            }
+            Operation::Clash {
+                actor,
+                opponents,
+                won,
+                lost,
+            } => {
+                self.players(actor)?;
+                self.players(opponents)?;
+                let mut child = self.clone();
+                child.open_searches.clear();
+                child.clashing = true;
+                won.iter()
+                    .chain(lost)
+                    .try_for_each(|p| child.clone().program(p))
+            }
+            Operation::DraftFromSpellbook { actor, times, .. } => {
+                self.players(actor)?;
+                self.expr(times)
             }
             Operation::CreateEmblem { actor, abilities } => {
                 self.players(actor)?;

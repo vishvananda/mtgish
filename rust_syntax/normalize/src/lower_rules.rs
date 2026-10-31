@@ -77,7 +77,14 @@ impl Context {
         self.reduced_rule_change(value).or_else(|error| {
             rescue(error, || {
                 self.primitive("PermanentRule", value)
-                    .map(|(name, operands)| vec![RuleChange::Primitive { name, operands }])
+                    .map(|(name, operands)| {
+                        vec![match (name.as_str(), operands.as_slice()) {
+                            ("PermanentRule::IsGoadedByPlayer", [Operand::Player(player)]) => {
+                                RuleChange::GoadedBy(player.clone())
+                            }
+                            _ => RuleChange::Primitive { name, operands },
+                        }]
+                    })
             })
         })
     }
