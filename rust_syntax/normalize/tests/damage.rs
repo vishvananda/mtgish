@@ -72,11 +72,8 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         "Breeches, Brazen Plunderer",
         "Curious Obsession",
         "Fall of Cair Andros",
-        "Firesong and Sunspeaker",
         "Gonti's Machinations",
-        "Kaito, Dancing Shadow",
         "Maarika, Brutal Gladiator",
-        "Malcolm, Keen-Eyed Navigator",
         "Neheb, Dreadhorde Champion",
         "Norn's Decree",
         "Screaming Nemesis",
@@ -107,7 +104,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 70);
+    assert_eq!(complete, 73);
 }
 
 #[test]

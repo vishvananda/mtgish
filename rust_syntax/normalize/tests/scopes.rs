@@ -70,11 +70,7 @@ fn cycle_trigger(c: &Card) -> &Ability {
 #[test]
 fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
     let incomplete = [
-        "Ashen Ghoul",
         "Derevi, Empyrial Tactician",
-        "Firesong and Sunspeaker",
-        "Fluctuator",
-        "Nether Shadow",
         "Shadow of the Grave",
         "Valiant Rescuer",
     ];
@@ -101,7 +97,7 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 85);
+    assert_eq!(complete, 89);
 }
 
 #[test]

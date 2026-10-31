@@ -1808,10 +1808,6 @@ fn real_object_payment_cards_roundtrip_without_dropping_other_missing_abilities(
     for line in include_str!("fixtures/object_payments.ronl").lines() {
         let source: source::OracleCard = ron::from_str(line).unwrap();
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);
-        if ["Cryptic Gateway"].contains(&name.as_str()) {
-            assert!(pipeline::finalize(&source).is_err(), "{name}");
-            continue;
-        }
         let card =
             pipeline::finalize(&source).unwrap_or_else(|errors| panic!("{name}: {errors:?}"));
         let expected = serde_json::to_value(&card).unwrap();
@@ -1861,7 +1857,7 @@ fn real_object_payment_cards_roundtrip_without_dropping_other_missing_abilities(
         }
         complete += 1;
     }
-    assert_eq!(complete, 23);
+    assert_eq!(complete, 24);
 }
 
 #[test]

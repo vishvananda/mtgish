@@ -410,11 +410,9 @@ fn deferred_program_validation_retains_scope_and_rejects_unrepresented_future_ev
 fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
     let incomplete = [
         "Alchemist's Gambit",
-        "Aleatory",
         "Bounty of the Hunt",
         "Chancellor of the Tangle",
         "Come Back Wrong",
-        "Dazzling Beauty",
         "Faramir, Prince of Ithilien",
         "Feldon of the Third Path",
         "Feral Encounter",
@@ -422,7 +420,6 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         "Gaze of the Gorgon",
         "Pygmy Hippo",
         "Tatsumasa, the Dragon's Fang",
-        "Urza's Bauble",
         "Vivien's Stampede",
     ];
     let mut complete = 0;
@@ -448,5 +445,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 38);
+    assert_eq!(complete, 41);
 }

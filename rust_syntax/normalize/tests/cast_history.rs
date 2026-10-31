@@ -428,13 +428,11 @@ fn spell_event_filters_bind_the_cast_spell_and_source_spell_bodies_keep_the_sour
 #[test]
 fn cast_history_families_roundtrip_and_keep_unimplemented_nested_semantics() {
     let incomplete = [
-        "Archangel of Wrath",
         "Dream Thief",
         "Hotheaded Giant",
         "Inquisitor Captain",
         "Portcullis",
         "Recommission",
-        "Sentinel's Mark",
     ];
     let mut complete = 0;
     for s in sources() {
@@ -459,7 +457,7 @@ fn cast_history_families_roundtrip_and_keep_unimplemented_nested_semantics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 62);
+    assert_eq!(complete, 64);
     let rapid = card("Rapid Augmenter");
     assert!(rapid.abilities.iter().any(|a|matches!(a,Ability::Triggered {event:EventSpec::ZoneChange {objects:ObjectFilter::All(outer),..},..} if outer.iter().any(|f|matches!(f,ObjectFilter::All(inner) if inner.iter().any(|f|matches!(f,ObjectFilter::Property {property:Property::BasePower,comparison:Comparison::Equal,value:Expr::Constant(1)})))))));
 }

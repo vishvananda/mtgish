@@ -67,6 +67,7 @@ fn output_values(value: &Value, integers: &mut BTreeSet<u64>, words: &mut BTreeS
             output_values(field, integers, words);
         }),
         Value::String(text) => {
+            words.extend(text.rsplit("::").next().map(str::to_string));
             words.insert(text.clone());
         }
         Value::Number(n) => integers.extend(n.as_i64().map(i64::unsigned_abs)),

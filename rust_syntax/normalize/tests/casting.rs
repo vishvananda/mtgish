@@ -42,17 +42,12 @@ fn casting(c: &Card) -> &CastingRule {
 #[test]
 fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
     let incomplete = [
-        "Abandon Hope",
-        "Bite Down on Crime",
         "Dargo, the Shipwrecker",
         "Ertai's Meddling",
         "Food Chain",
-        "Hamlet Glutton",
-        "Land Grant",
         "Rites of Initiation",
         "Soul Burn",
         "Spinning Darkness",
-        "Valiant Changeling",
     ];
     let mut complete = 0;
     for source in sources() {
@@ -77,7 +72,7 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 66);
+    assert_eq!(complete, 71);
 }
 
 #[test]

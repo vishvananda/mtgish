@@ -62,7 +62,7 @@ fn library(players: PlayerSet) -> ObjectSet {
 
 #[test]
 fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete() {
-    let incomplete = ["Food Chain", "Hinder"];
+    let incomplete = ["Food Chain"];
     let mut complete = 0;
     for source in sources() {
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);
@@ -86,7 +86,7 @@ fn real_zone_families_roundtrip_and_missing_nested_semantics_remain_incomplete()
         }
         complete += 1;
     }
-    assert_eq!(complete, 55);
+    assert_eq!(complete, 56);
 }
 
 #[test]

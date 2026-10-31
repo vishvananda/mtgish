@@ -79,10 +79,8 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         "Archdruid's Charm",
         "Caravan Vigil",
         "Claim Jumper",
-        "Land Grant",
         "Plunge into Darkness",
         "Urza's Saga",
-        "Wishclaw Talisman",
     ];
     let mut complete = 0;
     for source in sources() {
@@ -107,7 +105,7 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 83);
+    assert_eq!(complete, 85);
 }
 
 #[test]

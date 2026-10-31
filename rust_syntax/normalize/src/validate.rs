@@ -1373,7 +1373,18 @@ impl<'a> Scope<'a> {
     fn named(&self, named: &Named) -> Result {
         named.operands.iter().try_for_each(|o| self.operand(o))
     }
+    /// A row's form says what its own "each" ranges over.
     fn operand(&self, operand: &Operand) -> Result {
+        let checked = self.bare_operand(operand);
+        if checked.is_err() && !self.affected {
+            let mut each = self.clone();
+            each.affected = true;
+            return each.bare_operand(operand);
+        }
+        checked
+    }
+
+    fn bare_operand(&self, operand: &Operand) -> Result {
         match operand {
             Operand::Absent | Operand::Bool(_) | Operand::Integer(_) | Operand::Text(_) => Ok(()),
             Operand::List(items) => items.iter().try_for_each(|o| self.operand(o)),

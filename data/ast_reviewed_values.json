@@ -1,6 +1,10 @@
 {
+  "ActivatedAbility": "Lowers to HasActivatedAbility Any.",
   "AnyColor": "Lowers to one protection per color, so the name only survives in the hexproof form.",
   "AnyHexproof": "Lowers to HasKeywordFamily Hexproof.",
   "DifferentNames": "As a count, lowers to CountDistinct over Names.",
-  "NonManaAbility": "Lowers to the activation filter Not Mana."
+  "NonManaAbility": "Lowers to the activation filter Not Mana.",
+  "TheChosenColor": "Lowers to a chosen-color filter or mana, so the name only survives in rows.",
+  "TheChosenPermanents": "Lowers to the selection result.",
+  "XCantBeZero": "Lowers to a casting requirement that X is greater than zero."
 }
