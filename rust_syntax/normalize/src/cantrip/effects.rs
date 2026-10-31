@@ -679,7 +679,7 @@ impl Compiler {
     }
     /// `Vec<ObjectId>` of what can still be changed: an object that left is
     /// gone, and its last-known information is not a thing to act on (400.7).
-    fn acted_on(&self, objects: &ObjectSet) -> Result<String> {
+    pub(super) fn acted_on(&self, objects: &ObjectSet) -> Result<String> {
         Ok(self.fetch(format!(
             "({}).into_iter().filter(|&o| q.state().obj(o).became.is_none()).collect::<Vec<ObjectId>>()",
             self.objects(objects)?
@@ -695,6 +695,24 @@ impl Compiler {
             } => {
                 let plan = mana_plan(mana)?;
                 self.emit_mana(&plan, players, restriction.as_ref(), None, out)?;
+            }
+            Operation::Keyword {
+                actor,
+                action,
+                object,
+                other,
+                amount,
+                subtype,
+            } => {
+                let action = keywords::Action {
+                    actor,
+                    action: *action,
+                    object: object.as_ref(),
+                    other: other.as_ref(),
+                    amount: amount.as_ref(),
+                    subtype: subtype.as_deref(),
+                };
+                self.keyword_action(id, action, result, out)?;
             }
             Operation::CreateTokens {
                 players,

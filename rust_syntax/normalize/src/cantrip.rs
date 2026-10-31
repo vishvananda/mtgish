@@ -14,6 +14,7 @@ mod casting;
 mod costs;
 mod delayed;
 mod effects;
+mod keywords;
 mod mechanics;
 mod players;
 mod read;
@@ -364,11 +365,13 @@ struct Compiler {
     flips: BTreeMap<u32, String>,
     bound_objects: BTreeSet<u32>,
     bound_players: BTreeSet<u32>,
-    /// Small generated functions that this module uses.
     /// A mechanic asks for the first way, so no other way may come before it.
     only_way: bool,
+    /// An instruction asks "tap or untap", which the card's `labels` word.
+    tap_or_untap: bool,
     /// Inside a spell's cost change, which has `targets` in reach.
     costing_targets: bool,
+    /// Small generated functions that this module uses.
     helpers: BTreeSet<&'static str>,
     extras: Vec<String>,
     /// Abilities that are no part of the card until a grant or an event names
@@ -620,6 +623,7 @@ impl Compiler {
             bound_players: BTreeSet::new(),
             costing_targets: false,
             only_way: false,
+            tap_or_untap: false,
             helpers: BTreeSet::new(),
             extras: Vec::new(),
             delayed: Vec::new(),
@@ -1302,6 +1306,14 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
             false => Ok(()),
         }
     });
+    if c.tap_or_untap {
+        let taken = parts.fields.contains_key("labels");
+        c.attempt("abilities".into(), |_| match taken {
+            true => Err(gap("tap or untap beside other labels")),
+            false => Ok(()),
+        });
+        parts.field("labels", "cantrip_mechanics::choose::TAP_OR_UNTAP".into());
+    }
     if !parts.pay_with.is_empty() {
         let fields: Vec<String> = parts
             .pay_with

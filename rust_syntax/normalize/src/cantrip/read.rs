@@ -236,7 +236,7 @@ impl Compiler {
         }
         Ok(Some(format!("q.chosen_targets().get({at}).copied()")))
     }
-    fn slot(&self, slot: &Slot) -> Result<usize> {
+    pub(super) fn slot(&self, slot: &Slot) -> Result<usize> {
         if self.reader != Reader::Resolution || !self.stack_item {
             return Err(gap("target reference outside a resolving ability"));
         }
@@ -936,7 +936,7 @@ impl Compiler {
                     None => return Err(gap("result this instruction does not report")),
                 }
             }
-            Expr::BoundValue(result) => match self.values.get(&result.0) {
+            Expr::BoundValue(result) | Expr::DieResult(result) => match self.values.get(&result.0) {
                 Some(local) => Number {
                     code: local.clone(),
                     min: i64::MIN.into(),
