@@ -344,6 +344,29 @@ fn generated_modules_execute_in_cantrip() {
     fs::remove_dir_all(root).unwrap();
 }
 
+/// Each card on its own in a table, so one that a table refuses names itself.
+const LOADS: &str = r#"
+#[test]
+fn every_definition_loads_into_a_card_table() {
+    std::panic::set_hook(Box::new(|_| {}));
+    let mut refused = Vec::new();
+    for &(card, extra) in ALL {
+        let definitions: Vec<&'static cantrip_api::CardDef> =
+            std::iter::once(card).chain(extra.iter().copied()).collect();
+        if let Err(why) = std::panic::catch_unwind(|| cantrip_api::CardTable::new(definitions)) {
+            let why = why
+                .downcast_ref::<String>()
+                .cloned()
+                .or_else(|| why.downcast_ref::<&str>().map(|s| s.to_string()))
+                .unwrap_or_default();
+            refused.push(format!("{}: {why}", card.name));
+        }
+    }
+    let _ = std::panic::take_hook();
+    assert!(refused.is_empty(), "{} refused\n{}", refused.len(), refused.join("\n"));
+}
+"#;
+
 /// Checks every advertised backend capability against the actual API, using the
 /// cached report to avoid decoding the unsupported legacy records again.
 #[test]
@@ -394,6 +417,7 @@ fn every_advertised_module_compiles_against_cantrip() {
     fs::write(scratch.join("Cargo.toml"), manifest).unwrap();
     let mut rust = String::from("#![allow(unused_variables,dead_code)]\n");
     let mut generated = 0;
+    let mut loaded = String::new();
     // Compiling every module takes minutes. While a family is being added, an
     // older report narrows this to what is newly capable since then.
     let since = std::env::var_os("MTGISH_CANTRIP_SINCE").map(|path| {
@@ -426,13 +450,23 @@ fn every_advertised_module_compiles_against_cantrip() {
             record.line,
             cantrip::module(&card).unwrap()
         ));
+        loaded.push_str(&format!("(&card_{0}::CARD, card_{0}::EXTRA),\n", record.line));
         generated += 1;
     }
     assert_eq!(generated + skipped, report.backend_capable);
     assert!(generated > 0);
+    // A card table asserts what no type does. Building and running that takes
+    // far longer than checking, so it is asked for.
+    let load = std::env::var_os("MTGISH_CANTRIP_LOAD").is_some();
+    if load {
+        rust.push_str(&format!(
+            "static ALL: &[(&cantrip_api::CardDef, &[&cantrip_api::CardDef])] = &[\n{loaded}];\n{LOADS}"
+        ));
+    }
     fs::write(scratch.join("src/lib.rs"), rust).unwrap();
+    let verb = if load { "test" } else { "check" };
     let result = Command::new("cargo")
-        .args(["check", "--offline", "--manifest-path"])
+        .args([verb, "--offline", "--manifest-path"])
         .arg(scratch.join("Cargo.toml"))
         .arg("--target-dir")
         .arg(generated_target())
