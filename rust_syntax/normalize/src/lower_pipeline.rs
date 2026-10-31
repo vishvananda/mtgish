@@ -111,6 +111,11 @@ impl Context {
                 subjects,
                 selection,
                 ..
+            }
+            | R::Choose {
+                subjects,
+                selection,
+                ..
             } => (subjects, selection),
             R::PlayerAmount { .. } => unreachable!(),
         };
@@ -122,6 +127,17 @@ impl Context {
             .map(|s| self.pipeline_selection(s))
             .transpose()
             .map_err(|e| e.at("selection"))?;
+        if let R::Choose { random, .. } = &recipe {
+            let count = selection.ok_or_else(|| invalid("a choice needs a count"))?;
+            let constraints = if *random {
+                vec![SelectionConstraint::AtRandom]
+            } else {
+                vec![]
+            };
+            let (choice, result) = self.pick(actor, objects.clone(), count, constraints)?;
+            self.note_choice(&objects, result);
+            return Ok(choice);
+        }
         // Sacrifice performs player choices as part of its simultaneous operation.
         // Moving that choice into a separate instruction would alter its policy.
         if matches!(
@@ -251,7 +267,7 @@ impl Context {
                 O::Regenerate => Operation::CreateRegenerationShields { objects },
                 O::Sacrifice => unreachable!(),
             },
-            R::PlayerAmount { .. } => unreachable!(),
+            R::PlayerAmount { .. } | R::Choose { .. } => unreachable!(),
         };
         let effect = self.effect(operation);
         if instructions.is_empty() {

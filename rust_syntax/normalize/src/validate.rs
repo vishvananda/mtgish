@@ -29,6 +29,8 @@ struct Scope<'a> {
     ordered_results: BTreeSet<u32>,
     bound_objects: BTreeSet<u32>,
     singular: BTreeSet<u32>,
+    /// Picks gathered over a player loop: a set, never one object.
+    gathered: BTreeSet<u32>,
     repeatable: bool,
     open_searches: Vec<PlayerRef>,
     search_libraries: BTreeMap<u32, PlayerRef>,
@@ -160,6 +162,7 @@ impl<'a> Scope<'a> {
                 .map(|z| vec![z]),
             ObjectSet::Transition { result, .. }
             | ObjectSet::Observed(result)
+            | ObjectSet::Unselected(result)
             | ObjectSet::Selected(result) => self.result_zones.get(&result.0).cloned(),
             ObjectSet::Difference { objects, .. } | ObjectSet::Matching { objects, .. } => {
                 self.known_zones(objects)
@@ -350,6 +353,9 @@ impl<'a> Scope<'a> {
             ) =>
             {
                 Ok(())
+            }
+            ObjectRef::Result { result, .. } if self.gathered.contains(&result.0) => {
+                Err("a player loop's choice is a set, not one object".into())
             }
             ObjectRef::Result { result, .. }
                 if matches!(
@@ -574,13 +580,15 @@ impl<'a> Scope<'a> {
             }
             ObjectSet::Battlefield(filter) => self.filter(filter),
             ObjectSet::InZone { objects, .. } => self.objects(objects),
-            ObjectSet::Selected(result) => match self.results.get(&result.0) {
-                Some(ResultKind::Selection | ResultKind::Search) => Ok(()),
-                _ => Err(format!(
-                    "result {} is not an available object selection",
-                    result.0
-                )),
-            },
+            ObjectSet::Selected(result) | ObjectSet::Unselected(result) => {
+                match self.results.get(&result.0) {
+                    Some(ResultKind::Selection | ResultKind::Search) => Ok(()),
+                    _ => Err(format!(
+                        "result {} is not an available object selection",
+                        result.0
+                    )),
+                }
+            }
             ObjectSet::Affected(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectSet::Affected(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectSet::Created(result) => match self.results.get(&result.0) {
@@ -1839,6 +1847,11 @@ impl<'a> Scope<'a> {
             if let SelectionConstraint::TotalProperty { amount, .. } = constraint {
                 self.expr(amount)?;
             }
+            if let SelectionConstraint::OneForEach(filters) = constraint {
+                for filter in filters {
+                    self.filter(filter)?;
+                }
+            }
             if let SelectionConstraint::CanMoveTo {
                 destination, entry, ..
             } = constraint
@@ -1907,10 +1920,36 @@ impl<'a> Scope<'a> {
                     ) {
                         self.results.insert(result.0, ResultKind::ObjectTransition);
                     }
+                    if let Operation::ChooseObjects { objects, .. } = operation {
+                        self.results.insert(result.0, ResultKind::Selection);
+                        if let Some(zones) = self.known_zones(objects) {
+                            self.result_zones.insert(result.0, zones);
+                        }
+                    }
                 }
                 Instruction::Group(body) | Instruction::Optional { body, .. } => {
                     self.adopt_moves(body)
                 }
+                _ => {}
+            }
+        }
+    }
+
+    /// A player loop's picks stay readable as a set, never as one object.
+    fn adopt_choices(&mut self, body: &Program, run: &Self) {
+        for instruction in &body.instructions {
+            match instruction {
+                Instruction::Effect {
+                    result,
+                    operation: Operation::ChooseObjects { .. },
+                } => {
+                    self.results.insert(result.0, ResultKind::Selection);
+                    self.gathered.insert(result.0);
+                    if let Some(zones) = run.result_zones.get(&result.0) {
+                        self.result_zones.insert(result.0, zones.clone());
+                    }
+                }
+                Instruction::Group(body) => self.adopt_choices(body, run),
                 _ => {}
             }
         }
@@ -2083,6 +2122,7 @@ impl<'a> Scope<'a> {
                             return Err(format!("duplicate player binding {}", binding.0));
                         }
                         each.program(body)?;
+                        self.adopt_choices(body, &each);
                     }
                     Instruction::ChooseOne { decider, options } => {
                         self.player(decider)?;

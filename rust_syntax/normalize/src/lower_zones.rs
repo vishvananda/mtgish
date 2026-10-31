@@ -66,6 +66,11 @@ impl Context {
             S::Ref_TargetGraveyardCard4 => 3,
             S::Ref_TargetGraveyardCard5 => 4,
             S::ThisGraveyardCard => return Ok(ObjectRef::Source),
+            S::TheGraveyardCardChosenThisWay | S::TheChosenGraveyardCard
+                if self.grave_choice.is_some() =>
+            {
+                return self.result_object(self.grave_choice.as_ref(), 0);
+            }
             S::Trigger_ThatGraveyardCard if self.event.moved || self.event.discarded => {
                 let object = if self.event.moved {
                     ObjectRef::EventDestination
@@ -180,6 +185,7 @@ impl Context {
             source::CardInHand::ThisCardInHand => Ok(ObjectRef::Source),
             source::CardInHand::TheCardInHandChosenThisWay
             | source::CardInHand::TheCardChosenThisWay
+            | source::CardInHand::TheChosenCardInHand
                 if self.hand_choice.is_some() =>
             {
                 Ok(ObjectRef::Result {
@@ -241,6 +247,14 @@ impl Context {
                 0,
             )?),
             S::SingleGraveyardCard(c) => ObjectSet::One(self.grave_card(c)?),
+            S::TheChosenGraveyardCards | S::TheGraveyardCardsChosenThisWay
+                if self.grave_choice.is_some() =>
+            {
+                ObjectSet::Selected(self.grave_choice.clone().unwrap())
+            }
+            S::TheGraveyardCardsNotChosenThisWay if self.grave_choice.is_some() => {
+                ObjectSet::Unselected(self.grave_choice.clone().unwrap())
+            }
             S::CardsOfTypeMilledThisWay(cards) => ObjectSet::Matching {
                 objects: Box::new(ObjectSet::Transition {
                     result: self.done(Done::Milled)?,
@@ -265,6 +279,9 @@ impl Context {
     }
     fn exile_cards(&self, value: &source::CardsInExile) -> Result<ObjectSet> {
         Ok(match value {
+            source::CardsInExile::TheExiledCardsChosenThisWay if self.exile_choice.is_some() => {
+                ObjectSet::Selected(self.exile_choice.clone().unwrap())
+            }
             source::CardsInExile::TheCardsExiledThisWay | source::CardsInExile::TheExiledCards => {
                 match (&self.exiled, self.paid_exile()) {
                     (Some(result), _) => ObjectSet::Transition {

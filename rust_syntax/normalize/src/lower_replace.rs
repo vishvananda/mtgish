@@ -104,6 +104,18 @@ fn as_family<T: serde::de::DeserializeOwned>(value: &impl Serialize, family: &'s
     crate::pipeline::source_tree::decode(&inspected).ok()
 }
 
+/// `as_family` for a form whose operands change family with it.
+fn cast<T: serde::de::DeserializeOwned>(
+    value: &impl Serialize,
+    families: &[(&'static str, &'static str)],
+) -> Option<T> {
+    let mut inspected = crate::inspect::value(value).ok()?;
+    retag(&mut inspected, &|n: &str| {
+        families.iter().find(|(from, _)| *from == n).map(|(_, to)| *to)
+    });
+    crate::pipeline::source_tree::decode(&inspected).ok()
+}
+
 impl Context {
     fn damage_replacement(
         &self,

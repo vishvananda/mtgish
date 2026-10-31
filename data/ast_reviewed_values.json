@@ -5,7 +5,10 @@
   "AnyHexproof": "Lowers to HasKeywordFamily Hexproof.",
   "DifferentNames": "As a count, lowers to CountDistinct over Names.",
   "NonManaAbility": "Lowers to the activation filter Not Mana.",
+  "TheChosenCardInHand": "Lowers to the selection result.",
   "TheChosenColor": "Lowers to a chosen-color filter or mana, so the name only survives in rows.",
+  "TheChosenGraveyardCard": "Lowers to the selection result.",
+  "TheChosenGraveyardCards": "Lowers to the selection result.",
   "TheChosenPermanents": "Lowers to the selection result.",
   "XCantBeZero": "Lowers to a casting requirement that X is greater than zero."
 }

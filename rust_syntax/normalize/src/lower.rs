@@ -112,6 +112,8 @@ struct Context {
     hand_choice: Option<ResultId>,
     permanent_choice: Option<ResultId>,
     exile_choice: Option<ResultId>,
+    grave_choice: Option<ResultId>,
+    narrowed_choice: Option<ResultId>,
     iterated_object: Option<Binding>,
     /// The card a row just put into a hand: seeked, drafted or conjured.
     to_hand: Option<ResultId>,
@@ -222,6 +224,9 @@ impl Context {
                     self.note_move(operation, result.clone());
                     if let Some(done) = Done::of(operation) {
                         self.did.insert(done, result.clone());
+                    }
+                    if let Operation::ChooseObjects { objects, .. } = operation {
+                        self.note_choice(objects, result.clone());
                     }
                 }
                 Instruction::Group(body) | Instruction::Optional { body, .. } => {
@@ -348,6 +353,13 @@ impl Context {
         if self.exile_choice.as_ref().map(|r| r.0) != child.exile_choice.as_ref().map(|r| r.0) {
             self.exile_choice = None;
         }
+        if self.grave_choice.as_ref().map(|r| r.0) != child.grave_choice.as_ref().map(|r| r.0) {
+            self.grave_choice = None;
+        }
+        if self.narrowed_choice.as_ref().map(|r| r.0) != child.narrowed_choice.as_ref().map(|r| r.0)
+        {
+            self.narrowed_choice = None;
+        }
         if self.entered.as_ref().map(|r| r.0) != child.entered.as_ref().map(|r| r.0) {
             self.entered = None;
         }
@@ -399,10 +411,14 @@ impl Context {
             S::EachablePermanent if self.candidate => return Ok(ObjectRef::Candidate),
             S::EachablePermanent => return Ok(ObjectRef::Affected),
             S::ThePermanentChosenThisWay | S::TheChosenPermanent
-                if self.permanent_choice.is_some() =>
+                if self.narrowed_choice.is_some() || self.permanent_choice.is_some() =>
             {
                 return Ok(ObjectRef::Result {
-                    result: self.permanent_choice.clone().unwrap(),
+                    result: self
+                        .narrowed_choice
+                        .clone()
+                        .or_else(|| self.permanent_choice.clone())
+                        .unwrap(),
                     phase: ObjectPhase::After,
                     index: 0,
                 });
@@ -697,6 +713,14 @@ impl Context {
         {
             return Ok(ObjectSet::Selected(result.clone()));
         }
+        if let (
+            source::Permanents::ThePermanentsNotChosenThisWay
+            | source::Permanents::NotChosenThisWay,
+            Some(result),
+        ) = (value, &self.permanent_choice)
+        {
+            return Ok(ObjectSet::Unselected(result.clone()));
+        }
         if let (source::Permanents::ThePermanentsList, Some(result)) = (value, &self.noted) {
             return Ok(ObjectSet::Selected(result.clone()));
         }
@@ -806,7 +830,16 @@ impl Context {
         if matches!(value, source::Permanents::WasDealtDamageThisWay) {
             return Ok(ObjectFilter::DamagedBy(self.done(Done::Damage)?));
         }
-        if matches!(value, source::Permanents::Ref_TargetPermanents) {
+        if matches!(
+            value,
+            source::Permanents::Ref_TargetPermanents
+                | source::Permanents::ThePermanentsChosenThisWay
+                | source::Permanents::TheChosenPermanents
+                | source::Permanents::ThePermanentsNotChosenThisWay
+                | source::Permanents::NotChosenThisWay
+        ) && (matches!(value, source::Permanents::Ref_TargetPermanents)
+            || self.permanent_choice.is_some())
+        {
             return Ok(ObjectFilter::InSet(Box::new(self.objects(value)?)));
         }
         let reduced = match self
@@ -1952,10 +1985,11 @@ impl Context {
                 let create = S::CreateTokens(tokens.clone(), flags.clone());
                 return self.for_each_player(players, |context, _| context.action(&create, actor));
             }
-            // Choosing among earlier choices stays a row: they have no result to read.
+            // Choosing among earlier choices needs a result of theirs to read.
             S::ChooseAPermanent(objects) | S::ChooseUptoOnePermanent(objects)
                 if matches!(actor, PlayerSet::One(_))
-                    && !matches!(**objects, source::Permanents::TheChosenPermanents) =>
+                    && (self.permanent_choice.is_some()
+                        || !matches!(**objects, source::Permanents::TheChosenPermanents)) =>
             {
                 let PlayerSet::One(player) = actor else {
                     unreachable!()
@@ -1973,7 +2007,12 @@ impl Context {
                 let Instruction::Effect { result, .. } = &choice else {
                     unreachable!()
                 };
-                self.permanent_choice = Some(result.clone());
+                // One of those chosen narrows "that permanent", not "those permanents".
+                if matches!(**objects, source::Permanents::TheChosenPermanents) {
+                    self.narrowed_choice = Some(result.clone());
+                } else {
+                    self.permanent_choice = Some(result.clone());
+                }
                 return Ok(choice);
             }
             S::ChooseUptoNumberPermanents(amount, objects)
@@ -1993,6 +2032,79 @@ impl Context {
                 };
                 self.permanent_choice = Some(result.clone());
                 return Ok(choice);
+            }
+            S::ChooseAnyNumberOfGroupPermanents(objects, group)
+                if matches!(actor, PlayerSet::One(_)) =>
+            {
+                let objects = self.objects(objects)?;
+                let constraints = self.group_constraints(group)?;
+                let (choice, result) = self.pick(actor, objects, Count::AnyNumber, constraints)?;
+                self.permanent_choice = Some(result);
+                return Ok(choice);
+            }
+            S::ChooseOneOrTwoPermanents(objects) if matches!(actor, PlayerSet::One(_)) => {
+                let objects = self.objects(objects)?;
+                let count = Count::Between {
+                    minimum: Expr::Constant(1),
+                    maximum: Expr::Constant(2),
+                };
+                let (choice, result) = self.pick(actor, objects, count, vec![])?;
+                self.permanent_choice = Some(result);
+                return Ok(choice);
+            }
+            S::ChooseMultiplePermanentsAmoungPermanents(slots, objects)
+                if matches!(actor, PlayerSet::One(_)) =>
+            {
+                return self.pick_slots(actor, slots, objects);
+            }
+            S::ChooseMultiplePermanentsAmoungPermanentsForEachPlayer(players, slots, objects)
+                if matches!(actor, PlayerSet::One(_)) =>
+            {
+                let players = self.players(players)?;
+                return self.for_each_player(players, |context, _| {
+                    context.pick_slots(actor, slots, objects)
+                });
+            }
+            S::ChooseAPermanentForEachPlayer(players, objects)
+                if matches!(actor, PlayerSet::One(_)) =>
+            {
+                let players = self.players(players)?;
+                return self.for_each_player(players, |context, _| {
+                    let objects = context.objects(objects)?;
+                    let count = Count::AsManyAsCan(Expr::Constant(1));
+                    let (choice, result) = context.pick(actor, objects, count, vec![])?;
+                    context.permanent_choice = Some(result);
+                    Ok(choice)
+                });
+            }
+            S::ChooseUptoOnePermanentForEachPlayer(objects, players)
+                if matches!(actor, PlayerSet::One(_)) =>
+            {
+                let players = self.players(players)?;
+                return self.for_each_player(players, |context, _| {
+                    let objects = context.objects(objects)?;
+                    let count = Count::UpTo(Expr::Constant(1));
+                    let (choice, result) = context.pick(actor, objects, count, vec![])?;
+                    context.permanent_choice = Some(result);
+                    Ok(choice)
+                });
+            }
+            S::ChooseACardInEachPlayersGraveyard(cards, players)
+                if matches!(actor, PlayerSet::One(_)) =>
+            {
+                let players = self.players(players)?;
+                return self.for_each_player(players, |context, one| {
+                    context.pick_graveyard(actor, one, cards, Expr::Constant(1))
+                });
+            }
+            S::ChooseNumberCardsInEachPlayersGraveyard(amount, cards, players)
+                if matches!(actor, PlayerSet::One(_)) =>
+            {
+                let players = self.players(players)?;
+                let amount = self.number(amount)?;
+                return self.for_each_player(players, |context, one| {
+                    context.pick_graveyard(actor, one, cards, amount)
+                });
             }
             S::CreatePermanentsList(objects) => {
                 let note = self.effect(Operation::NoteObjects {
@@ -3540,8 +3652,19 @@ impl Context {
     }
 
     fn cost_as_action(&self, value: &source::Cost) -> Result<Cost> {
-        let action: source::Action =
-            as_family(value, "Action").ok_or_else(|| unsupported(value))?;
+        // Some actions name the zone themselves, where the cost types the operand by it.
+        let action: source::Action = as_family(value, "Action")
+            .or_else(|| {
+                cast(
+                    value,
+                    &[
+                        ("Cost", "Action"),
+                        ("CardsInHand", "Cards"),
+                        ("CardsInGraveyards", "Cards"),
+                    ],
+                )
+            })
+            .ok_or_else(|| unsupported(value))?;
         let player = self.payer.clone().unwrap_or(PlayerRef::AbilityController);
         let mut child = self.clone();
         // Results inside a cost never collide with this scope or another cost's.

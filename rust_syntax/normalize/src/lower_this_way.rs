@@ -175,4 +175,78 @@ impl Context {
         })())
         .filter(|result| !matches!(result, Err(e) if e.source_type != "invariant"))
     }
+    /// Later "chosen" references of this zone read this choice.
+    fn note_choice(&mut self, objects: &ObjectSet, result: ResultId) {
+        let zone = match objects {
+            ObjectSet::Zone { scope, .. } => match scope {
+                ZoneScope::Shared(zone) | ZoneScope::Players { zone, .. } => zone,
+            },
+            ObjectSet::InZone { zone, .. } => zone,
+            ObjectSet::Matching { objects, .. } | ObjectSet::Difference { objects, .. } => {
+                return self.note_choice(objects, result)
+            }
+            _ => &EventZone::Battlefield,
+        };
+        match zone {
+            EventZone::Hand => self.hand_choice = Some(result),
+            EventZone::Graveyard => self.grave_choice = Some(result),
+            EventZone::Exile => self.exile_choice = Some(result),
+            _ => self.permanent_choice = Some(result),
+        }
+    }
+    /// A resolution choice; the caller says which reference reads its result.
+    fn pick(
+        &mut self,
+        actor: &PlayerSet,
+        objects: ObjectSet,
+        count: Count,
+        constraints: Vec<SelectionConstraint>,
+    ) -> Result<(Instruction, ResultId)> {
+        let PlayerSet::One(player) = actor else {
+            return Err(invalid("a choice needs one chooser"));
+        };
+        let choice = self.effect(Operation::ChooseObjects {
+            constraints,
+            player: player.clone(),
+            objects,
+            count,
+        });
+        let Instruction::Effect { result, .. } = &choice else {
+            unreachable!()
+        };
+        let result = result.clone();
+        Ok((choice, result))
+    }
+    /// "An artifact, a creature, and a land": one pick per filter from `objects`.
+    fn pick_slots(
+        &mut self,
+        actor: &PlayerSet,
+        slots: &[source::Permanents],
+        objects: &source::Permanents,
+    ) -> Result<Instruction> {
+        let objects = self.objects(objects)?;
+        let slots = slots
+            .iter()
+            .map(|slot| self.filter(slot))
+            .collect::<Result<Vec<_>>>()?;
+        let count = Count::AsManyAsCan(Expr::Constant(slots.len() as i64));
+        let constraints = vec![SelectionConstraint::OneForEach(slots)];
+        let (choice, result) = self.pick(actor, objects, count, constraints)?;
+        self.permanent_choice = Some(result);
+        Ok(choice)
+    }
+    fn pick_graveyard(
+        &mut self,
+        actor: &PlayerSet,
+        owner: &PlayerSet,
+        cards: &source::Cards,
+        amount: Expr,
+    ) -> Result<Instruction> {
+        let filter = self.card_filter(cards)?;
+        let objects = self.private_cards(EventZone::Graveyard, owner.clone(), filter);
+        let count = Count::AsManyAsCan(amount);
+        let (choice, result) = self.pick(actor, objects, count, vec![])?;
+        self.grave_choice = Some(result);
+        Ok(choice)
+    }
 }

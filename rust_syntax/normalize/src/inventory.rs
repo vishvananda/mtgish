@@ -1185,7 +1185,10 @@ impl Inventory<'_> {
                 self.objects(objects);
                 self.form("EventZone", zone);
             }
-            ObjectSet::Targets(_) | ObjectSet::Selected(_) | ObjectSet::Created(_) => {}
+            ObjectSet::Targets(_)
+            | ObjectSet::Selected(_)
+            | ObjectSet::Unselected(_)
+            | ObjectSet::Created(_) => {}
         }
     }
     fn player(&mut self, r: &PlayerRef) {

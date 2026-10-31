@@ -433,7 +433,9 @@ impl Effects {
             ObjectSet::Union(sets) => sets.iter().any(|s| self.objects_library(s)),
             ObjectSet::Take { objects, .. } => self.objects_library(objects),
             ObjectSet::Targets(slot) => self.targets.get(&slot.0).copied().unwrap_or(false),
-            ObjectSet::Selected(result) => self.result_library(result, &ObjectPhase::After),
+            ObjectSet::Selected(result) | ObjectSet::Unselected(result) => {
+                self.result_library(result, &ObjectPhase::After)
+            }
             ObjectSet::Transition { result, phase } => self.result_library(result, phase),
             ObjectSet::Battlefield(_) | ObjectSet::Created(_) | ObjectSet::DamageSources(_) => {
                 false

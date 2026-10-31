@@ -2565,6 +2565,295 @@
           "value": 1
         }
       }
+    },
+    {
+      "id": "action.ChooseAPermanentAtRandom",
+      "source": "ChooseAPermanentAtRandom",
+      "arity": 1,
+      "family": "Choose",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      },
+      "random": true
+    },
+    {
+      "id": "action.ChooseNumberPermanents",
+      "source": "ChooseNumberPermanents",
+      "arity": 2,
+      "family": "Choose",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 1
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.ChooseAnyNumberOfPermanents",
+      "source": "ChooseAnyNumberOfPermanents",
+      "arity": 1,
+      "family": "Choose",
+      "subjects": {
+        "kind": "Permanents",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "AnyNumber"
+      }
+    },
+    {
+      "id": "action.ChooseACardInHand",
+      "source": "ChooseACardInHand",
+      "arity": 1,
+      "family": "Choose",
+      "subjects": {
+        "kind": "HandCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.ChooseACardInHandAtRandom",
+      "source": "ChooseACardInHandAtRandom",
+      "arity": 1,
+      "family": "Choose",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Hand"
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      },
+      "random": true
+    },
+    {
+      "id": "action.ChooseACardOfTypeInPlayersHandAtRandom",
+      "source": "ChooseACardOfTypeInPlayersHandAtRandom",
+      "arity": 2,
+      "family": "Choose",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Hand",
+        "owner": 1
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      },
+      "random": true
+    },
+    {
+      "id": "action.ChooseNumberCardsInHandOfType",
+      "source": "ChooseNumberCardsInHandOfType",
+      "arity": 2,
+      "family": "Choose",
+      "subjects": {
+        "kind": "HandCards",
+        "argument": 1
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.ChooseUptoNumberCardsInHand",
+      "source": "ChooseUptoNumberCardsInHand",
+      "arity": 2,
+      "family": "Choose",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 1,
+        "zone": "Hand"
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "UpTo",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.ChooseACardInPlayersGraveyard",
+      "source": "ChooseACardInPlayersGraveyard",
+      "arity": 2,
+      "family": "Choose",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Graveyard",
+        "owner": 1
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.ChooseACardInPlayersGraveyardAtRandom",
+      "source": "ChooseACardInPlayersGraveyardAtRandom",
+      "arity": 2,
+      "family": "Choose",
+      "subjects": {
+        "kind": "Cards",
+        "argument": 0,
+        "zone": "Graveyard",
+        "owner": 1
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      },
+      "random": true
+    },
+    {
+      "id": "action.ChooseAGraveyardCard",
+      "source": "ChooseAGraveyardCard",
+      "arity": 1,
+      "family": "Choose",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      }
+    },
+    {
+      "id": "action.ChooseNumberGraveyardCards",
+      "source": "ChooseNumberGraveyardCards",
+      "arity": 2,
+      "family": "Choose",
+      "subjects": {
+        "kind": "GraveCards",
+        "argument": 1
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
+    },
+    {
+      "id": "action.ChooseAnExiledCardAtRandom",
+      "source": "ChooseAnExiledCardAtRandom",
+      "arity": 1,
+      "family": "Choose",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 0
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "AsManyAsCan",
+        "amount": {
+          "kind": "Constant",
+          "value": 1
+        }
+      },
+      "random": true
+    },
+    {
+      "id": "action.ChooseUptoNumberExiledCards",
+      "source": "ChooseUptoNumberExiledCards",
+      "arity": 2,
+      "family": "Choose",
+      "subjects": {
+        "kind": "ExiledCards",
+        "argument": 1
+      },
+      "duration": null,
+      "destination": null,
+      "entry": null,
+      "selection": {
+        "kind": "UpTo",
+        "amount": {
+          "kind": "Source",
+          "argument": 0
+        }
+      }
     }
   ]
 }

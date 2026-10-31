@@ -39,6 +39,8 @@ pub enum Family {
     ObjectEffect,
     LayerEffect,
     RuleEffect,
+    /// A choice with a result that later "chosen" references read.
+    Choose,
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SubjectKind {
@@ -280,6 +282,14 @@ impl Registry {
                         && r.destination.is_none()
                         && r.entry.is_none()
                 }
+                Family::Choose => {
+                    r.subjects.is_some()
+                        && r.selection.is_some()
+                        && r.changes.is_none()
+                        && r.destination.is_none()
+                        && r.duration.is_none()
+                        && r.entry.is_none()
+                }
                 Family::Move => {
                     r.subjects.is_some()
                         && r.changes.is_none()
@@ -405,6 +415,7 @@ impl Registry {
             let payload=match r.family {
                 Family::Control=>format!("SurfaceAction::Control {{ subjects: {subjects}, selection: {selection}, duration: {duration} }}"),
                 Family::Move=>format!("SurfaceAction::Move {{ subjects: {subjects}, selection: {selection}, destination: DestinationInput::{:?}, entry: {}, depth: {}, random: {} }}",r.destination.unwrap(),r.entry.map_or("vec![]".into(),|i|format!("a{i}.clone()")),r.depth.map_or("None".into(),|i|format!("Some(number_tree(a{i}))")),r.random),
+                Family::Choose=>format!("SurfaceAction::Choose {{ subjects: {subjects}, selection: {selection}, random: {} }}",r.random),
                 Family::PlayerAmount=>format!("SurfaceAction::PlayerAmount {{ operation: PlayerOperation::{:?}, amount: {} }}",r.player_operation.unwrap(),r.amount.as_ref().unwrap().generate()),
                 Family::ObjectEffect=>format!("SurfaceAction::ObjectEffect {{ subjects: {subjects}, selection: {selection}, operation: ObjectOperation::{:?} }}",r.object_operation.unwrap()),
                 Family::LayerEffect | Family::RuleEffect=>format!("SurfaceAction::ContinuousEffect {{ subjects: {subjects}, change: ChangeTemplate::{}(a{}.clone()), duration: {duration} }}",if r.family==Family::LayerEffect {"LayerEffects"} else {"Rules"},r.changes.unwrap()),

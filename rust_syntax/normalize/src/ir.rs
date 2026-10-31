@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 54;
+pub const SCHEMA_VERSION: u32 = 55;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -571,7 +571,8 @@ pub enum Instruction {
     /// Run `body`, then run it again each time it reached `RepeatProcess`.
     Repeatable(Program),
     /// Each player, as `binding`, does `body`: choices in APNAP order, and the
-    /// actions then happen together (101.4).
+    /// actions then happen together (101.4). A choice made in `body` can be read
+    /// after the loop as a set of every player's picks.
     ForEachPlayer {
         players: PlayerSet,
         binding: Binding,
@@ -922,6 +923,8 @@ pub enum SelectionConstraint {
     DifferentOwners,
     /// The game picks uniformly, not the choosing player.
     AtRandom,
+    /// One object for each filter; an object fills only one of them.
+    OneForEach(Vec<ObjectFilter>),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CardOrder {
@@ -1807,6 +1810,9 @@ pub enum ObjectSet {
     EventGroup,
     /// The top card of each of these players' libraries.
     LibraryTops(PlayerSet),
+    /// Objects a preceding choice could have selected and did not, by the
+    /// candidates it offered; each player's own in a per-player choice.
+    Unselected(ResultId),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {

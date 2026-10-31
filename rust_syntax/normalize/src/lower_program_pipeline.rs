@@ -45,6 +45,11 @@ impl Context {
         };
         self.result = child.result;
         self.invalidate_child_bindings(&child);
+        // Each run's picks add up, so the loop's choice reads as a set afterward.
+        self.permanent_choice = child.permanent_choice.or(self.permanent_choice.take());
+        self.hand_choice = child.hand_choice.or(self.hand_choice.take());
+        self.exile_choice = child.exile_choice.or(self.exile_choice.take());
+        self.grave_choice = child.grave_choice.or(self.grave_choice.take());
         Ok(Instruction::ForEachPlayer {
             players,
             binding,

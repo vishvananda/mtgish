@@ -46,6 +46,7 @@ impl Context {
     fn hand_filter(&self, value: &source::CardsInHand) -> Result<ObjectFilter> {
         self.pipeline_selector(crate::pipeline::selectors::SelectorRef::CardsInHand(value))
             .unwrap_or_else(|| Err(unsupported(value)))
+            .or_else(|error| rescue(error, || self.primitive_predicate("CardsInHand", value)))
             .or_else(|error| self.as_card_filter(value, error))
     }
     fn exile_filter(&self, value: &source::CardsInExile) -> Result<ObjectFilter> {

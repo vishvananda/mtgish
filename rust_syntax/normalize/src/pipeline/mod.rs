@@ -98,6 +98,11 @@ pub enum SurfaceAction {
         change: ChangeTemplate,
         duration: DurationInput,
     },
+    Choose {
+        subjects: Subjects,
+        selection: Option<SelectionInput>,
+        random: bool,
+    },
 }
 /// Generic operation templates with typed unresolved operands. Binding is a
 /// distinct pass; intermediate source operands cannot escape into final Card.
@@ -127,6 +132,11 @@ pub enum ExpandedRecipe {
         selection: Option<SelectionInput>,
         operation: ObjectOperation,
     },
+    Choose {
+        subjects: Subjects,
+        selection: Option<SelectionInput>,
+        random: bool,
+    },
 }
 impl ExpandedRecipe {
     pub fn kind(&self) -> &'static str {
@@ -135,6 +145,7 @@ impl ExpandedRecipe {
             Self::Move { .. } => "Move",
             Self::PlayerAmount { .. } => "PlayerAmount",
             Self::ObjectEffect { .. } => "ObjectEffect",
+            Self::Choose { .. } => "Choose",
         }
     }
 }
@@ -184,6 +195,15 @@ impl SurfaceAction {
                 subjects,
                 selection,
                 operation,
+            },
+            Self::Choose {
+                subjects,
+                selection,
+                random,
+            } => ExpandedRecipe::Choose {
+                subjects,
+                selection,
+                random,
             },
             Self::ContinuousEffect {
                 subjects,

@@ -9199,6 +9199,28 @@
    "template": "Companion - Each nonland card in your starting deck shares a card type",
    "result": "Companion(EachCardPassesGroupFilter(IsNonCardtype(Land), ShareACardType))",
    "reason": "\"shares a card type\" is the inflected form."
+  },
+  {
+   "id": "483ad16c646de42d86d95117a2ff180b3a5d6ea8fc2b39ae116dd51f4471639b",
+   "kind": "mined_token",
+   "rule": "Zombie",
+   "token": "Zombie",
+   "word": "zombi",
+   "support": "11/12",
+   "template": "Zombie",
+   "result": "Zombie",
+   "reason": "triaged 2026-10-31: reads correctly for its cards, or the pairing is a mining coincidence"
+  },
+  {
+   "id": "a9108282e324af1b239c60331b183c480be20ac2a02f5aef5d14ff4716ee68ce",
+   "kind": "mined_token",
+   "rule": "TriggerActions",
+   "token": "SetCardtypes",
+   "word": "artifact",
+   "support": "38/42",
+   "template": "for each opponent, choose a creature that player controls. Create a token that's a copy of one of those creatures, except its power is equal to the total power of those creatures, its toughness is equal to the total toughness of those creatures, and it's a colorless {{Zombie}} creature",
+   "result": "ActionList([ChooseAPermanentForEachPlayer(Opponent, And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(EachablePlayer))])), ChooseAPermanent(TheChosenPermanents), CreateTokens([TokenCopyOfPermanent(TheChosenPermanent, TokenCopyEffects([SetPT(ManualPT(TotalPowerOfPermanents(ThePermanentsChosenThisWay), TotalToughnessOfPermanents(ThePermanentsChosenThisWay))), SetColor(Colorless), SetCreatureTypes([{{Zombie[0]}}]), SetCardtypes([Creature])]))], [])])",
+   "reason": "triaged 2026-10-31: reads correctly for its cards, or the pairing is a mining coincidence"
   }
  ]
 }

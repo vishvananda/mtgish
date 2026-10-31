@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 54);
+    assert_eq!(card.schema_version, 55);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2632,4 +2632,45 @@ fn a_missing_antecedent_stays_an_error() {
     let source =
         custom("SpellActions(ActionList([DrawNumberCards(NumCardsPutIntoLibraryThisWay)]))");
     assert!(pipeline::finalize(&source).is_err());
+}
+
+#[test]
+fn each_players_choice_reads_as_a_set_after_the_loop() {
+    let text = ability_json("SpellActions(ActionList([EachPlayerAction(AnyPlayer,ChooseAPermanent(And([IsCardtype(Creature),ControlledByAPlayer(SinglePlayer(ActionPlayer))]))),DestroyEachPermanent(And([IsCardtype(Creature),ExceptFor(ThePermanentsChosenThisWay)]))]))");
+    assert!(text.contains("ForEachPlayer"), "{text}");
+    assert!(text.contains("InSet"), "{text}");
+    assert!(text.contains("Selected"), "{text}");
+}
+
+#[test]
+fn a_loops_choice_is_never_one_object() {
+    let source = custom("SpellActions(ActionList([EachPlayerAction(AnyPlayer,ChooseAPermanent(ControlledByAPlayer(SinglePlayer(ActionPlayer)))),DestroyPermanent(ThePermanentChosenThisWay)]))");
+    assert!(pipeline::finalize(&source).is_err());
+}
+
+#[test]
+fn the_rest_of_a_choice_are_what_it_offered_and_left() {
+    let text = ability_json("SpellActions(ActionList([EachPlayerAction(AnyPlayer,ChooseNumberPermanents(Integer(3),And([IsNonCardtype(Land),ControlledByAPlayer(SinglePlayer(ActionPlayer))]))),DestroyEachPermanent(ThePermanentsNotChosenThisWay)]))");
+    assert!(text.contains("Unselected"), "{text}");
+}
+
+#[test]
+fn one_pick_per_filter_is_a_constraint_over_one_domain() {
+    let text = ability_json("SpellActions(ActionList([EachPlayerAction(AnyPlayer,ChooseMultiplePermanentsAmoungPermanents([IsCardtype(Artifact),IsCardtype(Creature)],ControlledByAPlayer(SinglePlayer(EachablePlayer)))),SacrificeEachPermanent(ThePermanentsNotChosenThisWay)]))");
+    assert!(text.contains("OneForEach"), "{text}");
+    assert!(text.contains("Unselected"), "{text}");
+}
+
+#[test]
+fn one_chooser_picks_for_each_player() {
+    let text = ability_json("SpellActions(ActionList([ChooseACardInEachPlayersGraveyard(IsCardtype(Creature),AnyPlayer),ReturnEachGraveyardCardToBattlefield(TheChosenGraveyardCards,[EntersUnderPlayersControl(You)])]))");
+    assert!(text.contains("ForEachPlayer"), "{text}");
+    assert!(text.contains("Selected"), "{text}");
+}
+
+#[test]
+fn a_choice_made_as_a_cost_is_read_when_it_was_paid() {
+    let text = ability_json("SpellActions(ActionList([MayCost(ChooseACardInPlayersGraveyard(IsCardtype(Creature),You)),If(CostWasPaid,[PutGraveyardCardOntoBattlefield(TheChosenGraveyardCard,[])])]))");
+    assert!(text.contains("ChooseObjects"), "{text}");
+    assert!(text.contains("\"Result\""), "{text}");
 }

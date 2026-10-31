@@ -339,6 +339,21 @@
     ]
   },
   {
+    "name": "Benthic Anomaly",
+    "issues": [
+      68,
+      69
+    ],
+    "contains": [
+      "ChooseAPermanentForEachPlayer(Opponent, And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(EachablePlayer))]))",
+      "SetCreatureTypes([Eldrazi]), SetCardtypes([Creature])"
+    ],
+    "excludes": [
+      "ChooseAPermanentForEachPlayer(Opponent, IsCardtype(Creature))",
+      "AddCreatureTypes([Zombie])"
+    ]
+  },
+  {
     "name": "Beorn the Fierce",
     "issues": [
       2
@@ -3776,6 +3791,18 @@
     ]
   },
   {
+    "name": "The Eternal Wanderer",
+    "issues": [
+      68
+    ],
+    "contains": [
+      "ChooseAPermanentForEachPlayer(AnyPlayer, And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(EachablePlayer))]))"
+    ],
+    "excludes": [
+      "ChooseAPermanentForEachPlayer(AnyPlayer, IsCardtype(Creature))"
+    ]
+  },
+  {
     "name": "The Great Aerie",
     "issues": [
       1
@@ -4088,6 +4115,18 @@
     "name": "Unseal the Necropolis",
     "issues": [
       1
+    ]
+  },
+  {
+    "name": "Unstable Glyphbridge // Sandswirl Wanderglyph",
+    "issues": [
+      68
+    ],
+    "contains": [
+      "ControlledByAPlayer(SinglePlayer(EachablePlayer))])), DestroyEachPermanent(And([IsCardtype(Creature), NotChosenThisWay]))"
+    ],
+    "excludes": [
+      "PowerIs(LessThanOrEqualTo(Integer(2)))])), DestroyEachPermanent(And([IsCardtype(Creature), NotChosenThisWay]))"
     ]
   },
   {

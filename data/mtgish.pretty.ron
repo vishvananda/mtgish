@@ -116484,7 +116484,10 @@ Card(
       ActionList([
         ChooseAPermanentForEachPlayer(
           Opponent,
-          IsCardtype(Creature),
+          And([
+            IsCardtype(Creature),
+            ControlledByAPlayer(SinglePlayer(EachablePlayer)),
+          ]),
         ),
         ChooseAPermanent(TheChosenPermanents),
         CreateTokens(
@@ -116497,10 +116500,10 @@ Card(
                   TotalToughnessOfPermanents(ThePermanentsChosenThisWay),
                 )),
                 SetColor(Colorless),
-                AddCreatureTypes([
-                  Zombie,
+                SetCreatureTypes([
+                  Eldrazi,
                 ]),
-                AddCardtypes([
+                SetCardtypes([
                   Creature,
                 ]),
               ]),
@@ -1345899,7 +1345902,10 @@ Card(
       ActionList([
         ChooseAPermanentForEachPlayer(
           AnyPlayer,
-          IsCardtype(Creature),
+          And([
+            IsCardtype(Creature),
+            ControlledByAPlayer(SinglePlayer(EachablePlayer)),
+          ]),
         ),
         EachPlayerAction(
           AnyPlayer,
@@ -1437232,8 +1437238,11 @@ Transforming(
           ChooseAPermanentForEachPlayer(
             AnyPlayer,
             And([
-              IsCardtype(Creature),
-              PowerIs(LessThanOrEqualTo(Integer(2))),
+              And([
+                IsCardtype(Creature),
+                PowerIs(LessThanOrEqualTo(Integer(2))),
+              ]),
+              ControlledByAPlayer(SinglePlayer(EachablePlayer)),
             ]),
           ),
           DestroyEachPermanent(And([

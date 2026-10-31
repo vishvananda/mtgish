@@ -371,6 +371,9 @@ impl Context {
                     .collect::<Result<_>>()?,
             ));
         }
+        if let Some(filter) = self.primitive_predicate("CheckHasable", value) {
+            return Ok(filter);
+        }
         macro_rules! keyword_filter {
             ($($k:ident),* $(,)?)=> { match value { $(S::$k => ObjectFilter::HasKeyword(Keyword::$k),)* _=>return Err(unsupported(value)), } };
         }
