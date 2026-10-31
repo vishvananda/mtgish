@@ -10,6 +10,9 @@ impl Context {
             S::SharesANameWithExiled(c) => {
                 return Ok(ObjectFilter::SharesNameWith(self.exiled_card(c)?))
             }
+            S::SharesANameWithGraveyardCard(c) => {
+                return Ok(ObjectFilter::SharesNameWith(self.grave_card(c)?))
+            }
             S::SharesANameWithAnExiled(c) => {
                 return Ok(ObjectFilter::SharesNameWithAny(Box::new(self.exile_cards(c)?)))
             }

@@ -41,6 +41,7 @@ pub struct EventBindings {
     pub group: bool,
     pub stack_object: bool,
     pub other: bool,
+    pub other_player: bool,
     pub moved_owner: bool,
 }
 impl EventBindings {
@@ -57,6 +58,7 @@ impl EventBindings {
             group: a.group && b.group,
             stack_object: a.stack_object && b.stack_object,
             other: a.other && b.other,
+            other_player: a.other_player && b.other_player,
             moved_owner: a.moved_owner && b.moved_owner,
             damage: a.damage && b.damage,
             damage_source: a.damage_source && b.damage_source,
@@ -170,6 +172,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 group: has("group"),
                 stack_object: has("stack_object"),
                 other: has("other"),
+                other_player: has("other_player"),
                 moved: has("moved"),
                 ..EventBindings::default()
             }
@@ -232,6 +235,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 group: false,
                 stack_object: false,
                 other: false,
+                other_player: false,
                 moved_owner: false,
                 damage_objects: !players,
                 damage_players: !objects,

@@ -14,7 +14,16 @@ struct Tally {
     missing: Vec<String>,
 }
 
-/// `Integer` arguments and fieldless forms of a source tree.
+/// The integer a form holds directly.
+fn integer(value: &Value) -> Option<i64> {
+    match value.get("variant")?.as_str()? {
+        "Integer" => value.get("args")?.as_i64(),
+        _ => None,
+    }
+}
+
+/// `Integer` arguments and fieldless forms of a source tree. Lowering folds a
+/// sum of two integers, so the sum stands for its terms.
 fn source_values(value: &Value, integers: &mut BTreeSet<u64>, forms: &mut BTreeSet<String>) {
     match value {
         Value::Array(items) => items
@@ -25,6 +34,12 @@ fn source_values(value: &Value, integers: &mut BTreeSet<u64>, forms: &mut BTreeS
                 fields.get("variant").and_then(Value::as_str),
                 fields.get("args"),
             ) {
+                (Some("Plus"), Some(Value::Array(terms))) => {
+                    if let [Some(a), Some(b)] = terms.iter().map(integer).collect::<Vec<_>>()[..] {
+                        integers.insert((a + b).unsigned_abs());
+                        return;
+                    }
+                }
                 (Some("Integer"), Some(Value::Number(n))) => {
                     integers.extend(n.as_i64().map(i64::unsigned_abs).filter(|n| *n > 1));
                 }

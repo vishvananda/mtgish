@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 51);
+    assert_eq!(card.schema_version, 52);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2566,4 +2566,24 @@ fn a_noted_set_is_read_from_the_snapshot() {
 fn search_steps_can_branch_on_a_condition() {
     let text = ability_json("SpellActions(ActionList([SearchLibrary([FindACardOfType(IsCardtype(Land)),IfElse(ValueIs(Integer(1),EqualTo(Integer(1))),[PutFoundCardsIntoHand],[PutFoundCardsOntoBattlefield([EntersTapped])]),Shuffle])]))");
     assert!(text.contains("\"If\""), "{text}");
+}
+
+#[test]
+fn an_attacked_player_is_the_events_other_player() {
+    let text = ability_json("TriggerA(WhenAPlayerAttacksAPlayer(AnyPlayer,Opponent),ActionList([PlayerAction(Trigger_ThatPlayer,DrawACard),PlayerAction(Trigger_ThatOtherPlayer,LoseLife(Integer(1)))]))");
+    assert!(text.contains("EventOtherPlayer"), "{text}");
+    assert!(text.contains("EventSubject"), "{text}");
+}
+
+#[test]
+fn an_optional_destroy_is_checked_in_the_graveyard() {
+    let text = ability_json("TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),Targeted([TargetPermanent(IsCardtype(Artifact))],ActionList([MayAction(DestroyPermanent(Ref_TargetPermanent)),If(DestroyedPermanentIsPutInAGraveyardThisWay,[DrawACard])])))");
+    assert!(text.contains("\"Graveyard\""), "{text}");
+    assert!(text.contains("\"After\""), "{text}");
+}
+
+#[test]
+fn a_search_can_match_a_targeted_graveyard_cards_name() {
+    let text = ability_json("SpellActions(Targeted([TargetGraveyardCard(AnyCardInAnyGraveyard)],ActionList([SearchPlayersLibraryAndGraveyardAndHand(OwnerOfGraveyrdCard(Ref_TargetGraveyardCard),[FindAnyNumberOfCardsOfType(SharesANameWithGraveyardCard(Ref_TargetGraveyardCard)),ExileFoundCards])])))");
+    assert!(text.contains("SharesNameWith"), "{text}");
 }

@@ -205,6 +205,9 @@ impl Context {
                         self.singular.insert(result.0);
                     }
                     self.note_move(operation, result.clone());
+                    if let Some(done) = Done::of(operation) {
+                        self.did.insert(done, result.clone());
+                    }
                 }
                 Instruction::Group(body) | Instruction::Optional { body, .. } => {
                     self.note_moves(body)
@@ -526,6 +529,7 @@ impl Context {
             {
                 PlayerRef::EventSubject
             }
+            S::Trigger_ThatOtherPlayer if self.event.other_player => PlayerRef::EventOtherPlayer,
             S::Trigger_ThatPlayer if self.event.moved_owner => {
                 PlayerRef::OwnerOf(Box::new(ObjectRef::EventSubject))
             }
@@ -1104,6 +1108,20 @@ impl Context {
             }
             S::APermanentWasDestroyedThisWay(filter) => Condition::Compare {
                 left: Expr::CountObjects(Box::new(self.done_matching(Done::Destroyed, filter)?)),
+                comparison: Comparison::Greater,
+                right: Expr::Constant(0),
+            },
+            S::DestroyedPermanentIsPutInAGraveyardThisWay => Condition::Compare {
+                left: Expr::CountObjects(Box::new(ObjectSet::Matching {
+                    objects: Box::new(ObjectSet::Transition {
+                        result: self.done(Done::Destroyed)?,
+                        phase: ObjectPhase::After,
+                    }),
+                    filter: ObjectFilter::InZone(ZoneScope::Players {
+                        zone: EventZone::Graveyard,
+                        players: PlayerSet::All,
+                    }),
+                })),
                 comparison: Comparison::Greater,
                 right: Expr::Constant(0),
             },

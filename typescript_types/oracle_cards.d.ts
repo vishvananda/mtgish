@@ -223,6 +223,7 @@ type Action =
 | { "_Action": "BoonDealsDamage", "args": [Boon, GameNumber, DamageRecipient] }
 | { "_Action": "CastACopiedCardWithoutPaying" }
 | { "_Action": "CastASpellAndMaySpendManaAsThoughAnyColorToCast", "args": Spells }
+| { "_Action": "CastASpellAndMaySpendManaAsThoughAnyTypeToCast", "args": Spells }
 | { "_Action": "CastASpellDrawnThisWayWithoutPaying" }
 | { "_Action": "CastASpellFromAPlayersGraveyardWithoutPayingIntoExile", "args": [Spells, Players] }
 | { "_Action": "CastASpellFromExile", "args": [Spells, CardsInExile] }
@@ -1956,6 +1957,7 @@ type CardsInLibrary =
 | { "_CardsInLibrary": "SharesANameWithAnExiled", "args": CardsInExile }
 | { "_CardsInLibrary": "SharesANameWithDeadPermanent" }
 | { "_CardsInLibrary": "SharesANameWithExiled", "args": CardInExile }
+| { "_CardsInLibrary": "SharesANameWithGraveyardCard", "args": CardInGraveyards }
 | { "_CardsInLibrary": "SharesANameWithPermanent", "args": Permanent }
 | { "_CardsInLibrary": "SharesANameWithSpell", "args": Spell }
 | { "_CardsInLibrary": "SharesANameWithTheCardChosenThisWay" }
@@ -5655,6 +5657,7 @@ type PlayerEffect =
 | { "_PlayerEffect": "MayCastASpellFromGraveyardWithEffect", "args": [Spells, Player, Array<SpellEffect>] }
 | { "_PlayerEffect": "SpellsCastFromExileHaveAbility", "args": [Spells, Array<SpellEffect>] }
 | { "_PlayerEffect": "MayCastASpellFromAmongExiledCardsAndMaySpendManaAsThoughAnyColorToCastOnceEachPlayersTurn", "args": [Spells, CardsInExile, Player] }
+| { "_PlayerEffect": "MayCastASpellFromAmongExiledCardsAndMaySpendManaAsThoughAnyTypeToCastOnceEachPlayersTurn", "args": [Spells, CardsInExile, Player] }
 | { "_PlayerEffect": "MayCastASpellFromAmongExiledCardsWithEffect", "args": [Spells, CardsInExile, Array<SpellEffect>] }
 | { "_PlayerEffect": "DrawsCardsFromBottomOfTheirLibrary" }
 | { "_PlayerEffect": "MayPlayExiledCardAndMaySpendManaAsThoughAnyTypeToCast", "args": CardInExile }

@@ -9090,6 +9090,115 @@
    "template": "put {{a}} {{CounterType}} counter on {{~Permanent}}. Then you may exile a card from a graveyard. If {{a}} {{SpecificCard}} was exiled this way, you may have {{~Permanent}} become a copy of that card until end of turn",
    "result": "ActionList([PutCounters([ACounterOfTypeOnPermanent({{CounterType[0]}}, ThisPermanent)]), MayAction(Exile([ACardInGraveyards(AnyCardInAnyGraveyard)], [])), If(ACardWasExiledThisWay({{SpecificCard[0]}}), [MayAction(CreatePermanentLayerEffectUntil(ThisPermanent, [IsACopyOfExiledCard(TheCardExiledThisWay, NoCopyEffects)], UntilEndOfTurn))])])",
    "reason": "triaged 2026-10-31: the literal is right; the finding moved because a \"may\" or \"other\" repair changed the result around it"
+  },
+  {
+   "id": "06e9817686b331a95ee4970f359b74387045c0fa80001a9c5ef8cd7077af0e1e",
+   "kind": "token_rule",
+   "rule": "TriggerActions(ThatSpell)",
+   "token": "Shuffle",
+   "word": "(?i)shuffl",
+   "template": "search your library for a colored artifact card chosen at random whose mana value is less than {{GameNumber(ThatSpell)}}. You may play that card without paying its mana cost. If you don't, put that card on the bottom of your library",
+   "result": "ActionList([DigitallySearchLibrary([FindACardOfTypeAtRandom(And([IsColored, IsCardtype(Artifact), ManaValueIs(LessThan({{GameNumber(ThatSpell=^ThatSpell)[0]}}))])), MayPlayFoundCardsWithoutPaying, PutFoundCardsOnBottomOfLibrary, DontShuffle])])",
+   "reason": "Digital search; the text has no shuffle, and the form is DontShuffle."
+  },
+  {
+   "id": "0d2aa89178df3a84e755471a65c71943451dcb91716a33b3c52cf178fb9cf6c5",
+   "kind": "mined_token",
+   "rule": "SpellActions",
+   "token": "HavePlayerTakeAction",
+   "word": "have",
+   "support": "31/33",
+   "template": "Create {{a}} {{PT}} {{CreatureToken}} unless any opponent has you draw a card. Repeat this process {{Number}} more times",
+   "result": "ActionList([RepeatableActionsNumTimes(Plus(Integer(1), {{Number[0]}}), [AnyPlayerMayCost(Opponent, HavePlayerTakeAction(You, DrawACard)), Unless(CostWasPaid, [CreateTokens([TokenWithPT({{PT[0]}}, {{CreatureToken[0]}}, [])], [])]), RepeatThisProcess])])",
+   "reason": "\"has you draw\" is the inflected form of have."
+  },
+  {
+   "id": "3e2e13f5abf09f1acfe8842cf6c3489bb6e1c5d4b30259d1547a59e4da8ce202",
+   "kind": "mined_token",
+   "rule": "SpellActions",
+   "token": "EntersUnderOwnersControl",
+   "word": "owner",
+   "support": "195/199",
+   "template": "Return target {{SpecificCard}} in an opponent's graveyard to the battlefield under their control. When that permanent enters, return up to one target permanent card with equal or lesser mana value from your graveyard to the battlefield",
+   "result": "Targeted([TargetGraveyardCard(And([{{SpecificCard[0]}}, InAPlayersGraveyard(Opponent)]))], ActionList([Reflexive_PutOnBattlefield_WhenThatPermanentEnters([CardInGraveyard(Ref_TargetGraveyardCard)], [EntersUnderOwnersControl], Targeted([UptoOneTargetGraveyardCard(And([IsPermanent, ManaValueIs(LessThanOrEqualTo(ManaValueOfPermanent(ThePermanentPutOnTheBattlefieldThisWay))), InAPlayersGraveyard(SinglePlayer(You))]))], ActionList([PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersNormally])])))]))",
+   "reason": "The card is in an opponent's graveyard, so \"their control\" is its owner's."
+  },
+  {
+   "id": "77daa184473690def2f2f172cf7c00a356cb545de41d066ea7eb7ebceb070c5c",
+   "kind": "mined_token",
+   "rule": "SpellActions",
+   "token": "APermanentWasPutOntoTheBattlefieldThisWay",
+   "word": "onto",
+   "support": "7/8",
+   "template": "Exile target {{Creature}}. You draw cards equal to {{GameNumber(ThatCreature)}}. At the beginning of your next upkeep, return that card to the battlefield under its owner's control. If you do, discard cards equal to {{GameNumber(ThatCreature)}}",
+   "result": "Targeted([TargetPermanent({{Creature[0]}})], ActionList([Exile([Permanent(Ref_TargetPermanent)], []), DrawNumberCards({{GameNumber(ThatCreature=Ref_TargetPermanent)[0]}}), CreateFutureTrigger(AtTheBeginningOfPlayersNextUpkeep(You), ActionList([PutExiledCardOntoBattlefield(TheCardExiledThisWay, [EntersUnderOwnersControl]), If(APermanentWasPutOntoTheBattlefieldThisWay(AnyPermanent), [DiscardNumberCards({{GameNumber(ThatCreature=ThePermanentPutOnTheBattlefieldThisWay)[1]}})])]))]))",
+   "reason": "\"If you do\" after a return to the battlefield."
+  },
+  {
+   "id": "9ee42a44db28d0940679661e543e9437dff5f9d700995934f17189691b2cd25d",
+   "kind": "mined_token",
+   "rule": "Condition(~Permanent)",
+   "token": "OnTheBattlefield",
+   "word": "battlefield",
+   "support": "28/30",
+   "template": "the number of attacking creatures is greater than {{GameNumber(~Permanent)}}",
+   "result": "NumPermanentsPassFilter(GreaterThan({{GameNumber(~Permanent=^~Permanent)[0]}}), And([IsAttacking, IsCardtype(Creature)]), OnTheBattlefield)",
+   "reason": "Attacking creatures are necessarily on the battlefield."
+  },
+  {
+   "id": "a1ebdd68211f81b582be19aa787d4787d45dd745d602979cadca6211273f358e",
+   "kind": "mined_token",
+   "rule": "SpellActions",
+   "token": "EntersUnderOwnersControl",
+   "word": "owner",
+   "support": "195/199",
+   "template": "Return target {{SpecificCard}} from an opponent's graveyard to the battlefield under their control with {{a}} {{CounterType}} counter on it. For as long as that creature has a {{CounterType}} counter on it, it is goaded, can't attack you or a permanent you control, and can't block creatures you control",
+   "result": "Targeted([TargetGraveyardCard(And([{{SpecificCard[0]}}, InAPlayersGraveyard(Opponent)]))], ActionList([PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard, [EntersUnderOwnersControl, EntersWithACounter({{CounterType[0]}})]), CreatePermanentRuleEffectUntil(ThePermanentPutOnTheBattlefieldThisWay, [IsGoadedByPlayer(You), CantAttackPlayer(You), CantAttackAPermanent(And([IsPermanent, ControlledByAPlayer(SinglePlayer(You))])), CantBlockAttackers(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]))], ForAsLongAsPermanentHasACounterOfTypeOnIt(ThePermanentPutOnTheBattlefieldThisWay, {{CounterType[1]}}))]))",
+   "reason": "The card is in an opponent's graveyard, so \"their control\" is its owner's."
+  },
+  {
+   "id": "afffa2c3bff16f971ab3d50263b360cd6c84abb4b8cee08e38432c618187a8f6",
+   "kind": "mined_token",
+   "rule": "TriggerActions[WhenACreatureOrPlaneswalkerDies]",
+   "token": "EntersUnderOwnersControl",
+   "word": "owner",
+   "support": "195/199",
+   "template": "return them to the battlefield. They're an artifact",
+   "result": "ActionList([PutGraveyardCardOntoBattlefield(Trigger_ThatGraveyardCard, [EntersUnderOwnersControl, EntersWithLayerEffect([SetCardtype(Artifact)])])])",
+   "reason": "A return with no controller named is under its owner's control."
+  },
+  {
+   "id": "bc83ab202bef65db3ddb7e217ea831574331cdaeb3212c4f53ebe11eda31d19f",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "EachPlayerMayCostOrFallback",
+   "word": "unles",
+   "support": "16/18",
+   "template": "Each opponent may discard a card. If they don't, they lose {{Digits}} life. Repeat this process {{Number}} more times",
+   "result": "ActionList([RepeatableActionsNumTimes(Plus(Integer(1), {{Number[0]}}), [EachPlayerMayCostOrFallback(Opponent, [DiscardACard], LoseLife({{Digits[0]}})), RepeatThisProcess])])",
+   "reason": "\"If they don't\" is the fallback; no unless needed."
+  },
+  {
+   "id": "c345e120f44e0d8a3c950e6903cd2335d147c521804f2834a5b4df6933d86826",
+   "kind": "mined_token",
+   "rule": "TriggerActions",
+   "token": "EntersUnderOwnersControl",
+   "word": "owner",
+   "support": "195/199",
+   "template": "each opponent may search their library for up to {{Number}} {{SpecificCards}}. They each put one of those cards onto the battlefield tapped under your control and the rest onto the battlefield tapped under their control. Then each player who searched their library this way shuffles",
+   "result": "ActionList([EachPlayerMayAction(Opponent, SearchLibrary([FindNumberCardsOfType({{Number[0]}}, {{SpecificCards[0]}}), PutAFoundCardOntoBattlefield([EntersTapped, EntersUnderPlayersControl(You)]), PutFoundCardsOntoBattlefield([EntersTapped, EntersUnderOwnersControl]), Shuffle]))])",
+   "reason": "Each opponent searches their own library, so \"their control\" is the owner's."
+  },
+  {
+   "id": "e397e00a33fae41aad248eba92cf630aee641cf71dab926c68673a6bde1a2709",
+   "kind": "mined_token",
+   "rule": "DeckConstruction",
+   "token": "ShareACardType",
+   "word": "share",
+   "support": "6/7",
+   "template": "Companion - Each nonland card in your starting deck shares a card type",
+   "result": "Companion(EachCardPassesGroupFilter(IsNonCardtype(Land), ShareACardType))",
+   "reason": "\"shares a card type\" is the inflected form."
   }
  ]
 }

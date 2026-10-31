@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 51;
+pub const SCHEMA_VERSION: u32 = 52;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1861,6 +1861,8 @@ pub enum PlayerRef {
     /// (CR 607.2). The choosing form is a primitive, so no result binds it yet.
     Chosen,
     Bound(Binding),
+    /// The second player of a two-player event: the attacked player.
+    EventOtherPlayer,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

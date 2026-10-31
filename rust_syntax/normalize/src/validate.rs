@@ -452,6 +452,8 @@ impl<'a> Scope<'a> {
             PlayerRef::Target { slot, index } => {
                 self.target(slot, Some(*index), TargetKind::Player)
             }
+            PlayerRef::EventOtherPlayer if self.event.other_player => Ok(()),
+            PlayerRef::EventOtherPlayer => Err("this event names no second player".into()),
             PlayerRef::EventSubject if self.event.player => Ok(()),
             PlayerRef::EventSubject => Err("this event does not bind a player subject".into()),
             PlayerRef::Bound(binding) if self.players.contains(&binding.0) => Ok(()),
@@ -1882,7 +1884,15 @@ impl<'a> Scope<'a> {
                     }) {
                         self.singular.insert(result.0);
                     }
-                    if matches!(operation, Operation::Move { .. }) {
+                    if matches!(
+                        operation,
+                        Operation::Move { .. }
+                            | Operation::Destroy { .. }
+                            | Operation::Sacrifice { .. }
+                            | Operation::Discard { .. }
+                            | Operation::DiscardObjects { .. }
+                            | Operation::Mill { .. }
+                    ) {
                         self.results.insert(result.0, ResultKind::ObjectTransition);
                     }
                 }

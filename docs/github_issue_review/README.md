@@ -85,6 +85,26 @@ Mining word pairs between rendered cards and their Oracle text, reading what it 
 - [#50](https://github.com/i5jb/mtgish/issues/50): Ten cards have a wrong word or value.
 - [#51](https://github.com/i5jb/mtgish/issues/51): Three cards reuse one reference for two targets.
 
+A third pass over the complete cards added since, reading each named row's Oracle text beside its template, filed these:
+
+- [#52](https://github.com/i5jb/mtgish/issues/52): Six cards swap "if you do" and "if you don't".
+- [#53](https://github.com/i5jb/mtgish/issues/53): Four Aura triggers aim at the Aura instead of its host.
+- [#54](https://github.com/i5jb/mtgish/issues/54): Sixteen mandatory actions are encoded as optional.
+- [#55](https://github.com/i5jb/mtgish/issues/55): Twenty-seven cards widen a strict comparison.
+- [#56](https://github.com/i5jb/mtgish/issues/56): Six cards have the wrong comparison.
+- [#57](https://github.com/i5jb/mtgish/issues/57): Nine cards lose "other" or "another".
+- [#58](https://github.com/i5jb/mtgish/issues/58): Four cards lose a filter in a later clause.
+- [#59](https://github.com/i5jb/mtgish/issues/59): Eight cards have owner and controller wrong.
+- [#60](https://github.com/i5jb/mtgish/issues/60): Two cards name the wrong object.
+- [#61](https://github.com/i5jb/mtgish/issues/61): Two cards encode "play" as "cast".
+- [#62](https://github.com/i5jb/mtgish/issues/62): Two cards drop a clause.
+- [#63](https://github.com/i5jb/mtgish/issues/63): Two cards repeat one time too few.
+- [#64](https://github.com/i5jb/mtgish/issues/64): Five cards encode "mana of any type" as any color.
+- [#65](https://github.com/i5jb/mtgish/issues/65): Two cards refer to an exile that never happened.
+- [#66](https://github.com/i5jb/mtgish/issues/66): Breena's "that opponent" names the attacker.
+
+[#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
+
 The issue payloads and comment text are saved here. No commits, pushes, issue closures, or upstream code changes were made. Disputed continuous-effect instruction grouping remains a rules-review question and was not filed as a confirmed bug. Changes that merely replace an equivalent scalar expression are not reported as new card mistakes.
 
 Issues #8–#12 and our additional-examples comment on #2 have been shortened to describe only the specific problems and examples. Rust port, local repair, and validation details were removed from the upstream reports. [The latest upstream read](latest_upstream.json) verifies all five edited issue bodies and the comment; saved issue payloads match them. Future reports should follow the same concise format.
