@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 101;
+pub const SCHEMA_VERSION: u32 = 103;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1254,6 +1254,56 @@ pub enum Operation {
         actor: PlayerSet,
         flags: Box<Operand>,
     },
+    /// Effects on objects or on spells that match, for `until` when it is
+    /// not the whole game. `effects` name what each gets.
+    EffectOn {
+        subject: EffectSubject,
+        effects: Vec<Operand>,
+        until: Option<Duration>,
+    },
+    /// A rule of the game changes for `until`.
+    GameEffect {
+        until: Duration,
+        effect: Box<Operand>,
+    },
+    /// The actor chooses which of `attachments` to attach to one of `hosts`.
+    AttachChosen {
+        actor: PlayerSet,
+        attachments: ObjectSet,
+        count: Count,
+        hosts: ObjectSet,
+    },
+    DrawUpTo {
+        players: PlayerSet,
+        amount: Expr,
+    },
+    /// Each player keeps `keep` of `objects` and sacrifices the rest.
+    SacrificeAllBut {
+        players: PlayerSet,
+        objects: ObjectSet,
+        keep: Expr,
+    },
+    /// Something the actor does to one other player.
+    TowardPlayer {
+        actor: PlayerSet,
+        action: PlayerPairAction,
+        player: PlayerRef,
+    },
+    /// CR 702.169 keeps intensity on cards, so it follows them through zones.
+    Intensify {
+        cards: ObjectFilter,
+        owner: PlayerRef,
+    },
+    FlipCoins {
+        actor: PlayerSet,
+        count: Expr,
+    },
+    /// Finds a matching card from outside the game and puts it into hand.
+    Wish {
+        actor: PlayerSet,
+        filter: ObjectFilter,
+        reveal: bool,
+    },
 }
 /// Defines the keyword abilities with one table, so the enum and the rows that
 /// lower to it cannot disagree.
@@ -1492,6 +1542,10 @@ pub enum KeywordAction {
     AdditionalPhase(AddedPhases),
     Cipher,
     Recruit,
+    Unsuspect,
+    Unprepare,
+    Epic,
+    Paradigm,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum MovedCounters {
@@ -2625,6 +2679,20 @@ pub enum CostKeyword {
 pub enum ManifestSource {
     TopOfLibrary { player: PlayerRef, count: Expr },
     Cards(ObjectSet),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum EffectSubject {
+    Objects(ObjectSet),
+    /// Spells that match, including ones cast later.
+    EachSpell(ObjectFilter),
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum PlayerPairAction {
+    Heist,
+    ControlNextTurn,
+    ExchangeLife,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PlayerNumber {

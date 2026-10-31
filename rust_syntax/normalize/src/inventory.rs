@@ -415,6 +415,55 @@ impl Inventory<'_> {
             Operation::AbandonScheme { actor } | Operation::BeginOnBattlefield { actor, .. } => {
                 self.players(actor)
             }
+            Operation::EffectOn { subject, until, .. } => {
+                match subject {
+                    EffectSubject::Objects(objects) => self.objects(objects),
+                    EffectSubject::EachSpell(spells) => self.filter(spells),
+                }
+                if let Some(until) = until {
+                    self.duration(until);
+                }
+            }
+            Operation::GameEffect { until, .. } => self.duration(until),
+            Operation::AttachChosen {
+                actor,
+                attachments,
+                hosts,
+                ..
+            } => {
+                self.players(actor);
+                self.objects(attachments);
+                self.objects(hosts);
+            }
+            Operation::DrawUpTo { players, amount } => {
+                self.players(players);
+                self.expr(amount);
+            }
+            Operation::SacrificeAllBut {
+                players,
+                objects,
+                keep,
+            } => {
+                self.players(players);
+                self.objects(objects);
+                self.expr(keep);
+            }
+            Operation::TowardPlayer { actor, player, .. } => {
+                self.players(actor);
+                self.player(player);
+            }
+            Operation::Intensify { cards, owner } => {
+                self.filter(cards);
+                self.player(owner);
+            }
+            Operation::FlipCoins { actor, count } => {
+                self.players(actor);
+                self.expr(count);
+            }
+            Operation::Wish { actor, filter, .. } => {
+                self.players(actor);
+                self.filter(filter);
+            }
             Operation::PutSticker { actor, objects, .. } => {
                 self.players(actor);
                 self.objects(objects);

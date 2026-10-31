@@ -1220,9 +1220,30 @@ fn layer_rows_and_hand_statics_are_generic() {
     let hand = lowered(
         "EachCardInPlayersHandEffect(IsCardtype(Land), You, [AddAbility([Cycling(PayMana([ManaCostR]))])])",
     );
-    assert!(hand.contains("Hand") && hand.contains("GrantAbility"), "{hand}");
+    assert!(
+        hand.contains("Hand") && hand.contains("GrantAbility"),
+        "{hand}"
+    );
     let gained = lowered(
         "PermanentLayerEffect(ThisPermanent, [AddAbilityFromEachPermanentHasable(IsCardtype(Land), [ActivatedAbility])])",
     );
     assert!(gained.contains("GainAbilitiesOf"), "{gained}");
+}
+
+#[test]
+fn effects_on_spells_and_game_rules_are_operations() {
+    let exiled = lowered(
+        "TriggerA(WhenAPermanentDealsDamage(SinglePermanent(ThisPermanent)), ActionList([Exile([Permanent(ThisPermanent)], [ExilesFaceDown]), CreateExiledCardEffect(TheCardExiledThisWay, [IsForetold])]))",
+    );
+    assert!(exiled.contains("EffectOn"), "{exiled}");
+    let game = lowered("SpellActions(ActionList([CreateGameEffect(UntilEndOfTurn, DamageCantBePrevented)]))");
+    assert!(game.contains("GameEffect"), "{game}");
+}
+
+#[test]
+fn keeping_some_and_sacrificing_the_rest() {
+    let body = lowered(
+        "TriggerA(AtTheBeginningOfAPlayersEndStep(Opponent), ActionList([PlayerAction(Trigger_ThatPlayer, SacrificeAllPermanentsExceptForNum(IsCardtype(Creature), Integer(2)))]))",
+    );
+    assert!(body.contains("SacrificeAllBut"), "{body}");
 }

@@ -223,6 +223,10 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
             ..
         } => "Action::RevealACardFromHand",
         Operation::DraftFromSpellbook { .. } => "Action::DraftACardFromSpellBook",
+        Operation::TowardPlayer {
+            action: PlayerPairAction::ExchangeLife,
+            ..
+        } => "Action::ExchangeLifeTotalWithPlayer",
         Operation::Manifest {
             source:
                 ManifestSource::TopOfLibrary {
@@ -263,6 +267,12 @@ const KEYWORD_ACTIONS: &[(&str, KeywordAction)] = &[
     ("Action::VentureIntoTheDungeon", KeywordAction::Venture),
     ("Action::ManifestDread", KeywordAction::ManifestDread),
     ("Action::Recruit", KeywordAction::Recruit),
+    ("Action::Epic", KeywordAction::Epic),
+    ("Action::Paradigm", KeywordAction::Paradigm),
+    (
+        "Action::TakeANumberOfExtraTurns",
+        KeywordAction::TakeExtraTurn,
+    ),
     ("Action::Monstrosity", KeywordAction::Monstrosity),
     ("Action::Discover", KeywordAction::Discover),
     ("Action::GetEnergy", KeywordAction::GainEnergy),
@@ -680,7 +690,176 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
     if let Some(manifest) = reduce_manifest(actor, name, operands) {
         return Some(manifest);
     }
+    use Operand::{Duration, List, Number, Object, Objects};
     match (name, operands) {
+        (
+            "Action::CreateExiledCardEffect" | "Action::CreateSpellEffect",
+            [Object(object), List(effects)],
+        ) => {
+            return Some(Operation::EffectOn {
+                subject: EffectSubject::Objects(ObjectSet::One(object.clone())),
+                effects: effects.clone(),
+                until: None,
+            })
+        }
+        ("Action::CreateEachExiledCardEffect", [Objects(objects), List(effects)]) => {
+            return Some(Operation::EffectOn {
+                subject: EffectSubject::Objects(objects.clone()),
+                effects: effects.clone(),
+                until: None,
+            })
+        }
+        (
+            "Action::CreateEachSpellEffect",
+            [Operand::Filter(spells), List(effects), Duration(until)],
+        ) => {
+            return Some(Operation::EffectOn {
+                subject: EffectSubject::EachSpell(spells.clone()),
+                effects: effects.clone(),
+                until: Some(until.clone()),
+            })
+        }
+        (
+            "Action::CreateSpellOrPermanentEffect",
+            [Duration(until), Object(object), List(effects)],
+        ) => {
+            return Some(Operation::EffectOn {
+                subject: EffectSubject::Objects(ObjectSet::One(object.clone())),
+                effects: effects.clone(),
+                until: Some(until.clone()),
+            })
+        }
+        ("Action::CreateGameEffect", [Duration(until), effect]) => {
+            return Some(Operation::GameEffect {
+                until: until.clone(),
+                effect: Box::new(effect.clone()),
+            })
+        }
+        (
+            "Action::AttachAPermanentToPermanent"
+            | "Action::AttachAnyNumberOfPermanentsToPermanent",
+            [Objects(attachments), Object(host)],
+        ) => {
+            return Some(Operation::AttachChosen {
+                actor: actor.clone(),
+                attachments: attachments.clone(),
+                count: if name.contains("AnyNumber") {
+                    Count::AnyNumber
+                } else {
+                    Count::Exactly(Expr::Constant(1))
+                },
+                hosts: ObjectSet::One(host.clone()),
+            })
+        }
+        ("Action::AttachAPermanentToAPermanent", [Objects(attachments), Objects(hosts)]) => {
+            return Some(Operation::AttachChosen {
+                actor: actor.clone(),
+                attachments: attachments.clone(),
+                count: Count::Exactly(Expr::Constant(1)),
+                hosts: hosts.clone(),
+            })
+        }
+        ("Action::DrawUptoNumberCards", [Number(amount)]) => {
+            return Some(Operation::DrawUpTo {
+                players: actor.clone(),
+                amount: amount.clone(),
+            })
+        }
+        ("Action::CounterEachSpell", [Operand::Filter(spells)]) => {
+            return Some(Operation::Counter {
+                objects: ObjectSet::Zone {
+                    scope: ZoneScope::Shared(EventZone::Stack),
+                    kind: ObjectKind::Spell,
+                    filter: spells.clone(),
+                },
+                destination: Destination::OwnersGraveyard,
+            })
+        }
+        ("Action::ControllersSacrificeEachPermanent", [Objects(objects)]) => {
+            return Some(Operation::Sacrifice {
+                players: PlayerSet::All,
+                objects: objects.clone(),
+                choose: None,
+            })
+        }
+        ("Action::SacrificeAllPermanentsExceptForNum", [Objects(objects), Number(keep)]) => {
+            return Some(Operation::SacrificeAllBut {
+                players: actor.clone(),
+                objects: objects.clone(),
+                keep: keep.clone(),
+            })
+        }
+        ("Action::TransformEachPermanent", [Objects(objects)]) => {
+            return Some(Operation::KeywordEach {
+                actor: actor.clone(),
+                action: KeywordAction::Transform,
+                objects: objects.clone(),
+                until: None,
+            })
+        }
+        ("Action::UnsuspectEachPermanent", [Objects(objects)]) => {
+            return Some(Operation::KeywordEach {
+                actor: actor.clone(),
+                action: KeywordAction::Unsuspect,
+                objects: objects.clone(),
+                until: None,
+            })
+        }
+        (
+            "Action::UnsuspectPermanent"
+            | "Action::TurnExiledCardFaceUp"
+            | "Action::UnpreparePermanent",
+            [Object(object)],
+        ) => {
+            return Some(Operation::KeywordEach {
+                actor: actor.clone(),
+                action: match name {
+                    "Action::UnsuspectPermanent" => KeywordAction::Unsuspect,
+                    "Action::TurnExiledCardFaceUp" => KeywordAction::TurnFaceUp,
+                    _ => KeywordAction::Unprepare,
+                },
+                objects: ObjectSet::One(object.clone()),
+                until: None,
+            })
+        }
+        (
+            "Action::HeistPlayersLibrary"
+            | "Action::GainControlOfPlayerDuringTheirNextTurn"
+            | "Action::ExchangeLifeTotalWithPlayer",
+            [Operand::Player(player)],
+        ) => {
+            return Some(Operation::TowardPlayer {
+                actor: actor.clone(),
+                action: match name {
+                    "Action::HeistPlayersLibrary" => PlayerPairAction::Heist,
+                    "Action::ExchangeLifeTotalWithPlayer" => PlayerPairAction::ExchangeLife,
+                    _ => PlayerPairAction::ControlNextTurn,
+                },
+                player: player.clone(),
+            })
+        }
+        (
+            "Action::IntensifyCardsOwnedByPlayer",
+            [Operand::Filter(cards), Operand::Player(owner)],
+        ) => {
+            return Some(Operation::Intensify {
+                cards: cards.clone(),
+                owner: owner.clone(),
+            })
+        }
+        ("Action::FlipCoins", [Number(count)]) => {
+            return Some(Operation::FlipCoins {
+                actor: actor.clone(),
+                count: count.clone(),
+            })
+        }
+        ("Action::RevealCardFromOutsideGameAndPutInHand", [Operand::Filter(filter)]) => {
+            return Some(Operation::Wish {
+                actor: actor.clone(),
+                filter: filter.clone(),
+                reveal: true,
+            })
+        }
         ("Action::AbandonScheme", [_]) => {
             return Some(Operation::AbandonScheme {
                 actor: actor.clone(),
@@ -716,7 +895,7 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
         }
         _ => {}
     }
-    use Operand::{Duration, List, Number, Object, Objects, Players, Text};
+    use Operand::{Players, Text};
     let draft = |spellbook: &String, times: Expr| Operation::DraftFromSpellbook {
         actor: actor.clone(),
         spellbook: spellbook.clone(),
@@ -4344,6 +4523,15 @@ impl Effects {
                     | Operation::Retarget { .. }
                     | Operation::Clash { .. }
                     | Operation::Vote { .. }
+                    | Operation::EffectOn { .. }
+                    | Operation::GameEffect { .. }
+                    | Operation::AttachChosen { .. }
+                    | Operation::DrawUpTo { .. }
+                    | Operation::SacrificeAllBut { .. }
+                    | Operation::TowardPlayer { .. }
+                    | Operation::Intensify { .. }
+                    | Operation::FlipCoins { .. }
+                    | Operation::Wish { .. }
                     | Operation::AbandonScheme { .. }
                     | Operation::PutSticker { .. }
                     | Operation::BeginOnBattlefield { .. }
