@@ -41,6 +41,14 @@ mod scenarios {
         subtypes: SubtypeSet::of(&[Subtype::Island]),
         ..CardDef::BLANK
     };
+    static ELEMENTAL_LAND: CardDef = CardDef {
+        name: "Elemental fixture land",
+        oracle: true,
+        has_cost: false,
+        types: TypeSet::of(&[CardType::Land]),
+        subtypes: SubtypeSet::of(&[Subtype::Elemental]),
+        ..CardDef::BLANK
+    };
     static FLASH_CREATURE: CardDef = CardDef {
         name: "Flash creature fixture",
         keywords: Keywords::of(&[Keyword::Flash]),
@@ -501,9 +509,23 @@ mod scenarios {
             &expert::CARD,
             &ajani::CARD,
             &mauler::CARD,
+            &student::CARD,
+            &gearhulk::CARD,
+            &study::CARD,
+            &concentrate::CARD,
+            &sram::CARD,
+            &adept_omni::CARD,
+            &wealth_card::CARD,
+            &harness_card::CARD,
+            &horde::CARD,
+            &ELEMENTAL_LAND,
+            &rise::CARD,
+            &shrine_card::CARD,
         ];
         for extras in [
             ajani::EXTRA,
+            sram::EXTRA,
+            rise::EXTRA,
             alarm::EXTRA,
             pulse::EXTRA,
             zealot::EXTRA,
@@ -4100,5 +4122,377 @@ mod scenarios {
         assert!(g.chars(splitter).is(CardType::Creature));
         assert_eq!(g.chars(splitter).power, Some(1));
         assert_eq!(g.chars(splitter).toughness, Some(1));
+    }
+    #[test]
+    fn a_level_stage_ends_at_its_maximum() {
+        // LEVEL 2-6 is first strike and LEVEL 7+ double strike, so unlike a stage the
+        // next one only overwrites, what the first stage gives has to go away.
+        let (mut g, _, student) = game("Divination", Some("Student of Warfare"));
+        let student = student.unwrap();
+        for (level, size, first_strike, double_strike) in [
+            (1, 1, false, false),
+            (2, 3, true, false),
+            (3, 3, true, false),
+            (4, 3, true, false),
+            (5, 3, true, false),
+            (6, 3, true, false),
+            (7, 4, false, true),
+            (8, 4, false, true),
+        ] {
+            announce(&mut g, student, ActionKind::ActivateAbility);
+            resolve(&mut g, None, false);
+            assert_eq!(g.state.obj(student).counters(CounterKind::Level), level);
+            let c = g.chars(student);
+            assert_eq!((c.power, c.toughness), (Some(size), Some(size)), "level {level}");
+            assert_eq!(c.has(Keyword::FirstStrike), first_strike, "level {level}");
+            assert_eq!(c.has(Keyword::DoubleStrike), double_strike, "level {level}");
+        }
+    }
+    fn in_zone(g: &RulesGame, zone: Zone, name: &str) -> usize {
+        let card = g.cards.find(name).unwrap();
+        g.state.zone(zone).iter().filter(|&&id| g.state.obj(id).card == card).count()
+    }
+    /// A cast of Torrential Gearhulk answering "you may" with `yes`.
+    fn gearhulk(yes: bool, graveyard: &[&str]) -> (RulesGame, u32, usize, bool) {
+        let (mut g, spell, _, _) =
+            game_with_graveyard("Torrential Gearhulk", None, 0, &[], 100, graveyard);
+        let (mana, hand) = (mana_left(&g), g.state.zone(Zone::hand(ME)).len());
+        announce(&mut g, spell, ActionKind::CastSpell);
+        let mut asked = false;
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseTarget { candidates, .. } => Answer::Targets(vec![candidates[0]]),
+            RequestKind::May { .. } => {
+                asked = true;
+                if yes { Answer::Yes } else { Answer::No }
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        (g, mana, hand, asked)
+    }
+    #[test]
+    fn a_free_cast_from_the_graveyard_costs_nothing_and_ends_in_exile() {
+        let (g, mana, hand, asked) = gearhulk(true, &["Quick Study"]);
+        assert!(asked);
+        assert_eq!(mana - mana_left(&g), 6, "the Gearhulk and nothing for the spell");
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand - 1 + 2, "Quick Study resolved");
+        assert_eq!(in_zone(&g, Zone::graveyard(ME), "Quick Study"), 0);
+        assert_eq!(in_zone(&g, Zone::exile(ME), "Quick Study"), 1);
+    }
+    #[test]
+    fn declining_a_free_cast_leaves_the_card_in_the_graveyard() {
+        let (g, _, hand, asked) = gearhulk(false, &["Quick Study"]);
+        assert!(asked);
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand - 1);
+        assert_eq!(in_zone(&g, Zone::graveyard(ME), "Quick Study"), 1);
+        assert_eq!(in_zone(&g, Zone::exile(ME), "Quick Study"), 0);
+    }
+    #[test]
+    fn target_instant_card_does_not_read_a_sorcery() {
+        let (g, _, hand, asked) = gearhulk(true, &["Divination"]);
+        assert!(!asked);
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand - 1);
+        assert_eq!(in_zone(&g, Zone::graveyard(ME), "Divination"), 1);
+    }
+    #[test]
+    fn a_spell_from_hand_is_offered_at_its_mana_value_and_not_one_past_it() {
+        // Mana value 3 or less: Divination is exactly 3 and Concentrate 4.
+        let (mut g, spell, _, _) = game_with_zones(
+            "Sram's Expertise",
+            None,
+            0,
+            &[],
+            100,
+            &[],
+            &["Divination", "Concentrate"],
+        );
+        let divination = hand_card(&g, "Divination");
+        let concentrate = hand_card(&g, "Concentrate");
+        let (mana, hand) = (mana_left(&g), g.state.zone(Zone::hand(ME)).len());
+        announce(&mut g, spell, ActionKind::CastSpell);
+        let mut asked = 0;
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { rule, .. } => {
+                let among = rule.among.as_ref().unwrap();
+                assert!(among.contains(&divination) && !among.contains(&concentrate));
+                asked += 1;
+                Answer::Cards(vec![divination])
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(asked, 1);
+        assert_eq!(mana - mana_left(&g), 4, "the Expertise and nothing for Divination");
+        assert_eq!(in_zone(&g, Zone::hand(ME), "Concentrate"), 1);
+        assert_eq!(in_zone(&g, Zone::graveyard(ME), "Divination"), 1);
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand - 2 + 2, "two left, two drawn");
+        assert_eq!(tokens(&g), 3);
+    }
+    #[test]
+    fn a_spell_from_hand_is_one_spell_however_many_could_be() {
+        let (mut g, spell, _, _) = game_with_zones(
+            "Sram's Expertise",
+            None,
+            0,
+            &[],
+            100,
+            &[],
+            &["Divination", "Quick Study"],
+        );
+        let study = hand_card(&g, "Quick Study");
+        announce(&mut g, spell, ActionKind::CastSpell);
+        let mut chose = 0;
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { .. } => {
+                chose += 1;
+                Answer::Cards(vec![study])
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(chose, 1, "the second spell is not offered");
+        assert_eq!(in_zone(&g, Zone::hand(ME), "Divination"), 1);
+        assert_eq!(in_zone(&g, Zone::graveyard(ME), "Quick Study"), 1);
+    }
+    #[test]
+    fn a_spell_from_hand_may_be_refused_among_several() {
+        let (mut g, spell, _, _) = game_with_zones(
+            "Sram's Expertise",
+            None,
+            0,
+            &[],
+            100,
+            &[],
+            &["Divination", "Quick Study"],
+        );
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { .. } => Answer::Cards(vec![]),
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(in_zone(&g, Zone::hand(ME), "Divination"), 1);
+        assert_eq!(in_zone(&g, Zone::hand(ME), "Quick Study"), 1);
+    }
+    #[test]
+    fn a_sorcery_is_cast_while_an_ability_resolves_and_a_creature_is_not_offered() {
+        // On the stack the ability bars a sorcery's timing (608.2g waives it), and
+        // "instant or sorcery" leaves the Elves in hand unasked about.
+        let (mut g, divination, adept, _) = game_with_zones(
+            "Divination",
+            Some("Omnispell Adept"),
+            0,
+            &[],
+            100,
+            &[],
+            &["Llanowar Elves"],
+        );
+        let adept = adept.unwrap();
+        let elves = hand_card(&g, "Llanowar Elves");
+        let mana = mana_left(&g);
+        announce(&mut g, adept, ActionKind::ActivateAbility);
+        let mut asked = 0;
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseCards { rule, .. } => {
+                let among = rule.among.as_ref().unwrap();
+                assert!(among.contains(&divination) && !among.contains(&elves));
+                asked += 1;
+                Answer::Cards(vec![divination])
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(asked, 1);
+        assert_eq!(mana - mana_left(&g), 3, "{{2}}{{U}} and nothing for Divination");
+        assert_eq!(in_zone(&g, Zone::graveyard(ME), "Divination"), 1);
+        assert_eq!(in_zone(&g, Zone::hand(ME), "Llanowar Elves"), 1);
+    }
+    /// Villainous Wealth for X of 3 on "Divination, Concentrate, Quick Study", which
+    /// is what the top of their library then is, `yes` answering each offer.
+    fn wealth(yes: bool) -> (RulesGame, usize) {
+        let top = ["Divination", "Concentrate", "Quick Study"];
+        let (mut g, spell) = game_with_libraries("Villainous Wealth", &[], &[], &top);
+        let hand = g.state.zone(Zone::hand(ME)).len();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        g.run();
+        let request = g.pending().cloned().unwrap();
+        g.answer(request.id, request.player, Answer::Announce(3)).unwrap();
+        resolve_asking(&mut g, &mut |g, kind| match kind {
+            RequestKind::ChooseCards { .. } if !yes => Answer::Cards(vec![]),
+            RequestKind::ChooseCards { .. } => {
+                let exile = g.state.zone(Zone::exile(THEM));
+                let card = g.cards.find("Divination").unwrap();
+                Answer::Cards(vec![*exile.iter().find(|&&id| g.state.obj(id).card == card).unwrap()])
+            }
+            RequestKind::May { .. } => Answer::Yes,
+            other => panic!("unexpected question {other:?}"),
+        });
+        (g, hand)
+    }
+    #[test]
+    fn any_number_of_spells_are_cast_one_after_another_up_to_the_x_of_the_spell() {
+        let (g, hand) = wealth(true);
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand - 1 + 2 + 2, "I drew from both");
+        assert_eq!(in_zone(&g, Zone::graveyard(THEM), "Divination"), 1);
+        assert_eq!(in_zone(&g, Zone::graveyard(THEM), "Quick Study"), 1);
+        assert_eq!(in_zone(&g, Zone::exile(THEM), "Concentrate"), 1, "mana value 4 stays");
+    }
+    #[test]
+    fn any_number_of_spells_may_be_none() {
+        let (g, hand) = wealth(false);
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand - 1);
+        assert_eq!(g.state.zone(Zone::exile(THEM)).len(), 3);
+    }
+    /// Divination beside Harness the Storm with a second one in the graveyard,
+    /// answering "you may" with `yes`.
+    fn harness(yes: bool) -> (RulesGame, u32, usize, bool) {
+        let graveyard = ["Divination", "Quick Study"];
+        let (mut g, spell, _, _) =
+            game_with_graveyard("Divination", Some("Harness the Storm"), 0, &[], 100, &graveyard);
+        let same_name = g.state.zone(Zone::graveyard(ME))[0];
+        let (mana, hand) = (mana_left(&g), g.state.zone(Zone::hand(ME)).len());
+        announce(&mut g, spell, ActionKind::CastSpell);
+        let mut asked = false;
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseTarget { candidates, .. } => {
+                assert_eq!(candidates, &vec![Target::Object(same_name)]);
+                Answer::Targets(vec![Target::Object(same_name)])
+            }
+            RequestKind::May { .. } => {
+                asked = true;
+                if yes { Answer::Yes } else { Answer::No }
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        (g, mana, hand, asked)
+    }
+    #[test]
+    fn a_cast_that_says_nothing_of_paying_pays_the_mana_cost() {
+        let (g, mana, hand, asked) = harness(true);
+        assert!(asked);
+        assert_eq!(mana - mana_left(&g), 3 + 3, "each Divination its own {{2}}{{U}}");
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand - 1 + 2 + 2);
+        assert_eq!(in_zone(&g, Zone::graveyard(ME), "Divination"), 2, "no exile in these words");
+        assert_eq!(in_zone(&g, Zone::graveyard(ME), "Quick Study"), 1);
+    }
+    #[test]
+    fn declining_a_paid_cast_pays_nothing() {
+        let (g, mana, hand, asked) = harness(false);
+        assert!(asked);
+        assert_eq!(mana - mana_left(&g), 3);
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand - 1 + 2);
+    }
+    #[test]
+    fn a_land_card_is_played_as_the_turns_land() {
+        let (mut g, _, horde, _) = game_with_graveyard(
+            "Divination",
+            Some("Horde of Notions"),
+            0,
+            &[],
+            100,
+            &[ELEMENTAL_LAND.name],
+        );
+        let horde = horde.unwrap();
+        let land = g.state.zone(Zone::graveyard(ME))[0];
+        announce_at(&mut g, horde, ActionKind::ActivateAbility, Target::Object(land));
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::May { .. } => Answer::Yes,
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert_eq!(permanents_named(&g, ELEMENTAL_LAND.name).len(), 1);
+        assert!(g.state.zone(Zone::graveyard(ME)).is_empty());
+    }
+    #[test]
+    fn a_land_card_is_not_offered_once_the_turns_land_is_gone() {
+        let (mut g, _, horde, _) = game_with_zones(
+            "Divination",
+            Some("Horde of Notions"),
+            0,
+            &[],
+            100,
+            &[ELEMENTAL_LAND.name],
+            &[ISLAND_LAND.name],
+        );
+        let horde = horde.unwrap();
+        let land = g.state.zone(Zone::graveyard(ME))[0];
+        let island = hand_card(&g, ISLAND_LAND.name);
+        announce(&mut g, island, ActionKind::PlayLand);
+        g.run();
+        announce_at(&mut g, horde, ActionKind::ActivateAbility, Target::Object(land));
+        resolve_asking(&mut g, &mut |_, kind| panic!("unexpected question {kind:?}"));
+        assert_eq!(permanents_named(&g, ELEMENTAL_LAND.name).len(), 0);
+        assert_eq!(g.state.zone(Zone::graveyard(ME)).len(), 1);
+    }
+    fn tokens(g: &RulesGame) -> usize {
+        g.state.battlefield().iter().filter(|&&id| g.state.obj(id).token).count()
+    }
+    /// Pays `x` for Rise of the Hobgoblins, or declines with `None`.
+    fn hobgoblins(x: Option<u16>) -> (RulesGame, u32) {
+        let (mut g, spell, _) = game("Rise of the Hobgoblins", None);
+        let mana = mana_left(&g);
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| {
+            let RequestKind::UnlessPays { options, x: now, .. } = kind else {
+                panic!("unexpected question {kind:?}")
+            };
+            let wanted = match (x, *now) {
+                (None, _) => ActionKind::DeclineCost,
+                (Some(x), Some(now)) if now < x => ActionKind::IncreaseX,
+                _ => ActionKind::PayCost,
+            };
+            Answer::Act(Action::of(options.iter().find(|o| o.kind == wanted).unwrap()))
+        });
+        (g, mana)
+    }
+    #[test]
+    fn paying_x_as_it_resolves_reads_that_x_afterwards() {
+        let (g, mana) = hobgoblins(Some(2));
+        assert_eq!(mana - mana_left(&g), 2 + 2);
+        assert_eq!(tokens(&g), 2);
+    }
+    #[test]
+    fn paying_x_of_nothing_is_paying_and_makes_nothing() {
+        let (g, mana) = hobgoblins(Some(0));
+        assert_eq!(mana - mana_left(&g), 2);
+        assert_eq!(tokens(&g), 0);
+    }
+    #[test]
+    fn declining_to_pay_x_pays_nothing_and_makes_nothing() {
+        let (g, mana) = hobgoblins(None);
+        assert_eq!(mana - mana_left(&g), 2);
+        assert_eq!(tokens(&g), 0);
+    }
+    /// Divination cast beside Cephalid Shrine, with `graveyard` already there.
+    fn shrine(pay: bool, graveyard: &[&str]) -> (RulesGame, u32, usize, Option<u32>) {
+        let (mut g, spell, _, _) =
+            game_with_graveyard("Divination", Some("Cephalid Shrine"), 0, &[], 100, graveyard);
+        let (mana, hand) = (mana_left(&g), g.state.zone(Zone::hand(ME)).len());
+        announce(&mut g, spell, ActionKind::CastSpell);
+        let mut owed = None;
+        resolve_asking(&mut g, &mut |_, kind| {
+            let RequestKind::UnlessPays { options, total, .. } = kind else {
+                panic!("unexpected question {kind:?}")
+            };
+            owed = Some(u32::from(total.generic));
+            assert_eq!(total.x, 0, "X was set");
+            let wanted = if pay { ActionKind::PayCost } else { ActionKind::DeclineCost };
+            Answer::Act(Action::of(options.iter().find(|o| o.kind == wanted).unwrap()))
+        });
+        (g, mana, hand, owed)
+    }
+    #[test]
+    fn x_set_by_the_card_is_that_much_generic_mana() {
+        let (g, mana, hand, owed) = shrine(true, &["Divination", "Divination"]);
+        assert_eq!(owed, Some(2), "two cards of that name");
+        assert_eq!(mana - mana_left(&g), 3 + 2);
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand - 1 + 2, "not countered");
+        assert_eq!(in_zone(&g, Zone::graveyard(ME), "Divination"), 3);
+    }
+    #[test]
+    fn x_set_by_the_card_counts_only_what_it_says() {
+        let (_, _, _, owed) = shrine(true, &["Divination", "Quick Study"]);
+        assert_eq!(owed, Some(1), "the other card has another name");
+    }
+    #[test]
+    fn refusing_to_pay_a_set_x_counters_the_spell() {
+        let (g, mana, hand, owed) = shrine(false, &["Divination", "Divination"]);
+        assert_eq!(owed, Some(2));
+        assert_eq!(mana - mana_left(&g), 3);
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand - 1, "no cards drawn");
     }
 }

@@ -20,6 +20,7 @@ mod effects;
 mod keywords;
 mod mechanics;
 mod players;
+mod playing;
 mod read;
 mod replacements;
 mod statics;

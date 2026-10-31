@@ -27,6 +27,8 @@ enum Code {
 struct Recipe {
     code: Code,
     imports: Vec<&'static str>,
+    /// The rules the doc comment cites beside the Oracle sentence.
+    cites: &'static str,
 }
 
 /// The ability's controller, the only player these recipes name.
@@ -88,10 +90,11 @@ fn target_constant(spec: &TargetSpec) -> Result<&'static str> {
     }
 }
 
-fn pump(power: i64, toughness: i64, function: &str) -> Recipe {
+fn pump(power: i64, toughness: i64, function: &str, cites: &'static str) -> Recipe {
     Recipe {
         code: Code::Path(format!("effects::{function}::<{power}, {toughness}>")),
         imports: vec!["effects"],
+        cites,
     }
 }
 
@@ -110,6 +113,7 @@ fn recipe(body: &Program, targets: &[TargetSpec]) -> Result<Recipe> {
         [Operation::Draw { players, amount }] if controller(players) => Ok(Recipe {
             code: Code::Closure(format!("effects::draw(g, item, {})", constant(amount)?)),
             imports: vec!["effects"],
+            cites: "CR 121.1, 121.2",
         }),
         [Operation::GainLife { players, amount }] if controller(players) => Ok(Recipe {
             code: Code::Closure(format!(
@@ -117,6 +121,7 @@ fn recipe(body: &Program, targets: &[TargetSpec]) -> Result<Recipe> {
                 constant(amount)?
             )),
             imports: vec!["effects"],
+            cites: "CR 119.3",
         }),
         [Operation::DealDamage {
             source: ObjectRef::Source,
@@ -129,6 +134,7 @@ fn recipe(body: &Program, targets: &[TargetSpec]) -> Result<Recipe> {
                 constant(amount)?
             )]),
             imports: vec!["damage_target"],
+            cites: "CR 120.3, 608.2b",
         }),
         [Operation::DealDamage {
             source: ObjectRef::Source,
@@ -145,6 +151,7 @@ fn recipe(body: &Program, targets: &[TargetSpec]) -> Result<Recipe> {
                     constant(life)?
                 )),
                 imports: vec!["effects"],
+                cites: "CR 120.3, 119.3, 608.2b",
             })
         }
         [Operation::Destroy {
@@ -153,6 +160,7 @@ fn recipe(body: &Program, targets: &[TargetSpec]) -> Result<Recipe> {
         }] if matches!(objects, ObjectSet::One(o) if first_target(o)) => Ok(Recipe {
             code: Code::Statements(vec!["destroy_target(g, item, 0);".into()]),
             imports: vec!["destroy_target"],
+            cites: "CR 701.8a, 608.2b",
         }),
         [Operation::CreateContinuousEffect {
             source: ObjectRef::Source,
@@ -180,14 +188,25 @@ fn recipe(body: &Program, targets: &[TargetSpec]) -> Result<Recipe> {
                 [spec] if matches!(spec.filter, ObjectFilter::CardType(CardType::Creature))
             );
             match (one && single_creature, yours, also) {
-                (true, _, None) => Ok(pump(power, toughness, "target_creature_gets")),
+                (true, _, None) => Ok(pump(
+                    power,
+                    toughness,
+                    "target_creature_gets",
+                    "CR 611.2a, 514.2, 608.2b",
+                )),
                 (true, _, Some(Keyword::FirstStrike)) => Ok(pump(
                     power,
                     toughness,
                     "target_creature_gets_and_gains_first_strike",
+                    "CR 611.2a, 514.2, 608.2b",
                 )),
                 (_, true, None) if targets.is_empty() => {
-                    Ok(pump(power, toughness, "creatures_you_control_get"))
+                    Ok(pump(
+                        power,
+                        toughness,
+                        "creatures_you_control_get",
+                        "CR 611.2a, 611.2c, 514.2",
+                    ))
                 }
                 _ => Err(gap("card file: pump of another subject")),
             }
@@ -317,6 +336,7 @@ pub fn card_file(card: &Card, oracle_text: &str) -> Result<Option<String>> {
     let mut triggers: BTreeSet<&'static str> = BTreeSet::new();
     let mut functions = String::new();
     let mut spell = None;
+    let mut notes = Vec::new();
     let mut triggered = Vec::new();
     let mut unnamed = 0;
     for (ability, line) in abilities.iter().zip(&lines) {
@@ -328,8 +348,9 @@ pub fn card_file(card: &Card, oracle_text: &str) -> Result<Option<String>> {
                 let recipe = recipe(body, &announcement.targets)?;
                 imports.extend(recipe.imports.iter());
                 let list = target_list(announcement, &mut imports)?;
-                let effect = effect_name(&recipe.code, "effect", line, &mut functions)?;
-                spell = Some((list, effect, line));
+                let effect = effect_name(&recipe, "effect", line, &mut functions)?;
+                notes.extend(shared_note(&recipe, line));
+                spell = Some((list, effect));
             }
             Ability::Triggered {
                 event,
@@ -367,7 +388,8 @@ pub fn card_file(card: &Card, oracle_text: &str) -> Result<Option<String>> {
                     unnamed += 1;
                     format!("effect_{unnamed}")
                 };
-                let effect = effect_name(&recipe.code, &name, line, &mut functions)?;
+                let effect = effect_name(&recipe, &name, line, &mut functions)?;
+                notes.extend(shared_note(&recipe, line));
                 let mut entry = format!("triggered({trigger}, {effect}, {})", text(line));
                 if !announcement.targets.is_empty() {
                     write!(entry, ".targets({})", target_list(announcement, &mut imports)?)
@@ -398,11 +420,11 @@ pub fn card_file(card: &Card, oracle_text: &str) -> Result<Option<String>> {
     }
     out.push_str("use cantrip_oracle as oracle;\n\n");
     out.push_str(&functions);
-    if let Some((list, effect, line)) = &spell {
-        // A shared effect or closure has no function of its own to document.
-        if !functions.contains("fn effect(") {
-            writeln!(out, "/// {}", quoted_line(line)).unwrap();
-        }
+    // A shared effect or closure has no function of its own to document.
+    for note in &notes {
+        writeln!(out, "{note}").unwrap();
+    }
+    if let Some((list, effect)) = &spell {
         write!(out, "pub static CARD: CardDef = CardDef {{\n    spell: spell({list}, {effect}),\n").unwrap();
     } else {
         out.push_str("pub static CARD: CardDef = CardDef {\n");
@@ -446,16 +468,26 @@ fn target_list(
     Ok(format!("&[{}]", targets.join(", ")))
 }
 
+/// The doc comment of an effect: its Oracle sentence and the rules it follows.
+fn doc_comment(line: &str, cites: &str) -> String {
+    format!("/// {} ({cites}).", quoted_line(line))
+}
+
+/// The doc comment an effect with no function of its own has on the card.
+fn shared_note(recipe: &Recipe, line: &str) -> Option<String> {
+    (!matches!(recipe.code, Code::Statements(_))).then(|| doc_comment(line, recipe.cites))
+}
+
 /// What an ability names as its effect, writing a function where one is needed.
-fn effect_name(code: &Code, name: &str, line: &str, functions: &mut String) -> Result<String> {
-    Ok(match code {
+fn effect_name(recipe: &Recipe, name: &str, line: &str, functions: &mut String) -> Result<String> {
+    Ok(match &recipe.code {
         Code::Path(path) => path.clone(),
         Code::Closure(call) => format!("|g, item| {call}"),
         Code::Statements(statements) => {
             write!(
                 functions,
-                "/// {}\nfn {name}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{\n",
-                quoted_line(line)
+                "{}\nfn {name}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{\n",
+                doc_comment(line, recipe.cites)
             )
             .unwrap();
             for statement in statements {

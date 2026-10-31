@@ -444,6 +444,10 @@ impl Compiler {
     ) -> Result<()> {
         match instruction {
             Instruction::Effect {
+                operation: operation @ Operation::PlayCards { .. },
+                ..
+            } => self.play_cards(operation, false, out),
+            Instruction::Effect {
                 operation:
                     Operation::ChooseObjects {
                         player,
@@ -595,6 +599,16 @@ impl Compiler {
                     writeln!(out, "}}").unwrap();
                 }
                 Ok(())
+            }
+            Instruction::Optional { decider, body } if playing::may_only_play(decider, body) => {
+                let mut plays = body;
+                while let [Instruction::Group(group)] = plays.instructions.as_slice() {
+                    plays = group;
+                }
+                let [Instruction::Effect { operation, .. }] = plays.instructions.as_slice() else {
+                    return Err(gap("may play"));
+                };
+                self.play_cards(operation, true, out)
             }
             Instruction::Optional { decider, body } if asks_by_paying(decider, body) => {
                 let id = self.fresh();
@@ -1160,6 +1174,42 @@ impl Compiler {
                 self.moved.remove(&result.0);
                 self.before.remove(&result.0);
                 self.selections.remove(&result.0);
+            }
+            // "You may pay {X}": the payer says what X is as they pay (107.3f), and
+            // paying it, whatever X, is doing it.
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if matches!(cost.parts.as_slice(), [CostPart::ManaWithX { x: None, .. }]) => {
+                let [CostPart::ManaWithX { mana, .. }] = cost.parts.as_slice() else {
+                    return Err(gap("pay X"));
+                };
+                let plain = Cost {
+                    parts: vec![CostPart::Mana(mana.clone())],
+                };
+                let cost = self.cost(&plain, "paid")?;
+                self.helpers.insert("pay_question");
+                let payer = self.fetch(self.certain_player(player)?);
+                writeln!(out, "let payer_{id} = {payer}; let x_{id} = g.may_pay_x(payer_{id}, asker.source, asker.source, {cost}, &PAY_QUESTION)?; let paid_{id} = x_{id}.is_some(); let bound_{id}: i64 = i64::from(x_{id}.unwrap_or(0));").unwrap();
+                self.performed.insert(result.0, format!("paid_{id}"));
+                self.values.insert(result.0, format!("bound_{id}"));
+            }
+            // X is set here (107.3b): generic mana worked out as this resolves.
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if matches!(cost.parts.as_slice(), [CostPart::ManaWithX { x: Some(_), .. }]) => {
+                let [CostPart::ManaWithX { mana: symbols, x: Some(x) }] = cost.parts.as_slice() else {
+                    return Err(gap("pay a set X"));
+                };
+                let base = mana(symbols)?;
+                let owed = self.fetch(self.number(x)?.amount(255, "u8")?);
+                self.helpers.insert("pay_question");
+                let payer = self.fetch(self.certain_player(player)?);
+                writeln!(out, "let payer_{id} = {payer}; let owed_{id}: u8 = {owed}; let base_{id} = {base}; let price_{id} = ManaCost {{ generic: base_{id}.generic.saturating_add(owed_{id}.saturating_mul(base_{id}.x)), x: 0, ..base_{id} }}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, Cost::mana(price_{id}), &PAY_QUESTION)?;").unwrap();
+                self.performed.insert(result.0, format!("paid_{id}"));
             }
             Operation::PayCost {
                 player,

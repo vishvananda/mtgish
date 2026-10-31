@@ -323,6 +323,17 @@ fn generated_modules_execute_in_cantrip() {
         ("expert", "Afterburner Expert"),
         ("ajani", "Ajani Unrelenting"),
         ("mauler", "Barkhide Mauler"),
+        ("student", "Student of Warfare"),
+        ("gearhulk", "Torrential Gearhulk"),
+        ("study", "Quick Study"),
+        ("concentrate", "Concentrate"),
+        ("sram", "Sram's Expertise"),
+        ("adept_omni", "Omnispell Adept"),
+        ("wealth_card", "Villainous Wealth"),
+        ("harness_card", "Harness the Storm"),
+        ("horde", "Horde of Notions"),
+        ("rise", "Rise of the Hobgoblins"),
+        ("shrine_card", "Cephalid Shrine"),
     ];
     let mut lib = String::new();
     for (module, name) in names {
