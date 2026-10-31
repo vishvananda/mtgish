@@ -160,12 +160,71 @@ impl Context {
             unreachable!()
         };
         let result = result.clone();
-        let found = ObjectSet::Selected(result.clone());
         let mut instructions = vec![search];
         let mut aside = None;
-        for (i, action) in actions.iter().enumerate().skip(start) {
+        self.search_steps(
+            &actions[start..],
+            &player,
+            &library,
+            &result,
+            &mut aside,
+            &mut instructions,
+        )?;
+        Ok(Instruction::Group(Program { instructions }))
+    }
+
+    /// What happens to the cards a search found, in order.
+    fn search_steps(
+        &mut self,
+        actions: &[source::SearchLibraryAction],
+        player: &PlayerRef,
+        library: &PlayerRef,
+        result: &ResultId,
+        aside: &mut Option<ObjectSet>,
+        instructions: &mut Vec<Instruction>,
+    ) -> Result<()> {
+        let found = ObjectSet::Selected(result.clone());
+        for (i, action) in actions.iter().enumerate() {
             use source::SearchLibraryAction as S;
             let operation = match action {
+                S::If(condition, then) | S::IfElse(condition, then, _) => {
+                    let condition = self.condition(condition)?;
+                    let otherwise = match action {
+                        S::IfElse(_, _, otherwise) => otherwise.as_slice(),
+                        _ => &[],
+                    };
+                    let mut set_aside = aside.clone();
+                    let mut other_aside = aside.clone();
+                    let branch = self.conditional(
+                        condition,
+                        |context| {
+                            let mut body = vec![];
+                            context.search_steps(
+                                then,
+                                player,
+                                library,
+                                result,
+                                &mut set_aside,
+                                &mut body,
+                            )?;
+                            Ok(Program { instructions: body })
+                        },
+                        |context| {
+                            let mut body = vec![];
+                            context.search_steps(
+                                otherwise,
+                                player,
+                                library,
+                                result,
+                                &mut other_aside,
+                                &mut body,
+                            )?;
+                            Ok(Program { instructions: body })
+                        },
+                    )?;
+                    instructions.push(branch);
+                    continue;
+                }
                 S::RevealFoundCards => Operation::Reveal {
                     objects: found.clone(),
                 },
@@ -217,7 +276,7 @@ impl Context {
                     }
                 }
                 S::SetAsideFoundCards => {
-                    aside = Some(found.clone());
+                    *aside = Some(found.clone());
                     continue;
                 }
                 S::Shuffle | S::ShuffleLibraryIfSearched => {
@@ -287,7 +346,7 @@ impl Context {
             };
             instructions.push(self.effect(operation));
         }
-        Ok(Instruction::Group(Program { instructions }))
+        Ok(())
     }
     fn typecycling(&mut self, filter: ObjectFilter, mut cost: Cost) -> Result<Ability> {
         cost.parts.push(CostPart::Discard {

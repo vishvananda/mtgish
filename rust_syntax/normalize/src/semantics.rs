@@ -40,6 +40,8 @@ pub struct EventBindings {
     pub block_pair: bool,
     pub group: bool,
     pub stack_object: bool,
+    pub other: bool,
+    pub moved_owner: bool,
 }
 impl EventBindings {
     /// What every alternative of an either-event still binds.
@@ -54,6 +56,8 @@ impl EventBindings {
             block_pair: a.block_pair && b.block_pair,
             group: a.group && b.group,
             stack_object: a.stack_object && b.stack_object,
+            other: a.other && b.other,
+            moved_owner: a.moved_owner && b.moved_owner,
             damage: a.damage && b.damage,
             damage_source: a.damage_source && b.damage_source,
             damage_source_permanent: a.damage_source_permanent && b.damage_source_permanent,
@@ -136,14 +140,18 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
                 ..
             }]
         ),
-        _ => manifests(operation),
+        _ => yields(operation).is_some(),
     }
 }
 
 /// Manifesting puts one card onto the battlefield (701.40a), as a reviewed
 /// primitive with no ordinary movement to read the permanent from.
-pub fn manifests(operation: &Operation) -> bool {
-    matches!(operation, Operation::Primitive { name, .. } if name.starts_with("Action::Manifest"))
+/// What a reviewed action row leaves for a later "this way" to name.
+pub fn yields(operation: &Operation) -> Option<&'static str> {
+    let Operation::Primitive { name, .. } = operation else {
+        return None;
+    };
+    crate::primitive_spec::lookup(name)?.yields.as_deref()
 }
 
 pub fn event_bindings(event: &EventSpec) -> EventBindings {
@@ -161,6 +169,8 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 block_pair: has("block_pair"),
                 group: has("group"),
                 stack_object: has("stack_object"),
+                other: has("other"),
+                moved: has("moved"),
                 ..EventBindings::default()
             }
         }
@@ -173,10 +183,11 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             activation_x: matches!(kind, DiscardKind::Cycling),
             ..Default::default()
         },
-        EventSpec::ZoneChange { .. } => EventBindings {
+        EventSpec::ZoneChange { to, .. } => EventBindings {
             object: true,
             permanent: true,
             moved: true,
+            moved_owner: matches!(to, EventZone::Graveyard),
             ..EventBindings::default()
         },
         EventSpec::Object { .. } => EventBindings {
@@ -220,6 +231,8 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 block_pair: false,
                 group: false,
                 stack_object: false,
+                other: false,
+                moved_owner: false,
                 damage_objects: !players,
                 damage_players: !objects,
                 damage_subject: Some(event.subject),
@@ -281,7 +294,8 @@ impl Effects {
                         self.library |= before || after;
                         self.objects.insert(result.0, (before, after));
                     }
-                    Operation::ChooseObjects { objects, .. } => {
+                    Operation::ChooseObjects { objects, .. }
+                    | Operation::NoteObjects { objects } => {
                         let library = self.objects_library(objects);
                         self.objects.insert(result.0, (library, library));
                     }
@@ -377,6 +391,7 @@ impl Effects {
             | ObjectRef::Affected
             | ObjectRef::EventSubject
             | ObjectRef::EventStackObject
+            | ObjectRef::EventOther
             | ObjectRef::RecipientObject { .. }
             | ObjectRef::BlockPair(_)
             | ObjectRef::EventDestination
@@ -395,6 +410,7 @@ impl Effects {
     }
     fn objects_library(&self, objects: &ObjectSet) -> bool {
         match objects {
+            ObjectSet::LibraryTops(_) => true,
             ObjectSet::Observed(result) => self.result_library(result, &ObjectPhase::Before),
             ObjectSet::Difference { objects, .. } | ObjectSet::Matching { objects, .. } => {
                 self.objects_library(objects)

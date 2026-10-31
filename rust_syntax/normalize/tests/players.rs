@@ -73,7 +73,6 @@ fn real_player_families_roundtrip_and_unsupported_nested_mechanics_stay_incomple
         "Valakut Exploration",
         "Conduit of Worlds",
         "Muldrotha, the Gravetide",
-        "Solemnity",
     ];
     let mut complete = 0;
     for s in sources() {
@@ -98,7 +97,7 @@ fn real_player_families_roundtrip_and_unsupported_nested_mechanics_stay_incomple
         }
         complete += 1;
     }
-    assert_eq!(complete, 47);
+    assert_eq!(complete, 48);
 }
 
 #[test]

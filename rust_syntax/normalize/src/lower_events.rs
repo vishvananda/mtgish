@@ -187,6 +187,16 @@ impl Context {
                     to: EventZone::Graveyard,
                 }
             }
+            S::WhenACardIsPutIntoAPlayersGraveyardFromTheirLibrary(cards, owners) => {
+                EventSpec::ZoneChange {
+                    objects: ObjectFilter::All(vec![
+                        self.card_filter(cards)?,
+                        ObjectFilter::OwnedBy(self.players(owners)?),
+                    ]),
+                    from: Some(EventZone::Library),
+                    to: EventZone::Graveyard,
+                }
+            }
             S::WhenAPermanentLeavesTheBattlefield(objects) => EventSpec::Object {
                 event: ObjectEvent::LeavesBattlefield,
                 objects: self.filter(objects)?,

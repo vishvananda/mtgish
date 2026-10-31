@@ -269,6 +269,7 @@ impl Inventory<'_> {
         self.form("Operation", op);
         match op {
             Operation::Named { .. } => {}
+            Operation::NoteObjects { objects } => self.objects(objects),
             Operation::Primitive { name, .. } => self.primitive(name),
             Operation::CreateDelayedTrigger {
                 event,
@@ -1131,6 +1132,7 @@ impl Inventory<'_> {
         self.form("ObjectSet", r);
         match r {
             ObjectSet::DamageSources(filter) => self.filter(filter),
+            ObjectSet::LibraryTops(players) => self.players(players),
             ObjectSet::Affected(_) => {}
             ObjectSet::CostObjects {
                 payment,
@@ -1234,6 +1236,7 @@ impl Inventory<'_> {
         self.form("Expr", e);
         match e {
             Expr::BoundValue(_)
+            | Expr::ChosenParity
             | Expr::CountersRemoved(_)
             | Expr::PaidCountersRemoved { .. }
             | Expr::Performed(_)

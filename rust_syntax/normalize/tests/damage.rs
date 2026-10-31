@@ -81,7 +81,6 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         "Norn's Decree",
         "Screaming Nemesis",
         "The Gitrog, Ravenous Ride",
-        "Vengeful Ancestor",
         "Lost Vale",
         "Vault of Catlacan",
     ];
@@ -108,7 +107,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 69);
+    assert_eq!(complete, 70);
 }
 
 #[test]

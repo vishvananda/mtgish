@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 50;
+pub const SCHEMA_VERSION: u32 = 51;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -677,6 +677,10 @@ pub enum Operation {
     /// Reposition only cards still in this library, without a zone change.
     /// Reordered revealed/looked-at cards stop being observed and become new
     /// objects (701.20d-e); old observation/selection identities do not follow.
+    /// Remember these objects as they are now, for a later "those".
+    NoteObjects {
+        objects: ObjectSet,
+    },
     ReorderLibrary {
         player: PlayerRef,
         library: PlayerRef,
@@ -1059,6 +1063,11 @@ pub enum EntryState {
     ChangesUntil {
         changes: Vec<Change>,
         duration: Duration,
+    },
+    /// Applies only to an object matching the filter as it enters.
+    When {
+        filter: ObjectFilter,
+        entry: Box<EntrySpec>,
     },
 }
 
@@ -1544,6 +1553,8 @@ pub enum Expr {
         kind: Option<crate::counter::CounterKind>,
         information: Information,
     },
+    /// What an odd-or-even choice named: 0 for even, 1 for odd.
+    ChosenParity,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1686,6 +1697,9 @@ pub enum ObjectRef {
         slot: Slot,
         index: u16,
     },
+    /// The second object of a two-object event: the host of an attachment,
+    /// the crewed vehicle, the exploited creature.
+    EventOther,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1744,6 +1758,7 @@ pub enum ObjectSet {
         from: SequenceEnd,
     },
     /// Actual transitions, not all objects originally requested by an effect.
+    /// Empty when the action sat in an optional body or cost that never ran.
     Transition {
         result: ResultId,
         phase: ObjectPhase,
@@ -1786,6 +1801,8 @@ pub enum ObjectSet {
     Affected(ResultId),
     /// Every object of a one-or-more event, grouped under one trigger (603.2c).
     EventGroup,
+    /// The top card of each of these players' libraries.
+    LibraryTops(PlayerSet),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -1973,6 +1990,8 @@ pub enum Comparison {
     LessOrEqual,
     Greater,
     GreaterOrEqual,
+    SameParity,
+    DifferentParity,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum Count {

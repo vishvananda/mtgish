@@ -74,7 +74,6 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         "Derevi, Empyrial Tactician",
         "Firesong and Sunspeaker",
         "Fluctuator",
-        "Narcomoeba",
         "Nether Shadow",
         "Shadow of the Grave",
         "Valiant Rescuer",
@@ -102,7 +101,7 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 84);
+    assert_eq!(complete, 85);
 }
 
 #[test]

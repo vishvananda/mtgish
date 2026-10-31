@@ -1271,9 +1271,8 @@ fn program_actor_batches_preserve_single_operations_and_reject_implicit_serializ
 }
 
 #[test]
-fn program_optionals_and_conditionals_cannot_leak_movement_results() {
+fn program_conditionals_cannot_leak_movement_results() {
     for action in [
-        "MayAction(PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard,[]))",
         "IfElse(ValueIs(Integer(1),EqualTo(Integer(1))),[PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard,[])],[])",
     ] {
         let source=custom(&format!("SpellActions(Targeted([TargetGraveyardCard(AnyCardInAnyGraveyard)],ActionList([{action},TapPermanent(ThePermanentPutOnTheBattlefieldThisWay)])))"));
@@ -1784,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 50);
+    assert_eq!(card.schema_version, 51);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2490,4 +2489,81 @@ fn a_chosen_permanent_is_read_from_its_choice() {
 fn modes_can_require_different_targets() {
     let text = ability_json("SpellActions(Modal_ChooseOneOrMore_DifferentTargets([ActionList([DrawACard]),ActionList([GainLife(Integer(2))])]))");
     assert!(text.contains("\"distinct_targets\":true"), "{text}");
+}
+
+#[test]
+fn an_optional_exile_stays_readable_afterwards() {
+    let text = ability_json("SpellActions(ActionList([MayAction(Exile([TheTopCardOfLibrary],[])),CreatePlayerEffectUntil(You,[MayPlayExiledCard(TheCardExiledThisWay)],UntilEndOfTurn)]))");
+    assert!(text.contains("Optional"), "{text}");
+    assert!(text.contains("\"Result\""), "{text}");
+}
+
+#[test]
+fn a_move_inside_a_cost_stays_readable_afterwards() {
+    let text = ability_json("SpellActions(ActionList([MayCost(PutACardFromHandOnBattlefield(IsCardtype(Creature),[EntersNormally])),If(CostWasPaid,[DestroyPermanent(ThePermanentPutOnTheBattlefieldThisWay)])]))");
+    assert!(text.contains("CostObjects"), "{text}");
+}
+
+#[test]
+fn a_row_that_moves_nothing_keeps_earlier_antecedents() {
+    let text = ability_json("SpellActions(ActionList([Exile([TheTopCardOfLibrary],[]),ChooseACardName(AnyOracleCard),PutExiledCardIntoOwnersHand(TheCardExiledThisWay)]))");
+    assert!(text.contains("OwnersHand"), "{text}");
+}
+
+#[test]
+fn entry_flags_can_depend_on_the_entering_object() {
+    let text = ability_json("SpellActions(Targeted([TargetGraveyardCard(AnyCardInAnyGraveyard)],ActionList([PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCard,[IfPassesFilter(IsCardtype(Land),[EntersTapped])])])))");
+    assert!(text.contains("When"), "{text}");
+}
+
+#[test]
+fn a_chosen_parity_compares_against_the_choice() {
+    let text = ability_json("SpellActions(ActionList([ChooseEvenOrOdd,Exile([EachPermanent(ManaValueIs(TheChosenQuality))],[])]))");
+    assert!(text.contains("SameParity"), "{text}");
+    assert!(text.contains("ChosenParity"), "{text}");
+}
+
+#[test]
+fn that_player_on_a_graveyard_trigger_is_the_cards_owner() {
+    let text = ability_json("TriggerA(WhenAPermanentIsPutIntoAPlayersGraveyard(IsNonToken,AnyPlayer),ActionList([PlayerAction(Trigger_ThatPlayer,LoseLife(Integer(1)))]))");
+    assert!(text.contains("OwnerOf"), "{text}");
+    assert!(text.contains("EventSubject"), "{text}");
+}
+
+#[test]
+fn a_two_object_event_names_its_second_object() {
+    let text = ability_json("TriggerA(WhenAPermanentBecomesAttachedToAPermanent(SinglePermanent(ThisPermanent),IsCardtype(Creature)),ActionList([TapPermanent(Trigger_ThatOtherPermanent)]))");
+    assert!(text.contains("EventOther"), "{text}");
+}
+
+#[test]
+fn hand_cards_exiled_this_way_count_only_the_hand() {
+    let text = ability_json("SpellActions(ActionList([Exile([PlayersHand(You)],[]),DrawNumberCards(NumHandCardsExiledThisWay)]))");
+    assert!(text.contains("\"Hand\""), "{text}");
+}
+
+#[test]
+fn each_player_revealing_their_top_card_is_one_observation() {
+    let text = ability_json("SpellActions(ActionList([EachPlayerAction(AnyPlayer,RevealTopCardOfLibrary),GainLife(NumLibraryCardsRevealedThisWay(IsCardtype(Land)))]))");
+    assert!(text.contains("LibraryTops"), "{text}");
+    assert!(text.contains("Observed"), "{text}");
+}
+
+#[test]
+fn a_seeked_card_can_be_named_by_a_later_step() {
+    let text = ability_json("SpellActions(ActionList([SeekACard(IsCardtype(Creature)),PutCardFromHandOnBattlefield(TheCardSeekedThisWay,[EntersNormally])]))");
+    assert!(text.contains("\"Result\""), "{text}");
+}
+
+#[test]
+fn a_noted_set_is_read_from_the_snapshot() {
+    let text = ability_json("SpellActions(ActionList([CreatePermanentsList(IsCardtype(Creature)),DestroyEachPermanent(ThePermanentsList)]))");
+    assert!(text.contains("NoteObjects"), "{text}");
+    assert!(text.contains("Selected"), "{text}");
+}
+
+#[test]
+fn search_steps_can_branch_on_a_condition() {
+    let text = ability_json("SpellActions(ActionList([SearchLibrary([FindACardOfType(IsCardtype(Land)),IfElse(ValueIs(Integer(1),EqualTo(Integer(1))),[PutFoundCardsIntoHand],[PutFoundCardsOntoBattlefield([EntersTapped])]),Shuffle])]))");
+    assert!(text.contains("\"If\""), "{text}");
 }

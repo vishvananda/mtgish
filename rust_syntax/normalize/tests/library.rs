@@ -77,7 +77,6 @@ fn effect(operation: Operation, id: u32) -> Instruction {
 fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
     let incomplete = [
         "Archdruid's Charm",
-        "Beseech the Mirror",
         "Caravan Vigil",
         "Claim Jumper",
         "Land Grant",
@@ -109,7 +108,7 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 81);
+    assert_eq!(complete, 82);
 }
 
 #[test]

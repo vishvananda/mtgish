@@ -246,7 +246,9 @@ impl Context {
         actor: &PlayerSet,
     ) -> Option<Instruction> {
         let (name, operands) = self.primitive("Action", value)?;
-        self.forget_results();
+        if !crate::primitive_spec::lookup(&name)?.keeps {
+            self.forget_results();
+        }
         let result = ResultId(self.result);
         self.result += 1;
         if name.starts_with("Action::RollAD") {
@@ -257,8 +259,18 @@ impl Context {
             name,
             operands,
         };
-        if crate::semantics::manifests(&operation) {
-            self.entered = Some(result.clone());
+        let yields = crate::semantics::yields(&operation);
+        match yields {
+            Some("observed") => self.revealed = Some(ObjectSet::Observed(result.clone())),
+            Some("exiled") => {
+                self.exiled = Some(result.clone());
+                self.exiled_permanents = false;
+            }
+            Some("entered") => self.entered = Some(result.clone()),
+            Some("hand") => self.to_hand = Some(result.clone()),
+            _ => {}
+        }
+        if yields.is_some() {
             self.singular.insert(result.0);
         }
         Some(Instruction::Effect { result, operation })

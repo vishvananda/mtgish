@@ -188,6 +188,22 @@ impl Context {
                     index: 0,
                 })
             }
+            source::CardInHand::TheCardSeekedThisWay
+            | source::CardInHand::TheCardDraftedThisWay
+            | source::CardInHand::TheCardConjuredThisWay
+                if self.to_hand.is_some() =>
+            {
+                Ok(ObjectRef::Result {
+                    result: self.to_hand.clone().unwrap(),
+                    phase: ObjectPhase::After,
+                    index: 0,
+                })
+            }
+            source::CardInHand::TheCardRevealedThisWay
+            | source::CardInHand::TheCardRevealedFromHandThisWay => Ok(ObjectRef::Query {
+                objects: Box::new(self.revealed_objects()?),
+                index: 0,
+            }),
             source::CardInHand::Trigger_ThatCardInHand
             | source::CardInHand::Trigger_ThatDiscardedCard
                 if self.event.discarded =>
@@ -656,11 +672,18 @@ impl Context {
         default: PlayerRef,
     ) -> Result<(Destination, EntrySpec)> {
         let mut entry = EntrySpec::default();
-        let mut destination = Destination::Battlefield(default);
+        let mut destination = Destination::Battlefield(default.clone());
         for (i, flag) in flags.iter().enumerate() {
             match flag {
                 source::EnterFlag::EntersNormally => {}
                 source::EnterFlag::EntersTapped => entry.tapped = true,
+                source::EnterFlag::IfPassesFilter(filter, flags) => {
+                    let (_, then) = self.move_entry(flags, default.clone())?;
+                    entry.states.push(EntryState::When {
+                        filter: self.filter(filter)?,
+                        entry: Box::new(then),
+                    });
+                }
                 source::EnterFlag::EntersWithACounter(k) => entry
                     .counters
                     .push((crate::counter::lower(k), Expr::Constant(1))),

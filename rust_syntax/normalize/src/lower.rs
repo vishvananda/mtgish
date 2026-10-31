@@ -113,6 +113,10 @@ struct Context {
     permanent_choice: Option<ResultId>,
     exile_choice: Option<ResultId>,
     iterated_object: Option<Binding>,
+    /// The card a row just put into a hand: seeked, drafted or conjured.
+    to_hand: Option<ResultId>,
+    /// The latest snapshot of a set, for "those creatures".
+    noted: Option<ResultId>,
 }
 
 /// Actions a later "this way" can name in the same resolution.
@@ -125,6 +129,7 @@ enum Done {
     Effect,
     LifeLost,
     Milled,
+    Returned,
 }
 impl Done {
     fn of(operation: &Operation) -> Option<Self> {
@@ -138,6 +143,10 @@ impl Done {
             Operation::CreateContinuousEffect { .. } => Self::Effect,
             Operation::LoseLife { .. } => Self::LifeLost,
             Operation::Mill { .. } => Self::Milled,
+            Operation::Move {
+                destination: Destination::OwnersHand,
+                ..
+            } => Self::Returned,
             _ => return None,
         })
     }
@@ -165,6 +174,44 @@ impl Context {
             }
         }
         Ok(found.slot.clone())
+    }
+
+    /// What a move leaves for a later "this way" to name.
+    fn note_move(&mut self, operation: &Operation, result: ResultId) {
+        let Operation::Move { destination, .. } = operation else {
+            return;
+        };
+        match destination {
+            Destination::Exile => {
+                self.exiled = Some(result);
+                self.exiled_permanents = false;
+            }
+            Destination::Battlefield(_) | Destination::OwnersBattlefield => {
+                self.entered = Some(result)
+            }
+            _ => {}
+        }
+    }
+
+    /// A move inside a cost or an optional body: a later reference reads nothing
+    /// if the body never ran.
+    fn note_moves(&mut self, body: &Program) {
+        for instruction in &body.instructions {
+            match instruction {
+                Instruction::Effect { result, operation } => {
+                    if crate::semantics::singular_operation(operation, |r| {
+                        self.singular.contains(&r.0)
+                    }) {
+                        self.singular.insert(result.0);
+                    }
+                    self.note_move(operation, result.clone());
+                }
+                Instruction::Group(body) | Instruction::Optional { body, .. } => {
+                    self.note_moves(body)
+                }
+                _ => {}
+            }
+        }
     }
 
     fn effect(&mut self, operation: Operation) -> Instruction {
@@ -207,28 +254,15 @@ impl Context {
         if let Some(done) = Done::of(&operation) {
             self.did.insert(done, ResultId(self.result));
         }
-        if matches!(
-            operation,
-            Operation::Move {
-                destination: Destination::Exile,
-                ..
-            }
-        ) {
-            self.exiled = Some(ResultId(self.result));
-            self.exiled_permanents = false;
-        }
-        if matches!(
-            operation,
-            Operation::Move {
-                destination: Destination::Battlefield(_) | Destination::OwnersBattlefield,
-                ..
-            }
-        ) {
-            self.entered = Some(ResultId(self.result));
-        }
+        self.note_move(&operation, ResultId(self.result));
         if let Operation::PayCost { cost, .. } = &operation {
             self.payment = Some(ResultId(self.result));
             self.install_paid_history(cost, PaymentRef::Resolution(ResultId(self.result)));
+            for part in &cost.parts {
+                if let CostPart::PlayerAction { body, .. } = part {
+                    self.note_moves(body);
+                }
+            }
         }
         let result = ResultId(self.result);
         self.result += 1;
@@ -299,6 +333,12 @@ impl Context {
         if self.entered.as_ref().map(|r| r.0) != child.entered.as_ref().map(|r| r.0) {
             self.entered = None;
         }
+        if self.to_hand.as_ref().map(|r| r.0) != child.to_hand.as_ref().map(|r| r.0) {
+            self.to_hand = None;
+        }
+        if self.noted.as_ref().map(|r| r.0) != child.noted.as_ref().map(|r| r.0) {
+            self.noted = None;
+        }
     }
 
     fn object(&self, value: &source::Permanent) -> Result<ObjectRef> {
@@ -355,6 +395,14 @@ impl Context {
                     .created_tokens
                     .as_ref()
                     .filter(|r| self.singular.contains(&r.0));
+                if let (None, None, Some((objects, true))) =
+                    (&self.entered, token, self.paid_entered())
+                {
+                    return Ok(ObjectRef::Query {
+                        objects: Box::new(objects),
+                        index: 0,
+                    });
+                }
                 return self.result_object(self.entered.as_ref().or(token), 0);
             }
             S::ThisPermanent | S::ThisPermanentOrThisCommandCard => {
@@ -404,6 +452,13 @@ impl Context {
             }
             S::Trigger_TheBlockingCreature if self.event.block_pair => {
                 return Ok(ObjectRef::BlockPair(BlockRole::Blocker))
+            }
+            S::Trigger_ThatOtherPermanent
+            | S::Trigger_ThatOtherCreature
+            | S::Trigger_ThatPermanent
+                if self.event.other =>
+            {
+                return Ok(ObjectRef::EventOther)
             }
             S::Trigger_ThatOtherPermanent | S::Trigger_ThatOtherCreature
                 if self.event.block_pair =>
@@ -470,6 +525,19 @@ impl Context {
                 if self.event.player =>
             {
                 PlayerRef::EventSubject
+            }
+            S::Trigger_ThatPlayer if self.event.moved_owner => {
+                PlayerRef::OwnerOf(Box::new(ObjectRef::EventSubject))
+            }
+            S::Trigger_ControllerOfThatSpellOrAbility if self.event.stack_object => {
+                PlayerRef::ControllerOf(Box::new(ObjectRef::EventStackObject))
+            }
+            S::ControllerOfDestroyedPermanent => {
+                PlayerRef::ControllerOf(Box::new(ObjectRef::Result {
+                    result: self.done(Done::Destroyed)?,
+                    phase: ObjectPhase::Before,
+                    index: 0,
+                }))
             }
             S::ControllerOfDeadPermanent => PlayerRef::ControllerOf(Box::new(self.dead_object()?)),
             S::OwnerOfDeadPermanent => PlayerRef::OwnerOf(Box::new(self.dead_object()?)),
@@ -590,6 +658,9 @@ impl Context {
             value,
             source::Permanents::ThePermanentsPutOnTheBattlefieldThisWay
         ) {
+            if let (None, Some((objects, _))) = (&self.entered, self.paid_entered()) {
+                return Ok(objects);
+            }
             return self
                 .entered
                 .clone()
@@ -605,6 +676,9 @@ impl Context {
             Some(result),
         ) = (value, &self.permanent_choice)
         {
+            return Ok(ObjectSet::Selected(result.clone()));
+        }
+        if let (source::Permanents::ThePermanentsList, Some(result)) = (value, &self.noted) {
             return Ok(ObjectSet::Selected(result.clone()));
         }
         if matches!(
@@ -658,6 +732,10 @@ impl Context {
         let (comparison, number) = match value {
             S::EqualTo(n) => (Comparison::Equal, n),
             S::NotEqualTo(n) => (Comparison::NotEqual, n),
+            S::Even => return Ok((Comparison::SameParity, Expr::Constant(0))),
+            S::Odd => return Ok((Comparison::SameParity, Expr::Constant(1))),
+            S::TheChosenQuality => return Ok((Comparison::SameParity, Expr::ChosenParity)),
+            S::NotTheChosenQuality => return Ok((Comparison::DifferentParity, Expr::ChosenParity)),
             S::LessThan(n) => (Comparison::Less, n),
             S::LessThanOrEqualTo(n) => (Comparison::LessOrEqual, n),
             S::GreaterThan(n) => (Comparison::Greater, n),
@@ -779,15 +857,51 @@ impl Context {
             S::NumPermanentsDestroyedThisWay(filter) => {
                 Expr::CountObjects(Box::new(self.done_matching(Done::Destroyed, filter)?))
             }
-            S::NumGraveyardCardsExiledThisWay => {
-                Expr::CountObjects(Box::new(ObjectSet::Transition {
+            S::PowerOfTheExiledCreature => Expr::ObjectProperty {
+                object: match &self.exiled {
+                    Some(result) => ObjectRef::Result {
+                        result: result.clone(),
+                        phase: ObjectPhase::Before,
+                        index: 0,
+                    },
+                    None => self.paid_object(crate::number_spec::PaymentAction::Exile)?,
+                },
+                property: Property::Power,
+                information: Information::CurrentOrLastKnown,
+            },
+            S::TheNumberOfCardsOfTypeRevealedFromHandThisWay(cards) => {
+                Expr::CountObjects(Box::new(ObjectSet::Matching {
+                    objects: Box::new(self.revealed_objects()?),
+                    filter: self.card_filter(cards)?,
+                }))
+            }
+            S::NumCardsMilledThisWay(cards) => Expr::CountObjects(Box::new(ObjectSet::Matching {
+                objects: Box::new(ObjectSet::Transition {
+                    result: self.done(Done::Milled)?,
+                    phase: ObjectPhase::After,
+                }),
+                filter: self.card_filter(cards)?,
+            })),
+            S::NumGraveyardCardsExiledThisWay => match &self.exiled {
+                Some(result) => Expr::CountObjects(Box::new(ObjectSet::Transition {
+                    result: result.clone(),
+                    phase: ObjectPhase::Before,
+                })),
+                None => Expr::CountObjects(Box::new(self.paid_objects(
+                    crate::number_spec::PaymentAction::Exile,
+                    CostObjectView::Inputs,
+                )?)),
+            },
+            S::NumHandCardsExiledThisWay => Expr::CountObjects(Box::new(ObjectSet::InZone {
+                objects: Box::new(ObjectSet::Transition {
                     result: self
                         .exiled
                         .clone()
                         .ok_or_else(|| invalid("exile count has no movement in this scope"))?,
                     phase: ObjectPhase::Before,
-                }))
-            }
+                }),
+                zone: EventZone::Hand,
+            })),
             S::TheNumberOfCountersRemovedThisWay => {
                 let paid = self.paid_binding(crate::number_spec::PaymentAction::RemoveCounters)?;
                 Expr::PaidCountersRemoved {
@@ -824,28 +938,18 @@ impl Context {
             }
             S::TheDiceResult => self.die_result()?,
             S::TheAmountOfDamagePreventedThisWay if self.event.amount => Expr::EventAmount,
-            S::TheNumberOfCardsInHandRevealedThisWay => Expr::CountObjects(Box::new(
-                self.revealed
-                    .clone()
-                    .ok_or_else(|| invalid("no card was revealed in this scope"))?,
-            )),
+            S::TheNumberOfCardsInHandRevealedThisWay => {
+                Expr::CountObjects(Box::new(self.revealed_objects()?))
+            }
             S::NumLibraryCardsRevealedThisWay(cards) => {
                 Expr::CountObjects(Box::new(ObjectSet::Matching {
-                    objects: Box::new(
-                        self.revealed
-                            .clone()
-                            .ok_or_else(|| invalid("no card was revealed in this scope"))?,
-                    ),
+                    objects: Box::new(self.revealed_objects()?),
                     filter: self.card_filter(cards)?,
                 }))
             }
             S::ManaValueOfTheCardRevealedThisWay => Expr::ObjectProperty {
                 object: ObjectRef::Query {
-                    objects: Box::new(
-                        self.revealed
-                            .clone()
-                            .ok_or_else(|| invalid("no card was revealed in this scope"))?,
-                    ),
+                    objects: Box::new(self.revealed_objects()?),
                     index: 0,
                 },
                 property: Property::ManaValue,
@@ -1025,6 +1129,11 @@ impl Context {
                 comparison: Comparison::Greater,
                 right: Expr::Constant(0),
             },
+            S::APermanentWasPutIntoHandThisWay(filter) => Condition::Compare {
+                left: Expr::CountObjects(Box::new(self.done_matching(Done::Returned, filter)?)),
+                comparison: Comparison::Greater,
+                right: Expr::Constant(0),
+            },
             S::ACardWasMilledThisWay(cards) => Condition::Compare {
                 left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                     objects: Box::new(ObjectSet::Transition {
@@ -1063,10 +1172,7 @@ impl Context {
                 right: Expr::Constant(0),
             },
             S::ACardWasRevealedThisWay(cards) => {
-                let objects = self
-                    .revealed
-                    .clone()
-                    .ok_or_else(|| invalid("no card was revealed in this scope"))?;
+                let objects = self.revealed_objects()?;
                 Condition::Compare {
                     left: Expr::CountObjects(Box::new(ObjectSet::Matching {
                         objects: Box::new(objects),
@@ -1829,6 +1935,79 @@ impl Context {
                 };
                 self.permanent_choice = Some(result.clone());
                 return Ok(choice);
+            }
+            S::ChooseUptoNumberPermanents(amount, objects)
+                if matches!(actor, PlayerSet::One(_)) =>
+            {
+                let PlayerSet::One(player) = actor else {
+                    unreachable!()
+                };
+                let choice = self.effect(Operation::ChooseObjects {
+                    constraints: vec![],
+                    player: player.clone(),
+                    objects: self.objects(objects)?,
+                    count: Count::UpTo(self.number(amount)?),
+                });
+                let Instruction::Effect { result, .. } = &choice else {
+                    unreachable!()
+                };
+                self.permanent_choice = Some(result.clone());
+                return Ok(choice);
+            }
+            S::CreatePermanentsList(objects) => {
+                let note = self.effect(Operation::NoteObjects {
+                    objects: self.objects(objects)?,
+                });
+                let Instruction::Effect { result, .. } = &note else {
+                    unreachable!()
+                };
+                self.noted = Some(result.clone());
+                return Ok(note);
+            }
+            S::PutCardFromHandOnBattlefield(card, flags) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("putting a card from hand needs one player"));
+                };
+                let (destination, entry) = self.move_entry(flags, player.clone())?;
+                Operation::Move {
+                    objects: ObjectSet::One(self.hand_card(card)?),
+                    destination,
+                    entry,
+                    face_down: false,
+                }
+            }
+            S::ShuffleEachPermanentIntoLibrary(objects) => Operation::Move {
+                objects: self.objects(objects)?,
+                destination: Destination::OwnersLibraryShuffled,
+                entry: EntrySpec::default(),
+                face_down: false,
+            },
+            S::PutAGraveyardCardOntoBattlefield(cards, flags) => {
+                let objects = self.grave_cards(cards)?;
+                return self.choose_and_enter(objects, flags, actor);
+            }
+            S::PutACardFromAGraveyardOnBattlefield(cards, owners, flags) => {
+                let objects = self.private_cards(
+                    EventZone::Graveyard,
+                    self.players(owners)?,
+                    self.grave_filter(cards)?,
+                );
+                return self.choose_and_enter(objects, flags, actor);
+            }
+            S::PutAnExiledCardIntoOwnersHand(cards) => {
+                let objects = self.exile_cards(cards)?;
+                return self.choose_and_move(
+                    objects,
+                    Destination::OwnersHand,
+                    EntrySpec::default(),
+                    actor,
+                );
+            }
+            S::PutACardOfTypeMilledThisWayOntoTheBattlefield(cards, flags) => {
+                let objects = self.grave_cards(
+                    &source::CardsInGraveyards::CardsOfTypeMilledThisWay(cards.clone()),
+                )?;
+                return self.choose_and_enter(objects, flags, actor);
             }
             S::ChooseAnExiledCard(cards) if matches!(actor, PlayerSet::One(_)) => {
                 let PlayerSet::One(player) = actor else {
@@ -3276,13 +3455,57 @@ impl Context {
     }
 
     /// A cost with the same form as an action is that action, done by the payer.
+    /// One card from `objects` goes onto the battlefield.
+    fn choose_and_enter(
+        &mut self,
+        objects: ObjectSet,
+        flags: &[source::EnterFlag],
+        actor: &PlayerSet,
+    ) -> Result<Instruction> {
+        let PlayerSet::One(player) = actor else {
+            return Err(invalid("choosing a card needs one player"));
+        };
+        let (destination, entry) = self.move_entry(flags, player.clone())?;
+        self.choose_and_move(objects, destination, entry, actor)
+    }
+
+    fn choose_and_move(
+        &mut self,
+        objects: ObjectSet,
+        destination: Destination,
+        entry: EntrySpec,
+        actor: &PlayerSet,
+    ) -> Result<Instruction> {
+        let PlayerSet::One(player) = actor else {
+            return Err(invalid("choosing a card needs one player"));
+        };
+        let choice = self.effect(Operation::ChooseObjects {
+            constraints: vec![],
+            player: player.clone(),
+            objects,
+            count: Count::AsManyAsCan(Expr::Constant(1)),
+        });
+        let Instruction::Effect { result, .. } = &choice else {
+            unreachable!()
+        };
+        let movement = self.effect(Operation::Move {
+            objects: ObjectSet::Selected(result.clone()),
+            destination,
+            entry,
+            face_down: false,
+        });
+        Ok(Instruction::Group(Program {
+            instructions: vec![choice, movement],
+        }))
+    }
+
     fn cost_as_action(&self, value: &source::Cost) -> Result<Cost> {
         let action: source::Action =
             as_family(value, "Action").ok_or_else(|| unsupported(value))?;
         let player = self.payer.clone().unwrap_or(PlayerRef::AbilityController);
         let mut child = self.clone();
-        // Nothing outside a cost reads what happens inside it.
-        child.result = self.result.saturating_add(1 << 20);
+        // Results inside a cost never collide with this scope or another cost's.
+        child.result = self.result.saturating_mul(1 << 8).saturating_add(1 << 20);
         let instruction = child.action(&action, &PlayerSet::One(player.clone()))?;
         Ok(Cost {
             parts: vec![CostPart::PlayerAction {

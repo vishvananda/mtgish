@@ -68,6 +68,38 @@ impl Context {
             phase: ObjectPhase::Before,
         })
     }
+    /// What a cost put onto the battlefield, as it is there now.
+    fn paid_entered(&self) -> Option<(ObjectSet, bool)> {
+        let binding = self.paid.get(&crate::number_spec::PaymentAction::Enter)?;
+        let binding = binding.as_ref().filter(|_| !self.announcing)?;
+        Some((
+            ObjectSet::CostObjects {
+                payment: binding.payment.clone(),
+                component: binding.component.clone(),
+                view: CostObjectView::Performed,
+                phase: ObjectPhase::After,
+            },
+            binding.singular,
+        ))
+    }
+    /// The latest reveal, by an action here or else by a cost.
+    fn revealed_objects(&self) -> Result<ObjectSet> {
+        if let Some(objects) = &self.revealed {
+            return Ok(objects.clone());
+        }
+        let binding = self
+            .paid
+            .get(&crate::number_spec::PaymentAction::Reveal)
+            .and_then(Option::as_ref)
+            .filter(|_| !self.announcing)
+            .ok_or_else(|| invalid("no card was revealed in this scope"))?;
+        Ok(ObjectSet::CostObjects {
+            payment: binding.payment.clone(),
+            component: binding.component.clone(),
+            view: CostObjectView::Inputs,
+            phase: ObjectPhase::Before,
+        })
+    }
     /// What a cost exiled, as it is now in exile. `None` when no cost here did.
     fn paid_exile(&self) -> Option<(ObjectSet, bool)> {
         let binding = self.paid.get(&crate::number_spec::PaymentAction::Exile)?;

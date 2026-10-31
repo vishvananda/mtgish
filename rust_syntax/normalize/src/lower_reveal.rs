@@ -1,7 +1,9 @@
 /// Reveal steps that name an inspection step differently but mean the same thing.
-const REVEAL_ALIASES: [(&str, &str); 6] = [
+const REVEAL_ALIASES: [(&str, &str); 8] = [
     ("PutTheCardFoundThisWayIntoHand", "PutFoundCardIntoHand"),
     ("PutTheCardFoundThisWayOntoTheBattlefield", "PutFoundCardOntoBattlefield"),
+    ("PutTheCardsFoundThisWayIntoHand", "PutFoundCardIntoHand"),
+    ("PutTheCardsFoundThisWayOntoTheBattlefield", "PutFoundCardOntoBattlefield"),
     ("MayPutTheCardFoundThisWayOntoTheBattlefield", "MayPutFoundCardOntoBattlefield"),
     ("PutTheRemainingCardsIntoHand", "PutRemainingCardsInHand"),
     ("LeaveTheRemainingCardsOnTopOfLibraryInTheSameOrder", "LeaveRemainingCardsOnTopOfLibraryInSameOrder"),

@@ -14,6 +14,14 @@ pub struct Rule {
     /// `EventBindings` fields a `Trigger` row supplies to references in its body.
     #[serde(default)]
     pub binds: Vec<String>,
+    /// What a later "this way" in the same scope names after an `Action` row:
+    /// `observed`, `exiled`, `entered` or `hand`.
+    #[serde(default)]
+    pub yields: Option<String>,
+    /// An `Action` row that moves nothing and pays nothing, so earlier
+    /// antecedents survive it. Rows holding nested actions never keep.
+    #[serde(default)]
+    pub keeps: bool,
 }
 
 #[derive(Debug, Deserialize)]

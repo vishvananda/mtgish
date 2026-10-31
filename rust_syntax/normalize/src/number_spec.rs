@@ -123,6 +123,8 @@ pub enum PaymentAction {
     Untap,
     Exile,
     RemoveCounters,
+    Enter,
+    Reveal,
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum PrivateZone {

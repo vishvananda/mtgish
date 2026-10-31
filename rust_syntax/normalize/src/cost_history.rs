@@ -20,7 +20,12 @@ pub fn action(part: &CostPart) -> Option<PaymentAction> {
             destination: Destination::Exile,
             ..
         } => Some(PaymentAction::Exile),
+        CostPart::Move {
+            destination: Destination::Battlefield(_) | Destination::OwnersBattlefield,
+            ..
+        } => Some(PaymentAction::Enter),
         CostPart::RemoveCounters { .. } => Some(PaymentAction::RemoveCounters),
+        CostPart::Reveal { .. } => Some(PaymentAction::Reveal),
         _ => None,
     }
 }
@@ -76,6 +81,10 @@ pub fn singular(part: &CostPart) -> bool {
             count: Expr::Constant(0..=1),
             ..
         } => true,
+        CostPart::Reveal {
+            count: Expr::Constant(0..=1),
+            ..
+        } => true,
         CostPart::Sacrifice { objects, choose } => choose
             .as_ref()
             .map_or(matches!(objects, ObjectSet::One(_)), one),
@@ -99,6 +108,11 @@ pub fn zone(part: &CostPart, phase: &ObjectPhase) -> Option<EventZone> {
             destination: Destination::Exile,
             ..
         } if matches!(phase, ObjectPhase::After) => Some(EventZone::Exile),
+        CostPart::Move {
+            destination: Destination::Battlefield(_) | Destination::OwnersBattlefield,
+            ..
+        } if matches!(phase, ObjectPhase::After) => Some(EventZone::Battlefield),
+        CostPart::Reveal { .. } if matches!(phase, ObjectPhase::Before) => Some(EventZone::Hand),
         _ => None,
     }
 }

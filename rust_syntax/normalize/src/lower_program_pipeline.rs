@@ -117,6 +117,21 @@ impl Context {
                     A::Player(p) => PlayerSet::One(self.player(p)?),
                     A::Batch(p) => self.players(p)?,
                 };
+                if let (
+                    A::Batch(_),
+                    R::Source(ProgramSource::Action(source::Action::RevealTopCardOfLibrary)),
+                ) = (input, body.as_ref())
+                {
+                    let reveal = self.effect(Operation::Reveal {
+                        objects: ObjectSet::LibraryTops(players),
+                    });
+                    if let Instruction::Effect { result, .. } = &reveal {
+                        self.revealed = Some(ObjectSet::Observed(result.clone()));
+                    }
+                    return Ok(Program {
+                        instructions: vec![reveal],
+                    });
+                }
                 let lower = |context: &mut Self, players: &PlayerSet| match body.as_ref() {
                     crate::pipeline::programs::InstructionRecipe::Sequence(_) => Ok(
                         Instruction::Group(context.bind_program_recipe(body, players)?),
@@ -149,9 +164,11 @@ impl Context {
                     let PlayerSet::One(decider) = players else {
                         return Err(invalid("optional choice requires one decider"));
                     };
+                    let body = context.nested_program_recipe(body, players)?;
+                    context.note_moves(&body);
                     Ok(Instruction::Optional {
                         decider: decider.clone(),
-                        body: context.nested_program_recipe(body, players)?,
+                        body,
                     })
                 };
                 match input {

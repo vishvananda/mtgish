@@ -326,6 +326,8 @@ impl<'a> Scope<'a> {
                 TargetKind::Object(ObjectDomain::permanent()),
             ),
             ObjectRef::EventSubject if self.event.object => Ok(()),
+            ObjectRef::EventOther if self.event.other => Ok(()),
+            ObjectRef::EventOther => Err("this event names no second object".into()),
             ObjectRef::EventStackObject if self.event.stack_object => Ok(()),
             ObjectRef::EventStackObject => Err("this event names no spell or ability".into()),
             ObjectRef::RecipientObject { slot, index } => {
@@ -383,6 +385,10 @@ impl<'a> Scope<'a> {
             EntryState::AttachedToChosen(filter) => self.filter(filter),
             EntryState::AttachedToPlayer(player) => self.player(player),
             EntryState::Changes(changes) => self.entering_changes(changes),
+            EntryState::When { filter, entry } => {
+                self.filter(filter)?;
+                self.entry(entry)
+            }
             EntryState::ChangesUntil { changes, duration } => {
                 self.duration(duration)?;
                 self.entering_changes(changes)
@@ -484,6 +490,7 @@ impl<'a> Scope<'a> {
     fn objects(&self, objects: &ObjectSet) -> Result {
         match objects {
             ObjectSet::DamageSources(filter) => self.filter(filter),
+            ObjectSet::LibraryTops(players) => self.players(players),
             ObjectSet::CostObjects {
                 payment,
                 component,
@@ -601,6 +608,7 @@ impl<'a> Scope<'a> {
     fn expr(&self, expression: &Expr) -> Result {
         match expression {
             Expr::Primitive { name, operands } => self.primitive(name, operands),
+            Expr::ChosenParity => Ok(()),
             Expr::EventHistory { event, .. } => self.event(event),
             Expr::CountPlayers(players) => self.players(players),
             Expr::ManaSpent { object, filter, .. } => {
@@ -1392,6 +1400,7 @@ impl<'a> Scope<'a> {
     }
     fn operation(&self, operation: &Operation) -> Result {
         match operation {
+            Operation::NoteObjects { objects } => self.objects(objects),
             Operation::Named { actor, form } => {
                 self.players(actor)?;
                 self.named(form)
@@ -1862,12 +1871,42 @@ impl<'a> Scope<'a> {
         }
     }
 
+    /// A move in a cost or an optional body stays readable; it reads nothing
+    /// if that body never ran.
+    fn adopt_moves(&mut self, body: &Program) {
+        for instruction in &body.instructions {
+            match instruction {
+                Instruction::Effect { result, operation } => {
+                    if crate::semantics::singular_operation(operation, |r| {
+                        self.singular.contains(&r.0)
+                    }) {
+                        self.singular.insert(result.0);
+                    }
+                    if matches!(operation, Operation::Move { .. }) {
+                        self.results.insert(result.0, ResultKind::ObjectTransition);
+                    }
+                }
+                Instruction::Group(body) | Instruction::Optional { body, .. } => {
+                    self.adopt_moves(body)
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn program(&mut self, program: &Program) -> Result {
         for (i, instruction) in program.instructions.iter().enumerate() {
             let checked: Result = (|| {
                 match instruction {
                     Instruction::Effect { result, operation } => {
                         self.operation(operation)?;
+                        if let Operation::PayCost { cost, .. } = operation {
+                            for part in &cost.parts {
+                                if let CostPart::PlayerAction { body, .. } = part {
+                                    self.adopt_moves(body);
+                                }
+                            }
+                        }
                         let kind = match operation {
                             Operation::LookAt { .. }
                             | Operation::Reveal { .. }
@@ -1875,7 +1914,9 @@ impl<'a> Scope<'a> {
                             Operation::Search { .. } => ResultKind::Search,
                             Operation::PayCost { .. } => ResultKind::Payment,
                             Operation::CreateTokens { .. } => ResultKind::CreatedObjects,
-                            Operation::ChooseObjects { .. } => ResultKind::Selection,
+                            Operation::ChooseObjects { .. } | Operation::NoteObjects { .. } => {
+                                ResultKind::Selection
+                            }
                             Operation::ReorderLibrary { .. }
                             | Operation::Destroy { .. }
                             | Operation::Move { .. }
@@ -1885,10 +1926,11 @@ impl<'a> Scope<'a> {
                             | Operation::DiscardObjects { .. }
                             | Operation::Sacrifice { .. }
                             | Operation::Mill { .. } => ResultKind::ObjectTransition,
-                            other if crate::semantics::manifests(other) => {
-                                ResultKind::ObjectTransition
-                            }
-                            _ => ResultKind::Other,
+                            other => match crate::semantics::yields(other) {
+                                Some("observed") => ResultKind::Observation,
+                                Some(_) => ResultKind::ObjectTransition,
+                                None => ResultKind::Other,
+                            },
                         };
                         let zones = match operation {
                             Operation::LookAt { objects, .. } | Operation::Reveal { objects } => {
@@ -2033,6 +2075,7 @@ impl<'a> Scope<'a> {
                         self.player(decider)?;
                         let mut yes = self.clone();
                         yes.program(body)?;
+                        self.adopt_moves(body);
                         for p in yes.open_searches {
                             if !self
                                 .open_searches
