@@ -262,8 +262,11 @@ impl Compiler {
         changes: &[Change],
         parts: &mut Parts,
     ) -> Result<()> {
-        let EffectSubjects::Objects(affected) = affected else {
-            return Err(gap("static ability on players"));
+        let affected = match affected {
+            EffectSubjects::Objects(affected) => affected,
+            EffectSubjects::Players(players) => {
+                return self.player_static(label, players, changes, parts)
+            }
         };
         let defining = matches!(kind, StaticKind::CharacteristicDefining { .. });
         if defining && !matches!(affected, ObjectSet::One(ObjectRef::Source)) {
