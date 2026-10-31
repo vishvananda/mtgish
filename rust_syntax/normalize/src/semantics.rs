@@ -437,6 +437,7 @@ impl Effects {
             ObjectRef::Result { result, phase, .. } => self.result_library(result, phase),
             ObjectRef::Source
             | ObjectRef::KeywordHost
+            | ObjectRef::MadeHere
             | ObjectRef::Discarded
             | ObjectRef::Damage(_)
             | ObjectRef::Candidate

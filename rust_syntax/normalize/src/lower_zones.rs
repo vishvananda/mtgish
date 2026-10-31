@@ -249,6 +249,9 @@ impl Context {
         use source::CardsInGraveyards as S;
         Ok(match value {
             S::Trigger_ThoseGraveyardCards if self.event.group => ObjectSet::EventGroup,
+            S::ThePermanentsSacrificedThisWay => {
+                self.this_way_set(Done::Sacrificed, ObjectPhase::After, None)?
+            }
             S::Ref_TargetGraveyardCards | S::Ref_TargetGraveyardCards1 => {
                 ObjectSet::Targets(self.target(
                     TargetKind::Object(ObjectDomain::card(EventZone::Graveyard)),

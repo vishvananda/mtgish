@@ -14,7 +14,10 @@ impl Context {
     }
 
     fn install_paid_history(&mut self, cost: &Cost, payment: PaymentRef) {
+        self.sacrificed_source |= matches!(payment, PaymentRef::Activation)
+            && self.paid_source_sacrificed(cost);
         let mut found = std::collections::BTreeMap::new();
+        let mut parts: std::collections::BTreeMap<_, Vec<PaidBinding>> = Default::default();
         for (action, path) in crate::cost_history::components(cost) {
             let part = crate::cost_history::component(cost, &path).unwrap();
             let singular = crate::cost_history::singular(part);
@@ -23,6 +26,7 @@ impl Context {
                 component: path,
                 singular,
             };
+            parts.entry(action).or_default().push(binding.clone());
             found
                 .entry(action)
                 .and_modify(|v| *v = None)
@@ -30,8 +34,39 @@ impl Context {
         }
         for action in found.keys() {
             self.acted.remove(action);
+            self.paid_parts.remove(action);
         }
+        parts.retain(|_, parts| parts.len() > 1);
+        self.paid_parts.extend(parts);
         self.paid.extend(found);
+    }
+    /// Whatever the components of `action` in the cost being read did together.
+    fn paid_set(
+        &self,
+        action: crate::number_spec::PaymentAction,
+        view: CostObjectView,
+        phase: ObjectPhase,
+    ) -> Option<ObjectSet> {
+        let set = |binding: &PaidBinding| ObjectSet::CostObjects {
+            payment: binding.payment.clone(),
+            component: binding.component.clone(),
+            view: view.clone(),
+            phase: phase.clone(),
+        };
+        if let Ok(binding) = self.paid_binding(action) {
+            return Some(set(binding));
+        }
+        let parts = self.paid_parts.get(&action)?;
+        Some(ObjectSet::Union(parts.iter().map(set).collect()))
+    }
+    /// This ability's own cost sacrificed the object it is on.
+    fn paid_source_sacrificed(&self, cost: &Cost) -> bool {
+        cost.parts.iter().any(|part| {
+            matches!(
+                part,
+                CostPart::Sacrifice { objects: ObjectSet::One(ObjectRef::Source), .. }
+            )
+        })
     }
     fn paid_binding(&self, action: crate::number_spec::PaymentAction) -> Result<&PaidBinding> {
         self.paid
@@ -51,6 +86,23 @@ impl Context {
                 result: result.clone(),
                 phase: ObjectPhase::Before,
             });
+        }
+        if !self.announcing && self.paid_binding(action).is_err() {
+            if let Some(objects) = self.paid_set(action, view.clone(), ObjectPhase::Before) {
+                return Ok(objects);
+            }
+            let done = match action {
+                crate::number_spec::PaymentAction::Sacrifice => Some(Done::Sacrificed),
+                crate::number_spec::PaymentAction::Discard => Some(Done::Discarded),
+                crate::number_spec::PaymentAction::Exile => Some(Done::Exiled),
+                _ => None,
+            };
+            if let Some(result) = done.and_then(|done| self.did.get(&done)) {
+                return Ok(ObjectSet::Transition {
+                    result: result.clone(),
+                    phase: ObjectPhase::Before,
+                });
+            }
         }
         let binding = self.paid_binding(action)?;
         if self.announcing

@@ -1431,7 +1431,7 @@ impl Inventory<'_> {
         self.form("ObjectFilter", f);
         match f {
             ObjectFilter::ArrivedThisTurn { .. } => {}
-            ObjectFilter::ExiledWith(object) => self.object(object),
+            ObjectFilter::ExiledWith(object) | ObjectFilter::MadeBy(object) => self.object(object),
             ObjectFilter::DamagedBy(_) | ObjectFilter::DealtExcessBy(_) => {}
             ObjectFilter::Primitive { name, .. } => self.primitive(name),
             ObjectFilter::Condition(condition) => self.condition(condition),
