@@ -682,6 +682,19 @@ impl Context {
         {
             self.phased = object.clone();
         }
+        if let Operation::Keyword { action, object, .. } = &operation {
+            match action {
+                KeywordAction::Transform => self.acted_on = object.clone(),
+                KeywordAction::Bolster => {
+                    self.acted_on = Some(ObjectRef::Result {
+                        result: result.clone(),
+                        phase: ObjectPhase::After,
+                        index: 0,
+                    });
+                }
+                _ => {}
+            }
+        }
         Some(Instruction::Effect { result, operation })
     }
 
@@ -997,6 +1010,7 @@ impl Context {
         self.amassed = None;
         self.seeked.clear();
         self.conjured = None;
+        self.acted_on = None;
         self.tapped = None;
         self.chosen_pile = None;
         self.found = None;

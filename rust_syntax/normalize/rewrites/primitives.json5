@@ -3058,6 +3058,10 @@
     {"source": "Comparison::AnyManaValueAmongPermanents", "text": "mana"},
     {"source": "Player::ThePlayerWithTheInitiative", "text": "initiative"},
     {"source": "GameNumber::TheHighestSpeedAmongPlayers", "text": "speed"},
-    {"source": "NameFilter::ANameChosenByPermanent", "text": "name"}
+    {"source": "NameFilter::ANameChosenByPermanent", "text": "name"},
+    {"source": "CreatableToken::TokenCopyOfCommander", "text": "commander"},
+    {"source": "CDA_Types::HasAllNonbasicLandTypes", "text": "nonbasic"},
+    {"source": "GameNumber::NumSpellsCastByPlayerBeforeSpellThisTurn", "text": "before"},
+    {"source": "FutureTrigger::WhenPermanentWinsAFightAgainstPermanent", "text": "wins"}
   ]
 }

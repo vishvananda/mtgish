@@ -2900,7 +2900,12 @@ impl<'a> Scope<'a> {
                             Operation::CreateTokens { .. } => ResultKind::CreatedObjects,
                             Operation::ChooseObjects { .. }
                             | Operation::SeparatePiles { .. }
-                            | Operation::NoteObjects { .. } => ResultKind::Selection,
+                            | Operation::NoteObjects { .. }
+                            // Bolster chooses the creature it counters (701.39a).
+                            | Operation::Keyword {
+                                action: KeywordAction::Bolster,
+                                ..
+                            } => ResultKind::Selection,
                             Operation::ReorderLibrary { .. }
                             | Operation::Destroy { .. }
                             | Operation::Move { .. }

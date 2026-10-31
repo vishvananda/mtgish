@@ -78,6 +78,15 @@ impl Context {
             recipe,
         };
         match value {
+            S::TokenCopyOfCommander(effects) => {
+                return Ok(copy(TokenRecipe::Copy {
+                    object: ObjectRef::Primitive {
+                        name: "CreatableToken::TokenCopyOfCommander".into(),
+                        operands: vec![],
+                    },
+                    adjustments: self.copy_adjustments(effects)?,
+                }))
+            }
             S::TokenCopyOfPermanent(object, effects) => {
                 return Ok(copy(TokenRecipe::Copy {
                     object: self.object(object)?,

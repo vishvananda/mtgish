@@ -54,6 +54,12 @@ impl Context {
                     colors: self.fixed_colors(color)?,
                 }]
             }
+            S::CDA_Types(source::CDA_Types::HasAllNonbasicLandTypes) => {
+                vec![Change::Primitive {
+                    name: "CDA_Types::HasAllNonbasicLandTypes".into(),
+                    operands: vec![],
+                }]
+            }
             S::CDA_Types(types) => vec![match types {
                 source::CDA_Types::Changeling | source::CDA_Types::HasAllCreatureTypes => {
                     if matches!(types, source::CDA_Types::Changeling) {

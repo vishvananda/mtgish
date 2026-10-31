@@ -118,6 +118,8 @@ struct Context {
     flipped: Option<ResultId>,
     inspected_put: Option<ObjectSet>,
     phased: Option<ObjectRef>,
+    /// What a keyword action just acted on, as "the transformed permanent".
+    acted_on: Option<ObjectRef>,
     /// Zones the next search looks through besides a library, and whether it's "and/or".
     search_also: Vec<EventZone>,
     search_either: bool,
@@ -683,6 +685,16 @@ impl Context {
                 });
             }
             S::TheArmyAmassedThisWay => return self.result_object(self.amassed.as_ref(), 0),
+            // Transforming as a cost leaves no action to read; it transformed this object.
+            S::TheTransformedPermanent => {
+                return Ok(self.acted_on.clone().unwrap_or(ObjectRef::Source));
+            }
+            S::TheCreatureBolsteredThisWay => {
+                return self
+                    .acted_on
+                    .clone()
+                    .ok_or_else(|| invalid("no keyword action named an object in this scope"));
+            }
             S::ThePermanentPhasedOutThisWay => {
                 return self
                     .phased
@@ -4523,7 +4535,11 @@ impl Context {
             S::DealDamage(dealer, n, r) => {
                 let source = match dealer.as_ref() {
                     source::DamageDealer::Permanent(p) => self.object(p)?,
-                    source::DamageDealer::Spell(source::Spell::ThisSpell) => ObjectRef::Source,
+                    source::DamageDealer::Spell(source::Spell::ThisSpell)
+                    | source::DamageDealer::CommandCard(source::Commander::ThisCommandCard) => {
+                        ObjectRef::Source
+                    }
+                    source::DamageDealer::Spell(spell) => self.spell(spell)?,
                     _ => return Err(unsupported(dealer)),
                 };
                 Operation::DealDamage {

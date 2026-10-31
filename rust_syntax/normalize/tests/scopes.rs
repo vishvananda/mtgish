@@ -1800,3 +1800,18 @@ fn group_members_auras_and_named_comparisons_bind_in_filters() {
     );
     assert!(horde.contains("ObjectMatches"), "{horde}");
 }
+
+#[test]
+fn keyword_actions_name_the_object_they_acted_on() {
+    let optimus = lowered(
+        "TriggerA(WhenAPlayerAttacks(SinglePlayer(You)), ActionList([Bolster(Integer(2)), CreatePermanentLayerEffectUntil(TheCreatureBolsteredThisWay, [AddAbility([Trample])], UntilEndOfTurn)]))",
+    );
+    assert!(
+        optimus.contains("Result { result: ResultId(0)"),
+        "{optimus}"
+    );
+    let enforcer = lowered(
+        "SpellActions(ActionList([TransformPermanent(ThisPermanent), Unless(PermanentTransformedThisWay(ThisPermanent), [LoseTheGame])]))",
+    );
+    assert!(enforcer.contains("Transformed"), "{enforcer}");
+}

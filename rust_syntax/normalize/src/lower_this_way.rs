@@ -475,6 +475,10 @@ impl Context {
                     0,
                 ))
             }
+            S::PermanentTransformedThisWay(object) => Ok(Condition::ObjectMatches {
+                object: self.object(object)?,
+                filter: ObjectFilter::State(ObjectState::Transformed),
+            }),
             S::TheLastCardExiledThisWayWasACard(filter) => Ok(Condition::ObjectMatches {
                 object: self.result_object(self.exiled.as_ref(), 0)?,
                 filter: self.card_filter(filter)?,

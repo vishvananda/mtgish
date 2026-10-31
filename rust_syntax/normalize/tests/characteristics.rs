@@ -52,7 +52,7 @@ fn changes(a: &Ability) -> &[Change] {
 
 #[test]
 fn characteristic_families_roundtrip_and_other_unimplemented_abilities_are_not_dropped() {
-    let incomplete = ["Planar Nexus"];
+    let incomplete: [&str; 0] = [];
     let mut complete = 0;
     for s in sources() {
         let name = corpus::Identity::of(&s).unwrap().names.remove(0);
@@ -76,7 +76,7 @@ fn characteristic_families_roundtrip_and_other_unimplemented_abilities_are_not_d
         }
         complete += 1;
     }
-    assert_eq!(complete, 53);
+    assert_eq!(complete, 54);
 }
 
 #[test]
