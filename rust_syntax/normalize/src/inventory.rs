@@ -288,6 +288,38 @@ impl Inventory<'_> {
             Operation::Named { .. } => {}
             Operation::NoteObjects { objects } => self.objects(objects),
             Operation::Primitive { name, .. } => self.primitive(name),
+            Operation::CreatePerpetualEffect { objects, changes } => {
+                self.objects(objects);
+                for change in changes {
+                    self.change(change);
+                }
+            }
+            Operation::CreateEmblem { actor, abilities } => {
+                self.players(actor);
+                for ability in abilities {
+                    self.ability(ability);
+                }
+            }
+            Operation::MoveCounters {
+                actor,
+                from,
+                to,
+                amount,
+                ..
+            } => {
+                self.form("MovedCounters", amount);
+                self.players(actor);
+                self.objects(from);
+                self.object(to);
+                if let MovedCounters::Exactly(amount) = amount {
+                    self.expr(amount);
+                }
+            }
+            Operation::DoubleCounters { objects, .. } => self.objects(objects),
+            Operation::Conjure { actor, zone, .. } => {
+                self.form("EventZone", zone);
+                self.players(actor);
+            }
             Operation::ChooseValue { actor, kind, .. } => {
                 self.form("ValueKind", kind);
                 self.players(actor);

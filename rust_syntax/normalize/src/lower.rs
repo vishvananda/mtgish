@@ -214,7 +214,7 @@ impl Done {
                 | Destination::OwnersLibraryFromTop(_)
                 | Destination::OwnersLibraryShuffled => Self::Library,
             },
-            Operation::Primitive { .. } | Operation::Keyword { .. } => {
+            Operation::Primitive { .. } | Operation::Keyword { .. } | Operation::Conjure { .. } => {
                 match crate::semantics::yields(operation)? {
                     "counters" => Self::Counters,
                     "damage" => Self::Damage,
@@ -3861,11 +3861,7 @@ impl Context {
                         && self.primitive("PutCountersAction", only).is_some()) =>
             {
                 let (name, operands) = self.primitive("PutCountersAction", &placements[0]).unwrap();
-                Operation::Primitive {
-                    actor: actor.clone(),
-                    name,
-                    operands,
-                }
+                crate::semantics::reduce_action(actor.clone(), name, operands)
             }
             S::ChoosePTMod(options) => {
                 let PlayerSet::One(player) = actor else {

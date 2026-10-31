@@ -173,6 +173,11 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
         Operation::Keyword { action, .. } => {
             KEYWORD_ACTIONS.iter().find(|(_, row)| row == action)?.0
         }
+        Operation::Conjure {
+            zone: EventZone::Hand,
+            ..
+        } => "Action::ConjureCardIntoHand",
+        Operation::Conjure { .. } => "Action::ConjureCardOntoBattlefield",
         _ => return None,
     };
     crate::primitive_spec::lookup(name)?.yields.as_deref()
@@ -303,8 +308,158 @@ const VALUE_CHOICES: &[(&str, ValueKind, u32)] = &[
     ("ChooseWord", ValueKind::Word, 1),
 ];
 
+/// One counter move as a table: how many, of what, from where, to where.
+fn reduce_move_counters(actor: &PlayerSet, operands: &[Operand]) -> Option<Operation> {
+    let [Operand::Term {
+        family,
+        form,
+        operands,
+    }] = operands
+    else {
+        return None;
+    };
+    if family != "MoveCountersAction" {
+        return None;
+    }
+    let (amount, kind, from, to) = match operands.as_slice() {
+        [Operand::Number(n), kind, from, Operand::Object(to)] => (
+            MovedCounters::Exactly(n.clone()),
+            Some(counter_kind(kind)?),
+            from,
+            to,
+        ),
+        [kind, from, Operand::Object(to)] => {
+            (moved_counters(form)?, Some(counter_kind(kind)?), from, to)
+        }
+        [from, Operand::Object(to)] => (moved_counters(form)?, None, from, to),
+        _ => return None,
+    };
+    if form.contains("Each") && !form.contains("FromEach") || form.starts_with("Distribute") {
+        return None;
+    }
+    let from = match from {
+        Operand::Object(object) => ObjectSet::One(object.clone()),
+        Operand::Objects(objects) => objects.clone(),
+        _ => return None,
+    };
+    Some(Operation::MoveCounters {
+        actor: actor.clone(),
+        from,
+        to: to.clone(),
+        kind,
+        amount,
+    })
+}
+
+fn moved_counters(form: &str) -> Option<MovedCounters> {
+    if form.starts_with("ACounter") {
+        Some(MovedCounters::One)
+    } else if form.starts_with("AllCounters") {
+        Some(MovedCounters::All)
+    } else if form.starts_with("AnyNumberOfCounters") {
+        Some(MovedCounters::AnyNumber)
+    } else {
+        None
+    }
+}
+
+fn reduce_double_counters(form: &str, operands: &[Operand]) -> Option<Operation> {
+    let (kind, objects) = match (form, operands) {
+        ("DoubleCountersOfTypeOnPermanent", [kind, Operand::Object(object)]) => {
+            (counter_kind(kind)?, ObjectSet::One(object.clone()))
+        }
+        ("DoubleCountersOfTypeOnEachPermanent", [kind, Operand::Objects(objects)]) => {
+            (counter_kind(kind)?, objects.clone())
+        }
+        ("DoubleAllCountersOnPermanent", [Operand::Object(object)]) => {
+            return Some(Operation::DoubleCounters {
+                objects: ObjectSet::One(object.clone()),
+                kind: None,
+            })
+        }
+        ("DoubleAllCountersOnEachPermanent", [Operand::Objects(objects)]) => {
+            return Some(Operation::DoubleCounters {
+                objects: objects.clone(),
+                kind: None,
+            })
+        }
+        _ => return None,
+    };
+    Some(Operation::DoubleCounters {
+        objects,
+        kind: Some(kind),
+    })
+}
+
+/// What an entering object does, from a reviewed row.
+pub fn reduce_entry(name: &str, operands: &[Operand]) -> Option<EntryState> {
+    match (
+        name.strip_prefix("ReplacementActionWouldEnter::")?,
+        operands,
+    ) {
+        ("EntersPrepared", []) => Some(EntryState::Prepared),
+        ("EnterAsACopyOfAPermanent", [Operand::Objects(objects), effects]) => {
+            Some(EntryState::CopyOf {
+                objects: objects.clone(),
+                effects: Box::new(effects.clone()),
+            })
+        }
+        ("EnterAsACopyOfPermanent", [Operand::Object(object), effects]) => {
+            Some(EntryState::CopyOf {
+                objects: ObjectSet::One(object.clone()),
+                effects: Box::new(effects.clone()),
+            })
+        }
+        _ => None,
+    }
+}
+
 /// A row's action in generic form, or the row itself when it has none.
 pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> Operation {
+    if name == "Action::MoveCounters" {
+        if let Some(operation) = reduce_move_counters(&actor, &operands) {
+            return operation;
+        }
+    }
+    if let Some(operation) = name
+        .strip_prefix("PutCountersAction::")
+        .and_then(|form| reduce_double_counters(form, &operands))
+    {
+        return operation;
+    }
+    match (name.as_str(), operands.as_slice()) {
+        ("Action::GetAnEmblem", abilities)
+            if abilities.iter().all(|a| matches!(a, Operand::Ability(_))) =>
+        {
+            return Operation::CreateEmblem {
+                actor,
+                abilities: abilities
+                    .iter()
+                    .filter_map(|a| match a {
+                        Operand::Ability(ability) => Some((**ability).clone()),
+                        _ => None,
+                    })
+                    .collect(),
+            }
+        }
+        ("Action::ConjureCardIntoHand", [Operand::Text(card)]) => {
+            return Operation::Conjure {
+                actor,
+                card: card.clone(),
+                zone: EventZone::Hand,
+                entry: vec![],
+            }
+        }
+        ("Action::ConjureCardOntoBattlefield", [Operand::Text(card), flags @ ..]) => {
+            return Operation::Conjure {
+                actor,
+                card: card.clone(),
+                zone: EventZone::Battlefield,
+                entry: flags.to_vec(),
+            }
+        }
+        _ => {}
+    }
     let choice = name
         .strip_prefix("Action::")
         .or_else(|| name.strip_prefix("ReplacementActionWouldEnter::"))
@@ -364,8 +519,9 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
 
 /// A reviewed row that makes a card a later reference can read.
 pub fn makes_card(operation: &Operation) -> bool {
-    matches!(operation, Operation::Primitive { name, .. }
-        if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft"))
+    matches!(operation, Operation::Conjure { .. })
+        || matches!(operation, Operation::Primitive { name, .. }
+            if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft"))
 }
 
 /// The kind of value a variable form reads, when it is the one chosen.
@@ -1481,7 +1637,12 @@ impl Effects {
                     // Its effects are unknown, so it must not read as a mana ability.
                     Operation::Named { .. }
                     | Operation::Primitive { .. }
-                    | Operation::Keyword { .. } => self.library = true,
+                    | Operation::Keyword { .. }
+                    | Operation::CreatePerpetualEffect { .. }
+                    | Operation::CreateEmblem { .. }
+                    | Operation::MoveCounters { .. }
+                    | Operation::DoubleCounters { .. }
+                    | Operation::Conjure { .. } => self.library = true,
                 },
                 Instruction::Group(p) | Instruction::Optional { body: p, .. } => self.program(p),
                 Instruction::If {

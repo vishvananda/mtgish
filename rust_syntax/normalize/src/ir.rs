@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 86;
+pub const SCHEMA_VERSION: u32 = 87;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -954,6 +954,37 @@ pub enum Operation {
     JoinResults {
         results: Vec<ResultId>,
     },
+    /// Changes that stay with the object through zones, for the rest of the
+    /// game. Alchemy's "perpetually", as Forge's `Effect` with `Duration$ Permanent`.
+    CreatePerpetualEffect {
+        objects: ObjectSet,
+        changes: Vec<Change>,
+    },
+    /// An emblem in the command zone with these abilities (114).
+    CreateEmblem {
+        actor: PlayerSet,
+        abilities: Vec<Ability>,
+    },
+    /// As Forge's `MoveCounter` with `Source$`, `Defined$` and `CounterNum$`.
+    MoveCounters {
+        actor: PlayerSet,
+        from: ObjectSet,
+        to: ObjectRef,
+        kind: Option<crate::counter::CounterKind>,
+        amount: MovedCounters,
+    },
+    /// Each object gets as many of these counters again; no `kind` means each kind.
+    DoubleCounters {
+        objects: ObjectSet,
+        kind: Option<crate::counter::CounterKind>,
+    },
+    /// Creates a named card from outside the game in this zone (Alchemy).
+    Conjure {
+        actor: PlayerSet,
+        card: String,
+        zone: EventZone,
+        entry: Vec<Operand>,
+    },
     /// Choose `count` values of this kind. A read of one goes through
     /// `ObjectFilter::Chosen`, `Change::ChosenType` or `Expr::ChosenNumber`.
     ChooseValue {
@@ -1217,6 +1248,13 @@ pub enum KeywordAction {
     Skip(SkippedPart),
     AdditionalPhase(AddedPhases),
 }
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum MovedCounters {
+    One,
+    All,
+    AnyNumber,
+    Exactly(Expr),
+}
 /// What a choice of a value picks, as Forge's `ChooseColor`, `ChooseType`,
 /// `NameCard` and `ChooseNumber`.
 #[derive(
@@ -1441,6 +1479,13 @@ pub struct EntrySpec {
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum EntryState {
     Transformed,
+    /// Enters prepared, as `KeywordAction::Prepare` does to a permanent.
+    Prepared,
+    /// Enters as a copy of one of these, as Forge's `Clone`. `effects` are its exceptions.
+    CopyOf {
+        objects: ObjectSet,
+        effects: Box<Operand>,
+    },
     /// Attacking but never declared (508.4). The entering side chooses the defender
     /// unless one is given.
     Attacking {

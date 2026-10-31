@@ -407,6 +407,37 @@ impl Context {
         }))
     }
 
+    /// A perpetual effect is an ordinary layer change that outlives its zone.
+    /// Whichever objects it names, the row has already bound them.
+    fn perpetual(&self, value: &source::Action, subject: Option<&Operand>) -> Option<Operation> {
+        use source::Action as S;
+        let effects = match value {
+            S::CreatePerpetualPermanentEffect(_, effects)
+            | S::CreatePerpetualCardInHandEffect(_, effects)
+            | S::CreatePerpetualCardInLibraryEffect(_, effects)
+            | S::CreatePerpetualEachPermanentEffect(_, effects)
+            | S::CreatePerpetualExiledCardEffect(_, effects)
+            | S::CreatePerpetualEachExiledCardEffect(_, effects)
+            | S::CreatePerpetualGraveyardCardEffect(_, effects)
+            | S::CreatePerpetualEachGraveyardCardEffect(_, effects)
+            | S::CreatePerpetualSpellEffect(_, effects) => effects,
+            _ => return None,
+        };
+        let objects = match subject? {
+            Operand::Object(object) => ObjectSet::One(object.clone()),
+            Operand::Objects(objects) => objects.clone(),
+            _ => return None,
+        };
+        let layers = effects
+            .iter()
+            .map(|effect| as_family(effect, "LayerEffect"))
+            .collect::<Option<Vec<source::LayerEffect>>>()?;
+        Some(Operation::CreatePerpetualEffect {
+            objects,
+            changes: self.layer_changes(&layers).ok()?,
+        })
+    }
+
     /// Its result is unknown, so earlier antecedents are forgotten as for a named action.
     fn primitive_action(
         &mut self,
@@ -426,7 +457,9 @@ impl Context {
         if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft") {
             self.conjured = Some(result.clone());
         }
-        let operation = crate::semantics::reduce_action(actor.clone(), name, operands);
+        let operation = self
+            .perpetual(value, operands.first())
+            .unwrap_or_else(|| crate::semantics::reduce_action(actor.clone(), name, operands));
         let yields = crate::semantics::yields(&operation);
         match yields {
             Some("observed") => self.revealed = Some(ObjectSet::Observed(result.clone())),

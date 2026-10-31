@@ -466,7 +466,12 @@ impl<'a> Scope<'a> {
             self.count(&Count::Exactly(amount.clone()))?;
         }
         entry.states.iter().try_for_each(|state| match state {
+            EntryState::CopyOf { objects, effects } => {
+                self.objects(objects)?;
+                self.operand(effects)
+            }
             EntryState::Transformed
+            | EntryState::Prepared
             | EntryState::FaceDown
             | EntryState::Flipped
             | EntryState::ExilePile { .. } => Ok(()),
@@ -1621,6 +1626,36 @@ impl<'a> Scope<'a> {
             } => {
                 self.players(actor)?;
                 self.primitive(name, operands)
+            }
+            Operation::CreatePerpetualEffect { objects, changes } => {
+                self.objects(objects)?;
+                self.entering_changes(changes)
+            }
+            Operation::CreateEmblem { actor, abilities } => {
+                self.players(actor)?;
+                abilities
+                    .iter()
+                    .try_for_each(|a| self.operand(&Operand::Ability(Box::new(a.clone()))))
+            }
+            Operation::MoveCounters {
+                actor,
+                from,
+                to,
+                amount,
+                ..
+            } => {
+                self.players(actor)?;
+                self.objects(from)?;
+                self.object(to)?;
+                match amount {
+                    MovedCounters::Exactly(amount) => self.expr(amount),
+                    _ => Ok(()),
+                }
+            }
+            Operation::DoubleCounters { objects, .. } => self.objects(objects),
+            Operation::Conjure { actor, entry, .. } => {
+                self.players(actor)?;
+                entry.iter().try_for_each(|o| self.operand(o))
             }
             Operation::ChooseValue { actor, options, .. } => {
                 self.players(actor)?;
