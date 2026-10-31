@@ -1333,6 +1333,15 @@ impl Inventory<'_> {
             }
             ManaUse::Not(r) => self.mana_use(r),
             ManaUse::Persists(until) => self.duration(until),
+            ManaUse::SpentOn {
+                spells,
+                changes,
+                until,
+            } => {
+                self.filter(spells);
+                changes.iter().for_each(|c| self.change(c));
+                self.duration(until);
+            }
             ManaUse::Purpose(_) => {}
             ManaUse::Primitive { name, .. } => self.primitive(name),
         }

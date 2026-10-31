@@ -144,6 +144,15 @@ impl Context {
                 sources: self.mana_sources(p)?,
                 permanents_only: false,
             },
+            S::CreatePermanentSpellLayerEffect(until, spells, changes) => ManaUse::SpentOn {
+                spells: self.spell_filter(spells)?,
+                changes: self.changes(changes)?,
+                // The change is on one object, so leaving the battlefield ends it.
+                until: match until {
+                    source::Expiration::UntilItLeavesTheBattlefield => Duration::Indefinite,
+                    until => self.duration(until)?,
+                },
+            },
             S::And(v) => ManaUse::All(v.iter().map(|v| self.mana_use(v)).collect::<Result<_>>()?),
             S::Or(v) => ManaUse::Either(v.iter().map(|v| self.mana_use(v)).collect::<Result<_>>()?),
             _ => return Err(unsupported(value)),

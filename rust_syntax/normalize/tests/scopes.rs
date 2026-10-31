@@ -1402,3 +1402,30 @@ fn chosen_damage_recipients() {
     assert!(curse.contains("Union"), "{curse}");
     assert!(curse.contains("Chosen"), "{curse}");
 }
+
+#[test]
+fn mana_riders_and_optional_inspection_steps() {
+    let rider = lowered(
+        "Activated(TapPermanent(ThisPermanent), ActionList([AddManaWithModifiers(ManaProduceR, CreatePermanentSpellLayerEffect(UntilItLeavesTheBattlefield, IsCardtype(Creature), [AddAbility([Haste])]))]))",
+    );
+    assert!(rider.contains("SpentOn"), "{rider}");
+    assert!(rider.contains("Indefinite"), "{rider}");
+
+    let ritual = lowered(
+        "TriggerA(AtTheBeginningOfAPlayersEndStep(SinglePlayer(You)), ActionList([LookAtTheTopNumberCardsOfLibrary(Integer(7), [MayCost(SacrificeAPermanent(IsCardtype(Creature))), If(CostWasPaid, [PutAGenericCardIntoHand]), PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder])]))",
+    );
+    assert!(ritual.contains("PayCost"), "{ritual}");
+    assert!(ritual.contains("PaymentChosen"), "{ritual}");
+
+    let genesis = lowered(
+        "SpellActions(ActionList([LookAtTheTopNumberCardsOfLibrary(Integer(4), [MayCost(PutACardOfTypeOntoTheBattlefield(IsCardtype(Land), [EntersTapped])), Unless(CostWasPaid, [PutAGenericCardIntoHand]), PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder])]))",
+    );
+    assert!(!genesis.contains("PayCost"), "{genesis}");
+    assert!(genesis.contains("CountObjects"), "{genesis}");
+
+    let keeper = lowered(
+        "TriggerA(WhenAPermanentDies(SinglePermanent(ThisPermanent)), ActionList([RevealCardsFromTheTopOfLibraryUntilACardOfTypeIsRevealed(IsNonCardtype(Land), [MayCastTheCardFoundThisWayWithoutPaying, PutTheRemainingCardsOnTheBottomOfLibraryInARandomOrder])]))",
+    );
+    assert!(keeper.contains("PlayCards"), "{keeper}");
+    assert!(keeper.contains("cost: Free"), "{keeper}");
+}

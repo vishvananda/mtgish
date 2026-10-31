@@ -92,6 +92,7 @@ impl Context {
             }),
             observed,
             assigned: vec![],
+            did: None,
         };
         let mut instructions = vec![reveal];
         for (i, action) in actions.iter().enumerate() {
@@ -212,6 +213,21 @@ impl Context {
             }
             S::MayPutAnyNumberOfCardsOfTypeOntoTheBattlefield(f, flags) => {
                 (f, Some(Count::AnyNumber), Some(flags))
+            }
+            S::MayCastTheCardFoundThisWayWithoutPaying => {
+                let cards = state
+                    .found
+                    .clone()
+                    .ok_or_else(|| invalid("inspection has no preceding found-card choice"))?;
+                instructions.push(self.effect(Operation::PlayCards {
+                    actor: PlayerSet::One(player.clone()),
+                    action: CardPlayAction::CastSpell,
+                    cards,
+                    count: Count::UpTo(one()),
+                    cost: PlayCost::Free,
+                    into_exile: false,
+                }));
+                return Ok(());
             }
             S::ExileTheCardFoundThisWay => {
                 let objects = state

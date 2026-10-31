@@ -3,6 +3,8 @@ struct InspectionState {
     observed: ObjectSet,
     assigned: Vec<ObjectSet>,
     found: Option<ObjectSet>,
+    /// Whether an optional step that is no payment was taken.
+    did: Option<Condition>,
 }
 impl InspectionState {
     fn remaining(&self) -> ObjectSet {
@@ -19,6 +21,24 @@ impl InspectionState {
             zone: EventZone::Library,
         }
     }
+}
+
+/// The ordinary cost a may-step pays, if it only pays.
+fn inspection_payment(cost: &source::LookAtTopOfLibraryCost) -> Option<source::Cost> {
+    use source::LookAtTopOfLibraryCost as S;
+    Some(match cost {
+        S::And(parts) => source::Cost::And(
+            parts
+                .iter()
+                .map(inspection_payment)
+                .collect::<Option<_>>()?,
+        ),
+        S::PayLife(life) => source::Cost::PayLife(life.clone()),
+        S::PayMana(mana) => source::Cost::PayMana(mana.clone()),
+        S::SacrificePermanent(object) => source::Cost::SacrificePermanent(object.clone()),
+        S::SacrificeAPermanent(objects) => source::Cost::SacrificeAPermanent(objects.clone()),
+        _ => return None,
+    })
 }
 
 impl Context {
@@ -60,6 +80,7 @@ impl Context {
         let state = InspectionState {
             observed: ObjectSet::Observed(result.clone()),
             assigned: vec![],
+            did: None,
             found: None,
         };
         let mut body = self.inspection_steps(&player, &library, state, actions)?;
@@ -83,7 +104,10 @@ impl Context {
             | S::Unless(condition, then)
             | S::IfElse(condition, then, _) = action
             {
-                let mut condition = self.condition(condition)?;
+                let mut condition = match (condition, &state.did) {
+                    (source::Condition::CostWasPaid, Some(did)) => did.clone(),
+                    _ => self.condition(condition)?,
+                };
                 if matches!(action, S::Unless(..)) {
                     condition = Condition::Not(Box::new(condition));
                 }
@@ -125,6 +149,52 @@ impl Context {
             });
         }
         Ok(Program { instructions })
+    }
+
+    /// "You may" a cost whose "if you do" is read by the steps after it. Paying
+    /// is `PayCost`; a step on the cards themselves is done if it found a card.
+    fn inspection_may(
+        &mut self,
+        player: &PlayerRef,
+        library: &PlayerRef,
+        state: &mut InspectionState,
+        cost: &source::LookAtTopOfLibraryCost,
+        instructions: &mut Vec<Instruction>,
+    ) -> Result<()> {
+        use source::LookAtTopOfLibraryAction as A;
+        use source::LookAtTopOfLibraryCost as S;
+        let took = |objects| Condition::Compare {
+            left: Expr::CountObjects(Box::new(objects)),
+            comparison: Comparison::GreaterOrEqual,
+            right: Expr::Constant(1),
+        };
+        match cost {
+            S::PutACardOfTypeOntoTheBattlefield(filter, flags) => {
+                let step = A::MayPutACardOfTypeOntoTheBattlefield(filter.clone(), flags.clone());
+                let before = state.assigned.len();
+                self.inspection_step(player, library, state, &step, false, instructions)?;
+                state.did = Some(took(ObjectSet::Union(state.assigned[before..].to_vec())));
+            }
+            S::RevealACardOfType(filter) => {
+                let step = A::RevealACardOfType(filter.clone());
+                self.inspection_step(player, library, state, &step, true, instructions)?;
+                state.did = state.found.clone().map(took);
+            }
+            _ => {
+                let cost = inspection_payment(cost).ok_or_else(|| unsupported(cost))?;
+                let payer = self.payer.replace(player.clone());
+                let cost = self.cost(&cost);
+                self.payer = payer;
+                state.did = None;
+                let operation = Operation::PayCost {
+                    player: player.clone(),
+                    cost: cost?,
+                    optional: true,
+                };
+                instructions.push(self.effect(operation));
+            }
+        }
+        Ok(())
     }
 
     fn inspection_choice(
@@ -201,6 +271,9 @@ impl Context {
         use source::LookAtTopOfLibraryAction as S;
         if let S::MayAction(action) = action {
             return self.inspection_step(player, library, state, action, true, instructions);
+        }
+        if let S::MayCost(cost) = action {
+            return self.inspection_may(player, library, state, cost, instructions);
         }
         if let S::MayRevealMultipleCardsOfTypeAndPutIntoHand(filters) = action {
             let mut selected = vec![];

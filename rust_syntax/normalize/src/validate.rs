@@ -2671,6 +2671,15 @@ impl<'a> Scope<'a> {
             }
             ManaUse::Not(r) => self.mana_use(r),
             ManaUse::Persists(until) => self.duration(until),
+            ManaUse::SpentOn {
+                spells,
+                changes,
+                until,
+            } => {
+                self.filter(spells)?;
+                changes.iter().try_for_each(|c| self.change(c))?;
+                self.duration(until)
+            }
             ManaUse::Purpose(_) => Ok(()),
             ManaUse::Primitive { name, operands } => self.primitive(name, operands),
         }

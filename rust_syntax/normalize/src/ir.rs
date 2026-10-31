@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 113;
+pub const SCHEMA_VERSION: u32 = 114;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1806,6 +1806,12 @@ pub enum ManaUse {
     Persists(Duration),
     /// Spendable only on this part of a cost or action.
     Purpose(ManaPurpose),
+    /// Spending this mana on a matching spell also changes that spell.
+    SpentOn {
+        spells: ObjectFilter,
+        changes: Vec<Change>,
+        until: Duration,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
