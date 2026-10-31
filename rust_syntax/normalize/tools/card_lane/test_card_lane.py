@@ -7,6 +7,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.dont_write_bytecode = True
 os.environ.setdefault("CARD_LANE", tempfile.mkdtemp(prefix="card-lane-test-"))
@@ -77,11 +78,68 @@ class Packet(unittest.TestCase):
         self.assertNotIn("done", lane.STOPS)
 
 
+class Reporting(unittest.TestCase):
+    def setUp(self):
+        self.scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(self.scratch.cleanup)
+        patcher = mock.patch.object(lane, "CANTRIP", Path(self.scratch.name))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        scenarios = Path(self.scratch.name) / lane.SCENARIOS_DIR
+        scenarios.mkdir()
+        (scenarios / "a-card.cantrip").write_text("# Shows it.\n\n[Actions]\nBot1.Pass\n? Bot1.Life = 20\n[Expect]\nBot1.Life = 20\n")
+
+    def test_a_scenario_is_named_with_or_without_its_extension(self):
+        self.assertIsNone(lane.expectation_problem({"scenario": "a-card", "line": 5}, "x"))
+        self.assertIsNone(lane.expectation_problem({"scenario": "a-card.cantrip", "line": 7}, "x"))
+
+    def test_a_missing_scenario_is_not_called_a_bad_line(self):
+        self.assertIn("no scenario", lane.expectation_problem({"scenario": "other", "line": 5}, "x"))
+
+    def test_a_line_past_the_end_says_how_long_the_file_is(self):
+        self.assertIn("which has 7", lane.expectation_problem({"scenario": "a-card", "line": 508}, "x"))
+
+    def test_a_line_that_expects_nothing_is_refused(self):
+        self.assertIn("no expectation", lane.expectation_problem({"scenario": "a-card", "line": 4}, "x"))
+
+
+class Commands(unittest.TestCase):
+    def test_the_corpus_takes_its_own_flags_with_or_without_a_separator(self):
+        for argv in (["corpus", "--card", "X", "--brief"], ["corpus", "--", "--card", "X", "--brief"]):
+            with mock.patch.object(lane.subprocess, "run") as run, mock.patch.object(sys, "argv", ["card_lane.py", *argv]):
+                run.return_value.returncode = 0
+                self.assertEqual(lane.main(), 0)
+                self.assertEqual(run.call_args[0][0][-3:], ["--card", "X", "--brief"])
+                self.assertEqual(run.call_args[0][0].count("--"), 1)
+
+
 class Usage(unittest.TestCase):
     def test_cached_input_is_not_charged_twice(self):
         usage = lane.Usage()
         usage.input, usage.cached, usage.output = 1_000_000, 900_000, 100_000
         self.assertEqual(usage.cost("gpt-6-luna"), round(0.01 + 0.009 + 0.05, 4))
+
+    def test_a_resumed_codex_session_reports_its_totals_so_they_are_not_added_up(self):
+        total, first, second = lane.Usage(), lane.Usage(), lane.Usage()
+        first.input, first.cached, first.output, first.turns = 3_000, 2_000, 200, 1
+        second.input, second.cached, second.output, second.turns = 3_500, 2_400, 210, 1
+        total.add(first, lane.Codex.cumulative)
+        total.add(second, lane.Codex.cumulative)
+        self.assertEqual((total.input, total.cached, total.output, total.turns), (3_500, 2_400, 210, 2))
+
+    def test_a_cumulative_run_that_reported_nothing_changes_nothing(self):
+        total, first = lane.Usage(), lane.Usage()
+        first.input, first.turns = 3_000, 1
+        total.add(first, True)
+        total.add(lane.Usage(), True)
+        self.assertEqual(total.input, 3_000)
+
+    def test_a_claude_run_is_its_own(self):
+        total, one = lane.Usage(), lane.Usage()
+        one.input, one.turns = 100, 1
+        total.add(one, lane.Claude.cumulative)
+        total.add(one, lane.Claude.cumulative)
+        self.assertEqual(total.input, 200)
 
     def test_a_reported_cost_wins_and_an_unknown_model_has_none(self):
         usage = lane.Usage()

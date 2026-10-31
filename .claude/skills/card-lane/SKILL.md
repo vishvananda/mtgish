@@ -22,7 +22,7 @@ Each command sets up its own build environment. Run them from anywhere.
 | --- | --- |
 | `card_lane.py next` | Takes the next card, writes its code, placeholders and packet, and prints its brief. Prints the same brief again if a card is already open |
 | `card_lane.py corpus --card "Name" --brief` | Plays the card's scenarios. Also `--next`, `--dump`, `--diff N`, `--file PATH` |
-| `card_lane.py check "Name" --fast` | The gates that take seconds. Prints what failed |
+| `card_lane.py check "Name" --fast` | The gates that take seconds, your report included. Prints what failed |
 | `card_lane.py check "Name"` | Every gate, including breaking the card. Takes minutes, so run it when the fast gates pass |
 | `card_lane.py commit "Name"` | Every gate, then exactly one commit, or no commit |
 | `card_lane.py abandon "Name" --outcome generator_bug --reason "..."` | Keeps the work as a patch, cleans the tree, records why |
@@ -100,16 +100,20 @@ A card that is wrong is worse than a card that is missing.
    - Bot1 plays odd turns and Bot2 even ones: a wait for Bot1 is `[T3 Bot1.Main1]`, never `[T2 Bot1.Main1]`.
    - Counts belong to a zone: `Bot1.Battlefield.Count`. There is no `<Name>.Count`. Same-named objects are `Name#1`.
    - Mana empties between steps, and a `?` reads at the next question, so a spell is usually still on the stack.
-4. **Check.** Run `check --fast` until it passes. Then run `tool cr.py check --show <its scenarios>` and read each citation
-   against the rule printed beside it. A number copied from a shared function's comment or another card is how a wrong one
-   gets in (CR 119.1 is starting life totals; gaining life is 119.3). Do the same for the card file's citations: a wrong one
-   there is a generator bug. Do not run the whole corpus.
-5. **Fill in `report.json`.** Set `decision` to `done`. Give each test point its `scenario` and `line`, the 1-based line of
-   the expectation that catches it: a `?`, a `!` or a line under `[Expect]`. Do the same for each ruling, or say in
-   `no_decision` why the card's own code decides nothing there. Each entry of `look_answers` names the LOOK's
-   line as `line 12`, or the other card's file for a repeated function. `equivalent_mutants` stays empty unless the full gate
-   reports a mutant that means the same thing: then add `{"mutant": "line 6: 4 to 5", "why": "..."}`, and only if it truly
-   changes nothing the rules can see.
+   - `Outstanding: ... asked PayCosts` means the mana came up short: activate sources for the whole cost before `.Cast`.
+   - A land is `Bot1.Hand.Forest.Play`. Lands and spells cast on turn 1 still need the bot to pass priority to move on.
+   - A spell that fizzles runs none of the card's lines, and that gate has no exception. Have the same scenario show the
+     fizzle, then resolve a second copy on a legal target.
+4. **Check.** Run `check --fast` until only `report` fails. Then run `tool cr.py check --show <its scenarios>` and read each
+   citation against the rule printed beside it. A number copied from a shared function's comment or another card is how a
+   wrong one gets in (CR 119.1 is starting life totals; gaining life is 119.3). Do the same for the card file's citations: a
+   wrong one there is a generator bug. Do not run the whole corpus.
+5. **Fill in `report.json`.** Set `decision` to `done`. Give each test point its `scenario`, the file's name, and `line`, the
+   line of that file holding the expectation that catches it, counted from 1: a `?`, a `!` or a line under `[Expect]`. Do the
+   same for each ruling, or say in `no_decision` why the card's own code decides nothing there. Each entry of `look_answers`
+   names the LOOK's line as `line 12`, or the other card's file for a repeated function. `equivalent_mutants` stays empty
+   unless the full gate reports a mutant that means the same thing: then add `{"mutant": "line 6: 4 to 5", "why": "..."}`, and
+   only if it truly changes nothing the rules can see. Run `check --fast` again: it passes when the report does.
 6. **Finish.** Run `commit`. If it fails, fix what it names and run it again. If the brief says a driver runs the gates,
    stop after the report instead: it runs them and sends back what fails, in this same session.
 

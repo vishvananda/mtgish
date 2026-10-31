@@ -87,13 +87,14 @@ Outcomes are `committed`, `generator_bug`, `failed_gates`, `engine_gap`, `needs_
 `generator_bug` is the worker's finding that the card is wrong, or the driver's that the generated file cannot stand, which
 it decides before starting a worker. The fix goes in the generator; `status --json` has each card's reason.
 
-Cost is token counts as the backend reports them. Where it reports no price, `usd_api_equivalent` applies the list rates in
+Cost is token counts as the backend reports them, and for Codex that is the session's total, which a repair round grows
+rather than restarts. Where a backend reports no price, `usd_api_equivalent` applies the list rates in
 `RATES`. That is an API-equivalent figure, not what a ChatGPT login is billed.
 
 ## The gates
 
-`check` runs Cantrip's own tools unmodified, with `CANTRIP_VERIFY=1`, cheapest first. `check --fast` stops after
-`liveness`. A commit needs all of them.
+`check` runs Cantrip's own tools unmodified, with `CANTRIP_VERIFY=1`, cheapest first. `check --fast` leaves out `mutation`
+and `layers`, which take minutes. A commit needs all of them.
 
 | Gate | Fails when |
 | --- | --- |

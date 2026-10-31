@@ -716,15 +716,23 @@ def report_of(name):
 
 
 def expectation_problem(pair, label):
-    """Why a report's (scenario, line) is no expectation, or None."""
-    path = CANTRIP / SCENARIOS_DIR / str(pair.get("scenario", ""))
+    """Why a report's (scenario, line) is no expectation, or None. `line` is a line of the file, counted from 1."""
+    name = str(pair.get("scenario", "")).removesuffix(".cantrip")
+    path = CANTRIP / SCENARIOS_DIR / f"{name}.cantrip"
+    if not name or not path.is_file():
+        return f"{label}: no scenario {SCENARIOS_DIR}/{name}.cantrip"
+    lines = path.read_text(encoding="utf-8").splitlines()
     try:
-        line = path.read_text(encoding="utf-8").splitlines()[int(pair.get("line", 0)) - 1]
-    except (OSError, ValueError, IndexError):
-        return f"{label}: no line {pair.get('line')} in {pair.get('scenario')}"
-    if not line.lstrip().startswith(("?", "!", "Bot", "Battlefield", "Stack", "Exile", "Turn", "Step", "Winner")) and " = " not in line:
-        return f"{label}: {pair.get('scenario')}:{pair.get('line')} is no expectation: {line.strip()[:80]}"
-    return None
+        number = int(pair.get("line", 0))
+    except (TypeError, ValueError):
+        number = 0
+    if not 1 <= number <= len(lines):
+        return f"{label}: line {pair.get('line')} is not a line of {path.name}, which has {len(lines)}"
+    line = lines[number - 1].strip()
+    expect = next((i for i, text in enumerate(lines, 1) if text.strip() == "[Expect]"), len(lines))
+    if line.startswith(("?", "!")) or (number > expect and line and not line.startswith("#")):
+        return None
+    return f"{label}: {path.name}:{number} is no expectation: {line[:80]}"
 
 
 def report_problems(name, points, looks, survivors):
@@ -817,8 +825,9 @@ def env_tool(name):
 
 
 def check(name, fast=False):
-    """Every gate that can be run on the tree, cheapest first. `fast` leaves out what takes minutes and the worker's
-    report, so a worker can loop on it; a commit always takes the whole of it."""
+    """Every gate that can be run on the tree, cheapest first. `fast` leaves out what takes minutes, so a worker can loop
+    on it; a commit always takes the whole of it. The report is checked either way, so that a worker sees what would
+    otherwise cost it a repair round."""
     gates = Gates(name, fast)
     started = time.time()
     problems = scope_problems(name)
@@ -879,11 +888,8 @@ def check(name, fast=False):
     dead, seen = scenario_liveness(name)
     gates.add("liveness", not dead, "\n".join(dead), started)
 
-    if fast:
-        return finish(gates)
-
     survivors = []
-    if source:
+    if source and not fast:
         started = time.time()
         _, listing = tool("card-mutate.py", name, "--list")
         total = re.search(r"(\d+) changes", listing)
@@ -895,7 +901,7 @@ def check(name, fast=False):
             capped = int(total[1]) > MUTATION_LIMIT
             gates.add("mutation", "restored" in out and not capped,
                       (f"{total[1]} possible changes, only {MUTATION_LIMIT} tried\n" if capped else "") + ("" if "restored" in out else out[-800:]), started)
-    if "statics:" in source:
+    if "statics:" in source and not fast:
         started = time.time()
         code, out = shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases")
         gates.add("layers", code == 0, out[-1500:] if code else "", started)
@@ -996,10 +1002,14 @@ class Usage:
         self.input = self.cached = self.output = self.turns = 0
         self.reported_cost = None
 
-    def add(self, other):
-        self.input += other.input
-        self.cached += other.cached
-        self.output += other.output
+    def add(self, other, cumulative=False):
+        """Another run's usage. A `cumulative` backend reports its session's totals so far, so the latest replaces the rest."""
+        if not cumulative:
+            self.input += other.input
+            self.cached += other.cached
+            self.output += other.output
+        elif other.turns:
+            self.input, self.cached, self.output = other.input, other.cached, other.output
         self.turns += other.turns
         if other.reported_cost is not None:
             self.reported_cost = (self.reported_cost or 0) + other.reported_cost
@@ -1018,8 +1028,10 @@ class Usage:
 
 class Codex:
     """`codex exec`, the way vizier runs it: no user config, no network, one writable tree plus the build and the
-    packet, and a long wait so polling a build does not re-read the context."""
+    packet, and a long wait so polling a build does not re-read the context. `turn.completed` on a resumed session gives
+    the session's totals, not the turn's: its rollout's last `total_token_usage` is the same figure."""
     name = "codex"
+    cumulative = True
 
     def __init__(self, model, effort):
         self.model, self.effort = model or "gpt-6-luna", effort or "max"
@@ -1053,6 +1065,7 @@ class Claude:
     """`claude -p`. It has no sandbox of its own here: writes are limited by the tool list, so run it on a machine
     where that is acceptable. The gates and the commit are the same as any other worker's."""
     name = "claude"
+    cumulative = False
 
     def __init__(self, model, effort):
         self.model, self.effort = model or "sonnet", effort
@@ -1082,6 +1095,7 @@ class Command:
     """Any other model: a command that reads the prompt on stdin and works in the Cantrip tree, `{session}` replaced on
     a repair round. It reports nothing back; `check` is what counts."""
     name = "command"
+    cumulative = False
 
     def __init__(self, template, effort=None):
         self.model, self.template = template, template
@@ -1167,7 +1181,7 @@ def run_card(card, backend, args, queue):
             t = time.time()
             code, session, used = spawn(backend, card, prompt, session, max(1, deadline - time.time()), log)
             phases["worker"] = round(phases.get("worker", 0) + time.time() - t, 1)
-            usage.add(used)
+            usage.add(used, backend.cumulative)
             rounds += 1
             if code is None:
                 outcome = "timeout"
@@ -1314,9 +1328,10 @@ scryfall._load(write=True)
     print(f"lane ready: {CANTRIP} on {git('rev-parse', '--abbrev-ref', 'HEAD').strip()} at {git('rev-parse', '--short', 'HEAD').strip()}")
 
 
-def cmd_corpus(args):
+def cmd_corpus(flags):
     """Cantrip's corpus runner on this tree and this target directory, with any of its flags."""
-    return subprocess.run(["cargo", "run", "--profile", "cards", "-q", "-p", "cantrip-script", "--bin", "corpus", "--", *args.rest], cwd=CANTRIP, env=environment()).returncode
+    flags = flags[1:] if flags[:1] == ["--"] else flags
+    return subprocess.run(["cargo", "run", "--profile", "cards", "-q", "-p", "cantrip-script", "--bin", "corpus", "--", *flags], cwd=CANTRIP, env=environment()).returncode
 
 
 def fetch_scryfall():
@@ -1350,9 +1365,7 @@ def main():
     p.add_argument("name", nargs="?", help="this card rather than the next pending one")
     p.add_argument("--who", default="session", help="what to record as the worker")
     p.set_defaults(func=cmd_next)
-    p = sub.add_parser("corpus")
-    p.add_argument("rest", nargs=argparse.REMAINDER)
-    p.set_defaults(func=cmd_corpus)
+    sub.add_parser("corpus", help="plays scenarios; every flag is the corpus runner's")
     p = sub.add_parser("check")
     p.add_argument("name")
     p.add_argument("--fast", action="store_true")
@@ -1381,6 +1394,8 @@ def main():
     p.add_argument("--attempts", type=int, default=2, help="runs a card may take across restarts")
     p.add_argument("--stop-after", type=int, default=3, help="stop if this many first cards all fail")
     p.set_defaults(func=cmd_run)
+    if sys.argv[1:2] == ["corpus"]:  # before argparse, which would take a leading `--card` for an option of its own
+        return cmd_corpus(sys.argv[2:])
     args = parser.parse_args()
     return args.func(args) or 0
 
