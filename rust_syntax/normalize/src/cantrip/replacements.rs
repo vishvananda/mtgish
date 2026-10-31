@@ -165,7 +165,10 @@ impl Compiler {
         };
         Ok(match (kind, change) {
             ("Damage", EventChange::SetAmount(n)) => {
-                format!("e.amount = {};", number(self, n)?.amount(u16::MAX.into(), "u16")?)
+                format!(
+                    "e.amount = {};",
+                    number(self, n)?.amount(u16::MAX.into(), "u16")?
+                )
             }
             ("Damage", EventChange::Cancel) => "e.amount = 0;".into(),
             ("Damage", EventChange::RedirectDamage(recipients)) => {
@@ -179,15 +182,18 @@ impl Compiler {
             ("ZoneChange", EventChange::SetDestination(destination)) => {
                 let owner = "q.state().obj(z.object).owner";
                 match destination {
+                    Destination::Exile if self.links_exile => {
+                        return Err(gap(
+                            "exile instead that an ability reads as exiled with its source",
+                        ))
+                    }
                     Destination::Exile => format!("z.to = Zone::exile({owner});"),
                     Destination::OwnersHand => format!("z.to = Zone::hand({owner});"),
                     Destination::OwnersGraveyard => format!("z.to = Zone::graveyard({owner});"),
                     Destination::OwnersLibraryShuffled => {
                         format!("z.to = Zone::library({owner}); z.shuffle = true;")
                     }
-                    other => {
-                        return Err(gap(format!("replacement destination {}", form(other))))
-                    }
+                    other => return Err(gap(format!("replacement destination {}", form(other)))),
                 }
             }
             (_, other) => return Err(gap(format!("event change {}", form(other)))),
@@ -196,8 +202,20 @@ impl Compiler {
     /// An `Enters` callback for the source's own arrival.
     fn entering(&mut self, body: &Program, label: &str) -> Result<()> {
         self.reset_results();
-        let saved = (self.reader, self.event_at, self.stack_item, self.pending, self.frame);
-        (self.reader, self.event_at, self.stack_item, self.pending, self.frame) = (
+        let saved = (
+            self.reader,
+            self.event_at,
+            self.stack_item,
+            self.pending,
+            self.frame,
+        );
+        (
+            self.reader,
+            self.event_at,
+            self.stack_item,
+            self.pending,
+            self.frame,
+        ) = (
             Reader::Resolution,
             EventAt::Entering,
             false,
@@ -209,7 +227,13 @@ impl Compiler {
         );
         let mut out = String::new();
         let compiled = self.program(body, &mut out, false);
-        (self.reader, self.event_at, self.stack_item, self.pending, self.frame) = saved;
+        (
+            self.reader,
+            self.event_at,
+            self.stack_item,
+            self.pending,
+            self.frame,
+        ) = saved;
         compiled?;
         writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {label}(g: &mut dyn Game, entering: &mut Entering) -> Result<(), Suspend> {{ let asker = &Asker::new(entering.object, entering.controller); {out} Ok(()) }}").unwrap();
         Ok(())
@@ -220,9 +244,7 @@ impl Compiler {
             return Err(gap("event change in the program of another event"));
         }
         match change {
-            EventChange::SetTapped(tapped) => {
-                writeln!(out, "entering.tapped = {tapped};").unwrap()
-            }
+            EventChange::SetTapped(tapped) => writeln!(out, "entering.tapped = {tapped};").unwrap(),
             EventChange::AddCounters { kind, amount } => {
                 let n = self.number(amount)?.amount(i16::MAX.into(), "i16")?;
                 let kind = counter_kind(kind)?;
@@ -243,7 +265,10 @@ impl Compiler {
             [] => "None".into(),
             [one] => format!("Some({one})"),
             many => {
-                let calls: String = many.iter().map(|f| format!("{f}(g, entering)?; ")).collect();
+                let calls: String = many
+                    .iter()
+                    .map(|f| format!("{f}(g, entering)?; "))
+                    .collect();
                 writeln!(self.functions, "fn entering_all(g: &mut dyn Game, entering: &mut Entering) -> Result<(), Suspend> {{ {calls} Ok(()) }}").unwrap();
                 "Some(entering_all)".into()
             }
@@ -261,12 +286,30 @@ impl Compiler {
         for arm in arms {
             let tests: Vec<&str> = arm.tests.iter().chain(extra).map(String::as_str).collect();
             if prevention {
-                writeln!(body, "{{ {} if {} {{ return true; }} }}", arm.locals, tests.join(" && ")).unwrap();
+                writeln!(
+                    body,
+                    "{{ {} if {} {{ return true; }} }}",
+                    arm.locals,
+                    tests.join(" && ")
+                )
+                .unwrap();
             } else {
-                writeln!(body, "if let Proposal::{}({}) = proposal {{ {} if {} {{ return true; }} }}", arm.variant, arm.binding, arm.locals, tests.join(" && ")).unwrap();
+                writeln!(
+                    body,
+                    "if let Proposal::{}({}) = proposal {{ {} if {} {{ return true; }} }}",
+                    arm.variant,
+                    arm.binding,
+                    arm.locals,
+                    tests.join(" && ")
+                )
+                .unwrap();
             }
         }
-        writeln!(self.functions, "#[allow(unused_variables)] fn {function}{signature} -> bool {{ {body} false }}").unwrap();
+        writeln!(
+            self.functions,
+            "#[allow(unused_variables)] fn {function}{signature} -> bool {{ {body} false }}"
+        )
+        .unwrap();
     }
     pub(super) fn replacement(
         &mut self,
@@ -295,13 +338,17 @@ impl Compiler {
             if let [change] = changes.as_slice() {
                 let amount = match change {
                     EventChange::PreventDamage => Some(None),
-                    EventChange::PreventSomeDamage(n) => Some(Some(
-                        self.matching(frame, |c| Ok(c.number(n)?.amount(u16::MAX.into(), "u16")?))?,
-                    )),
-                    EventChange::PreventAllButDamage(n) => Some(Some(self.matching(frame, |c| {
-                        let kept = c.number(n)?.amount(u16::MAX.into(), "u16")?;
-                        Ok(format!("amount.saturating_sub({kept})"))
-                    })?)),
+                    EventChange::PreventSomeDamage(n) => {
+                        Some(Some(self.matching(frame, |c| {
+                            Ok(c.number(n)?.amount(u16::MAX.into(), "u16")?)
+                        })?))
+                    }
+                    EventChange::PreventAllButDamage(n) => {
+                        Some(Some(self.matching(frame, |c| {
+                            let kept = c.number(n)?.amount(u16::MAX.into(), "u16")?;
+                            Ok(format!("amount.saturating_sub({kept})"))
+                        })?))
+                    }
                     _ => None,
                 };
                 if let Some(amount) = amount {
@@ -407,8 +454,20 @@ impl Compiler {
         }
         let then = format!("{label}_then");
         self.reset_results();
-        let saved = (self.reader, self.event_at, self.stack_item, self.pending, self.frame);
-        (self.reader, self.event_at, self.stack_item, self.pending, self.frame) = (
+        let saved = (
+            self.reader,
+            self.event_at,
+            self.stack_item,
+            self.pending,
+            self.frame,
+        );
+        (
+            self.reader,
+            self.event_at,
+            self.stack_item,
+            self.pending,
+            self.frame,
+        ) = (
             Reader::Resolution,
             EventAt::Matcher,
             false,
@@ -423,7 +482,13 @@ impl Compiler {
             &mut out,
             false,
         );
-        (self.reader, self.event_at, self.stack_item, self.pending, self.frame) = saved;
+        (
+            self.reader,
+            self.event_at,
+            self.stack_item,
+            self.pending,
+            self.frame,
+        ) = saved;
         compiled?;
         let pass = if made { "affected, " } else { "" };
         writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {then}_steps(g: &mut dyn Game, asker: &Asker, {about}subject: Target, data: [u32; 2]) -> Result<(), Suspend> {{ {out} Ok(()) }}").unwrap();
@@ -449,13 +514,15 @@ impl Compiler {
         let mut to = None;
         if let ReplacementEvent::Damage(damage) = &mut plain {
             to = match &damage.recipients {
-                DamageRecipients::Target { slot, index } => Some(self.recipients(&Recipients::Target {
-                    slot: slot.clone(),
-                    index: *index,
-                })?),
-                DamageRecipients::Players(PlayerSet::One(player)) => Some(self.recipients(
-                    &Recipients::Players(PlayerSet::One(player.clone())),
-                )?),
+                DamageRecipients::Target { slot, index } => {
+                    Some(self.recipients(&Recipients::Target {
+                        slot: slot.clone(),
+                        index: *index,
+                    })?)
+                }
+                DamageRecipients::Players(PlayerSet::One(player)) => {
+                    Some(self.recipients(&Recipients::Players(PlayerSet::One(player.clone())))?)
+                }
                 DamageRecipients::Objects(ObjectFilter::SameObject(object)) => Some(format!(
                     "({}).map(Target::Object).into_iter().collect::<Vec<Target>>()",
                     self.object(object)?
@@ -478,7 +545,15 @@ impl Compiler {
         let scope = self.affected_in_scope;
         self.reset_results();
         self.affected_in_scope = true;
-        let compiled = self.made_effect(&label, &plain, limit, body, hint, to.is_some(), about.is_some());
+        let compiled = self.made_effect(
+            &label,
+            &plain,
+            limit,
+            body,
+            hint,
+            to.is_some(),
+            about.is_some(),
+        );
         self.affected_in_scope = scope;
         self.restore_results(results);
         let kind = compiled?;
@@ -542,7 +617,11 @@ impl Compiler {
                 "GrantedPreventionDef {{ hint: {hint}, damage: \"damage\", of_it: None, applies: {applies} }}"
             ));
             let index = self.made_preventions.len() - 1;
-            let shield_value = if shield.is_some() { "Shield::Next(shield)" } else { "Shield::All" };
+            let shield_value = if shield.is_some() {
+                "Shield::Next(shield)"
+            } else {
+                "Shield::All"
+            };
             return Ok((shield, format!(
                 "g.add_effect(item.object, about, EffectKind::Prevention {{ card: item.ability.card, index: {index}, to, shield: {shield_value} }}, DURATION);"
             )));
@@ -562,7 +641,8 @@ impl Compiler {
         };
         let (kind, applies, apply, then) =
             self.reshaping(label, &arms, frame, &extra, &changes, &rest, true)?;
-        let mut def = format!("granted_replacement(ReplacementKind::{kind}, {applies}, {apply}, {hint})");
+        let mut def =
+            format!("granted_replacement(ReplacementKind::{kind}, {applies}, {apply}, {hint})");
         if once {
             def.push_str(".once()");
         }
@@ -571,11 +651,14 @@ impl Compiler {
         }
         self.made_replacements.push(def);
         let index = self.made_replacements.len() - 1;
-        Ok((None, if about {
-            format!("let _ = to; g.add_effect(item.object, about, EffectKind::Replacement({index}), DURATION);")
-        } else {
-            format!("let _ = (to, about); g.add_player_effect(item.controller, item.object, EffectKind::ReplacementRule({index}), DURATION);")
-        }))
+        Ok((
+            None,
+            if about {
+                format!("let _ = to; g.add_effect(item.object, about, EffectKind::Replacement({index}), DURATION);")
+            } else {
+                format!("let _ = (to, about); g.add_player_effect(item.controller, item.object, EffectKind::ReplacementRule({index}), DURATION);")
+            },
+        ))
     }
     fn prevention(
         &mut self,

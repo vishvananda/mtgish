@@ -47,9 +47,7 @@ fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'static str> {
             Operation::DiscardObjects { objects } if chosen(objects) => "Discard",
             Operation::Sacrifice { objects, .. } if chosen(objects) => "Sacrifice",
             Operation::Reveal { objects } if chosen(objects) => "Reveal",
-            Operation::Attach { attachments, host }
-                if chosen(attachments) || picked(host) =>
-            {
+            Operation::Attach { attachments, host } if chosen(attachments) || picked(host) => {
                 "Attach"
             }
             Operation::ReorderLibrary { objects, end, .. } if chosen(objects) => match end {
@@ -178,6 +176,23 @@ pub(super) struct Results {
     flips: BTreeMap<u32, String>,
 }
 
+/// Which of a block's results `Compiler::hoist` keeps.
+#[derive(Clone, Copy)]
+enum Hoist {
+    Moved,
+    Selected,
+    Created,
+    Before,
+}
+
+/// A count that picks one object, or none.
+fn one_at_most(count: &Count) -> bool {
+    matches!(
+        count,
+        Count::Exactly(Expr::Constant(1)) | Count::UpTo(Expr::Constant(1))
+    )
+}
+
 impl Compiler {
     /// `Vec<Target>`.
     pub(super) fn recipients(&self, recipients: &Recipients) -> Result<String> {
@@ -247,7 +262,11 @@ impl Compiler {
     }
     fn effect_body(&mut self, body: &Program) -> Result<String> {
         let mut out = String::new();
-        writeln!(out, "let asker = &Asker::new(item.object, item.controller);").unwrap();
+        writeln!(
+            out,
+            "let asker = &Asker::new(item.object, item.controller);"
+        )
+        .unwrap();
         if !self.slots.is_empty() {
             self.helpers.insert("announced");
         }
@@ -260,9 +279,18 @@ impl Compiler {
         }
         let reader = std::mem::replace(&mut self.reader, Reader::Resolution);
         let at = std::mem::replace(&mut self.event_at, EventAt::Item);
-        self.program(body, &mut out, true)?;
+        let hoisted = self.hoisted.replace(Vec::new());
+        let compiled = self.program(body, &mut out, true);
+        let declared = std::mem::replace(&mut self.hoisted, hoisted);
         self.reader = reader;
         self.event_at = at;
+        compiled?;
+        for local in declared.unwrap_or_default() {
+            out.insert_str(
+                0,
+                &format!("let mut {local}: Vec<ObjectId> = Vec::new();\n"),
+            );
+        }
         Ok(out)
     }
     pub(super) fn program(
@@ -316,13 +344,49 @@ impl Compiler {
         self.values = values;
         self.flips = flips;
     }
-    /// A nested block: what it binds is out of Rust's scope once it closes, so
-    /// a later reference reports a gap instead of generating a compile error.
+    /// A nested block: what it binds is out of Rust's scope once it closes. The
+    /// objects it reports stay readable through a local of the whole effect;
+    /// anything else reports a gap instead of generating a compile error.
     fn block(&mut self, body: &Program, out: &mut String, boundaries: bool) -> Result<()> {
         let scope = self.results();
         self.program(body, out, boundaries)?;
+        let inner = self.results();
         self.restore_results(scope);
+        self.hoist(&inner.moved, Hoist::Moved, out);
+        self.hoist(&inner.selections, Hoist::Selected, out);
+        self.hoist(&inner.creations, Hoist::Created, out);
+        self.hoist(&inner.before, Hoist::Before, out);
         Ok(())
+    }
+    /// Keep the objects a block just reported. `out` is at the block's end, so
+    /// what didn't run leaves the list empty, as "those" then is.
+    fn hoist(&mut self, inner: &BTreeMap<u32, String>, kind: Hoist, out: &mut String) {
+        for (result, code) in inner {
+            let known = match kind {
+                Hoist::Moved => &self.moved,
+                Hoist::Selected => &self.selections,
+                Hoist::Created => &self.creations,
+                Hoist::Before => &self.before,
+            };
+            if known.contains_key(result) || self.hoisted.is_none() {
+                continue;
+            }
+            let local = format!("hoisted_{}", self.fresh());
+            let read = match kind {
+                Hoist::Before => self.fetch(code.clone()),
+                _ => format!("{code}.clone()"),
+            };
+            writeln!(out, "{local}.extend({read});").unwrap();
+            self.hoisted.as_mut().expect("checked").push(local.clone());
+            // `before` holds an expression, the others a local to clone.
+            let (known, local) = match kind {
+                Hoist::Moved => (&mut self.moved, local),
+                Hoist::Selected => (&mut self.selections, local),
+                Hoist::Created => (&mut self.creations, local),
+                Hoist::Before => (&mut self.before, format!("{local}.clone()")),
+            };
+            known.insert(*result, local);
+        }
     }
     fn instruction(
         &mut self,
@@ -344,11 +408,28 @@ impl Compiler {
             } => {
                 // The move refuses what can't go there (608.2d); nothing reads
                 // that sooner, so such a card can be picked and stays put.
-                let constraint = constraints
-                    .iter()
-                    .find(|c| !matches!(c, SelectionConstraint::CanMoveTo { .. }));
+                let constraint = constraints.iter().find(|c| {
+                    !matches!(
+                        c,
+                        SelectionConstraint::CanMoveTo { .. } | SelectionConstraint::AtRandom
+                    )
+                });
                 if let Some(constraint) = constraint {
                     return Err(gap(format!("selection constraint {}", form(constraint))));
+                }
+                if one_at_most(count) {
+                    self.single.insert(result.0);
+                }
+                if matches!(constraints.as_slice(), [SelectionConstraint::AtRandom]) {
+                    let (Count::Exactly(count) | Count::AsManyAsCan(count)) = count else {
+                        return Err(gap("random choice of an open count"));
+                    };
+                    let id = self.fresh();
+                    let pool = self.fetch(self.objects(objects)?);
+                    let count = self.fetch(self.number(count)?.amount(u32::MAX.into(), "usize")?);
+                    writeln!(out, "let mut pool_{id} = {pool}; let count_{id} = {count}; let mut picked_{id}: Vec<ObjectId> = Vec::new(); while picked_{id}.len() < count_{id} && !pool_{id}.is_empty() {{ let at = g.choose_at_random(pool_{id}.len()); picked_{id}.push(pool_{id}.remove(at)); }}").unwrap();
+                    self.selections.insert(result.0, format!("picked_{id}"));
+                    return Ok(());
                 }
                 let purpose = purpose(result, &body.instructions[i + 1..])
                     .ok_or_else(|| gap("resolution choice prompt purpose"))?;
@@ -372,6 +453,9 @@ impl Compiler {
                 if let Some(constraint) = choice.constraints.first() {
                     return Err(gap(format!("search constraint {}", form(constraint))));
                 }
+                if one_at_most(&choice.count) {
+                    self.single.insert(result.0);
+                }
                 let count = self.select_count(&choice.count)?;
                 let id = self.fresh();
                 let filter = self.filter(&choice.filter, &Candidate::of("id"))?;
@@ -393,17 +477,24 @@ impl Compiler {
                     },
                 ..
             } => {
-                let next = body.instructions[i + 1..].iter().find_map(|next| match next {
-                    Instruction::Effect {
-                        operation: Operation::ReorderLibrary { objects, .. },
-                        ..
-                    } => Some(objects),
-                    _ => None,
-                });
+                let next = body.instructions[i + 1..]
+                    .iter()
+                    .find_map(|next| match next {
+                        Instruction::Effect {
+                            operation: Operation::ReorderLibrary { objects, .. },
+                            ..
+                        } => Some(objects),
+                        _ => None,
+                    });
                 if format!("{next:?}") != format!("{:?}", Some(excluding)) {
                     return Err(gap("shuffle around cards that stay where they are"));
                 }
-                writeln!(out, "for player in {} {{ g.shuffle(player); }}", self.fetch(self.players(players)?)).unwrap();
+                writeln!(
+                    out,
+                    "for player in {} {{ g.shuffle(player); }}",
+                    self.fetch(self.players(players)?)
+                )
+                .unwrap();
                 Ok(())
             }
             // "Exile it until this leaves the battlefield" is one effect (610.3).
@@ -683,6 +774,15 @@ impl Compiler {
                 choose,
             } => self.sacrifice(id, players, objects, choose.as_ref(), result, out)?,
             Operation::DealDamage {
+                source: ObjectRef::Source,
+                recipients:
+                    Recipients::Objects(ObjectSet::Targets(slot)) | Recipients::Targets(slot),
+                amount: Expr::DistributedShare(share),
+                preventable: true,
+            } if slot.0 == share.0 && self.stack_item => {
+                writeln!(out, "cantrip_mechanics::damage_divided(g, item);").unwrap();
+            }
+            Operation::DealDamage {
                 source,
                 recipients,
                 amount,
@@ -703,6 +803,25 @@ impl Compiler {
                 }
                 writeln!(out, "g.damage_together(&batch_{id});").unwrap();
             }
+            Operation::PutCounters { placements }
+                if matches!(
+                    placements.as_slice(),
+                    [CounterPlacement {
+                        recipients: Recipients::Objects(ObjectSet::Targets(_))
+                            | Recipients::Targets(_),
+                        amount: Expr::DistributedShare(_),
+                        selection: None,
+                        ..
+                    }]
+                ) && self.stack_item =>
+            {
+                writeln!(
+                    out,
+                    "cantrip_mechanics::counters_divided(g, item, {});",
+                    counter_kind(&placements[0].kind)?
+                )
+                .unwrap();
+            }
             Operation::PutCounters { placements } => {
                 writeln!(
                     out,
@@ -713,8 +832,27 @@ impl Compiler {
                     if placement.selection.is_some() {
                         return Err(gap("counters placed by a resolution choice"));
                     }
-                    if matches!(placement.recipients, Recipients::Players(_)) {
-                        return Err(gap("counters on a player"));
+                    if let Recipients::Players(players) = &placement.recipients {
+                        let method = match &placement.kind {
+                            crate::counter::CounterKind::Named(
+                                crate::counter::CounterName::PoisonCounter,
+                            ) => "give_poison",
+                            crate::counter::CounterKind::Named(
+                                crate::counter::CounterName::ExperienceCounter,
+                            ) => "give_experience",
+                            other => return Err(gap(format!("{} on a player", form(other)))),
+                        };
+                        let amount = self
+                            .number(&placement.amount)?
+                            .amount(u32::MAX.into(), "u32")?;
+                        writeln!(
+                            out,
+                            "let amount = {}; for player in {} {{ g.{method}(player, amount); }}",
+                            self.fetch(amount),
+                            self.fetch(self.players(players)?)
+                        )
+                        .unwrap();
+                        continue;
                     }
                     let amount = self
                         .number(&placement.amount)?
@@ -723,6 +861,9 @@ impl Compiler {
                     writeln!(out, "let amount = {}; for t in {} {{ if let Target::Object(object) = t {{ counters_{id}.push((object, {kind}, amount)); }} }}", self.fetch(amount), self.fetch(self.recipients(&placement.recipients)?)).unwrap();
                 }
                 writeln!(out, "g.add_counters_together(&counters_{id});").unwrap();
+            }
+            Operation::RemoveCounters { removals } => {
+                self.remove_counters(id, removals, result, out)?
             }
             Operation::Attach { attachments, host } => {
                 writeln!(out, "let attachments_{id} = {}; let host_{id} = {}; if let Some(host) = host_{id} {{ cantrip_api::instruction(g, |g| {{ for attachment in attachments_{id} {{ g.attach(attachment, host); }} }}); }}", self.acted_on(attachments)?, self.fetch(self.object(host)?)).unwrap();
@@ -742,8 +883,7 @@ impl Compiler {
                     self.fetch(self.objects(objects)?)
                 )
                 .unwrap();
-                self.selections
-                    .insert(result.0, format!("objects_{id}"));
+                self.selections.insert(result.0, format!("objects_{id}"));
             }
             Operation::ReorderLibrary {
                 player,
@@ -758,8 +898,14 @@ impl Compiler {
                 // Only what is still in that library moves (701.20e).
                 writeln!(out, "let library_{id} = {library}; let cards_{id}: Vec<ObjectId> = {cards}.into_iter().filter(|&o| g.state().obj(o).became.is_none() && g.state().obj(o).zone == Zone::library(library_{id})).collect();").unwrap();
                 let (kind, place) = match end {
-                    SequenceEnd::Top => ("LibraryTop", format!("g.arrange_library(library_{id}, &order_{id}, &[]);")),
-                    SequenceEnd::Bottom => ("LibraryBottom", format!("g.arrange_library(library_{id}, &[], &order_{id});")),
+                    SequenceEnd::Top => (
+                        "LibraryTop",
+                        format!("g.arrange_library(library_{id}, &order_{id}, &[]);"),
+                    ),
+                    SequenceEnd::Bottom => (
+                        "LibraryBottom",
+                        format!("g.arrange_library(library_{id}, &[], &order_{id});"),
+                    ),
                 };
                 match (order, end) {
                     (CardOrder::Chosen, _) => writeln!(out, "let chooser_{id} = {chooser}; let order_{id} = cantrip_mechanics::library::ask_library_order(g, chooser_{id}, asker.source, &cards_{id}, DestinationKind::{kind})?; {place}").unwrap(),
@@ -836,6 +982,13 @@ impl Compiler {
                 self.flips.insert(result.0, format!("flip_{id}"));
             }
             Operation::ModifyEvent { change } => self.modify_entering(change, out)?,
+            Operation::CreateTrigger {
+                event,
+                duration,
+                announcement,
+                body,
+                once,
+            } => self.create_trigger(event, duration, announcement, body, *once, out)?,
             Operation::CreateDelayedTrigger {
                 event,
                 start,
@@ -904,7 +1057,8 @@ impl Compiler {
                             result,
                             out,
                         )?;
-                        writeln!(out, "let paid_{id} = !{}.is_empty();", self.moved(result)?).unwrap();
+                        writeln!(out, "let paid_{id} = !{}.is_empty();", self.moved(result)?)
+                            .unwrap();
                     }
                     CostPart::Move {
                         selections,
@@ -954,7 +1108,12 @@ impl Compiler {
             unreachable!("a player action");
         };
         let willing = if optional {
-            writeln!(out, "let payer_{id} = {};", self.fetch(self.certain_player(player)?)).unwrap();
+            writeln!(
+                out,
+                "let payer_{id} = {};",
+                self.fetch(self.certain_player(player)?)
+            )
+            .unwrap();
             format!("cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?")
         } else {
             "true".to_string()
@@ -986,7 +1145,10 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
-        if !entry.states.is_empty() {
+        let defined = tokens
+            .iter()
+            .all(|t| matches!(t.recipe, TokenRecipe::Defined(_)));
+        if !entry.states.is_empty() && (!defined || !entry.counters.is_empty()) {
             return Err(gap("tokens entering in a special state"));
         }
         let first = &tokens[0].words;
@@ -1002,10 +1164,11 @@ impl Compiler {
         };
         if let [TokenSpec {
             amount,
-            recipe: TokenRecipe::Copy {
-                object,
-                adjustments,
-            },
+            recipe:
+                TokenRecipe::Copy {
+                    object,
+                    adjustments,
+                },
             ..
         }] = tokens
         {
@@ -1040,10 +1203,11 @@ impl Compiler {
         }
         if let [TokenSpec {
             amount: Expr::Constant(1),
-            recipe: TokenRecipe::CopyEach {
-                objects,
-                adjustments,
-            },
+            recipe:
+                TokenRecipe::CopyEach {
+                    objects,
+                    adjustments,
+                },
             ..
         }] = tokens
         {
@@ -1082,7 +1246,30 @@ impl Compiler {
         for i in 0..tokens.len() {
             writeln!(out,"tokens_{id}.extend(std::iter::repeat((def_{id}_{i},player)).take(count_{id}_{i} as usize));").unwrap();
         }
-        writeln!(out,"}} let words_{id} = {words}; let created_{id} = g.create_tokens_worded(&tokens_{id}, {}, None, words_{id})?;",entry.tapped).unwrap();
+        writeln!(out, "}} let words_{id} = {words};").unwrap();
+        let tapped = entry.tapped;
+        let creation = format!("g.create_tokens_worded(&tokens_{id}, {tapped}, None, words_{id})?");
+        match entry.states.as_slice() {
+            [] => writeln!(out, "let created_{id} = {creation};").unwrap(),
+            [EntryState::AttachedTo(host)] if !tapped => {
+                writeln!(out, "let host_{id} = {}; let mut created_{id}: Vec<ObjectId> = Vec::new(); if let Some(host) = host_{id} {{ for &(def, player) in &tokens_{id} {{ created_{id}.extend(g.create_token_attached(def, player, host)?); }} }}", self.fetch(self.object(host)?)).unwrap();
+            }
+            [EntryState::Attacking {
+                player: Some(player),
+                or_planeswalker: false,
+            }] => {
+                writeln!(out, "let defender_{id} = Target::Player({}); let created_{id} = g.create_tokens_worded(&tokens_{id}, {tapped}, Some(defender_{id}), words_{id})?;", self.fetch(self.certain_player(player)?)).unwrap();
+            }
+            // Each token's defender is its own choice (508.4); those that
+            // attack the same one enter together, as `create_attacking` does.
+            [EntryState::Attacking {
+                player: None,
+                or_planeswalker: false,
+            }] => {
+                writeln!(out, "let mut chosen_{id}: Vec<Target> = Vec::new(); for &(_, player) in &tokens_{id} {{ chosen_{id}.push(cantrip_mechanics::combat::choose_attack_target(g, player, asker.source)?.unwrap_or(Target::None)); }} let mut created_{id}: Vec<ObjectId> = Vec::new(); let mut done_{id}: Vec<Target> = Vec::new(); for &target in &chosen_{id} {{ if done_{id}.contains(&target) {{ continue; }} done_{id}.push(target); let group: Vec<_> = tokens_{id}.iter().zip(&chosen_{id}).filter(|&(_, &t)| t == target).map(|(&token, _)| token).collect(); created_{id}.extend(g.create_tokens_worded(&group, {tapped}, Some(target), words_{id})?); }}").unwrap();
+            }
+            _ => return Err(gap("tokens entering in a special state")),
+        }
         self.creations.insert(result.0, format!("created_{id}"));
         Ok(())
     }
@@ -1095,12 +1282,13 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
+        let alone = self.one_object(objects);
         let objects = self.fetch(self.objects(objects)?);
         let library = |place: String| format!("g.put_into_library(&objects_{id}, {place})");
         let call = match destination {
             Destination::Battlefield(_) | Destination::OwnersBattlefield => {
-                if !entry.states.is_empty() {
-                    return Err(gap("move arrival state"));
+                if !entry.states.is_empty() && !alone {
+                    return Err(gap("several objects arriving in a state"));
                 }
                 let controller = match destination {
                     Destination::Battlefield(player) => {
@@ -1111,7 +1299,10 @@ impl Compiler {
                     _ => "g.state().obj(o).owner".into(),
                 };
                 let rows = format!("let rows_{id}: Vec<(ObjectId, PlayerId, bool)> = objects_{id}.iter().map(|&o| (o, {controller}, {})).collect();", entry.tapped);
-                if entry.counters.is_empty() {
+                if !entry.states.is_empty() {
+                    let each = self.arrival(entry)?;
+                    format!("{{ let mut moved: Vec<ObjectId> = Vec::new(); for &o in &objects_{id} {{ let controller = {controller}; {each} }} moved }}")
+                } else if entry.counters.is_empty() {
                     format!("{{ {rows} g.put_all_onto_battlefield_as(&rows_{id})? }}")
                 } else {
                     let mut counters = Vec::new();
@@ -1124,6 +1315,12 @@ impl Compiler {
             }
             _ if !plain_entry(entry) => return Err(gap("move arrival flags")),
             Destination::OwnersHand => format!("g.return_to_hand(&objects_{id})"),
+            Destination::Exile if self.links_exile && self.stack_item => {
+                format!("{{ let by = g.linked(item); g.exile_with(&objects_{id}, by, false) }}")
+            }
+            Destination::Exile if self.links_exile => {
+                return Err(gap("exile outside a stack item that an ability reads as exiled with its source"))
+            }
             Destination::Exile => format!("g.exile_all(&objects_{id})"),
             // `put_into_graveyard` refuses permanents, so name each destination.
             Destination::OwnersGraveyard => format!("{{ let moves: Vec<(ObjectId, Zone)> = objects_{id}.iter().map(|&o| (o, Zone::graveyard(g.state().obj(o).owner))).collect(); g.move_together(&moves, MoveReason::Other) }}"),
@@ -1140,9 +1337,97 @@ impl Compiler {
             }
             other => return Err(gap(format!("move to {}", form(other)))),
         };
-        writeln!(out, "let objects_{id} = {objects}; let moved_{id} = {call};").unwrap();
+        writeln!(
+            out,
+            "let objects_{id} = {objects}; let moved_{id} = {call};"
+        )
+        .unwrap();
         self.moved.insert(result.0, format!("moved_{id}"));
         self.left_behind(result, gone(&format!("objects_{id}")));
+        Ok(())
+    }
+    /// The one object of a `one_object` move, entering as `entry` says.
+    fn arrival(&mut self, entry: &EntrySpec) -> Result<String> {
+        let mut counters = Vec::new();
+        for (kind, n) in &entry.counters {
+            let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+            counters.push(format!("({}, {})", counter_kind(kind)?, self.fetch(n)));
+        }
+        let counters = counters.join(", ");
+        Ok(match entry.states.as_slice() {
+            [EntryState::AttachedTo(host)] if !entry.tapped && counters.is_empty() => format!(
+                "if let Some(host) = {} {{ moved.extend(g.put_onto_battlefield_attached(o, controller, host)?); }}",
+                self.fetch(self.object(host)?)
+            ),
+            [EntryState::Attacking {
+                player,
+                or_planeswalker: false,
+            }] if entry.tapped => {
+                let defender = match player {
+                    Some(player) => {
+                        format!("Target::Player({})", self.fetch(self.certain_player(player)?))
+                    }
+                    None => "cantrip_mechanics::combat::choose_attack_target(g, controller, asker.source)?.unwrap_or(Target::None)".into(),
+                };
+                format!("let defender = {defender}; moved.push(g.put_onto_battlefield_attacking(o, controller, defender, &[{counters}])?);")
+            }
+            _ => return Err(gap("move arrival state")),
+        })
+    }
+    /// Whether a set is known to hold one object at most when this runs.
+    fn one_object(&self, objects: &ObjectSet) -> bool {
+        match objects {
+            ObjectSet::One(_) => true,
+            ObjectSet::InZone { objects, .. } => self.one_object(objects),
+            ObjectSet::Selected(result) => self.single.contains(&result.0),
+            _ => false,
+        }
+    }
+    fn remove_counters(
+        &mut self,
+        id: usize,
+        removals: &[CounterRemoval],
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        writeln!(out, "let mut removed_{id}: i64 = 0;").unwrap();
+        let mut counted = true;
+        for (i, removal) in removals.iter().enumerate() {
+            if removal.selection.is_some() {
+                return Err(gap("counters removed by a resolution choice"));
+            }
+            let Recipients::Objects(objects) = &removal.recipients else {
+                return Err(gap("counters removed from a player"));
+            };
+            let objects = self.fetch(self.objects(objects)?);
+            writeln!(out, "let objects_{id}_{i} = {objects};").unwrap();
+            match (&removal.kind, &removal.amount) {
+                (Some(kind), amount) => {
+                    let amount = match amount {
+                        CounterAmount::All => "i16::MAX".to_string(),
+                        CounterAmount::Count(Count::Exactly(n)) => {
+                            self.fetch(self.number(n)?.amount(i16::MAX.into(), "i16")?)
+                        }
+                        other => return Err(gap(format!("counter removal {}", form(other)))),
+                    };
+                    writeln!(out, "let amount_{id}_{i} = {amount}; cantrip_api::instruction(g, |g| {{ for object in objects_{id}_{i} {{ removed_{id} += i64::from(g.remove_counters(object, {}, amount_{id}_{i})); }} }});", counter_kind(kind)?).unwrap();
+                }
+                (None, CounterAmount::All) => {
+                    counted = false;
+                    writeln!(out, "cantrip_api::instruction(g, |g| {{ for object in objects_{id}_{i} {{ cantrip_mechanics::effects::remove_all_counters(g, object); }} }});").unwrap();
+                }
+                (None, CounterAmount::Count(Count::UpTo(n))) => {
+                    let n = costs::constant_u8(n)
+                        .ok_or_else(|| gap("removal of up to a changing number of counters"))?;
+                    let player = self.fetch(self.certain_player(&removal.player)?);
+                    writeln!(out, "let player_{id}_{i} = {player}; for object in objects_{id}_{i} {{ removed_{id} += i64::from(g.remove_counters_up_to(player_{id}_{i}, asker.source, object, {n})?); }}").unwrap();
+                }
+                (None, _) => return Err(gap("counters of a kind chosen as the effect resolves")),
+            }
+        }
+        if counted {
+            self.performed.insert(result.0, format!("removed_{id}"));
+        }
         Ok(())
     }
     fn sacrifice(
@@ -1272,8 +1557,16 @@ impl Compiler {
                 i16_of(power)?,
                 i16_of(toughness)?
             )],
+            Change::GrantKeyword(Keyword::Protection(quality)) => {
+                let mut grants = Vec::new();
+                granted_protection(quality, &mut grants)?;
+                grants.into_iter().map(|(kind, _)| kind).collect()
+            }
             Change::GrantKeyword(k) => {
-                vec![format!("EffectKind::AddKeywords(Keywords::of(&[{}]))", keyword(k)?)]
+                vec![format!(
+                    "EffectKind::AddKeywords(Keywords::of(&[{}]))",
+                    keyword(k)?
+                )]
             }
             Change::RemoveAllAbilities => vec!["EffectKind::LoseAllAbilities".into()],
             Change::AddCardType(t) => vec![format!(
@@ -1285,7 +1578,10 @@ impl Compiler {
                     .iter()
                     .map(|t| card_type(t).map(|t| format!("CardType::{t}")))
                     .collect::<Result<Vec<_>>>()?;
-                vec![format!("EffectKind::SetTypes(TypeSet::of(&[{}]))", types.join(", "))]
+                vec![format!(
+                    "EffectKind::SetTypes(TypeSet::of(&[{}]))",
+                    types.join(", ")
+                )]
             }
             Change::Colors {
                 mode: ChangeMode::Set,
@@ -1341,9 +1637,7 @@ impl Compiler {
                 "EffectKind::Control({})",
                 self.certain_player(player)?
             )],
-            Change::Rule(rule) => {
-                return Err(gap(format!("continuous rule {}", rule_name(rule))))
-            }
+            Change::Rule(rule) => return Err(gap(format!("continuous rule {}", rule_name(rule)))),
             other => return Err(gap(format!("continuous change {}", form(other)))),
         })
     }

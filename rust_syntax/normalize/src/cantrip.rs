@@ -74,7 +74,10 @@ fn zone_list(zones: &[EventZone]) -> Result<String> {
             && has(&EventZone::Stack)
             && has(&EventZone::Exile)
     };
-    if zones.iter().any(|z| matches!(z, EventZone::Command) && !every(z)) {
+    if zones
+        .iter()
+        .any(|z| matches!(z, EventZone::Command) && !every(z))
+    {
         return Err(gap("ability functioning in the command zone"));
     }
     let kinds = zones
@@ -89,16 +92,46 @@ fn generator_fingerprint() -> &'static str {
     HASH.get_or_init(|| {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
-            ("cantrip/casting.rs", include_bytes!("cantrip/casting.rs").as_slice()),
-            ("cantrip/costs.rs", include_bytes!("cantrip/costs.rs").as_slice()),
-            ("cantrip/delayed.rs", include_bytes!("cantrip/delayed.rs").as_slice()),
-            ("cantrip/effects.rs", include_bytes!("cantrip/effects.rs").as_slice()),
-            ("cantrip/players.rs", include_bytes!("cantrip/players.rs").as_slice()),
-            ("cantrip/read.rs", include_bytes!("cantrip/read.rs").as_slice()),
-            ("cantrip/replacements.rs", include_bytes!("cantrip/replacements.rs").as_slice()),
-            ("cantrip/statics.rs", include_bytes!("cantrip/statics.rs").as_slice()),
-            ("cantrip/survey.rs", include_bytes!("cantrip/survey.rs").as_slice()),
-            ("cantrip/triggers.rs", include_bytes!("cantrip/triggers.rs").as_slice()),
+            (
+                "cantrip/casting.rs",
+                include_bytes!("cantrip/casting.rs").as_slice(),
+            ),
+            (
+                "cantrip/costs.rs",
+                include_bytes!("cantrip/costs.rs").as_slice(),
+            ),
+            (
+                "cantrip/delayed.rs",
+                include_bytes!("cantrip/delayed.rs").as_slice(),
+            ),
+            (
+                "cantrip/effects.rs",
+                include_bytes!("cantrip/effects.rs").as_slice(),
+            ),
+            (
+                "cantrip/players.rs",
+                include_bytes!("cantrip/players.rs").as_slice(),
+            ),
+            (
+                "cantrip/read.rs",
+                include_bytes!("cantrip/read.rs").as_slice(),
+            ),
+            (
+                "cantrip/replacements.rs",
+                include_bytes!("cantrip/replacements.rs").as_slice(),
+            ),
+            (
+                "cantrip/statics.rs",
+                include_bytes!("cantrip/statics.rs").as_slice(),
+            ),
+            (
+                "cantrip/survey.rs",
+                include_bytes!("cantrip/survey.rs").as_slice(),
+            ),
+            (
+                "cantrip/triggers.rs",
+                include_bytes!("cantrip/triggers.rs").as_slice(),
+            ),
             ("semantics.rs", include_bytes!("semantics.rs").as_slice()),
             ("validate.rs", include_bytes!("validate.rs").as_slice()),
             ("ir.rs", include_bytes!("ir.rs").as_slice()),
@@ -114,12 +147,62 @@ fn generator_fingerprint() -> &'static str {
     })
 }
 fn keyword(value: &Keyword) -> Result<String> {
+    if let Keyword::Landwalk(land) = value {
+        use crate::mtg_types::SubType;
+        return Ok(format!(
+            "Keyword::{}",
+            match land.as_ref() {
+                ObjectFilter::Subtype(SubType::Plains) => "Plainswalk",
+                ObjectFilter::Subtype(SubType::Island) => "Islandwalk",
+                ObjectFilter::Subtype(SubType::Swamp) => "Swampwalk",
+                ObjectFilter::Subtype(SubType::Mountain) => "Mountainwalk",
+                ObjectFilter::Subtype(SubType::Forest) => "Forestwalk",
+                other => return Err(gap(format!("landwalk of {}", form(other)))),
+            }
+        ));
+    }
     let n = name(value);
     if crate::cantrip_vocab::KEYWORDS.contains(&n.as_str()) {
         Ok(format!("Keyword::{n}"))
     } else {
         Err(gap(format!("keyword {}", form(value))))
     }
+}
+/// One protection quality an effect gives: the kind a resolving effect adds,
+/// and the statement that gives the same in a layer.
+fn granted_protection(quality: &Protection, grants: &mut Vec<(String, String)>) -> Result<()> {
+    match quality {
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter: ObjectFilter::Color(c),
+        } => {
+            let c = color(c)?;
+            grants.push((
+                format!("EffectKind::Protection(ColorSet::NONE.with(Color::{c}))"),
+                format!("chars.protection = chars.protection.with(q.words(asker.source).color(Color::{c}));"),
+            ));
+        }
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter: ObjectFilter::CardType(t),
+        } => {
+            let t = card_type(t)?;
+            grants.push((
+                format!("EffectKind::ProtectionFromTypes(TypeSet::of(&[CardType::{t}]))"),
+                format!("chars.protection_types = chars.protection_types.with(CardType::{t});"),
+            ));
+        }
+        Protection::Objects { filter, .. } => {
+            return Err(gap(format!("protection from {}", form(filter))))
+        }
+        Protection::Each(qualities) => {
+            for quality in qualities {
+                granted_protection(quality, grants)?;
+            }
+        }
+        other => return Err(gap(format!("protection {}", form(other)))),
+    }
+    Ok(())
 }
 fn color(value: &ManaColor) -> Result<&'static str> {
     Ok(match value {
@@ -263,6 +346,16 @@ struct Compiler {
     casting_costs: BTreeMap<u32, Cost>,
     /// Moves that already said when they end, in one call with the move.
     returning: BTreeSet<u32>,
+    /// The `Divide` of the announcement just compiled, until a definition that
+    /// can say so takes it. What's left of it at the ability's end is a gap.
+    dividing: Option<String>,
+    /// Locals an effect declares up front to outlive its nested blocks. `None`
+    /// in code that isn't an effect's own body.
+    hoisted: Option<Vec<String>>,
+    /// Choices and searches that yield one object at most.
+    single: BTreeSet<u32>,
+    /// Some ability of the card reads what was exiled with its source.
+    links_exile: bool,
     /// The announcement slot whose filter is being compiled.
     choosing: Option<usize>,
     performed: BTreeMap<u32, String>,
@@ -453,6 +546,10 @@ impl Compiler {
             activation_cost: None,
             casting_costs: BTreeMap::new(),
             returning: BTreeSet::new(),
+            dividing: None,
+            hoisted: None,
+            single: BTreeSet::new(),
+            links_exile: false,
             choosing: None,
             performed: BTreeMap::new(),
             values: BTreeMap::new(),
@@ -522,8 +619,7 @@ impl Compiler {
             let tests = zones
                 .iter()
                 .map(|z| {
-                    read::zone_kind(z)
-                        .map(|z| format!("q.state().obj(id).zone.kind() == {z}"))
+                    read::zone_kind(z).map(|z| format!("q.state().obj(id).zone.kind() == {z}"))
                 })
                 .collect::<Result<Vec<_>>>()?;
             Ok(format!("({})", tests.join(" || ")))
@@ -611,8 +707,13 @@ impl Compiler {
             if let Some(constraint) = spec.constraints.first() {
                 return Err(gap(format!("target constraint {}", form(constraint))).at(at));
             }
-            if spec.distribute.is_some() {
-                return Err(gap("target with a divided amount").at(at));
+            if let Some(total) = &spec.distribute {
+                let total = match total {
+                    Expr::Constant(n) if i == 0 && *n >= 0 => n.to_string(),
+                    Expr::AnnouncedX if i == 0 => "TargetSpec::COUNTED".to_string(),
+                    _ => return Err(gap("target with a divided amount").at(at)),
+                };
+                self.dividing = Some(format!("Divide {{ total: {total}, of_x: None }}"));
             }
             if spec.chooser.is_some() {
                 return Err(gap("targets chosen by another player").at(at));
@@ -1052,6 +1153,7 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     })?;
     let mut c = Compiler::new();
     let mut parts = Parts::default();
+    c.links_exile = format!("{:?}", card.abilities).contains("ExiledWith(Source)");
     for (i, a) in card.abilities.iter().enumerate() {
         if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
             c.casting_costs.insert(i as u32, cost.clone());
@@ -1059,7 +1161,11 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     }
     for (i, a) in card.abilities.iter().enumerate() {
         c.attempt(format!("abilities[{i}]"), |c| {
-            c.ability(a, &format!("ability_{i}"), &mut parts, None)
+            let compiled = c.ability(a, &format!("ability_{i}"), &mut parts, None);
+            if c.dividing.take().is_some() {
+                return Err(gap("target with a divided amount"));
+            }
+            compiled
         });
     }
     let ch = &card.characteristics;

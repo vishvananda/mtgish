@@ -35,7 +35,9 @@ fn sums_damage(damage: &DamageEvent) -> bool {
 }
 
 fn object_fired(id: &str, destination: &str) -> String {
-    format!("let id = {id}; let subject = Target::Object(id); let data = [{destination}, u32::MAX];")
+    format!(
+        "let id = {id}; let subject = Target::Object(id); let data = [{destination}, u32::MAX];"
+    )
 }
 fn single(mask: &'static str, arm: Arm, frame: Frame, phrase: &str) -> Matched {
     Matched {
@@ -95,7 +97,11 @@ impl Compiler {
         // CR 603.10: a departure is judged as the object last was, an arrival
         // as it now is, and a card moved between hidden or public zones as it
         // was where it left from.
-        let id = if entering || from.is_none() { "*new" } else { "*old" };
+        let id = if entering || from.is_none() {
+            "*new"
+        } else {
+            "*old"
+        };
         let mut tests = vec![format!("to.is({})", zone_kind(to)?)];
         if let Some(from) = from {
             tests.push(format!("from.is({})", zone_kind(from)?));
@@ -364,10 +370,18 @@ impl Compiler {
             self.matching(frame, |c| c.filter(cards, &Candidate::of("id")))?,
         ];
         let (mask, pattern, phrase) = match kind {
-            DiscardKind::Cycling => ("CYCLED", "Event::Cycled { card, player }", "Whenever a card is cycled"),
+            DiscardKind::Cycling => (
+                "CYCLED",
+                "Event::Cycled { card, player }",
+                "Whenever a card is cycled",
+            ),
             DiscardKind::Any => {
                 tests.push("!*undefined".into());
-                ("DISCARDED", "Event::Discarded { card, player, undefined }", "Whenever a card is discarded")
+                (
+                    "DISCARDED",
+                    "Event::Discarded { card, player, undefined }",
+                    "Whenever a card is discarded",
+                )
             }
         };
         if source_only {
@@ -442,11 +456,7 @@ impl Compiler {
                         "Event::SpellCast { spell, player, .. }",
                         "*spell",
                     ),
-                    SpellEvent::Copy => (
-                        "COPIED",
-                        "Event::Copied { copy, player, .. }",
-                        "*copy",
-                    ),
+                    SpellEvent::Copy => ("COPIED", "Event::Copied { copy, player, .. }", "*copy"),
                 };
                 Ok(single(
                     mask,
@@ -547,12 +557,7 @@ impl Compiler {
     pub(super) fn trigger(&mut self, matched: &Matched, label: &str, extra: &[String]) -> String {
         let mut body = String::new();
         for arm in &matched.arms {
-            let tests: Vec<&str> = arm
-                .tests
-                .iter()
-                .chain(extra)
-                .map(String::as_str)
-                .collect();
+            let tests: Vec<&str> = arm.tests.iter().chain(extra).map(String::as_str).collect();
             writeln!(
                 body,
                 "if let {} = event {{ {} if {} {{ return Some(Fired {{ subject, data }}); }} }}",
@@ -622,7 +627,14 @@ impl Compiler {
         }
         let matched = self.event(event)?;
         if announcement.modes.is_some() {
-            return self.modal_triggered(label, &matched, intervening_if, limits, announcement, body);
+            return self.modal_triggered(
+                label,
+                &matched,
+                intervening_if,
+                limits,
+                announcement,
+                body,
+            );
         }
         let targets = self.targets_for(announcement, label, matched.frame)?;
         self.frame = matched.frame;
@@ -673,6 +685,9 @@ impl Compiler {
         if let Some(per_turn) = limits.per_turn {
             def.push_str(&format!(".triggers_each_turn({per_turn})"));
         }
+        if let Some(divide) = self.dividing.take() {
+            def.push_str(&format!(".divide({divide})"));
+        }
         Ok(def)
     }
     fn modal_triggered(
@@ -697,7 +712,10 @@ impl Compiler {
         self.grouped = false;
         self.frame = Frame::default();
         let modal = modal?;
-        let mut def = format!("modal_triggered({trigger}, &{modal}, {})", quoted(&matched.phrase));
+        let mut def = format!(
+            "modal_triggered({trigger}, &{modal}, {})",
+            quoted(&matched.phrase)
+        );
         if let Some(condition) = condition {
             def.push_str(&format!(".condition({condition})"));
         }

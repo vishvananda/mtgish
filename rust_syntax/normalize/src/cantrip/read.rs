@@ -259,7 +259,11 @@ impl Compiler {
             // the candidate is still the object the enclosing filter asks about.
             ObjectRef::Candidate if self.history.is_some() => match &self.history {
                 Some(History { outer: Some(outer) }) => format!("Some({outer})"),
-                _ => return Err(gap("candidate in a history question with no filter around it")),
+                _ => {
+                    return Err(gap(
+                        "candidate in a history question with no filter around it",
+                    ))
+                }
             },
             ObjectRef::Candidate => {
                 let candidate = self.candidates.borrow();
@@ -561,7 +565,9 @@ impl Compiler {
             ZoneScope::Shared(EventZone::Command) => {
                 return Ok("q.state().zone(Zone::COMMAND).to_vec()".into())
             }
-            ZoneScope::Shared(zone) => (zone, "q.state().seats().collect::<Vec<PlayerId>>()".into()),
+            ZoneScope::Shared(zone) => {
+                (zone, "q.state().seats().collect::<Vec<PlayerId>>()".into())
+            }
             ZoneScope::Players { zone, players } => (zone, self.players(players)?),
         };
         let per_player = match zone {
@@ -675,14 +681,35 @@ impl Compiler {
             Expr::Constant(n) => Number::integer(*n),
             Expr::AnnouncedX
                 if self.reader == Reader::Resolution && self.stack_item && self.outer.is_none() =>
-            Number {
-                code: "i64::from(item.x)".into(),
+            {
+                Number {
+                    code: "i64::from(item.x)".into(),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
+            Expr::AnnouncedX if self.pending == Pending::Entering => Number {
+                code: "i64::from(entering.x)".into(),
                 min: 0,
                 max: u16::MAX.into(),
                 dynamic: true,
             },
-            Expr::AnnouncedX if self.pending == Pending::Entering => Number {
-                code: "i64::from(entering.x)".into(),
+            Expr::CastX(ObjectRef::Source | ObjectRef::EventSubject)
+                if self.pending == Pending::Entering =>
+            {
+                Number {
+                    code: "i64::from(entering.x)".into(),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
+            Expr::CastX(object) => Number {
+                code: format!(
+                    "{}.map_or(0i64, |o: ObjectId| i64::from(q.state().obj(o).x))",
+                    self.object(object)?
+                ),
                 min: 0,
                 max: u16::MAX.into(),
                 dynamic: true,
@@ -722,7 +749,9 @@ impl Compiler {
                 let hits = format!("{scope}.filter_map({})", matched.history_test());
                 count(match measure {
                     HistoryMeasure::Occurrences => format!("{hits}.count() as i64"),
-                    HistoryMeasure::TotalAmount if matched.frame.amount == Some(Carried::Data(0)) => {
+                    HistoryMeasure::TotalAmount
+                        if matched.frame.amount == Some(Carried::Data(0)) =>
+                    {
                         format!("{hits}.map(|f: Fired| i64::from(f.data[0])).sum::<i64>()")
                     }
                     other => return Err(gap(format!("history measure {}", form(other)))),
@@ -742,7 +771,8 @@ impl Compiler {
                         "[{}]",
                         colors
                             .iter()
-                            .map(|c| color_index(c).map(|i| format!("Mana::{}", ["W", "U", "B", "R", "G", "C"][i])))
+                            .map(|c| color_index(c)
+                                .map(|i| format!("Mana::{}", ["W", "U", "B", "R", "G", "C"][i])))
                             .collect::<Result<Vec<_>>>()?
                             .join(", ")
                     ),
@@ -753,7 +783,10 @@ impl Compiler {
                     SpentManaAggregation::DistinctColors => format!("{kinds}.into_iter().{colored}.filter(|mana| spent.get(*mana) > 0).count() as i64"),
                     SpentManaAggregation::MaximumPerColor => format!("{kinds}.into_iter().{colored}.map(|mana| i64::from(spent.get(mana))).max().unwrap_or(0)"),
                 };
-                count(format!("{}.map_or(0, |o: ObjectId| {{ let spent = q.obj(o).spent; {read} }})", self.object(object)?))
+                count(format!(
+                    "{}.map_or(0, |o: ObjectId| {{ let spent = q.obj(o).spent; {read} }})",
+                    self.object(object)?
+                ))
             }
             Expr::CountObjects(objects) => {
                 count(format!("({}).len() as i64", self.objects(objects)?))
@@ -938,8 +971,16 @@ impl Compiler {
                         if minimum { "min" } else { "max" },
                         b.code
                     ),
-                    min: if minimum { a.min.min(b.min) } else { a.min.max(b.min) },
-                    max: if minimum { a.max.min(b.max) } else { a.max.max(b.max) },
+                    min: if minimum {
+                        a.min.min(b.min)
+                    } else {
+                        a.min.max(b.min)
+                    },
+                    max: if minimum {
+                        a.max.min(b.max)
+                    } else {
+                        a.max.max(b.max)
+                    },
                     dynamic: a.dynamic || b.dynamic,
                 }
             }
@@ -1068,9 +1109,7 @@ impl Compiler {
                 color(c)?
             ),
             ObjectFilter::Colorless => format!("{chars}.colors.is_empty()"),
-            ObjectFilter::ControlledBy(players) => {
-                self.player_in(players, &c.controller)?
-            }
+            ObjectFilter::ControlledBy(players) => self.player_in(players, &c.controller)?,
             ObjectFilter::OwnedBy(players) => {
                 self.player_in(players, &format!("q.state().obj({id}).owner"))?
             }
@@ -1097,14 +1136,20 @@ impl Compiler {
                 comparison,
                 value,
             } => {
-                let value = self.number(value)?.code;
+                // Before X is announced, the filter allows what some X would.
+                let open = matches!(value, Expr::AnnouncedX) && self.choosing.is_some();
+                let value = if open {
+                    "i64::from(x)".to_string()
+                } else {
+                    self.number(value)?.code
+                };
                 let side = |field: &str| {
                     format!(
                         "{chars}.{field}.is_some_and(|v| {})",
                         compare("i64::from(v)", comparison, &value)
                     )
                 };
-                match property {
+                let test = match property {
                     // A card that has no power has no value to compare (208.3).
                     Property::Power => side("power"),
                     Property::Toughness => side("toughness"),
@@ -1114,7 +1159,15 @@ impl Compiler {
                         &value,
                     ),
                     other => compare(&self.property(id, other)?.code, comparison, &value),
+                };
+                if open {
+                    format!("q.announced_x().map_or(true, |x| {test})")
+                } else {
+                    test
                 }
+            }
+            ObjectFilter::ExiledWith(ObjectRef::Source) if self.reader != Reader::Layer => {
+                format!("q.exiled_with(q.linked_to(asker)).contains(&{id})")
             }
             ObjectFilter::Counters {
                 kind,

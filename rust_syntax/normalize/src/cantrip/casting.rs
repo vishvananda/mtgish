@@ -53,7 +53,14 @@ impl Compiler {
                 parts.field("kicker", self.kicker(cost, label)?);
                 parts.field("late_targets", "true".into());
                 let targets = self.branch_targets(paid_announced, unpaid_announced, label)?;
-                let effect = self.branch_effect("item.kicked > 0", paid_body, paid_announced, unpaid_body, unpaid_announced, label)?;
+                let effect = self.branch_effect(
+                    "item.kicked > 0",
+                    paid_body,
+                    paid_announced,
+                    unpaid_body,
+                    unpaid_announced,
+                    label,
+                )?;
                 parts.spell = format!("spell({targets}, {effect})");
             }
             "Overload" => {
@@ -65,7 +72,14 @@ impl Compiler {
                 };
                 parts.field("overload", format!("Some({})", mana(symbols)?));
                 let targets = self.announcement(unpaid_announced, &format!("{label}_unpaid"))?;
-                let effect = self.branch_effect("item.way == WAY_OVERLOAD", paid_body, paid_announced, unpaid_body, unpaid_announced, label)?;
+                let effect = self.branch_effect(
+                    "item.way == WAY_OVERLOAD",
+                    paid_body,
+                    paid_announced,
+                    unpaid_body,
+                    unpaid_announced,
+                    label,
+                )?;
                 parts.spell = format!("spell({targets}, {effect})");
             }
             "Cleave" => {
@@ -77,10 +91,20 @@ impl Compiler {
                 };
                 parts.table(
                     "ways",
-                    format!("cantrip_mechanics::cleave::way({}, \"Cleave\")", mana(symbols)?),
+                    format!(
+                        "cantrip_mechanics::cleave::way({}, \"Cleave\")",
+                        mana(symbols)?
+                    ),
                 );
                 let targets = self.announcement(unpaid_announced, &format!("{label}_unpaid"))?;
-                let effect = self.branch_effect("item.way == 1", paid_body, paid_announced, unpaid_body, unpaid_announced, label)?;
+                let effect = self.branch_effect(
+                    "item.way == 1",
+                    paid_body,
+                    paid_announced,
+                    unpaid_body,
+                    unpaid_announced,
+                    label,
+                )?;
                 parts.spell = format!("spell({targets}, {effect})");
             }
             "Entwine" => {
@@ -91,14 +115,21 @@ impl Compiler {
                 let (Expr::Constant(most), true) = (
                     &paid_modes.maximum,
                     format!("{:?}", paid_modes.modes)
-                        == format!("{:?}", unpaid_announced.modes.as_ref().map(|m| &m.modes).unwrap()),
+                        == format!(
+                            "{:?}",
+                            unpaid_announced.modes.as_ref().map(|m| &m.modes).unwrap()
+                        ),
                 ) else {
                     return Err(gap("entwine that changes its modes"));
                 };
                 let most = u8::try_from(*most).map_err(|_| gap("mode count beyond u8"))?;
                 parts.field("kicker", self.kicker(cost, label)?);
                 let modal = self.modal(unpaid_announced, label, None)?;
-                writeln!(self.functions, "static {modal}_ENTWINED: ModalDef = {modal}.when_paid({most}, {most});").unwrap();
+                writeln!(
+                    self.functions,
+                    "static {modal}_ENTWINED: ModalDef = {modal}.when_paid({most}, {most});"
+                )
+                .unwrap();
                 parts.spell = "Some(SpellDef::MODAL)".into();
                 parts.modal = format!("Some(&{modal}_ENTWINED)");
             }
@@ -161,11 +192,16 @@ impl Compiler {
         let mut specs = Vec::new();
         for i in 0..paid.targets.len().max(unpaid.targets.len()) {
             let range = |targets: &[TargetSpec]| {
-                targets.get(i).map_or(Ok((0, 0)), |spec| target_range(&spec.count))
+                targets
+                    .get(i)
+                    .map_or(Ok((0, 0)), |spec| target_range(&spec.count))
             };
-            let ((paid_min, paid_max), (min, max)) = (range(&paid.targets)?, range(&unpaid.targets)?);
+            let ((paid_min, paid_max), (min, max)) =
+                (range(&paid.targets)?, range(&unpaid.targets)?);
             let side = |filters: &[String]| {
-                filters.get(i).map_or("false".to_string(), |f| format!("({f})(q, asker, t)"))
+                filters
+                    .get(i)
+                    .map_or("false".to_string(), |f| format!("({f})(q, asker, t)"))
             };
             let function = format!("{label}_target_{i}");
             writeln!(
@@ -216,13 +252,18 @@ impl Compiler {
             })
         };
         match rule {
-            CastingRule::If { condition: inner, rule } => {
+            CastingRule::If {
+                condition: inner,
+                rule,
+            } => {
                 if condition.is_some() {
                     return Err(gap("casting rule under two conditions"));
                 }
                 self.casting(rule, label, parts, Some(inner))?;
             }
-            CastingRule::Flash { additional_cost: None } => match condition {
+            CastingRule::Flash {
+                additional_cost: None,
+            } => match condition {
                 Some(condition) => {
                     let test = self.activation_condition(condition, &format!("{label}_if"))?;
                     one_field(parts, "flash_if", format!("Some({test})"))?;
@@ -238,13 +279,21 @@ impl Compiler {
             CastingRule::AlternativeCostWithFlash(cost) => {
                 let cost = self.cost(cost, label)?;
                 let text = quoted("Alternative cost with flash");
-                let def = way(self, format!("way({cost}, ZoneKind::Hand, {text}).instant_speed()"), label)?;
+                let def = way(
+                    self,
+                    format!("way({cost}, ZoneKind::Hand, {text}).instant_speed()"),
+                    label,
+                )?;
                 parts.table("ways", def);
             }
             CastingRule::Permission {
                 origin,
                 player: PlayerRef::OwnerOf(owner),
-                from: ZoneScope::Players { zone: EventZone::Graveyard, .. },
+                from:
+                    ZoneScope::Players {
+                        zone: EventZone::Graveyard,
+                        ..
+                    },
                 require,
                 cost,
                 leave_stack,
@@ -252,10 +301,19 @@ impl Compiler {
                 let exile = match leave_stack {
                     Some(Destination::Exile) => true,
                     None => false,
-                    Some(other) => return Err(gap(format!("cast from a graveyard and left to {}", form(other)))),
+                    Some(other) => {
+                        return Err(gap(format!(
+                            "cast from a graveyard and left to {}",
+                            form(other)
+                        )))
+                    }
                 };
                 let cost = self.cost(cost, label)?;
-                let text = quoted(if matches!(origin, CastingOrigin::Flashback) { "Flashback" } else { "Cast from your graveyard" });
+                let text = quoted(if matches!(origin, CastingOrigin::Flashback) {
+                    "Flashback"
+                } else {
+                    "Cast from your graveyard"
+                });
                 let mut def = format!("way({cost}, ZoneKind::Graveyard, {text}).only_from()");
                 if exile {
                     def.push_str(".exile_after()");
@@ -284,7 +342,10 @@ impl Compiler {
                         let cost = self.cost(choice, &format!("{label}_choice_{i}"))?;
                         parts.table(
                             "additional_choice",
-                            format!("ExtraCost {{ text: {}, cost: {cost} }}", quoted(&format!("Cost {}", i + 1))),
+                            format!(
+                                "ExtraCost {{ text: {}, cost: {cost} }}",
+                                quoted(&format!("Cost {}", i + 1))
+                            ),
                         );
                     }
                 } else {
@@ -293,14 +354,19 @@ impl Compiler {
                 }
             }
             CastingRule::ReduceCost(reductions) => {
-                let [ManaReduction { color: None, amount }] = reductions.as_slice() else {
+                let [ManaReduction {
+                    color: None,
+                    amount,
+                }] = reductions.as_slice()
+                else {
                     return Err(gap("spell cost reduction of colored mana"));
                 };
                 let saved = (self.reader, self.event_at);
                 (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
-                let reads = self.number(amount).and_then(|n| n.fit(0, 255, "u8")).and_then(|n| {
-                    Ok((n, condition.map(|c| self.condition(c)).transpose()?))
-                });
+                let reads = self
+                    .number(amount)
+                    .and_then(|n| n.fit(0, 255, "u8"))
+                    .and_then(|n| Ok((n, condition.map(|c| self.condition(c)).transpose()?)));
                 (self.reader, self.event_at) = saved;
                 let (amount, test) = reads?;
                 let test = test.unwrap_or_else(|| "true".into());

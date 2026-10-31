@@ -281,6 +281,24 @@ mod scenarios {
             &spitemare::CARD,
             &faith::CARD,
             &golem::CARD,
+            &decay::CARD,
+            &woodland::CARD,
+            &lignify::CARD,
+            &law::CARD,
+            &burrowing::CARD,
+            &depths::CARD,
+            &endless::CARD,
+            &detonate::CARD,
+            &journey::CARD,
+            &falconer::CARD,
+            &rage::CARD,
+            &skystreak::CARD,
+            &caress::CARD,
+            &arc::CARD,
+            &glimpse::CARD,
+            &mark::CARD,
+            &wish::CARD,
+            &cultivator::CARD,
             &good::CARD,
             &fling::CARD,
             &truths::CARD,
@@ -289,6 +307,24 @@ mod scenarios {
         ];
         for extras in [
             alarm::EXTRA,
+            decay::EXTRA,
+            woodland::EXTRA,
+            lignify::EXTRA,
+            law::EXTRA,
+            burrowing::EXTRA,
+            depths::EXTRA,
+            endless::EXTRA,
+            detonate::EXTRA,
+            journey::EXTRA,
+            falconer::EXTRA,
+            rage::EXTRA,
+            skystreak::EXTRA,
+            caress::EXTRA,
+            arc::EXTRA,
+            glimpse::EXTRA,
+            mark::EXTRA,
+            wish::EXTRA,
+            cultivator::EXTRA,
             menace::EXTRA,
             shadow::EXTRA,
             bake::EXTRA,
@@ -1676,5 +1712,279 @@ mod scenarios {
         );
         assert_eq!(g.state.zone(Zone::library(THEM)).len(), library - 3);
         assert!(g.state.stack.is_empty());
+    }
+    #[test]
+    fn a_spell_that_cant_be_countered_says_so_in_every_zone() {
+        let (mut g, decay, splitter) = game("Abrupt Decay", Some("Bonesplitter"));
+        assert!(g.chars(decay).keywords.has(Keyword::CantBeCountered));
+        announce(&mut g, decay, ActionKind::CastSpell);
+        resolve(&mut g, splitter, false);
+        assert!(permanents_named(&g, "Bonesplitter").is_empty());
+    }
+    #[test]
+    fn changeling_is_every_creature_type_in_hand_too() {
+        let (g, spell, _) = game("Woodland Changeling", None);
+        for t in [Subtype::Goblin, Subtype::Merfolk, Subtype::Wizard] {
+            assert!(g.chars(spell).subtypes.has(t));
+        }
+    }
+    #[test]
+    fn setting_a_creature_type_replaces_the_others() {
+        let (mut g, spell, bears) = game("Lignify", Some("Grizzly Bears"));
+        let bears = bears.unwrap();
+        announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(bears));
+        resolve(&mut g, Some(bears), false);
+        assert!(g.chars(bears).subtypes.has(Subtype::Treefolk));
+        assert!(!g.chars(bears).subtypes.has(Subtype::Bear));
+        assert_eq!(g.chars(bears).toughness, Some(4));
+    }
+    #[test]
+    fn a_static_grants_protection_and_landwalk() {
+        let (g, _, _, _) = game_with_extras(
+            "Divination",
+            Some("Absolute Law"),
+            0,
+            &[("Grizzly Bears", THEM)],
+        );
+        let bears = permanents_named(&g, "Grizzly Bears")[0];
+        assert!(g.chars(bears).protection.has(Color::Red));
+        let (mut g, spell, bears) = game("Burrowing", Some("Grizzly Bears"));
+        let bears = bears.unwrap();
+        announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(bears));
+        resolve(&mut g, Some(bears), false);
+        assert!(g.chars(bears).keywords.has(Keyword::Mountainwalk));
+    }
+    #[test]
+    fn an_ability_removes_a_counter() {
+        let (mut g, depths, _, _) = game_with_zones("Dark Depths", None, 0, &[], 100, &[], &[]);
+        announce(&mut g, depths, ActionKind::PlayLand);
+        g.run();
+        let depths = permanents_named(&g, "Dark Depths")[0];
+        assert_eq!(g.state.obj(depths).counters(CounterKind::Ice), 10);
+        announce(&mut g, depths, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.obj(depths).counters(CounterKind::Ice), 9);
+    }
+    #[test]
+    fn a_permanent_reads_the_x_it_was_cast_with() {
+        let (mut g, spell, _) = game("Endless One", None);
+        announce(&mut g, spell, ActionKind::CastSpell);
+        g.run();
+        let request = g.pending().cloned().unwrap();
+        g.answer(request.id, request.player, Answer::Announce(3))
+            .unwrap();
+        resolve_asking(&mut g, &mut |_, kind| {
+            panic!("unexpected question {kind:?}")
+        });
+        let one = permanents_named(&g, "Endless One")[0];
+        assert_eq!(g.state.obj(one).counters(CounterKind::PlusOne), 3);
+        assert_eq!(g.chars(one).power, Some(3));
+    }
+    #[test]
+    fn a_target_filter_reads_the_x_announced() {
+        let (mut g, spell, splitter) = game("Detonate", Some("Bonesplitter"));
+        let splitter = splitter.unwrap();
+        let life = g.state.player(ME).life;
+        announce_at(
+            &mut g,
+            spell,
+            ActionKind::CastSpell,
+            Target::Object(splitter),
+        );
+        g.run();
+        let request = g.pending().cloned().unwrap();
+        g.answer(request.id, request.player, Answer::Announce(1))
+            .unwrap();
+        resolve_asking(&mut g, &mut |_, kind| {
+            panic!("unexpected question {kind:?}")
+        });
+        assert!(permanents_named(&g, "Bonesplitter").is_empty());
+        assert_eq!(g.state.player(ME).life, life - 1);
+    }
+    #[test]
+    fn what_was_exiled_with_a_permanent_returns_when_it_leaves() {
+        let (mut g, journey, bears, _) = game_with_zones(
+            "Journey to Nowhere",
+            Some("Grizzly Bears"),
+            0,
+            &[],
+            100,
+            &[],
+            &["Abrupt Decay"],
+        );
+        let bears = bears.unwrap();
+        announce(&mut g, journey, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseTarget { .. } => Answer::Targets(vec![Target::Object(bears)]),
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert!(permanents_named(&g, "Grizzly Bears").is_empty());
+        let on_field = permanents_named(&g, "Journey to Nowhere")[0];
+        let decay = hand_card(&g, "Abrupt Decay");
+        announce_at(
+            &mut g,
+            decay,
+            ActionKind::CastSpell,
+            Target::Object(on_field),
+        );
+        resolve_asking(&mut g, &mut |_, kind| {
+            panic!("unexpected question {kind:?}")
+        });
+        assert_eq!(permanents_named(&g, "Grizzly Bears").len(), 1);
+    }
+    #[test]
+    fn a_token_enters_tapped_and_attacking() {
+        let (mut g, _, adept, _) = game_with_extras("Divination", Some("Falconer Adept"), 0, &[]);
+        let adept = adept.unwrap();
+        advance_answering(
+            &mut g,
+            &|g| g.state.attackers.len() == 2,
+            &mut |kind| match kind {
+                RequestKind::DeclareAttackers { .. } => {
+                    Some(Answer::Attack(vec![(adept, Target::Player(THEM))]))
+                }
+                _ => None,
+            },
+        );
+        let bird = g.state.attackers.iter().find(|a| a.id != adept).unwrap().id;
+        assert!(g.state.obj(bird).tapped);
+    }
+    #[test]
+    fn a_token_enters_attached() {
+        let (mut g, spell, bears) = game("Monstrous Rage", Some("Grizzly Bears"));
+        let bears = bears.unwrap();
+        announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(bears));
+        resolve(&mut g, Some(bears), false);
+        let attached = g
+            .state
+            .battlefield()
+            .iter()
+            .any(|&id| g.state.obj(id).attached_to == Some(bears));
+        assert!(attached);
+        assert_eq!(g.chars(bears).power, Some(5));
+    }
+    #[test]
+    fn exhaust_is_activated_only_once() {
+        let (mut g, _, engineer, _) = game_with_lands("Divination", Some("Skystreak Engineer"), 10);
+        let engineer = engineer.unwrap();
+        assert!(offers(&g, ActionKind::ActivateAbility, engineer));
+        announce(&mut g, engineer, ActionKind::ActivateAbility);
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.obj(engineer).counters(CounterKind::PlusOne), 2);
+        assert!(!offers(&g, ActionKind::ActivateAbility, engineer));
+    }
+    #[test]
+    fn a_player_gets_poison_counters() {
+        let (mut g, spell, _) = game("Caress of Phyrexia", None);
+        announce_at(&mut g, spell, ActionKind::CastSpell, Target::Player(THEM));
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.player(THEM).poison(), 3);
+    }
+    #[test]
+    fn damage_is_divided_as_the_spell_is_cast() {
+        let (mut g, spell, bears) = game("Arc Lightning", Some("Grizzly Bears"));
+        let bears = bears.unwrap();
+        let life = g.state.player(THEM).life;
+        let request = g.pending().cloned().unwrap();
+        let RequestKind::Priority { options } = &request.kind else {
+            panic!("{:?}", request.kind)
+        };
+        let option = options
+            .iter()
+            .find(|o| o.kind == ActionKind::CastSpell && o.source == Some(spell))
+            .unwrap();
+        g.answer(request.id, request.player, Answer::Act(Action::of(option)))
+            .unwrap();
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseDividedTargets { .. } => {
+                Answer::Divided(vec![(Target::Object(bears), 2), (Target::Player(THEM), 1)])
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        assert!(permanents_named(&g, "Grizzly Bears").is_empty());
+        assert_eq!(g.state.player(THEM).life, life - 1);
+    }
+    #[test]
+    fn a_trigger_watches_for_the_rest_of_the_turn() {
+        let (mut g, spell, _, _) = game_with_zones(
+            "Glimpse of Nature",
+            None,
+            0,
+            &[],
+            100,
+            &[],
+            &["Grizzly Bears", "Grizzly Bears"],
+        );
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        for drawn in [1, 2] {
+            let hand = g.state.zone(Zone::hand(ME)).len();
+            let bears = hand_card(&g, "Grizzly Bears");
+            announce(&mut g, bears, ActionKind::CastSpell);
+            resolve(&mut g, None, false);
+            assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand, "cast {drawn}");
+        }
+    }
+    #[test]
+    fn a_trigger_fixed_on_a_target_watches_only_it() {
+        let (mut g, spell, bears, _) = game_with_zones(
+            "Make Your Mark",
+            Some("Grizzly Bears"),
+            0,
+            &[],
+            100,
+            &[],
+            &["Doom Blade"],
+        );
+        let bears = bears.unwrap();
+        let before = g.state.battlefield().len();
+        announce_at(&mut g, spell, ActionKind::CastSpell, Target::Object(bears));
+        resolve(&mut g, Some(bears), false);
+        let blade = hand_card(&g, "Doom Blade");
+        announce_at(&mut g, blade, ActionKind::CastSpell, Target::Object(bears));
+        resolve(&mut g, Some(bears), false);
+        assert!(permanents_named(&g, "Grizzly Bears").is_empty());
+        assert_eq!(g.state.battlefield().len(), before);
+    }
+    #[test]
+    fn a_random_choice_takes_what_the_game_picks() {
+        let (mut g, spell, _, _) = game_with_graveyard(
+            "Make a Wish",
+            None,
+            0,
+            &[],
+            100,
+            &["Grizzly Bears", "Bonesplitter", "Doom Blade"],
+        );
+        let hand = g.state.zone(Zone::hand(ME)).len();
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve(&mut g, None, false);
+        assert_eq!(g.state.zone(Zone::hand(ME)).len(), hand - 1 + 2);
+        assert_eq!(g.state.zone(Zone::graveyard(ME)).len(), 2);
+    }
+    #[test]
+    fn an_optional_move_is_read_after_its_block() {
+        let (mut g, spell, _, _) = game_with_zones(
+            "Nantuko Cultivator",
+            None,
+            0,
+            &[],
+            100,
+            &[],
+            &["Forgotten Cave", "Azorius Guildgate", "Adarkar Wastes"],
+        );
+        announce(&mut g, spell, ActionKind::CastSpell);
+        let mut library = 0;
+        resolve_asking(&mut g, &mut |g, kind| match kind {
+            RequestKind::May { .. } => Answer::Yes,
+            RequestKind::ChooseCards { cards, .. } => {
+                library = g.state.zone(Zone::library(ME)).len();
+                Answer::Cards(cards[..2].to_vec())
+            }
+            other => panic!("unexpected question {other:?}"),
+        });
+        let cultivator = permanents_named(&g, "Nantuko Cultivator")[0];
+        assert_eq!(g.state.obj(cultivator).counters(CounterKind::PlusOne), 2);
+        assert_eq!(g.state.zone(Zone::library(ME)).len(), library - 2);
     }
 }

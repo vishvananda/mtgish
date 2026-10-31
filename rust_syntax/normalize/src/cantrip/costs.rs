@@ -10,7 +10,7 @@ pub(super) struct Scope<'s> {
     condition: Option<&'s Condition>,
 }
 
-fn constant_u8(n: &Expr) -> Option<u8> {
+pub(super) fn constant_u8(n: &Expr) -> Option<u8> {
     match n {
         Expr::Constant(n) => u8::try_from(*n).ok(),
         _ => None,
@@ -92,6 +92,23 @@ fn own_graveyard(objects: &ObjectSet) -> Option<ObjectSet> {
     })
 }
 
+/// "This spell can't be countered": the card's keyword, which the rules read.
+fn cant_be_countered(zones: &[EventZone], affected: &EffectSubjects, changes: &[Change]) -> bool {
+    let EffectSubjects::Objects(ObjectSet::Zone {
+        scope: ZoneScope::Shared(EventZone::Stack),
+        kind: ObjectKind::Spell,
+        filter: ObjectFilter::SameObject(ObjectRef::Source),
+    }) = affected
+    else {
+        return false;
+    };
+    matches!(zones, [EventZone::Stack])
+        && matches!(
+            changes,
+            [Change::Rule(RuleChange::Prohibit(ObjectAction::Counter))]
+        )
+}
+
 impl Compiler {
     /// A generated `ObjectFilter`: what a cost accepts of an object.
     fn cost_filter(&mut self, filter: &ObjectFilter, label: &str) -> Result<String> {
@@ -127,7 +144,8 @@ impl Compiler {
                 filter,
                 random: false,
             } => {
-                let n = constant_u8(count).ok_or_else(|| gap("discard cost without a fixed count"))?;
+                let n =
+                    constant_u8(count).ok_or_else(|| gap("discard cost without a fixed count"))?;
                 match filter {
                     ObjectFilter::Any => format!("discard_cards({n})"),
                     filter => format!("discard({n}, {})", self.cost_filter(filter, label)?),
@@ -145,7 +163,8 @@ impl Compiler {
                 else {
                     return Err(gap("tap cost shape"));
                 };
-                let n = exactly_u8(choose.as_ref()).ok_or_else(|| gap("tap cost without a fixed count"))?;
+                let n = exactly_u8(choose.as_ref())
+                    .ok_or_else(|| gap("tap cost without a fixed count"))?;
                 format!("tap_untapped({n}, {})", self.cost_filter(filter, label)?)
             }
             CostPart::RemoveCounters { removals } => {
@@ -171,7 +190,11 @@ impl Compiler {
                 let [CostObjectSelection { objects, choose }] = selections.as_slice() else {
                     return Err(gap("move cost shape"));
                 };
-                let n = exactly_u8(choose.as_ref()).ok_or_else(|| gap("move cost without a fixed count"))?;
+                if self.links_exile && matches!(destination, Destination::Exile) {
+                    return Err(gap("exile cost an ability reads as exiled with its source"));
+                }
+                let n = exactly_u8(choose.as_ref())
+                    .ok_or_else(|| gap("move cost without a fixed count"))?;
                 let yours = own_graveyard(objects);
                 let objects = yours.as_ref().unwrap_or(objects);
                 match (destination, objects) {
@@ -179,7 +202,10 @@ impl Compiler {
                         format!("return_to_hand({n}, {})", self.cost_filter(filter, label)?)
                     }
                     (Destination::Exile, ObjectSet::Battlefield(filter)) => {
-                        format!("exile_permanents({n}, {})", self.cost_filter(filter, label)?)
+                        format!(
+                            "exile_permanents({n}, {})",
+                            self.cost_filter(filter, label)?
+                        )
                     }
                     (
                         Destination::Exile,
@@ -238,9 +264,16 @@ impl Compiler {
             } = part
             {
                 // The source itself is no choice of how many.
-                if let ([CostObjectSelection { objects: ObjectSet::One(ObjectRef::Source), choose: None }], true) =
-                    (selections.as_slice(), entry.counters.is_empty() && entry.states.is_empty() && !entry.tapped)
-                {
+                if let (
+                    [CostObjectSelection {
+                        objects: ObjectSet::One(ObjectRef::Source),
+                        choose: None,
+                    }],
+                    true,
+                ) = (
+                    selections.as_slice(),
+                    entry.counters.is_empty() && entry.states.is_empty() && !entry.tapped,
+                ) {
                     match destination {
                         Destination::Exile => {
                             others.push("EXILE_THIS".to_string());
@@ -303,10 +336,7 @@ impl Compiler {
         label: &str,
         frame: Option<Frame>,
     ) -> Result<String> {
-        let selection = announcement
-            .modes
-            .as_ref()
-            .expect("a modal announcement");
+        let selection = announcement.modes.as_ref().expect("a modal announcement");
         if !announcement.targets.is_empty() {
             return Err(gap("targets announced for every mode"));
         }
@@ -387,9 +417,6 @@ impl Compiler {
         if !limits.modifiers.is_empty() {
             return Err(gap("activation modifier"));
         }
-        if limits.keyword.is_some() {
-            return Err(gap("activated keyword"));
-        }
         let text = ability_text(body);
         let suffix = match origin {
             ActivationOrigin::Ordinary => "",
@@ -429,6 +456,11 @@ impl Compiler {
             )
         };
         def.push_str(suffix);
+        match limits.keyword {
+            Some(ActivatedKeyword::Exhaust) => def.push_str(".exhaust()"),
+            Some(ActivatedKeyword::PowerUp) => def.push_str(".power_up()"),
+            None => {}
+        }
         if limits.sorcery {
             def.push_str(".sorcery_speed()");
         }
@@ -470,12 +502,13 @@ impl Compiler {
         scope: Option<Scope>,
     ) -> Result<()> {
         match ability {
-            Ability::Keyword(k) => match k {
-                Keyword::Prowess => parts
-                    .abilities
-                    .push("cantrip_mechanics::triggers::PROWESS".into()),
-                Keyword::Ward(cost) => {
-                    let ward = match cost.parts.as_slice() {
+            Ability::Keyword(k) => {
+                match k {
+                    Keyword::Prowess => parts
+                        .abilities
+                        .push("cantrip_mechanics::triggers::PROWESS".into()),
+                    Keyword::Ward(cost) => {
+                        let ward = match cost.parts.as_slice() {
                         [CostPart::Mana(symbols)] => match symbols.as_slice() {
                             [ManaSymbol::Generic(n)] if u8::try_from(*n).is_ok() => {
                                 format!("cantrip_mechanics::triggers::ward::<{n}>(\"Ward {{{n}}}\")")
@@ -492,35 +525,24 @@ impl Compiler {
                         }] => "cantrip_mechanics::triggers::ward_discard(\"Ward--Discard a card\")".into(),
                         other => return Err(gap(format!("ward cost {}", form(&other[0])))),
                     };
-                    parts.abilities.push(ward);
-                }
-                Keyword::Landwalk(land) => {
-                    use crate::mtg_types::SubType;
-                    let word = match land.as_ref() {
-                        ObjectFilter::Subtype(SubType::Plains) => "Plainswalk",
-                        ObjectFilter::Subtype(SubType::Island) => "Islandwalk",
-                        ObjectFilter::Subtype(SubType::Swamp) => "Swampwalk",
-                        ObjectFilter::Subtype(SubType::Mountain) => "Mountainwalk",
-                        ObjectFilter::Subtype(SubType::Forest) => "Forestwalk",
-                        other => return Err(gap(format!("landwalk of {}", form(other)))),
-                    };
-                    parts.keywords.push(format!("Keyword::{word}"));
-                }
-                Keyword::Protection(protection) => match protection.as_ref() {
-                    Protection::Objects {
-                        kind: ObjectKind::Any,
-                        filter: ObjectFilter::Color(c),
-                    } => {
-                        color(c)?;
-                        parts.protection |= 1 << color_index(c)?;
+                        parts.abilities.push(ward);
                     }
-                    Protection::Objects { filter, .. } => {
-                        return Err(gap(format!("protection from {}", form(filter))))
-                    }
-                    other => return Err(gap(format!("protection {}", form(other)))),
-                },
-                k => parts.keywords.push(keyword(k)?),
-            },
+                    Keyword::Protection(protection) => match protection.as_ref() {
+                        Protection::Objects {
+                            kind: ObjectKind::Any,
+                            filter: ObjectFilter::Color(c),
+                        } => {
+                            color(c)?;
+                            parts.protection |= 1 << color_index(c)?;
+                        }
+                        Protection::Objects { filter, .. } => {
+                            return Err(gap(format!("protection from {}", form(filter))))
+                        }
+                        other => return Err(gap(format!("protection {}", form(other)))),
+                    },
+                    k => parts.keywords.push(keyword(k)?),
+                }
+            }
             Ability::Casting(rule) => self.casting(rule, label, parts, None)?,
             Ability::CostBranch {
                 keyword,
@@ -541,6 +563,11 @@ impl Compiler {
                     Ability::Activated { .. } | Ability::Triggered { .. } => {
                         self.ability(ability, label, parts, Some(scope))?
                     }
+                    Ability::Static {
+                        affected, changes, ..
+                    } if condition.is_none() && cant_be_countered(zones, affected, changes) => {
+                        parts.keywords.push("Keyword::CantBeCountered".into());
+                    }
                     other => return Err(gap(format!("source-zone scope on {}", form(other)))),
                 }
             }
@@ -559,6 +586,9 @@ impl Compiler {
                     let targets = self.announcement(announcement, label)?;
                     let effect = self.effect(body, label)?;
                     parts.spell = format!("spell({targets}, {effect})");
+                    if let Some(divide) = self.dividing.take() {
+                        parts.fields.insert("divide", format!("Some({divide})"));
+                    }
                 }
             }
             Ability::Activated {

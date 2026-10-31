@@ -69,8 +69,14 @@ impl Compiler {
             *carried = Some(code);
             return Ok(Some("item.subject.object()".into()));
         }
-        let code = format!("{}.into_iter().collect::<Vec<ObjectId>>()", outer.compiler.object(object)?);
-        Ok(Some(format!("{}.first().copied()", self.carried_list(outer, code))))
+        let code = format!(
+            "{}.into_iter().collect::<Vec<ObjectId>>()",
+            outer.compiler.object(object)?
+        );
+        Ok(Some(format!(
+            "{}.first().copied()",
+            self.carried_list(outer, code)
+        )))
     }
     /// A `Vec<ObjectId>` this body cannot read for itself, if `objects` is.
     pub(super) fn outside_objects(&self, objects: &ObjectSet) -> Result<Option<String>> {
@@ -163,7 +169,9 @@ impl Compiler {
             PlayerSet::One(player) => format!("Some({})", self.fetch(self.certain_player(player)?)),
             other => return Err(gap(format!("delayed trigger on turns of {}", form(other)))),
         };
-        Ok(format!("DelayedWhen::Step {{ step: Step::{step}, on_turn_of: {turn} }}"))
+        Ok(format!(
+            "DelayedWhen::Step {{ step: Step::{step}, on_turn_of: {turn} }}"
+        ))
     }
     /// Compile a body that closes over the current instruction into `label`,
     /// with its targets. What it carried is on the `Outer` this returns.
@@ -175,6 +183,23 @@ impl Compiler {
         intervening_if: &Option<Condition>,
         body: &Program,
     ) -> Result<(Rc<Outer>, Option<String>)> {
+        self.closing(subject_only, |c| {
+            let targets = announcement
+                .map(|a| c.targets_for(a, label, Frame::default()))
+                .transpose();
+            match intervening_if {
+                Some(condition) => c.guarded_effect(condition, body, label),
+                None => c.effect(body, label),
+            }?;
+            targets
+        })
+    }
+    /// `compile`, closed over the current instruction's values.
+    fn closing<T>(
+        &mut self,
+        subject_only: bool,
+        compile: impl FnOnce(&mut Self) -> Result<T>,
+    ) -> Result<(Rc<Outer>, T)> {
         let outer = Rc::new(Outer {
             compiler: self.clone(),
             objects: RefCell::new(Vec::new()),
@@ -191,14 +216,8 @@ impl Compiler {
             std::mem::take(&mut self.bound_players),
         );
         (self.event_at, self.frame, self.grouped) = (EventAt::Nowhere, Frame::default(), false);
-        let targets = announcement
-            .map(|a| self.targets_for(a, label, Frame::default()))
-            .transpose();
         self.outer = Some(outer.clone());
-        let compiled = match intervening_if {
-            Some(condition) => self.guarded_effect(condition, body, label),
-            None => self.effect(body, label),
-        };
+        let compiled = compile(self);
         self.outer = None;
         (
             self.event_at,
@@ -209,8 +228,57 @@ impl Compiler {
             self.bound_players,
         ) = scope;
         self.restore_results(results);
-        compiled?;
-        Ok((outer, targets?))
+        Ok((outer, compiled?))
+    }
+    /// `Operation::CreateTrigger`: a delayed ability that watches for an event
+    /// for a while (603.7b). The engine asks its matcher of `source`, so one
+    /// fixed on a single object has that object for its source.
+    pub(super) fn create_trigger(
+        &mut self,
+        event: &EventSpec,
+        duration: &crate::ir::Duration,
+        announcement: &Announcement,
+        body: &Program,
+        once: bool,
+        out: &mut String,
+    ) -> Result<()> {
+        use crate::ir::Duration as D;
+        if !self.stack_item || self.pending != Pending::Nothing || self.outer.is_some() {
+            return Err(gap("event trigger outside a resolving ability"));
+        }
+        let when = match (duration, once) {
+            (D::EndOfTurn, false) => "DelayedWhen::ThisTurn".to_string(),
+            (D::EndOfTurn, true) => "DelayedWhen::NextThisTurn".to_string(),
+            (D::UntilNextTurn(player), false) => format!(
+                "DelayedWhen::UntilNextTurnOf({})",
+                self.fetch(self.certain_player(player)?)
+            ),
+            (other, _) => return Err(gap(format!("event trigger for {}", form(other)))),
+        };
+        let mut event = event.clone();
+        let mut source = "Some(item.object)".to_string();
+        if let EventSpec::ZoneChange { objects, .. } | EventSpec::Object { objects, .. } =
+            &mut event
+        {
+            if let ObjectFilter::SameObject(object) = objects {
+                if !matches!(object, ObjectRef::Source) {
+                    source = self.fetch(self.object(object)?);
+                    *objects = ObjectFilter::SameObject(ObjectRef::Source);
+                }
+            }
+        }
+        let label = format!("watch_{}", self.fresh());
+        let limits = TriggerLimits::default();
+        let (outer, def) = self.closing(false, |c| {
+            c.triggered(&label, &event, None, &limits, announcement, body)
+        })?;
+        if !outer.objects.borrow().is_empty() || outer.player.borrow().is_some() {
+            return Err(gap("event trigger carrying values"));
+        }
+        self.delayed.push(def);
+        let index = self.delayed.len() - 1;
+        writeln!(out, "if let Some(source) = {source} {{ g.delayed_trigger({when}, source, item.controller, AbilityRef::delayed(item.ability.card, {index}), Target::None); }}").unwrap();
+        Ok(())
     }
     /// `Operation::ReflexiveTrigger`.
     pub(super) fn create_reflexive(
@@ -225,7 +293,10 @@ impl Compiler {
             return Err(gap("reflexive trigger outside a resolving ability"));
         }
         let happened = if let Some(local) = self.performed.get(&performed.0) {
-            local.clone()
+            match local.starts_with("removed_") {
+                true => format!("{local} > 0"),
+                false => local.clone(),
+            }
         } else if self.moved.contains_key(&performed.0) {
             format!("!{}.is_empty()", self.moved(performed)?)
         } else if self.selections.contains_key(&performed.0) {
@@ -233,7 +304,9 @@ impl Compiler {
         } else if self.creations.contains_key(&performed.0) {
             format!("!{}.is_empty()", self.created(performed)?)
         } else {
-            return Err(gap("reflexive trigger on what an instruction does not report"));
+            return Err(gap(
+                "reflexive trigger on what an instruction does not report",
+            ));
         };
         let condition = condition
             .as_ref()
@@ -252,8 +325,14 @@ impl Compiler {
         let player = outer.player.borrow();
         let subject = match (subject.as_ref(), player.as_ref()) {
             (None, None) => "Target::None".to_string(),
-            (Some(object), None) => format!("{}.map_or(Target::None, Target::Object)", self.fetch(object)),
-            (None, Some(player)) => format!("{}.map_or(Target::None, Target::Player)", self.fetch(player)),
+            (Some(object), None) => format!(
+                "{}.map_or(Target::None, Target::Object)",
+                self.fetch(object)
+            ),
+            (None, Some(player)) => format!(
+                "{}.map_or(Target::None, Target::Player)",
+                self.fetch(player)
+            ),
             _ => return Err(gap("reflexive ability about an object and a player")),
         };
         writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger(item.object, item.controller, AbilityRef::delayed(item.ability.card, {index}), {subject}); }}").unwrap();

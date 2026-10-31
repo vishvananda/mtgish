@@ -208,6 +208,24 @@ fn generated_modules_execute_in_cantrip() {
         ("faith", "Renewed Faith"),
         ("golem", "Flint Golem"),
         ("good", "Greater Good"),
+        ("decay", "Abrupt Decay"),
+        ("woodland", "Woodland Changeling"),
+        ("lignify", "Lignify"),
+        ("law", "Absolute Law"),
+        ("burrowing", "Burrowing"),
+        ("depths", "Dark Depths"),
+        ("endless", "Endless One"),
+        ("detonate", "Detonate"),
+        ("journey", "Journey to Nowhere"),
+        ("falconer", "Falconer Adept"),
+        ("rage", "Monstrous Rage"),
+        ("skystreak", "Skystreak Engineer"),
+        ("caress", "Caress of Phyrexia"),
+        ("arc", "Arc Lightning"),
+        ("glimpse", "Glimpse of Nature"),
+        ("mark", "Make Your Mark"),
+        ("wish", "Make a Wish"),
+        ("cultivator", "Nantuko Cultivator"),
         ("fling", "Fling"),
         ("truths", "Painful Truths"),
         ("strength_two", "Consume Strength"),
@@ -450,7 +468,10 @@ fn every_advertised_module_compiles_against_cantrip() {
             record.line,
             cantrip::module(&card).unwrap()
         ));
-        loaded.push_str(&format!("(&card_{0}::CARD, card_{0}::EXTRA),\n", record.line));
+        loaded.push_str(&format!(
+            "(&card_{0}::CARD, card_{0}::EXTRA),\n",
+            record.line
+        ));
         generated += 1;
     }
     assert_eq!(generated + skipped, report.backend_capable);

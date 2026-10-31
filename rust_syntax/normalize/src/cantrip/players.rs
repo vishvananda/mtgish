@@ -21,9 +21,7 @@ impl Compiler {
         Ok(match players {
             PlayerSet::One(PlayerRef::AbilityController) => "player == asker.controller".into(),
             PlayerSet::All => "true".into(),
-            PlayerSet::OpponentsOf(player)
-                if matches!(player, PlayerRef::AbilityController) =>
-            {
+            PlayerSet::OpponentsOf(player) if matches!(player, PlayerRef::AbilityController) => {
                 "player != asker.controller".into()
             }
             other if self.reader == Reader::Layer => {
@@ -39,7 +37,13 @@ impl Compiler {
         })
     }
     /// Generate a named callback and list it under one of `CardDef`'s tables.
-    fn table_entry(&mut self, parts: &mut Parts, table: &'static str, function: &str, code: String) {
+    fn table_entry(
+        &mut self,
+        parts: &mut Parts,
+        table: &'static str,
+        function: &str,
+        code: String,
+    ) {
         writeln!(self.functions, "#[allow(unused_variables)] {code}").unwrap();
         parts.table(table, function.to_string());
     }
@@ -77,7 +81,10 @@ impl Compiler {
         let function = format!("{label}_while");
         let test = self.condition(&condition)?;
         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ {test} }}").unwrap();
-        parts.table("play_rules", format!("PlayRule::While({function}, &[{rule}])"));
+        parts.table(
+            "play_rules",
+            format!("PlayRule::While({function}, &[{rule}])"),
+        );
         Ok(())
     }
     fn player_rule(
@@ -176,13 +183,17 @@ impl Compiler {
                 };
                 let (reader, event_at) = (self.reader, self.event_at);
                 self.reader = Reader::Layer;
-                let tests = self.guard().and_then(|g| Ok((g, self.player_member(players)?)));
+                let tests = self
+                    .guard()
+                    .and_then(|g| Ok((g, self.player_member(players)?)));
                 (self.reader, self.event_at) = (reader, event_at);
                 let (guard, member) = tests?;
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn LayerQuery, source: ObjectId, player: PlayerId) -> bool {{ {PRELUDE} {guard}{member} }}").unwrap();
                 parts.table(
                     "player_keywords",
-                    format!("PlayerKeywordRule {{ keyword: Keyword::{keyword}, applies: {function} }}"),
+                    format!(
+                        "PlayerKeywordRule {{ keyword: Keyword::{keyword}, applies: {function} }}"
+                    ),
                 );
             }
             PlayerRule::LifeTotalLocked => {
@@ -217,17 +228,22 @@ impl Compiler {
                     (EventZone::Library, CardPlayAction::CastSpell) if top(cards) => {
                         let test = self.filter(filter, &Candidate::of("spell"))?;
                         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, spell: ObjectId) -> bool {{ {test} }}").unwrap();
-                        self.play_rule(label, format!("PlayRule::LibraryTopSpells({function})"), parts)?;
+                        self.play_rule(
+                            label,
+                            format!("PlayRule::LibraryTopSpells({function})"),
+                            parts,
+                        )?;
                     }
                     _ => return Err(gap(format!("play permission {}", form(rule)))),
                 }
             }
             PlayerRule::Visibility {
-                objects: ObjectSet::Take {
-                    objects,
-                    count: Expr::Constant(1),
-                    from: SequenceEnd::Top,
-                },
+                objects:
+                    ObjectSet::Take {
+                        objects,
+                        count: Expr::Constant(1),
+                        from: SequenceEnd::Top,
+                    },
                 audience: VisibilityAudience::AffectedPlayer,
             } if yours && affected_zone(objects, EventZone::Library, false) => {
                 self.play_rule(label, "PlayRule::LookAtLibraryTop".into(), parts)?;
@@ -264,7 +280,9 @@ impl Compiler {
                         D::EndOfTurn => "EndOfTurn",
                         D::UntilEndOfNextTurn(PlayerRef::AbilityController) => "EndOfYourNextTurn",
                         D::Indefinite | D::WhileExiled(_) => "Never",
-                        other => return Err(gap(format!("play permission lasting {}", form(other)))),
+                        other => {
+                            return Err(gap(format!("play permission lasting {}", form(other))))
+                        }
                     };
                     let lands = match action {
                         CardPlayAction::Either => true,
@@ -301,7 +319,10 @@ impl Compiler {
                     Some(types) => {
                         let types: Vec<String> =
                             types.iter().map(|t| format!("CardType::{t}")).collect();
-                        format!("EffectKind::CastAsThoughFlash(TypeSet::of(&[{}]))", types.join(","))
+                        format!(
+                            "EffectKind::CastAsThoughFlash(TypeSet::of(&[{}]))",
+                            types.join(",")
+                        )
                     }
                     None => return Err(gap("flash for spells other than by type")),
                 },
@@ -336,7 +357,11 @@ impl Compiler {
                 reductions,
                 spill_into_generic: _,
             } => {
-                let [ManaReduction { color: None, amount }] = reductions.as_slice() else {
+                let [ManaReduction {
+                    color: None,
+                    amount,
+                }] = reductions.as_slice()
+                else {
                     return Err(gap("spell cost reduction of colored mana"));
                 };
                 let amount = self.number(amount)?.fit(0, 255, "u8")?;
@@ -410,10 +435,19 @@ fn listed_types(spells: &ObjectFilter) -> Option<Vec<String>> {
 /// The cards of the player the rule is about in `zone`: all of them, or their
 /// land cards.
 fn affected_zone(objects: &ObjectSet, zone: EventZone, lands: bool) -> bool {
-    let ObjectSet::Zone { scope, kind: ObjectKind::Card, filter } = objects else {
+    let ObjectSet::Zone {
+        scope,
+        kind: ObjectKind::Card,
+        filter,
+    } = objects
+    else {
         return false;
     };
-    let ZoneScope::Players { zone: found, players } = scope else {
+    let ZoneScope::Players {
+        zone: found,
+        players,
+    } = scope
+    else {
         return false;
     };
     found == &zone

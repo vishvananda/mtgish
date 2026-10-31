@@ -25,6 +25,18 @@ impl LayerChange {
     }
 }
 
+/// The order of the `Layer` a `LayerChange` names.
+fn layer_rank(layer: &str) -> u8 {
+    [
+        "Control", "Text", "Type", "Color", "Ability", "PtDefine", "PtSet", "PtModify",
+    ]
+    .iter()
+    .position(|l| *l == layer)
+    .expect("a layer") as u8
+}
+
+const HAS_CREATURE_TYPES: &str = "(chars.is(CardType::Creature) || chars.is(CardType::Kindred))";
+
 impl Compiler {
     fn layered<T>(&mut self, part: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
         let saved = (self.reader, self.event_at);
@@ -42,7 +54,12 @@ impl Compiler {
         }
         let label = format!("granted_{}", self.fresh());
         // The enclosing callback's reader belongs to it, not to this ability.
-        let saved = (self.reader, self.event_at, self.frame, self.static_guard.take());
+        let saved = (
+            self.reader,
+            self.event_at,
+            self.frame,
+            self.static_guard.take(),
+        );
         let outer = self.outer.take();
         (self.reader, self.event_at, self.frame) =
             (Reader::Resolution, EventAt::Nowhere, Frame::default());
@@ -112,7 +129,8 @@ impl Compiler {
                 c.filter(filter, &Candidate::of(other))?
             ))
         };
-        const BLOCK: &str = "(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool";
+        const BLOCK: &str =
+            "(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool";
         let function = format!("{label}_rule");
         match rule {
             RuleChange::Prohibit(ObjectAction::Block(filter))
@@ -127,7 +145,11 @@ impl Compiler {
                 amount: RequirementAmount::Each,
             } => {
                 let test = block(self, false, filter)?;
-                writeln!(self.functions, "#[allow(unused_variables)] fn {function}{BLOCK} {{ {PRELUDE} {guard}{test} }}").unwrap();
+                writeln!(
+                    self.functions,
+                    "#[allow(unused_variables)] fn {function}{BLOCK} {{ {PRELUDE} {guard}{test} }}"
+                )
+                .unwrap();
                 parts.block_requirements.push(function);
             }
             RuleChange::Prohibit(ObjectAction::Attack(AttackDefenders::Any)) => {
@@ -179,6 +201,12 @@ impl Compiler {
                 "PtSet",
                 format!("chars.toughness = Some({});", i16_of(self, n)?),
             ),
+            Change::GrantKeyword(Keyword::Protection(quality)) => {
+                let mut grants = Vec::new();
+                granted_protection(quality, &mut grants)?;
+                let body = grants.into_iter().map(|(_, statement)| statement).collect();
+                LayerChange::of("Ability", body)
+            }
             Change::GrantKeyword(k) => LayerChange::of(
                 "Ability",
                 format!("chars.keywords = chars.keywords.with({});", keyword(k)?),
@@ -225,6 +253,35 @@ impl Compiler {
                 }
                 LayerChange::of("Type", body)
             }
+            // Only a creature or a Kindred has creature types (205.3d).
+            Change::CreatureTypes {
+                mode: ChangeMode::Set,
+                types: CreatureTypeSet::All,
+            } => LayerChange::of(
+                "Type",
+                format!("if {HAS_CREATURE_TYPES} {{ chars.subtypes = chars.subtypes.union(SubtypeSet::CREATURE_TYPES); }}"),
+            ),
+            Change::CreatureTypes {
+                mode: ChangeMode::Set,
+                types: CreatureTypeSet::Listed(types),
+            } => {
+                let mut body = String::new();
+                for t in types {
+                    let word = name(t);
+                    if !crate::cantrip_vocab::SUBTYPES.contains(&word.as_str()) {
+                        return Err(gap(format!("subtype {word}")));
+                    }
+                    write!(
+                        body,
+                        "chars.subtypes = chars.subtypes.with(q.words(asker.source).subtype(Subtype::{word}));"
+                    )
+                    .unwrap();
+                }
+                LayerChange::of(
+                    "Type",
+                    format!("chars.subtypes = chars.subtypes.minus(SubtypeSet::CREATURE_TYPES); if {HAS_CREATURE_TYPES} {{ {body} }}"),
+                )
+            }
             Change::RemoveAllAbilities => LayerChange {
                 layer: "Ability",
                 body: String::new(),
@@ -270,6 +327,16 @@ impl Compiler {
                 return self.player_static(label, players, changes, parts)
             }
         };
+        // The keyword's own layer rule, not a copy of it: a copy doesn't take
+        // the types (707.9d), and neither does what grants the keyword later.
+        if let StaticKind::CharacteristicDefining {
+            keyword: Some(printed @ Keyword::Changeling),
+            ..
+        } = kind
+        {
+            parts.keywords.push(keyword(printed)?);
+            return Ok(());
+        }
         let defining = matches!(kind, StaticKind::CharacteristicDefining { .. });
         if defining && !matches!(affected, ObjectSet::One(ObjectRef::Source)) {
             return Err(gap("characteristic-defining ability of another object"));
@@ -285,10 +352,18 @@ impl Compiler {
                     None => Some("cantrip_mechanics::statics::itself".to_string()),
                     Some(_) => None,
                 }
-                .map_or_else(|| Ok::<_, Diagnostic>(("source == affected".to_string(), false)), |f| Ok((f, true)))?,
-                ObjectSet::One(ObjectRef::AttachedTo(host)) if matches!(**host, ObjectRef::Source) => {
+                .map_or_else(
+                    || Ok::<_, Diagnostic>(("source == affected".to_string(), false)),
+                    |f| Ok((f, true)),
+                )?,
+                ObjectSet::One(ObjectRef::AttachedTo(host))
+                    if matches!(**host, ObjectRef::Source) =>
+                {
                     match &condition {
-                        None => ("cantrip_mechanics::attach::attached_object".to_string(), true),
+                        None => (
+                            "cantrip_mechanics::attach::attached_object".to_string(),
+                            true,
+                        ),
                         Some(_) => (
                             "q.state().obj(source).attached_to == Some(affected)".to_string(),
                             false,
@@ -313,14 +388,22 @@ impl Compiler {
             writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn LayerQuery, source: ObjectId, affected: ObjectId, so_far: &Chars) -> bool {{ {LAYER_PRELUDE} {test} }}").unwrap();
             function
         };
-        let mut defs = Vec::new();
+        let mut layered = Vec::new();
         for (i, change) in changes.iter().enumerate() {
             if let Change::Rule(rule) = change {
                 if self.static_rule(&format!("{label}_{i}"), affected, rule, parts)? {
                     continue;
                 }
             }
-            let part = self.layered(|c| c.layer_change(change))?;
+            layered.push((i, change, self.layered(|c| c.layer_change(change))?));
+        }
+        // Printed order isn't layer order. A later part of one effect follows
+        // the part before it in a strictly later layer (613.6); parts in one
+        // layer read the same subjects anyway.
+        layered.sort_by_key(|(_, _, part)| layer_rank(part.layer));
+        let mut defs = Vec::new();
+        let mut last = None;
+        for (i, change, part) in layered {
             let text = quoted(&format!("Static: {}.", form(change)));
             let def = match part.whole {
                 Some(builder) => format!("{builder}({affects}, {text})"),
@@ -343,10 +426,13 @@ impl Compiler {
                 }
             };
             let _ = part.each;
-            defs.push(if defs.is_empty() {
-                def
-            } else {
+            let rank = layer_rank(part.layer);
+            let follows = !defining && last.is_some_and(|before| before < rank);
+            last = Some(rank);
+            defs.push(if follows {
                 format!("{def}.continues()")
+            } else {
+                def
             });
         }
         parts.statics.extend(defs);
