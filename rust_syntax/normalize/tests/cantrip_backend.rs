@@ -333,6 +333,7 @@ fn generated_modules_execute_in_cantrip() {
         ("harness_card", "Harness the Storm"),
         ("horde", "Horde of Notions"),
         ("rise", "Rise of the Hobgoblins"),
+        ("swordsmith", "Taj-Nar Swordsmith"),
         ("shrine_card", "Cephalid Shrine"),
     ];
     let mut lib = String::new();

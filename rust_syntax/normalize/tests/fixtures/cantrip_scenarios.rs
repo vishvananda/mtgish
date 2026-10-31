@@ -49,6 +49,13 @@ mod scenarios {
         subtypes: SubtypeSet::of(&[Subtype::Elemental]),
         ..CardDef::BLANK
     };
+    static ZERO_EQUIPMENT: CardDef = CardDef {
+        name: "Equipment fixture",
+        oracle: true,
+        types: TypeSet::of(&[CardType::Artifact]),
+        subtypes: SubtypeSet::of(&[Subtype::Equipment]),
+        ..CardDef::BLANK
+    };
     static FLASH_CREATURE: CardDef = CardDef {
         name: "Flash creature fixture",
         keywords: Keywords::of(&[Keyword::Flash]),
@@ -521,6 +528,8 @@ mod scenarios {
             &ELEMENTAL_LAND,
             &rise::CARD,
             &shrine_card::CARD,
+            &swordsmith::CARD,
+            &ZERO_EQUIPMENT,
         ];
         for extras in [
             ajani::EXTRA,
@@ -4456,6 +4465,39 @@ mod scenarios {
         let (g, mana) = hobgoblins(None);
         assert_eq!(mana - mana_left(&g), 2);
         assert_eq!(tokens(&g), 0);
+    }
+    /// Pays `x` for Taj-Nar Swordsmith, or declines with `None`, and takes the
+    /// Equipment with mana value 0 from any search that comes of it.
+    fn swordsmith_paying(x: Option<u16>) -> RulesGame {
+        let (mut g, spell) =
+            game_with_libraries("Taj-Nar Swordsmith", &[], &[ZERO_EQUIPMENT.name], &[]);
+        let equipment = searching_for(&g, ZERO_EQUIPMENT.name);
+        announce(&mut g, spell, ActionKind::CastSpell);
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::UnlessPays { options, x: now, .. } => {
+                let wanted = match (x, *now) {
+                    (None, _) => ActionKind::DeclineCost,
+                    (Some(x), Some(now)) if now < x => ActionKind::IncreaseX,
+                    _ => ActionKind::PayCost,
+                };
+                Answer::Act(Action::of(options.iter().find(|o| o.kind == wanted).unwrap()))
+            }
+            RequestKind::SearchLibrary { .. } => Answer::Cards(vec![equipment]),
+            other => panic!("unexpected question {other:?}"),
+        });
+        g
+    }
+    // Rise of the Hobgoblins can't tell these two apart: nothing is made either
+    // way. Here "if you do" does something at X of 0, so only the choice can.
+    #[test]
+    fn paying_x_of_nothing_is_still_paying() {
+        let g = swordsmith_paying(Some(0));
+        assert_eq!(permanents_named(&g, ZERO_EQUIPMENT.name).len(), 1);
+    }
+    #[test]
+    fn declining_to_pay_x_is_not_paying_nothing() {
+        let g = swordsmith_paying(None);
+        assert_eq!(permanents_named(&g, ZERO_EQUIPMENT.name).len(), 0);
     }
     /// Divination cast beside Cephalid Shrine, with `graveyard` already there.
     fn shrine(pay: bool, graveyard: &[&str]) -> (RulesGame, u32, usize, Option<u32>) {
