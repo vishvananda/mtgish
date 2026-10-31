@@ -10,6 +10,7 @@ use std::{
     rc::Rc,
 };
 
+mod casting;
 mod costs;
 mod delayed;
 mod effects;
@@ -72,6 +73,7 @@ fn generator_fingerprint() -> &'static str {
     HASH.get_or_init(|| {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
+            ("cantrip/casting.rs", include_bytes!("cantrip/casting.rs").as_slice()),
             ("cantrip/costs.rs", include_bytes!("cantrip/costs.rs").as_slice()),
             ("cantrip/delayed.rs", include_bytes!("cantrip/delayed.rs").as_slice()),
             ("cantrip/effects.rs", include_bytes!("cantrip/effects.rs").as_slice()),
@@ -245,6 +247,8 @@ struct Compiler {
     /// Abilities that are no part of the card until a grant or an event names
     /// them: `CardDef::delayed`.
     delayed: Vec<String>,
+    /// The filter of each slot the last announcement compiled.
+    announced_filters: Vec<String>,
     /// Compiling a delayed ability's body: what it carries from its maker.
     outer: Option<Rc<delayed::Outer>>,
     /// `CardDef::granted_preventions` and `granted_replacements`.
@@ -423,6 +427,7 @@ impl Compiler {
             helpers: BTreeSet::new(),
             extras: Vec::new(),
             delayed: Vec::new(),
+            announced_filters: Vec::new(),
             outer: None,
             made_preventions: Vec::new(),
             made_replacements: Vec::new(),
@@ -555,6 +560,7 @@ impl Compiler {
     }
     fn announced_targets(&mut self, a: &Announcement, label: &str) -> Result<String> {
         let mut targets = Vec::new();
+        self.announced_filters.clear();
         for (i, spec) in a.targets.iter().enumerate() {
             let at = format!("targets[{i}]");
             if let Some(constraint) = spec.constraints.first() {
@@ -573,6 +579,8 @@ impl Compiler {
                 && matches!(spec.filter, ObjectFilter::Any)
             {
                 targets.push(format!("cantrip_mechanics::targets::ANY{count}"));
+                self.announced_filters
+                    .push("cantrip_mechanics::targets::ANY.filter".into());
                 continue;
             }
             let test = self.target_test(spec).map_err(|e| e.at(&at))?;
@@ -583,6 +591,7 @@ impl Compiler {
             )
             .unwrap();
             targets.push(format!("target({function}){count}"));
+            self.announced_filters.push(function);
         }
         if targets.is_empty() {
             return Ok("&[]".into());

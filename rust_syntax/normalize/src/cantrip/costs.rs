@@ -429,7 +429,13 @@ impl Compiler {
                 },
                 k => parts.keywords.push(keyword(k)?),
             },
-            Ability::Casting(rule) => return Err(gap(format!("casting rule {}", form(rule)))),
+            Ability::Casting(rule) => self.casting(rule, label, parts, None)?,
+            Ability::CostBranch {
+                keyword,
+                cost,
+                paid,
+                unpaid,
+            } => self.cost_branch(keyword, cost, paid, unpaid, label, parts)?,
             Ability::Scoped {
                 zones,
                 condition,
