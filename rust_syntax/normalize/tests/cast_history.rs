@@ -436,7 +436,6 @@ fn cast_history_families_roundtrip_and_keep_unimplemented_nested_semantics() {
         "Portcullis",
         "Recommission",
         "Sentinel's Mark",
-        "Wastescape Battlemage",
     ];
     let mut complete = 0;
     for s in sources() {
@@ -461,7 +460,7 @@ fn cast_history_families_roundtrip_and_keep_unimplemented_nested_semantics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 60);
+    assert_eq!(complete, 61);
     let rapid = card("Rapid Augmenter");
     assert!(rapid.abilities.iter().any(|a|matches!(a,Ability::Triggered {event:EventSpec::ZoneChange {objects:ObjectFilter::All(outer),..},..} if outer.iter().any(|f|matches!(f,ObjectFilter::All(inner) if inner.iter().any(|f|matches!(f,ObjectFilter::Property {property:Property::BasePower,comparison:Comparison::Equal,value:Expr::Constant(1)})))))));
 }

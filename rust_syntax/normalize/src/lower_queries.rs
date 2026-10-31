@@ -161,6 +161,7 @@ impl Context {
         context
             .spell_filter_inner(value)
             .or_else(|error| rescue(error, || context.primitive_predicate("Spells", value)))
+            .or_else(|error| context.as_permanent_filter(value, error))
     }
     fn spell_filter_inner(&self, value: &source::Spells) -> Result<ObjectFilter> {
         if let Some(result)=self.pipeline_selector(crate::pipeline::selectors::SelectorRef::Spells(value)) {return result;}

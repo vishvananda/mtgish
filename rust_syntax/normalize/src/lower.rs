@@ -3059,7 +3059,29 @@ impl Context {
         {
             return self.bind_cost_recipe(&recipe);
         }
-        self.primitive_cost(value).ok_or_else(|| unsupported(value))
+        match self.primitive_cost(value) {
+            Some(cost) => Ok(cost),
+            None => self.cost_as_action(value),
+        }
+    }
+
+    /// A cost with the same form as an action is that action, done by the payer.
+    fn cost_as_action(&self, value: &source::Cost) -> Result<Cost> {
+        let action: source::Action =
+            as_family(value, "Action").ok_or_else(|| unsupported(value))?;
+        let player = self.payer.clone().unwrap_or(PlayerRef::AbilityController);
+        let mut child = self.clone();
+        // Nothing outside a cost reads what happens inside it.
+        child.result = self.result.saturating_add(1 << 20);
+        let instruction = child.action(&action, &PlayerSet::One(player.clone()))?;
+        Ok(Cost {
+            parts: vec![CostPart::PlayerAction {
+                player,
+                body: Program {
+                    instructions: vec![instruction],
+                },
+            }],
+        })
     }
 
     fn limits(

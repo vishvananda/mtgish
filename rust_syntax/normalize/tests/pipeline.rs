@@ -1456,7 +1456,7 @@ fn cost_selection_remains_strict_while_effect_selection_does_as_much_as_possible
 #[test]
 fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
     use pipeline::operands::CostRecipe as R;
-    let source=custom("Activated(And([PayLifeForEach(Integer(2),Integer(3)),DestroyPermanent(ThisPermanent)]),ActionList([DrawACard]))");
+    let source=custom("Activated(And([PayLifeForEach(Integer(2),Integer(3)),BeholdAndExile(IsCardtype(Creature))]),ActionList([DrawACard]))");
     let stage = pipeline::Intermediate::new(&source).unwrap();
     let root = stage
         .structural
@@ -1465,13 +1465,13 @@ fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
         .find(|r| r.rule == "operand.Cost.And")
         .unwrap();
     assert!(
-        matches!(&root.recipe,pipeline::operands::OperandRecipe::Cost(R::All(items)) if matches!(items.as_slice(),[R::Amount {..},R::Source(source::Cost::DestroyPermanent(..))]))
+        matches!(&root.recipe,pipeline::operands::OperandRecipe::Cost(R::All(items)) if matches!(items.as_slice(),[R::Amount {..},R::Source(source::Cost::BeholdAndExile(..))]))
     );
     assert!(stage.final_card.is_none());
     assert!(stage
         .diagnostics
         .iter()
-        .any(|d| d.form == "DestroyPermanent"));
+        .any(|d| d.form == "BeholdAndExile"));
     for cost in ["TapPermanent(Ref_TargetPermanent)"] {
         let source = custom(&format!("Activated({cost},ActionList([DrawACard]))"));
         let stage = pipeline::Intermediate::new(&source).unwrap();
@@ -2441,4 +2441,10 @@ fn a_fixed_number_of_players_or_any_targets_share_a_slot() {
 fn a_card_can_come_from_a_hand_or_a_graveyard() {
     let text = ability_json("SpellActions(ActionList([PutACardFromHandOrGraveyardOnBattlefield(IsCardtype(Land),You,[EntersNormally])]))");
     assert!(text.contains("Union"), "{text}");
+}
+
+#[test]
+fn a_cost_shaped_like_an_action_is_that_action_by_the_payer() {
+    let text = ability_json("Activated(DestroyPermanent(ThisPermanent),ActionList([DrawACard]))");
+    assert!(text.contains("PlayerAction"), "{text}");
 }

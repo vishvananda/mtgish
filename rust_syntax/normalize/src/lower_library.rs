@@ -1,7 +1,7 @@
 impl Context {
     fn library_filter(&self, value: &source::CardsInLibrary) -> Result<ObjectFilter> {
         use source::CardsInLibrary as S;
-        let card = match value {
+        match value {
             S::AnyCardInLibrary => return Ok(ObjectFilter::Any),
             S::SharesANameWithPermanent(p) => {
                 return Ok(ObjectFilter::SharesNameWith(self.object(p)?))
@@ -44,31 +44,8 @@ impl Context {
                     source::Permanents::IsLandType(source::LandType::Forest),
                 ]))
             }
-            S::IsArtifactType(v) => source::Cards::IsArtifactType(v.clone()),
-            S::IsCardtype(v) => source::Cards::IsCardtype(v.clone()),
-            S::IsColor(v) => source::Cards::IsColor(v.clone()),
-            S::IsColored => source::Cards::IsColored,
-            S::IsColorless => source::Cards::IsColorless,
-            S::IsCreatureType(v) => source::Cards::IsCreatureType(v.clone()),
-            S::IsEnchantmentType(v) => source::Cards::IsEnchantmentType(v.clone()),
-            S::IsLandType(v) => source::Cards::IsLandType(v.clone()),
-            S::IsNamed(v) => source::Cards::IsNamed(v.clone()),
-            S::IsNotNamed(v) => source::Cards::IsNotNamed(v.clone()),
-            S::IsNonCardtype(v) => source::Cards::IsNonCardtype(v.clone()),
-            S::IsNonCreatureType(v) => source::Cards::IsNonCreatureType(v.clone()),
-            S::IsNonSupertype(v) => source::Cards::IsNonSupertype(v.clone()),
-            S::IsNumberColors(v) => source::Cards::IsNumberColors(v.clone()),
-            S::IsPermanent => source::Cards::IsPermanent,
-            S::IsMulticolored => source::Cards::IsMulticolored,
-            S::IsSpellType(v) => source::Cards::IsSpellType(v.clone()),
-            S::IsSupertype(v) => source::Cards::IsSupertype(v.clone()),
-            S::ManaValueIs(v) => source::Cards::ManaValueIs(v.clone()),
-            S::PowerIs(v) => source::Cards::PowerIs(v.clone()),
-            S::ToughnessIs(v) => source::Cards::ToughnessIs(v.clone()),
-            S::HasAbility(v) => source::Cards::HasAbility(v.clone()),
-            _ => return Err(unsupported(value)),
-        };
-        self.card_filter(&card)
+            _ => self.as_card_filter(value, unsupported(value)),
+        }
     }
     fn search_find(
         &self,

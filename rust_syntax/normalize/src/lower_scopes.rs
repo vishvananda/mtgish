@@ -87,7 +87,13 @@ impl Context {
                     .collect::<Result<_>>()?,
                 _ => match self.primitive("SpellEffect", effect) {
                     Some((name, operands)) => vec![Change::Primitive { name, operands }],
-                    None => return Err(unsupported(effect).at(format!("effects[{i}]"))),
+                    None => {
+                        let rule = as_family::<source::Rule>(effect, "Rule");
+                        let granted = rule.and_then(|rule| self.fresh().ability(&rule).ok());
+                        let granted = granted
+                            .ok_or_else(|| unsupported(effect).at(format!("effects[{i}]")))?;
+                        vec![Change::GrantAbility(Box::new(granted))]
+                    }
                 },
             });
         }
