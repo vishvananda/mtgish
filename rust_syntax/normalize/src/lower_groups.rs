@@ -9,9 +9,23 @@ impl Context {
             }
             S::DifferentManaValues => SelectionConstraint::DifferentProperty(Property::ManaValue),
             S::DifferentPowers => SelectionConstraint::DifferentProperty(Property::Power),
-            S::ShareACreatureType => {
+            S::ShareACreatureType | S::ShareACreatureTypeOfChoice => {
                 SelectionConstraint::CommonProperty(DistinctProperty::CreatureTypes)
             }
+            S::SharesNoCreatureTypes => {
+                SelectionConstraint::NoCommonProperty(DistinctProperty::CreatureTypes)
+            }
+            S::EachBasicLandType => SelectionConstraint::OneForEach(
+                [
+                    source::SubType::Plains,
+                    source::SubType::Island,
+                    source::SubType::Swamp,
+                    source::SubType::Mountain,
+                    source::SubType::Forest,
+                ]
+                .map(ObjectFilter::Subtype)
+                .to_vec(),
+            ),
             S::ShareACardType => SelectionConstraint::CommonProperty(DistinctProperty::CardTypes),
             S::ShareAColor => SelectionConstraint::CommonProperty(DistinctProperty::Colors),
             S::SameNames => SelectionConstraint::CommonProperty(DistinctProperty::Names),

@@ -1589,3 +1589,25 @@ fn reveal_branches_counters_among_objects_and_stack_loops() {
     assert!(stack.contains("ForEachObject"), "{stack}");
     assert!(stack.contains("Shared(Stack)"), "{stack}");
 }
+
+#[test]
+fn first_draws_skipped_turns_and_group_constraints() {
+    let first = lowered(
+        "ReplaceWouldDraw(PlayerWouldDrawACardForTheFirstTimeEachPlayersTurnExceptFirstDrawStepDraw(You), [DrawNumberCards(Integer(4))])",
+    );
+    assert!(first.contains("FirstEachTurn(Player"), "{first}");
+    assert!(first.contains("DrawExceptFirstInDrawStep"), "{first}");
+    let skipped = lowered(
+        "ReplaceWouldBeginDrawStep(PlayerWouldBeginTheirDrawStep(You), [MayCost(SkipThisDrawStep), If(CostWasPaid, [GainLife(Integer(2))])])",
+    );
+    assert!(skipped.contains("optional: true"), "{skipped}");
+    assert_eq!(skipped.matches("Cancel").count(), 1, "{skipped}");
+    let duel = lowered(
+        "SpellActions(Targeted([NumberTargetGroupPermanents(Integer(2), IsCardtype(Creature), SharesNoCreatureTypes)], ActionList([Fight(Ref_TargetPermanents_0, Ref_TargetPermanents_1)])))",
+    );
+    assert!(duel.contains("NoCommonProperty(CreatureTypes)"), "{duel}");
+    let exchange = lowered(
+        "SpellActions(Targeted([NumberTargetPlayers(Integer(2), AnyPlayer)], ActionList([PlayerAction(Ref_TargetPlayers_0, ExchangeLifeTotalWithPlayer(Ref_TargetPlayers_1))])))",
+    );
+    assert!(exchange.contains("index: 1"), "{exchange}");
+}

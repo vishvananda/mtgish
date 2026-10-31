@@ -30,7 +30,9 @@ fn retag(value: &mut serde_json::Value, rename: &impl Fn(&str) -> Option<&'stati
 
 /// Forms that say what becomes of the event, so a body using one is explicit.
 /// A regeneration shield belongs here because it applies to the event itself.
-const EVENT_FORMS: [&str; 35] = [
+const EVENT_FORMS: [&str; 37] = [
+    "SkipThisTurn",
+    "SkipThisDrawStep",
     "EntersTapped",
     "EntersWithACounter",
     "EntersUnderPlayersControl",
@@ -153,6 +155,13 @@ impl Context {
                 )?;
                 self.measured(ReplacementEvent::Damage(shape), comparison)
             }
+            S::CombatDamageWouldBeDealtByCreatureToRecipient(creature, recipient) => self
+                .damage_shape(
+                    DamageFrom::Permanent(creature),
+                    DamageTo::One(recipient),
+                    DamageKind::Combat,
+                )
+                .map(ReplacementEvent::Damage),
             // The prevention family spells the same events.
             _ => as_family(value, "EventPreventDamage")
                 .ok_or_else(|| unsupported(value))
@@ -224,10 +233,39 @@ impl Context {
             "ReplacableEventWouldPutIntoGraveyard" => self
                 .graveyard_replacement(&decode_step(event)?)
                 .or_else(|error| rescue(error, || self.replacement_row(family, event))),
+            "ReplacableEventWouldDraw" => self
+                .first_draw_replacement(&decode_step(event)?)
+                .map_or_else(
+                    || {
+                        self.replacement_row(family, event)
+                            .ok_or_else(|| unsupported_step(event))
+                    },
+                    Ok,
+                ),
             _ => self
                 .replacement_row(family, event)
                 .ok_or_else(|| unsupported_step(event)),
         }
+    }
+
+    fn first_draw_replacement(
+        &self,
+        value: &source::ReplacableEventWouldDraw,
+    ) -> Option<ReplacementEvent> {
+        use source::ReplacableEventWouldDraw as S;
+        let (player, event) = match value {
+            S::PlayerWouldDrawACardForTheFirstTimeEachPlayersTurn(player, _) => {
+                (player, ReplacedPlayerEvent::Draw)
+            }
+            S::PlayerWouldDrawACardForTheFirstTimeEachPlayersTurnExceptFirstDrawStepDraw(player) => {
+                (player, ReplacedPlayerEvent::DrawExceptFirstInDrawStep)
+            }
+            _ => return None,
+        };
+        let players = PlayerSet::One(self.player(player).ok()?);
+        Some(ReplacementEvent::FirstEachTurn(Box::new(
+            ReplacementEvent::Player { event, players },
+        )))
     }
 
     fn replacement_row(&self, family: &str, event: &serde_json::Value) -> Option<ReplacementEvent> {
@@ -432,6 +470,29 @@ impl Context {
     ) -> Result<Option<Instruction>> {
         let variant = step["variant"].as_str().unwrap_or_default();
         let args = &step["args"];
+        if variant == "MayCost" && names_event_change(step) {
+            // Skipping is the replacement; what follows it adds to that.
+            self.body_replaces = false;
+            // Nothing outside a cost reads what happens inside it.
+            let mut child = self.clone();
+            child.result = self.result.saturating_add(1 << 20);
+            let skip = child.effect(Operation::ModifyEvent {
+                change: EventChange::Cancel,
+            });
+            let cost = Cost {
+                parts: vec![CostPart::PlayerAction {
+                    player: actor.clone(),
+                    body: Program {
+                        instructions: vec![skip],
+                    },
+                }],
+            };
+            return Ok(Some(self.effect(Operation::PayCost {
+                player: actor.clone(),
+                cost,
+                optional: true,
+            })));
+        }
         if variant == "RevealItAndShuffleItIntoLibraryInstead" {
             let instructions = vec![
                 self.effect(Operation::Reveal {

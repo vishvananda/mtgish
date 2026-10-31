@@ -58,9 +58,19 @@ impl Context {
         }
     }
     fn grave_card(&self, value: &source::CardInGraveyards) -> Result<ObjectRef> {
+        if let source::CardInGraveyards::TheCardMilledThisWay = value {
+            return Ok(ObjectRef::Result {
+                result: self.done(Done::Milled)?,
+                phase: ObjectPhase::After,
+                index: 0,
+            });
+        }
         use source::CardInGraveyards as S;
         if let S::TheCardConjuredIntoGraveyardThisWay = value {
             return self.conjured_object();
+        }
+        if let (S::Trigger_ThatSacrificedPermanent, true) = (value, self.event.permanent) {
+            return Ok(ObjectRef::EventSubject);
         }
         if let S::EnchantedGraveyardCard = value {
             return Ok(ObjectRef::AttachedTo(Box::new(ObjectRef::Source)));

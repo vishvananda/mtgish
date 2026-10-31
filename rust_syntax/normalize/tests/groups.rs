@@ -106,11 +106,7 @@ fn shared_group_constraints_cover_distinct_values_common_values_and_nonbasic_lan
 
 #[test]
 fn unsupported_group_qualifications_survive_staging_and_block_native_export() {
-    for group in [
-        "SharesNoCreatureTypes",
-        "ShareACreatureTypeOfChoice",
-        "ShareAllCardTypes",
-    ] {
+    for group in ["ShareAllCardTypes", "HasAColorNotInCommon"] {
         let source=custom(&format!("Activated(TapAnyNumberOfGroupPermanents(AnyPermanent,{group}),ActionList([DrawACard]))"));
         let staged = pipeline::Intermediate::new(&source).unwrap();
         assert!(staged.structural.operands.iter().any(|r| matches!(

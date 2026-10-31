@@ -222,6 +222,10 @@ impl Context {
     fn reduced_trigger(&self, value: &source::Trigger) -> Result<EventSpec> {
         use source::Trigger as S;
         Ok(match value {
+            S::WhenAPermanentDealsDamageToAnyNumberOfPlayersForTheFirstTimeEachTurn(p, players) => {
+                let event = S::WhenAPermanentDealsDamageToAPlayer(p.clone(), players.clone());
+                EventSpec::FirstForObjectEachTurn(Box::new(self.trigger(&event)?))
+            }
             S::WhenAPlayerCyclesACard(players, cards)
             | S::WhenAPlayerCyclesOrDiscardsACard(players, cards)
             | S::WhenAPlayerDiscardsACard(players, cards)

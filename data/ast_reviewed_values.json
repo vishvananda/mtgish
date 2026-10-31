@@ -5,6 +5,7 @@
   "AnyHexproof": "Lowers to HasKeywordFamily Hexproof.",
   "AnySpellOrAbility": "Lowers to ObjectFilter::Any over the stack.",
   "DifferentNames": "As a count, lowers to CountDistinct over Names.",
+  "EachBasicLandType": "Lowers to one subtype filter per basic land type.",
   "HasASingleTarget": "Lowers to OnStack(SingleTarget).",
   "NonManaAbility": "Lowers to the activation filter Not Mana.",
   "RevealACardFromHandAtRandom": "As a cost, lowers to CostPart::Reveal with random set.",

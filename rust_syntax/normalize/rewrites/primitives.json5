@@ -2994,6 +2994,7 @@
     {"source": "ReplacableEventWouldDealDamage::LethalLoyaltyDamageWouldBeDealtToAPlaneswalker", "text": "damage"},
     {"source": "ReplacableEventWouldDealDamage::CombatDamageWouldBeDealtByCreatureToRecipient", "text": "combat damage"},
     {"source": "ReplacableEventWouldDealDamage::Each1DamagePlayerWouldBeDealt", "text": "damage"},
-    {"source": "ReplacableEventWouldDealDamage::AnAmountOfNonCombatDamageWouldBeDealtByASourceToARecipient", "text": "noncombat"}
+    {"source": "ReplacableEventWouldDealDamage::AnAmountOfNonCombatDamageWouldBeDealtByASourceToARecipient", "text": "noncombat"},
+    {"source": "Condition::NumCombatPermanentsPassFilter", "text": "attacked"}
   ]
 }

@@ -819,6 +819,10 @@ impl Context {
                 slot: self.target(TargetKind::Player, 2, 0)?,
                 index: 0,
             },
+            S::Ref_TargetPlayers_0 | S::Ref_TargetPlayers_1 => PlayerRef::Target {
+                slot: self.target(TargetKind::Player, 0, 0)?,
+                index: usize::from(matches!(value, S::Ref_TargetPlayers_1)) as _,
+            },
             S::Trigger_ThatPlayer
             | S::WouldDrawACard_ThatPlayer
             | S::WouldGainLife_ThatPlayer
@@ -1400,6 +1404,11 @@ impl Context {
                     SpentManaAggregation::DistinctColors
                 },
             },
+            S::TheNumberOfTokensCreatedThisWay if self.created_tokens.is_some() => {
+                Expr::CountObjects(Box::new(ObjectSet::Created(
+                    self.created_tokens.clone().unwrap(),
+                )))
+            }
             S::TheNumberOfCountersRemovedThisWay if self.removed_counters.is_some() => {
                 Expr::CountersRemoved(self.removed_counters.clone().unwrap())
             }
@@ -1516,7 +1525,12 @@ impl Context {
             )?)),
             S::ValueX if self.value_x.is_some() => Expr::BoundValue(self.value_x.clone().unwrap()),
             S::ValueX if self.event.activation_x => Expr::EventActivationX,
-            S::ValueX => self
+            S::Trigger_ManaValueOfTheSacrificedPermanent => {
+                return self.number(&S::ManaValueOfPermanent(Box::new(
+                    source::Permanent::Trigger_ThatSacrificedPermanent,
+                )))
+            }
+            S::ValueX | S::X_From_Casting => self
                 .cast_x
                 .clone()
                 .map(Expr::CastX)

@@ -130,6 +130,10 @@ impl Context {
                         ObjectKind::Any,
                         ObjectFilter::SharesColorWith(self.object(object)?),
                     ),
+                    C::TheColorsOfSpell(spell) => objects(
+                        ObjectKind::Any,
+                        ObjectFilter::SharesColorWith(self.spell(spell)?),
+                    ),
                     C::Monocolored | C::Multicolored => objects(
                         ObjectKind::Any,
                         ObjectFilter::Property {

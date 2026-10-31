@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 121;
+pub const SCHEMA_VERSION: u32 = 122;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1762,6 +1762,8 @@ pub enum SelectionConstraint {
     DifferentFromTarget(Slot),
     /// Each pick has the name of a different one of these objects.
     NamedAfterOneEach(ObjectSet),
+    /// No two of the chosen objects share a value of this property.
+    NoCommonProperty(DistinctProperty),
     /// A number of distinct values of this property among the chosen objects.
     DistinctCount {
         property: DistinctProperty,

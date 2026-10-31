@@ -453,6 +453,10 @@ impl Context {
                     0,
                 ))
             }
+            S::TheChosenGraveyardCardPassesFilter(filter) => Ok(Condition::ObjectMatches {
+                object: self.grave_card(&source::CardInGraveyards::TheChosenGraveyardCard)?,
+                filter: self.card_filter(filter)?,
+            }),
             S::DeadCardPassesFilter(filter) => Ok(Condition::ObjectMatches {
                 object: self.grave_card(&source::CardInGraveyards::Trigger_ThatGraveyardCard)?,
                 filter: self.card_filter(filter)?,

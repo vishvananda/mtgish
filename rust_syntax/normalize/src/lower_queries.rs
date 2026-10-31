@@ -23,6 +23,16 @@ impl Context {
         if let Some(check) = self.took_check(&player, filter)? {
             return Ok(check);
         }
+        if let S::Trigger_IsDefendingPlayer = filter {
+            return Ok(Condition::Compare {
+                left: Expr::CountPlayers(PlayerSet::Intersection(vec![
+                    PlayerSet::One(player),
+                    PlayerSet::One(self.player(&source::Player::Trigger_DefendingPlayer)?),
+                ])),
+                comparison: Comparison::Greater,
+                right: Expr::Constant(0),
+            });
+        }
         if let S::SinglePlayer(other) = filter {
             return Ok(Condition::Compare {
                 left: Expr::CountPlayers(PlayerSet::Intersection(vec![
