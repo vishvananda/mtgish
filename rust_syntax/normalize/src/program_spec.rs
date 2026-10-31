@@ -56,6 +56,14 @@ pub enum Bounds {
     UpToSource { argument: usize },
     RepeatSource { argument: usize },
     OneOrBothIf { argument: usize },
+    OneOrMoreIf { argument: usize },
+    Either { argument: usize },
+    Chooser { argument: usize },
+    UnchosenLastCombat { argument: usize },
+    Budget { argument: usize },
+    Random,
+    ExactlyDifferentTargets { count: i64 },
+    MayDifferentTargets { count: i64 },
     Unchosen { turn: bool },
     Escalate { argument: usize },
     DifferentTargets,
@@ -97,6 +105,17 @@ pub enum Recipe {
     Modal {
         bounds: Bounds,
         modes: usize,
+    },
+    /// Modes each worth so many pawprints.
+    WeightedModal {
+        bounds: Bounds,
+        modes: usize,
+    },
+    /// Two modes, which `bounds` picks between.
+    PairedModal {
+        bounds: Bounds,
+        first: usize,
+        second: usize,
     },
 }
 impl Body {
@@ -142,6 +161,11 @@ impl Bounds {
             Self::UpToSource { argument }
             | Self::RepeatSource { argument }
             | Self::OneOrBothIf { argument }
+            | Self::OneOrMoreIf { argument }
+            | Self::Either { argument }
+            | Self::Chooser { argument }
+            | Self::UnchosenLastCombat { argument }
+            | Self::Budget { argument }
             | Self::Escalate { argument } => out.push(*argument),
             _ => {}
         }
@@ -162,6 +186,26 @@ impl Bounds {
             }
             Self::OneOrBothIf { argument } => {
                 format!("ModeBounds::OneOrBothIf(source::Condition::clone(a{argument}))")
+            }
+            Self::OneOrMoreIf { argument } => {
+                format!("ModeBounds::OneOrMoreIf(source::Condition::clone(a{argument}))")
+            }
+            Self::Either { argument } => {
+                format!("ModeBounds::Either(source::Condition::clone(a{argument}))")
+            }
+            Self::Chooser { argument } => {
+                format!("ModeBounds::Chooser(source::Players::clone(a{argument}))")
+            }
+            Self::UnchosenLastCombat { argument } => {
+                format!("ModeBounds::UnchosenLastCombat(source::Player::clone(a{argument}))")
+            }
+            Self::Budget { argument } => format!("ModeBounds::Budget(number_tree(a{argument}))"),
+            Self::Random => "ModeBounds::Random".into(),
+            Self::ExactlyDifferentTargets { count } => {
+                format!("ModeBounds::ExactlyDifferentTargets({count})")
+            }
+            Self::MayDifferentTargets { count } => {
+                format!("ModeBounds::MayDifferentTargets({count})")
             }
             Self::Unchosen { turn } => format!("ModeBounds::Unchosen({turn})"),
             Self::DifferentTargets => "ModeBounds::DifferentTargets".into(),
@@ -206,9 +250,18 @@ impl Recipe {
                 out.push(*distribution);
                 out.push(body.argument());
             }
-            Self::Modal { bounds, modes } => {
+            Self::Modal { bounds, modes } | Self::WeightedModal { bounds, modes } => {
                 bounds.arguments(out);
                 out.push(*modes);
+            }
+            Self::PairedModal {
+                bounds,
+                first,
+                second,
+            } => {
+                bounds.arguments(out);
+                out.push(*first);
+                out.push(*second);
             }
         }
         Ok(())
@@ -222,7 +275,9 @@ impl Recipe {
             Self::Sequence {body}=>body.generate(),
             Self::Targeted {targets,body}=>format!("InstructionRecipe::Targeted {{ targets:a{targets}.clone(),body:Box::new({}) }}",body.generate()),
             Self::Distributed {targets,distribution,body}=>format!("InstructionRecipe::Distributed {{ targets:a{targets}.clone(),distribution:source::Distribution::clone(a{distribution}),body:Box::new({}) }}",body.generate()),
-            Self::Modal {bounds,modes}=>format!("InstructionRecipe::Modal {{ bounds:{},modes:a{modes}.iter().map(program_tree).collect() }}",bounds.generate()),
+            Self::Modal {bounds,modes}=>format!("InstructionRecipe::Modal {{ bounds:{},modes:a{modes}.iter().map(program_tree).collect(),weights:vec![] }}",bounds.generate()),
+            Self::WeightedModal {bounds,modes}=>format!("InstructionRecipe::Modal {{ bounds:{},modes:a{modes}.iter().map(|source::PawMode::PawMode(_,mode)| program_tree(mode)).collect(),weights:a{modes}.iter().map(|source::PawMode::PawMode(weight,_)| i64::from(*weight)).collect() }}",bounds.generate()),
+            Self::PairedModal {bounds,first,second}=>format!("InstructionRecipe::Modal {{ bounds:{},modes:vec![program_tree(a{first}),program_tree(a{second})],weights:vec![] }}",bounds.generate()),
         }
     }
 }
@@ -305,6 +360,9 @@ impl Registry {
                     Bounds::UpTo { count } => *count >= 0,
                     _ => true,
                 },
+                (Domain::Actions, Recipe::WeightedModal { .. } | Recipe::PairedModal { .. }) => {
+                    true
+                }
                 _ => false,
             };
             if !valid {

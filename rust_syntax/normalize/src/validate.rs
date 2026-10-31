@@ -1442,14 +1442,14 @@ impl<'a> Scope<'a> {
                 intervening_if,
                 body,
             } => {
-                if !matches!(event, EventSpec::Turn { .. }) {
-                    return Err(
-                        "delayed event bindings need a separate captured/event scope".into(),
-                    );
-                }
                 self.event(event)?;
                 if let DelayedStart::PlayersNextTurn(player) = start {
                     self.player(player)?;
+                }
+                if let DelayedStart::ExtraTurn(result) = start {
+                    if !self.results.contains_key(&result.0) {
+                        return Err(format!("result {} created no extra turn", result.0));
+                    }
                 }
                 if let Some(duration) = expires {
                     self.duration(duration)?;
@@ -1989,6 +1989,7 @@ impl<'a> Scope<'a> {
                             | Operation::Mill { .. } => ResultKind::ObjectTransition,
                             other => match crate::semantics::yields(other) {
                                 Some("observed") => ResultKind::Observation,
+                                Some("extra_turn") => ResultKind::Other,
                                 Some(_) => ResultKind::ObjectTransition,
                                 None => ResultKind::Other,
                             },
@@ -2187,6 +2188,12 @@ impl<'a> Scope<'a> {
             if let Some(cost) = &selection.surcharge {
                 proposal.cost(cost)?;
             }
+            if let Some(players) = &selection.chooser {
+                proposal.players(players)?;
+            }
+            if let Some(budget) = &selection.budget {
+                proposal.expr(budget)?;
+            }
             if let (Expr::Constant(min), Expr::Constant(max)) =
                 (&selection.minimum, &selection.maximum)
             {
@@ -2198,6 +2205,9 @@ impl<'a> Scope<'a> {
                 }
             }
             for (i, mode) in selection.modes.iter().enumerate() {
+                if let Some(condition) = &mode.requires {
+                    proposal.condition(condition)?;
+                }
                 let mut scope = self.clone();
                 scope
                     .announcement(&mode.announcement)

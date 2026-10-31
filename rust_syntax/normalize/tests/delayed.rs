@@ -419,7 +419,6 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         "Fortune, Loyal Steed",
         "Gaze of the Gorgon",
         "Pygmy Hippo",
-        "Tatsumasa, the Dragon's Fang",
         "Vivien's Stampede",
     ];
     let mut complete = 0;
@@ -445,5 +444,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 41);
+    assert_eq!(complete, 42);
 }

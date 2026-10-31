@@ -114,6 +114,7 @@ struct Context {
     exile_choice: Option<ResultId>,
     grave_choice: Option<ResultId>,
     narrowed_choice: Option<ResultId>,
+    extra_turn: Option<ResultId>,
     iterated_object: Option<Binding>,
     /// The card a row just put into a hand: seeked, drafted or conjured.
     to_hand: Option<ResultId>,
@@ -359,6 +360,9 @@ impl Context {
         if self.narrowed_choice.as_ref().map(|r| r.0) != child.narrowed_choice.as_ref().map(|r| r.0)
         {
             self.narrowed_choice = None;
+        }
+        if self.extra_turn.as_ref().map(|r| r.0) != child.extra_turn.as_ref().map(|r| r.0) {
+            self.extra_turn = None;
         }
         if self.entered.as_ref().map(|r| r.0) != child.entered.as_ref().map(|r| r.0) {
             self.entered = None;
@@ -837,9 +841,12 @@ impl Context {
                 | source::Permanents::TheChosenPermanents
                 | source::Permanents::ThePermanentsNotChosenThisWay
                 | source::Permanents::NotChosenThisWay
-        ) && (matches!(value, source::Permanents::Ref_TargetPermanents)
-            || self.permanent_choice.is_some())
-        {
+                | source::Permanents::TheTokensCreatedThisWay
+        ) && match value {
+            source::Permanents::Ref_TargetPermanents => true,
+            source::Permanents::TheTokensCreatedThisWay => self.created_tokens.is_some(),
+            _ => self.permanent_choice.is_some(),
+        } {
             return Ok(ObjectFilter::InSet(Box::new(self.objects(value)?)));
         }
         let reduced = match self
@@ -1767,14 +1774,14 @@ impl Context {
         }
         use source::Action as S;
         let operation = match value {
-            S::CreateFutureTrigger(
-                source::FutureTrigger::WhenPlayerCastsTheirNextSpellThisTurn(player, spells),
-                actions,
-            ) => {
-                let event = EventSpec::Spell {
-                    event: SpellEvent::Cast,
-                    players: PlayerSet::One(self.player(player)?),
-                    spells: self.spell_filter(spells)?,
+            S::CreateFutureTrigger(future, actions) if next_event(future).is_some() => {
+                let event = match next_event(future).unwrap() {
+                    NextEvent::Spell(player, spells) => EventSpec::Spell {
+                        event: SpellEvent::Cast,
+                        players: PlayerSet::One(self.player(player)?),
+                        spells: self.spell_filter(spells)?,
+                    },
+                    NextEvent::Trigger(trigger) => self.trigger(&trigger)?,
                 };
                 let mut child = self.clone();
                 child.open_searches.clear();
@@ -1794,7 +1801,12 @@ impl Context {
                 }
             }
             S::CreateFutureTrigger(event, actions) | S::CreateFutureTriggerI(event, _, actions) => {
-                let (event, start, expires) = self.future_turn(event)?;
+                let (event, start, expires) =
+                    self.future_turn(event)
+                        .or_else(|error| match self.future_event(event) {
+                            Ok(event) => Ok((event, DelayedStart::Immediately, None)),
+                            Err(_) => Err(error),
+                        })?;
                 let mut child = self.clone();
                 // Deferred work has its own search episode and result scope.
                 // Existing reference bindings remain captured and read-only.
@@ -4002,6 +4014,12 @@ impl Context {
                     cost,
                     &source::Actions::Modal_ChooseBoth(modes.clone()),
                     &source::Actions::Modal_ChooseOne(modes.clone()),
+                ),
+                source::Actions::Modal_ChooseTwo_Entwine(cost, modes) => self.cost_branch(
+                    "Entwine",
+                    cost,
+                    &source::Actions::Modal_ChooseBoth(modes.clone()),
+                    &source::Actions::Modal_ChooseTwo(modes.clone()),
                 ),
                 source::Actions::AdditionalCost_Modal(options) => {
                     use source::AdditionalCostOption as O;

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 55;
+pub const SCHEMA_VERSION: u32 = 57;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -452,8 +452,9 @@ pub struct ModeSelection {
     pub maximum: Expr,
     pub repeat: bool,
     pub modes: Vec<Mode>,
-    /// The target chosen decides the mode, as in "target spell or permanent",
-    /// so no mode is announced even though each has its own target (601.2c).
+    /// The target chosen, or a mode's `requires`, decides the mode, as in
+    /// "target spell or permanent", so no mode is announced even though each
+    /// has its own target (601.2c).
     pub implied: bool,
     /// Only modes not yet chosen for this ability are available.
     pub unchosen: Option<ModeHistory>,
@@ -461,18 +462,32 @@ pub struct ModeSelection {
     pub surcharge: Option<Cost>,
     /// No two chosen modes may share a target.
     pub distinct_targets: bool,
+    /// One of these players chooses instead of the controller.
+    pub chooser: Option<PlayerSet>,
+    /// The game picks uniformly, not a player.
+    pub random: bool,
+    /// Chosen modes' weights may total at most this, as pawprints.
+    pub budget: Option<Expr>,
+    /// Either the stated number of modes or none: "you may choose two".
+    pub may_decline: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ModeHistory {
     ThisTurn,
     ThisGame,
+    /// Not chosen during this player's last combat.
+    LastCombat(PlayerRef),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct Mode {
     pub announcement: Announcement,
     pub body: Program,
+    /// What this mode spends of `ModeSelection::budget`.
+    pub weight: i64,
+    /// This mode is available only while this holds as modes are chosen.
+    pub requires: Option<Condition>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -615,9 +630,9 @@ pub enum Operation {
     /// where required; capturing references does not snapshot all expressions.
     /// An object that leaves its expected zone and returns is a new object.
     ///
-    /// Currently only turn matchers are supported. Their turn-player binding
-    /// does NOT replace the captured creator's event bindings. This form has
-    /// no new targets/modes and exposes no bindings from the future event.
+    /// A matcher's own bindings do NOT replace the captured creator's event
+    /// bindings: this form has no new targets/modes and exposes no bindings
+    /// from the future event.
     /// Body-local results never escape into the creating program.
     CreateDelayedTrigger {
         event: EventSpec,
@@ -2119,6 +2134,8 @@ pub enum DelayedStart {
     Immediately,
     NextTurn,
     PlayersNextTurn(PlayerRef),
+    /// The extra turn this result created.
+    ExtraTurn(ResultId),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

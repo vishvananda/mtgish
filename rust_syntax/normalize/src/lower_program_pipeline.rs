@@ -255,12 +255,37 @@ impl Context {
                 self.distributed_targets(targets, distribution)?;
                 return self.bind_program_recipe(body, actor);
             }
-            R::Modal { bounds, modes } => {
+            R::Modal {
+                bounds,
+                modes,
+                weights,
+            } => {
                 if self.modes.is_some() {
                     return Err(invalid("multiple mode declarations in one announcement"));
                 }
                 let (minimum, maximum, repeat) = match bounds {
-                    B::Implied => (Expr::Constant(1), Expr::Constant(1), false),
+                    B::Implied
+                    | B::Random
+                    | B::Chooser(_)
+                    | B::Either(_)
+                    | B::UnchosenLastCombat(_) => (Expr::Constant(1), Expr::Constant(1), false),
+                    B::ExactlyDifferentTargets(n) | B::MayDifferentTargets(n) => {
+                        (Expr::Constant(*n), Expr::Constant(*n), false)
+                    }
+                    B::Budget(n) => (
+                        Expr::Constant(0),
+                        self.proposal().pipeline_quantity(n)?,
+                        true,
+                    ),
+                    B::OneOrMoreIf(condition) => (
+                        Expr::Constant(1),
+                        Expr::Conditional {
+                            condition: Box::new(self.proposal().condition(condition)?),
+                            then: Box::new(Expr::Constant(modes.len() as i64)),
+                            otherwise: Box::new(Expr::Constant(1)),
+                        },
+                        false,
+                    ),
                     B::Exact(n) => (Expr::Constant(*n), Expr::Constant(*n), false),
                     B::All => (
                         Expr::Constant(modes.len() as i64),
@@ -329,12 +354,25 @@ impl Context {
                                 modes: context.modes,
                             },
                             body,
+                            weight: weights.get(i).copied().unwrap_or(1),
+                            requires: match (bounds, i) {
+                                (B::Either(condition), 0) => {
+                                    Some(self.proposal().condition(condition)?)
+                                }
+                                (B::Either(condition), _) => Some(Condition::Not(Box::new(
+                                    self.proposal().condition(condition)?,
+                                ))),
+                                _ => None,
+                            },
                         })
                     })
                     .collect::<Result<_>>()?;
                 let unchosen = match bounds {
                     B::Unchosen(true) => Some(ModeHistory::ThisTurn),
                     B::Unchosen(false) => Some(ModeHistory::ThisGame),
+                    B::UnchosenLastCombat(player) => {
+                        Some(ModeHistory::LastCombat(self.proposal().player(player)?))
+                    }
                     _ => None,
                 };
                 let surcharge = match bounds {
@@ -344,12 +382,27 @@ impl Context {
                 self.modes = Some(ModeSelection {
                     unchosen,
                     surcharge,
-                    distinct_targets: matches!(bounds, B::DifferentTargets),
+                    distinct_targets: matches!(
+                        bounds,
+                        B::DifferentTargets
+                            | B::ExactlyDifferentTargets(_)
+                            | B::MayDifferentTargets(_)
+                    ),
+                    chooser: match bounds {
+                        B::Chooser(players) => Some(self.proposal().players(players)?),
+                        _ => None,
+                    },
+                    random: matches!(bounds, B::Random),
+                    budget: match bounds {
+                        B::Budget(n) => Some(self.proposal().pipeline_quantity(n)?),
+                        _ => None,
+                    },
+                    may_decline: matches!(bounds, B::MayDifferentTargets(_)),
                     minimum,
                     maximum,
                     repeat,
                     modes,
-                    implied: matches!(bounds, B::Implied),
+                    implied: matches!(bounds, B::Implied | B::Either(_)),
                 });
                 return Ok(Program::empty());
             }

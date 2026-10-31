@@ -268,6 +268,7 @@ impl Context {
             }
             Some("entered") => self.entered = Some(result.clone()),
             Some("hand") => self.to_hand = Some(result.clone()),
+            Some("extra_turn") => self.extra_turn = Some(result.clone()),
             _ => {}
         }
         if yields.is_some() {

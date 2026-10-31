@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 55);
+    assert_eq!(card.schema_version, 57);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2673,4 +2673,37 @@ fn a_choice_made_as_a_cost_is_read_when_it_was_paid() {
     let text = ability_json("SpellActions(ActionList([MayCost(ChooseACardInPlayersGraveyard(IsCardtype(Creature),You)),If(CostWasPaid,[PutGraveyardCardOntoBattlefield(TheChosenGraveyardCard,[])])]))");
     assert!(text.contains("ChooseObjects"), "{text}");
     assert!(text.contains("\"Result\""), "{text}");
+}
+
+#[test]
+fn a_delayed_event_matches_any_event_and_reads_its_creators_scope() {
+    let text = ability_json("SpellActions(Targeted([TargetPermanent(AnyPermanent)],ActionList([CreateFutureTrigger(Or([WhenPermanentLeavesTheBattlefield(ThisPermanent),WhenPermanentBecomesUntapped(ThisPermanent)]),ActionList([DestroyPermanent(Ref_TargetPermanent)]))])))");
+    assert!(text.contains("CreateDelayedTrigger"), "{text}");
+    assert!(text.contains("Either"), "{text}");
+}
+
+#[test]
+fn a_next_event_this_turn_is_a_one_shot_trigger() {
+    let text = ability_json("SpellActions(ActionList([CreateFutureTrigger(WhenAPlayerNextAttacksThisTurn(SinglePlayer(You)),ActionList([DrawACard]))]))");
+    assert!(text.contains("CreateTrigger"), "{text}");
+    assert!(text.contains("\"once\":true"), "{text}");
+}
+
+#[test]
+fn the_extra_turn_created_is_where_the_delayed_trigger_starts() {
+    let text = ability_json("SpellActions(ActionList([TakeAnExtraTurn,CreateFutureTrigger(AtTheBeginningOfTheEndStepOfTheExtraTurnCreatedThisWay,ActionList([LoseTheGame]))]))");
+    assert!(text.contains("ExtraTurn"), "{text}");
+    let source = custom("SpellActions(ActionList([CreateFutureTrigger(AtTheBeginningOfTheEndStepOfTheExtraTurnCreatedThisWay,ActionList([LoseTheGame]))]))");
+    assert!(pipeline::finalize(&source).is_err());
+}
+
+#[test]
+fn modal_options_are_data_on_one_selection() {
+    let random = ability_json("SpellActions(Modal_ChooseOneAtRandom([ActionList([DrawACard]),ActionList([GainLife(Integer(1))])]))");
+    assert!(random.contains("\"random\":true"), "{random}");
+    let chooser = ability_json("SpellActions(Modal_APlayerChoosesOne(Opponent,[ActionList([DrawACard]),ActionList([GainLife(Integer(1))])]))");
+    assert!(chooser.contains("\"chooser\":{"), "{chooser}");
+    let paired = ability_json("SpellActions(Modal_IfElse(PlayerPassesFilter(You,ControlsA(IsCreatureType(Faerie))),ActionList([DrawACard]),ActionList([GainLife(Integer(1))])))");
+    assert!(paired.contains("\"implied\":true"), "{paired}");
+    assert!(paired.contains("\"Not\""), "{paired}");
 }

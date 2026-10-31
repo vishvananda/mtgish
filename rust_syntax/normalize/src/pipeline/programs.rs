@@ -46,6 +46,7 @@ pub enum InstructionRecipe {
     Modal {
         bounds: ModeBounds,
         modes: Vec<InstructionRecipe>,
+        weights: Vec<i64>,
     },
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -66,6 +67,15 @@ pub enum ModeBounds {
     RepeatSource(Quantity),
     OneOrBothIf(source::Condition),
     Unchosen(bool),
+    UnchosenLastCombat(source::Player),
+    Random,
+    Chooser(source::Players),
+    OneOrMoreIf(source::Condition),
+    /// One mode, picked by this condition rather than a player.
+    Either(source::Condition),
+    ExactlyDifferentTargets(i64),
+    MayDifferentTargets(i64),
+    Budget(Quantity),
     Escalate(source::Cost),
     DifferentTargets,
 }

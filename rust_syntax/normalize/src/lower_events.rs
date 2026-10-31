@@ -1,4 +1,43 @@
 // Event matching is independent of the triggered ability's resolution program.
+
+/// What a "next ... this turn" event waits for.
+enum NextEvent<'a> {
+    Spell(&'a source::Player, &'a source::Spells),
+    Trigger(source::Trigger),
+}
+
+fn next_event(value: &source::FutureTrigger) -> Option<NextEvent<'_>> {
+    use source::FutureTrigger as S;
+    use source::Trigger as T;
+    Some(match value {
+        S::WhenPlayerCastsTheirNextSpellThisTurn(player, spells) => {
+            NextEvent::Spell(player, spells)
+        }
+        S::WhenPlayerCastsTheirNextSpellFromTheirHandThisTurn(player, spells) => {
+            NextEvent::Trigger(T::WhenAPlayerCastsASpell(
+                Box::new(source::Players::SinglePlayer(player.clone())),
+                Box::new(source::Spells::And(vec![
+                    (**spells).clone(),
+                    source::Spells::WasCastFromTheirHand,
+                ])),
+            ))
+        }
+        S::WhenAPlayerNextAttacksThisTurn(players) => {
+            NextEvent::Trigger(T::WhenAPlayerAttacks(players.clone()))
+        }
+        S::WhenAPlayerNextActivatesAnAbilityThisTurn(players, abilities) => NextEvent::Trigger(
+            T::WhenAPlayerActivatesAnAbility(players.clone(), abilities.clone()),
+        ),
+        S::WhenPlayerNextActivatesAnAbilityThisTurn(player, abilities) => {
+            NextEvent::Trigger(T::WhenAPlayerActivatesAnAbility(
+                Box::new(source::Players::SinglePlayer(player.clone())),
+                abilities.clone(),
+            ))
+        }
+        _ => return None,
+    })
+}
+
 impl Context {
     fn future_turn(
         &self,
@@ -97,9 +136,48 @@ impl Context {
                 };
                 (point, PlayerSet::One(player), start, None)
             }
+            S::AtTheBeginningOfTheEndStepOfTheExtraTurnCreatedThisWay => (
+                TurnPoint::EndStepBegins,
+                PlayerSet::All,
+                DelayedStart::ExtraTurn(
+                    self.extra_turn
+                        .clone()
+                        .ok_or_else(|| invalid("no extra turn was created in this scope"))?,
+                ),
+                None,
+            ),
             _ => return Err(unsupported(value)),
         };
         Ok((EventSpec::Turn { point, players }, start, expires))
+    }
+
+    /// A delayed event's matcher: its body still reads only the creator's scope.
+    fn future_event(&self, value: &source::FutureTrigger) -> Result<EventSpec> {
+        use source::FutureTrigger as S;
+        use source::Trigger as T;
+        let one = |p: &source::Permanent| Box::new(source::Permanents::SinglePermanent(p.clone().into()));
+        let trigger = match value {
+            S::Or(events) => {
+                return Ok(EventSpec::Either(
+                    events
+                        .iter()
+                        .map(|event| self.future_event(event))
+                        .collect::<Result<_>>()?,
+                ))
+            }
+            S::WhenPermanentLeavesTheBattlefield(p) => T::WhenAPermanentLeavesTheBattlefield(one(p)),
+            S::WhenPermanentDies(p) => T::WhenAPermanentDies(one(p)),
+            S::WhenPermanentBecomesUntapped(p) => T::WhenAPermanentBecomesUntapped(one(p)),
+            S::WhenPermanentIsPutIntoAPlayersGraveyard(p, players) => {
+                T::WhenAPermanentIsPutIntoAPlayersGraveyard(one(p), players.clone())
+            }
+            S::WhenPlayerLosesControlOfPermanent(player, p) => T::WhenAPlayerLosesControlOfAPermanent(
+                Box::new(source::Players::SinglePlayer(player.clone().into())),
+                one(p),
+            ),
+            _ => as_family(value, "Trigger").ok_or_else(|| unsupported(value))?,
+        };
+        self.trigger(&trigger)
     }
 
     fn trigger(&self, value: &source::Trigger) -> Result<EventSpec> {

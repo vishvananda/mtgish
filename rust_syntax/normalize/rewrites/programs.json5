@@ -527,6 +527,132 @@
           "argument": 1
         }
       }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseOneAtRandom",
+      "domain": "Actions",
+      "source": "Modal_ChooseOneAtRandom",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "Random"
+        },
+        "modes": 0
+      }
+    },
+    {
+      "id": "program.Actions.Modal_APlayerChoosesOne",
+      "domain": "Actions",
+      "source": "Modal_APlayerChoosesOne",
+      "arity": 2,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "Chooser",
+          "argument": 0
+        },
+        "modes": 1
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseOneOrChooseOneOrMoreIf",
+      "domain": "Actions",
+      "source": "Modal_ChooseOneOrChooseOneOrMoreIf",
+      "arity": 2,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "OneOrMoreIf",
+          "argument": 0
+        },
+        "modes": 1
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseOneOrMayChooseTwoIf",
+      "domain": "Actions",
+      "source": "Modal_ChooseOneOrMayChooseTwoIf",
+      "arity": 2,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "OneOrBothIf",
+          "argument": 0
+        },
+        "modes": 1
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseOneThatWasntChosenDuringPlayersLastCombat",
+      "domain": "Actions",
+      "source": "Modal_ChooseOneThatWasntChosenDuringPlayersLastCombat",
+      "arity": 2,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "UnchosenLastCombat",
+          "argument": 0
+        },
+        "modes": 1
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseTwo_DifferentTargets",
+      "domain": "Actions",
+      "source": "Modal_ChooseTwo_DifferentTargets",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "ExactlyDifferentTargets",
+          "count": 2
+        },
+        "modes": 0
+      }
+    },
+    {
+      "id": "program.Actions.Modal_MayChooseTwo_DifferentTargets",
+      "domain": "Actions",
+      "source": "Modal_MayChooseTwo_DifferentTargets",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "MayDifferentTargets",
+          "count": 2
+        },
+        "modes": 0
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseUptoNumberPawsMayChooseSameModeMoreThanOnce",
+      "domain": "Actions",
+      "source": "Modal_ChooseUptoNumberPawsMayChooseSameModeMoreThanOnce",
+      "arity": 2,
+      "recipe": {
+        "kind": "WeightedModal",
+        "bounds": {
+          "kind": "Budget",
+          "argument": 0
+        },
+        "modes": 1
+      }
+    },
+    {
+      "id": "program.Actions.Modal_IfElse",
+      "domain": "Actions",
+      "source": "Modal_IfElse",
+      "arity": 3,
+      "recipe": {
+        "kind": "PairedModal",
+        "bounds": {
+          "kind": "Either",
+          "argument": 0
+        },
+        "first": 1,
+        "second": 2
+      }
     }
   ]
 }
