@@ -516,9 +516,16 @@ impl Context {
             }
             S::HostPermanent => return Ok(ObjectRef::AttachedTo(Box::new(ObjectRef::Source))),
             S::HostPermanentOf(p) => return Ok(ObjectRef::AttachedTo(Box::new(self.object(p)?))),
-            S::ActionPermanent if self.affected => return Ok(ObjectRef::Affected),
+            S::ActionPermanent | S::ApplyPermanentEffect_It | S::EachPermanentEffect_It
+                if self.affected =>
+            {
+                return Ok(ObjectRef::Affected)
+            }
             S::Self_It if self.candidate => return Ok(ObjectRef::Candidate),
-            S::Ref_TargetPermanent | S::Ref_TargetPermanent1 | S::Ref_TargetPermanents_0 => (0, 0),
+            S::Ref_TargetPermanent
+            | S::Ref_TargetPermanent1
+            | S::Ref_TargetPermanents_0
+            | S::RefOuter_TargetPermanent => (0, 0),
             S::Ref_TargetPermanent2 => (1, 0),
             S::Ref_TargetPermanent3 => (2, 0),
             S::Ref_TargetPermanent4 => (3, 0),
@@ -3862,6 +3869,13 @@ impl Context {
                 S::AnyNumberOfTargetPermanents(p) => {
                     target.filter = self.filter(p)?;
                     target.count = Count::AnyNumber;
+                }
+                S::TargetPlayerAtTime(players, also) => {
+                    target.kind = TargetKind::Player;
+                    target.players = Some(self.players(&source::Players::And(vec![
+                        players.as_ref().clone(),
+                        also.as_ref().clone(),
+                    ]))?);
                 }
                 S::TargetPlayer(p) | S::UptoOneTargetPlayer(p) => {
                     target.kind = TargetKind::Player;

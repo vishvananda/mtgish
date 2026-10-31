@@ -23,6 +23,16 @@ impl Context {
         if let Some(check) = self.took_check(&player, filter)? {
             return Ok(check);
         }
+        if let S::SinglePlayer(other) = filter {
+            return Ok(Condition::Compare {
+                left: Expr::CountPlayers(PlayerSet::Intersection(vec![
+                    PlayerSet::One(player),
+                    PlayerSet::One(self.player(other)?),
+                ])),
+                comparison: Comparison::Greater,
+                right: Expr::Constant(0),
+            });
+        }
         Ok(match filter {
             S::NumCardTypesInGraveyardIs(c) => {
                 let (comparison, right) = self.comparison(c)?;

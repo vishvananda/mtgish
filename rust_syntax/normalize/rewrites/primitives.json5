@@ -2,7 +2,7 @@
   "version": 1,
   "vocabularies": ["CounterType"],
   "terms": [
-    "Comparison",
+    "Comparison", "ExiledCardEffect", "SpellEffect", "FutureTrigger",
     "CardtypeVariable", "Commanders", "CostPlayerAction", "DeckConstruction", "FaceUpDraftEffect", "ActivateModifier", "NameFilter", "CastModifier", "GroupFilter", "Letter", "ManaProduce", "ChoosableCreatureType", "MoveCountersCost", "PermanentsAndGraveyardCards", "EnterOrFaceUpAction", "FaceUpAction", "SingleDungeon", "ConspiracyDeck", "ManaSpent", "ManaSources", "LibraryCardEffect", "PregameAction", "DamageToRecipients", "AttackAssignment", "CardEffect", "AdditionalCostOption", "ActionOption",
     "Emblem", "SingleVanguard", "Plane", "CardInLibrary", "ResolveAction",
     "Abilities", "ActivatedAbilities", "CardInHand", "CardsInGraveyards", "CardsInHand", "Companion",
@@ -25,7 +25,7 @@
     {"source": "Action::ChooseTwoColorWords", "text": "color", "keeps": true},
     {"source": "Action::ChooseTwoBasicLandTypes", "text": "basic land", "keeps": true},
     {"source": "Action::AttachAPermanentToPermanent", "text": "attach", "keeps": true},
-    {"source": "Trigger::WhenAPlayerRollsAValueOnADie", "text": "roll"},
+    {"source": "Trigger::WhenAPlayerRollsAValueOnADie", "text": "roll", "binds": ["amount"]},
     {"source": "Trigger::WhenAPlayerAttacksAPlayerWithAnyNumberOfCreatures", "text": "attack", "binds": ["player", "other_player", "amount"]},
     {"source": "Trigger::WhenACounterOfTypeIsRemovedFromAnExiledCard", "text": "counter"},
     {"source": "Spells::HasXInManaCost", "text": "mana"},
@@ -1097,7 +1097,7 @@
     {"source": "Action::AttachEachPermanentToAPermanent", "text": "attach", "keeps": true},
     {"source": "Trigger::WhenAnyNumberOfPermanentsAndOrGraveyardCardsArePutIntoExile", "text": "are", "binds": ["group"]},
     {"source": "Trigger::WhenAnyNumberOfGenericCardsArePutIntoExileFromAPlayersHand", "text": "are", "binds": ["amount"]},
-    {"source": "Trigger::WhenAnyNumberOfCountersOfTypeAreRemovedFromAPermanent", "text": "removed", "binds": ["object", "permanent"]},
+    {"source": "Trigger::WhenAnyNumberOfCountersOfTypeAreRemovedFromAPermanent", "text": "removed", "binds": ["object", "permanent", "amount"]},
     {"source": "Trigger::WhenAnyNumberOfCountersOfTypeArePutOnAnyNumberOfPermanents", "text": "are", "binds": ["amount"]},
     {"source": "Trigger::WhenAnAbilityIsActivated", "text": "activated"},
     {"source": "Trigger::WhenASpellOrAbilityExilesAnyNumberOfPermanents", "text": "exiles"},
@@ -2512,6 +2512,8 @@
     {"source": "Cards::SharesACreatureTypeWithMostPrevalentCreatureTypeInPlayersLibrary", "text": "prevalent"},
     {"source": "Cards::NumberOfDifferentManaColorSymbolsInCostIs", "text": "mana|color|colors"},
     {"source": "CheckHasable::Soulbond", "text": "soulbond"},
-    {"source": "Rule::DamageIsntRemovedFromCreatureDuringCleanup", "text": "damage"}
+    {"source": "Rule::DamageIsntRemovedFromCreatureDuringCleanup", "text": "damage"},
+    {"source": "Action::CreateEachExiledCardEffect", "text": "exile|exiled"},
+    {"source": "Action::CreateFutureTrigger_UnlessPlayerPaysManaBefore", "text": "unless", "keeps": true}
   ]
 }

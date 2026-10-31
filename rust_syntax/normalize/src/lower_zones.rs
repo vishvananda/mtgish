@@ -66,6 +66,13 @@ impl Context {
             S::Ref_TargetGraveyardCard4 => 3,
             S::Ref_TargetGraveyardCard5 => 4,
             S::ThisGraveyardCard => return Ok(ObjectRef::Source),
+            S::TheCardDiscardedThisWay => {
+                return Ok(ObjectRef::Result {
+                    result: self.done(Done::Discarded)?,
+                    phase: ObjectPhase::After,
+                    index: 0,
+                })
+            }
             S::TheGraveyardCardChosenThisWay | S::TheChosenGraveyardCard
                 if self.grave_choice.is_some() =>
             {

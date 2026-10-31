@@ -2964,6 +2964,13 @@ fn a_duration_can_name_the_extra_turn_this_way_made() {
 }
 
 #[test]
+fn a_target_player_can_carry_a_condition() {
+    let text = ability_json("SpellActions(Targeted([TargetPlayerAtTime(Opponent,ControlsMorePermanentThanPlayer(You,IsCardtype(Creature)))],ActionList([DrawACard])))");
+    assert!(text.contains("Intersection"), "{text}");
+    assert!(text.contains("OpponentsOf"), "{text}");
+}
+
+#[test]
 fn every_player_passing_counts_those_who_pass() {
     let text = ability_json("TriggerI(AtTheBeginningOfAPlayersUpkeep(SinglePlayer(You)),AllPlayersPassFilter(AnyPlayer,LifeTotalIs(LessThanOrEqualTo(Integer(10)))),ActionList([DrawACard]))");
     assert_eq!(text.matches("CountPlayers").count(), 2, "{text}");
