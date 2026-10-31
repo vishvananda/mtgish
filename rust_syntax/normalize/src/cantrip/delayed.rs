@@ -48,6 +48,8 @@ impl Compiler {
             | ObjectRef::EventSubject
             | ObjectRef::EventDestination
             | ObjectRef::EventOther
+            | ObjectRef::EventStackObject
+            | ObjectRef::BlockPair(_)
             | ObjectRef::Damage(_) => false,
             _ => true,
         }

@@ -93,6 +93,9 @@ pub(super) struct Frame {
     pub amount: Option<Carried>,
     pub damage_source: Option<Carried>,
     pub damage_recipient: Option<Carried>,
+    pub stack_object: Option<Carried>,
+    pub attacker: Option<Carried>,
+    pub blocker: Option<Carried>,
 }
 impl Frame {
     /// What every branch of an alternative event binds the same way.
@@ -109,6 +112,9 @@ impl Frame {
             amount: same(self.amount, other.amount),
             damage_source: same(self.damage_source, other.damage_source),
             damage_recipient: same(self.damage_recipient, other.damage_recipient),
+            stack_object: same(self.stack_object, other.stack_object),
+            attacker: same(self.attacker, other.attacker),
+            blocker: same(self.blocker, other.blocker),
         }
     }
 }
@@ -292,6 +298,10 @@ impl Compiler {
             ObjectRef::EventSubject => self.carried_object(self.frame.object)?,
             ObjectRef::EventDestination => self.carried_object(self.frame.destination)?,
             ObjectRef::EventOther => self.carried_object(self.frame.other)?,
+            ObjectRef::EventStackObject => self.carried_object(self.frame.stack_object)?,
+            ObjectRef::BlockPair(BlockRole::Attacker) => self.carried_object(self.frame.attacker)?,
+            ObjectRef::BlockPair(BlockRole::Blocker) => self.carried_object(self.frame.blocker)?,
+            ObjectRef::BlockPair(BlockRole::Other) => self.carried_object(self.frame.other)?,
             ObjectRef::Damage(DamageSubject::Source) => {
                 self.carried_object(self.frame.damage_source)?
             }
