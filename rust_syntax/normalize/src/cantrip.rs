@@ -755,7 +755,7 @@ impl Compiler {
                     restriction,
                 },
             ..
-        }] = body.instructions.as_slice()
+        }, rest @ ..] = body.instructions.as_slice()
         else {
             return Err(gap("compound mana ability callback"));
         };
@@ -815,9 +815,20 @@ impl Compiler {
             },
             &mut out,
         );
+        // What a mana ability does besides adds is part of it: painlands' damage.
+        self.reset_results();
+        let rest = emitted.and_then(|()| {
+            self.program(
+                &Program {
+                    instructions: rest.to_vec(),
+                },
+                &mut out,
+                false,
+            )
+        });
         self.reader = reader;
         self.stack_item = true;
-        emitted?;
+        rest?;
         writeln!(self.functions,"fn {label}(g: &mut dyn Game, asker: &Asker, chosen: Option<Color>) -> Result<(),Suspend> {{ {out} Ok(()) }}").unwrap();
         Ok(metadata)
     }

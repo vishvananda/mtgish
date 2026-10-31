@@ -196,16 +196,20 @@ impl Compiler {
     /// An `Enters` callback for the source's own arrival.
     fn entering(&mut self, body: &Program, label: &str) -> Result<()> {
         self.reset_results();
-        let saved = (self.reader, self.event_at, self.stack_item, self.pending);
-        (self.reader, self.event_at, self.stack_item, self.pending) = (
+        let saved = (self.reader, self.event_at, self.stack_item, self.pending, self.frame);
+        (self.reader, self.event_at, self.stack_item, self.pending, self.frame) = (
             Reader::Resolution,
-            EventAt::Nowhere,
+            EventAt::Entering,
             false,
             Pending::Entering,
+            Frame {
+                object: Some(Carried::Subject),
+                ..Frame::default()
+            },
         );
         let mut out = String::new();
         let compiled = self.program(body, &mut out, false);
-        (self.reader, self.event_at, self.stack_item, self.pending) = saved;
+        (self.reader, self.event_at, self.stack_item, self.pending, self.frame) = saved;
         compiled?;
         writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {label}(g: &mut dyn Game, entering: &mut Entering) -> Result<(), Suspend> {{ let asker = &Asker::new(entering.object, entering.controller); {out} Ok(()) }}").unwrap();
         Ok(())

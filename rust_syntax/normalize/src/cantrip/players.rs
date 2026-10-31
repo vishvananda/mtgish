@@ -229,6 +229,90 @@ impl Compiler {
         }
         Ok(())
     }
+    /// `Operation::CreateContinuousEffect` on players: rules a resolving
+    /// ability changes for a while (CR 611.2).
+    pub(super) fn continuous_on_players(
+        &mut self,
+        id: usize,
+        source: &ObjectRef,
+        players: &PlayerSet,
+        changes: &[Change],
+        duration: &crate::ir::Duration,
+        out: &mut String,
+    ) -> Result<()> {
+        use crate::ir::Duration as D;
+        for (i, change) in changes.iter().enumerate() {
+            let rule = match change {
+                Change::PlayerRule(rule) => rule,
+                other => return Err(gap(format!("continuous change on players {}", form(other)))),
+            };
+            let kind = match rule {
+                PlayerRule::PlayPermission {
+                    cards,
+                    from,
+                    action,
+                    filter: ObjectFilter::Any,
+                } => {
+                    let expiry = match duration {
+                        D::EndOfTurn => "EndOfTurn",
+                        D::UntilEndOfNextTurn(PlayerRef::AbilityController) => "EndOfYourNextTurn",
+                        D::Indefinite | D::WhileExiled(_) => "Never",
+                        other => return Err(gap(format!("play permission lasting {}", form(other)))),
+                    };
+                    let lands = match action {
+                        CardPlayAction::Either => true,
+                        CardPlayAction::CastSpell => false,
+                        other => return Err(gap(format!("play permission to {}", form(other)))),
+                    };
+                    writeln!(
+                        out,
+                        "let cards_{id}_{i} = {}; let players_{id}_{i} = {}; cantrip_api::instruction(g, |g| {{ for &card in &cards_{id}_{i} {{ if g.obj(card).zone.is({}) {{ for &player in &players_{id}_{i} {{ g.allow_play(card, player, PlayGrant {{ lands: {lands}, expiry: Expiry::{expiry}, ..PlayGrant::CAST }}); }} }} }} }});",
+                        self.fetch(self.objects(cards)?),
+                        self.fetch(self.players(players)?),
+                        zone_kind(from)?,
+                    )
+                    .unwrap();
+                    continue;
+                }
+                PlayerRule::AdditionalLandPlays(Count::Exactly(Expr::Constant(n)))
+                    if u32::try_from(*n).is_ok() =>
+                {
+                    format!("EffectKind::ExtraLandPlays({n})")
+                }
+                PlayerRule::HandSize(HandSizeRule::Unlimited) => {
+                    "EffectKind::MaximumHandSize(None)".to_string()
+                }
+                PlayerRule::HandSize(HandSizeRule::Set(Expr::Constant(n)))
+                    if u32::try_from(*n).is_ok() =>
+                {
+                    format!("EffectKind::MaximumHandSize(Some({n}))")
+                }
+                PlayerRule::SpellTiming {
+                    spells,
+                    timing: SpellTiming::Flash,
+                } => match listed_types(spells) {
+                    Some(types) => {
+                        let types: Vec<String> =
+                            types.iter().map(|t| format!("CardType::{t}")).collect();
+                        format!("EffectKind::CastAsThoughFlash(TypeSet::of(&[{}]))", types.join(","))
+                    }
+                    None => return Err(gap("flash for spells other than by type")),
+                },
+                other => return Err(gap(format!("player rule for a while {}", form(other)))),
+            };
+            let PlayerSet::One(PlayerRef::AbilityController) = players else {
+                return Err(gap(format!("rule for a while on {}", form(players))));
+            };
+            let duration = self.duration(duration)?;
+            writeln!(
+                out,
+                "if let Some(source) = {} {{ g.add_player_effect(asker.controller, source, {kind}, {duration}); }}",
+                self.fetch(self.object(source)?)
+            )
+            .unwrap();
+        }
+        Ok(())
+    }
     fn cost_delta(&self, modifier: &SpellCostModifier) -> Result<String> {
         Ok(match modifier {
             SpellCostModifier::Increase(cost) => {
@@ -298,6 +382,21 @@ impl Compiler {
             other => return Err(gap(format!("prohibited action {}", form(other)))),
         }
         Ok(())
+    }
+}
+
+/// The card types a timing permission names, if that is all it names.
+fn listed_types(spells: &ObjectFilter) -> Option<Vec<String>> {
+    match spells {
+        ObjectFilter::CardType(t) => Some(vec![card_type(t).ok()?.to_string()]),
+        ObjectFilter::Either(filters) => {
+            let mut types = Vec::new();
+            for filter in filters {
+                types.extend(listed_types(filter)?);
+            }
+            Some(types)
+        }
+        _ => None,
     }
 }
 

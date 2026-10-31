@@ -627,6 +627,9 @@ impl Compiler {
                 duration,
                 evaluation,
             } => {
+                if let EffectSubjects::Players(players) = affected {
+                    return self.continuous_on_players(id, source, players, changes, duration, out);
+                }
                 // "Live" subjects differ from read ones only where the set
                 // could gain a member, which names of one object never do.
                 let closed = matches!(

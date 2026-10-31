@@ -119,6 +119,8 @@ pub(super) enum EventAt {
     Item,
     /// `Query::event_subject`, the one value a target filter is given.
     TargetFilter,
+    /// An `Enters` callback: the subject is what is entering, its source.
+    Entering,
 }
 
 pub(super) fn compare(left: &str, comparison: &Comparison, right: &str) -> String {
@@ -179,6 +181,7 @@ impl Compiler {
             EventAt::Matcher => ("subject".to_string(), "data".to_string()),
             EventAt::Item => ("item.subject".into(), "item.data".into()),
             EventAt::TargetFilter => ("q.event_subject()".into(), String::new()),
+            EventAt::Entering => ("Target::Object(asker.source)".into(), String::new()),
             EventAt::Nowhere => return Err(gap("event value outside its ability")),
         };
         match carried {
