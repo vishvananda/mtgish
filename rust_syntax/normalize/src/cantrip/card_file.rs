@@ -167,8 +167,8 @@ fn recipe(body: &Program, targets: &[TargetSpec]) -> Result<Recipe> {
             objects,
             regeneration: true,
         }] if matches!(objects, ObjectSet::One(o) if first_target(o)) => Ok(Recipe {
-            code: Code::Statements(vec!["destroy_target(g, item, 0);".into()]),
-            imports: vec!["destroy_target"],
+            code: Code::Path("effects::destroy_first_target".into()),
+            imports: vec!["effects"],
             cites: "CR 701.8a, 608.2b",
         }),
         [Operation::CreateContinuousEffect {

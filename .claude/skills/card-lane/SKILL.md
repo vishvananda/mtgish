@@ -84,7 +84,10 @@ A card that is wrong is worse than a card that is missing.
    it shows and the rule. Together they run every line and branch of the card, and each one must execute the card's own code
    or, for a card with none, play the card itself. A keyword gets a scenario that fails without it: the flier that cannot be blocked,
    the first striker that takes no damage back. Give every test point an expectation that fails if the card gets it wrong:
-   the exact amount, both players' objects for "each", "target" or "you control", an earlier turn for "this turn".
+   the exact amount, both players' objects for "each", "target" or "you control", an earlier turn for "this turn". A spell or
+   creature with a cost gets `? Bot1.Mana =` right after its cast, so a cost too low fails. Before you move on, read each
+   opening comment again: it claims only what an expectation checks, and point the report at the line that catches the
+   behavior, not one that says a keyword is present.
 
    The gate breaks numbers and comparisons, not meaning, so ask the card these yourself. An independent review blocked
    pilot cards on each of them:

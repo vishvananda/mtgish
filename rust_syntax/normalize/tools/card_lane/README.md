@@ -85,7 +85,8 @@ Outcomes are `committed`, `generator_bug`, `failed_gates`, `engine_gap`, `needs_
 `error`. A card that did not commit keeps its work in `work.patch`, and the tree is cleaned for the next card.
 
 `generator_bug` is the worker's finding that the card is wrong, or the driver's that the generated file cannot stand, which
-it decides before starting a worker. The fix goes in the generator; `status --json` has each card's reason.
+it decides before starting a worker: style problems, a function that repeats a shared effect, or a file that does not
+compile. The fix goes in the generator; `status --json` has each card's reason.
 
 Cost is token counts as the backend reports them, and for Codex that is the session's total, which a repair round grows
 rather than restarts. Where a backend reports no price, `usd_api_equivalent` applies the list rates in
@@ -101,7 +102,7 @@ and `layers`, which take minutes. A commit needs all of them.
 | `scope` | Anything changed but the card's content file, its card file and new scenarios |
 | `generated` | The card's file is not the generator's, or its content file is not what `new-card.py` wrote |
 | `oracle` | `new-card.py` says the content differs from Scryfall's current card |
-| `scenarios` | A placeholder or TODO remains, or a scenario says `Known bug`, has no opening comment or has no `[Expect]` |
+| `scenarios` | A placeholder or TODO remains, a scenario says `Known bug`, has no opening comment or no `[Expect]`, or a card with a cost has no `.Mana =` expectation |
 | `style` | Ability text not printed on the card, generator scaffolding left in, or a `fn` without a doc comment quoting the Oracle and citing the CR |
 | `lint` | `card-lint.py` reports a NEVER |
 | `citations` | `cr.py check` finds a rule that does not exist |

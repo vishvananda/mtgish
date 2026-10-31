@@ -103,6 +103,18 @@ class Reporting(unittest.TestCase):
         self.assertIn("no expectation", lane.expectation_problem({"scenario": "a-card", "line": 4}, "x"))
 
 
+class Sharing(unittest.TestCase):
+    def test_a_function_that_is_a_shared_effect_over_again_is_named(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            effects = Path(scratch) / "crates" / "cantrip-mechanics" / "src" / "effects.rs"
+            effects.parent.mkdir(parents=True)
+            effects.write_text("pub fn destroy_first_target(g: X, item: Y) -> Z {\n    crate::destroy_target(g, item, 0);\n    Ok(())\n}\n")
+            with mock.patch.object(lane, "CANTRIP", Path(scratch)):
+                card = "fn effect(g: X, item: Y) -> Z {\n    destroy_target(g, item, 0);\n    Ok(())\n}\n"
+                self.assertEqual(lane.shared_copies(card), ["fn effect is effects::destroy_first_target"])
+                self.assertEqual(lane.shared_copies(card.replace("destroy_target", "damage_target")), [])
+
+
 class Commands(unittest.TestCase):
     def test_the_corpus_takes_its_own_flags_with_or_without_a_separator(self):
         for argv in (["corpus", "--card", "X", "--brief"], ["corpus", "--", "--card", "X", "--brief"]):

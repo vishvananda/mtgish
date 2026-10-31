@@ -443,7 +443,7 @@ def prepare(card):
         card_file(name).write_text(source, encoding="utf-8", newline="\n")
     else:
         card_file(name).unlink(missing_ok=True)
-    problems = style_problems(name, source) if source else []
+    problems = (style_problems(name, source) + shared_copies(source)) if source else []
     if problems:
         raise GeneratorBug("; ".join(problems))
     (packet / "shared.md").write_text(shared_code(source), encoding="utf-8")
@@ -661,6 +661,16 @@ def style_problems(name, source):
     return problems
 
 
+def shared_copies(source):
+    """The card's functions that are a shared effect over again, which a review blocks. A recipe that writes one should
+    name the shared effect instead, so this is the generator's to fix and no worker's."""
+    def key(body):
+        return re.sub(r"\s+", "", "".join(body)).replace("crate::", "")
+    shared = (CANTRIP / "crates" / "cantrip-mechanics" / "src" / "effects.rs").read_text(encoding="utf-8")
+    known = {key(body): fn for fn, _, body in functions(shared)}
+    return [f"fn {fn} is effects::{known[key(body)]}" for fn, _, body in functions(source) if key(body) in known]
+
+
 def overlaps(name, source):
     """Other cards with a function body equal to one of this card's, whitespace aside: the mechanical part of the
     review's overlap finding. An exact copy of two statements or more should have been shared."""
@@ -824,6 +834,11 @@ def env_tool(name):
     return environment()[name]
 
 
+def costs_mana(name):
+    cost = json.loads(content_file(name).read_text(encoding="utf-8-sig")).get("manaCost", "")
+    return bool(cost) and cost != "{0}"
+
+
 def check(name, fast=False):
     """Every gate that can be run on the tree, cheapest first. `fast` leaves out what takes minutes, so a worker can loop
     on it; a commit always takes the whole of it. The report is checked either way, so that a worker sees what would
@@ -850,6 +865,8 @@ def check(name, fast=False):
     bad += [f"{p.name}: says Known bug, so it asserts an engine failure" for p in scenarios if "Known bug" in p.read_text(encoding="utf-8")]
     bad += [f"{p.name}: does not open with what it shows (a # comment)" for p in scenarios if not p.read_text(encoding="utf-8").lstrip().startswith("#")]
     bad += [f"{p.name}: no [Expect]" for p in scenarios if "[Expect]" not in p.read_text(encoding="utf-8")]
+    if scenarios and costs_mana(name) and not any(re.search(r"\.Mana =", p.read_text(encoding="utf-8")) for p in scenarios):
+        bad.append("no scenario shows the cost paid exactly: `? Bot1.Mana =` right after a cast, so a cost too low fails")
     gates.add("scenarios", scenarios and not bad, "\n".join(bad) or ("" if scenarios else "the card has no new scenario"), started)
 
     path = card_file(name)
