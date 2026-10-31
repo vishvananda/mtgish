@@ -187,6 +187,11 @@ class Pieces:
         found = self.vanilla.get(toughness)
         return found[0] if found else None
 
+    def free_creature(self, *besides):
+        """A vanilla creature that costs nothing, not one of those named, or None."""
+        free = [c for cards in self.vanilla.values() for c in cards if c.get("manaCost") == "{0}"]
+        return next((c for c in sorted(free, key=lambda c: c["name"]) if c["name"] not in besides), None)
+
 
 def activate(player, source, argument):
     return f"{player}.Battlefield.{source}.Activate" + (f"({argument})" if argument else "")
@@ -396,7 +401,8 @@ def team_scripts(card, claim, pieces, frame):
         raise Unwritable("no free creature survives the pump")
     other = pieces.creature(1)
     o, x = own["name"], other["name"]
-    bot1 = [o] + [s for s, _ in sources] + [name]
+    late = pieces.free_creature(o, x)
+    bot1 = [o] + [s for s, _ in sources] + [name] + ([late["name"]] if late else [])
     actions = casts("Bot1", [(o, "")]) + casts("Bot1", sources)
     actions += ["[T2 Bot2.Main1]", f"Bot2.Hand.{x}.Cast", "Bot2.Pass", "[T3 Bot1.Main1]"]
     actions += [activate("Bot1", s, a) for s, a in sources]
@@ -404,13 +410,20 @@ def team_scripts(card, claim, pieces, frame):
     if frame != "spell":
         actions += ["Bot1.Pass", "Bot2.Pass"]
     actions += [f"? Bot1.Battlefield.{o}.Power = {own['power'] + p}", f"? Bot1.Battlefield.{o}.Toughness = {own['toughness'] + t}",
-                f"? Bot2.Battlefield.{x}.Power = {other['power']}", f"? Bot2.Battlefield.{x}.Toughness = {other['toughness']}",
-                "[T4 Bot2.Main1]"]
+                f"? Bot2.Battlefield.{x}.Power = {other['power']}", f"? Bot2.Battlefield.{x}.Toughness = {other['toughness']}"]
+    if frame != "spell":
+        actions += [f"? Bot1.Battlefield.{name}.Power = {card['power'] + p}", f"? Bot1.Battlefield.{name}.Toughness = {card['toughness'] + t}"]
+    if late:
+        actions += [f"Bot1.Hand.{late['name']}.Cast", "Bot1.Pass", "Bot2.Pass", f"? Bot1.Battlefield.{late['name']}.Power = {late['power']}",
+                    f"? Bot1.Battlefield.{late['name']}.Toughness = {late['toughness']}"]
+    actions.append("[T4 Bot2.Main1]")
     how = "it resolves" if frame == "spell" else "it enters"
     return [Script(
         f"{slug}-pumps-your-creatures-and-not-the-opponents",
         [f"\"{team_pump_actions(p, t)}\" As {how}, Bot1's {o} has exactly that and Bot2's {x} does not (CR 611.2a, 611.2c), and on",
-         "turn 4 it is over (CR 514.2)."],
+         "turn 4 it is over (CR 514.2).",
+         *([f"The set is fixed as it resolves (CR 611.2c): a {late['name']} cast after it is left as printed."] if late else []),
+         *([f"{name} is one of the creatures you control, so it has the bonus too."] if frame != "spell" else [])],
         bot1, [x], actions,
         [f"Bot1.Battlefield.{o}.Power = {own['power']}", f"Bot1.Battlefield.{o}.Toughness = {own['toughness']}"])]
 
