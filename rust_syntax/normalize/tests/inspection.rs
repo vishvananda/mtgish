@@ -60,6 +60,7 @@ fn operations(c: &Card) -> Vec<&Operation> {
                 Instruction::Group(p)
                 | Instruction::Optional { body: p, .. }
                 | Instruction::Repeatable(p)
+                | Instruction::Times { body: p, .. }
                 | Instruction::ForEachPlayer { body: p, .. } => program(p, out),
                 Instruction::If {
                     then, otherwise, ..
@@ -128,8 +129,6 @@ fn real_inspection_programs_roundtrip_and_unimplemented_nested_programs_remain_d
         "Fact or Fiction",
         "Atris, Oracle of Half-Truths",
         "Fortune's Favor",
-        "Velomachus Lorehold",
-        "Svella, Ice Shaper",
         "Break Out",
         "Birthing Ritual",
         "Lim-Dûl's Vault",
@@ -162,7 +161,7 @@ fn real_inspection_programs_roundtrip_and_unimplemented_nested_programs_remain_d
         }
         complete += 1;
     }
-    assert_eq!(complete, 40);
+    assert_eq!(complete, 42);
 }
 
 #[test]

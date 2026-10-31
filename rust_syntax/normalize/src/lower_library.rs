@@ -3,6 +3,9 @@ impl Context {
         use source::CardsInLibrary as S;
         let card = match value {
             S::AnyCardInLibrary => return Ok(ObjectFilter::Any),
+            S::SharesANameWithPermanent(p) => {
+                return Ok(ObjectFilter::SharesNameWith(self.object(p)?))
+            }
             S::And(v) => {
                 return Ok(ObjectFilter::All(
                     v.iter()

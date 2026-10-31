@@ -52,12 +52,7 @@ fn changes(a: &Ability) -> &[Change] {
 
 #[test]
 fn characteristic_families_roundtrip_and_other_unimplemented_abilities_are_not_dropped() {
-    let incomplete = [
-        "Fallaji Wayfarer",
-        "Adaptive Automaton",
-        "Planar Nexus",
-        "Primal Clay",
-    ];
+    let incomplete = ["Adaptive Automaton", "Planar Nexus", "Primal Clay"];
     let mut complete = 0;
     for s in sources() {
         let name = corpus::Identity::of(&s).unwrap().names.remove(0);
@@ -81,7 +76,7 @@ fn characteristic_families_roundtrip_and_other_unimplemented_abilities_are_not_d
         }
         complete += 1;
     }
-    assert_eq!(complete, 50);
+    assert_eq!(complete, 51);
 }
 
 #[test]

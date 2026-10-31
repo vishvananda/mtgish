@@ -88,7 +88,6 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         "Tooth and Nail",
         "Urza's Saga",
         "Wishclaw Talisman",
-        "Woe Strider",
     ];
     let mut complete = 0;
     for source in sources() {
@@ -113,7 +112,7 @@ fn real_library_families_roundtrip_and_advanced_steps_remain_diagnostics() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 77);
+    assert_eq!(complete, 78);
 }
 
 #[test]

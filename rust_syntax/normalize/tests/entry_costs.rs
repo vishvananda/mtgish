@@ -38,12 +38,7 @@ fn program(rule: &str) -> Result<Card, Vec<lower::Diagnostic>> {
 
 #[test]
 fn complete_entry_and_cost_cards_roundtrip_and_unknown_nested_rules_stay_incomplete() {
-    let incomplete = [
-        "Aeve, Progenitor Ooze",
-        "Hooded Hydra",
-        "Sage of Hours",
-        "Thran Portal",
-    ];
+    let incomplete = ["Aeve, Progenitor Ooze", "Hooded Hydra", "Sage of Hours"];
     let mut complete = 0;
     for source in sources() {
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);
@@ -67,7 +62,7 @@ fn complete_entry_and_cost_cards_roundtrip_and_unknown_nested_rules_stay_incompl
         }
         complete += 1;
     }
-    assert_eq!(complete, 40);
+    assert_eq!(complete, 41);
 }
 
 #[test]

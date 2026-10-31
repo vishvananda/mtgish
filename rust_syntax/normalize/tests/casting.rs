@@ -232,7 +232,7 @@ fn casting_requirements_use_the_proposal_and_cannot_read_resolution_payments() {
         parts: vec![CostPart::Choice(vec![])],
     }));
     assert!(validate::card(&c).unwrap_err().contains("no alternatives"));
-    assert!(custom("CastEffect(MayCastAsThoughItHadFlashWithSpecialAction([DrawACard]))").is_err());
+    assert!(custom("CastEffect(MayCastAsThoughItHadFlashWithSpecialAction([DrawACard]))").is_ok());
 }
 
 #[test]

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 46;
+pub const SCHEMA_VERSION: u32 = 47;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -582,6 +582,12 @@ pub enum Instruction {
         decider: PlayerRef,
         options: Vec<Program>,
     },
+    /// Run `body`, and run it again each time it reached `RepeatProcess`, for
+    /// at most this many runs in all: "repeat this process X more times".
+    Times {
+        amount: Expr,
+        body: Program,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -699,7 +705,7 @@ pub enum Operation {
         /// Ends once it has triggered, as for "your next spell this turn".
         once: bool,
     },
-    /// Repeat the nearest enclosing `Instruction::Repeatable`.
+    /// Repeat the nearest enclosing `Instruction::Repeatable` or `Times`.
     RepeatProcess,
     SetLifeTotal {
         players: PlayerSet,
@@ -900,6 +906,8 @@ pub enum SelectionConstraint {
     DifferentProperty(Property),
     /// No two selected objects share a controller.
     DifferentControllers,
+    /// No two of these share an owner, as "from each player's graveyard".
+    DifferentOwners,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CardOrder {
@@ -1105,6 +1113,7 @@ pub enum Change {
     SetController(PlayerRef),
     SetPower(Expr),
     SetToughness(Expr),
+    SetArtifactType(crate::mtg_types::ArtifactType),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1854,6 +1863,8 @@ pub enum Recipients {
     Players(PlayerSet),
     Targets(Slot),
     Union(Vec<Recipients>),
+    /// The player, planeswalker or battle this creature is attacking (506.2).
+    AttackedBy(ObjectRef),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1934,6 +1945,7 @@ pub enum KeywordFamily {
     Protection,
     Landwalk,
     Hexproof,
+    Toxic,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

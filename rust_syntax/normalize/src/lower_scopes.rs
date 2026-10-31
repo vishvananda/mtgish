@@ -85,7 +85,10 @@ impl Context {
                             .map(|a| Change::GrantAbility(Box::new(a)))
                     })
                     .collect::<Result<_>>()?,
-                _ => return Err(unsupported(effect).at(format!("effects[{i}]"))),
+                _ => match self.primitive("SpellEffect", effect) {
+                    Some((name, operands)) => vec![Change::Primitive { name, operands }],
+                    None => return Err(unsupported(effect).at(format!("effects[{i}]"))),
+                },
             });
         }
         Ok(Ability::Static {

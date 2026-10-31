@@ -564,7 +564,16 @@ impl Context {
                 players: PlayerSet::One(player.clone()),
                 amount: self.number(n)?,
             },
-            _ => return Err(unsupported(action)),
+            _ => {
+                let (name, operands) = self
+                    .primitive("LookAtTopOfLibraryAction", action)
+                    .ok_or_else(|| unsupported(action))?;
+                Operation::Primitive {
+                    actor: PlayerSet::One(player.clone()),
+                    name,
+                    operands,
+                }
+            }
         };
         if matches!(
             operation,

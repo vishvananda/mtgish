@@ -584,6 +584,7 @@ impl<'a> Scope<'a> {
             Recipients::Objects(objects) => self.objects(objects),
             Recipients::Players(players) => self.players(players),
             Recipients::Targets(slot) => self.target(slot, None, TargetKind::DamageRecipient),
+            Recipients::AttackedBy(attacker) => self.object(attacker),
             Recipients::Union(items) => {
                 for item in items {
                     self.recipients(item)?;
@@ -954,6 +955,7 @@ impl<'a> Scope<'a> {
             | Change::AddSupertype(_)
             | Change::AddLandType(_)
             | Change::AddArtifactType(_)
+            | Change::SetArtifactType(_)
             | Change::SetCardTypes(_)
             | Change::RemoveAllAbilities => Ok(()),
         }
@@ -1972,6 +1974,12 @@ impl<'a> Scope<'a> {
                                 }
                             }
                         }
+                    }
+                    Instruction::Times { amount, body } => {
+                        self.expr(amount)?;
+                        let mut repeated = self.clone();
+                        repeated.repeatable = true;
+                        repeated.program(body)?;
                     }
                     Instruction::Repeatable(body) => {
                         let mut repeated = self.clone();

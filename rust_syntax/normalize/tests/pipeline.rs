@@ -1456,7 +1456,7 @@ fn cost_selection_remains_strict_while_effect_selection_does_as_much_as_possible
 #[test]
 fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
     use pipeline::operands::CostRecipe as R;
-    let source=custom("Activated(And([PayLifeForEach(Integer(2),Integer(3)),PutTopCardOfLibraryOfTypeOnBattlefield(IsCardtype(Creature),[EntersNormally])]),ActionList([DrawACard]))");
+    let source=custom("Activated(And([PayLifeForEach(Integer(2),Integer(3)),RevealAnyNumberOfCardsOfTypeFromHand(IsCardtype(Creature))]),ActionList([DrawACard]))");
     let stage = pipeline::Intermediate::new(&source).unwrap();
     let root = stage
         .structural
@@ -1465,13 +1465,13 @@ fn cost_consolidation_retains_unknown_children_and_symbol_scope_failures() {
         .find(|r| r.rule == "operand.Cost.And")
         .unwrap();
     assert!(
-        matches!(&root.recipe,pipeline::operands::OperandRecipe::Cost(R::All(items)) if matches!(items.as_slice(),[R::Amount {..},R::Source(source::Cost::PutTopCardOfLibraryOfTypeOnBattlefield(..))]))
+        matches!(&root.recipe,pipeline::operands::OperandRecipe::Cost(R::All(items)) if matches!(items.as_slice(),[R::Amount {..},R::Source(source::Cost::RevealAnyNumberOfCardsOfTypeFromHand(..))]))
     );
     assert!(stage.final_card.is_none());
     assert!(stage
         .diagnostics
         .iter()
-        .any(|d| d.form == "PutTopCardOfLibraryOfTypeOnBattlefield"));
+        .any(|d| d.form == "RevealAnyNumberOfCardsOfTypeFromHand"));
     for cost in ["TapPermanent(Ref_TargetPermanent)"] {
         let source = custom(&format!("Activated({cost},ActionList([DrawACard]))"));
         let stage = pipeline::Intermediate::new(&source).unwrap();
@@ -1787,7 +1787,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 46);
+    assert_eq!(card.schema_version, 47);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2372,4 +2372,45 @@ fn a_group_event_names_its_objects_and_a_targeting_event_its_source() {
 fn an_effect_can_last_until_a_player_pays() {
     let text = ability_json("Activated(TapPermanent(ThisPermanent),ActionList([CreatePermanentLayerEffectUntil(ThisPermanent,[AddCardtype(Enchantment)],UntilPlayerPaysMana(You,[ManaCostW]))]))");
     assert!(text.contains("UntilPaid"), "{text}");
+}
+
+#[test]
+fn a_process_repeats_a_set_number_of_times() {
+    let text = ability_json("SpellActions(ActionList([RepeatableActionsNumTimes(Plus(Integer(1),ValueX),[DrawACard])]))");
+    assert!(text.contains("Times"), "{text}");
+}
+
+#[test]
+fn damage_can_go_to_what_a_creature_attacks() {
+    let text = ability_json("TriggerA(WhenACreatureAttacks(SinglePermanent(ThisPermanent)),ActionList([PermanentDealsDamage(ThisPermanent,Integer(1),PlayerOrPlaneswalkerPermanentIsAttacking(Trigger_ThatCreature))]))");
+    assert!(text.contains("AttackedBy"), "{text}");
+}
+
+#[test]
+fn up_to_one_card_from_each_graveyard_is_one_slot_with_distinct_owners() {
+    let text = ability_json("SpellActions(Targeted([UptoOneTargetGraveyardCardInEachPlayersGraveyard(IsCardtype(Creature),AnyPlayer)],ActionList([DrawACard])))");
+    assert!(text.contains("DifferentOwners"), "{text}");
+}
+
+#[test]
+fn all_matching_cards_move_from_graveyard_or_hand() {
+    let text = ability_json(
+        "SpellActions(ActionList([ReturnEachCardFromGraveyardToHand(IsCardtype(Enchantment))]))",
+    );
+    assert!(text.contains("OwnersHand"), "{text}");
+    let text = ability_json("SpellActions(ActionList([DiscardCards(IsNonCardtype(Land))]))");
+    assert!(text.contains("DiscardObjects"), "{text}");
+}
+
+#[test]
+fn the_top_card_of_a_library_can_be_tested() {
+    let text = ability_json("If(TopCardOfPlayersLibraryPassesFilter(You,IsCardtype(Creature)),[PermanentLayerEffect(ThisPermanent,[AdjustPT(+1,+1)])])");
+    assert!(text.contains("ObjectMatches"), "{text}");
+}
+
+#[test]
+fn nonattacking_and_exact_power_toughness_are_plain_filters() {
+    let text = ability_json("SpellActions(Targeted([TargetPermanent(And([IsntAttacking,PowerAndToughnessIsEqualTo(PT(1,1))]))],ActionList([DestroyPermanent(Ref_TargetPermanent)])))");
+    assert!(text.contains("Not"), "{text}");
+    assert!(text.contains("Toughness"), "{text}");
 }

@@ -238,6 +238,10 @@ impl Inventory<'_> {
                     self.program(body);
                 }
                 Instruction::Repeatable(body) => self.program(body),
+                Instruction::Times { amount, body } => {
+                    self.expr(amount);
+                    self.program(body);
+                }
                 Instruction::ForEachPlayer {
                     players,
                     starting_with,
@@ -982,6 +986,7 @@ impl Inventory<'_> {
             | Change::AddSupertype(_)
             | Change::AddLandType(_)
             | Change::AddArtifactType(_)
+            | Change::SetArtifactType(_)
             | Change::SetCardTypes(_)
             | Change::RemoveAllAbilities => {}
         }
@@ -1209,6 +1214,7 @@ impl Inventory<'_> {
         match r {
             Recipients::Objects(o) => self.objects(o),
             Recipients::Players(p) => self.players(p),
+            Recipients::AttackedBy(attacker) => self.object(attacker),
             Recipients::Union(items) => {
                 for r in items {
                     self.recipients(r);

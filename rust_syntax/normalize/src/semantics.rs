@@ -340,9 +340,9 @@ impl Effects {
                     self.program(then);
                     self.program(otherwise);
                 }
-                Instruction::ForEachPlayer { body, .. } | Instruction::Repeatable(body) => {
-                    self.program(body)
-                }
+                Instruction::Times { body, .. }
+                | Instruction::ForEachPlayer { body, .. }
+                | Instruction::Repeatable(body) => self.program(body),
                 Instruction::ChooseOne { options, .. } => {
                     options.iter().for_each(|option| self.program(option));
                 }

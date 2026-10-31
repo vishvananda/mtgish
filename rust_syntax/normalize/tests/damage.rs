@@ -72,7 +72,6 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         "Breeches, Brazen Plunderer",
         "Curious Obsession",
         "Fall of Cair Andros",
-        "Fathom Fleet Swordjack",
         "Firesong and Sunspeaker",
         "Gonti's Machinations",
         "Kaito, Dancing Shadow",
@@ -109,7 +108,7 @@ fn real_damage_families_roundtrip_and_nested_gaps_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 68);
+    assert_eq!(complete, 69);
 }
 
 #[test]

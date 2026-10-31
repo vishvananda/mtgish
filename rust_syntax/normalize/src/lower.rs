@@ -639,6 +639,24 @@ impl Context {
     }
 
     fn filter_inner(&self, value: &source::Permanents) -> Result<ObjectFilter> {
+        match value {
+            source::Permanents::IsntAttacking => {
+                let attacking = self.filter_inner(&source::Permanents::IsAttacking)?;
+                return Ok(ObjectFilter::Not(Box::new(attacking)));
+            }
+            source::Permanents::PowerAndToughnessIsEqualTo(source::PT::PT(p, t)) => {
+                let is = |property, amount: &i32| ObjectFilter::Property {
+                    property,
+                    comparison: Comparison::Equal,
+                    value: Expr::Constant(i64::from(*amount)),
+                };
+                return Ok(ObjectFilter::All(vec![
+                    is(Property::Power, p),
+                    is(Property::Toughness, t),
+                ]));
+            }
+            _ => {}
+        }
         if let source::Permanents::ExceptFor(excluded) = value {
             return Ok(ObjectFilter::Not(Box::new(self.filter_inner(excluded)?)));
         }
@@ -786,6 +804,15 @@ impl Context {
                 property: Property::ManaValue,
                 information: Information::CurrentOrLastKnown,
             },
+            S::Trigger_NumberOfCreatures if self.event.group => {
+                Expr::CountObjects(Box::new(ObjectSet::EventGroup))
+            }
+            S::NumGroupPermanents(objects, source::GroupFilter::DifferentNames) => {
+                Expr::CountDistinct {
+                    objects: Box::new(self.objects(objects)?),
+                    property: DistinctProperty::Names,
+                }
+            }
             S::NumColorsManaSpentToCastEnteringPermanent if self.event.permanent => {
                 Expr::ManaSpent {
                     object: ObjectRef::EventSubject,
@@ -1021,6 +1048,17 @@ impl Context {
                     right: Expr::Constant(0),
                 }
             }
+            S::TopCardOfPlayersLibraryPassesFilter(player, cards) => Condition::ObjectMatches {
+                object: ObjectRef::Query {
+                    objects: Box::new(self.library_slice(
+                        self.player(player)?,
+                        Expr::Constant(1),
+                        SequenceEnd::Top,
+                    )),
+                    index: 0,
+                },
+                filter: self.card_filter(cards)?,
+            },
             S::ACardWasExiledThisWay(cards) => {
                 let result = self.exiled.clone().ok_or_else(|| unsupported(value))?;
                 Condition::Compare {
@@ -1191,6 +1229,7 @@ impl Context {
                     S::AddSupertype(ty) => vec![Change::AddSupertype(ty.clone())],
                     S::AddLandType(ty) => vec![Change::AddLandType(ty.clone())],
                     S::AddArtifactType(ty) => vec![Change::AddArtifactType(ty.clone())],
+                    S::SetArtifactType(ty) => vec![Change::SetArtifactType(ty.clone())],
                     S::SetCardtype(ty) => vec![Change::SetCardTypes(vec![ty.clone()])],
                     S::SetCardtypes(types) => vec![Change::SetCardTypes(types.clone())],
                     S::AddAbility(abilities) => abilities
@@ -1395,6 +1434,9 @@ impl Context {
             S::Player(p) => Recipients::Players(PlayerSet::One(self.player(p)?)),
             S::EachPermanent(p) => Recipients::Objects(self.objects(p)?),
             S::EachPlayer(p) => Recipients::Players(self.players(p)?),
+            S::PlayerOrPlaneswalkerPermanentIsAttacking(attacker) => {
+                Recipients::AttackedBy(self.object(attacker)?)
+            }
             S::Ref_AnyTarget
             | S::Ref_AnyTarget1
             | S::Ref_AnyTargets
@@ -1681,6 +1723,27 @@ impl Context {
                 let create = S::CreateTokens(tokens.clone(), flags.clone());
                 return self.for_each_player(players, |context, _| context.action(&create, actor));
             }
+            S::ReturnEachCardFromGraveyardToHand(cards) => Operation::Move {
+                objects: self.private_cards(
+                    EventZone::Graveyard,
+                    actor.clone(),
+                    self.card_filter(cards)?,
+                ),
+                destination: Destination::OwnersHand,
+                entry: EntrySpec::default(),
+                face_down: false,
+            },
+            S::DiscardCards(cards) => Operation::DiscardObjects {
+                objects: self.private_cards(
+                    EventZone::Hand,
+                    actor.clone(),
+                    self.hand_filter(cards)?,
+                ),
+            },
+            S::AttachEachPermanentToPermanent(attachments, host) => Operation::Attach {
+                attachments: self.objects(attachments)?,
+                host: self.object(host)?,
+            },
             S::ReturnEnchantingGraveyardCardToHand => Operation::Move {
                 objects: ObjectSet::One(ObjectRef::Source),
                 destination: Destination::OwnersHand,
@@ -1694,6 +1757,7 @@ impl Context {
                 face_down: false,
             },
             S::ReturnACardFromGraveyardToBattlefield(cards, _)
+            | S::PutUptoNumberCardsFromGraveyardToHand(_, cards)
             | S::ReturnAGraveyardCardToHand(cards) => {
                 let PlayerSet::One(player) = actor else {
                     return Err(invalid("choosing a graveyard card needs one player"));
@@ -1706,7 +1770,12 @@ impl Context {
                         actor.clone(),
                         self.card_filter(cards)?,
                     ),
-                    count: Count::AsManyAsCan(Expr::Constant(1)),
+                    count: match value {
+                        S::PutUptoNumberCardsFromGraveyardToHand(n, _) => {
+                            Count::UpTo(self.number(n)?)
+                        }
+                        _ => Count::AsManyAsCan(Expr::Constant(1)),
+                    },
                 });
                 let Instruction::Effect { result, .. } = &choice else {
                     unreachable!()
@@ -2012,6 +2081,20 @@ impl Context {
             }
             S::DoNothing => return Ok(Instruction::Group(Program::empty())),
             S::RepeatThisProcess => Operation::RepeatProcess,
+            S::RepeatableActionsNumTimes(amount, actions) => {
+                let amount = self.number(amount)?;
+                let mut child = self.clone();
+                let instructions = actions
+                    .iter()
+                    .map(|action| child.action(action, actor))
+                    .collect::<Result<_>>()?;
+                self.result = child.result;
+                self.invalidate_child_bindings(&child);
+                return Ok(Instruction::Times {
+                    amount,
+                    body: Program { instructions },
+                });
+            }
             S::RepeatableActions(actions) => {
                 let mut child = self.clone();
                 let instructions = actions
@@ -2623,6 +2706,15 @@ impl Context {
                         _ => Count::Exactly(Expr::Constant(1)),
                     };
                 }
+                S::UptoOneTargetGraveyardCardInEachPlayersGraveyard(c, players) => {
+                    target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
+                    target.filter = ObjectFilter::All(vec![
+                        self.grave_filter(c)?,
+                        ObjectFilter::OwnedBy(self.players(players)?),
+                    ]);
+                    target.count = Count::AnyNumber;
+                    target.constraints = vec![SelectionConstraint::DifferentOwners];
+                }
                 S::TargetGraveyardCard(c)
                 | S::UptoOneTargetGraveyardCard(c)
                 | S::NumberTargetGraveyardCards(_, c)
@@ -3054,7 +3146,15 @@ impl Context {
             S::StackSpellsEffect(spells, effects) => {
                 self.stack_effect(self.spell_filter(spells)?, effects)
             }
-            S::CastEffect(rule) => Ok(Ability::Casting(self.casting_rule(rule)?)),
+            S::CastEffect(rule) => self
+                .casting_rule(rule)
+                .map(Ability::Casting)
+                .or_else(|error| {
+                    rescue(error, || {
+                        self.primitive("CastEffect", rule)
+                            .map(|(name, operands)| Ability::Primitive { name, operands })
+                    })
+                }),
             S::NoMoreThanNumberCreaturesCanAttack(n) | S::NoMoreThanNumberCreaturesCanBlock(n) => {
                 Ok(Ability::Static {
                     kind: StaticKind::Ordinary,
