@@ -224,6 +224,8 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
             ..
         } => return None,
         Operation::PayAnyAmount { .. } => "Action::PayAnyAmountOfMana",
+        Operation::DrawUpTo { .. } => "Action::DrawUptoNumberCards",
+        Operation::DiscardAllBut { .. } => "Action::DiscardAllButNumberCards",
         Operation::RevealFromHand {
             count: Some(Expr::Constant(1)),
             ..

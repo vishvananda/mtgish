@@ -122,6 +122,8 @@ struct Context {
     acted_on: Option<ObjectRef>,
     /// The last object a reviewed row chose, as "the card chosen this way".
     row_choice: Option<ResultId>,
+    /// Results of finished loops: a later loop reads each player's own share.
+    looped: std::collections::BTreeSet<u32>,
     /// Zones the next search looks through besides a library, and whether it's "and/or".
     search_also: Vec<EventZone>,
     search_either: bool,
@@ -1580,6 +1582,13 @@ impl Context {
                 Expr::CountPlayers(self.players(&source::Players::PlayerWhoTookActionThisWay)?)
             }
             S::NumberOfCardsDrawnThisWay => match self.done(Done::Drew) {
+                Ok(result) if self.looped.contains(&result.0) => {
+                    Expr::CountObjects(Box::new(ObjectSet::MovedBy {
+                        result,
+                        phase: ObjectPhase::After,
+                        player: self.iterated.clone().unwrap_or(PlayerRef::Acting),
+                    }))
+                }
                 Ok(result) => Expr::Performed(result),
                 Err(_) => self.this_way_count(Done::Drew, ObjectPhase::After, None)?,
             },

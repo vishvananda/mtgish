@@ -2820,6 +2820,7 @@ impl<'a> Scope<'a> {
                             | Operation::Sacrifice { .. }
                             | Operation::Discard { .. }
                             | Operation::DiscardObjects { .. }
+                            | Operation::DiscardAllBut { .. }
                             | Operation::Mill { .. }
                     ) {
                         self.results.insert(result.0, ResultKind::ObjectTransition);
@@ -2868,8 +2869,10 @@ impl<'a> Scope<'a> {
                             | Operation::Sacrifice { .. }
                             | Operation::Discard { .. }
                             | Operation::DiscardObjects { .. }
+                            | Operation::DiscardAllBut { .. }
                             | Operation::Mill { .. }
                             | Operation::Draw { .. }
+                            | Operation::DrawUpTo { .. }
                     );
                     self.results.insert(
                         result.0,

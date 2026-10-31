@@ -459,6 +459,66 @@ impl Context {
         Some((name, operands))
     }
 
+    /// Record what a reviewed row says this operation did.
+    fn note_yield(&mut self, operation: &Operation, result: &ResultId) {
+        // Each player drew their own, so a later read is of that player's share.
+        if matches!(operation, Operation::DrawUpTo { players, .. } if !matches!(players, PlayerSet::One(_)))
+        {
+            self.looped.insert(result.0);
+        }
+        let yields = crate::semantics::yields(operation);
+        match yields {
+            Some("observed") => self.revealed = Some(ObjectSet::Observed(result.clone())),
+            Some("exiled") => {
+                self.exiled = Some(result.clone());
+                self.exiled_permanents = false;
+                self.did.insert(Done::Exiled, result.clone());
+            }
+            Some("entered") => self.entered = Some(result.clone()),
+            Some("hand") => self.to_hand = Some(result.clone()),
+            Some("created") => self.created_tokens = Some(result.clone()),
+            Some("amassed") => self.amassed = Some(result.clone()),
+            Some("paid") => {
+                self.did.insert(Done::Paid, result.clone());
+            }
+            Some("graveyard") => {
+                self.did.insert(Done::Graveyard, result.clone());
+            }
+            Some("drew") => {
+                self.did.insert(Done::Drew, result.clone());
+            }
+            Some("milled") => {
+                self.did.insert(Done::Milled, result.clone());
+                self.did.insert(Done::Graveyard, result.clone());
+            }
+            Some("destroyed") => {
+                self.did.insert(Done::Destroyed, result.clone());
+                self.did.insert(Done::Graveyard, result.clone());
+            }
+            Some("took") => self.took = Some(result.clone()),
+            Some("discarded") => {
+                self.did.insert(Done::Discarded, result.clone());
+                self.did.insert(Done::Graveyard, result.clone());
+            }
+            Some("counters") => {
+                self.did.insert(Done::Counters, result.clone());
+            }
+            Some("effect") => {
+                self.did.insert(Done::Effect, result.clone());
+            }
+            Some("life_lost") => {
+                self.did.insert(Done::LifeLost, result.clone());
+            }
+            Some("extra_turn") => self.extra_turn = Some(result.clone()),
+            Some("damage") => {
+                self.did.insert(Done::Damage, result.clone());
+            }
+            Some("seeked") => self.seeked.push(result.clone()),
+            Some("chosen") => self.row_choice = Some(result.clone()),
+            _ => {}
+        }
+    }
+
     /// A step over cards a reveal or search found, named by its reviewed row.
     fn primitive_step(
         &mut self,
@@ -474,11 +534,15 @@ impl Context {
             self.forget_results();
         }
         operands.insert(0, Operand::Objects(objects));
-        Ok(self.effect(Operation::Primitive {
+        let step = self.effect(Operation::Primitive {
             actor: PlayerSet::One(actor.clone()),
             name,
             operands,
-        }))
+        });
+        if let Instruction::Effect { result, operation } = &step {
+            self.note_yield(operation, result);
+        }
+        Ok(step)
     }
 
     /// A perpetual effect is an ordinary layer change that outlives its zone.
@@ -668,49 +732,7 @@ impl Context {
         let operation = self
             .perpetual(value, operands.first())
             .unwrap_or_else(|| crate::semantics::reduce_action(actor.clone(), name, operands));
-        let yields = crate::semantics::yields(&operation);
-        match yields {
-            Some("observed") => self.revealed = Some(ObjectSet::Observed(result.clone())),
-            Some("exiled") => {
-                self.exiled = Some(result.clone());
-                self.exiled_permanents = false;
-            }
-            Some("entered") => self.entered = Some(result.clone()),
-            Some("hand") => self.to_hand = Some(result.clone()),
-            Some("created") => self.created_tokens = Some(result.clone()),
-            Some("amassed") => self.amassed = Some(result.clone()),
-            Some("paid") => {
-                self.did.insert(Done::Paid, result.clone());
-            }
-            Some("graveyard") => {
-                self.did.insert(Done::Graveyard, result.clone());
-            }
-            Some("destroyed") => {
-                self.did.insert(Done::Destroyed, result.clone());
-                self.did.insert(Done::Graveyard, result.clone());
-            }
-            Some("took") => self.took = Some(result.clone()),
-            Some("discarded") => {
-                self.did.insert(Done::Discarded, result.clone());
-                self.did.insert(Done::Graveyard, result.clone());
-            }
-            Some("counters") => {
-                self.did.insert(Done::Counters, result.clone());
-            }
-            Some("effect") => {
-                self.did.insert(Done::Effect, result.clone());
-            }
-            Some("life_lost") => {
-                self.did.insert(Done::LifeLost, result.clone());
-            }
-            Some("extra_turn") => self.extra_turn = Some(result.clone()),
-            Some("damage") => {
-                self.did.insert(Done::Damage, result.clone());
-            }
-            Some("seeked") => self.seeked.push(result.clone()),
-            Some("chosen") => self.row_choice = Some(result.clone()),
-            _ => {}
-        }
+        self.note_yield(&operation, &result);
         if crate::semantics::singular_operation(&operation, |_| false) {
             self.singular.insert(result.0);
         }

@@ -130,6 +130,7 @@ pub enum PaymentAction {
     Mill,
     /// The cost picked one object and left it where it was.
     Choose,
+    Return,
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum PrivateZone {

@@ -33,6 +33,12 @@ pub fn action(part: &CostPart) -> Option<PaymentAction> {
             action: CostKeyword::Blight,
             ..
         } => Some(PaymentAction::Choose),
+        CostPart::ExiledToGraveyard(_) => Some(PaymentAction::Exile),
+        CostPart::Primitive { name, .. } => match name.as_str() {
+            "Cost::SacrificeUptoNumberPermanents" => Some(PaymentAction::Sacrifice),
+            "Cost::ExileACardInGraveyardsAndPayItsManaCost" => Some(PaymentAction::Exile),
+            _ => None,
+        },
         // A cost paid as an action that picks one object and leaves it there.
         CostPart::PlayerAction { body, .. } => match body.instructions.as_slice() {
             [Instruction::Effect {
@@ -47,6 +53,14 @@ pub fn action(part: &CostPart) -> Option<PaymentAction> {
                     },
                 ..
             }] => Some(PaymentAction::Choose),
+            [Instruction::Effect {
+                operation:
+                    Operation::Move {
+                        destination: Destination::OwnersHand,
+                        ..
+                    },
+                ..
+            }] => Some(PaymentAction::Return),
             _ => None,
         },
         _ => None,
@@ -117,6 +131,8 @@ pub fn singular(part: &CostPart) -> bool {
             ..
         }
         | CostPart::PlayerAction { .. } => action(part).is_some(),
+        CostPart::ExiledToGraveyard(_) => true,
+        CostPart::Primitive { name, .. } => name == "Cost::ExileACardInGraveyardsAndPayItsManaCost",
         CostPart::Behold {
             count: Expr::Constant(1),
             ..

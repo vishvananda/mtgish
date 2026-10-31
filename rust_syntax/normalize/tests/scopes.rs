@@ -1897,7 +1897,10 @@ fn a_distributed_total_can_depend_on_a_condition() {
     let smashing = lowered(
         "SpellActions(TargetedDistributed([UptoNumberTargetPermanents(Integer(2), IsCardtype(Creature))], IfElse(SpellXIs(GreaterThanOrEqualTo(Integer(6))), DistributeNumberAmongTargets(Twice(ValueX)), DistributeNumberAmongTargets(ValueX)), ActionList([SpellDealsDistributedDamage(ThisSpell)])))",
     );
-    assert!(smashing.contains("distribute: Some(Conditional"), "{smashing}");
+    assert!(
+        smashing.contains("distribute: Some(Conditional"),
+        "{smashing}"
+    );
 }
 
 #[test]
@@ -1906,4 +1909,20 @@ fn a_target_in_each_graveyard_is_read_by_its_owner() {
         "TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), Targeted([UptoOneTargetGraveyardCardInEachPlayersGraveyard(IsCardtype(Creature), Opponent)], ActionList([ActionForEachPlayer(Opponent, [MayAction(PutGraveyardCardOntoBattlefield(Ref_TargetGraveyardCardInPlayersGraveyard(EachablePlayer), [EntersUnderPlayersControl(You)]))])])))",
     );
     assert!(primordial.contains("OwnedBy(One("), "{primordial}");
+}
+
+#[test]
+fn a_later_loop_reads_each_players_share_of_an_earlier_one() {
+    let truce = lowered(
+        "SpellActions(ActionList([EachPlayerAction(AnyPlayer, DrawUptoNumberCards(Integer(2))), EachPlayerAction(AnyPlayer, GainLifeForEach(Integer(2), Minus(Integer(2), NumberOfCardsDrawnThisWay)))]))",
+    );
+    assert!(truce.contains("MovedBy"), "{truce}");
+}
+
+#[test]
+fn costs_that_moved_objects_name_them_later() {
+    let brink = lowered(
+        "ActivatedWithModifiers(ExileACardInGraveyardsAndPayItsManaCost(IsCardtype(Creature)), ActionList([CreateTokens([TokenCopyOfExiledCard(TheCardExiledThisWay, NoTokenCopyEffects)], [])]), ActivateOnlyAsASorcery)",
+    );
+    assert!(brink.contains("CostObjects"), "{brink}");
 }

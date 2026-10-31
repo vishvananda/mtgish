@@ -15,14 +15,14 @@ The priorities, in order, are:
 
 ### Where things stand
 
-Unified, complete and blocker rows are current at schema 140. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
+Unified, complete and blocker rows are current at schema 141. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
 
 | Measure | Value |
 |---|---|
 | Records | 33,529 |
-| Unified, schema 140 | 33,529 (100%) |
-| Complete | 33,383 (99.6%) |
-| Complete with no primitive | 31,162 (92.9%) |
+| Unified, schema 141 | 33,529 (100%) |
+| Complete | 33,392 (99.6%) |
+| Complete with no primitive | 31,166 (93.0%) |
 | Distinct forms blocking the rest | 117 |
 | Structurally preserved | 33,529 |
 | Source enums / declared variants | 346 / 8,668 |
@@ -137,7 +137,7 @@ Rank work by `blocker_records` in the `ast check` report. It records the failure
 
 Hand-written lowerers are the exception from step 1 on. A form gets hand-written code only when a generated or registry path cannot express it, and the reason goes in this plan.
 
-**Cantrip state, 2026-10-31.** `cantrip-pr-ready` merged at b2b135f. Capable was 22,313 of 33,529 on that merge, and the scenario suite and whole-corpus compile passed there. At 44f7f7e (schema 136) capable was 22,333, the scenarios passed and the compile failed on one module: Glarecaster's created redirect read a target its callback cannot reach. That is now a named gap with a regression test, and rustc stops at name resolution, so only a rerun shows the rest of the corpus compiles. Primitive forms now block Cantrip across 850 forms and 1,218 records, and the best single form unlocks at most 10 cards, so there is no greedy leverage left in primitives. The larger gaps are Cantrip features: per-player steps (65), damage sources (56), as-it-enters changes (52), `PlayPermissionWith` (51), dynamic token characteristics (44), mana spending predicates (43) and `CreateEmblem` (40); on the engine side perpetual effects (89), commander (81), Conjure (38), `ChangeSpell` (33), the Ring (30), Bushido (30), Undercity venture (29) and untap events (26). Generated PR work lives in `rust_syntax/normalize/tools/`.
+**Cantrip state, 2026-10-31.** `cantrip-pr-ready` merged at b2b135f. Capable was 22,313 of 33,529 on that merge, and the scenario suite and whole-corpus compile passed there. At 44f7f7e (schema 136) capable was 22,333, the scenarios passed and the compile failed on one module: Glarecaster's created redirect read a target its callback cannot reach. That is now a named gap with a regression test. The rerun at 8815618 (schema 138) compiled all 22,332 capable modules and the scenarios passed, in 1,373 seconds. Primitive forms now block Cantrip across 850 forms and 1,218 records, and the best single form unlocks at most 10 cards, so there is no greedy leverage left in primitives. The larger gaps are Cantrip features: per-player steps (65), damage sources (56), as-it-enters changes (52), `PlayPermissionWith` (51), dynamic token characteristics (44), mana spending predicates (43) and `CreateEmblem` (40); on the engine side perpetual effects (89), commander (81), Conjure (38), `ChangeSpell` (33), the Ring (30), Bushido (30), Undercity venture (29) and untap events (26). Generated PR work lives in `rust_syntax/normalize/tools/`.
 
 **Consumer-driven reduction, schemas 77 to 81.** The Cantrip backend treats every `Primitive` as a gap, so rank by records that become primitive-free, not by blockers. Greedy over complete records at schema 77: 25 primitives free 1,807, 100 free 4,267, 200 free 6,195, 400 free 8,398. A table in `semantics.rs` turns a row into a typed form and keeps its reviewed `binds` and `yields`, so references and "this way" results read the same data:
 
@@ -206,6 +206,7 @@ Hand-written lowerers are the exception from step 1 on. A form gets hand-written
 | 138 | `PaymentAction::Choose` and `PaymentRef::Branch`: a cost that picks an object and leaves it there names that object later, in a resolution or in the paid branch of a cost branch. A row can yield `chosen`, a selection later references read. Complete 33,352; no primitive 31,154; forms 144 |
 | 139 | A modal trigger keeps one triggered ability per event. Damage whose amount depends on the recipient is a loop. Perpetual changes read their subject. Later actions in a row's list read earlier ones. Rows can yield `destroyed` and `took`, and `CopyEach` covers revealed library cards. Complete 33,372; no primitive 31,158; forms 127 |
 | 140 | A distributed total can be conditional. A target in each graveyard is read by its owner. Excess noncombat damage to a batch has a typed event. Named exiled cards union into one set. The first revealed card can be the event's object. Complete 33,383; no primitive 31,162; forms 117 |
+| 141 | Costs that move or pick objects declare it, including costs paid as actions, so later reads resolve: `Cost::SacrificeUptoNumberPermanents`, an exiled card put into a graveyard, exile with its mana cost paid. Rows can yield `drew` and `milled`, reveal steps honour `yields`, and a read of a batch's draw is that player's share. Complete 33,392; no primitive 31,166; forms 117 |
 
 Schema 80 and 81 do not shrink the vocabulary. `KeywordAction` has 25 forms and `Mechanic` 149, and they count as forms: the names moved into enums, so the 2,360 is typed parameters and an exhaustive match for consumers, not simplification. Keyword mechanics are still not expanded into reusable definitions, which is the reduction this plan asks for. The Cantrip backend still reports these as gaps until it maps them; the engine has direct events for most of schema 78 and 79. At 02210fe all 17,095 records the backend advertises compiled against the engine. That build needs `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_INCREMENTAL=0`: with debug info it runs out of disk quota writing the archive.
 

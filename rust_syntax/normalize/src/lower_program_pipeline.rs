@@ -68,6 +68,7 @@ impl Context {
     /// A loop's runs add up, so what its body did reads as a set afterward.
     fn adopt_loop(&mut self, child: &Self) {
         self.did.extend(child.did.clone());
+        self.looped.extend(child.did.values().map(|result| result.0));
         for (action, result) in &child.acted {
             self.acted.insert(*action, result.clone());
         }

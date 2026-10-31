@@ -44,6 +44,7 @@ impl Context {
         use crate::number_spec::PaymentAction as P;
         match done {
             Done::Exiled => &[P::Exile],
+            Done::Returned => &[P::Return],
             Done::Entered => &[P::Enter],
             Done::Sacrificed => &[P::Sacrifice],
             Done::Discarded => &[P::Discard],
