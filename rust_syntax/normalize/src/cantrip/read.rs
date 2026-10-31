@@ -1182,6 +1182,7 @@ impl Compiler {
                 color(c)?
             ),
             ObjectFilter::Colorless => format!("{chars}.colors.is_empty()"),
+            ObjectFilter::Chosen(kind) => self.chosen_filter(*kind, chars, id)?,
             ObjectFilter::ControlledBy(players) => self.player_in(players, &c.controller)?,
             ObjectFilter::OwnedBy(players) => {
                 self.player_in(players, &format!("q.state().obj({id}).owner"))?

@@ -126,7 +126,8 @@ impl Compiler {
                 | K::EmpowerJace
                 | K::Adapt
                 | K::Bolster
-        ) || (action.amount.is_some() && matches!(action.action, K::Investigate | K::Proliferate));
+        ) || (action.amount.is_some()
+            && matches!(action.action, K::Investigate | K::Proliferate));
         if action.amount.is_some() && !counted {
             return Err(gap(format!(
                 "keyword action {:?} with an amount",
@@ -187,7 +188,9 @@ impl Compiler {
                     self.extras.push(token);
                 }
                 let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
-                let call = format!("let amount = {n}; {M}::empower::jace(g, player, asker.source, amount)?");
+                let call = format!(
+                    "let amount = {n}; {M}::empower::jace(g, player, asker.source, amount)?"
+                );
                 self.actor_action(&action, &call, out)?;
             }
             K::Adapt => {
@@ -195,7 +198,11 @@ impl Compiler {
                     return Err(gap("adapt of another object"));
                 }
                 let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
-                writeln!(out, "{{ let amount_{id} = {n}; {M}::adapt::adapt(g, asker.source, amount_{id}); }}").unwrap();
+                writeln!(
+                    out,
+                    "{{ let amount_{id} = {n}; {M}::adapt::adapt(g, asker.source, amount_{id}); }}"
+                )
+                .unwrap();
             }
             K::Bolster => {
                 let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
@@ -220,7 +227,11 @@ impl Compiler {
             K::Unattach => self.object_action(&action, "g.unattach(object)", out)?,
             K::Airbend => {
                 let object = self.acted_object(action.object)?;
-                writeln!(out, "if let Some(object) = {object} {{ {M}::airbend_all(g, &[object]); }}").unwrap();
+                writeln!(
+                    out,
+                    "if let Some(object) = {object} {{ {M}::airbend_all(g, &[object]); }}"
+                )
+                .unwrap();
             }
             K::EndTheTurn => writeln!(out, "g.end_the_turn()?;").unwrap(),
             K::BecomeDay => writeln!(out, "g.become_day()?;").unwrap(),

@@ -22,6 +22,33 @@ fn only_way(mechanic: Mechanic) -> bool {
     matches!(mechanic, Mechanic::Evoke | Mechanic::Dash | Mechanic::Warp)
 }
 
+/// Escape's cost: mana, and exiling this many other cards from your graveyard.
+fn escape_cost(cost: Option<&Cost>) -> Result<(String, i64)> {
+    let unlike = || gap("Escape cost other than exiling other graveyard cards");
+    let [CostPart::Mana(symbols), CostPart::Move {
+        selections,
+        destination: Destination::Exile,
+        ..
+    }] = cost.map_or(&[][..], |c| &c.parts)
+    else {
+        return Err(unlike());
+    };
+    let [selection] = selections.as_slice() else {
+        return Err(unlike());
+    };
+    let Some(Count::Exactly(Expr::Constant(exiled))) = &selection.choose else {
+        return Err(unlike());
+    };
+    let shape = format!("{:?}", selection.objects);
+    let others = shape.contains("Graveyard")
+        && shape.contains("Not(SameObject(Source))")
+        && shape.contains("AbilityController");
+    if !others || !(0..=255).contains(exiled) {
+        return Err(unlike());
+    }
+    Ok((mana(symbols)?, *exiled))
+}
+
 /// The cost as mana alone, for the engine's forms that take no other cost.
 fn mana_alone(cost: Option<&Cost>, mechanic: Mechanic) -> Result<String> {
     match cost.map(|c| c.parts.as_slice()) {
@@ -130,7 +157,7 @@ impl Compiler {
                 let creature = "cantrip_mechanics::targets::filters::creature";
                 parts.table("ways", format!("way(Cost {{ mana: {}, permanents: Some(PermanentCost {{ count: 1, filter: {creature}, action: PermanentAction::Sacrifice, tapped: false }}), emerge: true, ..Cost::NONE }}, ZoneKind::Hand, \"Emerge\")", mana(symbols)?));
             }
-            K::Banding | K::SplitSecond | K::Decayed | K::Retrace => {
+            K::Banding | K::SplitSecond | K::Decayed | K::Retrace | K::Phasing => {
                 parts.keywords.push(format!("Keyword::{mechanic:?}"));
             }
             K::Convoke => {
@@ -407,6 +434,21 @@ impl Compiler {
                 let function = format!("{label}_affinity");
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ if costed != Costed::Spell(source) {{ return CostDelta::NONE; }} let asker = &Asker::new(source, player); let count = q.permanents_of(player).into_iter().filter(|&id| {test}).count(); CostDelta::less(count.min(255) as u8) }}").unwrap();
                 parts.table("own_cost_changes", function);
+            }
+            K::Bestow => {
+                let cost = mana_alone(cost, mechanic)?;
+                self.bestow = Some(cost);
+            }
+            K::Escape => {
+                let (mana, exiled) = escape_cost(cost)?;
+                parts.table(
+                    "ways",
+                    format!("{M}::escape::way({mana}, {exiled}, \"Escape\")"),
+                );
+            }
+            // The engine has these, and nothing here says how a card lists them.
+            K::Storied | K::Hideaway => {
+                return Err(gap(format!("mechanic {mechanic:?} not mapped")))
             }
             other => return Err(gap(format!("engine: no {other:?}"))),
         }

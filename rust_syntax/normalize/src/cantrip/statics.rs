@@ -6,7 +6,7 @@ use super::*;
 const LAYER_PRELUDE: &str = "let asker = &Asker::new(source, q.controller(source));";
 
 /// What one change does in one layer: `body` writes `chars`.
-struct LayerChange {
+pub(super) struct LayerChange {
     layer: &'static str,
     body: String,
     /// `loses_all_abilities` and `control_changing` have no apply callback.
@@ -17,7 +17,7 @@ struct LayerChange {
     land: bool,
 }
 impl LayerChange {
-    fn of(layer: &'static str, body: String) -> Self {
+    pub(super) fn of(layer: &'static str, body: String) -> Self {
         Self {
             layer,
             body,
@@ -242,6 +242,7 @@ impl Compiler {
                 "PtSet",
                 format!("chars.toughness = Some({});", i16_of(self, n)?),
             ),
+            Change::ChosenColor { .. } | Change::ChosenType { .. } => self.chosen_layer(change)?,
             Change::GrantKeyword(Keyword::Protection(quality)) => {
                 let mut grants = Vec::new();
                 granted_protection(quality, &mut grants)?;

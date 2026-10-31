@@ -213,6 +213,7 @@ pub(super) struct Results {
     performed: BTreeMap<u32, String>,
     values: BTreeMap<u32, String>,
     flips: BTreeMap<u32, String>,
+    chosen: Vec<(ValueKind, String)>,
 }
 
 /// Which of a block's results `Compiler::hoist` keeps.
@@ -276,7 +277,9 @@ impl Compiler {
     }
     pub(super) fn effect(&mut self, body: &Program, label: &str) -> Result<String> {
         self.reset_results();
-        let out = self.effect_body(body)?;
+        let out = self.effect_body(body);
+        self.chosen.clear();
+        let out = out?;
         writeln!(self.functions,"fn {label}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ {out} Ok(()) }}").unwrap();
         Ok(label.into())
     }
@@ -295,7 +298,9 @@ impl Compiler {
         self.reader = reader;
         self.event_at = at;
         let test = test?;
-        let out = self.effect_body(body)?;
+        let out = self.effect_body(body);
+        self.chosen.clear();
+        let out = out?;
         writeln!(self.functions,"fn {label}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ let asker = &Asker::new(item.object, item.controller); if !{test} {{ return Ok(()); }} {out} Ok(()) }}").unwrap();
         Ok(label.into())
     }
@@ -363,6 +368,7 @@ impl Compiler {
             performed: self.performed.clone(),
             values: self.values.clone(),
             flips: self.flips.clone(),
+            chosen: self.chosen.clone(),
         }
     }
     pub(super) fn restore_results(&mut self, results: Results) {
@@ -374,6 +380,7 @@ impl Compiler {
             performed,
             values,
             flips,
+            chosen,
         } = results;
         self.selections = selections;
         self.creations = creations;
@@ -382,6 +389,7 @@ impl Compiler {
         self.performed = performed;
         self.values = values;
         self.flips = flips;
+        self.chosen = chosen;
     }
     /// A nested block: what it binds is out of Rust's scope once it closes. The
     /// objects it reports stay readable through a local of the whole effect;
@@ -711,6 +719,12 @@ impl Compiler {
                 let plan = mana_plan(mana)?;
                 self.emit_mana(&plan, players, restriction.as_ref(), None, out)?;
             }
+            Operation::ChooseValue {
+                actor,
+                kind,
+                count,
+                options,
+            } => self.choose_value(id, actor, *kind, *count, options, out)?,
             Operation::Keyword {
                 actor,
                 action,
@@ -1259,6 +1273,7 @@ impl Compiler {
         self.performed.clear();
         self.values.clear();
         self.flips.clear();
+        self.chosen.clear();
     }
     fn create_tokens(
         &mut self,
@@ -1701,10 +1716,14 @@ impl Compiler {
                 i16_of(toughness)?
             )],
             Change::GrantKeyword(Keyword::Protection(quality)) => {
+                if let Some((kind, _)) = self.chosen_protection(quality)? {
+                    return Ok(vec![kind]);
+                }
                 let mut grants = Vec::new();
                 granted_protection(quality, &mut grants)?;
                 grants.into_iter().map(|(kind, _)| kind).collect()
             }
+            Change::ChosenColor { .. } | Change::ChosenType { .. } => self.chosen_effect(change)?,
             Change::GrantKeyword(k) => {
                 vec![format!(
                     "EffectKind::AddKeywords(Keywords::of(&[{}]))",
