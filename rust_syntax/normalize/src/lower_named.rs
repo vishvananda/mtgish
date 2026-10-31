@@ -671,7 +671,7 @@ impl Context {
             ("Cost::PayEnergy", [Operand::Number(amount)]) => CostPart::Energy(amount.clone()),
             _ => match self.typed_cost(value) {
                 Some(part) => part,
-                None => CostPart::Primitive { name, operands },
+                None => crate::semantics::reduce_cost(name, operands),
             },
         };
         Some(Cost { parts: vec![part] })

@@ -587,7 +587,51 @@ fn program_list(operands: &[Operand]) -> Option<Vec<Program>> {
 }
 
 /// Named actions with one meaning, each its own operation or an ordinary one.
+/// A vote in generic form.
+fn reduce_vote(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option<Operation> {
+    use Operand::{Objects, Players, Text};
+    let vote = |ballot, secret| Operation::Vote {
+        actor: actor.clone(),
+        ballot,
+        secret,
+    };
+    let words = |operands: &[Operand]| -> Option<Ballot> {
+        operands
+            .iter()
+            .map(|operand| match operand {
+                Text(word) => Some(word.clone()),
+                _ => None,
+            })
+            .collect::<Option<Vec<_>>>()
+            .map(Ballot::Words)
+    };
+    match (name, operands) {
+        ("Action::VoteForAWord", options) => return Some(vote(words(options)?, false)),
+        ("Action::SecretlyVoteForAWord", options) => return Some(vote(words(options)?, true)),
+        ("Action::VoteForAPermanent", [Objects(objects)]) => {
+            return Some(vote(Ballot::Objects(objects.clone()), false))
+        }
+        ("Action::SecretlyVoteForAPermanent", [Objects(objects)]) => {
+            return Some(vote(Ballot::Objects(objects.clone()), true))
+        }
+        ("Action::SecretlyVoteForUptoOnePermanent", [Objects(objects)]) => {
+            return Some(vote(Ballot::UpToOne(objects.clone()), true))
+        }
+        ("Action::SecretlyVoteForAPlayer", [Players(players)]) => {
+            return Some(vote(Ballot::Players(players.clone()), true))
+        }
+        ("Action::VoteForACardInGraveyard", [Operand::Filter(cards)]) => {
+            return Some(vote(Ballot::GraveyardCards(cards.clone()), false))
+        }
+        _ => {}
+    }
+    None
+}
+
 fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option<Operation> {
+    if let Some(vote) = reduce_vote(actor, name, operands) {
+        return Some(vote);
+    }
     use Operand::{Duration, List, Number, Object, Objects, Players, Text};
     let draft = |spellbook: &String, times: Expr| Operation::DraftFromSpellbook {
         actor: actor.clone(),
@@ -1209,6 +1253,34 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
     match name.as_str() {
         "Condition::TheGiftWasPromised" => return Condition::GiftPromised(true),
         "Condition::TheGiftWasntPromised" => return Condition::GiftPromised(false),
+        "Condition::ItsNeitherDayOrNight" => return Condition::ItsNeitherDayNorNight,
+        _ => {}
+    }
+    match (name.as_str(), operands.as_slice()) {
+        ("Condition::MostVotesForWordIs", [Operand::Text(word)]) => {
+            return Condition::MostVotes {
+                option: VoteOption::Word(word.clone()),
+                tied: false,
+            }
+        }
+        ("Condition::MostVotesOrTiedForMostVotesForWordIs", [Operand::Text(word)]) => {
+            return Condition::MostVotes {
+                option: VoteOption::Word(word.clone()),
+                tied: true,
+            }
+        }
+        ("Condition::WordWasVotedFor", [Operand::Text(word)]) => {
+            return Condition::Voted(VoteOption::Word(word.clone()))
+        }
+        (
+            "Players::VotedForWord" | "Players::ChoseWord",
+            [Operand::Player(player), Operand::Text(word)],
+        ) => {
+            return Condition::VotedFor {
+                player: player.clone(),
+                option: VoteOption::Word(word.clone()),
+            }
+        }
         _ => {}
     }
     if let Some(condition) = reduce_comparison(&name, &operands) {
@@ -1221,6 +1293,9 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
         "Condition::IsDuringEndStep" => Some(TurnWindow::EndStep),
         "Condition::IsBeforeCombatDamageStep" => Some(TurnWindow::BeforeCombatDamage),
         "Condition::IsDuringDeclareAttackersStep" => Some(TurnWindow::DeclareAttackers),
+        "Condition::IsDuringDeclareBlockersStep" => Some(TurnWindow::DeclareBlockers),
+        "Condition::IsBeforeBlockersDeclared" => Some(TurnWindow::BeforeBlockersDeclared),
+        "Condition::IsFirstCombatPhaseOfTurn" => Some(TurnWindow::FirstCombat),
         _ => None,
     };
     let state = match name.as_str() {
@@ -1280,6 +1355,44 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
             effects: Box::new(effects.clone()),
         },
         _ => Change::Primitive { name, operands },
+    }
+}
+
+/// A row's cost in generic form, or the row itself.
+pub fn reduce_cost(name: String, operands: Vec<Operand>) -> CostPart {
+    let keyword = |action, amount: Option<&Expr>| CostPart::Keyword {
+        action,
+        amount: amount.cloned(),
+    };
+    let bare = name.strip_prefix("Cost::").unwrap_or(&name);
+    match (bare, operands.as_slice()) {
+        ("CollectEvidence", [Operand::Number(amount)]) => {
+            keyword(CostKeyword::CollectEvidence, Some(amount))
+        }
+        ("Blight", [Operand::Number(amount)]) => keyword(CostKeyword::Blight, Some(amount)),
+        ("BlightX", []) => keyword(CostKeyword::Blight, Some(&Expr::AnnouncedX)),
+        ("Forage", []) => keyword(CostKeyword::Forage, None),
+        ("DiscardHand", []) => CostPart::DiscardHand,
+        ("ExertPermanent", [Operand::Object(object)]) => CostPart::Exert(object.clone()),
+        ("UnattachPermanent", [Operand::Object(object)]) => CostPart::Unattach(object.clone()),
+        ("UnspecializeGraveyardCard", [Operand::Object(object)]) => {
+            CostPart::Unspecialize(object.clone())
+        }
+        ("BeholdA", [what]) => CostPart::Behold {
+            count: Expr::Constant(1),
+            what: Box::new(what.clone()),
+        },
+        ("BeholdNumber", [Operand::Number(count), what]) => CostPart::Behold {
+            count: count.clone(),
+            what: Box::new(what.clone()),
+        },
+        ("RevealTopCardOfLibraryOfType", [Operand::Filter(filter)]) => {
+            CostPart::RevealTop(filter.clone())
+        }
+        ("PayManaCostOfPermanent" | "PayManaCostOfSpell", [Operand::Object(object)]) => {
+            CostPart::ManaCostOf(object.clone())
+        }
+        _ => CostPart::Primitive { name, operands },
     }
 }
 
@@ -3189,6 +3302,15 @@ pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
                 measure: HistoryMeasure::Occurrences,
             }
         }
+        ("GameNumber::TheNumberOfVotesForWord", [Operand::Text(word)]) => {
+            Expr::Votes(VoteOption::Word(word.clone()))
+        }
+        ("GameNumber::TheNumberOfVotesReceivedByPlayer", [Operand::Player(player)]) => {
+            Expr::Votes(VoteOption::Player(player.clone()))
+        }
+        ("GameNumber::TheNumberOfVotesReceivedByPermanent", [Operand::Object(object)]) => {
+            Expr::Votes(VoteOption::Object(object.clone()))
+        }
         ("GameNumber::TheNumberOfTimesCreatureAttackedThisGame", [Operand::Object(object)]) => {
             Expr::EventHistory {
                 event: Box::new(EventSpec::Object {
@@ -3965,6 +4087,7 @@ impl Effects {
                     | Operation::CopyOnStack { .. }
                     | Operation::Retarget { .. }
                     | Operation::Clash { .. }
+                    | Operation::Vote { .. }
                     | Operation::DraftFromSpellbook { .. }
                     | Operation::Conjure { .. } => self.library = true,
                 },
@@ -4078,7 +4201,14 @@ impl Effects {
                 | CostPart::ManaWithX { .. }
                 | CostPart::Waterbend(_)
                 | CostPart::Teamwork(_)
+                | CostPart::Keyword { .. }
+                | CostPart::DiscardHand
+                | CostPart::Exert(_)
+                | CostPart::Unattach(_)
+                | CostPart::Unspecialize(_)
+                | CostPart::Behold { .. }
                 | CostPart::PutCounters(_) => {}
+                CostPart::RevealTop(_) => self.library = true,
                 CostPart::Move {
                     selections,
                     destination,

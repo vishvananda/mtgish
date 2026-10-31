@@ -1481,6 +1481,13 @@ impl Compiler {
                     TurnWindow::DeclareAttackers => {
                         "q.state().turn.step() == Step::DeclareAttackers".into()
                     }
+                    TurnWindow::DeclareBlockers => {
+                        "q.state().turn.step() == Step::DeclareBlockers".into()
+                    }
+                    TurnWindow::BeforeBlockersDeclared => {
+                        format!("{step} < (Step::DeclareBlockers as u8)")
+                    }
+                    TurnWindow::FirstCombat => return Err(gap("engine: no combat phase count")),
                 }
             }
             Condition::PlayerState { player, state } => format!(

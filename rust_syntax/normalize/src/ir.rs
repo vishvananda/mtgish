@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 99;
+pub const SCHEMA_VERSION: u32 = 100;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1226,6 +1226,13 @@ pub enum Operation {
         actor: PlayerSet,
         spellbook: String,
         times: Expr,
+    },
+    /// CR 701.38: each voter votes for one option. Votes in the same
+    /// resolution are counted together by `Expr::Votes` and `Condition::MostVotes`.
+    Vote {
+        actor: PlayerSet,
+        ballot: Ballot,
+        secret: bool,
     },
 }
 /// Defines the keyword abilities with one table, so the enum and the rows that
@@ -2504,6 +2511,8 @@ pub enum Expr {
         result: ResultId,
         index: u32,
     },
+    /// Votes cast for this option in this resolution.
+    Votes(VoteOption),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2542,6 +2551,29 @@ pub enum Aggregation {
     Sum,
     Maximum,
     Minimum,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Ballot {
+    Words(Vec<String>),
+    Players(PlayerSet),
+    Objects(ObjectSet),
+    /// Votes for up to one of these, so a voter may abstain.
+    UpToOne(ObjectSet),
+    GraveyardCards(ObjectFilter),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum VoteOption {
+    Word(String),
+    Player(PlayerRef),
+    Object(ObjectRef),
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum CostKeyword {
+    CollectEvidence,
+    Blight,
+    Forage,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PlayerNumber {
@@ -3139,6 +3171,19 @@ pub enum Condition {
     /// The chosen word of an anchor word ability (CR 614.12c).
     ChosenWord(String),
     GiftPromised(bool),
+    /// This option has the most votes, or is tied for it when `tied` counts.
+    MostVotes {
+        option: VoteOption,
+        tied: bool,
+    },
+    /// This player voted for this option.
+    VotedFor {
+        player: PlayerRef,
+        option: VoteOption,
+    },
+    /// Anyone voted for this option.
+    Voted(VoteOption),
+    ItsNeitherDayNorNight,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3304,6 +3349,23 @@ pub enum CostPart {
     PutCounters(Vec<CounterPlacement>),
     /// Tap any number of creatures with at least this total power.
     Teamwork(i32),
+    /// A keyword action done as a cost, `amount` times where it counts.
+    Keyword {
+        action: CostKeyword,
+        amount: Option<Expr>,
+    },
+    DiscardHand,
+    /// CR 701.43: the object does not untap during its controller's next untap step.
+    Exert(ObjectRef),
+    Unattach(ObjectRef),
+    Unspecialize(ObjectRef),
+    /// CR 701.61: choose such a permanent you control or reveal such a card.
+    Behold {
+        count: Expr,
+        what: Box<Operand>,
+    },
+    /// The top card of the payer's library is revealed and has to match.
+    RevealTop(ObjectFilter),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct CostObjectSelection {
@@ -3654,6 +3716,9 @@ pub enum TurnWindow {
     EndStep,
     BeforeCombatDamage,
     DeclareAttackers,
+    DeclareBlockers,
+    BeforeBlockersDeclared,
+    FirstCombat,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

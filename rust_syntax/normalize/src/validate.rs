@@ -764,6 +764,14 @@ impl<'a> Scope<'a> {
         }
     }
 
+    fn vote_option(&self, option: &VoteOption) -> Result {
+        match option {
+            VoteOption::Word(_) => Ok(()),
+            VoteOption::Player(player) => self.player(player),
+            VoteOption::Object(object) => self.object(object),
+        }
+    }
+
     fn player_number(&self, number: &PlayerNumber) -> Result {
         match number {
             PlayerNumber::Permanents(filter) => self.filter(filter),
@@ -777,6 +785,7 @@ impl<'a> Scope<'a> {
             Expr::Primitive { name, operands } => self.primitive(name, operands),
             Expr::ChosenParity | Expr::ChosenNumber | Expr::TimesResolvedThisTurn => Ok(()),
             Expr::PartySize(player) | Expr::StartingLife(player) => self.player(player),
+            Expr::Votes(option) => self.vote_option(option),
             Expr::PlayerNumber { player, number } => {
                 self.player(player)?;
                 self.player_number(number)
@@ -1021,6 +1030,14 @@ impl<'a> Scope<'a> {
             Condition::Primitive { name, operands } => self.primitive(name, operands),
             Condition::Window(_) => Ok(()),
             Condition::PlayerState { player, .. } => self.player(player),
+            Condition::ItsNeitherDayNorNight => Ok(()),
+            Condition::MostVotes { option, .. } | Condition::Voted(option) => {
+                self.vote_option(option)
+            }
+            Condition::VotedFor { player, option } => {
+                self.player(player)?;
+                self.vote_option(option)
+            }
             Condition::ChosenWord(_) | Condition::GiftPromised(_) => Ok(()),
             Condition::PlayerTook { player, result } => {
                 self.player(player)?;
@@ -1573,6 +1590,20 @@ impl<'a> Scope<'a> {
                     self.filter(filter)?;
                 }
                 CostPart::ManaWithX { x, .. } => x.iter().try_for_each(|x| self.expr(x))?,
+                CostPart::Exert(object)
+                | CostPart::Unattach(object)
+                | CostPart::Unspecialize(object) => self.object(object)?,
+                CostPart::Keyword { amount, .. } => {
+                    if let Some(amount) = amount {
+                        self.expr(amount)?;
+                    }
+                }
+                CostPart::DiscardHand => {}
+                CostPart::Behold { count, what } => {
+                    self.expr(count)?;
+                    self.operand(what)?;
+                }
+                CostPart::RevealTop(filter) => self.filter(filter)?,
                 CostPart::Waterbend(_) | CostPart::Teamwork(_) => {}
                 CostPart::PutCounters(placements) => {
                     for placement in placements {
@@ -1850,6 +1881,15 @@ impl<'a> Scope<'a> {
                 self.players(actor)?;
                 self.object(object)?;
                 self.new_targets(targets)
+            }
+            Operation::Vote { actor, ballot, .. } => {
+                self.players(actor)?;
+                match ballot {
+                    Ballot::Words(_) => Ok(()),
+                    Ballot::Players(players) => self.players(players),
+                    Ballot::Objects(objects) | Ballot::UpToOne(objects) => self.objects(objects),
+                    Ballot::GraveyardCards(cards) => self.filter(cards),
+                }
             }
             Operation::Clash {
                 actor,

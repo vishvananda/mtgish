@@ -1117,8 +1117,14 @@ fn numbers_among_players_and_objects_are_generic() {
     let body = lowered(
         "SpellActions(ActionList([GainLife(HighestLifeTotalAmongPlayers(AnyPlayer)), GainLife(TheLeastPowerAmongPermanents(IsCardtype(Creature))), GainLife(ThirdRoundedUp(Integer(9)))]))",
     );
-    assert!(body.contains("AmongPlayers") && body.contains("Minimum"), "{body}");
-    assert!(body.contains("rounding: Up") && !body.contains("Primitive"), "{body}");
+    assert!(
+        body.contains("AmongPlayers") && body.contains("Minimum"),
+        "{body}"
+    );
+    assert!(
+        body.contains("rounding: Up") && !body.contains("Primitive"),
+        "{body}"
+    );
 }
 
 #[test]
@@ -1126,17 +1132,26 @@ fn casting_a_commander_counts_from_history() {
     let body = lowered(
         "PlayerEffect(You, [DecreaseBlitzCostsForEach([ManaCostGeneric(1)], NumTimesPlayerHasCastTheirCommanderFromCommandZone(You))])",
     );
-    assert!(body.contains("WasCastFrom") && body.contains("ThisGame"), "{body}");
+    assert!(
+        body.contains("WasCastFrom") && body.contains("ThisGame"),
+        "{body}"
+    );
 }
 
 #[test]
 fn rules_about_targeting_and_tap_costs_are_generic() {
     let spells = lowered("PermanentRuleEffect(ThisPermanent, [CantBeTheTargetOfSpells(AnySpell)])");
-    assert!(spells.contains("BeTargeted") && spells.contains("OnStack(Spell)"), "{spells}");
+    assert!(
+        spells.contains("BeTargeted") && spells.contains("OnStack(Spell)"),
+        "{spells}"
+    );
     let crew = lowered(
         "PermanentRuleEffect(ThisPermanent, [CrewsVehiclesAsThoughPowerWereGreater(Integer(2))])",
     );
-    assert!(crew.contains("TapPowerBonus") && crew.contains("Crew"), "{crew}");
+    assert!(
+        crew.contains("TapPowerBonus") && crew.contains("Crew"),
+        "{crew}"
+    );
     let exert = lowered(
         "PermanentRuleEffect(ThisPermanent, [MayBeExertedAsItAttacksWithTrigger(ActionList([DrawACard]))])",
     );
@@ -1148,9 +1163,31 @@ fn rules_about_a_players_spells_and_abilities_are_generic() {
     let delve = lowered("PlayerEffect(You, [SpellsCastHaveAbility(AnySpell, [Delve])])");
     assert!(delve.contains("SpellsHaveAbilities"), "{delve}");
     let equip = lowered("PlayerEffect(You, [DecreaseEquipAbilityCost([CostReduceGeneric(1)])])");
-    assert!(equip.contains("ActivationCost") && equip.contains("Equip"), "{equip}");
+    assert!(
+        equip.contains("ActivationCost") && equip.contains("Equip"),
+        "{equip}"
+    );
     let look = lowered(
         "PlayerEffect(You, [MayLookAtFaceDownExiledCards(WasExiledWithPermanent(ThisPermanent))])",
     );
     assert!(look.contains("Visibility"), "{look}");
+}
+
+#[test]
+fn votes_are_counted_by_option() {
+    let body = lowered(
+        r#"SpellActions(ActionList([EachPlayerStartingWithAction(AnyPlayer, You, [VoteForAWord(["Death", "Taxes"])]), EachPlayerAction(Opponent, SacrificeNumberPermanents(TheNumberOfVotesForWord("Death"), IsCardtype(Creature)))]))"#,
+    );
+    assert!(body.contains("Vote {") && body.contains("Words"), "{body}");
+    assert!(body.contains("Votes(Word(\"Death\"))"), "{body}");
+}
+
+#[test]
+fn keyword_costs_are_generic() {
+    let body = lowered("Ward(Blight(Integer(2)))");
+    assert!(body.contains("Keyword { action: Blight"), "{body}");
+    let exert = lowered(
+        "Activated(And([TapPermanent(ThisPermanent), ExertPermanent(ThisPermanent)]), ActionList([AddManaRepeated(AnyManaColor, Integer(2))]))",
+    );
+    assert!(exert.contains("Exert(Source)"), "{exert}");
 }

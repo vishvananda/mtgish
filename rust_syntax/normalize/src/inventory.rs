@@ -412,6 +412,15 @@ impl Inventory<'_> {
                 self.object(object);
                 self.new_targets(targets);
             }
+            Operation::Vote { actor, ballot, .. } => {
+                self.players(actor);
+                match ballot {
+                    Ballot::Words(_) => {}
+                    Ballot::Players(players) => self.players(players),
+                    Ballot::Objects(objects) | Ballot::UpToOne(objects) => self.objects(objects),
+                    Ballot::GraveyardCards(cards) => self.filter(cards),
+                }
+            }
             Operation::Clash {
                 actor,
                 opponents,
@@ -1028,6 +1037,17 @@ impl Inventory<'_> {
                         self.expr(x);
                     }
                 }
+                CostPart::Exert(object)
+                | CostPart::Unattach(object)
+                | CostPart::Unspecialize(object) => self.object(object),
+                CostPart::Keyword { amount, .. } => {
+                    if let Some(amount) = amount {
+                        self.expr(amount);
+                    }
+                }
+                CostPart::DiscardHand => {}
+                CostPart::Behold { count, .. } => self.expr(count),
+                CostPart::RevealTop(filter) => self.filter(filter),
                 CostPart::Waterbend(_) | CostPart::Teamwork(_) => {}
                 CostPart::PutCounters(placements) => {
                     for p in placements {
@@ -1652,6 +1672,13 @@ impl Inventory<'_> {
             Recipients::Targets(_) | Recipients::Target { .. } => {}
         }
     }
+    fn vote_option(&mut self, option: &VoteOption) {
+        match option {
+            VoteOption::Word(_) => {}
+            VoteOption::Player(player) => self.player(player),
+            VoteOption::Object(object) => self.object(object),
+        }
+    }
     fn player_number(&mut self, number: &PlayerNumber) {
         if let PlayerNumber::Permanents(filter) = number {
             self.filter(filter);
@@ -1662,6 +1689,7 @@ impl Inventory<'_> {
         match e {
             Expr::TimesActivatedThisTurn | Expr::TimesResolvedThisTurn => {}
             Expr::PartySize(player) | Expr::StartingLife(player) => self.player(player),
+            Expr::Votes(option) => self.vote_option(option),
             Expr::PlayerNumber { player, number } => {
                 self.player(player);
                 self.player_number(number);
@@ -1894,6 +1922,14 @@ impl Inventory<'_> {
         match c {
             Condition::Primitive { name, .. } => self.primitive(name),
             Condition::Window(window) => self.form("TurnWindow", window),
+            Condition::ItsNeitherDayNorNight => {}
+            Condition::MostVotes { option, .. } | Condition::Voted(option) => {
+                self.vote_option(option)
+            }
+            Condition::VotedFor { player, option } => {
+                self.player(player);
+                self.vote_option(option);
+            }
             Condition::ChosenWord(_) | Condition::GiftPromised(_) => {}
             Condition::PlayerState { player, state } => {
                 self.form("PlayerState", state);
