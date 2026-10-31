@@ -299,7 +299,9 @@ impl Compiler {
             ObjectRef::EventDestination => self.carried_object(self.frame.destination)?,
             ObjectRef::EventOther => self.carried_object(self.frame.other)?,
             ObjectRef::EventStackObject => self.carried_object(self.frame.stack_object)?,
-            ObjectRef::BlockPair(BlockRole::Attacker) => self.carried_object(self.frame.attacker)?,
+            ObjectRef::BlockPair(BlockRole::Attacker) => {
+                self.carried_object(self.frame.attacker)?
+            }
             ObjectRef::BlockPair(BlockRole::Blocker) => self.carried_object(self.frame.blocker)?,
             ObjectRef::BlockPair(BlockRole::Other) => self.carried_object(self.frame.other)?,
             ObjectRef::Damage(DamageSubject::Source) => {
@@ -946,16 +948,18 @@ impl Compiler {
                     None => return Err(gap("result this instruction does not report")),
                 }
             }
-            Expr::BoundValue(result) | Expr::DieResult(result) => match self.values.get(&result.0) {
-                Some(local) => Number {
-                    code: local.clone(),
-                    min: i64::MIN.into(),
-                    max: i64::MAX.into(),
-                    dynamic: true,
-                },
-                None if self.failed.contains(&result.0) => return Err(gap(FOLLOWS_GAP)),
-                None => return Err(gap("value outside generated scope")),
-            },
+            Expr::BoundValue(result) | Expr::DieResult(result) => {
+                match self.values.get(&result.0) {
+                    Some(local) => Number {
+                        code: local.clone(),
+                        min: i64::MIN.into(),
+                        max: i64::MAX.into(),
+                        dynamic: true,
+                    },
+                    None if self.failed.contains(&result.0) => return Err(gap(FOLLOWS_GAP)),
+                    None => return Err(gap("value outside generated scope")),
+                }
+            }
             Expr::Add(a, b) | Expr::Subtract(a, b) | Expr::Multiply(a, b) => {
                 let a = self.number(a)?;
                 let b = self.number(b)?;
@@ -1238,6 +1242,31 @@ impl Compiler {
                     self.object(with)?
                 )
             }
+            ObjectFilter::State(ObjectState::Kicked) => {
+                format!("q.state().obj({id}).kicked > 0")
+            }
+            ObjectFilter::State(ObjectState::Commander) => {
+                return Err(gap("engine: no commander"))
+            }
+            ObjectFilter::State(state) if self.reader != Reader::Layer => match state {
+                ObjectState::Saddled => format!("q.is_saddled({id})"),
+                ObjectState::Equipped => format!("cantrip_mechanics::attach::is_equipped(q, {id})"),
+                _ => format!(
+                    "q.state().battlefield().iter().any(|&a| q.attached_to(a) == Some({id}) && q.chars(a).has_subtype(Subtype::Aura))"
+                ),
+            },
+            // Layers read the host only by which object it is.
+            ObjectFilter::AttachedTo(host)
+                if self.reader != Reader::Layer
+                    || matches!(**host, ObjectFilter::SameObject(_)) =>
+            {
+                let test = self.filter(host, &Candidate::of("host"))?;
+                format!("q.state().obj({id}).attached_to.is_some_and(|host| {test})")
+            }
+            ObjectFilter::BlockingObject(attacker) => format!(
+                "{{ let attacker = {}; q.state().blocks.iter().any(|b| b.blocker == {id} && Some(b.attacker) == attacker) }}",
+                self.object(attacker)?
+            ),
             ObjectFilter::Modified if self.reader != Reader::Layer => format!("modified(q, {id})"),
             ObjectFilter::SharesNameWith(object) if self.reader != Reader::Layer => format!(
                 "{}.is_some_and(|o: ObjectId| cantrip_mechanics::same_name(q, {id}, o))",

@@ -339,6 +339,9 @@ impl Compiler {
                 {
                     loyalty_delta = Some(*n)
                 }
+                CostPart::Energy(Expr::Constant(n)) if (0..=255).contains(n) => {
+                    others.push(format!("Cost {{ energy: {n}, ..Cost::NONE }}"))
+                }
                 other => others.push(self.cost_part(other, label)?),
             }
         }

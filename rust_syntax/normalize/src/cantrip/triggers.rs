@@ -997,14 +997,22 @@ impl Compiler {
         }
         let matched = self.event(event)?;
         let adds_mana = |i: &Instruction| {
-            matches!(i, Instruction::Effect { operation: Operation::AddMana { .. }, .. })
+            matches!(
+                i,
+                Instruction::Effect {
+                    operation: Operation::AddMana { .. },
+                    ..
+                }
+            )
         };
         if matched.mana
             && (announcement.modes.is_some()
                 || !announcement.targets.is_empty()
                 || !body.instructions.iter().all(adds_mana))
         {
-            return Err(gap("engine: only a mana ability triggers on tapping for mana"));
+            return Err(gap(
+                "engine: only a mana ability triggers on tapping for mana",
+            ));
         }
         if announcement.modes.is_some() {
             return self.modal_triggered(

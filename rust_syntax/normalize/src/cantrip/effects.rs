@@ -1678,6 +1678,28 @@ impl Compiler {
                 )]
             }
             Change::RemoveAllAbilities => vec!["EffectKind::LoseAllAbilities".into()],
+            Change::SwitchPowerToughness => vec!["EffectKind::SwitchPt".into()],
+            Change::LosesAbility(lost) => vec![format!(
+                "EffectKind::LoseKeywords(Keywords::of(&[Keyword::{}]))",
+                statics::lost_keyword(lost)?
+            )],
+            Change::AddLandType(t) => vec![format!("EffectKind::AddSubtype(Subtype::{})", name(t))],
+            // A land type set takes the land's rules text with it (CR 305.7),
+            // which only `sets_land_subtypes`, a static ability, does.
+            Change::SetLandType(_) => {
+                return Err(gap("engine: no resolving effect sets land types"))
+            }
+            Change::SetPower(_) | Change::SetToughness(_) => {
+                return Err(gap("engine: no effect sets power or toughness alone"))
+            }
+            Change::AddSupertype(_) | Change::RemoveSupertype(_) => {
+                return Err(gap("engine: no effect changes supertypes"))
+            }
+            Change::RemoveCardType(_) => return Err(gap("engine: no effect removes a card type")),
+            Change::Colors {
+                mode: ChangeMode::Add,
+                ..
+            } => return Err(gap("engine: no effect adds colors")),
             Change::AddCardType(t) => vec![format!(
                 "EffectKind::AddTypes(TypeSet::of(&[CardType::{}]))",
                 card_type(t)?

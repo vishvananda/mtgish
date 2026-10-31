@@ -13,6 +13,8 @@ struct LayerChange {
     whole: Option<&'static str>,
     /// The value reads the object being changed, so it needs `apply_each`.
     each: bool,
+    /// Sets land types, which takes the land's rules text with it (CR 305.7).
+    land: bool,
 }
 impl LayerChange {
     fn of(layer: &'static str, body: String) -> Self {
@@ -21,14 +23,26 @@ impl LayerChange {
             body,
             whole: None,
             each: false,
+            land: false,
         }
+    }
+}
+
+/// The `Supertypes` field of a supertype the engine has.
+fn supertype_field(t: &crate::mtg_types::SuperType) -> Result<&'static str> {
+    use crate::mtg_types::SuperType as S;
+    match t {
+        S::Basic => Ok("basic"),
+        S::Legendary => Ok("legendary"),
+        S::Snow => Ok("snow"),
+        other => Err(gap(format!("engine: no supertype {}", form(other)))),
     }
 }
 
 /// The order of the `Layer` a `LayerChange` names.
 fn layer_rank(layer: &str) -> u8 {
     [
-        "Control", "Text", "Type", "Color", "Ability", "PtDefine", "PtSet", "PtModify",
+        "Control", "Text", "Type", "Color", "Ability", "PtDefine", "PtSet", "PtModify", "PtSwitch",
     ]
     .iter()
     .position(|l| *l == layer)
@@ -36,6 +50,27 @@ fn layer_rank(layer: &str) -> u8 {
 }
 
 const HAS_CREATURE_TYPES: &str = "(chars.is(CardType::Creature) || chars.is(CardType::Kindred))";
+
+/// The `Keyword` an ability named to be lost is, when the engine models it as one.
+pub(super) fn lost_keyword(lost: &Operand) -> Result<&'static str> {
+    let Operand::Term { form: name, .. } = lost else {
+        return Err(gap(format!("losing {}", form(lost))));
+    };
+    Ok(match name.as_str() {
+        "Flying" => "Flying",
+        "Defender" => "Defender",
+        "Indestructible" => "Indestructible",
+        "FirstStrike" => "FirstStrike",
+        "DoubleStrike" => "DoubleStrike",
+        "Trample" => "Trample",
+        "Shroud" => "Shroud",
+        "Deathtouch" => "Deathtouch",
+        "Infect" => "Infect",
+        "Shadow" => "Shadow",
+        "Banding" => "Banding",
+        other => return Err(gap(format!("losing ability {other}"))),
+    })
+}
 
 impl Compiler {
     fn layered<T>(&mut self, part: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
@@ -245,6 +280,71 @@ impl Compiler {
                 "Type",
                 format!("chars.types = chars.types.with(CardType::{});", card_type(t)?),
             ),
+            Change::SetCardTypes(types) => {
+                let types = types
+                    .iter()
+                    .map(|t| card_type(t).map(|t| format!("CardType::{t}")))
+                    .collect::<Result<Vec<_>>>()?;
+                LayerChange::of(
+                    "Type",
+                    format!(
+                        "let kept = TypeSet::of(&[{}]); chars.types = kept; chars.subtypes = chars.subtypes.iter().filter(|s| s.card_types().0 & kept.0 != 0).fold(SubtypeSet::NONE, SubtypeSet::with);",
+                        types.join(", ")
+                    ),
+                )
+            }
+            Change::AddSupertype(t) => LayerChange::of(
+                "Type",
+                format!("chars.supertypes.{} = true;", supertype_field(t)?),
+            ),
+            Change::RemoveSupertype(t) => LayerChange::of(
+                "Type",
+                format!("chars.supertypes.{} = false;", supertype_field(t)?),
+            ),
+            Change::AddLandType(t) => {
+                let word = name(t);
+                LayerChange::of(
+                    "Type",
+                    format!("chars.subtypes = chars.subtypes.with(q.words(asker.source).subtype(Subtype::{word}));"),
+                )
+            }
+            Change::AddArtifactType(t) => {
+                let word = name(t);
+                LayerChange::of(
+                    "Type",
+                    format!("chars.subtypes = chars.subtypes.with(Subtype::{word});"),
+                )
+            }
+            Change::SetArtifactType(t) => {
+                let word = name(t);
+                LayerChange::of(
+                    "Type",
+                    format!("chars.subtypes = chars.subtypes.iter().filter(|s| !s.card_types().has(CardType::Artifact)).fold(SubtypeSet::NONE, SubtypeSet::with).with(Subtype::{word});"),
+                )
+            }
+            Change::SetLandType(land) => {
+                let Operand::Vocabulary { form: word, .. } = &**land else {
+                    return Err(gap(format!("land type {}", form(&**land))));
+                };
+                LayerChange {
+                    layer: "Type",
+                    body: format!("chars.set_land_subtypes(SubtypeSet::NONE.with(q.words(asker.source).subtype(Subtype::{word})));"),
+                    whole: None,
+                    each: false,
+                    land: true,
+                }
+            }
+            Change::SwitchPowerToughness => LayerChange::of(
+                "PtSwitch",
+                "std::mem::swap(&mut chars.power, &mut chars.toughness);".into(),
+            ),
+            Change::LosesAbility(lost) => LayerChange::of(
+                "Ability",
+                format!(
+                    "chars.keywords = Keywords(chars.keywords.0 & !Keywords::of(&[Keyword::{}]).0);",
+                    lost_keyword(lost)?
+                ),
+            ),
             Change::CreatureTypes {
                 mode: ChangeMode::Add,
                 types: CreatureTypeSet::Listed(types),
@@ -297,12 +397,14 @@ impl Compiler {
                 body: String::new(),
                 whole: Some("loses_all_abilities"),
                 each: false,
+                land: false,
             },
             Change::SetController(PlayerRef::AbilityController) => LayerChange {
                 layer: "Control",
                 body: String::new(),
                 whole: Some("control_changing"),
                 each: false,
+                land: false,
             },
             Change::Rule(RuleChange::RequireCombat {
                 action: ObjectAction::Attack(AttackDefenders::Any),
@@ -430,7 +532,9 @@ impl Compiler {
                 None => {
                     let apply = format!("{label}_apply_{i}");
                     writeln!(self.functions, "#[allow(unused_variables)] fn {apply}(q: &dyn LayerQuery, source: ObjectId, chars: &mut Chars) {{ {LAYER_PRELUDE} {} }}", part.body).unwrap();
-                    if defining {
+                    if part.land {
+                        format!("sets_land_subtypes({affects}, {apply}, {text})")
+                    } else if defining {
                         let layer = if part.layer == "PtSet" {
                             "PtDefine"
                         } else {

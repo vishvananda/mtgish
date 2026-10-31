@@ -102,14 +102,20 @@ impl Compiler {
         use KeywordAction as K;
         let paired = matches!(action.action, K::Fight | K::ExchangeControl);
         if action.other.is_some() && !paired {
-            return Err(gap(format!("keyword action {:?} with a second object", action.action)));
+            return Err(gap(format!(
+                "keyword action {:?} with a second object",
+                action.action
+            )));
         }
         let counted = matches!(
             action.action,
             K::Amass | K::Connive | K::Earthbend | K::Monstrosity | K::Discover | K::GainEnergy
         );
         if action.amount.is_some() && !counted {
-            return Err(gap(format!("keyword action {:?} with an amount", action.action)));
+            return Err(gap(format!(
+                "keyword action {:?} with an amount",
+                action.action
+            )));
         }
         match action.action {
             K::Transform if self.stack_item => {
@@ -118,7 +124,11 @@ impl Compiler {
             K::Transform => self.object_action(&action, "g.transform(object)?", out)?,
             K::Fight => {
                 let pair = self.pair_action(&action, id, out)?;
-                writeln!(out, "if let (Some(first), Some(second)) = {pair} {{ g.fight(first, second); }}").unwrap();
+                writeln!(
+                    out,
+                    "if let (Some(first), Some(second)) = {pair} {{ g.fight(first, second); }}"
+                )
+                .unwrap();
             }
             K::ExchangeControl => {
                 let pair = self.pair_action(&action, id, out)?;
@@ -166,7 +176,11 @@ impl Compiler {
             }
             K::Explore => {
                 let object = self.last_known_object(action.object)?;
-                writeln!(out, "if let Some(object) = {object} {{ {M}::explore(g, object)?; }}").unwrap();
+                writeln!(
+                    out,
+                    "if let Some(object) = {object} {{ {M}::explore(g, object)?; }}"
+                )
+                .unwrap();
             }
             K::Connive => {
                 let object = self.last_known_object(action.object)?;
@@ -192,7 +206,11 @@ impl Compiler {
                     return Err(gap("monstrosity of another object"));
                 }
                 let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
-                writeln!(out, "let amount_{id} = {n}; g.monstrosity(asker.source, amount_{id});").unwrap();
+                writeln!(
+                    out,
+                    "let amount_{id} = {n}; g.monstrosity(asker.source, amount_{id});"
+                )
+                .unwrap();
             }
             K::Discover => {
                 let n = self.action_amount(&action, u32::MAX.into(), "u32")?;
@@ -207,9 +225,7 @@ impl Compiler {
             K::BecomeMonarch => self.actor_action(&action, "g.become_monarch(player)", out)?,
             K::LoseGame => self.actor_action(&action, "g.lose_game(player)", out)?,
             K::WinGame => self.actor_action(&action, "g.win_game(player)", out)?,
-            K::TakeExtraTurn => {
-                self.actor_action(&action, "g.add_extra_turns(player, 1)", out)?
-            }
+            K::TakeExtraTurn => self.actor_action(&action, "g.add_extra_turns(player, 1)", out)?,
             K::PhaseOut => self.object_action(&action, "g.phase_out(&[object])", out)?,
             K::Prepare => self.object_action(&action, "g.become_prepared(object)", out)?,
             K::TapOrUntap => {
