@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 76;
+pub const SCHEMA_VERSION: u32 = 77;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -76,6 +76,8 @@ pub enum Operand {
     Comparison(Comparison, Expr),
     /// The event a row holds; its other operands can name what it binds.
     Event(Box<EventSpec>),
+    /// The instruction a "this way" row reads: the nearest one before it.
+    Result(ResultId),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

@@ -1518,6 +1518,8 @@ impl<'a> Scope<'a> {
                 other => validate_ability(other),
             },
             Operand::Event(event) => self.event(event),
+            Operand::Result(result) if self.results.contains_key(&result.0) => Ok(()),
+            Operand::Result(result) => Err(format!("result {} has not run", result.0)),
             Operand::Program(program) => {
                 let mut child = self.clone();
                 child.open_searches.clear();

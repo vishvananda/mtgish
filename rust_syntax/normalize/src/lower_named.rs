@@ -52,6 +52,11 @@ pub fn reads_scope(form: &str) -> bool {
         || form.ends_with("ThisWay") && form != "TheNameStickerPutOnPermanentThisWay"
 }
 
+/// A row reporting what an earlier action did, which it must name.
+fn reads_last(name: &str) -> bool {
+    name.ends_with("ThisWay") && !name.contains("::Reflexive_") && !name.contains("_When")
+}
+
 fn vocabulary(ty: &str, value: &serde_json::Value) -> Option<Operand> {
     if value["variant"].as_str().is_some_and(reads_scope) {
         return None;
@@ -334,6 +339,10 @@ impl Context {
             }
             other => vec![scoped.bound_operand(other)?],
         };
+        let mut operands = operands;
+        if let (true, Some(last)) = (reads_last(&name), &self.last_result) {
+            operands.push(Operand::Result(last.clone()));
+        }
         Some((name, operands))
     }
 
@@ -371,6 +380,7 @@ impl Context {
         }
         let result = ResultId(self.result);
         self.result += 1;
+        self.last_result = Some(result.clone());
         if name.starts_with("Action::Roll") {
             self.rolled = Some(result.clone());
         }
@@ -496,6 +506,7 @@ impl Context {
         self.forget_results();
         let result = ResultId(self.result);
         self.result += 1;
+        self.last_result = Some(result.clone());
         Instruction::Effect {
             result,
             operation: Operation::Named {
