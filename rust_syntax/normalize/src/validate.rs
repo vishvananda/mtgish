@@ -635,6 +635,7 @@ impl<'a> Scope<'a> {
 
     fn expr(&self, expression: &Expr) -> Result {
         match expression {
+            Expr::TimesActivatedThisTurn => Ok(()),
             Expr::Primitive { name, operands } => self.primitive(name, operands),
             Expr::ChosenParity => Ok(()),
             Expr::EventHistory { event, .. } => self.event(event),
@@ -777,6 +778,7 @@ impl<'a> Scope<'a> {
     }
     fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
+            ObjectFilter::ArrivedThisTurn { .. } => Ok(()),
             ObjectFilter::ExiledWith(object) => self.object(object),
             ObjectFilter::DealtExcessBy(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectFilter::DealtExcessBy(result) => {

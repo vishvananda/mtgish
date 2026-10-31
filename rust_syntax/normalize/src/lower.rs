@@ -595,7 +595,10 @@ impl Context {
         use source::Player as S;
         Ok(match value {
             S::You => self.you.clone().unwrap_or(PlayerRef::AbilityController),
-            S::ActionPlayer | S::EachablePlayer | S::PlayerAction_ThatPlayer
+            S::ActionPlayer
+            | S::EachablePlayer
+            | S::PlayerAction_ThatPlayer
+            | S::ActionForEachPlayer_ThatPlayer
                 if self.iterated.is_some() =>
             {
                 self.iterated.clone().unwrap()
@@ -835,6 +838,9 @@ impl Context {
         if let source::Permanents::SinglePermanent(object) = value {
             return Ok(ObjectSet::One(self.object(object)?));
         }
+        if matches!(value, source::Permanents::ThePermanentsExiledThisWay) {
+            return self.this_way_set(Done::Exiled, ObjectPhase::After, None);
+        }
         if matches!(
             value,
             source::Permanents::Ref_TargetPermanents
@@ -1022,6 +1028,16 @@ impl Context {
                 Expr::CountersRemoved(self.removed_counters.clone().unwrap())
             }
             S::LifeLostThisWay => Expr::Performed(self.done(Done::LifeLost)?),
+            S::TheNumberOfPermanentsPutIntoPlayersGraveyardThisTurn(objects, player) => {
+                Self::history(
+                    Self::died_event(ObjectFilter::All(vec![
+                        self.filter(objects)?,
+                        ObjectFilter::OwnedBy(PlayerSet::One(self.player(player)?)),
+                    ])),
+                    HistoryWindow::ThisTurn,
+                    HistoryMeasure::Occurrences,
+                )
+            }
             S::AmountOfManaPaidThisWay | S::AmountOfLifePaidThisWay => {
                 Expr::Performed(match (self.done(Done::Paid), &self.payment) {
                     (Ok(result), _) => result,
@@ -2438,6 +2454,46 @@ impl Context {
                 };
                 self.exile_choice = Some(result.clone());
                 return Ok(choice);
+            }
+            S::ReturnEachCardFromGraveyardToHandThatWasPutThereFromAnywhereThisTurn(cards)
+            | S::ReturnEachCardFromGraveyardToHandThatWasPutThereFromBattlefieldThisTurn(cards) => {
+                let from = matches!(
+                    value,
+                    S::ReturnEachCardFromGraveyardToHandThatWasPutThereFromBattlefieldThisTurn(_)
+                )
+                .then_some(EventZone::Battlefield);
+                let filter = ObjectFilter::All(vec![
+                    self.card_filter(cards)?,
+                    ObjectFilter::ArrivedThisTurn { from },
+                ]);
+                Operation::Move {
+                    objects: self.private_cards(EventZone::Graveyard, actor.clone(), filter),
+                    destination: Destination::OwnersHand,
+                    entry: EntrySpec::default(),
+                    face_down: false,
+                }
+            }
+            S::ReturnEachCardFromPlayersGraveyardToBattlefieldThatWasPutThereFromBattlefieldThisTurn(
+                cards,
+                player,
+                flags,
+            ) => {
+                use source::CardsInGraveyards as C;
+                let cards = as_family::<C>(cards.as_ref(), "CardsInGraveyards")
+                    .ok_or_else(|| unsupported(value))?;
+                return self.action(
+                    &S::ReturnEachGraveyardCardToBattlefield(
+                        Box::new(C::And(vec![
+                            cards,
+                            C::InAPlayersGraveyard(Box::new(source::Players::SinglePlayer(
+                                player.clone(),
+                            ))),
+                            C::WasPutIntoGraveyardFromTheBattlefieldThisTurn,
+                        ])),
+                        flags.clone(),
+                    ),
+                    actor,
+                );
             }
             S::ActionForEachPermanentByController(objects, actions) => {
                 let objects = self.objects(objects)?;

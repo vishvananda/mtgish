@@ -69,7 +69,7 @@ fn cycle_trigger(c: &Card) -> &Ability {
 
 #[test]
 fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
-    let incomplete = ["Derevi, Empyrial Tactician", "Shadow of the Grave"];
+    let incomplete = ["Shadow of the Grave"];
     let mut complete = 0;
     for source in sources() {
         let name = corpus::Identity::of(&source).unwrap().names.remove(0);
@@ -93,7 +93,7 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 90);
+    assert_eq!(complete, 91);
 }
 
 #[test]

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 67;
+pub const SCHEMA_VERSION: u32 = 68;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1621,6 +1621,8 @@ pub enum Expr {
         result: ResultId,
         to: Box<ObjectFilter>,
     },
+    /// How many times this ability has been activated this turn.
+    TimesActivatedThisTurn,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2076,6 +2078,10 @@ pub enum ObjectFilter {
     SharesNameWithAny(Box<ObjectSet>),
     /// Dealt more than lethal damage by this earlier instruction.
     DealtExcessBy(ResultId),
+    /// Reached its current zone this turn, from this zone if one is named.
+    ArrivedThisTurn {
+        from: Option<EventZone>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

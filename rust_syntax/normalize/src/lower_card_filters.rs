@@ -37,6 +37,27 @@ impl Context {
             | source::CardsInGraveyards::Ref_TargetGraveyardCards2 => {
                 Ok(ObjectFilter::InSet(Box::new(self.grave_cards(value)?)))
             }
+            source::CardsInGraveyards::WasPutIntoGraveyardFromAnywhereThisTurn => {
+                Ok(ObjectFilter::ArrivedThisTurn { from: None })
+            }
+            source::CardsInGraveyards::WasPutIntoGraveyardFromTheBattlefieldThisTurn => {
+                Ok(ObjectFilter::ArrivedThisTurn {
+                    from: Some(EventZone::Battlefield),
+                })
+            }
+            source::CardsInGraveyards::WasPutIntoGraveyardFromLibraryThisTurn => {
+                Ok(ObjectFilter::ArrivedThisTurn {
+                    from: Some(EventZone::Library),
+                })
+            }
+            source::CardsInGraveyards::WasPutIntoGraveyardFromAnywhereOtherThanTheBattlefieldThisTurn => {
+                Ok(ObjectFilter::All(vec![
+                    ObjectFilter::ArrivedThisTurn { from: None },
+                    ObjectFilter::Not(Box::new(ObjectFilter::ArrivedThisTurn {
+                        from: Some(EventZone::Battlefield),
+                    })),
+                ]))
+            }
             source::CardsInGraveyards::WasPutIntoGraveyardThisWay => Ok(ObjectFilter::InSet(
                 Box::new(self.this_way_set(Done::Graveyard, ObjectPhase::After, None)?),
             )),

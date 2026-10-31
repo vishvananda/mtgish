@@ -142,6 +142,22 @@ impl Context {
                 ),
                 comparison,
             ),
+            S::ACardWasPutIntoPlayersGraveyardFromAnywhereThisTurn(cards, player) => {
+                Ok(Self::happened(
+                    EventSpec::ZoneChange {
+                        objects: ObjectFilter::All(vec![
+                            self.card_filter(cards)?,
+                            ObjectFilter::OwnedBy(PlayerSet::One(self.player(player)?)),
+                        ]),
+                        from: None,
+                        to: EventZone::Graveyard,
+                    },
+                    W::ThisTurn,
+                ))
+            }
+            S::TimesThisAbilityHasBeenActivatedThisTurnIs(comparison) => {
+                self.history_compare(Expr::TimesActivatedThisTurn, comparison)
+            }
             S::ANumberOfPermanentsDiedThisTurn(comparison, objects) => self.history_compare(
                 Self::history(
                     Self::died_event(self.filter(objects)?),
@@ -305,6 +321,62 @@ impl Context {
                         ),
                         comparison,
                     )?,
+                S::AttackedWithACreatureThisTurn(objects)
+                | S::AttackedWithAPermanentThisTurn(objects) => Self::happened(
+                    EventSpec::Object {
+                        event: ObjectEvent::Attacks,
+                        objects: ObjectFilter::All(vec![
+                            self.filter(objects)?,
+                            ObjectFilter::ControlledBy(one()),
+                        ]),
+                    },
+                    W::ThisTurn,
+                ),
+                S::AttackedWithNumCreaturesThisTurn(comparison, objects) => self.history_compare(
+                    Self::history(
+                        EventSpec::Object {
+                            event: ObjectEvent::Attacks,
+                            objects: ObjectFilter::All(vec![
+                                self.filter(objects)?,
+                                ObjectFilter::ControlledBy(one()),
+                            ]),
+                        },
+                        W::ThisTurn,
+                        M::Occurrences,
+                    ),
+                    comparison,
+                )?,
+                S::HadANumberOfPermanentsEnterTheBattlefieldUnderTheirControlThisTurn(
+                    comparison,
+                    objects,
+                ) => self.history_compare(
+                    Self::history(
+                        Self::entered_event(ObjectFilter::All(vec![
+                            self.filter(objects)?,
+                            ObjectFilter::ControlledBy(one()),
+                        ])),
+                        W::ThisTurn,
+                        M::Occurrences,
+                    ),
+                    comparison,
+                )?,
+                S::HadANumberOfCardsEnterTheirGraveyardFromAnywhereThisTurn(comparison, cards) => {
+                    self.history_compare(
+                        Self::history(
+                            EventSpec::ZoneChange {
+                                objects: ObjectFilter::All(vec![
+                                    self.card_filter(cards)?,
+                                    ObjectFilter::OwnedBy(one()),
+                                ]),
+                                from: None,
+                                to: EventZone::Graveyard,
+                            },
+                            W::ThisTurn,
+                            M::Occurrences,
+                        ),
+                        comparison,
+                    )?
+                }
                 S::HadAPermanentEnterTheBattlefieldUnderTheirControlThisTurn(objects) => {
                     Self::happened(
                         Self::entered_event(ObjectFilter::All(vec![
