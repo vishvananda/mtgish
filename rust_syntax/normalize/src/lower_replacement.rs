@@ -218,11 +218,11 @@ impl Context {
             _ => {
                 let actor = self.player(&source::Player::You)?;
                 if let Some((name, operands)) = self.primitive("ReplacementActionWouldEnter", value) {
-                    return Ok(self.effect(Operation::Primitive {
-                        actor: PlayerSet::One(actor),
+                    return Ok(self.effect(crate::semantics::reduce_action(
+                        PlayerSet::One(actor),
                         name,
                         operands,
-                    }));
+                    )));
                 }
                 let step = crate::inspect::value(value).map_err(|_| unsupported(value))?;
                 return Ok(self

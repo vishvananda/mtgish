@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 84;
+pub const SCHEMA_VERSION: u32 = 85;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -954,6 +954,14 @@ pub enum Operation {
     JoinResults {
         results: Vec<ResultId>,
     },
+    /// Choose `count` values of this kind. A read of one goes through
+    /// `ObjectFilter::Chosen`, `Change::ChosenType` or `Expr::ChosenNumber`.
+    ChooseValue {
+        actor: PlayerSet,
+        kind: ValueKind,
+        count: u32,
+        options: Vec<Operand>,
+    },
     /// Choose one of these power/toughness adjustments.
     ChoosePowerToughness {
         player: PlayerRef,
@@ -1208,6 +1216,24 @@ pub enum KeywordAction {
     Fateseal,
     Skip(SkippedPart),
     AdditionalPhase(AddedPhases),
+}
+/// What a choice of a value picks, as Forge's `ChooseColor`, `ChooseType`,
+/// `NameCard` and `ChooseNumber`.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum ValueKind {
+    Color,
+    ColorOrColorless,
+    CreatureType,
+    LandType,
+    BasicLandType,
+    CardType,
+    CardName,
+    Number,
+    Parity,
+    Direction,
+    Word,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -1494,6 +1520,11 @@ pub enum Change {
     ChosenAbility,
     /// The color chosen by this ability or as this object entered.
     ChosenColor {
+        mode: ChangeMode,
+    },
+    /// The type chosen by this ability or as this object entered.
+    ChosenType {
+        kind: ValueKind,
         mode: ChangeMode,
     },
     AddCardType(CardType),
@@ -1984,6 +2015,8 @@ pub enum Expr {
     },
     /// What an odd-or-even choice named: 0 for even, 1 for odd.
     ChosenParity,
+    /// The number chosen by this ability or as this object entered.
+    ChosenNumber,
     /// Damage past lethal dealt by this earlier instruction to these objects.
     ExcessDamage {
         result: ResultId,
@@ -2423,6 +2456,8 @@ pub enum ObjectFilter {
     InSet(Box<ObjectSet>),
     Name(String),
     InZone(ZoneScope),
+    /// Has the value of this kind chosen by this ability or as this object entered.
+    Chosen(ValueKind),
     IsCard,
     Any,
     All(Vec<ObjectFilter>),

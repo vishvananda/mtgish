@@ -717,7 +717,7 @@ impl<'a> Scope<'a> {
         match expression {
             Expr::TimesActivatedThisTurn => Ok(()),
             Expr::Primitive { name, operands } => self.primitive(name, operands),
-            Expr::ChosenParity => Ok(()),
+            Expr::ChosenParity | Expr::ChosenNumber => Ok(()),
             Expr::EventHistory { event, .. } => self.event(event),
             Expr::CountPlayers(players) => self.players(players),
             Expr::ManaSpent { object, filter, .. } => {
@@ -908,7 +908,7 @@ impl<'a> Scope<'a> {
             | ObjectFilter::Tapped
             | ObjectFilter::Attacking
             | ObjectFilter::Blocking => Ok(()),
-            ObjectFilter::State(_) => Ok(()),
+            ObjectFilter::State(_) | ObjectFilter::Chosen(_) => Ok(()),
             ObjectFilter::AttachedTo(filter) => self.filter(filter),
             ObjectFilter::BlockingObject(object) => self.object(object),
             ObjectFilter::All(items) | ObjectFilter::Either(items) => {
@@ -1117,6 +1117,7 @@ impl<'a> Scope<'a> {
             | Change::SetArtifactType(_)
             | Change::SetCardTypes(_)
             | Change::RemoveAllAbilities
+            | Change::ChosenType { .. }
             | Change::SwitchPowerToughness => Ok(()),
             Change::LosesAbility(operand) | Change::SetLandType(operand) => self.operand(operand),
             Change::CopyOf { object, effects } => {
@@ -1616,6 +1617,10 @@ impl<'a> Scope<'a> {
             } => {
                 self.players(actor)?;
                 self.primitive(name, operands)
+            }
+            Operation::ChooseValue { actor, options, .. } => {
+                self.players(actor)?;
+                options.iter().try_for_each(|o| self.operand(o))
             }
             Operation::Keyword {
                 actor,
@@ -2802,6 +2807,7 @@ fn validate_ability_in(
                             | Change::SetBasePowerToughness { .. }
                             | Change::Colors { .. }
                             | Change::ChosenColor { .. }
+                            | Change::ChosenType { .. }
                             | Change::CreatureTypes { .. }
                             | Change::Primitive { .. }
                     )

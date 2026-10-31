@@ -513,6 +513,9 @@ impl Context {
 
     fn primitive_number(&self, value: &source::GameNumber) -> Option<Expr> {
         let (name, operands) = self.primitive("GameNumber", value)?;
+        if name == "GameNumber::TheChosenNumber" {
+            return Some(Expr::ChosenNumber);
+        }
         Some(Expr::Primitive { name, operands })
     }
 

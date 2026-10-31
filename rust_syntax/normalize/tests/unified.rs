@@ -137,10 +137,7 @@ fn a_primitive_binds_its_operands_in_scope_and_is_complete() {
     validate::card(&strict).unwrap();
     let forms = unified::forms(&strict);
     assert!(forms.named.is_empty());
-    assert_eq!(
-        forms.primitives["Action::ReverseTurnOrder"],
-        1
-    );
+    assert_eq!(forms.primitives["Action::ReverseTurnOrder"], 1);
 }
 
 #[test]

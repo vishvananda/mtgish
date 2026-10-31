@@ -288,6 +288,10 @@ impl Inventory<'_> {
             Operation::Named { .. } => {}
             Operation::NoteObjects { objects } => self.objects(objects),
             Operation::Primitive { name, .. } => self.primitive(name),
+            Operation::ChooseValue { actor, kind, .. } => {
+                self.form("ValueKind", kind);
+                self.players(actor);
+            }
             Operation::Keyword {
                 actor,
                 action,
@@ -1078,6 +1082,10 @@ impl Inventory<'_> {
                 }
             }
             Change::ChosenColor { mode } => self.form("ChangeMode", mode),
+            Change::ChosenType { kind, mode } => {
+                self.form("ValueKind", kind);
+                self.form("ChangeMode", mode);
+            }
             Change::ChosenAbility => {}
             Change::AddCardType(_)
             | Change::RemoveCardType(_)
@@ -1355,6 +1363,7 @@ impl Inventory<'_> {
             Expr::TimesActivatedThisTurn => {}
             Expr::BoundValue(_)
             | Expr::ChosenParity
+            | Expr::ChosenNumber
             | Expr::CountersRemoved(_)
             | Expr::PaidCountersRemoved { .. }
             | Expr::Performed(_)
@@ -1547,6 +1556,7 @@ impl Inventory<'_> {
             | ObjectFilter::Attacking
             | ObjectFilter::Blocking
             | ObjectFilter::State(_)
+            | ObjectFilter::Chosen(_)
             | ObjectFilter::Modified => {}
         }
     }

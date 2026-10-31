@@ -431,7 +431,10 @@ fn attacks_are_one_event_and_a_batch_wraps_it() {
     let body = lowered(
         "TriggerA(WhenACreatureAttacksAPlayer(IsCardtype(Creature), Opponent), ActionList([DrawACard]))",
     );
-    assert!(body.contains("Attack { attackers: CardType(Creature)"), "{body}");
+    assert!(
+        body.contains("Attack { attackers: CardType(Creature)"),
+        "{body}"
+    );
     assert!(body.contains("defenders: Players(OpponentsOf"), "{body}");
     let body = lowered(
         "TriggerA(WhenAPlayerAttacksWithAnyNumberOfCreatures(SinglePlayer(You), IsCardtype(Creature)), ActionList([DrawACard]))",
@@ -475,7 +478,10 @@ fn counter_events_keep_their_kind_and_group_by_object() {
     let body = lowered(
         "TriggerA(WhenAnyNumberOfCountersOfTypeArePutOnAPermanent(PTCounter(1, 1), IsCardtype(Creature)), ActionList([DrawACard]))",
     );
-    assert!(body.contains("Batch { event: Counters { change: Put"), "{body}");
+    assert!(
+        body.contains("Batch { event: Counters { change: Put"),
+        "{body}"
+    );
     assert!(body.contains("kind: Some(PowerToughness(1, 1))"), "{body}");
     assert!(body.contains("per: Subject"), "{body}");
 }
@@ -487,6 +493,26 @@ fn a_plane_or_scheme_event_reads_this_card() {
     );
     assert!(body.contains("event: SetsSchemeInMotion"), "{body}");
     assert!(body.contains("objects: Some(SameObject(Source))"), "{body}");
+}
+
+#[test]
+fn a_chosen_value_is_one_choice_read_by_kind() {
+    let body = lowered("SpellActions(ActionList([ChooseACreatureType]))");
+    assert!(body.contains("ChooseValue"), "{body}");
+    assert!(body.contains("kind: CreatureType, count: 1"), "{body}");
+    let body = lowered(
+        "PermanentLayerEffect(HostPermanent, [AddCreatureTypeVariable(TheChosenCreatureType)])",
+    );
+    assert!(body.contains("ChosenType { kind: CreatureType, mode: Add }"), "{body}");
+}
+
+#[test]
+fn a_noted_type_is_not_a_chosen_one() {
+    let body = lowered(
+        "SpellActions(ActionList([DestroyEachPermanent(IsCreatureTypeVariable(TheNotedCreatureType))]))",
+    );
+    assert!(body.contains("Permanents::IsCreatureTypeVariable"), "{body}");
+    assert!(!body.contains("Chosen(CreatureType)"), "{body}");
 }
 
 #[test]

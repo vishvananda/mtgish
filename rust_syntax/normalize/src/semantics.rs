@@ -281,8 +281,42 @@ const KEYWORD_ACTIONS: &[(&str, KeywordAction)] = &[
     ),
 ];
 
+/// Rows that choose a value, and how many, for an action or an entering object.
+const VALUE_CHOICES: &[(&str, ValueKind, u32)] = &[
+    ("ChooseAColor", ValueKind::Color, 1),
+    ("ChooseTwoColors", ValueKind::Color, 2),
+    ("ChooseAColorOrColorless", ValueKind::ColorOrColorless, 1),
+    ("ChooseACreatureType", ValueKind::CreatureType, 1),
+    ("ChooseACreatureTypeFromList", ValueKind::CreatureType, 1),
+    ("ChooseALandType", ValueKind::LandType, 1),
+    ("ChooseLandType", ValueKind::LandType, 1),
+    ("ChooseABasicLandType", ValueKind::BasicLandType, 1),
+    ("ChooseTwoBasicLandTypes", ValueKind::BasicLandType, 2),
+    ("ChooseACardtype", ValueKind::CardType, 1),
+    ("ChooseACardtypeFromList", ValueKind::CardType, 1),
+    ("ChooseACardName", ValueKind::CardName, 1),
+    ("ChooseANumber", ValueKind::Number, 1),
+    ("ChooseANumberBetween", ValueKind::Number, 1),
+    ("ChooseEvenOrOdd", ValueKind::Parity, 1),
+    ("ChooseLeftOrRight", ValueKind::Direction, 1),
+    ("ChooseADirection", ValueKind::Direction, 1),
+    ("ChooseWord", ValueKind::Word, 1),
+];
+
 /// A row's action in generic form, or the row itself when it has none.
 pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> Operation {
+    let choice = name
+        .strip_prefix("Action::")
+        .or_else(|| name.strip_prefix("ReplacementActionWouldEnter::"))
+        .and_then(|form| VALUE_CHOICES.iter().find(|(row, ..)| *row == form));
+    if let Some((_, kind, count)) = choice {
+        return Operation::ChooseValue {
+            actor,
+            kind: *kind,
+            count: *count,
+            options: operands,
+        };
+    }
     let action = KEYWORD_ACTIONS
         .iter()
         .find(|(row, _)| *row == name)
@@ -334,9 +368,32 @@ pub fn makes_card(operation: &Operation) -> bool {
         if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft"))
 }
 
+/// The kind of value a variable form reads, when it is the one chosen.
+fn chosen_kind(operand: &Operand) -> Option<ValueKind> {
+    let Operand::Term { form, .. } = operand else {
+        return None;
+    };
+    match form.as_str() {
+        "TheChosenCreatureType" | "TheChosenCreatureTypes" => Some(ValueKind::CreatureType),
+        "TheChosenLandType" => Some(ValueKind::LandType),
+        "TheChosenCardtype" => Some(ValueKind::CardType),
+        _ => None,
+    }
+}
+
 /// A row's filter in generic form, or the row itself when it has none.
 pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
     let form = name.split("::").nth(1).unwrap_or(&name);
+    match (name.as_str(), operands.as_slice()) {
+        ("Color::TheChosenColor", []) => return ObjectFilter::Chosen(ValueKind::Color),
+        ("NameFilter::TheChosenName", []) => return ObjectFilter::Chosen(ValueKind::CardName),
+        (_, [variable]) if form.ends_with("TypeVariable") || form == "IsCardtypeVariable" => {
+            if let Some(kind) = chosen_kind(variable) {
+                return ObjectFilter::Chosen(kind);
+            }
+        }
+        _ => {}
+    }
     let state = match form {
         "IsEnchanted" => Some(ObjectState::Enchanted),
         "IsEquipped" => Some(ObjectState::Equipped),
@@ -426,6 +483,20 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
 pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
     match (name.as_str(), operands.as_slice()) {
         ("LayerEffect::SwitchPT", []) => Change::SwitchPowerToughness,
+        (
+            "LayerEffect::AddCreatureTypeVariable" | "LayerEffect::AddLandTypeVariable",
+            [variable],
+        ) if chosen_kind(variable).is_some() => Change::ChosenType {
+            kind: chosen_kind(variable).unwrap(),
+            mode: ChangeMode::Add,
+        },
+        (
+            "LayerEffect::SetCreatureTypeVariable" | "LayerEffect::SetLandTypeVariable",
+            [variable],
+        ) if chosen_kind(variable).is_some() => Change::ChosenType {
+            kind: chosen_kind(variable).unwrap(),
+            mode: ChangeMode::Set,
+        },
         ("LayerEffect::LosesAbility", [ability]) => Change::LosesAbility(Box::new(ability.clone())),
         ("LayerEffect::SetLandType", [land]) => Change::SetLandType(Box::new(land.clone())),
         ("LayerEffect::IsACopyOfPermanent", [Operand::Object(object), effects]) => Change::CopyOf {
@@ -1172,7 +1243,9 @@ impl Effects {
         for instruction in &program.instructions {
             match instruction {
                 Instruction::Effect { result, operation } => match operation {
-                    Operation::FlipCoin { .. } | Operation::ChoosePowerToughness { .. } => {}
+                    Operation::FlipCoin { .. }
+                    | Operation::ChoosePowerToughness { .. }
+                    | Operation::ChooseValue { .. } => {}
                     Operation::JoinResults { results } => {
                         let joined = results
                             .iter()
