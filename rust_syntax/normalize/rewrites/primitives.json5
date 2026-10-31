@@ -742,7 +742,7 @@
     {"source": "Trigger::WhenAPlayerPutsAnArtStickerOnAPermanent", "text": "put art sticker", "binds": ["player", "object", "permanent"]},
     {"source": "Trigger::WhenAPlayerPutsAnyNumberOfCountersOnAPermanent", "text": "put counter", "binds": ["player", "object", "permanent"]},
     {"source": "Trigger::WhenAPlayerRollsABlankOnThePlanarDie", "text": "roll blank planar die", "binds": ["player"]},
-    {"source": "Trigger::WhenAPlayerRollsADie", "text": "roll die", "binds": ["player"]},
+    {"source": "Trigger::WhenAPlayerRollsADie", "text": "roll die", "binds": ["player", "amount"]},
     {"source": "Trigger::WhenAPlayerRollsADiesHighestNaturalResult", "text": "roll die highest natural result", "binds": ["player"]},
     {"source": "Trigger::WhenAPlayerRollsAnyNumberOfDice", "text": "roll dice", "binds": ["player", "amount"]},
     {"source": "Trigger::WhenAPlayerRollsThePlanarDie", "text": "roll planar die", "binds": ["player"]},

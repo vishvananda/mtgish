@@ -1070,3 +1070,35 @@ fn a_chosen_colors_read_any_number() {
     );
     assert!(body.contains("kind: Color, count: 0"), "{body}");
 }
+
+#[test]
+fn zone_and_state_triggers_are_generic() {
+    let untapped = lowered(
+        "TriggerA(WhenAPermanentEntersTheBattlefieldUntapped(SinglePermanent(ThisPermanent)), ActionList([CreateTokens([FoodToken], [])]))",
+    );
+    assert!(untapped.contains("ZoneChange") && untapped.contains("Not(Tapped)"), "{untapped}");
+    let none = lowered(
+        "TriggerA(WhenNoPermanentsAreOnTheBattlefield(IsCardtype(Land)), ActionList([SacrificePermanent(ThisPermanent)]))",
+    );
+    assert!(none.contains("State") && !none.contains("Primitive"), "{none}");
+}
+
+#[test]
+fn a_block_of_several_keeps_one_subject() {
+    let body = lowered(
+        "TriggerA(WhenACreatureBlocksANumberOfCreatures(SinglePermanent(ThisPermanent), GreaterThanOrEqualTo(Integer(2)), IsCardtype(Creature)), ActionList([CreatePermanentLayerEffectUntil(Trigger_ThatPermanent, [AddAbility([FirstStrike])], UntilEndOfTurn)]))",
+    );
+    assert!(body.contains("per: Subject") && body.contains("Blocks"), "{body}");
+}
+
+#[test]
+fn a_player_targeted_or_on_their_turn_is_a_player_event() {
+    let targeted = lowered(
+        "TriggerA(WhenAPlayerBecomesTheTargetOfASpellOrAbility(SinglePlayer(You), ControlledByAPlayer(Opponent)), ActionList([MayAction(DrawACard)]))",
+    );
+    assert!(targeted.contains("BecomesTarget"), "{targeted}");
+    let turn = lowered(
+        "TriggerA(WhenAPlayerLosesLifeDuringTheirTurn(SinglePlayer(You)), ActionList([DrawACard]))",
+    );
+    assert!(turn.contains("PlayerIsActive(EventSubject)"), "{turn}");
+}

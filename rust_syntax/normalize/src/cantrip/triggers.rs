@@ -504,6 +504,7 @@ impl Compiler {
             PairEvent::Crews => return Err(gap("engine: no crew event")),
             PairEvent::Saddles => return Err(gap("engine: no saddle event")),
             PairEvent::Exploits => return Err(gap("engine: no exploit event")),
+            other => return Err(gap(format!("trigger event Pair {}", form(other)))),
         };
         let tests = vec![
             self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?,

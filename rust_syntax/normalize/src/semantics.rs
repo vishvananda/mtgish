@@ -1900,6 +1900,232 @@ const PLAYER_EVENTS: &[(&str, PlayerEvent)] = &[
         "Trigger::WhenAPlayerTapsAPermanentForMana",
         PlayerEvent::TapsForMana,
     ),
+    (
+        "Trigger::WhenDayBecomesNightOrNightBecomesDay",
+        PlayerEvent::DayNightChanges,
+    ),
+    (
+        "Trigger::WhenPlayersFinishVoting",
+        PlayerEvent::FinishVoting,
+    ),
+    ("Trigger::AtTheBeginningOfTheGame", PlayerEvent::GameBegins),
+    (
+        "Trigger::WhenAPlayerLosesControlOfAPermanent",
+        PlayerEvent::LosesControl,
+    ),
+    ("Trigger::WhenTheRingTemptsAPlayer", PlayerEvent::RingTempts),
+    (
+        "Trigger::WhenAPlayerCreatesAToken",
+        PlayerEvent::CreatesToken,
+    ),
+    ("Trigger::WhenAPlayerExertsACreature", PlayerEvent::Exerts),
+    (
+        "Trigger::WhenAPlayerProliferates",
+        PlayerEvent::Proliferates,
+    ),
+    (
+        "Trigger::WhenAPlayerRevealsFirstCardDrawn",
+        PlayerEvent::RevealsFirstCardDrawn,
+    ),
+    (
+        "Trigger::WhenAPlayerPlaysACardFromExile",
+        PlayerEvent::PlaysCardFromExile,
+    ),
+    (
+        "Trigger::WhenAPlayerPlaysALandFromExile",
+        PlayerEvent::PlaysLandFromExile,
+    ),
+    (
+        "Trigger::WhenAPlayerPutsAPermanentOnTheBattlefield",
+        PlayerEvent::PutsOntoBattlefield,
+    ),
+    ("Trigger::WhenAPlayerGetsEnergy", PlayerEvent::GetsEnergy),
+    (
+        "Trigger::WhenAPlayerBecomesTheMonarch",
+        PlayerEvent::BecomesMonarch,
+    ),
+    (
+        "Trigger::WhenAPlayerCompletesADungeon",
+        PlayerEvent::CompletesDungeon,
+    ),
+    (
+        "Trigger::WhenAPlayerTapsAPermanent",
+        PlayerEvent::TapsPermanent,
+    ),
+    ("Trigger::WhenAPlayerPlaysACard", PlayerEvent::PlaysCard),
+    (
+        "Trigger::WhenAPlayerDrawsARevealedCard",
+        PlayerEvent::DrawsRevealedCard,
+    ),
+    (
+        "Trigger::WhenAPlayerDrawsASpecificCard",
+        PlayerEvent::DrawsCard,
+    ),
+    (
+        "Trigger::WhenAPlayerSeeksAnyNumberOfCards",
+        PlayerEvent::Seeks,
+    ),
+    (
+        "Trigger::WhenAPlayerVisitsAnAttraction",
+        PlayerEvent::VisitsAttraction,
+    ),
+    ("Trigger::WhenAPlayerRollsADie", PlayerEvent::RollsADie),
+    (
+        "Trigger::WhenAPlayerRollsThePlanarDie",
+        PlayerEvent::RollsPlanarDie,
+    ),
+    (
+        "Trigger::WhenAPlayerShufflesTheirLibrary",
+        PlayerEvent::Shuffles,
+    ),
+    (
+        "Trigger::WhenAPlayerConjuresAnyNumberOfCards",
+        PlayerEvent::Conjures,
+    ),
+    (
+        "Trigger::WhenAPlayerConjuresAnyNumberOfOtherCards",
+        PlayerEvent::ConjuresOther,
+    ),
+    ("Trigger::WhenAPlayerDiscovers", PlayerEvent::Discovers),
+    ("Trigger::WhenAPlayerClashes", PlayerEvent::Clashes),
+    ("Trigger::WhenAPlayerClashesAndWins", PlayerEvent::WinsClash),
+    (
+        "Trigger::WhenAPlayerInvestigates",
+        PlayerEvent::Investigates,
+    ),
+    (
+        "Trigger::WhenAPlayerCollectsEvidence",
+        PlayerEvent::CollectsEvidence,
+    ),
+    (
+        "Trigger::WhenAPlayerPutsAStickerOnAPermanent",
+        PlayerEvent::PutsSticker,
+    ),
+    (
+        "Trigger::WhenAPlayerPutsANameStickerOnAPermanent",
+        PlayerEvent::PutsNameSticker,
+    ),
+    (
+        "Trigger::WhenAPlayerPutsAnAbilityStickerOnAPermanent",
+        PlayerEvent::PutsAbilitySticker,
+    ),
+    (
+        "Trigger::WhenAPlayerPutsAnArtStickerOnAPermanent",
+        PlayerEvent::PutsArtSticker,
+    ),
+    (
+        "Trigger::WhenAPlayerPlacesASticker",
+        PlayerEvent::PlacesSticker,
+    ),
+    (
+        "Trigger::WhenAPlayerRollsToVisitTheirAttractions",
+        PlayerEvent::RollsToVisit,
+    ),
+    (
+        "Trigger::WhenAPlayerWaterEarthFireOrAirBends",
+        PlayerEvent::Bends,
+    ),
+    (
+        "Trigger::WhenAPlayerChoosesARingBearer",
+        PlayerEvent::ChoosesRingBearer,
+    ),
+    ("Trigger::WhenAPlayerSolvesACase", PlayerEvent::SolvesCase),
+    (
+        "Trigger::WhenAPlayerSelectsAnyNumberOfTargetsAtRandom",
+        PlayerEvent::SelectsTargetsAtRandom,
+    ),
+    (
+        "Trigger::WhenAPlayerSelectsAModeAtRandom",
+        PlayerEvent::SelectsModeAtRandom,
+    ),
+    (
+        "Trigger::WhenAPlayerFlipsAnyNumberOfCoins",
+        PlayerEvent::FlipsCoins,
+    ),
+    ("Trigger::WhenAPlayerForages", PlayerEvent::Forages),
+    (
+        "Trigger::WhenAPlayerRollsANatural20",
+        PlayerEvent::RollsNatural20,
+    ),
+    (
+        "Trigger::WhenAPlayerRollsADiesHighestNaturalResult",
+        PlayerEvent::RollsHighestNatural,
+    ),
+    (
+        "Trigger::WhenAPlayerRollsABlankOnThePlanarDie",
+        PlayerEvent::RollsPlanarBlank,
+    ),
+    ("Trigger::WhenAPlayerForetellsACard", PlayerEvent::Foretells),
+    ("Trigger::WhenAPlayerPaysLife", PlayerEvent::PaysLife),
+    ("Trigger::WhenAPlayerGivesAGift", PlayerEvent::GivesGift),
+    (
+        "Trigger::WhenAPlayerLosesACoinFlip",
+        PlayerEvent::LosesCoinFlip,
+    ),
+    (
+        "Trigger::WhenAPlayerTurnsAPermanentFaceUp",
+        PlayerEvent::TurnsFaceUp,
+    ),
+    (
+        "Trigger::WhenAPlayerSacrificesAPermanentForEmerge",
+        PlayerEvent::SacrificesForEmerge,
+    ),
+    (
+        "Trigger::WhenAPlayerPaysAPermanentsCumulativeUpkeepCost",
+        PlayerEvent::PaysCumulativeUpkeep,
+    ),
+    (
+        "Trigger::WhenAPlayerDoesntPayAPermanentsCumulativeUpkeepCost",
+        PlayerEvent::DeclinesCumulativeUpkeep,
+    ),
+    (
+        "Trigger::WhenAPlayerMillsASpecificCard",
+        PlayerEvent::MillsCard,
+    ),
+    (
+        "Trigger::WhenAPlayerMillsAnyNumberOfCards",
+        PlayerEvent::Mills,
+    ),
+    (
+        "Trigger::WhenAPlayerManifestsDread",
+        PlayerEvent::ManifestsDread,
+    ),
+    (
+        "Trigger::WhenAPlayerFacesADilemma",
+        PlayerEvent::FacesDilemma,
+    ),
+    (
+        "Trigger::WhenAPlayerOpensAnAttraction",
+        PlayerEvent::OpensAttraction,
+    ),
+    (
+        "Trigger::WhenAPlayerClaimsThePrizeOfAnAttraction",
+        PlayerEvent::ClaimsPrize,
+    ),
+    (
+        "Trigger::WhenAPlayerDiscardsACardAtRandom",
+        PlayerEvent::DiscardsAtRandom,
+    ),
+    (
+        "Trigger::WhenAPlayerPlaysALandFromAnywhereOtherThanTheirHand",
+        PlayerEvent::PlaysLandNotFromHand,
+    ),
+    (
+        "Trigger::WhenAPlayerChoosesToPutAnyCardsOnTheBottomOfTheirLibraryWhileScrying",
+        PlayerEvent::BottomsWhileScrying,
+    ),
+    (
+        "Trigger::WhenAPlayerPlaneswalksAwayFromAPlane",
+        PlayerEvent::PlaneswalksAway,
+    ),
+    (
+        "Trigger::WhenAPlayerBecomesTheTargetOfASpellOrAbility",
+        PlayerEvent::BecomesTarget,
+    ),
+    (
+        "Trigger::WhenAPlayerBecomesTheTargetOfASpell",
+        PlayerEvent::BecomesTarget,
+    ),
 ];
 
 const OBJECT_EVENTS: &[(&str, ObjectEvent)] = &[
@@ -1916,6 +2142,48 @@ const OBJECT_EVENTS: &[(&str, ObjectEvent)] = &[
     (
         "Trigger::WhenAPermanentIsTappedForMana",
         ObjectEvent::TappedForMana,
+    ),
+    ("Trigger::WhenAVehicleBecoemsCrewed", ObjectEvent::Crewed),
+    ("Trigger::WhenAPermanentExplores", ObjectEvent::Explores),
+    (
+        "Trigger::WhenAPermanentLeavesTheBattlefieldWithoutDying",
+        ObjectEvent::LeavesWithoutDying,
+    ),
+    ("Trigger::WhenAPermanentPhasesIn", ObjectEvent::PhasesIn),
+    ("Trigger::WhenAPermanentPhasesOut", ObjectEvent::PhasesOut),
+    ("Trigger::WhenAPermanentConnives", ObjectEvent::Connives),
+    ("Trigger::WhenAPermanentFights", ObjectEvent::Fights),
+    (
+        "Trigger::WhenACreatureBecomesRenowned",
+        ObjectEvent::BecomesRenowned,
+    ),
+    ("Trigger::WhenAPermanentEvolves", ObjectEvent::Evolves),
+    ("Trigger::WhenACreatureIsDevoured", ObjectEvent::Devoured),
+    ("Trigger::WhenAPermanentIsDestroyed", ObjectEvent::Destroyed),
+    (
+        "Trigger::WhenAPermanentIsSacrificed",
+        ObjectEvent::Sacrificed,
+    ),
+    ("Trigger::WhenAPermanentTrains", ObjectEvent::Trains),
+    (
+        "Trigger::WhenAPermanentsCumulativeUpkeepCostIsPaid",
+        ObjectEvent::CumulativeUpkeepPaid,
+    ),
+    (
+        "Trigger::WhenAnEchoCostOfAPermanentIsPaid",
+        ObjectEvent::EchoPaid,
+    ),
+    (
+        "Trigger::WhenAPermanentBecomesTappedToPayATeamworkCost",
+        ObjectEvent::TappedForTeamwork,
+    ),
+    (
+        "Trigger::WhenTheFinalChapterOfASagaResolves",
+        ObjectEvent::FinalChapterResolves,
+    ),
+    (
+        "Trigger::WhenTheFinalChapterOfASagaTriggers",
+        ObjectEvent::FinalChapterTriggers,
     ),
 ];
 
@@ -1934,6 +2202,28 @@ const PAIR_EVENTS: &[(&str, PairEvent)] = &[
     (
         "Trigger::WhenAPermanentExploitsAPermanent",
         PairEvent::Exploits,
+    ),
+    ("Trigger::WhenACreatureEnlistsACreature", PairEvent::Enlists),
+    ("Trigger::WhenACreatureMentorsACreature", PairEvent::Mentors),
+    (
+        "Trigger::WhenAPermanentBecomesUnattachedFromAPermanent",
+        PairEvent::BecomesUnattachedFrom,
+    ),
+    (
+        "Trigger::WhenAPermanentIsChampionedWithAPermanent",
+        PairEvent::ChampionedWith,
+    ),
+    (
+        "Trigger::WhenAPermanentStationsAPermanent",
+        PairEvent::Stations,
+    ),
+    (
+        "Trigger::WhenAPermanentEntersTheBattlefieldAttachedToAPermanent",
+        PairEvent::EntersAttachedTo,
+    ),
+    (
+        "Trigger::WhenAPermanentTransformsFromIntoAPermanent",
+        PairEvent::TransformsInto,
     ),
 ];
 
@@ -2199,11 +2489,13 @@ fn reduce_counters(name: &str, operands: &[Operand]) -> Option<EventSpec> {
         | "WhenAPlayerPutsAnyNumberOfCountersOnAPermanent" => (Put, true, false),
         "WhenAnyNumberOfCountersOfTypeArePutOnAnyNumberOfPermanents"
         | "WhenAPlayerPutsAnyNumberOfCountersOfTypeOnAnyNumberOfPermanents" => (Put, true, true),
-        "WhenACounterOfTypeIsRemovedFromAPermanent" => (Removed, false, false),
+        "WhenACounterOfTypeIsRemovedFromAPermanent"
+        | "WhenACounterOfTypeIsRemovedFromAnExiledCard" => (Removed, false, false),
         "WhenAnyNumberOfCountersOfTypeAreRemovedFromAPermanent"
         | "WhenAnyNumberOfCountersAreRemovedFromAPermanent" => (Removed, true, false),
         "WhenTheLastCounterOfTypeIsRemovedFromAPermanent"
-        | "WhenAPlayerRemovesTheLastCounterOfTypeFromAPermanent" => (LastRemoved, false, false),
+        | "WhenAPlayerRemovesTheLastCounterOfTypeFromAPermanent"
+        | "WhenTheLastCounterOfTypeIsRemovedFromAnExiledCard" => (LastRemoved, false, false),
         _ => return None,
     };
     let (by, kind, objects) = match operands {
@@ -2262,6 +2554,119 @@ fn reduce_batch(name: &str, operands: &[Operand]) -> Option<EventSpec> {
             })
         }
         (
+            "WhenACreatureBlocksAnyNumberOfCreatures",
+            [Operand::Objects(blockers), Operand::Objects(blocked)],
+        )
+        | (
+            "WhenACreatureBecomesBlockedByAnyNumberOfCreatures",
+            [Operand::Objects(blockers), Operand::Objects(blocked)],
+        ) => {
+            return Some(EventSpec::Batch {
+                event: Box::new(EventSpec::Pair {
+                    event: if form == "WhenACreatureBlocksAnyNumberOfCreatures" {
+                        PairEvent::Blocks
+                    } else {
+                        PairEvent::BecomesBlockedBy
+                    },
+                    objects: event_filter(blockers)?,
+                    others: event_filter(blocked)?,
+                }),
+                per: BatchPer::Subject,
+                count: None,
+                including: None,
+            })
+        }
+        (
+            "WhenACreatureBlocksANumberOfCreatures",
+            [Operand::Objects(blockers), Operand::Comparison(comparison, value), Operand::Objects(blocked)],
+        )
+        | (
+            "WhenACreatureBecomesBlockedByANumberOfCreatures",
+            [Operand::Objects(blockers), Operand::Comparison(comparison, value), Operand::Objects(blocked)],
+        ) => {
+            return Some(EventSpec::Batch {
+                event: Box::new(EventSpec::Pair {
+                    event: if form == "WhenACreatureBlocksANumberOfCreatures" {
+                        PairEvent::Blocks
+                    } else {
+                        PairEvent::BecomesBlockedBy
+                    },
+                    objects: event_filter(blockers)?,
+                    others: event_filter(blocked)?,
+                }),
+                per: BatchPer::Subject,
+                count: Some((comparison.clone(), value.clone())),
+                including: None,
+            })
+        }
+        (
+            "WhenAPlayerCreatesAnyNumberOfTokens",
+            [Operand::Players(players), Operand::Objects(tokens)],
+        ) => {
+            return whole(EventSpec::Player {
+                event: PlayerEvent::CreatesToken,
+                players: players.clone(),
+                objects: Some(event_filter(tokens)?),
+            })
+        }
+        ("WhenAnyNumberOfPlayersLoseLife", [Operand::Players(players)]) => {
+            return whole(EventSpec::Player {
+                event: PlayerEvent::LosesLife,
+                players: players.clone(),
+                objects: None,
+            })
+        }
+        (
+            "WhenAnyNumberOfCardsArePutIntoAPlayersLibraryFromAnywhere",
+            [Operand::Players(owners)],
+        ) => {
+            return whole(moved(
+                ObjectFilter::OwnedBy(owners.clone()),
+                None,
+                EventZone::Library,
+            ))
+        }
+        (
+            "WhenAnyNumberOfGenericCardsArePutIntoExileFromAPlayersHand",
+            [Operand::Players(owners)],
+        ) => {
+            return whole(moved(
+                ObjectFilter::OwnedBy(owners.clone()),
+                Some(EventZone::Hand),
+                EventZone::Exile,
+            ))
+        }
+        ("WhenAnyNumberOfSpecificCardsAreMilled", [Operand::Filter(cards)]) => {
+            return whole(EventSpec::Player {
+                event: PlayerEvent::MillsCard,
+                players: PlayerSet::All,
+                objects: Some(cards.clone()),
+            })
+        }
+        (
+            "WhenAPlayerMillsAnyNumberOfSpecificCards",
+            [Operand::Players(players), Operand::Filter(cards)],
+        ) => {
+            return whole(EventSpec::Player {
+                event: PlayerEvent::MillsCard,
+                players: players.clone(),
+                objects: Some(cards.clone()),
+            })
+        }
+        (
+            "WhenAnyNumberOfCardsArePutIntoExileFromAPlayersGraveyard",
+            [Operand::Filter(cards), Operand::Players(owners)],
+        ) => {
+            return whole(moved(
+                owned(cards, owners),
+                Some(EventZone::Graveyard),
+                EventZone::Exile,
+            ))
+        }
+        ("WhenAnyNumberOfCardsArePutIntoExile", [Operand::Filter(cards)]) => {
+            return whole(moved(cards.clone(), None, EventZone::Exile))
+        }
+        (
             "WhenAnyNumberOfCardsArePutIntoAPlayersGraveyardFromTheirLibrary",
             [Operand::Filter(cards), Operand::Players(owners)],
         ) => {
@@ -2301,8 +2706,21 @@ fn reduce_batch(name: &str, operands: &[Operand]) -> Option<EventSpec> {
         "WhenAnyNumberOfPermanentsBecomeTapped" => object(ObjectEvent::BecomesTapped, objects),
         "WhenAnyNumberOfCreaturesBecomeBlocked" => object(ObjectEvent::BecomesBlocked, objects),
         "WhenAnyNumberOfCreaturesBlock" => object(ObjectEvent::Blocks, objects),
+        "WhenAnyNumberOfPermanentsLeaveTheBattlefieldWithoutDying" => {
+            object(ObjectEvent::LeavesWithoutDying, objects)
+        }
+        "WhenAnyNumberOfPermanentsPhaseOut" => object(ObjectEvent::PhasesOut, objects),
+        "WhenAnyNumberOfPermanentsFight" => object(ObjectEvent::Fights, objects),
+        "WhenAnyNumberOfPermanentsAreReturnedToHand" => {
+            moved(objects, Some(EventZone::Battlefield), EventZone::Hand)
+        }
         _ => return None,
     })
+}
+
+/// `cards` owned by one of `owners`, for an event that names whose zone it is.
+fn owned_by(cards: ObjectFilter, owners: &PlayerSet) -> ObjectFilter {
+    ObjectFilter::All(vec![cards, ObjectFilter::OwnedBy(owners.clone())])
 }
 
 /// A plane, scheme or phenomenon event's card, when it is this card.
@@ -2318,17 +2736,88 @@ fn reduce_object_event(name: &str, operands: &[Operand]) -> Option<EventSpec> {
     match operands {
         [Operand::Objects(objects)] => {
             let filter = event_filter(objects)?;
-            if name == "Trigger::WhenAPermanentIsExiled" {
-                return Some(EventSpec::ZoneChange {
-                    objects: filter,
-                    from: Some(EventZone::Battlefield),
-                    to: EventZone::Exile,
-                });
+            let enters = |extra| {
+                Some(EventSpec::ZoneChange {
+                    objects: ObjectFilter::All(vec![filter.clone(), extra]),
+                    from: None,
+                    to: EventZone::Battlefield,
+                })
+            };
+            match name {
+                "Trigger::WhenAPermanentIsExiled" => {
+                    return Some(EventSpec::ZoneChange {
+                        objects: filter,
+                        from: Some(EventZone::Battlefield),
+                        to: EventZone::Exile,
+                    })
+                }
+                "Trigger::WhenAPermanentIsPutIntoTheCommandZone" => {
+                    return Some(EventSpec::ZoneChange {
+                        objects: filter,
+                        from: Some(EventZone::Battlefield),
+                        to: EventZone::Command,
+                    })
+                }
+                "Trigger::WhenAPermanentEntersTheBattlefieldTapped" => {
+                    return enters(ObjectFilter::Tapped)
+                }
+                "Trigger::WhenAPermanentEntersTheBattlefieldUntapped" => {
+                    return enters(ObjectFilter::Not(Box::new(ObjectFilter::Tapped)))
+                }
+                "Trigger::WhenAPermanentEntersTheBattlefieldAttacking" => {
+                    return enters(ObjectFilter::Attacking)
+                }
+                _ => {}
             }
             let event = OBJECT_EVENTS.iter().find(|(row, _)| *row == name)?.1;
             Some(EventSpec::Object {
                 event,
                 objects: filter,
+            })
+        }
+        [Operand::Filter(cards)] => match name {
+            "Trigger::WhenAGraveyardCardLeaves" => Some(EventSpec::Object {
+                event: ObjectEvent::LeavesGraveyard,
+                objects: cards.clone(),
+            }),
+            "Trigger::WhenAGraveyardCardSpecializes" => Some(EventSpec::Object {
+                event: ObjectEvent::Specializes,
+                objects: cards.clone(),
+            }),
+            "Trigger::WhenAGraveyardCardIsPutIntoHand" => Some(EventSpec::ZoneChange {
+                objects: cards.clone(),
+                from: Some(EventZone::Graveyard),
+                to: EventZone::Hand,
+            }),
+            _ => None,
+        },
+        [Operand::Filter(cards), Operand::Players(owners)]
+            if name == "Trigger::WhenACardIsPutIntoAPlayersGraveyardFromTheirHand" =>
+        {
+            Some(EventSpec::ZoneChange {
+                objects: owned_by(cards.clone(), owners),
+                from: Some(EventZone::Hand),
+                to: EventZone::Graveyard,
+            })
+        }
+        [Operand::Objects(objects), Operand::Players(owners)]
+            if name == "Trigger::WhenAPermanentEntersTheBattlefieldFromAPlayersGraveyard"
+                || name == "Trigger::WhenAPermanentEntersTheBattlefieldFromAPlayersHand"
+                || name == "Trigger::WhenAPermanentIsReturnedToAPlayersHand" =>
+        {
+            let (from, to) = match name {
+                "Trigger::WhenAPermanentEntersTheBattlefieldFromAPlayersGraveyard" => {
+                    (EventZone::Graveyard, EventZone::Battlefield)
+                }
+                "Trigger::WhenAPermanentEntersTheBattlefieldFromAPlayersHand" => {
+                    (EventZone::Hand, EventZone::Battlefield)
+                }
+                _ => (EventZone::Battlefield, EventZone::Hand),
+            };
+            Some(EventSpec::ZoneChange {
+                objects: owned_by(event_filter(objects)?, owners),
+                from: Some(from),
+                to,
             })
         }
         [Operand::Objects(objects), Operand::Objects(others)] => Some(EventSpec::Pair {
@@ -2594,6 +3083,94 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
                 };
             }
         }
+        ("Trigger::WhenCardSpecializes", [Operand::Vocabulary { form, .. }])
+            if form == "ThisCard" =>
+        {
+            return EventSpec::Object {
+                event: ObjectEvent::Specializes,
+                objects: ObjectFilter::SameObject(ObjectRef::Source),
+            }
+        }
+        (
+            "Trigger::WhenAPlayerBecomesTheTargetOfASpellOrAbility"
+            | "Trigger::WhenAPlayerBecomesTheTargetOfAnAbility",
+            [Operand::Players(players), by],
+        ) => {
+            if let Some(by) = stack_filter(by) {
+                return EventSpec::Player {
+                    event: PlayerEvent::BecomesTarget,
+                    players: players.clone(),
+                    objects: Some(by),
+                };
+            }
+        }
+        (
+            "Trigger::WhenAPlayerLosesLifeDuringTheirTurn"
+            | "Trigger::WhenAPlayerGainsLifeDuringTheirTurn"
+            | "Trigger::WhenAPlayerDrawsACardDuringTheirTurn",
+            [Operand::Players(players)],
+        ) => {
+            let event = match name.as_str() {
+                "Trigger::WhenAPlayerLosesLifeDuringTheirTurn" => PlayerEvent::LosesLife,
+                "Trigger::WhenAPlayerGainsLifeDuringTheirTurn" => PlayerEvent::GainsLife,
+                _ => PlayerEvent::Draws,
+            };
+            return EventSpec::Filtered {
+                event: Box::new(EventSpec::Player {
+                    event,
+                    players: players.clone(),
+                    objects: None,
+                }),
+                condition: Condition::PlayerIsActive(PlayerRef::EventSubject),
+            };
+        }
+        (
+            "Trigger::WhenAPlayerRollsAValueOnADie",
+            [Operand::Players(players), Operand::Comparison(comparison, value)],
+        ) => {
+            return EventSpec::Filtered {
+                event: Box::new(EventSpec::Player {
+                    event: PlayerEvent::RollsADie,
+                    players: players.clone(),
+                    objects: None,
+                }),
+                condition: Condition::Compare {
+                    left: Expr::EventAmount,
+                    comparison: comparison.clone(),
+                    right: value.clone(),
+                },
+            };
+        }
+        (
+            "Trigger::WhenAPlayerIsAttacked" | "Trigger::WhenAnyNumberOfPlayersAreAttacked",
+            [Operand::Players(players)],
+        ) => {
+            return EventSpec::Batch {
+                event: Box::new(EventSpec::Attack {
+                    attackers: ObjectFilter::Any,
+                    by: None,
+                    defenders: AttackDefenders::Players(players.clone()),
+                }),
+                per: if name == "Trigger::WhenAPlayerIsAttacked" {
+                    BatchPer::Defender
+                } else {
+                    BatchPer::Whole
+                },
+                count: None,
+                including: None,
+            };
+        }
+        ("Trigger::WhenNoPermanentsAreOnTheBattlefield", [Operand::Objects(objects)]) => {
+            if let Some(filter) = event_filter(objects) {
+                return EventSpec::State {
+                    condition: Condition::Compare {
+                        left: Expr::CountObjects(Box::new(ObjectSet::Battlefield(filter))),
+                        comparison: Comparison::Equal,
+                        right: Expr::Constant(0),
+                    },
+                };
+            }
+        }
         ("Trigger::WhenAnAbilityIsActivated", [abilities]) => {
             if let Some(abilities) = stack_filter(abilities) {
                 return EventSpec::Activated {
@@ -2635,6 +3212,13 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
                 event,
                 players: players.clone(),
                 objects: None,
+            }
+        }
+        (Some(event), [Operand::Players(players), Operand::Filter(cards)]) => {
+            return EventSpec::Player {
+                event,
+                players: players.clone(),
+                objects: Some(cards.clone()),
             }
         }
         (Some(event), [Operand::Objects(objects), Operand::Players(players)])
@@ -2755,7 +3339,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             object: true,
             permanent: true,
             moved: true,
-            moved_owner: matches!(to, EventZone::Graveyard),
+            moved_owner: matches!(to, EventZone::Graveyard | EventZone::Hand),
             ..EventBindings::default()
         },
         EventSpec::Object { event, .. } => {
@@ -2800,7 +3384,14 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             count,
             including,
         } => {
-            let inner = event_bindings(event);
+            let mut inner = event_bindings(event);
+            // The subject of a batched pair is one object even though its
+            // other half is not.
+            if matches!(**event, EventSpec::Pair { .. }) {
+                inner.object = true;
+                inner.permanent = true;
+                inner.block_pair = false;
+            }
             let one = matches!(per, BatchPer::Subject)
                 || count.is_none() && including.is_none() && !matches!(per, BatchPer::Defender);
             EventBindings {

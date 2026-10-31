@@ -166,11 +166,12 @@ fn every_primitive_row_is_a_real_source_form() {
 #[test]
 fn trigger_primitives_are_counted_for_the_audit() {
     let card = parse(
-        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Enchantment],Subtypes:[]),Rules:[TriggerA(WhenDayBecomesNightOrNightBecomesDay,ActionList([DrawACard]))])"#,
+        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Enchantment],Subtypes:[]),Rules:[TriggerA(WhenAPermanentEntersTheBattlefieldOrTheCreatureItHauntsDies(SinglePermanent(ThisPermanent)),ActionList([DrawACard]))])"#,
     );
     let strict = lower::card(&card).unwrap();
     assert_eq!(
-        unified::forms(&strict).primitives["Trigger::WhenDayBecomesNightOrNightBecomesDay"],
+        unified::forms(&strict).primitives
+            ["Trigger::WhenAPermanentEntersTheBattlefieldOrTheCreatureItHauntsDies"],
         1
     );
 }
@@ -228,8 +229,8 @@ fn primitives_in_every_family_bind_their_operands() {
             "Cost::RevealTopCardOfLibrary",
         ),
         (
-            "TriggerA(WhenDayBecomesNightOrNightBecomesDay, ActionList([DrawACard]))",
-            "Trigger::WhenDayBecomesNightOrNightBecomesDay",
+            "TriggerA(WhenAPermanentEntersTheBattlefieldOrTheCreatureItHauntsDies(SinglePermanent(ThisPermanent)), ActionList([DrawACard]))",
+            "Trigger::WhenAPermanentEntersTheBattlefieldOrTheCreatureItHauntsDies",
         ),
     ] {
         let json = lowered(rule).unwrap();
