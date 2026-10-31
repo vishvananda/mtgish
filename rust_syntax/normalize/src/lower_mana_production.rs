@@ -96,7 +96,18 @@ impl Context {
             ),
             S::IsCardtype(ty) => ObjectFilter::CardType(ty.clone()),
             S::IsCreatureType(ty) => ObjectFilter::Subtype(crate::subtype::creature_type(ty)),
-            _ => return Err(unsupported(value)),
+            S::IsNonCardtype(ty) => ObjectFilter::Not(Box::new(ObjectFilter::CardType(ty.clone()))),
+            S::IsSupertype(ty) => ObjectFilter::Supertype(ty.clone()),
+            S::IsColor(color) => self.color_filter(color)?,
+            S::IsNonColor(color) => ObjectFilter::Not(Box::new(self.color_filter(color)?)),
+            S::IsColorless => ObjectFilter::Colorless,
+            S::ControlledByAPlayer(players) => ObjectFilter::ControlledBy(self.players(players)?),
+            S::IsNamed(name) => self.card_filter(&source::Cards::IsNamed(name.clone()))?,
+            S::IsNotACommander => self.filter_inner(&source::Permanents::IsNotACommander)?,
+            S::IsAnOutlaw => self.filter_inner(&source::Permanents::IsAnOutlaw)?,
+            S::IsCreatureTypeVariable(ty) => {
+                self.filter_inner(&source::Permanents::IsCreatureTypeVariable(ty.clone()))?
+            }
         })
     }
     fn mana_use(&self, value: &source::ManaUseModifier) -> Result<ManaUse> {

@@ -262,6 +262,10 @@ impl<'a> Scope<'a> {
     fn event(&self, event: &EventSpec) -> Result {
         match event {
             EventSpec::Primitive { name, operands } => self.primitive(name, operands),
+            EventSpec::ClassLevel { objects, level } => {
+                self.filter(objects)?;
+                self.expr(level)
+            }
             EventSpec::FirstEachTurn(event) => self.event(event),
             EventSpec::Player {
                 players, objects, ..
@@ -1138,6 +1142,7 @@ impl<'a> Scope<'a> {
             ObjectAction::Activate(f) => self.activation_filter(f),
             ObjectAction::BeTargeted(f) => self.filter(f),
             ObjectAction::Untap
+            | ObjectAction::Cast
             | ObjectAction::Regenerate
             | ObjectAction::Sacrifice
             | ObjectAction::Counter
@@ -1904,6 +1909,10 @@ impl<'a> Scope<'a> {
                 self.new_targets(targets)
             }
             Operation::AbandonScheme { actor } => self.players(actor),
+            Operation::DuplicateCounters { from, to, .. } => {
+                self.recipients(from)?;
+                self.recipients(to)
+            }
             Operation::EffectOn {
                 subject,
                 effects,

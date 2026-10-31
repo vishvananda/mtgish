@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 104;
+pub const SCHEMA_VERSION: u32 = 105;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1330,6 +1330,12 @@ pub enum Operation {
         filter: ObjectFilter,
         reveal: bool,
     },
+    /// Puts on `to` the counters that are on `from`, which keeps them.
+    DuplicateCounters {
+        from: Recipients,
+        to: Recipients,
+        copies: CounterCopies,
+    },
 }
 /// Defines the keyword abilities with one table, so the enum and the rows that
 /// lower to it cannot disagree.
@@ -2412,6 +2418,7 @@ pub enum ObjectAction {
     Transform,
     PhaseOut,
     Crew,
+    Cast,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum AttackDefenders {
@@ -2719,6 +2726,14 @@ pub enum PlayerPairAction {
     Heist,
     ControlNextTurn,
     ExchangeLife,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum CounterCopies {
+    All,
+    OneOfEachKind,
+    One,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PlayerNumber {
@@ -3725,6 +3740,11 @@ pub enum EventSpec {
         objects: ObjectFilter,
         by: Option<PlayerSet>,
     },
+    /// A Class gained this level (CR 716).
+    ClassLevel {
+        objects: ObjectFilter,
+        level: Expr,
+    },
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -3876,6 +3896,7 @@ pub enum ObjectState {
     NoAbilities,
     /// Controlled continuously since the turn began (CR 302.6).
     ControlledSinceTurnBegan,
+    HauntedBySource,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -3909,6 +3930,7 @@ pub enum PlayerState {
     CommittedCrime,
     BeingAttacked,
     EnduringStory,
+    Poisoned,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -4098,6 +4120,8 @@ pub enum EventZone {
 pub enum DiscardKind {
     Any,
     Cycling,
+    /// Discarded because of a spell or ability that matches.
+    CausedBy(ObjectFilter),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DiscardGrouping {

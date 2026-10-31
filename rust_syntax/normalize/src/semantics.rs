@@ -441,6 +441,49 @@ fn moved_counters(form: &str) -> Option<MovedCounters> {
     }
 }
 
+/// Counters on exiled cards, and counters copied from one thing to another.
+fn reduce_placed_counters(form: &str, operands: &[Operand]) -> Option<Operation> {
+    use Operand::{Number, Object, Objects, Player};
+    let one = |object: &ObjectRef| Recipients::Objects(ObjectSet::One(object.clone()));
+    let duplicate = |from, to, copies| Some(Operation::DuplicateCounters { from, to, copies });
+    let player = |who: &PlayerRef| Recipients::Players(PlayerSet::One(who.clone()));
+    let (recipients, kind, amount) = match (form, operands) {
+        ("DuplicateCountersOfPermanentOnPermanent", [Object(from), Object(to)]) => {
+            return duplicate(one(from), one(to), CounterCopies::All)
+        }
+        ("ADuplicateOfEachKindOfCounterOnPermanentOnPermanent", [Object(from), Object(to)]) => {
+            return duplicate(one(from), one(to), CounterCopies::OneOfEachKind)
+        }
+        ("ADuplicateOfEachKindOfCounterOnPlayerOnPlayer", [Player(from), Player(to)]) => {
+            return duplicate(player(from), player(to), CounterCopies::OneOfEachKind)
+        }
+        ("DuplicateACounterOfPermanentOnPermanent", [Object(from), Object(to)]) => {
+            return duplicate(one(from), one(to), CounterCopies::One)
+        }
+        ("ACounterOfTypeOnCardInExile", [kind, Object(card)]) => {
+            (one(card), kind, Expr::Constant(1))
+        }
+        ("ACounterOfTypeOnEachCardInExile", [kind, Objects(cards)]) => {
+            (Recipients::Objects(cards.clone()), kind, Expr::Constant(1))
+        }
+        ("NumberCountersOfTypeOnCardInExile", [Number(amount), kind, Object(card)]) => {
+            (one(card), kind, amount.clone())
+        }
+        ("NumberCountersOfTypeOnEachCardInExile", [Number(amount), kind, Objects(cards)]) => {
+            (Recipients::Objects(cards.clone()), kind, amount.clone())
+        }
+        _ => return None,
+    };
+    Some(Operation::PutCounters {
+        placements: vec![CounterPlacement {
+            recipients,
+            kind: counter_kind(kind)?,
+            amount,
+            selection: None,
+        }],
+    })
+}
+
 fn reduce_double_counters(form: &str, operands: &[Operand]) -> Option<Operation> {
     let (kind, objects) = match (form, operands) {
         ("DoubleCountersOfTypeOnPermanent", [kind, Operand::Object(object)]) => {
@@ -499,10 +542,9 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
             return operation;
         }
     }
-    if let Some(operation) = name
-        .strip_prefix("PutCountersAction::")
-        .and_then(|form| reduce_double_counters(form, &operands))
-    {
+    if let Some(operation) = name.strip_prefix("PutCountersAction::").and_then(|form| {
+        reduce_double_counters(form, &operands).or_else(|| reduce_placed_counters(form, &operands))
+    }) {
         return operation;
     }
     match (name.as_str(), operands.as_slice()) {
@@ -1521,6 +1563,71 @@ fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
         })
     };
     match (name, operands) {
+        (
+            "Players::HasHighestNumberOfCardsInHandAmongPlayers",
+            [Player(p), Operand::Players(players)],
+        ) => compare(
+            Expr::PlayerNumber {
+                player: p.clone(),
+                number: PlayerNumber::CardsInHand,
+            },
+            &Comparison::Greater,
+            &among(players, PlayerNumber::CardsInHand, Aggregation::Maximum),
+        ),
+        (
+            "Players::ControlsMorePermanentsThanEachPlayer",
+            [Player(p), Operand::Players(players), Objects(s)],
+        ) => compare(
+            count(controlled(p, s)?),
+            &Comparison::Greater,
+            &among(
+                players,
+                PlayerNumber::Permanents(Box::new(event_filter(s)?)),
+                Aggregation::Maximum,
+            ),
+        ),
+        ("Players::ControlsLessPermanentThanPlayer", [Player(p), Player(other), Objects(s)]) => {
+            compare(
+                count(controlled(p, s)?),
+                &Comparison::Less,
+                &count(controlled(other, s)?),
+            )
+        }
+        ("Players::SacrificedAPermanentThisTurn", [Player(p), Objects(s)]) => compare(
+            Expr::EventHistory {
+                event: Box::new(EventSpec::Player {
+                    event: PlayerEvent::Sacrifices,
+                    players: PlayerSet::One(p.clone()),
+                    objects: Some(event_filter(s)?),
+                }),
+                window: HistoryWindow::ThisTurn,
+                measure: HistoryMeasure::Occurrences,
+            },
+            &Comparison::GreaterOrEqual,
+            &Expr::Constant(1),
+        ),
+        ("Players::OwnsAndControlsA" | "Players::OwnsAPermanent", [Player(p), Objects(s)]) => {
+            let mut filter = vec![
+                event_filter(s)?,
+                ObjectFilter::OwnedBy(PlayerSet::One(p.clone())),
+            ];
+            if name == "Players::OwnsAndControlsA" {
+                filter.push(ObjectFilter::ControlledBy(PlayerSet::One(p.clone())));
+            }
+            compare(
+                count(ObjectSet::Battlefield(ObjectFilter::All(filter))),
+                &Comparison::GreaterOrEqual,
+                &Expr::Constant(1),
+            )
+        }
+        ("Players::OwnsACardInExile", [Player(p), Objects(s)]) => compare(
+            count(ObjectSet::Matching {
+                objects: Box::new(s.clone()),
+                filter: ObjectFilter::OwnedBy(PlayerSet::One(p.clone())),
+            }),
+            &Comparison::GreaterOrEqual,
+            &Expr::Constant(1),
+        ),
         ("Condition::NumCardsInExileIs", [Than(c, v), Objects(s)]) => {
             compare(count(s.clone()), c, v)
         }
@@ -1629,6 +1736,18 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
         "Condition::ItsNight" => return Condition::ItsNight,
         _ => {}
     }
+    if let ("Players::OwnsAndControls", [Operand::Player(player), Operand::Object(object)]) =
+        (name.as_str(), operands.as_slice())
+    {
+        let them = || PlayerSet::One(player.clone());
+        return Condition::ObjectMatches {
+            object: object.clone(),
+            filter: ObjectFilter::All(vec![
+                ObjectFilter::OwnedBy(them()),
+                ObjectFilter::ControlledBy(them()),
+            ]),
+        };
+    }
     if let ("Condition::CardIsExiled", [Operand::Object(object)]) =
         (name.as_str(), operands.as_slice())
     {
@@ -1696,6 +1815,8 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
         "Players::CompletedADungeon" => Some((PlayerState::CompletedDungeon, false)),
         "Players::HasTheInitiative" => Some((PlayerState::Initiative, false)),
         "Players::Descended" => Some((PlayerState::Descended, false)),
+        "Players::Poisoned" => Some((PlayerState::Poisoned, false)),
+        "Players::IsTheStartingPlayer" => Some((PlayerState::StartingPlayer, false)),
         "Players::CommitedACrimeThisTurn" => Some((PlayerState::CommittedCrime, false)),
         "Players::IsAttacked" => Some((PlayerState::BeingAttacked, false)),
         "Players::HasAnEnduringStory" => Some((PlayerState::EnduringStory, false)),
@@ -1748,12 +1869,33 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
                 effects: Box::new(effects.clone()),
             }
         }
-        ("LayerEffect::AddAbilityFromEachPermanentHasable", [Operand::Objects(objects), kinds]) => {
+        ("SpellEffect::Convoke", []) => Change::GrantAbility(Box::new(Ability::Mechanic {
+            mechanic: Mechanic::Convoke,
+            cost: None,
+            amount: None,
+            filter: None,
+        })),
+        ("SpellEffect::CantBeCast", []) => Change::Rule(RuleChange::Prohibit(ObjectAction::Cast)),
+        ("LayerEffect::IsACopyOfGraveyardCard", [Operand::Object(object), effects]) => {
+            Change::CopyOf {
+                object: object.clone(),
+                effects: Box::new(effects.clone()),
+            }
+        }
+        ("LayerEffect::AddAbilityFromPermanentHasable", [Operand::Object(object), kinds]) => {
             Change::GainAbilitiesOf {
-                objects: objects.clone(),
+                objects: ObjectSet::One(object.clone()),
                 kinds: Box::new(kinds.clone()),
             }
         }
+        (
+            "LayerEffect::AddAbilityFromEachPermanentHasable"
+            | "StaticLayerEffect::AddAbilityFromAnExiledHasable",
+            [Operand::Objects(objects), kinds],
+        ) => Change::GainAbilitiesOf {
+            objects: objects.clone(),
+            kinds: Box::new(kinds.clone()),
+        },
         (
             "LayerEffect::ReplaceColorWordVariableWithNewColorWordVariable"
             | "LayerEffect::ReplaceLandTypeVariableWithNewLandTypeVariable",
@@ -3133,7 +3275,7 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
         ("NinjutsuAbility", []) => keyword(AbilityKeyword::Ninjutsu),
         ("OutlastAbility", []) => keyword(AbilityKeyword::Outlast),
         ("PowerUpAbility", []) => keyword(AbilityKeyword::PowerUp),
-        ("AbilityOfPermanent" | "AbilityOfAPermanent", [source]) => {
+        ("AbilityOfPermanent" | "AbilityOfAPermanent" | "AbilityOfASource", [source]) => {
             ObjectFilter::AbilityOf(Box::new(objects(source)?))
         }
         ("NotAnAbilityOfAPermanent", [source]) => ObjectFilter::Not(Box::new(
@@ -4188,6 +4330,75 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
                 };
             }
         }
+        (
+            "Trigger::WhenAClassBecomesLevel",
+            [Operand::Objects(objects), Operand::Number(level)],
+        ) => {
+            if let Some(objects) = event_filter(objects) {
+                return EventSpec::ClassLevel {
+                    objects,
+                    level: level.clone(),
+                };
+            }
+        }
+        (
+            "Trigger::WhenASpellOrAbilityCausesAPlayerToDiscardACard",
+            [cause, Operand::Players(players), cards],
+        ) => {
+            let this_card = |operands: &[Operand]| matches!(operands, [Operand::Vocabulary { form, .. }] if form == "ThisCardInHand");
+            let cards = match cards {
+                Operand::Filter(cards) => Some((cards.clone(), false)),
+                Operand::Vocabulary { form, .. } if form == "AnyCard" => {
+                    Some((ObjectFilter::Any, false))
+                }
+                Operand::Term { form, operands, .. }
+                    if form == "SingleCardInHand" && this_card(operands) =>
+                {
+                    Some((ObjectFilter::Any, true))
+                }
+                _ => None,
+            };
+            if let (Some(cause), Some((cards, source_only))) = (stack_filter(cause), cards) {
+                return EventSpec::Discard {
+                    players: players.clone(),
+                    cards,
+                    source_only,
+                    kind: DiscardKind::CausedBy(cause),
+                    grouping: DiscardGrouping::Card,
+                };
+            }
+        }
+        (
+            "Trigger::WhenAPermanentEntersTheBattlefieldOrTheCreatureItHauntsDies",
+            [Operand::Objects(objects)],
+        ) => {
+            if let Some(objects) = event_filter(objects) {
+                return EventSpec::Either(vec![
+                    EventSpec::ZoneChange {
+                        objects,
+                        from: None,
+                        to: EventZone::Battlefield,
+                    },
+                    EventSpec::ZoneChange {
+                        objects: ObjectFilter::State(ObjectState::HauntedBySource),
+                        from: Some(EventZone::Battlefield),
+                        to: EventZone::Graveyard,
+                    },
+                ]);
+            }
+        }
+        (
+            "Trigger::WhenAPlayerHasAnAmountOfLife",
+            [Operand::Players(PlayerSet::One(player)), Operand::Comparison(comparison, value)],
+        ) => {
+            return EventSpec::State {
+                condition: Condition::Compare {
+                    left: Expr::PlayerLife(player.clone()),
+                    comparison: comparison.clone(),
+                    right: value.clone(),
+                },
+            }
+        }
         ("Trigger::WhenAnAbilityIsActivated", [abilities]) => {
             if let Some(abilities) = stack_filter(abilities) {
                 return EventSpec::Activated {
@@ -4350,6 +4561,8 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             discard: true,
             discarded: matches!(grouping, DiscardGrouping::Card),
             activation_x: matches!(kind, DiscardKind::Cycling),
+            stack_object: matches!(kind, DiscardKind::CausedBy(_)),
+            moved: matches!(kind, DiscardKind::CausedBy(_)),
             ..Default::default()
         },
         EventSpec::ZoneChange { to, .. } => EventBindings {
@@ -4419,6 +4632,11 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 ..inner
             }
         }
+        EventSpec::ClassLevel { .. } => EventBindings {
+            object: true,
+            permanent: true,
+            ..EventBindings::default()
+        },
         EventSpec::Damage(event) => {
             let source = matches!(
                 event.grouping,
@@ -4608,6 +4826,7 @@ impl Effects {
                     | Operation::Retarget { .. }
                     | Operation::Clash { .. }
                     | Operation::Vote { .. }
+                    | Operation::DuplicateCounters { .. }
                     | Operation::EffectOn { .. }
                     | Operation::GameEffect { .. }
                     | Operation::AttachChosen { .. }

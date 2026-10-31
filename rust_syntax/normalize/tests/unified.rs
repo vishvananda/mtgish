@@ -166,12 +166,12 @@ fn every_primitive_row_is_a_real_source_form() {
 #[test]
 fn trigger_primitives_are_counted_for_the_audit() {
     let card = parse(
-        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Enchantment],Subtypes:[]),Rules:[TriggerA(WhenAPermanentEntersTheBattlefieldOrTheCreatureItHauntsDies(SinglePermanent(ThisPermanent)),ActionList([DrawACard]))])"#,
+        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Enchantment],Subtypes:[]),Rules:[TriggerA(WhenAPermanentEntersTheBattlefieldDuringTheDeclareAttacksStep(SinglePermanent(ThisPermanent)),ActionList([DrawACard]))])"#,
     );
     let strict = lower::card(&card).unwrap();
     assert_eq!(
         unified::forms(&strict).primitives
-            ["Trigger::WhenAPermanentEntersTheBattlefieldOrTheCreatureItHauntsDies"],
+            ["Trigger::WhenAPermanentEntersTheBattlefieldDuringTheDeclareAttacksStep"],
         1
     );
 }
@@ -229,8 +229,8 @@ fn primitives_in_every_family_bind_their_operands() {
             "Cost::RevealTopCardOfLibrary",
         ),
         (
-            "TriggerA(WhenAPermanentEntersTheBattlefieldOrTheCreatureItHauntsDies(SinglePermanent(ThisPermanent)), ActionList([DrawACard]))",
-            "Trigger::WhenAPermanentEntersTheBattlefieldOrTheCreatureItHauntsDies",
+            "TriggerA(WhenAPermanentEntersTheBattlefieldDuringTheDeclareAttacksStep(SinglePermanent(ThisPermanent)), ActionList([DrawACard]))",
+            "Trigger::WhenAPermanentEntersTheBattlefieldDuringTheDeclareAttacksStep",
         ),
     ] {
         let json = lowered(rule).unwrap();

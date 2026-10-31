@@ -1542,6 +1542,7 @@ impl Compiler {
             ),
             PlayerState::FullParty => format!("{} == 4", self.party("player")?),
             PlayerState::MaxSpeed => "q.state().player(player).speed == Some(4)".into(),
+            PlayerState::Poisoned => return Err(gap("poisoned player in a filter")),
         })
     }
     /// `i64` the creatures of `player`'s party (CR 700.8): the most of Cleric,

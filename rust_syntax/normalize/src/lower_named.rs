@@ -162,6 +162,7 @@ impl Context {
             "Cost" => Operand::Cost(self.cost(&decode(value).ok()?).ok()?),
             "Spells" => Operand::Filter(self.spell_filter(&decode(value).ok()?).ok()?),
             "Cards" => Operand::Filter(self.card_filter(&decode(value).ok()?).ok()?),
+            "AbilitySources" => Operand::Filter(self.mana_sources(&decode(value).ok()?).ok()?),
             "CardsInLibrary" => Operand::Filter(self.library_filter(&decode(value).ok()?).ok()?),
             "Comparison" => {
                 let (comparison, expression) = self.comparison(&decode(value).ok()?).ok()?;

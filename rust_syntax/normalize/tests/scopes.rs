@@ -1259,3 +1259,22 @@ fn deck_and_draft_rules_are_abilities() {
     let draft = lowered("AsSelfDraft([DraftFaceUp])");
     assert!(draft.contains("DraftRule"), "{draft}");
 }
+
+#[test]
+fn counters_copied_and_players_compared() {
+    let copied = lowered(
+        "TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([PutCounters([DuplicateCountersOfPermanentOnPermanent(ThisPermanent, ThisPermanent)])]))",
+    );
+    assert!(copied.contains("DuplicateCounters"), "{copied}");
+    assert!(!copied.contains("Primitive"), "{copied}");
+    let most = lowered(
+        "If(PlayerPassesFilter(You, HasHighestNumberOfCardsInHandAmongPlayers(Opponent)), [PermanentLayerEffect(ThisPermanent, [AdjustPT(+1, +1)])])",
+    );
+    assert!(most.contains("Greater"), "{most}");
+    assert!(!most.contains("GreaterOrEqual"), "{most}");
+    assert!(most.contains("AmongPlayers"), "{most}");
+    let class = lowered(
+        "TriggerA(WhenAClassBecomesLevel(SinglePermanent(ThisPermanent), Integer(2)), ActionList([DrawNumberCards(Integer(2))]))",
+    );
+    assert!(class.contains("ClassLevel"), "{class}");
+}

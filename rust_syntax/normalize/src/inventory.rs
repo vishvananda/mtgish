@@ -478,6 +478,10 @@ impl Inventory<'_> {
                 self.players(actor);
                 self.filter(filter);
             }
+            Operation::DuplicateCounters { from, to, .. } => {
+                self.recipients(from);
+                self.recipients(to);
+            }
             Operation::PutSticker { actor, objects, .. } => {
                 self.players(actor);
                 self.objects(objects);
@@ -1353,6 +1357,7 @@ impl Inventory<'_> {
             ObjectAction::Activate(f) => self.activation_filter(f),
             ObjectAction::BeTargeted(f) => self.filter(f),
             ObjectAction::Untap
+            | ObjectAction::Cast
             | ObjectAction::Sacrifice
             | ObjectAction::Regenerate
             | ObjectAction::Counter
@@ -2178,6 +2183,10 @@ impl Inventory<'_> {
         self.form("EventSpec", e);
         match e {
             EventSpec::Primitive { name, .. } => self.primitive(name),
+            EventSpec::ClassLevel { objects, level } => {
+                self.filter(objects);
+                self.expr(level);
+            }
             EventSpec::FirstEachTurn(event) => self.event(event),
             EventSpec::Player {
                 event,

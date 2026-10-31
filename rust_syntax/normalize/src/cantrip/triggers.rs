@@ -922,6 +922,7 @@ impl Compiler {
                     "Whenever a card is discarded",
                 )
             }
+            DiscardKind::CausedBy(_) => return Err(gap("engine: no discard cause in events")),
         };
         if source_only {
             tests.push("id == asker.source".to_string());
