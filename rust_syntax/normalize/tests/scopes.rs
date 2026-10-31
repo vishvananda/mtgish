@@ -1611,3 +1611,14 @@ fn first_draws_skipped_turns_and_group_constraints() {
     );
     assert!(exchange.contains("index: 1"), "{exchange}");
 }
+
+#[test]
+fn chosen_pairs_damage_source_operands_and_hexproof_from_abilities() {
+    let pair = lowered(
+        "SpellActions(ActionList([ChooseNumberPermanents(Integer(2), IsCardtype(Creature)), CreateValueX(DifferenceBetween(PowerOfPermanent(TheFirstChosenPermanent), PowerOfPermanent(TheSecondChosenPermanent))), DrawNumberCards(ValueX)]))",
+    );
+    assert!(pair.contains("index: 1"), "{pair}");
+    let hexproof = lowered("HexproofFrom(FromActivatedAndTriggeredAbilities)");
+    assert!(hexproof.contains("OnStack(Activated)"), "{hexproof}");
+    assert!(hexproof.contains("OnStack(Triggered)"), "{hexproof}");
+}

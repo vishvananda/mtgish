@@ -71,14 +71,9 @@ fn instance_count(q: &Protection) -> usize {
 
 #[test]
 fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps() {
-    let incomplete = ["Volatile Stormdrake"];
     let mut complete = 0;
     for s in sources() {
         let name = corpus::Identity::of(&s).unwrap().names.remove(0);
-        if incomplete.contains(&name.as_str()) {
-            assert!(lower::card(&s).is_err(), "{name}");
-            continue;
-        }
         let c = lower::card(&s).unwrap_or_else(|e| panic!("{name}: {e:?}"));
         let expected = serde_json::to_value(&c).unwrap();
         let bytes = bincode::encode_to_vec(&c, bincode::config::standard()).unwrap();
@@ -95,7 +90,7 @@ fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps
         }
         complete += 1;
     }
-    assert_eq!(complete, 46);
+    assert_eq!(complete, 47);
 }
 
 #[test]

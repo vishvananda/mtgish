@@ -609,6 +609,12 @@ impl Context {
                     index: 0,
                 });
             }
+            S::TheFirstChosenPermanent | S::TheSecondChosenPermanent
+                if self.permanent_choice.is_some() =>
+            {
+                let index = u32::from(matches!(value, S::TheSecondChosenPermanent));
+                return self.result_object(self.permanent_choice.as_ref(), index);
+            }
             S::TheChosenPermanent => return Ok(ObjectRef::Chosen),
             S::ThePermanentThatGrantedThisAbility
             | S::ThePermanentThatCreatedIt
@@ -1026,7 +1032,8 @@ impl Context {
         }
         if let (
             source::Permanents::ThePermanentsChosenThisWay
-            | source::Permanents::TheChosenPermanents,
+            | source::Permanents::TheChosenPermanents
+            | source::Permanents::TheChosenCreatures,
             Some(result),
         ) = (value, &self.permanent_choice)
         {
@@ -1329,6 +1336,7 @@ impl Context {
                 | source::Permanents::Ref_TargetPermanents2
                 | source::Permanents::ThePermanentsChosenThisWay
                 | source::Permanents::TheChosenPermanents
+                | source::Permanents::TheChosenCreatures
                 | source::Permanents::ThePermanentsNotChosenThisWay
                 | source::Permanents::NotChosenThisWay
                 | source::Permanents::TheUnchosenPermanents
@@ -1655,10 +1663,11 @@ impl Context {
     }
 
     fn done(&self, kind: Done) -> Result<ResultId> {
-        self.did
-            .get(&kind)
-            .cloned()
-            .ok_or_else(|| invalid("this-way history has no action in this scope"))
+        self.did.get(&kind).cloned().ok_or_else(|| {
+            invalid(&format!(
+                "this-way history has no action in this scope ({kind:?})"
+            ))
+        })
     }
 
     fn done_matching(&self, kind: Done, filter: &source::Permanents) -> Result<ObjectSet> {

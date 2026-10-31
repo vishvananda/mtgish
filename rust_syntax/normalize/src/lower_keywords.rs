@@ -84,6 +84,13 @@ impl Context {
                 ObjectKind::Any,
                 self.card_filter(&source::Cards::IsNamed(name.clone()))?,
             ),
+            S::FromActivatedAndTriggeredAbilities => objects(
+                ObjectKind::Any,
+                ObjectFilter::Either(vec![
+                    ObjectFilter::OnStack(StackTrait::Activated),
+                    ObjectFilter::OnStack(StackTrait::Triggered),
+                ]),
+            ),
             S::FromColor(colors) => {
                 use source::ProtectableColor as C;
                 let color = |color| objects(ObjectKind::Any, ObjectFilter::Color(color));

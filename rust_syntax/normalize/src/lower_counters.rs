@@ -43,6 +43,12 @@ impl Context {
                 one(),
                 Some(Count::Exactly(Expr::Constant(1))),
             ),
+            S::ACounterOfTypeFromACardInExile(k, cards) => (
+                self.exile_cards(cards)?,
+                Some(k),
+                one(),
+                Some(Count::Exactly(Expr::Constant(1))),
+            ),
             S::NumberCountersFromPermanent(n, p) => (
                 ObjectSet::One(self.object(p)?),
                 None,

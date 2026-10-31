@@ -183,6 +183,7 @@ impl Context {
                 Operand::Ability(Box::new(self.fresh().ability(&rule).ok()?))
             }
             "Spells" => Operand::Filter(self.spell_filter(&decode(value).ok()?).ok()?),
+            "DamageSources" => Operand::Filter(self.damage_sources(&decode(value).ok()?).ok()?),
             "Cards" => Operand::Filter(self.card_filter(&decode(value).ok()?).ok()?),
             "AbilitySources" => Operand::Filter(self.mana_sources(&decode(value).ok()?).ok()?),
             "CardsInLibrary" => Operand::Filter(self.library_filter(&decode(value).ok()?).ok()?),
