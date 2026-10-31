@@ -235,9 +235,9 @@ impl Compiler {
                 writeln!(out, "let player_{id} = {player};").unwrap();
                 self.object_action(&action, &call, out)?;
             }
-            K::RollD20 => {
+            K::RollDie(sides) => {
                 let player = self.actor(&action)?;
-                writeln!(out, "let player_{id} = {player}; let value_{id} = i64::from(g.roll_die(player_{id}, 20).result);").unwrap();
+                writeln!(out, "let player_{id} = {player}; let value_{id} = i64::from(g.roll_die(player_{id}, {sides}).result);").unwrap();
                 self.values.insert(result.0, format!("value_{id}"));
             }
             K::Venture => {
@@ -246,6 +246,7 @@ impl Compiler {
                 ))
             }
             K::RingTempts => return Err(gap("engine: no Ring temptation")),
+            other => return Err(gap(format!("keyword action {other:?}"))),
         }
         Ok(())
     }
