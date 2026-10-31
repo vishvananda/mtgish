@@ -1640,6 +1640,19 @@ impl Inventory<'_> {
                 self.event(event);
                 self.expr(value);
             }
+            EventSpec::Pair {
+                event,
+                objects,
+                others,
+            } => {
+                self.form("PairEvent", event);
+                self.filter(objects);
+                self.filter(others);
+            }
+            EventSpec::BecomesTarget { objects, kind, .. } => {
+                self.form("TargetingKind", kind);
+                self.filter(objects);
+            }
             EventSpec::SagaChapter(_) => {}
             EventSpec::Discard {
                 players,

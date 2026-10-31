@@ -238,8 +238,101 @@ const PLAYER_EVENTS: &[(&str, PlayerEvent)] = &[
     ),
 ];
 
+const OBJECT_EVENTS: &[(&str, ObjectEvent)] = &[
+    ("Trigger::WhenAPermanentTransforms", ObjectEvent::Transforms),
+    (
+        "Trigger::WhenAPermanentBecomesMonstrous",
+        ObjectEvent::BecomesMonstrous,
+    ),
+    ("Trigger::WhenACreatureMutates", ObjectEvent::Mutates),
+    (
+        "Trigger::WhenACreatureSpecializes",
+        ObjectEvent::Specializes,
+    ),
+    (
+        "Trigger::WhenAPermanentIsTappedForMana",
+        ObjectEvent::TappedForMana,
+    ),
+];
+
+const PAIR_EVENTS: &[(&str, PairEvent)] = &[
+    ("Trigger::WhenACreatureBlocksACreature", PairEvent::Blocks),
+    (
+        "Trigger::WhenACreatureBecomesBlockedByACreature",
+        PairEvent::BecomesBlockedBy,
+    ),
+    ("Trigger::WhenACreatureCrewsAVehicle", PairEvent::Crews),
+    ("Trigger::WhenACreatureSaddlesAMount", PairEvent::Saddles),
+    (
+        "Trigger::WhenAPermanentBecomesAttachedToAPermanent",
+        PairEvent::BecomesAttachedTo,
+    ),
+    (
+        "Trigger::WhenAPermanentExploitsAPermanent",
+        PairEvent::Exploits,
+    ),
+];
+
+const TARGETING_EVENTS: &[(&str, TargetingKind)] = &[
+    (
+        "Trigger::WhenAPermanentBecomesTheTargetOfASpellOrAbility",
+        TargetingKind::SpellOrAbility,
+    ),
+    (
+        "Trigger::WhenAPermanentBecomesTheTargetOfASpell",
+        TargetingKind::Spell,
+    ),
+    (
+        "Trigger::WhenAPermanentBecomesTheTargetOfAnAbility",
+        TargetingKind::Ability,
+    ),
+];
+
+/// What an event says about objects, when a plain filter can say it.
+fn event_filter(objects: &ObjectSet) -> Option<ObjectFilter> {
+    match objects {
+        ObjectSet::Battlefield(filter) => Some(filter.clone()),
+        ObjectSet::One(object) => Some(ObjectFilter::SameObject(object.clone())),
+        _ => None,
+    }
+}
+
+fn reduce_object_event(name: &str, operands: &[Operand]) -> Option<EventSpec> {
+    match operands {
+        [Operand::Objects(objects)] => {
+            let filter = event_filter(objects)?;
+            if name == "Trigger::WhenAPermanentIsExiled" {
+                return Some(EventSpec::ZoneChange {
+                    objects: filter,
+                    from: Some(EventZone::Battlefield),
+                    to: EventZone::Exile,
+                });
+            }
+            let event = OBJECT_EVENTS.iter().find(|(row, _)| *row == name)?.1;
+            Some(EventSpec::Object {
+                event,
+                objects: filter,
+            })
+        }
+        [Operand::Objects(objects), Operand::Objects(others)] => Some(EventSpec::Pair {
+            event: PAIR_EVENTS.iter().find(|(row, _)| *row == name)?.1,
+            objects: event_filter(objects)?,
+            others: event_filter(others)?,
+        }),
+        [Operand::Objects(objects), by] => Some(EventSpec::BecomesTarget {
+            objects: event_filter(objects)?,
+            kind: TARGETING_EVENTS.iter().find(|(row, _)| *row == name)?.1,
+            by: Box::new(by.clone()),
+        }),
+        _ => None,
+    }
+}
+
 /// A row's event in generic form, or the row itself when it has none.
 pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
+    if let Some(event) = reduce_object_event(&name, &operands) {
+        return event;
+    }
     let event = PLAYER_EVENTS
         .iter()
         .find(|(row, _)| *row == name)
@@ -253,11 +346,7 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
             }
         }
         (Some(event), [Operand::Players(players), Operand::Objects(objects)]) => {
-            let filter = match objects {
-                ObjectSet::Battlefield(filter) => Some(filter.clone()),
-                ObjectSet::One(object) => Some(ObjectFilter::SameObject(object.clone())),
-                _ => None,
-            };
+            let filter = event_filter(objects);
             if filter.is_some() {
                 return EventSpec::Player {
                     event,
@@ -298,7 +387,15 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
 }
 
 pub fn with_row(outer: &EventBindings, name: &str) -> EventBindings {
-    let row = row_bindings(name);
+    with_bindings(outer, &row_bindings(name))
+}
+
+/// The enclosing scope plus what `event` binds, for its own filters.
+pub fn with_event(outer: &EventBindings, event: &EventSpec) -> EventBindings {
+    with_bindings(outer, &event_bindings(event))
+}
+
+fn with_bindings(outer: &EventBindings, row: &EventBindings) -> EventBindings {
     EventBindings {
         object: outer.object || row.object,
         permanent: outer.permanent || row.permanent,
@@ -341,9 +438,24 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
             moved_owner: matches!(to, EventZone::Graveyard),
             ..EventBindings::default()
         },
-        EventSpec::Object { .. } => EventBindings {
+        EventSpec::Object { event, .. } => {
+            OBJECT_EVENTS.iter().find(|(_, row)| row == event).map_or(
+                EventBindings {
+                    object: true,
+                    permanent: true,
+                    ..EventBindings::default()
+                },
+                |(name, _)| row_bindings(name),
+            )
+        }
+        EventSpec::Pair { event, .. } => PAIR_EVENTS
+            .iter()
+            .find(|(_, row)| row == event)
+            .map_or_else(EventBindings::default, |(name, _)| row_bindings(name)),
+        EventSpec::BecomesTarget { .. } => EventBindings {
             object: true,
             permanent: true,
+            stack_object: true,
             ..EventBindings::default()
         },
         EventSpec::Damage(event) => {

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 78;
+pub const SCHEMA_VERSION: u32 = 79;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2589,6 +2589,18 @@ pub enum EventSpec {
         comparison: Comparison,
         value: Expr,
     },
+    /// One object acting on or with another; both are bound by the event.
+    Pair {
+        event: PairEvent,
+        objects: ObjectFilter,
+        others: ObjectFilter,
+    },
+    /// `by` says what targeted the object.
+    BecomesTarget {
+        objects: ObjectFilter,
+        kind: TargetingKind,
+        by: Box<Operand>,
+    },
 }
 /// Match actual positive damage, after prevention/replacement, using event
 /// information (including a departed source's last-known characteristics).
@@ -2648,7 +2660,9 @@ pub enum DamageSubject {
     Source,
     Recipient,
 }
-#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
 pub enum ObjectEvent {
     /// Includes leaving the game with the object's owner (CR 603.6c), not
     /// just zone changes. The matcher uses the pre-departure view.
@@ -2661,6 +2675,30 @@ pub enum ObjectEvent {
     BecomesTapped,
     BecomesUntapped,
     TurnsFaceUp,
+    Transforms,
+    BecomesMonstrous,
+    Mutates,
+    Specializes,
+    TappedForMana,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum PairEvent {
+    Blocks,
+    BecomesBlockedBy,
+    Crews,
+    Saddles,
+    BecomesAttachedTo,
+    Exploits,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum TargetingKind {
+    Spell,
+    Ability,
+    SpellOrAbility,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

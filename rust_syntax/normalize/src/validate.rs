@@ -234,12 +234,29 @@ impl<'a> Scope<'a> {
             EventSpec::Player {
                 players, objects, ..
             } => {
-                self.players(players)?;
-                objects.iter().try_for_each(|filter| self.filter(filter))
+                let mut scoped = self.clone();
+                scoped.event = crate::semantics::with_event(&self.event, event);
+                scoped.players(players)?;
+                objects.iter().try_for_each(|filter| scoped.filter(filter))
             }
             EventSpec::NthEachTurn { event, value, .. } => {
                 self.event(event)?;
                 self.expr(value)
+            }
+            // Its filters can name what the event binds, as a row's operands can.
+            EventSpec::Pair {
+                objects, others, ..
+            } => {
+                let mut scoped = self.clone();
+                scoped.event = crate::semantics::with_event(&self.event, event);
+                scoped.filter(objects)?;
+                scoped.filter(others)
+            }
+            EventSpec::BecomesTarget { objects, by, .. } => {
+                let mut scoped = self.clone();
+                scoped.event = crate::semantics::with_event(&self.event, event);
+                scoped.filter(objects)?;
+                scoped.operand(by)
             }
             EventSpec::SagaChapter(_) => Ok(()),
             EventSpec::Discard { players, cards, .. } => {

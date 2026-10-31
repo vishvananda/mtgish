@@ -436,3 +436,15 @@ fn the_nth_event_each_turn_wraps_the_plain_event() {
         "{body}"
     );
 }
+
+#[test]
+fn object_event_rows_reduce_and_keep_what_they_bind() {
+    let body = lowered(
+        "TriggerA(WhenACreatureBlocksACreature(SinglePermanent(ThisPermanent), IsCardtype(Creature)), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("Pair { event: Blocks"), "{body}");
+    let body = lowered(
+        "TriggerA(WhenAPermanentBecomesAttachedToAPermanent(IsCardtype(Enchantment), ManaValueIs(LessThanOrEqualTo(ManaValueOfPermanent(Trigger_ThatPermanent)))), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("Pair { event: BecomesAttachedTo"), "{body}");
+}
