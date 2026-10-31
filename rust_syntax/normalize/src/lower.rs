@@ -1830,6 +1830,12 @@ impl Context {
     }
 
     fn reduced_action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
+        if let Some(instruction) = self.hand_action(value, actor)? {
+            return Ok(instruction);
+        }
+        if let Some(instruction) = self.coin_action(value, actor)? {
+            return Ok(instruction);
+        }
         if let Some(recipe) =
             self.prepared_program(crate::pipeline::programs::ProgramRef::Action(value))
         {
@@ -2831,33 +2837,6 @@ impl Context {
                     instructions: vec![choice, attach],
                 }));
             }
-            S::RevealHandAndPlayerChoosesACardToDiscard(chooser, cards) => {
-                let PlayerSet::One(_) = actor else {
-                    return Err(invalid("revealing a hand needs one player"));
-                };
-                let reveal = self.effect(Operation::Reveal {
-                    objects: self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
-                });
-                let choice = self.effect(Operation::ChooseObjects {
-                    constraints: vec![],
-                    player: self.player(chooser)?,
-                    objects: self.private_cards(
-                        EventZone::Hand,
-                        actor.clone(),
-                        self.card_filter(cards)?,
-                    ),
-                    count: Count::AsManyAsCan(Expr::Constant(1)),
-                });
-                let Instruction::Effect { result, .. } = &choice else {
-                    unreachable!()
-                };
-                let discard = self.effect(Operation::DiscardObjects {
-                    objects: ObjectSet::Selected(result.clone()),
-                });
-                return Ok(Instruction::Group(Program {
-                    instructions: vec![reveal, choice, discard],
-                }));
-            }
             S::CreateValueX(value) => {
                 let value = self.number(value)?;
                 self.value_x = Some(ResultId(self.result));
@@ -2903,6 +2882,9 @@ impl Context {
             S::EachPermanentDoesntUntapDuringControllersNextUntap(p) => {
                 self.skip_next_untap(self.objects(p)?)?
             }
+            S::RevealCardFromHand(card) => Operation::Reveal {
+                objects: ObjectSet::One(self.hand_card(card)?),
+            },
             S::RevealHand => {
                 let PlayerSet::One(_) = actor else {
                     return Err(invalid("revealing a hand needs one player"));
@@ -3770,25 +3752,34 @@ impl Context {
             ),
             _ => None,
         };
-        let action: source::Action = dealt
-            .or_else(|| as_family(value, "Action"))
-            .or_else(|| {
-                cast(
-                    value,
-                    &[
-                        ("Cost", "Action"),
-                        ("CardsInHand", "Cards"),
-                        ("CardsInGraveyards", "Cards"),
-                    ],
-                )
-            })
-            .ok_or_else(|| unsupported(value))?;
+        let action = || -> Result<source::Action> {
+            dealt
+                .clone()
+                .or_else(|| as_family(value, "Action"))
+                .or_else(|| {
+                    cast(
+                        value,
+                        &[
+                            ("Cost", "Action"),
+                            ("CardsInHand", "Cards"),
+                            ("CardsInGraveyards", "Cards"),
+                        ],
+                    )
+                })
+                .ok_or_else(|| unsupported(value))
+        };
         let player = self.payer.clone().unwrap_or(PlayerRef::AbilityController);
         let mut child = self.clone();
         child.iterated = Some(player.clone());
         // Results inside a cost never collide with this scope or another cost's.
         child.result = self.result.saturating_mul(1 << 8).saturating_add(1 << 20);
-        let instruction = child.action(&action, &PlayerSet::One(player.clone()))?;
+        let instruction = match child.hand_cost(value)? {
+            Some(instruction) => instruction,
+            None => {
+                let action = action()?;
+                child.action(&action, &PlayerSet::One(player.clone()))?
+            }
+        };
         Ok(Cost {
             parts: vec![CostPart::PlayerAction {
                 player,
@@ -4113,6 +4104,17 @@ impl Context {
                         S::IfElse(_, _, otherwise) => abilities(otherwise)?,
                         _ => vec![],
                     },
+                })
+            }
+            S::IfCardIsInOpeningHand(actions) => {
+                let holder = PlayerSet::One(PlayerRef::AbilityController);
+                let body = self.action_list(actions, &holder)?;
+                Ok(Ability::OpeningHand {
+                    announcement: Announcement {
+                        targets: self.targets.clone(),
+                        modes: self.modes.clone(),
+                    },
+                    body,
                 })
             }
             S::SpellActions(actions) => match actions.as_ref() {
@@ -4543,6 +4545,8 @@ include!("lower_number_pipeline.rs");
 
 include!("lower_paid.rs");
 include!("lower_this_way.rs");
+include!("lower_coin.rs");
+include!("lower_hand.rs");
 include!("lower_named.rs");
 include!("lower_reflexive.rs");
 include!("lower_reveal.rs");

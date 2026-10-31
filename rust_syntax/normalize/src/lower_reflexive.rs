@@ -138,13 +138,24 @@ impl Context {
             .last()
             .and_then(last_result)
             .ok_or_else(|| invalid("a reflexive trigger needs one base action"))?;
+        instructions.push(self.reflexive_on(performed, condition, actions)?);
+        Ok(Instruction::Group(Program { instructions }))
+    }
+
+    /// The reflexive trigger of an already performed base action.
+    fn reflexive_on(
+        &mut self,
+        performed: ResultId,
+        condition: Option<Condition>,
+        actions: &source::Actions,
+    ) -> Result<Instruction> {
         let mut child = self.clone();
         child.open_searches.clear();
         child.modes = None;
         let known = child.targets.len();
         let body = child.actions(actions)?;
         self.result = child.result;
-        instructions.push(self.effect(Operation::ReflexiveTrigger {
+        Ok(self.effect(Operation::ReflexiveTrigger {
             performed,
             condition,
             announcement: Announcement {
@@ -152,7 +163,6 @@ impl Context {
                 modes: child.modes,
             },
             body,
-        }));
-        Ok(Instruction::Group(Program { instructions }))
+        }))
     }
 }

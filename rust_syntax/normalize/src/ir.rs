@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 60;
+pub const SCHEMA_VERSION: u32 = 61;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -180,6 +180,11 @@ pub enum Ability {
     Primitive {
         name: String,
         operands: Vec<Operand>,
+    },
+    /// Done before the game's first turn, by a player holding this card (103.6).
+    OpeningHand {
+        announcement: Announcement,
+        body: Program,
     },
 }
 
@@ -922,6 +927,10 @@ pub enum Operation {
         amount: Expr,
         rider: DamageRider,
     },
+    /// One flip of one coin (705). Branches read it through `Condition::CoinFlip`.
+    FlipCoin {
+        player: PlayerRef,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct SearchChoice {
@@ -1029,13 +1038,13 @@ impl TokenSpec {
     pub fn definition(&self) -> Option<&TokenDefinition> {
         match &self.recipe {
             TokenRecipe::Defined(definition) => Some(definition),
-            TokenRecipe::Copy { .. } | TokenRecipe::CopyEach { .. } => None,
+            TokenRecipe::Copy { .. } | TokenRecipe::CopyEach { .. } | TokenRecipe::Named(_) => None,
         }
     }
     pub fn definition_mut(&mut self) -> Option<&mut TokenDefinition> {
         match &mut self.recipe {
             TokenRecipe::Defined(definition) => Some(definition),
-            TokenRecipe::Copy { .. } | TokenRecipe::CopyEach { .. } => None,
+            TokenRecipe::Copy { .. } | TokenRecipe::CopyEach { .. } | TokenRecipe::Named(_) => None,
         }
     }
 }
@@ -1053,6 +1062,8 @@ pub enum TokenRecipe {
         objects: ObjectSet,
         adjustments: Vec<Operand>,
     },
+    /// The token Oracle gives this name, defined outside the card that makes it.
+    Named(String),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2132,6 +2143,19 @@ pub enum Condition {
         comparison: Comparison,
         right: Expr,
     },
+    /// How the flip that made `result` came out.
+    CoinFlip {
+        result: ResultId,
+        outcome: CoinOutcome,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CoinOutcome {
+    Won,
+    Lost,
+    Heads,
+    Tails,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

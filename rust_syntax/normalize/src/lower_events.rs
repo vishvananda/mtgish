@@ -69,7 +69,8 @@ impl Context {
                 DelayedStart::Immediately,
                 Some(Duration::EndOfTurn),
             ),
-            S::AtTheBeginningOfTheNextUpkeep => (
+            // Only an opening hand makes these, so the first upkeep is the next one.
+            S::AtTheBeginningOfTheNextUpkeep | S::AtTheBeginningOfTheFirstUpkeep => (
                 TurnPoint::UpkeepBegins,
                 PlayerSet::All,
                 DelayedStart::Immediately,
@@ -107,6 +108,7 @@ impl Context {
             ),
             S::AtTheBeginningOfPlayersNextEndStep(p)
             | S::AtTheBeginningOfPlayersNextUpkeep(p)
+            | S::AtTheBeginningOfPlayersFirstUpkeep(p)
             | S::AtTheBeginningOfPlayersNextDrawStep(p)
             | S::AtTheBeginningOfPlayersNextMainPhase(p)
             | S::AtTheBeginningOfPlayersNextFirstMainPhase(p)
@@ -126,7 +128,8 @@ impl Context {
                 let point = match value {
                     S::AtTheBeginningOfPlayersNextEndStep(_)
                     | S::AtTheBeginningOfPlayersEndStepNextTurn(_) => TurnPoint::EndStepBegins,
-                    S::AtTheBeginningOfPlayersNextUpkeep(_) => TurnPoint::UpkeepBegins,
+                    S::AtTheBeginningOfPlayersNextUpkeep(_)
+                    | S::AtTheBeginningOfPlayersFirstUpkeep(_) => TurnPoint::UpkeepBegins,
                     S::AtTheBeginningOfPlayersNextDrawStep(_) => TurnPoint::DrawStepBegins,
                     S::AtTheBeginningOfPlayersNextMainPhase(_) => TurnPoint::MainPhaseBegins,
                     S::AtTheBeginningOfPlayersNextFirstMainPhase(_) => {

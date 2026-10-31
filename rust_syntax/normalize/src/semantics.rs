@@ -284,6 +284,7 @@ impl Effects {
         for instruction in &program.instructions {
             match instruction {
                 Instruction::Effect { result, operation } => match operation {
+                    Operation::FlipCoin { .. } => {}
                     Operation::AddMana { .. } => self.mana = true,
                     Operation::Draw { .. } | Operation::Mill { .. } => self.library = true,
                     Operation::Move {

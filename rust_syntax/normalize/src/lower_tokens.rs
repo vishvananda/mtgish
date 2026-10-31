@@ -109,6 +109,15 @@ impl Context {
                 },
             });
         }
+        if let S::OracleToken(name) = value {
+            if !predefined_tokens()?.contains_key(name) {
+                return Ok(TokenSpec {
+                    amount: Expr::Constant(1),
+                    words: TokenWords::Rules,
+                    recipe: TokenRecipe::Named(name.clone()),
+                });
+            }
+        }
         if let Some(name) = named_recipe {
             let recipe = predefined_tokens()?
                 .get(name)

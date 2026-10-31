@@ -108,7 +108,7 @@ impl Inventory<'_> {
                 }
             }
             Ability::Keyword(k) => self.keyword(k),
-            Ability::Spell { announcement, body } => {
+            Ability::Spell { announcement, body } | Ability::OpeningHand { announcement, body } => {
                 self.announcement(announcement);
                 self.program(body);
             }
@@ -295,6 +295,7 @@ impl Inventory<'_> {
                 self.player(player);
                 self.objects(objects);
             }
+            Operation::FlipCoin { player } => self.player(player),
             Operation::CreateRegenerationShields { objects } => self.objects(objects),
             Operation::Search {
                 player,
@@ -454,6 +455,10 @@ impl Inventory<'_> {
                         TokenRecipe::CopyEach { objects, .. } => {
                             self.form("TokenRecipe", &"CopyEach");
                             self.objects(objects);
+                            continue;
+                        }
+                        TokenRecipe::Named(_) => {
+                            self.form("TokenRecipe", &"Named");
                             continue;
                         }
                     };
@@ -1508,6 +1513,7 @@ impl Inventory<'_> {
                 self.form("Comparison", comparison);
                 self.expr(right);
             }
+            Condition::CoinFlip { outcome, .. } => self.form("CoinOutcome", outcome),
         }
     }
     fn duration(&mut self, d: &Duration) {

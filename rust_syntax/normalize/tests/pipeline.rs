@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 60);
+    assert_eq!(card.schema_version, 61);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2789,6 +2789,67 @@ fn a_cost_paid_on_resolution_is_the_action_this_way_reads() {
     assert!(discard.contains("Transition"), "{discard}");
     let announced = ability_json("Activated(Exile([APermanent(And([IsCardtype(Creature),ControlledByAPlayer(SinglePlayer(You))]))],[]),ActionList([AddManaRepeated(AnyManaColor,ManaValueOfTheCardExiledThisWay)]))");
     assert!(announced.contains("CostObjects"), "{announced}");
+}
+
+#[test]
+fn a_hand_pick_is_a_reveal_a_choice_and_a_fate() {
+    let exile = ability_json("SpellActions(Targeted([TargetPlayer(Opponent)],ActionList([PlayerAction(Ref_TargetPlayer,RevealHandAndPlayerChoosesACardToExile(You,AnyCard)),If(ACardWasExiledThisWay(AnyCard),[DrawACard])])))");
+    assert!(!exile.contains("Primitive"), "{exile}");
+    assert!(exile.contains("Reveal"), "{exile}");
+    assert!(exile.contains("ChooseObjects"), "{exile}");
+    assert!(
+        exile.contains("\"destination\":{\"kind\":\"Exile\"")
+            || exile.contains("\"destination\":\"Exile\""),
+        "{exile}"
+    );
+    let partial = ability_json("SpellActions(Targeted([TargetPlayer(Opponent)],ActionList([PlayerAction(Ref_TargetPlayer,RevealANumberOfCardsFromHandAndPlayerChoosesACardToDiscard(Integer(2),You))])))");
+    assert_eq!(partial.matches("ChooseObjects").count(), 2, "{partial}");
+    assert!(partial.contains("Selected"), "{partial}");
+    let look = ability_json("SpellActions(Targeted([TargetPlayer(Opponent)],ActionList([LookAtPlayersHandAndChooseACardToDiscard(Ref_TargetPlayer,AnyCard)])))");
+    assert!(look.contains("LookAt"), "{look}");
+    assert!(!look.contains("Reveal"), "{look}");
+}
+
+#[test]
+fn a_flip_is_a_result_branches_read() {
+    let both = ability_json(
+        "SpellActions(ActionList([FlipACoin_OnWinAndLose([DrawACard],[LoseLife(Integer(1))])]))",
+    );
+    assert!(both.contains("FlipCoin"), "{both}");
+    assert!(both.contains("\"outcome\":\"Won\""), "{both}");
+    assert!(!both.contains("Primitive"), "{both}");
+    let lost = ability_json("SpellActions(ActionList([FlipACoin_OnLose([DrawACard])]))");
+    assert!(lost.contains("\"outcome\":\"Lost\""), "{lost}");
+    let reflexive = ability_json("SpellActions(ActionList([Reflexive_FlipACoin_WhenYouWin_WhenYouLose(ActionList([DrawACard]),ActionList([LoseLife(Integer(1))]))]))");
+    assert_eq!(
+        reflexive.matches("ReflexiveTrigger").count(),
+        2,
+        "{reflexive}"
+    );
+}
+
+#[test]
+fn an_opening_hand_action_is_its_own_ability() {
+    let text = ability_json("IfCardIsInOpeningHand([MayCost(RevealCardFromHand(ThisCardInHand)),If(CostWasPaid,[CreateFutureTrigger(AtTheBeginningOfTheFirstUpkeep,ActionList([SetLifeTotal(Integer(26))]))])])");
+    assert!(text.contains("OpeningHand"), "{text}");
+    assert!(!text.contains("Primitive"), "{text}");
+}
+
+#[test]
+fn a_token_oracle_names_is_kept_by_name() {
+    let named = ability_json(
+        "SpellActions(ActionList([CreateTokens([OracleToken(\"Mutavault\")],[EntersTapped])]))",
+    );
+    assert!(named.contains("Named"), "{named}");
+    assert!(named.contains("Mutavault"), "{named}");
+}
+
+#[test]
+fn a_populated_token_and_an_investigation_leave_their_antecedents_readable() {
+    let populated = ability_json("SpellActions(ActionList([Populate,CreateEachPermanentRuleEffectUntil(TheTokensCreatedThisWay,[CantBlock],UntilEndOfTurn)]))");
+    assert!(populated.contains("Created"), "{populated}");
+    let kept = ability_json("SpellActions(Targeted([TargetPermanent(IsCardtype(Creature))],ActionList([Exile([Permanent(Ref_TargetPermanent)],[]),Investigate,PutExiledCardOntoBattlefield(TheCardExiledThisWay,[EntersNormally])])))");
+    assert!(kept.contains("\"kind\":\"Result\""), "{kept}");
 }
 
 #[test]

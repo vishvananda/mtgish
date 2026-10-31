@@ -74,7 +74,7 @@ impl<'a> Scope<'a> {
         ) {
             return true;
         }
-        if let ObjectSet::Transition { result, .. } = objects {
+        if let ObjectSet::Transition { result, .. } | ObjectSet::Observed(result) = objects {
             return self.singular.contains(&result.0);
         }
         let ObjectSet::CostObjects {
@@ -859,6 +859,8 @@ impl<'a> Scope<'a> {
                 self.expr(left)?;
                 self.expr(right)
             }
+            Condition::CoinFlip { result, .. } if self.results.contains_key(&result.0) => Ok(()),
+            Condition::CoinFlip { .. } => Err("no coin was flipped before this branch".into()),
             Condition::All(items) | Condition::Either(items) => {
                 for item in items {
                     self.condition(item)?;
@@ -1486,6 +1488,7 @@ impl<'a> Scope<'a> {
                 self.player(player)?;
                 self.objects(objects)
             }
+            Operation::FlipCoin { player } => self.player(player),
             Operation::CreateRegenerationShields { objects } => {
                 self.require_zone(objects, EventZone::Battlefield)
             }
@@ -1717,6 +1720,10 @@ impl<'a> Scope<'a> {
                             adjustments.iter().try_for_each(|o| self.operand(o))?;
                             continue;
                         }
+                        TokenRecipe::Named(name) if name.is_empty() => {
+                            return Err("named token recipe is empty".into());
+                        }
+                        TokenRecipe::Named(_) => continue,
                     };
                     if matches!(&definition.name, TokenName::Explicit(name) if name.is_empty()) {
                         return Err("explicit token name is empty".into());
@@ -2033,6 +2040,7 @@ impl<'a> Scope<'a> {
                             other => match crate::semantics::yields(other) {
                                 Some("observed") => ResultKind::Observation,
                                 Some("extra_turn") => ResultKind::Other,
+                                Some("created") => ResultKind::CreatedObjects,
                                 Some(_) => ResultKind::ObjectTransition,
                                 None => ResultKind::Other,
                             },
@@ -2572,6 +2580,7 @@ fn validate_ability_in(
             scope.casting_costs = casting_costs.clone();
             (announcement, body)
         }
+        Ability::OpeningHand { announcement, body } => (announcement, body),
         Ability::Activated {
             origin,
             cost,
