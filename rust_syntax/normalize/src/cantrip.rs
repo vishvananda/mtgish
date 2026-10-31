@@ -245,6 +245,8 @@ struct Compiler {
     activation_cost: Option<Cost>,
     /// Each additional cost this card declares, by its ability's index.
     casting_costs: BTreeMap<u32, Cost>,
+    /// Moves that already said when they end, in one call with the move.
+    returning: BTreeSet<u32>,
     /// The announcement slot whose filter is being compiled.
     choosing: Option<usize>,
     performed: BTreeMap<u32, String>,
@@ -434,6 +436,7 @@ impl Compiler {
             asking: None,
             activation_cost: None,
             casting_costs: BTreeMap::new(),
+            returning: BTreeSet::new(),
             choosing: None,
             performed: BTreeMap::new(),
             values: BTreeMap::new(),

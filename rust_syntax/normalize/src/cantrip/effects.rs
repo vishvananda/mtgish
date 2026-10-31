@@ -6,8 +6,12 @@ use super::*;
 /// The prompt a choice asks with, from what its result is for. It is wording: a
 /// choice nothing consumes in sight stays a gap rather than asking something odd.
 fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'static str> {
-    let chosen = |objects: &ObjectSet| matches!(objects, ObjectSet::Selected(r) if r.0 == result.0);
     let picked = |object: &ObjectRef| matches!(object, ObjectRef::Result { result: r, .. } if r.0 == result.0);
+    let chosen = |objects: &ObjectSet| match objects {
+        ObjectSet::Selected(r) => r.0 == result.0,
+        ObjectSet::One(object) => picked(object),
+        _ => false,
+    };
     rest.iter().find_map(|instruction| {
         let operation = match instruction {
             Instruction::Effect { operation, .. } => operation,
@@ -96,6 +100,20 @@ fn asks_by_paying(decider: &PlayerRef, body: &Program) -> bool {
         }
         _ => false,
     }
+}
+
+/// Whether the next thing after a move is to send it back when the source goes.
+fn returns_with_source(result: &ResultId, rest: &[Instruction]) -> bool {
+    matches!(
+        rest.first(),
+        Some(Instruction::Effect {
+            operation: Operation::ReturnAfter {
+                objects: ObjectSet::Transition { result: moved, phase: ObjectPhase::After },
+                duration: crate::ir::Duration::WhileOnBattlefield(ObjectRef::Source),
+            },
+            ..
+        }) if moved.0 == result.0
+    )
 }
 
 /// Whether a token copy's adjustment changes anything about the copy.
@@ -388,6 +406,35 @@ impl Compiler {
                 writeln!(out, "for player in {} {{ g.shuffle(player); }}", self.fetch(self.players(players)?)).unwrap();
                 Ok(())
             }
+            // "Exile it until this leaves the battlefield" is one effect (610.3).
+            Instruction::Effect {
+                operation:
+                    Operation::Move {
+                        objects,
+                        destination: Destination::Exile,
+                        entry,
+                        face_down: false,
+                    },
+                result,
+            } if plain_entry(entry)
+                && self.stack_item
+                && returns_with_source(result, &body.instructions[i + 1..]) =>
+            {
+                let id = self.fresh();
+                writeln!(out, "let objects_{id} = {}; let by_{id} = g.linked(item); let moved_{id} = g.exile_with(&objects_{id}, by_{id}, true);", self.fetch(self.objects(objects)?)).unwrap();
+                self.moved.insert(result.0, format!("moved_{id}"));
+                self.left_behind(result, gone(&format!("objects_{id}")));
+                self.returning.insert(result.0);
+                Ok(())
+            }
+            Instruction::Effect {
+                operation:
+                    Operation::ReturnAfter {
+                        objects: ObjectSet::Transition { result, .. },
+                        ..
+                    },
+                ..
+            } if self.returning.contains(&result.0) => Ok(()),
             Instruction::Effect { operation, result } => self.operation(operation, result, out),
             // One instruction of the card's text: no sentence boundary inside,
             // and its results stay in reach of what follows it.
@@ -806,6 +853,13 @@ impl Compiler {
                 player,
                 cost,
                 optional: true,
+            } if matches!(cost.parts.as_slice(), [CostPart::PlayerAction { .. }]) => {
+                self.player_action(id, player, &cost.parts[0], true, result, out)?
+            }
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
             } => {
                 let cost = self.cost(cost, "paid")?;
                 self.helpers.insert("pay_question");
@@ -827,6 +881,9 @@ impl Compiler {
                 let [part] = cost.parts.as_slice() else {
                     return Err(gap("resolution cost with several parts"));
                 };
+                if let CostPart::PlayerAction { .. } = part {
+                    return self.player_action(id, player, part, false, result, out);
+                }
                 let payer = PlayerSet::One(player.clone());
                 match part {
                     CostPart::Sacrifice { objects, choose } => {
@@ -880,6 +937,32 @@ impl Compiler {
             }
             _ => return Err(gap(format!("operation {}", form(op)))),
         }
+        Ok(())
+    }
+    /// "You may have that player do something": `player` decides, and what they
+    /// have done is the cost.
+    fn player_action(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        part: &CostPart,
+        optional: bool,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let CostPart::PlayerAction { body, .. } = part else {
+            unreachable!("a player action");
+        };
+        let willing = if optional {
+            writeln!(out, "let payer_{id} = {};", self.fetch(self.certain_player(player)?)).unwrap();
+            format!("cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?")
+        } else {
+            "true".to_string()
+        };
+        writeln!(out, "let paid_{id} = {willing}; if paid_{id} {{").unwrap();
+        self.block(body, out, true)?;
+        writeln!(out, "}}").unwrap();
+        self.performed.insert(result.0, format!("paid_{id}"));
         Ok(())
     }
     fn left_behind(&mut self, result: &ResultId, list: String) {

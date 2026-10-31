@@ -20,7 +20,18 @@ pub(super) struct Matched {
     functions: Option<String>,
     /// "One or more": a batch triggers it once, split by `data[1]` when keyed.
     batch: Option<bool>,
+    /// A batch's events about one subject are one event of their total.
+    sums: bool,
     pub phrase: String,
+}
+
+/// Whether simultaneous damage is one event of its total to this subject
+/// (CR 120.2): all a source dealt, or all that was dealt to a recipient.
+fn sums_damage(damage: &DamageEvent) -> bool {
+    match (&damage.grouping, damage.subject == DamageSubject::Source) {
+        (DamageGrouping::Source, true) | (DamageGrouping::Recipient, false) => true,
+        _ => false,
+    }
 }
 
 fn object_fired(id: &str, destination: &str) -> String {
@@ -33,6 +44,7 @@ fn single(mask: &'static str, arm: Arm, frame: Frame, phrase: &str) -> Matched {
         frame,
         functions: None,
         batch: None,
+        sums: false,
         phrase: phrase.into(),
     }
 }
@@ -119,6 +131,22 @@ impl Compiler {
             object: Some(Carried::Subject),
             ..Frame::default()
         };
+        // Once however many block it, so the blockers are no one subject.
+        if let ObjectEvent::BecomesBlocked = event {
+            let test = self.matching(plain, |c| c.filter(objects, &Candidate::of("id")))?;
+            let mut matched = single(
+                "BLOCKS",
+                Arm {
+                    pattern: "Event::Blocks { attacker, .. }".into(),
+                    locals: "let id = *attacker; let subject = Target::Object(id); let data = [u32::MAX, id.0];".into(),
+                    tests: vec![test],
+                },
+                plain,
+                "Whenever this becomes blocked",
+            );
+            matched.batch = Some(true);
+            return Ok(matched);
+        }
         let (mask, pattern, id, data, frame, extra, phrase): (
             &str,
             &str,
@@ -257,7 +285,7 @@ impl Compiler {
         let singular = matches!(grouping, DamageGrouping::SourceRecipient);
         let carried_second = Some(Carried::Data(1));
         let mut frame = Frame {
-            amount: singular.then_some(Carried::Data(0)),
+            amount: (singular || sums_damage(damage)).then_some(Carried::Data(0)),
             ..Frame::default()
         };
         if by_source {
@@ -316,6 +344,53 @@ impl Compiler {
         let locals = format!("let subject = {subject}; let data = [u32::from(amount), {second}];");
         Ok((frame, locals, tests))
     }
+    /// `EventSpec::Discard`. The card is named where the discard put it, which
+    /// is where an ability of the card itself has to be found (CR 702.29c).
+    fn discard_event(
+        &mut self,
+        players: &PlayerSet,
+        cards: &ObjectFilter,
+        source_only: bool,
+        kind: &DiscardKind,
+        grouping: &DiscardGrouping,
+    ) -> Result<Matched> {
+        let frame = Frame {
+            object: Some(Carried::Subject),
+            player: Some(Carried::Data(0)),
+            ..Frame::default()
+        };
+        let mut tests = vec![
+            self.matching(frame, |c| c.player_in(players, "*player"))?,
+            self.matching(frame, |c| c.filter(cards, &Candidate::of("id")))?,
+        ];
+        let (mask, pattern, phrase) = match kind {
+            DiscardKind::Cycling => ("CYCLED", "Event::Cycled { card, player }", "Whenever a card is cycled"),
+            DiscardKind::Any => {
+                tests.push("!*undefined".into());
+                ("DISCARDED", "Event::Discarded { card, player, undefined }", "Whenever a card is discarded")
+            }
+        };
+        if source_only {
+            tests.push("id == asker.source".to_string());
+        }
+        let mut matched = single(
+            mask,
+            Arm {
+                pattern: pattern.into(),
+                locals: "let id = *card; let subject = Target::Object(id); let data = [u32::from(player.0), u32::MAX];".into(),
+                tests,
+            },
+            frame,
+            phrase,
+        );
+        if source_only {
+            matched.functions = Some("WHERE_A_DISCARD_ENDS".into());
+        }
+        if let DiscardGrouping::Player = grouping {
+            matched.batch = Some(false);
+        }
+        Ok(matched)
+    }
     fn damage_event(&mut self, damage: &DamageEvent) -> Result<Matched> {
         let (frame, locals, tests) = self.damage_match(damage)?;
         let mut matched = single(
@@ -330,7 +405,9 @@ impl Compiler {
             frame,
             "Whenever damage is dealt",
         );
+        matched.sums = sums_damage(damage);
         matched.batch = match damage.grouping {
+            _ if matched.sums => None,
             DamageGrouping::SourceRecipient => None,
             DamageGrouping::Source | DamageGrouping::Recipient => Some(true),
             DamageGrouping::Batch => Some(false),
@@ -422,39 +499,10 @@ impl Compiler {
             EventSpec::Discard {
                 players,
                 cards,
-                source_only: false,
+                source_only,
                 kind,
-                grouping: DiscardGrouping::Card,
-            } => {
-                let frame = Frame {
-                    object: Some(Carried::Subject),
-                    player: Some(Carried::Data(0)),
-                    ..Frame::default()
-                };
-                let mut tests = self.matching(frame, |c| {
-                    Ok(vec![
-                        c.player_in(players, "*player")?,
-                        c.filter(cards, &Candidate::of("id"))?,
-                    ])
-                })?;
-                let (mask, pattern) = match kind {
-                    DiscardKind::Any => {
-                        tests.push("!*undefined".into());
-                        ("DISCARDED", "Event::Discarded { player, card, undefined }")
-                    }
-                    DiscardKind::Cycling => ("CYCLED", "Event::Cycled { player, card }"),
-                };
-                Ok(single(
-                    mask,
-                    Arm {
-                        pattern: pattern.into(),
-                        locals: object_fired("*card", "u32::from(player.0)"),
-                        tests,
-                    },
-                    frame,
-                    "Whenever a card is discarded",
-                ))
-            }
+                grouping,
+            } => self.discard_event(players, cards, *source_only, kind, grouping),
             EventSpec::Either(events) => {
                 let mut merged: Option<Matched> = None;
                 for event in events {
@@ -462,7 +510,10 @@ impl Compiler {
                     merged = Some(match merged {
                         None => next,
                         Some(mut all) => {
-                            if all.functions != next.functions || all.batch != next.batch {
+                            if all.functions != next.functions
+                                || all.batch != next.batch
+                                || all.sums != next.sums
+                            {
                                 return Err(gap("alternative events with different rules"));
                             }
                             all.frame = all.frame.meet(next.frame);
@@ -616,6 +667,9 @@ impl Compiler {
             Some(false) => def.push_str(".once_per_batch()"),
             None => {}
         }
+        if matched.sums {
+            def.push_str(".sums_per_subject()");
+        }
         if let Some(per_turn) = limits.per_turn {
             def.push_str(&format!(".triggers_each_turn({per_turn})"));
         }
@@ -651,6 +705,9 @@ impl Compiler {
             Some(true) => def.push_str(".once_per_batch().batch_by_data()"),
             Some(false) => def.push_str(".once_per_batch()"),
             None => {}
+        }
+        if matched.sums {
+            def.push_str(".sums_per_subject()");
         }
         if let Some(per_turn) = limits.per_turn {
             def.push_str(&format!(".triggers_each_turn({per_turn})"));
