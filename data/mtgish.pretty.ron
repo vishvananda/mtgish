@@ -411128,7 +411128,7 @@ Card(
             Targeted(
               [
                 TargetPermanent(And([
-                  Other(Ref_TargetPermanent),
+                  Other(Trigger_ThatCreature),
                   IsPermanent,
                 ])),
               ],
@@ -413516,8 +413516,9 @@ Card(
         ),
         CreateEachPermanentRuleEffectUntil(
           And([
-            Other(Ref_TargetPermanent),
+            Other(TheChosenPermanent),
             IsCardtype(Creature),
+            ControlledByAPlayer(SinglePlayer(Ref_TargetPlayer)),
           ]),
           [
             CantBlock,
@@ -539511,8 +539512,9 @@ Card(
         ),
         CreateEachPermanentRuleEffectUntil(
           And([
-            Other(Ref_TargetPermanent),
+            Other(TheChosenPermanent),
             IsCardtype(Creature),
+            ControlledByAPlayer(SinglePlayer(Ref_TargetPlayer)),
           ]),
           [
             CantBlock,
@@ -1079625,7 +1079627,6 @@ Card(
           SingleGraveyardCard(Ref_TargetGraveyardCard2),
           SingleGraveyardCard(Ref_TargetGraveyardCard3),
           SingleGraveyardCard(Ref_TargetGraveyardCard4),
-          SingleGraveyardCard(Ref_TargetGraveyardCard5),
         ])),
       ]),
     )),
@@ -1137805,7 +1137806,7 @@ Card(
           ),
         ),
         PutGraveyardCardOntoBattlefield(
-          Ref_TargetGraveyardCard,
+          TheChosenGraveyardCard,
           [
             EntersUnderPlayersControl(You),
           ],
@@ -1350867,11 +1350868,11 @@ Card(
                     1,
                     1,
                   ),
-                  Ref_TargetPermanent,
+                  Trigger_ThatCreature,
                 ),
               ]),
               CreatePermanentLayerEffectUntil(
-                Ref_TargetPermanent,
+                Trigger_ThatCreature,
                 [
                   AddAbility([
                     Trample,
@@ -1510373,7 +1510374,7 @@ Card(
             ActionList([
               Exile(
                 [
-                  Permanent(Ref_TargetPermanent),
+                  Permanent(ThePermanentPutOnTheBattlefieldThisWay),
                 ],
                 [],
               ),

@@ -105,6 +105,9 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#68](https://github.com/i5jb/mtgish/issues/68): "that player controls" dropped from choices (3 cards).
 - [#69](https://github.com/i5jb/mtgish/issues/69): Benthic Anomaly token is a Zombie.
 - [#70](https://github.com/i5jb/mtgish/issues/70): Peer into the Abyss: caster loses the life instead of the target.
+- [#71](https://github.com/i5jb/mtgish/issues/71): Reference to a target that doesn't exist (Whip of Erebos, The Last Ronin, Etched Slith).
+- [#72](https://github.com/i5jb/mtgish/issues/72): Chosen object encoded as a target (Eunuchs' Intrigues, Goblin War Cry, Scrounge).
+- [#73](https://github.com/i5jb/mtgish/issues/73): Rise from the Wreck: reference to a fifth target.
 
 [#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
 

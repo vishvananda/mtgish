@@ -11351,5 +11351,91 @@
     "excludes": [
       "))), LoseLife(HalfRoundedUp(LifeTotalOfPlayer(ActionPlayer)))"
     ]
+  },
+  {
+    "name": "Whip of Erebos",
+    "issues": [
+      71
+    ],
+    "contains": [
+      "Exile([Permanent(ThePermanentPutOnTheBattlefieldThisWay)], [])"
+    ],
+    "excludes": [
+      "Ref_TargetPermanent"
+    ]
+  },
+  {
+    "name": "The Last Ronin",
+    "issues": [
+      71
+    ],
+    "contains": [
+      "Trigger_ThatCreature"
+    ],
+    "excludes": [
+      "Ref_TargetPermanent)"
+    ]
+  },
+  {
+    "name": "Etched Slith",
+    "issues": [
+      71
+    ],
+    "contains": [
+      "Other(Trigger_ThatCreature)"
+    ],
+    "excludes": [
+      "Other(Ref_TargetPermanent)"
+    ]
+  },
+  {
+    "name": "Eunuchs' Intrigues",
+    "issues": [
+      72
+    ],
+    "contains": [
+      "Other(TheChosenPermanent)",
+      "ControlledByAPlayer(SinglePlayer(Ref_TargetPlayer))"
+    ],
+    "excludes": [
+      "Other(Ref_TargetPermanent)"
+    ]
+  },
+  {
+    "name": "Goblin War Cry",
+    "issues": [
+      72
+    ],
+    "contains": [
+      "Other(TheChosenPermanent)",
+      "ControlledByAPlayer(SinglePlayer(Ref_TargetPlayer))"
+    ],
+    "excludes": [
+      "Other(Ref_TargetPermanent)"
+    ]
+  },
+  {
+    "name": "Scrounge",
+    "issues": [
+      72
+    ],
+    "contains": [
+      "PutGraveyardCardOntoBattlefield(TheChosenGraveyardCard"
+    ],
+    "excludes": [
+      "Ref_TargetGraveyardCard"
+    ]
+  },
+  {
+    "name": "Rise from the Wreck",
+    "issues": [
+      73
+    ],
+    "contains": [
+      "Ref_TargetGraveyardCard4"
+    ],
+    "excludes": [
+      "Ref_TargetGraveyardCard5"
+    ]
   }
 ]
