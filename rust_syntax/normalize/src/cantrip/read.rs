@@ -431,7 +431,9 @@ impl Compiler {
                 "q.state().battlefield().iter().copied().filter(|&id| {}).collect::<Vec<ObjectId>>()",
                 self.filter(filter, &Candidate::of("id"))?
             ),
-            ObjectSet::Selected(result) | ObjectSet::Observed(result) => self.selected(result)?,
+            ObjectSet::Selected(result)
+            | ObjectSet::Observed(result)
+            | ObjectSet::Affected(result) => self.selected(result)?,
             ObjectSet::CostObjects {
                 payment,
                 component,
@@ -781,9 +783,6 @@ impl Compiler {
                 window,
                 measure,
             } => {
-                if self.reader == Reader::Layer {
-                    return Err(gap("event history in a layer"));
-                }
                 let scope = match window {
                     HistoryWindow::ThisTurn => "q.history().this_turn().iter()",
                     HistoryWindow::ThisGame => "q.history().all().iter()",
@@ -1248,13 +1247,15 @@ impl Compiler {
             ObjectFilter::State(ObjectState::Commander) => {
                 return Err(gap("engine: no commander"))
             }
-            ObjectFilter::State(state) if self.reader != Reader::Layer => match state {
-                ObjectState::Saddled => format!("q.is_saddled({id})"),
-                ObjectState::Equipped => format!("cantrip_mechanics::attach::is_equipped(q, {id})"),
-                _ => format!(
-                    "q.state().battlefield().iter().any(|&a| q.attached_to(a) == Some({id}) && q.chars(a).has_subtype(Subtype::Aura))"
-                ),
-            },
+            ObjectFilter::State(ObjectState::Saddled) => {
+                format!("q.state().obj({id}).marks.saddled_turn == q.state().turn.number")
+            }
+            // Attachments are read as a layer may: by the state, and by what
+            // the layers before it have made the attachment.
+            ObjectFilter::State(state) => format!(
+                "q.state().battlefield().iter().any(|&a| q.state().obj(a).attached_to == Some({id}) && q.chars(a).has_subtype(Subtype::{}))",
+                if *state == ObjectState::Equipped { "Equipment" } else { "Aura" }
+            ),
             // Layers read the host only by which object it is.
             ObjectFilter::AttachedTo(host)
                 if self.reader != Reader::Layer

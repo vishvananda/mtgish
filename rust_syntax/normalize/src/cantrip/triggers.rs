@@ -80,7 +80,12 @@ impl Compiler {
         part: impl FnOnce(&Self) -> Result<T>,
     ) -> Result<T> {
         let saved = (self.reader, self.event_at, self.frame);
-        (self.reader, self.event_at, self.frame) = (Reader::Query, EventAt::Matcher, frame);
+        // A question a layer asks of the history keeps to what a layer can read.
+        let reader = match (self.reader, &self.history) {
+            (Reader::Layer, Some(_)) => Reader::Layer,
+            _ => Reader::Query,
+        };
+        (self.reader, self.event_at, self.frame) = (reader, EventAt::Matcher, frame);
         let compiled = part(self);
         (self.reader, self.event_at, self.frame) = saved;
         compiled

@@ -545,6 +545,9 @@ impl Compiler {
                     Keyword::Prowess => parts
                         .abilities
                         .push("cantrip_mechanics::triggers::PROWESS".into()),
+                    Keyword::Flanking => parts
+                        .abilities
+                        .push("cantrip_mechanics::flanking::TRIGGER".into()),
                     Keyword::Ward(cost) => {
                         let ward = match cost.parts.as_slice() {
                         [CostPart::Mana(symbols)] => match symbols.as_slice() {
