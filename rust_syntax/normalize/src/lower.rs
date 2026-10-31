@@ -1216,6 +1216,10 @@ impl Context {
         // Deferred work has its own search episode and result scope.
         // Existing reference bindings remain captured and read-only.
         child.open_searches.clear();
+        // A row's event names what it binds; typed events read their creator's.
+        if matches!(event, EventSpec::Primitive { .. }) {
+            child.event = crate::semantics::with_event(&child.event, &event);
+        }
         let source::Actions::ActionList(actions) = actions else {
             return Err(invalid(
                 "delayed announcements need their own target/mode scope",

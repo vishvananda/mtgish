@@ -15,15 +15,15 @@ The priorities, in order, are:
 
 ### Where things stand
 
-Unified, complete and blocker rows are current at schema 135. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
+Unified, complete and blocker rows are current at schema 136. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
 
 | Measure | Value |
 |---|---|
 | Records | 33,529 |
-| Unified, schema 135 | 33,529 (100%) |
-| Complete | 33,341 (99.4%) |
+| Unified, schema 136 | 33,529 (100%) |
+| Complete | 33,346 (99.5%) |
 | Complete with no primitive | 31,151 (92.9%) |
-| Distinct forms blocking the rest | 155 |
+| Distinct forms blocking the rest | 150 |
 | Structurally preserved | 33,529 |
 | Source enums / declared variants | 346 / 8,668 |
 | Distinct forms in the corpus | 8,247 |
@@ -199,6 +199,7 @@ Hand-written lowerers are the exception from step 1 on. A form gets hand-written
 | 133 | Keyword actions name what they acted on (bolstered, transformed); spell and command-card damage dealers; token copies of a commander; nonbasic land type CDA. Complete 33,319; no primitive 31,146; forms 170 |
 | 134 | Rows for speed, played-card names, face-down expirations, emblem creators, nth spells and spell target totals; `DealsDamage_ThatPlayer` reads the acting player. Complete 33,328; no primitive 31,148; forms 160 |
 | 135 | Sticker sheets all complete; compound exiled descriptions as zone sets; random found-card choice; different targets as `DifferentFromTarget`; future rows for delayed triggers; rows keep exile results across perpetual and draw steps. Complete 33,341; no primitive 31,151; forms 155 |
+| 136 | Delayed triggers bind what a row event binds in lowering and validation; exiled-this-turn and exiled-with-ability filters; phase-in row; `CreateGameEffect` keeps results. #96 filed. Complete 33,346; no primitive 31,151; forms 150 |
 
 Schema 80 and 81 do not shrink the vocabulary. `KeywordAction` has 25 forms and `Mechanic` 149, and they count as forms: the names moved into enums, so the 2,360 is typed parameters and an exhaustive match for consumers, not simplification. Keyword mechanics are still not expanded into reusable definitions, which is the reduction this plan asks for. The Cantrip backend still reports these as gaps until it maps them; the engine has direct events for most of schema 78 and 79. At 02210fe all 17,095 records the backend advertises compiled against the engine. That build needs `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_INCREMENTAL=0`: with debug info it runs out of disk quota writing the archive.
 

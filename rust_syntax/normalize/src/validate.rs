@@ -2251,6 +2251,10 @@ impl<'a> Scope<'a> {
                 let mut child = self.clone();
                 child.replacement = false;
                 child.open_searches.clear();
+                // A row's event says what it binds, as a typed one's creator did.
+                if matches!(event, EventSpec::Primitive { .. }) {
+                    child.event = crate::semantics::with_event(&child.event, event);
+                }
                 if let Some(condition) = intervening_if {
                     child.condition(condition)?;
                 }

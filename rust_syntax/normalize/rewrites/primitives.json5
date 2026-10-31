@@ -3078,6 +3078,10 @@
     {"source": "GameNumber::PowerOfTheSacrificedCreature", "text": "power"},
     {"source": "Condition::ANumberOfSourcesDealtDamageThisTurn", "text": "damage"},
     {"source": "GameNumber::AManaValueOfAnExiledCard", "text": "mana"},
-    {"source": "CardsInExile::WasExiledWithPermanentsDelveAbility", "text": "delve"}
+    {"source": "CardsInExile::WasExiledWithPermanentsDelveAbility", "text": "delve"},
+    {"source": "CardsInExile::WasExiledThisTurn", "text": "exiled"},
+    {"source": "CardsInExile::WasExiledWithAnAbility", "text": "exiled|exile"},
+    {"source": "Spell::ThatSpell", "text": "life"},
+    {"source": "Action::PhaseInEachPermanent", "text": "phase"}
   ]
 }
