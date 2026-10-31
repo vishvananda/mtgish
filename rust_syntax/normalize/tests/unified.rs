@@ -372,6 +372,9 @@ fn a_token_definition_is_a_face_and_a_sticker_sheet_holds_ordinary_abilities() {
     let card = mtgish_ast::unified::lower(&source).card;
     assert!(card.faces.is_empty());
     let text = format!("{:?}", card.data);
-    assert!(text.contains("Stickers([Name(\"Cool\"), Abilities { tickets: 2"), "{text}");
+    assert!(
+        text.contains("Stickers([Name(\"Cool\"), Abilities { tickets: 2"),
+        "{text}"
+    );
     assert!(mtgish_ast::unified::forms(&card).named.is_empty());
 }
