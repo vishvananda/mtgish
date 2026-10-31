@@ -258,6 +258,43 @@ impl<'a> Scope<'a> {
                 scoped.filter(objects)?;
                 scoped.operand(by)
             }
+            EventSpec::Attack {
+                attackers,
+                by,
+                defenders,
+            } => {
+                let mut scoped = self.clone();
+                scoped.event = crate::semantics::with_event(&self.event, event);
+                scoped.filter(attackers)?;
+                if let Some(by) = by {
+                    self.players(by)?;
+                }
+                self.defenders(defenders)
+            }
+            EventSpec::Batch {
+                event: inner,
+                count,
+                including,
+                ..
+            } => {
+                self.event(inner)?;
+                if let Some((_, value)) = count {
+                    self.expr(value)?;
+                }
+                match including {
+                    Some(object) => self.object(object),
+                    None => Ok(()),
+                }
+            }
+            EventSpec::Counters { objects, by, .. } => {
+                let mut scoped = self.clone();
+                scoped.event = crate::semantics::with_event(&self.event, event);
+                scoped.filter(objects)?;
+                match by {
+                    Some(by) => self.players(by),
+                    None => Ok(()),
+                }
+            }
             EventSpec::SagaChapter(_) => Ok(()),
             EventSpec::Discard { players, cards, .. } => {
                 self.players(players)?;

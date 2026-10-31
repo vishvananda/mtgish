@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 83;
+pub const SCHEMA_VERSION: u32 = 84;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1172,7 +1172,59 @@ pub enum KeywordAction {
     Prepare,
     TapOrUntap,
     ExchangeControl,
-    RollD20,
+    RollDie(u32),
+    EmpowerJace,
+    Incubate,
+    Adapt,
+    Populate,
+    Bolster,
+    Learn,
+    TakeInitiative,
+    OpenAttraction,
+    GetTickets,
+    RemoveFromCombat,
+    Flip,
+    Awaken,
+    Planeswalk,
+    Convert,
+    Suspect,
+    Endure,
+    Blight,
+    TurnFaceUp,
+    TurnFaceDown,
+    Detain,
+    EndTheTurn,
+    TimeTravel,
+    Intensify,
+    Forage,
+    Ascend,
+    BecomeDay,
+    BecomeNight,
+    ChaosEnsues,
+    Airbend,
+    Saddle,
+    Harness,
+    Unattach,
+    Fateseal,
+    Skip(SkippedPart),
+    AdditionalPhase(AddedPhases),
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum SkippedPart {
+    Turn,
+    UntapStep,
+    DrawStep,
+    CombatPhase,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum AddedPhases {
+    Combat,
+    CombatAndMain,
+    Beginning,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct SearchChoice {
@@ -2838,6 +2890,49 @@ pub enum EventSpec {
         kind: TargetingKind,
         by: Box<Operand>,
     },
+    /// One creature attacking, as Forge's `Attacks`. `by` is the attacking
+    /// player, when the form names one.
+    Attack {
+        attackers: ObjectFilter,
+        by: Option<PlayerSet>,
+        defenders: AttackDefenders,
+    },
+    /// Everything `event` matches at the same time is one occurrence, as
+    /// Forge's `AttackersDeclared` and `ChangesZoneAll`. `count` is how many it
+    /// takes, and `including` is one object that has to be among them.
+    Batch {
+        event: Box<EventSpec>,
+        per: BatchPer,
+        count: Option<(Comparison, Expr)>,
+        including: Option<ObjectRef>,
+    },
+    /// Counters changing on one object, as Forge's `CounterAdded`. `by` is the
+    /// player doing it, when the form names one; no `kind` means any counter.
+    Counters {
+        change: CounterChange,
+        kind: Option<crate::counter::CounterKind>,
+        objects: ObjectFilter,
+        by: Option<PlayerSet>,
+    },
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum BatchPer {
+    /// One occurrence for all of it.
+    Whole,
+    /// One occurrence for each player or planeswalker attacked.
+    Defender,
+    /// One occurrence for each object the event is about.
+    Subject,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum CounterChange {
+    Put,
+    Removed,
+    LastRemoved,
 }
 /// Match actual positive damage, after prevention/replacement, using event
 /// information (including a departed source's last-known characteristics).
@@ -2995,6 +3090,12 @@ pub enum PlayerEvent {
     PlaysLand,
     UnlocksDoor,
     TapsForMana,
+    ChaosEnsues,
+    SetsSchemeInMotion,
+    Planeswalks,
+    EncountersPhenomenon,
+    FullyUnlocksRoom,
+    Expends,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum TurnPoint {

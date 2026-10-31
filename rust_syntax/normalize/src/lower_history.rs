@@ -76,10 +76,10 @@ impl Context {
 
     /// One player attacking another.
     fn player_pair(attackers: PlayerSet, attacked: PlayerSet) -> EventSpec {
-        EventSpec::Primitive {
-            name: "Trigger::WhenAPlayerAttacksAPlayer".into(),
-            operands: vec![Operand::Players(attackers), Operand::Players(attacked)],
-        }
+        crate::semantics::reduce_event(
+            "Trigger::WhenAPlayerAttacksAPlayer".into(),
+            vec![Operand::Players(attackers), Operand::Players(attacked)],
+        )
     }
 
     fn drew_event(players: PlayerSet) -> EventSpec {
@@ -301,12 +301,9 @@ impl Context {
         // A trigger row's event, with this player as its first operand.
         let by_them = |trigger: source::Trigger| -> Result<EventSpec> {
             let mut event = self.trigger(&trigger)?;
-            match &mut event {
-                EventSpec::Primitive { operands, .. } => operands[0] = Operand::Players(one()),
-                EventSpec::Player { players, .. } => *players = one(),
-                _ => return Err(unsupported(&trigger)),
-            }
-            Ok(event)
+            crate::semantics::set_event_player(&mut event, one())
+                .then_some(event)
+                .ok_or_else(|| unsupported(&trigger))
         };
         let any_player = || Box::new(source::Players::AnyPlayer);
         let any_permanent = || Box::new(source::Permanents::AnyPermanent);

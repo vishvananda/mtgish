@@ -427,6 +427,75 @@ fn a_player_event_row_is_one_generic_event() {
 }
 
 #[test]
+fn attacks_are_one_event_and_a_batch_wraps_it() {
+    let body = lowered(
+        "TriggerA(WhenACreatureAttacksAPlayer(IsCardtype(Creature), Opponent), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("Attack { attackers: CardType(Creature)"), "{body}");
+    assert!(body.contains("defenders: Players(OpponentsOf"), "{body}");
+    let body = lowered(
+        "TriggerA(WhenAPlayerAttacksWithAnyNumberOfCreatures(SinglePlayer(You), IsCardtype(Creature)), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("Batch { event: Attack"), "{body}");
+    assert!(body.contains("per: Whole"), "{body}");
+    assert!(!body.contains("WhenAPlayerAttacks"), "{body}");
+    let body = lowered(
+        "TriggerA(WhenAPlayerAttacksAPlayer(SinglePlayer(You), Opponent), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("per: Defender"), "{body}");
+}
+
+#[test]
+fn battalion_names_the_creature_that_must_be_among_the_attackers() {
+    let body = lowered(
+        "TriggerA(WhenASingleCreatureAndANumberOfOtherCreaturesAttack(ThisPermanent, GreaterThanOrEqualTo(Integer(2)), IsCardtype(Creature)), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("including: Some(Source)"), "{body}");
+    assert!(body.contains("count: Some((GreaterOrEqual"), "{body}");
+}
+
+#[test]
+fn a_batch_of_an_exact_group_cannot_read_one_of_its_objects() {
+    let event = EventSpec::Batch {
+        event: Box::new(EventSpec::ZoneChange {
+            objects: ObjectFilter::Any,
+            from: None,
+            to: EventZone::Battlefield,
+        }),
+        per: BatchPer::Whole,
+        count: Some((Comparison::GreaterOrEqual, Expr::Constant(2))),
+        including: None,
+    };
+    let bindings = semantics::event_bindings(&event);
+    assert!(!bindings.object && bindings.group && bindings.amount);
+}
+
+#[test]
+fn counter_events_keep_their_kind_and_group_by_object() {
+    let body = lowered(
+        "TriggerA(WhenAnyNumberOfCountersOfTypeArePutOnAPermanent(PTCounter(1, 1), IsCardtype(Creature)), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("Batch { event: Counters { change: Put"), "{body}");
+    assert!(body.contains("kind: Some(PowerToughness(1, 1))"), "{body}");
+    assert!(body.contains("per: Subject"), "{body}");
+}
+
+#[test]
+fn a_plane_or_scheme_event_reads_this_card() {
+    let body = lowered(
+        "TriggerA(WhenAPlayerSetsASchemeInMotion(SinglePlayer(You), SingleScheme(ThisScheme)), ActionList([DrawACard]))",
+    );
+    assert!(body.contains("event: SetsSchemeInMotion"), "{body}");
+    assert!(body.contains("objects: Some(SameObject(Source))"), "{body}");
+}
+
+#[test]
+fn rolling_a_die_says_how_many_sides() {
+    let body = lowered("SpellActions(ActionList([RollAD6]))");
+    assert!(body.contains("RollDie(6)"), "{body}");
+}
+
+#[test]
 fn the_nth_event_each_turn_wraps_the_plain_event() {
     let body = lowered(
         "TriggerA(WhenAPlayerDrawsTheirNthCardEachTurn(SinglePlayer(You), EqualTo(Integer(2))), ActionList([DrawACard]))",

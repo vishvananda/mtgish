@@ -1700,6 +1700,44 @@ impl Inventory<'_> {
                 self.form("TargetingKind", kind);
                 self.filter(objects);
             }
+            EventSpec::Attack {
+                attackers,
+                by,
+                defenders,
+            } => {
+                self.filter(attackers);
+                if let Some(by) = by {
+                    self.players(by);
+                }
+                self.defenders(defenders);
+            }
+            EventSpec::Batch {
+                event,
+                per,
+                count,
+                including,
+            } => {
+                self.form("BatchPer", per);
+                self.event(event);
+                if let Some((_, value)) = count {
+                    self.expr(value);
+                }
+                if let Some(object) = including {
+                    self.object(object);
+                }
+            }
+            EventSpec::Counters {
+                change,
+                objects,
+                by,
+                ..
+            } => {
+                self.form("CounterChange", change);
+                self.filter(objects);
+                if let Some(by) = by {
+                    self.players(by);
+                }
+            }
             EventSpec::SagaChapter(_) => {}
             EventSpec::Discard {
                 players,
