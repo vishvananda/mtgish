@@ -410,6 +410,9 @@ impl<'a> Scope<'a> {
 
     fn duration(&self, duration: &Duration) -> Result {
         match duration {
+            Duration::Primitive { name, operands } => self.primitive(name, operands),
+            Duration::ExtraTurn(result) if self.results.contains_key(&result.0) => Ok(()),
+            Duration::ExtraTurn(result) => Err(format!("result {} is unavailable", result.0)),
             Duration::EndOfTurn
             | Duration::EndOfCombat
             | Duration::Indefinite
@@ -634,6 +637,7 @@ impl<'a> Scope<'a> {
 
     fn expr(&self, expression: &Expr) -> Result {
         match expression {
+            Expr::TimesActivatedThisTurn => Ok(()),
             Expr::Primitive { name, operands } => self.primitive(name, operands),
             Expr::ChosenParity => Ok(()),
             Expr::EventHistory { event, .. } => self.event(event),
@@ -776,6 +780,7 @@ impl<'a> Scope<'a> {
     }
     fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
+            ObjectFilter::ArrivedThisTurn { .. } => Ok(()),
             ObjectFilter::ExiledWith(object) => self.object(object),
             ObjectFilter::DealtExcessBy(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectFilter::DealtExcessBy(result) => {
@@ -1011,6 +1016,7 @@ impl<'a> Scope<'a> {
             | Change::AddCardType(_)
             | Change::RemoveCardType(_)
             | Change::AddSupertype(_)
+            | Change::RemoveSupertype(_)
             | Change::AddLandType(_)
             | Change::AddArtifactType(_)
             | Change::SetArtifactType(_)
@@ -1988,6 +1994,9 @@ impl<'a> Scope<'a> {
                     ) {
                         self.results.insert(result.0, ResultKind::ObjectTransition);
                     }
+                    if matches!(operation, Operation::CreateTokens { .. }) {
+                        self.results.insert(result.0, ResultKind::CreatedObjects);
+                    }
                     if let Operation::ChooseObjects { objects, .. } = operation {
                         self.results.insert(result.0, ResultKind::Selection);
                         if let Some(zones) = self.known_zones(objects) {
@@ -2032,6 +2041,8 @@ impl<'a> Scope<'a> {
                         result.0,
                         if moved {
                             ResultKind::ObjectTransition
+                        } else if matches!(operation, Operation::CreateTokens { .. }) {
+                            ResultKind::CreatedObjects
                         } else {
                             ResultKind::Other
                         },
@@ -2082,6 +2093,7 @@ impl<'a> Scope<'a> {
                                 Some("observed") => ResultKind::Observation,
                                 Some("extra_turn") => ResultKind::Other,
                                 Some("created") => ResultKind::CreatedObjects,
+                                Some("paid") => ResultKind::Other,
                                 Some(_) => ResultKind::ObjectTransition,
                                 None => ResultKind::Other,
                             },
@@ -2189,6 +2201,7 @@ impl<'a> Scope<'a> {
                         let mut iterated = self.clone();
                         iterated.bound_objects.insert(binding.0);
                         iterated.program(body)?;
+                        self.adopt_choices(body, &iterated);
                     }
                     Instruction::Times { amount, body } => {
                         self.expr(amount)?;
@@ -2581,6 +2594,7 @@ fn validate_ability_in(
                             | Change::Colors { .. }
                             | Change::ChosenColor { .. }
                             | Change::CreatureTypes { .. }
+                            | Change::Primitive { .. }
                     )
                 }) {
                     return Err("characteristic definition may define only color, subtypes, power, or toughness".into());

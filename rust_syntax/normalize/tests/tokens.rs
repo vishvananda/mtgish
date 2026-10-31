@@ -203,7 +203,7 @@ fn pump() -> source::Action {
     )
 }
 #[test]
-fn created_results_are_typed_scoped_and_do_not_escape_optional_branches() {
+fn created_results_are_typed_scoped_and_read_nothing_after_a_skipped_option() {
     let mut c = lower::card(&probe(vec![create(), pump()])).unwrap();
     validate::card(&c).unwrap();
     let Ability::Spell { body, .. } = &mut c.abilities[0] else {
@@ -235,8 +235,16 @@ fn created_results_are_typed_scoped_and_do_not_escape_optional_branches() {
     assert!(validate::card(&c)
         .unwrap_err()
         .contains("token-creation result"));
+    // As for moves, a reference after an optional body reads nothing if it never ran.
+    validate::card(
+        &lower::card(&probe(vec![
+            source::Action::MayAction(Box::new(create())),
+            pump(),
+        ]))
+        .unwrap(),
+    )
+    .unwrap();
     for actions in [
-        vec![source::Action::MayAction(Box::new(create())), pump()],
         vec![
             create(),
             source::Action::MayAction(Box::new(create())),

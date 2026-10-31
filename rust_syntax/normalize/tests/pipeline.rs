@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 64);
+    assert_eq!(card.schema_version, 69);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2921,6 +2921,53 @@ fn each_player_who_did_reads_their_share_of_the_batch() {
     let counted = ability_json("SpellActions(ActionList([EachPlayerAction(AnyPlayer,DiscardHand),EachPlayerAction(AnyPlayer,DrawNumberCards(TheNumberOfCardsDiscardedByPlayerThisWay(EachablePlayer)))]))");
     assert!(counted.contains("MovedBy"), "{counted}");
     assert!(!counted.contains("Primitive"), "{counted}");
+}
+
+#[test]
+fn a_loop_keeps_what_it_made_and_a_payment_reads_its_amount() {
+    let paid = ability_json(
+        "SpellActions(ActionList([PayAnyAmountOfMana,DrawNumberCards(AmountOfManaPaidThisWay)]))",
+    );
+    assert!(paid.contains("Performed"), "{paid}");
+    let found = ability_json("SpellActions(ActionList([SearchLibrary([FindACardOfType(IsCardtype(Creature)),RevealFoundCards,If(ACardOfTypeWasFoundThisWay(IsCardtype(Land)),[PutFoundCardsIntoHand])])]))");
+    assert!(found.contains("Selected"), "{found}");
+    assert!(found.contains("Compare"), "{found}");
+    let choice = ability_json("SpellActions(ActionList([EachPlayerMakesAVillainousChoice(Opponent,[[DrawACard],[PlayerAction(EachablePlayer,DiscardACard)]])]))");
+    assert!(choice.contains("ForEachPlayer"), "{choice}");
+    assert!(choice.contains("ChooseOne"), "{choice}");
+    assert!(!choice.contains("Primitive"), "{choice}");
+}
+
+#[test]
+fn each_permanent_can_act_through_its_controller() {
+    let text = ability_json("SpellActions(ActionList([ActionForEachPermanentByController(IsCardtype(Creature),[DrawACard])]))");
+    assert!(text.contains("ForEachObject"), "{text}");
+    assert!(text.contains("ControllerOf"), "{text}");
+    assert!(!text.contains("Primitive"), "{text}");
+}
+
+#[test]
+fn zone_history_reads_this_turn_and_where_a_card_came_from() {
+    let back = ability_json("SpellActions(ActionList([ReturnEachCardFromGraveyardToHandThatWasPutThereFromBattlefieldThisTurn(IsCardtype(Creature))]))");
+    assert!(back.contains("ArrivedThisTurn"), "{back}");
+    assert!(back.contains("Battlefield"), "{back}");
+    assert!(!back.contains("Primitive"), "{back}");
+    let attacked = ability_json("TriggerI(AtTheBeginningOfAPlayersEndStep(SinglePlayer(You)),PlayerPassesFilter(You,AttackedWithACreatureThisTurn(AnyPermanent)),ActionList([DrawACard]))");
+    assert!(attacked.contains("Attacks"), "{attacked}");
+    assert!(attacked.contains("EventHistory"), "{attacked}");
+}
+
+#[test]
+fn a_duration_can_name_the_extra_turn_this_way_made() {
+    let text = ability_json("SpellActions(ActionList([TakeAnExtraTurn,CreateGameEffect(DuringTheExtraTurnCreatedThisWay,CreaturesCantBlock)]))");
+    assert!(text.contains("ExtraTurn"), "{text}");
+}
+
+#[test]
+fn a_target_player_can_carry_a_condition() {
+    let text = ability_json("SpellActions(Targeted([TargetPlayerAtTime(Opponent,ControlsMorePermanentThanPlayer(You,IsCardtype(Creature)))],ActionList([DrawACard])))");
+    assert!(text.contains("Intersection"), "{text}");
+    assert!(text.contains("OpponentsOf"), "{text}");
 }
 
 #[test]

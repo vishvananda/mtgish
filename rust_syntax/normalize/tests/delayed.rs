@@ -444,7 +444,6 @@ fn only_an_object_has_lethal_damage_to_exceed() {
 #[test]
 fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
     let incomplete = [
-        "Alchemist's Gambit",
         "Bounty of the Hunt",
         "Chancellor of the Tangle",
         "Come Back Wrong",
@@ -478,5 +477,5 @@ fn delayed_families_roundtrip_without_dropping_other_card_gaps() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 43);
+    assert_eq!(complete, 44);
 }

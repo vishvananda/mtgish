@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 64;
+pub const SCHEMA_VERSION: u32 = 69;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1193,6 +1193,7 @@ pub enum Change {
     SetPower(Expr),
     SetToughness(Expr),
     SetArtifactType(crate::mtg_types::ArtifactType),
+    RemoveSupertype(SuperType),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1620,6 +1621,8 @@ pub enum Expr {
         result: ResultId,
         to: Box<ObjectFilter>,
     },
+    /// How many times this ability has been activated this turn.
+    TimesActivatedThisTurn,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2075,6 +2078,10 @@ pub enum ObjectFilter {
     SharesNameWithAny(Box<ObjectSet>),
     /// Dealt more than lethal damage by this earlier instruction.
     DealtExcessBy(ResultId),
+    /// Reached its current zone this turn, from this zone if one is named.
+    ArrivedThisTurn {
+        from: Option<EventZone>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2219,6 +2226,13 @@ pub enum Duration {
     WhileAnyExiled(ObjectSet),
     /// Ends when this card is cast from exile.
     UntilCast(ObjectRef),
+    /// One reviewed rules-defined form; see `rewrites/primitives.json5`.
+    Primitive {
+        name: String,
+        operands: Vec<Operand>,
+    },
+    /// Through the extra turn this earlier instruction created.
+    ExtraTurn(ResultId),
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.
@@ -2365,6 +2379,8 @@ pub enum ManaColor {
     Red,
     Green,
     Colorless,
+    /// The color chosen as this resolved.
+    Chosen,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ManaSymbol {

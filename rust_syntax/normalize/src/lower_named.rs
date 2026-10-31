@@ -240,6 +240,28 @@ impl Context {
         Some((name, operands))
     }
 
+    /// A step over cards a reveal or search found, named by its reviewed row.
+    fn primitive_step(
+        &mut self,
+        family: &str,
+        value: &impl Serialize,
+        actor: &PlayerRef,
+        objects: ObjectSet,
+    ) -> Result<Instruction> {
+        let (name, mut operands) = self
+            .primitive(family, value)
+            .ok_or_else(|| unsupported(value))?;
+        if !crate::primitive_spec::lookup(&name).is_some_and(|row| row.keeps) {
+            self.forget_results();
+        }
+        operands.insert(0, Operand::Objects(objects));
+        Ok(self.effect(Operation::Primitive {
+            actor: PlayerSet::One(actor.clone()),
+            name,
+            operands,
+        }))
+    }
+
     /// Its result is unknown, so earlier antecedents are forgotten as for a named action.
     fn primitive_action(
         &mut self,
@@ -252,7 +274,7 @@ impl Context {
         }
         let result = ResultId(self.result);
         self.result += 1;
-        if name.starts_with("Action::RollAD") {
+        if name.starts_with("Action::Roll") {
             self.rolled = Some(result.clone());
         }
         let operation = Operation::Primitive {
@@ -271,6 +293,9 @@ impl Context {
             Some("hand") => self.to_hand = Some(result.clone()),
             Some("created") => self.created_tokens = Some(result.clone()),
             Some("amassed") => self.amassed = Some(result.clone()),
+            Some("paid") => {
+                self.did.insert(Done::Paid, result.clone());
+            }
             Some("extra_turn") => self.extra_turn = Some(result.clone()),
             _ => {}
         }
@@ -364,6 +389,7 @@ impl Context {
         self.created_tokens = None;
         self.amassed = None;
         self.seeked.clear();
+        self.found = None;
         self.took = None;
         self.offered = None;
         self.did.clear();

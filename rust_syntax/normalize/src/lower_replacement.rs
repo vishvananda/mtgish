@@ -116,7 +116,7 @@ impl Context {
             S::EntersUnderAPlayersControl(p) => {
                 EventChange::SetController(match self.players(p)? {
                     PlayerSet::One(player) => player,
-                    _ => return Err(invalid("entry controller requires a player choice")),
+                    players => PlayerRef::OneOf(Box::new(players)),
                 })
             }
             S::MayCost(cost) | S::MustCost(cost) => {

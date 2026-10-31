@@ -93,6 +93,10 @@ struct Context {
     /// The Army the last amass put counters on.
     amassed: Option<ResultId>,
     seeked: Vec<ResultId>,
+    /// The player a player filter is testing.
+    self_player: std::cell::RefCell<Option<PlayerRef>>,
+    /// The cards the search being resolved found.
+    found: Option<ObjectSet>,
     /// The last effect a player chose to take, and who was last offered a batch.
     took: Option<ResultId>,
     offered: Option<PlayerSet>,
@@ -150,6 +154,7 @@ enum Done {
     Discarded,
     Sacrificed,
     Prevented,
+    Paid,
 }
 impl Done {
     fn of(operation: &Operation) -> Option<Self> {
@@ -244,6 +249,9 @@ impl Context {
                     self.note_move(operation, result.clone());
                     self.note_acted(operation, result);
                     self.note_done(operation, result);
+                    if matches!(operation, Operation::CreateTokens { .. }) {
+                        self.created_tokens = Some(result.clone());
+                    }
                     if let Operation::Reveal { objects } = operation {
                         self.revealed = Some(objects.clone());
                     }
@@ -429,6 +437,13 @@ impl Context {
 
     fn reduced_object(&self, value: &source::Permanent) -> Result<ObjectRef> {
         use source::Permanent as S;
+        if let S::ThePermanentDestroyedThisWay = value {
+            return Ok(ObjectRef::Result {
+                result: self.done(Done::Destroyed)?,
+                phase: ObjectPhase::Before,
+                index: 0,
+            });
+        }
         if matches!(value, S::Trigger_ThatPermanent) && self.ambiguous_damage_permanent {
             return Err(invalid("damage trigger needs an explicit source/recipient role for this legacy permanent reference"));
         }
@@ -501,9 +516,16 @@ impl Context {
             }
             S::HostPermanent => return Ok(ObjectRef::AttachedTo(Box::new(ObjectRef::Source))),
             S::HostPermanentOf(p) => return Ok(ObjectRef::AttachedTo(Box::new(self.object(p)?))),
-            S::ActionPermanent if self.affected => return Ok(ObjectRef::Affected),
+            S::ActionPermanent | S::ApplyPermanentEffect_It | S::EachPermanentEffect_It
+                if self.affected =>
+            {
+                return Ok(ObjectRef::Affected)
+            }
             S::Self_It if self.candidate => return Ok(ObjectRef::Candidate),
-            S::Ref_TargetPermanent | S::Ref_TargetPermanent1 | S::Ref_TargetPermanents_0 => (0, 0),
+            S::Ref_TargetPermanent
+            | S::Ref_TargetPermanent1
+            | S::Ref_TargetPermanents_0
+            | S::RefOuter_TargetPermanent => (0, 0),
             S::Ref_TargetPermanent2 => (1, 0),
             S::Ref_TargetPermanent3 => (2, 0),
             S::Ref_TargetPermanent4 => (3, 0),
@@ -582,7 +604,13 @@ impl Context {
         use source::Player as S;
         Ok(match value {
             S::You => self.you.clone().unwrap_or(PlayerRef::AbilityController),
-            S::ActionPlayer | S::EachablePlayer | S::PlayerAction_ThatPlayer
+            S::SelfPlayer if self.self_player.borrow().is_some() => {
+                self.self_player.borrow().clone().unwrap()
+            }
+            S::ActionPlayer
+            | S::EachablePlayer
+            | S::PlayerAction_ThatPlayer
+            | S::ActionForEachPlayer_ThatPlayer
                 if self.iterated.is_some() =>
             {
                 self.iterated.clone().unwrap()
@@ -595,6 +623,9 @@ impl Context {
             S::TheActivePlayer => PlayerRef::Active,
             S::HostPlayer => PlayerRef::EnchantedBy(Box::new(ObjectRef::Source)),
             S::ControllerOfPermanent(p) => PlayerRef::ControllerOf(Box::new(self.object(p)?)),
+            S::SingleControllerOfTargetPermanents => PlayerRef::ControllerOf(Box::new(
+                self.object(&source::Permanent::Ref_TargetPermanents_0)?,
+            )),
             S::OwnerOfPermanent(p) => PlayerRef::OwnerOf(Box::new(self.object(p)?)),
             S::ControllerOfSpell(s) => PlayerRef::ControllerOf(Box::new(self.spell(s)?)),
             S::OwnerOfSpell(s) => PlayerRef::OwnerOf(Box::new(self.spell(s)?)),
@@ -819,10 +850,19 @@ impl Context {
         if let source::Permanents::SinglePermanent(object) = value {
             return Ok(ObjectSet::One(self.object(object)?));
         }
-        if matches!(value, source::Permanents::Ref_TargetPermanents) {
+        if matches!(value, source::Permanents::ThePermanentsExiledThisWay) {
+            return self.this_way_set(Done::Exiled, ObjectPhase::After, None);
+        }
+        if matches!(
+            value,
+            source::Permanents::Ref_TargetPermanents
+                | source::Permanents::Ref_TargetPermanents1
+                | source::Permanents::Ref_TargetPermanents2
+        ) {
+            let ordinal = usize::from(matches!(value, source::Permanents::Ref_TargetPermanents2));
             return Ok(ObjectSet::Targets(self.target(
                 TargetKind::Object(ObjectDomain::permanent()),
-                0,
+                ordinal,
                 0,
             )?));
         }
@@ -885,6 +925,10 @@ impl Context {
                 ))?;
                 return Ok(ObjectFilter::Not(Box::new(matching)));
             }
+            source::Permanents::IsNotACommander => {
+                let commander = self.filter_inner(&source::Permanents::IsACommander)?;
+                return Ok(ObjectFilter::Not(Box::new(commander)));
+            }
             source::Permanents::IsntAttacking => {
                 let attacking = self.filter_inner(&source::Permanents::IsAttacking)?;
                 return Ok(ObjectFilter::Not(Box::new(attacking)));
@@ -914,13 +958,17 @@ impl Context {
         if matches!(
             value,
             source::Permanents::Ref_TargetPermanents
+                | source::Permanents::Ref_TargetPermanents1
+                | source::Permanents::Ref_TargetPermanents2
                 | source::Permanents::ThePermanentsChosenThisWay
                 | source::Permanents::TheChosenPermanents
                 | source::Permanents::ThePermanentsNotChosenThisWay
                 | source::Permanents::NotChosenThisWay
                 | source::Permanents::TheTokensCreatedThisWay
         ) && match value {
-            source::Permanents::Ref_TargetPermanents => true,
+            source::Permanents::Ref_TargetPermanents
+            | source::Permanents::Ref_TargetPermanents1
+            | source::Permanents::Ref_TargetPermanents2 => true,
             source::Permanents::TheTokensCreatedThisWay => self.created_tokens.is_some(),
             _ => self.permanent_choice.is_some(),
         } {
@@ -992,6 +1040,23 @@ impl Context {
                 Expr::CountersRemoved(self.removed_counters.clone().unwrap())
             }
             S::LifeLostThisWay => Expr::Performed(self.done(Done::LifeLost)?),
+            S::TheNumberOfPermanentsPutIntoPlayersGraveyardThisTurn(objects, player) => {
+                Self::history(
+                    Self::died_event(ObjectFilter::All(vec![
+                        self.filter(objects)?,
+                        ObjectFilter::OwnedBy(PlayerSet::One(self.player(player)?)),
+                    ])),
+                    HistoryWindow::ThisTurn,
+                    HistoryMeasure::Occurrences,
+                )
+            }
+            S::AmountOfManaPaidThisWay | S::AmountOfLifePaidThisWay => {
+                Expr::Performed(match (self.done(Done::Paid), &self.payment) {
+                    (Ok(result), _) => result,
+                    (_, Some(result)) => result.clone(),
+                    (Err(error), None) => return Err(error),
+                })
+            }
             S::TheNumberOfCardsDiscardedByPlayerThisWay(player)
             | S::TheNumberOfCardsPlayerDiscardedThisWay(player) => {
                 let player = self.player(player)?;
@@ -1017,7 +1082,12 @@ impl Context {
                         phase: ObjectPhase::Before,
                         index: 0,
                     },
-                    None => self.paid_object(crate::number_spec::PaymentAction::Exile)?,
+                    None => self
+                        .paid_object(crate::number_spec::PaymentAction::Exile)
+                        .unwrap_or_else(|_| ObjectRef::Query {
+                            objects: Box::new(self.exiled_with_source()),
+                            index: 0,
+                        }),
                 },
                 property: Property::Power,
                 information: Information::CurrentOrLastKnown,
@@ -1241,6 +1311,51 @@ impl Context {
                 object: self.exiled_card(card)?,
                 filter: self.exile_filter(filter)?,
             },
+            S::LeavingPermanentPassesFilter(filter) => Condition::ObjectMatches {
+                object: self.object(&source::Permanent::Trigger_ThatPermanent)?,
+                filter: self.filter(filter)?,
+            },
+            S::DiscardedCardPassesFilter(cards) => {
+                let filter = self.card_filter(cards)?;
+                if self.event.discarded {
+                    Condition::ObjectMatches {
+                        object: self.hand_card(&source::CardInHand::Trigger_ThatDiscardedCard)?,
+                        filter,
+                    }
+                } else {
+                    self.this_way_compare(
+                        Expr::CountObjects(Box::new(self.this_way_set(
+                            Done::Discarded,
+                            ObjectPhase::After,
+                            Some(filter),
+                        )?)),
+                        Comparison::Greater,
+                        0,
+                    )
+                }
+            }
+            S::ACardOfTypeWasFoundThisWay(cards) => {
+                let found = self
+                    .found
+                    .clone()
+                    .ok_or_else(|| invalid("no card was found in this scope"))?;
+                self.this_way_compare(
+                    Expr::CountObjects(Box::new(ObjectSet::Matching {
+                        objects: Box::new(found),
+                        filter: self.card_filter(cards)?,
+                    })),
+                    Comparison::Greater,
+                    0,
+                )
+            }
+            S::PlayerIsPlayer(left, right) => self.this_way_compare(
+                Expr::CountPlayers(PlayerSet::Intersection(vec![
+                    PlayerSet::One(self.player(left)?),
+                    PlayerSet::One(self.player(right)?),
+                ])),
+                Comparison::Greater,
+                0,
+            ),
             S::EnteringPermanentPassesFilter(filter) => Condition::ObjectMatches {
                 object: if self.event.permanent {
                     ObjectRef::EventSubject
@@ -1444,6 +1559,11 @@ impl Context {
         Ok(match value {
             source::Expiration::UntilEndOfTurn => Duration::EndOfTurn,
             source::Expiration::UntilEndOfCombat => Duration::EndOfCombat,
+            source::Expiration::DuringTheExtraTurnCreatedThisWay => Duration::ExtraTurn(
+                self.extra_turn
+                    .clone()
+                    .ok_or_else(|| invalid("no extra turn was created in this scope"))?,
+            ),
             source::Expiration::UntilCardsAreNoLongerExiled(cards) => {
                 Duration::WhileAnyExiled(self.exile_cards(cards)?)
             }
@@ -1518,7 +1638,12 @@ impl Context {
                     .map(|value| self.duration(value))
                     .collect::<Result<_>>()?,
             ),
-            _ => return Err(unsupported(value)),
+            _ => {
+                return self
+                    .primitive("Expiration", value)
+                    .map(|(name, operands)| Duration::Primitive { name, operands })
+                    .ok_or_else(|| unsupported(value))
+            }
         })
     }
 
@@ -1552,6 +1677,16 @@ impl Context {
                         vec![Change::Pump {
                             power: self.modifier(power, &x),
                             toughness: self.modifier(toughness, &x),
+                        }]
+                    }
+                    S::AdjustPTXY(power, toughness, x, y) => {
+                        let y = self.number(y)?;
+                        vec![Change::Pump {
+                            power: self.modifier(power, &self.number(x)?),
+                            toughness: match toughness {
+                                source::ModY::PlusY => y,
+                                source::ModY::MinusY => Expr::multiply(Expr::Constant(-1), y),
+                            },
                         }]
                     }
                     S::AdjustPTForEach(power, toughness, n) => {
@@ -1596,6 +1731,7 @@ impl Context {
                     S::AddCardtype(ty) => vec![Change::AddCardType(ty.clone())],
                     S::RemoveCardtype(ty) => vec![Change::RemoveCardType(ty.clone())],
                     S::AddSupertype(ty) => vec![Change::AddSupertype(ty.clone())],
+                    S::RemoveSupertype(ty) => vec![Change::RemoveSupertype(ty.clone())],
                     S::AddLandType(ty) => vec![Change::AddLandType(ty.clone())],
                     S::AddArtifactType(ty) => vec![Change::AddArtifactType(ty.clone())],
                     S::SetArtifactType(ty) => vec![Change::SetArtifactType(ty.clone())],
@@ -2336,6 +2472,58 @@ impl Context {
                 self.exile_choice = Some(result.clone());
                 return Ok(choice);
             }
+            S::ReturnEachCardFromGraveyardToHandThatWasPutThereFromAnywhereThisTurn(cards)
+            | S::ReturnEachCardFromGraveyardToHandThatWasPutThereFromBattlefieldThisTurn(cards) => {
+                let from = matches!(
+                    value,
+                    S::ReturnEachCardFromGraveyardToHandThatWasPutThereFromBattlefieldThisTurn(_)
+                )
+                .then_some(EventZone::Battlefield);
+                let filter = ObjectFilter::All(vec![
+                    self.card_filter(cards)?,
+                    ObjectFilter::ArrivedThisTurn { from },
+                ]);
+                Operation::Move {
+                    objects: self.private_cards(EventZone::Graveyard, actor.clone(), filter),
+                    destination: Destination::OwnersHand,
+                    entry: EntrySpec::default(),
+                    face_down: false,
+                }
+            }
+            S::ReturnEachCardFromPlayersGraveyardToBattlefieldThatWasPutThereFromBattlefieldThisTurn(
+                cards,
+                player,
+                flags,
+            ) => {
+                use source::CardsInGraveyards as C;
+                let cards = as_family::<C>(cards.as_ref(), "CardsInGraveyards")
+                    .ok_or_else(|| unsupported(value))?;
+                return self.action(
+                    &S::ReturnEachGraveyardCardToBattlefield(
+                        Box::new(C::And(vec![
+                            cards,
+                            C::InAPlayersGraveyard(Box::new(source::Players::SinglePlayer(
+                                player.clone(),
+                            ))),
+                            C::WasPutIntoGraveyardFromTheBattlefieldThisTurn,
+                        ])),
+                        flags.clone(),
+                    ),
+                    actor,
+                );
+            }
+            S::ActionForEachPermanentByController(objects, actions) => {
+                let objects = self.objects(objects)?;
+                return self.for_each_object(objects, |context| {
+                    let each = ObjectRef::Bound(context.iterated_object.clone().unwrap());
+                    let controller = PlayerSet::One(PlayerRef::ControllerOf(Box::new(each)));
+                    let instructions = actions
+                        .iter()
+                        .map(|action| context.action(action, &controller))
+                        .collect::<Result<_>>()?;
+                    Ok(Program { instructions })
+                });
+            }
             S::ActionForEachPermanent(objects, actions) => {
                 let objects = self.objects(objects)?;
                 return self.for_each_object(objects, |context| {
@@ -2827,6 +3015,30 @@ impl Context {
                 return Ok(Instruction::ChooseOne {
                     decider: decider.clone(),
                     options: programs,
+                });
+            }
+            S::EachPlayerMakesAVillainousChoice(players, options) => {
+                let players = self.players(players)?;
+                let actor = actor.clone();
+                return self.for_each_player(players, |context, player| {
+                    let PlayerSet::One(decider) = player else {
+                        return Err(invalid("a choice needs one player"));
+                    };
+                    let mut programs = Vec::new();
+                    for option in options {
+                        let mut child = context.clone();
+                        let instructions = option
+                            .iter()
+                            .map(|action| child.action(action, &actor))
+                            .collect::<Result<_>>()?;
+                        context.result = child.result;
+                        context.invalidate_child_bindings(&child);
+                        programs.push(Program { instructions });
+                    }
+                    Ok(Instruction::ChooseOne {
+                        decider: decider.clone(),
+                        options: programs,
+                    })
                 });
             }
             S::EachPlayerCreatesTokens(players, tokens, flags) => {
@@ -3657,6 +3869,13 @@ impl Context {
                 S::AnyNumberOfTargetPermanents(p) => {
                     target.filter = self.filter(p)?;
                     target.count = Count::AnyNumber;
+                }
+                S::TargetPlayerAtTime(players, also) => {
+                    target.kind = TargetKind::Player;
+                    target.players = Some(self.players(&source::Players::And(vec![
+                        players.as_ref().clone(),
+                        also.as_ref().clone(),
+                    ]))?);
                 }
                 S::TargetPlayer(p) | S::UptoOneTargetPlayer(p) => {
                     target.kind = TargetKind::Player;

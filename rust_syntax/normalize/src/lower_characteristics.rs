@@ -56,6 +56,11 @@ impl Context {
                     mode: ChangeMode::Add,
                     types: CreatureTypeSet::Listed(types.clone()),
                 },
+                source::CDA_Types::AddCreatureTypeVariable(variable) => self
+                    .primitive_change(&source::LayerEffect::AddCreatureTypeVariable(
+                        variable.clone(),
+                    ))
+                    .ok_or_else(|| unsupported(types))?,
                 _ => return Err(unsupported(types)),
             }],
             _ => return Err(unsupported(value)),
@@ -82,6 +87,7 @@ impl Context {
                     source::Color::Black => ManaColor::Black,
                     source::Color::Red => ManaColor::Red,
                     source::Color::Green => ManaColor::Green,
+                    source::Color::TheChosenColor => ManaColor::Chosen,
                     _ => return Err(unsupported(color)),
                 }],
             },

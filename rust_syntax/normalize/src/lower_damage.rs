@@ -3,6 +3,17 @@ impl Context {
         use source::DamageSources as S;
         Ok(match value {
             S::AnyDamageSource => ObjectFilter::Any,
+            S::Other(other) => {
+                let other = match other {
+                    source::DamageSource::Trigger_ThatPermanent => {
+                        self.object(&source::Permanent::Trigger_ThatPermanent)?
+                    }
+                    source::DamageSource::ThisDamageSource => ObjectRef::Source,
+                };
+                ObjectFilter::Not(Box::new(ObjectFilter::InSet(Box::new(ObjectSet::One(
+                    other,
+                )))))
+            }
             S::And(v) => ObjectFilter::All(
                 v.iter()
                     .map(|f| self.damage_sources(f))

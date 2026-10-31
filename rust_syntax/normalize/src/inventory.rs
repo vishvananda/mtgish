@@ -1020,6 +1020,7 @@ impl Inventory<'_> {
             Change::AddCardType(_)
             | Change::RemoveCardType(_)
             | Change::AddSupertype(_)
+            | Change::RemoveSupertype(_)
             | Change::AddLandType(_)
             | Change::AddArtifactType(_)
             | Change::SetArtifactType(_)
@@ -1276,6 +1277,7 @@ impl Inventory<'_> {
     fn expr(&mut self, e: &Expr) {
         self.form("Expr", e);
         match e {
+            Expr::TimesActivatedThisTurn => {}
             Expr::BoundValue(_)
             | Expr::ChosenParity
             | Expr::CountersRemoved(_)
@@ -1399,6 +1401,7 @@ impl Inventory<'_> {
     fn filter(&mut self, f: &ObjectFilter) {
         self.form("ObjectFilter", f);
         match f {
+            ObjectFilter::ArrivedThisTurn { .. } => {}
             ObjectFilter::ExiledWith(object) => self.object(object),
             ObjectFilter::DamagedBy(_) | ObjectFilter::DealtExcessBy(_) => {}
             ObjectFilter::Primitive { name, .. } => self.primitive(name),
@@ -1524,6 +1527,8 @@ impl Inventory<'_> {
     fn duration(&mut self, d: &Duration) {
         self.form("Duration", d);
         match d {
+            Duration::Primitive { name, .. } => self.primitive(name),
+            Duration::ExtraTurn(_) => {}
             Duration::EndOfTurn
             | Duration::EndOfCombat
             | Duration::Indefinite
