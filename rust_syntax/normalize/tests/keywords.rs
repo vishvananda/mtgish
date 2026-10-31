@@ -298,7 +298,14 @@ fn regeneration_creates_shields_without_immediate_tapping_damage_removal_or_comb
     ));
     let c = custom("SpellActions(ActionList([RegeneratePermanent(ThisPermanent),RegeneratePermanent(ThisPermanent)]))").unwrap();
     assert_eq!(program(&c).instructions.len(), 2); // do not deduplicate shields
-    assert!(custom("SpellActions(ActionList([RegeneratePermanent_WhenItRengeratesThisWay(ThisPermanent,ActionList([DrawACard]))]))").is_err());
+    let c = custom("SpellActions(ActionList([RegeneratePermanent_WhenItRengeratesThisWay(ThisPermanent,ActionList([DrawACard]))]))").unwrap();
+    assert!(matches!(
+        program(&c).instructions.as_slice(),
+        [Instruction::Effect {
+            operation: Operation::Primitive { .. },
+            ..
+        }]
+    ));
     let mut c = card("Wrap in Vigor");
     let Ability::Spell { body, .. } = &mut c.abilities[0] else {
         panic!()
