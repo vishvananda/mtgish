@@ -1331,6 +1331,7 @@ impl<'a> Scope<'a> {
             Operand::Term { operands, .. } => operands.iter().try_for_each(|o| self.operand(o)),
             Operand::Object(object) => self.object(object),
             Operand::Objects(objects) => self.objects(objects),
+            Operand::Recipients(recipients) => self.recipients(recipients),
             Operand::Player(player) => self.player(player),
             Operand::Players(players) => self.players(players),
             Operand::Number(expression) => self.expr(expression),

@@ -147,6 +147,9 @@ impl Context {
         match value {
             source::Spell::ThisSpell => Ok(ObjectRef::Source),
             source::Spell::Ref_TargetSpell => self.object_target(ObjectDomain::spell(), 0),
+            source::Spell::ThatEnteringPermanent if self.event.permanent => {
+                Ok(ObjectRef::EventSubject)
+            }
             source::Spell::Trigger_ThatSpell if self.event.spell => Ok(ObjectRef::EventSubject),
             _ => Err(unsupported(value)),
         }

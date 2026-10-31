@@ -72,7 +72,6 @@ fn instance_count(q: &Protection) -> usize {
 #[test]
 fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps() {
     let incomplete = [
-        "Phyrexian Fleshgorger",
         "Earnest Fellowship",
         "Volatile Stormdrake",
         "Minthara, Merciless Soul",
@@ -103,7 +102,7 @@ fn native_keyword_and_regeneration_families_roundtrip_without_hiding_nested_gaps
         }
         complete += 1;
     }
-    assert_eq!(complete, 40);
+    assert_eq!(complete, 41);
 }
 
 #[test]

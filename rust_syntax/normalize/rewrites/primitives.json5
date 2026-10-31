@@ -3,7 +3,7 @@
   "vocabularies": ["CounterType"],
   "terms": [
     "Abilities", "ActivatedAbilities", "CardInHand", "CardsInGraveyards", "CardsInHand", "Companion",
-    "EnterFlag", "ManaCost", "ManaSymbol", "Planes", "Schemes", "SinglePlane", "SingleScheme",
+    "EnterFlag", "ManaCost", "ManaSymbol", "ManaSymbolX", "CostReductionSymbol", "CostReductionSymbolX", "Planes", "Schemes", "SinglePlane", "SingleScheme",
     "SpellsAndAbilities", "ChoosableColor", "CreatureTypeVariable", "LandTypeVariable", "CardsInOracle",
     "TokenCopyEffects", "TokenCopyEffect", "CopyEffects", "CopyEffect", "PT", "SettableColor", "NameString",
     "CheckHasable", "PerpetualEffect", "CounterType", "Phenomena", "SpellEffect", "FutureSpell", "Level", "GameRange", "SpreeAction", "TieredAction", "GraveyardCardEffect", "HandEffect", "ActivatedAbilityEffect", "Craftable", "AbilitySources", "MoveCountersAction", "PutCountersCost", "PregameCard", "CostReduction", "LandType", "EnchantmentType", "Color", "SimpleColor"
@@ -262,7 +262,7 @@
     {"source": "Action::ChooseNumberPermanents", "text": "choose|chosen"},
     {"source": "Action::ChooseAPermanentForEachPlayer", "text": "choose|chosen"},
     {"source": "Action::ChooseACardInHand", "text": "choose|chosen|hand"},
-    {"source": "Action::ChooseAnExiledCard", "text": "choose|chosen"},
+    {"source": "Action::ChooseAnExiledCard", "text": "choose|chosen|exiled"},
     {"source": "Action::TapOrUntapPermanent", "text": "tap untap"},
     {"source": "ReplacementActionWouldEnter::ChooseAColor", "text": "choose|chosen|color"},
     {"source": "ReplacementActionWouldEnter::ChooseACreatureType", "text": "choose|chosen|type"},

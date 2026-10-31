@@ -95,6 +95,8 @@ impl Context {
         Some(match ty {
             "Permanent" => Operand::Object(self.object(&decode(value).ok()?).ok()?),
             "Permanents" => Operand::Objects(self.objects(&decode(value).ok()?).ok()?),
+            "CardsInExile" => Operand::Objects(self.exile_cards(&decode(value).ok()?).ok()?),
+            "DamageRecipient" => Operand::Recipients(self.recipients(&decode(value).ok()?).ok()?),
             "Player" => Operand::Player(self.player(&decode(value).ok()?).ok()?),
             "Players" => Operand::Players(self.players(&decode(value).ok()?).ok()?),
             "GameNumber" => Operand::Number(self.number(&decode(value).ok()?).ok()?),

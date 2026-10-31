@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 41;
+pub const SCHEMA_VERSION: u32 = 42;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -63,6 +63,7 @@ pub enum Operand {
     },
     Object(ObjectRef),
     Objects(ObjectSet),
+    Recipients(Recipients),
     Player(PlayerRef),
     Players(PlayerSet),
     Number(Expr),

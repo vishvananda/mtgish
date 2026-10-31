@@ -171,15 +171,24 @@ impl Context {
                     };
                     p.clone()
                 };
-                self.effect(Operation::PayCost {
-                    cost: {
-                        let mut context = self.clone();
-                        context.payer = Some(payer.clone());
-                        context.bind_cost_recipe(cost)?
-                    },
+                let cost = {
+                    let mut context = self.clone();
+                    context.payer = Some(payer.clone());
+                    context.bind_cost_recipe(cost)?
+                };
+                // The amount chosen while paying {X} is X from here on.
+                let chooses_x = cost.parts.iter().any(
+                    |part| matches!(part, CostPart::Primitive { name, .. } if name == "Cost::PayManaAnyX"),
+                );
+                let payment = self.effect(Operation::PayCost {
+                    cost,
                     player: payer,
                     optional: *optional,
-                })
+                });
+                if let (true, Instruction::Effect { result, .. }) = (chooses_x, &payment) {
+                    self.value_x = Some(result.clone());
+                }
+                payment
             }
             R::Targeted { targets, body } => {
                 self.targets(targets)?;

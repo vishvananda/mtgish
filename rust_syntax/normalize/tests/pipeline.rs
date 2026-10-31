@@ -1786,10 +1786,10 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 }
 
 #[test]
-fn schema_41_costs_roundtrip_and_reject_previous_versions_at_validation() {
+fn schema_42_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 41);
+    assert_eq!(card.schema_version, 42);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2138,7 +2138,10 @@ fn shuffling_a_graveyard_in_moves_every_card_then_shuffles() {
     let text = ability_json("SpellActions(ActionList([ShuffleHandAndGraveyardIntoLibrary]))");
     assert!(text.contains(r#""Move""#), "{text}");
     assert!(text.contains(r#""Shuffle""#), "{text}");
-    assert!(text.contains(r#""Hand""#) && text.contains(r#""Graveyard""#), "{text}");
+    assert!(
+        text.contains(r#""Hand""#) && text.contains(r#""Graveyard""#),
+        "{text}"
+    );
 }
 
 #[test]
@@ -2151,7 +2154,24 @@ fn a_later_filter_reads_the_targets_and_target_players_are_a_set() {
 
 #[test]
 fn losing_a_card_type_and_gaining_a_supertype_are_changes() {
-    let text = ability_json("PermanentLayerEffect(ThisPermanent,[RemoveCardtype(Creature),AddSupertype(Legendary)])");
+    let text = ability_json(
+        "PermanentLayerEffect(ThisPermanent,[RemoveCardtype(Creature),AddSupertype(Legendary)])",
+    );
     assert!(text.contains("RemoveCardType"), "{text}");
     assert!(text.contains("AddSupertype"), "{text}");
+}
+
+#[test]
+fn x_paid_during_resolution_is_read_from_that_payment() {
+    let text = ability_json("SpellActions(ActionList([MayCost(PayManaAnyX([ManaCostX])),If(CostWasPaid,[GainLife(ValueX)])]))");
+    assert!(text.contains("Cost::PayManaAnyX"), "{text}");
+    assert!(text.contains("BoundValue"), "{text}");
+    assert!(!text.contains("AnnouncedX"), "{text}");
+}
+
+#[test]
+fn a_damage_cost_keeps_its_recipient_bound() {
+    let text = ability_json("SpellActions(ActionList([MayCost(HavePermanentDealDamage(ThisPermanent,Integer(2),Player(You))),If(CostWasPaid,[DrawACard])]))");
+    assert!(text.contains("Cost::HavePermanentDealDamage"), "{text}");
+    assert!(text.contains("Recipients"), "{text}");
 }
