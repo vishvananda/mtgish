@@ -1372,8 +1372,42 @@ fn chosen_kind(operand: &Operand) -> Option<ValueKind> {
 }
 
 /// A row's filter in generic form, or the row itself when it has none.
+/// Keywords a filter asks about as a family, whatever their cost or number.
+const KEYWORD_FAMILIES: &[(&str, KeywordFamily)] = &[
+    ("AnyFlashback", KeywordFamily::Flashback),
+    ("AnySuspend", KeywordFamily::Suspend),
+    ("AnyMorph", KeywordFamily::Morph),
+    ("AnyForetell", KeywordFamily::Foretell),
+    ("Convoke", KeywordFamily::Convoke),
+    ("AnyMutate", KeywordFamily::Mutate),
+    ("AnyDisturb", KeywordFamily::Disturb),
+    ("Cascade", KeywordFamily::Cascade),
+    ("AnyFreerunning", KeywordFamily::Freerunning),
+    ("AnyKicker", KeywordFamily::Kicker),
+    ("AnyUnearth", KeywordFamily::Unearth),
+    ("Decayed", KeywordFamily::Decayed),
+    ("AnyModular", KeywordFamily::Modular),
+    ("AnyCumulativeUpkeep", KeywordFamily::CumulativeUpkeep),
+    ("AnyWarp", KeywordFamily::Warp),
+    ("Soulbond", KeywordFamily::Soulbond),
+    ("AnyAwaken", KeywordFamily::Awaken),
+    ("AnyFading", KeywordFamily::Fading),
+    ("AnyRampage", KeywordFamily::Rampage),
+    ("AnyBlitz", KeywordFamily::Blitz),
+    ("LevelUp", KeywordFamily::LevelUp),
+];
+
 pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
     let form = name.split("::").nth(1).unwrap_or(&name);
+    if name.starts_with("CheckHasable::") && operands.is_empty() {
+        let family = KEYWORD_FAMILIES.iter().find(|(row, _)| *row == form);
+        if let Some((_, family)) = family {
+            return ObjectFilter::HasKeywordFamily(family.clone());
+        }
+    }
+    if form == "IsntPrepared" && operands.is_empty() {
+        return ObjectFilter::Not(Box::new(ObjectFilter::State(ObjectState::Prepared)));
+    }
     let nth = |ordinal: &Expr, spells: Option<&ObjectFilter>, by: Option<&PlayerRef>, scope| {
         ObjectFilter::NthCast {
             ordinal: ordinal.clone(),
@@ -1516,6 +1550,9 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
         "IsBlocked" => Some(ObjectState::Blocked),
         "IsAttackingAlone" => Some(ObjectState::AttackingAlone),
         "WasBargained" => Some(ObjectState::Bargained),
+        "Escaped" => Some(ObjectState::Escaped),
+        "IsDoubleFaced" => Some(ObjectState::DoubleFaced),
+        "PowerIsGreaterThanBasePower" => Some(ObjectState::PowerAboveBase),
         "WasCastForItsWarpCost" => Some(ObjectState::Warped),
         "HasBeenGoaded" => Some(ObjectState::Goaded),
         "IsPaired" => Some(ObjectState::Paired),
@@ -2030,6 +2067,9 @@ pub fn reduce_cost(name: String, operands: Vec<Operand>) -> CostPart {
     };
     let bare = name.strip_prefix("Cost::").unwrap_or(&name);
     match (bare, operands.as_slice()) {
+        ("PutAnExiledCardIntoOwnersGraveyard", [Operand::Objects(cards)]) => {
+            CostPart::ExiledToGraveyard(cards.clone())
+        }
         ("CollectEvidence", [Operand::Number(amount)]) => {
             keyword(CostKeyword::CollectEvidence, Some(amount))
         }
@@ -4224,6 +4264,22 @@ pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
             measure: HistoryMeasure::Occurrences,
         },
         ("GameNumber::WouldCreateTokens_NumberTokens", []) => Expr::EventAmount,
+        ("GameNumber::ManaValueOfTheCardDiscardedThisWay", [Operand::Result(result)]) => {
+            property_of(
+                &ObjectRef::Result {
+                    result: result.clone(),
+                    phase: ObjectPhase::After,
+                    index: 0,
+                },
+                Property::ManaValue,
+            )
+        }
+        ("GameNumber::AmountOfUnspentManaPlayerHas", [Operand::Player(player)]) => {
+            Expr::PlayerNumber {
+                player: player.clone(),
+                number: PlayerNumber::UnspentMana,
+            }
+        }
         ("GameNumber::NumTimesCreatureHasMutated", [Operand::Object(object)]) => {
             Expr::TimesMutated(object.clone())
         }

@@ -1713,6 +1713,7 @@ impl<'a> Scope<'a> {
             CastingRule::AdditionalCost { cost, .. }
             | CastingRule::AlternativeCost(cost)
             | CastingRule::AlternativeCostWithFlash(cost) => self.cost(cost),
+            CastingRule::ReduceForEachPaid { cost, .. } => self.cost(cost),
             CastingRule::ReduceCost(reductions) => {
                 for reduction in reductions {
                     self.count(&Count::Exactly(reduction.amount.clone()))?;

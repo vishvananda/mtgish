@@ -1249,6 +1249,7 @@ impl Inventory<'_> {
             CastingRule::AlternativeCost(cost) | CastingRule::AlternativeCostWithFlash(cost) => {
                 self.cost(cost)
             }
+            CastingRule::ReduceForEachPaid { cost, .. } => self.cost(cost),
             CastingRule::ReduceCost(reductions) => {
                 for r in reductions {
                     if let Some(color) = &r.color {

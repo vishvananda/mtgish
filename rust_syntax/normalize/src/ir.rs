@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 107;
+pub const SCHEMA_VERSION: u32 = 108;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -362,6 +362,11 @@ pub enum CastingRule {
     If {
         condition: Condition,
         rule: Box<CastingRule>,
+    },
+    /// Costs this much less for each time an optional cost was paid.
+    ReduceForEachPaid {
+        reductions: Vec<ManaReduction>,
+        cost: Cost,
     },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2780,6 +2785,7 @@ pub enum PlayerNumber {
     Speed,
     /// Permanents the player controls that match.
     Permanents(Box<ObjectFilter>),
+    UnspentMana,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DistinctProperty {
@@ -3289,6 +3295,27 @@ pub enum KeywordFamily {
     Landwalk,
     Hexproof,
     Toxic,
+    Flashback,
+    Suspend,
+    Morph,
+    Foretell,
+    Convoke,
+    Mutate,
+    Disturb,
+    Cascade,
+    Freerunning,
+    Kicker,
+    Unearth,
+    Decayed,
+    Modular,
+    CumulativeUpkeep,
+    Warp,
+    Soulbond,
+    Awaken,
+    Fading,
+    Rampage,
+    Blitz,
+    LevelUp,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3952,6 +3979,9 @@ pub enum ObjectState {
     HauntedBySource,
     Escaped,
     Warped,
+    DoubleFaced,
+    Prepared,
+    PowerAboveBase,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

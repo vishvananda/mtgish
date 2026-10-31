@@ -1317,3 +1317,30 @@ fn life_floors_mana_sources_and_acting_players() {
     );
     assert!(spent.contains("ManaSpentFrom"), "{spent}");
 }
+
+#[test]
+fn keyword_families_and_paid_cards() {
+    let flashback = lowered(
+        "SpellActions(Targeted([TargetExiledCard(And([HasAbility(AnyFlashback), OwnedByAPlayer(SinglePlayer(You))]))], ActionList([PutExiledCardIntoOwnersHand(Ref_TargetExiledCard)])))",
+    );
+    assert!(
+        flashback.contains("HasKeywordFamily(Flashback)"),
+        "{flashback}"
+    );
+    let reduced = lowered(
+        "CastEffect(ReduceCastingCostForEachAlternateCost([CostReduceGeneric(2)], SacrificeAPermanent(IsCardtype(Creature))))",
+    );
+    assert!(reduced.contains("ReduceForEachPaid"), "{reduced}");
+    let moved = lowered(
+        "CastEffect(AdditionalCastingCost(PutAnExiledCardIntoOwnersGraveyard(OwnedByAPlayer(Opponent))))",
+    );
+    assert!(moved.contains("ExiledToGraveyard"), "{moved}");
+    let seek = lowered(
+        "TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([MayCost(DiscardACard), If(CostWasPaid, [SeekACard(ManaValueIs(EqualTo(ManaValueOfTheCardDiscardedThisWay)))])]))",
+    );
+    assert!(seek.contains("ObjectProperty"), "{seek}");
+    assert!(
+        !seek.contains("ManaValueOfTheCardDiscardedThisWay"),
+        "{seek}"
+    );
+}

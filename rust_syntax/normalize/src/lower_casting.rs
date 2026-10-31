@@ -101,6 +101,12 @@ impl Context {
             S::ReduceCastingCost(reduction) => {
                 CastingRule::ReduceCost(self.mana_reduction(reduction, Expr::Constant(1))?)
             }
+            S::ReduceCastingCostForEachAlternateCost(reduction, cost) => {
+                CastingRule::ReduceForEachPaid {
+                    reductions: self.mana_reduction(reduction, Expr::Constant(1))?,
+                    cost: self.cost(cost)?,
+                }
+            }
             S::ReduceCastingCostForEach(reduction, n) => {
                 CastingRule::ReduceCost(self.mana_reduction(reduction, self.number(n)?)?)
             }

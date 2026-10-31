@@ -835,6 +835,16 @@ impl Context {
 
     fn primitive_number(&self, value: &source::GameNumber) -> Option<Expr> {
         let (name, operands) = self.primitive("GameNumber", value)?;
+        if name == "GameNumber::ManaValueOfTheCardDiscardedThisWay" {
+            use crate::number_spec::PaymentAction;
+            if let Ok(object) = self.paid_object(PaymentAction::Discard) {
+                return Some(Expr::ObjectProperty {
+                    object,
+                    property: Property::ManaValue,
+                    information: Information::CurrentOrLastKnown,
+                });
+            }
+        }
         Some(crate::semantics::reduce_number(name, operands))
     }
 
