@@ -16,6 +16,9 @@ impl Context {
         filter: &source::Players,
     ) -> Result<Condition> {
         use source::Players as S;
+        if let Some(check) = self.took_check(&player, filter)? {
+            return Ok(check);
+        }
         Ok(match filter {
             S::NumCardTypesInGraveyardIs(c) => {
                 let (comparison, right) = self.comparison(c)?;

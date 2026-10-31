@@ -37,6 +37,9 @@ impl Context {
             | source::CardsInGraveyards::Ref_TargetGraveyardCards2 => {
                 Ok(ObjectFilter::InSet(Box::new(self.grave_cards(value)?)))
             }
+            source::CardsInGraveyards::WasPutIntoGraveyardThisWay => Ok(ObjectFilter::InSet(
+                Box::new(self.this_way_set(Done::Graveyard, ObjectPhase::After, None)?),
+            )),
             _ => rescue(unsupported(value), || {
                 self.primitive_predicate("CardsInGraveyards", value)
             })
@@ -61,6 +64,18 @@ impl Context {
         match value {
             source::CardsInExile::TheCardsExiledThisWay | source::CardsInExile::TheExiledCards => {
                 Ok(ObjectFilter::InSet(Box::new(self.exile_cards(value)?)))
+            }
+            source::CardsInExile::WasExiledThisWay => Ok(ObjectFilter::InSet(Box::new(
+                self.this_way_set(Done::Exiled, ObjectPhase::After, None)?,
+            ))),
+            source::CardsInExile::WasExiledByPlayerThisWay(player) => {
+                let player = self.player(player)?;
+                Ok(ObjectFilter::InSet(Box::new(self.moved_by(
+                    Done::Exiled,
+                    ObjectPhase::After,
+                    &player,
+                    None,
+                )?)))
             }
             source::CardsInExile::WasExiledWithPermanent(p) => {
                 Ok(ObjectFilter::ExiledWith(self.object(p)?))

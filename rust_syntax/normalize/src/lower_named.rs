@@ -364,6 +364,8 @@ impl Context {
         self.created_tokens = None;
         self.amassed = None;
         self.seeked.clear();
+        self.took = None;
+        self.offered = None;
         self.did.clear();
         self.payment = None;
         self.exiled = None;

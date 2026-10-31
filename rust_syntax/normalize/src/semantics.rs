@@ -441,7 +441,9 @@ impl Effects {
             ObjectSet::Selected(result) | ObjectSet::Unselected(result) => {
                 self.result_library(result, &ObjectPhase::After)
             }
-            ObjectSet::Transition { result, phase } => self.result_library(result, phase),
+            ObjectSet::Transition { result, phase } | ObjectSet::MovedBy { result, phase, .. } => {
+                self.result_library(result, phase)
+            }
             ObjectSet::Battlefield(_) | ObjectSet::Created(_) | ObjectSet::DamageSources(_) => {
                 false
             }

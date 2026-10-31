@@ -427,11 +427,7 @@ fn spell_event_filters_bind_the_cast_spell_and_source_spell_bodies_keep_the_sour
 
 #[test]
 fn cast_history_families_roundtrip_and_keep_unimplemented_nested_semantics() {
-    let incomplete = [
-        "Dream Thief",
-        "Hotheaded Giant",
-        "Recommission",
-    ];
+    let incomplete = ["Dream Thief", "Hotheaded Giant", "Recommission"];
     let mut complete = 0;
     for s in sources() {
         let name = corpus::Identity::of(&s).unwrap().names.remove(0);
