@@ -451,6 +451,8 @@ impl Context {
             S::DealsDamage_ThatPlayer if self.damage_player.is_some() => {
                 self.damage_player.clone().unwrap()
             }
+            S::OwnerOfExiledCard(card) => PlayerRef::OwnerOf(Box::new(self.exiled_card(card)?)),
+            S::OwnerOfGraveyrdCard(card) => PlayerRef::OwnerOf(Box::new(self.grave_card(card)?)),
             S::ControllerOfSpellOrAbility(source::SpellOrAbility::Ref_TargetSpellOrAbility) => {
                 PlayerRef::ControllerOf(Box::new(self.target_on_stack()?))
             }
@@ -746,6 +748,22 @@ impl Context {
                 Expr::EventAmount
             }
             S::TheDiceResult => self.die_result()?,
+            S::TheAmountOfDamagePreventedThisWay if self.event.amount => Expr::EventAmount,
+            S::TheNumberOfCardsInHandRevealedThisWay => Expr::CountObjects(Box::new(
+                self.revealed
+                    .clone()
+                    .ok_or_else(|| invalid("no card was revealed in this scope"))?,
+            )),
+            S::NumLibraryCardsRevealedThisWay(cards) => {
+                Expr::CountObjects(Box::new(ObjectSet::Matching {
+                    objects: Box::new(
+                        self.revealed
+                            .clone()
+                            .ok_or_else(|| invalid("no card was revealed in this scope"))?,
+                    ),
+                    filter: self.card_filter(cards)?,
+                }))
+            }
             S::ManaValueOfTheCardRevealedThisWay => Expr::ObjectProperty {
                 object: ObjectRef::Query {
                     objects: Box::new(
@@ -1623,8 +1641,88 @@ impl Context {
                     once: false,
                 }
             }
+            S::DiscardCard(card) => Operation::DiscardObjects {
+                objects: ObjectSet::One(self.hand_card(card)?),
+            },
+            S::CreateTokensForEachPlayer(players, tokens, flags) => {
+                let players = self.players(players)?;
+                let create = S::CreateTokens(tokens.clone(), flags.clone());
+                return self.for_each_player(players, |context, _| context.action(&create, actor));
+            }
+            S::ReturnACardFromGraveyardToBattlefield(cards, _)
+            | S::ReturnAGraveyardCardToHand(cards) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("choosing a graveyard card needs one player"));
+                };
+                let choice = self.effect(Operation::ChooseObjects {
+                    constraints: vec![],
+                    player: player.clone(),
+                    objects: self.private_cards(
+                        EventZone::Graveyard,
+                        actor.clone(),
+                        self.card_filter(cards)?,
+                    ),
+                    count: Count::AsManyAsCan(Expr::Constant(1)),
+                });
+                let Instruction::Effect { result, .. } = &choice else {
+                    unreachable!()
+                };
+                let (destination, entry) = match value {
+                    S::ReturnACardFromGraveyardToBattlefield(_, flags) => {
+                        self.move_entry(flags, player.clone())?
+                    }
+                    _ => (Destination::OwnersHand, EntrySpec::default()),
+                };
+                let movement = self.effect(Operation::Move {
+                    objects: ObjectSet::Selected(result.clone()),
+                    destination,
+                    entry,
+                    face_down: false,
+                });
+                return Ok(Instruction::Group(Program {
+                    instructions: vec![choice, movement],
+                }));
+            }
+            S::PutACardFromHandOnTopOfLibrary
+            | S::PutNumCardsFromHandOnTopOfLibraryAnyOrder(_)
+            | S::DiscardUptoNumberCards(_) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("choosing cards in hand needs one player"));
+                };
+                let count = match value {
+                    S::PutNumCardsFromHandOnTopOfLibraryAnyOrder(n) => {
+                        Count::AsManyAsCan(self.number(n)?)
+                    }
+                    S::DiscardUptoNumberCards(n) => Count::UpTo(self.number(n)?),
+                    _ => Count::AsManyAsCan(Expr::Constant(1)),
+                };
+                let choice = self.effect(Operation::ChooseObjects {
+                    constraints: vec![],
+                    player: player.clone(),
+                    objects: self.private_cards(EventZone::Hand, actor.clone(), ObjectFilter::Any),
+                    count,
+                });
+                let Instruction::Effect { result, .. } = &choice else {
+                    unreachable!()
+                };
+                let chosen = ObjectSet::Selected(result.clone());
+                let after = self.effect(if matches!(value, S::DiscardUptoNumberCards(_)) {
+                    Operation::DiscardObjects { objects: chosen }
+                } else {
+                    Operation::Move {
+                        objects: chosen,
+                        destination: Destination::OwnersLibraryTop,
+                        entry: EntrySpec::default(),
+                        face_down: false,
+                    }
+                });
+                return Ok(Instruction::Group(Program {
+                    instructions: vec![choice, after],
+                }));
+            }
             S::PutTopOfLibraryInHand
             | S::PutTopOfLibraryInGraveyard
+            | S::PutTopOfLibraryOnBottomOfLibrary
             | S::PutTopOfLibraryOnBattlefield(_) => {
                 let PlayerSet::One(player) = actor else {
                     return Err(invalid("moving a library card needs one player"));
@@ -1633,6 +1731,9 @@ impl Context {
                     S::PutTopOfLibraryInHand => (Destination::OwnersHand, EntrySpec::default()),
                     S::PutTopOfLibraryInGraveyard => {
                         (Destination::OwnersGraveyard, EntrySpec::default())
+                    }
+                    S::PutTopOfLibraryOnBottomOfLibrary => {
+                        (Destination::OwnersLibraryBottom, EntrySpec::default())
                     }
                     S::PutTopOfLibraryOnBattlefield(flags) => {
                         self.move_entry(flags, player.clone())?
@@ -2672,11 +2773,8 @@ impl Context {
                 child.iterated = Some(player.clone());
                 // Nothing outside a cost reads what happens inside it.
                 child.result = self.result.saturating_add(1 << 20);
-                let mut inspected = crate::inspect::value(action)
-                    .map_err(|_| invalid("a cost action does not serialize"))?;
-                inspected["enum"] = "Action".into();
-                let action: source::Action = crate::pipeline::source_tree::decode(&inspected)
-                    .map_err(|_| unsupported(action))?;
+                let action: source::Action =
+                    as_family(action, "Action").ok_or_else(|| unsupported(action))?;
                 let instruction = child.action(&action, &PlayerSet::One(player.clone()))?;
                 return Ok(Cost {
                     parts: vec![CostPart::PlayerAction {

@@ -389,6 +389,34 @@
       }
     },
     {
+      "id": "program.Actions.Modal_ChooseOneThatHasntBeenChosenThisTurn",
+      "domain": "Actions",
+      "source": "Modal_ChooseOneThatHasntBeenChosenThisTurn",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "Unchosen",
+          "turn": true
+        },
+        "modes": 0
+      }
+    },
+    {
+      "id": "program.Actions.Modal_ChooseOneThatHasntBeenChosen",
+      "domain": "Actions",
+      "source": "Modal_ChooseOneThatHasntBeenChosen",
+      "arity": 1,
+      "recipe": {
+        "kind": "Modal",
+        "bounds": {
+          "kind": "Unchosen",
+          "turn": false
+        },
+        "modes": 0
+      }
+    },
+    {
       "id": "program.Actions.Modal_ChooseOneOrMore",
       "domain": "Actions",
       "source": "Modal_ChooseOneOrMore",

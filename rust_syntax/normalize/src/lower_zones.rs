@@ -159,7 +159,10 @@ impl Context {
     fn hand_card(&self, value: &source::CardInHand) -> Result<ObjectRef> {
         match value {
             source::CardInHand::ThisCardInHand => Ok(ObjectRef::Source),
-            source::CardInHand::TheCardInHandChosenThisWay if self.hand_choice.is_some() => {
+            source::CardInHand::TheCardInHandChosenThisWay
+            | source::CardInHand::TheCardChosenThisWay
+                if self.hand_choice.is_some() =>
+            {
                 Ok(ObjectRef::Result {
                     result: self.hand_choice.clone().unwrap(),
                     phase: ObjectPhase::After,

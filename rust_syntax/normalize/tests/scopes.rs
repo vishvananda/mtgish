@@ -78,7 +78,6 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         "Nether Shadow",
         "Shadow of the Grave",
         "Valiant Rescuer",
-        "Writ of Passage",
     ];
     let mut complete = 0;
     for source in sources() {
@@ -103,7 +102,7 @@ fn real_scoped_families_roundtrip_and_nested_mechanics_stay_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 83);
+    assert_eq!(complete, 84);
 }
 
 #[test]

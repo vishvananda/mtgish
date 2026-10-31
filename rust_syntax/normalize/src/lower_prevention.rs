@@ -230,6 +230,19 @@ impl Context {
     fn prevention_action(&mut self, value: &source::ActionPreventDamage) -> Result<Instruction> {
         use source::ActionPreventDamage as S;
         let change = match value {
+            S::RemoveCounters(_) | S::PutCounters(_) => {
+                let mut inspected = crate::inspect::value(value)
+                    .map_err(|_| invalid("prevention action does not serialize"))?;
+                retag(&mut inspected, &|name: &str| match name {
+                    "ActionPreventDamage" => Some("Action"),
+                    "ActionPreventDamagePutCounters" => Some("PutCountersAction"),
+                    "ActionPreventDamageRemoveCounters" => Some("RemoveCountersAction"),
+                    _ => None,
+                });
+                let action: source::Action = crate::pipeline::source_tree::decode(&inspected)
+                    .map_err(|_| unsupported(value))?;
+                return self.action(&action, &PlayerSet::One(PlayerRef::AbilityController));
+            }
             S::PreventThatDamage => EventChange::PreventDamage,
             S::PreventSomeOfThatDamage(n) => EventChange::PreventSomeDamage(self.number(n)?),
             S::PreventAllButSomeOfThatDamage(n) => {

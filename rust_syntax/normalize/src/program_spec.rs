@@ -56,6 +56,7 @@ pub enum Bounds {
     UpToSource { argument: usize },
     RepeatSource { argument: usize },
     OneOrBothIf { argument: usize },
+    Unchosen { turn: bool },
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", deny_unknown_fields)]
@@ -159,6 +160,7 @@ impl Bounds {
             Self::OneOrBothIf { argument } => {
                 format!("ModeBounds::OneOrBothIf(source::Condition::clone(a{argument}))")
             }
+            Self::Unchosen { turn } => format!("ModeBounds::Unchosen({turn})"),
         }
     }
 }

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 44;
+pub const SCHEMA_VERSION: u32 = 45;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -455,6 +455,14 @@ pub struct ModeSelection {
     /// The target chosen decides the mode, as in "target spell or permanent",
     /// so no mode is announced even though each has its own target (601.2c).
     pub implied: bool,
+    /// Only modes not yet chosen for this ability are available.
+    pub unchosen: Option<ModeHistory>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ModeHistory {
+    ThisTurn,
+    ThisGame,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

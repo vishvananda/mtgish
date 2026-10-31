@@ -724,7 +724,7 @@ fn numeric_amount(card: &Card, index: usize) -> &Expr {
 #[test]
 fn numeric_consolidation_traverses_unsupported_actions_without_binding_them() {
     let source =
-        custom("SpellActions(ActionList([PutNumCardsFromHandOnTopOfLibraryAnyOrder(Twice(NumCardsInPlayersLibrary(You)))]))");
+        custom("SpellActions(ActionList([DiscardAllButNumberCards(Twice(NumCardsInPlayersLibrary(You)))]))");
     let stage = pipeline::Intermediate::new(&source).unwrap();
     assert!(stage.structural.rewrites.is_empty());
     assert_eq!(stage.structural.numbers.len(), 2);
@@ -1149,7 +1149,7 @@ fn selector_artifacts_and_saved_reports_require_all_registry_fingerprints() {
 fn program_structure_consolidates_even_when_a_nested_instruction_is_unknown() {
     use pipeline::programs::InstructionRecipe as R;
     let source =
-        custom("SpellActions(ActionList([MayActions([DrawACard,PutNumCardsFromHandOnTopOfLibraryAnyOrder(Integer(7))])]))");
+        custom("SpellActions(ActionList([MayActions([DrawACard,DiscardAllButNumberCards(Integer(7))])]))");
     let stage = pipeline::Intermediate::new(&source).unwrap();
     assert!(stage.final_card.is_none());
     let recipe = &stage
@@ -1165,7 +1165,7 @@ fn program_structure_consolidates_even_when_a_nested_instruction_is_unknown() {
     assert!(stage
         .diagnostics
         .iter()
-        .any(|d| d.form == "PutNumCardsFromHandOnTopOfLibraryAnyOrder"));
+        .any(|d| d.form == "DiscardAllButNumberCards"));
 }
 
 #[test]
@@ -1786,10 +1786,10 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 }
 
 #[test]
-fn schema_44_costs_roundtrip_and_reject_previous_versions_at_validation() {
+fn schema_45_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 44);
+    assert_eq!(card.schema_version, 45);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2299,4 +2299,32 @@ fn a_chosen_ability_is_a_change_after_the_choice() {
     let text = ability_json("SpellActions(ActionList([ChooseAnAbility([Flying,Haste]),CreatePermanentLayerEffectUntil(ThisPermanent,[AddAbilityVariable(TheChosenAbility)],UntilEndOfTurn)]))");
     assert!(text.contains("Action::ChooseAnAbility"), "{text}");
     assert!(text.contains("ChosenAbility"), "{text}");
+}
+
+#[test]
+fn discarding_a_chosen_card_and_returning_a_chosen_card() {
+    let text = ability_json("SpellActions(Targeted([TargetPlayer(AnyPlayer)],ActionList([PlayerAction(Ref_TargetPlayer,RevealHand),ChooseACardFromPlayersRevealedHand(AnyCard,Ref_TargetPlayer),PlayerAction(Ref_TargetPlayer,DiscardCard(TheCardInHandChosenThisWay))])))");
+    assert!(text.contains("DiscardObjects"), "{text}");
+    let text = ability_json("SpellActions(ActionList([ReturnACardFromGraveyardToBattlefield(IsCardtype(Creature),[EntersTapped])]))");
+    assert!(text.contains("ChooseObjects"), "{text}");
+}
+
+#[test]
+fn modes_can_exclude_those_already_chosen() {
+    let text = ability_json("SpellActions(Modal_ChooseOneThatHasntBeenChosenThisTurn([ActionList([DrawACard]),ActionList([GainLife(Integer(1))])]))");
+    assert!(text.contains("ThisTurn"), "{text}");
+}
+
+#[test]
+fn revealed_cards_are_counted_and_tokens_are_made_per_player() {
+    let text = ability_json("SpellActions(ActionList([RevealAnyNumberOfCardsOfTypeFromHand(AnyCard),GainLife(TheNumberOfCardsInHandRevealedThisWay)]))");
+    assert!(text.contains("CountObjects"), "{text}");
+    let text = ability_json("SpellActions(ActionList([CreateTokensForEachPlayer(Opponent,[NumberTokens(Integer(1),TreasureToken)],[])]))");
+    assert!(text.contains("ForEachPlayer"), "{text}");
+}
+
+#[test]
+fn a_prevention_shield_can_remove_counters_for_the_damage_prevented() {
+    let text = ability_json("PreventDamage(DamageWouldBeDealtToRecipient(Permanent(ThisPermanent)),[PreventThatDamage,RemoveCounters([NumberCountersOfTypeFromPermanent(TheAmountOfDamagePreventedThisWay,PTCounter(1,1),ThisPermanent)])])");
+    assert!(text.contains("RemoveCounters"), "{text}");
 }

@@ -6,7 +6,7 @@
     "EnterFlag", "ManaCost", "ManaSymbol", "ManaSymbolX", "CostReductionSymbol", "CostReductionSymbolX", "Planes", "Schemes", "SinglePlane", "SingleScheme",
     "SpellsAndAbilities", "ChoosableColor", "CreatureTypeVariable", "LandTypeVariable", "CardsInOracle",
     "TokenCopyEffects", "TokenCopyEffect", "CopyEffects", "CopyEffect", "PT", "SettableColor", "NameString",
-    "CheckHasable", "PerpetualEffect", "CounterType", "Phenomena", "SpellEffect", "FutureSpell", "Level", "GameRange", "SpreeAction", "TieredAction", "GraveyardCardEffect", "HandEffect", "ActivatedAbilityEffect", "Craftable", "AbilitySources", "MoveCountersAction", "PutCountersCost", "PregameCard", "CostReduction", "LandType", "EnchantmentType", "Color", "SimpleColor"
+    "CheckHasable", "VoteOption", "Protectable", "PerpetualEffect", "CounterType", "Phenomena", "SpellEffect", "FutureSpell", "Level", "GameRange", "SpreeAction", "TieredAction", "GraveyardCardEffect", "HandEffect", "ActivatedAbilityEffect", "Craftable", "AbilitySources", "MoveCountersAction", "PutCountersCost", "PregameCard", "CostReduction", "LandType", "EnchantmentType", "Color", "SimpleColor"
   ],
   "rules": [
     {"source": "Permanent::TheCreaturePairedWithPermanent", "text": "paired"},
@@ -253,6 +253,15 @@
     {"source": "Trigger::WhenASpellOrAbilityCausesAPlayerToDiscardACard", "text": "discard", "binds": ["player"]},
     {"source": "Trigger::WhenAPlayerPlaysACard", "text": "play", "binds": ["player"]},
     {"source": "Action::ChooseAColor", "text": "choose|chosen|choice|color"},
+    {"source": "Action::VoteForAWord", "text": "vote|votes"},
+    {"source": "Condition::MostVotesForWordIs", "text": "vote|votes"},
+    {"source": "Condition::MostVotesOrTiedForMostVotesForWordIs", "text": "vote|votes"},
+    {"source": "PermanentRule::MayBeExertedAsItAttacksWithTrigger", "text": "exert"},
+    {"source": "PermanentRule::SaddlesMountsAsThoughPowerWereGreater", "text": "saddle"},
+    {"source": "Rule::ProtectionAndDoesntRemovePermanents", "text": "protection"},
+    {"source": "ActivateModifier::Forecast", "text": "forecast"},
+    {"source": "ActivateModifier::ActivateNoMoreThanNumberTimesEachTurn", "text": "activate no more"},
+    {"source": "Permanents::TributeWasntPaid", "text": "tribute"},
     {"source": "Action::ChooseAnAbility", "text": "choose|chosen|choice|gain|gains"},
     {"source": "Action::ChooseACreatureType", "text": "choose|chosen|choice|type"},
     {"source": "Action::ChooseABasicLandType", "text": "choose|chosen|choice|type"},

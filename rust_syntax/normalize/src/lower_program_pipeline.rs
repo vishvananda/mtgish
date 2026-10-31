@@ -234,6 +234,7 @@ impl Context {
                         let amount = self.proposal().pipeline_quantity(n)?;
                         (amount.clone(), amount, true)
                     }
+                    B::Unchosen(_) => (Expr::Constant(1), Expr::Constant(1), false),
                     B::OneOrBothIf(condition) => (
                         Expr::Constant(1),
                         Expr::Conditional {
@@ -284,7 +285,13 @@ impl Context {
                         })
                     })
                     .collect::<Result<_>>()?;
+                let unchosen = match bounds {
+                    B::Unchosen(true) => Some(ModeHistory::ThisTurn),
+                    B::Unchosen(false) => Some(ModeHistory::ThisGame),
+                    _ => None,
+                };
                 self.modes = Some(ModeSelection {
+                    unchosen,
                     minimum,
                     maximum,
                     repeat,
