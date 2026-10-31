@@ -25,6 +25,15 @@ def variants(path, name):
         raise ValueError(f'invalid {name} vocabulary')
     return result
 
+def counter_kinds(path):
+    match = re.search(r'^counter_kinds! \{(.*?)^\}', path.read_text(), re.S | re.M)
+    if match is None:
+        raise ValueError(f'cannot locate counter kinds in {path}')
+    result = re.findall(r'^\s+([A-Z][A-Za-z0-9]*) = \d+,', match[1], re.M)
+    if not result or len(result) != len(set(result)):
+        raise ValueError('invalid counter vocabulary')
+    return result
+
 inputs = sorted(p for crate in ('cantrip-api', 'cantrip-state', 'cantrip-mechanics')
                 for p in (checkout / 'crates' / crate / 'src').rglob('*.rs'))
 fingerprints = {str(p.relative_to(checkout)): hashlib.sha256(p.read_bytes()).hexdigest() for p in inputs}
@@ -32,7 +41,7 @@ api_hash = hashlib.sha256(json.dumps(fingerprints, sort_keys=True, separators=('
 text = '// Cantrip vocabulary snapshot; regenerate with tools/update_cantrip_vocabulary.py.\n'
 text += '// These names are inert metadata, never behavior.\n'
 text += f'pub const API_FINGERPRINT: &str = {json.dumps(api_hash)};\n'
-vocabularies = [('SUBTYPES', variants(state / 'subtypes.rs', 'Subtype')), ('KEYWORDS', variants(state / 'vocab.rs', 'Keyword'))]
+vocabularies = [('SUBTYPES', variants(state / 'subtypes.rs', 'Subtype')), ('KEYWORDS', variants(state / 'vocab.rs', 'Keyword')), ('COUNTERS', counter_kinds(state / 'vocab.rs'))]
 for name, values in vocabularies:
     text += 'pub const ' + name + ': &[&str] = &[\n' + ''.join('    ' + json.dumps(v) + ',\n' for v in values) + '];\n'
 destination = Path(__file__).resolve().parents[1].joinpath('src/cantrip_vocab.rs')

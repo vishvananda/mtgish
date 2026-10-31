@@ -42,10 +42,13 @@ fn verify_cantrip_snapshot(checkout: &std::path::Path) {
 #[test]
 fn backend_capabilities_do_not_change_ast_coverage_or_publish_partial_code() {
     let mut kessig = card("Kessig Wolf Run");
-    kessig.abilities.remove(0);
+    let Ability::Activated { limits, .. } = &mut kessig.abilities[1] else {
+        panic!()
+    };
+    limits.activators = Some(PlayerSet::All);
     let error = cantrip::module(&kessig).unwrap_err();
-    assert!(error.path.contains("abilities[0]"));
-    assert!(error.feature.contains("boundaries"));
+    assert!(error.path.contains("abilities[1]"), "{error:?}");
+    assert_eq!(error.feature, "activation by other players");
     let root = std::env::temp_dir().join(format!("mtgish-backend-atomic-{}", std::process::id()));
     fs::create_dir_all(&root).unwrap();
     let (input, output) = (root.join("cards.ronl"), root.join("cards.rs"));
@@ -83,15 +86,15 @@ fn numeric_bounds_are_checked_before_rust_is_published() {
         .contains("numeric range"));
 }
 #[test]
-fn unsupported_trigger_guards_and_multi_mutation_groups_are_not_silently_omitted() {
+fn unsupported_limits_are_not_omitted_and_one_group_is_one_sentence() {
     let mut drake = card("Peregrine Drake");
     let Ability::Triggered { limits, .. } = &mut drake.abilities[1] else {
         panic!()
     };
-    limits.per_turn = Some(1);
+    limits.total = Some(1);
     assert_eq!(
         cantrip::module(&drake).unwrap_err().feature,
-        "trigger conditions or frequency limits"
+        "trigger total limit"
     );
 
     let mut shivan = card("Shivan Dragon");
@@ -107,10 +110,8 @@ fn unsupported_trigger_guards_and_multi_mutation_groups_are_not_silently_omitted
     body.instructions = vec![Instruction::Group(Program {
         instructions: vec![first, second],
     })];
-    assert_eq!(
-        cantrip::module(&shivan).unwrap_err().feature,
-        "grouped instruction with multiple mutations"
-    );
+    let rust = cantrip::module(&shivan).unwrap();
+    assert_eq!(rust.matches("g.end_sentence();").count(), 1);
 }
 /// Actual Cantrip core execution is an explicit integration check, so ordinary
 /// lowerer edits do not repeatedly compile the sibling workspace.
@@ -323,7 +324,7 @@ fn every_advertised_module_compiles_against_cantrip() {
     assert_eq!(report.corpus_sha256, corpus::digest(&source));
     assert_eq!(
         report.inputs,
-        corpus::input_fingerprints(&root).unwrap(),
+        mtgish_ast::pipeline::input_fingerprints(&root).unwrap(),
         "coverage report must match current lowering and generator inputs"
     );
     let lines = std::str::from_utf8(&source)
@@ -351,7 +352,31 @@ fn every_advertised_module_compiles_against_cantrip() {
     fs::write(scratch.join("Cargo.toml"), manifest).unwrap();
     let mut rust = String::from("#![allow(unused_variables,dead_code)]\n");
     let mut generated = 0;
-    for record in report.records.iter().filter(|r| r.backend_capable) {
+    // Compiling every module takes minutes. While a family is being added, an
+    // older report narrows this to what is newly capable since then.
+    let since = std::env::var_os("MTGISH_CANTRIP_SINCE").map(|path| {
+        let older: mtgish_ast::report::Report =
+            serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
+        older
+            .records
+            .iter()
+            .filter(|r| r.backend_capable)
+            .map(|r| r.line)
+            .collect::<std::collections::BTreeSet<_>>()
+    });
+    let skipped = since.as_ref().map_or(0, |older| {
+        report
+            .records
+            .iter()
+            .filter(|r| r.backend_capable && older.contains(&r.line))
+            .count()
+    });
+    let wanted = |line: usize| since.as_ref().map_or(true, |older| !older.contains(&line));
+    for record in report
+        .records
+        .iter()
+        .filter(|r| r.backend_capable && wanted(r.line))
+    {
         let parsed: OracleCard = ron::from_str(lines[record.line - 1]).unwrap();
         let card = lower::card(&parsed).unwrap();
         rust.push_str(&format!(
@@ -361,7 +386,7 @@ fn every_advertised_module_compiles_against_cantrip() {
         ));
         generated += 1;
     }
-    assert_eq!(generated, report.backend_capable);
+    assert_eq!(generated + skipped, report.backend_capable);
     assert!(generated > 0);
     fs::write(scratch.join("src/lib.rs"), rust).unwrap();
     let result = Command::new("cargo")
