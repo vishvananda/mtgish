@@ -423,17 +423,11 @@ impl Context {
         if name.starts_with("Action::Roll") {
             self.rolled = Some(result.clone());
         }
-        let operation = Operation::Primitive {
-            actor: actor.clone(),
-            name,
-            operands,
-        };
-        let yields = crate::semantics::yields(&operation);
-        if let Operation::Primitive { name, .. } = &operation {
-            if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft") {
-                self.conjured = Some(result.clone());
-            }
+        if name.starts_with("Action::Conjure") || name.starts_with("Action::Draft") {
+            self.conjured = Some(result.clone());
         }
+        let operation = crate::semantics::reduce_action(actor.clone(), name, operands);
+        let yields = crate::semantics::yields(&operation);
         match yields {
             Some("observed") => self.revealed = Some(ObjectSet::Observed(result.clone())),
             Some("exiled") => {

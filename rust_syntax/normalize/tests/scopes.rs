@@ -448,3 +448,15 @@ fn object_event_rows_reduce_and_keep_what_they_bind() {
     );
     assert!(body.contains("Pair { event: BecomesAttachedTo"), "{body}");
 }
+
+#[test]
+fn a_keyword_action_row_is_one_generic_operation_and_keeps_its_result() {
+    let body = lowered("SpellActions(ActionList([Investigate]))");
+    assert!(body.contains("Keyword { actor"), "{body}");
+    assert!(body.contains("action: Investigate"), "{body}");
+    let body = lowered(
+        "SpellActions(ActionList([Amass(Integer(2), Zombie), PutCounters([ACounterOfTypeOnPermanent(PTCounter(+1, +1), TheArmyAmassedThisWay)])]))",
+    );
+    assert!(body.contains("action: Amass"), "{body}");
+    assert!(body.contains("subtype: Some(\"Zombie\")"), "{body}");
+}

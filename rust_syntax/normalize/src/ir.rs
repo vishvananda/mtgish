@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 79;
+pub const SCHEMA_VERSION: u32 = 80;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -956,6 +956,46 @@ pub enum Operation {
         library: PlayerRef,
         constraints: Vec<SelectionConstraint>,
     },
+    /// A rules-defined action with a meaning of its own, with what it acts on.
+    /// Yields what the row it came from yields.
+    Keyword {
+        actor: PlayerSet,
+        action: KeywordAction,
+        object: Option<ObjectRef>,
+        other: Option<ObjectRef>,
+        amount: Option<Expr>,
+        subtype: Option<String>,
+    },
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum KeywordAction {
+    Transform,
+    Fight,
+    CopySpell,
+    Investigate,
+    Proliferate,
+    Amass,
+    Explore,
+    RingTempts,
+    Connive,
+    Goad,
+    Earthbend,
+    Venture,
+    ManifestDread,
+    Monstrosity,
+    Discover,
+    GainEnergy,
+    BecomeMonarch,
+    LoseGame,
+    WinGame,
+    TakeExtraTurn,
+    PhaseOut,
+    Prepare,
+    TapOrUntap,
+    ExchangeControl,
+    RollD20,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct SearchChoice {

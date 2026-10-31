@@ -1569,6 +1569,20 @@ impl<'a> Scope<'a> {
                 self.players(actor)?;
                 self.primitive(name, operands)
             }
+            Operation::Keyword {
+                actor,
+                object,
+                other,
+                amount,
+                ..
+            } => {
+                self.players(actor)?;
+                object
+                    .iter()
+                    .chain(other)
+                    .try_for_each(|o| self.object(o))?;
+                amount.iter().try_for_each(|n| self.expr(n))
+            }
             Operation::CreateDelayedTrigger {
                 event,
                 start,

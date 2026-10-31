@@ -168,10 +168,90 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
 /// primitive with no ordinary movement to read the permanent from.
 /// What a reviewed action row leaves for a later "this way" to name.
 pub fn yields(operation: &Operation) -> Option<&'static str> {
-    let Operation::Primitive { name, .. } = operation else {
-        return None;
+    let name = match operation {
+        Operation::Primitive { name, .. } => name.as_str(),
+        Operation::Keyword { action, .. } => {
+            KEYWORD_ACTIONS.iter().find(|(_, row)| row == action)?.0
+        }
+        _ => return None,
     };
     crate::primitive_spec::lookup(name)?.yields.as_deref()
+}
+
+/// Action rows that are one keyword action. Each keeps its reviewed `yields`.
+const KEYWORD_ACTIONS: &[(&str, KeywordAction)] = &[
+    ("Action::TransformPermanent", KeywordAction::Transform),
+    ("Action::Fight", KeywordAction::Fight),
+    (
+        "Action::CopySpellAndMayChooseNewTargets",
+        KeywordAction::CopySpell,
+    ),
+    ("Action::Investigate", KeywordAction::Investigate),
+    ("Action::Proliferate", KeywordAction::Proliferate),
+    ("Action::Amass", KeywordAction::Amass),
+    ("Action::ExploreWithPermanent", KeywordAction::Explore),
+    ("Action::TemptWithRing", KeywordAction::RingTempts),
+    ("Action::CreatureConnives", KeywordAction::Connive),
+    ("Action::GoadCreature", KeywordAction::Goad),
+    ("Action::Earthbend", KeywordAction::Earthbend),
+    ("Action::VentureIntoTheDungeon", KeywordAction::Venture),
+    ("Action::ManifestDread", KeywordAction::ManifestDread),
+    ("Action::Monstrosity", KeywordAction::Monstrosity),
+    ("Action::Discover", KeywordAction::Discover),
+    ("Action::GetEnergy", KeywordAction::GainEnergy),
+    ("Action::BecomeTheMonarch", KeywordAction::BecomeMonarch),
+    ("Action::LoseTheGame", KeywordAction::LoseGame),
+    ("Action::WinTheGame", KeywordAction::WinGame),
+    ("Action::TakeAnExtraTurn", KeywordAction::TakeExtraTurn),
+    ("Action::PhaseOutPermanent", KeywordAction::PhaseOut),
+    ("Action::PreparePermanent", KeywordAction::Prepare),
+    ("Action::TapOrUntapPermanent", KeywordAction::TapOrUntap),
+    ("Action::ExchangeControl", KeywordAction::ExchangeControl),
+    ("Action::RollAD20", KeywordAction::RollD20),
+];
+
+/// A row's action in generic form, or the row itself when it has none.
+pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> Operation {
+    let action = KEYWORD_ACTIONS
+        .iter()
+        .find(|(row, _)| *row == name)
+        .map(|(_, action)| *action);
+    let (object, other, amount, subtype) = match operands.as_slice() {
+        [] => (None, None, None, None),
+        [Operand::Object(object)] => (Some(object.clone()), None, None, None),
+        [Operand::Number(amount)] => (None, None, Some(amount.clone()), None),
+        [Operand::Object(object), Operand::Object(other)] => {
+            (Some(object.clone()), Some(other.clone()), None, None)
+        }
+        [Operand::Object(object), Operand::Number(amount)] => {
+            (Some(object.clone()), None, Some(amount.clone()), None)
+        }
+        [Operand::Number(amount), Operand::Vocabulary { form, .. }] => {
+            (None, None, Some(amount.clone()), Some(form.clone()))
+        }
+        _ => {
+            return Operation::Primitive {
+                actor,
+                name,
+                operands,
+            }
+        }
+    };
+    match action {
+        Some(action) => Operation::Keyword {
+            actor,
+            action,
+            object,
+            other,
+            amount,
+            subtype,
+        },
+        None => Operation::Primitive {
+            actor,
+            name,
+            operands,
+        },
+    }
 }
 
 /// A reviewed row that makes a card a later reference can read.
@@ -620,7 +700,9 @@ impl Effects {
                     | Operation::PutCounters { .. }
                     | Operation::CreateContinuousEffect { .. } => {}
                     // Its effects are unknown, so it must not read as a mana ability.
-                    Operation::Named { .. } | Operation::Primitive { .. } => self.library = true,
+                    Operation::Named { .. }
+                    | Operation::Primitive { .. }
+                    | Operation::Keyword { .. } => self.library = true,
                 },
                 Instruction::Group(p) | Instruction::Optional { body: p, .. } => self.program(p),
                 Instruction::If {

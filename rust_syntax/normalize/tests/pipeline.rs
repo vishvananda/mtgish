@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 79);
+    assert_eq!(card.schema_version, 80);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -3157,7 +3157,7 @@ fn reflexive_triggers_name_their_base_and_who_does_it() {
     assert!(text.contains("ReflexiveTrigger"), "{text}");
     assert!(text.contains("Discard") && text.contains("Draw"), "{text}");
     let text = ability_json("SpellActions(ActionList([Reflexive_RollDice_WhenYouDo(D20, ActionList([GainLife(TheDiceResult)]))]))");
-    assert!(text.contains("Action::RollAD20"), "{text}");
+    assert!(text.contains("RollD20"), "{text}");
     let text = ability_json("SpellActions(ActionList([Reflexive_PlayerSacrifices_WhenTheyDo(You, [APermanent(IsCardtype(Creature))], ActionList([DrawACard]))]))");
     assert!(text.contains("ReflexiveTrigger"), "{text}");
 }

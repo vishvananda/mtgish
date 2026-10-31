@@ -271,6 +271,23 @@ impl Inventory<'_> {
             Operation::Named { .. } => {}
             Operation::NoteObjects { objects } => self.objects(objects),
             Operation::Primitive { name, .. } => self.primitive(name),
+            Operation::Keyword {
+                actor,
+                action,
+                object,
+                other,
+                amount,
+                ..
+            } => {
+                self.form("KeywordAction", action);
+                self.players(actor);
+                for object in object.iter().chain(other) {
+                    self.object(object);
+                }
+                if let Some(amount) = amount {
+                    self.expr(amount);
+                }
+            }
             Operation::CreateDelayedTrigger {
                 event,
                 start,
