@@ -22,6 +22,26 @@ impl InspectionState {
 }
 
 impl Context {
+    /// A step that is an ordinary action sharing a name across these enums. Keeps
+    /// nothing from a failed attempt, so a row can still stand in for the step.
+    fn sibling_step(
+        &mut self,
+        step: &impl Serialize,
+        player: &PlayerRef,
+        instructions: &mut Vec<Instruction>,
+    ) -> Option<Result<()>> {
+        let action: source::Action = as_family(step, "Action")?;
+        let mut attempt = self.clone();
+        match attempt.action(&action, &PlayerSet::One(player.clone())) {
+            Ok(instruction) => {
+                *self = attempt;
+                instructions.push(instruction);
+                Some(Ok(()))
+            }
+            Err(_) => None,
+        }
+    }
+
     fn inspect_library(
         &mut self,
         player: PlayerRef,
@@ -565,6 +585,9 @@ impl Context {
                 amount: self.number(n)?,
             },
             _ => {
+                if let Some(step) = self.sibling_step(action, player, instructions) {
+                    return step;
+                }
                 let (name, operands) = self
                     .primitive("LookAtTopOfLibraryAction", action)
                     .ok_or_else(|| unsupported(action))?;

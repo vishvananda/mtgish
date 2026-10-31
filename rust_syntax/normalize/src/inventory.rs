@@ -484,6 +484,15 @@ impl Inventory<'_> {
                     self.expr(amount);
                 }
             }
+            Operation::SeparatePiles {
+                separator,
+                chooser,
+                objects,
+            } => {
+                self.player(separator);
+                self.player(chooser);
+                self.objects(objects);
+            }
             Operation::ChooseObjects {
                 player,
                 objects,

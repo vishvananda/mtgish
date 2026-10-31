@@ -1,5 +1,10 @@
 /// Reveal steps that name an inspection step differently but mean the same thing.
-const REVEAL_ALIASES: [(&str, &str); 8] = [
+const REVEAL_ALIASES: [(&str, &str); 13] = [
+    ("PutAPileIntoHand", "PutFoundCardIntoHand"),
+    ("PutTheChosenPileIntoHand", "PutFoundCardIntoHand"),
+    ("PutTheChosenCardIntoHand", "PutFoundCardIntoHand"),
+    ("PutTheChosenCardsIntoHand", "PutFoundCardIntoHand"),
+    ("PutTheChosenCardOntoTheBattlefield", "PutFoundCardOntoBattlefield"),
     ("PutTheCardFoundThisWayIntoHand", "PutFoundCardIntoHand"),
     ("PutTheCardFoundThisWayOntoTheBattlefield", "PutFoundCardOntoBattlefield"),
     ("PutTheCardsFoundThisWayIntoHand", "PutFoundCardIntoHand"),
@@ -26,6 +31,44 @@ fn look_step(
 }
 
 impl Context {
+    /// "An opponent": a player of this set, picked by the controller.
+    fn one_of(&self, players: &source::Players) -> Result<PlayerRef> {
+        Ok(PlayerRef::OneOf(Box::new(self.players(players)?)))
+    }
+    /// The chooser's pile is the found set; the other is what remains.
+    fn reveal_piles(
+        &mut self,
+        separator: PlayerRef,
+        chooser: PlayerRef,
+        state: &mut InspectionState,
+        instructions: &mut Vec<Instruction>,
+    ) {
+        let piles = self.effect(Operation::SeparatePiles {
+            separator,
+            chooser,
+            objects: state.remaining(),
+        });
+        let Instruction::Effect { result, .. } = &piles else {
+            unreachable!()
+        };
+        state.found = Some(ObjectSet::Selected(result.clone()));
+        instructions.push(piles);
+    }
+    fn reveal_move(
+        &mut self,
+        objects: ObjectSet,
+        destination: Destination,
+        state: &mut InspectionState,
+        instructions: &mut Vec<Instruction>,
+    ) {
+        let operation = Operation::Move {
+            objects,
+            destination,
+            entry: EntrySpec::default(),
+            face_down: false,
+        };
+        self.inspection_assignment(operation, state, instructions);
+    }
     /// A revealed cohort is an inspected cohort every player saw, so reveal steps
     /// share inspection's scopes for the found and remaining cards.
     fn reveal_library(
@@ -67,6 +110,94 @@ impl Context {
     ) -> Result<()> {
         use source::RevealTheTopNumberCardsOfLibraryAction as S;
         let one = || Expr::Constant(1);
+        match action {
+            S::SeperateThoseCardsIntoTwoPiles => return Ok(()),
+            S::APlayerSeparatesThoseCardsIntoTwoPiles(players) => {
+                let separator = self.one_of(players)?;
+                self.reveal_piles(separator, player.clone(), state, instructions);
+                return Ok(());
+            }
+            S::APlayerChoosesAPile(players) => {
+                let chooser = self.one_of(players)?;
+                self.reveal_piles(player.clone(), chooser, state, instructions);
+                return Ok(());
+            }
+            S::APlayerChoosesAGenericCard(players) => {
+                let chooser = self.one_of(players)?;
+                state.found = Some(self.inspection_choice(
+                    &chooser,
+                    state.remaining(),
+                    ObjectFilter::Any,
+                    Count::AsManyAsCan(one()),
+                    vec![],
+                    instructions,
+                ));
+                return Ok(());
+            }
+            S::APlayerChoosesACardOfType(players, cards) => {
+                let chooser = self.one_of(players)?;
+                let filter = self.card_filter(cards)?;
+                state.found = Some(self.inspection_choice(
+                    &chooser,
+                    state.remaining(),
+                    filter,
+                    Count::AsManyAsCan(one()),
+                    vec![],
+                    instructions,
+                ));
+                return Ok(());
+            }
+            S::APlayerPutsAGenericCardIntoGraveyard(players)
+            | S::APlayerPutsNumberGenericCardsIntoGraveyard(players, _)
+            | S::APlayerExilesACardOfType(players, _) => {
+                let chooser = self.one_of(players)?;
+                let amount = match action {
+                    S::APlayerPutsNumberGenericCardsIntoGraveyard(_, n) => self.number(n)?,
+                    _ => one(),
+                };
+                let (filter, destination) = match action {
+                    S::APlayerExilesACardOfType(_, cards) => {
+                        (self.card_filter(cards)?, Destination::Exile)
+                    }
+                    _ => (ObjectFilter::Any, Destination::OwnersGraveyard),
+                };
+                let objects = self.inspection_choice(
+                    &chooser,
+                    state.remaining(),
+                    filter,
+                    Count::AsManyAsCan(amount),
+                    vec![],
+                    instructions,
+                );
+                self.reveal_move(objects, destination, state, instructions);
+                return Ok(());
+            }
+            S::PutTheChosenCardIntoGraveyard => {
+                let objects = state
+                    .found
+                    .clone()
+                    .ok_or_else(|| invalid("inspection has no preceding found-card choice"))?;
+                self.reveal_move(objects, Destination::OwnersGraveyard, state, instructions);
+                return Ok(());
+            }
+            S::MayPutMultipleCardsOfTypeIntoHand(cards) => {
+                let filters = cards
+                    .iter()
+                    .map(|cards| self.card_filter(cards))
+                    .collect::<Result<Vec<_>>>()?;
+                let objects = self.inspection_choice(
+                    player,
+                    state.remaining(),
+                    ObjectFilter::Any,
+                    Count::UpTo(Expr::Constant(filters.len() as i64)),
+                    vec![SelectionConstraint::OneForEach(filters)],
+                    instructions,
+                );
+                self.reveal_move(objects, Destination::OwnersHand, state, instructions);
+                return Ok(());
+            }
+            _ => {}
+        }
         let (filter, count, to_battlefield) = match action {
             S::PutEachCardOfTypeIntoHand(f) => (f, None, None),
             S::PutEachCardOfTypeOntoTheBattlefield(f, flags) => (f, None, Some(flags)),
@@ -97,7 +228,11 @@ impl Context {
                 return Ok(());
             }
             _ => {
-                let step = look_step(action).ok_or_else(|| unsupported(action))?;
+                let Some(step) = look_step(action) else {
+                    return self
+                        .sibling_step(action, player, instructions)
+                        .unwrap_or_else(|| Err(unsupported(action)));
+                };
                 let library = player.clone();
                 return self.inspection_step(player, &library, state, &step, false, instructions);
             }

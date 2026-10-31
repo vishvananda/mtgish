@@ -345,7 +345,13 @@ impl Context {
                     players: PlayerSet::One(player.clone()),
                     amount: self.number(n)?,
                 },
-                _ => return Err(unsupported(action).at(format!("search[{i}]"))),
+                _ => {
+                    match self.sibling_step(action, player, instructions) {
+                        Some(step) => step.map_err(|e| e.at(format!("search[{i}]")))?,
+                        None => return Err(unsupported(action).at(format!("search[{i}]"))),
+                    }
+                    continue;
+                }
             };
             instructions.push(self.effect(operation));
         }

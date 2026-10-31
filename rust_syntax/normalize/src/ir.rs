@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 57;
+pub const SCHEMA_VERSION: u32 = 58;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -899,6 +899,13 @@ pub enum Operation {
     Named {
         actor: PlayerSet,
         form: Named,
+    },
+    /// `separator` splits `objects` into two piles and `chooser` picks one,
+    /// which is the result; the other pile is what `objects` still holds.
+    SeparatePiles {
+        separator: PlayerRef,
+        chooser: PlayerRef,
+        objects: ObjectSet,
     },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1888,6 +1895,9 @@ pub enum PlayerRef {
     Bound(Binding),
     /// The second player of a two-player event: the attacked player.
     EventOtherPlayer,
+    /// "An opponent": one of these players, picked by the controller as this
+    /// resolves.
+    OneOf(Box<PlayerSet>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

@@ -451,7 +451,7 @@ impl<'a> Scope<'a> {
             PlayerRef::AbilityController | PlayerRef::Active => Ok(()),
             PlayerRef::Chosen => Ok(()),
             PlayerRef::Primitive { name, operands } => self.primitive(name, operands),
-            PlayerRef::FirstWilling(players) => self.players(players),
+            PlayerRef::FirstWilling(players) | PlayerRef::OneOf(players) => self.players(players),
             PlayerRef::CasterOf(object)
             | PlayerRef::ControllerOf(object)
             | PlayerRef::OwnerOf(object)
@@ -1724,6 +1724,15 @@ impl<'a> Scope<'a> {
                 self.entry(entry)?;
                 Ok(())
             }
+            Operation::SeparatePiles {
+                separator,
+                chooser,
+                objects,
+            } => {
+                self.player(separator)?;
+                self.player(chooser)?;
+                self.objects(objects)
+            }
             Operation::ChooseObjects {
                 player,
                 objects,
@@ -1975,9 +1984,9 @@ impl<'a> Scope<'a> {
                             Operation::Search { .. } => ResultKind::Search,
                             Operation::PayCost { .. } => ResultKind::Payment,
                             Operation::CreateTokens { .. } => ResultKind::CreatedObjects,
-                            Operation::ChooseObjects { .. } | Operation::NoteObjects { .. } => {
-                                ResultKind::Selection
-                            }
+                            Operation::ChooseObjects { .. }
+                            | Operation::SeparatePiles { .. }
+                            | Operation::NoteObjects { .. } => ResultKind::Selection,
                             Operation::ReorderLibrary { .. }
                             | Operation::Destroy { .. }
                             | Operation::Move { .. }
@@ -2001,7 +2010,8 @@ impl<'a> Scope<'a> {
                             Operation::Search { .. }
                             | Operation::ReorderLibrary { .. }
                             | Operation::RevealUntil { .. } => Some(vec![EventZone::Library]),
-                            Operation::ChooseObjects { objects, .. } => self.known_zones(objects),
+                            Operation::ChooseObjects { objects, .. }
+                            | Operation::SeparatePiles { objects, .. } => self.known_zones(objects),
                             _ => None,
                         };
                         if let Operation::PayCost { cost, .. } = operation {

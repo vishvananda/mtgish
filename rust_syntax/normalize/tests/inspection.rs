@@ -127,7 +127,6 @@ fn effect(operation: Operation, id: u32) -> Instruction {
 #[test]
 fn real_inspection_programs_roundtrip_and_unimplemented_nested_programs_remain_diagnostics() {
     let incomplete = [
-        "Fact or Fiction",
         "Break Out",
         "Birthing Ritual",
         "Lim-Dûl's Vault",
@@ -158,7 +157,7 @@ fn real_inspection_programs_roundtrip_and_unimplemented_nested_programs_remain_d
         }
         complete += 1;
     }
-    assert_eq!(complete, 46);
+    assert_eq!(complete, 47);
 }
 
 #[test]

@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 57);
+    assert_eq!(card.schema_version, 58);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -2706,4 +2706,19 @@ fn modal_options_are_data_on_one_selection() {
     let paired = ability_json("SpellActions(Modal_IfElse(PlayerPassesFilter(You,ControlsA(IsCreatureType(Faerie))),ActionList([DrawACard]),ActionList([GainLife(Integer(1))])))");
     assert!(paired.contains("\"implied\":true"), "{paired}");
     assert!(paired.contains("\"Not\""), "{paired}");
+}
+
+#[test]
+fn a_separator_splits_what_is_left_and_the_chooser_takes_a_pile() {
+    let text = ability_json("SpellActions(ActionList([RevealTheTopNumberCardsOfLibrary(Integer(5),[APlayerSeparatesThoseCardsIntoTwoPiles(Opponent),PutAPileIntoHand,PutTheRemainingCardsIntoGraveyard])]))");
+    assert!(text.contains("SeparatePiles"), "{text}");
+    assert!(text.contains("OneOf"), "{text}");
+    assert!(text.contains("OwnersGraveyard"), "{text}");
+}
+
+#[test]
+fn an_opponents_choice_among_revealed_cards_leaves_the_rest() {
+    let text = ability_json("SpellActions(ActionList([RevealTheTopNumberCardsOfLibrary(Integer(3),[APlayerChoosesAGenericCard(Opponent),PutTheChosenCardIntoGraveyard,PutTheRemainingCardsIntoHand])]))");
+    assert!(text.contains("OneOf"), "{text}");
+    assert!(text.contains("Difference"), "{text}");
 }

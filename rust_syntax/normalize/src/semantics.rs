@@ -300,6 +300,7 @@ impl Effects {
                         self.objects.insert(result.0, (before, after));
                     }
                     Operation::ChooseObjects { objects, .. }
+                    | Operation::SeparatePiles { objects, .. }
                     | Operation::NoteObjects { objects } => {
                         let library = self.objects_library(objects);
                         self.objects.insert(result.0, (library, library));
