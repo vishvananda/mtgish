@@ -98,6 +98,10 @@ impl Context {
         use source::LookAtTopOfLibraryAction as S;
         let mut instructions = vec![];
         for (i, action) in actions.iter().enumerate() {
+            if state.found.is_some() {
+                self.found = state.found.clone();
+            }
+            self.inspected_put = state.assigned.last().cloned();
             // Continue inside each branch so its local choices and remaining
             // set never escape their declaration scope or need implicit phi IDs.
             if let S::If(condition, then)
@@ -562,7 +566,18 @@ impl Context {
             return Ok(());
         }
         if optional {
-            return Err(unsupported(action));
+            let mut body = vec![];
+            return match self.sibling_step(action, player, &mut body) {
+                Some(step) => {
+                    step?;
+                    instructions.push(Instruction::Optional {
+                        decider: player.clone(),
+                        body: Program { instructions: body },
+                    });
+                    Ok(())
+                }
+                None => Err(unsupported(action)),
+            };
         }
         let operation = match action {
             S::PutTheRemainingCardsIntoGraveyard

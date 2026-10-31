@@ -659,6 +659,15 @@ impl Context {
         if crate::semantics::singular_operation(&operation, |_| false) {
             self.singular.insert(result.0);
         }
+        self.note_done(&operation, &result);
+        if let Operation::Keyword {
+            action: KeywordAction::PhaseOut,
+            object,
+            ..
+        } = &operation
+        {
+            self.phased = object.clone();
+        }
         Some(Instruction::Effect { result, operation })
     }
 

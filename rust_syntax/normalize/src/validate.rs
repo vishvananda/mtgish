@@ -731,9 +731,10 @@ impl<'a> Scope<'a> {
                 }
             }
             ObjectSet::One(object) => self.object(object),
-            ObjectSet::Targets(slot) => {
-                self.target(slot, None, TargetKind::Object(ObjectDomain::permanent()))
-            }
+            // A loop over "any target" binds each one, player or permanent.
+            ObjectSet::Targets(slot) => self
+                .target(slot, None, TargetKind::Object(ObjectDomain::permanent()))
+                .or_else(|_| self.target(slot, None, TargetKind::DamageRecipient)),
             ObjectSet::Battlefield(filter) => self.filter(filter),
             ObjectSet::InZone { objects, .. } => self.objects(objects),
             ObjectSet::Selected(result) | ObjectSet::Unselected(result) => {

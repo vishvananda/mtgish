@@ -25,6 +25,32 @@ impl Diagnostic {
 
 type Result<T> = std::result::Result<T, Diagnostic>;
 
+/// Writes one printed card type into the steps of a loop over card types.
+fn fill_cardtype(tree: &mut serde_json::Value, card_type: &serde_json::Value) {
+    match tree {
+        serde_json::Value::Array(items) => {
+            items
+                .iter_mut()
+                .for_each(|item| fill_cardtype(item, card_type));
+        }
+        serde_json::Value::Object(fields) => {
+            if fields
+                .get("variant")
+                .is_some_and(|v| v == "IsCardtypeVariable")
+                && fields["args"]["variant"] == "EachableCardtype"
+            {
+                fields.insert("variant".into(), "IsCardtype".into());
+                fields.insert("args".into(), card_type.clone());
+                return;
+            }
+            fields
+                .values_mut()
+                .for_each(|field| fill_cardtype(field, card_type));
+        }
+        _ => {}
+    }
+}
+
 fn unsupported(value: &impl Serialize) -> Diagnostic {
     let inspected = crate::inspect::value(value).expect("source AST serialization");
     Diagnostic {
@@ -90,6 +116,8 @@ struct Context {
     /// The latest die rolled in this scope.
     rolled: Option<ResultId>,
     flipped: Option<ResultId>,
+    inspected_put: Option<ObjectSet>,
+    phased: Option<ObjectRef>,
     /// Zones the next search looks through besides a library, and whether it's "and/or".
     search_also: Vec<EventZone>,
     search_either: bool,
@@ -648,6 +676,12 @@ impl Context {
                 });
             }
             S::TheArmyAmassedThisWay => return self.result_object(self.amassed.as_ref(), 0),
+            S::ThePermanentPhasedOutThisWay => {
+                return self
+                    .phased
+                    .clone()
+                    .ok_or_else(|| invalid("nothing phased out in this scope"));
+            }
             S::ThePermanentPutOnTheBattlefieldThisWay
             | S::TheCardConjuredOntoTheBattlefieldThisWay => {
                 let token = self
@@ -663,6 +697,12 @@ impl Context {
                     });
                 }
                 if self.entered.is_none() && self.created_tokens.is_none() {
+                    if let Some(put) = &self.inspected_put {
+                        return Ok(ObjectRef::Query {
+                            objects: Box::new(put.clone()),
+                            index: 0,
+                        });
+                    }
                     self.made_here()?;
                     return Ok(ObjectRef::MadeHere);
                 }
@@ -2446,6 +2486,11 @@ impl Context {
         use source::DamageRecipient as S;
         Ok(match value {
             S::TheChosenDamageRecipient => Recipients::Chosen,
+            S::EachableTarget => Recipients::Objects(ObjectSet::One(ObjectRef::Bound(
+                self.iterated_object
+                    .clone()
+                    .ok_or_else(|| invalid("no target is being iterated"))?,
+            ))),
             S::Permanent(p) => Recipients::Objects(ObjectSet::One(self.object(p)?)),
             S::Player(p) => Recipients::Players(PlayerSet::One(self.player(p)?)),
             S::EachPermanent(p) => Recipients::Objects(self.objects(p)?),
@@ -3181,6 +3226,32 @@ impl Context {
                 let filter = self.hand_filter(cards)?;
                 let objects = self.private_cards(EventZone::Hand, actor.clone(), filter);
                 return self.for_each_object(objects, |context| {
+                    let instructions = actions
+                        .iter()
+                        .map(|action| context.action(action, actor))
+                        .collect::<Result<_>>()?;
+                    Ok(Program { instructions })
+                });
+            }
+            S::ActionForEachCardtype(types, actions) => {
+                let unsupported_here = || unsupported(value);
+                let mut instructions = Vec::new();
+                for card_type in types {
+                    let filled = crate::inspect::value(card_type).map_err(|_| unsupported_here())?;
+                    for action in actions {
+                        let mut tree =
+                            crate::inspect::value(action).map_err(|_| unsupported_here())?;
+                        fill_cardtype(&mut tree, &filled);
+                        let action: source::Action = crate::pipeline::source_tree::decode(&tree)
+                            .map_err(|_| unsupported_here())?;
+                        instructions.push(self.action(&action, actor)?);
+                    }
+                }
+                return Ok(Instruction::Group(Program { instructions }));
+            }
+            S::ActionForEachTarget(_, actions) => {
+                let slot = self.target(TargetKind::DamageRecipient, 0, 0)?;
+                return self.for_each_object(ObjectSet::Targets(slot), |context| {
                     let instructions = actions
                         .iter()
                         .map(|action| context.action(action, actor))

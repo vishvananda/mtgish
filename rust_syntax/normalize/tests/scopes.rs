@@ -1638,3 +1638,20 @@ fn flipped_heads_shared_colors_and_replaced_players() {
     );
     assert!(gore.contains("EventSubject"), "{gore}");
 }
+
+#[test]
+fn card_type_loops_target_loops_and_optional_inspection_steps() {
+    let types = lowered(
+        "SpellActions(ActionList([ActionForEachCardtype([Land, Creature], [SacrificeAPermanent(IsCardtypeVariable(EachableCardtype))])]))",
+    );
+    assert!(
+        types.contains("Land") && types.contains("Creature"),
+        "{types}"
+    );
+    assert!(!types.contains("Eachable"), "{types}");
+    let each = lowered(
+        "SpellActions(Targeted([AnyNumberOfAnyTargets], ActionList([ActionForEachTarget(Ref_AnyTargets, [Exile([TheTopCardOfLibrary], []), SpellDealsDamage(ThisSpell, ManaValueOfTheCardExiledThisWay, EachableTarget)])])))",
+    );
+    assert!(each.contains("ForEachObject"), "{each}");
+    assert!(each.contains("Bound"), "{each}");
+}

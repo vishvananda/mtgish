@@ -2442,7 +2442,7 @@
     {"source": "Action::PutAnyNumberOfCardsFromHandOntoBattlefieldAsFaceDownArtifactCreatures", "text": "down face"},
     {"source": "Action::PutAnyNumberOfCardsFromAmongExileOntoBattlefield", "text": "among onto"},
     {"source": "Action::PutAStickerOnACardInPlayersGraveyard", "text": "sticker graveyard"},
-    {"source": "Action::PutARandomCardOfTypeFromAmongTheTopNumberCardsOfLibraryIntoHand", "text": "random among"},
+    {"source": "Action::PutARandomCardOfTypeFromAmongTheTopNumberCardsOfLibraryIntoHand", "text": "random among", "yields": "hand"},
     {"source": "Action::PutACardFromOutsideGameOnTopOfLibrary", "text": "outside game"},
     {"source": "Action::PutACardFromGraveyardIntoHandExceptForGraveyardCard", "text": "graveyard hand"},
     {"source": "Action::PutACardFromEachPlayersGraveyardOntoTheBattlefield", "text": "onto battlefield"},
@@ -3018,6 +3018,7 @@
     {"source": "NameFilter::TheNamePlayerNotedForCardDuringDraft", "text": "note|noted"},
     {"source": "Permanents::IsTheFirstChosenPermanentFilter", "text": "chosen|choose"},
     {"source": "Permanent::ThisExiledPermanentCard", "text": "exiled"},
-    {"source": "ReplacementActionWouldDraw::PutTheTopCardOfTheExiledPileIntoHand", "text": "top"}
+    {"source": "ReplacementActionWouldDraw::PutTheTopCardOfTheExiledPileIntoHand", "text": "top"},
+    {"source": "Expiration::AsLongAsPlaneIsFaceUp", "text": "plane"}
   ]
 }
