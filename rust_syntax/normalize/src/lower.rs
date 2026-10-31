@@ -758,6 +758,7 @@ impl Context {
             | S::WouldDealDamage_ThatPermanent
             | S::WouldDie_ThatPermanent
             | S::WouldBeDestroyed_ThatPermanent
+            | S::WouldConnive_ThatPermanent
                 if self.event.permanent =>
             {
                 return Ok(ObjectRef::EventSubject)
@@ -856,6 +857,9 @@ impl Context {
             S::ControllerOfTargetPermanent => PlayerRef::ControllerOf(Box::new(
                 self.object(&source::Permanent::Ref_TargetPermanent)?,
             )),
+            S::ControllerOfTargetPermanent2 => PlayerRef::ControllerOf(Box::new(
+                self.object(&source::Permanent::Ref_TargetPermanent2)?,
+            )),
             S::Ref_TargetPlayer | S::Ref_TargetPlayer1 => PlayerRef::Target {
                 slot: self.target(TargetKind::Player, 0, 0)?,
                 index: 0,
@@ -917,7 +921,9 @@ impl Context {
             | S::PlayerOrControllerOfPlaneswalkerCreatureIsAttacking(p) => {
                 PlayerRef::DefendingPlayerOf(Box::new(self.object(p)?))
             }
-            S::Trigger_ControllerOfThatSource | S::WouldDealDamage_ControllerOfDamageSource
+            S::Trigger_ControllerOfThatSource
+            | S::WouldDealDamage_ControllerOfDamageSource
+            | S::Trigger_ControllerOfThoseCreatures
                 if self.event.damage_source =>
             {
                 PlayerRef::ControllerOf(Box::new(ObjectRef::Damage(DamageSubject::Source)))
@@ -2486,6 +2492,9 @@ impl Context {
         use source::DamageRecipient as S;
         Ok(match value {
             S::TheChosenDamageRecipient => Recipients::Chosen,
+            S::Trigger_ThatRecipient if self.event.damage_recipient => {
+                Recipients::Objects(ObjectSet::One(ObjectRef::Damage(DamageSubject::Recipient)))
+            }
             S::EachableTarget => Recipients::Objects(ObjectSet::One(ObjectRef::Bound(
                 self.iterated_object
                     .clone()

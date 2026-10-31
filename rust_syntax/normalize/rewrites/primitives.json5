@@ -2765,7 +2765,7 @@
     {"source": "CardsInLibrary::IsNamed", "text": "name|named"},
     {"source": "Players::IsAttackedByPlayer", "text": "attack|attacking"},
     {"source": "Action::ActionForEachDistributedAnyTarget", "text": "targets", "keeps": true},
-    {"source": "Trigger::WhenASingleCreatureAttacksWithExactlyOneOtherCreature", "text": "exactly"},
+    {"source": "Trigger::WhenASingleCreatureAttacksWithExactlyOneOtherCreature", "text": "exactly", "binds": ["other"]},
     {"source": "PlayerEffect::MayPlayExiledCardsWithoutPaying", "text": "paying"},
     {"source": "PlayerEffect::MayPlayExiledCardsAndMaySpendManaAsThoughAnyTypeToCast", "text": "exiled"},
     {"source": "PlayerEffect::MayPlayExiledCardWithEffect", "text": "exiled"},

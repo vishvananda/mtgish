@@ -173,13 +173,17 @@ impl Context {
                     index: 0,
                 })
             }
-            S::Trigger_ThatExiledCard if self.event.moved => Ok(ObjectRef::Query {
+            S::Trigger_ThatExiledCard | S::WhenAPermanentIsExiled_ThatExiledPermanent
+                if self.event.moved =>
+            {
+                Ok(ObjectRef::Query {
                 objects: Box::new(ObjectSet::InZone {
                     objects: Box::new(ObjectSet::One(ObjectRef::EventDestination)),
                     zone: EventZone::Exile,
                 }),
                 index: 0,
-            }),
+                })
+            }
             S::Ref_TargetExiledCard | S::Ref_TargetExiledCard1 => {
                 self.object_target(ObjectDomain::card(EventZone::Exile), 0)
             }

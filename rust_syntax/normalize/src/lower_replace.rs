@@ -405,6 +405,10 @@ impl Context {
                     S::Ref_AnyTarget | S::Ref_TargetPlayerOrPermanent => {
                         Recipients::Targets(self.target(TargetKind::DamageRecipient, 0, 0)?)
                     }
+                    S::Ref_AnyTargets_2 => Recipients::Target {
+                        slot: self.target(TargetKind::DamageRecipient, 0, 1)?,
+                        index: 1,
+                    },
                     _ => return Err(unsupported(&recipient)),
                 })]
             }

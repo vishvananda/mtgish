@@ -357,6 +357,13 @@ impl Context {
                     *aside = Some(found.clone());
                     continue;
                 }
+                S::SetAsideNonchosenFoundCards => {
+                    let chosen = picked
+                        .clone()
+                        .ok_or_else(|| invalid("no found card was chosen"))?;
+                    *aside = Some(ObjectSet::Unselected(chosen));
+                    continue;
+                }
                 S::Shuffle | S::ShuffleLibraryIfSearched => {
                     let shuffle = self.effect(Operation::Shuffle {
                         players: PlayerSet::One(library.clone()),

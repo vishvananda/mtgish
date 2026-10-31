@@ -1655,3 +1655,12 @@ fn card_type_loops_target_loops_and_optional_inspection_steps() {
     assert!(each.contains("ForEachObject"), "{each}");
     assert!(each.contains("Bound"), "{each}");
 }
+
+#[test]
+fn nonchosen_found_cards_are_set_aside_from_the_shuffle() {
+    let found = lowered(
+        "SpellActions(ActionList([SearchLibrary([FindNumberGroupCards(Integer(4), IsCardtype(Creature), DifferentPowers), RevealFoundCards, APlayerChoosesNumberFoundCards(Opponent, Integer(2)), SetAsideNonchosenFoundCards, Shuffle, PutSetAsideCardsIntoHand])]))",
+    );
+    assert!(found.contains("Unselected"), "{found}");
+    assert!(found.contains("excluding: Some"), "{found}");
+}
