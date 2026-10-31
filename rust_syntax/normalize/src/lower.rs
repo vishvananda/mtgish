@@ -1956,7 +1956,8 @@ impl Context {
                     filter: self.filter(filter)?,
                 }
             }
-            source::Expiration::UntilCardIsNoLongerExiled(card) => {
+            source::Expiration::UntilCardIsNoLongerExiled(card)
+            | source::Expiration::ForAsLongAsCardIsExiled(card) => {
                 Duration::WhileExiled(self.exiled_card(card)?)
             }
             source::Expiration::UntilPlayersNextEndStep(p) => Duration::UntilNext {

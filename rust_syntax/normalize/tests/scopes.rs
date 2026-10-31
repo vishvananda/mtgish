@@ -1369,3 +1369,16 @@ fn balance_and_abilities_of_sources() {
     );
     assert!(abolisher.contains("Activate(Of("), "{abolisher}");
 }
+
+#[test]
+fn dice_history_and_ability_traits() {
+    let dice = lowered(
+        "TriggerA(WhenAPlayerRollsAValueOnADie(SinglePlayer(You), GreaterThanOrEqualTo(Integer(4))), ActionList([If(TriggerDiceResultIs(GreaterThanOrEqualTo(Integer(6))), [DrawACard])]))",
+    );
+    assert!(dice.contains("EventAmount"), "{dice}");
+    assert!(!dice.contains("TriggerDiceResultIs"), "{dice}");
+    let least = lowered(
+        "SpellActions(ActionList([DrawNumberCards(MinPermanentsControlledByAPlayer(IsCardtype(Creature), AnyPlayer))]))",
+    );
+    assert!(least.contains("Minimum"), "{least}");
+}

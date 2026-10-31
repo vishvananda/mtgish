@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 110;
+pub const SCHEMA_VERSION: u32 = 111;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2480,6 +2480,7 @@ pub enum ActivationFilter {
     Either(Vec<ActivationFilter>),
     /// Abilities of a source that matches.
     Of(Box<ObjectFilter>),
+    Is(StackTrait),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum RequirementAmount {
@@ -3334,6 +3335,8 @@ pub enum KeywordFamily {
     Rampage,
     Blitz,
     LevelUp,
+    Madness,
+    Disguise,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

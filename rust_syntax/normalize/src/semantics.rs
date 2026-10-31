@@ -1401,6 +1401,8 @@ const KEYWORD_FAMILIES: &[(&str, KeywordFamily)] = &[
     ("AnyRampage", KeywordFamily::Rampage),
     ("AnyBlitz", KeywordFamily::Blitz),
     ("LevelUp", KeywordFamily::LevelUp),
+    ("AnyMadness", KeywordFamily::Madness),
+    ("Disguise", KeywordFamily::Disguise),
 ];
 
 pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
@@ -1825,6 +1827,40 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
                         event: SpellEvent::Cast,
                         players: PlayerSet::All,
                         spells: ObjectFilter::State(ObjectState::Warped),
+                    }),
+                    window: HistoryWindow::ThisTurn,
+                    measure: HistoryMeasure::Occurrences,
+                },
+                comparison: Comparison::GreaterOrEqual,
+                right: Expr::Constant(1),
+            }
+        }
+        ("Condition::TriggerDiceResultIs", [Operand::Comparison(comparison, value)]) => {
+            return Condition::Compare {
+                left: Expr::EventAmount,
+                comparison: comparison.clone(),
+                right: value.clone(),
+            }
+        }
+        (
+            "Condition::TheCardInHandPassesFilter",
+            [Operand::Object(object), Operand::Filter(filter)],
+        ) => {
+            return Condition::ObjectMatches {
+                object: object.clone(),
+                filter: filter.clone(),
+            }
+        }
+        (
+            "Players::AttackedPlayerThisTurn",
+            [Operand::Player(attacker), Operand::Player(defender)],
+        ) => {
+            return Condition::Compare {
+                left: Expr::EventHistory {
+                    event: Box::new(EventSpec::Attack {
+                        attackers: ObjectFilter::Any,
+                        by: Some(PlayerSet::One(attacker.clone())),
+                        defenders: AttackDefenders::Players(PlayerSet::One(defender.clone())),
                     }),
                     window: HistoryWindow::ThisTurn,
                     measure: HistoryMeasure::Occurrences,
@@ -4316,6 +4352,14 @@ pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
             window: HistoryWindow::ThisGame,
             measure: HistoryMeasure::Occurrences,
         },
+        (
+            "GameNumber::MinPermanentsControlledByAPlayer",
+            [Operand::Objects(objects), Operand::Players(players)],
+        ) if event_filter(objects).is_some() => among(
+            players,
+            PlayerNumber::Permanents(Box::new(event_filter(objects).unwrap())),
+            Aggregation::Minimum,
+        ),
         ("GameNumber::WouldCreateTokens_NumberTokens", []) => Expr::EventAmount,
         ("GameNumber::ManaValueOfTheCardDiscardedThisWay", [Operand::Result(result)]) => {
             property_of(

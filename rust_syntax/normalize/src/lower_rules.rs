@@ -42,6 +42,11 @@ impl Context {
         Ok(match value {
             S::AnyAbility => ActivationFilter::Any,
             S::ManaAbility => ActivationFilter::Mana,
+            S::LoyaltyAbility => ActivationFilter::Is(StackTrait::Loyalty),
+            S::NonLoyaltyAbility => {
+                ActivationFilter::Not(Box::new(ActivationFilter::Is(StackTrait::Loyalty)))
+            }
+            S::HasTapSelfInCost => ActivationFilter::Is(StackTrait::TapSymbolInCost),
             S::AbilityOfAPermanent(sources) => {
                 ActivationFilter::Of(Box::new(self.filter(sources)?))
             }

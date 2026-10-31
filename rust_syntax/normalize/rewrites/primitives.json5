@@ -2921,6 +2921,16 @@
     {"source": "Permanents::ThePermanentsAffectedThisWay", "text": "this"},
     {"source": "Player::TheFirstPlayerChosenThisWay", "text": "choose|chooses|chosen"},
     {"source": "Condition::APermanentWasChosenThisWay", "text": "choose|chooses|chosen"},
-    {"source": "Action::DiscardAllButNumberCards", "text": "discard"}
+    {"source": "Action::DiscardAllButNumberCards", "text": "discard"},
+    {"source": "Condition::TriggerDiceResultIs", "text": "roll|rolled"},
+    {"source": "Condition::TheCardInHandPassesFilter", "text": "if|is"},
+    {"source": "Condition::AllVotesWereForWord", "text": "chose|vote|votes|voted"},
+    {"source": "CheckHasable::AnyMadness", "text": "madness"},
+    {"source": "CheckHasable::Disguise", "text": "disguise"},
+    {"source": "GameNumber::MinPermanentsControlledByAPlayer", "text": "fewest|less|lesser|least"},
+    {"source": "PlayerEffect::CantPlayCardsFromHand", "text": "hand"},
+    {"source": "PlayerEffect::PlaysWithCardInHandRevealed", "text": "reveal|revealed"},
+    {"source": "PlayerEffect::CantAttackPlayerOrPlaneswalkerControlledBy", "text": "attack"},
+    {"source": "Players::AttackedPlayerThisTurn", "text": "attacked"}
   ]
 }

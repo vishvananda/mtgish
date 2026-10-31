@@ -1339,7 +1339,10 @@ impl Inventory<'_> {
     fn activation_filter(&mut self, f: &ActivationFilter) {
         self.form("ActivationFilter", f);
         match f {
-            ActivationFilter::Any | ActivationFilter::Mana | ActivationFilter::Cycling => {}
+            ActivationFilter::Is(_)
+            | ActivationFilter::Any
+            | ActivationFilter::Mana
+            | ActivationFilter::Cycling => {}
             ActivationFilter::Of(sources) => self.filter(sources),
             ActivationFilter::Not(f) => self.activation_filter(f),
             ActivationFilter::All(v) | ActivationFilter::Either(v) => {
