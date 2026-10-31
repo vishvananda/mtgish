@@ -625,6 +625,10 @@ impl<'a> Scope<'a> {
             PlayerRef::EnchantedBy(object) => self.object(object),
             PlayerRef::PlayerOrControllerOf(recipient) => self.recipients(recipient),
             PlayerRef::Acting | PlayerRef::GiftedPlayer => Ok(()),
+            PlayerRef::Performer(result) => match self.results.get(&result.0) {
+                Some(ResultKind::Payment | ResultKind::Selection) => Ok(()),
+                _ => Err(format!("result {} has no one who performed it", result.0)),
+            },
             PlayerRef::ClashOpponent if self.clashing => Ok(()),
             PlayerRef::ClashOpponent => Err("a clash opponent outside a clash".into()),
             PlayerRef::DeclaringPlayer if self.declaration => Ok(()),

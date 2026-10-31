@@ -3095,6 +3095,15 @@
     {"source": "Players::RolledHighestD20Value", "text": "highest"},
     {"source": "Condition::TheNumberOfCardsOfTypeInPlayersLibraryIs", "text": "library"},
     {"source": "StaticLayerEffect::IsACopyOf_TheObjectChosenToCopy", "text": "copy"},
-    {"source": "Permanent::ThePermanentCopiedThisWay", "text": "copied"}
+    {"source": "Permanent::ThePermanentCopiedThisWay", "text": "copied"},
+    {"source": "RevealTheTopNumberCardsOfLibraryAction::ForEachColorAmongPermanentsYouMayExileACardOfThatColorFoundThisWay", "text": "exile", "yields": "exiled", "keeps": true},
+    {"source": "Player::AssociatedPlayerForPermanent", "text": "creature"},
+    {"source": "Permanents::TargetsAPermanent_ThosePermanents", "text": "those"},
+    {"source": "SettableColor::TheManaColorChosenThisWay", "text": "color"},
+    {"source": "Players::Trigger_ThosePlayers", "text": "those"},
+    {"source": "Players::NumPlayersPassFilter_ThosePlayers", "text": "those"},
+    {"source": "Player::Trigger_ControllerOfThoseCreatures", "text": "opponent"},
+    {"source": "Player::SingleTargetPlayerOfSpell", "text": "target|targets"},
+    {"source": "SpellEffect::AsResolves", "text": "resolves"}
   ]
 }

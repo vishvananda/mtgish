@@ -1926,3 +1926,33 @@ fn costs_that_moved_objects_name_them_later() {
     );
     assert!(brink.contains("CostObjects"), "{brink}");
 }
+
+#[test]
+fn the_player_who_took_a_payment_is_named_by_it() {
+    let prodder = lowered(
+        "SpellActions(ActionList([AnyPlayerMayCost(Opponent, PayLife(Integer(1))), If(CostWasPaid, [PlayerAction(ThePlayerThatChoseAction, DrawACard)])]))",
+    );
+    assert!(prodder.contains("FirstWilling"), "{prodder}");
+    assert!(prodder.contains("Performer(ResultId"), "{prodder}");
+}
+
+#[test]
+fn a_search_pays_and_branches_on_its_own_die() {
+    let druid = lowered(
+        "SpellActions(ActionList([SearchLibrary([FindACardOfType(AnyCardInLibrary), RollAD20, ValueActions([ValueAction(ValueOrSmaller(9), [PutFoundCardsIntoHand]), ValueAction(ValueOrBigger(10), [PutFoundCardsOntoBattlefield([EntersTapped])])]), Shuffle])]))",
+    );
+    assert!(druid.contains("DieResult(ResultId"), "{druid}");
+    let transmute = lowered(
+        "SpellActions(ActionList([SearchLibrary([FindACardOfType(AnyCardInLibrary), MayCost(PayManaX([ManaCostX], Integer(2))), IfElse(CostWasPaid, [PutFoundCardsIntoHand], [PutFoundCardsIntoGraveyard]), Shuffle])]))",
+    );
+    assert!(transmute.contains("PayCost"), "{transmute}");
+    assert!(transmute.contains("PaymentChosen"), "{transmute}");
+}
+
+#[test]
+fn an_unless_every_payer_counts_the_refusals_once() {
+    let acererak = lowered(
+        "SpellActions(ActionList([EachPlayerMayCostAndFallback(Opponent, [PayLife(Integer(1))], [GainLife(TheNumberOfPlayersThatDidntPayCost)])]))",
+    );
+    assert!(acererak.contains("CountPlayers(Intersection"), "{acererak}");
+}

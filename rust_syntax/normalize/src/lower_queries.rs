@@ -185,6 +185,9 @@ impl Context {
                 Ok(ObjectRef::EventStackObject)
             }
             source::Spell::DecreaseSpellCost_ThatSpell if self.affected => Ok(ObjectRef::Affected),
+            source::Spell::TheSpellExiledThisWay => {
+                self.paid_object(crate::number_spec::PaymentAction::Exile)
+            }
             source::Spell::TheSpellCastThisWay => Ok(ObjectRef::Query {
                 objects: Box::new(ObjectSet::Affected(self.done(Done::Cast)?)),
                 index: 0,

@@ -354,6 +354,9 @@ impl Context {
                     vec![],
                     instructions,
                 );
+                if let ObjectSet::Selected(result) = &objects {
+                    self.performer = Some(result.clone());
+                }
                 self.reveal_move(objects, destination, state, instructions);
                 return Ok(());
             }

@@ -450,6 +450,12 @@ impl Context {
                     .ok_or_else(|| invalid("no card was found in this scope"))?;
                 any(Ok(Expr::CountObjects(Box::new(found))))
             }
+            // A token made only by a payment's branch was made if it was paid.
+            S::ATokenWasCreatedThisWay
+                if self.created_tokens.is_none() && self.payment.is_some() =>
+            {
+                Ok(Condition::PaymentChosen(self.payment.clone().unwrap()))
+            }
             S::ATokenWasCreatedThisWay => {
                 let result = self
                     .created_tokens

@@ -122,6 +122,7 @@ struct Context {
     acted_on: Option<ObjectRef>,
     /// The last object a reviewed row chose, as "the card chosen this way".
     row_choice: Option<ResultId>,
+    performer: Option<ResultId>,
     /// Results of finished loops: a later loop reads each player's own share.
     looped: std::collections::BTreeSet<u32>,
     /// Zones the next search looks through besides a library, and whether it's "and/or".
@@ -969,6 +970,16 @@ impl Context {
             }
             S::Trigger_ControllerOfThatSpell if self.event.spell => {
                 PlayerRef::ControllerOf(Box::new(ObjectRef::EventSubject))
+            }
+            // A batch names no one source, so its controller stays a reviewed read.
+            S::Trigger_ControllerOfThoseCreatures if self.event.damage => {
+                let (name, operands) = self
+                    .primitive("Player", value)
+                    .ok_or_else(|| unsupported(value))?;
+                PlayerRef::Primitive { name, operands }
+            }
+            S::ThePlayerThatChoseAction if self.performer.is_some() => {
+                PlayerRef::Performer(self.performer.clone().unwrap())
             }
             _ => return Err(unsupported(value)),
         })
@@ -2363,6 +2374,11 @@ impl Context {
                         source::SettableColor::TheChosenColor | source::SettableColor::TheChosenColors,
                     ) => {
                         vec![Change::ChosenColor { mode: ChangeMode::Add }]
+                    }
+                    S::SetColor(c @ source::SettableColor::TheManaColorChosenThisWay) => {
+                        let (name, operands) =
+                            self.primitive("SettableColor", c).ok_or_else(|| unsupported(c))?;
+                        vec![Change::Primitive { name, operands }]
                     }
                     S::SetColor(c) | S::AddColor(c) => vec![Change::Colors { mode:if matches!(value,S::SetColor(_)) {ChangeMode::Set} else {ChangeMode::Add},colors:self.fixed_colors(c)? }],
                     S::HasAllCreatureTypes => vec![Change::CreatureTypes {mode:ChangeMode::Set,types:CreatureTypeSet::All}],
@@ -4376,6 +4392,34 @@ impl Context {
                 self.created_tokens = None;
                 return Ok(offer);
             }
+            // "Unless that player": one fallback that counts everyone who refused.
+            S::EachPlayerMayCostAndFallback(players, costs, fallback) => {
+                let players = self.players(players)?;
+                self.offered = Some(players.clone());
+                let offer = self.for_each_player(players, |context, each| {
+                    let PlayerSet::One(payer) = each else {
+                        return Err(invalid("a payment has one payer"));
+                    };
+                    let mut parts = vec![];
+                    for cost in costs {
+                        parts.extend(context.cost_for(cost, payer)?.parts);
+                    }
+                    let payment = context.effect(Operation::PayCost {
+                        cost: Cost { parts },
+                        player: payer.clone(),
+                        optional: true,
+                    });
+                    if let Instruction::Effect { result, .. } = &payment {
+                        context.took = Some(result.clone());
+                    }
+                    Ok(payment)
+                })?;
+                let mut instructions = vec![offer];
+                for action in fallback {
+                    instructions.push(self.action(action, actor)?);
+                }
+                return Ok(Instruction::Group(Program { instructions }));
+            }
             S::EachPlayerMayCostOrFallback(players, costs, fallback) => {
                 let players = self.players(players)?;
                 return self.for_each_player(players, |context, each| {
@@ -4420,11 +4464,13 @@ impl Context {
                 let cost = self.cost(cost);
                 self.iterated = outer;
                 self.payer = payer;
-                Operation::PayCost {
+                let payment = self.effect(Operation::PayCost {
                     player: willing,
                     cost: cost?,
                     optional: true,
-                }
+                });
+                self.performer = self.payment.clone();
+                return Ok(payment);
             }
             S::PutACardOfTypeMilledThisWayIntoHand(cards) => {
                 return self.put_from_graveyard_into_hand(
@@ -4504,7 +4550,8 @@ impl Context {
             }
             S::SpellDealsDamage(spell, n, r) | S::SpellDealsDamageCantBePrevented(spell, n, r) => {
                 if !matches!(spell.as_ref(), source::Spell::ThisSpell) {
-                    return Err(unsupported(spell));
+                    let preventable = matches!(value, S::SpellDealsDamage(_, _, _));
+                    return self.damage_each_recipient(self.spell(spell)?, n, r, preventable);
                 }
                 // The amount differs by recipient, so each is dealt its own.
                 if let (true, source::DamageRecipient::EachPermanent(permanents)) = (

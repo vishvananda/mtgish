@@ -253,7 +253,22 @@ impl Context {
             S::WhenASpellDealsDamageToAPermanent(s, p) => {
                 event.source_kind = ObjectKind::Spell;
                 event.sources = self.spell_filter(s)?;
-                event.recipients = DamageRecipients::Objects(self.filter(p)?);
+                // "That creature": the only target of the spell that dealt the damage.
+                event.recipients = DamageRecipients::Objects(match p.as_ref() {
+                    source::Permanents::SinglePermanent(single)
+                        if matches!(
+                            single.as_ref(),
+                            source::Permanent::SingleTargetPermanentOfSpell(spell)
+                                if matches!(spell.as_ref(), source::Spell::Trigger_ThatSpell)
+                        ) =>
+                    {
+                        ObjectFilter::Primitive {
+                            name: "Permanent::SingleTargetPermanentOfSpell".into(),
+                            operands: vec![],
+                        }
+                    }
+                    _ => self.filter(p)?,
+                });
             }
             S::WhenASpellDealsDamageToAPlayer(s, p) => {
                 event.source_kind = ObjectKind::Spell;

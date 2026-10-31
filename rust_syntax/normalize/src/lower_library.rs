@@ -317,6 +317,42 @@ impl Context {
                     instructions.push(branch);
                     continue;
                 }
+                S::MayCost(cost) => {
+                    let cost: source::Cost =
+                        as_family(cost, "Cost").ok_or_else(|| unsupported(cost))?;
+                    let payer = self.payer.replace(player.clone());
+                    let cost = self.cost(&cost);
+                    self.payer = payer;
+                    Operation::PayCost {
+                        cost: cost?,
+                        player: player.clone(),
+                        optional: true,
+                    }
+                }
+                S::ValueActions(cases) => {
+                    let value = self.number(&source::GameNumber::TheDiceResult)?;
+                    for source::SearchLibraryActionValueAction::ValueAction(range, steps) in cases {
+                        let mut set_aside = aside.clone();
+                        let branch = self.conditional(
+                            game_range(&value, range),
+                            |context| {
+                                let mut body = vec![];
+                                context.search_steps(
+                                    steps,
+                                    player,
+                                    library,
+                                    result,
+                                    &mut set_aside,
+                                    &mut body,
+                                )?;
+                                Ok(Program { instructions: body })
+                            },
+                            |_| Ok(Program::empty()),
+                        )?;
+                        instructions.push(branch);
+                    }
+                    continue;
+                }
                 S::RevealFoundCards => Operation::Reveal {
                     objects: found.clone(),
                 },

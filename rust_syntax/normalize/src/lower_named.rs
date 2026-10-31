@@ -1090,6 +1090,7 @@ impl Context {
         self.conjured = None;
         self.acted_on = None;
         self.row_choice = None;
+        self.performer = None;
         self.tapped = None;
         self.chosen_pile = None;
         self.found = None;
