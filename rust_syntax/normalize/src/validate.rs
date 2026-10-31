@@ -320,6 +320,7 @@ impl<'a> Scope<'a> {
             ObjectRef::Candidate if self.candidate => Ok(()),
             ObjectRef::Candidate => Err("filter candidate used outside an object predicate".into()),
             ObjectRef::Source => Ok(()),
+            ObjectRef::MadeHere => Ok(()),
             ObjectRef::KeywordHost if self.keyword_host => Ok(()),
             ObjectRef::KeywordHost => {
                 Err("keyword host used outside its keyword definition".into())
@@ -790,7 +791,7 @@ impl<'a> Scope<'a> {
     fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
             ObjectFilter::ArrivedThisTurn { .. } => Ok(()),
-            ObjectFilter::ExiledWith(object) => self.object(object),
+            ObjectFilter::ExiledWith(object) | ObjectFilter::MadeBy(object) => self.object(object),
             ObjectFilter::DealtExcessBy(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectFilter::DealtExcessBy(result) => {
                 Err(format!("result {} is unavailable", result.0))
@@ -1556,13 +1557,6 @@ impl<'a> Scope<'a> {
                 choices,
                 ..
             } => {
-                if self
-                    .open_searches
-                    .iter()
-                    .any(|p| crate::semantics::same_player(p, library))
-                {
-                    return Err("separated searches need a shared search episode".into());
-                }
                 self.player(player)?;
                 self.player(library)?;
                 if let Some(n) = top {
@@ -2270,6 +2264,7 @@ impl<'a> Scope<'a> {
                         let mut repeated = self.clone();
                         repeated.repeatable = true;
                         repeated.program(body)?;
+                        self.adopt_choices(body, &repeated);
                     }
                     Instruction::ForEachPlayer {
                         players,

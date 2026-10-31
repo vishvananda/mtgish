@@ -1013,6 +1013,8 @@ impl Context {
     fn dead_object(&self) -> Result<ObjectRef> {
         if self.event.permanent {
             Ok(ObjectRef::EventSubject)
+        } else if self.sacrificed_source {
+            Ok(ObjectRef::Source)
         } else {
             Err(invalid("this event names no dead permanent"))
         }

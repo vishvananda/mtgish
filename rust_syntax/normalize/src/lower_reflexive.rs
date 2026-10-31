@@ -166,6 +166,7 @@ impl Context {
         child.open_searches.clear();
         child.modes = None;
         let known = child.targets.len();
+        child.outer_targets = known;
         let body = child.actions(actions)?;
         self.result = child.result;
         Ok(self.effect(Operation::ReflexiveTrigger {

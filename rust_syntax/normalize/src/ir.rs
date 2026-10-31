@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 72;
+pub const SCHEMA_VERSION: u32 = 73;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1865,6 +1865,8 @@ pub enum ObjectRef {
     /// The second object of a two-object event: the host of an attachment,
     /// the crewed vehicle, the exploited creature.
     EventOther,
+    /// The object a linked ability of the source made.
+    MadeHere,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2164,6 +2166,8 @@ pub enum ObjectFilter {
     ArrivedThisTurn {
         from: Option<EventZone>,
     },
+    /// Created or put onto the battlefield by an ability of this object.
+    MadeBy(ObjectRef),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

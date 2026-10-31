@@ -9,17 +9,15 @@ impl Context {
         let objects = match self.done(done) {
             Ok(result) => ObjectSet::Transition { result, phase },
             Err(error) => {
-                let Some(binding) = Self::paid_actions(done)
+                match Self::paid_actions(done)
                     .iter()
-                    .find_map(|action| self.paid_binding(*action).ok())
-                else {
-                    return Err(error);
-                };
-                ObjectSet::CostObjects {
-                    payment: binding.payment.clone(),
-                    component: binding.component.clone(),
-                    view: CostObjectView::Performed,
-                    phase,
+                    .find_map(|action| {
+                        self.paid_set(*action, CostObjectView::Performed, phase.clone())
+                    })
+                {
+                    Some(objects) => objects,
+                    None if self.event.group => ObjectSet::EventGroup,
+                    None => return Err(error),
                 }
             }
         };

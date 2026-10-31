@@ -61,6 +61,8 @@ struct Context {
     /// Why each named form failed. Shared, so restoring a snapshot keeps entries.
     blockers: std::rc::Rc<std::cell::RefCell<Vec<Diagnostic>>>,
     targets: Vec<TargetSpec>,
+    /// Slots an enclosing announcement declared; this scope's own come after.
+    outer_targets: usize,
     modes: Option<ModeSelection>,
     result: u32,
     affected: bool,
@@ -70,6 +72,12 @@ struct Context {
     created_tokens: Option<ResultId>,
     payment: Option<ResultId>,
     paid: std::collections::BTreeMap<crate::number_spec::PaymentAction, Option<PaidBinding>>,
+    /// A reviewed row may have changed what a "this way" means.
+    forgotten: bool,
+    /// This activation's cost sacrificed the object the ability is on.
+    sacrificed_source: bool,
+    /// Every component of an action one cost does more than once.
+    paid_parts: std::collections::BTreeMap<crate::number_spec::PaymentAction, Vec<PaidBinding>>,
     /// The latest ordinary action of each kind, for "sacrificed this way".
     acted: std::collections::BTreeMap<crate::number_spec::PaymentAction, ResultId>,
     singular: std::collections::BTreeSet<u32>,
@@ -192,6 +200,12 @@ impl Done {
                 | Destination::OwnersLibraryFromTop(_)
                 | Destination::OwnersLibraryShuffled => Self::Library,
             },
+            Operation::Primitive { .. } => match crate::semantics::yields(operation)? {
+                "counters" => Self::Counters,
+                "damage" => Self::Damage,
+                "paid" => Self::Paid,
+                _ => return None,
+            },
             _ => return None,
         })
     }
@@ -207,12 +221,17 @@ impl Context {
         }
     }
     fn target(&self, kind: TargetKind, ordinal: usize, element: u16) -> Result<Slot> {
-        let found = self
-            .targets
-            .iter()
-            .filter(|t| t.kind == kind)
-            .nth(ordinal)
+        let of_kind = |slots: &'_ [TargetSpec]| {
+            slots
+                .iter()
+                .filter(|t| t.kind == kind)
+                .nth(ordinal)
+                .cloned()
+        };
+        let found = of_kind(&self.targets[self.outer_targets.min(self.targets.len())..])
+            .or_else(|| of_kind(&self.targets))
             .ok_or_else(|| invalid("reference has no target slot in this ability"))?;
+        let found = &found;
         if let Count::Exactly(Expr::Constant(n)) | Count::UpTo(Expr::Constant(n)) = &found.count {
             if i64::from(element) >= *n {
                 return Err(invalid("reference exceeds target slot cardinality"));
@@ -301,6 +320,7 @@ impl Context {
         };
         if let Some(action) = shadow {
             self.paid.insert(action, None);
+            self.paid_parts.remove(&action);
             self.acted.insert(action, result.clone());
         }
     }
@@ -334,6 +354,7 @@ impl Context {
             for part in &cost.parts {
                 if let CostPart::PlayerAction { body, .. } = part {
                     self.note_moves(body);
+                    self.did.remove(&Done::Paid);
                 }
             }
         }
@@ -343,11 +364,14 @@ impl Context {
     }
 
     fn invalidate_child_bindings(&mut self, child: &Self) {
+        self.forgotten |=
+            child.forgotten || child.entered.is_some() || child.created_tokens.is_some();
         for (action, binding) in &child.paid {
             if serde_json::to_value(self.paid.get(action)).unwrap()
                 != serde_json::to_value(Some(binding)).unwrap()
             {
                 self.paid.insert(*action, None);
+                self.paid_parts.remove(action);
             }
         }
         for (action, result) in &child.acted {
@@ -510,6 +534,10 @@ impl Context {
                         index: 0,
                     });
                 }
+                if self.entered.is_none() && self.created_tokens.is_none() {
+                    self.made_here()?;
+                    return Ok(ObjectRef::MadeHere);
+                }
                 return self.result_object(self.entered.as_ref().or(token), 0);
             }
             S::ThisPermanent | S::ThisPermanentOrThisCommandCard => {
@@ -527,10 +555,12 @@ impl Context {
                 return Ok(ObjectRef::Affected)
             }
             S::Self_It if self.candidate => return Ok(ObjectRef::Candidate),
-            S::Ref_TargetPermanent
-            | S::Ref_TargetPermanent1
-            | S::Ref_TargetPermanents_0
-            | S::RefOuter_TargetPermanent => (0, 0),
+            S::RefOuter_TargetPermanent => {
+                let mut outer = self.clone();
+                outer.outer_targets = 0;
+                return outer.object(&S::Ref_TargetPermanent);
+            }
+            S::Ref_TargetPermanent | S::Ref_TargetPermanent1 | S::Ref_TargetPermanents_0 => (0, 0),
             S::Ref_TargetPermanent2 => (1, 0),
             S::Ref_TargetPermanent3 => (2, 0),
             S::Ref_TargetPermanent4 => (3, 0),
@@ -807,14 +837,14 @@ impl Context {
             if let (None, Some((objects, _))) = (&self.entered, self.paid_entered()) {
                 return Ok(objects);
             }
-            return self
-                .entered
-                .clone()
-                .map(|result| ObjectSet::Transition {
-                    result,
+            return Ok(match (&self.entered, &self.created_tokens) {
+                (Some(result), _) => ObjectSet::Transition {
+                    result: result.clone(),
                     phase: ObjectPhase::After,
-                })
-                .ok_or_else(|| invalid("movement reference has no transition in this scope"));
+                },
+                (None, Some(result)) => ObjectSet::Created(result.clone()),
+                (None, None) => ObjectSet::Battlefield(self.made_here()?),
+            });
         }
         if let (
             source::Permanents::ThePermanentsChosenThisWay
@@ -846,11 +876,13 @@ impl Context {
             value,
             source::Permanents::TheTokensCreatedThisWay | source::Permanents::TheCreatedTokens
         ) {
-            return self
-                .created_tokens
-                .clone()
-                .map(ObjectSet::Created)
-                .ok_or_else(|| invalid("tokens-created reference has no creation in this scope"));
+            return match &self.created_tokens {
+                Some(result) => Ok(ObjectSet::Created(result.clone())),
+                None => self
+                    .made_here()
+                    .map(ObjectSet::Battlefield)
+                    .map_err(|_| invalid("tokens-created reference has no creation in this scope")),
+            };
         }
         if let source::Permanents::SinglePermanent(object) = value {
             return Ok(ObjectSet::One(self.object(object)?));
@@ -886,11 +918,90 @@ impl Context {
         })
     }
 
+    /// What this object's linked abilities made, for a reference in another ability.
+    fn made_here(&self) -> Result<ObjectFilter> {
+        if self.forgotten {
+            return Err(invalid(
+                "movement reference has no transition in this scope",
+            ));
+        }
+        Ok(ObjectFilter::MadeBy(ObjectRef::Source))
+    }
+
+    /// A trigger reading its creator's scope, firing at a turn point.
+    fn delayed_trigger(
+        &mut self,
+        value: &source::Action,
+        event: &source::FutureTrigger,
+        actions: &source::Actions,
+        actor: &PlayerSet,
+    ) -> Result<Operation> {
+        let (event, start, expires) =
+            self.future_turn(event)
+                .or_else(|error| match self.future_event(event) {
+                    Ok(event) => Ok((event, DelayedStart::Immediately, None)),
+                    Err(_) => Err(error),
+                })?;
+        let mut child = self.clone();
+        // Deferred work has its own search episode and result scope.
+        // Existing reference bindings remain captured and read-only.
+        child.open_searches.clear();
+        let source::Actions::ActionList(actions) = actions else {
+            return Err(invalid(
+                "delayed announcements need their own target/mode scope",
+            ));
+        };
+        let intervening_if = if let source::Action::CreateFutureTriggerI(_, condition, _) = value {
+            Some(child.condition(condition)?)
+        } else {
+            None
+        };
+        let body = child.action_list(actions, actor)?;
+        Ok(Operation::CreateDelayedTrigger {
+            event,
+            start,
+            expires,
+            intervening_if,
+            body,
+        })
+    }
+
+    /// A one-shot trigger with its own targets, or reading the event it waits for.
+    fn future_trigger(
+        &mut self,
+        event: &source::FutureTrigger,
+        actions: &source::Actions,
+    ) -> Result<Operation> {
+        let (event, expires) = match self.future_turn(event) {
+            Ok((event, DelayedStart::Immediately, expires)) => (event, expires),
+            Ok(_) => return Err(invalid("a future trigger waits for a later turn")),
+            Err(_) => (self.future_event(event)?, None),
+        };
+        let mut child = self.clone();
+        child.open_searches.clear();
+        child.event = crate::semantics::event_bindings(&event);
+        let known = child.targets.len();
+        child.outer_targets = known;
+        let body = child.actions(actions)?;
+        self.result = child.result;
+        Ok(Operation::CreateTrigger {
+            event,
+            duration: expires.unwrap_or(Duration::Indefinite),
+            announcement: Announcement {
+                targets: child.targets.split_off(known),
+                modes: child.modes,
+            },
+            body,
+            once: true,
+        })
+    }
+
     fn die_result(&self) -> Result<Expr> {
-        self.rolled
-            .clone()
-            .map(Expr::DieResult)
-            .ok_or_else(|| invalid("no die was rolled in this scope"))
+        match &self.rolled {
+            Some(result) => Ok(Expr::DieResult(result.clone())),
+            None if self.event.amount => Ok(Expr::EventAmount),
+            None => Err(invalid("no die was rolled in this scope")),
+        }
     }
 
     fn comparison(&self, value: &source::Comparison) -> Result<(Comparison, Expr)> {
@@ -929,6 +1040,12 @@ impl Context {
                     variable.clone(),
                 ))?;
                 return Ok(ObjectFilter::Not(Box::new(matching)));
+            }
+            source::Permanents::PutOntoBattlefieldByPermanent(permanent) => {
+                return Ok(ObjectFilter::MadeBy(self.object(permanent)?));
+            }
+            source::Permanents::TheCreatedTokens if self.created_tokens.is_none() => {
+                return self.made_here();
             }
             source::Permanents::IsNotACommander => {
                 let commander = self.filter_inner(&source::Permanents::IsACommander)?;
@@ -1121,13 +1238,7 @@ impl Context {
                 )?)),
             },
             S::NumHandCardsExiledThisWay => Expr::CountObjects(Box::new(ObjectSet::InZone {
-                objects: Box::new(ObjectSet::Transition {
-                    result: self
-                        .exiled
-                        .clone()
-                        .ok_or_else(|| invalid("exile count has no movement in this scope"))?,
-                    phase: ObjectPhase::Before,
-                }),
+                objects: Box::new(self.this_way_set(Done::Exiled, ObjectPhase::Before, None)?),
                 zone: EventZone::Hand,
             })),
             S::TheNumberOfCountersRemovedThisWay => {
@@ -1246,6 +1357,9 @@ impl Context {
             },
             S::Trigger_AmountOfCreatures if self.event.damage => {
                 Expr::CountObjects(Box::new(ObjectSet::Damage(DamageSubject::Source)))
+            }
+            S::NumPermanentsExiledThisWay if self.exiled.is_none() => {
+                self.this_way_count(Done::Exiled, ObjectPhase::Before, None)?
             }
             S::NumPermanentsExiledThisWay => {
                 if !self.exiled_permanents {
@@ -1983,14 +2097,24 @@ impl Context {
             S::PlayerOrPlaneswalkerPermanentIsAttacking(attacker) => {
                 Recipients::AttackedBy(self.object(attacker)?)
             }
-            S::Ref_AnyTarget
-            | S::Ref_AnyTarget1
-            | S::Ref_AnyTargets
-            | S::Ref_TargetPlayerOrPermanent => {
-                Recipients::Targets(self.target(TargetKind::DamageRecipient, 0, 0)?)
+            S::Ref_AnyTarget1 | S::Ref_AnyTarget2 => {
+                let position = usize::from(matches!(value, S::Ref_AnyTarget2));
+                let slots = self
+                    .targets
+                    .iter()
+                    .filter(|t| t.kind == TargetKind::DamageRecipient)
+                    .count();
+                if slots == 1 {
+                    Recipients::Target {
+                        slot: self.target(TargetKind::DamageRecipient, 0, position as u16)?,
+                        index: position as u16,
+                    }
+                } else {
+                    Recipients::Targets(self.target(TargetKind::DamageRecipient, position, 0)?)
+                }
             }
-            S::Ref_AnyTarget2 => {
-                Recipients::Targets(self.target(TargetKind::DamageRecipient, 1, 0)?)
+            S::Ref_AnyTarget | S::Ref_AnyTargets | S::Ref_TargetPlayerOrPermanent => {
+                Recipients::Targets(self.target(TargetKind::DamageRecipient, 0, 0)?)
             }
             S::Ref_AnyTargets_1 | S::Ref_AnyTargets_2 | S::Ref_AnyTargets_3 => {
                 let index = match value {
@@ -2107,6 +2231,7 @@ impl Context {
                 child.open_searches.clear();
                 child.event = crate::semantics::event_bindings(&event);
                 let known = child.targets.len();
+                child.outer_targets = known;
                 let body = child.actions(actions)?;
                 self.result = child.result;
                 Operation::CreateTrigger {
@@ -2121,33 +2246,12 @@ impl Context {
                 }
             }
             S::CreateFutureTrigger(event, actions) | S::CreateFutureTriggerI(event, _, actions) => {
-                let (event, start, expires) =
-                    self.future_turn(event)
-                        .or_else(|error| match self.future_event(event) {
-                            Ok(event) => Ok((event, DelayedStart::Immediately, None)),
-                            Err(_) => Err(error),
-                        })?;
-                let mut child = self.clone();
-                // Deferred work has its own search episode and result scope.
-                // Existing reference bindings remain captured and read-only.
-                child.open_searches.clear();
-                let source::Actions::ActionList(actions) = actions.as_ref() else {
-                    return Err(invalid(
-                        "delayed announcements need their own target/mode scope",
-                    ));
-                };
-                let intervening_if = if let S::CreateFutureTriggerI(_, condition, _) = value {
-                    Some(child.condition(condition)?)
-                } else {
-                    None
-                };
-                let body = child.action_list(actions, actor)?;
-                Operation::CreateDelayedTrigger {
-                    event,
-                    start,
-                    expires,
-                    intervening_if,
-                    body,
+                let delayed = self.delayed_trigger(value, event, actions, actor);
+                match (delayed, value) {
+                    (Err(error), S::CreateFutureTrigger(event, actions)) => {
+                        self.future_trigger(event, actions).map_err(|_| error)?
+                    }
+                    (delayed, _) => delayed?,
                 }
             }
             S::LookAtPlayersHand(p) | S::LookAtCardsOfTypeInPlayersHand(_, p) => {
@@ -2296,6 +2400,7 @@ impl Context {
                 child.open_searches.clear();
                 child.event = crate::semantics::event_bindings(&event);
                 let known = child.targets.len();
+                child.outer_targets = known;
                 let body = child.actions(actions)?;
                 self.result = child.result;
                 Operation::CreateTrigger {
@@ -2933,6 +3038,7 @@ impl Context {
                 child.open_searches.clear();
                 child.event = crate::semantics::event_bindings(&event);
                 let known = child.targets.len();
+                child.outer_targets = known;
                 let body = child.actions(actions)?;
                 self.result = child.result;
                 Operation::CreateTrigger {
@@ -3039,6 +3145,14 @@ impl Context {
                 }
                 return Ok(each);
             }
+            S::EachPlayerStartingWithMayAction(players, first, action) => {
+                let may = S::EachPlayerStartingWithAction(
+                    players.clone(),
+                    first.clone(),
+                    vec![S::MayAction(action.clone())],
+                );
+                return self.action(&may, actor);
+            }
             S::ChooseAnAction(options) => {
                 let PlayerSet::One(decider) = actor else {
                     return Err(invalid("a choice of actions needs one player"));
@@ -3141,6 +3255,7 @@ impl Context {
                     .collect::<Result<_>>()?;
                 self.result = child.result;
                 self.invalidate_child_bindings(&child);
+                self.adopt_loop(&child);
                 return Ok(Instruction::Repeatable(Program { instructions }));
             }
             S::ValueActions(value, cases) => {
@@ -5028,6 +5143,7 @@ fn bind_face(
                 for (action, _) in crate::cost_history::components(cost) {
                     if combined.insert(action, ()).is_some() {
                         context.paid.insert(action, None);
+                        context.paid_parts.remove(&action);
                     }
                 }
             }

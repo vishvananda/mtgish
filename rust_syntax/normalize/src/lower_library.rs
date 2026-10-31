@@ -308,7 +308,11 @@ impl Context {
                     }
                     continue;
                 }
-                S::DontShuffle => continue,
+                S::DontShuffle => {
+                    self.open_searches
+                        .retain(|p| !crate::semantics::same_player(p, library));
+                    continue;
+                }
                 S::PutSetAsideCardsOnTopOfLibrary => Operation::ReorderLibrary {
                     player: library.clone(),
                     library: library.clone(),

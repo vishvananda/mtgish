@@ -1783,7 +1783,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 72);
+    assert_eq!(card.schema_version, 73);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -3108,6 +3108,43 @@ fn a_chosen_power_change_is_read_where_it_applies() {
 fn ordered_dice_keep_their_positions() {
     let text = ability_json("SpellActions(ActionList([RollTwoD8AndChooseAnOrder, DrawNumberCards(TheFirstDiceResult), GainLife(TheSecondDiceResult)]))");
     assert!(text.contains(r#""DieResultAt""#), "{text}");
+    assert!(text.contains(r#""index":1"#), "{text}");
+}
+
+#[test]
+fn an_inner_target_is_not_the_outer_one() {
+    let text = ability_json("TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), Targeted([TargetPermanent(IsCardtype(Creature))], ActionList([TapPermanent(Ref_TargetPermanent), CreateFutureTrigger(AtTheBeginningOfTheNextEndStep, Targeted([TargetPermanent(IsCardtype(Land))], ActionList([PermanentDealsDamage(Ref_TargetPermanent, Integer(3), Permanent(RefOuter_TargetPermanent))])))])))");
+    assert!(text.contains("CreateTrigger"), "{text}");
+    assert!(text.contains(r#""once":true"#), "{text}");
+    let source = text.find(r#""source":{"kind":"Target""#).expect(&text);
+    assert!(text[source..].contains(r#""slot":1"#), "{text}");
+}
+
+#[test]
+fn what_a_card_made_is_read_from_its_other_abilities() {
+    let text = ability_json("TriggerA(WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([Exile([EachPermanent(TheCreatedTokens)], [])]))");
+    assert!(text.contains("MadeBy"), "{text}");
+    let text = ability_json("TriggerA(WhenAPermanentDies(PutOntoBattlefieldByPermanent(ThisPermanent)), ActionList([PutPermanentIntoItsOwnersHand(ThisPermanent)]))");
+    assert!(text.contains("MadeBy"), "{text}");
+    let text = ability_json("TriggerA(WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([Exile([Permanent(ThePermanentPutOnTheBattlefieldThisWay)], [])]))");
+    assert!(text.contains("MadeHere"), "{text}");
+}
+
+#[test]
+fn a_cost_paying_twice_reads_both_payments() {
+    let text = ability_json("Activated(And([TapPermanent(ThisPermanent), And([SacrificePermanent(ThisPermanent), SacrificeAnyNumberOfPermanents(IsCardtype(Creature))])]), ActionList([DrawNumberCards(TheNumberOfPermanentsSacrificedThisWay)]))");
+    assert!(text.contains("Union"), "{text}");
+}
+
+#[test]
+fn a_mode_reads_what_the_ability_already_did() {
+    let text = ability_json("SpellActions(ActionList([Reflexive_Exile_WhenYouDo([ACardInGraveyards(AnyCardInAnyGraveyard)], [], Modal_ChooseOne([ActionList([GainLife(ManaValueOfExiled(TheCardExiledThisWay))]), ActionList([DrawACard])]))]))");
+    assert!(text.contains(r#""object":{"kind":"Result","args":{"result":1"#), "{text}");
+}
+
+#[test]
+fn numbered_any_targets_are_read_by_position() {
+    let text = ability_json("SpellActions(Targeted([NumberAnyTargets(Integer(2))], ActionList([SpellDealsDamage(ThisSpell, Integer(3), Ref_AnyTarget1), SpellDealsDamage(ThisSpell, Integer(3), Ref_AnyTarget2)])))");
     assert!(text.contains(r#""index":1"#), "{text}");
 }
 

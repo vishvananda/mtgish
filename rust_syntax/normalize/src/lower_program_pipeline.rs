@@ -63,6 +63,9 @@ impl Context {
     /// A loop's runs add up, so what its body did reads as a set afterward.
     fn adopt_loop(&mut self, child: &Self) {
         self.did.extend(child.did.clone());
+        for (action, result) in &child.acted {
+            self.acted.insert(*action, result.clone());
+        }
         self.created_tokens = child.created_tokens.clone().or(self.created_tokens.take());
         self.entered = child.entered.clone().or(self.entered.take());
         if child.exiled.is_some() {
@@ -207,6 +210,7 @@ impl Context {
                     context.note_moves(&body);
                     if shadowing {
                         context.created_tokens = None;
+                        context.forgotten = true;
                     }
                     context.took = last_effect(&body).or(context.took.take());
                     Ok(Instruction::Optional {
@@ -366,6 +370,12 @@ impl Context {
                             result: self.result,
                             acted: self.acted.clone(),
                             singular: self.singular.clone(),
+                            did: self.did.clone(),
+                            exiled: self.exiled.clone(),
+                            exiled_permanents: self.exiled_permanents,
+                            entered: self.entered.clone(),
+                            created_tokens: self.created_tokens.clone(),
+                            rolled: self.rolled.clone(),
                             paid: self
                                 .paid
                                 .iter()

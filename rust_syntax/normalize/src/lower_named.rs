@@ -326,6 +326,10 @@ impl Context {
                 self.did.insert(Done::LifeLost, result.clone());
             }
             Some("extra_turn") => self.extra_turn = Some(result.clone()),
+            Some("damage") => {
+                self.did.insert(Done::Damage, result.clone());
+            }
+            Some("seeked") => self.seeked.push(result.clone()),
             _ => {}
         }
         if crate::semantics::singular_operation(&operation, |_| false) {
@@ -415,6 +419,7 @@ impl Context {
     /// The named action may have produced what a later "that" means, so anything
     /// bound before it could be the wrong antecedent. Later references must fail.
     fn forget_results(&mut self) {
+        self.forgotten = true;
         self.created_tokens = None;
         self.amassed = None;
         self.seeked.clear();
