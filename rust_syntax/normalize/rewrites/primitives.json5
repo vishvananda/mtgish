@@ -2940,7 +2940,7 @@
     {"source": "ReplacableEventWouldReduceLife::PlayersLifeTotalWouldBeReducedToNumberOrLess", "text": "reduced", "binds": ["player"]},
     {"source": "ReplacableEventWouldProduceMana::ASpellOrAbilityWouldProduceColoredMana", "text": "colored", "binds": ["amount"]},
     {"source": "ReplacableEventWouldPlaneswalk::APlayerWouldPlaneswalkAsAResultOfRollingThePlanarDie", "text": "planar", "binds": ["player"]},
-    {"source": "ReplacableEventWouldCounterASpell::ASpellOrAbilityWouldCounterASpell", "text": "counter", "binds": ["spell"]},
+    {"source": "ReplacableEventWouldCounterASpell::ASpellOrAbilityWouldCounterASpell", "text": "counter", "binds": ["spell", "moved"]},
     {"source": "ReplacableEventWouldPutAPermanentOnTheBattlefield::APlayerWouldPutAPermanentOnTheBattlefield", "text": "puts", "binds": ["player"]},
     {"source": "ReplacableEventWouldGainLife::ASpellOrAbilityWouldCauseItsControllerToGainLife", "text": "cause", "binds": ["amount", "player"]},
     {"source": "ReplacableEventWouldCopyASpell::APlayerWouldCopyASpellAnyNumberOfTimes", "text": "copy", "binds": ["amount"]},
@@ -3030,6 +3030,11 @@
     {"source": "EnterFlag::EntersWithNotedCounters", "text": "counters"},
     {"source": "ExileFlag::Limited", "text": "exile|exiled"},
     {"source": "ExileFlag::LimitedWithTriggerEnters", "text": "exile|exiled"},
-    {"source": "TokenFlag::EntersWithRuleEffectUntil", "text": "attack|haste|gain"}
+    {"source": "TokenFlag::EntersWithRuleEffectUntil", "text": "attack|haste|gain"},
+    {"source": "Action::ReturnPermanentOrExiledCardToOwnersHand", "text": "return hand"},
+    {"source": "Action::ExchangeAnteCardWithTopCardOfPlayersLibrary", "text": "exchange ante"},
+    {"source": "StaticLayerEffect::SetNameToTheChosenName", "text": "name"},
+    {"source": "ReplacementActionWouldEnter::EnterAsCopyOfExiled", "text": "copy"},
+    {"source": "ReplacementActionWouldEnter::EntersWithAnAbilityCounterForEachAbilityOnACardDiscardedThisWay", "text": "counter"}
   ]
 }

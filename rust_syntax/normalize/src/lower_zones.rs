@@ -161,6 +161,24 @@ impl Context {
         use source::CardInExile as S;
         match value {
             S::TheCardConjuredIntoExileThisWay => self.conjured_object(),
+            S::TheFirstCardExiledThisWay | S::TheSecondCardExiledThisWay
+                if self.exiled.is_none() && self.paid_exile().is_some() =>
+            {
+                Ok(ObjectRef::Query {
+                    objects: Box::new(self.paid_exile().unwrap().0),
+                    index: u32::from(matches!(value, S::TheSecondCardExiledThisWay)),
+                })
+            }
+            // What a replacement sends to exile instead, once it has gone there.
+            S::TheCardExiledThisWay if self.replaced_exile && self.exiled.is_none() => {
+                Ok(ObjectRef::Query {
+                    objects: Box::new(ObjectSet::InZone {
+                        objects: Box::new(ObjectSet::One(ObjectRef::EventDestination)),
+                        zone: EventZone::Exile,
+                    }),
+                    index: 0,
+                })
+            }
             S::EachableExiled if self.iterated_object.is_some() => {
                 Ok(ObjectRef::Bound(self.iterated_object.clone().unwrap()))
             }

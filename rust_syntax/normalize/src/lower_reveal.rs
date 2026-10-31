@@ -110,10 +110,10 @@ impl Context {
     ) -> Result<()> {
         use source::RevealTheTopNumberCardsOfLibraryAction as S;
         for (i, action) in actions.iter().enumerate() {
+            if state.found.is_some() {
+                self.found = state.found.clone();
+            }
             if let S::If(condition, then) | S::IfElse(condition, then, _) = action {
-                if state.found.is_some() {
-                    self.found = state.found.clone();
-                }
                 let condition = self.condition(condition)?;
                 let mut yes = then.clone();
                 yes.extend_from_slice(&actions[i + 1..]);

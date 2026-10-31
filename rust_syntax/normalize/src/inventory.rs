@@ -743,6 +743,10 @@ impl Inventory<'_> {
                     | EventChange::PreventAllButDamage(amount)
                     | EventChange::SetAmount(amount) => self.expr(amount),
                     EventChange::RedirectDamage(recipients) => self.recipients(recipients),
+                    EventChange::RedirectSomeDamage(amount, recipients) => {
+                        self.expr(amount);
+                        self.recipients(recipients);
+                    }
                     EventChange::Entry(_)
                     | EventChange::AddMana(_)
                     | EventChange::ReplaceMana(_)

@@ -127,6 +127,35 @@ impl Context {
                     objects: self.objects(p)?,
                     choose: Some(Count::Exactly(self.number(n)?)),
                 },
+                S::EntersTapped => {
+                    // Agreeing changes the entry; there is nothing else to pay.
+                    let mut child = self.clone();
+                    child.result = self.result.saturating_add(1 << 20);
+                    let tapped = child.effect(Operation::ModifyEvent {
+                        change: EventChange::SetTapped(true),
+                    });
+                    CostPart::PlayerAction {
+                        player: self.player(&source::Player::You)?,
+                        body: Program {
+                            instructions: vec![tapped],
+                        },
+                    }
+                }
+                S::ExileTwoCardsFromAmongPlayersGraveyards(c, players) => {
+                    let (entry, face_down) = self.exile_entry(&[])?;
+                    CostPart::Move {
+                        destination: Destination::Exile,
+                        selections: vec![CostObjectSelection {
+                            objects: ObjectSet::Matching {
+                                objects: Box::new(self.grave_cards(c)?),
+                                filter: ObjectFilter::OwnedBy(self.players(players)?),
+                            },
+                            choose: Some(Count::Exactly(Expr::Constant(2))),
+                        }],
+                        entry,
+                        face_down,
+                    }
+                }
                 _ => {
                     return as_family::<source::Cost>(value, "Cost")
                         .ok_or_else(|| unsupported(value))

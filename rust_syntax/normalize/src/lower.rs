@@ -183,6 +183,7 @@ struct Context {
     /// Every pick so far and who made it; `None` is each run of a player loop.
     picks: Vec<(Option<PlayerRef>, ResultId)>,
     exile_choice: Option<ResultId>,
+    replaced_exile: bool,
     grave_choice: Option<ResultId>,
     narrowed_choice: Option<ResultId>,
     extra_turn: Option<ResultId>,
@@ -3136,6 +3137,24 @@ impl Context {
                 self.exile_choice = Some(result.clone());
                 return Ok(choice);
             }
+            S::MustCost(cost) if matches!(**cost, source::Cost::ChooseAnExiledCard(_)) => {
+                let source::Cost::ChooseAnExiledCard(cards) = cost.as_ref() else {
+                    unreachable!()
+                };
+                let PlayerSet::One(player) = actor else {
+                    return Err(invalid("a payment has one payer"));
+                };
+                let choice = self.action(&S::ChooseAnExiledCard(cards.clone()), actor)?;
+                // A forced choice has nothing to decline, so it counts as paid.
+                let payment = self.effect(Operation::PayCost {
+                    cost: Cost { parts: vec![] },
+                    player: player.clone(),
+                    optional: false,
+                });
+                return Ok(Instruction::Group(Program {
+                    instructions: vec![choice, payment],
+                }));
+            }
             S::ReturnEachCardFromGraveyardToHandThatWasPutThereFromAnywhereThisTurn(cards)
             | S::ReturnEachCardFromGraveyardToHandThatWasPutThereFromBattlefieldThisTurn(cards) => {
                 let from = matches!(
@@ -4984,6 +5003,86 @@ impl Context {
                         minimum: Expr::Constant(1),
                         maximum: self.number(n)?,
                     };
+                }
+                S::TargetPermanentOrExiledCard(p, c) => {
+                    target.kind = TargetKind::Object(ObjectDomain {
+                        kind: ObjectKind::Any,
+                        zones: vec![EventZone::Battlefield, EventZone::Exile],
+                    });
+                    let in_zone = |zone| ObjectFilter::InZone(ZoneScope::Shared(zone));
+                    target.filter = ObjectFilter::Either(vec![
+                        ObjectFilter::All(vec![in_zone(EventZone::Battlefield), self.filter(p)?]),
+                        ObjectFilter::All(vec![in_zone(EventZone::Exile), self.exile_filter(c)?]),
+                    ]);
+                }
+                S::TargetAnteCard(c) => {
+                    target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Ante));
+                    target.filter = self.card_filter(c)?;
+                }
+                S::AnyTargetThatWasDealtDamageThisTurn => {
+                    target.kind = TargetKind::DamageRecipient;
+                    target.filter = self.filter(&source::Permanents::WasDealtDamageThisTurn)?;
+                    target.players = Some(self.players(&source::Players::WasDealtDamageThisTurn)?);
+                }
+                S::UptoNumberTargetPermanentsAndOrCardsInGraveyards(n, p, c) => {
+                    let limit = Count::UpTo(self.number(n)?);
+                    let mut permanents = target.clone();
+                    permanents.filter = self.filter(p)?;
+                    permanents.count = limit.clone();
+                    let shared = permanents.slot.clone();
+                    self.targets.push(permanents);
+                    target.slot = Slot(shared.0 + 1);
+                    target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
+                    target.filter = self.grave_filter(c)?;
+                    target.count = limit;
+                    target.constraints = vec![SelectionConstraint::SharesLimitWith(shared)];
+                }
+                S::UptoNumberTargetPermanentsTargetPlayerControls(n, p, players) => {
+                    let mut player = target.clone();
+                    player.kind = TargetKind::Player;
+                    player.players = Some(self.players(players)?);
+                    let slot = player.slot.clone();
+                    self.targets.push(player);
+                    target.slot = Slot(slot.0 + 1);
+                    target.filter = ObjectFilter::All(vec![
+                        self.filter(p)?,
+                        ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::Target {
+                            slot,
+                            index: 0,
+                        })),
+                    ]);
+                    target.count = Count::UpTo(self.number(n)?);
+                }
+                S::UptoOneTargetGraveyardCardOfEachCardType(c) => {
+                    use crate::mtg_types::CardType::*;
+                    let each: Vec<_> = [
+                        Artifact,
+                        Battle,
+                        Creature,
+                        Enchantment,
+                        Instant,
+                        Kindred,
+                        Land,
+                        Planeswalker,
+                        Sorcery,
+                    ]
+                    .into_iter()
+                    .map(ObjectFilter::CardType)
+                    .collect();
+                    target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
+                    target.filter = self.grave_filter(c)?;
+                    target.count = Count::UpTo(Expr::Constant(each.len() as i64));
+                    target.constraints = vec![SelectionConstraint::OneForEach(each)];
+                }
+                S::UptoNumberTargetGraveyardCardsFromList(n, list) => {
+                    let each = list
+                        .iter()
+                        .map(|c| self.grave_filter(c))
+                        .collect::<Result<Vec<_>>>()?;
+                    target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
+                    target.filter = ObjectFilter::Either(each.clone());
+                    target.count = Count::UpTo(self.number(n)?);
+                    target.constraints = vec![SelectionConstraint::OneForEach(each)];
                 }
                 _ => return Err(unsupported(value).at(format!("targets[{i}]"))),
             }

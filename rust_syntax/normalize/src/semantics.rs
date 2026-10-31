@@ -2059,6 +2059,17 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
             filter: None,
         })),
         ("SpellEffect::CantBeCast", []) => Change::Rule(RuleChange::Prohibit(ObjectAction::Cast)),
+        (
+            "LayerEffect::IsACopyOfLibraryCard",
+            [Operand::Objects(ObjectSet::Selected(result)), effects],
+        ) => Change::CopyOf {
+            object: ObjectRef::Result {
+                result: result.clone(),
+                phase: ObjectPhase::After,
+                index: 0,
+            },
+            effects: Box::new(effects.clone()),
+        },
         ("LayerEffect::IsACopyOfGraveyardCard", [Operand::Object(object), effects]) => {
             Change::CopyOf {
                 object: object.clone(),

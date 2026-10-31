@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 128;
+pub const SCHEMA_VERSION: u32 = 129;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -557,6 +557,8 @@ pub enum EventChange {
     /// The event's amount: damage, counters, life or mana.
     SetAmount(Expr),
     RedirectDamage(Recipients),
+    /// Only this much of the damage goes there, as "the next 1 damage".
+    RedirectSomeDamage(Expr, Recipients),
     SetDestination(Destination),
     /// How the entering object enters.
     Entry(EntryState),
@@ -1776,6 +1778,9 @@ pub enum SelectionConstraint {
         comparison: Comparison,
         amount: Expr,
     },
+    /// Counts against that earlier slot's limit, as "up to three target creatures
+    /// and/or creature cards in graveyards".
+    SharesLimitWith(Slot),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CardOrder {

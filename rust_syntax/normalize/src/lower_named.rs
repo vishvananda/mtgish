@@ -259,6 +259,20 @@ impl Context {
             "PlayerOrPermanent" => Operand::Recipients(Recipients::Targets(
                 self.target(TargetKind::DamageRecipient, 0, 0).ok()?,
             )),
+            "PermanentOrExiledCard" => Operand::Object(
+                self.object_target(
+                    ObjectDomain {
+                        kind: ObjectKind::Any,
+                        zones: vec![EventZone::Battlefield, EventZone::Exile],
+                    },
+                    0,
+                )
+                .ok()?,
+            ),
+            "AnteCard" => Operand::Object(
+                self.object_target(ObjectDomain::card(EventZone::Ante), 0)
+                    .ok()?,
+            ),
             "CardInGraveyards" => Operand::Object(self.grave_card(&decode(value).ok()?).ok()?),
             "CardInExile" => Operand::Object(self.exiled_card(&decode(value).ok()?).ok()?),
             "Actions" => {
@@ -901,6 +915,12 @@ impl Context {
     }
 
     fn primitive_change(&self, value: &source::LayerEffect) -> Option<Change> {
+        if let source::LayerEffect::IsACopyOfThatCard(effects) = value {
+            return self.primitive_change(&source::LayerEffect::IsACopyOfLibraryCard(
+                source::CardInLibrary::TheLibraryCardFoundThisWay,
+                effects.clone(),
+            ));
+        }
         let (name, operands) = self.primitive("LayerEffect", value)?;
         Some(crate::semantics::reduce_change(name, operands))
     }

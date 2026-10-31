@@ -1684,5 +1684,58 @@ fn entry_flags_exiled_sets_and_protection_colors_fall_back_to_rows() {
         "ReplaceWouldEnter(APermanentWouldEnterTheBattlefieldAndWasntCast(And([IsNonToken, IsCardtype(Creature)])), [ExileItInstead])",
     );
     assert!(priest.contains("Cast"), "{priest}");
-    assert!(!priest.contains("WouldEnterTheBattlefieldAndWasntCast"), "{priest}");
+    assert!(
+        !priest.contains("WouldEnterTheBattlefieldAndWasntCast"),
+        "{priest}"
+    );
+}
+
+#[test]
+fn split_target_forms_keep_each_slot_and_their_shared_limit() {
+    let angel = lowered(
+        "SpellActions(Targeted([UptoNumberTargetPermanentsAndOrCardsInGraveyards(Integer(3), IsCardtype(Creature), IsCardtype(Creature))], ActionList([Exile([EachPermanent(Ref_TargetPermanents), EachCardInGraveyards(Ref_TargetGraveyardCards)], [])])))",
+    );
+    assert!(angel.contains("SharesLimitWith(Slot(0))"), "{angel}");
+    assert!(angel.contains("slot: Slot(1)"), "{angel}");
+    let yosei = lowered(
+        "SpellActions(Targeted([UptoNumberTargetPermanentsTargetPlayerControls(Integer(5), AnyPermanent, AnyPlayer)], ActionList([PlayerAction(Ref_TargetPlayer, SkipNextUntapStep), TapEachPermanent(Ref_TargetPermanents)])))",
+    );
+    assert!(yosei.contains("ControlledBy(One(Target"), "{yosei}");
+    let venser = lowered(
+        "SpellActions(Targeted([TargetPermanentOrExiledCard(IsNonCardtype(Land), IsSuspended)], ActionList([ReturnPermanentOrExiledCardToOwnersHand(Ref_TargetPermanentOrExiledCard)])))",
+    );
+    assert!(venser.contains("zones: [Battlefield, Exile]"), "{venser}");
+    let needle = lowered(
+        "SpellActions(Targeted([AnyTargetThatWasDealtDamageThisTurn], ActionList([SpellDealsDamage(ThisSpell, Integer(1), Ref_AnyTarget)])))",
+    );
+    assert!(needle.contains("players: Some"), "{needle}");
+}
+
+#[test]
+fn replacement_costs_are_costs_or_performed_actions() {
+    let leech = lowered(
+        "ReplaceWouldUntap(APermanentWouldUntapDuringsItsControllersUntapStep(SinglePermanent(ThisPermanent)), [MustCost(RemoveCounters([ACounterOfTypeFromPermanent(PTCounter(+1, +1), ThisPermanent)]))])",
+    );
+    assert!(leech.contains("RemoveCounters"), "{leech}");
+    let tomb = lowered(
+        "ReplaceWouldDraw(APlayerWouldDrawACard(SinglePlayer(You)), [MustCost(PutAGraveyardCardOntoBattlefield(And([IsCardtype(Creature), InAPlayersGraveyard(SinglePlayer(You))]), [EntersNormally])), Unless(CostWasPaid, [LoseTheGame])])",
+    );
+    assert!(tomb.contains("PlayerAction"), "{tomb}");
+    assert!(tomb.contains("PaymentChosen"), "{tomb}");
+    let base = lowered(
+        "AsPermanentEnters(ThisPermanent, [MayCost(EntersTapped), If(CostWasPaid, [PutCounters([NumberCountersOfTypeOnPlayer(Integer(2), RadCounter, You)])])])",
+    );
+    assert!(base.contains("SetTapped(true)"), "{base}");
+}
+
+#[test]
+fn an_exiled_replacement_is_read_at_its_new_home() {
+    let replaced = lowered(
+        "ReplaceWouldPutIntoGraveyard(APermanentWouldDie(IsCardtype(Creature)), [ExileItInstead, PutCounters([ACounterOfTypeOnCardInExile(HitCounter, TheCardExiledThisWay)])])",
+    );
+    assert!(replaced.contains("EventDestination"), "{replaced}");
+    let ward = lowered(
+        "SpellActions(Targeted([AnyTarget], ActionList([CreateFutureReplaceWouldDealDamage(NextTimeDamageWouldBeDealtThisTurnToRecipient(Permanent(ThisPermanent)), [DealSomeDamageToRecipientInstead(Integer(1), Ref_AnyTarget)])])))",
+    );
+    assert!(ward.contains("RedirectSomeDamage(Constant(1)"), "{ward}");
 }

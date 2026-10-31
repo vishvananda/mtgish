@@ -280,6 +280,23 @@ impl Context {
             S::NumberCardsInGraveyards(n, c) => {
                 (self.grave_cards(c)?, Some(Count::Exactly(self.number(n)?)))
             }
+            S::NumberCardsInASingleGraveyard(n, c, players) => (
+                ObjectSet::Matching {
+                    objects: Box::new(self.grave_cards(c)?),
+                    filter: ObjectFilter::OwnedBy(self.players(players)?),
+                },
+                Some(Count::Exactly(self.number(n)?)),
+            ),
+            S::NumberOrMoreGroupPermanents(n, p, _) => {
+                (self.objects(p)?, Some(Count::AtLeast(self.number(n)?)))
+            }
+            S::ACardOfTypeMilledThisWay(c) => (
+                ObjectSet::Matching {
+                    objects: Box::new(self.this_way_set(Done::Milled, ObjectPhase::After, None)?),
+                    filter: self.library_filter(c)?,
+                },
+                Some(Count::Exactly(Expr::Constant(1))),
+            ),
             S::NumberOrMoreCardsInGraveyards(n, c) => {
                 (self.grave_cards(c)?, Some(Count::AtLeast(self.number(n)?)))
             }

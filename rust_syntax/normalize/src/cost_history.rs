@@ -96,6 +96,20 @@ pub fn singular(part: &CostPart) -> bool {
         _ => false,
     }
 }
+/// The exact number of objects one chosen selection performs, if it is fixed.
+pub fn exact_count(part: &CostPart) -> Option<i64> {
+    match part {
+        CostPart::Constrained { part, .. } => exact_count(part),
+        CostPart::Move { selections, .. } => match selections.as_slice() {
+            [CostObjectSelection {
+                choose: Some(Count::Exactly(Expr::Constant(n))),
+                ..
+            }] => Some(*n),
+            _ => None,
+        },
+        _ => None,
+    }
+}
 pub fn zone(part: &CostPart, phase: &ObjectPhase) -> Option<EventZone> {
     match part {
         CostPart::Constrained { part, .. } => zone(part, phase),

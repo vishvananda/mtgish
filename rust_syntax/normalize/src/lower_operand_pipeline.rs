@@ -163,9 +163,15 @@ impl Context {
                 };
                 let mut constraints = vec![];
                 for item in items {
-                    if let source::ExilableCost::AnyNumberOfGroupCardsInGraveyards(_, group) = item
-                    {
-                        constraints.extend(self.group_constraints(group)?);
+                    use source::ExilableCost as E;
+                    match item {
+                        E::AnyNumberOfGroupCardsInGraveyards(_, group)
+                        | E::NumberOrMoreGroupPermanents(_, _, group) => {
+                            constraints.extend(self.group_constraints(group)?);
+                        }
+                        E::NumberCardsInASingleGraveyard(..) => constraints
+                            .push(SelectionConstraint::CommonProperty(DistinctProperty::Owners)),
+                        _ => {}
                     }
                 }
                 vec![if constraints.is_empty() {

@@ -60,6 +60,22 @@ impl<'a> Scope<'a> {
             .ok_or("payment history has an invalid component path".into())
     }
     fn singular_history(&self, objects: &ObjectSet, index: u32) -> bool {
+        // "The second card exiled this way": what was performed keeps its order.
+        if let ObjectSet::CostObjects {
+            payment,
+            component,
+            view: CostObjectView::Performed,
+            phase: ObjectPhase::After,
+        } = objects
+        {
+            let count = self
+                .paid_component(payment, component)
+                .ok()
+                .and_then(crate::cost_history::exact_count);
+            if let Some(count) = count {
+                return i64::from(index) < count;
+            }
+        }
         if index != 0 {
             return false;
         }
@@ -2352,6 +2368,10 @@ impl<'a> Scope<'a> {
                     | EventChange::PreventAllButDamage(amount)
                     | EventChange::SetAmount(amount) => self.count(&Count::Exactly(amount.clone())),
                     EventChange::RedirectDamage(recipients) => self.recipients(recipients),
+                    EventChange::RedirectSomeDamage(amount, recipients) => {
+                        self.expr(amount)?;
+                        self.recipients(recipients)
+                    }
                     EventChange::Entry(state) => self.entry(&EntrySpec {
                         states: vec![state.clone()],
                         ..EntrySpec::default()
@@ -3070,7 +3090,9 @@ impl<'a> Scope<'a> {
             proposal.filter(&target.filter)?;
             proposal.selection_constraints(&target.constraints)?;
             for constraint in &target.constraints {
-                if let SelectionConstraint::DifferentFromTarget(slot) = constraint {
+                if let SelectionConstraint::DifferentFromTarget(slot)
+                | SelectionConstraint::SharesLimitWith(slot) = constraint
+                {
                     if !self.slots.contains_key(&slot.0) {
                         return Err(format!("target excludes unannounced slot {}", slot.0));
                     }

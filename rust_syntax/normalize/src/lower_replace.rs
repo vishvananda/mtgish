@@ -4,7 +4,7 @@ fn ordinary_enum(name: &str) -> Option<&'static str> {
     let family = name.strip_prefix("ReplacementAction")?;
     Some(if family.ends_with("RemoveCounters") {
         "RemoveCountersAction"
-    } else if family.ends_with("PutCounters") {
+    } else if family.ends_with("PutCounters") && family != "WouldPutCounters" {
         "PutCountersAction"
     } else if family.ends_with("LookAtTheTopNumberCardsOfLibraryAction") {
         "LookAtTopOfLibraryAction"
@@ -30,7 +30,7 @@ fn retag(value: &mut serde_json::Value, rename: &impl Fn(&str) -> Option<&'stati
 
 /// Forms that say what becomes of the event, so a body using one is explicit.
 /// A regeneration shield belongs here because it applies to the event itself.
-const EVENT_FORMS: [&str; 37] = [
+const EVENT_FORMS: [&str; 39] = [
     "SkipThisTurn",
     "SkipThisDrawStep",
     "EntersTapped",
@@ -59,6 +59,8 @@ const EVENT_FORMS: [&str; 37] = [
     "DealToCreatureOrPlaneswalkerInstead",
     "DealToAnyTargetInstead",
     "ExileItInstead",
+    "ExileSpell",
+    "DealSomeDamageToRecipientInstead",
     "PutItInOwnersHandInstead",
     "PutIntoGraveyardInstead",
     "PutItOntoTheBattlefieldInstead",
@@ -419,7 +421,20 @@ impl Context {
                     _ => return Err(unsupported(&recipient)),
                 })]
             }
-            "ExileItInstead" => vec![exile],
+            "ExileItInstead" | "ExileSpell" => {
+                self.replaced_exile = true;
+                vec![exile]
+            }
+            "DealSomeDamageToRecipientInstead" => {
+                let recipients: source::DamageRecipients = decode_step(&args[1])?;
+                let source::DamageRecipients::Ref_AnyTarget = recipients else {
+                    return Err(unsupported(&recipients));
+                };
+                vec![EventChange::RedirectSomeDamage(
+                    self.number(&decode_step::<source::GameNumber>(&args[0])?)?,
+                    Recipients::Targets(self.target(TargetKind::DamageRecipient, 0, 0)?),
+                )]
+            }
             "PutItInOwnersHandInstead" => {
                 vec![EventChange::SetDestination(Destination::OwnersHand)]
             }
@@ -601,6 +616,17 @@ impl Context {
                 retag(&mut ordinary, &ordinary_enum);
                 match crate::pipeline::source_tree::decode::<source::Action>(&ordinary) {
                     Ok(action) => self.action(&action, &PlayerSet::One(actor.clone()))?,
+                    Err(_) if matches!(variant, "MayCost" | "MustCost") => {
+                        self.replacement_payment(args, actor, variant == "MayCost")?
+                    }
+                    Err(_) if variant == "PermanentDealsDamage" => {
+                        retag(&mut ordinary, &|name| {
+                            (name == "DamageRecipients").then_some("DamageRecipient")
+                        });
+                        let action = crate::pipeline::source_tree::decode::<source::Action>(&ordinary)
+                            .map_err(|_| unsupported_step(step))?;
+                        self.action(&action, &PlayerSet::One(actor.clone()))?
+                    }
                     Err(_) => {
                         let family = step["enum"].as_str().unwrap_or_default();
                         let (name, operands) = self
@@ -614,6 +640,52 @@ impl Context {
                     }
                 }
             }
+        }))
+    }
+
+    /// A replacement's own cost forms, which are costs or plain actions to perform.
+    fn replacement_payment(
+        &mut self,
+        value: &serde_json::Value,
+        actor: &PlayerRef,
+        optional: bool,
+    ) -> Result<Instruction> {
+        let mut cost = value.clone();
+        retag(&mut cost, &|name| {
+            let family = name.strip_prefix("ReplacementAction")?;
+            Some(if family.ends_with("RemoveCounters") {
+                "RemoveCountersCost"
+            } else {
+                "Cost"
+            })
+        });
+        let cost = match crate::pipeline::source_tree::decode::<source::Cost>(&cost) {
+            Ok(cost) => self.cost_for(&cost, actor)?,
+            Err(_) => {
+                let mut action = value.clone();
+                retag(&mut action, &|name| {
+                    name.starts_with("ReplacementAction").then_some("Action")
+                });
+                let action = crate::pipeline::source_tree::decode::<source::Action>(&action)
+                    .map_err(|_| unsupported_step(value))?;
+                // Nothing outside a cost reads what happens inside it.
+                let mut child = self.clone();
+                child.result = self.result.saturating_add(1 << 20);
+                let body = child.action(&action, &PlayerSet::One(actor.clone()))?;
+                Cost {
+                    parts: vec![CostPart::PlayerAction {
+                        player: actor.clone(),
+                        body: Program {
+                            instructions: vec![body],
+                        },
+                    }],
+                }
+            }
+        };
+        Ok(self.effect(Operation::PayCost {
+            player: actor.clone(),
+            cost,
+            optional,
         }))
     }
 
