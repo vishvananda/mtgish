@@ -1664,3 +1664,12 @@ fn nonchosen_found_cards_are_set_aside_from_the_shuffle() {
     assert!(found.contains("Unselected"), "{found}");
     assert!(found.contains("excluding: Some"), "{found}");
 }
+
+#[test]
+fn divided_prevention_reads_each_share() {
+    let shields = lowered(
+        "SpellActions(TargetedDistributed([UptoNumberAnyTargets(Integer(4))], DistributeNumberAmongTargets(Integer(4)), ActionList([ActionForEachDistributedAnyTarget([CreateFuturePreventDamage(NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient(DistributedNumber, DistributedAnyTarget), [PreventThatDamage])])])))",
+    );
+    assert!(shields.contains("DistributedShare"), "{shields}");
+    assert!(shields.contains("DamageToEach"), "{shields}");
+}

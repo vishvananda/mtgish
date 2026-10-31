@@ -3268,6 +3268,14 @@ impl Context {
                     Ok(Program { instructions })
                 });
             }
+            // The shields of a divided prevention already read each target's share.
+            S::ActionForEachDistributedAnyTarget(actions) => {
+                let instructions = actions
+                    .iter()
+                    .map(|action| self.action(action, actor))
+                    .collect::<Result<_>>()?;
+                return Ok(Instruction::Group(Program { instructions }));
+            }
             S::ActionForEachSpellAndAbility(spells, actions) => {
                 let objects = ObjectSet::Zone {
                     scope: ZoneScope::Shared(EventZone::Stack),

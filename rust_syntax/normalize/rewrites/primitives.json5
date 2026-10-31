@@ -2,6 +2,8 @@
   "version": 1,
   "vocabularies": ["CounterType"],
   "terms": [
+    "PermanentRule", "PlayerEffect",
+    "PlayersAndPermanents", "AttackingPlayers", "Drawable", "PuttableOnBattlefield", "ColorAndCreatureType", "MultiCreateToken", "AnteCards", "LayerEffect", "StaticLayerEffect", "TransformAction", "AttachAction", "CreatableToken", "Commander",
     "Comparison", "ExiledCardEffect", "SpellEffect", "FutureTrigger", "PutRestriction", "SpellOrPermanentEffect", "SearchLibraryAction", "RevealTheTopNumberCardsOfLibraryAction", "LookAtTopOfLibraryAction", "LibraryRevealAction", "NamedAction", "ExileFlag", "TokenFlag",
     "CardtypeVariable", "Commanders", "CostPlayerAction", "DeckConstruction", "FaceUpDraftEffect", "ActivateModifier", "NameFilter", "CastModifier", "GroupFilter", "Letter", "ManaProduce", "ChoosableCreatureType", "MoveCountersCost", "PermanentsAndGraveyardCards", "EnterOrFaceUpAction", "FaceUpAction", "SingleDungeon", "ConspiracyDeck", "ManaSpent", "ManaSources", "LibraryCardEffect", "PregameAction", "DamageToRecipients", "AttackAssignment", "CardEffect", "AdditionalCostOption", "ActionOption",
     "Emblem", "SingleVanguard", "Plane", "CardInLibrary", "ResolveAction",
@@ -3019,6 +3021,10 @@
     {"source": "Permanents::IsTheFirstChosenPermanentFilter", "text": "chosen|choose"},
     {"source": "Permanent::ThisExiledPermanentCard", "text": "exiled"},
     {"source": "ReplacementActionWouldDraw::PutTheTopCardOfTheExiledPileIntoHand", "text": "top"},
-    {"source": "Expiration::AsLongAsPlaneIsFaceUp", "text": "plane"}
+    {"source": "Expiration::AsLongAsPlaneIsFaceUp", "text": "plane"},
+    {"source": "Condition::CastByAPlayer", "text": "cast"},
+    {"source": "Players::AttackedWithCreatureThisTurn", "text": "attacked"},
+    {"source": "Cost::WaterbendCustomX", "text": "waterbend"},
+    {"source": "Spells::SharesACardtypeWithAnExiledCard", "text": "shares"}
   ]
 }

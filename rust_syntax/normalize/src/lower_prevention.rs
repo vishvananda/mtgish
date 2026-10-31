@@ -211,6 +211,15 @@ impl Context {
         })
     }
 
+    /// Each target's share of a divided prevention shield.
+    fn distributed_prevention(&self) -> Result<(DamageRecipients, Expr)> {
+        let (_, share) = self.distribution()?;
+        let Expr::DistributedShare(slot) = &share else {
+            return Err(invalid("a distribution reads one slot's shares"));
+        };
+        Ok((DamageRecipients::Targets(slot.clone()), share.clone()))
+    }
+
     fn future_prevention(
         &self,
         value: &source::FutureEventPreventDamage,
@@ -219,12 +228,12 @@ impl Context {
         use DamageFrom as F;
         use DamageTo as T;
         let each = match value {
-            S::NextDistributedDamageThisTurn => {
-                let (_, share) = self.distribution()?;
-                let Expr::DistributedShare(slot) = &share else {
-                    return Err(invalid("a distribution reads one slot's shares"));
-                };
-                Some((DamageRecipients::Targets(slot.clone()), share.clone()))
+            S::NextDistributedDamageThisTurn => Some(self.distributed_prevention()?),
+            S::NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient(n, r)
+                if matches!(**n, source::GameNumber::DistributedNumber)
+                    && matches!(**r, source::SingleDamageRecipient::DistributedAnyTarget) =>
+            {
+                Some(self.distributed_prevention()?)
             }
             S::NextAmountOfDamageThatWouldBeDealtThisTurnToEachRecipient(n, recipients) => {
                 Some((self.each_recipient(recipients)?, self.number(n)?))
