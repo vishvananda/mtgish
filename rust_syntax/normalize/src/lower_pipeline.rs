@@ -230,8 +230,9 @@ impl Context {
                     DestinationInput::OwnersLibraryShuffled => {
                         (Destination::OwnersLibraryShuffled, EntrySpec::default())
                     }
+                    // 110.2a: a player told to put an object onto the battlefield controls it.
                     DestinationInput::BattlefieldYou => self
-                        .move_entry(&entry, self.player(&source::Player::You)?)
+                        .move_entry(&entry, self.actor_or_you(actor)?)
                         .map_err(|e| e.at("entry"))?,
                     DestinationInput::BattlefieldActor => {
                         let PlayerSet::One(player) = actor else {

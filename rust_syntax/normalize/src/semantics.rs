@@ -143,7 +143,20 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
                 ..
             }]
         ),
-        _ => yields(operation).is_some(),
+        _ => matches!(
+            yields(operation),
+            Some(
+                "observed"
+                    | "exiled"
+                    | "entered"
+                    | "hand"
+                    | "extra_turn"
+                    | "created"
+                    | "amassed"
+                    | "paid"
+                    | "graveyard"
+            )
+        ),
     }
 }
 

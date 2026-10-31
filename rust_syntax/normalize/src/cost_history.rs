@@ -26,6 +26,8 @@ pub fn action(part: &CostPart) -> Option<PaymentAction> {
         } => Some(PaymentAction::Enter),
         CostPart::RemoveCounters { .. } => Some(PaymentAction::RemoveCounters),
         CostPart::Reveal { .. } => Some(PaymentAction::Reveal),
+        CostPart::Draw { .. } => Some(PaymentAction::Draw),
+        CostPart::Mill { .. } => Some(PaymentAction::Mill),
         _ => None,
     }
 }

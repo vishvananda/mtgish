@@ -50,7 +50,7 @@
       "arity": 2,
       "expression": {
         "kind": "Binary",
-        "operation": "Subtract",
+        "operation": "Difference",
         "left": {
           "kind": "Source",
           "argument": 0

@@ -21,7 +21,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "81dc0fb1a0ad2b608b120b4df3672a5b32afffa0a3ef538cb84e3840e0d5be1d"
+    "grammars/english_grammar.json5": "083cc2fe9cebb9dedc892db9f77b65c6e0412e2bb23db2dc06c0b52cf53395ca"
   },
   "original_findings": 365,
   "resolved_findings": 170,
@@ -5397,7 +5397,7 @@
     "grammars/english_grammar-null_text.json5": "9dd2507cddbe23a725d2a652961b311928ae3f54520cc11ba722e79f5f5b6c30",
     "grammars/english_grammar-reminder_text.json5": "a57f4e77d4b46d28a18d6f4b5a7978cfef54ef49b3466a0a5db50f3b01a33082",
     "grammars/english_grammar-type_line.json5": "b0e46f298ba0e37489da8dcc74acc9139918f1058ce3cf16b7ed460dfcb74915",
-    "grammars/english_grammar.json5": "81dc0fb1a0ad2b608b120b4df3672a5b32afffa0a3ef538cb84e3840e0d5be1d",
+    "grammars/english_grammar.json5": "083cc2fe9cebb9dedc892db9f77b65c6e0412e2bb23db2dc06c0b52cf53395ca",
     "grammars/find_replace.json5": "b58cddf2b8729603e0abd05ff9ac4880e99ac791e942362490d0bf94c435be44",
     "grammars/ignore.json5": "77e86963b89f9c3a6799db9fc35f53ecd347f0a9552a1d8fb785084387708a09",
     "grammars/mtgish_grammar-counters.json5": "bf310d27bc187d3239384d1cc5b8b4e8365f1c075ab87b607b4d75b8fb71c461",
@@ -5410,7 +5410,7 @@
     "grammars/mtgish_grammar-triggers.json5": "96b070faa84d9a5cad36071d156a01e6139a8590a57f3b51a9b94fca9c1dff24",
     "grammars/mtgish_grammar-type_line.json5": "27f424e58808988f4317eacf3f6aee9ace7d360ca886e034f099e7e1c10a81ae",
     "grammars/mtgish_grammar-vote_option.json5": "93e2f2472543b1a6865d80c7d45032788759dfc365c41d5dfb0a424cd65587e3",
-    "grammars/mtgish_grammar.json5": "001e82998e01592c6908ac1a32359af5ec529c5c88a2053ba54cda6856761093",
+    "grammars/mtgish_grammar.json5": "de4acd6c8f9f583025541c2e57a1fe26eebc4c682d4a1e8f48ec151dc8a93e83",
     "grammars/short_names.json5": "dd44ee8da0d0546722fa3b83de3d042c5f147cbe7553ad8e200c3b572b2c76a3"
   },
   "reviewed_source_order": [

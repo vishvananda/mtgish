@@ -47,6 +47,7 @@ pub enum AmountOperation {
 pub enum Selection {
     Exactly { amount: Formula },
     AnyNumber,
+    OneOrMore,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", deny_unknown_fields)]
@@ -178,6 +179,7 @@ impl Selection {
         match self {
             Self::Exactly { amount } => format!("CostSelection::Exactly({})", amount.generate()),
             Self::AnyNumber => "CostSelection::AnyNumber".into(),
+            Self::OneOrMore => "CostSelection::OneOrMore".into(),
         }
     }
 }

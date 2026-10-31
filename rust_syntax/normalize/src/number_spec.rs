@@ -66,6 +66,7 @@ pub enum Formula {
 pub enum Binary {
     Add,
     Subtract,
+    Difference,
     Multiply,
     Minimum,
     Maximum,
@@ -125,6 +126,8 @@ pub enum PaymentAction {
     RemoveCounters,
     Enter,
     Reveal,
+    Draw,
+    Mill,
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum PrivateZone {

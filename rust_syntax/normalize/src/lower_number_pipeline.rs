@@ -71,6 +71,13 @@ impl Context {
                 Box::new(self.pipeline_quantity(a)?),
                 Box::new(self.pipeline_quantity(b)?),
             ),
+            Q::Difference(a, b) => {
+                let (a, b) = (self.pipeline_quantity(a)?, self.pipeline_quantity(b)?);
+                Expr::Maximum(
+                    Box::new(Expr::Subtract(Box::new(a.clone()), Box::new(b.clone()))),
+                    Box::new(Expr::Subtract(Box::new(b), Box::new(a))),
+                )
+            }
             Q::Minimum(a, b) => Expr::Minimum(
                 Box::new(self.pipeline_quantity(a)?),
                 Box::new(self.pipeline_quantity(b)?),

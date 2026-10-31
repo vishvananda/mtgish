@@ -9221,6 +9221,28 @@
    "template": "for each opponent, choose a creature that player controls. Create a token that's a copy of one of those creatures, except its power is equal to the total power of those creatures, its toughness is equal to the total toughness of those creatures, and it's a colorless {{Zombie}} creature",
    "result": "ActionList([ChooseAPermanentForEachPlayer(Opponent, And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(EachablePlayer))])), ChooseAPermanent(TheChosenPermanents), CreateTokens([TokenCopyOfPermanent(TheChosenPermanent, TokenCopyEffects([SetPT(ManualPT(TotalPowerOfPermanents(ThePermanentsChosenThisWay), TotalToughnessOfPermanents(ThePermanentsChosenThisWay))), SetColor(Colorless), SetCreatureTypes([{{Zombie[0]}}]), SetCardtypes([Creature])]))], [])])",
    "reason": "triaged 2026-10-31: reads correctly for its cards, or the pairing is a mining coincidence"
+  },
+  {
+   "id": "4627576a6596f601da813d3307b2b5ef4ac82aff957140fdafcec029b11fa2ae",
+   "kind": "mined_token",
+   "rule": "ActivatedActions(~Permanent)",
+   "token": "DealToCreatureOrPlaneswalkerInstead",
+   "word": "dealt",
+   "support": "26/28",
+   "template": "The next time this creature would deal combat damage to an opponent this turn, it deals that damage to target {{Creature}} instead",
+   "result": "Targeted([TargetPermanent({{Creature[0]}})], ActionList([CreateFutureReplaceWouldDealDamage(NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToARecipient(ThisPermanent, APlayer(Opponent)), [DealToCreatureOrPlaneswalkerInstead(Ref_TargetPermanent)])]))",
+   "reason": "triaged 2026-10-31: reads correctly for its cards, or the pairing is a mining coincidence"
+  },
+  {
+   "id": "a19dcf6895492f367a2124c35626a4d7ad39505b6eeaff9dd2e504f201399234",
+   "kind": "mined_token",
+   "rule": "TriggerActions[AddEnchantCreature](~Permanent,ThatPermanent)",
+   "token": "AddEnchantmentType",
+   "word": "enchantment",
+   "support": "6/7",
+   "template": "you may put a name sticker on it, then it becomes an Aura with enchant creature. Return a creature card from your graveyard to the battlefield and attach this Aura to it",
+   "result": "ActionList([MayAction(PutANameStickerOnPermanent(ThisPermanent)), CreatePermanentLayerEffect(ThisPermanent, [AddEnchantmentType(Aura), AddAbility([EnchantPermanent(IsCardtype(Creature))])]), PutACardFromPlayersGraveyardOnBattlefield(IsCardtype(Creature), You, [EntersNormally]), AttachPermanentToPermanent(ThisPermanent, ThePermanentPutOnTheBattlefieldThisWay)])",
+   "reason": "triaged 2026-10-31: reads correctly for its cards, or the pairing is a mining coincidence"
   }
- ]
+]
 }

@@ -8,6 +8,8 @@ pub enum Quantity {
     Source(source::GameNumber),
     Add(Box<Quantity>, Box<Quantity>),
     Subtract(Box<Quantity>, Box<Quantity>),
+    /// The larger less the smaller, in either order.
+    Difference(Box<Quantity>, Box<Quantity>),
     Multiply(Box<Quantity>, Box<Quantity>),
     Minimum(Box<Quantity>, Box<Quantity>),
     Maximum(Box<Quantity>, Box<Quantity>),

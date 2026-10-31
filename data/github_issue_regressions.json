@@ -11437,5 +11437,173 @@
     "excludes": [
       "Ref_TargetGraveyardCard5"
     ]
+  },
+  {
+    "name": "Training Drone",
+    "issues": [
+      74
+    ],
+    "contains": [
+      "Unless(PermanentPassesFilter(ThisPermanent, IsEquipped)"
+    ],
+    "excludes": [
+      "If(PermanentPassesFilter(ThisPermanent, IsEquipped)"
+    ]
+  },
+  {
+    "name": "Arvinox, the Mind Flail",
+    "issues": [
+      74
+    ],
+    "contains": [
+      "Unless("
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Shuriken",
+    "issues": [
+      74
+    ],
+    "contains": [
+      "Unless(GuestWasUnattachedFromAPermanentThisWay"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Draco",
+    "issues": [
+      74
+    ],
+    "contains": [
+      "If(CostWasntPaid, [SacrificePermanent(ThisPermanent)])"
+    ],
+    "excludes": [
+      "If(CostWasPaid, [SacrificePermanent(ThisPermanent)])"
+    ]
+  },
+  {
+    "name": "Gaea's Liege",
+    "issues": [
+      78
+    ],
+    "contains": [
+      "If(PermanentPassesFilter(ThisPermanent, IsAttacking)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Esper",
+    "issues": [
+      78
+    ],
+    "contains": [
+      "IsColor(White), IsColor(Blue), IsColor(Black)"
+    ],
+    "excludes": [
+      "IsColor(White), IsColor(White)"
+    ]
+  },
+  {
+    "name": "Waking the Trolls",
+    "issues": [
+      75
+    ],
+    "contains": [
+      "Targeted([TargetPlayer(Opponent)]"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Alacrian Armory",
+    "issues": [
+      75
+    ],
+    "contains": [
+      "UptoOneTargetPermanent(And([Or([IsCreatureType(Mount), IsArtifactType(Vehicle)]), ControlledByAPlayer(SinglePlayer(You))]))"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Davriel, Soul Broker",
+    "issues": [
+      77
+    ],
+    "contains": [
+      "Unless(CostWasPaid, [PlayerAction(Trigger_ThatPlayer, SacrificeAPermanent("
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Old-Growth Troll",
+    "issues": [
+      78
+    ],
+    "contains": [
+      "SetCardtype(Enchantment), AddEnchantmentType(Aura)"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Chain Lightning",
+    "issues": [
+      78
+    ],
+    "contains": [
+      "PlayerMayAction(PlayerOrControllerOfPermanent(Ref_AnyTarget), CopySpellAndMayChooseNewTargets"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Life and Limb",
+    "issues": [
+      78
+    ],
+    "contains": [
+      "SetColor(SimpleColorList([Green]))"
+    ],
+    "excludes": [
+      "AddColor("
+    ]
+  },
+  {
+    "name": "Decorated Griffin",
+    "issues": [
+      76
+    ],
+    "contains": [
+      "NextAmountOfCombatDamageThatWouldBeDealtThisTurnToRecipient"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Soltari Guerrillas",
+    "issues": [
+      76
+    ],
+    "contains": [
+      "NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToARecipient"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Shadow of the Second Sun",
+    "issues": [
+      77
+    ],
+    "contains": [
+      "AtTheBeginningOfAPlayersPostcombatMainPhase(SinglePlayer(HostPlayer))"
+    ],
+    "excludes": []
+  },
+  {
+    "name": "Planeswalker's Mischief",
+    "issues": [
+      75
+    ],
+    "contains": [
+      "Targeted([TargetPlayer(Opponent)]"
+    ],
+    "excludes": []
   }
 ]

@@ -245,6 +245,7 @@ impl Context {
             | S::NextAmountOfDamageThatWouldBeDealtThisTurnBySourceToRecipient(n, ..)
             | S::NextAmountOfDamageThatWouldBeDealtThisTurnBySpellToRecipient(n, ..)
             | S::NextAmountOfDamageThatWouldBeDealtThisTurnToARecipient(n, ..)
+            | S::NextAmountOfCombatDamageThatWouldBeDealtThisTurnToRecipient(n, ..)
             | S::NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient(n, ..) => {
                 ReplacementLimit::TotalDamage(self.number(n)?)
             }
@@ -252,6 +253,7 @@ impl Context {
         };
         let kind = match value {
             S::NextTimeCombatDamageWouldBeDealtThisTurnByCreature(..)
+            | S::NextAmountOfCombatDamageThatWouldBeDealtThisTurnToRecipient(..)
             | S::NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToRecipient(..)
             | S::NextTimeCombatDamageWouldBeDealtThisTurnByCreatureToAnyNumberOfRecipients(..) => {
                 DamageKind::Combat
@@ -288,6 +290,7 @@ impl Context {
                 (F::Anything, T::List(r))
             }
             S::NextAmountOfDamageThatWouldBeDealtThisTurnToRecipient(_, r)
+            | S::NextAmountOfCombatDamageThatWouldBeDealtThisTurnToRecipient(_, r)
             | S::NextTimeDamageWouldBeDealtThisTurnToRecipient(r) => (F::Anything, T::One(r)),
             _ => return Err(unsupported(value)),
         };

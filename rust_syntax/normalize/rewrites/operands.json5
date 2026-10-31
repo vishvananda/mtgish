@@ -249,6 +249,20 @@
       }
     },
     {
+      "id": "operand.Cost.SacrificeOneOrMorePermanents",
+      "domain": "Cost",
+      "source": "SacrificeOneOrMorePermanents",
+      "arity": 1,
+      "recipe": {
+        "kind": "CostSacrifice",
+        "subjects": "Permanents",
+        "argument": 0,
+        "selection": {
+          "kind": "OneOrMore"
+        }
+      }
+    },
+    {
       "id": "operand.Cost.DiscardACard",
       "domain": "Cost",
       "source": "DiscardACard",
