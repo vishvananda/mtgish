@@ -82,6 +82,9 @@ impl Context {
                             ("PermanentRule::IsGoadedByPlayer", [Operand::Player(player)]) => {
                                 RuleChange::GoadedBy(player.clone())
                             }
+                            ("PermanentRule::TheLegendsRuleDoesntApply", []) => {
+                                RuleChange::LegendRuleExempt
+                            }
                             _ => RuleChange::Primitive { name, operands },
                         }]
                     })

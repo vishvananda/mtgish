@@ -105,6 +105,45 @@ impl Inventory<'_> {
                     self.ability(chapter);
                 }
             }
+            Ability::Gift {
+                gift,
+                promised,
+                unpromised,
+            } => {
+                for program in gift {
+                    self.program(program);
+                }
+                for outcome in promised.iter().chain(unpromised) {
+                    self.ability(outcome);
+                }
+            }
+            Ability::Spree { modes } => {
+                for mode in modes {
+                    self.cost(&mode.cost);
+                    self.ability(&mode.ability);
+                }
+            }
+            Ability::Prototype { .. } => {}
+            Ability::Visit { body, prize } => {
+                self.ability(body);
+                if let Some(prize) = prize {
+                    self.ability(prize);
+                }
+            }
+            Ability::DungeonRoom { body, .. } => self.ability(body),
+            Ability::TriggerRule {
+                cause,
+                abilities,
+                rule,
+            } => {
+                self.form("TriggerRule", rule);
+                if let Some(event) = cause {
+                    self.event(event);
+                }
+                if let Some(filter) = abilities {
+                    self.filter(filter);
+                }
+            }
             Ability::Class { levels } => {
                 for level in levels {
                     self.cost(&level.cost);
@@ -918,7 +957,7 @@ impl Inventory<'_> {
                         self.expr(x);
                     }
                 }
-                CostPart::Waterbend(_) => {}
+                CostPart::Waterbend(_) | CostPart::Teamwork(_) => {}
                 CostPart::PutCounters(placements) => {
                     for p in placements {
                         self.recipients(&p.recipients);
@@ -1151,6 +1190,7 @@ impl Inventory<'_> {
             RuleChange::Primitive { name, .. } => self.primitive(name),
             RuleChange::Prohibit(a) => self.object_action(a),
             RuleChange::GoadedBy(player) => self.player(player),
+            RuleChange::LegendRuleExempt => {}
             RuleChange::RequireCombat { action, amount } => {
                 self.object_action(action);
                 self.form("RequirementAmount", amount);
@@ -1743,6 +1783,7 @@ impl Inventory<'_> {
         match c {
             Condition::Primitive { name, .. } => self.primitive(name),
             Condition::Window(window) => self.form("TurnWindow", window),
+            Condition::ChosenWord(_) | Condition::GiftPromised(_) => {}
             Condition::PlayerState { player, state } => {
                 self.form("PlayerState", state);
                 self.player(player);

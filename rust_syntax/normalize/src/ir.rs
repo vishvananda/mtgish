@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 94;
+pub const SCHEMA_VERSION: u32 = 95;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -227,6 +227,43 @@ pub enum Ability {
         cost: Option<Cost>,
         amount: Option<Expr>,
         filter: Option<ObjectFilter>,
+    },
+    /// Gift (CR 702.174): as this is cast its controller may promise a gift to
+    /// an opponent, `PlayerRef::GiftedPlayer`, who gets `gift` if they do. The
+    /// outcomes are absent for a permanent, which has no resolution to choose.
+    Gift {
+        gift: Vec<Program>,
+        promised: Option<Box<Ability>>,
+        unpromised: Option<Box<Ability>>,
+    },
+    /// Spree (CR 702.172): choose one or more modes, adding each one's cost.
+    Spree {
+        modes: Vec<SpreeMode>,
+    },
+    /// Prototype (CR 702.160): an alternate mana cost and power and toughness.
+    Prototype {
+        mana: Vec<ManaSymbol>,
+        power: i32,
+        toughness: i32,
+    },
+    /// An Attraction's visit, and its prize when it has one (CR 717.5).
+    Visit {
+        body: Box<Ability>,
+        prize: Option<Box<Ability>>,
+    },
+    /// A room of a dungeon (CR 309) and the rooms it leads to.
+    DungeonRoom {
+        name: String,
+        body: Box<Ability>,
+        leads_to: Vec<String>,
+    },
+    /// Changes how often `abilities` trigger when `cause` is what triggers
+    /// them, as Panharmonicon and Torpor Orb do. No `abilities` means all, and
+    /// no `cause` means any event. Forge's `Mode$ Panharmonicon | ValidMode$`.
+    TriggerRule {
+        cause: Option<EventSpec>,
+        abilities: Option<ObjectFilter>,
+        rule: TriggerRule,
     },
 }
 
@@ -1314,6 +1351,8 @@ mechanics!(
     Devour,
     Prowl,
     Surge,
+    SurgeX,
+    StartingIntensity,
 );
 
 #[derive(
@@ -1828,6 +1867,18 @@ impl From<PlayerSet> for EffectSubjects {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct SpreeMode {
+    pub cost: Cost,
+    pub ability: Box<Ability>,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum TriggerRule {
+    TriggersAgain,
+    DoesntTrigger,
+}
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
 )]
@@ -2060,6 +2111,7 @@ pub enum RuleChange {
     },
     /// Attacks each combat if able, and not its goader if able (CR 701.38).
     GoadedBy(PlayerRef),
+    LegendRuleExempt,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ObjectAction {
@@ -2645,6 +2697,8 @@ pub enum PlayerRef {
     PlayerOrControllerOf(Box<Recipients>),
     /// The opponent `actor` clashed with, inside `Operation::Clash`.
     ClashOpponent,
+    /// The opponent a gift was promised to.
+    GiftedPlayer,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2903,6 +2957,9 @@ pub enum Condition {
         player: PlayerRef,
         state: PlayerState,
     },
+    /// The chosen word of an anchor word ability (CR 614.12c).
+    ChosenWord(String),
+    GiftPromised(bool),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3066,6 +3123,8 @@ pub enum CostPart {
     /// "Waterbend {N}": tapped artifacts and creatures pay for generic mana.
     Waterbend(Vec<ManaSymbol>),
     PutCounters(Vec<CounterPlacement>),
+    /// Tap any number of creatures with at least this total power.
+    Teamwork(i32),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct CostObjectSelection {

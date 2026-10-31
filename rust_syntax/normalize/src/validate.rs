@@ -576,6 +576,7 @@ impl<'a> Scope<'a> {
             }
             PlayerRef::EnchantedBy(object) => self.object(object),
             PlayerRef::PlayerOrControllerOf(recipient) => self.recipients(recipient),
+            PlayerRef::GiftedPlayer => Ok(()),
             PlayerRef::ClashOpponent if self.clashing => Ok(()),
             PlayerRef::ClashOpponent => Err("a clash opponent outside a clash".into()),
             PlayerRef::DeclaringPlayer if self.declaration => Ok(()),
@@ -1003,6 +1004,7 @@ impl<'a> Scope<'a> {
             Condition::Primitive { name, operands } => self.primitive(name, operands),
             Condition::Window(_) => Ok(()),
             Condition::PlayerState { player, .. } => self.player(player),
+            Condition::ChosenWord(_) | Condition::GiftPromised(_) => Ok(()),
             Condition::PlayerTook { player, result } => {
                 self.player(player)?;
                 if self.results.contains_key(&result.0) {
@@ -1111,6 +1113,7 @@ impl<'a> Scope<'a> {
             RuleChange::Primitive { name, operands } => self.primitive(name, operands),
             RuleChange::Prohibit(action) => self.object_action(action),
             RuleChange::GoadedBy(player) => self.player(player),
+            RuleChange::LegendRuleExempt => Ok(()),
             RuleChange::RequireCombat { action, amount } => {
                 self.combat_action(action)?;
                 if let RequirementAmount::AtLeast(n) = amount {
@@ -1514,7 +1517,7 @@ impl<'a> Scope<'a> {
                     self.filter(filter)?;
                 }
                 CostPart::ManaWithX { x, .. } => x.iter().try_for_each(|x| self.expr(x))?,
-                CostPart::Waterbend(_) => {}
+                CostPart::Waterbend(_) | CostPart::Teamwork(_) => {}
                 CostPart::PutCounters(placements) => {
                     for placement in placements {
                         self.recipients(&placement.recipients)?;
@@ -2922,6 +2925,51 @@ fn validate_ability_in(
             scope.cost(cost)?;
             validate_ability_in(paid, zones, casting_costs)?;
             return validate_ability_in(unpaid, zones, casting_costs);
+        }
+        Ability::Gift {
+            gift,
+            promised,
+            unpromised,
+        } => {
+            for program in gift {
+                scope.clone().program(program)?;
+            }
+            for outcome in promised.iter().chain(unpromised) {
+                validate_ability_in(outcome, zones, casting_costs)?;
+            }
+            return Ok(());
+        }
+        Ability::Spree { modes } => {
+            if modes.is_empty() {
+                return Err("spree has no modes".into());
+            }
+            for mode in modes {
+                scope.cost(&mode.cost)?;
+                validate_ability_in(&mode.ability, zones, casting_costs)?;
+            }
+            return Ok(());
+        }
+        Ability::Prototype { .. } => return Ok(()),
+        Ability::Visit { body, prize } => {
+            validate_ability_in(body, zones, casting_costs)?;
+            if let Some(prize) = prize {
+                validate_ability_in(prize, zones, casting_costs)?;
+            }
+            return Ok(());
+        }
+        Ability::DungeonRoom { body, .. } => {
+            return validate_ability_in(body, zones, casting_costs)
+        }
+        Ability::TriggerRule {
+            cause, abilities, ..
+        } => {
+            if let Some(event) = cause {
+                scope.event(event)?;
+            }
+            if let Some(filter) = abilities {
+                scope.filter(filter)?;
+            }
+            return Ok(());
         }
         Ability::Class { levels } => {
             if levels.is_empty() {

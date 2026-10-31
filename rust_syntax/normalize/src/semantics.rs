@@ -858,6 +858,11 @@ fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
 
 /// A row's condition in generic form, or the row itself when it has none.
 pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
+    match name.as_str() {
+        "Condition::TheGiftWasPromised" => return Condition::GiftPromised(true),
+        "Condition::TheGiftWasntPromised" => return Condition::GiftPromised(false),
+        _ => {}
+    }
     if let Some(condition) = reduce_comparison(&name, &operands) {
         return condition;
     }
@@ -1168,6 +1173,204 @@ fn deck_rule(name: &str, operands: &[Operand]) -> Option<DeckRule> {
     })
 }
 
+/// An outcome that may or may not announce targets of its own.
+fn outcome(operand: &Operand) -> Option<Box<Ability>> {
+    match operand {
+        Operand::Ability(ability) => Some(ability.clone()),
+        Operand::Program(body) => Some(Box::new(Ability::Spell {
+            announcement: Announcement {
+                targets: vec![],
+                modes: None,
+            },
+            body: body.clone(),
+        })),
+        _ => None,
+    }
+}
+
+/// How a spell or an ability is put together, when it is more than one body.
+fn casting_mode(name: &str, operands: &[Operand]) -> Option<Ability> {
+    use Operand::{Integer, List, Objects, Text, Vocabulary};
+    let again = |cause: Option<EventSpec>, abilities: Option<&Operand>, rule| {
+        Some(Ability::TriggerRule {
+            cause,
+            abilities: match abilities {
+                Some(abilities) => Some(stack_filter(abilities)?),
+                None => None,
+            },
+            rule,
+        })
+    };
+    let moved = |objects: &ObjectSet, from, to| {
+        Some(EventSpec::ZoneChange {
+            objects: event_filter(objects)?,
+            from,
+            to,
+        })
+    };
+    let entered = |objects| moved(objects, None, EventZone::Battlefield);
+    let died = |objects| moved(objects, Some(EventZone::Battlefield), EventZone::Graveyard);
+    let object = |event, objects: &ObjectSet| {
+        Some(EventSpec::Object {
+            event,
+            objects: event_filter(objects)?,
+        })
+    };
+    let player = |event, players: &PlayerSet| {
+        Some(EventSpec::Player {
+            event,
+            players: players.clone(),
+            objects: None,
+        })
+    };
+    let legend = |objects: ObjectSet| Ability::Static {
+        kind: StaticKind::Ordinary,
+        affected: EffectSubjects::Objects(objects),
+        changes: vec![Change::Rule(RuleChange::LegendRuleExempt)],
+    };
+    match (name.strip_prefix("Rule::")?, operands) {
+        ("SpellActions_Gift", [gift, promised, unpromised]) => Some(Ability::Gift {
+            gift: vec![match gift {
+                Operand::Program(program) => program.clone(),
+                _ => return None,
+            }],
+            promised: Some(outcome(promised)?),
+            unpromised: Some(outcome(unpromised)?),
+        }),
+        ("Permanent_Gift", gift) => Some(Ability::Gift {
+            gift: program_list(gift)?,
+            promised: None,
+            unpromised: None,
+        }),
+        ("SpellActions_Spree", modes) => Some(Ability::Spree {
+            modes: modes
+                .iter()
+                .map(|mode| match mode {
+                    Operand::Term { form, operands, .. } if form == "SpreeAction" => {
+                        match operands.as_slice() {
+                            [Operand::Cost(cost), ability] => Some(SpreeMode {
+                                cost: cost.clone(),
+                                ability: outcome(ability)?,
+                            }),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                })
+                .collect::<Option<_>>()?,
+        }),
+        ("SpellActions_Teamwork", [Integer(power), used, unused]) => Some(Ability::CostBranch {
+            keyword: "Teamwork".into(),
+            cost: Cost {
+                parts: vec![CostPart::Teamwork((*power).try_into().ok()?)],
+            },
+            paid: outcome(used)?,
+            unpaid: outcome(unused)?,
+        }),
+        ("Visit", [body]) => Some(Ability::Visit {
+            body: outcome(body)?,
+            prize: None,
+        }),
+        ("VisitAndPrize", [body, prize]) => Some(Ability::Visit {
+            body: outcome(body)?,
+            prize: Some(outcome(prize)?),
+        }),
+        ("DungeonLevel", [Text(room), body, List(leads_to)]) => Some(Ability::DungeonRoom {
+            name: room.clone(),
+            body: outcome(body)?,
+            leads_to: leads_to
+                .iter()
+                .map(|room| match room {
+                    Text(room) => Some(room.clone()),
+                    _ => None,
+                })
+                .collect::<Option<_>>()?,
+        }),
+        ("AnchorWord", [Text(word), Operand::Ability(ability)])
+        | ("AnchorWord", [Vocabulary { form: word, .. }, Operand::Ability(ability)]) => {
+            Some(Ability::Conditional {
+                condition: Condition::ChosenWord(word.clone()),
+                then: vec![(**ability).clone()],
+                otherwise: vec![],
+            })
+        }
+        ("AbilitiesTriggerAnAdditionalTime", [abilities]) => {
+            again(None, Some(abilities), TriggerRule::TriggersAgain)
+        }
+        (
+            "APermanentEnteringTheBattlefieldCausesAbilitiesToTriggerAnAdditionalTime",
+            [Objects(cause), abilities],
+        ) => again(
+            Some(entered(cause)?),
+            Some(abilities),
+            TriggerRule::TriggersAgain,
+        ),
+        (
+            "APermanentDyingCausesAbilitiesToTriggerAnAdditionalTime",
+            [Objects(cause), abilities],
+        ) => again(
+            Some(died(cause)?),
+            Some(abilities),
+            TriggerRule::TriggersAgain,
+        ),
+        (
+            "APermanentLeavingTheBattlefieldCausesAbilitiesToTriggerAnAdditionalTime",
+            [Objects(cause), abilities],
+        ) => again(
+            Some(object(ObjectEvent::LeavesBattlefield, cause)?),
+            Some(abilities),
+            TriggerRule::TriggersAgain,
+        ),
+        (
+            "APermanentTurningFaceUpCausesAbilitiesToTriggerAnAdditionalTime",
+            [Objects(cause), abilities],
+        ) => again(
+            Some(object(ObjectEvent::TurnsFaceUp, cause)?),
+            Some(abilities),
+            TriggerRule::TriggersAgain,
+        ),
+        (
+            "APermanentAttackingCausesAbilitiesToTriggerAnAdditionalTime",
+            [Objects(cause), abilities],
+        ) => again(
+            Some(EventSpec::Attack {
+                attackers: event_filter(cause)?,
+                by: None,
+                defenders: AttackDefenders::Any,
+            }),
+            Some(abilities),
+            TriggerRule::TriggersAgain,
+        ),
+        (
+            "APlayerGainingLifeCausesAbilitiesToTriggerAnAdditionalTime",
+            [Operand::Players(cause), abilities],
+        ) => again(
+            player(PlayerEvent::GainsLife, cause),
+            Some(abilities),
+            TriggerRule::TriggersAgain,
+        ),
+        (
+            "APlayerDrawingACardCausesAbilitiesToTriggerAnAdditionalTime",
+            [Operand::Players(cause), abilities],
+        ) => again(
+            player(PlayerEvent::Draws, cause),
+            Some(abilities),
+            TriggerRule::TriggersAgain,
+        ),
+        ("PermanentsEnteringTheBattlefieldDontCauseAbilitiesToTrigger", [Objects(cause)]) => {
+            again(Some(entered(cause)?), None, TriggerRule::DoesntTrigger)
+        }
+        ("PermanentsDyingDontCauseAbilitiesToTrigger", [Objects(cause)]) => {
+            again(Some(died(cause)?), None, TriggerRule::DoesntTrigger)
+        }
+        ("TheLegendsRuleDoesntApplyToPermanents", [Objects(objects)]) => {
+            Some(legend(objects.clone()))
+        }
+        ("TheLegendsRuleDoesntApply", []) => Some(legend(ObjectSet::One(ObjectRef::Source))),
+        _ => None,
+    }
+}
+
 /// What "each card in a graveyard has" gives those cards.
 fn graveyard_changes(effects: &[Operand]) -> Option<Vec<Change>> {
     let mut changes = vec![];
@@ -1196,6 +1399,9 @@ fn graveyard_changes(effects: &[Operand]) -> Option<Vec<Change>> {
 pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
     if let Some(rule) = deck_rule(&name, &operands) {
         return Ability::DeckRule(rule);
+    }
+    if let Some(ability) = casting_mode(&name, &operands) {
+        return ability;
     }
     if let Some(ability) = staged_ability(&name, &operands) {
         return ability;
@@ -2552,6 +2758,7 @@ impl Effects {
                 CostPart::Primitive { .. }
                 | CostPart::ManaWithX { .. }
                 | CostPart::Waterbend(_)
+                | CostPart::Teamwork(_)
                 | CostPart::PutCounters(_) => {}
                 CostPart::Move {
                     selections,

@@ -927,3 +927,69 @@ fn would_be_events_are_generic_and_keep_who_they_replace() {
     );
     assert!(body.contains("event: Destroyed"), "{body}");
 }
+
+#[test]
+fn casting_modes_keep_each_outcome_as_an_ability() {
+    let body = lowered(
+        "SpellActions_Gift(PlayerAction(TheGiftedPlayer, DrawACard), GiftWasPromised(ActionList([DrawACard])), GiftWasntPromised(ActionList([DiscardACard])))",
+    );
+    assert!(body.contains("Gift {"), "{body}");
+    assert!(body.contains("GiftedPlayer"), "{body}");
+    assert!(body.contains("unpromised: Some("), "{body}");
+    let body = lowered("Permanent_Gift([PlayerAction(TheGiftedPlayer, DrawACard)])");
+    assert!(body.contains("promised: None"), "{body}");
+    let body = lowered(
+        "SpellActions_Spree([SpreeAction(PayMana([ManaCostGeneric(1)]), ActionList([DrawACard])), SpreeAction(PayMana([ManaCostGeneric(2)]), ActionList([DiscardACard]))])",
+    );
+    assert!(body.contains("Spree { modes: [SpreeMode"), "{body}");
+    assert!(body.contains("Generic(2)"), "{body}");
+    let body = lowered(
+        "SpellActions_Teamwork(2, CastUsingTeamwork(ActionList([DrawACard])), NotCastUsingTeamwork(ActionList([DiscardACard])))",
+    );
+    assert!(body.contains("CostBranch {"), "{body}");
+    assert!(body.contains("Teamwork(2)"), "{body}");
+}
+
+#[test]
+fn printed_costs_visits_rooms_and_anchor_words_are_typed() {
+    let body = lowered("Prowl([ManaCostGeneric(1), ManaCostR])");
+    assert!(body.contains("mechanic: Prowl"), "{body}");
+    assert!(body.contains("Mana([Generic(1), Color(Red)])"), "{body}");
+    let body = lowered(
+        "Prototype(ManaCost: [ManaCostGeneric(1), ManaCostR], CardPT: (Power: 2, Toughness: 1))",
+    );
+    assert!(
+        body.contains("Prototype { mana: [Generic(1), Color(Red)], power: 2, toughness: 1"),
+        "{body}"
+    );
+    let body = lowered("Visit(ActionList([DrawACard]))");
+    assert!(body.contains("Visit {"), "{body}");
+    assert!(body.contains("prize: None"), "{body}");
+    let body =
+        lowered("DungeonLevel(\"Temple of Dumathoin\", ActionList([DrawACard]), [\"Next\"])");
+    assert!(
+        body.contains("DungeonRoom { name: \"Temple of Dumathoin\""),
+        "{body}"
+    );
+    assert!(body.contains("leads_to: [\"Next\"]"), "{body}");
+    let body = lowered("AnchorWord(\"Khans\", Flying)");
+    assert!(body.contains("ChosenWord(\"Khans\")"), "{body}");
+}
+
+#[test]
+fn doubling_triggers_names_the_event_that_causes_them() {
+    let body = lowered(
+        "APermanentDyingCausesAbilitiesToTriggerAnAdditionalTime(IsCardtype(Creature), AbilityOfAPermanent(ControlledByAPlayer(SinglePlayer(You))))",
+    );
+    assert!(body.contains("TriggerRule {"), "{body}");
+    assert!(body.contains("cause: Some(ZoneChange"), "{body}");
+    assert!(body.contains("to: Graveyard"), "{body}");
+    assert!(body.contains("rule: TriggersAgain"), "{body}");
+    let body = lowered(
+        "PermanentsEnteringTheBattlefieldDontCauseAbilitiesToTrigger(IsCardtype(Creature))",
+    );
+    assert!(body.contains("rule: DoesntTrigger"), "{body}");
+    assert!(body.contains("abilities: None"), "{body}");
+    let body = lowered("TheLegendsRuleDoesntApplyToPermanents(IsCardtype(Creature))");
+    assert!(body.contains("LegendRuleExempt"), "{body}");
+}

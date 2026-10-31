@@ -597,7 +597,40 @@ impl Context {
         Some(Instruction::Effect { result, operation })
     }
 
+    /// Rules whose cost is printed mana, a list no operand carries as one cost.
+    fn printed_cost_rule(&self, value: &source::Rule) -> Option<Ability> {
+        let cost = |symbols: Vec<ManaSymbol>| Cost {
+            parts: vec![CostPart::Mana(symbols)],
+        };
+        let plain = |symbols: &source::ManaCost| -> Option<Vec<ManaSymbol>> {
+            symbols.iter().map(|s| mana_symbol(s).ok()).collect()
+        };
+        let with_x = |symbols: &source::ManaCostX| -> Option<Vec<ManaSymbol>> {
+            symbols.iter().map(|s| mana_symbol_x(s).ok()).collect()
+        };
+        let mechanic = |mechanic, cost| Ability::Mechanic {
+            mechanic,
+            cost: Some(cost),
+            amount: None,
+            filter: None,
+        };
+        Some(match value {
+            source::Rule::Prowl(symbols) => mechanic(Mechanic::Prowl, cost(plain(symbols)?)),
+            source::Rule::Surge(symbols) => mechanic(Mechanic::Surge, cost(plain(symbols)?)),
+            source::Rule::SurgeX(symbols) => mechanic(Mechanic::SurgeX, cost(with_x(symbols)?)),
+            source::Rule::Prototype { mana_cost, card_pt } => Ability::Prototype {
+                mana: with_x(mana_cost)?,
+                power: card_pt.power,
+                toughness: card_pt.toughness,
+            },
+            _ => return None,
+        })
+    }
+
     fn primitive_ability(&self, value: &source::Rule) -> Option<Ability> {
+        if let Some(ability) = self.printed_cost_rule(value) {
+            return Some(ability);
+        }
         let (name, operands) = match value {
             source::Rule::DeckConstruction(deck) => self.primitive("DeckConstruction", deck)?,
             _ => self.primitive("Rule", value)?,
@@ -678,6 +711,7 @@ impl Context {
                 mana: with_x(mana)?,
                 x: Some(self.number(x).ok()?),
             },
+            S::Teamwork(power) => CostPart::Teamwork(*power),
             S::Waterbend(mana) => CostPart::Waterbend(plain(mana)?),
             S::WaterbendX(mana) => CostPart::Waterbend(with_x(mana)?),
             S::LoyaltyMinusX => CostPart::Loyalty(Expr::Multiply(
@@ -752,6 +786,7 @@ impl Context {
         let (name, operands) = self.primitive("Player", value)?;
         Some(match (name.as_str(), operands.as_slice()) {
             ("Player::ClashOpponent", []) => PlayerRef::ClashOpponent,
+            ("Player::TheGiftedPlayer", []) => PlayerRef::GiftedPlayer,
             ("Player::PlayerOrControllerOfPermanent", [Operand::Recipients(recipient)]) => {
                 PlayerRef::PlayerOrControllerOf(Box::new(recipient.clone()))
             }
