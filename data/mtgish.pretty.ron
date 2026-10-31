@@ -424253,7 +424253,7 @@ Card(
       WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)),
       ActionList([
         DestroyEachPermanentNoRegen(And([
-          SharesANameWithAPermanent(AnyPermanent),
+          SharesANameWithAnotherPermanent(AnyPermanent),
           ExceptFor(And([
             IsSupertype(Basic),
             IsCardtype(Land),
@@ -567968,7 +567968,7 @@ Card(
       PermanentPassesFilter(
         Trigger_ThatPermanent,
         And([
-          DoesntShareANameWithAPermanent(And([
+          DoesntShareANameWithAnotherPermanent(And([
             IsCardtype(Creature),
             ControlledByAPlayer(SinglePlayer(You)),
           ])),
@@ -756751,7 +756751,7 @@ Card(
             IsCardtype(Creature),
             ControlledByAPlayer(SinglePlayer(You)),
             Or([
-              SharesANameWithAPermanent(And([
+              SharesANameWithAnotherPermanent(And([
                 IsCardtype(Creature),
                 ControlledByAPlayer(SinglePlayer(You)),
               ])),
@@ -788791,7 +788791,7 @@ Card(
           PermanentPassesFilter(
             Trigger_ThatCreature,
             Or([
-              SharesANameWithAPermanent(And([
+              SharesANameWithAnotherPermanent(And([
                 IsCardtype(Creature),
                 ControlledByAPlayer(SinglePlayer(You)),
               ])),
@@ -1432569,7 +1432569,7 @@ Card(
           PermanentPassesFilter(
             Ref_TargetPermanent,
             Or([
-              SharesANameWithAPermanent(And([
+              SharesANameWithAnotherPermanent(And([
                 IsCardtype(Creature),
                 ControlledByAPlayer(SinglePlayer(You)),
               ])),
@@ -1543128,10 +1543128,7 @@ Card(
           TargetPermanent(And([
             IsCardtype(Enchantment),
             ControlledByAPlayer(SinglePlayer(You)),
-            DoesntShareANameWithAPermanent(And([
-              IsToken,
-              ControlledByAPlayer(SinglePlayer(You)),
-            ])),
+            DoesntShareANameWithAnotherPermanent(ControlledByAPlayer(SinglePlayer(You))),
           ])),
         ],
         ActionList([

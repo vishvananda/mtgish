@@ -12146,5 +12146,77 @@
     "excludes": [
       "EachPlayerEffect(ControlsMorePermanentThanPlayer"
     ]
+  },
+  {
+    "name": "Liara of the Flaming Fist",
+    "issues": [
+      89
+    ],
+    "contains": [
+      "SharesANameWithAnotherPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]))"
+    ],
+    "excludes": [
+      "SharesANameWithAPermanent("
+    ]
+  },
+  {
+    "name": "Mace of Disruption",
+    "issues": [
+      89
+    ],
+    "contains": [
+      "SharesANameWithAnotherPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]))"
+    ],
+    "excludes": [
+      "SharesANameWithAPermanent("
+    ]
+  },
+  {
+    "name": "Unexpected Allies",
+    "issues": [
+      89
+    ],
+    "contains": [
+      "SharesANameWithAnotherPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]))"
+    ],
+    "excludes": [
+      "SharesANameWithAPermanent("
+    ]
+  },
+  {
+    "name": "Guardian Project",
+    "issues": [
+      89
+    ],
+    "contains": [
+      "DoesntShareANameWithAnotherPermanent(And([IsCardtype(Creature), ControlledByAPlayer(SinglePlayer(You))]))"
+    ],
+    "excludes": [
+      "DoesntShareANameWithAPermanent("
+    ]
+  },
+  {
+    "name": "Eye of Singularity",
+    "issues": [
+      89
+    ],
+    "contains": [
+      "SharesANameWithAnotherPermanent(AnyPermanent)"
+    ],
+    "excludes": [
+      "SharesANameWithAPermanent("
+    ]
+  },
+  {
+    "name": "Yenna, Redtooth Regent",
+    "issues": [
+      89
+    ],
+    "contains": [
+      "DoesntShareANameWithAnotherPermanent(ControlledByAPlayer(SinglePlayer(You)))"
+    ],
+    "excludes": [
+      "IsToken"
+    ]
   }
 ]

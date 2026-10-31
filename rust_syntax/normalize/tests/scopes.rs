@@ -496,6 +496,19 @@ fn a_plane_or_scheme_event_reads_this_card() {
 }
 
 #[test]
+fn another_of_the_same_name_never_counts_the_object_itself() {
+    let body = lowered(
+        "SpellActions(ActionList([DestroyEachPermanent(SharesANameWithAnotherPermanent(AnyPermanent))]))",
+    );
+    assert!(body.contains("SharesNameWithAnother("), "{body}");
+    assert!(!body.contains("SharesNameWithAny"), "{body}");
+    let body = lowered(
+        "SpellActions(ActionList([DestroyEachPermanent(DoesntShareANameWithAnotherPermanent(AnyPermanent))]))",
+    );
+    assert!(body.contains("Not(SharesNameWithAnother("), "{body}");
+}
+
+#[test]
 fn a_chosen_value_is_one_choice_read_by_kind() {
     let body = lowered("SpellActions(ActionList([ChooseACreatureType]))");
     assert!(body.contains("ChooseValue"), "{body}");
@@ -533,10 +546,53 @@ fn a_player_comparison_is_an_ordinary_count() {
 
 #[test]
 fn party_size_and_starting_life_are_numbers() {
-    let body = lowered(
-        "SpellActions(ActionList([DrawNumberCards(NumCreaturesInPlayersParty(You))]))",
-    );
+    let body =
+        lowered("SpellActions(ActionList([DrawNumberCards(NumCreaturesInPlayersParty(You))]))");
     assert!(body.contains("PartySize(AbilityController)"), "{body}");
+}
+
+#[test]
+fn a_perpetual_effect_is_an_ordinary_change_on_any_subject() {
+    let body = lowered(
+        "TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([CreatePerpetualPermanentEffect(ThisPermanent, [AdjustPT(1, 1)])]))",
+    );
+    assert!(body.contains("CreatePerpetualEffect"), "{body}");
+    assert!(body.contains("Pump"), "{body}");
+    assert!(!body.contains("Action::CreatePerpetual"), "{body}");
+}
+
+#[test]
+fn an_emblem_holds_ordinary_abilities() {
+    let body = lowered("SpellActions(ActionList([GetAnEmblem([Flying])]))");
+    assert!(body.contains("CreateEmblem"), "{body}");
+    assert!(!body.contains("Action::GetAnEmblem"), "{body}");
+}
+
+#[test]
+fn a_clone_enters_as_a_copy_with_its_exceptions() {
+    let body = lowered(
+        "AsPermanentEnters(ThisPermanent, [MayActions([EnterAsACopyOfAPermanent(IsCardtype(Creature), NoCopyEffects)])])",
+    );
+    assert!(
+        body.contains("Entry(CopyOf { objects: Battlefield(CardType(Creature))"),
+        "{body}"
+    );
+}
+
+#[test]
+fn counter_moves_say_how_many_of_what_from_where() {
+    let body = lowered(
+        "Activated(TapPermanent(ThisPermanent), ActionList([MoveCounters([AllCountersFromPermanentOntoNewPermanent(ThisPermanent, ThisPermanent)])]))",
+    );
+    assert!(body.contains("MoveCounters"), "{body}");
+    assert!(body.contains("amount: All"), "{body}");
+}
+
+#[test]
+fn a_keyword_row_keeps_its_result_when_conjuring() {
+    let body = lowered(r#"SpellActions(ActionList([ConjureCardIntoHand("Nettlecyst")]))"#);
+    assert!(body.contains("Conjure"), "{body}");
+    assert!(body.contains("zone: Hand"), "{body}");
 }
 
 #[test]
