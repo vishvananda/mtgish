@@ -360,6 +360,20 @@ impl Context {
                 self.reveal_move(objects, destination, state, instructions);
                 return Ok(());
             }
+            // One card per color pair: a row, whose choice the next steps put away.
+            S::ChooseACardThatsExactlyEachColorPair => {
+                let step = self.primitive_step(
+                    "RevealTheTopNumberCardsOfLibraryAction",
+                    action,
+                    player,
+                    state.remaining(),
+                )?;
+                if let Instruction::Effect { result, .. } = &step {
+                    state.found = Some(ObjectSet::Selected(result.clone()));
+                }
+                instructions.push(step);
+                return Ok(());
+            }
             S::PutTheChosenCardIntoGraveyard => {
                 let objects = state
                     .found

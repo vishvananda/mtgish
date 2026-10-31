@@ -22,6 +22,11 @@ pub struct Rule {
     /// antecedents survive it. Rows holding nested actions never keep.
     #[serde(default)]
     pub keeps: bool,
+    /// The cards this row was reviewed for, when it names something it cannot
+    /// resolve in its own scope. A row that lists cards applies to no other,
+    /// so a new card with no antecedent still fails instead of matching it.
+    #[serde(default)]
+    pub cards: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -33,6 +38,20 @@ pub struct Registry {
     #[serde(default)]
     pub terms: Vec<String>,
     pub rules: Vec<Rule>,
+}
+
+/// Whether a row was reviewed for reading outside its scope on this card.
+pub fn reads_outside_scope(card: &str) -> bool {
+    static CARDS: OnceLock<std::collections::HashSet<&'static str>> = OnceLock::new();
+    CARDS
+        .get_or_init(|| {
+            let rules = &registry().rules;
+            rules
+                .iter()
+                .flat_map(|rule| rule.cards.iter().map(String::as_str))
+                .collect()
+        })
+        .contains(card)
 }
 
 pub const SOURCE: &str = include_str!("../rewrites/primitives.json5");

@@ -58,6 +58,12 @@ impl Context {
         }
     }
     fn grave_card(&self, value: &source::CardInGraveyards) -> Result<ObjectRef> {
+        if matches!(value, source::CardInGraveyards::TheChosenGraveyardCard)
+            && self.grave_choice.is_none()
+            && self.row_choice.is_some()
+        {
+            return self.result_object(self.row_choice.as_ref(), 0);
+        }
         if let source::CardInGraveyards::TheCardMilledThisWay = value {
             return Ok(ObjectRef::Result {
                 result: self.done(Done::Milled)?,

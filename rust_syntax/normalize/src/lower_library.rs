@@ -73,7 +73,7 @@ impl Context {
             }
             _ => self
                 .as_card_filter(value, unsupported(value))
-                .or_else(|error| rescue(error, || self.primitive_predicate("CardsInLibrary", value))),
+                .or_else(|error| self.rescue(error, || self.primitive_predicate("CardsInLibrary", value))),
         }
     }
     fn search_find(

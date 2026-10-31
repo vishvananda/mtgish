@@ -7,7 +7,7 @@ impl Context {
             .or_else(|error| {
                 match self.history_player_check(&player, filter) {
                     Some(check) => Ok(check),
-                    None => rescue(error, || self.primitive_player_check(&player, filter)),
+                    None => self.rescue(error, || self.primitive_player_check(&player, filter)),
                 }
             });
         self.self_player.replace(outer);
@@ -208,7 +208,7 @@ impl Context {
         context.candidate = true;
         context
             .spell_filter_inner(value)
-            .or_else(|error| rescue(error, || context.primitive_predicate("Spells", value)))
+            .or_else(|error| context.rescue(error, || context.primitive_predicate("Spells", value)))
             .or_else(|error| context.as_permanent_filter(value, error))
     }
     fn spell_filter_inner(&self, value: &source::Spells) -> Result<ObjectFilter> {

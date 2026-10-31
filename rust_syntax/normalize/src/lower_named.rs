@@ -434,7 +434,8 @@ impl Context {
             "GameNumber" => Operand::Number(Expr::Primitive { name, operands }),
             "Condition" => Operand::Condition(Condition::Primitive { name, operands }),
             "Expiration" => Operand::Duration(Duration::Primitive { name, operands }),
-            "Cards" | "CardsInOracle" | "CreatureTypeVariable" | "CheckHasable" => {
+            "Cards" | "CardsInOracle" | "CardsInLibrary" | "CreatureTypeVariable"
+            | "CheckHasable" => {
                 Operand::Filter(ObjectFilter::Primitive { name, operands })
             }
             _ => return None,
@@ -486,6 +487,9 @@ impl Context {
     ) -> Option<(String, Vec<Operand>)> {
         let name = format!("{family}::{}", inspected["variant"].as_str()?);
         let row = crate::primitive_spec::lookup(&name)?;
+        if !row.cards.is_empty() && !row.cards.iter().any(|card| **card == *self.card) {
+            return None;
+        }
         // What the row binds, or the trigger it holds, names things for its operands.
         let mut scoped = self.clone();
         if !row.binds.is_empty() {

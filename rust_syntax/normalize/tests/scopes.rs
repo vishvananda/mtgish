@@ -1958,12 +1958,14 @@ fn an_unless_every_payer_counts_the_refusals_once() {
 }
 
 #[test]
-fn a_reference_this_scope_cannot_resolve_keeps_its_reviewed_row() {
-    let plague =
-        lowered("SpellActions(ActionList([If(NoLifeWasPaidThisWay, [GainLife(Integer(1))])]))");
-    assert!(plague.contains("NoLifeWasPaidThisWay"), "{plague}");
-    // A reference with no row stays a gap rather than attaching to anything.
+fn a_reference_this_scope_cannot_resolve_stays_a_gap_without_a_row() {
     assert!(custom("SpellActions(ActionList([DestroyPermanent(Trigger_ThatPermanent)]))").is_err());
+    let row = mtgish_ast::primitive_spec::lookup("Condition::NoLifeWasPaidThisWay").unwrap();
+    assert_eq!(row.cards, ["Plague of Vermin"]);
+    assert!(
+        custom("SpellActions(ActionList([If(NoLifeWasPaidThisWay, [GainLife(Integer(1))])]))")
+            .is_err()
+    );
 }
 
 #[test]
@@ -1973,4 +1975,38 @@ fn a_look_may_set_aside_what_it_reveals() {
     );
     assert!(break_out.contains("Optional"), "{break_out}");
     assert!(break_out.contains("Difference"), "{break_out}");
+}
+
+#[test]
+fn a_row_reviewed_for_named_cards_applies_to_no_other() {
+    // Timothar reads an exile from the ability that granted this one, and its row
+    // says so. The same words on any other card have no antecedent and still fail.
+    let row = mtgish_ast::primitive_spec::lookup("Action::PutExiledCardOntoBattlefield").unwrap();
+    assert!(
+        row.cards
+            .iter()
+            .any(|card| card == "Timothar, Baron of Bats"),
+        "{row:?}"
+    );
+    assert!(custom(
+        "SpellActions(ActionList([PutExiledCardOntoBattlefield(TheCardExiledThisWay, [EntersTapped])]))"
+    )
+    .is_err());
+    // Inside the scope the recipe resolves it, so no row is needed.
+    let bound = lowered(
+        "SpellActions(ActionList([Exile([TheTopCardOfLibrary], []), PutExiledCardOntoBattlefield(TheCardExiledThisWay, [EntersTapped])]))",
+    );
+    assert!(
+        !bound.contains("Action::PutExiledCardOntoBattlefield"),
+        "{bound}"
+    );
+}
+
+#[test]
+fn a_total_goes_to_the_slot_that_can_split_it() {
+    let rhino = lowered(
+        "SpellActions(TargetedDistributed([TargetPermanent(IsCardtype(Artifact)), UptoNumberTargetPermanents(Integer(3), IsCardtype(Creature))], DistributeNumberAmongTargets(Integer(3)), ActionList([DestroyPermanent(Ref_TargetPermanent), PutCounters([DistributedCounters(PTCounter(+1, +1))])])))",
+    );
+    assert!(rhino.contains("distribute: Some(Constant(3))"), "{rhino}");
+    assert!(rhino.contains("DistributedShare(Slot(1))"), "{rhino}");
 }

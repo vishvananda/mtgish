@@ -61,13 +61,20 @@ fn unsupported(value: &impl Serialize) -> Diagnostic {
     }
 }
 
-/// A reviewed primitive stands in for a form with no reduction. It never
-/// overrides an invariant the reduced path rejected for a semantic reason.
-fn rescue<T>(error: Diagnostic, primitive: impl FnOnce() -> Option<T>) -> Result<T> {
-    if error.source_type == "invariant" {
-        return Err(error);
-    }
-    primitive().ok_or(error)
+/// A read of something done outside this lexical scope, as in another ability
+/// or a cost. No reduction here can see it, but a reviewed row can still name it.
+fn reads_outside_scope(error: &Diagnostic) -> bool {
+    [
+        "this-way history has no action",
+        "no card was revealed",
+        "no die was rolled",
+        "no pile was chosen",
+        "movement reference has no transition",
+        "payment object reference has no unique",
+        "payment reference has no cost",
+    ]
+    .iter()
+    .any(|message| error.message.starts_with(message))
 }
 
 fn invalid(message: &str) -> Diagnostic {
@@ -84,6 +91,8 @@ struct Context {
     prepared: crate::pipeline::PreparedRecipes,
     /// Set only by `unified_face`. A failed action becomes `Operation::Named`.
     lenient: bool,
+    /// The face being lowered, for rows reviewed for particular cards.
+    card: std::rc::Rc<str>,
     /// Why each named form failed. Shared, so restoring a snapshot keeps entries.
     blockers: std::rc::Rc<std::cell::RefCell<Vec<Diagnostic>>>,
     targets: Vec<TargetSpec>,
@@ -290,9 +299,23 @@ impl Context {
         Self {
             prepared: self.prepared.clone(),
             lenient: self.lenient,
+            card: self.card.clone(),
             blockers: self.blockers.clone(),
             ..Self::default()
         }
+    }
+
+    /// A reviewed primitive stands in for a form with no reduction. It never
+    /// overrides an invariant the reduced path rejected for a semantic reason,
+    /// unless a row was reviewed for this card reading outside its scope.
+    fn rescue<T>(&self, error: Diagnostic, primitive: impl FnOnce() -> Option<T>) -> Result<T> {
+        if error.source_type == "invariant"
+            && !(reads_outside_scope(&error)
+                && crate::primitive_spec::reads_outside_scope(&self.card))
+        {
+            return Err(error);
+        }
+        primitive().ok_or(error)
     }
     fn target(&self, kind: TargetKind, ordinal: usize, element: u16) -> Result<Slot> {
         let of_kind = |slots: &'_ [TargetSpec]| {
@@ -585,7 +608,7 @@ impl Context {
             }
         }
         self.reduced_object(value)
-            .or_else(|error| rescue(error, || self.primitive_object(value)))
+            .or_else(|error| self.rescue(error, || self.primitive_object(value)))
     }
 
     fn reduced_object(&self, value: &source::Permanent) -> Result<ObjectRef> {
@@ -751,6 +774,8 @@ impl Context {
             {
                 return Ok(ObjectRef::Affected)
             }
+            // Inside the ability the effect grants, "it" is that ability's own permanent.
+            S::EachPermanentEffect_It => return Ok(ObjectRef::Source),
             S::ActionPermanent | S::DealsDamage_ThatPermanent if self.iterated_object.is_some() => {
                 return Ok(ObjectRef::Bound(self.iterated_object.clone().unwrap()))
             }
@@ -839,7 +864,7 @@ impl Context {
 
     fn player(&self, value: &source::Player) -> Result<PlayerRef> {
         self.reduced_player(value)
-            .or_else(|error| rescue(error, || self.primitive_player(value)))
+            .or_else(|error| self.rescue(error, || self.primitive_player(value)))
     }
 
     fn reduced_player(&self, value: &source::Player) -> Result<PlayerRef> {
@@ -1480,18 +1505,18 @@ impl Context {
         };
         reduced.or_else(|error| match self.history_filter(value) {
             Some(filter) => Ok(filter),
-            None => rescue(error, || self.primitive_filter(value)),
+            None => self.rescue(error, || self.primitive_filter(value)),
         })
     }
 
     fn number(&self, value: &source::GameNumber) -> Result<Expr> {
         self.reduced_number(value).or_else(|error| {
             if let Some(number) = self.this_way_number(value) {
-                return number;
+                return number.or_else(|error| self.rescue(error, || self.primitive_number(value)));
             }
             match self.history_number(value) {
                 Some(number) => Ok(number),
-                None => rescue(error, || self.primitive_number(value)),
+                None => self.rescue(error, || self.primitive_number(value)),
             }
         })
     }
@@ -1832,11 +1857,12 @@ impl Context {
     fn condition(&self, value: &source::Condition) -> Result<Condition> {
         self.reduced_condition(value).or_else(|error| {
             if let Some(condition) = self.this_way_condition(value) {
-                return condition;
+                return condition
+                    .or_else(|error| self.rescue(error, || self.primitive_condition(value)));
             }
             self.history_condition(value)
                 .unwrap_or_else(|| Err(error.clone()))
-                .or_else(|_| rescue(error, || self.primitive_condition(value)))
+                .or_else(|_| self.rescue(error, || self.primitive_condition(value)))
         })
     }
 
@@ -1919,6 +1945,9 @@ impl Context {
             S::EnteringPermanentPassesFilter(filter) => Condition::ObjectMatches {
                 object: if self.event.permanent {
                     ObjectRef::EventSubject
+                } else if self.entered.is_none() && self.event.spell {
+                    // A delayed trigger's "if this was kicked" still means the source.
+                    ObjectRef::Source
                 } else {
                     self.result_object(self.entered.as_ref(), 0)?
                 },
@@ -2388,7 +2417,7 @@ impl Context {
                 })
             })();
             let changes = changes.or_else(|error| {
-                rescue(error, || {
+                self.rescue(error, || {
                     self.primitive_change(value).map(|change| vec![change])
                 })
             });
@@ -5228,9 +5257,6 @@ impl Context {
     ) -> Result<()> {
         use source::{DistributedTarget as S, Distribution as D, Target as T};
         let total = match distribution {
-            D::DistributeNumberAmongTargets(_) if values.len() > 1 => {
-                return Err(invalid("distribution among several target slots"));
-            }
             D::DistributeNumberAmongTargets(n) | D::DistributeNumberAmongAnyTargets(n) => {
                 self.number(n)?
             }
@@ -5274,7 +5300,17 @@ impl Context {
                 };
             }
         }
-        self.targets[first].distribute = Some(total);
+        // A total goes to the one slot that can split it; a lone target before it
+        // belongs to another clause.
+        let slot = match distribution {
+            D::DistributeNumberAmongTargets(_) if values.len() > 1 => self.targets[first..]
+                .iter()
+                .position(|t| !matches!(t.count, Count::Exactly(Expr::Constant(1))))
+                .map(|slot| first + slot)
+                .ok_or_else(|| invalid("distribution among several target slots"))?,
+            _ => first,
+        };
+        self.targets[slot].distribute = Some(total);
         Ok(())
     }
 
@@ -5637,7 +5673,7 @@ impl Context {
             *self = before;
             match self.replacement_rule(value) {
                 Some(result) => result,
-                None => rescue(error, || self.primitive_ability(value)),
+                None => self.rescue(error, || self.primitive_ability(value)),
             }
         })
     }
@@ -5702,7 +5738,7 @@ impl Context {
                 .casting_rule(rule)
                 .map(Ability::Casting)
                 .or_else(|error| {
-                    rescue(error, || {
+                    self.rescue(error, || {
                         self.primitive("CastEffect", rule)
                             .map(|(name, operands)| Ability::Primitive { name, operands })
                     })
@@ -5811,10 +5847,9 @@ impl Context {
                         _ => false,
                     }
                 }
+                // As-though-creature semantics stay with the reviewed row.
                 if planeswalker(&filter) {
-                    return Err(invalid(
-                        "equip planeswalker requires its separate as-though-creature semantics",
-                    ));
+                    return Err(unsupported(value));
                 }
                 let slot = Slot(0);
                 let mut limits = ActivationLimits {
@@ -6255,7 +6290,7 @@ pub(crate) fn unified_face(value: &source::OracleCard) -> (Card, Vec<Diagnostic>
 }
 fn bind_face(
     value: &source::OracleCard,
-    base: Context,
+    mut base: Context,
 ) -> std::result::Result<Card, Vec<Diagnostic>> {
     let lenient = base.lenient;
     let source::OracleCard::Card {
@@ -6271,6 +6306,7 @@ fn bind_face(
     else {
         return Err(vec![unsupported(value)]);
     };
+    base.card = name.as_str().into();
     let mut unreduced = Vec::new();
     let mana_failed = lenient
         && mana_cost

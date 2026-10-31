@@ -40,7 +40,7 @@ impl Context {
         }
         self.pipeline_selector(crate::pipeline::selectors::SelectorRef::Cards(value))
             .unwrap_or_else(|| Err(unsupported(value)))
-            .or_else(|error| rescue(error, || self.primitive_predicate("Cards", value)))
+            .or_else(|error| self.rescue(error, || self.primitive_predicate("Cards", value)))
             .or_else(|error| self.as_permanent_filter(value, error))
     }
     /// The same predicate under `Permanents` reads the same characteristics.
@@ -49,14 +49,14 @@ impl Context {
         value: &impl Serialize,
         error: Diagnostic,
     ) -> Result<ObjectFilter> {
-        rescue(error, || {
+        self.rescue(error, || {
             let filter: source::Permanents = as_family(value, "Permanents")?;
             self.filter(&filter).ok()
         })
     }
     /// The same predicate under `Cards` reads the same characteristics.
     fn as_card_filter(&self, value: &impl Serialize, error: Diagnostic) -> Result<ObjectFilter> {
-        rescue(error, || {
+        self.rescue(error, || {
             let filter: source::Cards = as_family(value, "Cards")?;
             self.card_filter(&filter).ok()
         })
@@ -104,7 +104,7 @@ impl Context {
             source::CardsInGraveyards::WasPutIntoGraveyardThisWay => Ok(ObjectFilter::InSet(
                 Box::new(self.this_way_set(Done::Graveyard, ObjectPhase::After, None)?),
             )),
-            _ => rescue(unsupported(value), || {
+            _ => self.rescue(unsupported(value), || {
                 self.primitive_predicate("CardsInGraveyards", value)
             })
             .or_else(|error| self.as_card_filter(value, error)),
@@ -136,7 +136,7 @@ impl Context {
         }
         self.pipeline_selector(crate::pipeline::selectors::SelectorRef::CardsInHand(value))
             .unwrap_or_else(|| Err(unsupported(value)))
-            .or_else(|error| rescue(error, || self.primitive_predicate("CardsInHand", value)))
+            .or_else(|error| self.rescue(error, || self.primitive_predicate("CardsInHand", value)))
             .or_else(|error| self.as_card_filter(value, error))
     }
     fn exile_filter(&self, value: &source::CardsInExile) -> Result<ObjectFilter> {
@@ -179,7 +179,7 @@ impl Context {
             | source::CardsInExile::UsedToCraftPermanent(p) => {
                 Ok(ObjectFilter::ExiledWith(self.object(p)?))
             }
-            _ => rescue(unsupported(value), || {
+            _ => self.rescue(unsupported(value), || {
                 self.primitive_predicate("CardsInExile", value)
             })
             .or_else(|error| self.as_card_filter(value, error)),

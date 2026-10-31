@@ -642,6 +642,20 @@ impl Context {
                 players: PlayerSet::One(library.clone()),
                 excluding: None,
             },
+            // After a repeated look the last cards seen are the loop's, so the row names them.
+            S::ShuffleAndPutTheRemainingCardsOnTopOfLibraryInAnyOrder
+                if instructions.iter().any(|step| {
+                    matches!(
+                        step,
+                        Instruction::Effect { operation: Operation::Primitive { name, .. }, .. }
+                            if name == "LookAtTopOfLibraryAction::RepeatableActions"
+                    )
+                }) =>
+            {
+                let step = self.primitive_step("LookAtTopOfLibraryAction", action, player, remaining)?;
+                instructions.push(step);
+                return Ok(());
+            }
             S::ShuffleAndPutTheRemainingCardsOnTopOfLibraryInAnyOrder => {
                 instructions.push(self.effect(Operation::Shuffle {
                     players: PlayerSet::One(library.clone()),

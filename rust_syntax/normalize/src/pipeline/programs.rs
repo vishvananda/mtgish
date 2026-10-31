@@ -126,9 +126,18 @@ pub fn rewrite(value: ProgramRef<'_>) -> Option<InstructionRecipe> {
 pub fn action_tree(value: &source::Action) -> InstructionRecipe {
     generated_action(value).unwrap_or_else(|| {
         super::rewrite(value)
+            .filter(|_| !has_row(value))
             .map(|s| InstructionRecipe::Effect(s.expand()))
             .unwrap_or_else(|| InstructionRecipe::Source(ProgramSource::Action(value.clone())))
     })
+}
+
+/// A form with both a recipe and a reviewed row lowers as an action, so the row
+/// can take over when the recipe's operands don't resolve in this scope.
+fn has_row(value: &source::Action) -> bool {
+    let text = format!("{value:?}");
+    let variant = text.split(['(', ' ']).next().unwrap_or(&text);
+    crate::primitive_spec::lookup(&format!("Action::{variant}")).is_some()
 }
 pub fn program_tree(value: &source::Actions) -> InstructionRecipe {
     generated_program(value)

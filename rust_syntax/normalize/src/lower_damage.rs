@@ -427,7 +427,10 @@ impl Context {
             [source::Action::WouldDealExcessDamage_DealExcessToPlayerInstead(player)] => {
                 Ok(DamageRider::ExcessTo(self.player(player)?))
             }
-            _ => Err(invalid("excess damage goes only to one player")),
+            // Anything more than the redirect stays with the action's reviewed row.
+            _ => Err(instead.last().map(unsupported).unwrap_or_else(|| {
+                invalid("excess damage goes only to one player")
+            })),
         }
     }
 

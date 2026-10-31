@@ -2,7 +2,7 @@
 impl Context {
     fn mana_production(&self, value: &source::ManaProduce) -> Result<ManaProduction> {
         self.reduced_mana_production(value).or_else(|error| {
-            let (name, operands) = rescue(error, || self.primitive("ManaProduce", value))?;
+            let (name, operands) = self.rescue(error, || self.primitive("ManaProduce", value))?;
             if matches!(
                 name.as_str(),
                 "ManaProduce::ManaOfTheChosenColor" | "ManaProduce::ManaOfAChosenColor"
@@ -115,7 +115,7 @@ impl Context {
     }
     fn mana_use(&self, value: &source::ManaUseModifier) -> Result<ManaUse> {
         self.reduced_mana_use(value).or_else(|error| {
-            rescue(error, || {
+            self.rescue(error, || {
                 self.primitive("ManaUseModifier", value)
                     .map(|(name, operands)| match (name.as_str(), operands.as_slice()) {
                         (

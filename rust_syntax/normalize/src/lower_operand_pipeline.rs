@@ -219,6 +219,14 @@ impl Context {
                     .collect::<Result<_>>()?,
             ),
             R::Payment { negated } => {
+                // "If you do" after something optional that was not a payment.
+                if self.payment.is_none() {
+                    if let Some(condition) =
+                        self.primitive_condition(&source::Condition::CostWasPaid)
+                    {
+                        return Ok(condition);
+                    }
+                }
                 let paid = Condition::PaymentChosen(
                     self.payment
                         .clone()

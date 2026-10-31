@@ -18,7 +18,7 @@ impl Context {
                 Some(Err(reason)) if reason.source_type == "invariant" => return Err(reason),
                 _ => {}
             }
-            rescue(error, || {
+            self.rescue(error, || {
                 self.primitive("PlayerEffect", value)
                     .map(|(name, operands)| crate::semantics::reduce_player_rule(name, operands))
             })

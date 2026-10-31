@@ -89,7 +89,7 @@ impl Context {
 
     fn rule_change(&self, value: &source::PermanentRule) -> Result<Vec<RuleChange>> {
         self.reduced_rule_change(value).or_else(|error| {
-            rescue(error, || {
+            self.rescue(error, || {
                 self.primitive("PermanentRule", value)
                     .map(|(name, operands)| vec![crate::semantics::reduce_rule(name, operands)])
             })

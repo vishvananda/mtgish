@@ -195,7 +195,7 @@ impl Context {
                         .iter()
                         .map(|item| {
                             self.graveyard_replacement(item).or_else(|error| {
-                                let (name, operands) = rescue(error, || {
+                                let (name, operands) = self.rescue(error, || {
                                     self.primitive("ReplacableEventWouldPutIntoGraveyard", item)
                                 })?;
                                 Ok(crate::semantics::reduce_replacement(name, operands))
@@ -239,10 +239,10 @@ impl Context {
         match family {
             "ReplacableEventWouldDealDamage" => self
                 .damage_replacement(&decode_step(event)?)
-                .or_else(|error| rescue(error, || self.replacement_row(family, event))),
+                .or_else(|error| self.rescue(error, || self.replacement_row(family, event))),
             "ReplacableEventWouldPutIntoGraveyard" => self
                 .graveyard_replacement(&decode_step(event)?)
-                .or_else(|error| rescue(error, || self.replacement_row(family, event))),
+                .or_else(|error| self.rescue(error, || self.replacement_row(family, event))),
             "ReplacableEventWouldDraw" => self
                 .first_draw_replacement(&decode_step(event)?)
                 .map_or_else(

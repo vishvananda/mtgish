@@ -194,7 +194,7 @@ impl Context {
 
     fn trigger(&self, value: &source::Trigger) -> Result<EventSpec> {
         self.reduced_trigger(value).or_else(|error| {
-            rescue(error, || {
+            self.rescue(error, || {
                 self.first_each_turn(value)
                     .or_else(|| self.primitive_trigger(value))
             })
