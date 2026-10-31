@@ -47,7 +47,6 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         "Food Chain",
         "Rites of Initiation",
         "Soul Burn",
-        "Spinning Darkness",
     ];
     let mut complete = 0;
     for source in sources() {
@@ -72,7 +71,7 @@ fn real_casting_families_roundtrip_and_nested_gaps_remain_incomplete() {
         }
         complete += 1;
     }
-    assert_eq!(complete, 71);
+    assert_eq!(complete, 72);
 }
 
 #[test]

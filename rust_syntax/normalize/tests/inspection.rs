@@ -128,14 +128,10 @@ fn effect(operation: Operation, id: u32) -> Instruction {
 fn real_inspection_programs_roundtrip_and_unimplemented_nested_programs_remain_diagnostics() {
     let incomplete = [
         "Fact or Fiction",
-        "Atris, Oracle of Half-Truths",
-        "Fortune's Favor",
         "Break Out",
         "Birthing Ritual",
         "Lim-Dûl's Vault",
         "Moonlight Bargain",
-        "Hide in Plain Sight",
-        "Orcish Librarian",
         "Planar Genesis",
         "Zimone's Experiment",
     ];
@@ -162,7 +158,7 @@ fn real_inspection_programs_roundtrip_and_unimplemented_nested_programs_remain_d
         }
         complete += 1;
     }
-    assert_eq!(complete, 42);
+    assert_eq!(complete, 46);
 }
 
 #[test]
