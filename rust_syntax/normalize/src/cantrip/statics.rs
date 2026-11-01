@@ -293,9 +293,16 @@ impl Compiler {
                 LayerChange::of("Ability", body)
             }
             // Ward is a triggered ability, given as any other is.
-            Change::GrantKeyword(ward @ Keyword::Ward(_)) => {
+            Change::GrantKeyword(ward @ (Keyword::Ward(_) | Keyword::Flanking)) => {
                 return self.layer_change(&Change::GrantAbility(Box::new(Ability::Keyword(ward.clone()))));
             }
+            Change::GrantKeyword(Keyword::HexproofFrom(quality)) => LayerChange::of(
+                "Ability",
+                format!(
+                    "chars.hexproof_from = chars.hexproof_from.and({});",
+                    lane_j::hexproof_quality(quality)?
+                ),
+            ),
             Change::GrantKeyword(k) => LayerChange::of(
                 "Ability",
                 format!("chars.keywords = chars.keywords.with({});", keyword(k)?),

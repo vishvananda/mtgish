@@ -227,7 +227,7 @@ impl Compiler {
         })
     }
     /// An `Enters` callback for the source's own arrival.
-    fn entering(&mut self, body: &Program, label: &str) -> Result<()> {
+    pub(super) fn entering(&mut self, body: &Program, label: &str) -> Result<()> {
         self.reset_results();
         let saved = (
             self.reader,
@@ -370,6 +370,13 @@ impl Compiler {
             return Ok(());
         }
         if let ReplacementActive::SourceEntering = active {
+            if lane_j::escapes(event) {
+                if guard.is_some() {
+                    return Err(gap("conditional Replacement"));
+                }
+                self.escapes_with(body, label, parts)?;
+                return Ok(());
+            }
             if guard.is_some() {
                 return Err(gap("conditional Replacement"));
             }

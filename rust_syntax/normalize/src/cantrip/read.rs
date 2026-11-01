@@ -73,6 +73,10 @@ pub(super) enum Pending {
 #[derive(Clone)]
 pub(super) struct History {
     pub outer: Option<String>,
+    /// An event reference in the question is to the event of the ability that
+    /// asks it, not the one in the record.
+    pub event_at: EventAt,
+    pub frame: Frame,
 }
 
 /// Where one event value travels from the matcher to the resolving ability.
@@ -96,8 +100,12 @@ pub(super) struct Frame {
     pub stack_object: Option<Carried>,
     /// The serial of the activated ability an event is about, on the stack.
     pub activated: Option<Carried>,
+    /// Who controls what `stack_object` names, spell or ability.
+    pub stack_controller: Option<Carried>,
     pub attacker: Option<Carried>,
     pub blocker: Option<Carried>,
+    /// "That many" of a "one or more" ability is how many objects its batch has.
+    pub members: bool,
 }
 impl Frame {
     /// What every branch of an alternative event binds the same way.
@@ -116,8 +124,10 @@ impl Frame {
             damage_recipient: same(self.damage_recipient, other.damage_recipient),
             stack_object: same(self.stack_object, other.stack_object),
             activated: same(self.activated, other.activated),
+            stack_controller: same(self.stack_controller, other.stack_controller),
             attacker: same(self.attacker, other.attacker),
             blocker: same(self.blocker, other.blocker),
+            members: self.members && other.members,
         }
     }
 }
@@ -181,7 +191,20 @@ pub(super) fn counter_kind(kind: &crate::counter::CounterKind) -> Result<String>
     let word = match kind {
         K::PowerToughness(1, 1) => "PlusOne".to_string(),
         K::PowerToughness(-1, -1) => "MinusOne".to_string(),
-        K::PowerToughness(..) => return Err(gap("power/toughness counter other than ±1/±1")),
+        K::PowerToughness(power, toughness) => {
+            let part = |n: &i32| {
+                format!(
+                    "{}{}",
+                    if *n < 0 { "Minus" } else { "Plus" },
+                    n.unsigned_abs()
+                )
+            };
+            return Ok(planned::planned_value(
+                "power/toughness counter other than ±1/±1",
+                "CounterKind::PlusOne",
+                &format!("CounterKind::{}{}", part(power), part(toughness)),
+            ));
+        }
         K::Named(counter) => name(counter),
     };
     let word = word.strip_suffix("Counter").unwrap_or(&word).to_string();
@@ -234,10 +257,11 @@ impl Compiler {
         format!("{{ let q: &dyn Query = g; {} }}", code.as_ref())
     }
     fn carried(&self, carried: Carried) -> Result<(String, String)> {
-        if self.history.is_some() {
-            return Err(gap("event reference in a history question"));
-        }
         let (subject, data) = match self.event_at {
+            // The asking matcher's locals, past the record's of the same names.
+            EventAt::Matcher if self.history.is_some() => {
+                ("outer_subject".to_string(), "outer_data".to_string())
+            }
             EventAt::Matcher => ("subject".to_string(), "data".to_string()),
             EventAt::Item => ("item.subject".into(), "item.data".into()),
             EventAt::TargetFilter => ("q.event_subject()".into(), String::new()),
@@ -246,14 +270,28 @@ impl Compiler {
         };
         match carried {
             Carried::Subject => Ok((subject, data)),
-            Carried::Data(_) if data.is_empty() => {
-                Err(gap("event value in a target filter beyond its subject"))
-            }
+            Carried::Data(_) if data.is_empty() => Ok((
+                subject,
+                planned::planned_value(
+                    "event value in a target filter beyond its subject",
+                    "[u32::MAX; 2]",
+                    "q.event_data()",
+                ),
+            )),
             Carried::Data(_) => Ok((subject, data)),
         }
     }
-    fn carried_object(&self, carried: Option<Carried>) -> Result<String> {
-        let carried = carried.ok_or_else(|| gap("event object this trigger does not bind"))?;
+    pub(super) fn carried_object(&self, carried: Option<Carried>) -> Result<String> {
+        // What is entering is what a replacement of its entering is about.
+        if let (EventAt::Nowhere, None, Some(Carried::Subject), Some(object)) =
+            (self.event_at, &self.outer, carried, &self.event_object)
+        {
+            return self.object(object);
+        }
+        let entering = (self.event_at == EventAt::Entering).then_some(Carried::Subject);
+        let carried = carried
+            .or(entering)
+            .ok_or_else(|| gap("event object this trigger does not bind"))?;
         let (subject, data) = self.carried(carried)?;
         Ok(match carried {
             Carried::Subject => format!("{subject}.object()"),
@@ -326,7 +364,9 @@ impl Compiler {
                 format!("Some({})", self.affected_object.unwrap_or_default())
             }
             ObjectRef::Candidate if self.history.is_some() => match &self.history {
-                Some(History { outer: Some(outer) }) => format!("Some({outer})"),
+                Some(History {
+                    outer: Some(outer), ..
+                }) => format!("Some({outer})"),
                 _ => {
                     return Err(gap(
                         "candidate in a history question with no filter around it",
@@ -404,7 +444,7 @@ impl Compiler {
                 };
                 format!("({list}).get({index} as usize).copied()")
             }
-            other => return Err(gap(format!("object reference {}", form(other)))),
+            other => return self.object_rest(other),
         })
     }
     /// `Option<PlayerId>`, for the same reason as `object`.
@@ -418,6 +458,12 @@ impl Compiler {
             }
             PlayerRef::AbilityController => "Some(asker.controller)".into(),
             PlayerRef::Active => "Some(q.state().turn.active)".into(),
+            PlayerRef::ControllerOf(object)
+                if matches!(**object, ObjectRef::EventStackObject)
+                    && self.frame.stack_controller.is_some() =>
+            {
+                self.carried_player(self.frame.stack_controller)?
+            }
             PlayerRef::ControllerOf(object) => format!(
                 "{}.map(|o: ObjectId| q.controller(o))",
                 self.object(object)?
@@ -450,7 +496,7 @@ impl Compiler {
                 self.object(object)?
             ),
             PlayerRef::Chosen => self.chosen_value(ValueKind::Player)?,
-            other => return Err(gap(format!("player reference {}", form(other)))),
+            other => return self.player_rest(other),
         })
     }
     /// One player, where a card's text leaves no way for there to be none.
@@ -459,6 +505,10 @@ impl Compiler {
             match object {
                 ObjectRef::Source | ObjectRef::Candidate | ObjectRef::Bound(_) => true,
                 ObjectRef::EventSubject => c.frame.object == Some(Carried::Subject),
+                // A spell or ability that made a target of something, and
+                // the source of damage, have a controller as they last existed.
+                ObjectRef::EventStackObject => c.frame.stack_controller.is_some(),
+                ObjectRef::Damage(DamageSubject::Source) => c.frame.damage_source.is_some(),
                 ObjectRef::Target { slot, index } => c.slots.get(&slot.0).is_some_and(|(_, spec)| {
                     matches!(&spec.count, Count::Exactly(Expr::Constant(n)) if *n > i64::from(*index))
                 }),
@@ -472,6 +522,12 @@ impl Compiler {
             PlayerRef::EventOtherPlayer => self.frame.other_player.is_some(),
             PlayerRef::ControllerOf(object) | PlayerRef::OwnerOf(object) => certain(self, object),
             PlayerRef::Chosen => self.chosen_local(ValueKind::Player).is_ok(),
+            PlayerRef::PlayerOrControllerOf(recipients) => match &**recipients {
+                Recipients::Target { slot, index } => c_slot_is_fixed(self, slot, *index),
+                Recipients::Targets(slot) => c_slot_is_fixed(self, slot, 0),
+                _ => false,
+            },
+            PlayerRef::OneOf(players) => self.present.borrow().is_some() || self.is_picked(players),
             _ => false,
         };
         if is_certain {
@@ -479,6 +535,13 @@ impl Compiler {
                 "{}.expect(\"a reference that always names a player\")",
                 self.player(player)?
             ))
+        } else if self.present.borrow().is_some() {
+            let read = self.player(player)?;
+            let mut present = self.present.borrow_mut();
+            let list = present.as_mut().expect("just seen");
+            let local = format!("present_{}_{}", self.next, list.len());
+            list.push((local.clone(), read));
+            Ok(local)
         } else {
             Err(gap(format!("possibly absent player {}", form(player))))
         }
@@ -516,11 +579,26 @@ impl Compiler {
             | ObjectSet::Observed(result)
             | ObjectSet::Affected(result) => self.selected(result)?,
             ObjectSet::CostObjects {
+                payment: PaymentRef::Resolution(result),
+                phase,
+                ..
+            } => self.transition(result, phase)?,
+            ObjectSet::CostObjects {
                 payment,
                 component,
                 phase: ObjectPhase::Before,
                 ..
             } => self.cost_objects(payment, component)?,
+            // What paid, as what it became.
+            ObjectSet::CostObjects {
+                payment,
+                component,
+                phase: ObjectPhase::After,
+                ..
+            } => format!(
+                "({}).into_iter().filter_map(|o: ObjectId| q.state().obj(o).became).collect::<Vec<ObjectId>>()",
+                self.cost_objects(payment, component)?
+            ),
             ObjectSet::Created(result) => self.created(result)?,
             ObjectSet::Transition { result, phase } => self.transition(result, phase)?,
             ObjectSet::Matching { objects, filter } => format!(
@@ -585,7 +663,7 @@ impl Compiler {
             ObjectSet::EventGroup if self.event_at == EventAt::Item && self.grouped => {
                 "q.event_objects(item).to_vec()".into()
             }
-            other => return Err(gap(format!("object collection {}", form(other)))),
+            other => return self.objects_rest(other),
         })
     }
     /// `Vec<ObjectId>` of what paid part of a cost, as it was when it did. The
@@ -745,7 +823,7 @@ impl Compiler {
             other => format!("({}).contains(&{who})", self.players(other)?),
         })
     }
-    fn property(&self, id: &str, property: &Property) -> Result<Number> {
+    pub(super) fn property(&self, id: &str, property: &Property) -> Result<Number> {
         let pt = |field: &str| Number {
             code: format!("i64::from(q.chars({id}).{field}.unwrap_or(0))"),
             min: i16::MIN.into(),
@@ -785,7 +863,7 @@ impl Compiler {
                 max: 5,
                 dynamic: true,
             },
-            other => return Err(gap(format!("numeric object property {}", form(other)))),
+            other => return lane_j::property_rest(other, id),
         })
     }
     pub(super) fn number(&self, n: &Expr) -> Result<Number> {
@@ -851,6 +929,11 @@ impl Compiler {
                 max: u16::MAX.into(),
                 dynamic: true,
             },
+            Expr::EventAmount
+                if self.frame.members && self.grouped && self.event_at == EventAt::Item =>
+            {
+                count("q.event_objects(item).len() as i64".into())
+            }
             Expr::EventAmount => {
                 let (_, data) = self.carried(
                     self.frame
@@ -870,6 +953,7 @@ impl Compiler {
                 let scope = match window {
                     HistoryWindow::ThisTurn => "q.history().this_turn().iter()",
                     HistoryWindow::ThisGame => "q.history().all().iter()",
+                    HistoryWindow::ThisCombat => "cantrip_mechanics::history::this_combat(q).iter()",
                     HistoryWindow::LastTurn => {
                         "q.history().all().iter().filter(|r| r.turn + 1 == q.state().turn.number)"
                     }
@@ -878,10 +962,15 @@ impl Compiler {
                 let mut asked = self.clone();
                 asked.history = Some(History {
                     outer: self.candidates.borrow().last().map(|c| c.id.clone()),
+                    event_at: self.event_at,
+                    frame: self.frame,
                 });
                 let matched = asked.event(event)?;
+                if let Some(feature) = matched.planned.first() {
+                    return Err(gap(feature.clone()));
+                }
                 let hits = format!("{scope}.filter_map({})", matched.history_test());
-                count(match measure {
+                let answer = match measure {
                     HistoryMeasure::Occurrences => format!("{hits}.count() as i64"),
                     HistoryMeasure::TotalAmount
                         if matched.frame.amount == Some(Carried::Data(0)) =>
@@ -889,6 +978,11 @@ impl Compiler {
                         format!("{hits}.map(|f: Fired| i64::from(f.data[0])).sum::<i64>()")
                     }
                     other => return Err(gap(format!("history measure {}", form(other)))),
+                };
+                count(if self.event_at == EventAt::Matcher {
+                    format!("{{ let (outer_subject, outer_data) = (subject, data); {answer} }}")
+                } else {
+                    answer
                 })
             }
             Expr::ManaSpent {
@@ -956,6 +1050,11 @@ impl Compiler {
                     DistinctProperty::Names => list("q.chars(id).name"),
                     DistinctProperty::Controllers => list("q.controller(id)"),
                     DistinctProperty::Owners => list("q.state().obj(id).owner"),
+                    DistinctProperty::Powers => list("q.chars(id).power"),
+                    DistinctProperty::Toughness => list("q.chars(id).toughness"),
+                    DistinctProperty::ManaValues if self.reader != Reader::Layer => {
+                        list("q.mana_value(id)")
+                    }
                     other => return Err(gap(format!("distinct {}", form(other)))),
                 })
             }
@@ -1211,7 +1310,7 @@ impl Compiler {
                 max: i32::MAX.into(),
                 dynamic: true,
             },
-            other => return Err(gap(format!("numeric expression {}", form(other)))),
+            other => return self.number_rest(other),
         })
     }
     /// A boolean over `t: &Target`: whether a spell targeting it targets these.
@@ -1321,6 +1420,9 @@ impl Compiler {
             ObjectFilter::Blocking => {
                 format!("q.state().blocks.iter().any(|b| b.blocker == {id})")
             }
+            ObjectFilter::HasKeyword(Keyword::Flanking) if self.reader != Reader::Layer => {
+                format!("{chars}.abilities().any(|a| q.triggered_ability(a).is_some_and(|t| t.flanking))")
+            }
             ObjectFilter::HasKeyword(k) => {
                 format!("{chars}.keywords.has({})", keyword(k)?)
             }
@@ -1361,14 +1463,7 @@ impl Compiler {
                 }
             }
             ObjectFilter::Shares { property, with } => {
-                let test = match property {
-                    DistinctProperty::CardTypes => "a.types.iter().any(|t| b.types.has(t))",
-                    DistinctProperty::CreatureTypes => {
-                        "a.subtypes.iter().any(|s| SubtypeSet::CREATURE_TYPES.has(s) && b.subtypes.has(s))"
-                    }
-                    DistinctProperty::Colors => "a.colors.intersects(b.colors)",
-                    other => return Err(gap(format!("sharing {other:?}"))),
-                };
+                let test = lane_j::sharing(property)?;
                 format!(
                     "{}.is_some_and(|o: ObjectId| {{ let (a, b) = (&{chars}, &q.chars(o)); {test} }})",
                     self.object(with)?
@@ -1412,7 +1507,7 @@ impl Compiler {
             ObjectFilter::Cast { by, from } if self.reader != Reader::Layer => {
                 // The history has it only once it became cast.
                 if c.announced.is_some() {
-                    return Err(gap("how a spell being cast is being cast"));
+                    return self.being_cast_from(by.as_ref(), from.as_ref(), c);
                 }
                 let mut tests = Vec::new();
                 if let Some(by) = by {
@@ -1469,7 +1564,7 @@ impl Compiler {
                 format!("({}).contains(&{id})", self.objects(objects)?)
             }
             ObjectFilter::Condition(condition) => self.condition(condition)?,
-            other => return Err(gap(format!("object filter {}", form(other)))),
+            other => return self.predicate_rest(other, c),
         })
     }
     pub(super) fn condition(&self, condition: &Condition) -> Result<String> {
@@ -1487,6 +1582,10 @@ impl Compiler {
             ))
         };
         Ok(match condition {
+            Condition::Primitive { name, .. } if name.starts_with(lane_j::CLASS_LEVEL) => {
+                self.class_level(name)
+            }
+            Condition::Primitive { name, .. } if name == lane_j::CASE_SOLVED => self.case_solved(),
             Condition::Primitive { name, .. } => {
                 return Err(gap(format!("primitive condition {name}")))
             }
@@ -1611,7 +1710,7 @@ impl Compiler {
                 self.player(player)?,
                 self.player_state(state)?
             ),
-            other => return Err(gap(format!("condition {}", form(other)))),
+            other => return self.condition_rest(other),
         })
     }
     /// Whether `player` is in this state.

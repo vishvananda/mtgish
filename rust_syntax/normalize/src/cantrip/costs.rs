@@ -159,8 +159,9 @@ impl Compiler {
                 objects: ObjectSet::Battlefield(filter),
                 choose,
             } => {
-                let n = exactly_u8(choose.as_ref())
-                    .ok_or_else(|| gap("sacrifice cost without a fixed count"))?;
+                let Some(n) = exactly_u8(choose.as_ref()) else {
+                    return self.sacrifice_count(filter, choose.as_ref(), label);
+                };
                 format!("sacrifice({n}, {})", self.cost_filter(filter, label)?)
             }
             CostPart::Discard {
@@ -173,8 +174,9 @@ impl Compiler {
                 filter,
                 random: false,
             } => {
-                let n =
-                    constant_u8(count).ok_or_else(|| gap("discard cost without a fixed count"))?;
+                let Some(n) = constant_u8(count) else {
+                    return self.discard_count(count, filter, label);
+                };
                 match filter {
                     ObjectFilter::Any => format!("discard_cards({n})"),
                     filter => format!("discard({n}, {})", self.cost_filter(filter, label)?),
@@ -192,12 +194,16 @@ impl Compiler {
                 else {
                     return Err(gap("tap cost shape"));
                 };
-                let n = exactly_u8(choose.as_ref())
-                    .ok_or_else(|| gap("tap cost without a fixed count"))?;
+                let Some(n) = exactly_u8(choose.as_ref()) else {
+                    return self.tap_count(filter, choose.as_ref(), label);
+                };
                 format!("tap_untapped({n}, {})", self.cost_filter(filter, label)?)
             }
             // Put on the source by the activating player (Mazemind Tome's form).
             CostPart::PutCounters(placements) => {
+                if let Some(n) = lane_j::blights(placements) {
+                    return Ok(format!("cantrip_mechanics::blight::cost({n})"));
+                }
                 let [CounterPlacement {
                     recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)),
                     kind,
@@ -224,7 +230,9 @@ impl Compiler {
                 else {
                     return Err(gap("counter removal cost shape"));
                 };
-                let n = constant_u8(n).ok_or_else(|| gap("counter cost without a fixed count"))?;
+                let Some(n) = constant_u8(n) else {
+                    return self.counters_count(objects, kind.as_ref(), n, selection.is_some());
+                };
                 // One counter from one of them is one counter from among them.
                 if let Some(selection) = selection {
                     let one = matches!(&selection.count, Count::Exactly(Expr::Constant(1)));
@@ -318,6 +326,9 @@ impl Compiler {
     }
     /// A `Cost`. Mana symbols combine into one part before bounds are checked.
     pub(super) fn cost(&mut self, value: &Cost, label: &str) -> Result<String> {
+        self.mana_x = value.parts.iter().any(|part| {
+            matches!(part, CostPart::Mana(mana) if mana.iter().any(|s| matches!(s, ManaSymbol::X)))
+        });
         let mut symbols = Vec::new();
         let (mut tap, mut life_total, mut loyalty_delta) = (false, 0u32, None);
         let mut sacrifice_this = false;
@@ -428,7 +439,16 @@ impl Compiler {
             Expr::Constant(n) => u8::try_from(*n).ok(),
             _ => None,
         };
-        let (Some(min), Some(max)) = (bound(minimum), bound(maximum)) else {
+        // "Choose one. If you control a commander, you may choose both instead."
+        let (most, more) = match maximum {
+            Expr::Conditional {
+                condition,
+                then,
+                otherwise,
+            } if bound(then).is_some() => (&**otherwise, Some((condition, bound(then)))),
+            most => (most, None),
+        };
+        let (Some(min), Some(max)) = (bound(minimum), bound(most)) else {
             return Err(gap("mode count that is not a constant"));
         };
         let refused = [
@@ -464,6 +484,10 @@ impl Compiler {
             ));
         }
         let mut modal = format!("modes(&[{}]).choose({min}, {max})", defs.join(","));
+        if let Some((condition, Some(most))) = more {
+            let test = self.activation_condition(condition, &format!("{label}_more_modes"))?;
+            modal.push_str(&format!(".up_to_if({test}, {most})"));
+        }
         if *repeat {
             modal.push_str(".repeat()");
         }
@@ -551,15 +575,14 @@ impl Compiler {
             } else {
                 let adds = self.mana_ability(body, &format!("{label}_mana"))?;
                 let colors = self.mana_colors.take();
+                self.paid_for = PaidFor::Mana;
+                let cost = self.cost(price, label);
+                self.paid_for = PaidFor::Ability;
                 let made = format!(
                     "mana_ability({}, {adds}, {}){}",
-                    self.cost(price, label)?,
+                    cost?,
                     quoted(&text),
-                    if chosen::makes_chosen_color(body) {
-                        ".colors_from(cantrip_mechanics::lands::chosen_color)"
-                    } else {
-                        ""
-                    }
+                    self.colors_from(body, label)?
                 );
                 match colors {
                     Some((suffix, None)) => format!("{made}{suffix}"),
@@ -728,15 +751,22 @@ impl Compiler {
                 Some(most) => Condition::All(vec![least, compare(Comparison::LessOrEqual, most)]),
                 None => least,
             };
-            let mut then: Vec<Ability> = stage
-                .power_toughness
-                .map(|(power, toughness)| Ability::Static {
+            // A station stage makes it a creature in addition to its other types (CR 721.2b).
+            let mut changes = Vec::new();
+            if stage.animates {
+                changes.push(Change::AddCardType(crate::mtg_types::CardType::Creature));
+            }
+            if let Some((power, toughness)) = stage.power_toughness {
+                changes.push(Change::SetBasePowerToughness {
+                    power: Expr::Constant(power.into()),
+                    toughness: Expr::Constant(toughness.into()),
+                });
+            }
+            let mut then: Vec<Ability> = (!changes.is_empty())
+                .then(|| Ability::Static {
                     kind: StaticKind::Ordinary,
                     affected: EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
-                    changes: vec![Change::SetBasePowerToughness {
-                        power: Expr::Constant(power.into()),
-                        toughness: Expr::Constant(toughness.into()),
-                    }],
+                    changes,
                 })
                 .into_iter()
                 .collect();
@@ -816,6 +846,9 @@ impl Compiler {
                     }
                     other => self.protection_beyond(other, parts)?,
                 },
+                Keyword::HexproofFrom(quality) => {
+                    parts.field("hexproof_from", lane_j::hexproof_quality(quality)?)
+                }
                 k => parts.keywords.push(keyword(k)?),
             },
             Ability::Casting(rule) => self.casting(rule, label, parts, None)?,
@@ -889,7 +922,11 @@ impl Compiler {
                     scope,
                 );
                 self.activation_cost = None;
-                parts.abilities.push(def?);
+                if matches!(limits.keyword, Some(ActivatedKeyword::Forecast)) {
+                    self.plan_entry("activated keyword Forecast", "abilities", &def?, parts);
+                } else {
+                    parts.abilities.push(def?);
+                }
             }
             Ability::Triggered {
                 event,
@@ -898,21 +935,27 @@ impl Compiler {
                 announcement,
                 body,
             } => {
-                let mut def = self.triggered(
+                self.event_object = lane_j::event_object(event);
+                let def = self.triggered(
                     label,
                     event,
                     intervening_if.as_ref(),
                     limits,
                     announcement,
                     body,
-                )?;
-                if let Some(scope) = scope {
-                    if scope.condition.is_some() {
-                        return Err(gap("conditional scope on a triggered ability"));
+                );
+                self.event_object = None;
+                let def = match scope {
+                    Some(scope) if scope.condition.is_some() => {
+                        Err(gap("conditional scope on a triggered ability"))
                     }
-                    def.push_str(&format!(".functions_in({})", zone_list(scope.zones)?));
-                }
-                parts.abilities.push(def);
+                    Some(scope) => {
+                        let zones = zone_list(scope.zones);
+                        def.and_then(|def| Ok(format!("{def}.functions_in({})", zones?)))
+                    }
+                    None => def,
+                };
+                parts.abilities.push(def?);
             }
             Ability::Static {
                 kind,
@@ -1014,12 +1057,17 @@ impl Compiler {
             }
             // A card that says it is out of the game has no game to generate.
             Ability::DeckRule(DeckRule::Banned | DeckRule::RemoveUnlessPlayingForAnte) => {
-                return Err(gap("card outside ordinary play"))
+                self.plan_entry(
+                    "card outside ordinary play",
+                    "deck_rules",
+                    "DeckRule::OnlyWhenPlayingForAnte",
+                    parts,
+                );
             }
             // How to build a deck, in no game: Cantrip's Sphinx's Approach says
             // the same of its line, "no line of code here".
             Ability::DeckRule(_) => {}
-            other => return Err(gap(format!("ability {}", form(other)))),
+            other => return self.ability_rest(other, label, parts),
         }
         Ok(())
     }

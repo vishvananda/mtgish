@@ -267,9 +267,17 @@ impl Compiler {
                         "Life({})",
                         costs::constant_u8(n).ok_or_else(|| gap("cumulative life not fixed"))?
                     ),
-                    _ => return Err(gap("cumulative upkeep paid other than in mana or life")),
+                    _ => return self.cumulative_upkeep(cost, label, parts),
                 };
                 ability(parts, format!("{M}::cumulative_upkeep!({M}::cumulative_upkeep::Payment::{payment}, \"Cumulative upkeep\")"));
+            }
+            // Buyback's cost is the card's kicker, its mana and whatever else it asks.
+            K::Buyback if mana_alone(cost, mechanic).is_err() => {
+                let cost = self.mechanic_cost(cost, mechanic, label)?;
+                parts.field("kicker", format!("{{ const COST: Cost = {cost}; Some(Kicker {{ cost: COST.mana, extra: Some(Cost {{ mana: ManaCost::ZERO, ..COST }}), multi: false, waterbend: false }}) }}"));
+                parts
+                    .replacements
+                    .push(format!("{M}::replacements::BUYBACK"));
             }
             K::Kicker | K::Multikicker | K::Replicate | K::Buyback | K::Squad | K::Offspring => {
                 let mana = mana_alone(cost, mechanic)?;
@@ -279,9 +287,15 @@ impl Compiler {
                     _ => format!("multikicker({mana})"),
                 };
                 if parts.fields.contains_key("kicker") {
-                    return Err(gap("two costs a spell kicks with"));
+                    self.plan_entry(
+                        "two costs a spell kicks with",
+                        "second_kicker",
+                        &field,
+                        parts,
+                    );
+                } else {
+                    parts.field("kicker", field);
                 }
-                parts.field("kicker", field);
                 match mechanic {
                     K::Replicate => {
                         ability(parts, format!("{M}::replicate::trigger(\"Replicate\")"))

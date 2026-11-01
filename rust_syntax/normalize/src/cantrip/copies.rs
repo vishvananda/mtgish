@@ -59,9 +59,28 @@ impl Compiler {
                     format!("{values}.with_subtype(Subtype::{word})")
                 })
             }
+            // "Except it's a 4/4 black Zombie": that is what it is (CR 707.9b).
+            ("SetCreatureTypes", list) => {
+                let types = words(list)?
+                    .iter()
+                    .map(|word| format!("Subtype::{word}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("{values}.typed(TypeSet::of(&[CardType::Creature]), SubtypeSet::of(&[{types}]))")
+            }
+            ("SetCardtypes", list)
+                if words(list)? == ["Creature"]
+                    && values.contains(".typed(TypeSet::of(&[CardType::Creature])") =>
+            {
+                values
+            }
             ("AddAbility", [Operand::Ability(ability)]) => match &**ability {
                 Ability::Keyword(k) if keyword(k).is_ok() => {
                     format!("{values}.with_keyword({})", keyword(k)?)
+                }
+                ability if lane_j::granted_keyword(ability).is_some() => {
+                    let keyword = lane_j::granted_keyword(ability).expect("just seen");
+                    format!("{values}.with_keyword({keyword})")
                 }
                 ability => {
                     let index = self.grant(ability)?;

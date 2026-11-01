@@ -491,6 +491,8 @@ impl Compiler {
             .find(|f| !planned::landed(f))
             .expect("a requirement still open");
         let id = planned::requirement(feature);
+        // The body may yet fail: the event is a requirement whatever it does.
+        self.gaps.push(gap(feature.clone()));
         writeln!(self.holes, "planned_item!({id:?} => matcher: {matcher});").unwrap();
         writeln!(self.functions, "#[allow(unused_variables)] fn {label}(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {{ None }}").unwrap();
         let mask = planned::planned_value(feature, "EventMask(0)", &format!("EventMask({mask})"));
@@ -1771,7 +1773,7 @@ impl Compiler {
             filter: None,
         } = ability
         else {
-            return None;
+            return lane_j::granted_keyword(ability).map(String::from);
         };
         use Mechanic as K;
         matches!(

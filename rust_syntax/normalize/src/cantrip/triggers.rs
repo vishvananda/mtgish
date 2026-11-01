@@ -6,24 +6,24 @@ use super::*;
 
 /// One alternative of an event: an `if let` over the event, then `locals`, which
 /// must bind `subject` and `data`, then every test the event has to pass.
-struct Arm {
-    pattern: String,
-    locals: String,
-    tests: Vec<String>,
+pub(super) struct Arm {
+    pub pattern: String,
+    pub locals: String,
+    pub tests: Vec<String>,
 }
 
 pub(super) struct Matched {
     masks: Vec<&'static str>,
-    arms: Vec<Arm>,
+    pub arms: Vec<Arm>,
     pub frame: Frame,
     /// The trigger's zones, when it cannot trigger from the battlefield.
     functions: Option<String>,
     /// "One or more": a batch triggers it once, split by `data[1]` when keyed.
-    batch: Option<bool>,
+    pub batch: Option<bool>,
     /// A batch's events about one subject are one event of their total.
-    sums: bool,
+    pub sums: bool,
     /// Tapping for mana, which the engine shows only to mana abilities.
-    mana: bool,
+    pub mana: bool,
     pub phrase: String,
     /// What Cantrip must add before this event triggers anything: see `lane_g`.
     pub planned: Vec<String>,
@@ -38,12 +38,12 @@ fn sums_damage(damage: &DamageEvent) -> bool {
     }
 }
 
-fn object_fired(id: &str, destination: &str) -> String {
+pub(super) fn object_fired(id: &str, destination: &str) -> String {
     format!(
         "let id = {id}; let subject = Target::Object(id); let data = [{destination}, u32::MAX];"
     )
 }
-fn single(mask: &'static str, arm: Arm, frame: Frame, phrase: &str) -> Matched {
+pub(super) fn single(mask: &'static str, arm: Arm, frame: Frame, phrase: &str) -> Matched {
     Matched {
         masks: vec![mask],
         arms: vec![arm],
@@ -59,6 +59,21 @@ fn single(mask: &'static str, arm: Arm, frame: Frame, phrase: &str) -> Matched {
 
 impl Matched {
     /// A closure over one history record, as the matcher would answer it.
+    /// Whether `event` is this one, for a rule asked of an event.
+    pub(super) fn fired_test(&self) -> String {
+        let mut body = String::new();
+        for arm in &self.arms {
+            write!(
+                body,
+                "if let {} = event {{ {} if {} {{ return true; }} }} ",
+                arm.pattern,
+                arm.locals,
+                arm.tests.join(" && ")
+            )
+            .unwrap();
+        }
+        format!("(|| -> bool {{ {body} false }})()").replace("cast_of(q, ", "cast_at(q, event, ")
+    }
     pub(super) fn history_test(&self) -> String {
         let mut body = String::new();
         for arm in &self.arms {
@@ -71,6 +86,10 @@ impl Matched {
             )
             .unwrap();
         }
+        // A record says whose turn it was and what caused it, whatever is so now.
+        let body = body
+            .replace("q.state().turn.active", "r.active")
+            .replace("q.event_cause()", "r.cause");
         format!("|r: &Record| -> Option<Fired> {{ let event = &r.event; {body} None }}")
     }
 }
@@ -88,12 +107,16 @@ impl Compiler {
             (Reader::Layer, Some(_)) => Reader::Layer,
             _ => Reader::Query,
         };
-        (self.reader, self.event_at, self.frame) = (reader, EventAt::Matcher, frame);
+        let (event_at, frame) = match &self.history {
+            Some(history) => (history.event_at, history.frame),
+            None => (EventAt::Matcher, frame),
+        };
+        (self.reader, self.event_at, self.frame) = (reader, event_at, frame);
         let compiled = part(self);
         (self.reader, self.event_at, self.frame) = saved;
         compiled
     }
-    fn zone_change(
+    pub(super) fn zone_change(
         &mut self,
         objects: &ObjectFilter,
         from: Option<&EventZone>,
@@ -302,7 +325,7 @@ impl Compiler {
                 None,
                 "Whenever this specializes",
             ),
-            other => return Err(gap(format!("trigger event Object {}", form(other)))),
+            other => return self.object_event_rest(other, objects),
         };
         let mut tests: Vec<String> = extra.map(Into::into).into_iter().collect();
         tests.push(self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?);
@@ -492,7 +515,7 @@ impl Compiler {
                 None,
                 "Whenever a player rolls one or more dice",
             ),
-            other => return Err(gap(format!("trigger event Player {}", form(other)))),
+            other => return self.player_event_rest(other, players, objects),
         };
         let mut tests: Vec<String> = test.map(Into::into).into_iter().collect();
         tests.push(self.matching(frame, |c| c.player_in(players, who))?);
@@ -597,7 +620,7 @@ impl Compiler {
                 about,
                 "Whenever this exploits a creature",
             ),
-            other => return Err(gap(format!("trigger event Pair {}", form(other)))),
+            other => return self.pair_event_rest(other, objects, others),
         };
         let tests = vec![
             self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?,
@@ -639,6 +662,7 @@ impl Compiler {
         let frame = Frame {
             object: Some(Carried::Subject),
             stack_object: matches!(kind, TargetingKind::Spell).then_some(Carried::Data(0)),
+            stack_controller: Some(Carried::Data(1)),
             ..Frame::default()
         };
         let mut tests = vec![self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?];
@@ -667,7 +691,7 @@ impl Compiler {
             "BECAME_TARGET",
             Arm {
                 pattern: "Event::BecameTarget { target: Target::Object(target), by, controller, .. }".into(),
-                locals: "let id = *target; let by = *by; let controller = *controller; let subject = Target::Object(id); let data = [by.0, u32::from(controller.0)];".into(),
+                locals: "let id = *target; let by = *by; let controller = *controller; let subject = Target::Object(id); let data = [by.0, u32::from(controller.0) | (q.state().stack.len().saturating_sub(1) as u32) << 8];".into(),
                 tests,
             },
             frame,
@@ -675,7 +699,7 @@ impl Compiler {
         ))
     }
     /// Whether the `Target` `defender` is one of `defenders`.
-    fn attacked(&self, defenders: &AttackDefenders) -> Result<String> {
+    pub(super) fn attacked(&self, defenders: &AttackDefenders) -> Result<String> {
         Ok(match defenders {
             AttackDefenders::Any => "true".into(),
             AttackDefenders::Objects(filter) => format!(
@@ -724,7 +748,11 @@ impl Compiler {
     }
     /// What an activation trigger asks of the ability. "Of a creature" means a
     /// permanent (109.2), so cycling a creature card is no such ability.
-    fn activation_test(&mut self, filter: &ObjectFilter, frame: Frame) -> Result<String> {
+    pub(super) fn activation_test(
+        &mut self,
+        filter: &ObjectFilter,
+        frame: Frame,
+    ) -> Result<String> {
         let def = |test: &str| format!("def.is_some_and(|d| {test})");
         Ok(match filter {
             ObjectFilter::Any => "true".into(),
@@ -913,6 +941,16 @@ impl Compiler {
             } if count.is_none() && including.is_none() => {
                 self.counters_batch(change, kind.as_ref(), objects, by.as_ref(), per)?
             }
+            // "Blocks one or more creatures": one object's events, so its batch is the
+            // whole of them.
+            EventSpec::Pair {
+                objects: ObjectFilter::SameObject(_),
+                ..
+            } if count.is_none() && including.is_none() => {
+                let mut matched = self.event(event)?;
+                matched.batch = Some(false);
+                matched
+            }
             other => {
                 if count.is_some() || including.is_some() || *per != BatchPer::Whole {
                     return Err(gap(format!("batch of {}", form(other))));
@@ -927,6 +965,8 @@ impl Compiler {
         };
         // No one of a whole batch is the event's, however the form binds it.
         if *per == BatchPer::Whole {
+            matched.frame.members = matched.frame.object == Some(Carried::Subject)
+                && !matches!(event, EventSpec::Counters { .. });
             matched.frame.object = None;
         }
         matched.frame.amount = matched.frame.amount.filter(|_| *per == BatchPer::Subject);
@@ -941,11 +981,21 @@ impl Compiler {
         value: &Expr,
         by_player: bool,
     ) -> Result<Matched> {
+        if let EventSpec::Player {
+            event: PlayerEvent::Expends,
+            players,
+            ..
+        } = event
+        {
+            return self.expends(players, comparison, value);
+        }
         if self.history.is_some() {
             return Err(gap("an ordinal event in a history question"));
         }
         let mut matched = self.event(event)?;
-        if matched.batch.is_some() || matched.sums {
+        // The first of a batch is the batch's: the rest see it in the history.
+        let first = matches!(comparison, Comparison::Equal) && matches!(value, Expr::Constant(1));
+        if (matched.batch.is_some() && !first) || matched.sums {
             return Err(gap("an ordinal of grouped events"));
         }
         let same = match (by_player, matched.frame.player) {
@@ -957,7 +1007,11 @@ impl Compiler {
             (true, None) => return Err(gap("an ordinal of an event with no player")),
         };
         let mut asked = self.clone();
-        asked.history = Some(History { outer: None });
+        asked.history = Some(History {
+            outer: None,
+            event_at: EventAt::Matcher,
+            frame: Frame::default(),
+        });
         let past = asked.event(event)?;
         let value = self.matching(matched.frame, |c| Ok(c.number(value)?.code))?;
         let count = format!(
@@ -1043,6 +1097,10 @@ impl Compiler {
         tests.push(match source_kind {
             ObjectKind::Any => "true".to_string(),
             ObjectKind::Permanent => "!q.state().obj(source).zone.is(ZoneKind::Stack)".to_string(),
+            // A spell deals its damage as it resolves, still on the stack.
+            ObjectKind::Spell if self.history.is_none() => {
+                "q.state().obj(source).zone.is(ZoneKind::Stack)".to_string()
+            }
             other => return Err(gap(format!("damage source kind {}", form(other)))),
         });
         tests.push(self.matching(frame, |c| c.filter(sources, &Candidate::of("source")))?);
@@ -1137,6 +1195,7 @@ impl Compiler {
         }
         if let DiscardGrouping::Player = grouping {
             matched.batch = Some(false);
+            matched.frame.members = true;
         }
         Ok(matched)
     }
@@ -1213,13 +1272,15 @@ impl Compiler {
                     TurnPoint::DrawStepBegins => &["Draw"],
                     TurnPoint::MainPhaseBegins => &["PrecombatMain", "PostcombatMain"],
                     TurnPoint::FirstMainPhaseBegins => &["PrecombatMain"],
-                    TurnPoint::PostcombatMainPhaseBegins => &["PostcombatMain"],
+                    // A turn's only second main phase (CR 500.8, 505.1a).
+                    TurnPoint::PostcombatMainPhaseBegins | TurnPoint::SecondMainPhaseBegins => {
+                        &["PostcombatMain"]
+                    }
                     TurnPoint::CombatBegins => &["BeginCombat"],
                     TurnPoint::CombatEnds => &["EndOfCombat"],
                     TurnPoint::EndStepBegins => &["End"],
                     TurnPoint::CleanupStepBegins => &["Cleanup"],
                     TurnPoint::DeclareAttackersStepBegins => &["DeclareAttackers"],
-                    other => return Err(gap(format!("turn point {}", form(other)))),
                 };
                 let frame = Frame {
                     player: Some(Carried::Subject),
@@ -1266,13 +1327,13 @@ impl Compiler {
                                 return Err(gap("alternative events with different rules"));
                             }
                             all.frame = all.frame.meet(next.frame);
+                            all.planned.extend(next.planned);
                             for mask in next.masks {
                                 if !all.masks.contains(&mask) {
                                     all.masks.push(mask);
                                 }
                             }
                             all.arms.extend(next.arms);
-                            all.planned.extend(next.planned);
                             all
                         }
                     });
@@ -1337,7 +1398,7 @@ impl Compiler {
             EventSpec::Primitive { name, .. } => {
                 Err(gap(format!("primitive trigger event {name}")))
             }
-            other => Err(gap(format!("trigger event {}", form(other)))),
+            other => self.event_rest(other),
         }
     }
     /// The `Trigger`, with the matcher named `label`.
@@ -1403,6 +1464,7 @@ impl Compiler {
         announcement: &Announcement,
         body: &Program,
     ) -> Result<String> {
+        let gate = self.trigger_gate.take();
         if limits.total.is_some() {
             return Err(gap("trigger total limit"));
         }
@@ -1411,6 +1473,11 @@ impl Compiler {
             && (matches!(event, EventSpec::State { .. }) || announcement.modes.is_some())
         {
             return Err(gap("conditional Triggered"));
+        }
+        if gate.is_some()
+            && (announcement.modes.is_some() || matches!(event, EventSpec::State { .. }))
+        {
+            return Err(gap("modal or state trigger that works from a level"));
         }
         if let EventSpec::State { condition } = event {
             let state = self.condition_function(condition, &format!("{label}_state"))?;
@@ -1467,6 +1534,9 @@ impl Compiler {
         // no event to read, so one that reads the event is asked by the matcher
         // and by the resolving effect instead.
         let mut extra = Vec::new();
+        if let Some(gate) = &gate {
+            extra.push(self.matching(matched.frame, |c| c.condition(gate))?);
+        }
         let mut guard = None;
         let mut condition = None;
         // The ability is there or isn't when the event happens, and only then.

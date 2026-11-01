@@ -22,6 +22,7 @@ mod lane_f;
 mod lane_g;
 mod lane_h;
 mod lane_i;
+mod lane_j;
 mod mechanics;
 pub mod planned;
 mod players;
@@ -34,6 +35,7 @@ mod triggers;
 pub use crate::report::BackendDiagnostic as Diagnostic;
 use effects::rule_name;
 pub use lane_f::{is_card, whole, whole_gaps, whole_module, Whole, WholeFace};
+use lane_j::{PaidFor, Picked, Share};
 use read::{counter_kind, zone_kind, Candidate, Carried, EventAt, Frame, History, Pending, Reader};
 pub use survey::survey;
 type Result<T> = std::result::Result<T, Diagnostic>;
@@ -383,6 +385,8 @@ impl Number {
 struct Compiler {
     /// The file's holes for what has no place in its code: see `planned`.
     holes: String,
+    /// The requirement and matcher of the trigger just compiled, if Cantrip
+
     /// Compiling the event of `Expr::EventHistory`.
     history: Option<History>,
     /// A `StackItem` named `item` is in reach, with its targets and X.
@@ -399,6 +403,22 @@ struct Compiler {
     affected_in_scope: bool,
     /// The condition of the enclosing `Ability::Conditional`, asked as layers run.
     static_guard: Option<Condition>,
+    /// Asked with a triggered ability's event and not again: a Class's level.
+    trigger_gate: Option<Condition>,
+    /// What this triggered ability's event is always about, as "this creature"
+    /// is: read where no event reaches, as "another creature" in a cost.
+    event_object: Option<ObjectRef>,
+    /// While an instruction is compiled to happen only if its players exist:
+    /// the local each stands for, and how to read it. See `lane_j`.
+    present: std::rc::Rc<std::cell::RefCell<Option<Vec<(String, String)>>>>,
+    /// "An opponent chooses": who has been picked so far, and how to pick the
+    /// ones the instruction being compiled named first. See `lane_j`.
+    picked: std::rc::Rc<std::cell::RefCell<Picked>>,
+    /// What each player's part of a batch was, by the result it is part of.
+    shares: BTreeMap<u32, (String, Share)>,
+    /// What the cost being compiled pays for, and whether it has an {X}.
+    paid_for: PaidFor,
+    mana_x: bool,
     slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
     /// The cards that ended each reveal, by the result that names all it showed.
@@ -429,6 +449,8 @@ struct Compiler {
     hoisted: Option<Vec<String>>,
     /// Choices and searches that yield one object at most.
     single: BTreeSet<u32>,
+    /// Results that moved or found one object at most.
+    known_one: BTreeSet<u32>,
     /// Some ability of the card reads what was exiled with its source.
     links_exile: bool,
     /// A face other than the definition an object's `card` names: `lane_f`.
@@ -740,6 +762,13 @@ impl Compiler {
             candidates: Default::default(),
             affected_in_scope: false,
             static_guard: None,
+            trigger_gate: None,
+            event_object: None,
+            present: Default::default(),
+            picked: Default::default(),
+            shares: BTreeMap::new(),
+            paid_for: PaidFor::Ability,
+            mana_x: false,
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
             reveal_matches: BTreeMap::new(),
@@ -754,6 +783,7 @@ impl Compiler {
             dividing: None,
             hoisted: None,
             single: BTreeSet::new(),
+            known_one: BTreeSet::new(),
             links_exile: false,
             own_face: false,
             door: None,
@@ -1161,6 +1191,12 @@ impl Compiler {
                 }
                 writeln!(out, "for player in mana_players_{id} {{").unwrap();
                 for (i, (color, _)) in units.iter().enumerate() {
+                    if matches!(color, ManaColor::Chosen) {
+                        let chosen = self.fetch(self.chosen_value(ValueKind::Color)?);
+                        let adds = add("player", "color.mana()", &format!("mana_{id}_{i}"));
+                        writeln!(out, "if let Some(color) = {chosen} {{ {adds} }}").unwrap();
+                        continue;
+                    }
                     out.push_str(&add(
                         "player",
                         &format!(
@@ -1230,12 +1266,28 @@ impl Compiler {
             ..
         }, rest @ ..] = body.instructions.as_slice()
         else {
-            return Err(gap("compound mana ability callback"));
+            return self.mana_program(body, label);
         };
         if let Some(adds) = self.mana_beyond(mana, restriction.as_ref(), rest, label)? {
             return Ok(adds);
         }
         let plan = match mana_plan(mana)? {
+            // "{B} or one mana of the chosen color": `colors_from` limits it.
+            ManaPlan::SameColor { colors, amount } if colors.contains(&ManaColor::Chosen) => {
+                if !self.enters_choosing.contains(&ValueKind::Color) {
+                    return Err(gap("mana of a color not chosen as it entered"));
+                }
+                ManaPlan::SameColor {
+                    colors: vec![
+                        ManaColor::White,
+                        ManaColor::Blue,
+                        ManaColor::Black,
+                        ManaColor::Red,
+                        ManaColor::Green,
+                    ],
+                    amount,
+                }
+            }
             // One color the engine limits it to (`colors_from`) as it is offered.
             ManaPlan::Fixed(units) if matches!(units.as_slice(), [(ManaColor::Chosen, _)]) => {
                 if !self.enters_choosing.contains(&ValueKind::Color) {
