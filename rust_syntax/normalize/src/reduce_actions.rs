@@ -1184,16 +1184,19 @@ fn reduce_set_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opt
             actor: actor.clone(),
             source: ManifestSource::Cards(pick(&hand(actor.clone()), Count::Exactly(n.clone()))),
             cloak: false,
+            entry: vec![],
         },
         ("ManifestACardFromHand" | "CloakACardFromHand", []) => Operation::Manifest {
             actor: actor.clone(),
             source: ManifestSource::Cards(pick(&hand(actor.clone()), one())),
             cloak: form.starts_with("Cloak"),
+            entry: vec![],
         },
         ("ManifestEachCardOfTypeFromHand", [Filter(cards)]) => Operation::Manifest {
             actor: actor.clone(),
             source: ManifestSource::Cards(matching(&hand(actor.clone()), cards)),
             cloak: false,
+            entry: vec![],
         },
         ("TurnPermanentFaceDownAsArtifactCreature", [Object(object), pt, kind]) => {
             Operation::TurnFaceDownAs {

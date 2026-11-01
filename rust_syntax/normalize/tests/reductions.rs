@@ -643,3 +643,49 @@ fn reflexive_triggers_and_perpetual_terms_keep_their_shape() {
         }
     ));
 }
+
+#[test]
+fn single_cards_with_a_general_shape_reduce() {
+    let you = || PlayerSet::One(PlayerRef::AbilityController);
+    let reduced = |name: &str, operands: Vec<Operand>| {
+        !matches!(
+            semantics::reduce_action(you(), name.into(), operands),
+            Operation::Primitive { .. }
+        )
+    };
+    assert!(reduced(
+        "Action::MillNumberCardsForEach",
+        vec![
+            Operand::Number(Expr::Constant(3)),
+            Operand::Number(Expr::Constant(2))
+        ]
+    ));
+    assert!(reduced("Action::RollTwoD6", vec![]));
+    assert!(matches!(
+        semantics::reduce_action(
+            you(),
+            "Action::EachPlayerRevealsCardsFromTheTopOfLibraryUntilANumberOfCardsOfTypeAreRevealed"
+                .into(),
+            vec![
+                Operand::Players(PlayerSet::All),
+                Operand::Number(Expr::AnnouncedX),
+                Operand::Filter(ObjectFilter::Any),
+            ],
+        ),
+        Operation::EachPlayer { .. }
+    ));
+    assert!(matches!(
+        semantics::reduce_replacement(
+            "ReplacableEventWouldFlipACoin::PlayerWouldFlipACoin".into(),
+            vec![Operand::Player(PlayerRef::AbilityController)],
+        ),
+        ReplacementEvent::Player {
+            event: ReplacedPlayerEvent::FlipCoin,
+            ..
+        }
+    ));
+    assert!(matches!(
+        semantics::reduce_filter("CardsInExile::WasExiledThisWay".into(), vec![]),
+        ObjectFilter::InSet(_)
+    ));
+}

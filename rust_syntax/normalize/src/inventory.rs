@@ -430,6 +430,16 @@ impl Inventory<'_> {
             | Operation::Seek { actor, .. }
             | Operation::PickFromHand { actor, .. } => self.players(actor),
             Operation::Note(_) => {}
+            Operation::EachPlayer { players, action } => {
+                self.players(players);
+                self.operation(action);
+            }
+            Operation::CounterWith { .. }
+            | Operation::ReduceSpeed { .. }
+            | Operation::PutCountersCapped { .. } => {}
+            Operation::Populate { actor, .. }
+            | Operation::ChooseDefender { actor, .. }
+            | Operation::MillUntil { actor, .. } => self.players(actor),
             Operation::WithReflexive { action, .. } => self.operation(action),
             Operation::GiveControl { objects, .. } => self.objects(objects),
             Operation::FightEach { fighters, .. } => self.objects(fighters),
@@ -946,7 +956,13 @@ impl Inventory<'_> {
             Operation::ModifyEvent { change } => {
                 self.form("EventChange", change);
                 match change {
-                    EventChange::SetTapped(_) => {}
+                    EventChange::SetTapped(_)
+                    | EventChange::SearchTop(_)
+                    | EventChange::Repeats(_)
+                    | EventChange::AddCopy { .. }
+                    | EventChange::FlipExtraCoin
+                    | EventChange::DamageAsInfect
+                    | EventChange::IgnoreCounters(_) => {}
                     EventChange::AddCounters { kind, amount } => {
                         self.counter(kind);
                         self.expr(amount);
@@ -2362,6 +2378,7 @@ impl Inventory<'_> {
             ObjectFilter::TargetCount(_, value) => self.expr(value),
             ObjectFilter::Noted(_)
             | ObjectFilter::NthChosen(_)
+            | ObjectFilter::MostCommonCreatureTypeIn(_)
             | ObjectFilter::DraftNoted(_)
             | ObjectFilter::InPile(_)
             | ObjectFilter::InSector(_) => {}
@@ -2713,7 +2730,9 @@ impl Inventory<'_> {
             Duration::UntilEvent(event) => self.event(event),
             Duration::While(condition) => self.condition(condition),
             Duration::WhileItMatches(filter) => self.filter(filter),
-            Duration::ThroughNextTurn | Duration::ExtraCombat(_) => {}
+            Duration::ThroughNextTurn
+            | Duration::ExtraCombat(_)
+            | Duration::DuringControllersNextUntapSteps(_) => {}
             Duration::EndOfCombatOnNextTurn(player)
             | Duration::UntilNextUntapStep(player)
             | Duration::UntilLibraryTopChanges(player)
@@ -2771,6 +2790,19 @@ impl Inventory<'_> {
             ReplacementEvent::Discard { players, .. } => self.players(players),
             ReplacementEvent::Damage(damage) => self.event(&EventSpec::Damage(damage.clone())),
             ReplacementEvent::ZoneChange { objects, .. } => self.filter(objects),
+            ReplacementEvent::CopySpell { players, spells } => {
+                self.players(players);
+                self.filter(spells);
+            }
+            ReplacementEvent::Countered { spells, by } => {
+                self.filter(spells);
+                self.filter(by);
+            }
+            ReplacementEvent::DrawCausedBy { players, abilities } => {
+                self.players(players);
+                self.filter(abilities);
+            }
+            ReplacementEvent::ProduceColor { sources, .. } => self.filter(sources),
             ReplacementEvent::Primitive { name, .. } => self.primitive(name),
             ReplacementEvent::Player { event, players } => {
                 self.form("ReplacedPlayerEvent", event);

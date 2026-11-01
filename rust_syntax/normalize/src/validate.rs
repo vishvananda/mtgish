@@ -259,6 +259,19 @@ impl<'a> Scope<'a> {
             }
             ReplacementEvent::Damage(damage) => self.event(&EventSpec::Damage(damage.clone())),
             ReplacementEvent::ZoneChange { objects, .. } => self.filter(objects),
+            ReplacementEvent::CopySpell { players, spells } => {
+                self.players(players)?;
+                self.filter(spells)
+            }
+            ReplacementEvent::Countered { spells, by } => {
+                self.filter(spells)?;
+                self.filter(by)
+            }
+            ReplacementEvent::DrawCausedBy { players, abilities } => {
+                self.players(players)?;
+                self.filter(abilities)
+            }
+            ReplacementEvent::ProduceColor { sources, .. } => self.filter(sources),
             ReplacementEvent::Primitive { name, operands } => self.primitive(name, operands),
             ReplacementEvent::Player { players, .. } => self.players(players),
             ReplacementEvent::Object { objects, .. } => self.filter(objects),
@@ -706,6 +719,7 @@ impl<'a> Scope<'a> {
             Duration::While(condition) => self.condition(condition),
             Duration::WhileItMatches(filter) => self.filter(filter),
             Duration::ThroughNextTurn => Ok(()),
+            Duration::DuringControllersNextUntapSteps(steps) => self.expr(steps),
             Duration::EndOfCombatOnNextTurn(player)
             | Duration::UntilNextUntapStep(player)
             | Duration::UntilLibraryTopChanges(player)
@@ -1231,6 +1245,7 @@ impl<'a> Scope<'a> {
     fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
             ObjectFilter::Noted(_) | ObjectFilter::NthChosen(_) => Ok(()),
+            ObjectFilter::MostCommonCreatureTypeIn(player) => self.player(player),
             ObjectFilter::TargetCount(_, value) => self.expr(value),
             ObjectFilter::ChosenBy { player, .. } => self.player(player),
             ObjectFilter::ChosenOn { object, .. }
@@ -1265,7 +1280,13 @@ impl<'a> Scope<'a> {
                     ObjectHistory::DamagedBy(object)
                     | ObjectHistory::Convoked(object)
                     | ObjectHistory::Exploited(object)
-                    | ObjectHistory::TappedToPayFor(object) => self.object(object)?,
+                    | ObjectHistory::TappedToPayFor(object)
+                    | ObjectHistory::PhasedOutWith(object)
+                    | ObjectHistory::CountersPutWith { with: object, .. }
+                    | ObjectHistory::CountersRemovedWith { with: object, .. } => {
+                        self.object(object)?
+                    }
+                    ObjectHistory::CountersPutBy { by, .. } => self.players(by)?,
                     _ => {}
                 }
                 match window {
@@ -2613,6 +2634,7 @@ impl<'a> Scope<'a> {
                 NoteKind::Player(player) => self.player(player),
                 NoteKind::CountersOn(object) => self.object(object),
                 NoteKind::Numbered(objects) => self.objects(objects),
+                NoteKind::MostCommonCreatureType(players) => self.players(players),
                 NoteKind::LifeTotal | NoteKind::ManaSpent { .. } => Ok(()),
             },
             Operation::Bid { players, start } => {
@@ -2659,6 +2681,47 @@ impl<'a> Scope<'a> {
                 self.objects(objects)
             }
             Operation::AnyPlayerMayPay { players, .. } => self.players(players),
+            Operation::EachPlayer { players, action } => {
+                self.players(players)?;
+                self.operation(action)
+            }
+            Operation::CounterWith { object, when, .. } => {
+                self.object(object)?;
+                when.iter().try_for_each(|f| self.filter(f))
+            }
+            Operation::Populate { actor, .. } => self.players(actor),
+            Operation::ReduceSpeed {
+                player,
+                amount,
+                floor,
+            } => {
+                self.player(player)?;
+                self.expr(amount)?;
+                self.expr(floor)
+            }
+            Operation::PutCountersCapped {
+                amount,
+                object,
+                at_most,
+                ..
+            } => {
+                self.expr(amount)?;
+                self.object(object)?;
+                self.expr(at_most)
+            }
+            Operation::MillUntil {
+                actor,
+                cards,
+                at_most,
+            } => {
+                self.players(actor)?;
+                self.filter(cards)?;
+                self.expr(at_most)
+            }
+            Operation::ChooseDefender { actor, attacker } => {
+                self.players(actor)?;
+                self.player(attacker)
+            }
             Operation::PlayersPayRepeatedly {
                 players,
                 cost,
@@ -3336,7 +3399,14 @@ impl<'a> Scope<'a> {
                     return Err("event change used outside a replacement program".into());
                 }
                 match change {
-                    EventChange::SetTapped(_) => Ok(()),
+                    EventChange::SetTapped(_)
+                    | EventChange::AddCopy { .. }
+                    | EventChange::FlipExtraCoin
+                    | EventChange::DamageAsInfect
+                    | EventChange::IgnoreCounters(_) => Ok(()),
+                    EventChange::SearchTop(amount) | EventChange::Repeats(amount) => {
+                        self.expr(amount)
+                    }
                     EventChange::AddCounters { amount, .. } => {
                         self.count(&Count::Exactly(amount.clone()))
                     }

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 160;
+pub const SCHEMA_VERSION: u32 = 161;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -611,6 +611,22 @@ pub enum ReplacementEvent {
         card: Option<ObjectFilter>,
         effect_only: bool,
     },
+    CopySpell {
+        players: PlayerSet,
+        spells: ObjectFilter,
+    },
+    Countered {
+        spells: ObjectFilter,
+        by: ObjectFilter,
+    },
+    DrawCausedBy {
+        players: PlayerSet,
+        abilities: ObjectFilter,
+    },
+    ProduceColor {
+        sources: ObjectFilter,
+        color: ManaColor,
+    },
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -634,6 +650,16 @@ pub enum ReplacedPlayerEvent {
     RollDice,
     RollD6,
     Planeswalk,
+    BeginTurn,
+    BeginDrawStep,
+    FlipCoin,
+    RollPlanarDie,
+    SearchLibrary,
+    PlaneswalkByDie,
+    SetSchemeInMotion,
+    PayLife,
+    /// Gaining life from a spell or ability, for its controller.
+    GainLifeByEffect,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -643,6 +669,8 @@ pub enum ReplacedObjectEvent {
     LeavesBattlefield,
     UntapsInUntapStep,
     Connives,
+    Adapts,
+    Explores,
 }
 /// How long a created replacement effect keeps applying within its duration.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -698,6 +726,15 @@ pub enum EventChange {
     },
     /// Roll one more die than the event would, and ignore one of the results.
     RollExtraDie(DiceIgnore),
+    SearchTop(Expr),
+    /// The event happens this many times instead.
+    Repeats(Expr),
+    AddCopy {
+        new_targets: bool,
+    },
+    FlipExtraCoin,
+    DamageAsInfect,
+    IgnoreCounters(crate::counter::CounterKind),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1408,6 +1445,7 @@ pub enum Operation {
         actor: PlayerSet,
         source: ManifestSource,
         cloak: bool,
+        entry: Vec<Operand>,
     },
     AbandonScheme {
         actor: PlayerSet,
@@ -1724,7 +1762,8 @@ pub enum Operation {
     AnyPlayerMayPay {
         players: PlayerSet,
         mana: Vec<Operand>,
-        then: Vec<Operand>,
+        unpaid: Vec<Operand>,
+        paid: Vec<Operand>,
     },
     PlayersPayRepeatedly {
         players: PlayerSet,
@@ -1741,6 +1780,47 @@ pub enum Operation {
     FightEach {
         fighters: ObjectSet,
         others: ObjectSet,
+    },
+    /// Each of these players does this; inside it `PlayerRef::Acting` is that player.
+    EachPlayer {
+        players: PlayerSet,
+        action: Box<Operation>,
+    },
+    /// Countered to somewhere else, as Forge's `Counter` with `Destination$`. When
+    /// `when` is set the card goes there only if it matches; otherwise it goes to its
+    /// owner's graveyard.
+    CounterWith {
+        object: ObjectRef,
+        when: Option<ObjectFilter>,
+        destination: Destination,
+        entry: Vec<Operand>,
+    },
+    Populate {
+        actor: PlayerSet,
+        entry: Vec<Operand>,
+    },
+    ReduceSpeed {
+        player: PlayerRef,
+        amount: Expr,
+        floor: Expr,
+    },
+    /// Up to this many counters, never taking the object past `at_most` of the kind.
+    PutCountersCapped {
+        amount: Expr,
+        kind: crate::counter::CounterKind,
+        object: ObjectRef,
+        at_most: Expr,
+    },
+    /// Mills one at a time until a matching card or `at_most` cards have been milled.
+    MillUntil {
+        actor: PlayerSet,
+        cards: ObjectFilter,
+        at_most: Expr,
+    },
+    /// One of the players or planeswalkers this player is attacking.
+    ChooseDefender {
+        actor: PlayerSet,
+        attacker: PlayerRef,
     },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1766,6 +1846,7 @@ pub struct ChoiceTerms {
     pub unchosen: bool,
     pub random: bool,
     pub ordered: bool,
+    pub up_to: bool,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CombatChange {
@@ -2192,6 +2273,9 @@ pub enum KeywordAction {
     ReorderGraveyard,
     DiscardAnyNumberAtRandom,
     RemainingToBottomAtRandom,
+    ActivateManaAbility,
+    TurnPileFaceUp,
+    RemoveAllDamage,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum MovedCounters {
@@ -2279,6 +2363,8 @@ pub enum ValueKind {
     Letter,
     /// One of the programs listed as options.
     Action,
+    /// One of a fixed list of pairs of a color and a creature type.
+    ColorAndCreatureType,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -2832,12 +2918,15 @@ pub enum NoteKind {
     },
     /// Numbers these in order starting from zero.
     Numbered(ObjectSet),
+    /// The most common creature type in these libraries.
+    MostCommonCreatureType(PlayerSet),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum HandPick {
     TheyPlayIt,
     TopOfLibrary,
     CastFree,
+    Discard,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum LandTypeScope {
@@ -4018,6 +4107,7 @@ pub enum PlayerPairAction {
     Heist,
     ControlNextTurn,
     ExchangeLife,
+    ControlNextCombat,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4749,6 +4839,8 @@ pub enum ObjectFilter {
     SharesMostCommonColor(Box<ObjectSet>),
     /// A spell or ability with this many targets.
     TargetCount(Comparison, Expr),
+    /// Has the creature type most common in this player's library.
+    MostCommonCreatureTypeIn(PlayerRef),
 }
 
 /// Something a player did or had done to them. See `Condition::PlayerDid`.
@@ -4811,6 +4903,22 @@ pub enum ObjectHistory {
     TappedToPayFor(ObjectRef),
     DiedOrPutFromBattlefield,
     CycledOrDiscarded,
+    CountersPutBy {
+        kind: crate::counter::CounterKind,
+        by: PlayerSet,
+    },
+    CountersPutWith {
+        kind: crate::counter::CounterKind,
+        with: ObjectRef,
+    },
+    CountersRemovedWith {
+        kind: crate::counter::CounterKind,
+        with: ObjectRef,
+    },
+    PhasedOutWith(ObjectRef),
+    Cycled,
+    Sacrificed,
+    Surveilled,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4865,6 +4973,7 @@ pub enum KeywordFamily {
     Phasing,
     Exhaust,
     StartYourEngines,
+    Embalm,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -5150,6 +5259,8 @@ pub enum Duration {
         by: PlayerSet,
         with: ObjectRef,
     },
+    /// The next this many untap steps of the object's controller.
+    DuringControllersNextUntapSteps(Expr),
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.

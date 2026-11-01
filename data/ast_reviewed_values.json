@@ -15,6 +15,7 @@
   "TheChosenGraveyardCard": "Lowers to the selection result.",
   "TheChosenGraveyardCards": "Lowers to the selection result.",
   "TheChosenPermanents": "Lowers to the selection result.",
+  "TheFirstChosenLandType": "Lowers to the filter for the first value chosen, NthChosen(0).",
   "ThisAbility": "Lowers to the ability source in a made-by filter.",
   "ThisPlane": "Lowers to the ability source.",
   "XCantBeZero": "Lowers to a casting requirement that X is greater than zero.",

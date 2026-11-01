@@ -1138,6 +1138,7 @@ fn group_constraint(term: &Operand) -> Option<SelectionConstraint> {
         ("SameNames", []) => C::CommonProperty(D::Names),
         ("ShareAllCardTypes", []) => C::AllSameProperty(D::CardTypes),
         ("HasAColorNotInCommon", []) => C::NoCommonProperty(D::Colors),
+        ("DifferentNames", []) => C::NoCommonProperty(D::Names),
         ("TotalPowerIs", [Operand::Comparison(comparison, amount)]) => C::TotalProperty {
             property: Property::Power,
             comparison: comparison.clone(),
@@ -1834,7 +1835,8 @@ fn more_player_fact(form: &str, player: &PlayerRef, rest: &[Operand]) -> Option<
 /// as the cards that step works with.
 pub fn reduce_inspection(actor: PlayerSet, name: String, operands: Vec<Operand>) -> Operation {
     let reduced = name.split_once("::").and_then(|(_, form)| match operands.as_slice() {
-        [Operand::Objects(cards), rest @ ..] => inspection_step(&actor, form, cards, rest),
+        [Operand::Objects(cards), rest @ ..] => inspection_step(&actor, form, cards, rest)
+            .or_else(|| tail_inspection_step(&actor, form, cards, rest)),
         _ => None,
     });
     reduced.unwrap_or(Operation::Primitive {
@@ -2292,15 +2294,18 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             objects: ObjectSet::Battlefield(ObjectFilter::Not(Box::new(ObjectFilter::InPile(None)))),
             tapped: true,
         },
-        ("ChooseActionAtRandom", [List(options)]) => Operation::ChooseAtRandom {
-            kind: ValueKind::Action,
-            options: options.clone(),
-        },
-        ("AnyPlayerMayPayMana", [Players(players), List(mana), List(then)]) => {
+        ("ChooseActionAtRandom", options) if options.iter().all(|o| matches!(o, List(_))) => {
+            Operation::ChooseAtRandom {
+                kind: ValueKind::Action,
+                options: options.to_vec(),
+            }
+        }
+        ("AnyPlayerMayPayMana", [Players(players), List(mana), List(unpaid), List(paid)]) => {
             Operation::AnyPlayerMayPay {
                 players: players.clone(),
                 mana: mana.clone(),
-                then: then.clone(),
+                unpaid: unpaid.clone(),
+                paid: paid.clone(),
             }
         }
         ("EachPlayerRepeatedMayCost", [Players(players), Number(at_most), Paid(cost)]) => {
@@ -2378,7 +2383,7 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         ("NumberEachPermanentStartingFromZero", [Objects(set)]) => {
             Operation::Note(NoteKind::Numbered(set.clone()))
         }
-        ("PutUptoOneCardOfEachCardtypeAmongPermanentsFromHandOnTheBattlefield", [Objects(set)]) => {
+        ("PutUptoOneCardOfEachCardtypeAmongPermanentsFromHandOnTheBattlefield", [Objects(set), List(entry)]) => {
             Operation::ChangeZone {
                 actor: actor.clone(),
                 cards: hand_of(actor, &ObjectFilter::Any),
@@ -2390,7 +2395,7 @@ fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
                     operands: vec![Objects(set.clone())],
                 })),
                 destination: D::OwnersBattlefield,
-                entry: vec![],
+                entry: entry.clone(),
                 face_down: None,
             }
         }

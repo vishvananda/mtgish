@@ -347,6 +347,28 @@ impl Context {
             "WouldProduceMana_ReplaceType" => vec![EventChange::ReplaceMana(
                 self.mana_production(&decode_step(args)?)?,
             )],
+            "SearchTopNumberCardsOfLibraryInstead" => {
+                let amount: source::GameNumber = decode_step(args)?;
+                vec![EventChange::SearchTop(self.number(&amount)?)]
+            }
+            "WouldSetASchemeInMotion_SetNumberSchemesInMotionInstead" => {
+                let amount: source::GameNumber = decode_step(args)?;
+                vec![EventChange::Repeats(self.number(&amount)?)]
+            }
+            "WouldCopyASpell_CopyAnAdditionalTimeAndMayChooseNewTargets" => {
+                vec![EventChange::AddCopy { new_targets: true }]
+            }
+            "FlipTwoCoinsAndIgnoreOne" => vec![EventChange::FlipExtraCoin],
+            "DealDamageAsThoughItHadInfect" => vec![EventChange::DamageAsInfect],
+            "WouldRollDice_RollThatManyPlusOneAndIgnoreOne" => {
+                vec![EventChange::RollExtraDie(DiceIgnore::ChosenBy(
+                    PlayerRef::EventSubject,
+                ))]
+            }
+            "AdaptAsThoughtItHadNoCounters" => {
+                let kind: source::CounterType = decode_step(args)?;
+                vec![EventChange::IgnoreCounters(crate::counter::lower(&kind))]
+            }
             "WouldProduceMana_ReplaceColorWithTheChosenColor" => {
                 vec![EventChange::ReplaceColoredMana(
                     self.mana_production(&source::ManaProduce::ManaOfTheChosenColor)?,
@@ -524,13 +546,24 @@ impl Context {
                 optional: true,
             })));
         }
-        if variant == "RevealItAndShuffleItIntoLibraryInstead" {
+        if let Some(destination) = match variant {
+            "RevealItAndShuffleItIntoLibraryInstead" => Some(Destination::OwnersLibraryShuffled),
+            "RevealItAndPutItOnTopOfLibraryInstead" => Some(Destination::OwnersLibraryTop),
+            "RevealItAndPutItOnBottomOfOwnersLibraryInstead" => {
+                Some(Destination::OwnersLibraryBottom)
+            }
+            _ => None,
+        } {
             let instructions = vec![
                 self.effect(Operation::Reveal {
-                    objects: ObjectSet::One(ObjectRef::EventSubject),
+                    objects: ObjectSet::One(if variant.contains("OnTopOfLibrary") {
+                        ObjectRef::Discarded
+                    } else {
+                        ObjectRef::EventSubject
+                    }),
                 }),
                 self.effect(Operation::ModifyEvent {
-                    change: EventChange::SetDestination(Destination::OwnersLibraryShuffled),
+                    change: EventChange::SetDestination(destination),
                 }),
             ];
             return Ok(Some(Instruction::Group(Program { instructions })));
@@ -539,7 +572,11 @@ impl Context {
         if step["enum"] == "ReplacementActionWouldEnter"
             && matches!(
                 variant,
-                "EntersTapped" | "EntersWithACounter" | "EntersUnderPlayersControl"
+                "EntersTapped"
+                    | "EntersWithACounter"
+                    | "EntersUnderPlayersControl"
+                    | "EntersWithNumberCounters"
+                    | "EnterAsACopyOfPermanent"
             )
         {
             let value: source::ReplacementActionWouldEnter = decode_step(step)?;
@@ -637,11 +674,11 @@ impl Context {
                         let (name, operands) = self
                             .primitive_inspected(family, step)
                             .ok_or_else(|| unsupported_step(step))?;
-                        self.effect(Operation::Primitive {
-                            actor: PlayerSet::One(actor.clone()),
+                        self.effect(crate::semantics::reduce_replacement_action(
+                            PlayerSet::One(actor.clone()),
                             name,
                             operands,
-                        })
+                        ))
                     }
                 }
             }

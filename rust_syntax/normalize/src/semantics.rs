@@ -91,6 +91,18 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
             name: name.clone(),
             operands: operands.clone(),
         }),
+        ReplacementEvent::CopySpell { .. } => {
+            row_bindings("ReplacableEventWouldCopyASpell::APlayerWouldCopyASpellAnyNumberOfTimes")
+        }
+        ReplacementEvent::Countered { .. } => {
+            row_bindings("ReplacableEventWouldCounterASpell::ASpellOrAbilityWouldCounterASpell")
+        }
+        ReplacementEvent::DrawCausedBy { .. } => row_bindings(
+            "ReplacableEventWouldDraw::ACyclingAbilityOfAPermanentWouldCausePlayerToDrawACard",
+        ),
+        ReplacementEvent::ProduceColor { .. } => {
+            row_bindings("ReplacableEventWouldProduceMana::TappingPermanentWouldProduceManaOfColor")
+        }
         ReplacementEvent::Enter { .. } => EventBindings {
             object: true,
             permanent: true,
@@ -99,6 +111,7 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
         ReplacementEvent::Discard { .. } => EventBindings {
             player: true,
             discard: true,
+            discarded: true,
             ..Default::default()
         },
         ReplacementEvent::Measured { event, .. } | ReplacementEvent::EachPoint(event) => {
@@ -110,6 +123,8 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
             amount: matches!(
                 event,
                 ReplacedPlayerEvent::GainLife
+                    | ReplacedPlayerEvent::GainLifeByEffect
+                    | ReplacedPlayerEvent::PayLife
                     | ReplacedPlayerEvent::LoseLife
                     | ReplacedPlayerEvent::GetEnergy
                     | ReplacedPlayerEvent::Mill
@@ -260,6 +275,20 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
         } => return None,
         Operation::PayAnyAmount { .. } => "Action::PayAnyAmountOfMana",
         Operation::Seek { top: None, .. } => "Action::SeekCards",
+        Operation::ChooseObjects {
+            objects: ObjectSet::AnyZone(_),
+            ..
+        } => "Action::ChooseASpellThatResolvedThisTurn",
+        Operation::ChooseObjects {
+            objects: ObjectSet::Union(_),
+            ..
+        } => "Action::ChooseACommanderOnTheBattlefieldOrInTheCommandZone",
+        Operation::ChooseDefender { .. } => {
+            "Action::ChooseAPlayerOrPlaneswalkerCurrentlyAttackedByPlayer"
+        }
+        Operation::MillUntil { .. } => {
+            "Action::MillCardsUntilACardOfTypeIsMilledOrUntilNumberCardsHaveBeenPutIntoGraveyardThisWay"
+        }
         Operation::DrawUpTo { .. } => "Action::DrawUptoNumberCards",
         Operation::DiscardAllBut { .. } => "Action::DiscardAllButNumberCards",
         Operation::RevealFromHand {
@@ -776,6 +805,7 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
             .or_else(|| reduce_rest_actions(&actor, form, &operands))
             .or_else(|| reduce_reflexive(&actor, form, &operands))
             .or_else(|| reduce_perpetual(form, &operands))
+            .or_else(|| reduce_tail_actions(&actor, form, &operands))
     }) {
         return operation;
     }
@@ -932,6 +962,7 @@ fn reduce_manifest(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Optio
         actor: actor.clone(),
         source,
         cloak,
+        entry: vec![],
     })
 }
 
@@ -1106,6 +1137,7 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
         (
             "Action::HeistPlayersLibrary"
             | "Action::GainControlOfPlayerDuringTheirNextTurn"
+            | "Action::GainControlOfPlayerDuringTheirNextCombatStep"
             | "Action::ExchangeLifeTotalWithPlayer",
             [Operand::Player(player)],
         ) => {
@@ -1114,6 +1146,9 @@ fn reduce_named_action(actor: &PlayerSet, name: &str, operands: &[Operand]) -> O
                 action: match name {
                     "Action::HeistPlayersLibrary" => PlayerPairAction::Heist,
                     "Action::ExchangeLifeTotalWithPlayer" => PlayerPairAction::ExchangeLife,
+                    "Action::GainControlOfPlayerDuringTheirNextCombatStep" => {
+                        PlayerPairAction::ControlNextCombat
+                    }
                     _ => PlayerPairAction::ControlNextTurn,
                 },
                 player: player.clone(),
@@ -1593,6 +1628,7 @@ fn chosen_kind(operand: &Operand) -> Option<ValueKind> {
 /// A row's filter in generic form, or the row itself when it has none.
 /// Keywords a filter asks about as a family, whatever their cost or number.
 const KEYWORD_FAMILIES: &[(&str, KeywordFamily)] = &[
+    ("AnyEmbalm", KeywordFamily::Embalm),
     ("AnyFlashback", KeywordFamily::Flashback),
     ("AnySuspend", KeywordFamily::Suspend),
     ("AnyMorph", KeywordFamily::Morph),
@@ -1624,6 +1660,9 @@ const KEYWORD_FAMILIES: &[(&str, KeywordFamily)] = &[
 
 pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
     let form = name.split("::").nth(1).unwrap_or(&name);
+    if let Some(filter) = reduce_tail_filter(form, &operands) {
+        return filter;
+    }
     if name.starts_with("CheckHasable::") && operands.is_empty() {
         let family = KEYWORD_FAMILIES.iter().find(|(row, _)| *row == form);
         if let Some((_, family)) = family {
@@ -1850,6 +1889,7 @@ include!("reduce_events.rs");
 include!("reduce_effects.rs");
 include!("reduce_filters.rs");
 include!("reduce_more.rs");
+include!("reduce_tail.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
@@ -2051,7 +2091,9 @@ fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
 /// A row's condition in generic form, or the row itself when it has none.
 pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
     if let Some(condition) = name.strip_prefix("Condition::").and_then(|form| {
-        reduce_event_condition(form, &operands).or_else(|| reduce_more_conditions(form, &operands))
+        reduce_event_condition(form, &operands)
+            .or_else(|| reduce_more_conditions(form, &operands))
+            .or_else(|| reduce_tail_condition(form, &operands))
     }) {
         return condition;
     }
@@ -2491,6 +2533,12 @@ pub fn reduce_rule(name: String, operands: Vec<Operand>) -> RuleChange {
 
 /// A row's rule about a player in generic form, or the row itself.
 pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
+    if let Some(rule) = name
+        .strip_prefix("PlayerEffect::")
+        .and_then(|form| reduce_tail_rule(form, &operands))
+    {
+        return rule;
+    }
     let permission =
         |cards: ObjectSet, from, filter, cost, into_exile| PlayerRule::PlayPermissionWith {
             permission: Box::new(PlayerRule::PlayPermission {
@@ -2633,6 +2681,20 @@ pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
         ("ReduceActivatedCost", [ability, amount]) if stack_filter(ability).is_some() => {
             cost(stack_filter(ability).unwrap(), reduce(amount), None)
         }
+        (
+            "DecreaseAbilityCostOfCardsInPlayersGraveyard",
+            [Operand::Filter(cards), Operand::Player(owner), amount],
+        ) => cost(
+            ObjectFilter::AbilityOf(Box::new(ObjectFilter::All(vec![
+                cards.clone(),
+                ObjectFilter::InZone(ZoneScope::Players {
+                    zone: EventZone::Graveyard,
+                    players: PlayerSet::One(owner.clone()),
+                }),
+            ]))),
+            reduce(amount),
+            None,
+        ),
         ("ReduceManaCostOfActivatedAbilities", [ability, amount])
             if stack_filter(ability).is_some() =>
         {
@@ -3933,6 +3995,15 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
         ("And", _) => ObjectFilter::All(list()?),
         ("Or", _) => ObjectFilter::Either(list()?),
         ("AnyAbility" | "AnySpellOrAbility", []) => ObjectFilter::Any,
+        ("FirstAbilityActivatedByPlayerThisTurn", [inner, Operand::Player(player)]) => {
+            ObjectFilter::NthCast {
+                ordinal: Expr::Constant(1),
+                spells: Box::new(stack_filter(inner)?),
+                by: Some(PlayerSet::One(player.clone())),
+                scope: CastScope::Turn,
+            }
+        }
+        ("HasASingleTarget" | "TargetsOnlyASinglePermanentOrPlayer", []) => is(T::SingleTarget),
         ("TriggeredAbility", []) => is(T::Triggered),
         ("ActivatedAbility", []) => is(T::Activated),
         ("RoomAbilityOfDungeon", [Operand::Term { operands, .. }]) => match operands.as_slice() {
@@ -4561,7 +4632,9 @@ fn distinct(objects: &ObjectSet, property: DistinctProperty) -> Expr {
 /// A row's number in generic form, or the row itself when it has none.
 pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
     if let Some(number) = name.strip_prefix("GameNumber::").and_then(|form| {
-        reduce_event_number(form, &operands).or_else(|| reduce_more_numbers(form, &operands))
+        reduce_event_number(form, &operands)
+            .or_else(|| reduce_more_numbers(form, &operands))
+            .or_else(|| reduce_tail_number(form, &operands))
     }) {
         return number;
     }
@@ -4775,6 +4848,38 @@ pub fn set_event_player(event: &mut EventSpec, player: PlayerSet) -> bool {
 
 const REPLACED_PLAYER_EVENTS: &[(&str, ReplacedPlayerEvent)] = &[
     (
+        "WouldBeginATurn::PlayerWouldBeginTheirTurn",
+        ReplacedPlayerEvent::BeginTurn,
+    ),
+    (
+        "WouldBeginDrawStep::PlayerWouldBeginTheirDrawStep",
+        ReplacedPlayerEvent::BeginDrawStep,
+    ),
+    (
+        "WouldFlipACoin::PlayerWouldFlipACoin",
+        ReplacedPlayerEvent::FlipCoin,
+    ),
+    (
+        "WouldRollPlanarDice::APlayerWouldRollANumberOfPlanarDice",
+        ReplacedPlayerEvent::RollPlanarDie,
+    ),
+    (
+        "WouldSearchLibrary::APlayerWouldSearchTheirLibrary",
+        ReplacedPlayerEvent::SearchLibrary,
+    ),
+    (
+        "WouldPlaneswalk::APlayerWouldPlaneswalkAsAResultOfRollingThePlanarDie",
+        ReplacedPlayerEvent::PlaneswalkByDie,
+    ),
+    (
+        "WouldLoseTheGame::NextTimePlayerWouldLoseTheGameThisTurn",
+        ReplacedPlayerEvent::LoseGame,
+    ),
+    (
+        "WouldSetASchemeInMotion::NextTimePlayerWouldSetASchemeInMotion",
+        ReplacedPlayerEvent::SetSchemeInMotion,
+    ),
+    (
         "WouldDraw::APlayerWouldDrawACard",
         ReplacedPlayerEvent::Draw,
     ),
@@ -4831,6 +4936,18 @@ const REPLACED_PLAYER_EVENTS: &[(&str, ReplacedPlayerEvent)] = &[
 ];
 
 const REPLACED_OBJECT_EVENTS: &[(&str, ReplacedObjectEvent)] = &[
+    (
+        "WouldAdapt::NextTimeCreatureAdaptsThisTurn",
+        ReplacedObjectEvent::Adapts,
+    ),
+    (
+        "WouldDestroy::NextTimePermanentWouldBeDestroyedThisTurn",
+        ReplacedObjectEvent::Destroyed,
+    ),
+    (
+        "WouldExplore::APermanentWouldExplore",
+        ReplacedObjectEvent::Explores,
+    ),
     (
         "WouldDestroy::PermanentWouldBeDestroyed",
         ReplacedObjectEvent::Destroyed,
@@ -4968,7 +5085,9 @@ fn reduced_replacement(name: &str, operands: &[Operand]) -> Option<ReplacementEv
 /// A row's would-be event in generic form, or the row itself when it has none.
 pub fn reduce_replacement(name: String, operands: Vec<Operand>) -> ReplacementEvent {
     let plain = name.strip_prefix("Future").unwrap_or(&name);
-    reduced_replacement(plain, &operands).unwrap_or(ReplacementEvent::Primitive { name, operands })
+    reduced_replacement(plain, &operands)
+        .or_else(|| reduce_tail_replacement(plain, &operands))
+        .unwrap_or(ReplacementEvent::Primitive { name, operands })
 }
 
 /// Whether a would-be event is one a body stands in for unless it says otherwise.
@@ -5592,6 +5711,13 @@ impl Effects {
                     | Operation::AnyPlayerMayPay { .. }
                     | Operation::PlayersPayRepeatedly { .. }
                     | Operation::DelayedUnlessPaid { .. }
+                    | Operation::EachPlayer { .. }
+                    | Operation::CounterWith { .. }
+                    | Operation::Populate { .. }
+                    | Operation::ReduceSpeed { .. }
+                    | Operation::PutCountersCapped { .. }
+                    | Operation::ChooseDefender { .. }
+                    | Operation::MillUntil { .. }
                     | Operation::FightEach { .. }
                     | Operation::Note(_)
                     | Operation::Bid { .. }
