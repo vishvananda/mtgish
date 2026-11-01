@@ -185,6 +185,36 @@ enum ViewKind {
 /// Whether `e`, an item on the stack, is what target `t` names.
 const STACK_ITEM: &str = "(match t { Target::Object(id) => e.kind == StackKind::Spell && e.object == id, Target::Ability(serial) => e.kind != StackKind::Spell && e.serial == serial, _ => false })";
 
+/// `filter` with the one object it picks out named as the source, if it does:
+/// an event watching for "that creature" made by an ability whose matcher
+/// reaches nothing else can have that creature as the watcher's source.
+fn watched_filter(filter: &mut ObjectFilter) -> Option<ObjectRef> {
+    match filter {
+        ObjectFilter::SameObject(object) if !matches!(object, ObjectRef::Source) => {
+            Some(std::mem::replace(object, ObjectRef::Source))
+        }
+        ObjectFilter::All(filters) => filters.iter_mut().find_map(watched_filter),
+        _ => None,
+    }
+}
+
+/// The object `event` is about, moved to the watcher's source.
+pub(super) fn watched(event: &mut EventSpec) -> Option<ObjectRef> {
+    match event {
+        EventSpec::Damage(damage) => watched_filter(&mut damage.sources).or_else(|| {
+            match &mut damage.recipients {
+                DamageRecipients::Objects(objects) => watched_filter(objects),
+                _ => None,
+            }
+        }),
+        EventSpec::Attack { attackers, .. } => watched_filter(attackers),
+        EventSpec::ZoneChange { objects, .. } | EventSpec::Object { objects, .. } => {
+            watched_filter(objects)
+        }
+        _ => None,
+    }
+}
+
 /// Who may choose new targets, and for what, if that is all `body` does.
 pub(super) fn may_retarget(body: &Program) -> Option<(&PlayerRef, &ObjectRef)> {
     match body.instructions.as_slice() {

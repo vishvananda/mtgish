@@ -279,6 +279,11 @@ impl Compiler {
                 }
             }
         }
+        if !format!("{body:?}").contains("Source") {
+            if let Some(object) = lane_i::watched(&mut event) {
+                source = self.fetch(self.object(&object)?);
+            }
+        }
         let label = format!("watch_{}", self.fresh());
         let limits = TriggerLimits::default();
         let (outer, def) = self.closing(false, |c| {
