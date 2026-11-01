@@ -3,7 +3,9 @@
 //! matcher it will have, and `Matched::planned` holds that arm out of the file's
 //! compiled code: the whole ability goes in a `planned_item!`, with the body it
 //! triggers compiled, so the event is all the card waits on.
+use super::casting::target_range;
 use super::read::compare;
+use crate::mtg_types::CardType;
 use super::triggers::{object_fired, single, Arm, Matched};
 use super::*;
 
@@ -1018,6 +1020,26 @@ impl Compiler {
                     "trigger event ExploresCard",
                 ))
             }
+            EventSpec::ClassLevel { objects, level } => {
+                let frame = plain();
+                let tests = self.matching(frame, |c| {
+                    let level = c.number(level)?.amount(u8::MAX.into(), "u8")?;
+                    Ok(vec![
+                        c.filter(objects, &Candidate::of("id"))?,
+                        format!("*level == {level}"),
+                    ])
+                })?;
+                Ok(single(
+                    "CLASS_LEVEL",
+                    Arm {
+                        pattern: "Event::ClassLevel { object, level }".into(),
+                        locals: object_fired("*object", "u32::MAX"),
+                        tests,
+                    },
+                    frame,
+                    "When this Class becomes that level",
+                ))
+            }
             EventSpec::ControlChanges { objects, to, from } => {
                 let frame = plain();
                 let tests = self.matching(frame, |c| {
@@ -2002,6 +2024,12 @@ impl Compiler {
         };
         Ok(match condition {
             Condition::Searched(_) => held("g.searched_library()"),
+            Condition::GiftPromised(true) if self.reader != Reader::Layer => {
+                "cantrip_mechanics::gift::paid(q, asker)".into()
+            }
+            Condition::GiftPromised(false) if self.reader != Reader::Layer => {
+                "!cantrip_mechanics::gift::paid(q, asker)".into()
+            }
             Condition::ItsNight => "q.state().turn.day_night == DayNight::Night".into(),
             Condition::ItsNeitherDayNorNight => "q.state().turn.day_night == DayNight::Neither".into(),
             Condition::PlayerIn { player, players } => {
@@ -2023,6 +2051,58 @@ impl Compiler {
             }
             other => return Err(gap(format!("condition {}", form(other)))),
         })
+    }
+    /// "Create an X/X": the token is that size as it's made (CR 111.4), never
+    /// 0/0 for a moment, as Shark Typhoon's. False if these aren't such tokens.
+    pub(super) fn sized_tokens(
+        &mut self,
+        id: usize,
+        players: &PlayerSet,
+        tokens: &[TokenSpec],
+        entry: &EntrySpec,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<bool> {
+        let [TokenSpec {
+            amount,
+            words,
+            recipe: TokenRecipe::Defined(definition),
+        }] = tokens
+        else {
+            return Ok(false);
+        };
+        let Some((power, toughness)) = &definition.power_toughness else {
+            return Ok(false);
+        };
+        if matches!((power, toughness), (Expr::Constant(_), Expr::Constant(_)))
+            || !entry.states.is_empty()
+            || !entry.counters.is_empty()
+            || entry.tapped
+        {
+            return Ok(false);
+        }
+        let count = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
+        let power = self.number(power)?.amount(i16::MAX.into(), "i16")?;
+        let toughness = self.number(toughness)?.amount(i16::MAX.into(), "i16")?;
+        let mut base = definition.clone();
+        base.power_toughness = Some((Expr::Constant(0), Expr::Constant(0)));
+        let definition = self.token_definition(&base)?;
+        // Words a text-changing effect gave the ability (CR 612.4).
+        let words = match words {
+            TokenWords::Rules => "Words::NONE",
+            TokenWords::CreatingEffect => "g.words(asker.source)",
+        };
+        writeln!(
+            out,
+            "let count_{id} = {}; let power_{id} = {}; let toughness_{id} = {}; let players_{id} = {}; let mut values_{id} = Copiable::of(g.card_id(&{definition})).sized(power_{id}, toughness_{id}); values_{id}.words = {words}; let mut created_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ created_{id}.extend(g.create_token_copies_of(values_{id}, player, count_{id})?); }}",
+            self.fetch(count),
+            self.fetch(power),
+            self.fetch(toughness),
+            self.fetch(self.players(players)?),
+        )
+        .unwrap();
+        self.creations.insert(result.0, format!("created_{id}"));
+        Ok(true)
     }
     /// "Any player may pay": each is asked in turn, and the first who does ends it.
     pub(super) fn first_willing(
@@ -2074,5 +2154,532 @@ fn mana_letter(color: &ManaColor) -> String {
         "Red" => "R".into(),
         "Green" => "G".into(),
         _ => "C".into(),
+    }
+}
+
+/// The name of a condition no card states, which `Compiler::class` gates a
+/// Class's levels with: this, then the level.
+pub(super) const CLASS_LEVEL: &str = "class level ";
+/// The same, for a Case's "Solved" abilities.
+pub(super) const CASE_SOLVED: &str = "case solved";
+
+/// Which of Cantrip's gifts a program gives (CR 702.174d-i): the `gift` constant,
+/// the token to list with the card, and its words.
+fn gift_kind(gift: &[Program]) -> Option<(&'static str, Option<&'static str>, &'static str)> {
+    let [Program { instructions }] = gift else {
+        return None;
+    };
+    let [Instruction::Effect { operation, .. }] = instructions.as_slice() else {
+        return None;
+    };
+    let gifted = |players: &PlayerSet| matches!(players, PlayerSet::One(PlayerRef::GiftedPlayer));
+    match operation {
+        Operation::Draw {
+            players,
+            amount: Expr::Constant(1),
+        } if gifted(players) => Some(("CARD", None, "the chosen opponent draws a card")),
+        Operation::Keyword {
+            actor,
+            action: KeywordAction::TakeExtraTurn,
+            ..
+        } if gifted(actor) => Some(("EXTRA_TURN", None, "the chosen opponent takes an extra turn")),
+        Operation::CreateTokens {
+            players,
+            tokens,
+            entry,
+        } if gifted(players) => {
+            let [TokenSpec {
+                amount: Expr::Constant(1),
+                recipe: TokenRecipe::Defined(token),
+                ..
+            }] = tokens.as_slice()
+            else {
+                return None;
+            };
+            let [subtype] = token.subtypes.as_slice() else {
+                return None;
+            };
+            match (format!("{subtype:?}").as_str(), entry.tapped) {
+                ("Food", false) => Some(("FOOD", Some("FOOD"), "the chosen opponent creates a Food token")),
+                ("Treasure", false) => Some((
+                    "TREASURE",
+                    Some("TREASURE"),
+                    "the chosen opponent creates a Treasure token",
+                )),
+                ("Fish", true) => Some((
+                    "TAPPED_FISH",
+                    Some("FISH"),
+                    "the chosen opponent creates a tapped 1/1 blue Fish creature token",
+                )),
+                ("Octopus", false) => Some((
+                    "OCTOPUS",
+                    Some("OCTOPUS"),
+                    "the chosen opponent creates an 8/8 blue Octopus creature token",
+                )),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+/// A mana cost in the words `cost` reads: "{1}{B/G}".
+fn symbols_text(symbols: &[ManaSymbol]) -> Option<String> {
+    let letter = |color: &ManaColor| {
+        Some(match color {
+            ManaColor::White => "W",
+            ManaColor::Blue => "U",
+            ManaColor::Black => "B",
+            ManaColor::Red => "R",
+            ManaColor::Green => "G",
+            _ => return None,
+        })
+    };
+    let mut text = String::new();
+    for symbol in symbols {
+        match symbol {
+            ManaSymbol::Generic(n) => text.push_str(&format!("{{{n}}}")),
+            ManaSymbol::Color(color) => text.push_str(&format!("{{{}}}", letter(color)?)),
+            ManaSymbol::Hybrid(a, b) => {
+                text.push_str(&format!("{{{}/{}}}", letter(a)?, letter(b)?))
+            }
+            _ => return None,
+        }
+    }
+    Some(text)
+}
+
+/// Abilities `costs.rs` has no arm for.
+impl Compiler {
+    pub(super) fn ability_rest(
+        &mut self,
+        ability: &Ability,
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        match ability {
+            Ability::TriggerRule {
+                cause,
+                abilities,
+                rule,
+            } => self.trigger_rule(cause.as_ref(), abilities.as_ref(), rule, label, parts),
+            Ability::Spree { modes } => self.spree(modes, label, parts),
+            Ability::Gift {
+                gift,
+                promised,
+                unpromised,
+            } => self.gift(gift, promised.as_deref(), unpromised.as_deref(), label, parts),
+            Ability::Class { levels } => self.class(levels, label, parts),
+            Ability::Mystery {
+                condition,
+                abilities,
+            } => {
+                let solve = self.activation_condition(condition, &format!("{label}_to_solve"))?;
+                parts.abilities.push(format!(
+                    "cantrip_mechanics::solved::to_solve({solve}, \"To solve (If unsolved, solve at the beginning of your end step.)\")"
+                ));
+                let solved = Condition::Primitive {
+                    name: CASE_SOLVED.into(),
+                    operands: Vec::new(),
+                };
+                self.gated(&solved, abilities, &format!("{label}_solved"), parts)
+            }
+            Ability::Prototype {
+                mana: symbols,
+                power,
+                toughness,
+            } => {
+                let cost = symbols_text(symbols).ok_or_else(|| gap("prototype cost in symbols"))?;
+                let text = format!("Prototype {cost} \u{2014} {power}/{toughness}");
+                parts.field(
+                    "prototype",
+                    format!(
+                        "Some(Prototype {{ cost: {}, power: {power}, toughness: {toughness}, text: {} }})",
+                        mana(symbols)?,
+                        quoted(&text)
+                    ),
+                );
+                Ok(())
+            }
+            Ability::OpeningHand { announcement, body } => {
+                self.opening_hand(announcement, body, label, parts)
+            }
+            other => Err(gap(format!("ability {}", form(other)))),
+        }
+    }
+    /// Spree (CR 702.172): modes chosen by paying for them, at least one.
+    fn spree(&mut self, modes: &[SpreeMode], label: &str, parts: &mut Parts) -> Result<()> {
+        if parts.spell != "None" {
+            return Err(gap("multiple spell bodies"));
+        }
+        let mut defs = Vec::new();
+        for (i, spree) in modes.iter().enumerate() {
+            let [CostPart::Mana(symbols)] = spree.cost.parts.as_slice() else {
+                return Err(gap("spree mode that costs more than mana"));
+            };
+            let Ability::Spell { announcement, body } = &*spree.ability else {
+                return Err(gap("spree mode that is no spell"));
+            };
+            let label = format!("{label}_mode_{i}");
+            let targets = self.announcement(announcement, &label)?;
+            let effect = self.effect(body, &label)?;
+            defs.push(format!(
+                "mode({effect}, {}).targets({targets}).cost({})",
+                quoted(&ability_text(body)),
+                mana(symbols)?
+            ));
+        }
+        let name = format!("{}_MODES", label.to_ascii_uppercase());
+        writeln!(
+            self.functions,
+            "static {name}: ModalDef = cantrip_mechanics::spree::modal(&[{}]);",
+            defs.join(",")
+        )
+        .unwrap();
+        parts.spell = "Some(SpellDef::MODAL)".into();
+        parts.modal = format!("Some(&{name})");
+        Ok(())
+    }
+    /// Gift (CR 702.174). Which gift is one of Cantrip's six: the core gives it
+    /// before a spell's other effects, and a permanent lists its trigger.
+    fn gift(
+        &mut self,
+        gift: &[Program],
+        promised: Option<&Ability>,
+        unpromised: Option<&Ability>,
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let (kind, token, text) = gift_kind(gift).ok_or_else(|| gap("a gift of another kind"))?;
+        if let Some(token) = token {
+            self.extras.push(format!("cantrip_mechanics::tokens::{token}"));
+        }
+        parts.field("gift", format!("Some(cantrip_mechanics::gift::{kind})"));
+        let (Some(promised), Some(unpromised)) = (promised, unpromised) else {
+            parts.abilities.push(format!(
+                "cantrip_mechanics::gift::trigger({})",
+                quoted(&format!(
+                    "When this permanent enters, if its gift cost was paid, {text}."
+                ))
+            ));
+            return Ok(());
+        };
+        let (
+            Ability::Spell {
+                announcement: promised_announced,
+                body: promised,
+            },
+            Ability::Spell {
+                announcement: unpromised_announced,
+                body: unpromised,
+            },
+        ) = (promised, unpromised)
+        else {
+            return Err(gap("gift outcomes that are not spells"));
+        };
+        if parts.spell != "None" {
+            return Err(gap("multiple spell bodies"));
+        }
+        let (specs, counted) = self.gift_targets(promised_announced, unpromised_announced, label)?;
+        let effect = self.branch_effect(
+            "item.gift.is_some()",
+            promised,
+            promised_announced,
+            unpromised,
+            unpromised_announced,
+            label,
+        )?;
+        if counted {
+            self.plan_entry(
+                "a gift that changes how many a spell targets",
+                "spell",
+                &format!("spell(&[{}], {effect})", specs.join(",")),
+                parts,
+            );
+            return Ok(());
+        }
+        let targets = if specs.is_empty() {
+            "&[]".to_string()
+        } else {
+            let array = format!("{}_TARGETS", label.to_ascii_uppercase());
+            writeln!(
+                self.functions,
+                "static {array}: &[cantrip_api::TargetSpec] = &[{}];",
+                specs.join(",")
+            )
+            .unwrap();
+            array
+        };
+        parts.spell = format!("spell({targets}, {effect})");
+        Ok(())
+    }
+    /// A spell's targets where the gift changes them: the promise comes before
+    /// the targets (CR 601.2b-c, 702.174m), so each slot's filter reads it. True
+    /// if it also changes how many, which `TargetSpec` can only do for a kicker.
+    fn gift_targets(
+        &mut self,
+        promised: &Announcement,
+        unpromised: &Announcement,
+        label: &str,
+    ) -> Result<(Vec<String>, bool)> {
+        if promised.modes.is_some() || unpromised.modes.is_some() {
+            return Err(gap("gift spell with modes"));
+        }
+        self.announcement(promised, &format!("{label}_promised"))?;
+        let promised_filters = std::mem::take(&mut self.announced_filters);
+        self.announcement(unpromised, &format!("{label}_unpromised"))?;
+        let unpromised_filters = std::mem::take(&mut self.announced_filters);
+        let mut specs = Vec::new();
+        let mut counted = false;
+        for i in 0..promised.targets.len().max(unpromised.targets.len()) {
+            let range = |targets: &[TargetSpec]| {
+                targets
+                    .get(i)
+                    .map_or(Ok((0, 0)), |spec| target_range(&spec.count))
+            };
+            let (given, (min, max)) = (range(&promised.targets)?, range(&unpromised.targets)?);
+            let side = |filters: &[String]| {
+                filters
+                    .get(i)
+                    .map_or("false".to_string(), |f| format!("({f})(q, asker, t)"))
+            };
+            let function = format!("{label}_target_{i}");
+            writeln!(
+                self.functions,
+                "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ if cantrip_mechanics::gift::promised(q, asker.source) {{ {} }} else {{ {} }} }}",
+                side(&promised_filters),
+                side(&unpromised_filters)
+            )
+            .unwrap();
+            let spec = format!(
+                "TargetSpec {{ min: {min}, max: {max}, filter: {function}, label: \"\", if_kicked: None, together: None }}"
+            );
+            if given == (min, max) {
+                specs.push(spec);
+            } else {
+                counted = true;
+                let (least, most) = given;
+                specs.push(format!("{spec}.if_promised({least}, {most})"));
+            }
+        }
+        Ok((specs, counted))
+    }
+    /// A Class (CR 716): each level is an ability to gain it, and abilities that
+    /// work from that level on.
+    fn class(&mut self, levels: &[ClassLevel], label: &str, parts: &mut Parts) -> Result<()> {
+        for (i, level) in levels.iter().enumerate() {
+            let [CostPart::Mana(symbols)] = level.cost.parts.as_slice() else {
+                return Err(gap("class level cost other than mana"));
+            };
+            let cost = symbols_text(symbols).ok_or_else(|| gap("class level cost in symbols"))?;
+            let (function, number) = match i {
+                0 => ("level_two", 2),
+                1 => ("level_three", 3),
+                _ => return Err(gap("class level past three")),
+            };
+            parts.abilities.push(format!(
+                "cantrip_mechanics::class::{function}({}, {})",
+                quoted(&cost),
+                quoted(&format!("{cost}: Level {number}"))
+            ));
+            let held = Condition::Primitive {
+                name: format!("{CLASS_LEVEL}{number}"),
+                operands: Vec::new(),
+            };
+            self.gated(&held, &level.abilities, &format!("{label}_level_{number}"), parts)?;
+        }
+        Ok(())
+    }
+    /// Abilities that work while `held` is so (CR 716.2, 702.169). A triggered
+    /// one asks with its event and not again: it's on the stack by then, whatever
+    /// became of its source. An activated one asks as it's activated.
+    fn gated(
+        &mut self,
+        held: &Condition,
+        abilities: &[Ability],
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        for (i, ability) in abilities.iter().enumerate() {
+            let label = format!("{label}_{i}");
+            let mut gated = ability.clone();
+            match &mut gated {
+                Ability::Triggered { .. } => self.trigger_gate = Some(held.clone()),
+                Ability::Activated { limits, .. } => {
+                    limits.condition = Some(match limits.condition.take() {
+                        Some(other) => Condition::All(vec![held.clone(), other]),
+                        None => held.clone(),
+                    })
+                }
+                Ability::Conditional { condition, .. } => {
+                    *condition = Condition::All(vec![held.clone(), condition.clone()])
+                }
+                other => {
+                    gated = Ability::Conditional {
+                        condition: held.clone(),
+                        then: vec![other.clone()],
+                        otherwise: Vec::new(),
+                    }
+                }
+            }
+            let compiled = self.ability(&gated, &label, parts, None);
+            self.trigger_gate = None;
+            compiled?;
+        }
+        Ok(())
+    }
+    /// "This Case is solved" (CR 719.3b).
+    pub(super) fn case_solved(&self) -> String {
+        match self.reader {
+            Reader::Layer => "q.state().obj(source).marks.solved".into(),
+            _ => "q.is_solved(asker.source)".into(),
+        }
+    }
+    /// What a card does from an opening hand (CR 103.6a). Beginning the game on
+    /// the battlefield is Cantrip's; a reveal that sets up a later effect isn't.
+    fn opening_hand(
+        &mut self,
+        announcement: &Announcement,
+        body: &Program,
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let begins = |instruction: &Instruction| {
+            matches!(
+                instruction,
+                Instruction::Effect {
+                    operation: Operation::BeginOnBattlefield {
+                        actor: PlayerSet::One(PlayerRef::AbilityController),
+                        ..
+                    },
+                    ..
+                }
+            )
+        };
+        if let [Instruction::Optional { body: choice, .. }] = body.instructions.as_slice() {
+            if matches!(choice.instructions.as_slice(), [only] if begins(only)) {
+                parts.field(
+                    "opening_hand",
+                    "Some(cantrip_mechanics::statics::BEGIN_ON_THE_BATTLEFIELD)".into(),
+                );
+                return Ok(());
+            }
+        }
+        if format!("{body:?}").contains("BeginOnBattlefield") {
+            return Err(gap("beginning the game on the battlefield with terms"));
+        }
+        self.announcement(announcement, label)?;
+        let effect = self.effect(body, label)?;
+        self.plan_entry(
+            "a reveal from an opening hand",
+            "abilities",
+            &format!(
+                "cantrip_mechanics::opening_hand::reveal({effect}, {})",
+                quoted(&ability_text(body))
+            ),
+            parts,
+        );
+        Ok(())
+    }
+    /// Whether a Class is at this level or past it (CR 716.2): the name holds it.
+    pub(super) fn class_level(&self, name: &str) -> String {
+        let level = &name[CLASS_LEVEL.len()..];
+        let source = match self.reader {
+            Reader::Layer => "source",
+            _ => "asker.source",
+        };
+        format!("q.state().obj({source}).class_level >= {level}")
+    }
+    /// Panharmonicon's and Torpor Orb's rule on triggering (CR 603.2d, 603.2g):
+    /// asked of one event and one ability that event triggered.
+    fn trigger_rule(
+        &mut self,
+        cause: Option<&EventSpec>,
+        abilities: Option<&ObjectFilter>,
+        rule: &TriggerRule,
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let table = match rule {
+            TriggerRule::TriggersAgain => "additional_triggers",
+            TriggerRule::DoesntTrigger => "trigger_rules",
+        };
+        let saved = (self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+        let abilities = self.triggering_ability(abilities);
+        let cause = match cause {
+            Some(cause) => self.trigger_cause(cause),
+            None => Ok("true".to_string()),
+        };
+        (self.reader, self.event_at) = saved;
+        let (abilities, cause) = (abilities?, cause?);
+        let function = format!("{label}_trigger_rule");
+        writeln!(
+            self.functions,
+            "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, event: &Event, triggering: &Triggering) -> bool {{ {abilities} && {cause} }}"
+        )
+        .unwrap();
+        parts.table(table, function);
+        Ok(())
+    }
+    /// "A triggered ability of a permanent you control": the permanent as it is,
+    /// or as it last existed for an ability that looks back (CR 603.10).
+    fn triggering_ability(&self, abilities: Option<&ObjectFilter>) -> Result<String> {
+        match abilities {
+            None => Ok("true".into()),
+            Some(ObjectFilter::AbilityOf(objects)) => {
+                let source = Candidate {
+                    controller: "triggering.controller".into(),
+                    ..Candidate::of("triggering.source")
+                };
+                Ok(format!(
+                    "(triggering.permanent && {})",
+                    self.filter(objects, &source)?
+                ))
+            }
+            Some(other) => Err(gap(format!("trigger rule over {}", form(other)))),
+        }
+    }
+    /// The event that does the triggering. Cantrip's helpers hold the rulings
+    /// on what counts as a creature dying or attacking.
+    fn trigger_cause(&mut self, event: &EventSpec) -> Result<String> {
+        Ok(match event {
+            EventSpec::Either(events) => {
+                let tests = events
+                    .iter()
+                    .map(|e| self.trigger_cause(e))
+                    .collect::<Result<Vec<_>>>()?;
+                format!("({})", tests.join(" || "))
+            }
+            EventSpec::ZoneChange {
+                objects,
+                from: None,
+                to: EventZone::Battlefield,
+            } => format!(
+                "cantrip_mechanics::statics::entering(event).is_some_and(|id| {})",
+                self.filter(objects, &Candidate::of("id"))?
+            ),
+            EventSpec::ZoneChange {
+                objects: ObjectFilter::CardType(CardType::Creature),
+                from: Some(EventZone::Battlefield),
+                to: EventZone::Graveyard,
+            } => "cantrip_mechanics::statics::creature_dying(q, event, triggering)".into(),
+            EventSpec::ZoneChange {
+                from: Some(EventZone::Battlefield),
+                to: EventZone::Graveyard,
+                ..
+            } => return Err(gap("trigger rule on some creatures dying")),
+            EventSpec::Attack {
+                attackers: ObjectFilter::CardType(CardType::Creature),
+                by: None,
+                defenders: AttackDefenders::Any,
+            } => "matches!(event, Event::Attacks { .. } | Event::AttackersDeclared { .. })".into(),
+            other => {
+                let matched = self.event(other)?;
+                if let Some(feature) = &matched.planned {
+                    return Err(gap(feature.clone()));
+                }
+                matched.fired_test()
+            }
+        })
     }
 }

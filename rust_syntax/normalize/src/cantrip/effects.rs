@@ -1438,6 +1438,9 @@ impl Compiler {
         if !entry.states.is_empty() && (!defined || !entry.counters.is_empty()) {
             return Err(gap("tokens entering in a special state"));
         }
+        if self.sized_tokens(id, players, tokens, entry, result, out)? {
+            return Ok(());
+        }
         let first = &tokens[0].words;
         if tokens
             .iter()

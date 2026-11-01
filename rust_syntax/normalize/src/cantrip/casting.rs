@@ -5,7 +5,7 @@ use super::*;
 const KICKED_SPELL: &str = "q.obj(asker.source).kicked > 0";
 
 /// A target count the engine holds as numbers.
-fn target_range(count: &Count) -> Result<(u32, u32)> {
+pub(super) fn target_range(count: &Count) -> Result<(u32, u32)> {
     let constant = |n: &Expr| match n {
         Expr::Constant(n) => u32::try_from(*n).ok(),
         _ => None,
@@ -148,7 +148,7 @@ impl Compiler {
     }
     /// One effect that runs the branch `test` picks as it resolves. The two
     /// bodies number their targets alike, so each reads the slots it announced.
-    fn branch_effect(
+    pub(super) fn branch_effect(
         &mut self,
         test: &str,
         paid: &Program,
@@ -166,7 +166,7 @@ impl Compiler {
         Ok(label.into())
     }
     /// The slots an effect body reads, for announcements compiled elsewhere.
-    fn resolving_slots(&mut self, announced: &Announcement) -> Result<()> {
+    pub(super) fn resolving_slots(&mut self, announced: &Announcement) -> Result<()> {
         self.slots.clear();
         for (i, spec) in announced.targets.iter().enumerate() {
             self.slots.insert(spec.slot.0, (i, spec.clone()));

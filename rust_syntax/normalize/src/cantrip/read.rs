@@ -933,6 +933,11 @@ impl Compiler {
                     DistinctProperty::Names => list("q.chars(id).name"),
                     DistinctProperty::Controllers => list("q.controller(id)"),
                     DistinctProperty::Owners => list("q.state().obj(id).owner"),
+                    DistinctProperty::Powers => list("q.chars(id).power"),
+                    DistinctProperty::Toughness => list("q.chars(id).toughness"),
+                    DistinctProperty::ManaValues if self.reader != Reader::Layer => {
+                        list("q.mana_value(id)")
+                    }
                     other => return Err(gap(format!("distinct {}", form(other)))),
                 })
             }
@@ -1447,6 +1452,10 @@ impl Compiler {
             ))
         };
         Ok(match condition {
+            Condition::Primitive { name, .. } if name.starts_with(lane_j::CLASS_LEVEL) => {
+                self.class_level(name)
+            }
+            Condition::Primitive { name, .. } if name == lane_j::CASE_SOLVED => self.case_solved(),
             Condition::Primitive { name, .. } => {
                 return Err(gap(format!("primitive condition {name}")))
             }

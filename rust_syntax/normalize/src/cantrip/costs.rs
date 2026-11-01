@@ -593,8 +593,16 @@ impl Compiler {
         match limits.keyword {
             Some(ActivatedKeyword::Exhaust) => def.push_str(".exhaust()"),
             Some(ActivatedKeyword::PowerUp) => def.push_str(".power_up()"),
-            Some(ActivatedKeyword::Boast | ActivatedKeyword::Forecast) => {
-                return Err(gap("activated keyword Boast or Forecast"));
+            Some(ActivatedKeyword::Boast) => {
+                if limits.condition.is_some() {
+                    return Err(gap("boast with a condition of its own"));
+                }
+                let function = format!("{label}_attacked");
+                writeln!(self.functions, "fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ q.attacked_this_turn(asker.source) }}").unwrap();
+                def.push_str(&format!(".condition({function})"));
+            }
+            Some(ActivatedKeyword::Forecast) => {
+                def.push_str(".forecast()");
             }
             None => {}
         }
@@ -851,7 +859,11 @@ impl Compiler {
                     scope,
                 );
                 self.activation_cost = None;
-                parts.abilities.push(def?);
+                if matches!(limits.keyword, Some(ActivatedKeyword::Forecast)) {
+                    self.plan_entry("activated keyword Forecast", "abilities", &def?, parts);
+                } else {
+                    parts.abilities.push(def?);
+                }
             }
             Ability::Triggered {
                 event,
@@ -1004,7 +1016,7 @@ impl Compiler {
             // How to build a deck, in no game: Cantrip's Sphinx's Approach says
             // the same of its line, "no line of code here".
             Ability::DeckRule(_) => {}
-            other => return Err(gap(format!("ability {}", form(other)))),
+            other => return self.ability_rest(other, label, parts),
         }
         Ok(())
     }

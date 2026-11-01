@@ -59,6 +59,21 @@ pub(super) fn single(mask: &'static str, arm: Arm, frame: Frame, phrase: &str) -
 
 impl Matched {
     /// A closure over one history record, as the matcher would answer it.
+    /// Whether `event` is this one, for a rule asked of an event.
+    pub(super) fn fired_test(&self) -> String {
+        let mut body = String::new();
+        for arm in &self.arms {
+            write!(
+                body,
+                "if let {} = event {{ {} if {} {{ return true; }} }} ",
+                arm.pattern,
+                arm.locals,
+                arm.tests.join(" && ")
+            )
+            .unwrap();
+        }
+        format!("(|| -> bool {{ {body} false }})()").replace("cast_of(q, ", "cast_at(q, event, ")
+    }
     pub(super) fn history_test(&self) -> String {
         let mut body = String::new();
         for arm in &self.arms {
@@ -1279,8 +1294,12 @@ impl Compiler {
         announcement: &Announcement,
         body: &Program,
     ) -> Result<String> {
+        let gate = self.trigger_gate.take();
         if limits.total.is_some() {
             return Err(gap("trigger total limit"));
+        }
+        if gate.is_some() && (announcement.modes.is_some() || matches!(event, EventSpec::State { .. })) {
+            return Err(gap("modal or state trigger that works from a level"));
         }
         if let EventSpec::State { condition } = event {
             let state = self.condition_function(condition, &format!("{label}_state"))?;
@@ -1333,6 +1352,9 @@ impl Compiler {
         // no event to read, so one that reads the event is asked by the matcher
         // and by the resolving effect instead.
         let mut extra = Vec::new();
+        if let Some(gate) = &gate {
+            extra.push(self.matching(matched.frame, |c| c.condition(gate))?);
+        }
         let mut guard = None;
         let mut condition = None;
         if let Some(intervening) = intervening_if {

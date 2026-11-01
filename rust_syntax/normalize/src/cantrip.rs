@@ -350,6 +350,8 @@ struct Compiler {
     affected_in_scope: bool,
     /// The condition of the enclosing `Ability::Conditional`, asked as layers run.
     static_guard: Option<Condition>,
+    /// Asked with a triggered ability's event and not again: a Class's level.
+    trigger_gate: Option<Condition>,
     slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
     /// The cards that ended each reveal, by the result that names all it showed.
@@ -649,6 +651,7 @@ impl Compiler {
             candidates: Default::default(),
             affected_in_scope: false,
             static_guard: None,
+            trigger_gate: None,
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
             reveal_matches: BTreeMap::new(),
