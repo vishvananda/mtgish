@@ -682,7 +682,7 @@ impl Compiler {
                     quoted(&form(cost))
                 ),
             ),
-            other => return Err(gap(format!("duration {}", form(other)))),
+            other => lane_m::duration_more(other)?,
         })
     }
     /// The test of a "for as long as": `e` is the effect it is about.

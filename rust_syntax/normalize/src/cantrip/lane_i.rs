@@ -410,6 +410,7 @@ impl Compiler {
         writeln!(out, "let mut players_{id}: Vec<PlayerId> = {players};").unwrap();
         let walking = (self.notes.walking)
             .replace((each.binding.0, format!("players_{id}")));
+        self.note_own(&each.body);
         if let Some(first) = each.starting_with {
             let first = self.fetch(self.player(first)?);
             writeln!(out, "let first_{id} = {first}; if let Some(at) = players_{id}.iter().position(|&p| Some(p) == first_{id}) {{ players_{id}.rotate_left(at); }}").unwrap();
@@ -504,6 +505,7 @@ impl Compiler {
         }
         self.bound_players.remove(&each.binding.0);
         self.view_all(&views);
+        self.note_walked(&each.body);
         self.notes.walking = walking;
         Ok(())
     }

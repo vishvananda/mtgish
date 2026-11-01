@@ -1701,7 +1701,7 @@ impl Compiler {
                     (Some((_, Share::Picks(picks))), ObjectPhase::Before) => format!(
                         "{picks}.iter().filter(|(who, o)| Some(*who) == {who} && q.state().obj(*o).became.is_some()).map(|(_, o)| *o).collect::<Vec<ObjectId>>()"
                     ),
-                    _ => return Err(gap("object collection MovedBy")),
+                    _ => return self.moved_by(result, phase, &who),
                 }
             }
             other => return self.objects_more(other),
@@ -2667,6 +2667,9 @@ fn two_to_the_bottom(part: &CostPart) -> bool {
 }
 /// A number of an object Cantrip doesn't keep, in the form it will take.
 pub(super) fn property_rest(property: &Property, id: &str) -> Result<Number> {
+    if let Some(number) = lane_m::property_more(property, id) {
+        return Ok(number);
+    }
     let (feature, code, max) = match property {
         Property::BasePower => ("base power", format!("q.base_power({id})"), i16::MAX),
         Property::BaseToughness => (

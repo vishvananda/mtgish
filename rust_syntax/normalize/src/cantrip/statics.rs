@@ -490,6 +490,10 @@ impl Compiler {
             ),
             Change::Rule(rule) => return self.layer_rule(rule),
             Change::GainAbilitiesOf { .. } => return self.gain_abilities_of(change),
+            Change::SetName(word) => LayerChange::of(
+                "Text",
+                format!("chars.name = {}; chars.name_set = true;", quoted(word)),
+            ),
             Change::RemoveCardType(t) => LayerChange::of(
                 "Type",
                 format!(

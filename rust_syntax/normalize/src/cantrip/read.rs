@@ -1705,7 +1705,7 @@ impl Compiler {
                     TurnWindow::AfterBlockersDeclared => {
                         format!("{step} > (Step::DeclareBlockers as u8)")
                     }
-                    other => return Err(gap(format!("turn window {other:?}"))),
+                    other => return lane_m::turn_window(other, step),
                 }
             }
             Condition::PlayerState { player, state } => format!(

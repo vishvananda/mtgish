@@ -1746,6 +1746,8 @@ fn emit_face(
         feature: "invalid AST".into(),
         message: e,
     })?;
+    let joined = lane_m::spells_joined(card);
+    let card = joined.as_ref().unwrap_or(card);
     let mut c = Compiler::new();
     let mut parts = Parts::default();
     c.card_name = card.name.clone();

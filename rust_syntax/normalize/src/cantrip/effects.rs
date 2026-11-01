@@ -2398,7 +2398,7 @@ impl Compiler {
                 self.certain_player(player)?
             )],
             Change::Rule(rule) => return self.continuous_rule(rule),
-            other => return Err(gap(format!("continuous change {}", form(other)))),
+            other => return lane_m::continuous_more(other),
         })
     }
 }

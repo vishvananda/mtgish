@@ -170,11 +170,11 @@ impl Compiler {
             S::ReceivedAVote => unrecorded("ReceivedAVote", format!("votes.of({id}) > 0")),
             S::PowerAboveBase => unrecorded(
                 "PowerAboveBase",
-                format!("{chars}.power > q.base_power_toughness({id}).map(|(p, _)| p)"),
+                format!("{chars}.power.map(i64::from) > Some(q.base_power({id}))"),
             ),
             S::PowerDiffersFromBase => unrecorded(
                 "PowerDiffersFromBase",
-                format!("{chars}.power != q.base_power_toughness({id}).map(|(p, _)| p)"),
+                format!("{chars}.power.map(i64::from) != Some(q.base_power({id}))"),
             ),
             S::RingBearer => unrecorded(
                 "RingBearer",
@@ -224,6 +224,8 @@ pub(super) struct Notes {
     pub offered: BTreeMap<u32, (ObjectSet, Option<(u32, String)>)>,
     /// The `ForEachPlayer` being walked: its binding, and its list of players.
     pub walking: Option<(u32, String)>,
+    /// Steps of a walk where each player moves only what they own.
+    pub own: BTreeSet<u32>,
 }
 
 /// The words `EarlierObjects` has for what an operation acts on.
@@ -265,6 +267,59 @@ impl Compiler {
         if let Operation::ChooseObjects { objects, .. } = operation {
             let walking = self.notes.walking.clone();
             self.notes.offered.insert(result.0, (objects.clone(), walking));
+        }
+    }
+    /// The steps of a walk where a player can only move what they own: nothing in
+    /// a hand or a library is anyone else's (CR 400.3).
+    pub(super) fn note_own(&mut self, body: &Program) {
+        for instruction in &body.instructions {
+            match instruction {
+                Instruction::Effect {
+                    result,
+                    operation:
+                        Operation::Discard { .. }
+                        | Operation::DiscardObjects { .. }
+                        | Operation::Mill { .. },
+                } => {
+                    self.notes.own.insert(result.0);
+                }
+                Instruction::Group(body) | Instruction::Optional { body, .. } => {
+                    self.note_own(body)
+                }
+                _ => {}
+            }
+        }
+    }
+    /// What this player's run of a walk moved, of what the runs moved together.
+    pub(super) fn moved_by(
+        &self,
+        result: &ResultId,
+        phase: &ObjectPhase,
+        who: &str,
+    ) -> Result<String> {
+        if !self.notes.own.contains(&result.0) {
+            return Err(gap("object collection MovedBy"));
+        }
+        let moved = self
+            .transition(result, phase)
+            .map_err(|_| gap("object collection MovedBy"))?;
+        Ok(format!(
+            "({moved}).into_iter().filter(|&o| Some(q.state().obj(o).owner) == {who}).collect::<Vec<ObjectId>>()"
+        ))
+    }
+    /// What the steps of a walk leave, which went by the way of `walk`.
+    pub(super) fn note_walked(&mut self, body: &Program) {
+        for instruction in &body.instructions {
+            match instruction {
+                Instruction::Effect { .. } => self.note_step(instruction),
+                Instruction::Group(body)
+                | Instruction::Optional { body, .. } => self.note_walked(body),
+                Instruction::If { then, otherwise, .. } => {
+                    self.note_walked(then);
+                    self.note_walked(otherwise);
+                }
+                _ => {}
+            }
         }
     }
     /// `Vec<ObjectId>` of what an earlier step acted on, as the words of the card
@@ -321,7 +376,12 @@ impl Compiler {
             if exiled {
                 return Ok(format!("q.exiled_with({})", self.linked()));
             }
-            return Err(gap(format!("earlier objects {word}")));
+            // Cantrip keeps no record of this for a read to find.
+            return Ok(planned::planned_value(
+                &format!("earlier objects {word}"),
+                "Vec::<ObjectId>::new()",
+                &format!("q.acted_on(asker, Acted::{word})"),
+            ));
         };
         self.objects(&ObjectSet::CostObjects {
             payment,
@@ -698,10 +758,25 @@ impl Compiler {
             }
             // The roll just made: `RollDie` is one die.
             Expr::Dice(DiceMeasure::Result | DiceMeasure::Total) => {
-                let rolled = self.notes.earlier.iter().rev().find(|(w, _)| *w == "Rolled");
-                let (_, result) = rolled.ok_or_else(|| gap("numeric expression Dice"))?;
-                self.number(&Expr::DieResult(result.clone()))?
+                match self.notes.earlier.iter().rev().find(|(w, _)| *w == "Rolled") {
+                    Some((_, result)) => self.number(&Expr::DieResult(result.clone()))?,
+                    None => held_number(
+                        "numeric expression Dice".into(),
+                        "g.last_roll(asker.controller).result",
+                    ),
+                }
             }
+            Expr::CoinFlipsWon(won) => held_number(
+                "numeric expression CoinFlipsWon".into(),
+                &format!("g.coin_flips(asker.controller, {won})"),
+            ),
+            Expr::TimesMutated(object) => held_number(
+                "numeric expression TimesMutated".into(),
+                &format!(
+                    "{}.map_or(0i64, |o: ObjectId| q.state().obj(o).mutations as i64)",
+                    self.object(object)?
+                ),
+            ),
             Expr::Votes(option) => held_number(
                 "numeric expression Votes".into(),
                 &format!("g.votes().count({})", form(option)),
@@ -715,8 +790,51 @@ impl Compiler {
         })
     }
     /// The rest of `predicate`.
-    pub(super) fn predicate_more(&self, f: &ObjectFilter, _c: &Candidate) -> Result<String> {
-        Err(gap(format!("object filter {}", form(f))))
+    pub(super) fn predicate_more(&self, f: &ObjectFilter, c: &Candidate) -> Result<String> {
+        let (id, chars) = (&c.id, &c.chars);
+        Ok(match f {
+            ObjectFilter::AttachedTo(filter) => format!(
+                "q.state().obj({id}).attached_to.is_some_and(|host: ObjectId| {})",
+                self.filter(filter, &Candidate::of("host"))?
+            ),
+            ObjectFilter::HasAttached(filter) => format!(
+                "q.state().battlefield().iter().any(|&attached| q.state().obj(attached).attached_to == Some({id}) && {})",
+                self.filter(filter, &Candidate::of("attached"))?
+            ),
+            // A nameless object shares its name with nothing (CR 201.2c).
+            ObjectFilter::SharesNameWith(object) => format!(
+                "{}.is_some_and(|other: ObjectId| !{chars}.name.is_empty() && q.chars(other).name == {chars}.name)",
+                self.object(object)?
+            ),
+            ObjectFilter::SharesTypeFrom { types, with } => {
+                let list = types
+                    .iter()
+                    .map(|t| card_type(t).map(|t| format!("CardType::{t}")))
+                    .collect::<Result<Vec<_>>>()?;
+                format!(
+                    "{}.is_some_and(|other: ObjectId| [{}].into_iter().any(|t: CardType| q.chars(other).is(t) && {chars}.is(t)))",
+                    self.object(with)?,
+                    list.join(", ")
+                )
+            }
+            ObjectFilter::SharesColorWithAny(objects) => format!(
+                "({}).into_iter().any(|other: ObjectId| q.chars(other).colors.iter().any(|color| {chars}.colors.has(color)))",
+                self.objects(objects)?
+            ),
+            ObjectFilter::Extreme {
+                among,
+                property,
+                highest,
+            } => {
+                let value = self.property("row", property)?.code;
+                let pick = if *highest { "max" } else { "min" };
+                format!(
+                    "{{ let rows: Vec<(ObjectId, i64)> = ({}).into_iter().map(|row: ObjectId| (row, {value})).collect(); let best = rows.iter().map(|r| r.1).{pick}(); rows.iter().any(|r| r.0 == {id} && Some(r.1) == best) }}",
+                    self.objects(among)?
+                )
+            }
+            other => return Err(gap(format!("object filter {}", form(other)))),
+        })
     }
     /// The rest of `condition`.
     pub(super) fn condition_more(&self, condition: &Condition) -> Result<String> {
@@ -768,6 +886,121 @@ impl Compiler {
             other => return Err(gap(format!("condition {}", form(other)))),
         })
     }
+}
+
+/// The rest of `TurnWindow`. `step` is the step as a number.
+pub(super) fn turn_window(window: &TurnWindow, step: &str) -> Result<String> {
+    Ok(match window {
+        TurnWindow::DrawStep => "q.state().turn.step() == Step::Draw".into(),
+        TurnWindow::MainPhase => {
+            "matches!(q.state().turn.step(), Step::PrecombatMain | Step::PostcombatMain)".into()
+        }
+        TurnWindow::BeforeCombat => format!("{step} < (Step::BeginCombat as u8)"),
+        TurnWindow::AfterCombat => format!("{step} > (Step::EndOfCombat as u8)"),
+        TurnWindow::EndOfCombatStep => "q.state().turn.step() == Step::EndOfCombat".into(),
+        TurnWindow::BeforeEndOfCombatStep => format!("{step} < (Step::EndOfCombat as u8)"),
+        other => return Err(gap(format!("turn window {other:?}"))),
+    })
+}
+
+/// The rest of what a resolving effect can change.
+pub(super) fn continuous_more(change: &Change) -> Result<Vec<String>> {
+    Ok(match change {
+        Change::SetName(word) => vec![format!("EffectKind::SetName({})", quoted(word))],
+        Change::AddArtifactType(t) => vec![format!("EffectKind::AddSubtype(Subtype::{})", name(t))],
+        // It keeps no other artifact type (CR 205.1a).
+        Change::SetArtifactType(t) => vec![
+            "EffectKind::LoseSubtypesOf(CardType::Artifact)".into(),
+            format!("EffectKind::AddSubtype(Subtype::{})", name(t)),
+        ],
+        Change::RemoveSubtype(t) => vec![lane_g::planned_kind(
+            "continuous change RemoveSubtype",
+            format!("EffectKind::LoseSubtype(Subtype::{})", name(t)),
+        )],
+        other => return Err(gap(format!("continuous change {}", form(other)))),
+    })
+}
+
+/// The rest of the numbers an object has.
+pub(super) fn property_more(property: &Property, id: &str) -> Option<Number> {
+    let code = match property {
+        Property::TotalPowerAndToughness => format!(
+            "{{ let chars = q.chars({id}); i64::from(chars.power.unwrap_or(0)) + i64::from(chars.toughness.unwrap_or(0)) }}"
+        ),
+        Property::ToxicValue => format!("i64::from(q.chars({id}).toxic)"),
+        _ => return None,
+    };
+    Some(lane_j::counted(code))
+}
+
+/// A duration whose end Cantrip doesn't track: the effect would go on, until it
+/// has the `Duration` this names.
+pub(super) fn duration_more(duration: &crate::ir::Duration) -> Result<String> {
+    use crate::ir::Duration as D;
+    let feature = format!("duration {}", form(duration));
+    if !matches!(
+        duration,
+        D::WhileOnBattlefield(_)
+            | D::UntilCast(_)
+            | D::UntilEvent(_)
+            | D::UntilNextUntapStep(_)
+            | D::DuringNextTurn(_)
+    ) {
+        return Err(gap(feature));
+    }
+    let words = format!("{duration:?}");
+    let words: String = words.split_whitespace().collect::<Vec<_>>().join(" ");
+    Ok(planned::planned_value(
+        &feature,
+        "Duration::Indefinite",
+        &format!("Duration::{words}"),
+    ))
+}
+
+/// A spell whose text comes in paragraphs is one spell, read in order (CR 608.2c):
+/// the card with them joined, when at most one announces anything and no other
+/// ability counts past them.
+pub(super) fn spells_joined(card: &Card) -> Option<Card> {
+    let spells: Vec<usize> = (card.abilities.iter().enumerate())
+        .filter(|(_, a)| matches!(a, Ability::Spell { .. }))
+        .map(|(i, _)| i)
+        .collect();
+    let (&first, rest) = spells.split_first()?;
+    rest.last()?;
+    let counted = |a: &Ability| matches!(a, Ability::Casting(CastingRule::AdditionalCost { .. }));
+    if card.abilities[first..].iter().any(counted) {
+        return None;
+    }
+    let mut announced: Option<Announcement> = None;
+    let mut instructions = Vec::new();
+    for &at in &spells {
+        let Ability::Spell { announcement, body } = &card.abilities[at] else {
+            return None;
+        };
+        if announcement.modes.is_some() {
+            return None;
+        }
+        if !announcement.targets.is_empty() {
+            if announced.is_some() {
+                return None;
+            }
+            announced = Some(announcement.clone());
+        }
+        instructions.extend(body.instructions.iter().cloned());
+    }
+    let Ability::Spell { announcement, .. } = &card.abilities[first] else {
+        return None;
+    };
+    let joined = Ability::Spell {
+        announcement: announced.unwrap_or_else(|| announcement.clone()),
+        body: Program { instructions },
+    };
+    let mut joined_card = card.clone();
+    joined_card.abilities[first] = joined;
+    for &at in rest.iter().rev() {
+        joined_card.abilities.remove(at);
+    }
+    Some(joined_card)
 }
 
 /// Whether all these do is give flashback for the card's own mana cost.
