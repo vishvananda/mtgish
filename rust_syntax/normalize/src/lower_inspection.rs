@@ -5,6 +5,8 @@ struct InspectionState {
     found: Option<ObjectSet>,
     /// Whether an optional step that is no payment was taken.
     did: Option<Condition>,
+    /// How many top cards of the library a look took in.
+    top: Option<Expr>,
 }
 impl InspectionState {
     fn remaining(&self) -> ObjectSet {
@@ -70,6 +72,7 @@ impl Context {
         actions: &[source::LookAtTopOfLibraryAction],
     ) -> Result<Instruction> {
         self.inspection_hand = Some(vec![]);
+        let top = Some(amount.clone());
         let look = self.effect(Operation::LookAt {
             player: player.clone(),
             objects: self.library_slice(library.clone(), amount, SequenceEnd::Top),
@@ -82,6 +85,7 @@ impl Context {
             assigned: vec![],
             did: None,
             found: None,
+            top,
         };
         let mut body = self.inspection_steps(&player, &library, state, actions)?;
         body.instructions.insert(0, look);
@@ -287,6 +291,12 @@ impl Context {
         }
         if let S::MayCost(cost) = action {
             return self.inspection_may(player, library, state, cost, instructions);
+        }
+        if !optional {
+            let more = self.inspection_step_more(player, library, state, action, instructions);
+            if let Some(done) = more {
+                return done;
+            }
         }
         // Whatever the body picks is no longer among the rest, wherever it went.
         if let S::MayActions(steps) = action {
@@ -651,19 +661,28 @@ impl Context {
                 players: PlayerSet::One(library.clone()),
                 excluding: None,
             },
-            // After a repeated look the last cards seen are the loop's, so the row names them.
+            // A repeated look names the cards by where they are, and the shuffle
+            // moves them from there, so they are noted first.
             S::ShuffleAndPutTheRemainingCardsOnTopOfLibraryInAnyOrder
-                if instructions.iter().any(|step| {
-                    matches!(
-                        step,
-                        Instruction::Effect { operation: Operation::Primitive { name, .. }, .. }
-                            if name == "LookAtTopOfLibraryAction::RepeatableActions"
-                    )
-                }) =>
+                if matches!(state.observed, ObjectSet::Take { .. }) =>
             {
-                let step = self.primitive_step("LookAtTopOfLibraryAction", action, player, remaining)?;
-                instructions.push(step);
-                return Ok(());
+                let note = self.effect(Operation::NoteObjects { objects: remaining });
+                let Instruction::Effect { result, .. } = &note else {
+                    unreachable!()
+                };
+                let noted = ObjectSet::Selected(result.clone());
+                instructions.push(note);
+                instructions.push(self.effect(Operation::Shuffle {
+                    players: PlayerSet::One(library.clone()),
+                    excluding: Some(noted.clone()),
+                }));
+                Operation::ReorderLibrary {
+                    player: player.clone(),
+                    library: library.clone(),
+                    objects: noted,
+                    end: SequenceEnd::Top,
+                    order: CardOrder::Chosen,
+                }
             }
             S::ShuffleAndPutTheRemainingCardsOnTopOfLibraryInAnyOrder => {
                 instructions.push(self.effect(Operation::Shuffle {

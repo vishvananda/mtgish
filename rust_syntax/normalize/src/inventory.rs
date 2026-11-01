@@ -740,9 +740,33 @@ impl Inventory<'_> {
                 self.form("MovedCounters", amount);
                 self.players(actor);
                 self.objects(from);
-                self.object(to);
-                if let MovedCounters::Exactly(amount) = amount {
+                self.objects(to);
+                if let MovedCounters::Exactly(amount) | MovedCounters::AtLeast(amount) = amount {
                     self.expr(amount);
+                }
+            }
+            Operation::EachCounterKind {
+                actor,
+                among,
+                options,
+                ..
+            } => {
+                self.players(actor);
+                self.objects(among);
+                for option in options {
+                    self.form("CounterStep", option);
+                    match option {
+                        CounterStep::PutThatKind(object) | CounterStep::RemoveThatKind(object) => {
+                            self.object(object)
+                        }
+                        CounterStep::Put(kind, object) => {
+                            self.form("CounterKind", kind);
+                            if let crate::counter::CounterKind::Named(name) = kind {
+                                self.form("CounterName", name);
+                            }
+                            self.object(object);
+                        }
+                    }
                 }
             }
             Operation::DoubleCounters { objects, .. } => self.objects(objects),
@@ -1417,6 +1441,17 @@ impl Inventory<'_> {
                 CostPart::ExiledToGraveyard(cards) => self.objects(cards),
                 CostPart::RevealTop(filter) => self.filter(filter),
                 CostPart::Waterbend(_) | CostPart::Teamwork(_) => {}
+                CostPart::MoveCounters {
+                    from, to, amount, ..
+                } => {
+                    self.form("MovedCounters", amount);
+                    self.objects(from);
+                    self.objects(to);
+                    if let MovedCounters::Exactly(amount) | MovedCounters::AtLeast(amount) = amount
+                    {
+                        self.expr(amount);
+                    }
+                }
                 CostPart::PutCounters(placements) => {
                     for p in placements {
                         self.recipients(&p.recipients);

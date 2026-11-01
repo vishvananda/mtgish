@@ -93,6 +93,7 @@ impl Context {
             observed,
             assigned: vec![],
             did: None,
+            top: None,
         };
         let mut instructions = vec![reveal];
         self.reveal_steps(&player, &player, state, actions, &mut instructions)?;
@@ -164,6 +165,9 @@ impl Context {
                 .clone()
                 .ok_or_else(|| invalid("inspection has no preceding found-card choice"))
         };
+        if let Some(done) = self.reveal_step_more(player, state, action, instructions) {
+            return done;
+        }
         match action {
             S::PlayerAction(who, step) => {
                 let who = self.player(who)?;

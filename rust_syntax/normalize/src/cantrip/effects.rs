@@ -498,6 +498,7 @@ impl Compiler {
                         choices,
                         also,
                         either: false,
+                        outside: false,
                     },
                 result,
             } if also.is_empty() => {

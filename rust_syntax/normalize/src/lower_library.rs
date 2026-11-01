@@ -111,6 +111,17 @@ impl Context {
                 constraints: vec![],
             }],
             S::FindACardOfType(f) => vec![typed(f, Count::UpTo(Expr::Constant(1)))?],
+            // The game picks, so no one can fail to find a card that is there.
+            S::FindACardOfTypeAtRandom(f) => vec![SearchChoice {
+                filter: self.library_filter(f)?,
+                count: Count::AsManyAsCan(Expr::Constant(1)),
+                constraints: vec![SelectionConstraint::AtRandom],
+            }],
+            S::FindExactlyNumberGroupCards(n, f, g) => vec![SearchChoice {
+                filter: self.library_filter(f)?,
+                count: Count::Exactly(self.number(n)?),
+                constraints: self.group_constraints(g)?,
+            }],
             S::FindNumberCardsOfType(n, f) => vec![typed(f, Count::UpTo(self.number(n)?))?],
             S::FindUptoNumberCardsOfType(n, f) => vec![SearchChoice {
                 filter: self.library_filter(f)?,
@@ -182,6 +193,16 @@ impl Context {
         }
         let also = std::mem::take(&mut self.search_also);
         let either = std::mem::take(&mut self.search_either);
+        let outside = self.search_outside;
+        // Both cards that search outside the game say "you own" (400.11a).
+        if outside {
+            for choice in &mut choices {
+                choice.filter = ObjectFilter::All(vec![
+                    choice.filter.clone(),
+                    ObjectFilter::OwnedBy(PlayerSet::One(player.clone())),
+                ]);
+            }
+        }
         let search = self.effect(Operation::Search {
             player: player.clone(),
             library: library.clone(),
@@ -189,6 +210,7 @@ impl Context {
             choices,
             also,
             either,
+            outside,
         });
         let Instruction::Effect { result, .. } = &search else {
             unreachable!()
@@ -204,6 +226,7 @@ impl Context {
             &mut aside,
             &mut instructions,
         )?;
+        self.search_outside = false;
         Ok(Instruction::Group(Program { instructions }))
     }
 
@@ -429,6 +452,23 @@ impl Context {
                     continue;
                 }
                 S::Shuffle | S::ShuffleLibraryIfSearched => {
+                    // "Shuffle the rest into your library": those found outside
+                    // the game are not there yet.
+                    if self.search_outside && picked.is_some() {
+                        let arrive = self.effect(Operation::Move {
+                            objects: ObjectSet::Difference {
+                                objects: Box::new(found.clone()),
+                                excluding: Box::new(ObjectSet::InZone {
+                                    objects: Box::new(found.clone()),
+                                    zone: EventZone::Library,
+                                }),
+                            },
+                            destination: Destination::OwnersLibraryTop,
+                            entry: EntrySpec::default(),
+                            face_down: false,
+                        });
+                        instructions.push(arrive);
+                    }
                     let shuffle = self.effect(Operation::Shuffle {
                         players: PlayerSet::One(library.clone()),
                         excluding: aside.clone(),
@@ -491,6 +531,14 @@ impl Context {
                     amount: Expr::Constant(1),
                     random: true,
                 },
+                S::MayPlayFoundCardsWithoutPaying => Operation::PlayCards {
+                    actor: PlayerSet::One(player.clone()),
+                    action: CardPlayAction::Either,
+                    cards: found.clone(),
+                    count: Count::UpTo(Expr::Constant(1)),
+                    cost: PlayCost::Free,
+                    into_exile: false,
+                },
                 S::GainLife(n) => Operation::GainLife {
                     players: PlayerSet::One(player.clone()),
                     amount: self.number(n)?,
@@ -541,6 +589,7 @@ impl Context {
             choices: vec![choice],
             also: vec![],
             either: false,
+            outside: false,
         });
         let Instruction::Effect { result, .. } = &search else {
             unreachable!()

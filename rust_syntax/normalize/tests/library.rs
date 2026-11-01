@@ -523,6 +523,7 @@ fn library_observation_and_reordering_do_not_masquerade_as_zone_movement() {
             }],
             also: vec![],
             either: false,
+            outside: false,
         },
         0,
     );
