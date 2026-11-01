@@ -919,8 +919,10 @@ impl Compiler {
                 objects,
                 choose,
             } => self.sacrifice(id, players, objects, choose.as_ref(), result, out)?,
+            // "When this creature enters, it deals ... divided": the event's subject
+            // here is the source, which is the only way a card says it.
             Operation::DealDamage {
-                source: ObjectRef::Source,
+                source: ObjectRef::Source | ObjectRef::EventSubject,
                 recipients:
                     Recipients::Objects(ObjectSet::Targets(slot)) | Recipients::Targets(slot),
                 amount: Expr::DistributedShare(share),

@@ -368,7 +368,11 @@ impl Compiler {
                     return Err(gap("spell cost increase other than mana"));
                 };
                 let [ManaSymbol::Generic(n)] = symbols.as_slice() else {
-                    return Err(gap("spell cost increase of colored mana"));
+                    return Ok(planned::planned_value(
+                        "a spell costing colored mana more",
+                        "CostDelta::NONE",
+                        &format!("CostDelta::more_mana({})", mana(symbols)?),
+                    ));
                 };
                 let more = u8::try_from(*n).map_err(|_| gap("spell cost increase beyond u8"))?;
                 format!("CostDelta::more({more})")

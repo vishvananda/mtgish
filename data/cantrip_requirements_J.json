@@ -109,5 +109,6 @@
  {"match": "^craft materials that must have something in common$", "class": "mechanic", "needs": "craft materials judged together, as Apex Observatory's 'two that share a card type'", "api": "Materials::together(Group::ShareACardType)"},
  {"match": "^base power$", "class": "engine", "needs": "reading an object's base power: what it is before counters and pumps, after layer 7b", "api": "Query::base_power(id)"},
  {"match": "^base toughness$", "class": "engine", "needs": "reading an object's base toughness: what it is before counters and pumps, after layer 7b", "api": "Query::base_toughness(id)"},
- {"match": "^intensity$", "class": "mechanic", "needs": "the intensity of a card (Alchemy, digital-only; CR 702.161): its starting intensity and what intensify added", "api": "Object::intensity"}
+ {"match": "^intensity$", "class": "mechanic", "needs": "the intensity of a card (Alchemy, digital-only; CR 702.161): its starting intensity and what intensify added", "api": "Object::intensity"},
+ {"match": "^a spell costing colored mana more$", "class": "engine", "needs": "a spell cost increase in colored mana, as 'White spells you cast cost {W} more to cast': CostDelta::more is generic mana alone (CR 601.2f)", "api": "CostDelta::more_mana(ManaCost)"}
 ]

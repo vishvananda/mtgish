@@ -1783,6 +1783,59 @@ impl Compiler {
                     self.linked()
                 )),
             },
+            Expr::LargestSharedGroup { objects, property } => {
+                let group = match property {
+                    DistinctProperty::CreatureTypes => "those.iter().flat_map(|&a| q.chars(a).subtypes.iter().filter(|s| s.card_types().has(CardType::Creature)).collect::<Vec<Subtype>>()).map(|s| those.iter().filter(|&&b| q.chars(b).has_subtype(s)).count()).max()",
+                    DistinctProperty::Names => "those.iter().map(|&a| those.iter().filter(|&&b| cantrip_mechanics::same_name(q, a, b)).count()).max()",
+                    DistinctProperty::ManaValues => "those.iter().map(|&a| those.iter().filter(|&&b| q.mana_value(a) == q.mana_value(b)).count()).max()",
+                    other => return Err(gap(format!("numeric expression LargestSharedGroup {}", form(other)))),
+                };
+                counted(format!(
+                    "{{ let those: Vec<ObjectId> = {}; {group}.unwrap_or(0) as i64 }}",
+                    self.objects(objects)?
+                ))
+            }
+            // What an instruction named did: the AST says which. One whose
+            // `result` is empty leaves the instruction to be found, so stays a gap.
+            Expr::Earlier {
+                measure,
+                result: Some(result),
+                filter,
+                by: None | Some(PlayerRef::AbilityController),
+                ..
+            } => {
+                let list = if self.selections.contains_key(&result.0) {
+                    self.objects(&ObjectSet::Selected(result.clone()))?
+                } else {
+                    self.objects(&ObjectSet::Transition {
+                        result: result.clone(),
+                        phase: ObjectPhase::After,
+                    })?
+                };
+                let keep = match filter {
+                    Some(filter) => format!(
+                        ".filter(|&id| {})",
+                        self.filter(filter, &Candidate::of("id"))?
+                    ),
+                    None => String::new(),
+                };
+                let those = format!("({list}).into_iter(){keep}");
+                match measure {
+                    ObjectMeasure::Count => counted(format!("{those}.count() as i64")),
+                    ObjectMeasure::Of(property) => {
+                        let value = self.property("id", property)?.code;
+                        counted(format!("{those}.next().map_or(0i64, |id: ObjectId| {value})"))
+                    }
+                    ObjectMeasure::Total(property) => {
+                        let value = self.property("id", property)?.code;
+                        counted(format!("{those}.map(|id: ObjectId| {value}).sum::<i64>()"))
+                    }
+                    ObjectMeasure::Greatest(property) => {
+                        let value = self.property("id", property)?.code;
+                        counted(format!("{those}.map(|id: ObjectId| {value}).max().unwrap_or(0)"))
+                    }
+                }
+            }
             other => return Err(gap(format!("numeric expression {}", form(other)))),
         })
     }
@@ -2700,6 +2753,29 @@ impl Compiler {
             }
             Ability::Modified { ability, modifier } => {
                 self.modified(ability, modifier, label, parts)
+            }
+            Ability::DamageCantBePrevented {
+                sources,
+                combat_only,
+            } => {
+                let test = match sources {
+                    None => "true".to_string(),
+                    Some(ObjectSet::One(ObjectRef::Source)) => "source == asker.source".to_string(),
+                    Some(ObjectSet::Battlefield(filter)) => {
+                        format!(
+                            "q.is_on_battlefield(source) && {}",
+                            self.filter(filter, &Candidate::of("source"))?
+                        )
+                    }
+                    Some(other) => {
+                        return Err(gap(format!("damage that can't be prevented from {}", form(other))))
+                    }
+                };
+                let function = format!("{label}_unpreventable");
+                let combat = if *combat_only { "combat && " } else { "" };
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, source: ObjectId, combat: bool) -> bool {{ {combat}{test} }}").unwrap();
+                parts.table("unpreventable_damage", function);
+                Ok(())
             }
             Ability::Spree { modes } => self.spree(modes, "spree", label, parts),
             Ability::Tiered { modes } => self.spree(modes, "tiered", label, parts),
