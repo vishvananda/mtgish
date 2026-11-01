@@ -156,6 +156,10 @@ impl Compiler {
         parts: &mut Parts,
     ) -> Result<bool> {
         const PRELUDE: &str = "let asker = &Asker::new(source, q.controller(source));";
+        if let Some(word) = lane_k::rule_keyword(affected, rule).filter(|_| self.static_guard.is_none()) {
+            parts.keywords.push(format!("Keyword::{word}"));
+            return Ok(true);
+        }
         let guard = match &self.static_guard {
             Some(condition) => format!("({}) && ", self.condition(condition)?),
             None => String::new(),
@@ -265,8 +269,8 @@ impl Compiler {
                 "PtModify",
                 format!(
                     "let (p, t) = ({}, {}); chars.power = chars.power.map(|v| v.saturating_add(p)); chars.toughness = chars.toughness.map(|v| v.saturating_add(t));",
-                    lane_k::not_negative(power, i16_of(self, power)?),
-                    lane_k::not_negative(toughness, i16_of(self, toughness)?)
+                    self.pump_amount(power, i16_of(self, power)?),
+                    self.pump_amount(toughness, i16_of(self, toughness)?)
                 ),
             ),
             Change::SetBasePowerToughness { power, toughness } => LayerChange::of(

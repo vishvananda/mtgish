@@ -367,6 +367,7 @@ impl Compiler {
         out: &mut String,
         boundaries: bool,
     ) -> Result<()> {
+        self.note_unless(body);
         for i in 0..body.instructions.len() {
             self.step(body, i, out);
             if boundaries && self.pending == Pending::Nothing {
@@ -694,6 +695,13 @@ impl Compiler {
             {
                 self.copy_as_enters(decider, body, out)
             }
+            Instruction::Optional { decider, body } if lane_k::tap_or_untap_only(body) => {
+                self.certain_player(decider)?;
+                self.may_tap_or_untap = true;
+                self.block(body, out, true)?;
+                self.may_tap_or_untap = false;
+                Ok(())
+            }
             Instruction::Optional { decider, body } if lane_k::chooses_first(decider, body) => {
                 writeln!(out, "{{").unwrap();
                 self.block_choosing_first(body, String::new(), out)?;
@@ -704,7 +712,8 @@ impl Compiler {
                 let player = self.certain_player(decider).map(|p| self.fetch(p));
                 let decider = planned::planned_read(player, "asker.controller", decider);
                 let id = self.fresh();
-                writeln!(out, "let decider_{id} = {decider}; if cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{").unwrap();
+                let (open, spent) = lane_k::once_a_turn(self.do_once.take(), id);
+                writeln!(out, "let decider_{id} = {decider}; if {open}cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{{spent}").unwrap();
                 self.block(body, out, true)?;
                 writeln!(out, "}}").unwrap();
                 Ok(())
@@ -923,6 +932,7 @@ impl Compiler {
                         false => format!("cantrip_mechanics::choose_from_hand(g, player, asker.source, amount_{id})?"),
                     };
                     writeln!(out,"let amount_{id} = {}; let players_{id} = {}; let mut cards_{id} = Vec::new(); for player in players_{id} {{ cards_{id}.extend({choice}); }} let discarded_{id} = g.discard_together(&cards_{id});",self.fetch(number),self.fetch(self.players(players)?)).unwrap();
+                    self.open_guard(&format!("cards_{id}"), out);
                     self.moved.insert(result.0, format!("discarded_{id}"));
                     self.left_behind(result, format!("discarded_{id}.clone()"));
                 }
@@ -1018,7 +1028,7 @@ impl Compiler {
                 } else {
                     (String::new(), "g.damage_together(&batch);".to_string())
                 };
-                writeln!(out, "{declare}let source_{id} = {}; let amount_{id} = {}; let recipients_{id} = {}; if let Some(source) = source_{id} {{ let batch: Vec<(ObjectId, Target, u16)> = recipients_{id}.iter().map(|t| (source, *t, amount_{id})).collect(); {deal} }}", self.fetch(self.object(source)?), self.fetch(amount), self.fetch(self.recipients(recipients)?)).unwrap();
+                writeln!(out, "{declare}let source_{id} = {}; let amount_{id} = {}; let recipients_{id} = {}; if let Some(source) = source_{id} {{ let batch: Vec<(ObjectId, Target, u16)> = recipients_{id}.iter().map(|t| (source, *t, amount_{id})).collect(); {deal} }}", self.fetch(self.damage_source(source)?), self.fetch(amount), self.fetch(self.recipients(recipients)?)).unwrap();
             }
             Operation::DealDamageParts {
                 source,
@@ -1310,7 +1320,7 @@ impl Compiler {
                     optional: false,
                 };
                 let mut paying = String::new();
-                let chooses = lane_k::paid_by_a_choice(cost);
+                let chooses = lane_k::paid_by_a_choice(cost) && !self.unless_paid.contains(&result.0);
                 self.may_choose = chooses;
                 self.operation(&mandatory, result, &mut paying)?;
                 // A choice that may come to nothing is asked once, not twice.
@@ -1765,7 +1775,10 @@ impl Compiler {
     ) -> Result<()> {
         let alone = self.one_object(objects);
         let revealed = self.revealed;
+        let chosen = matches!(objects, ObjectSet::Selected(_));
         let objects = self.fetch(self.objects(objects)?);
+        let objects = lane_k::returning(objects, destination);
+        let objects = lane_k::on_top_in_turn(objects, chosen, destination);
         let library = |place: String| format!("g.put_into_library(&objects_{id}, {place})");
         let call = match destination {
             Destination::Battlefield(_) | Destination::OwnersBattlefield => {
@@ -1884,7 +1897,7 @@ impl Compiler {
         })
     }
     /// Whether a set is known to hold one object at most when this runs.
-    fn one_object(&self, objects: &ObjectSet) -> bool {
+    pub(super) fn one_object(&self, objects: &ObjectSet) -> bool {
         match objects {
             ObjectSet::One(_) => true,
             ObjectSet::InZone { objects, .. } => self.one_object(objects),
@@ -2170,8 +2183,8 @@ impl Compiler {
             }
             Change::Pump { power, toughness } => vec![format!(
                 "EffectKind::Pump({}, {})",
-                lane_k::not_negative(power, i16_of(power)?),
-                lane_k::not_negative(toughness, i16_of(toughness)?)
+                self.pump_amount(power, i16_of(power)?),
+                self.pump_amount(toughness, i16_of(toughness)?)
             )],
             Change::SetBasePowerToughness { power, toughness } => vec![format!(
                 "EffectKind::SetPt({}, {})",
@@ -2200,7 +2213,10 @@ impl Compiler {
                 "EffectKind::LoseKeywords(Keywords::of(&[Keyword::{}]))",
                 statics::lost_keyword(lost)?
             )],
-            Change::AddLandType(t) => vec![format!("EffectKind::AddSubtype(Subtype::{})", name(t))],
+            Change::AddLandType(t) => vec![format!(
+                "EffectKind::AddSubtype({})",
+                lane_k::word_subtype(&name(t))
+            )],
             // A land type set takes the land's rules text with it (CR 305.7),
             // which only `sets_land_subtypes`, a static ability, does.
             Change::SetLandType(land) => {
@@ -2262,7 +2278,10 @@ impl Compiler {
                     color(c)?;
                     mask |= 1 << color_index(c)?;
                 }
-                vec![format!("EffectKind::SetColors(ColorSet({mask}))")]
+                vec![format!(
+                    "EffectKind::SetColors({})",
+                    lane_k::word_colors(mask)
+                )]
             }
             Change::CreatureTypes {
                 mode,
@@ -2275,9 +2294,12 @@ impl Compiler {
                         return Err(gap(format!("subtype {word}")));
                     }
                     kinds.push(if i == 0 && matches!(mode, ChangeMode::Set) {
-                        format!("EffectKind::SetCreatureType(Subtype::{word})")
+                        format!(
+                            "EffectKind::SetCreatureType({})",
+                            lane_k::word_subtype(&word)
+                        )
                     } else {
-                        format!("EffectKind::AddSubtype(Subtype::{word})")
+                        format!("EffectKind::AddSubtype({})", lane_k::word_subtype(&word))
                     });
                 }
                 kinds

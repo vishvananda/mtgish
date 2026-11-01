@@ -149,7 +149,11 @@ impl Compiler {
                 let cost = self.mechanic_cost(cost, mechanic, label)?;
                 let text = quoted(&self.said_word("Evoke".into()));
                 parts.table("ways", format!("{M}::evoke::way({cost}, {text})"));
-                ability(parts, format!("{M}::evoke::sacrifice_trigger(\"Evoke\")"));
+                let sacrifice = quoted(&format!(
+                    "When {} enters, if its evoke cost was paid, its controller sacrifices it.",
+                    self.card_name
+                ));
+                ability(parts, format!("{M}::evoke::sacrifice_trigger({sacrifice})"));
             }
             K::Emerge => {
                 let [CostPart::Mana(symbols)] = cost.map_or(&[][..], |c| &c.parts) else {
@@ -403,13 +407,14 @@ impl Compiler {
             K::Reconfigure => {
                 let cost = mana_alone(cost, mechanic)?;
                 parts.field("reconfigure", "true".into());
+                let (attach, unattach) = lane_k::reconfigure_texts(&self.said_word("Reconfigure".into()));
                 ability(
                     parts,
-                    format!("{M}::reconfigure::attach({cost}, \"Reconfigure\")"),
+                    format!("{M}::reconfigure::attach({cost}, {})", quoted(&attach)),
                 );
                 ability(
                     parts,
-                    format!("{M}::reconfigure::unattach({cost}, \"Reconfigure\")"),
+                    format!("{M}::reconfigure::unattach({cost}, {})", quoted(&unattach)),
                 );
                 parts
                     .statics

@@ -339,7 +339,11 @@ impl Compiler {
             K::TapOrUntap => {
                 let player = self.actor(&action)?;
                 self.tap_or_untap = true;
-                let call = format!("let card = g.card_id(&CARD); match {M}::choose::one_of(g, player_{id}, asker.source, vec![Label::Card(card, 0), Label::Card(card, 1)])? {{ 0 => g.tap(object), _ => g.untap(object) }}");
+                let (nothing, rest) = match std::mem::take(&mut self.may_tap_or_untap) {
+                    true => (", Label::Card(card, 2)", "1 => g.untap(object), _ => {}"),
+                    false => ("", "_ => g.untap(object)"),
+                };
+                let call = format!("let card = g.card_id(&CARD); match {M}::choose::one_of(g, player_{id}, asker.source, vec![Label::Card(card, 0), Label::Card(card, 1){nothing}])? {{ 0 => g.tap(object), {rest} }}");
                 writeln!(out, "let player_{id} = {player};").unwrap();
                 self.object_action(&action, &call, out)?;
             }

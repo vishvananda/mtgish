@@ -546,6 +546,16 @@ impl Compiler {
                 code.push_str("all }");
                 code
             }
+            // What a move took from a zone: those objects are gone, and keep where they were.
+            ObjectSet::InZone { objects, zone }
+                if matches!(&**objects, ObjectSet::Transition { phase: ObjectPhase::Before, .. }) =>
+            {
+                format!(
+                    "({}).into_iter().filter(|&id| q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
+                    self.objects(objects)?,
+                    zone_kind(zone)?
+                )
+            }
             ObjectSet::InZone { objects, zone } => format!(
                 "({}).into_iter().filter(|&id| q.state().obj(id).became.is_none() && q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
                 self.objects(objects)?,

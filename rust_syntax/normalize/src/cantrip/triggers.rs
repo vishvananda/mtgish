@@ -1474,6 +1474,8 @@ impl Compiler {
         if let Some(conditional) = &conditional {
             extra.push(self.matching(matched.frame, |c| c.condition(conditional))?);
         }
+        let done_once = self.done_once(limits, body);
+        extra.extend(done_once.map(lane_k::not_yet_done));
         if let Some(intervening) = intervening_if {
             match self.condition_function(intervening, &format!("{label}_if")) {
                 Ok(function) => condition = Some(function),
@@ -1520,7 +1522,7 @@ impl Compiler {
                 ".mana_ability(TriggeredMana::Unstated)"
             });
         }
-        if let Some(per_turn) = limits.per_turn {
+        if let Some(per_turn) = limits.per_turn.filter(|_| done_once.is_none()) {
             def.push_str(&format!(".triggers_each_turn({per_turn})"));
         }
         if let Some(divide) = self.dividing.take() {

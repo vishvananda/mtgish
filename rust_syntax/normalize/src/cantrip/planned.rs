@@ -90,6 +90,7 @@ impl Compiler {
     pub(super) fn reset_after_gap(&mut self) {
         self.pending = Pending::Nothing;
         self.may_choose = false;
+        self.do_once = None;
         self.chosen_guard = None;
         self.guard_opened = false;
         self.dividing = None;

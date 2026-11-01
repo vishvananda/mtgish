@@ -166,6 +166,8 @@ impl Compiler {
             return Err(gap("a land played by another player"));
         }
         let (set, spell) = peel(cards);
+        // Among several cards the question is which, not whether.
+        let among = !self.one_object(&set);
         if lands && !spell.is_empty() {
             return Err(gap("a land played by what it is as a spell"));
         }
@@ -191,7 +193,7 @@ impl Compiler {
         }
         writeln!(out, "while left_{id} > 0 {{").unwrap();
         writeln!(out, "let mut open_{id}: Vec<ObjectId> = Vec::new(); for &c in &pool_{id} {{ let ways = g.cast_ways_during_resolution_by(c, caster_{id}); if ways.iter().any(|w| {test}){land_open} {{ open_{id}.push(c); }} }}").unwrap();
-        writeln!(out, "let picked_{id} = if open_{id}.is_empty() {{ None }} else if open_{id}.len() > 1 {{ cantrip_mechanics::choose::cards_from(g, caster_{id}, asker.source, Purpose::{purpose}, pool_{id}.clone(), open_{id}.clone(), 1, {may})?.first().copied() }} else if !{may} || cantrip_mechanics::effects::ask_may(g, caster_{id}, open_{id}[0], Purpose::{purpose})? {{ Some(open_{id}[0]) }} else {{ None }};").unwrap();
+        writeln!(out, "let picked_{id} = if open_{id}.is_empty() {{ None }} else if open_{id}.len() > 1 || {among} {{ cantrip_mechanics::choose::cards_from(g, caster_{id}, asker.source, Purpose::{purpose}, pool_{id}.clone(), open_{id}.clone(), 1, {may})?.first().copied() }} else if !{may} || cantrip_mechanics::effects::ask_may(g, caster_{id}, open_{id}[0], Purpose::{purpose})? {{ Some(open_{id}[0]) }} else {{ None }};").unwrap();
         writeln!(out, "let Some(card_{id}) = picked_{id} else {{ break; }}; pool_{id}.retain(|&c| c != card_{id});").unwrap();
         writeln!(out, "let ways_{id}: Vec<CastWay> = g.cast_ways_during_resolution_by(card_{id}, caster_{id}).into_iter().filter(|w| {test}).collect();").unwrap();
         writeln!(out, "let done_{id} = if ways_{id}.is_empty() {{ g.play_land_during_resolution(card_{id})?.is_some() }} else {{ let way = cantrip_mechanics::choose::cast_way(g, caster_{id}, card_{id}, ways_{id})?.map(|w| w.way); g.cast_during_resolution_as(card_{id}, CastTerms {{ instead: {instead}, way, caster: Some(caster_{id}), exile_instead: ExileInstead::{exile}, ..CastTerms::default() }})? }};").unwrap();

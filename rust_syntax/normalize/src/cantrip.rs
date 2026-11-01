@@ -34,7 +34,7 @@ mod survey;
 mod triggers;
 pub use crate::report::BackendDiagnostic as Diagnostic;
 use effects::rule_name;
-pub use lane_f::{is_card, whole, whole_gaps, whole_module, Whole, WholeFace};
+pub use lane_f::{is_card, whole, whole_gaps, whole_module, whole_printed, Whole, WholeFace};
 use read::{counter_kind, zone_kind, Candidate, Carried, EventAt, Frame, History, Pending, Reader};
 pub use survey::survey;
 type Result<T> = std::result::Result<T, Diagnostic>;
@@ -402,6 +402,16 @@ struct Compiler {
     chosen_guard: Option<String>,
     /// That guard is open, and the block has to close it.
     guard_opened: bool,
+    /// What each counter stage of the face prints.
+    stages: BTreeMap<i64, Vec<lane_k::Line>>,
+    /// What's left of the printed lines of the stage being compiled.
+    stage_lines: Vec<lane_k::Line>,
+    /// The next "may" is done once each turn, under this key.
+    do_once: Option<u8>,
+    /// The next tap or untap is a "may", which offers doing nothing with them.
+    may_tap_or_untap: bool,
+    /// Payments of "unless you pay": those ask whether to, whatever paying is.
+    unless_paid: BTreeSet<u32>,
     /// Compiling the event of `Expr::EventHistory`.
     history: Option<History>,
     /// A `StackItem` named `item` is in reach, with its targets and X.
@@ -827,6 +837,11 @@ impl Compiler {
             may_choose: false,
             chosen_guard: None,
             guard_opened: false,
+            stages: BTreeMap::new(),
+            stage_lines: Vec::new(),
+            do_once: None,
+            may_tap_or_untap: false,
+            unless_paid: BTreeSet::new(),
         }
     }
     /// Compile one part, recording a gap rather than stopping at it, and prefix
@@ -944,7 +959,7 @@ impl Compiler {
             Count::UpTo(n) if constant(n).is_some() => {
                 format!(".between(0, {})", constant(n).unwrap())
             }
-            Count::AnyNumber => ".between(0, cantrip_mechanics::ANY_NUMBER)".into(),
+            Count::AnyNumber => ".between(0, cantrip_api::TargetSpec::ANY_NUMBER)".into(),
             Count::Between { minimum, maximum }
                 if constant(minimum).is_some() && constant(maximum).is_some() =>
             {

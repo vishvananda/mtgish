@@ -190,6 +190,15 @@ impl Compiler {
         if paid.modes.is_some() || unpaid.modes.is_some() {
             return Err(gap("kicked spell with modes"));
         }
+        // Kicked or not, the same targets: nothing waits for the kicker.
+        if format!("{:?}", paid.targets) == format!("{:?}", unpaid.targets) {
+            for spec in &paid.targets {
+                target_range(&spec.count)?;
+            }
+            let targets = self.announcement(unpaid, &format!("{label}_unpaid"))?;
+            self.announced_filters.clear();
+            return Ok(targets);
+        }
         // Compiling each announcement generates its slots' filters.
         self.announcement(paid, &format!("{label}_paid"))?;
         let paid_filters = std::mem::take(&mut self.announced_filters);

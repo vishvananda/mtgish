@@ -37,6 +37,9 @@ pub(super) struct Printed {
     lines: Vec<Line>,
     /// A Saga's chapters, by number. "I, II — ..." is the text of both.
     chapters: BTreeMap<i64, String>,
+    /// What each counter stage prints under its "12+" or "LEVEL 2-6", by the
+    /// counters it starts at.
+    stages: BTreeMap<i64, Vec<Line>>,
 }
 
 fn first_word_is(line: &str, words: &[&str]) -> bool {
@@ -47,6 +50,18 @@ fn first_word_is(line: &str, words: &[&str]) -> bool {
 }
 
 /// A line past its ability word (CR 207.2c), which has no game function.
+/// Where the stage a line opens starts: "12+", "LEVEL 2-6", "LEVEL 7+".
+fn stage_marker(line: &str) -> Option<i64> {
+    let bare = line.strip_prefix("LEVEL ").unwrap_or(line);
+    let digits: String = bare.chars().take_while(char::is_ascii_digit).collect();
+    let rest = &bare[digits.len()..];
+    let ranged = rest.strip_prefix('-').is_some_and(|r| !r.is_empty() && r.chars().all(|c| c.is_ascii_digit()));
+    match rest == "+" || ranged {
+        true => digits.parse().ok(),
+        false => None,
+    }
+}
+
 fn past_ability_word(line: &str) -> &str {
     match line.split_once(" \u{2014} ") {
         Some((word, rest))
@@ -180,9 +195,19 @@ fn line_of(kind: Said, text: String, raw: &str) -> Line {
 impl Printed {
     pub(super) fn read(oracle: &str) -> Self {
         let mut printed = Printed::default();
+        let mut stage = None;
         for raw in oracle.lines() {
             let line = loyalty_printed(&without_reminder(raw));
-            if line.is_empty() {
+            if let Some(minimum) = stage_marker(&line) {
+                stage = Some(minimum);
+            } else if let Some(minimum) = stage {
+                // Beside what it says, a stage prints a power and toughness.
+                let numbers = line.chars().all(|c| c.is_ascii_digit() || "/*".contains(c));
+                if !numbers {
+                    let line = line_of(kind_of(&line), line, raw);
+                    printed.stages.entry(minimum).or_default().push(line);
+                }
+            } else if line.is_empty() {
                 // A basic land type's ability is printed as a reminder (CR 305.6).
                 let inner = raw.trim().trim_matches(['(', ')']);
                 if kind_of(inner) == Said::Activated {
@@ -303,15 +328,25 @@ pub(super) fn chooses_first(decider: &PlayerRef, body: &Program) -> bool {
             } => continue,
             Instruction::Effect {
                 operation:
+                    Operation::Discard {
+                        players: PlayerSet::One(player),
+                        amount: Expr::Constant(1),
+                        random: false,
+                    },
+                ..
+            } => return format!("{player:?}") == format!("{decider:?}"),
+            Instruction::Effect {
+                operation:
                     Operation::ChooseObjects {
                         player,
+                        objects,
                         count: Count::Exactly(Expr::Constant(1)) | Count::AsManyAsCan(Expr::Constant(1)),
                         constraints,
-                        ..
                     },
                 ..
             } => {
                 return format!("{player:?}") == format!("{decider:?}")
+                    && !matches!(objects, ObjectSet::Created(_))
                     && !constraints
                         .iter()
                         .any(|c| matches!(c, SelectionConstraint::AtRandom))
@@ -320,6 +355,83 @@ pub(super) fn chooses_first(decider: &PlayerRef, body: &Program) -> bool {
         }
     }
     false
+}
+
+/// What of the cards looked at goes to the hand, the rest to the bottom.
+struct Taking<'a> {
+    chosen: &'a ResultId,
+    put: &'a ResultId,
+    reveal: bool,
+    least: u8,
+    most: u8,
+    lets: Vec<String>,
+    wanted: String,
+    rest: &'static str,
+}
+
+/// `body` as a `Taking`, what `looker` looked at.
+fn taking_from<'a>(looker: &PlayerRef, body: &'a [Instruction], id: usize) -> Option<Taking<'a>> {
+    let steps: Vec<(&ResultId, &Operation)> = body
+        .iter()
+        .map(|instruction| match instruction {
+            Instruction::Effect { result, operation } => Some((result, operation)),
+            _ => None,
+        })
+        .collect::<Option<_>>()?;
+    let (reveal, steps) = match steps.as_slice() {
+        [choose, (_, Operation::Reveal { objects: ObjectSet::Selected(_) }), put, rest] => {
+            (true, [*choose, *put, *rest])
+        }
+        [choose, put, rest] => (false, [*choose, *put, *rest]),
+        _ => return None,
+    };
+    let [(chosen, Operation::ChooseObjects { player: chooser, objects, count, constraints }), (put, Operation::Move { objects: ObjectSet::Selected(selected), destination: Destination::OwnersHand, entry, face_down: false }), (_, Operation::ReorderLibrary { end: SequenceEnd::Bottom, order, .. })] = steps
+    else {
+        return None;
+    };
+    let (least, most) = match count {
+        Count::Exactly(Expr::Constant(n)) | Count::AsManyAsCan(Expr::Constant(n)) => {
+            u8::try_from(*n).ok().map(|n| (n, n))
+        }
+        Count::UpTo(Expr::Constant(n)) => u8::try_from(*n).ok().map(|n| (0, n)),
+        _ => None,
+    }?;
+    let filter = match objects {
+        ObjectSet::Matching { objects, filter } if matches!(&**objects, ObjectSet::InZone { .. }) => filter,
+        ObjectSet::InZone { .. } => &ObjectFilter::Any,
+        _ => return None,
+    };
+    let rest = match order {
+        CardOrder::Chosen => "BottomChosen",
+        CardOrder::Random => "BottomRandom",
+        CardOrder::Preserve => return None,
+    };
+    let plain = format!("{looker:?}") == format!("{chooser:?}")
+        && selected.0 == chosen.0
+        && entry.counters.is_empty()
+        && !entry.tapped
+        && !constraints
+            .iter()
+            .any(|c| !matches!(c, SelectionConstraint::CanMoveTo { .. }));
+    if !plain {
+        return None;
+    }
+    let mut lets = Vec::new();
+    let test = chars_test(filter, id, &mut lets)?;
+    let wanted = match test.as_str() {
+        "true" => "|_| true".to_string(),
+        _ => format!("|c| {test}"),
+    };
+    Some(Taking {
+        chosen,
+        put,
+        reveal,
+        least,
+        most,
+        lets,
+        wanted,
+        rest,
+    })
 }
 
 /// The test of `filter` on a `Chars` named `c`, for what `look_at_top` takes; the
@@ -387,8 +499,108 @@ pub(super) fn listed_mana(
     }
 }
 
+/// The objects a move puts onto the battlefield: a token that left it is gone for
+/// good, whatever still holds it (CR 111.7).
+pub(super) fn returning(objects: String, destination: &Destination) -> String {
+    match destination {
+        Destination::Battlefield(_) | Destination::OwnersBattlefield => format!(
+            "({objects}).into_iter().filter(|&o: &ObjectId| !g.state().obj(o).token).collect::<Vec<ObjectId>>()"
+        ),
+        _ => objects,
+    }
+}
+
+/// The keyword a permanent has for a rule it states of itself (Cantrip's
+/// `Keyword`), so that losing its abilities takes the rule with them.
+pub(super) fn rule_keyword(affected: &ObjectSet, rule: &RuleChange) -> Option<&'static str> {
+    if !matches!(affected, ObjectSet::One(ObjectRef::Source)) {
+        return None;
+    }
+    match rule {
+        RuleChange::Prohibit(ObjectAction::Block(ObjectFilter::Any)) => Some("CantBlock"),
+        RuleChange::Prohibit(ObjectAction::BeBlocked(ObjectFilter::Any)) => Some("CantBeBlocked"),
+        RuleChange::UntapStep {
+            behavior: UntapBehavior::Skip,
+            ..
+        } => Some("DoesNotUntap"),
+        _ => None,
+    }
+}
+
+/// What a choice puts on top of a library: one at a time as chosen, so the last
+/// chosen ends on top (Cantrip's `draw_then_put_two_back`).
+pub(super) fn on_top_in_turn(objects: String, chosen: bool, destination: &Destination) -> String {
+    match (chosen, destination) {
+        (true, Destination::OwnersLibraryTop) => {
+            format!("({objects}).into_iter().rev().collect::<Vec<ObjectId>>()")
+        }
+        _ => objects,
+    }
+}
+
+/// Whether all a "may" offers is to tap or untap something: one question, of
+/// three answers (Cantrip's `may_tap_or_untap_target`).
+pub(super) fn tap_or_untap_only(body: &Program) -> bool {
+    matches!(
+        body.instructions.as_slice(),
+        [Instruction::Effect {
+            operation: Operation::Keyword {
+                action: KeywordAction::TapOrUntap,
+                ..
+            },
+            ..
+        }]
+    )
+}
+
+/// The key of a thing done once each turn, among a card's own: past its abilities,
+/// so `Query::history` holds it apart from them.
+fn done_key(key: u8, reader: &str) -> String {
+    format!("AbilityRef {{ card: {reader}.chars(asker.source).card, index: {key} }}")
+}
+
+/// The test on an event that what's done once each turn has yet to be.
+pub(super) fn not_yet_done(key: u8) -> String {
+    format!(
+        "!q.history().done(asker.source, {}, asker.controller)",
+        done_key(key, "q")
+    )
+}
+
+/// What opens a "may" done once each turn, and what spends the turn's once.
+pub(super) fn once_a_turn(key: Option<u8>, id: usize) -> (String, String) {
+    let Some(key) = key else {
+        return (String::new(), String::new());
+    };
+    let done = done_key(key, "g");
+    (
+        format!("!g.history().done(asker.source, {done}, decider_{id}) && "),
+        format!(" g.note_done(asker.source, {done}, decider_{id});"),
+    )
+}
+
+/// The text of Reconfigure's two abilities, from "Reconfigure {2}".
+pub(super) fn reconfigure_texts(word: &str) -> (String, String) {
+    let cost = word.strip_prefix("Reconfigure ").unwrap_or("");
+    (
+        format!("{word} ({cost}: Attach this permanent to another target creature you control. Reconfigure only as a sorcery.)"),
+        format!("{word} ({cost}: Unattach this permanent. Reconfigure only if it is attached to a creature and only as a sorcery.)"),
+    )
+}
+
+/// A type this effect's text names, as the text has it now (CR 612).
+pub(super) fn word_subtype(word: &str) -> String {
+    format!("q.words(asker.source).subtype(Subtype::{word})")
+}
+
+/// The colors this effect's text names, as the text has them now (CR 612).
+pub(super) fn word_colors(mask: u8) -> String {
+    format!("q.words(asker.source).colors(ColorSet({mask}))")
+}
+
 /// A pump's "X" that reads a power or toughness: a negative X is 0 (CR 107.1b).
-pub(super) fn not_negative(amount: &Expr, code: String) -> String {
+/// Doubling, which reads the same, lowers a negative power instead (CR 701.10e).
+fn not_negative(amount: &Expr, code: String) -> String {
     let read = |n: &Expr| matches!(n, Expr::ObjectProperty { .. } | Expr::Aggregate { .. });
     match amount {
         n if read(n) => format!("({code}).max(0)"),
@@ -527,69 +739,128 @@ impl Compiler {
     /// the rest on the bottom": one question (Cantrip's `look_at_top`), the cards
     /// going to each place, not a choice and then an order. Whether `group` was it.
     pub(super) fn dig(&mut self, group: &Program, out: &mut String) -> Result<bool> {
-        let steps: Vec<(&ResultId, &Operation)> = group
-            .instructions
-            .iter()
-            .filter_map(|instruction| match instruction {
-                Instruction::Effect { result, operation } => Some((result, operation)),
-                _ => None,
-            })
-            .collect();
-        if steps.len() != group.instructions.len() {
-            return Ok(false);
+        if self.rest_to_graveyard(group, out)? {
+            return Ok(true);
         }
-        let (reveal, steps) = match steps.as_slice() {
-            [look, choose, (_, Operation::Reveal { objects: ObjectSet::Selected(_) }), put, rest] => {
-                (true, [*look, *choose, *put, *rest])
-            }
-            [look, choose, put, rest] => (false, [*look, *choose, *put, *rest]),
-            _ => return Ok(false),
-        };
-        let [(_, Operation::LookAt { player, objects: ObjectSet::Take { objects: looked, count: depth, from } }), (chosen, Operation::ChooseObjects { player: chooser, objects, count, constraints }), (put, Operation::Move { objects: ObjectSet::Selected(selected), destination: Destination::OwnersHand, entry, face_down: false }), (_, Operation::ReorderLibrary { end: SequenceEnd::Bottom, order, .. })] = steps
+        let [Instruction::Effect {
+            operation:
+                Operation::LookAt {
+                    player,
+                    objects:
+                        ObjectSet::Take {
+                            objects: looked,
+                            count: depth,
+                            from,
+                        },
+                },
+            ..
+        }, rest @ ..] = group.instructions.as_slice()
         else {
             return Ok(false);
         };
         let library = matches!(&**looked, ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Library, .. }, filter: ObjectFilter::Any, .. });
-        let bounds = match count {
-            Count::Exactly(Expr::Constant(n)) | Count::AsManyAsCan(Expr::Constant(n)) => {
-                u8::try_from(*n).ok().map(|n| (n, n))
+        if format!("{from:?}") != "Top" || !library {
+            return Ok(false);
+        }
+        let looker = self.fetch(self.certain_player(player)?);
+        let depth = self.fetch(self.number(depth)?.amount(u32::MAX.into(), "usize")?);
+        let at = (looker.as_str(), depth.as_str());
+        match rest {
+            // "If you gained life this turn, you may instead reveal two."
+            [Instruction::If {
+                condition,
+                then,
+                otherwise,
+            }] => {
+                let id = (self.fresh(), self.fresh());
+                let taking = (
+                    taking_from(player, &then.instructions, id.0),
+                    taking_from(player, &otherwise.instructions, id.1),
+                );
+                let (Some(then), Some(otherwise), Ok(test)) =
+                    (taking.0, taking.1, self.condition(condition))
+                else {
+                    return Ok(false);
+                };
+                writeln!(out, "if {} {{", self.fetch(test)).unwrap();
+                self.take_looked(then, at, id.0, out);
+                writeln!(out, "}} else {{").unwrap();
+                self.take_looked(otherwise, at, id.1, out);
+                writeln!(out, "}}").unwrap();
+                Ok(true)
             }
-            Count::UpTo(Expr::Constant(n)) => u8::try_from(*n).ok().map(|n| (0, n)),
-            _ => None,
+            rest => {
+                let id = self.fresh();
+                let Some(taking) = taking_from(player, rest, id) else {
+                    return Ok(false);
+                };
+                self.take_looked(taking, at, id, out);
+                Ok(true)
+            }
+        }
+    }
+    /// "Reveal the top four cards. You may put a land card from among them into
+    /// your hand. Put the rest into your graveyard": Cantrip's one question.
+    fn rest_to_graveyard(&mut self, group: &Program, out: &mut String) -> Result<bool> {
+        let [Instruction::Effect { operation: first, .. }, Instruction::Effect { result: chosen, operation: Operation::ChooseObjects { player, objects, count, constraints } }, Instruction::Effect { operation: Operation::Move { objects: ObjectSet::Selected(selected), destination: Destination::OwnersHand, entry, face_down: false }, .. }, Instruction::Effect { operation: Operation::Move { destination: Destination::OwnersGraveyard, .. }, .. }] = group.instructions.as_slice()
+        else {
+            return Ok(false);
         };
+        let (taken, reveal) = match first {
+            Operation::Reveal { objects } => (objects, true),
+            Operation::LookAt { objects, .. } => (objects, false),
+            _ => return Ok(false),
+        };
+        let ObjectSet::Take { objects: top, count: depth, from } = taken else {
+            return Ok(false);
+        };
+        let library = matches!(&**top, ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Library, .. }, filter: ObjectFilter::Any, .. });
         let filter = match objects {
-            ObjectSet::Matching { objects, filter } if matches!(&**objects, ObjectSet::InZone { .. }) => Some(filter),
-            ObjectSet::InZone { .. } => Some(&ObjectFilter::Any),
-            _ => None,
-        };
-        let rest = match order {
-            CardOrder::Chosen => "BottomChosen",
-            CardOrder::Random => "BottomRandom",
-            CardOrder::Preserve => return Ok(false),
+            ObjectSet::Matching { objects, filter } if matches!(&**objects, ObjectSet::InZone { .. }) => filter,
+            ObjectSet::InZone { .. } => &ObjectFilter::Any,
+            _ => return Ok(false),
         };
         let plain = format!("{from:?}") == "Top"
             && library
-            && format!("{player:?}") == format!("{chooser:?}")
             && selected.0 == chosen.0
             && entry.counters.is_empty()
             && !entry.tapped
             && !constraints
                 .iter()
                 .any(|c| !matches!(c, SelectionConstraint::CanMoveTo { .. }));
-        let (Some((least, most)), Some(filter), true) = (bounds, filter, plain) else {
+        if !plain {
             return Ok(false);
-        };
-        let id = self.fresh();
+        }
         let mut lets = Vec::new();
-        let Some(test) = chars_test(filter, id, &mut lets) else {
-            return Ok(false);
-        };
-        let wanted = match test.as_str() {
-            "true" => "|_| true".to_string(),
-            _ => format!("|c| {test}"),
+        let id = self.fresh();
+        // What the card passes to is a plain function: no words to read.
+        let call = match (reveal, count, chars_test(filter, id, &mut lets)) {
+            (true, Count::UpTo(Expr::Constant(1)), Some(test)) if lets.is_empty() => {
+                format!("reveal_top_take_one_rest_to_graveyard(g, player_{id}, asker.source, depth_{id}, |c| {test})")
+            }
+            (false, Count::Exactly(Expr::Constant(1)) | Count::AsManyAsCan(Expr::Constant(1)), Some(test))
+                if test == "true" =>
+            {
+                format!("look_at_top_take_one_rest_to_graveyard(g, player_{id}, asker.source, depth_{id})")
+            }
+            _ => return Ok(false),
         };
         let looker = self.fetch(self.certain_player(player)?);
         let depth = self.fetch(self.number(depth)?.amount(u32::MAX.into(), "usize")?);
+        writeln!(out, "let player_{id} = {looker}; let depth_{id} = {depth}; cantrip_mechanics::library::{call}?;").unwrap();
+        Ok(true)
+    }
+    fn take_looked(&mut self, taking: Taking, (looker, depth): (&str, &str), id: usize, out: &mut String) {
+        let Taking {
+            chosen,
+            put,
+            reveal,
+            least,
+            most,
+            lets,
+            wanted,
+            rest,
+        } = taking;
         writeln!(out, "let player_{id} = {looker}; let depth_{id} = {depth}; {} let taken_{id} = cantrip_mechanics::library::look_at_top(g, player_{id}, asker.source, depth_{id}, ({least}, {most}), {reveal}, {wanted}, cantrip_mechanics::library::Rest::{rest})?;", lets.join(" ")).unwrap();
         if most == 1 {
             self.single.insert(chosen.0);
@@ -597,7 +868,67 @@ impl Compiler {
         self.selections.insert(chosen.0, format!("taken_{id}"));
         self.moved.insert(put.0, format!("taken_{id}"));
         self.left_behind(put, format!("taken_{id}.clone()"));
-        Ok(true)
+    }
+    /// What deals damage: a target only if it is still legal, since one that isn't
+    /// does nothing (CR 608.2b).
+    pub(super) fn damage_source(&self, source: &ObjectRef) -> Result<String> {
+        let read = self.object(source)?;
+        match source {
+            ObjectRef::Target { slot, index } if self.choosing.is_none() => {
+                let i = self.slot(slot)?;
+                Ok(format!(
+                    "t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).and_then(|t: Target| t.object())"
+                ))
+            }
+            _ => Ok(read),
+        }
+    }
+    /// Which of `body`'s payments are read as "unless", where what follows is for
+    /// not paying.
+    pub(super) fn note_unless(&mut self, body: &Program) {
+        for instruction in &body.instructions {
+            if let Instruction::If { condition, .. } = instruction {
+                if let Condition::Not(inner) = condition {
+                    if let Condition::PaymentChosen(result) = &**inner {
+                        self.unless_paid.insert(result.0);
+                    }
+                }
+            }
+        }
+    }
+    /// A pump's amount, unless the card says it doubles.
+    pub(super) fn pump_amount(&self, amount: &Expr, code: String) -> String {
+        let doubles = self.line.as_ref().is_some_and(|l| l.text.contains("ouble"));
+        match doubles {
+            true => code,
+            false => not_negative(amount, code),
+        }
+    }
+    /// The key of "you may ... Do this only once each turn": declining spends
+    /// nothing, where "triggers only once each turn" spends the trigger.
+    pub(super) fn done_once(&mut self, limits: &TriggerLimits, body: &Program) -> Option<u8> {
+        let said = self
+            .line
+            .as_ref()
+            .is_some_and(|line| line.text.contains("Do this only once each turn"));
+        let [Instruction::Optional { decider, body: offered }] = body.instructions.as_slice() else {
+            return None;
+        };
+        if !said
+            || limits.per_turn != Some(1)
+            || tap_or_untap_only(offered)
+            || chooses_first(decider, offered)
+            || !matches!(decider, PlayerRef::AbilityController)
+        {
+            return None;
+        }
+        let key = 200 + (self.fresh() % 50) as u8;
+        self.do_once = Some(key);
+        Some(key)
+    }
+    /// Reads the printed lines of the counter stage starting at `minimum`.
+    pub(super) fn on_stage(&mut self, minimum: i64) {
+        self.stage_lines = self.stages.get(&minimum).cloned().unwrap_or_default();
     }
     /// `count`, or up to it if this is the choice of a "you may".
     pub(super) fn offered_count(&mut self, count: &Count) -> Count {
@@ -638,15 +969,20 @@ impl Compiler {
         let printed = Printed::read(oracle);
         self.printed = printed.aligned(abilities);
         self.chapters = printed.chapters;
+        self.stages = printed.stages;
     }
     /// The ability at `at` is the next one compiled.
     pub(super) fn on_ability(&mut self, at: usize) {
         self.line = self.printed.get(at).cloned().flatten();
         self.quoted_used.clear();
+        self.unless_paid.clear();
     }
     /// The printed line of what's being compiled, as `kind`; a granted ability
     /// reads what the line quotes.
     pub(super) fn said(&mut self, kind: Said, fallback: String) -> String {
+        if let Some(at) = self.stage_lines.iter().position(|line| line.kind == kind) {
+            return self.stage_lines.remove(at).text;
+        }
         let Some(line) = &self.line else {
             return fallback;
         };
