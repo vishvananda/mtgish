@@ -184,7 +184,11 @@ pub(super) fn counter_kind(kind: &crate::counter::CounterKind) -> Result<String>
     if crate::cantrip_vocab::COUNTERS.contains(&word.as_str()) {
         Ok(format!("CounterKind::{word}"))
     } else {
-        Err(gap(format!("counter kind {word}")))
+        Ok(planned::planned_value(
+            &format!("counter kind {word}"),
+            "CounterKind::Charge",
+            &format!("CounterKind::{word}"),
+        ))
     }
 }
 

@@ -82,20 +82,20 @@
  },
  "classes": {
   "generator": {
-   "requirements": 1218,
-   "cards": 9625
+   "requirements": 1219,
+   "cards": 9637
   },
   "engine": {
    "requirements": 43,
-   "cards": 1166
+   "cards": 1167
   },
   "mechanic": {
    "requirements": 72,
-   "cards": 983
+   "cards": 984
   },
   "vocabulary": {
-   "requirements": 252,
-   "cards": 493
+   "requirements": 250,
+   "cards": 489
   }
  },
  "requirements": [
@@ -121,7 +121,7 @@
    "class": "engine",
    "needs": "support in Cantrip's core",
    "family": "engine: no",
-   "cards": 191,
+   "cards": 192,
    "alone": 117,
    "examples": [
     "Absorb Energy",
@@ -185,7 +185,7 @@
    "class": "mechanic",
    "needs": "digital-only card creation in cantrip-mechanics",
    "family": "operation Conjure",
-   "cards": 141,
+   "cards": 142,
    "alone": 71,
    "examples": [
     "A Golden Opportunity",
@@ -532,22 +532,6 @@
    ]
   },
   {
-   "id": "reflexive-trigger-on-what-an-instruction-does-not-report",
-   "feature": "reflexive trigger on what an instruction does not report",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "reflexive trigger",
-   "cards": 71,
-   "alone": 18,
-   "examples": [
-    "Adaptive Armorer",
-    "Ambergris, Agent of Balance",
-    "Ambergris, Agent of Tyranny",
-    "Ancient Brass Dragon",
-    "Ancient Bronze Dragon"
-   ]
-  },
-  {
    "id": "layout-preparer",
    "feature": "layout Preparer",
    "class": "generator",
@@ -561,6 +545,22 @@
     "Blazing Firesinger // Seething Song",
     "Bloodline Recollector // Ancestral Craving",
     "Blossom-Blessed Angel // Seed Suture"
+   ]
+  },
+  {
+   "id": "reflexive-trigger-on-what-an-instruction-does-not-report",
+   "feature": "reflexive trigger on what an instruction does not report",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "reflexive trigger",
+   "cards": 70,
+   "alone": 18,
+   "examples": [
+    "Adaptive Armorer",
+    "Ambergris, Agent of Balance",
+    "Ambergris, Agent of Tyranny",
+    "Ancient Brass Dragon",
+    "Ancient Bronze Dragon"
    ]
   },
   {
@@ -884,6 +884,22 @@
    ]
   },
   {
+   "id": "duration-while-matches",
+   "feature": "duration WhileMatches",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "duration WhileMatches",
+   "cards": 48,
+   "alone": 7,
+   "examples": [
+    "Amber Prison",
+    "Aquitect's Will",
+    "Ashnod's Battle Gear",
+    "Assimilation Aegis",
+    "Braided Quipu // Braided Net"
+   ]
+  },
+  {
    "id": "a-choice-of-player",
    "feature": "a choice of Player",
    "class": "generator",
@@ -897,22 +913,6 @@
     "Beckoning Will-o'-Wisp",
     "Benevolent Offering",
     "Black Vise"
-   ]
-  },
-  {
-   "id": "duration-while-matches",
-   "feature": "duration WhileMatches",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "duration WhileMatches",
-   "cards": 47,
-   "alone": 7,
-   "examples": [
-    "Amber Prison",
-    "Aquitect's Will",
-    "Ashnod's Battle Gear",
-    "Assimilation Aegis",
-    "Braided Quipu // Braided Net"
    ]
   },
   {
@@ -964,6 +964,22 @@
    ]
   },
   {
+   "id": "object-collection-cost-objects",
+   "feature": "object collection CostObjects",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "object collection",
+   "cards": 45,
+   "alone": 26,
+   "examples": [
+    "Astral Drift",
+    "Astral Slide",
+    "Back from the Brink",
+    "Chitinous Crawler",
+    "Coin of Fate"
+   ]
+  },
+  {
    "id": "player-rule-for-a-while-prohibit",
    "feature": "player rule for a while Prohibit",
    "class": "generator",
@@ -993,22 +1009,6 @@
     "Bombadil's Song",
     "Boromir, Warden of the Tower",
     "Breaking of the Fellowship"
-   ]
-  },
-  {
-   "id": "object-collection-cost-objects",
-   "feature": "object collection CostObjects",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "object collection",
-   "cards": 44,
-   "alone": 26,
-   "examples": [
-    "Astral Drift",
-    "Astral Slide",
-    "Back from the Brink",
-    "Chitinous Crawler",
-    "Coin of Fate"
    ]
   },
   {
@@ -1108,6 +1108,22 @@
    ]
   },
   {
+   "id": "event-value-in-a-target-filter-beyond-its-subject",
+   "feature": "event value in a target filter beyond its subject",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "event value",
+   "cards": 42,
+   "alone": 39,
+   "examples": [
+    "Blade of Shared Souls",
+    "Body Launderer",
+    "Carrion Thrash",
+    "Cavalier of Thorns",
+    "Colfenor, the Last Yew"
+   ]
+  },
+  {
    "id": "modes-implied-by-the-target-chosen",
    "feature": "modes implied by the target chosen",
    "class": "generator",
@@ -1137,22 +1153,6 @@
     "Anti-Venom, Horrifying Healer",
     "Awe Strike",
     "Brace for Impact"
-   ]
-  },
-  {
-   "id": "event-value-in-a-target-filter-beyond-its-subject",
-   "feature": "event value in a target filter beyond its subject",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "event value",
-   "cards": 41,
-   "alone": 39,
-   "examples": [
-    "Blade of Shared Souls",
-    "Body Launderer",
-    "Carrion Thrash",
-    "Cavalier of Thorns",
-    "Colfenor, the Last Yew"
    ]
   },
   {
@@ -1316,6 +1316,22 @@
    ]
   },
   {
+   "id": "possibly-absent-player-controller-of",
+   "feature": "possibly absent player ControllerOf",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "possibly absent",
+   "cards": 37,
+   "alone": 27,
+   "examples": [
+    "Arcane Denial",
+    "Azog, Moria's Ruin",
+    "Brood Sliver",
+    "Contested War Zone",
+    "Crag Saurian"
+   ]
+  },
+  {
    "id": "engine-no-daybound",
    "feature": "engine: no Daybound",
    "class": "mechanic",
@@ -1345,6 +1361,22 @@
     "Ballista Wielder // Ballista Watcher",
     "Baneclaw Marauder // Baneblade Scoundrel",
     "Wing Shredder // Bird Admirer"
+   ]
+  },
+  {
+   "id": "event-object-this-trigger-does-not-bind",
+   "feature": "event object this trigger does not bind",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "event object",
+   "cards": 36,
+   "alone": 31,
+   "examples": [
+    "Ace, Fearless Rebel",
+    "Armix, Filigree Thrasher",
+    "Ashenmoor Liege",
+    "Auron, Venerated Guardian",
+    "Battlemage's Bracers"
    ]
   },
   {
@@ -1409,22 +1441,6 @@
     "Battle Angels of Tyr",
     "Death of a Thousand Stings",
     "Descendant of Kiyomaro"
-   ]
-  },
-  {
-   "id": "possibly-absent-player-controller-of",
-   "feature": "possibly absent player ControllerOf",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "possibly absent",
-   "cards": 36,
-   "alone": 27,
-   "examples": [
-    "Arcane Denial",
-    "Azog, Moria's Ruin",
-    "Brood Sliver",
-    "Contested War Zone",
-    "Crag Saurian"
    ]
   },
   {
@@ -1505,22 +1521,6 @@
     "Candela, Aegis of Adagia",
     "Dawnsire, Sunstar Dreadnought",
     "Debris Field Crusher"
-   ]
-  },
-  {
-   "id": "event-object-this-trigger-does-not-bind",
-   "feature": "event object this trigger does not bind",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "event object",
-   "cards": 35,
-   "alone": 31,
-   "examples": [
-    "Ace, Fearless Rebel",
-    "Armix, Filigree Thrasher",
-    "Ashenmoor Liege",
-    "Auron, Venerated Guardian",
-    "Battlemage's Bracers"
    ]
   },
   {
@@ -1668,6 +1668,22 @@
    ]
   },
   {
+   "id": "static-rule-attack-exception",
+   "feature": "static rule AttackException",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "static rule",
+   "cards": 33,
+   "alone": 28,
+   "examples": [
+    "Animate Wall",
+    "Backstreet Bruiser",
+    "Bristlepack Sentry",
+    "Chaos Lord",
+    "Colossus of Akros"
+   ]
+  },
+  {
    "id": "static-rule-combat-group",
    "feature": "static rule CombatGroup",
    "class": "generator",
@@ -1764,22 +1780,6 @@
    ]
   },
   {
-   "id": "static-rule-attack-exception",
-   "feature": "static rule AttackException",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "static rule",
-   "cards": 32,
-   "alone": 28,
-   "examples": [
-    "Animate Wall",
-    "Backstreet Bruiser",
-    "Bristlepack Sentry",
-    "Chaos Lord",
-    "Colossus of Akros"
-   ]
-  },
-  {
    "id": "conditional-triggered",
    "feature": "conditional Triggered",
    "class": "generator",
@@ -1809,6 +1809,22 @@
     "Altaïr Ibn-La'Ahad",
     "Arc Blade",
     "Charnel Serenade"
+   ]
+  },
+  {
+   "id": "numeric-expression-among-players",
+   "feature": "numeric expression AmongPlayers",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "numeric expression",
+   "cards": 31,
+   "alone": 17,
+   "examples": [
+    "Adamaro, First to Desire",
+    "Advice from the Fae",
+    "Battle Angels of Tyr",
+    "Blaster Hulk",
+    "Breena, the Demagogue"
    ]
   },
   {
@@ -1921,22 +1937,6 @@
     "Captain James T. Kirk",
     "Depth Defiler",
     "Disciple of Perdition"
-   ]
-  },
-  {
-   "id": "numeric-expression-among-players",
-   "feature": "numeric expression AmongPlayers",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "numeric expression",
-   "cards": 30,
-   "alone": 17,
-   "examples": [
-    "Adamaro, First to Desire",
-    "Advice from the Fae",
-    "Battle Angels of Tyr",
-    "Blaster Hulk",
-    "Breena, the Demagogue"
    ]
   },
   {
@@ -2116,6 +2116,22 @@
    ]
   },
   {
+   "id": "player-reference-chosen",
+   "feature": "player reference Chosen",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "player reference",
+   "cards": 29,
+   "alone": 0,
+   "examples": [
+    "Benevolent Offering",
+    "Black Vise",
+    "Boreas Charger",
+    "Bow to My Command",
+    "Canker Abomination"
+   ]
+  },
+  {
    "id": "replacement-of-counters",
    "feature": "replacement of counters",
    "class": "generator",
@@ -2225,22 +2241,6 @@
     "Chandra Ablaze",
     "Dark Deal",
     "Dragon Mage"
-   ]
-  },
-  {
-   "id": "player-reference-chosen",
-   "feature": "player reference Chosen",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "player reference",
-   "cards": 28,
-   "alone": 0,
-   "examples": [
-    "Benevolent Offering",
-    "Black Vise",
-    "Boreas Charger",
-    "Bow to My Command",
-    "Canker Abomination"
    ]
   },
   {
@@ -3364,6 +3364,22 @@
    ]
   },
   {
+   "id": "object-reference-granter",
+   "feature": "object reference Granter",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "object reference",
+   "cards": 21,
+   "alone": 6,
+   "examples": [
+    "Animal Friend",
+    "Archery Training",
+    "Blazing Torch",
+    "Dire Blunderbuss // Dire Flail",
+    "Fishing Pole"
+   ]
+  },
+  {
    "id": "operation-deal-damage-from-each",
    "feature": "operation DealDamageFromEach",
    "class": "generator",
@@ -3457,6 +3473,22 @@
     "Glade Watcher",
     "Hightide Hermit",
     "Krotiq Nestguard"
+   ]
+  },
+  {
+   "id": "continuous-rule-require-combat-be-blocked",
+   "feature": "continuous rule RequireCombat BeBlocked",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "continuous rule",
+   "cards": 20,
+   "alone": 17,
+   "examples": [
+    "Anzrag, the Quake-Mole",
+    "Compelled Duel",
+    "Deadly Allure",
+    "Declare Dominance",
+    "Disturbed Slumber"
    ]
   },
   {
@@ -3633,22 +3665,6 @@
     "Conspiracy Unraveler",
     "Darksteel Monolith",
     "Dracogenesis"
-   ]
-  },
-  {
-   "id": "continuous-rule-require-combat-be-blocked",
-   "feature": "continuous rule RequireCombat BeBlocked",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "continuous rule",
-   "cards": 19,
-   "alone": 17,
-   "examples": [
-    "Anzrag, the Quake-Mole",
-    "Compelled Duel",
-    "Deadly Allure",
-    "Declare Dominance",
-    "Disturbed Slumber"
    ]
   },
   {
@@ -4100,6 +4116,22 @@
    ]
   },
   {
+   "id": "keyword-action-flip",
+   "feature": "keyword action Flip",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "keyword action",
+   "cards": 17,
+   "alone": 0,
+   "examples": [
+    "Tok-Tok, Volcano Born // Akki Lavarunner",
+    "Dokai, Weaver of Life // Budoka Gardener",
+    "Ichiga, Who Topples Oaks // Budoka Pupil",
+    "Kenzo the Hardhearted // Bushi Tenderfoot",
+    "Jaraku the Interloper // Callow Jushi"
+   ]
+  },
+  {
    "id": "mana-production-same-type-as-produced",
    "feature": "mana production SameTypeAsProduced",
    "class": "generator",
@@ -4113,22 +4145,6 @@
     "Extraplanar Lens",
     "Heartbeat of Spring",
     "Keeper of Progenitus"
-   ]
-  },
-  {
-   "id": "object-reference-granter",
-   "feature": "object reference Granter",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "object reference",
-   "cards": 17,
-   "alone": 6,
-   "examples": [
-    "Animal Friend",
-    "Archery Training",
-    "Blazing Torch",
-    "Dire Blunderbuss // Dire Flail",
-    "Grothama, All-Devouring"
    ]
   },
   {
@@ -4692,6 +4708,22 @@
    ]
   },
   {
+   "id": "distinct-mana-values",
+   "feature": "distinct ManaValues",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "distinct ManaValues",
+   "cards": 14,
+   "alone": 11,
+   "examples": [
+    "All-Seeing Arbiter",
+    "Aven Heartstabber",
+    "Sanctum of the Sun // Azor's Gateway",
+    "Eris, Roar of the Storm",
+    "Imbraham, Dean of Theory // Kianne, Dean of Substance"
+   ]
+  },
+  {
    "id": "engine-no-hidden-agenda",
    "feature": "engine: no HiddenAgenda",
    "class": "mechanic",
@@ -4945,22 +4977,6 @@
     "Lilting Refrain",
     "Lost Isle Calling",
     "Midsummer Revel"
-   ]
-  },
-  {
-   "id": "distinct-mana-values",
-   "feature": "distinct ManaValues",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "distinct ManaValues",
-   "cards": 13,
-   "alone": 11,
-   "examples": [
-    "All-Seeing Arbiter",
-    "Aven Heartstabber",
-    "Sanctum of the Sun // Azor's Gateway",
-    "Eris, Roar of the Storm",
-    "Lunar Insight"
    ]
   },
   {
@@ -5473,22 +5489,6 @@
     "Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor",
     "Cyclonus, Cybertronian Fighter // Cyclonus, the Saboteur",
     "Flamewar, Streetwise Operative // Flamewar, Brash Veteran"
-   ]
-  },
-  {
-   "id": "keyword-action-flip",
-   "feature": "keyword action Flip",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "keyword action",
-   "cards": 12,
-   "alone": 0,
-   "examples": [
-    "Tok-Tok, Volcano Born // Akki Lavarunner",
-    "Dokai, Weaver of Life // Budoka Gardener",
-    "Kenzo the Hardhearted // Bushi Tenderfoot",
-    "Erayo's Essence // Erayo, Soratami Ascendant",
-    "Goka the Unjust // Initiate of Blood"
    ]
   },
   {
@@ -6532,6 +6532,22 @@
    ]
   },
   {
+   "id": "duration-until-next",
+   "feature": "duration UntilNext",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "duration UntilNext",
+   "cards": 9,
+   "alone": 6,
+   "examples": [
+    "Cycle of Life",
+    "Erhnam Djinn",
+    "Ertai's Familiar",
+    "Gabriel Angelfire",
+    "Halfdane"
+   ]
+  },
+  {
    "id": "engine-no-amplify",
    "feature": "engine: no Amplify",
    "class": "mechanic",
@@ -7009,22 +7025,6 @@
     "Leonin Bola",
     "Razor Boomerang",
     "Shuriken"
-   ]
-  },
-  {
-   "id": "duration-until-next",
-   "feature": "duration UntilNext",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "duration UntilNext",
-   "cards": 8,
-   "alone": 6,
-   "examples": [
-    "Cycle of Life",
-    "Erhnam Djinn",
-    "Ertai's Familiar",
-    "Gabriel Angelfire",
-    "Halfdane"
    ]
   },
   {
@@ -8484,6 +8484,22 @@
    ]
   },
   {
+   "id": "object-collection-random",
+   "feature": "object collection Random",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "object collection",
+   "cards": 6,
+   "alone": 4,
+   "examples": [
+    "Capricious Efreet",
+    "Chaos Defiler",
+    "Cinderheart Giant",
+    "Haphazard Bombardment",
+    "Urza's Bauble"
+   ]
+  },
+  {
    "id": "object-filter-could-enchant",
    "feature": "object filter CouldEnchant",
    "class": "generator",
@@ -8865,6 +8881,22 @@
     "Derelor",
     "Jade Leech",
     "Ruby Leech"
+   ]
+  },
+  {
+   "id": "static-change-land-types",
+   "feature": "static change LandTypes",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "static change",
+   "cards": 6,
+   "alone": 4,
+   "examples": [
+    "Dryad of the Ilysian Grove",
+    "Leyline of the Guildpact",
+    "Nylea's Presence",
+    "Omo, Queen of Vesuva",
+    "Planar Nexus"
    ]
   },
   {
@@ -9444,6 +9476,22 @@
    ]
   },
   {
+   "id": "granted-conditional",
+   "feature": "granted Conditional",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "granted Conditional",
+   "cards": 5,
+   "alone": 3,
+   "examples": [
+    "Giant's Amulet",
+    "Glyph of Delusion",
+    "Mindbender Spores",
+    "Restless Spire",
+    "Sedge Sliver"
+   ]
+  },
+  {
    "id": "hand-size-adjust",
    "feature": "hand size Adjust",
    "class": "generator",
@@ -9745,22 +9793,6 @@
     "Satoru, the Infiltrator",
     "Squall, Gunblade Duelist",
     "Twilight Diviner"
-   ]
-  },
-  {
-   "id": "object-collection-random",
-   "feature": "object collection Random",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "object collection",
-   "cards": 5,
-   "alone": 4,
-   "examples": [
-    "Capricious Efreet",
-    "Chaos Defiler",
-    "Cinderheart Giant",
-    "Urza's Bauble",
-    "Wild Swing"
    ]
   },
   {
@@ -10097,22 +10129,6 @@
     "Long-Term Plans",
     "Loyal Inventor",
     "Threats Undetected"
-   ]
-  },
-  {
-   "id": "static-change-land-types",
-   "feature": "static change LandTypes",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "static change",
-   "cards": 5,
-   "alone": 4,
-   "examples": [
-    "Dryad of the Ilysian Grove",
-    "Leyline of the Guildpact",
-    "Nylea's Presence",
-    "Planar Nexus",
-    "Prismatic Omen"
    ]
   },
   {
@@ -11713,7 +11729,7 @@
    "needs": "the counter in Cantrip's counter_kinds",
    "family": "counter kind",
    "cards": 3,
-   "alone": 2,
+   "alone": 1,
    "examples": [
     "Bloodletter Quill",
     "Font of Agonies",
@@ -11727,25 +11743,11 @@
    "needs": "the counter in Cantrip's counter_kinds",
    "family": "counter kind",
    "cards": 3,
-   "alone": 1,
+   "alone": 2,
    "examples": [
     "Athreos, Shroud-Veiled",
     "Noble's Purse",
     "Wishing Well"
-   ]
-  },
-  {
-   "id": "counter-kind-egg",
-   "feature": "counter kind Egg",
-   "class": "vocabulary",
-   "needs": "the counter in Cantrip's counter_kinds",
-   "family": "counter kind",
-   "cards": 3,
-   "alone": 1,
-   "examples": [
-    "Darigaaz Reincarnated",
-    "Darigaaz, Shivan Champion",
-    "Xira, the Golden Sting"
    ]
   },
   {
@@ -11797,7 +11799,7 @@
    "needs": "the counter in Cantrip's counter_kinds",
    "family": "counter kind",
    "cards": 3,
-   "alone": 1,
+   "alone": 0,
    "examples": [
     "Celestial Convergence",
     "Forsaken Thresher // Foreboding Statue",
@@ -11825,7 +11827,7 @@
    "needs": "the counter in Cantrip's counter_kinds",
    "family": "counter kind",
    "cards": 3,
-   "alone": 3,
+   "alone": 2,
    "examples": [
     "Gutter Grime",
     "Sludge Monster",
@@ -12026,20 +12028,6 @@
     "Dermotaxi",
     "Living Lore",
     "Sutured Ghoul"
-   ]
-  },
-  {
-   "id": "granted-conditional",
-   "feature": "granted Conditional",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "granted Conditional",
-   "cards": 3,
-   "alone": 3,
-   "examples": [
-    "Giant's Amulet",
-    "Restless Spire",
-    "Sedge Sliver"
    ]
   },
   {
@@ -12813,6 +12801,20 @@
    ]
   },
   {
+   "id": "static-rule-attack-drags",
+   "feature": "static rule AttackDrags",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "static rule",
+   "cards": 3,
+   "alone": 1,
+   "examples": [
+    "Magnetic Web",
+    "Viashino Bey",
+    "War's Toll"
+   ]
+  },
+  {
    "id": "static-rule-blocks-only-if",
    "feature": "static rule BlocksOnlyIf",
    "class": "generator",
@@ -13484,26 +13486,13 @@
    ]
   },
   {
-   "id": "counter-kind-aim",
-   "feature": "counter kind Aim",
-   "class": "vocabulary",
-   "needs": "the counter in Cantrip's counter_kinds",
-   "family": "counter kind",
-   "cards": 2,
-   "alone": 1,
-   "examples": [
-    "Hankyu",
-    "Haphazard Bombardment"
-   ]
-  },
-  {
    "id": "counter-kind-blaze",
    "feature": "counter kind Blaze",
    "class": "vocabulary",
    "needs": "the counter in Cantrip's counter_kinds",
    "family": "counter kind",
    "cards": 2,
-   "alone": 2,
+   "alone": 1,
    "examples": [
     "Five-Alarm Fire",
     "Obsidian Fireheart"
@@ -13520,6 +13509,19 @@
    "examples": [
     "Bloodthirsty Ogre",
     "Pious Kitsune"
+   ]
+  },
+  {
+   "id": "counter-kind-egg",
+   "feature": "counter kind Egg",
+   "class": "vocabulary",
+   "needs": "the counter in Cantrip's counter_kinds",
+   "family": "counter kind",
+   "cards": 2,
+   "alone": 0,
+   "examples": [
+    "Darigaaz Reincarnated",
+    "Xira, the Golden Sting"
    ]
   },
   {
@@ -13594,7 +13596,7 @@
    "needs": "the counter in Cantrip's counter_kinds",
    "family": "counter kind",
    "cards": 2,
-   "alone": 2,
+   "alone": 1,
    "examples": [
     "Mindbender Spores",
     "Sporogenesis"
@@ -13633,7 +13635,7 @@
    "needs": "the counter in Cantrip's counter_kinds",
    "family": "counter kind",
    "cards": 2,
-   "alone": 2,
+   "alone": 1,
    "examples": [
     "Etrata, the Silencer",
     "Ravenloft Adventurer"
@@ -13715,6 +13717,19 @@
    "examples": [
     "Krovikan Vampire",
     "Ogre Geargrabber"
+   ]
+  },
+  {
+   "id": "delayed-trigger-on-event-zone-change",
+   "feature": "delayed trigger on event ZoneChange",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "delayed trigger",
+   "cards": 2,
+   "alone": 1,
+   "examples": [
+    "Tatsumasa, the Dragon's Fang",
+    "Xira, the Golden Sting"
    ]
   },
   {
@@ -14940,19 +14955,6 @@
    ]
   },
   {
-   "id": "static-rule-attack-drags",
-   "feature": "static rule AttackDrags",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "static rule",
-   "cards": 2,
-   "alone": 1,
-   "examples": [
-    "Viashino Bey",
-    "War's Toll"
-   ]
-  },
-  {
    "id": "static-rule-blocked-by-defender",
    "feature": "static rule BlockedByDefender",
    "class": "generator",
@@ -16149,6 +16151,18 @@
    ]
   },
   {
+   "id": "counter-kind-aim",
+   "feature": "counter kind Aim",
+   "class": "vocabulary",
+   "needs": "the counter in Cantrip's counter_kinds",
+   "family": "counter kind",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Haphazard Bombardment"
+   ]
+  },
+  {
    "id": "counter-kind-arrow",
    "feature": "counter kind Arrow",
    "class": "vocabulary",
@@ -16182,18 +16196,6 @@
    "alone": 0,
    "examples": [
     "Liege of the Tangle"
-   ]
-  },
-  {
-   "id": "counter-kind-bait",
-   "feature": "counter kind Bait",
-   "class": "vocabulary",
-   "needs": "the counter in Cantrip's counter_kinds",
-   "family": "counter kind",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Fishing Pole"
    ]
   },
   {
@@ -16479,7 +16481,7 @@
    "needs": "the counter in Cantrip's counter_kinds",
    "family": "counter kind",
    "cards": 1,
-   "alone": 1,
+   "alone": 0,
    "examples": [
     "Soul Echo"
    ]
@@ -16527,7 +16529,7 @@
    "needs": "the counter in Cantrip's counter_kinds",
    "family": "counter kind",
    "cards": 1,
-   "alone": 1,
+   "alone": 0,
    "examples": [
     "Omo, Queen of Vesuva"
    ]
@@ -16659,7 +16661,7 @@
    "needs": "the counter in Cantrip's counter_kinds",
    "family": "counter kind",
    "cards": 1,
-   "alone": 1,
+   "alone": 0,
    "examples": [
     "Glyph of Delusion"
    ]
@@ -16731,7 +16733,7 @@
    "needs": "the counter in Cantrip's counter_kinds",
    "family": "counter kind",
    "cards": 1,
-   "alone": 1,
+   "alone": 0,
    "examples": [
     "Illicit Masquerade"
    ]
@@ -16821,6 +16823,18 @@
    ]
   },
   {
+   "id": "counter-kind-kick",
+   "feature": "counter kind Kick",
+   "class": "vocabulary",
+   "needs": "the counter in Cantrip's counter_kinds",
+   "family": "counter kind",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Zethi, Arcane Blademaster"
+   ]
+  },
+  {
    "id": "counter-kind-knowledge",
    "feature": "counter kind Knowledge",
    "class": "vocabulary",
@@ -16863,7 +16877,7 @@
    "needs": "the counter in Cantrip's counter_kinds",
    "family": "counter kind",
    "cards": 1,
-   "alone": 1,
+   "alone": 0,
    "examples": [
     "Magnetic Web"
    ]
@@ -17025,18 +17039,6 @@
    ]
   },
   {
-   "id": "counter-kind-paralyzation",
-   "feature": "counter kind Paralyzation",
-   "class": "vocabulary",
-   "needs": "the counter in Cantrip's counter_kinds",
-   "family": "counter kind",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Dread Wight"
-   ]
-  },
-  {
    "id": "counter-kind-petal",
    "feature": "counter kind Petal",
    "class": "vocabulary",
@@ -17154,18 +17156,6 @@
    "alone": 1,
    "examples": [
     "Aligned Heart"
-   ]
-  },
-  {
-   "id": "counter-kind-refine",
-   "feature": "counter kind Refine",
-   "class": "vocabulary",
-   "needs": "the counter in Cantrip's counter_kinds",
-   "family": "counter kind",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Nassari, Dean of Expression // Uvilda, Dean of Perfection"
    ]
   },
   {
@@ -17658,18 +17648,6 @@
    "alone": 1,
    "examples": [
     "Repeated Reverberation"
-   ]
-  },
-  {
-   "id": "delayed-trigger-on-event-zone-change",
-   "feature": "delayed trigger on event ZoneChange",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "delayed trigger",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "Tatsumasa, the Dragon's Fang"
    ]
   },
   {
@@ -19710,6 +19688,18 @@
    "alone": 0,
    "examples": [
     "Contested Game Ball"
+   ]
+  },
+  {
+   "id": "possibly-absent-player-enchanted-by",
+   "feature": "possibly absent player EnchantedBy",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "possibly absent",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Sinner's Judgment // Faithbound Judge"
    ]
   },
   {
@@ -26244,6 +26234,7 @@
   ],
   "Ichiga, Who Topples Oaks // Budoka Pupil": [
    "counter-kind-ki",
+   "keyword-action-flip",
    "layout-flip"
   ],
   "Builder's Bane": [
@@ -26511,6 +26502,7 @@
   ],
   "Jaraku the Interloper // Callow Jushi": [
    "counter-kind-ki",
+   "keyword-action-flip",
    "layout-flip"
   ],
   "Calming Licid": [
@@ -26897,7 +26889,8 @@
    "object-collection-event-group"
   ],
   "Celestial Convergence": [
-   "counter-kind-omen"
+   "counter-kind-omen",
+   "numeric-expression-among-players"
   ],
   "Celestial Dawn": [
    "player-rule-spend-color-as",
@@ -28750,6 +28743,7 @@
   ],
   "Azamuki, Treachery Incarnate // Cunning Bandit": [
    "counter-kind-ki",
+   "keyword-action-flip",
    "layout-flip"
   ],
   "Cunning Giant": [
@@ -29099,7 +29093,6 @@
    "trigger-event-player-draws-card"
   ],
   "Darigaaz, Shivan Champion": [
-   "counter-kind-egg",
    "operation-conjure",
    "operation-effect-on"
   ],
@@ -30507,7 +30500,6 @@
    "move-arrival-state"
   ],
   "Dread Wight": [
-   "counter-kind-paralyzation",
    "duration-while-matches",
    "operation-note-objects"
   ],
@@ -32299,13 +32291,16 @@
   "Sinner's Judgment // Faithbound Judge": [
    "counter-kind-judgment",
    "engine-no-disturb",
-   "layout-transforming"
+   "layout-transforming",
+   "possibly-absent-player-enchanted-by",
+   "static-rule-attack-exception"
   ],
   "Faithful Disciple": [
    "operation-draft-from-spellbook"
   ],
   "Kaiso, Memory of Loyalty // Faithful Squire": [
    "counter-kind-ki",
+   "keyword-action-flip",
    "layout-flip"
   ],
   "Falco Spara, Pactweaver": [
@@ -32985,8 +32980,8 @@
    "cost-part-reveal-top"
   ],
   "Fishing Pole": [
-   "counter-kind-bait",
    "engine-no-untap-event",
+   "object-reference-granter",
    "tap-cost-shape"
   ],
   "Fist of Suns": [
@@ -34585,7 +34580,8 @@
    "event-object-this-trigger-does-not-bind"
   ],
   "Glyph of Delusion": [
-   "counter-kind-glyph"
+   "counter-kind-glyph",
+   "granted-conditional"
   ],
   "Glyph of Doom": [
    "delayed-trigger-until-end-of-turn"
@@ -35501,7 +35497,8 @@
    "keyword-action-blight-with-an-amount"
   ],
   "Gutter Grime": [
-   "counter-kind-slime"
+   "counter-kind-slime",
+   "object-reference-granter"
   ],
   "Gutter Shortcut // Gutter Skulker": [
    "engine-no-disturb",
@@ -35662,9 +35659,9 @@
    "operation-conjure"
   ],
   "Hankyu": [
-   "counter-kind-aim",
    "counter-removal-cost-shape",
-   "numeric-expression-paid-counters-removed"
+   "numeric-expression-paid-counters-removed",
+   "object-reference-granter"
   ],
   "Hanna": [
    "card-type-vanguard",
@@ -35701,7 +35698,8 @@
    "target-cardinality-per-player"
   ],
   "Haphazard Bombardment": [
-   "counter-kind-aim"
+   "counter-kind-aim",
+   "object-collection-random"
   ],
   "Happy Hogan, Bodyguard": [
    "operation-choose-action"
@@ -36355,6 +36353,7 @@
   ],
   "Scarmaker // Hired Muscle": [
    "counter-kind-ki",
+   "keyword-action-flip",
    "layout-flip"
   ],
   "Hired Torturer": [
@@ -37001,7 +37000,8 @@
    "possibly-absent-player-prior"
   ],
   "Illicit Masquerade": [
-   "counter-kind-impostor"
+   "counter-kind-impostor",
+   "event-value-in-a-target-filter-beyond-its-subject"
   ],
   "Illithid Harvester // Plant Tadpoles": [
    "layout-adventurer",
@@ -39047,6 +39047,7 @@
   ],
   "Imbraham, Dean of Theory // Kianne, Dean of Substance": [
    "counter-kind-study",
+   "distinct-mana-values",
    "layout-modal-d-f-c"
   ],
   "Kick in the Door": [
@@ -40944,7 +40945,9 @@
    "operation-choose-and-pay"
   ],
   "Magnetic Web": [
-   "counter-kind-magnet"
+   "continuous-rule-require-combat-be-blocked",
+   "counter-kind-magnet",
+   "static-rule-attack-drags"
   ],
   "Magnigoth Treefolk": [
    "landwalk-of-shares-with-any"
@@ -41122,6 +41125,7 @@
   ],
   "Managorger Phoenix": [
    "counter-kind-flame",
+   "engine-no-perpetual-effects",
    "mana-symbols-other-than-a-devotion-to-one-color"
   ],
   "Manascape Refractor": [
@@ -41917,7 +41921,8 @@
    "player-rule-for-a-while-play-permission-with"
   ],
   "Mindbender Spores": [
-   "counter-kind-fungus"
+   "counter-kind-fungus",
+   "granted-conditional"
   ],
   "Mindblade Render": [
    "object-collection-damage"
@@ -44051,7 +44056,8 @@
    "object-filter-could-produce"
   ],
   "Obsidian Fireheart": [
-   "counter-kind-blaze"
+   "counter-kind-blaze",
+   "duration-while-matches"
   ],
   "Obsidian Obelisk": [
    "mana-spending-predicate"
@@ -44259,7 +44265,8 @@
    "player-rule-play-permission-with"
   ],
   "Omo, Queen of Vesuva": [
-   "counter-kind-everything"
+   "counter-kind-everything",
+   "static-change-land-types"
   ],
   "On Wings of Gold": [
    "trigger-event-object-leaves-graveyard"
@@ -46839,7 +46846,8 @@
    "operation-deal-damage-from-each"
   ],
   "Rakdos Riteknife": [
-   "counter-kind-blood"
+   "counter-kind-blood",
+   "object-reference-granter"
   ],
   "Rakdos's Return": [
    "player-reference-player-or-controller-of"
@@ -47083,7 +47091,8 @@
    "continuous-rule-require-combat-attack"
   ],
   "Ravenloft Adventurer": [
-   "counter-kind-hit"
+   "counter-kind-hit",
+   "event-object-this-trigger-does-not-bind"
   ],
   "Archdemon of Greed // Ravenous Demon": [
    "layout-transforming"
@@ -51214,7 +51223,8 @@
    "counter-removal-cost-shape"
   ],
   "Soul Echo": [
-   "counter-kind-echo"
+   "counter-kind-echo",
+   "duration-until-next"
   ],
   "Soul Enervation": [
    "trigger-event-object-leaves-graveyard"
@@ -53614,6 +53624,7 @@
   ],
   "Tend to the Kiln": [
    "counter-kind-flame",
+   "operation-conjure",
    "operation-effect-on"
   ],
   "Tenth District Hero": [
@@ -55973,6 +55984,7 @@
   ],
   "Turf War": [
    "counter-kind-contested",
+   "possibly-absent-player-controller-of",
    "target-constraint-different-controllers"
   ],
   "Turf Wound": [
@@ -56678,8 +56690,8 @@
    "color-chosen"
   ],
   "Nassari, Dean of Expression // Uvilda, Dean of Perfection": [
-   "counter-kind-refine",
    "layout-modal-d-f-c",
+   "object-collection-cost-objects",
    "operation-effect-on",
    "player-rule-for-a-while-play-permission-with"
   ],
@@ -58566,8 +58578,7 @@
    "operation-give-control"
   ],
   "Wishing Well": [
-   "counter-kind-coin",
-   "reflexive-trigger-on-what-an-instruction-does-not-report"
+   "counter-kind-coin"
   ],
   "Wishmonger": [
    "activation-by-other-players"
@@ -58933,7 +58944,8 @@
    "operation-change-spell"
   ],
   "Xira, the Golden Sting": [
-   "counter-kind-egg"
+   "counter-kind-egg",
+   "delayed-trigger-on-event-zone-change"
   ],
   "Xolatoyac, the Smiling Flood": [
    "duration-while-matches"
@@ -59108,6 +59120,7 @@
    "card-type-scheme",
    "counter-kind-doom",
    "layout-scheme",
+   "player-reference-chosen",
    "supertype"
   ],
   "Your Mistake Is My Triumph": [
@@ -59254,6 +59267,7 @@
    "activation-by-other-players"
   ],
   "Zethi, Arcane Blademaster": [
+   "counter-kind-kick",
    "object-collection-copies",
    "operation-copy-cards",
    "target-cardinality-up-to"

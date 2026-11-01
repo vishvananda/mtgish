@@ -1742,10 +1742,12 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
         }
         None => rust,
     };
+    let mut gaps = c.gaps;
+    gaps.extend(planned::value_gaps(&rust));
     Ok(EmittedModule {
         rust,
         extras: c.extras,
-        gaps: c.gaps,
+        gaps,
     })
 }
 

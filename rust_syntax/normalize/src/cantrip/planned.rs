@@ -27,6 +27,28 @@ pub fn requirement(feature: &str) -> String {
 /// Adding one here and regenerating is all a card waiting on it needs.
 const LANDED: &[&str] = &[];
 
+/// A value inside compiled code that Cantrip has no word for yet: `placeholder`
+/// keeps the file compiling, `code` is what it will say, and `feature` is found
+/// again by `value_gaps`, since a read has no way to record a gap of its own.
+pub(super) fn planned_value(feature: &str, placeholder: &str, code: &str) -> String {
+    if LANDED.contains(&requirement(feature).as_str()) {
+        return code.to_string();
+    }
+    format!("planned_value!({feature:?}, {placeholder} => {code})")
+}
+/// Every `planned_value` in a file's code.
+pub(super) fn value_gaps(rust: &str) -> Vec<Diagnostic> {
+    const MARK: &str = "planned_value!(\"";
+    let mut found = BTreeSet::new();
+    for (at, _) in rust.match_indices(MARK) {
+        let rest = &rust[at + MARK.len()..];
+        if let Some(end) = rest.find('"') {
+            found.insert(rest[..end].to_string());
+        }
+    }
+    found.into_iter().map(gap).collect()
+}
+
 /// The source of a value, for a hole to carry when no code can read it yet.
 fn source(value: &impl serde::Serialize) -> String {
     quoted(&ron::to_string(value).unwrap_or_default())

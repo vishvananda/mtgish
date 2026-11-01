@@ -9,19 +9,19 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 
 | class | requirements | cards |
 |---|---|---|
-| engine | 43 | 1166 |
-| generator | 1218 | 9625 |
-| mechanic | 72 | 983 |
-| vocabulary | 252 | 493 |
+| engine | 43 | 1167 |
+| generator | 1219 | 9637 |
+| mechanic | 72 | 984 |
+| vocabulary | 250 | 489 |
 
 | requirement | class | cards | alone | needs | examples |
 |---|---|---|---|---|---|
 | `layout-transforming` | generator | 389 | 154 | the faces joined the way CardDef joins them, or a Cantrip feature if none exists | Aang and La, Ocean's Fury // Aang, Swift Savior, Aang, Destined Savior // Aang, at the Crossroads, Perfected Form // Aberrant Researcher |
-| `engine-no-perpetual-effects` | engine | 191 | 117 | support in Cantrip's core | Absorb Energy, Accident-Prone Apprentice // Amphibian Accident, Ace Flockbringer |
+| `engine-no-perpetual-effects` | engine | 192 | 117 | support in Cantrip's core | Absorb Energy, Accident-Prone Apprentice // Amphibian Accident, Ace Flockbringer |
 | `layout-planar` | engine | 151 | 0 | a game mode Cantrip does not play | Academy at Tolaria West, Agyrem, Akoum |
 | `per-player-instruction-with-several-steps` | generator | 145 | 72 | a generator arm, or a Cantrip feature if none exists | Agitator Ant, Arzakon, Augusta, Order Returned |
 | `layout-adventurer` | generator | 143 | 118 | the faces joined the way CardDef joins them, or a Cantrip feature if none exists | Accident-Prone Apprentice // Amphibian Accident, Albiorix, Goose Tyrant // Wild Goose Chase, Altar of Bhaal // Bone Offering |
-| `operation-conjure` | mechanic | 141 | 71 | digital-only card creation in cantrip-mechanics | A Golden Opportunity, Ace Flockbringer, Agent of Raffine |
+| `operation-conjure` | mechanic | 142 | 71 | digital-only card creation in cantrip-mechanics | A Golden Opportunity, Ace Flockbringer, Agent of Raffine |
 | `static-subjects-zone` | generator | 141 | 79 | a generator arm, or a Cantrip feature if none exists | Abaddon the Despoiler, Aether Storm, Allosaurus Shepherd |
 | `card-type-plane` | generator | 139 | 0 | a generator arm, or a Cantrip feature if none exists | Academy at Tolaria West, Agyrem, Akoum |
 | `trigger-event-player-chaos-ensues` | generator | 139 | 0 | a generator arm, or a Cantrip feature if none exists | Academy at Tolaria West, Agyrem, Akoum |
@@ -43,8 +43,8 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `trigger-event-player-sets-scheme-in-motion` | generator | 83 | 0 | a generator arm, or a Cantrip feature if none exists | A Display of My Dark Power, A Premonition of Your Demise, A Reckoning Approaches |
 | `operation-effect-on` | generator | 74 | 48 | a generator arm, or a Cantrip feature if none exists | Alaundo the Seer, Alora, Cheerful Scout, Armor Wars |
 | `operation-move` | generator | 72 | 9 | a generator arm, or a Cantrip feature if none exists | Abstract Performance, Agent of Raffine, Apple of Eden, Isu Relic |
-| `reflexive-trigger-on-what-an-instruction-does-not-report` | generator | 71 | 18 | a generator arm, or a Cantrip feature if none exists | Adaptive Armorer, Ambergris, Agent of Balance, Ambergris, Agent of Tyranny |
 | `layout-preparer` | generator | 70 | 20 | the faces joined the way CardDef joins them, or a Cantrip feature if none exists | Abigale, Poet Laureate // Heroic Stanza, Adventurous Eater // Have a Bite, Blazing Firesinger // Seething Song |
+| `reflexive-trigger-on-what-an-instruction-does-not-report` | generator | 70 | 18 | a generator arm, or a Cantrip feature if none exists | Adaptive Armorer, Ambergris, Agent of Balance, Ambergris, Agent of Tyranny |
 | `object-collection-damage-sources` | generator | 65 | 58 | a generator arm, or a Cantrip feature if none exists | Auriok Replica, Beacon of Destiny, Bone Mask |
 | `dynamic-defining-token-characteristics` | generator | 64 | 48 | a generator arm, or a Cantrip feature if none exists | Abzan Monument, Aether Refinery, Arboreal Alliance |
 | `condition-searched` | generator | 61 | 0 | a generator arm, or a Cantrip feature if none exists | Aether Searcher, Agency Outfitter, Ajani's Aid |
@@ -65,23 +65,23 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `conditional-replacement` | generator | 49 | 37 | a generator arm, or a Cantrip feature if none exists | Aether Revolt, Anthem of Rakdos, Archelos, Lagoon Mystic |
 | `operation-copy-on-stack` | generator | 49 | 40 | a generator arm, or a Cantrip feature if none exists | Archmage of Echoes, Brass Knuckles, Bygone Marvels |
 | `player-rule-play-permission-with` | generator | 49 | 39 | a generator arm, or a Cantrip feature if none exists | Aluren, Arcade Gannon, Assemble the Players |
+| `duration-while-matches` | generator | 48 | 7 | a generator arm, or a Cantrip feature if none exists | Amber Prison, Aquitect's Will, Ashnod's Battle Gear |
 | `a-choice-of-player` | generator | 47 | 0 | a generator arm, or a Cantrip feature if none exists | Akroan Horse, Backdraft, Beckoning Will-o'-Wisp |
-| `duration-while-matches` | generator | 47 | 7 | a generator arm, or a Cantrip feature if none exists | Amber Prison, Aquitect's Will, Ashnod's Battle Gear |
 | `supertype` | vocabulary | 47 | 12 | the supertype in Cantrip | Arboria, Bazaar of Wonders, Because I Have Willed It |
 | `trigger-event-object-leaves-graveyard` | generator | 47 | 42 | a generator arm, or a Cantrip feature if none exists | Along the Crooked Way, Amzu, Swarm's Hunger, Ark of Hunger |
 | `engine-no-start-your-engines` | mechanic | 46 | 11 | the keyword in cantrip-mechanics | Aether Syphon, Amonkhet Raceway, Avishkar Raceway |
+| `object-collection-cost-objects` | generator | 45 | 26 | a generator arm, or a Cantrip feature if none exists | Astral Drift, Astral Slide, Back from the Brink |
 | `player-rule-for-a-while-prohibit` | generator | 45 | 24 | a generator arm, or a Cantrip feature if none exists | Abeyance, Academic Probation, Angel's Grace |
 | `engine-no-ring-temptation` | engine | 44 | 31 | support in Cantrip's core | Bilbo, Retired Burglar, Birthday Escape, Bombadil's Song |
-| `object-collection-cost-objects` | generator | 44 | 26 | a generator arm, or a Cantrip feature if none exists | Astral Drift, Astral Slide, Back from the Brink |
 | `per-player-choose-objects` | generator | 44 | 0 | a generator arm, or a Cantrip feature if none exists | Ajani, Nacatl Avenger // Ajani, Nacatl Pariah, Benthic Anomaly, Breach the Multiverse |
 | `result-this-instruction-does-not-report` | generator | 44 | 31 | a generator arm, or a Cantrip feature if none exists | Agent of Masks, Alliance of Arms, Ancient Excavation |
 | `mana-symbol` | generator | 43 | 32 | a generator arm, or a Cantrip feature if none exists | Adarkar Windform, Ajani, Sleeper Agent, Arcum's Astrolabe |
 | `ability-trigger-rule` | generator | 42 | 33 | a generator arm, or a Cantrip feature if none exists | Ancient Greenwarden, Annie Joins Up, Chief of the Wilds |
 | `counter-removal-cost-shape` | generator | 42 | 15 | a generator arm, or a Cantrip feature if none exists | Arcee, Acrobatic Coupe // Arcee, Sharpshooter, Black Mana Battery, Blue Mana Battery |
 | `engine-no-specialize-event` | engine | 42 | 35 | support in Cantrip's core | Gut, Bestial Fanatic, Gut, Brutal Fanatic, Gut, Devious Fanatic |
+| `event-value-in-a-target-filter-beyond-its-subject` | generator | 42 | 39 | a generator arm, or a Cantrip feature if none exists | Blade of Shared Souls, Body Launderer, Carrion Thrash |
 | `modes-implied-by-the-target-chosen` | generator | 42 | 37 | a generator arm, or a Cantrip feature if none exists | Aang and La, Ocean's Fury // Aang, Swift Savior, Aether Gust, Alter Reality |
 | `prevention-with-an-effect-besides` | generator | 42 | 38 | a generator arm, or a Cantrip feature if none exists | Acolyte's Reward, Angel of Suffering, Anti-Venom, Horrifying Healer |
-| `event-value-in-a-target-filter-beyond-its-subject` | generator | 41 | 39 | a generator arm, or a Cantrip feature if none exists | Blade of Shared Souls, Body Launderer, Carrion Thrash |
 | `player-rule-activation-cost` | generator | 41 | 29 | a generator arm, or a Cantrip feature if none exists | Agatha of the Vile Cauldron, Anointed Peacekeeper, Arms Scavenger |
 | `activation-by-other-players` | generator | 40 | 34 | a generator arm, or a Cantrip feature if none exists | Aether Storm, Armageddon Clock, Casey Jones, Asphalt Hooligan |
 | `cost-part-reveal` | generator | 40 | 30 | a generator arm, or a Cantrip feature if none exists | Arsenal Thresher, Calamity of the Titans, Charge of the Forever-Beast |
@@ -92,19 +92,19 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `static-change-gain-abilities-of` | generator | 38 | 20 | a generator arm, or a Cantrip feature if none exists | Agatha's Soul Cauldron, Wretched Bonemass // Altar of the Wretched, Animus of Predation |
 | `engine-no-bushido` | mechanic | 37 | 30 | the keyword in cantrip-mechanics | Araba Mothrider, Battle-Mad Ronin, Brothers Yamazaki |
 | `object-filter-attacking-defender` | generator | 37 | 24 | a generator arm, or a Cantrip feature if none exists | Arachnogenesis, Beckoning Will-o'-Wisp, Become the Pilot |
+| `possibly-absent-player-controller-of` | generator | 37 | 27 | a generator arm, or a Cantrip feature if none exists | Arcane Denial, Azog, Moria's Ruin, Brood Sliver |
 | `engine-no-daybound` | mechanic | 36 | 0 | the keyword in cantrip-mechanics | Arlinn, the Moon's Fury // Arlinn, the Pack's Hope, Hollowhenge Huntmaster // Avabruck Caretaker, Ballista Wielder // Ballista Watcher |
 | `engine-no-nightbound` | mechanic | 36 | 0 | the keyword in cantrip-mechanics | Arlinn, the Moon's Fury // Arlinn, the Pack's Hope, Hollowhenge Huntmaster // Avabruck Caretaker, Ballista Wielder // Ballista Watcher |
+| `event-object-this-trigger-does-not-bind` | generator | 36 | 31 | a generator arm, or a Cantrip feature if none exists | Ace, Fearless Rebel, Armix, Filigree Thrasher, Ashenmoor Liege |
 | `instruction-for-each-player` | generator | 36 | 2 | a generator arm, or a Cantrip feature if none exists | Alliance of Arms, Bite of the Black Rose, Capital Punishment |
 | `instruction-repeatable` | generator | 36 | 22 | a generator arm, or a Cantrip feature if none exists | Ad Nauseam, Claim Jumper, Countryside Crusher |
 | `numeric-expression-announced-x` | generator | 36 | 15 | a generator arm, or a Cantrip feature if none exists | Arcanis, the Omnipotent Avatar, Blazing Shoal, Bosh, Iron Golem Avatar |
 | `numeric-expression-player-number` | generator | 36 | 18 | a generator arm, or a Cantrip feature if none exists | Akuta, Born of Ash, Angel of Eternal Dawn, Battle Angels of Tyr |
-| `possibly-absent-player-controller-of` | generator | 36 | 27 | a generator arm, or a Cantrip feature if none exists | Arcane Denial, Azog, Moria's Ruin, Brood Sliver |
 | `static-rule-combat-damage` | generator | 36 | 25 | a generator arm, or a Cantrip feature if none exists | Ancient Lumberknot, Arcades, the Strategist, Assault Formation |
 | `target-object-domain-ability` | generator | 36 | 31 | a generator arm, or a Cantrip feature if none exists | Abstruse Archaic, Adric, Mathematical Genius, Ayesha Tanaka |
 | `ability-class` | generator | 35 | 28 | a generator arm, or a Cantrip feature if none exists | Advanced Floral Invocations, Advanced Reconstruction, Alchemist's Talent |
 | `cost-part-choice` | generator | 35 | 28 | a generator arm, or a Cantrip feature if none exists | Bloodthorn Flail, Bullseye, Death Dealer, Chandra, Spark Hunter |
 | `engine-no-station` | mechanic | 35 | 0 | the keyword in cantrip-mechanics | Adagia, Windswept Bastion, Atmospheric Greenhouse, Candela, Aegis of Adagia |
-| `event-object-this-trigger-does-not-bind` | generator | 35 | 31 | a generator arm, or a Cantrip feature if none exists | Ace, Fearless Rebel, Armix, Filigree Thrasher, Ashenmoor Liege |
 | `operation-move-top-card` | generator | 35 | 24 | a generator arm, or a Cantrip feature if none exists | Amareth, the Lustrous, Archghoul of Thraben, Bucolic Ranch |
 | `compound-mana-ability-callback` | generator | 34 | 28 | a generator arm, or a Cantrip feature if none exists | Astral Cornucopia, Brigid, Doun's Mind // Brigid, Clachan's Heart, Brood Astronomer |
 | `engine-no-mutate` | mechanic | 34 | 1 | the keyword in cantrip-mechanics | Archipelagore, Auspicious Starrix, Boneyard Lurker |
@@ -114,15 +114,16 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `duration-while-controlled` | generator | 33 | 24 | a generator arm, or a Cantrip feature if none exists | Aladdin, Dragonlord Silumgar, Dungeon Geists |
 | `object-filter-on-stack` | generator | 33 | 29 | a generator arm, or a Cantrip feature if none exists | Beamsplitter Mage, Captured by the Consulate, Chef's Kiss |
 | `reflexive-ability-about-a-list-of-objects` | generator | 33 | 16 | a generator arm, or a Cantrip feature if none exists | Bolg of the North, Borborygmos and Fblthp, Caldera Breaker |
+| `static-rule-attack-exception` | generator | 33 | 28 | a generator arm, or a Cantrip feature if none exists | Animate Wall, Backstreet Bruiser, Bristlepack Sentry |
 | `static-rule-combat-group` | generator | 33 | 27 | a generator arm, or a Cantrip feature if none exists | Astral Arena, Bonded Construct, Bonded Horncrest |
 | `a-choice-of-ability` | generator | 32 | 0 | a generator arm, or a Cantrip feature if none exists | Alchemist's Gift, Angelic Skirmisher, Argivian Avenger |
 | `engine-no-mutate-event` | engine | 32 | 3 | support in Cantrip's core | Archipelagore, Auspicious Starrix, Boneyard Lurker |
 | `granted-static` | generator | 32 | 28 | a generator arm, or a Cantrip feature if none exists | Armed with Proof, Arterial Alchemy, Beorn's Hospitality |
 | `numeric-expression-paid-counters-removed` | generator | 32 | 2 | a generator arm, or a Cantrip feature if none exists | Arcee, Acrobatic Coupe // Arcee, Sharpshooter, Black Mana Battery, Blademane Baku |
 | `several-objects-arriving-in-a-state` | generator | 32 | 28 | a generator arm, or a Cantrip feature if none exists | Academy Researchers, Aetherplasm, Arni Metalbrow |
-| `static-rule-attack-exception` | generator | 32 | 28 | a generator arm, or a Cantrip feature if none exists | Animate Wall, Backstreet Bruiser, Bristlepack Sentry |
 | `conditional-triggered` | generator | 31 | 2 | a generator arm, or a Cantrip feature if none exists | Aether Syphon, Barrensteppe Siege, Battle of Hoover Dam |
 | `move-arrival-flags` | generator | 31 | 10 | a generator arm, or a Cantrip feature if none exists | Abstract Performance, All Hallow's Eve, Altaïr Ibn-La'Ahad |
+| `numeric-expression-among-players` | generator | 31 | 17 | a generator arm, or a Cantrip feature if none exists | Adamaro, First to Desire, Advice from the Fae, Battle Angels of Tyr |
 | `object-collection-copies` | generator | 31 | 0 | a generator arm, or a Cantrip feature if none exists | Arcane Bombardment, Arcane Proxy, Arcane Savant |
 | `selection-result-outside-generated-scope` | generator | 31 | 3 | a generator arm, or a Cantrip feature if none exists | Benthic Anomaly, Breach the Multiverse, Consuming Tide |
 | `static-rule-block-capacity` | generator | 31 | 25 | a generator arm, or a Cantrip feature if none exists | Avatar of Hope, Brave the Sands, Cenn's Tactician |
@@ -130,7 +131,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `continuous-change-chosen-ability` | generator | 30 | 0 | a generator arm, or a Cantrip feature if none exists | Akroma, Angel of Wrath Avatar, Alchemist's Gift, Angelic Skirmisher |
 | `layout-room` | generator | 30 | 1 | the faces joined the way CardDef joins them, or a Cantrip feature if none exists | Bottomless Pool // Locker Room, Central Elevator // Promising Stairs, Charred Foyer // Warped Space |
 | `mode-count-that-is-not-a-constant` | generator | 30 | 28 | a generator arm, or a Cantrip feature if none exists | Akroma's Will, Bumi, King of Three Trials, Captain James T. Kirk |
-| `numeric-expression-among-players` | generator | 30 | 17 | a generator arm, or a Cantrip feature if none exists | Adamaro, First to Desire, Advice from the Fae, Battle Angels of Tyr |
 | `numeric-expression-count-mana-symbols` | generator | 30 | 24 | a generator arm, or a Cantrip feature if none exists | Anax, Hardened in the Forge, Athreos, God of Passage, Athreos, Shroud-Veiled |
 | `operation-duplicate-counters` | generator | 30 | 21 | a generator arm, or a Cantrip feature if none exists | Aetheric Amplifier, Ambitious Augmenter, Aragorn, Company Leader |
 | `operation-move-counters` | generator | 30 | 23 | a generator arm, or a Cantrip feature if none exists | Aetherborn Marauder, Afiya Grove, Agent's Toolkit |
@@ -142,6 +142,7 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `engine-no-untap-event` | engine | 29 | 27 | support in Cantrip's core | Aerie Worshippers, Arbiter of the Ideal, Daring Thief |
 | `object-filter-history` | generator | 29 | 24 | a generator arm, or a Cantrip feature if none exists | Ancient Imperiosaur, Aradesh, the Founder, Cut Short |
 | `operation-choose-value-with` | generator | 29 | 1 | a generator arm, or a Cantrip feature if none exists | A Killer Among Us, Akroma, Angel of Wrath Avatar, Arachne, Psionic Weaver |
+| `player-reference-chosen` | generator | 29 | 0 | a generator arm, or a Cantrip feature if none exists | Benevolent Offering, Black Vise, Boreas Charger |
 | `replacement-of-counters` | generator | 29 | 24 | a generator arm, or a Cantrip feature if none exists | Benevolent Hydra, Brad Boimler, Eager Ensign, Branching Evolution |
 | `replacement-of-token-creation` | generator | 29 | 23 | a generator arm, or a Cantrip feature if none exists | Academy Manufactor, Adrix and Nev, Twincasters, Anointed Procession |
 | `ability-opening-hand` | generator | 28 | 19 | a generator arm, or a Cantrip feature if none exists | Chancellor of the Annex, Chancellor of the Dross, Chancellor of the Forge |
@@ -149,7 +150,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `granted-mechanic` | generator | 28 | 21 | a generator arm, or a Cantrip feature if none exists | Aspirant's Ascent, Baton of Morale, Battering Ram |
 | `operation-clash` | generator | 28 | 27 | a generator arm, or a Cantrip feature if none exists | Adder-Staff Boggart, Bog Hoodlums, Broken Ambitions |
 | `per-player-discard` | generator | 28 | 10 | a generator arm, or a Cantrip feature if none exists | Awaken the Erstwhile, Blim, Comedic Genius, Chandra Ablaze |
-| `player-reference-chosen` | generator | 28 | 0 | a generator arm, or a Cantrip feature if none exists | Benevolent Offering, Black Vise, Boreas Charger |
 | `power-toughness-counter-other-than-1-1` | generator | 28 | 20 | a generator arm, or a Cantrip feature if none exists | Armor Thrull, Balduvian Hydra, Baron Sengir |
 | `replacement-of-damage-to-a-named-recipient` | generator | 28 | 25 | a generator arm, or a Cantrip feature if none exists | Captain's Maneuver, Carom, Daughter of Autumn |
 | `targets-chosen-by-another-player` | generator | 28 | 25 | a generator arm, or a Cantrip feature if none exists | Arena, Bladegriff Prototype, Confusion in the Ranks |
@@ -220,12 +220,14 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `event-trigger-for-indefinite` | generator | 21 | 16 | a generator arm, or a Cantrip feature if none exists | Arcane Archery, Bloodrage Alpha, Champions of Tyr |
 | `move-to-owners-library-top-or-bottom` | generator | 21 | 21 | a generator arm, or a Cantrip feature if none exists | Desynchronize, Dire Downdraft, Guidance Failure |
 | `object-filter-blocked-by-object` | generator | 21 | 14 | a generator arm, or a Cantrip feature if none exists | Alms Beast, Cromat, Goblin Snowman |
+| `object-reference-granter` | generator | 21 | 6 | a generator arm, or a Cantrip feature if none exists | Animal Friend, Archery Training, Blazing Torch |
 | `operation-deal-damage-from-each` | generator | 21 | 17 | a generator arm, or a Cantrip feature if none exists | Allies at Last, Alpha Brawl, Bartz and Boko |
 | `operation-game-effect` | generator | 21 | 13 | a generator arm, or a Cantrip feature if none exists | Alchemist's Gambit, Bonecrusher Giant // Stomp, Call In a Professional |
 | `static-rule-prohibit-attack` | generator | 21 | 17 | a generator arm, or a Cantrip feature if none exists | Assault Suit, Blazing Archon, Combat Calligrapher |
 | `static-rule-prohibit-be-targeted` | generator | 21 | 18 | a generator arm, or a Cantrip feature if none exists | Anti-Magic Aura, Artifact Ward, Bartel Runeaxe |
 | `conditional-ability-with-an-otherwise` | generator | 20 | 19 | a generator arm, or a Cantrip feature if none exists | Angry Mob, Armament of Nyx, Bonds of Faith |
 | `continuous-rule-attack-exception` | generator | 20 | 18 | a generator arm, or a Cantrip feature if none exists | Assault Formation, Dark Maze, Glade Watcher |
+| `continuous-rule-require-combat-be-blocked` | generator | 20 | 17 | a generator arm, or a Cantrip feature if none exists | Anzrag, the Quake-Mole, Compelled Duel, Deadly Allure |
 | `counter-kind-spore` | vocabulary | 20 | 18 | the counter in Cantrip's counter_kinds | Deathspore Thallid, Elvish Farmer, Feral Thallid |
 | `counters-placed-by-a-resolution-choice` | generator | 20 | 15 | a generator arm, or a Cantrip feature if none exists | Aerith Rescue Mission, Ajani Fells the Godsire, Astarion's Thirst |
 | `engine-only-a-mana-ability-triggers-on-tapping-for-mana` | engine | 20 | 13 | support in Cantrip's core | Barbflare Gremlin, Burning Earth, C.A.M.P. |
@@ -237,7 +239,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `revealed-card-to-a-place-in-a-library` | generator | 20 | 11 | a generator arm, or a Cantrip feature if none exists | Aid from the Cowl, Ajani, Sleeper Agent, Chaos Wand |
 | `a-choice-of-color-outside-its-body` | generator | 19 | 4 | a generator arm, or a Cantrip feature if none exists | Angelic Intervention, Apostle's Blessing, Avacyn, Guardian Angel |
 | `alternate-spell-cost-rule` | generator | 19 | 11 | a generator arm, or a Cantrip feature if none exists | As Foretold, Charred Foyer // Warped Space, Conspiracy Unraveler |
-| `continuous-rule-require-combat-be-blocked` | generator | 19 | 17 | a generator arm, or a Cantrip feature if none exists | Anzrag, the Quake-Mole, Compelled Duel, Deadly Allure |
 | `cost-part-loyalty` | generator | 19 | 5 | a generator arm, or a Cantrip feature if none exists | Ashiok, Nightmare Weaver, Chandra Nalaar, Chandra, Awakened Inferno |
 | `engine-no-blitz` | mechanic | 19 | 11 | the keyword in cantrip-mechanics | Caldaia Guardian, Caldaia Strongarm, Effluence Devourer |
 | `engine-no-vanishing-enters` | mechanic | 19 | 16 | the keyword in cantrip-mechanics | Aven Riftwatcher, Calciderm, Chronozoa |
@@ -266,8 +267,8 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `engine-no-effect-removes-from-combat` | engine | 17 | 13 | support in Cantrip's core | Bill Ferny, Bree Swindler, Disharmony, Gustcloak Harrier |
 | `engine-no-effect-sets-power-or-toughness-alone` | engine | 17 | 15 | support in Cantrip's core | Ambassador Blorpityblorpboop, Amplifire, Arni Brokenbrow |
 | `engine-no-event-for-each-counter-put` | engine | 17 | 8 | support in Cantrip's core | Aeon Chronicler, Benalish Commander, Bloodcrazed Hoplite |
+| `keyword-action-flip` | generator | 17 | 0 | a generator arm, or a Cantrip feature if none exists | Tok-Tok, Volcano Born // Akki Lavarunner, Dokai, Weaver of Life // Budoka Gardener, Ichiga, Who Topples Oaks // Budoka Pupil |
 | `mana-production-same-type-as-produced` | generator | 17 | 12 | a generator arm, or a Cantrip feature if none exists | Dictate of Karametra, Eloren Wilds, Extraplanar Lens |
-| `object-reference-granter` | generator | 17 | 6 | a generator arm, or a Cantrip feature if none exists | Animal Friend, Archery Training, Blazing Torch |
 | `operation-toward-player` | generator | 17 | 14 | a generator arm, or a Cantrip feature if none exists | Axavar, Fate Thief, Cruel Entertainment, Emrakul, the Promised End |
 | `per-player-deal-damage` | generator | 17 | 10 | a generator arm, or a Cantrip feature if none exists | Acidic Soil, Builder's Bane, Heartless Hidetsugu |
 | `spell-cost-reduction-of-colored-mana` | generator | 17 | 11 | a generator arm, or a Cantrip feature if none exists | Aang, Master of Elements // Avatar Aang, Brush Off, Demilich |
@@ -303,6 +304,7 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `condition-most-votes` | generator | 14 | 0 | a generator arm, or a Cantrip feature if none exists | Bite of the Black Rose, Coercive Portal, Galadriel, Elven-Queen |
 | `continuous-rule-prohibit-regenerate` | generator | 14 | 11 | a generator arm, or a Cantrip feature if none exists | Carbonize, Clergy of the Holy Nimbus, Disintegrate |
 | `discard-cost-without-a-fixed-count` | generator | 14 | 11 | a generator arm, or a Cantrip feature if none exists | Abandon Hope, Aether Tide, Channeled Force |
+| `distinct-mana-values` | generator | 14 | 11 | a generator arm, or a Cantrip feature if none exists | All-Seeing Arbiter, Aven Heartstabber, Sanctum of the Sun // Azor's Gateway |
 | `engine-no-hidden-agenda` | mechanic | 14 | 0 | the keyword in cantrip-mechanics | Adriana's Valor, Assemble the Rank and Vile, Brago's Favor |
 | `engine-no-resolving-rule-on-an-open-set-untap-step` | engine | 14 | 13 | support in Cantrip's core | Blinding Beam, Bontu's Last Reckoning, Cone of Cold |
 | `layout-meld-piece` | generator | 14 | 6 | the faces joined the way CardDef joins them, or a Cantrip feature if none exists | Argoth, Sanctum of Nature, Bruna, the Fading Light, Fang, Fearless l'Cie |
@@ -319,7 +321,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `cost-part-constrained` | generator | 13 | 6 | a generator arm, or a Cantrip feature if none exists | Baron Helmut Zemo, Bow to My Command, Fabrication Foundry |
 | `cost-part-reveal-top` | generator | 13 | 11 | a generator arm, or a Cantrip feature if none exists | Fisher's Talent, Ink Dissolver, Kithkin Zephyrnaut |
 | `counter-kind-verse` | vocabulary | 13 | 8 | the counter in Cantrip's counter_kinds | Aria of Flame, Discordant Dirge, Lilting Refrain |
-| `distinct-mana-values` | generator | 13 | 11 | a generator arm, or a Cantrip feature if none exists | All-Seeing Arbiter, Aven Heartstabber, Sanctum of the Sun // Azor's Gateway |
 | `engine-no-afflict` | mechanic | 13 | 12 | the keyword in cantrip-mechanics | Ammit Eternal, Cyberman Patrol, Dagger of the Worthy |
 | `engine-no-graft` | mechanic | 13 | 11 | the keyword in cantrip-mechanics | Aquastrand Spider, Cytoplast Manipulator, Cytoplast Root-Kin |
 | `engine-no-jump-start` | mechanic | 13 | 11 | the keyword in cantrip-mechanics | Beacon Bolt, Chemister's Insight, Dihada's Ploy |
@@ -352,7 +353,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `engine-no-rampage` | mechanic | 12 | 10 | the keyword in cantrip-mechanics | Aerathi Berserker, Balduvian War-Makers, Chromium |
 | `engine-no-resolving-rule-on-an-open-set-require-combat-block` | engine | 12 | 9 | support in Cantrip's core | Alluring Scent, Armed // Dangerous, Bloodscent |
 | `keyword-action-convert` | generator | 12 | 0 | a generator arm, or a Cantrip feature if none exists | Arcee, Acrobatic Coupe // Arcee, Sharpshooter, Blaster, Morale Booster // Blaster, Combat DJ, Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor |
-| `keyword-action-flip` | generator | 12 | 0 | a generator arm, or a Cantrip feature if none exists | Tok-Tok, Volcano Born // Akki Lavarunner, Dokai, Weaver of Life // Budoka Gardener, Kenzo the Hardhearted // Bushi Tenderfoot |
 | `numeric-expression-votes` | generator | 12 | 0 | a generator arm, or a Cantrip feature if none exists | Capital Punishment, Elrond of the White Council, Emissary Green |
 | `operation-abandon-scheme` | generator | 12 | 0 | a generator arm, or a Cantrip feature if none exists | Dark Wings Bring Your Downfall, I Am Duskmourn, I Am Untouchable |
 | `operation-choose-pile` | generator | 12 | 0 | a generator arm, or a Cantrip feature if none exists | Abstract Performance, Atris, Oracle of Half-Truths, Curator of Destinies |
@@ -418,6 +418,7 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `cost-part-mill` | generator | 9 | 7 | a generator arm, or a Cantrip feature if none exists | Ashcoat of the Shadow Swarm, Barrowgoyf, Charmed Pendant |
 | `counters-of-a-kind-chosen-as-the-effect-resolves` | generator | 9 | 7 | a generator arm, or a Cantrip feature if none exists | Eventide's Shadow, Ferropede, Leatherhead, Swamp Stalker |
 | `counters-put-as-a-cost-on-another-object` | generator | 9 | 9 | a generator arm, or a Cantrip feature if none exists | Aven Mimeomancer, Cyclone Sire, Hatchet Bully |
+| `duration-until-next` | generator | 9 | 6 | a generator arm, or a Cantrip feature if none exists | Cycle of Life, Erhnam Djinn, Ertai's Familiar |
 | `engine-no-amplify` | mechanic | 9 | 9 | the keyword in cantrip-mechanics | Aven Warhawk, Canopy Crawler, Daru Stinger |
 | `engine-no-effect-changes-supertypes` | engine | 9 | 5 | support in Cantrip's core | Arcum's Weathervane, Awakening of Vitu-Ghazi, Cacophony Unleashed |
 | `event-trigger-carrying-values` | generator | 9 | 5 | a generator arm, or a Cantrip feature if none exists | Delif's Cube, Jaya, Fiery Negotiator, Phantasmal Mount |
@@ -448,7 +449,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `copy-exception-set-creature-types` | generator | 8 | 8 | a generator arm, or a Cantrip feature if none exists | Ardyn, the Usurper, Croaking Counterpart, Dino DNA |
 | `cost-objects-of-discard` | generator | 8 | 7 | a generator arm, or a Cantrip feature if none exists | Grab the Prize, Hisoka, Minamo Sensei, Mercurial Chemister |
 | `cost-part-unattach` | generator | 8 | 4 | a generator arm, or a Cantrip feature if none exists | Blinding Powder, Heartseeker, Leonin Bola |
-| `duration-until-next` | generator | 8 | 6 | a generator arm, or a Cantrip feature if none exists | Cycle of Life, Erhnam Djinn, Ertai's Familiar |
 | `engine-no-resolving-rule-on-an-open-set-prohibit-attack` | engine | 8 | 3 | support in Cantrip's core | Chronomantic Escape, Festival, Intimidation Bolt |
 | `event-change-as-it-enters-set-destination` | generator | 8 | 8 | a generator arm, or a Cantrip feature if none exists | Balduvian Trading Post, Heart of Yavimaya, Kjeldoran Outpost |
 | `keyword-action-detain` | generator | 8 | 7 | a generator arm, or a Cantrip feature if none exists | Azorius Arrester, Inaction Injunction, Isperia's Skywatch |
@@ -540,6 +540,7 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `mixed-token-text-origins-in-one-creation-batch` | generator | 6 | 5 | a generator arm, or a Cantrip feature if none exists | Devouring Sugarmaw // Have for Dinner, Farmer Cotton, Reckoner Bankbuster |
 | `numeric-expression-chosen-parity` | generator | 6 | 0 | a generator arm, or a Cantrip feature if none exists | Ashling's Prerogative, Extinction Event, Gollum, Riddle Master |
 | `numeric-expression-chosen-power-toughness` | generator | 6 | 0 | a generator arm, or a Cantrip feature if none exists | Brightling, Endling, Multiform Wonder |
+| `object-collection-random` | generator | 6 | 4 | a generator arm, or a Cantrip feature if none exists | Capricious Efreet, Chaos Defiler, Cinderheart Giant |
 | `object-filter-could-enchant` | generator | 6 | 6 | a generator arm, or a Cantrip feature if none exists | Auratouched Mage, Infectious Rage, Retether |
 | `object-filter-entered-from` | generator | 6 | 5 | a generator arm, or a Cantrip feature if none exists | Archfiend's Vessel, Breathless Knight, Don't Blink |
 | `object-filter-has-attached` | generator | 6 | 5 | a generator arm, or a Cantrip feature if none exists | Archon of the Wild Rose, Dawn Evangel, Daybreak Coronet |
@@ -564,6 +565,7 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `resolution-cost-mana-any-number-of-times` | generator | 6 | 0 | a generator arm, or a Cantrip feature if none exists | Bloodthirsty Adversary, Intrepid Adversary, Leyline Tyrant |
 | `source-zone-scope-on-conditional` | generator | 6 | 0 | a generator arm, or a Cantrip feature if none exists | Glitch Ghost Surveyor, Goblin Surveyor, Leonin Surveyor |
 | `spell-cost-increase-of-colored-mana` | generator | 6 | 6 | a generator arm, or a Cantrip feature if none exists | Alabaster Leech, Andradite Leech, Derelor |
+| `static-change-land-types` | generator | 6 | 4 | a generator arm, or a Cantrip feature if none exists | Dryad of the Ilysian Grove, Leyline of the Guildpact, Nylea's Presence |
 | `static-rule-blocks-despite` | generator | 6 | 5 | a generator arm, or a Cantrip feature if none exists | Aether Web, Aetherflame Wall, Dragon Hunter |
 | `static-rule-prohibit-activate` | generator | 6 | 5 | a generator arm, or a Cantrip feature if none exists | Damping Matrix, Faith's Fetters, Katabatic Winds |
 | `static-rule-prohibit-receive-counters` | generator | 6 | 4 | a generator arm, or a Cantrip feature if none exists | Blightbeetle, Darksteel Angel, Melira's Keepers |
@@ -600,6 +602,7 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `engine-no-resolving-rule-on-an-open-set-combat-cost` | engine | 5 | 5 | support in Cantrip's core | Forbidding Spirit, Sivitri, Dragon Master, Summon: Yojimbo |
 | `engine-no-resolving-rule-on-an-open-set-several-changes` | engine | 5 | 3 | support in Cantrip's core | Arcane Lighthouse, Droning Bureaucrats, Illusionist's Gambit |
 | `event-player-this-trigger-does-not-bind` | generator | 5 | 5 | a generator arm, or a Cantrip feature if none exists | Bold Plagiarist, Dokuchi Silencer, Kappa Tech-Wrecker |
+| `granted-conditional` | generator | 5 | 3 | a generator arm, or a Cantrip feature if none exists | Giant's Amulet, Glyph of Delusion, Mindbender Spores |
 | `hand-size-adjust` | generator | 5 | 5 | a generator arm, or a Cantrip feature if none exists | Minamo Scrollkeeper, Thought Devourer, Thought Eater |
 | `keyword-prowess` | generator | 5 | 3 | a generator arm, or a Cantrip feature if none exists | Bria, Riptide Rogue, Narset, Enlightened Exile, Sokka, Tenacious Tactician |
 | `keyword-action-ascend` | generator | 5 | 4 | a generator arm, or a Cantrip feature if none exists | Expel from Orazca, Golden Demise, Pride of Conquerors |
@@ -619,7 +622,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `numeric-expression-draft-noted` | generator | 5 | 0 | a generator arm, or a Cantrip feature if none exists | Cogwork Grinder, Custodi Peacekeeper, Garbage Fire |
 | `numeric-expression-mana-spent-from` | generator | 5 | 5 | a generator arm, or a Cantrip feature if none exists | Bat Colony, Cataclysmic Prospecting, Coin of Mastery |
 | `object-collection-event-group` | generator | 5 | 3 | a generator arm, or a Cantrip feature if none exists | Celes, Rune Knight, Kotis, Sibsig Champion, Satoru, the Infiltrator |
-| `object-collection-random` | generator | 5 | 4 | a generator arm, or a Cantrip feature if none exists | Capricious Efreet, Chaos Defiler, Cinderheart Giant |
 | `object-filter-alternate-cost-paid` | generator | 5 | 5 | a generator arm, or a Cantrip feature if none exists | Baleful Mastery, Devastating Mastery, Fervent Mastery |
 | `object-filter-attached-to` | generator | 5 | 5 | a generator arm, or a Cantrip feature if none exists | Bride's Gown, Groom's Finery, Sage's Reverie |
 | `object-filter-chosen-filter` | generator | 5 | 0 | a generator arm, or a Cantrip feature if none exists | Abundant Harvest, Cunning Azurescale // Divining Dive, Essence Filter |
@@ -641,7 +643,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `resolution-cost-mana` | generator | 5 | 4 | a generator arm, or a Cantrip feature if none exists | Intervention Pact, Pact of Negation, Pact of the Titan |
 | `resolution-cost-unspecialize` | generator | 5 | 2 | a generator arm, or a Cantrip feature if none exists | Lukamina, Bear Form, Lukamina, Crocodile Form, Lukamina, Hawk Form |
 | `shuffle-around-cards-that-stay-where-they-are` | generator | 5 | 2 | a generator arm, or a Cantrip feature if none exists | Ecological Appreciation, Embermouth Sentinel, Long-Term Plans |
-| `static-change-land-types` | generator | 5 | 4 | a generator arm, or a Cantrip feature if none exists | Dryad of the Ilysian Grove, Leyline of the Guildpact, Nylea's Presence |
 | `static-rule-cant-attack-defender-if` | generator | 5 | 5 | a generator arm, or a Cantrip feature if none exists | Branded Brawlers, Goblin Mutant, Mogg Jailer |
 | `static-rule-cant-gain-ability` | generator | 5 | 4 | a generator arm, or a Cantrip feature if none exists | Archetype of Aggression, Archetype of Courage, Archetype of Endurance |
 | `static-rule-damage-stays-marked` | generator | 5 | 4 | a generator arm, or a Cantrip feature if none exists | Ancient Adamantoise, Case of the Market Melee, Patient Zero |
@@ -748,15 +749,14 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `copy-exception-set-cardtypes` | generator | 3 | 2 | a generator arm, or a Cantrip feature if none exists | Espers to Magicite, Fear of Ridicule, Myrkul, Lord of Bones |
 | `cost-branch-madness` | generator | 3 | 3 | a generator arm, or a Cantrip feature if none exists | Avacyn's Judgment, From Under the Floorboards, Welcome to the Fold |
 | `cost-part-mana-x-bounded` | generator | 3 | 3 | a generator arm, or a Cantrip feature if none exists | Mortarion, Daemon Primarch, Shanna, Purifying Blade, Well of Lost Dreams |
-| `counter-kind-blood` | vocabulary | 3 | 2 | the counter in Cantrip's counter_kinds | Bloodletter Quill, Font of Agonies, Rakdos Riteknife |
-| `counter-kind-coin` | vocabulary | 3 | 1 | the counter in Cantrip's counter_kinds | Athreos, Shroud-Veiled, Noble's Purse, Wishing Well |
-| `counter-kind-egg` | vocabulary | 3 | 1 | the counter in Cantrip's counter_kinds | Darigaaz Reincarnated, Darigaaz, Shivan Champion, Xira, the Golden Sting |
+| `counter-kind-blood` | vocabulary | 3 | 1 | the counter in Cantrip's counter_kinds | Bloodletter Quill, Font of Agonies, Rakdos Riteknife |
+| `counter-kind-coin` | vocabulary | 3 | 2 | the counter in Cantrip's counter_kinds | Athreos, Shroud-Veiled, Noble's Purse, Wishing Well |
 | `counter-kind-hatchling` | vocabulary | 3 | 2 | the counter in Cantrip's counter_kinds | Eumidian Hatchery, Ludevic's Abomination // Ludevic's Test Subject, Triassic Egg |
 | `counter-kind-hour` | vocabulary | 3 | 0 | the counter in Cantrip's counter_kinds | Midnight Clock, Midnight Oil, Rusko, Clockmaker |
 | `counter-kind-infection` | vocabulary | 3 | 3 | the counter in Cantrip's counter_kinds | Diseased Vermin, Festering Wound, Genestealer Patriarch |
-| `counter-kind-omen` | vocabulary | 3 | 1 | the counter in Cantrip's counter_kinds | Celestial Convergence, Forsaken Thresher // Foreboding Statue, Cipherbound Spirit // Soulcipher Board |
+| `counter-kind-omen` | vocabulary | 3 | 0 | the counter in Cantrip's counter_kinds | Celestial Convergence, Forsaken Thresher // Foreboding Statue, Cipherbound Spirit // Soulcipher Board |
 | `counter-kind-plague` | vocabulary | 3 | 1 | the counter in Cantrip's counter_kinds | Plague Boiler, Traveling Plague, Withering Hex |
-| `counter-kind-slime` | vocabulary | 3 | 3 | the counter in Cantrip's counter_kinds | Gutter Grime, Sludge Monster, Toxrill, the Corrosive |
+| `counter-kind-slime` | vocabulary | 3 | 2 | the counter in Cantrip's counter_kinds | Gutter Grime, Sludge Monster, Toxrill, the Corrosive |
 | `counter-kind-tide` | vocabulary | 3 | 3 | the counter in Cantrip's counter_kinds | Homarid, Rikala, Homarid King, Tidal Influence |
 | `counters-removed-from-a-player` | generator | 3 | 2 | a generator arm, or a Cantrip feature if none exists | Final Act, Leeches, Suncleanser |
 | `damage-kind-excess-noncombat` | generator | 3 | 2 | a generator arm, or a Cantrip feature if none exists | Fall of Cair Andros, Magmatic Galleon, Toralf's Hammer // Toralf, God of Fury |
@@ -771,7 +771,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `engine-no-resolving-rule-on-an-open-set-prohibit-regenerate` | engine | 3 | 2 | support in Cantrip's core | Flamebreak, Incinerate, Runesword |
 | `engine-splice-onto-other-than-arcane` | engine | 3 | 2 | support in Cantrip's core | Everdream, Fell Beast's Shriek, Splicer's Skill |
 | `exile-outside-a-stack-item-that-an-ability-reads-as-exiled-with-its-source` | generator | 3 | 1 | a generator arm, or a Cantrip feature if none exists | Dermotaxi, Living Lore, Sutured Ghoul |
-| `granted-conditional` | generator | 3 | 3 | a generator arm, or a Cantrip feature if none exists | Giant's Amulet, Restless Spire, Sedge Sliver |
 | `granted-replacement` | generator | 3 | 2 | a generator arm, or a Cantrip feature if none exists | Caduceus, Staff of Hermes, Can't Stay Away, Pulmonic Sliver |
 | `history-measure-distinct-sources` | generator | 3 | 2 | a generator arm, or a Cantrip feature if none exists | Admiral Beckett Brass, Indulge // Excess, Inferno Trap |
 | `keyword-action-become-blocked` | generator | 3 | 3 | a generator arm, or a Cantrip feature if none exists | Curtain of Light, Dazzling Beauty, Trap Runner |
@@ -827,6 +826,7 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `snow-mana-spent` | generator | 3 | 3 | a generator arm, or a Cantrip feature if none exists | Berg Strider, Graven Lore, Search for Glory |
 | `static-change-remove-card-type` | generator | 3 | 0 | a generator arm, or a Cantrip feature if none exists | Arvinox, the Mind Flail, Luxior, Giada's Gift, The Warring Triad |
 | `static-rule-attach-only-to` | generator | 3 | 3 | a generator arm, or a Cantrip feature if none exists | Gate Smasher, Konda's Banner, O-Naginata |
+| `static-rule-attack-drags` | generator | 3 | 1 | a generator arm, or a Cantrip feature if none exists | Magnetic Web, Viashino Bey, War's Toll |
 | `static-rule-blocks-only-if` | generator | 3 | 3 | a generator arm, or a Cantrip feature if none exists | Goblin Goon, Mogg Toady, Monstrous Hound |
 | `static-rule-prohibit-be-attached-by` | generator | 3 | 3 | a generator arm, or a Cantrip feature if none exists | Consecrate Land, Goblin Brawler, Guardian Beast |
 | `static-rule-prohibit-crew` | generator | 3 | 3 | a generator arm, or a Cantrip feature if none exists | Bound in Gold, Intercessor's Arrest, Revoke Privileges |
@@ -877,24 +877,25 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `cost-part-object-action` | generator | 2 | 0 | a generator arm, or a Cantrip feature if none exists | Frantic Scapegoat, Lynde, Cheerful Tormentor |
 | `cost-part-reveal-choice` | generator | 2 | 0 | a generator arm, or a Cantrip feature if none exists | A Killer Among Us, Guardian Archon |
 | `counter-kind-acorn` | vocabulary | 2 | 1 | the counter in Cantrip's counter_kinds | Chitterspitter, Euru, Acorn Scrounger |
-| `counter-kind-aim` | vocabulary | 2 | 1 | the counter in Cantrip's counter_kinds | Hankyu, Haphazard Bombardment |
-| `counter-kind-blaze` | vocabulary | 2 | 2 | the counter in Cantrip's counter_kinds | Five-Alarm Fire, Obsidian Fireheart |
+| `counter-kind-blaze` | vocabulary | 2 | 1 | the counter in Cantrip's counter_kinds | Five-Alarm Fire, Obsidian Fireheart |
 | `counter-kind-devotion` | vocabulary | 2 | 2 | the counter in Cantrip's counter_kinds | Bloodthirsty Ogre, Pious Kitsune |
+| `counter-kind-egg` | vocabulary | 2 | 0 | the counter in Cantrip's counter_kinds | Darigaaz Reincarnated, Xira, the Golden Sting |
 | `counter-kind-eon` | vocabulary | 2 | 1 | the counter in Cantrip's counter_kinds | Magosi, the Waterveil, Out of the Tombs |
 | `counter-kind-fate` | vocabulary | 2 | 2 | the counter in Cantrip's counter_kinds | Oblivion Stone, Triad of Fates |
 | `counter-kind-feather` | vocabulary | 2 | 2 | the counter in Cantrip's counter_kinds | Kangee, Aerie Keeper, Soulcatchers' Aerie |
 | `counter-kind-fetch` | vocabulary | 2 | 1 | the counter in Cantrip's counter_kinds | Hex, Kellan's Companion, Pako, Arcane Retriever |
 | `counter-kind-fire` | vocabulary | 2 | 2 | the counter in Cantrip's counter_kinds | Fated Firepower, War Balloon |
-| `counter-kind-fungus` | vocabulary | 2 | 2 | the counter in Cantrip's counter_kinds | Mindbender Spores, Sporogenesis |
+| `counter-kind-fungus` | vocabulary | 2 | 1 | the counter in Cantrip's counter_kinds | Mindbender Spores, Sporogenesis |
 | `counter-kind-gold` | vocabulary | 2 | 2 | the counter in Cantrip's counter_kinds | Aurification, Dragon's Hoard |
 | `counter-kind-healing` | vocabulary | 2 | 2 | the counter in Cantrip's counter_kinds | Fylgja, Ursine Fylgja |
-| `counter-kind-hit` | vocabulary | 2 | 2 | the counter in Cantrip's counter_kinds | Etrata, the Silencer, Ravenloft Adventurer |
+| `counter-kind-hit` | vocabulary | 2 | 1 | the counter in Cantrip's counter_kinds | Etrata, the Silencer, Ravenloft Adventurer |
 | `counter-kind-point` | vocabulary | 2 | 1 | the counter in Cantrip's counter_kinds | Contested Game Ball, Strixhaven Stadium |
 | `counter-kind-scream` | vocabulary | 2 | 1 | the counter in Cantrip's counter_kinds | All Hallow's Eve, Endless Scream |
 | `counter-kind-stash` | vocabulary | 2 | 1 | the counter in Cantrip's counter_kinds | Glittering Stockpile, Hoarder's Overflow |
 | `counter-kind-wind` | vocabulary | 2 | 0 | the counter in Cantrip's counter_kinds | Cyclone, Freyalise's Winds |
 | `counter-removal-among-them` | generator | 2 | 1 | a generator arm, or a Cantrip feature if none exists | Overseer of Vault 76, Sensational Spider-Man |
 | `delayed-trigger-on-event-player` | generator | 2 | 1 | a generator arm, or a Cantrip feature if none exists | Krovikan Vampire, Ogre Geargrabber |
+| `delayed-trigger-on-event-zone-change` | generator | 2 | 1 | a generator arm, or a Cantrip feature if none exists | Tatsumasa, the Dragon's Fang, Xira, the Golden Sting |
 | `distinct-permanent-types` | generator | 2 | 0 | a generator arm, or a Cantrip feature if none exists | Korvold, Gleeful Glutton, The Core // Matzalantli, the Great Door |
 | `duration-during-next-turn` | generator | 2 | 1 | a generator arm, or a Cantrip feature if none exists | Gideon, Battle-Forged // Kytheon, Hero of Akros, Wall of Dust |
 | `engine-no-bloodthirst-x` | mechanic | 2 | 0 | the keyword in cantrip-mechanics | Indoraptor, the Perfect Hybrid, Petrified Wood-Kin |
@@ -989,7 +990,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `static-change-copy-of` | generator | 2 | 0 | a generator arm, or a Cantrip feature if none exists | Metamorphic Alteration, Dinosaur Headdress // Paleontologist's Pick-Axe |
 | `static-change-set-name` | generator | 2 | 2 | a generator arm, or a Cantrip feature if none exists | Honest Work, Witness Protection |
 | `static-rule-assign-damage-to` | generator | 2 | 2 | a generator arm, or a Cantrip feature if none exists | Butcher Orgg, Cunning Giant |
-| `static-rule-attack-drags` | generator | 2 | 1 | a generator arm, or a Cantrip feature if none exists | Viashino Bey, War's Toll |
 | `static-rule-blocked-by-defender` | generator | 2 | 2 | a generator arm, or a Cantrip feature if none exists | Graxiplon, Tanglewalker |
 | `static-rule-prohibit-phase-in` | generator | 2 | 0 | a generator arm, or a Cantrip feature if none exists | Disciple of Caelus Nin, The City on the Edge of Forever |
 | `static-rule-prohibit-transform` | generator | 2 | 2 | a generator arm, or a Cantrip feature if none exists | Bound by Moonsilver, Immerwolf |
@@ -1086,10 +1086,10 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `cost-part-unattach-from` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Akiri, Fearless Voyager |
 | `counter-into-owners-library-top-or-bottom` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Hinder |
 | `counter-kind-aegis` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Livio, Oathsworn Sentinel |
+| `counter-kind-aim` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Haphazard Bombardment |
 | `counter-kind-arrow` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Archery Training |
 | `counter-kind-arrowhead` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Serrated Arrows |
 | `counter-kind-awakening` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Liege of the Tangle |
-| `counter-kind-bait` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Fishing Pole |
 | `counter-kind-blessing` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Boon of the Spirit Realm |
 | `counter-kind-bloodline` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Edgar Markov's Coffin // Edgar, Charmed Groom |
 | `counter-kind-bloodstain` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Blood Spatter Analysis |
@@ -1113,11 +1113,11 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `counter-kind-despair` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Descent into Madness |
 | `counter-kind-dread` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Shadows' Lair // Grasping Shadows |
 | `counter-kind-duty` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Immortal Obligation |
-| `counter-kind-echo` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Soul Echo |
+| `counter-kind-echo` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Soul Echo |
 | `counter-kind-elixir` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Essence Bottle |
 | `counter-kind-ember` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Ashmouth Dragon // Smoldering Egg |
 | `counter-kind-enlightened` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | The Book of Exalted Deeds |
-| `counter-kind-everything` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Omo, Queen of Vesuva |
+| `counter-kind-everything` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Omo, Queen of Vesuva |
 | `counter-kind-exalted` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Emissary of Soulfire |
 | `counter-kind-exposure` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Aplan Mortarium |
 | `counter-kind-eyeball` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Jar of Eyeballs |
@@ -1128,13 +1128,13 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `counter-kind-fury` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Charging Cinderhorn |
 | `counter-kind-gem` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Briber's Purse |
 | `counter-kind-ghostform` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Kaya the Inexorable |
-| `counter-kind-glyph` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Glyph of Delusion |
+| `counter-kind-glyph` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Glyph of Delusion |
 | `counter-kind-harmony` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Instrument of the Bards |
 | `counter-kind-hatching` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Dragon-Kami's Egg // The Dragon-Kami Reborn |
 | `counter-kind-hoofprint` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Hoofprints of the Stag |
 | `counter-kind-hourglass` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Temporal Distortion |
 | `counter-kind-hunger` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Fasting |
-| `counter-kind-impostor` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Illicit Masquerade |
+| `counter-kind-impostor` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Illicit Masquerade |
 | `counter-kind-incarnation` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Nine Lives |
 | `counter-kind-ingredient` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Communal Brewing |
 | `counter-kind-intel` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Flamewar, Streetwise Operative // Flamewar, Brash Veteran |
@@ -1142,10 +1142,11 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `counter-kind-isolation` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Quarantine Field |
 | `counter-kind-javelin` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Icatian Javelineers |
 | `counter-kind-judgment` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Sinner's Judgment // Faithbound Judge |
+| `counter-kind-kick` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Zethi, Arcane Blademaster |
 | `counter-kind-knowledge` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | The Magic Mirror |
 | `counter-kind-landmark` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Treasure Cove // Treasure Map |
 | `counter-kind-loot` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Bandit's Haul |
-| `counter-kind-magnet` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Magnetic Web |
+| `counter-kind-magnet` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Magnetic Web |
 | `counter-kind-mannequin` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Makeshift Mannequin |
 | `counter-kind-matrix` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Life Matrix |
 | `counter-kind-memory` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | The Animus |
@@ -1159,7 +1160,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `counter-kind-ore` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Orcish Mine |
 | `counter-kind-pain` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Torture Chamber |
 | `counter-kind-palliation` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Palliation Accord |
-| `counter-kind-paralyzation` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Dread Wight |
 | `counter-kind-petal` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Lotus Blossom |
 | `counter-kind-petrification` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Xathrid Gorgon |
 | `counter-kind-phylactery` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Phylactery Lich |
@@ -1170,7 +1170,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `counter-kind-prey` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Tetzimoc, Primal Death |
 | `counter-kind-pupa` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Cocoon |
 | `counter-kind-rally` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Aligned Heart |
-| `counter-kind-refine` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Nassari, Dean of Expression // Uvilda, Dean of Perfection |
 | `counter-kind-rejection` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Tolarian Contempt |
 | `counter-kind-reprieve` | vocabulary | 1 | 0 | the counter in Cantrip's counter_kinds | Magnanimous Magistrate |
 | `counter-kind-revival` | vocabulary | 1 | 1 | the counter in Cantrip's counter_kinds | Nine-Lives Familiar |
@@ -1212,7 +1211,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `delayed-trigger-on-event-activated` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Dynaheir, Invoker Adept |
 | `delayed-trigger-on-event-filtered` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Skyshroud Ambush |
 | `delayed-trigger-on-event-spell-or-activation` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Repeated Reverberation |
-| `delayed-trigger-on-event-zone-change` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Tatsumasa, the Dragon's Fang |
 | `distinct-color-pairs` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Niv-Mizzet, Guildpact |
 | `distinct-mana-costs` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Embodiment of Agonies |
 | `distinct-planeswalker-types` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Tam, the Possibility |
@@ -1383,6 +1381,7 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `player-state-shuffled-this-way` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Step Between Worlds |
 | `player-state-whole-pool-in-deck` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Worldknit |
 | `possibly-absent-player-attacking-player` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Contested Game Ball |
+| `possibly-absent-player-enchanted-by` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Sinner's Judgment // Faithbound Judge |
 | `possibly-absent-player-event-subject` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Ezio Auditore da Firenze |
 | `possibly-absent-player-performer` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Allure of the Unknown |
 | `possibly-absent-player-prior` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Illicit Auction |
