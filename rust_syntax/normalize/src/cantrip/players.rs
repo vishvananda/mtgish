@@ -30,7 +30,7 @@ impl Compiler {
             other => format!("({}).contains(&player)", self.players(other)?),
         })
     }
-    fn guard(&self) -> Result<String> {
+    pub(super) fn guard(&self) -> Result<String> {
         Ok(match &self.static_guard {
             Some(condition) => format!("({}) && ", self.condition(condition)?),
             None => String::new(),
@@ -87,7 +87,7 @@ impl Compiler {
         );
         Ok(())
     }
-    fn player_rule(
+    pub(super) fn player_rule(
         &mut self,
         label: &str,
         players: &PlayerSet,
@@ -382,7 +382,7 @@ impl Compiler {
             }
         })
     }
-    fn prohibit(
+    pub(super) fn prohibit(
         &mut self,
         function: &str,
         players: &PlayerSet,

@@ -1747,7 +1747,7 @@ impl Compiler {
         self.left_behind(result, gone(&format!("objects_{id}")));
         Ok(())
     }
-    pub(super) fn duration(&self, duration: &crate::ir::Duration) -> Result<String> {
+    pub(super) fn duration(&mut self, duration: &crate::ir::Duration) -> Result<String> {
         use crate::ir::Duration as D;
         Ok(match duration {
             D::EndOfTurn => "Duration::EndOfTurn".into(),
@@ -1762,7 +1762,7 @@ impl Compiler {
                 "Duration::EndOfNextTurnOf({})",
                 self.fetch(self.certain_player(player)?)
             ),
-            other => return Err(gap(format!("duration {}", form(other)))),
+            other => return self.more_duration(other),
         })
     }
     /// One instruction of the card's text: the IR keeps what one instruction
@@ -1856,7 +1856,7 @@ impl Compiler {
             .unwrap();
             return Ok(());
         }
-        let duration = self.duration(duration)?;
+        let duration = self.duration(&lane_h::duration_on(affected, duration))?;
         writeln!(
             out,
             "let objects_{id} = {}; let source_{id} = {}; let duration_{id} = {duration};",
@@ -2046,7 +2046,7 @@ impl Compiler {
                 "EffectKind::Control({})",
                 self.certain_player(player)?
             )],
-            Change::Rule(rule) => return Err(gap(format!("continuous rule {}", rule_name(rule)))),
+            Change::Rule(rule) => return self.continuous_rule(rule),
             other => return Err(gap(format!("continuous change {}", form(other)))),
         })
     }

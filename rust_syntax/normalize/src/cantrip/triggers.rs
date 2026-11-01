@@ -561,7 +561,7 @@ impl Compiler {
         Ok(single(
             "BECAME_TARGET",
             Arm {
-                pattern: "Event::BecameTarget { target: Target::Object(target), by, controller }".into(),
+                pattern: "Event::BecameTarget { target: Target::Object(target), by, controller, .. }".into(),
                 locals: "let id = *target; let by = *by; let controller = *controller; let subject = Target::Object(id); let data = [by.0, u32::from(controller.0)];".into(),
                 tests,
             },

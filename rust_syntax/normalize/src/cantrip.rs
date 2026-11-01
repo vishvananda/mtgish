@@ -18,6 +18,7 @@ mod costs;
 mod delayed;
 mod effects;
 mod keywords;
+mod lane_h;
 mod mechanics;
 pub mod planned;
 mod players;
@@ -99,6 +100,10 @@ fn generator_fingerprint() -> &'static str {
     HASH.get_or_init(|| {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
+            (
+                "cantrip/lane_h.rs",
+                include_bytes!("cantrip/lane_h.rs").as_slice(),
+            ),
             (
                 "cantrip/card_file.rs",
                 include_bytes!("cantrip/card_file.rs").as_slice(),
@@ -413,6 +418,13 @@ struct Compiler {
     /// `CardDef::granted_preventions` and `granted_replacements`.
     made_preventions: Vec<String>,
     made_replacements: Vec<String>,
+    /// The counter a replacement of counters is about, indexing `counts`:
+    /// `None` when it is about every kind.
+    replaced_counter: Option<String>,
+    /// `CardDef::lasting`: the conditions of "for as long as" durations.
+    lasting: Vec<String>,
+    /// `CardDef::lasting_block_rules`.
+    made_block_rules: Vec<String>,
     granting: bool,
     functions: String,
     next: usize,
@@ -680,6 +692,9 @@ impl Compiler {
             outer: None,
             made_preventions: Vec::new(),
             made_replacements: Vec::new(),
+            replaced_counter: None,
+            lasting: Vec::new(),
+            made_block_rules: Vec::new(),
             granting: false,
             functions: String::new(),
             next: 0,
@@ -977,7 +992,7 @@ impl Compiler {
     ) -> Result<()> {
         let id = self.next;
         self.next += 1;
-        let restriction = restriction.map(mana_restriction).transpose()?;
+        let restriction = restriction.map(|r| self.mana_use(r)).transpose()?;
         let add = |player: &str, color: &str, amount: &str| -> String {
             match &restriction {
                 Some(r) => format!("g.add_restricted_mana({player}, {color}, {amount}, {r});"),
@@ -1132,7 +1147,7 @@ impl Compiler {
             }
         }
         if let Some(r) = restriction {
-            metadata.push_str(&format!(".only_for({})", mana_restriction(r)?));
+            metadata.push_str(&format!(".only_for({})", self.mana_use(r)?));
         }
         let mut out = String::new();
         self.stack_item = false;
@@ -1635,6 +1650,12 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     }
     for made in std::mem::take(&mut c.made_replacements) {
         parts.table("granted_replacements", made);
+    }
+    for made in std::mem::take(&mut c.lasting) {
+        parts.table("lasting", made);
+    }
+    for made in std::mem::take(&mut c.made_block_rules) {
+        parts.table("lasting_block_rules", made);
     }
     let rest = parts.rest();
     let Parts {

@@ -921,7 +921,7 @@ impl Compiler {
                 let mut compiled = Ok(());
                 for (i, inner) in then.iter().enumerate() {
                     let step = match inner {
-                        Ability::Static { .. } => {
+                        Ability::Static { .. } | Ability::Replacement { .. } => {
                             self.ability(inner, &format!("{label}_{i}"), parts, scope)
                         }
                         Ability::Keyword(k) => self.static_ability(
