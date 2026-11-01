@@ -2015,6 +2015,70 @@ impl Inventory<'_> {
             | ObjectFilter::WasAttachedTo(object) => self.object(object),
             ObjectFilter::DamagedBy(_) | ObjectFilter::DealtExcessBy(_) => {}
             ObjectFilter::Primitive { name, .. } => self.primitive(name),
+            ObjectFilter::History { event, window } => {
+                match event {
+                    ObjectHistory::AttackedDefender(filter) | ObjectHistory::Enlisted(filter) => {
+                        self.filter(filter)
+                    }
+                    ObjectHistory::Drawn(Some(players))
+                    | ObjectHistory::ExiledFromGraveyard(players) => self.players(players),
+                    ObjectHistory::DamagedBy(object)
+                    | ObjectHistory::Convoked(object)
+                    | ObjectHistory::Exploited(object)
+                    | ObjectHistory::TappedToPayFor(object) => self.object(object),
+                    _ => {}
+                }
+                match window {
+                    ObjectWindow::LastTurnOf(player)
+                    | ObjectWindow::SinceLastUpkeepOf(player)
+                    | ObjectWindow::SinceLastTurnOf(player) => self.player(player),
+                    _ => {}
+                }
+            }
+            ObjectFilter::ManaSpent {
+                sources,
+                payers,
+                value,
+                ..
+            } => {
+                if let Some(sources) = sources {
+                    self.filter(sources);
+                }
+                if let Some(payers) = payers {
+                    self.players(payers);
+                }
+                self.expr(value);
+            }
+            ObjectFilter::AlternateCostPaid(_)
+            | ObjectFilter::ManaCostIs(_)
+            | ObjectFilter::ManaSymbolInCost(_)
+            | ObjectFilter::NameFirstPrintedIn(_)
+            | ObjectFilter::InResult(_)
+            | ObjectFilter::CouldProduce(_) => {}
+            ObjectFilter::BlockingAny(filter)
+            | ObjectFilter::BlockedByAny(filter)
+            | ObjectFilter::PairedWith(filter)
+            | ObjectFilter::CanTargetOnly(filter)
+            | ObjectFilter::WouldDestroy(filter) => self.filter(filter),
+            ObjectFilter::BandedWith(object)
+            | ObjectFilter::TargetableBy(object)
+            | ObjectFilter::CouldProduceManaOf(object) => self.object(object),
+            ObjectFilter::AttachedCount {
+                attachments, value, ..
+            } => {
+                self.filter(attachments);
+                self.expr(value);
+            }
+            ObjectFilter::ProtectedBy(players) | ObjectFilter::InStartingDeck(players) => {
+                self.players(players)
+            }
+            ObjectFilter::CouldEnchant(objects) => self.objects(objects),
+            ObjectFilter::ExiledBy { player, with, .. } => {
+                self.player(player);
+                if let Some(object) = with {
+                    self.object(object);
+                }
+            }
             ObjectFilter::AttachedTo(filter) => self.filter(filter),
             ObjectFilter::BlockingObject(object) => self.object(object),
             ObjectFilter::Condition(condition) => self.condition(condition),

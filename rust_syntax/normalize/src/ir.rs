@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 146;
+pub const SCHEMA_VERSION: u32 = 147;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2924,6 +2924,14 @@ pub enum Property {
     Loyalty,
     /// CR 702.161: the starting intensity plus what intensify added.
     Intensity,
+    TotalPowerAndToughness,
+    CreatureTypeCount,
+    CardTypeCount,
+    ColorSymbolCount,
+    /// Cards exiled with this object.
+    ExiledCount,
+    /// Creatures that crewed this Vehicle this turn.
+    CrewCount,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum BlockRole {
@@ -3402,6 +3410,92 @@ pub enum ObjectFilter {
     ChosenFilter,
     /// Shares a color with any of a set, as protection from the colors of permanents.
     SharesColorWithAny(Box<ObjectSet>),
+    /// What happened to this object in a window, as Forge's `attackedThisTurn`.
+    History {
+        event: ObjectHistory,
+        window: ObjectWindow,
+    },
+    /// Mana spent to cast it, narrowed by color, source or who paid.
+    ManaSpent {
+        color: Option<ManaColor>,
+        sources: Option<Box<ObjectFilter>>,
+        payers: Option<PlayerSet>,
+        comparison: Comparison,
+        value: Expr,
+    },
+    /// Cast for this alternative cost.
+    AlternateCostPaid(Vec<Operand>),
+    /// A printed mana cost, symbol for symbol.
+    ManaCostIs(Vec<Operand>),
+    ManaSymbolInCost(ManaColor),
+    /// An object a preceding instruction named, whatever kind of result it holds.
+    InResult(ResultId),
+    BlockingAny(Box<ObjectFilter>),
+    BlockedByAny(Box<ObjectFilter>),
+    PairedWith(Box<ObjectFilter>),
+    BandedWith(ObjectRef),
+    AttachedCount {
+        attachments: Box<ObjectFilter>,
+        comparison: Comparison,
+        value: Expr,
+    },
+    ProtectedBy(PlayerSet),
+    NameFirstPrintedIn(FirstPrinting),
+    InStartingDeck(PlayerSet),
+    /// Every target it could choose matches.
+    CanTargetOnly(Box<ObjectFilter>),
+    /// Resolving it would destroy a permanent that matches.
+    WouldDestroy(Box<ObjectFilter>),
+    TargetableBy(ObjectRef),
+    CouldEnchant(Box<ObjectSet>),
+    CouldProduce(Box<Operand>),
+    CouldProduceManaOf(ObjectRef),
+    ExiledBy {
+        player: PlayerRef,
+        with: Option<ObjectRef>,
+        this_turn: bool,
+    },
+}
+
+/// Something that happened to an object. See `ObjectFilter::History`.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ObjectHistory {
+    Attacked,
+    AttackedDefender(Box<ObjectFilter>),
+    Blocked,
+    WasBlocked,
+    Regenerated,
+    AbilityActivated,
+    Entered,
+    Drawn(Option<PlayerSet>),
+    Discarded,
+    Milled,
+    Exiled,
+    ExiledFromGraveyard(PlayerSet),
+    PutIntoGraveyard,
+    DealtCombatDamage,
+    DamagedBy(ObjectRef),
+    Enlisted(Box<ObjectFilter>),
+    Convoked(ObjectRef),
+    Exploited(ObjectRef),
+    TappedToPayFor(ObjectRef),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ObjectWindow {
+    ThisTurn,
+    ThisCombat,
+    ThisGame,
+    LastTurnOf(PlayerRef),
+    SinceLastUpkeepOf(PlayerRef),
+    SinceLastTurnOf(PlayerRef),
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum FirstPrinting {
+    ArabianNights,
+    Antiquities,
+    Homelands,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4117,6 +4211,57 @@ pub enum ObjectState {
     DoubleFaced,
     Prepared,
     PowerAboveBase,
+    RingBearer,
+    Harnessed,
+    Worthy,
+    PowerEqualsToughness,
+    PowerDiffersFromBase,
+    BlockingAlone,
+    KickedTwice,
+    Modal,
+    HybridInCost,
+    PhyrexianInCost,
+    RepeatedManaSymbol,
+    Nameless,
+    NonBasicLandType,
+    Foretold,
+    Unearthed,
+    Embalmed,
+    DevouredACreature,
+    StartedTurnUntapped,
+    ControlledSinceBeforeCombat,
+    ControlledSinceMostRecentTurn,
+    FirstLandPlayedThisTurn,
+    HadToAttack,
+    CouldntAttack,
+    MostVotes,
+    ReceivedAVote,
+    ManaSpentBelowManaValue,
+    SnowManaOfOwnColorSpent,
+    CostPaid(CastCost),
+    Sticker(StickerKind),
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum CastCost {
+    Additional,
+    Prowl,
+    Sneak,
+    Spectacle,
+    Surge,
+    Emerge,
+    Madness,
+    WebSlinging,
+    Teamwork,
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum StickerKind {
+    Name,
+    Art,
+    PowerToughness,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

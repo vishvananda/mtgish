@@ -1033,6 +1033,74 @@ impl<'a> Scope<'a> {
             ObjectFilter::DamagedBy(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectFilter::DamagedBy(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectFilter::Primitive { name, operands } => self.primitive(name, operands),
+            ObjectFilter::History { event, window } => {
+                match event {
+                    ObjectHistory::AttackedDefender(filter) | ObjectHistory::Enlisted(filter) => {
+                        self.filter(filter)?
+                    }
+                    ObjectHistory::Drawn(Some(players))
+                    | ObjectHistory::ExiledFromGraveyard(players) => self.players(players)?,
+                    ObjectHistory::DamagedBy(object)
+                    | ObjectHistory::Convoked(object)
+                    | ObjectHistory::Exploited(object)
+                    | ObjectHistory::TappedToPayFor(object) => self.object(object)?,
+                    _ => {}
+                }
+                match window {
+                    ObjectWindow::LastTurnOf(player)
+                    | ObjectWindow::SinceLastUpkeepOf(player)
+                    | ObjectWindow::SinceLastTurnOf(player) => self.player(player),
+                    _ => Ok(()),
+                }
+            }
+            ObjectFilter::ManaSpent {
+                sources,
+                payers,
+                value,
+                ..
+            } => {
+                if let Some(sources) = sources {
+                    self.filter(sources)?;
+                }
+                if let Some(payers) = payers {
+                    self.players(payers)?;
+                }
+                self.expr(value)
+            }
+            ObjectFilter::AlternateCostPaid(operands) | ObjectFilter::ManaCostIs(operands) => {
+                operands
+                    .iter()
+                    .try_for_each(|operand| self.operand(operand))
+            }
+            ObjectFilter::ManaSymbolInCost(_) | ObjectFilter::NameFirstPrintedIn(_) => Ok(()),
+            ObjectFilter::InResult(result) if self.results.contains_key(&result.0) => Ok(()),
+            ObjectFilter::InResult(result) => Err(format!("result {} is unavailable", result.0)),
+            ObjectFilter::BlockingAny(filter)
+            | ObjectFilter::BlockedByAny(filter)
+            | ObjectFilter::PairedWith(filter)
+            | ObjectFilter::CanTargetOnly(filter)
+            | ObjectFilter::WouldDestroy(filter) => self.filter(filter),
+            ObjectFilter::BandedWith(object)
+            | ObjectFilter::TargetableBy(object)
+            | ObjectFilter::CouldProduceManaOf(object) => self.object(object),
+            ObjectFilter::AttachedCount {
+                attachments, value, ..
+            } => {
+                self.filter(attachments)?;
+                self.expr(value)
+            }
+            ObjectFilter::ProtectedBy(players) | ObjectFilter::InStartingDeck(players) => {
+                self.players(players)
+            }
+            ObjectFilter::CouldEnchant(objects) => self.objects(objects),
+            ObjectFilter::CouldProduce(operand) => self.operand(operand),
+            ObjectFilter::ExiledBy { player, with, .. } => {
+                self.player(player)?;
+                match with {
+                    Some(object) => self.object(object),
+                    None => Ok(()),
+                }
+            }
             ObjectFilter::Condition(condition) => self.condition(condition),
             ObjectFilter::HasAttached(filter) => self.filter(filter),
             ObjectFilter::AttachedToPlayer(player) => self.player(player),

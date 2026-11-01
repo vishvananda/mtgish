@@ -2103,5 +2103,8 @@ fn a_search_can_count_the_names_it_found() {
     ))
     .unwrap();
     assert!(format!("{card:?}").contains("CountDistinct"));
-    assert!(custom(&format!("SpellActions(ActionList([If({read},[DrawACard])]))")).is_err());
+    assert!(custom(&format!(
+        "SpellActions(ActionList([If({read},[DrawACard])]))"
+    ))
+    .is_err());
 }

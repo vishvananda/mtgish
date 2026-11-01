@@ -1625,9 +1625,12 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
         (_, "IsAttackingAPlayer", [Operand::Players(players)]) => {
             ObjectFilter::AttackingDefender(Box::new(AttackDefenders::Players(players.clone())))
         }
-        _ => ObjectFilter::Primitive { name, operands },
+        _ => reduce_object_filter(form, &operands)
+            .unwrap_or(ObjectFilter::Primitive { name, operands }),
     }
 }
+
+include!("reduce_objects.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
