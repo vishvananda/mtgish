@@ -15,7 +15,7 @@ fn renumbers_ids_in_definition_order_and_sorts_commutative_lists() {
     let mut value = json!([{"kind":"Spell","args":{
         "announcement":{"targets":[spec(5, json!({"kind":"All","args":[
             {"kind":"Tapped"},{"kind":"CardType","args":"Creature"}]}))],"modes":null},
-        "body":{"instructions":[effect(7, target(5))]}}}]);
+        "body":{"instructions":[effect(7, target(5)), effect(9, json!({"kind":"Selected","args":7}))]}}}]);
     canonical::abilities(&mut value).unwrap();
     let args = &value[0]["args"];
     assert_eq!(args["announcement"]["targets"][0]["slot"], 0);
@@ -188,4 +188,19 @@ fn a_shared_body_merges_triggers_into_either() {
     canonical::abilities(&mut split).unwrap();
     canonical::abilities(&mut joined).unwrap();
     assert_eq!(split, joined);
+}
+
+#[test]
+fn numbers_nobody_reads_do_not_count() {
+    let spell = |first: u32, second: u32| {
+        json!([{"kind":"Spell","args":{"announcement":{"targets":[],"modes":null},"body":{"instructions":[
+            effect(first, json!({"kind":"One","args":{"kind":"Source"}})),
+            effect(second, json!({"kind":"Selected","args":first})),
+        ]}}}])
+    };
+    let (mut a, mut b) = (spell(0, 1), spell(7, 2));
+    canonical::abilities(&mut a).unwrap();
+    canonical::abilities(&mut b).unwrap();
+    assert_eq!(a, b);
+    assert_eq!(a[0]["args"]["body"]["instructions"][1]["args"]["result"], u32::MAX);
 }

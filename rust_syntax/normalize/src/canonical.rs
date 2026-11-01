@@ -8,7 +8,7 @@
 use crate::ir::Card;
 use crate::ir_schema::{Fields, Schema, Ty, TypeDef};
 use serde_json::{Value, json};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
 fn schema() -> Result<&'static Schema, String> {
@@ -31,11 +31,21 @@ fn commutative(ty: &str, variant: &str) -> bool {
 struct Ids {
     /// Old id to new id, per id type, in this ability's scope.
     maps: HashMap<&'static str, HashMap<u64, u64>>,
+    /// Which ability this is, in visiting order.
+    visit: usize,
 }
 
+/// What an instruction whose result nothing reads is numbered: lowering order
+/// shows in those numbers and nothing else does.
+const UNREAD: u64 = u32::MAX as u64;
+
 impl Ids {
-    fn define(&mut self, kind: &'static str, value: &mut Value) {
+    fn define(&mut self, kind: &'static str, value: &mut Value, read: Option<&HashSet<u64>>) {
         let Some(old) = value.as_u64() else { return };
+        if kind == "result" && read.is_some_and(|read| !read.contains(&old)) {
+            *value = Value::from(UNREAD);
+            return;
+        }
         let map = self.maps.entry(kind).or_default();
         let next = map.len() as u64;
         let new = *map.entry(old).or_insert(next);
@@ -85,6 +95,12 @@ struct Walker {
     subjects: Vec<Subject>,
     /// Keep ids and list order, for callers that read the text back out.
     keep_order: bool,
+    /// The results each ability reads, by visiting order. The first of the two
+    /// passes fills this; the second consults it.
+    read: Vec<HashSet<u64>>,
+    /// Whether this is the pass that fills `read`.
+    reading: bool,
+    visits: usize,
 }
 
 /// The role a damage event's own subject plays, through a `Filtered` wrapper.
@@ -105,10 +121,15 @@ fn id_kind(name: &str) -> Option<&'static str> {
 }
 
 impl Walker {
-    fn use_id(&self, kind: &'static str, value: &mut Value) {
+    fn use_id(&mut self, kind: &'static str, value: &mut Value) {
         let Some(old) = value.as_u64() else { return };
         if self.keep_order {
             return;
+        }
+        if self.reading && kind == "result" {
+            for scope in &self.scopes {
+                self.read[scope.visit].insert(old);
+            }
         }
         for scope in self.scopes.iter().rev() {
             if let Some(new) = scope.maps.get(kind).and_then(|m| m.get(&old)) {
@@ -156,7 +177,8 @@ impl Walker {
         if let Some(kind) = id_kind(name) {
             if defining {
                 if let (Some(scope), false) = (self.scopes.last_mut(), self.keep_order) {
-                    scope.define(kind, value);
+                    let read = (!self.reading).then(|| &self.read[scope.visit]);
+                    scope.define(kind, value, read);
                 }
             } else {
                 self.use_id(kind, value);
@@ -165,7 +187,14 @@ impl Walker {
         }
         let scoped = name == "Ability";
         if scoped {
-            self.scopes.push(Ids::default());
+            self.scopes.push(Ids {
+                visit: self.visits,
+                ..Ids::default()
+            });
+            self.visits += 1;
+            if self.reading {
+                self.read.push(HashSet::new());
+            }
             let outer = self.damage_subjects.last().cloned().flatten();
             self.damage_subjects
                 .push(damage_subject(&value["args"]["event"]).or(outer));
@@ -531,8 +560,17 @@ fn normalize(value: &mut Value, keep_order: bool) -> Result<(), String> {
         damage_subjects: Vec::new(),
         subjects: Vec::new(),
         keep_order,
+        read: Vec::new(),
+        reading: !keep_order,
+        visits: 0,
     };
-    walker.walk(value, &Ty::Vec(Box::new(Ty::Named("Ability".into()))), false);
+    let abilities = Ty::Vec(Box::new(Ty::Named("Ability".into())));
+    if !keep_order {
+        walker.walk(&mut value.clone(), &abilities, false);
+        walker.reading = false;
+        walker.visits = 0;
+    }
+    walker.walk(value, &abilities, false);
     Ok(())
 }
 
