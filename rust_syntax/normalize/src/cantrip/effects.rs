@@ -903,7 +903,7 @@ impl Compiler {
                 players,
                 tokens,
                 entry,
-            } => self.create_tokens(id, players, tokens, entry, result, out)?,
+            } => self.create_tokens_p(id, players, tokens, entry, result, out)?,
             Operation::Draw { players, amount }
             | Operation::GainLife { players, amount }
             | Operation::LoseLife { players, amount } => {
@@ -1023,7 +1023,7 @@ impl Compiler {
                 destination,
                 entry,
                 face_down: false,
-            } => self.move_objects(id, objects, destination, entry, result, out)?,
+            } => self.move_objects_p(id, objects, destination, entry, false, result, out)?,
             Operation::Tap { objects, tapped } => {
                 writeln!(
                     out,

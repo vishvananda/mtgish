@@ -479,6 +479,11 @@ impl Compiler {
                 &format!("q.damage_objects(item, DamageSubject::{})", form(subject)),
             ),
             ObjectSet::EventGroup => held_objects(&feature, "q.event_objects(item).to_vec()"),
+            ObjectSet::Unpaid(result) => held_objects(&feature, &format!("unpaid_{}.clone()", result.0)),
+            ObjectSet::OutsideTheGame(filter) => keep(
+                filter,
+                held_objects(&feature, "q.outside_the_game(asker.controller)"),
+            )?,
             ObjectSet::Earlier {
                 what,
                 by: Some(players),
@@ -838,6 +843,37 @@ impl Compiler {
                 &feature,
                 &format!("q.mana_cost_payable_with(item, {id}, {})", occurrence(mana)),
             ),
+            ObjectFilter::ManaSpent {
+                color,
+                sources,
+                payers,
+                comparison,
+                value,
+            } => {
+                let color = match color {
+                    Some(color) => format!("Some({})", colors_code(std::slice::from_ref(color))?),
+                    None => "None".to_string(),
+                };
+                let sources = match sources {
+                    Some(sources) => format!(
+                        "|source: ObjectId| {}",
+                        test(sources, "source")?
+                    ),
+                    None => "|_: ObjectId| true".to_string(),
+                };
+                let payers = match payers {
+                    Some(payers) => format!("|payer: PlayerId| {}", self.player_in(payers, "payer")?),
+                    None => "|_: PlayerId| true".to_string(),
+                };
+                held(
+                    &feature,
+                    &compare(
+                        &format!("q.history().mana_spent({id}, {color}, {sources}, {payers})"),
+                        comparison,
+                        &self.number(value)?.code,
+                    ),
+                )
+            }
             ObjectFilter::ManaSpentFrom(sources) => held(
                 &feature,
                 &format!(
@@ -1082,12 +1118,529 @@ impl Compiler {
     }
 }
 
+/// "Nonbasic landwalk", and landwalk of what no word of Cantrip's names (CR 702.14).
+pub(super) fn landwalk(land: &ObjectFilter) -> Result<String> {
+    let feature = format!("landwalk of {}", form(land));
+    if let ObjectFilter::Not(inner) = land {
+        if matches!(**inner, ObjectFilter::Supertype(crate::mtg_types::SuperType::Basic)) {
+            return Ok("Keyword::NonbasicLandwalk".to_string());
+        }
+    }
+    if matches!(land, ObjectFilter::Supertype(crate::mtg_types::SuperType::Legendary)) {
+        return Ok("Keyword::LegendaryLandwalk".to_string());
+    }
+    let filter = land_filter(land).ok_or_else(|| gap(feature.as_str()))?;
+    Ok(planned::planned_value(
+        &feature,
+        "Keyword::Swampwalk",
+        &format!("Keyword::Landwalk({filter})"),
+    ))
+}
+fn land_filter(land: &ObjectFilter) -> Option<String> {
+    Some(match land {
+        ObjectFilter::Subtype(kind) => format!("LandFilter::Subtype(Subtype::{})", name(kind)),
+        ObjectFilter::Supertype(kind) => format!("LandFilter::Supertype(Supertype::{})", name(kind)),
+        ObjectFilter::CardType(kind) => format!("LandFilter::CardType(CardType::{})", name(kind)),
+        ObjectFilter::Chosen(kind) => format!("LandFilter::Chosen(ChoiceKind::{kind:?})"),
+        ObjectFilter::Not(inner) => format!("LandFilter::Not(&{})", land_filter(inner)?),
+        ObjectFilter::All(parts) => {
+            let parts = parts.iter().map(land_filter).collect::<Option<Vec<_>>>()?;
+            format!("LandFilter::All(&[{}])", parts.join(", "))
+        }
+        _ => return None,
+    })
+}
+
+/// What a history question asks, past how many and how much.
+pub(super) fn history_measure(measure: &HistoryMeasure, hits: &str) -> String {
+    let feature = format!("history measure {}", form(measure));
+    let code = match measure {
+        HistoryMeasure::Property(property, aggregation) => format!(
+            "{M}::history::aggregate({hits}, Property::{}, Aggregation::{})",
+            form(property),
+            form(aggregation)
+        ),
+        HistoryMeasure::Distinct(property) => format!(
+            "{M}::history::distinct({hits}, DistinctProperty::{})",
+            form(property)
+        ),
+        other => format!("{M}::history::measure({hits}, HistoryMeasure::{})", form(other)),
+    };
+    planned::planned_value(&feature, "0i64", &code)
+}
+
+impl Compiler {
+    /// A maximum hand size that isn't a stated number (CR 402.2).
+    pub(super) fn hand_size_to_come(&self, size: &HandSizeRule) -> Result<String> {
+        let feature = format!("hand size {}", form(size));
+        let (read, n) = match size {
+            HandSizeRule::Adjust(n) => ("q.maximum_hand_size(asker.controller).saturating_add_signed", n),
+            HandSizeRule::Set(n) => ("Some", n),
+            HandSizeRule::Unlimited => return Err(gap(feature.as_str())),
+        };
+        Ok(planned::planned_value(
+            &feature,
+            "Some(7)",
+            &format!("{read}(({}) as _)", self.number(n)?.code),
+        ))
+    }
+    /// A window of the history no read names.
+    pub(super) fn history_window_to_come(&self, window: &HistoryWindow) -> Result<String> {
+        let feature = format!("history window {}", form(window));
+        let HistoryWindow::SinceLastTurnOf(player) = window else {
+            return Err(gap(feature.as_str()));
+        };
+        Ok(planned::planned_value(
+            &feature,
+            "q.history().this_turn().iter()",
+            &format!("{M}::history::since_last_turn_of(q, {}).iter()", self.player(player)?),
+        ))
+    }
+}
+
 /// `objects_{id}` into hands, those outside the game by the way that brings them in.
 pub(super) fn bring_into_hand(id: usize, revealed: bool) -> String {
     let way = if revealed { "_revealed" } else { "" };
     format!(
         "{{ let (outside, inside): (Vec<ObjectId>, Vec<ObjectId>) = objects_{id}.iter().partition(|&&o| g.state().obj(o).zone.is(ZoneKind::Sideboard)); let mut moved = g.bring_into_hand{way}(&outside); moved.extend(g.return_to_hand{way}(&inside)); moved }}"
     )
+}
+
+/// "When you do, choose one": the modes aside, what the reflexive ability announces.
+pub(super) fn without_modes(announcement: &Announcement) -> Announcement {
+    let mut announcement = announcement.clone();
+    announcement.modes = None;
+    announcement
+}
+
+impl Compiler {
+    /// The modes of a reflexive ability, a `ModalDef` of the card.
+    pub(super) fn reflexive_modes(
+        &mut self,
+        announcement: &Announcement,
+        label: &str,
+    ) -> Result<Option<String>> {
+        if announcement.modes.is_none() {
+            return Ok(None);
+        }
+        let name = self.modal(announcement, label, None)?;
+        Ok(Some(name))
+    }
+    /// A spell's second body, as "... Then ..." after its modes or its branches.
+    pub(super) fn later_spell(
+        &mut self,
+        announcement: &Announcement,
+        body: &Program,
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let label = format!("{label}_then");
+        let targets = self.announcement(&without_modes(announcement), &label)?;
+        let effect = self.effect(body, &label)?;
+        let mut code = format!("spell({effect}).targets({targets})");
+        if announcement.modes.is_some() {
+            let modal = self.modal(announcement, &label, None)?;
+            code = format!("{code}.modes(&{modal})");
+        }
+        self.plan_entry("multiple spell bodies", "spell_after", &code, parts);
+        Ok(())
+    }
+    /// "Choose one or more, up to the number of ...": a count the game works out.
+    pub(super) fn mode_count_to_come(
+        &self,
+        listed: &str,
+        least: &Expr,
+        most: &Expr,
+    ) -> Result<String> {
+        let (least, most) = (self.number(least)?.code, self.number(most)?.code);
+        Ok(planned::planned_value(
+            "mode count that is not a constant",
+            &format!("{listed}.choose(1, 1)"),
+            &format!("{listed}.choose_counted(|q: &dyn Query, asker: &Asker| {least}, |q: &dyn Query, asker: &Asker| {most})"),
+        ))
+    }
+    /// Where a destination is, as code.
+    fn destination_code(&self, destination: &Destination) -> Result<String> {
+        Ok(match destination {
+            Destination::Battlefield(player) => {
+                format!("Destination::Battlefield({})", self.fetch(self.player(player)?))
+            }
+            Destination::OwnersLibraryFromTop(n) => format!(
+                "Destination::OwnersLibraryFromTop({})",
+                self.fetch(self.number(n)?.code)
+            ),
+            other => format!("Destination::{}", form(other)),
+        })
+    }
+    /// How something enters, as code: an `Arrival` the engine doesn't have yet.
+    fn arrival_code(&mut self, entry: &EntrySpec, failed: &str) -> Result<String> {
+        let mut counters = Vec::new();
+        for (kind, n) in &entry.counters {
+            counters.push(format!(
+                "({}, {})",
+                counter_kind(kind)?,
+                self.fetch(self.number(n)?.code)
+            ));
+        }
+        let mut states = Vec::new();
+        for state in &entry.states {
+            states.push(self.arrival_state(state, failed)?);
+        }
+        Ok(format!(
+            "Arrival {{ tapped: {}, counters: &[{}], states: &[{}] }}",
+            entry.tapped,
+            counters.join(", "),
+            states.join(", ")
+        ))
+    }
+    fn arrival_state(&mut self, state: &EntryState, failed: &str) -> Result<String> {
+        let changes = |c: &mut Self, changes: &[Change]| -> Result<String> {
+            let mut kinds = Vec::new();
+            for change in changes {
+                kinds.extend(c.effect_kinds(change)?);
+            }
+            Ok(kinds.join(", "))
+        };
+        Ok(match state {
+            EntryState::Transformed => "ArrivalState::Transformed".into(),
+            EntryState::Prepared => "ArrivalState::Prepared".into(),
+            EntryState::FaceDown => "ArrivalState::FaceDown".into(),
+            EntryState::Flipped => "ArrivalState::Flipped".into(),
+            EntryState::ExilePile { shuffled } => {
+                format!("ArrivalState::ExilePile {{ shuffled: {shuffled} }}")
+            }
+            EntryState::Attacking {
+                player,
+                or_planeswalker,
+            } => {
+                let player = match player {
+                    Some(player) => self.fetch(self.player(player)?),
+                    None => "None".to_string(),
+                };
+                format!("ArrivalState::Attacking {{ player: {player}, or_planeswalker: {or_planeswalker} }}")
+            }
+            EntryState::Blocking(object) => {
+                format!("ArrivalState::Blocking({})", self.fetch(self.object(object)?))
+            }
+            EntryState::AttachedTo(object) => {
+                format!("ArrivalState::AttachedTo({})", self.fetch(self.object(object)?))
+            }
+            EntryState::AttachedToPlayer(player) => {
+                format!("ArrivalState::AttachedToPlayer({})", self.fetch(self.player(player)?))
+            }
+            EntryState::AttachedToChosen(filter) => format!(
+                "ArrivalState::AttachedToChosen(|q: &dyn Query, asker: &Asker, id: ObjectId| {})",
+                self.filter(filter, &Candidate::of("id"))?
+            ),
+            EntryState::Changes(list) => {
+                format!("ArrivalState::Changes(&[{}])", changes(self, list)?)
+            }
+            EntryState::ChangesUntil { changes: list, duration } => {
+                let duration = self.duration(duration)?;
+                format!(
+                    "ArrivalState::ChangesUntil(&[{}], {duration})",
+                    changes(self, list)?
+                )
+            }
+            EntryState::CopyOf { objects, effects, until } => {
+                let until = match until {
+                    Some(duration) => format!("Some({})", self.duration(duration)?),
+                    None => "None".to_string(),
+                };
+                format!(
+                    "ArrivalState::CopyOf({}, {}, {until})",
+                    self.fetch(self.objects(objects)?),
+                    self.operand_code(effects)
+                )
+            }
+            EntryState::CountersOfChoice { kinds, amount, distinct } => {
+                let kinds = kinds
+                    .iter()
+                    .map(counter_kind)
+                    .collect::<Result<Vec<String>>>()?;
+                format!(
+                    "ArrivalState::CountersOfChoice(&[{}], {}, {distinct})",
+                    kinds.join(", "),
+                    self.fetch(self.number(amount)?.code)
+                )
+            }
+            _ => return Err(gap(failed)),
+        })
+    }
+    /// `create_tokens`, or the call it will be for what Cantrip can't make yet.
+    pub(super) fn create_tokens_p(
+        &mut self,
+        id: usize,
+        players: &PlayerSet,
+        tokens: &[TokenSpec],
+        entry: &EntrySpec,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let mut code = String::new();
+        let failed = match self.create_tokens(id, players, tokens, entry, result, &mut code) {
+            Ok(()) => {
+                out.push_str(&code);
+                return Ok(());
+            }
+            Err(failed) => failed,
+        };
+        let planned = failed.feature == "tokens entering in a special state"
+            || failed.feature == "adjusted token copy"
+            || failed.feature == "several kinds of token entering with counters"
+            || failed.feature.starts_with("token recipe ");
+        if !planned {
+            return Err(failed);
+        }
+        let mut orders = Vec::new();
+        for token in tokens {
+            let amount = self.fetch(self.number(&token.amount)?.amount(u32::MAX.into(), "u32")?);
+            let adjusted = |c: &mut Self, list: &[Operand]| -> String {
+                let list: Vec<String> = list.iter().map(|o| c.operand_code(o)).collect();
+                list.join(", ")
+            };
+            let recipe = match &token.recipe {
+                TokenRecipe::Defined(definition) => {
+                    format!("TokenRecipe::Defined(g.card_id(&{}))", self.token_definition(definition)?)
+                }
+                TokenRecipe::Named(name) => format!("TokenRecipe::Named({})", quoted(name)),
+                TokenRecipe::Copy { object, adjustments } => format!(
+                    "TokenRecipe::Copy({}, &[{}])",
+                    self.fetch(self.object(object)?),
+                    adjusted(self, adjustments)
+                ),
+                TokenRecipe::CopyEach { objects, adjustments } => format!(
+                    "TokenRecipe::CopyEach({}, &[{}])",
+                    self.fetch(self.objects(objects)?),
+                    adjusted(self, adjustments)
+                ),
+                TokenRecipe::CopyOne { objects, adjustments } => format!(
+                    "TokenRecipe::CopyOne({}, &[{}])",
+                    self.fetch(self.objects(objects)?),
+                    adjusted(self, adjustments)
+                ),
+                TokenRecipe::CopyNamed { name, adjustments } => format!(
+                    "TokenRecipe::CopyNamed({}, &[{}])",
+                    quoted(name),
+                    adjusted(self, adjustments)
+                ),
+                TokenRecipe::CopyAtRandom { cards } => {
+                    format!("TokenRecipe::CopyAtRandom({})", self.operand_code(cards))
+                }
+            };
+            orders.push(format!("({amount}, {recipe})"));
+        }
+        let players = self.fetch(self.players(players)?);
+        let arrival = self.arrival_code(entry, &failed.feature)?;
+        let call = format!(
+            "{M}::tokens::create(g, asker, {players}, &[{}], {arrival})?",
+            orders.join(", ")
+        );
+        let created = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);
+        writeln!(out, "let created_{id}: Vec<ObjectId> = {created};").unwrap();
+        self.creations.insert(result.0, format!("created_{id}"));
+        Ok(())
+    }
+    /// `move_objects`, or the call it will be for an arrival Cantrip can't make yet.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn move_objects_p(
+        &mut self,
+        id: usize,
+        objects: &ObjectSet,
+        destination: &Destination,
+        entry: &EntrySpec,
+        face_down: bool,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let mut code = String::new();
+        let failed = match face_down {
+            true => gap("operation Move"),
+            false => match self.move_objects(id, objects, destination, entry, result, &mut code) {
+                Ok(()) => {
+                    out.push_str(&code);
+                    return Ok(());
+                }
+                Err(failed) => failed,
+            },
+        };
+        const STATES: [&str; 5] = [
+            "operation Move",
+            "move arrival state",
+            "move arrival with a color",
+            "move arrival flags",
+            "several objects arriving in a state",
+        ];
+        if !STATES.contains(&failed.feature.as_str()) {
+            return Err(failed);
+        }
+        let list = self.fetch(self.objects(objects)?);
+        let destination = self.destination_code(destination)?;
+        let arrival = self.arrival_code(entry, &failed.feature)?;
+        let call = format!(
+            "{M}::enter::in_state(g, asker, &objects_{id}, {destination}, {arrival}, {face_down})?"
+        );
+        let moved = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);
+        writeln!(out, "let objects_{id}: Vec<ObjectId> = {list}; let moved_{id}: Vec<ObjectId> = {moved};").unwrap();
+        self.moved.insert(result.0, format!("moved_{id}"));
+        Ok(())
+    }
+    /// `change_zone`, or the call it will be for a rule the chosen cards keep.
+    pub(super) fn change_zone_p(
+        &mut self,
+        id: usize,
+        op: &Operation,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let mut code = String::new();
+        let failed = match self.change_zone(id, op, result, &mut code) {
+            Ok(()) => {
+                out.push_str(&code);
+                return Ok(());
+            }
+            Err(failed) => failed,
+        };
+        let Operation::ChangeZone {
+            actor,
+            cards,
+            count,
+            random,
+            group,
+            destination,
+            entry,
+            face_down,
+        } = op
+        else {
+            return Err(failed);
+        };
+        if failed.feature != "operation ChangeZone" {
+            return Err(failed);
+        }
+        let actor = self.fetch(self.players(actor)?);
+        let cards = self.fetch(self.objects(cards)?);
+        let count = match count {
+            Some(count) => format!("Some({})", self.fetch(self.select_count(count)?)),
+            None => "None".to_string(),
+        };
+        let group = match group {
+            Some(group) => format!("Some({})", self.operand_code(group)),
+            None => "None".to_string(),
+        };
+        let entry: Vec<String> = entry.iter().map(|o| self.operand_code(o)).collect();
+        let face_down = match face_down {
+            Some(as_) => {
+                let shape = self.operand_code(&as_.power_toughness);
+                let kind = match &as_.creature_type {
+                    Some(kind) => format!("Some({})", self.operand_code(kind)),
+                    None => "None".to_string(),
+                };
+                format!("Some(FaceDownAs {{ shape: {shape}, creature_type: {kind}, artifact: {} }})", as_.artifact)
+            }
+            None => "None".to_string(),
+        };
+        let destination = self.destination_code(destination)?;
+        let call = format!(
+            "{M}::enter::change_zone(g, asker, ZoneChange {{ actor: {actor}, cards: {cards}, count: {count}, random: {random}, group: {group}, destination: {destination}, entry: &[{}], face_down: {face_down} }})?",
+            entry.join(", ")
+        );
+        let moved = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);
+        writeln!(out, "let moved_{id}: Vec<ObjectId> = {moved};").unwrap();
+        self.moved.insert(result.0, format!("moved_{id}"));
+        self.selections.insert(result.0, format!("moved_{id}"));
+        Ok(())
+    }
+    /// `search_zones`, or the call it will be for what `library::search` can't do.
+    pub(super) fn search_zones_p(
+        &mut self,
+        id: usize,
+        op: &Operation,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let mut code = String::new();
+        let failed = match self.search_zones(id, op, result, &mut code) {
+            Ok(()) => {
+                out.push_str(&code);
+                return Ok(());
+            }
+            Err(failed) => failed,
+        };
+        let Operation::Search {
+            player,
+            library,
+            top,
+            choices,
+            also,
+            either,
+            outside,
+        } = op
+        else {
+            return Err(failed);
+        };
+        let planned = failed.feature == "operation Search"
+            || failed.feature == "search with several find clauses"
+            || failed.feature.starts_with("search constraint ");
+        if !planned {
+            return Err(failed);
+        }
+        let mut finds = Vec::new();
+        for choice in choices {
+            let test = self.filter(&choice.filter, &Candidate::of("id"))?;
+            let count = self.fetch(self.select_count(&choice.count)?);
+            let mut rules = Vec::new();
+            for rule in &choice.constraints {
+                rules.push(match self.set_rule(rule) {
+                    Some(rule) => rule,
+                    None => format!("Part::{}", form(rule)),
+                });
+            }
+            finds.push(format!(
+                "Find {{ filter: |q: &dyn Query, asker: &Asker, id: ObjectId| {test}, count: {count}, rules: &[{}] }}",
+                rules.join(", ")
+            ));
+        }
+        let top = match top {
+            Some(n) => format!("Some({})", self.fetch(self.number(n)?.code)),
+            None => "None".to_string(),
+        };
+        let zones: Vec<String> = also.iter().map(|zone| format!("Zone::{}", form(zone))).collect();
+        let searcher = self.fetch(self.certain_player(player)?);
+        let owner = self.fetch(self.certain_player(library)?);
+        let call = format!(
+            "{M}::library::search_zones(g, {searcher}, {owner}, asker.source, Searched {{ top: {top}, also: &[{}], either: {either}, outside: {outside}, finds: &[{}] }})?",
+            zones.join(", "),
+            finds.join(", ")
+        );
+        let found = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);
+        writeln!(out, "let found_{id}: Vec<ObjectId> = {found};").unwrap();
+        self.selections.insert(result.0, format!("found_{id}"));
+        Ok(())
+    }
+    /// "It perpetually gets +1/+1" (Alchemy, a digital-only rule): to each object,
+    /// wherever it goes, for the rest of the game.
+    pub(super) fn perpetual(
+        &mut self,
+        id: usize,
+        subject: &EffectSubject,
+        effects: &[Operand],
+        out: &mut String,
+    ) -> Result<()> {
+        const FEATURE: &str = "engine: no perpetual effects";
+        let EffectSubject::Objects(objects) = subject else {
+            return Err(gap(FEATURE));
+        };
+        let objects = self.fetch(self.objects(objects)?);
+        writeln!(out, "let objects_{id}: Vec<ObjectId> = {objects};").unwrap();
+        let effects: Vec<String> = effects.iter().map(|e| self.operand_code(e)).collect();
+        let applied: Vec<String> = effects
+            .iter()
+            .map(|effect| format!("{M}::perpetual::apply(g, asker.source, object, {effect});"))
+            .collect();
+        let code = format!("for &object in &objects_{id} {{ {} }}", applied.join(" "));
+        self.plan_code(FEATURE, &code, out);
+        Ok(())
+    }
 }
 
 /// The words of a filter a player is asked to choose: "land", "nonland".
@@ -1127,6 +1680,9 @@ pub(super) fn property_p(property: &Property, id: &str) -> Result<Number> {
     Ok(match property {
         Property::CardTypeCount => {
             lane_j::counted(format!("q.chars({id}).types.iter().count() as i64"))
+        }
+        Property::SubtypeCount => {
+            lane_j::counted(format!("q.chars({id}).subtypes.iter().count() as i64"))
         }
         Property::SupertypeCount => lane_j::counted(format!(
             "{{ let kinds = q.chars({id}).supertypes; i64::from(kinds.basic) + i64::from(kinds.legendary) + i64::from(kinds.snow) }}"

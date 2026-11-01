@@ -1340,6 +1340,12 @@ impl Compiler {
                 self.moved.insert(result.0, format!("moved_{id}"));
                 self.left_behind(result, effects::gone(&format!("objects_{id}")));
             }
+            Operation::Move {
+                objects,
+                destination,
+                entry,
+                face_down: true,
+            } => self.move_objects_p(id, objects, destination, entry, true, result, out)?,
             Operation::Conjure { .. } => self.conjure(id, op, result, out)?,
             Operation::DraftFromSpellbook {
                 actor,
@@ -1356,8 +1362,8 @@ impl Compiler {
                 self.creations.insert(result.0, format!("drafted_{id}"));
                 self.moved.insert(result.0, format!("drafted_{id}"));
             }
-            Operation::Search { .. } => self.search_zones(id, op, result, out)?,
-            Operation::ChangeZone { .. } => self.change_zone(id, op, result, out)?,
+            Operation::Search { .. } => self.search_zones_p(id, op, result, out)?,
+            Operation::ChangeZone { .. } => self.change_zone_p(id, op, result, out)?,
             Operation::Manifest { .. } => self.manifest(id, op, result, out)?,
             Operation::MoveTopCard { .. } => self.move_top_card(id, op, result, out)?,
             Operation::EffectOn { .. } => self.effect_on(id, op, out)?,
@@ -1693,9 +1699,13 @@ impl Compiler {
                 .unwrap();
                 format!("Conjured::DuplicateOf(&duplicated_{id})")
             }
-            ConjuredCard::Random(_) | ConjuredCard::SpellbookMatching { .. } => {
-                return Err(gap("operation Conjure"))
+            ConjuredCard::Random(cards) => {
+                format!("Conjured::AtRandom({})", self.operand_code(cards))
             }
+            ConjuredCard::SpellbookMatching { book, cards } => format!(
+                "Conjured::FromSpellbookMatching({book:?}, {})",
+                self.operand_code(cards)
+            ),
         };
         let tapped = conjured_tapped(entry).ok_or_else(|| gap("operation Conjure"))?;
         let place = |c: &Self, n: &Expr| -> Result<String> {
@@ -1745,7 +1755,7 @@ impl Compiler {
         Ok(())
     }
     /// Cards change zones: all of them, or those the actor or chance picks.
-    fn change_zone(
+    pub(super) fn change_zone(
         &mut self,
         id: usize,
         op: &Operation,
@@ -1931,7 +1941,7 @@ impl Compiler {
             .iter()
             .any(|e| matches!(e, Operand::Term { family, .. } if family == "PerpetualEffect"))
         {
-            return Err(gap("engine: no perpetual effects"));
+            return self.perpetual(id, subject, effects, out);
         }
         let (EffectSubject::Objects(objects), None) = (subject, until) else {
             return self.effect_on_rest(subject, effects, until.as_ref(), out);
@@ -1974,7 +1984,7 @@ impl Compiler {
     }
     /// A search past one library: "and/or" (the searcher picks whether the library
     /// is searched), or a list of zones searched one by one, the library last.
-    fn search_zones(
+    pub(super) fn search_zones(
         &mut self,
         id: usize,
         op: &Operation,

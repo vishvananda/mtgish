@@ -1317,7 +1317,16 @@ impl Compiler {
                     return Err(gap(feature));
                 };
                 if *villainous {
-                    self.plan_structure("villainous choice", "ChooseAction", out);
+                    let decider = self.fetch(self.certain_player(decider)?);
+                    let labels: Vec<String> = programs
+                        .iter()
+                        .map(|program| quoted(&ability_text(program)))
+                        .collect();
+                    let code = format!(
+                        "{M}::choose::villainous(g, {decider}, asker.source, &[{}])?",
+                        labels.join(", ")
+                    );
+                    self.plan_code("villainous choice", &code, out);
                 }
                 self.choose_one(decider, &programs, out)?;
             }
@@ -1827,7 +1836,7 @@ impl Compiler {
     }
     /// A rule of chosen cards together, as a `Part`, or nothing if `select` has
     /// no such rule and none can be written here.
-    fn set_rule(&mut self, constraint: &SelectionConstraint) -> Option<String> {
+    pub(super) fn set_rule(&mut self, constraint: &SelectionConstraint) -> Option<String> {
         Some(match constraint {
             SelectionConstraint::DifferentNames => format!("{M}::select::DIFFERENT_NAMES"),
             SelectionConstraint::DifferentProperty(Property::ManaValue) => {

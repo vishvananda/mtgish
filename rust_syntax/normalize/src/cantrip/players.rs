@@ -163,7 +163,7 @@ impl Compiler {
                     HandSizeRule::Set(Expr::Constant(n)) if u32::try_from(*n).is_ok() => {
                         format!("Some({n})")
                     }
-                    other => return Err(gap(format!("hand size {}", form(other)))),
+                    other => self.hand_size_to_come(other)?,
                 };
                 self.play_rule(label, format!("PlayRule::MaximumHandSize({limit})"), parts)?;
             }

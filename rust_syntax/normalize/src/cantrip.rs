@@ -188,7 +188,7 @@ fn keyword(value: &Keyword) -> Result<String> {
                 ObjectFilter::Subtype(SubType::Swamp) => "Swampwalk",
                 ObjectFilter::Subtype(SubType::Mountain) => "Mountainwalk",
                 ObjectFilter::Subtype(SubType::Forest) => "Forestwalk",
-                other => return Err(gap(format!("landwalk of {}", form(other)))),
+                other => return lane_p::landwalk(other),
             }
         ));
     }

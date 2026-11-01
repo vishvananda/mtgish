@@ -444,17 +444,8 @@ impl Compiler {
             } if bound(then).is_some() => (&**otherwise, Some((condition, bound(then)))),
             most => (most, None),
         };
-        let (Some(min), Some(max)) = (bound(minimum), bound(most)) else {
-            return Err(gap("mode count that is not a constant"));
-        };
-        if *may_decline {
-            return Err(gap("modes that may all be declined"));
-        }
         let mut defs = Vec::new();
         for (i, mode) in modes.iter().enumerate() {
-            if mode.requires.is_some() {
-                return Err(gap("mode with a requirement"));
-            }
             // A slot in a mode reads a `max` above 1 as a range.
             if format!("{:?}", mode.announcement.targets).contains("PerPlayer {") {
                 return Err(gap("target cardinality PerPlayer"));
@@ -465,12 +456,34 @@ impl Compiler {
                 None => self.announcement(&mode.announcement, &label)?,
             };
             let effect = self.effect(&mode.body, &label)?;
-            defs.push(format!(
+            let def = format!(
                 "mode({effect}, {}).targets({targets})",
                 quoted(&ability_text(&mode.body))
-            ));
+            );
+            defs.push(match &mode.requires {
+                Some(condition) => {
+                    let test = self.activation_condition(condition, &format!("{label}_open"))?;
+                    planned::planned_value(
+                        "mode with a requirement",
+                        &def,
+                        &format!("{def}.open_if({test})"),
+                    )
+                }
+                None => def,
+            });
         }
-        let mut modal = format!("modes(&[{}]).choose({min}, {max})", defs.join(","));
+        let listed = format!("modes(&[{}])", defs.join(","));
+        let mut modal = match (bound(minimum), bound(most)) {
+            (Some(min), Some(max)) => format!("{listed}.choose({min}, {max})"),
+            _ => self.mode_count_to_come(&listed, minimum, most)?,
+        };
+        if *may_decline {
+            modal = planned::planned_value(
+                "modes that may all be declined",
+                &modal,
+                &format!("{modal}.may_decline()"),
+            );
+        }
         if let Some((condition, Some(most))) = more {
             let test = self.activation_condition(condition, &format!("{label}_more_modes"))?;
             modal.push_str(&format!(".up_to_if({test}, {most})"));
@@ -872,7 +885,7 @@ impl Compiler {
             }
             Ability::Spell { announcement, body } => {
                 if parts.spell != "None" {
-                    return Err(gap("multiple spell bodies"));
+                    return self.later_spell(announcement, body, label, parts);
                 }
                 if announcement.modes.is_some() {
                     if !body.instructions.is_empty() {

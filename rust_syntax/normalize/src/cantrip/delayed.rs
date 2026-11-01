@@ -360,13 +360,18 @@ impl Compiler {
         let amount = amount.or_else(|| slot.as_ref().map(|(_, code)| code.clone()));
         let counted = std::mem::replace(&mut self.counted, amount.as_ref().map(|_| performed.0));
         let sized = std::mem::replace(&mut self.sized_slot, slot.map(|(count, _)| count));
-        let closed = self.closure(&label, true, Some(announcement), &None, body);
+        let modal = self.reflexive_modes(announcement, &label);
+        let announced = lane_p::without_modes(announcement);
+        let closed = self.closure(&label, true, Some(&announced), &None, body);
         self.counted = counted;
         self.sized_slot = sized;
         let (outer, targets) = closed.map_err(lane_l::reads_as_a_target)?;
         let mut def = format!("delayed_trigger({label}, {})", quoted(&ability_text(body)));
         if let Some(targets) = targets {
             write!(def, ".targets({targets})").unwrap();
+        }
+        if let Some(modal) = modal? {
+            def = planned::planned_value("modal announcement", &def, &format!("{def}.modes(&{modal})"));
         }
         self.delayed.push(def);
         let index = self.delayed.len() - 1;

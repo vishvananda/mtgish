@@ -976,7 +976,7 @@ impl Compiler {
                     HistoryWindow::LastTurn => {
                         "q.history().all().iter().filter(|r| r.turn + 1 == q.state().turn.number)"
                     }
-                    other => return Err(gap(format!("history window {}", form(other)))),
+                    other => &self.history_window_to_come(other)?,
                 };
                 let mut asked = self.clone();
                 asked.history = Some(History {
@@ -996,7 +996,7 @@ impl Compiler {
                     {
                         format!("{hits}.map(|f: Fired| i64::from(f.data[0])).sum::<i64>()")
                     }
-                    other => return Err(gap(format!("history measure {}", form(other)))),
+                    other => lane_p::history_measure(other, &hits),
                 };
                 count(if self.event_at == EventAt::Matcher {
                     format!("{{ let (outer_subject, outer_data) = (subject, data); {answer} }}")
