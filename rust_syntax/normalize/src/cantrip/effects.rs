@@ -299,6 +299,9 @@ impl Compiler {
         })
     }
     fn target_slot(&self, slot: &Slot) -> Result<usize> {
+        if self.reader != Reader::Resolution || !self.stack_item {
+            return Err(gap("target reference outside a resolving ability"));
+        }
         self.slots
             .get(&slot.0)
             .map(|(i, _)| *i)
@@ -847,6 +850,14 @@ impl Compiler {
                 cost,
                 optional,
             } => self.first_willing(id, players, cost, *optional, result, out)?,
+            // The ability an activation or an event put on the stack.
+            Operation::Counter {
+                objects: ObjectSet::One(ObjectRef::EventStackObject),
+                destination: Destination::OwnersGraveyard,
+            } if self.frame.activated.is_some() => {
+                let ability = self.carried_ability()?;
+                writeln!(out, "let items_{id}: Vec<(ObjectId, usize)> = {{ let t = {ability}; let stack = &g.state().stack; stack.iter().position(|e| Target::Ability(e.serial) == t && e.kind != StackKind::Spell).map(|at| (stack[at].object, at)).into_iter().collect() }}; g.counter_items(&items_{id});").unwrap();
+            }
             // What targeted this, spell or ability, and where it is on the stack.
             Operation::Counter {
                 objects: ObjectSet::One(ObjectRef::EventStackObject),
@@ -993,7 +1004,15 @@ impl Compiler {
                     "surveil"
                 };
                 let amount = self.number(amount)?.amount(u32::MAX.into(), "usize")?;
-                writeln!(out, "let amount_{id} = {}; let player_{id} = {}; cantrip_mechanics::{method}(g, player_{id}, asker.source, amount_{id})?;", self.fetch(amount), self.fetch(self.certain_player(player)?)).unwrap();
+                let reported = method == "surveil" && lane_n::reads_graveyard_part(&self.after, result);
+                let (method, bind) = match reported {
+                    true => ("surveil_into_graveyard", format!("let moved_{id} = ")),
+                    false => (method, String::new()),
+                };
+                writeln!(out, "let amount_{id} = {}; let player_{id} = {}; {bind}cantrip_mechanics::{method}(g, player_{id}, asker.source, amount_{id})?;", self.fetch(amount), self.fetch(self.certain_player(player)?)).unwrap();
+                if reported {
+                    self.moved.insert(result.0, format!("moved_{id}"));
+                }
             }
             Operation::SetLifeTotal { players, amount } => {
                 let number = self.number(amount)?.amount(i32::MAX.into(), "i32")?;
@@ -1059,7 +1078,14 @@ impl Compiler {
                 preventable: true,
             } => {
                 let amount = self.number(amount)?.amount(u16::MAX.into(), "u16")?;
-                let (declare, deal) = if self.read_later(result) {
+                let (declare, deal) = if lane_n::read_as_objects(&self.after, result) {
+                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.moved.insert(result.0, format!("dealt_{id}"));
+                    (
+                        format!("let mut done_{id}: i64 = 0; let mut dealt_{id}: Vec<ObjectId> = Vec::new(); "),
+                        format!("let dealt = g.damage_together(&batch); done_{id} += dealt.iter().map(|&n| i64::from(n)).sum::<i64>(); dealt_{id}.extend(batch.iter().zip(&dealt).filter(|(_, n)| **n > 0).filter_map(|(d, _)| d.1.object()));"),
+                    )
+                } else if self.read_later(result) {
                     self.performed.insert(result.0, format!("done_{id}"));
                     (
                         format!("let mut done_{id}: i64 = 0; "),
@@ -1263,7 +1289,10 @@ impl Compiler {
             Operation::Counter {
                 objects,
                 destination: Destination::OwnersGraveyard,
-            } if self.stack_targets(objects).is_some() => self.counter_on_stack(id, objects, out),
+            } if self.stack_targets(objects).is_some() => match self.read_later(result) {
+                true => self.counter_reporting(id, objects, result, out),
+                false => self.counter_on_stack(id, objects, out),
+            },
             Operation::Counter {
                 objects,
                 destination,
@@ -2054,6 +2083,9 @@ impl Compiler {
                         other => return Err(gap(format!("counter removal {}", form(other)))),
                     };
                     writeln!(out, "let amount_{id}_{i} = {amount}; cantrip_api::instruction(g, |g| {{ for object in objects_{id}_{i} {{ removed_{id} += i64::from(g.remove_counters(object, {}, amount_{id}_{i})); }} }});", counter_kind(kind)?).unwrap();
+                }
+                (None, CounterAmount::All) if self.read_later(result) => {
+                    writeln!(out, "cantrip_api::instruction(g, |g| {{ for object in objects_{id}_{i} {{ removed_{id} += CounterKind::ALL.iter().map(|k| i64::from(g.state().obj(object).counters(*k))).sum::<i64>(); cantrip_mechanics::effects::remove_all_counters(g, object); }} }});").unwrap();
                 }
                 (None, CounterAmount::All) => {
                     counted = false;

@@ -318,6 +318,7 @@ impl Compiler {
             Operation::Scry { .. }
             | Operation::Surveil { .. }
             | Operation::Shuffle { .. }
+            | Operation::AddMana { .. }
             | Operation::ChooseAtRandom { .. } => "true".to_string(),
             // Countered, the card is a new object where the spell went.
             Operation::Counter { objects, .. } => {
@@ -1567,7 +1568,7 @@ impl Compiler {
                 let count = self.fetch(count);
                 match (phases, at_start) {
                     (AddedPhases::Combat, None) => {
-                        writeln!(out, "for _ in 0..{count} {{ g.add_combat_phase(); }}").unwrap()
+                        writeln!(out, "for _ in 0..({count}) {{ g.add_combat_phase(); }}").unwrap()
                     }
                     (phases, at_start) => {
                         let at_start = at_start.as_ref().map(|o| self.operand_code(o));

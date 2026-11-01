@@ -979,7 +979,7 @@ impl Compiler {
                 payment,
             } => {
                 let frame = Frame {
-                    player: Some(Carried::Subject),
+                    activated: Some(Carried::Subject),
                     object: Some(Carried::Data(0)),
                     amount: Some(Carried::Data(1)),
                     ..Frame::default()
@@ -994,7 +994,7 @@ impl Compiler {
                 Ok(held_arm(
                     "ABILITY_ACTIVATED",
                     "Event::AbilityActivated { source, ability, player, .. }",
-                    "let id = *source; let def = q.activated_ability(*ability); let paid = q.paid_to_activate(event); let subject = Target::Player(*player); let data = [id.0, paid.life];",
+                    "let id = *source; let def = q.activated_ability(*ability); let paid = q.paid_to_activate(event); let subject = cantrip_mechanics::triggers::activated_ability_on_stack(q, event).unwrap_or(Target::None); let data = [id.0, paid.life];",
                     tests,
                     frame,
                     "Whenever a player activates an ability",
@@ -1003,7 +1003,11 @@ impl Compiler {
             }
             EventSpec::Caused { cause, event } => self.caused(cause, event),
             EventSpec::CausesTrigger { cause, .. } => {
-                let frame = plain();
+                let frame = Frame {
+                    activated: Some(Carried::Data(0)),
+                    stack_controller: Some(Carried::Data(1)),
+                    ..plain()
+                };
                 let mut matched = self.event(cause)?;
                 let tests = std::mem::take(&mut matched.arms);
                 let cause_test = tests
@@ -1022,7 +1026,7 @@ impl Compiler {
                     "TRIGGERED",
                     Arm {
                         pattern: "Event::Triggered { source, ability, cause }".into(),
-                        locals: "let id = *source; let subject = Target::Object(id); let data = [u32::MAX; 2]; let cause = &*cause;".into(),
+                        locals: "let id = *source; let subject = Target::Object(id); let on_stack = cantrip_mechanics::triggers::triggered_ability_on_stack(q, event); let data = [on_stack.map_or(0, |i: StackItem| i.serial), on_stack.map_or(0, |i: StackItem| u32::from(i.controller.0))]; let cause = &*cause;".into(),
                         tests: vec![cause_test],
                     },
                     frame,
@@ -1636,6 +1640,19 @@ impl Compiler {
             }
             PlayerRef::OneOf(players) => format!("Some({})", self.pick(players)?),
             PlayerRef::PlayerOrControllerOf(recipients) => match &**recipients {
+                // "That player or that planeswalker's controller", of a slot before.
+                Recipients::Target { slot, .. } | Recipients::Targets(slot)
+                    if self.choosing.is_some() =>
+                {
+                    let index = match &**recipients {
+                        Recipients::Target { index, .. } => *index,
+                        _ => 0,
+                    };
+                    format!(
+                        "{}.and_then(|t: Target| t.player().or(t.object().map(|o| q.controller(o))))",
+                        self.earlier_target(slot, index)?.expect("choosing")
+                    )
+                }
                 Recipients::Target { slot, index } => format!(
                     "t_{}_raw.get({index}).copied().and_then(|t: Target| t.player().or(t.object().map(|o| q.controller(o))))",
                     self.slot(slot)?
@@ -4226,7 +4243,7 @@ impl Compiler {
     }
     /// "A triggered ability of a permanent you control": the permanent as it is,
     /// or as it last existed for an ability that looks back (CR 603.10).
-    fn triggering_ability(&self, abilities: Option<&ObjectFilter>) -> Result<String> {
+    pub(super) fn triggering_ability(&self, abilities: Option<&ObjectFilter>) -> Result<String> {
         match abilities {
             None => Ok("true".into()),
             Some(ObjectFilter::AbilityOf(objects)) => {
@@ -4239,7 +4256,7 @@ impl Compiler {
                     self.filter(objects, &source)?
                 ))
             }
-            Some(other) => Err(gap(format!("trigger rule over {}", form(other)))),
+            Some(other) => self.triggering_more(other),
         }
     }
     /// The event that does the triggering. Cantrip's helpers hold the rulings

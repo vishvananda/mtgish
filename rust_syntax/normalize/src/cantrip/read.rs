@@ -304,10 +304,10 @@ impl Compiler {
     pub(super) fn carried_ability(&self) -> Result<String> {
         let carried = self.frame.activated;
         let carried = carried.ok_or_else(|| gap("event object this trigger does not bind"))?;
-        let (_, data) = self.carried(carried)?;
+        let (subject, data) = self.carried(carried)?;
         match carried {
             Carried::Data(i) => Ok(format!("Target::Ability({data}[{i}])")),
-            Carried::Subject => Err(gap("event object this trigger does not bind")),
+            Carried::Subject => Ok(subject.to_string()),
         }
     }
     pub(super) fn carried_player(&self, carried: Option<Carried>) -> Result<String> {
@@ -320,7 +320,7 @@ impl Compiler {
     }
     /// `Option<Target>` of a target announced ahead of the slot whose filter is
     /// being read, which the engine lists without saying whose each is.
-    fn earlier_target(&self, slot: &Slot, index: u16) -> Result<Option<String>> {
+    pub(super) fn earlier_target(&self, slot: &Slot, index: u16) -> Result<Option<String>> {
         let Some(choosing) = self.choosing else {
             return Ok(None);
         };
@@ -338,6 +338,9 @@ impl Compiler {
             }
         }
         Ok(Some(format!("q.chosen_targets().get({at}).copied()")))
+    }
+    fn is_first_slot(&self, slot: &Slot) -> bool {
+        self.slots.get(&slot.0).is_some_and(|(i, _)| *i == 0)
     }
     pub(super) fn slot(&self, slot: &Slot) -> Result<usize> {
         if self.reader != Reader::Resolution || !self.stack_item {
@@ -392,6 +395,10 @@ impl Compiler {
                 "{}.and_then(|t: Target| t.object())",
                 self.earlier_target(slot, *index)?.expect("choosing")
             ),
+            // What the cost of an activation is told: its targets, in order.
+            ObjectRef::Target { slot, index } if self.costing_targets && slot.0 == 0 => {
+                format!("targets.get({index}).copied().and_then(|t: Target| t.object())")
+            }
             ObjectRef::Target { slot, index } => format!(
                 "t_{}_raw.get({index}).copied().and_then(|t: Target| t.object())",
                 self.slot(slot)?
@@ -401,6 +408,10 @@ impl Compiler {
                 self.slot(slot)?
             ),
             ObjectRef::EventSubject => self.carried_object(self.frame.object)?,
+            ObjectRef::EventDestination if self.reads_replaced_move() => {
+                let (subject, _) = self.carried(Carried::Subject)?;
+                format!("{subject}.object().and_then(|o: ObjectId| q.state().obj(o).became)")
+            }
             ObjectRef::EventDestination => self.carried_object(self.frame.destination)?,
             ObjectRef::EventOther => self.carried_object(self.frame.other)?,
             ObjectRef::EventStackObject => self.carried_object(self.frame.stack_object)?,
@@ -504,6 +515,8 @@ impl Compiler {
         fn certain(c: &Compiler, object: &ObjectRef) -> bool {
             match object {
                 ObjectRef::Source | ObjectRef::Candidate | ObjectRef::Bound(_) => true,
+                // The object an effect is applied to, there as it reads.
+                ObjectRef::Affected => c.affected_object.is_some() || c.affected_in_scope,
                 ObjectRef::EventSubject => c.frame.object == Some(Carried::Subject),
                 // A spell or ability that made a target of something, and
                 // the source of damage, have a controller as they last existed.
@@ -557,8 +570,14 @@ impl Compiler {
             {
                 return Err(gap("a spell or ability on the stack read as an object"))
             }
-            ObjectSet::One(object @ ObjectRef::Target { .. }) if self.choosing.is_some() => {
+            ObjectSet::One(object @ ObjectRef::Target { .. })
+                if self.choosing.is_some() || self.costing_targets =>
+            {
                 format!("{}.into_iter().collect::<Vec<ObjectId>>()", self.object(object)?)
+            }
+            ObjectSet::Targets(slot) if self.choosing == Some(1) && self.is_first_slot(slot) => {
+                "q.chosen_targets().iter().filter_map(|t| t.object()).collect::<Vec<ObjectId>>()"
+                    .to_string()
             }
             ObjectSet::One(ObjectRef::Target { slot, index }) => format!(
                 "t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).and_then(|t: Target| t.object()).into_iter().collect::<Vec<_>>()",
@@ -675,6 +694,13 @@ impl Compiler {
     /// what a spell sacrificed is in the history ahead of its cast.
     fn cost_objects(&self, payment: &PaymentRef, component: &[u32]) -> Result<String> {
         if self.reader != Reader::Resolution || !self.stack_item {
+            if matches!(payment, PaymentRef::Activation) && self.activation_cost.is_some() {
+                return Ok(planned::planned_value(
+                    "cost objects outside a resolving ability",
+                    "Vec::<ObjectId>::new()",
+                    "q.paid_for(asker)",
+                ));
+            }
             return Err(gap("cost objects outside a resolving ability"));
         }
         let part = |cost: &'_ Cost| -> Result<CostPart> {

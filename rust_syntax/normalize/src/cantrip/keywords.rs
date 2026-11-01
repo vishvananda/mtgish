@@ -313,7 +313,18 @@ impl Compiler {
             K::Discover => {
                 let n = self.action_amount(&action, u32::MAX.into(), "u32")?;
                 let player = self.actor(&action)?;
-                writeln!(out, "let amount_{id} = {n}; let player_{id} = {player}; {M}::discover::discover(g, player_{id}, amount_{id})?;").unwrap();
+                let discover = format!("{M}::discover::discover(g, player_{id}, amount_{id})?");
+                if lane_n::read_as_objects(&self.after, result) {
+                    let found = planned::planned_value(
+                        "the card a discover found",
+                        &format!("{{ {discover}; Vec::<ObjectId>::new() }}"),
+                        &format!("{M}::discover::discover_card(g, player_{id}, amount_{id})?.into_iter().collect::<Vec<ObjectId>>()"),
+                    );
+                    writeln!(out, "let amount_{id} = {n}; let player_{id} = {player}; let discovered_{id}: Vec<ObjectId> = {found};").unwrap();
+                    self.moved.insert(result.0, format!("discovered_{id}"));
+                } else {
+                    writeln!(out, "let amount_{id} = {n}; let player_{id} = {player}; {discover};").unwrap();
+                }
             }
             K::GainEnergy => {
                 let n = self.action_amount(&action, i32::MAX.into(), "i32")?;

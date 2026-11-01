@@ -653,14 +653,14 @@ impl Compiler {
                 self.token_change(*copies, tokens, frame)?
             }
             ("PlayerCounters", C::SetAmount(n)) => {
-                let field = self
-                    .replacing
-                    .player_counter
-                    .ok_or_else(|| gap("replacement of counters of more than one kind"))?;
                 let n = self
                     .matching(frame, |c| c.number(n))?
                     .amount(u16::MAX.into(), "u16")?;
-                format!("c.{field} = {n};")
+                match self.replacing.player_counter {
+                    Some(field) => format!("c.{field} = {n};"),
+                    // "Of each of those kinds": the amount of each, its own.
+                    None => format!("for kind in [&mut c.poison, &mut c.energy, &mut c.experience] {{ if *kind > 0 {{ let data = [u32::from(*kind), u32::MAX]; *kind = {n}; }} }}"),
+                }
             }
             ("PlayerCounters", C::Cancel) => match self.replacing.player_counter {
                 Some(field) => format!("c.{field} = 0;"),
@@ -674,8 +674,88 @@ impl Compiler {
                     .amount(u16::MAX.into(), "u16")?;
                 format!("c.{field} = c.{field}.saturating_add({n});")
             }
+            ("ZoneChange", C::Entry(state)) => self.entry_change(state, frame)?,
+            ("ManaProduction", C::SetAmount(n)) => {
+                let n = self
+                    .matching(frame, |c| c.number(n))?
+                    .amount(u32::MAX.into(), "u32")?;
+                // "Twice as much of that mana": of each type its own amount.
+                format!("for kind in m.mana.0.iter_mut() {{ if *kind > 0 {{ let data = [*kind, u32::MAX]; *kind = {n}; }} }}")
+            }
+            ("ManaProduction", C::ReplaceColoredMana(ManaProduction::Amount { color, .. })) => {
+                let colored = "let colored: u32 = m.mana.0[..5].iter().sum(); m.mana.0[..5].fill(0);";
+                format!("{colored} {}", mana_gained(color, "colored"))
+            }
+            ("ManaProduction", C::ReplaceMana(ManaProduction::Amount { color, .. })) => {
+                let all = "let all = m.total(); m.mana.0.fill(0);";
+                format!("{all} {}", mana_gained(color, "all"))
+            }
+            ("ManaProduction", C::ReplaceMana(production) | C::AddMana(production)) => {
+                let choices = mana_choices(production)?;
+                let feature = format!("event change {}", form(change));
+                format!(
+                    "{};",
+                    planned::planned_value(
+                        &feature,
+                        "()",
+                        &format!("m.instead_of_choice(&[{}])", choices.join(", ")),
+                    )
+                )
+            }
+            ("Damage", C::DamageAsInfect) => format!(
+                "{};",
+                planned::planned_value("event change damage as infect", "()", "e.as_infect = true")
+            ),
             (_, change) if self.replacing.planned.is_some() => self.planned_change(change, frame)?,
             (_, other) => return Err(gap(format!("event change {}", form(other)))),
+        })
+    }
+    /// How another permanent enters: as a copy, as more than it is, or with the
+    /// counters something else has (CR 614.1c, 707.5).
+    fn entry_change(&mut self, state: &EntryState, frame: Frame) -> Result<String> {
+        const FEATURE: &str = "event change entry";
+        let planned = |code: String| format!("{};", planned::planned_value(FEATURE, "()", &code));
+        Ok(match state {
+            EntryState::CopyOf {
+                objects,
+                until: None,
+                effects,
+            } if format!("{effects:?}").contains("NoCopyEffects") => {
+                let original = self.matching(frame, |c| c.objects(objects))?;
+                planned(format!("z.enters_as_copy_of = ({original}).first().copied()"))
+            }
+            EntryState::Changes(changes) => {
+                let mut change = "EntryChange::new()".to_string();
+                for each in changes {
+                    match each {
+                        Change::SetBasePowerToughness {
+                            power: Expr::Constant(power),
+                            toughness: Expr::Constant(toughness),
+                        } => write!(change, ".sized({power}, {toughness})").unwrap(),
+                        Change::AddCardType(kind) => {
+                            write!(change, ".with_type(CardType::{})", name(kind)).unwrap()
+                        }
+                        Change::CreatureTypes {
+                            mode: ChangeMode::Add,
+                            types: CreatureTypeSet::Listed(types),
+                        } => {
+                            for kind in types {
+                                write!(change, ".with_subtype(Subtype::{})", name(kind)).unwrap();
+                            }
+                        }
+                        other => return Err(gap(format!("event change entry {}", form(other)))),
+                    }
+                }
+                planned(format!("z.enters_changed = Some({change})"))
+            }
+            EntryState::CountersOf {
+                object,
+                one_of_each: true,
+            } => {
+                let original = self.matching(frame, |c| c.object(object))?;
+                format!("if let Some(original) = {original} {{ for kind in CounterKind::ALL {{ if q.state().obj(original).counters(kind) > 0 {{ z.counters[kind as usize] = z.counters[kind as usize].saturating_add(1); }} }} }}")
+            }
+            other => return Err(gap(format!("event change entry {}", form(other)))),
         })
     }
     /// A change to a proposal Cantrip does not have, said of the proposal it
@@ -1233,10 +1313,152 @@ impl Compiler {
         }
         Ok(())
     }
+    /// Whether the event at hand is a move a replacement changed, its steps
+    /// coming after it (CR 614.6): the object it moved is a new one there.
+    pub(super) fn reads_replaced_move(&self) -> bool {
+        self.pending == Pending::Reshaped && self.replacing.kind == "ZoneChange"
+    }
+    /// "Whenever this or that", of events the engine groups by different rules: an
+    /// ability for each. No one event is both, so each happening triggers one.
+    pub(super) fn triggered_each(
+        &mut self,
+        label: &str,
+        events: &[EventSpec],
+        intervening_if: Option<&Condition>,
+        limits: &TriggerLimits,
+        announcement: &Announcement,
+        body: &Program,
+    ) -> Result<String> {
+        let mut defs = Vec::new();
+        for (i, event) in events.iter().enumerate() {
+            let label = format!("{label}_or_{i}");
+            defs.push(self.triggered(&label, event, intervening_if, limits, announcement, body)?);
+        }
+        Ok(defs.join(", "))
+    }
+    /// The rest of what a rule on triggering asks of an ability.
+    pub(super) fn triggering_more(&self, filter: &ObjectFilter) -> Result<String> {
+        use ObjectFilter as F;
+        let source = Candidate {
+            controller: "triggering.controller".into(),
+            ..Candidate::of("triggering.source")
+        };
+        const FEATURE: &str = "what a rule on triggering asks of an ability";
+        let asked = |code: &str| planned::planned_value(FEATURE, "false", code);
+        Ok(match filter {
+            F::All(filters) | F::Either(filters) => {
+                let tests = filters
+                    .iter()
+                    .map(|f| self.triggering_ability(Some(f)))
+                    .collect::<Result<Vec<_>>>()?;
+                let joint = if matches!(filter, F::All(_)) { " && " } else { " || " };
+                format!("({})", tests.join(joint))
+            }
+            F::OnStack(StackTrait::Triggered) => "true".into(),
+            // A triggered ability of a spell: its source is on the stack.
+            F::OnStack(StackTrait::Spell) => {
+                "q.state().obj(triggering.source).zone.is(ZoneKind::Stack)".into()
+            }
+            F::OnStack(StackTrait::DungeonRoom) => asked("triggering.def.dungeon_room"),
+            F::OnStack(StackTrait::OfEmblem) => asked("q.state().obj(triggering.source).is_emblem"),
+            F::HasKeywordFamily(family) => asked(&format!(
+                "triggering.def.keyword == Some(KeywordFamily::{family:?})"
+            )),
+            other => self.filter(other, &source)?,
+        })
+    }
+    /// Countering what is on the stack, saying what became of it: "if a permanent's
+    /// ability is countered this way" speaks of the ability's source, which is
+    /// still that permanent only while it is on the battlefield (CR 113.7, 400.7).
+    pub(super) fn counter_reporting(
+        &mut self,
+        id: usize,
+        objects: &ObjectSet,
+        result: &ResultId,
+        out: &mut String,
+    ) {
+        let targets = self.stack_targets(objects).expect("a slot of the stack");
+        let test = lane_i::STACK_ITEM;
+        writeln!(out, "let items_{id}: Vec<(ObjectId, usize)> = {targets}.into_iter().filter_map(|t| {{ let stack = &g.state().stack; stack.iter().position(|e| {test}).map(|at| (stack[at].object, at)) }}).collect(); let abilities_{id}: Vec<ObjectId> = items_{id}.iter().filter(|&&(_, at)| g.state().stack[at].kind != StackKind::Spell).map(|&(o, _)| o).filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)).collect(); let spells_{id}: Vec<ObjectId> = items_{id}.iter().filter(|&&(_, at)| g.state().stack[at].kind == StackKind::Spell).map(|&(o, _)| o).collect(); let countered_{id} = g.counter_items(&items_{id}); let mut moved_{id}: Vec<ObjectId> = if countered_{id} > 0 {{ abilities_{id} }} else {{ Vec::new() }}; moved_{id}.extend(spells_{id}.into_iter().filter_map(|o| g.state().obj(o).became));").unwrap();
+        self.moved.insert(result.0, format!("moved_{id}"));
+    }
     /// A damage event's recipient a made effect keeps, as a test of `target`.
     pub(super) fn named_recipient(&self, recipients: &Recipients) -> Result<String> {
         Ok(format!("({}).contains(target)", self.recipients(recipients)?))
     }
+}
+
+/// Whether what comes later reads which cards a surveil put into the graveyard,
+/// which is what `InResult` of it says. "Cards you put on top" has no word of its
+/// own in the AST: `Named` of a surveil does not say which part it means.
+pub(super) fn reads_graveyard_part(after: &[Instruction], result: &ResultId) -> bool {
+    let r = result.0;
+    let text = format!("{after:?}");
+    text.contains(&format!("InResult(ResultId({r}))"))
+        || text.contains(&format!("what: PutInGraveyard, measure: Count, result: Some(ResultId({r}))"))
+}
+
+/// Whether what comes later reads an instruction's result as objects.
+pub(super) fn read_as_objects(after: &[Instruction], result: &ResultId) -> bool {
+    let r = result.0;
+    let text = format!("{after:?}");
+    [
+        format!("Named(ResultId({r}))"),
+        format!("Named {{ result: ResultId({r})"),
+        format!("InResult(ResultId({r}))"),
+        format!("Transition {{ result: ResultId({r})"),
+    ]
+    .iter()
+    .any(|read| text.contains(read))
+}
+
+/// Whether an amount a walk over the players made is read player by player.
+pub(super) fn read_player_by_player(rest: &[Instruction], result: &u32) -> bool {
+    let read = format!("Performed(ResultId({result}))");
+    rest.iter().any(|instruction| {
+        let text = format!("{instruction:?}");
+        text.contains(&read)
+            && (text.contains("players: All")
+                || matches!(instruction, Instruction::ForEachPlayer { .. }))
+    })
+}
+
+/// Whether a made effect's steps left a hole for a read of the ability making it.
+pub(super) fn lost_its_maker(holes: &[Diagnostic]) -> bool {
+    holes
+        .iter()
+        .any(|hole| hole.feature == "target reference outside a resolving ability")
+}
+
+/// A statement: `amount` more mana of `color` in the production `m`.
+fn mana_gained(color: &ManaColor, amount: &str) -> String {
+    match color_index(color) {
+        Ok(at) => format!("m.mana.0[{at}] += {amount};"),
+        Err(_) => format!(
+            "{};",
+            planned::planned_value(
+                "event change replace colored mana",
+                "()",
+                &format!("m.add_chosen(q.chosen_color(asker), {amount})"),
+            )
+        ),
+    }
+}
+
+/// The mana one may choose among, as `Mana` values.
+fn mana_choices(production: &ManaProduction) -> Result<Vec<String>> {
+    let ManaProduction::ChooseOne(options) = production else {
+        return Err(gap(format!("event change mana {}", form(production))));
+    };
+    options
+        .iter()
+        .map(|option| match option {
+            ManaProduction::Amount { color, .. } => {
+                Ok(format!("Mana::{}", ["W", "U", "B", "R", "G", "C"][color_index(color)?]))
+            }
+            other => Err(gap(format!("event change mana {}", form(other)))),
+        })
+        .collect()
 }
 
 /// The field of `PlayerCounters` a kind of counter is kept in.

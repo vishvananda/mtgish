@@ -543,6 +543,17 @@ impl Compiler {
         rest: &[Instruction],
         performed: Option<(u32, &str)>,
     ) -> Result<String> {
+        let hoisted = self.hoisted.take();
+        let out = self.then_program(frame, rest, performed);
+        self.hoisted = hoisted;
+        out
+    }
+    fn then_program(
+        &mut self,
+        frame: Frame,
+        rest: &[Instruction],
+        performed: Option<(u32, &str)>,
+    ) -> Result<String> {
         self.reset_results();
         if let Some((result, local)) = performed {
             self.performed.insert(result, local.to_string());
@@ -604,8 +615,10 @@ impl Compiler {
         }
         let saved = self.clone();
         let mark = out.len();
+        let holes = self.gaps.len();
         let first = match self.free_replacement(event, limit, duration, body, out) {
-            Ok(()) => return Ok(()),
+            Ok(()) if !lane_n::lost_its_maker(&self.gaps[holes..]) => return Ok(()),
+            Ok(()) => gap("target reference outside a resolving ability"),
             Err(first) => first,
         };
         *self = saved.clone();

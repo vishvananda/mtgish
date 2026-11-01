@@ -270,6 +270,12 @@ impl Compiler {
         };
         let local = match player {
             PlayerRef::Target { slot, .. } => self.slots.contains_key(&slot.0),
+            PlayerRef::PlayerOrControllerOf(recipients) => match &**recipients {
+                Recipients::Target { slot, .. } | Recipients::Targets(slot) => {
+                    self.slots.contains_key(&slot.0)
+                }
+                _ => true,
+            },
             PlayerRef::EventSubject => self.frame.player.is_some(),
             PlayerRef::EventOtherPlayer => self.frame.other_player.is_some(),
             _ => true,
@@ -644,7 +650,7 @@ impl Compiler {
             format!("!{}.is_empty()", self.selected(performed)?)
         } else if self.creations.contains_key(&performed.0) {
             format!("!{}.is_empty()", self.created(performed)?)
-        } else if self.values.contains_key(&performed.0) {
+        } else if self.values.contains_key(&performed.0) || self.flips.contains_key(&performed.0) {
             "true".to_string()
         } else if self.failed.contains(&performed.0) {
             planned::unreported("false", performed)

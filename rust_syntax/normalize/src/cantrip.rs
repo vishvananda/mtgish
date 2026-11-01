@@ -494,6 +494,8 @@ struct Compiler {
     paradigm: bool,
     /// Inside a spell's cost change, which has `targets` in reach.
     costing_targets: bool,
+    /// An intervening "if" that reads the event, for each mode to ask again.
+    mode_guard: Option<Condition>,
     /// What the cost being compiled is paid for.
     paying: lane_g::Paying,
     /// The instruction a reflexive ability's body counts: it is the item's `x`.
@@ -816,6 +818,7 @@ impl Compiler {
             bound_objects: BTreeSet::new(),
             bound_players: BTreeSet::new(),
             costing_targets: false,
+            mode_guard: None,
             paying: lane_g::Paying::Ability,
             counted: None,
             sized_slot: None,

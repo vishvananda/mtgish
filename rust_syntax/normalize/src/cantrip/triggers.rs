@@ -32,9 +32,35 @@ pub(super) struct Matched {
 /// Whether simultaneous damage is one event of its total to this subject
 /// (CR 120.2): all a source dealt, or all that was dealt to a recipient.
 fn sums_damage(damage: &DamageEvent) -> bool {
+    // Excess is repeated on each source's record: it is not to be added up.
+    if matches!(damage.kind, DamageKind::Excess | DamageKind::ExcessNoncombat) {
+        return false;
+    }
     match (&damage.grouping, damage.subject == DamageSubject::Source) {
         (DamageGrouping::Source, true) | (DamageGrouping::Recipient, false) => true,
         _ => false,
+    }
+}
+
+/// The event a damage trigger hears.
+fn damage_pattern(damage: &DamageEvent) -> &'static str {
+    match damage.kind {
+        DamageKind::Prevented => "Event::DamagePrevented { source, target, amount, combat, .. }",
+        DamageKind::Excess | DamageKind::ExcessNoncombat => {
+            "Event::Damage { source, target, recipient_excess, kind, .. }"
+        }
+        _ => "Event::Damage { source, target, amount, kind, .. }",
+    }
+}
+/// `source`, `amount` and `combat` of that event. An excess amount reads as the
+/// excess; so does a prevented one what was stopped.
+fn damage_values(damage: &DamageEvent) -> &'static str {
+    match damage.kind {
+        DamageKind::Prevented => "let (source, amount, combat) = (*source, *amount, *combat);",
+        DamageKind::Excess | DamageKind::ExcessNoncombat => {
+            "let (source, amount, combat) = (*source, (*recipient_excess).min(u32::from(u16::MAX)) as u16, kind.is_combat());"
+        }
+        _ => "let (source, amount, combat) = (*source, *amount, kind.is_combat());",
     }
 }
 
@@ -958,7 +984,7 @@ impl Compiler {
                     return Err(gap(format!("batch of {}", form(other))));
                 }
                 let mut matched = self.event(other)?;
-                if matched.batch.is_some() || matched.sums {
+                if matched.sums {
                     return Err(gap("a batch of grouped events"));
                 }
                 matched.batch = Some(false);
@@ -1066,8 +1092,9 @@ impl Compiler {
         };
         let singular = matches!(grouping, DamageGrouping::SourceRecipient);
         let carried_second = Some(Carried::Data(1));
+        let excess = matches!(kind, DamageKind::Excess | DamageKind::ExcessNoncombat);
         let mut frame = Frame {
-            amount: (singular || sums_damage(damage)).then_some(Carried::Data(0)),
+            amount: (singular || excess || sums_damage(damage)).then_some(Carried::Data(0)),
             ..Frame::default()
         };
         if by_source {
@@ -1094,6 +1121,13 @@ impl Compiler {
             DamageKind::Any => {}
             DamageKind::Combat => tests.push("combat".to_string()),
             DamageKind::Noncombat => tests.push("!combat".to_string()),
+            DamageKind::Prevented => {}
+            DamageKind::Excess => {
+                tests.push("amount > 0".to_string())
+            }
+            DamageKind::ExcessNoncombat => {
+                tests.push("amount > 0 && !combat".to_string())
+            }
             other => return Err(gap(format!("damage kind {}", form(other)))),
         }
         tests.push(match source_kind {
@@ -1214,15 +1248,16 @@ impl Compiler {
         let mut matched = single(
             "DAMAGE",
             Arm {
-                pattern: "Event::Damage { source, target, amount, kind, .. }".into(),
-                locals: format!(
-                    "let (source, amount, combat) = (*source, *amount, kind.is_combat()); {locals}"
-                ),
+                pattern: damage_pattern(damage).into(),
+                locals: format!("{} {locals}", damage_values(damage)),
                 tests,
             },
             frame,
             "Whenever damage is dealt",
         );
+        if matches!(damage.kind, DamageKind::Prevented) {
+            matched.masks = vec!["DAMAGE_PREVENTED"];
+        }
         matched.sums = sums_damage(damage);
         matched.batch = match damage.grouping {
             _ if matched.sums => None,
@@ -1514,6 +1549,12 @@ impl Compiler {
             format!("{:?}", announcement.targets).contains("ControlledBy(One(EventSubject))");
         let matched = self.event(event);
         self.recipient_subject = false;
+        if let (EventSpec::Either(events), Err(failed)) = (event, &matched) {
+            let whole = gate.is_none() && conditional.is_none() && limits.per_turn.is_none();
+            if failed.feature == "alternative events with different rules" && whole {
+                return self.triggered_each(label, events, intervening_if, limits, announcement, body);
+            }
+        }
         let matched = matched?;
         let adds_mana = |i: &Instruction| {
             matches!(
@@ -1627,13 +1668,26 @@ impl Compiler {
         if !body.instructions.is_empty() {
             return Err(gap("modal ability with instructions besides its modes"));
         }
-        let condition = intervening_if
-            .map(|c| self.condition_function(c, &format!("{label}_if")))
-            .transpose()?;
-        let trigger = self.trigger(matched, &format!("{label}_event"), &[]);
+        let mut extra = Vec::new();
+        let mut guard = None;
+        let mut condition = None;
+        if let Some(intervening) = intervening_if {
+            match self.condition_function(intervening, &format!("{label}_if")) {
+                Ok(function) => condition = Some(function),
+                // As `triggered` does: asked by the matcher, and by each mode.
+                Err(gap) if gap.feature.contains("event") => {
+                    extra.push(self.matching(matched.frame, |c| c.condition(intervening))?);
+                    guard = Some(intervening.clone());
+                }
+                Err(gap) => return Err(gap),
+            }
+        }
+        let trigger = self.trigger(matched, &format!("{label}_event"), &extra);
         self.frame = matched.frame;
         self.grouped = matched.batch.is_some();
+        self.mode_guard = guard;
         let modal = self.modal(announcement, label, Some(matched.frame));
+        self.mode_guard = None;
         self.grouped = false;
         self.frame = Frame::default();
         let modal = modal?;
