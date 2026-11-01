@@ -1,7 +1,7 @@
 # Writing scenarios
 
 This is all you need of the harness. Do not open `scenarios/README.md`, `docs/adding-cards.md`, the skills, the rules file or
-`crates/cantrip-script`. Search one of them only for a line this page does not answer, with `rg -n "word" FILE | head -20`.
+`crates/cantrip-script`, and do not search `scenarios/`: it holds 14,000 files. Each card's section shows how its keywords are said.
 
 ## The file
 
@@ -85,10 +85,14 @@ blockers, decline, first eligible card, find nothing, discard newest. So a line 
 | `Bot1.Discard(Island)` · `Bot1.Search(Black Lotus)` · `Bot1.Search()` | discard, search (nothing found) |
 | `Bot1.Arrange(Top1; Top2 \| Bottom1)` | scry (top \| bottom), surveil (top \| graveyard) |
 | `Bot1.Attack(Grizzly Bears; Hill Giant > Bot2)` · `Bot2.Block(Serra Angel > Grizzly Bears)` | attackers, blockers |
+| `Bot1.Hand.Appeal to Eirdu.Cast(Convoke: Ornithopter, Ornithopter)` | tap creatures for a convoke cost |
 | `Bot1.AssignDamage(Ox > Lurker: 1; Ox > Raider: 3)` | how combat damage divides |
 | `Bot1.Divide(Grizzly Bears: 2; Hill Giant: 1)` | a divided slot's targets and shares |
 | `Bot1.Modes(1; 4)` · `Bot1.Modes(Destroy target artifact)` | a modal spell's modes |
 | `Bot1.Colors(Red)` · `Bot1.Name(Lightning Bolt)` · `Bot1.Number(7)` · `Bot1.ChoosePlayer(Bot2)` | chosen as asked |
+
+Three players: add a `[Bot3 Deck]`; turns go Bot1, Bot2, Bot3, so a wait for Bot1 after turn 1 is `[T4 Bot1.Main1]`. A search that
+shuffles shows in `Bot1.Shuffles = 1`. A generated card's tokens and shared effects are in its code already: read that, never search.
 
 Names: `Stack.Duress` for a spell or for an ability named for its source, `Bot2.Battlefield.Grizzly Bears` where both players
 have one, `Island#2` for a second copy, top first. A token is its rules name: the name its text gives it, else subtypes then

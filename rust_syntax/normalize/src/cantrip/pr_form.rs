@@ -34,6 +34,7 @@ pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteris
     let reads_data = raw.contains("item.data") || raw.contains("batch_by_data") || raw.contains(".data[");
     let reads_subject = raw.contains("event_subject") || raw.contains("event_objects") || raw.contains("item.subject");
     flatten_tokens(&mut file, &mut BTreeSet::new());
+    use_shared_tokens(&mut file);
     for item in &mut file.items {
         strip_allows(item);
         if let Item::Fn(function) = item {
@@ -78,7 +79,8 @@ pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteris
             .map(|line| syn::parse_str::<Item>(line).expect("an import")),
     );
     strip_literal_types(&mut file);
-    Some(spaced(fields_on_their_own_lines(prettyplease::unparse(&file))))
+    let text = fields_on_their_own_lines(prettyplease::unparse(&file));
+    Some(spaced(event_patterns_on_one_line(&let_else_on_one_line(&text))))
 }
 
 /// Oracle text with loyalty costs as `+1:`, not the data's `[+1]:`.
@@ -3133,6 +3135,123 @@ fn token_words(card: &syn::ExprStruct) -> Option<String> {
 /// Each `pub mod token_N` and `pub mod emblem_N` as items of the file: a token is a
 /// static beside the card (`..token!(Words)`), an emblem a static `EMBLEM`, their
 /// functions beside the card's. What each module became is returned by its name.
+/// `colors|types|power|toughness|keywords|name` of a token of plain characteristics, as `tools/shared_tokens.py` keys them.
+fn token_key(definition: &Expr) -> Option<String> {
+    let Expr::Struct(token) = definition else { return None };
+    let Expr::Macro(rest) = token.rest.as_deref()? else { return None };
+    if !rest.mac.path.is_ident("token") {
+        return None;
+    }
+    let mut fields: BTreeMap<String, String> = BTreeMap::new();
+    for field in &token.fields {
+        let syn::Member::Named(name) = &field.member else { return None };
+        fields.insert(name.to_string(), text_of(&field.expr));
+    }
+    if fields.keys().any(|field| !["colors", "types", "power", "toughness", "keywords", "text"].contains(&field.as_str())) {
+        return None;
+    }
+    let plain = |field: &str| fields.get(field).map_or(String::new(), |text| text.split_whitespace().collect());
+    let names = |field: &str, kind: &str| {
+        let text = plain(field);
+        let mut found: Vec<&str> = text.split(kind).skip(1).map(|rest| rest.split(|c: char| !c.is_alphanumeric()).next().unwrap_or("")).collect();
+        found.sort_unstable();
+        found.join(",")
+    };
+    let colors = plain("colors");
+    let bits = colors
+        .strip_prefix("Some(ColorSet(")
+        .and_then(|rest| rest.strip_suffix("))"))
+        .and_then(|number| number.parse::<u8>().ok())
+        .or(colors.is_empty().then_some(0))?;
+    let name = rest.mac.tokens.to_string();
+    Some(format!("{bits}|{}|{}|{}|{}|{name}", names("types", "CardType::"), plain("power"), plain("toughness"), names("keywords", "Keyword::")))
+}
+
+/// A token Cantrip already shares is named, not defined again: a hand-written card says `tokens::INSECT`.
+fn use_shared_tokens(file: &mut File) {
+    static SHARED: std::sync::OnceLock<BTreeMap<&str, &str>> = std::sync::OnceLock::new();
+    let shared = SHARED.get_or_init(|| include_str!("shared_tokens.tsv").lines().filter_map(|row| row.split_once('\t')).collect());
+    let mut named: BTreeMap<String, Expr> = BTreeMap::new();
+    file.items.retain(|item| {
+        let Item::Static(token) = item else { return true };
+        let name = token.ident.to_string();
+        if name == "CARD" || text_of(&token.ty) != "CardDef" {
+            return true;
+        }
+        let Some(path) = token_key(&token.expr).and_then(|key| shared.get(key.as_str())) else {
+            return true;
+        };
+        named.insert(name, syn::parse_str(&format!("cantrip_mechanics::tokens::{path}")).expect("a path"));
+        false
+    });
+    struct Named<'a>(&'a BTreeMap<String, Expr>);
+    impl VisitMut for Named<'_> {
+        fn visit_expr_mut(&mut self, node: &mut Expr) {
+            if let Some(path) = ident_of(node).and_then(|name| self.0.get(&name)) {
+                *node = path.clone();
+                return;
+            }
+            visit_mut::visit_expr_mut(self, node);
+        }
+    }
+    if !named.is_empty() {
+        Named(&named).visit_file_mut(file);
+    }
+}
+
+/// `else { return Ok(()) };` stays on the line it guards, as in Cantrip's cards. Split, its `return` is a line of its own that
+/// no scenario runs on an ability with one target: a target gone from it means the ability never resolves.
+fn let_else_on_one_line(text: &str) -> String {
+    let lines: Vec<&str> = text.split('\n').collect();
+    let mut out: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let guards = i + 2 < lines.len()
+            && lines[i].trim_end().ends_with(" else {")
+            && lines[i + 1].trim() == "return Ok(());"
+            && lines[i + 2].trim() == "};";
+        if guards && lines[i].len() + " return Ok(()) };".len() <= 120 {
+            out.push(format!("{} return Ok(()) }};", lines[i].trim_end()));
+            i += 3;
+        } else {
+            out.push(lines[i].to_string());
+            i += 1;
+        }
+    }
+    out.join("\n")
+}
+
+/// An event's pattern on one line where it fits: split by the formatter's narrower margin, each binding is a line that only
+/// counts as run when the arm is taken, which on some events no game reaches.
+fn event_patterns_on_one_line(text: &str) -> String {
+    let lines: Vec<&str> = text.split('\n').collect();
+    let field = |line: &str| {
+        let line = line.trim();
+        let name = line.strip_suffix(',').unwrap_or(line);
+        name == ".." || name.chars().all(|c| c.is_alphanumeric() || "_: &".contains(c)) && line.ends_with(',')
+    };
+    let mut out: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let head = lines[i].trim_start();
+        let opens = lines[i].ends_with(" {") && (head.starts_with("Event::") || head.starts_with("if let Event::") || head.starts_with("let Event::"));
+        let end = opens.then(|| (i + 1..lines.len()).find(|&at| !field(lines[at]))).flatten();
+        if let Some(end) = end.filter(|&end| end > i + 1 && lines[end].trim_start().starts_with('}')) {
+            let fields: Vec<&str> = lines[i + 1..end].iter().map(|line| line.trim()).collect();
+            let fields = fields.join(" ");
+            let joined = format!("{} {} {}", lines[i], fields.strip_suffix(',').unwrap_or(&fields), lines[end].trim_start());
+            if joined.len() <= 120 {
+                out.push(joined);
+                i = end + 1;
+                continue;
+            }
+        }
+        out.push(lines[i].to_string());
+        i += 1;
+    }
+    out.join("\n")
+}
+
 fn flatten_tokens(file: &mut File, taken: &mut BTreeSet<String>) -> BTreeMap<String, syn::Path> {
     let mut became: BTreeMap<String, syn::Path> = BTreeMap::new();
     let mut i = 0;

@@ -71,7 +71,7 @@ SCENARIOS_DIR = "scenarios"
 
 # USD per million tokens: ordinary input, cached input, output. API-equivalent list prices as vizier's
 # scripts/card_agent_usage.py records them; a ChatGPT login is not billed by the token.
-RATES = {"gpt-6-luna": (.10, .01, .50), "gpt-5.6-luna": (.20, .02, 1.20), "gpt-6-sol": (2, .20, 10), "gpt-6.1-sol": (2, .10, 10),
+RATES = {"gpt-6-luna": (.10, .01, .50), "gpt-5.6-luna": (.20, .02, 1.20), "gpt-6-sol": (2, .20, 10), "gpt-6.1-sol": (2, .10, 10), "gpt-6.1-terra": (1, .05, 5),
          "gpt-6-astra": (10, 1, 50)}
 
 MUTATION_LIMIT = 40  # about 16 s each; a card past this is reported as partly tested, not passed silently
@@ -1459,6 +1459,33 @@ def discard(card, queue, outcome):
     conclude(card, queue, outcome)
 
 
+ACTION_LINES = []  # every scenario's action lines, read once for all of a batch's cards
+
+
+def keyword_words(text):
+    """The first word of each keyword on a card's keyword lines: "Crew 2", "Trample; banding", "Flashback—{1}{G}"."""
+    words = []
+    for line in printed_lines(text):
+        if not line.endswith(".") or re.match(r"\S+—", line):
+            words += [re.split(r"[\s—]", part.strip())[0] for part in re.split(r"[,;]", line) if part.strip()]
+    return list(dict.fromkeys(w for w in words if w[:1].isalpha() and len(w) > 3))
+
+
+def keyword_lines(text, wanted=2):
+    """Lines of existing scenarios that say a card's keywords, shortest first: how a worker learns that a foretold card is
+    `Activate(Ability: Foretell)`, which otherwise it searches the corpus for, at the price of everything the search prints."""
+    if not ACTION_LINES:
+        for path in (CANTRIP / SCENARIOS_DIR).glob("*.cantrip"):
+            body = path.read_text(encoding="utf-8").split("[Actions]", 1)[-1].split("[Expect]", 1)[0]
+            ACTION_LINES.extend(line.strip() for line in body.splitlines() if line.startswith(("Bot", "! Bot")))
+    out = []
+    for word in keyword_words(text):
+        pattern = re.compile(rf"(Ability: *|\.){re.escape(word)}(\b(?=[^.]*$)|\()", re.I)  # the action, not a card named Crew
+        found = sorted({line for line in ACTION_LINES if pattern.search(line)}, key=lambda line: (line.startswith("!"), len(line)))
+        out += [f"- {word}: `{line}`" for line in found[:wanted]]
+    return out
+
+
 def card_section(number, card):
     """What a worker needs of one card, so it reads nothing to get it."""
     name = card["name"]
@@ -1479,6 +1506,9 @@ def card_section(number, card):
         out += ["", "Rulings:"] + [f"{i}. {r['ruling']}" for i, r in enumerate(skeleton["rulings"], 1)]
     if looks:
         out += ["", "Lint asks you to look at these; answer each in `looks`, naming its line as `line 12`:"] + looks
+    said = keyword_lines(content.get("oracleText", ""))
+    if said:
+        out += ["", "How other scenarios say its keywords, the card's name standing in another's:"] + said
     out += ["", f"Its file, `{CARDS_DIR}/{path.name}`:" if source else "It has no file: the content's keywords are the whole card.", ""]
     out += ["```rust", source.rstrip(), "```", ""] if source else []
     written = card_scenarios(name)
@@ -1525,7 +1555,12 @@ legal to target, the trigger's event and whose, the duration and the order. A li
 A card that is wrong is worse than a card that is missing. If a line disagrees, or a scenario shows the card does other than its
 text says, the card's entry is `{{"decision": "generator_bug", "reason": "the line, what the code does, what the text requires"}}`;
 if the card is right and the engine plays the rules wrongly, `engine_gap`; if a tool is broken, `needs_review`. These are normal
-results and cost little. Do not work around them."""
+results and cost little. Do not work around them.
+
+A stop must say the game state in which the card does the wrong thing, and a scenario must show it if one can. That you have no
+scenario for something yet is not a gap: write one. That code looks unusual is not a bug: `cast.from == ZoneKind::Hand` with the
+caster as owner is what "your hand" means, since a spell can be cast from another player's hand. A card in a lane has been
+compiled and its shape checked, so most cards are right."""
 
 
 WAYS = {
@@ -1537,8 +1572,9 @@ WAYS = {
 Write all the cards, then run `batch-check --fast` once and fix what it names, rather than running each scenario as you write
 it. One command at a time, in the foreground. Stop when it passes.""",
     "draft": """Do not run anything now: no corpus, no check, no search. You have all you need above. Write every card's scenarios and the
-reports in one go and stop. A driver plays them and sends back what failed, for every card at once, and you fix them then. When
-it does, it will say what tools you may use.""",
+reports, and stop. Every step costs the whole of this prompt again, so make few of them: write all the files in one action. A
+driver plays them and sends back what failed, for every card at once, and you fix them then. When it does, it will say what
+tools you may use.""",
 }
 
 
@@ -1775,8 +1811,8 @@ def cmd_batch_check(args):
 
 
 def batch_repair(gates, way):
-    tools = (f"You may now use `python3 {Path(__file__).resolve()} corpus --file PATH --brief` (with `--dump`, `--diff N`, `--next`) on a scenario "
-             "you cannot fix from this report. " if way == "draft" else "")
+    tools = (f"Fix what you can from this report alone, in one action. Only for a scenario you cannot fix from it, use `python3 {Path(__file__).resolve()} corpus "
+             "--file PATH --brief` (with `--dump`, `--diff N`, `--next`). " if way == "draft" else "")
     return (f"The gates failed as below. Fix what they name in your scenarios and `{BATCH_DIR / 'reports.json'}`, nothing else, and stop. {tools}"
             "A scenario must not be weakened to pass, and a mutant is only declared equivalent if it truly changes nothing the rules can see. If they show "
             "a card is wrong, its decision is `generator_bug`.\n\n" + batch_text({n: g for n, g in gates.items() if not g.ok}))

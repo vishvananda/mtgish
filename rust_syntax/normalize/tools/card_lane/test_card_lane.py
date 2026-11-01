@@ -173,6 +173,29 @@ class Keywords(unittest.TestCase):
         self.assertNotIn("keywords", json.loads(changes[0]["text"]))
 
 
+class Prompt(unittest.TestCase):
+    def test_a_keywords_first_word_comes_from_its_line(self):
+        self.assertEqual(lane.keyword_words("Trample; banding (Bands are blocked.)\nCrew 2\nFlashback—{1}{G}, Pay 3 life.\nDraw a card."),
+                         ["Trample", "banding", "Crew", "Flashback"])
+
+    def test_a_sentence_has_no_keyword(self):
+        self.assertEqual(lane.keyword_words("Draw a card, then discard a card."), [])
+
+    def test_a_keywords_lines_come_shortest_first_and_each_once(self):
+        with mock.patch.object(lane, "ACTION_LINES", ["Bot1.Hand.Long Named Card.Activate(Ability: Foretell)", "Bot1.Hand.X.Activate(Ability: Foretell)",
+                                                      "Bot1.Hand.X.Activate(Ability: Foretell)", "Bot1.Pass"]):
+            self.assertEqual(lane.keyword_lines("Foretell {1}{R}", wanted=1), ["- Foretell: `Bot1.Hand.X.Activate(Ability: Foretell)`"])
+
+
+    def test_a_card_named_for_a_keyword_is_not_its_action(self):
+        with mock.patch.object(lane, "ACTION_LINES", ["Bot1.Hand.Hire a Crew.Cast", "Bot1.Battlefield.Turtle Van.Activate(Ability: Crew)"]):
+            self.assertEqual(lane.keyword_lines("Crew 2"), ["- Crew: `Bot1.Battlefield.Turtle Van.Activate(Ability: Crew)`"])
+
+    def test_a_card_passes_on_a_refusal_last(self):
+        with mock.patch.object(lane, "ACTION_LINES", ["! Bot1.Hand.A.Suspend", "Bot1.Hand.Lotus Bloom.Suspend"]):
+            self.assertEqual(lane.keyword_lines("Suspend 3", wanted=1), ["- Suspend: `Bot1.Hand.Lotus Bloom.Suspend`"])
+
+
 class Sharing(unittest.TestCase):
     def test_a_function_that_is_a_shared_effect_over_again_is_named(self):
         with tempfile.TemporaryDirectory() as scratch:

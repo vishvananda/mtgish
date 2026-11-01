@@ -112,13 +112,13 @@ and `layers`, which take minutes. A commit needs all of them.
 | `warnings` | The build warns about the card's file |
 | `coverage` | `card-coverage.py` finds a line never run |
 | `liveness` | One scenario, played alone, runs none of the card's lines |
-| `mutation` | `card-mutate.py` could not finish, or the card has more than 40 possible changes. A card with no file has none |
+| `mutation` | `card-mutate.py` could not finish, the card has more than 40 possible changes, or a keyword taken off the card's content is not noticed |
 | `layers` | With a static ability, `layer_pass_cases` fails |
 | `report` | A printed line has no validation, a test point or ruling is unpaired, or a LOOK, a surviving mutant or a function copied from another card is unanswered |
 
 `liveness` exists because `card-coverage.py` judges a card's scenarios together, so one that plays nothing of the card hides
 among them. A card whose file names only a shared function has no line of its own, so `liveness` asks only that a scenario
-plays it, and `mutation` shows the scenarios reach it. A card with no file has neither, so its scenarios stand on their own.
+plays it, and `mutation` shows the scenarios reach it. A card with no file is tested by its keywords alone: `mutation` takes each off in turn.
 
 No gate reads the rules. The skill's last section says what that leaves to a review.
 

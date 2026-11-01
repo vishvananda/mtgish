@@ -328,3 +328,62 @@ fn what_a_spell_does_is_not_its_keyword_line() {
         assert!(file.contains("fn gain_3_life") || file.contains("fn you_gain_3_life"), "{file}");
     }
 }
+
+fn token_card(fields: &str) -> String {
+    format!(
+        r#"
+#[allow(unused_imports)] use cantrip_api::*;
+pub static BUG: CardDef = CardDef {{ {fields} ..token!(Insect) }};
+fn ability_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ let def = g.card_id(&BUG); g.create_tokens_worded(&[(def, item.controller)], false, None, g.words(item.object))?; Ok(()) }}
+pub static CARD: CardDef = CardDef {{ name: "Sample", oracle: true, spell: spell(&[], ability_0), abilities: &[], ..CardDef::DEFAULT }};
+pub static EXTRA: &[&CardDef] = &[&BUG];
+"#
+    )
+}
+
+const PLAIN_INSECT: &str = "types: TypeSet::of(&[CardType::Creature]), colors: Some(ColorSet(16)), power: Some(1), toughness: Some(1),";
+
+#[test]
+fn a_token_cantrip_shares_is_named() {
+    let text = "Create a 1/1 green Insect creature token.";
+    let file = render(&token_card(PLAIN_INSECT), "Sample", text, Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(file.contains("use cantrip_mechanics::tokens;"), "{file}");
+    assert!(file.contains("g.card_id(&tokens::INSECT)"), "{file}");
+    assert!(file.contains("&[&tokens::INSECT]"), "{file}");
+    assert!(!file.contains("pub static BUG"), "{file}");
+}
+
+#[test]
+fn a_token_that_differs_in_anything_is_its_own() {
+    let text = "Create a 1/1 black Insect creature token.";
+    let fields = PLAIN_INSECT.replace("ColorSet(16)", "ColorSet(4)");
+    let file = render(&token_card(&fields), "Sample", text, Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(!file.contains("tokens::"), "{file}");
+    assert!(file.contains("..token!(Insect)"), "{file}");
+    let fields = format!("{PLAIN_INSECT} keywords: Keywords::of(&[Keyword::Flying]),");
+    let file = render(&token_card(&fields), "Sample", text, Characteristics::Oracle).unwrap();
+    assert!(!file.contains("tokens::"), "{file}");
+}
+
+#[test]
+fn a_guard_stays_on_the_line_it_guards() {
+    let body = "let Some(target) = targets::object(g, item, 0) else { return Ok(()); }; g.destroy(target);";
+    let file = render(&spell_card(body), "Sample", "Destroy target artifact.", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(file.contains("else { return Ok(()) };"), "{file}");
+    assert!(!file.contains("return Ok(());\n"), "{file}");
+}
+
+#[test]
+fn an_events_pattern_stays_on_one_line() {
+    let body = "let seen = g.history().all().iter().rev().find_map(|r| match r.event {
+            Event::ZoneChange { old, new, reason: ZoneReason::Resolve, .. } if new == item.object => Some(old),
+            _ => None,
+        });
+        if seen.is_some() { g.gain_life(item.controller, 1); }";
+    let file = render(&spell_card(body), "Sample", "You gain 1 life.", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(file.contains("Event::ZoneChange { old, new, reason: ZoneReason::Resolve, .. } if"), "{file}");
+}

@@ -1,0 +1,59 @@
+0|Artifact,Creature|Some(1)|Some(1)|Flying|Thopter	THOPTER
+0|Artifact,Creature|Some(1)|Some(1)||Borg	BORG
+0|Artifact,Creature|Some(1)|Some(1)||Gnome	GNOME
+0|Artifact,Creature|Some(1)|Some(1)||Myr	MYR
+0|Artifact,Creature|Some(1)|Some(1)||Robot	ROBOT_1_1
+0|Artifact,Creature|Some(1)|Some(1)||Servo	SERVO
+0|Artifact,Creature|Some(2)|Some(2)||Robot	ROBOT_2_2
+0|Artifact,Creature|Some(3)|Some(3)||Golem	GOLEM
+0|Artifact,Creature|Some(3)|Some(3)||Illusion	ILLUSION_3_3_ARTIFACT
+0|Creature|Some(0)|Some(4)|Defender|Wall	WALL_0_4_DEFENDER
+0|Creature|Some(1)|Some(1)|Changeling|Shapeshifter	SHAPESHIFTER
+0|Creature|Some(1)|Some(1)|CrewsAsThoughPowerTwoGreater,SaddlesAsThoughPowerTwoGreater|Pilot	PILOT_SADDLES_AND_CREWS
+0|Creature|Some(1)|Some(1)|CrewsAsThoughPowerTwoGreater|Pilot	PILOT
+0|Creature|Some(1)|Some(1)||Human Citizen	HUMAN_CITIZEN
+0|Creature|Some(1)|Some(1)||Kithkin	KITHKIN
+0|Creature|Some(2)|Some(2)|CantBlock|Worm	RED_AND_GREEN_WORM
+0|Creature|Some(2)|Some(2)||Elf	ELF_BLACK_GREEN
+10|Creature|Some(3)|Some(3)|Flying|Elemental	ELEMENTAL_3_3_BLUE_RED
+16|Creature|Some(1)|Some(1)||Elf	ELF
+16|Creature|Some(1)|Some(1)||Insect	INSECT
+16|Creature|Some(1)|Some(1)||Squirrel	SQUIRREL
+16|Creature|Some(1)|Some(2)|Reach|Spider	SPIDER_1_2
+16|Creature|Some(2)|Some(1)|Reach|Spider	SPIDER
+16|Creature|Some(2)|Some(2)||Bear	BEAR
+16|Creature|Some(2)|Some(2)||Wolf	WOLF
+16|Creature|Some(3)|Some(3)||Beast	BEAST_3_3
+16|Creature|Some(3)|Some(4)|Reach|Treefolk	TREEFOLK
+16|Creature|Some(4)|Some(4)|Trample|Beast	BEAST_4_4_TRAMPLE
+18|Creature|Some(0)|Some(0)||Fractal	FRACTAL
+1|Creature|Some(1)|Some(1)|Flying|Spirit	WHITE_FLYING_SPIRIT
+1|Creature|Some(1)|Some(1)||Ally	ALLY
+1|Creature|Some(1)|Some(1)||Human	HUMAN
+1|Creature|Some(1)|Some(1)||Human Soldier	HUMAN_SOLDIER
+1|Creature|Some(1)|Some(1)||Rabbit	RABBIT
+1|Creature|Some(1)|Some(1)||Soldier	SOLDIER
+1|Creature|Some(2)|Some(2)|Vigilance|Samurai	SAMURAI
+1|Creature|Some(3)|Some(2)|Vigilance|Hero	HERO_3_2_WHITE_VIGILANCE
+1|Creature|Some(4)|Some(4)|Flying,Vigilance|Angel	ANGEL
+2|Creature|Some(1)|Some(1)||Fish	FISH
+2|Creature|Some(8)|Some(8)||Octopus	OCTOPUS
+3|Creature|Some(1)|Some(1)||Merfolk	MERFOLK_WHITE_BLUE
+4|Creature|Some(0)|Some(0)||Goblin Army	GOBLIN_ARMY
+4|Creature|Some(0)|Some(0)||Phyrexian Germ	GERM
+4|Creature|Some(1)|Some(1)|CantBlock|Rat	RAT_CANT_BLOCK
+4|Creature|Some(1)|Some(1)|Flying|Bat	BAT
+4|Creature|Some(1)|Some(1)||Ninja	NINJA
+4|Creature|Some(2)|Some(1)|Menace|Villain	VILLAIN_2_1_BLACK_MENACE
+4|Creature|Some(2)|Some(2)||Zombie	ZOMBIE
+5|Creature|Some(1)|Some(1)|Flying|Inkling	INKLING
+6|Creature|Some(1)|Some(1)|Flying|Faerie	FAERIE_BLUE_BLACK
+8|Creature|Some(1)|Some(1)||Goblin	GOBLIN
+8|Creature|Some(1)|Some(1)||Officer	OFFICER
+8|Creature|Some(1)|Some(1)||Phyrexian Goblin	PHYREXIAN_GOBLIN
+8|Creature|Some(2)|Some(1)|Haste|Klingon Warrior	KLINGON
+8|Creature|Some(2)|Some(2)||Dwarf	DWARF
+8|Creature|Some(2)|Some(2)||Mutant	MUTANT
+8|Creature|Some(2)|Some(2)||Rebel	REBEL
+8|Creature|Some(5)|Some(5)|Flying|Dragon	DRAGON_5_5
+9|Creature|Some(2)|Some(2)||Spirit	SPIRIT_2_2_RED_WHITE
