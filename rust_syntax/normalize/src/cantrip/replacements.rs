@@ -676,9 +676,9 @@ impl Compiler {
         Ok((
             None,
             if about {
-                format!("let _ = to; g.add_effect(item.object, about, EffectKind::Replacement({index}), DURATION);")
+                format!("let _ = to; g.add_effect(item.object, about, EffectKind::Replacement {{ card: item.ability.card, index: {index} }}, DURATION);")
             } else {
-                format!("let _ = (to, about); g.add_player_effect(item.controller, item.object, EffectKind::ReplacementRule({index}), DURATION);")
+                format!("let _ = (to, about); g.add_player_effect(item.controller, item.object, EffectKind::ReplacementRule {{ card: item.ability.card, index: {index} }}, DURATION);")
             },
         ))
     }

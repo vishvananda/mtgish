@@ -1,0 +1,204 @@
+//! What a card's file holds where Cantrip or the generator cannot yet do a
+//! part of it. A gap stays a gap: `module` still refuses such a card. For a
+//! tracked file the rest of the card is still written, and the part that is
+//! missing becomes a hole naming its requirement, so the code around it is what
+//! the card ends up with and the hole says exactly what it waits on.
+use super::*;
+use crate::corpus;
+use std::path::Path;
+
+/// The tracker's name for a gap feature: a stable slug of its words.
+pub fn requirement(feature: &str) -> String {
+    let mut id = String::new();
+    for c in feature.chars() {
+        if c.is_ascii_alphanumeric() {
+            if c.is_ascii_uppercase() && id.ends_with(|p: char| p.is_ascii_lowercase()) {
+                id.push('-');
+            }
+            id.push(c.to_ascii_lowercase());
+        } else if !id.is_empty() && !id.ends_with('-') {
+            id.push('-');
+        }
+    }
+    id.trim_end_matches('-').to_string()
+}
+
+/// Requirements that have landed in Cantrip: their code is no longer held back.
+/// Adding one here and regenerating is all a card waiting on it needs.
+const LANDED: &[&str] = &[];
+
+/// The source of a value, for a hole to carry when no code can read it yet.
+fn source(value: &impl serde::Serialize) -> String {
+    quoted(&ron::to_string(value).unwrap_or_default())
+}
+
+impl Compiler {
+    /// A part that stopped midway can leave a resolution half set up.
+    pub(super) fn reset_after_gap(&mut self) {
+        self.pending = Pending::Nothing;
+        self.dividing = None;
+    }
+    /// A printed characteristic Cantrip has no word for.
+    pub(super) fn plan_trait(&mut self, path: &str, gap: Diagnostic, value: String) {
+        let id = requirement(&gap.feature);
+        self.gaps.push(gap.at(path));
+        writeln!(self.holes, "planned_item!({id:?}, {value:?});").unwrap();
+    }
+    /// An ability with no code: the file keeps its source.
+    pub(super) fn plan_ability(&mut self, feature: &str, ability: &Ability) {
+        let id = requirement(feature);
+        writeln!(self.holes, "planned_item!({id:?}, {});", source(ability)).unwrap();
+    }
+    /// The code a card will have once `feature` exists in Cantrip. Until then it
+    /// is written out but not compiled, and the card waits on the requirement:
+    /// `planned!("id" => code)`. Everything after it carries on as if it ran.
+    pub(super) fn plan_code(&mut self, feature: &str, code: &str, out: &mut String) {
+        let id = requirement(feature);
+        if LANDED.contains(&id.as_str()) {
+            writeln!(out, "{code}").unwrap();
+            return;
+        }
+        self.gaps.push(gap(feature));
+        writeln!(out, "planned!({id:?} => {code});").unwrap();
+    }
+    /// The entry `list` of the card definition will hold once `feature` exists:
+    /// `planned_item!("id" => list: code)` until then.
+    pub(super) fn plan_entry(
+        &mut self,
+        feature: &str,
+        list: &'static str,
+        code: &str,
+        parts: &mut Parts,
+    ) {
+        let id = requirement(feature);
+        if LANDED.contains(&id.as_str()) {
+            parts.entry(list, code.to_string());
+            return;
+        }
+        self.gaps.push(gap(feature));
+        writeln!(self.holes, "planned_item!({id:?} => {list}: {code});").unwrap();
+    }
+    /// One field of a failed instruction: its value read as the code it would
+    /// have been, where the generator can read it, or its source.
+    fn plan_field(&self, value: &serde_json::Value) -> String {
+        fn read<T: serde::de::DeserializeOwned>(value: &serde_json::Value) -> Option<T> {
+            serde_json::from_value(value.clone()).ok()
+        }
+        let code = read::<Expr>(value)
+            .and_then(|n| self.number(&n).ok().map(|n| n.code))
+            .or_else(|| read::<ObjectSet>(value).and_then(|o| self.objects(&o).ok()))
+            .or_else(|| read::<ObjectRef>(value).and_then(|o| self.object(&o).ok()))
+            .or_else(|| read::<PlayerRef>(value).and_then(|p| self.player(&p).ok()))
+            .or_else(|| read::<PlayerSet>(value).and_then(|p| self.players(&p).ok()))
+            .or_else(|| read::<Condition>(value).and_then(|c| self.condition(&c).ok()));
+        match code {
+            Some(code) => self.fetch(code),
+            None => source(value),
+        }
+    }
+    /// An instruction with no code: `planned!(requirement, form, field = value)`.
+    pub(super) fn plan_instruction(
+        &mut self,
+        feature: &str,
+        instruction: &Instruction,
+        out: &mut String,
+    ) {
+        let id = requirement(feature);
+        let value = serde_json::to_value(instruction).unwrap_or_default();
+        let (form, fields) = match instruction {
+            Instruction::Effect { .. } => (
+                value["args"]["operation"]["kind"].clone(),
+                value["args"]["operation"]["args"].clone(),
+            ),
+            _ => (value["kind"].clone(), value["args"].clone()),
+        };
+        let form = form.as_str().unwrap_or("Instruction").to_string();
+        write!(out, "planned!({id:?}, {form}").unwrap();
+        match fields.as_object() {
+            Some(fields) => {
+                for (field, value) in fields {
+                    write!(out, ", {field:?} = {}", self.plan_field(value)).unwrap();
+                }
+            }
+            None if fields.is_null() => {}
+            None => write!(out, ", \"value\" = {}", self.plan_field(&fields)).unwrap(),
+        }
+        writeln!(out, ");").unwrap();
+    }
+}
+
+/// One face of a tracked card.
+#[derive(serde::Serialize)]
+pub struct TrackedFace {
+    pub name: String,
+    pub oracle: Option<String>,
+    pub rust: String,
+    pub gaps: Vec<Diagnostic>,
+}
+
+/// A record's generated code, whole.
+#[derive(serde::Serialize)]
+pub struct TrackedCard {
+    pub line: usize,
+    pub name: String,
+    pub layout: String,
+    pub faces: Vec<TrackedFace>,
+    /// A gapless single face's file in Cantrip's hand-written style.
+    pub file: Option<String>,
+}
+
+/// Every card's code, a JSON object a line. A record that can't be emitted
+/// stops the run: nothing is left for the tracker to miss.
+pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usize> {
+    let oracle = oracle_texts(oracle)?;
+    let mut artifact = corpus::Artifact::create(output)?;
+    let mut count = 0;
+    corpus::map_cards(
+        input,
+        |line, source| -> corpus::Result<TrackedCard> {
+            let identity = corpus::Identity::of(&source)?;
+            let lowered = crate::unified::lower(&source);
+            let name = identity.names.join(" // ");
+            let mut faces = Vec::new();
+            for face in &lowered.card.faces {
+                let (rust, gaps) = tracked_module(face)
+                    .map_err(|g| format!("{name}: {}: {} ({})", g.path, g.feature, g.message))?;
+                faces.push(TrackedFace {
+                    name: face.name.clone(),
+                    oracle: oracle.get(&face.name).cloned(),
+                    rust,
+                    gaps,
+                });
+            }
+            // A card of several faces is only whole once they are one card.
+            if lowered.card.layout != "Card" && lowered.card.layout != "TokenDefinition" {
+                if let Some(first) = faces.first_mut() {
+                    let needs = gap(format!("layout {}", lowered.card.layout));
+                    first.gaps.push(needs.at("layout"));
+                }
+            }
+            let file = match faces.as_slice() {
+                [one] if one.gaps.is_empty() && lowered.card.layout == "Card" => one
+                    .oracle
+                    .as_deref()
+                    .and_then(|text| card_file::card_file(&lowered.card.faces[0], text).ok())
+                    .flatten(),
+                _ => None,
+            };
+            Ok(TrackedCard {
+                line,
+                name,
+                layout: lowered.card.layout.clone(),
+                faces,
+                file,
+            })
+        },
+        |_, card| {
+            writeln!(artifact, "{}", serde_json::to_string(&card)?)?;
+            count += 1;
+            Ok(())
+        },
+    )?;
+    artifact.commit()?;
+    Ok(count)
+}

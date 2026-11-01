@@ -1,7 +1,7 @@
 // Cantrip vocabulary snapshot; regenerate with tools/update_cantrip_vocabulary.py.
 // These names are inert metadata, never behavior.
 pub const API_FINGERPRINT: &str =
-    "edc1c21e059c77d2f941da609c101bf8e357ac37fddcb6e72d191bab27b3c26c";
+    "679fafe1a3aa72b6748b346837c06854e367b396bad41718c3f7fd2bfec6dd3e";
 pub const SUBTYPES: &[&str] = &[
     "Adventure",
     "Advisor",
@@ -473,6 +473,38 @@ pub const SUBTYPES: &[&str] = &[
     "Caitian",
     "Gorn",
     "Vulcan",
+    "Aenar",
+    "Android",
+    "Bajoran",
+    "Betazoid",
+    "Bolian",
+    "Cardassian",
+    "Denobulan",
+    "ElAurian",
+    "Excalbian",
+    "Ferengi",
+    "Hirogen",
+    "Illyrian",
+    "Kelpien",
+    "Kwejian",
+    "Lanthanite",
+    "Medusan",
+    "Nakuhl",
+    "Ocampa",
+    "Officer",
+    "Orion",
+    "Q",
+    "Romulan",
+    "Talosian",
+    "Tamarian",
+    "Tellarite",
+    "Tholian",
+    "Tosk",
+    "Tribble",
+    "Trill",
+    "VauNAkat",
+    "Vorta",
+    "Xindi",
 ];
 pub const KEYWORDS: &[&str] = &[
     "Flying",
@@ -528,6 +560,7 @@ pub const KEYWORDS: &[&str] = &[
     "LegendaryLandwalk",
     "Wither",
     "Phasing",
+    "CantBeCopied",
 ];
 pub const COUNTERS: &[&str] = &[
     "PlusOne",
@@ -583,4 +616,8 @@ pub const COUNTERS: &[&str] = &[
     "Soul",
     "Invitation",
     "Age",
+    "Growth",
+    "Invasion",
+    "Dream",
+    "Promotion",
 ];

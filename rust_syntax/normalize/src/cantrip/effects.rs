@@ -346,7 +346,8 @@ impl Compiler {
         boundaries: bool,
     ) -> Result<()> {
         for (i, instruction) in body.instructions.iter().enumerate() {
-            self.attempt(format!("instructions[{i}]"), |c| {
+            let mark = out.len();
+            let failure = self.attempt(format!("instructions[{i}]"), |c| {
                 let compiled = c.instruction(body, i, instruction, out);
                 if compiled.is_err() {
                     if let Instruction::Effect { result, .. } = instruction {
@@ -355,6 +356,10 @@ impl Compiler {
                 }
                 compiled
             });
+            if let Some(feature) = failure {
+                out.truncate(mark);
+                self.plan_instruction(&feature, instruction, out);
+            }
             if boundaries && self.pending == Pending::Nothing {
                 writeln!(out, "g.end_sentence();").unwrap();
             }

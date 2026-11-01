@@ -194,22 +194,29 @@ impl Compiler {
                 parts.table("activation_rules", function);
             }
             // "Can't attack unless defending player controls an Island": a rule on
-            // the defending player. An attack rule sees no defender and needs none:
-            // in a duel it is the one opponent, whatever is attacked (AttackRule's
-            // own note). "Can't attack you" has no such form, since it leaves your
-            // planeswalkers open and an attack rule forbids attacking at all.
+            // the defending player. An attack rule is asked per attacked target, so
+            // "can't attack you" leaves your planeswalkers open.
             RuleChange::Prohibit(ObjectAction::Attack(
                 AttackDefenders::Players(players @ PlayerSet::Matching { .. })
                 | AttackDefenders::PlayersAndPlaneswalkers(players @ PlayerSet::Matching { .. }),
             )) => {
                 let test = self.rule_subject(affected, "attacker")?;
                 let defenders = self.players(players)?;
-                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, attacker: ObjectId) -> bool {{ {PRELUDE} !({guard}{test} && ({defenders}).iter().any(|&p| p != q.controller(attacker))) }}").unwrap();
+                let walkers = matches!(
+                    rule,
+                    RuleChange::Prohibit(ObjectAction::Attack(
+                        AttackDefenders::PlayersAndPlaneswalkers(_)
+                    ))
+                );
+                let attacked = format!(
+                    "(match defender {{ Target::Player(p) => ({defenders}).contains(&p), Target::Object(id) => {walkers} && q.chars(id).is(CardType::Planeswalker) && ({defenders}).contains(&q.controller(id)), _ => false }})"
+                );
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, attacker: ObjectId, defender: Target) -> bool {{ let source = asker.source; {PRELUDE} !({guard}{test} && {attacked}) }}").unwrap();
                 parts.attack_rules.push(function);
             }
             RuleChange::Prohibit(ObjectAction::Attack(AttackDefenders::Any)) => {
                 let test = self.rule_subject(affected, "attacker")?;
-                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, attacker: ObjectId) -> bool {{ {PRELUDE} !({guard}{test}) }}").unwrap();
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, attacker: ObjectId, defender: Target) -> bool {{ let source = asker.source; {PRELUDE} !({guard}{test}) }}").unwrap();
                 parts.attack_rules.push(function);
             }
             RuleChange::UntapStep {

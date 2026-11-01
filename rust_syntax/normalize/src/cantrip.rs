@@ -19,6 +19,7 @@ mod delayed;
 mod effects;
 mod keywords;
 mod mechanics;
+pub mod planned;
 mod players;
 mod playing;
 mod read;
@@ -327,6 +328,8 @@ impl Number {
 }
 #[derive(Clone)]
 struct Compiler {
+    /// The file's holes for what has no place in its code: see `planned`.
+    holes: String,
     /// Compiling the event of `Expr::EventHistory`.
     history: Option<History>,
     /// A `StackItem` named `item` is in reach, with its targets and X.
@@ -682,13 +685,21 @@ impl Compiler {
             next: 0,
             gaps: Vec::new(),
             failed: BTreeSet::new(),
+            holes: String::new(),
         }
     }
     /// Compile one part, recording a gap rather than stopping at it, and prefix
-    /// `path` to everything it reported.
-    fn attempt(&mut self, path: String, part: impl FnOnce(&mut Self) -> Result<()>) {
+    /// `path` to everything it reported. The part's failure comes back so the
+    /// caller can leave a tracked hole where its code would go.
+    fn attempt(
+        &mut self,
+        path: String,
+        part: impl FnOnce(&mut Self) -> Result<()>,
+    ) -> Option<String> {
         let mark = self.gaps.len();
+        let mut failure = None;
         if let Err(gap) = part(self) {
+            failure = Some(gap.feature.clone());
             if gap.feature != FOLLOWS_GAP {
                 self.gaps.push(gap);
             }
@@ -696,6 +707,7 @@ impl Compiler {
         for gap in &mut self.gaps[mark..] {
             *gap = gap.clone().at(&path);
         }
+        failure
     }
     fn selected(&self, result: &ResultId) -> Result<String> {
         match self.selections.get(&result.0) {
@@ -1237,12 +1249,11 @@ pub struct CardFileRow {
     pub gap: Option<String>,
 }
 
-/// Every single-faced, complete, primitive-free record the recipes of
-/// `card_file` cover, or the gap that stops it, as one JSON object a line.
-pub fn card_files(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usize> {
+/// Each face's printed text, by name.
+fn oracle_texts(oracle: &Path) -> corpus::Result<BTreeMap<String, String>> {
     let printed: serde_json::Value =
         serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(oracle)?))?;
-    let oracle: BTreeMap<String, String> = printed
+    Ok(printed
         .as_array()
         .ok_or("oracle data is not a list")?
         .iter()
@@ -1251,7 +1262,13 @@ pub fn card_files(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<
             let text = face["text"].as_str().unwrap_or_default();
             Some((face["name"].as_str()?.to_string(), text.to_string()))
         })
-        .collect();
+        .collect())
+}
+
+/// Every single-faced, complete, primitive-free record the recipes of
+/// `card_file` cover, or the gap that stops it, as one JSON object a line.
+pub fn card_files(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usize> {
+    let oracle = oracle_texts(oracle)?;
     let mut artifact = corpus::Artifact::create(output)?;
     let mut count = 0;
     corpus::map_cards(
@@ -1351,6 +1368,12 @@ pub fn module(card: &Card) -> Result<String> {
         Err(module.gaps.swap_remove(0))
     }
 }
+/// A card's whole file: a card with gaps has a hole for each, and the gaps say
+/// what they wait on. Only `module`'s result is ever executable as the card.
+pub fn tracked_module(card: &Card) -> Result<(String, Vec<Diagnostic>)> {
+    let module = emit_module(card, None)?;
+    Ok((module.rust, module.gaps))
+}
 /// Everything the generator lacks for this card, not only the first gap.
 pub fn gaps(card: &Card) -> Vec<Diagnostic> {
     match emit_module(card, None) {
@@ -1389,6 +1412,21 @@ struct Parts {
     pay_with: BTreeSet<&'static str>,
 }
 impl Parts {
+    /// Add to any list of the card definition, by its field name.
+    fn entry(&mut self, list: &'static str, entry: String) {
+        match list {
+            "keywords" => self.keywords.push(entry),
+            "abilities" => self.abilities.push(entry),
+            "statics" => self.statics.push(entry),
+            "replacements" => self.replacements.push(entry),
+            "preventions" => self.preventions.push(entry),
+            "block_rules" => self.block_rules.push(entry),
+            "block_requirements" => self.block_requirements.push(entry),
+            "attack_rules" => self.attack_rules.push(entry),
+            "untap_bans" => self.untap_bans.push(entry),
+            table => self.table(table, entry),
+        }
+    }
     fn table(&mut self, table: &'static str, entry: String) {
         self.tables.entry(table).or_default().push(entry);
     }
@@ -1482,13 +1520,17 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
         _ => Err(gap("two mechanics that need the first delayed ability")),
     });
     for (i, a) in card.abilities.iter().enumerate() {
-        c.attempt(format!("abilities[{i}]"), |c| {
+        let failure = c.attempt(format!("abilities[{i}]"), |c| {
             let compiled = c.ability(a, &format!("ability_{i}"), &mut parts, None);
             if c.dividing.take().is_some() {
                 return Err(gap("target with a divided amount"));
             }
             compiled
         });
+        if let Some(feature) = failure {
+            c.reset_after_gap();
+            c.plan_ability(&feature, a);
+        }
     }
     c.attempt("abilities".into(), |c| {
         let ways = parts.tables.get("ways").map_or(0, Vec::len);
@@ -1517,18 +1559,21 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
         );
     }
     let ch = &card.characteristics;
-    let types = ch
-        .card_types
-        .iter()
-        .map(|t| card_type(t).map(|n| format!("CardType::{n}")))
-        .collect::<Result<Vec<_>>>()?;
+    let mut types = Vec::new();
+    for t in &ch.card_types {
+        match card_type(t) {
+            Ok(n) => types.push(format!("CardType::{n}")),
+            Err(gap) => c.plan_trait("characteristics.card_types", gap, name(t)),
+        }
+    }
     let mut subtypes = Vec::new();
     for t in &ch.subtypes {
         let n = name(t);
-        if !crate::cantrip_vocab::SUBTYPES.contains(&n.as_str()) {
-            return Err(gap(format!("subtype {n}")).at("characteristics.subtypes"));
+        if crate::cantrip_vocab::SUBTYPES.contains(&n.as_str()) {
+            subtypes.push(format!("Subtype::{n}"));
+        } else {
+            c.plan_trait("characteristics.subtypes", gap(format!("subtype {n}")), n);
         }
-        subtypes.push(format!("Subtype::{n}"));
     }
     let mut super_flags = [false; 3];
     for t in &ch.supertypes {
@@ -1536,20 +1581,29 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
             "Basic" => super_flags[0] = true,
             "Legendary" => super_flags[1] = true,
             "Snow" => super_flags[2] = true,
-            _ => return Err(gap("supertype")),
+            other => c.plan_trait("characteristics.supertypes", gap("supertype"), other.into()),
         }
     }
-    let mana = ch
-        .mana_cost
-        .as_ref()
-        .map(|m| mana(m))
-        .transpose()?
-        .unwrap_or_else(|| "ManaCost::ZERO".into());
-    let i16_opt = |n: Option<i64>| -> Result<String> {
+    let mana = match ch.mana_cost.as_ref().map(|m| mana(m)).transpose() {
+        Ok(cost) => cost.unwrap_or_else(|| "ManaCost::ZERO".into()),
+        Err(gap) => {
+            c.plan_trait(
+                "characteristics.mana_cost",
+                gap,
+                format!("{:?}", ch.mana_cost),
+            );
+            "ManaCost::ZERO".into()
+        }
+    };
+    let i16_opt = |c: &mut Compiler, n: Option<i64>| -> String {
         match n {
-            None => Ok("None".into()),
-            Some(n) if i16::try_from(n).is_ok() => Ok(format!("Some({n})")),
-            _ => Err(gap("printed characteristic exceeds i16")),
+            None => "None".into(),
+            Some(n) if i16::try_from(n).is_ok() => format!("Some({n})"),
+            Some(n) => {
+                let gap = gap("printed characteristic exceeds i16");
+                c.plan_trait("characteristics", gap, n.to_string());
+                "None".into()
+            }
         }
     };
     // Filters are compiled through `&self`, so this one is found in their text.
@@ -1558,6 +1612,9 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     }
     if c.functions.contains("modified(q, ") {
         c.helpers.insert("modified");
+    }
+    if c.functions.contains("about(q, ") {
+        c.helpers.insert("about");
     }
     for helper in &c.helpers {
         c.functions.push_str(match *helper {
@@ -1598,20 +1655,22 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
         ..
     } = parts;
     let enters = c.enters(&enters);
-    let (pt, loyalty) = (
-        ch.power_toughness,
-        ch.loyalty
-            .as_ref()
-            .map(|n| match n {
-                Expr::Constant(n) => Ok(*n),
-                _ => Err(gap("printed loyalty expression")),
-            })
-            .transpose()?,
-    );
+    let pt = ch.power_toughness;
+    let loyalty = match &ch.loyalty {
+        Some(Expr::Constant(n)) => Some(*n),
+        Some(other) => {
+            let gap = gap("printed loyalty expression");
+            c.plan_trait("characteristics.loyalty", gap, format!("{other:?}"));
+            None
+        }
+        None => None,
+    };
     let mut colors = 0u8;
     for cl in &ch.color_indicator {
-        color(cl)?;
-        colors |= 1 << color_index(cl)?;
+        match color(cl).and_then(|_| color_index(cl)) {
+            Ok(index) => colors |= 1 << index,
+            Err(gap) => c.plan_trait("characteristics.color_indicator", gap, name(cl)),
+        }
     }
     let colors = if ch.color_indicator.is_empty() {
         "None".into()
@@ -1633,6 +1692,14 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     };
     let generator = generator_fingerprint();
     let api = crate::cantrip_vocab::API_FINGERPRINT;
+    let printed = [
+        i16_opt(&mut c, pt.map(|(p, _)| i64::from(p))),
+        i16_opt(&mut c, pt.map(|(_, t)| i64::from(t))),
+        i16_opt(&mut c, loyalty),
+        i16_opt(&mut c, ch.defense.map(i64::from)),
+    ];
+    let holes = std::mem::take(&mut c.holes);
+    c.functions.push_str(&holes);
     let bestow = c.bestow.take();
     if bestow.is_some() {
         c.extras.push("BESTOWED".into());
@@ -1648,10 +1715,10 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
         super_flags[0],
         super_flags[1],
         super_flags[2],
-        i16_opt(pt.map(|(p, _)| i64::from(p)))?,
-        i16_opt(pt.map(|(_, t)| i64::from(t)))?,
-        i16_opt(loyalty)?,
-        i16_opt(ch.defense.map(i64::from))?,
+        printed[0],
+        printed[1],
+        printed[2],
+        printed[3],
         keywords.join(","),
         abilities.join(","),
         statics.join(","),

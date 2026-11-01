@@ -133,6 +133,15 @@ fn run() -> Result<()> {
             #[cfg(not(feature="cantrip"))]
             {let _=(input,oracle,output);return Err("Cantrip generation requires --features cantrip".into());}
         }
+        [command, input, oracle, output] if command == "cantrip-tracked" => {
+            #[cfg(feature="cantrip")]
+            {
+            let count = mtgish_ast::cantrip::planned::tracked(Path::new(input), Path::new(oracle), Path::new(output))?;
+            println!("{count} tracked cards");
+            }
+            #[cfg(not(feature="cantrip"))]
+            {let _=(input,oracle,output);return Err("Cantrip generation requires --features cantrip".into());}
+        }
         [command, input, names @ ..] if command == "cantrip-module" && !names.is_empty() => {
             #[cfg(feature="cantrip")]
             for (name, module) in mtgish_ast::cantrip::modules_named(Path::new(input), names)? {

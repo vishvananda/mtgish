@@ -230,7 +230,7 @@ impl Compiler {
                         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, spell: ObjectId) -> bool {{ {test} }}").unwrap();
                         self.play_rule(
                             label,
-                            format!("PlayRule::LibraryTopSpells({function})"),
+                            format!("PlayRule::LibraryTopSpells({function}, None)"),
                             parts,
                         )?;
                     }
