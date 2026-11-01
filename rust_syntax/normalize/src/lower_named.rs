@@ -1013,7 +1013,22 @@ impl Context {
                 kind,
                 self.number(amount).ok()?,
             ),
-            _ => return None,
+            S::ACounterOfTypeOnCardInExile(kind, card) => (
+                Recipients::Objects(ObjectSet::One(self.exiled_card(card).ok()?)),
+                kind,
+                Expr::Constant(1),
+            ),
+            S::ACounterOfTypeOnAPermanent(kind, objects) => {
+                return Some(CounterPlacement {
+                    recipients: Recipients::Objects(self.objects(objects).ok()?),
+                    kind: crate::counter::lower(kind),
+                    amount: Expr::Constant(1),
+                    selection: Some(SelectionChoice {
+                        player: self.payer.clone().unwrap_or(PlayerRef::AbilityController),
+                        count: Count::Exactly(Expr::Constant(1)),
+                    }),
+                })
+            }
         };
         Some(CounterPlacement {
             recipients,

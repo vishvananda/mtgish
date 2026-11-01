@@ -285,6 +285,7 @@ impl Done {
             Operation::Primitive { .. }
             | Operation::Keyword { .. }
             | Operation::Conjure { .. }
+            | Operation::PutChosenCounters { .. }
             | Operation::PayAnyAmount { .. } => match crate::semantics::yields(operation)? {
                 "counters" => Self::Counters,
                 "damage" => Self::Damage,

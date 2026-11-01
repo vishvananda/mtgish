@@ -417,3 +417,43 @@ fn filters_read_what_they_ask_about() {
         PlayerRef::Prior(PriorPlayer::That)
     ));
 }
+
+#[test]
+fn counters_and_would_events_say_what_happens() {
+    let plus = Operand::Vocabulary {
+        family: "CounterType".into(),
+        form: "ChargeCounter".into(),
+    };
+    assert!(matches!(
+        semantics::reduce_action(
+            PlayerSet::All,
+            "PutCountersAction::DistributeNumberCountersOfTypeAmongPermanents".into(),
+            vec![
+                Operand::Number(Expr::Constant(3)),
+                plus,
+                Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any)),
+            ],
+        ),
+        Operation::DistributeCounters {
+            any_number: false,
+            ..
+        }
+    ));
+    assert!(matches!(
+        semantics::reduce_replacement(
+            "ReplacableEventWouldEnter::APermanentWouldEnterTheBattlefieldAndWasntCast".into(),
+            vec![Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any))],
+        ),
+        ReplacementEvent::Enter { .. }
+    ));
+    assert!(matches!(
+        semantics::reduce_replacement(
+            "FutureReplacableEventWouldDraw::NextTimePlayerWouldDrawACardThisTurn".into(),
+            vec![Operand::Player(PlayerRef::AbilityController)],
+        ),
+        ReplacementEvent::Player {
+            event: ReplacedPlayerEvent::Draw,
+            ..
+        }
+    ));
+}

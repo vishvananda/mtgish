@@ -842,7 +842,7 @@ impl Context {
         self.primitive_inspected(family, event)
             .map(|(name, operands)| {
                 (
-                    ReplacementEvent::Primitive { name, operands },
+                    crate::semantics::reduce_replacement(name, operands),
                     ReplacementLimit::NextOccurrence,
                 )
             })

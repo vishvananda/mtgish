@@ -522,3 +522,364 @@ fn reduce_expiration(form: &str, operands: &[Operand]) -> Option<Duration> {
         _ => return None,
     })
 }
+
+fn counter_kinds(operands: &[Operand]) -> Option<Vec<crate::counter::CounterKind>> {
+    operands.iter().map(counter_kind).collect()
+}
+
+fn checks(operands: &[Operand]) -> Vec<Operand> {
+    match operands {
+        [Operand::List(items)] => items.clone(),
+        items => items.to_vec(),
+    }
+}
+
+/// Counters that go somewhere other than one fixed place, as Forge's
+/// `DividedAsYouChoose$`, `CounterType$ ... Chosen` and `PutCounterAll`.
+fn reduce_more_counters(form: &str, operands: &[Operand]) -> Option<Operation> {
+    use Operand::{List, Number, Object, Objects, Player};
+    let one = |object: &ObjectRef| Recipients::Objects(ObjectSet::One(object.clone()));
+    let many = |objects: &ObjectSet| Recipients::Objects(objects.clone());
+    let player = |who: &PlayerRef| Recipients::Players(PlayerSet::One(who.clone()));
+    let scoped = || Recipients::Objects(ObjectSet::Scoped);
+    let duplicate = |from, to, copies| {
+        Some(Operation::DuplicateCounters {
+            from,
+            to,
+            copies,
+            kind: None,
+        })
+    };
+    let placed = |recipients, kind: &Operand, amount: &Expr| {
+        Some(Operation::PutCounters {
+            placements: vec![CounterPlacement {
+                recipients,
+                kind: counter_kind(kind)?,
+                amount: amount.clone(),
+                selection: None,
+            }],
+        })
+    };
+    let chosen = |objects: ObjectSet, choice| Operation::PutChosenCounters { objects, choice };
+    let at_source = Recipients::Objects(ObjectSet::One(ObjectRef::Source));
+    match (form, operands) {
+        ("ACounterOfTypeOnPlane" | "ACounterOfTypeOnScheme" | "ACounterOfTypeOnVanguard", [kind, _]) => {
+            placed(at_source, kind, &Expr::Constant(1))
+        }
+        ("NumberCountersOfTypeOnSpell", [Number(amount), kind, Object(object)]) => {
+            placed(one(object), kind, amount)
+        }
+        (
+            "DifferentNumberCountersOfTypeOnEachPermanent"
+            | "DifferentNumberCountersOfTypeOnEachCardInExile",
+            [Number(amount), kind, Objects(objects)],
+        ) => Some(Operation::PutCountersEach {
+            amount: amount.clone(),
+            kind: counter_kind(kind)?,
+            objects: objects.clone(),
+            up_to: false,
+        }),
+        (
+            "DistributeNumberCountersOfTypeAmongAnyNumberOfPermanents",
+            [Number(amount), kind, Objects(objects)],
+        ) => Some(Operation::DistributeCounters {
+            amount: amount.clone(),
+            kind: counter_kind(kind)?,
+            objects: objects.clone(),
+            any_number: true,
+        }),
+        (
+            "DistributeNumberCountersOfTypeAmongPermanents",
+            [Number(amount), kind, Objects(objects)],
+        ) => Some(Operation::DistributeCounters {
+            amount: amount.clone(),
+            kind: counter_kind(kind)?,
+            objects: objects.clone(),
+            any_number: false,
+        }),
+        (
+            "UptoSingleNumberCountersOfTypeOnEachPermanent",
+            [Number(amount), kind, Objects(objects)],
+        ) => Some(Operation::PutCountersEach {
+            amount: amount.clone(),
+            kind: counter_kind(kind)?,
+            objects: objects.clone(),
+            up_to: true,
+        }),
+        ("ACounterOfTypeOfMultipleChoiceOnEachPermanent", [List(kinds), Objects(objects)]) => {
+            Some(chosen(objects.clone(), CounterChoice::OneOf(counter_kinds(kinds)?)))
+        }
+        ("ACounterOfTypeAtRandomThatPermanentDoesHaveOnPermanent", [List(kinds), Object(object)]) => {
+            Some(chosen(
+                ObjectSet::One(object.clone()),
+                CounterChoice::RandomMissing(counter_kinds(kinds)?),
+            ))
+        }
+        ("ACounterOfTypeOnAPermanentOfEachColor", [kind, Objects(objects)]) => Some(chosen(
+            objects.clone(),
+            CounterChoice::OnePerColor(counter_kind(kind)?),
+        )),
+        ("AnAbilityCounterOnAPermanentForEachAbilityOnCardsInGraveyards", [Objects(objects), kinds @ ..]) => {
+            Some(chosen(
+                objects.clone(),
+                CounterChoice::PerAbility {
+                    of: None,
+                    kinds: checks(kinds),
+                    missing_only: false,
+                },
+            ))
+        }
+        (
+            "AnAbilityCounterOnPermanentForEachAbilityOnPermanentIfItDoesntHaveIt",
+            [Object(object), kinds @ ..],
+        ) => Some(chosen(
+            ObjectSet::One(object.clone()),
+            CounterChoice::PerAbility {
+                of: Some(object.clone()),
+                kinds: checks(kinds),
+                missing_only: true,
+            },
+        )),
+        ("DuplicateThoseCounterOnPermanent", [Object(to)]) => {
+            duplicate(scoped(), one(to), CounterCopies::All)
+        }
+        ("DuplicateACounterOfEachOfThoseKindsOnPermanent", [Object(to)]) => {
+            duplicate(scoped(), one(to), CounterCopies::OneOfEachKind)
+        }
+        ("DoubleAllCountersPlayerHas", [Player(who)]) => {
+            duplicate(player(who), player(who), CounterCopies::All)
+        }
+        ("DuplicateCountersOfPermanentOnEachPermanent", [Object(from), Objects(to)]) => {
+            duplicate(one(from), many(to), CounterCopies::All)
+        }
+        ("DuplicateACounterOfPlayerOnPlayer", [Player(from), Player(to)]) => {
+            duplicate(player(from), player(to), CounterCopies::One)
+        }
+        ("DuplicateACounterOfCardInExileOnCardInExile", [Object(from), Object(to)]) => {
+            duplicate(one(from), one(to), CounterCopies::One)
+        }
+        ("DuplicateACounterOfAPermanentOnEachOtherPermanent", [Objects(from), Objects(to)]) => {
+            duplicate(many(from), many(to), CounterCopies::One)
+        }
+        (
+            "DuplicateACounterOfAPermanentThatPermanentDoesntHaveOnPermanent",
+            [Objects(from), Object(_), Object(to)],
+        ) => duplicate(many(from), one(to), CounterCopies::OneMissing),
+        (
+            "ADuplicateOfEachKindOfCounterAmongPermanentDistibutedToPermanents",
+            [Objects(from), Objects(to)],
+        ) => duplicate(many(from), many(to), CounterCopies::OneOfEachKindDistributed),
+        ("DuplicateCountersOfTypeOfPermanentOnPermanent", [kind, Object(from), Object(to)]) => {
+            Some(Operation::DuplicateCounters {
+                from: one(from),
+                to: one(to),
+                copies: CounterCopies::All,
+                kind: Some(counter_kind(kind)?),
+            })
+        }
+        _ => None,
+    }
+}
+
+/// A state a permanent enters with, past the ones `reduce_entry` names.
+fn reduce_more_entry(form: &str, operands: &[Operand]) -> Option<EntryState> {
+    use Operand::{List, Number, Object, Objects};
+    let copy = |objects: ObjectSet, effects: &Operand, until: Option<&Duration>| EntryState::CopyOf {
+        objects,
+        effects: Box::new(effects.clone()),
+        until: until.cloned(),
+    };
+    let choice = |kinds: &[Operand], amount: Expr, distinct| {
+        Some(EntryState::CountersOfChoice {
+            kinds: counter_kinds(kinds)?,
+            amount,
+            distinct,
+        })
+    };
+    match (form, operands) {
+        ("EntersWithACounterOfChoice", kinds) => choice(kinds, Expr::Constant(1), false),
+        ("EntersWithNumberDifferentCountersOfChoice", [Number(amount), List(kinds)]) => {
+            choice(kinds, amount.clone(), true)
+        }
+        ("EntersWithNumberCombinationCountersOfChoice", [Number(amount), List(kinds)]) => {
+            choice(kinds, amount.clone(), false)
+        }
+        ("EntersWithNumberCounters", [Number(amount), kind]) => {
+            Some(EntryState::Changes(vec![Change::EntersWithCounters {
+                kind: counter_kind(kind)?,
+                amount: amount.clone(),
+            }]))
+        }
+        ("EntersAttachedToAPermanent", [Objects(objects)]) => {
+            Some(EntryState::AttachedToChosen(event_filter(objects)?))
+        }
+        ("EntersWithDuplicateCountersOfPermanent", [Object(object)]) => {
+            Some(EntryState::CountersOf {
+                object: object.clone(),
+                one_of_each: false,
+            })
+        }
+        ("EntersWithACounterOfTypeForEachKindOfCounterOnPermanent", [Object(object)]) => {
+            Some(EntryState::CountersOf {
+                object: object.clone(),
+                one_of_each: true,
+            })
+        }
+        (
+            "EnterAsACopyOfACardInAPlayersGraveyard",
+            [Operand::Filter(cards), Operand::Players(players), effects],
+        ) => Some(copy(
+            ObjectSet::Zone {
+                scope: ZoneScope::Players {
+                    zone: EventZone::Graveyard,
+                    players: players.clone(),
+                },
+                kind: ObjectKind::Card,
+                filter: cards.clone(),
+            },
+            effects,
+            None,
+        )),
+        ("EnterAsACopyOfACardInExile", [Objects(objects), effects]) => {
+            Some(copy(objects.clone(), effects, None))
+        }
+        ("EnterAsCopyOfExiled", [Object(object), effects]) => {
+            Some(copy(ObjectSet::One(object.clone()), effects, None))
+        }
+        ("EnterAsACopyOfAPermanentUntil", [Objects(objects), effects, Operand::Duration(until)]) => {
+            Some(copy(objects.clone(), effects, Some(until)))
+        }
+        _ => None,
+    }
+}
+
+fn wider_zone_change(objects: ObjectFilter, to: EventZone) -> ReplacementEvent {
+    ReplacementEvent::ZoneChange {
+        objects,
+        from: None,
+        to,
+    }
+}
+
+/// A would-be event by what it replaces, past `reduced_replacement`'s tables.
+fn reduce_more_replacement(row: &str, operands: &[Operand]) -> Option<ReplacementEvent> {
+    use Operand::{Filter, Object, Objects, Player, Players};
+    let enter = |filter| Some(ReplacementEvent::Enter { objects: filter });
+    let both = |a, b| ObjectFilter::All(vec![a, b]);
+    let not = |filter| ObjectFilter::Not(Box::new(filter));
+    let cast = ObjectFilter::Cast {
+        by: None,
+        from: None,
+    };
+    let discard = |players: PlayerSet, causes, card, effect_only| {
+        Some(ReplacementEvent::Discard {
+            players,
+            causes,
+            card,
+            effect_only,
+        })
+    };
+    let player_event = |event, players: PlayerSet| {
+        Some(ReplacementEvent::Player { event, players })
+    };
+    let no_object = || not(ObjectFilter::Any);
+    match (row, operands) {
+        ("APermanentWouldEnterTheBattlefield", [Objects(objects)]) => enter(event_filter(objects)?),
+        ("APermanentWouldEnterTheBattlefieldAndWasntCast", [Objects(objects)]) => {
+            enter(both(event_filter(objects)?, not(cast)))
+        }
+        ("APermanentWouldEnterTheBattlefieldUnderAPlayersControl", [Objects(objects), Players(players)]) => {
+            enter(both(
+                event_filter(objects)?,
+                ObjectFilter::ControlledBy(players.clone()),
+            ))
+        }
+        ("APermanentWouldEnterTheBattlefieldFromExileOrAfterBeingCastFromExile", [Objects(objects)]) => {
+            let exile = ZoneScope::Shared(EventZone::Exile);
+            enter(both(
+                event_filter(objects)?,
+                ObjectFilter::Either(vec![
+                    ObjectFilter::EnteredFrom(exile.clone()),
+                    ObjectFilter::Cast {
+                        by: None,
+                        from: Some(exile),
+                    },
+                ]),
+            ))
+        }
+        ("ASpellOrAbilityWouldCausePlayerToDiscardCard", [causes, Player(player), _]) => discard(
+            PlayerSet::One(player.clone()),
+            Some(stack_filter(causes)?),
+            Some(ObjectFilter::SameObject(ObjectRef::Source)),
+            false,
+        ),
+        ("ASpellOrAbilityWouldCausePlayerToDiscardACard", [causes, Player(player)]) => discard(
+            PlayerSet::One(player.clone()),
+            Some(stack_filter(causes)?),
+            None,
+            false,
+        ),
+        ("AnEffectWouldCausePlayerToDiscardACard", [Player(player)]) => {
+            discard(PlayerSet::One(player.clone()), None, None, true)
+        }
+        ("APlayerWouldRollANumberOfDice", [Players(players)]) => {
+            player_event(ReplacedPlayerEvent::RollDice, players.clone())
+        }
+        ("APlayerWouldRollANumberOfD6", [Players(players)]) => {
+            player_event(ReplacedPlayerEvent::RollD6, players.clone())
+        }
+        ("NextTimePlayerWouldRollDiceThisTurn", [Player(player)]) => {
+            player_event(ReplacedPlayerEvent::RollDice, PlayerSet::One(player.clone()))
+        }
+        ("NextTimePlayerWouldDrawACardThisTurn", [Player(player)]) => {
+            player_event(ReplacedPlayerEvent::Draw, PlayerSet::One(player.clone()))
+        }
+        ("APlayerWouldPlaneswalk", [Players(players)]) => {
+            player_event(ReplacedPlayerEvent::Planeswalk, players.clone())
+        }
+        ("PermanentWouldLeaveTheBattlefield", [Object(object)]) => Some(ReplacementEvent::Object {
+            event: ReplacedObjectEvent::LeavesBattlefield,
+            objects: ObjectFilter::SameObject(object.clone()),
+        }),
+        (
+            "WouldPutACardInAPlayersGraveyardFromAnywhereOtherThanBattlefield",
+            [Filter(cards), Players(players)],
+        ) => Some(wider_zone_change(
+            ObjectFilter::All(vec![
+                cards.clone(),
+                ObjectFilter::OwnedBy(players.clone()),
+                not(ObjectFilter::InZone(ZoneScope::Shared(EventZone::Battlefield))),
+            ]),
+            EventZone::Graveyard,
+        )),
+        (
+            "WouldPutAPermanentASpellOrACardIntoAPlayersGraveyard",
+            [Objects(objects), Filter(spells), Filter(cards), Players(players)],
+        ) => Some(wider_zone_change(
+            both(
+                ObjectFilter::Either(vec![event_filter(objects)?, spells.clone(), cards.clone()]),
+                ObjectFilter::OwnedBy(players.clone()),
+            ),
+            EventZone::Graveyard,
+        )),
+        ("AnyNumberOfCountersWouldBePutOnAPlayer", [Players(players)]) => {
+            Some(ReplacementEvent::Counters {
+                kind: None,
+                objects: no_object(),
+                players: Some(players.clone()),
+                by: None,
+                effect_only: false,
+            })
+        }
+        ("AnyNumberOfCountersOfTypeWouldBePutOnAPlayer", [kind, Players(players)]) => {
+            Some(ReplacementEvent::Counters {
+                kind: Some(counter_kind(kind)?),
+                objects: no_object(),
+                players: Some(players.clone()),
+                by: None,
+                effect_only: false,
+            })
+        }
+        _ => None,
+    }
+}

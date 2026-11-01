@@ -96,6 +96,11 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
             permanent: true,
             ..Default::default()
         },
+        ReplacementEvent::Discard { .. } => EventBindings {
+            player: true,
+            discard: true,
+            ..Default::default()
+        },
         ReplacementEvent::Measured { event, .. } | ReplacementEvent::EachPoint(event) => {
             replacement_bindings(event)
         }
@@ -202,6 +207,9 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
 /// primitive with no ordinary movement to read the permanent from.
 /// What a reviewed action row leaves for a later "this way" to name.
 pub fn yields(operation: &Operation) -> Option<&'static str> {
+    if matches!(operation, Operation::PutChosenCounters { .. }) {
+        return Some("counters");
+    }
     if let Operation::ChangeZone { destination, .. } = operation {
         return Some(match destination {
             Destination::OwnersHand | Destination::Hand(_) => "hand",
@@ -213,6 +221,9 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
     }
     let name = match operation {
         Operation::Primitive { name, .. } => name.as_str(),
+        Operation::ModifyEvent {
+            change: EventChange::Entry(EntryState::CopyOf { .. }),
+        } => "ReplacementActionWouldEnter::EnterAsACopyOfACardInAPlayersGraveyard",
         Operation::Reveal {
             objects: ObjectSet::One(_) | ObjectSet::LibraryTops(_) | ObjectSet::Take { .. },
         } => "Action::RevealFaceDownPermanent",
@@ -564,7 +575,14 @@ fn moved_counters(form: &str) -> Option<MovedCounters> {
 fn reduce_placed_counters(form: &str, operands: &[Operand]) -> Option<Operation> {
     use Operand::{Number, Object, Objects, Player};
     let one = |object: &ObjectRef| Recipients::Objects(ObjectSet::One(object.clone()));
-    let duplicate = |from, to, copies| Some(Operation::DuplicateCounters { from, to, copies });
+    let duplicate = |from, to, copies| {
+        Some(Operation::DuplicateCounters {
+            from,
+            to,
+            copies,
+            kind: None,
+        })
+    };
     let player = |who: &PlayerRef| Recipients::Players(PlayerSet::One(who.clone()));
     let (recipients, kind, amount) = match (form, operands) {
         ("DuplicateCountersOfPermanentOnPermanent", [Object(from), Object(to)]) => {
@@ -633,24 +651,24 @@ fn reduce_double_counters(form: &str, operands: &[Operand]) -> Option<Operation>
 
 /// What an entering object does, from a reviewed row.
 pub fn reduce_entry(name: &str, operands: &[Operand]) -> Option<EntryState> {
-    match (
-        name.strip_prefix("ReplacementActionWouldEnter::")?,
-        operands,
-    ) {
+    let form = name.strip_prefix("ReplacementActionWouldEnter::")?;
+    match (form, operands) {
         ("EntersPrepared", []) => Some(EntryState::Prepared),
         ("EnterAsACopyOfAPermanent", [Operand::Objects(objects), effects]) => {
             Some(EntryState::CopyOf {
                 objects: objects.clone(),
                 effects: Box::new(effects.clone()),
+                until: None,
             })
         }
         ("EnterAsACopyOfPermanent", [Operand::Object(object), effects]) => {
             Some(EntryState::CopyOf {
                 objects: ObjectSet::One(object.clone()),
                 effects: Box::new(effects.clone()),
+                until: None,
             })
         }
-        _ => None,
+        _ => reduce_more_entry(form, operands),
     }
 }
 
@@ -662,7 +680,9 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
         }
     }
     if let Some(operation) = name.strip_prefix("PutCountersAction::").and_then(|form| {
-        reduce_double_counters(form, &operands).or_else(|| reduce_placed_counters(form, &operands))
+        reduce_double_counters(form, &operands)
+            .or_else(|| reduce_placed_counters(form, &operands))
+            .or_else(|| reduce_more_counters(form, &operands))
     }) {
         return operation;
     }
@@ -715,6 +735,12 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
             objects: ObjectSet::One(object.clone()),
             destination: Destination::OwnersGraveyard,
         };
+    }
+    if let Some(form) = name.strip_prefix("ReplacementActionWouldEnter::") {
+        let plain = reduce_action(actor.clone(), format!("Action::{form}"), operands.clone());
+        if !matches!(plain, Operation::Primitive { .. }) {
+            return plain;
+        }
     }
     let choice = name
         .strip_prefix("Action::")
@@ -4842,13 +4868,14 @@ fn reduced_replacement(name: &str, operands: &[Operand]) -> Option<ReplacementEv
         ("TappingAPermanentWouldProduceTwoOrMoreMana", [Objects(s)]) => {
             mana(s, None).map(two_or_more)
         }
-        _ => None,
+        _ => reduce_more_replacement(row, operands),
     }
 }
 
 /// A row's would-be event in generic form, or the row itself when it has none.
 pub fn reduce_replacement(name: String, operands: Vec<Operand>) -> ReplacementEvent {
-    reduced_replacement(&name, &operands).unwrap_or(ReplacementEvent::Primitive { name, operands })
+    let plain = name.strip_prefix("Future").unwrap_or(&name);
+    reduced_replacement(plain, &operands).unwrap_or(ReplacementEvent::Primitive { name, operands })
 }
 
 /// Whether a would-be event is one a body stands in for unless it says otherwise.
@@ -5393,6 +5420,9 @@ impl Effects {
                     Operation::FlipCoin { .. }
                     | Operation::ChoosePowerToughness { .. }
                     | Operation::DuplicateCounters { .. }
+                    | Operation::DistributeCounters { .. }
+                    | Operation::PutCountersEach { .. }
+                    | Operation::PutChosenCounters { .. }
                     | Operation::ChooseAtRandom { .. }
                     | Operation::ChooseValue { .. } => {}
                     Operation::JoinResults { results } => {

@@ -422,6 +422,16 @@ impl Inventory<'_> {
     fn operation(&mut self, op: &Operation) {
         self.form("Operation", op);
         match op {
+            Operation::DistributeCounters {
+                amount, objects, ..
+            }
+            | Operation::PutCountersEach {
+                amount, objects, ..
+            } => {
+                self.expr(amount);
+                self.objects(objects);
+            }
+            Operation::PutChosenCounters { objects, .. } => self.objects(objects),
             Operation::Named { .. } => {}
             Operation::NoteObjects { objects } => self.objects(objects),
             Operation::Primitive { name, .. } => self.primitive(name),
@@ -2720,6 +2730,7 @@ impl Inventory<'_> {
         self.form("ReplacementEvent", event);
         match event {
             ReplacementEvent::Enter { objects } => self.filter(objects),
+            ReplacementEvent::Discard { players, .. } => self.players(players),
             ReplacementEvent::Damage(damage) => self.event(&EventSpec::Damage(damage.clone())),
             ReplacementEvent::ZoneChange { objects, .. } => self.filter(objects),
             ReplacementEvent::Primitive { name, .. } => self.primitive(name),

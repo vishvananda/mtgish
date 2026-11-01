@@ -248,6 +248,15 @@ impl<'a> Scope<'a> {
     fn replacement_event(&self, event: &ReplacementEvent) -> Result {
         match event {
             ReplacementEvent::Enter { objects } => self.filter(objects),
+            ReplacementEvent::Discard {
+                players,
+                causes,
+                card,
+                ..
+            } => {
+                self.players(players)?;
+                causes.iter().chain(card).try_for_each(|f| self.filter(f))
+            }
             ReplacementEvent::Damage(damage) => self.event(&EventSpec::Damage(damage.clone())),
             ReplacementEvent::ZoneChange { objects, .. } => self.filter(objects),
             ReplacementEvent::Primitive { name, operands } => self.primitive(name, operands),
@@ -573,10 +582,19 @@ impl<'a> Scope<'a> {
             self.count(&Count::Exactly(amount.clone()))?;
         }
         entry.states.iter().try_for_each(|state| match state {
-            EntryState::CopyOf { objects, effects } => {
+            EntryState::CopyOf {
+                objects,
+                effects,
+                until,
+            } => {
                 self.objects(objects)?;
+                until.iter().try_for_each(|d| self.duration(d))?;
                 self.operand(effects)
             }
+            EntryState::CountersOfChoice { amount, .. } => {
+                self.count(&Count::Exactly(amount.clone()))
+            }
+            EntryState::CountersOf { object, .. } => self.object(object),
             EntryState::Transformed
             | EntryState::Prepared
             | EntryState::FaceDown
@@ -2440,6 +2458,30 @@ impl<'a> Scope<'a> {
     }
     fn operation(&self, operation: &Operation) -> Result {
         match operation {
+            Operation::DistributeCounters {
+                amount, objects, ..
+            } => {
+                self.expr(amount)?;
+                self.objects(objects)
+            }
+            Operation::PutCountersEach {
+                amount, objects, ..
+            } => {
+                self.objects(objects)?;
+                let mut each = self.clone();
+                each.affected = true;
+                each.expr(amount)
+            }
+            Operation::PutChosenCounters { objects, choice } => {
+                self.objects(objects)?;
+                match choice {
+                    CounterChoice::PerAbility { of, kinds, .. } => {
+                        of.iter().try_for_each(|object| self.object(object))?;
+                        kinds.iter().try_for_each(|kind| self.operand(kind))
+                    }
+                    _ => Ok(()),
+                }
+            }
             Operation::NoteObjects { objects } => self.objects(objects),
             Operation::Named { actor, form } => {
                 self.players(actor)?;

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 155;
+pub const SCHEMA_VERSION: u32 = 156;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -600,6 +600,13 @@ pub enum ReplacementEvent {
     },
     /// The first such event each turn, as for `EventSpec::FirstEachTurn`.
     FirstEachTurn(Box<ReplacementEvent>),
+    /// A discard about to happen, as Forge's `Event$ Discard | ValidSource$`.
+    Discard {
+        players: PlayerSet,
+        causes: Option<ObjectFilter>,
+        card: Option<ObjectFilter>,
+        effect_only: bool,
+    },
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -620,6 +627,9 @@ pub enum ReplacedPlayerEvent {
     Learn,
     Proliferate,
     BeginExtraTurn,
+    RollDice,
+    RollD6,
+    Planeswalk,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -1464,6 +1474,8 @@ pub enum Operation {
         from: Recipients,
         to: Recipients,
         copies: CounterCopies,
+        /// Only this kind.
+        kind: Option<crate::counter::CounterKind>,
     },
     /// Picks at random among these options, with no one choosing.
     ChooseAtRandom {
@@ -1609,6 +1621,24 @@ pub enum Operation {
         actor: PlayerSet,
         objects: ObjectSet,
         cost: Cost,
+    },
+    /// Forge's `DividedAsYouChoose$`.
+    DistributeCounters {
+        amount: Expr,
+        kind: crate::counter::CounterKind,
+        objects: ObjectSet,
+        any_number: bool,
+    },
+    /// `amount` is read for each object, and may be fewer if `up_to`.
+    PutCountersEach {
+        amount: Expr,
+        kind: crate::counter::CounterKind,
+        objects: ObjectSet,
+        up_to: bool,
+    },
+    PutChosenCounters {
+        objects: ObjectSet,
+        choice: CounterChoice,
     },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2404,6 +2434,7 @@ pub enum EntryState {
     CopyOf {
         objects: ObjectSet,
         effects: Box<Operand>,
+        until: Option<Duration>,
     },
     /// Attacking but never declared (508.4). The entering side chooses the defender
     /// unless one is given.
@@ -2438,6 +2469,17 @@ pub enum EntryState {
     Primitive {
         name: String,
         operands: Vec<Operand>,
+    },
+    /// A counter, or this many, of the entering side's choice.
+    CountersOfChoice {
+        kinds: Vec<crate::counter::CounterKind>,
+        amount: Expr,
+        distinct: bool,
+    },
+    /// The counters this object has, or one of each kind.
+    CountersOf {
+        object: ObjectRef,
+        one_of_each: bool,
     },
 }
 
@@ -2615,6 +2657,20 @@ pub enum DraftNoteKind {
     Player,
     Removed,
     Guessed,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CounterChoice {
+    /// One of these, chosen for each object.
+    OneOf(Vec<crate::counter::CounterKind>),
+    /// One of these the object lacks, at random.
+    RandomMissing(Vec<crate::counter::CounterKind>),
+    OnePerColor(crate::counter::CounterKind),
+    /// One keyword counter for each such ability.
+    PerAbility {
+        of: Option<ObjectRef>,
+        kinds: Vec<Operand>,
+        missing_only: bool,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum LandTypeScope {
@@ -3790,6 +3846,9 @@ pub enum CounterCopies {
     All,
     OneOfEachKind,
     One,
+    /// One counter of a kind the recipient lacks.
+    OneMissing,
+    OneOfEachKindDistributed,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PlayerNumber {

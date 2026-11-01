@@ -265,9 +265,13 @@ impl Context {
                 let actor = self.player(&source::Player::You)?;
                 if let Some((name, operands)) = self.primitive("ReplacementActionWouldEnter", value) {
                     if let Some(state) = crate::semantics::reduce_entry(&name, &operands) {
-                        return Ok(self.effect(Operation::ModifyEvent {
+                        let step = self.effect(Operation::ModifyEvent {
                             change: EventChange::Entry(state),
-                        }));
+                        });
+                        if let Instruction::Effect { result, operation } = &step {
+                            self.note_yield(operation, result);
+                        }
+                        return Ok(step);
                     }
                     let step = self.effect(crate::semantics::reduce_action(
                         PlayerSet::One(actor),
