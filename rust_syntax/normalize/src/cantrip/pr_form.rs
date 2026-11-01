@@ -57,6 +57,8 @@ pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteris
     drop_defaults(&mut file, characteristics);
     inline_target_lists(&mut file);
     say_printed_text(&mut file, printed);
+    events_first(&mut file);
+    ManaBySymbols.visit_file_mut(&mut file);
     if characteristics == Characteristics::Oracle
         && the_card(&mut file).is_some_and(|card| card.fields.is_empty())
         && file.items.iter().all(|item| !matches!(item, Item::Fn(_)))
@@ -80,7 +82,111 @@ pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteris
     );
     strip_literal_types(&mut file);
     let text = fields_on_their_own_lines(prettyplease::unparse(&file));
-    Some(spaced(event_patterns_on_one_line(&let_else_on_one_line(&text))))
+    Some(spaced(let_else_on_one_line(&event_patterns_on_one_line(&text))))
+}
+
+/// `if let Event::X { .. } = event { .. } None` says what to do with any other event, which a trigger on X's mask is never
+/// handed, so the closing brace of the `if` is a line no game can run. The event goes first, on a line that always runs.
+fn events_first(file: &mut File) {
+    for item in &mut file.items {
+        let Item::Fn(function) = item else { continue };
+        let stmts = &mut function.block.stmts;
+        let [.., Stmt::Expr(Expr::If(test), _), Stmt::Expr(tail, None)] = stmts.as_mut_slice() else { continue };
+        let Expr::Let(guard) = &*test.cond else { continue };
+        if ident_of(tail).as_deref() != Some("None") || test.else_branch.is_some() || ident_of(&guard.expr).as_deref() != Some("event") {
+            continue;
+        }
+        let pattern = text_of(&guard.pat).replace(" :: ", "::").replace(" ,", ",");
+        if "    ".len() + pattern.len() + " = event else { return None };".len() > 120 {
+            continue;
+        }
+        let pat = &guard.pat;
+        let first: Stmt = syn::parse_quote!(let #pat = event else { return None; };);
+        let body = test.then_branch.stmts.clone();
+        let at = stmts.len() - 2;
+        stmts.splice(at..at + 1, std::iter::once(first).chain(body));
+        // The body's last words may sit in a block of their own.
+        let before = stmts.len() - 2;
+        if let Stmt::Expr(Expr::Block(inner), _) = &stmts[before] {
+            let inner = inner.block.stmts.clone();
+            stmts.splice(before..before + 1, inner);
+        }
+        // A body that always returns leaves the `None` after it unreachable: its return is the function's value.
+        if matches!(stmts.iter().rev().nth(1), Some(Stmt::Expr(Expr::Return(_), _))) {
+            stmts.pop();
+            tail_return(&mut function.block);
+        }
+    }
+}
+
+/// A cost as a card writes it, `mana("{3}{U}")`: a `ManaCost` spelled out has a line for each default, and a number in one is a
+/// change a scenario is held to though the printed cost is all there is to say. Hybrid and Phyrexian symbols stay spelled out.
+struct ManaBySymbols;
+
+impl ManaBySymbols {
+    fn number(expr: &Expr) -> Option<u32> {
+        match expr {
+            Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(value), .. }) => value.base10_parse().ok(),
+            _ => None,
+        }
+    }
+
+    fn numbers(expr: &Expr) -> Option<Vec<u32>> {
+        match expr {
+            Expr::Array(array) => array.elems.iter().map(Self::number).collect(),
+            Expr::Repeat(repeat) => Some(vec![Self::number(&repeat.expr)?; Self::number(&repeat.len)? as usize]),
+            _ => None,
+        }
+    }
+
+    fn printed(cost: &syn::ExprStruct) -> Option<String> {
+        if cost.path.segments.last()?.ident != "ManaCost" {
+            return None;
+        }
+        if let Some(rest) = &cost.rest {
+            if !text_of(rest).replace(' ', "").ends_with("ManaCost::ZERO") {
+                return None;
+            }
+        } else if cost.fields.len() != 6 {
+            return None;
+        }
+        let (mut generic, mut x, mut symbols) = (0, 0, vec![0; 6]);
+        for field in &cost.fields {
+            let syn::Member::Named(name) = &field.member else { return None };
+            match name.to_string().as_str() {
+                "generic" => generic = Self::number(&field.expr)?,
+                "x" => x = Self::number(&field.expr)?,
+                "symbols" => symbols = Self::numbers(&field.expr)?,
+                "hybrid" if !text_of(&field.expr).contains("Some") => {}
+                "twobrid" | "phyrexian" if Self::numbers(&field.expr)?.iter().all(|&n| n == 0) => {}
+                _ => return None,
+            }
+        }
+        if symbols.len() != 6 || generic > 99 {
+            return None;
+        }
+        let mut out = "{X}".repeat(x as usize);
+        if generic > 0 {
+            out += &format!("{{{generic}}}");
+        }
+        for (letter, count) in "WUBRGC".chars().zip(symbols) {
+            out += &format!("{{{letter}}}").repeat(count as usize);
+        }
+        Some(out)
+    }
+}
+
+impl VisitMut for ManaBySymbols {
+    fn visit_expr_mut(&mut self, node: &mut Expr) {
+        syn::visit_mut::visit_expr_mut(self, node);
+        let Expr::Struct(cost) = node else { return };
+        let Some(printed) = Self::printed(cost) else { return };
+        *node = if printed.is_empty() {
+            syn::parse_quote!(cantrip_api::ManaCost::ZERO)
+        } else {
+            syn::parse_quote!(cantrip_api::mana(#printed))
+        };
+    }
 }
 
 /// Oracle text with loyalty costs as `+1:`, not the data's `[+1]:`.
@@ -3052,7 +3158,9 @@ fn use_shared_mana(file: &mut File) {
                         "let Some (color) = chosen else {{ return Ok (()) ; }} ; g . add_mana (asker . controller , color . mana () , {}) ; Ok (())",
                         text_of(amount)
                     );
-                    if self.0.get(function.trim()) != Some(&expected) {
+                    let typed = expected.replace(&format!(", {})", text_of(amount)), &format!(", {}u32)", text_of(amount)));
+                    let body = self.0.get(function.trim());
+                    if body != Some(&expected) && body != Some(&typed) {
                         return None;
                     }
                     if colors == 31 {
@@ -3208,10 +3316,11 @@ fn let_else_on_one_line(text: &str) -> String {
     while i < lines.len() {
         let guards = i + 2 < lines.len()
             && lines[i].trim_end().ends_with(" else {")
-            && lines[i + 1].trim() == "return Ok(());"
+            && matches!(lines[i + 1].trim(), "return Ok(());" | "return None;")
             && lines[i + 2].trim() == "};";
-        if guards && lines[i].len() + " return Ok(()) };".len() <= 120 {
-            out.push(format!("{} return Ok(()) }};", lines[i].trim_end()));
+        let leave = if guards { lines[i + 1].trim().trim_end_matches(';') } else { "" };
+        if guards && lines[i].len() + leave.len() + " };".len() + 1 <= 120 {
+            out.push(format!("{} {leave} }};", lines[i].trim_end()));
             i += 3;
         } else {
             out.push(lines[i].to_string());
@@ -3234,7 +3343,7 @@ fn event_patterns_on_one_line(text: &str) -> String {
     let mut i = 0;
     while i < lines.len() {
         let head = lines[i].trim_start();
-        let opens = lines[i].ends_with(" {") && (head.starts_with("Event::") || head.starts_with("if let Event::") || head.starts_with("let Event::"));
+        let opens = lines[i].ends_with(" {") && (head.starts_with("Event::") || head.starts_with("if let Event::") || head.starts_with("let Event::") || head.starts_with("let Event::"));
         let end = opens.then(|| (i + 1..lines.len()).find(|&at| !field(lines[at]))).flatten();
         if let Some(end) = end.filter(|&end| end > i + 1 && lines[end].trim_start().starts_with('}')) {
             let fields: Vec<&str> = lines[i + 1..end].iter().map(|line| line.trim()).collect();

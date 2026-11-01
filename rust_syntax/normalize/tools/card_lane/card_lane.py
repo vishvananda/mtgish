@@ -832,6 +832,8 @@ def report_problems(name, points, looks, survivors):
         if pair is None:
             problems.append(f"test point {number} unpaired: {point[:100]}")
             continue
+        if len(str(pair.get("no_decision", ""))) >= 20:
+            continue
         problem = expectation_problem(pair, f"test point {number}")
         if problem:
             problems.append(problem)
@@ -1555,6 +1557,8 @@ REPORT_FORMAT = """Write the reports to `{path}`, one JSON object for all the ca
 
 `lines` has one entry per printed line, `points` one per test point, `rulings` one per ruling, in order. A `points` or `rulings`
 pair is a scenario and the exact text of the expectation in it that catches the thing: a `?`, a `!` or a line under `[Expect]`.
+In place of a pair, either may be a sentence saying why no game can show it, as the order of a search and the shuffle after it,
+which all ends the same. Spend one attempt on such a point, not rounds: test points come from the card's words by rule of thumb.
 
 Validation comes first: before writing a card's scenarios work out from its words what must happen, then read its file and the
 shared code and say in `lines` what implements each printed line. Read bodies, not names: amounts and who gets them, what is
@@ -1572,14 +1576,16 @@ compiled and its shape checked, so most cards are right."""
 
 WAYS = {
     "work": """Tools, from the working directory:
-- `{lane} batch-check --fast`: plays every card's scenarios and judges each card and its report. Prints what failed.
+- `{lane} batch-check`: plays every card's scenarios, breaks each card, and judges each card and its report. Prints what failed.
+- `{lane} batch-check --fast`: the same without breaking the cards.
 - `{lane} corpus --file PATH --brief`: one scenario. Add `--dump`, `--diff N` or `--next` to see what it can see.
-- `{lane} batch-check --card "NAME"`: the same, and it breaks that card one change at a time: a minute or two the first time, seconds after.
+- `{lane} batch-check --card "NAME"`: the whole check of one card.
 - `{lane} tool find-cards.py ...`, `{lane} tool cr.py 603.6a`.
 
 Build out the scenarios for every card: what each owes is every printed line, test point, ruling and keyword. Play them, fix them
-and keep going until `batch-check --fast` passes for every card, or a card has a stop. Do not finish with a failure you know of.
-Only then does a driver break each card and send back what no scenario caught. One command at a time, in the foreground.""",
+and keep going until `batch-check` passes for every card, or a card has a stop. Do not finish with a failure you know of.
+`--fast` leaves out breaking the cards, so it passing is not the end: the last check is the whole `batch-check`, which takes a couple
+of minutes the first time and seconds after. Wait for it to return. One command at a time, in the foreground.""",
     "draft": """Do not run anything now: no corpus, no check, no search. You have all you need above. Write every card's scenarios and the
 reports, and stop. Put as many files as you like in an action. A driver plays them and sends back what failed, for every card at
 once, and you fix them then, with the tools it names.
@@ -1650,6 +1656,8 @@ def expand_reports(names):
         for point, pair in zip(report["test_points"], entry.get("points") or []):
             if isinstance(pair, list) and len(pair) == 2:
                 point.update(scenario=str(pair[0]).removesuffix(".cantrip"), expect=pair[1], line=expected_line(pair[0], str(pair[1])))
+            elif pair:
+                point.update(no_decision=str(pair))
         for ruling, answer in zip(report["rulings"], entry.get("rulings") or []):
             if isinstance(answer, list) and len(answer) == 2:
                 ruling.update(scenario=str(answer[0]).removesuffix(".cantrip"), expect=answer[1], line=expected_line(answer[0], str(answer[1])))
@@ -1791,8 +1799,20 @@ def deck_names(text):
     return names
 
 
+def shared_definitions():
+    """A card file for each definition the mechanics crate shares, a token or a named emblem, which comes into the card table
+    only in some card's `EXTRA`: without one the game stops at it, by a route no deck names, and a mutant that reached it
+    would count as caught."""
+    providers = {}
+    for path in sorted((CANTRIP / CARDS_DIR).glob("*.rs")):
+        found = re.search(r"pub static EXTRA:[^=]*=(.*?);\s*$", path.read_text(encoding="utf-8"), re.S | re.M)
+        for shared in re.findall(r"&(\w+(?:::\w+)+)", found[1]) if found else ():
+            providers.setdefault(shared, path.stem)
+    return set(providers.values())
+
+
 def files_played(names):
-    """The stems of the card files that scenarios of these cards play, and those files reach."""
+    """The stems of the card files that scenarios of these cards play, what those files reach, and what any may reach."""
     wanted = {name.lower() for name in names}
     stems = {names_of(name)[0] for name in names}
     for path in (CANTRIP / SCENARIOS_DIR).glob("*.cantrip"):
@@ -1800,7 +1820,7 @@ def files_played(names):
         if wanted & {deck.lower() for deck in decks}:
             stems |= {names_of(deck)[0] for deck in decks}
     folder = CANTRIP / CARDS_DIR
-    stems = {stem for stem in stems if (folder / f"{stem}.rs").exists()}
+    stems = {stem for stem in stems if (folder / f"{stem}.rs").exists()} | shared_definitions()
     todo = list(stems)
     while todo:
         for stem in re.findall(r"\b(?:super|crate)::(?:r#)?(\w+)::", (folder / f"{todo.pop()}.rs").read_text(encoding="utf-8")):
@@ -2004,10 +2024,10 @@ def batch_gates(names, fast=False):
     with multiprocessing.pool.ThreadPool(8) as pool:
         contexts = dict(zip(names, pool.map(lambda name: early_gates(gates[name], name), names)))
     passing = [n for n in names if contexts[n] is not None and gates[n].ok]
-    covered = coverage_gates(passing, gates, contexts)
+    ready = coverage_gates(passing, gates, contexts)
     survivors = {}
-    # Breaking a card is the dearest gate, so only a card nothing else stops pays for it.
-    ready = [n for n in covered if not report_problems(n, contexts[n]["points"], report_looks(n, contexts[n]), [])]
+    # Every card its scenarios cover is broken now, not once its report is clean: a worker told only then what no scenario
+    # catches has no round left to catch it, and the shadow makes it cheap.
     if not fast and ready:
         survivors = mutation_gates(ready, gates)
         statics = [n for n in ready if "statics:" in contexts[n]["source"]]
@@ -2046,14 +2066,15 @@ def cmd_batch_check(args):
 def batch_repair(gates, way, left):
     lane = f"python3 {Path(__file__).resolve()}"
     tools = (f"You can use these now. `{lane} corpus --file PATH --brief` plays one scenario; add `--dump`, `--diff N` or `--next` to see what it can see. "
-             f"`{lane} batch-check --fast` plays every card still open and judges their reports. `{lane} batch-check --card \"NAME\"` also breaks that card one change "
-             "at a time: a minute or two the first time, seconds after, since only what your edits touched is played again. ") if way == "draft" else ""
+             f"`{lane} batch-check --fast` plays every card still open and judges their reports. `{lane} batch-check` also breaks each card one change "
+             "at a time, a couple of minutes the first time and seconds after, since only what your edits touched is played again. ") if way == "draft" else ""
     return (f"The gates failed as below. {tools}\n\n"
             "Work through every failure, card by card, and keep going until each card passes or has a stop. Play a scenario after you change it. "
-            "Before you finish, run the fast check and fix what it says. Do not finish with a failure you know of, with a change you have not played, or "
+            "Before you finish, run the whole `batch-check` and fix what it says: `--fast` does not break the cards. Do not finish with a failure you know of, with a change you have not played, or "
             f"with a note that something remains: there is nobody to read it, and after {left} more round{'s' if left != 1 else ''} a card still failing is dropped.\n\n"
-            f"Change only your scenarios and `{BATCH_DIR / 'reports.json'}`. A scenario must not be weakened to pass, and a mutant is only declared equivalent if it "
-            "truly changes nothing the rules can see. If they show a card is wrong, its decision is `generator_bug`.\n\n" + batch_text({n: g for n, g in gates.items() if not g.ok}))
+            f"Change only your scenarios and `{BATCH_DIR / 'reports.json'}`. A scenario must not be weakened to pass. A mutant no game can reach or see, as a default for a value "
+            "a creature always has, goes in `equivalent` with the reason: reading the code is evidence enough, and it needs no scenario. If the gates show a card is wrong, its "
+            "decision is `generator_bug`.\n\n" + batch_text({n: g for n, g in gates.items() if not g.ok}))
 
 
 def run_batch(cards, backend, args, queue):
@@ -2219,6 +2240,9 @@ scryfall._load(write=True)
 def cmd_corpus(flags):
     """Cantrip's corpus runner on this tree and this target directory, with any of its flags."""
     flags = flags[1:] if flags[:1] == ["--"] else flags
+    built = TARGET / "cards" / "corpus"
+    if built.exists():  # a card's code is the generator's and scenarios are read as they run, so what was built still stands
+        return subprocess.run([built, *flags], cwd=CANTRIP, env=environment()).returncode
     return subprocess.run(["cargo", "run", "--profile", "cards", "-q", "-p", "cantrip-script", "--bin", "corpus", "--", *flags], cwd=CANTRIP, env=environment()).returncode
 
 

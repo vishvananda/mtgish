@@ -286,6 +286,8 @@ class ShadowTree(unittest.TestCase):
         (cards / "beta.rs").write_text("pub static CARD", encoding="utf-8")
         (cards / "gamma.rs").write_text("pub static CARD", encoding="utf-8")
         (cards / "filler.rs").write_text("pub static CARD", encoding="utf-8")
+        (cards / "provider.rs").write_text("pub static EXTRA: &[&CardDef] = &[&tokens::MAP];\n", encoding="utf-8")
+        (cards / "another.rs").write_text("pub static EXTRA: &[&CardDef] = &[&tokens::MAP, &LOCAL];\n", encoding="utf-8")
         scenarios = root / "real" / "scenarios"
         scenarios.mkdir()
         (scenarios / "a.cantrip").write_text("# x\n[Bot1 Deck]\nAlpha\nFiller x3\n[Bot2 Deck]\n2 Island\n[Actions]\nGamma\n", encoding="utf-8")
@@ -300,7 +302,7 @@ class ShadowTree(unittest.TestCase):
     def test_it_holds_the_cards_played_and_what_they_reach(self):
         with tempfile.TemporaryDirectory() as scratch:
             _, bench = self.shadow(Path(scratch))
-            self.assertEqual(sorted(p.name for p in (bench.tree / lane.CARDS_DIR).glob("*.rs")), ["alpha.rs", "beta.rs", "filler.rs"])
+            self.assertEqual(sorted(p.name for p in (bench.tree / lane.CARDS_DIR).glob("*.rs")), ["alpha.rs", "another.rs", "beta.rs", "filler.rs"])
 
     def test_the_cards_are_copies_and_the_rest_are_links(self):
         with tempfile.TemporaryDirectory() as scratch:
@@ -325,7 +327,7 @@ class ShadowTree(unittest.TestCase):
             real, bench = self.shadow(root)
             with mock.patch.multiple(lane, CANTRIP=real, SHADOW=root / "shadow", names_of=mock.Mock(side_effect=lambda n: (n.lower(), n.lower(), n.upper()))):
                 lane.Shadow(["Gamma"])
-            self.assertEqual(sorted(p.name for p in (bench.tree / lane.CARDS_DIR).glob("*.rs")), ["alpha.rs", "beta.rs", "filler.rs", "gamma.rs"][3:])
+            self.assertEqual(sorted(p.name for p in (bench.tree / lane.CARDS_DIR).glob("*.rs")), ["another.rs", "gamma.rs"])
 
     def test_a_shadow_of_another_tree_starts_again(self):
         with tempfile.TemporaryDirectory() as scratch:
@@ -424,7 +426,7 @@ class Repairs(unittest.TestCase):
 
     def test_a_worker_is_told_to_keep_going_and_play_what_it_changes(self):
         text = lane.batch_repair(self.failed(), "draft", 3)
-        for words in ("keep going", "Play a scenario after you change it", "Do not finish with a failure you know of", "batch-check --fast", "3 more rounds", "line 3 failed"):
+        for words in ("keep going", "Play a scenario after you change it", "Do not finish with a failure you know of", "whole `batch-check`", "3 more rounds", "line 3 failed"):
             self.assertIn(words, text)
         self.assertNotIn("one action", text)
 
@@ -442,11 +444,51 @@ class Repairs(unittest.TestCase):
 
 class Ways(unittest.TestCase):
     def test_a_worker_with_the_tools_is_told_to_finish_the_job(self):
-        self.assertIn("keep going until `batch-check --fast` passes for every card", lane.WAYS["work"])
+        self.assertIn("keep going until `batch-check` passes for every card", lane.WAYS["work"])
+        self.assertIn("the last check is the whole `batch-check`", lane.WAYS["work"].replace("\n", " "))
 
     def test_no_way_rations_a_workers_actions(self):
         for way in lane.WAYS.values():
             self.assertNotIn("one action", way)
+
+
+class PointsNoGameCanShow(unittest.TestCase):
+    def problems(self, pair):
+        report = {"validation": [], "test_points": [dict(pair, id=1)], "rulings": [], "look_answers": [], "equivalent_mutants": []}
+        with mock.patch.multiple(lane, report_of=mock.Mock(return_value=report), content_file=mock.Mock(return_value=mock.Mock(read_text=mock.Mock(return_value='{"oracleText": ""}'))),
+                                 expectation_problem=mock.Mock(return_value="test point 1: no scenario")):
+            return lane.report_problems("A", ["the order"], [], [])
+
+    def test_a_reason_answers_it(self):
+        self.assertEqual(self.problems({"no_decision": "a search and its shuffle all end the same"}), [])
+
+    def test_a_word_is_not_a_reason(self):
+        self.assertEqual(self.problems({"no_decision": "n/a"}), ["test point 1: no scenario"])
+
+    def test_nothing_at_all_still_fails(self):
+        self.assertEqual(self.problems({}), ["test point 1: no scenario"])
+
+    def test_a_sentence_in_the_short_report_becomes_the_reason(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            (root / "reports.json").write_text(json.dumps({"A": {"decision": "done", "points": ["no game shows a search before its shuffle"]}}), encoding="utf-8")
+            (root / "report.skeleton.json").write_text(json.dumps({"validation": [], "test_points": [{"id": 1}], "rulings": []}), encoding="utf-8")
+            with mock.patch.multiple(lane, BATCH_DIR=root, card_dir=mock.Mock(return_value=root)):
+                lane.expand_reports(["A"])
+            written = json.loads((root / "report.json").read_text(encoding="utf-8"))
+        self.assertEqual(written["test_points"][0]["no_decision"], "no game shows a search before its shuffle")
+
+
+class EveryCardIsBroken(unittest.TestCase):
+    def test_a_card_with_an_unfinished_report_is_broken_all_the_same(self):
+        gate = mock.Mock(ok=True)
+        contexts = {"source": "", "points": []}
+        broken = mock.Mock(return_value={"A": []})
+        with mock.patch.multiple(lane, Gates=mock.Mock(return_value=gate), build_corpus=mock.Mock(return_value=(0, "")), early_gates=mock.Mock(return_value=contexts),
+                                 coverage_gates=mock.Mock(return_value=["A"]), report_gate=mock.Mock(), finish=mock.Mock(),
+                                 report_problems=mock.Mock(return_value=["test point 1 unpaired"]), mutation_gates=broken):
+            lane.batch_gates(["A"])
+        broken.assert_called_once()
 
 
 class BlindStops(unittest.TestCase):

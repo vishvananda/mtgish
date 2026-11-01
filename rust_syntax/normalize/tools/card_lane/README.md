@@ -109,14 +109,14 @@ python3 $L batch-check --fast
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `--size` | 10 | Cards in one session |
-| `--way` | `work` | `draft`: the worker writes everything blind, the driver plays it and reports, and each repair is run until green with the tools open. `work`: the worker has the tools from the start and runs until the fast check passes |
+| `--way` | `work` | `draft`: the worker writes everything blind, the driver plays it and reports, and each repair is run until green with the tools open. `work`: the worker has the tools from the start and runs until the whole `batch-check` passes |
 | `--repairs` | 4 | Rounds a batch is sent back with failed gates |
 | `--timeout` | 3600 | Seconds a batch may take, every round together. At maximum effort ten cards can use all of it |
 | `--only-file` | | Cards to do, one name per line |
 
-Every step of a worker resends the session, so cost follows steps, not bytes read. `draft` exists for that: `work` spent
-most of its budget on searches of `scenarios/` and finished a third of its cards. One build serves the whole batch, every
-card's coverage comes from one instrumented run, and mutation runs only for a card with nothing else wrong.
+Every step of a worker resends the session, so cost follows steps, not bytes read. One build serves the whole batch, and every
+card's coverage comes from one instrumented run. Mutation runs for every card its scenarios cover, in the same pass as the report
+gate: when it waited for a clean report, a card spent its rounds on a test point and heard about its survivors with one round left.
 
 Mutation would be the dearest gate. In the tree one mutant costs a rebuild of the whole card crate, 38 seconds with thousands
 of cards in it, and the tree must be built back after. So it runs in a shadow under `$TARGET/mutants`: links to the real tree,
@@ -132,7 +132,12 @@ caught it is unchanged, a survivor is played again when any of the card's scenar
 is not tried again.
 
 A repair prompt must tell the worker to keep going until the cards pass. A worker told to fix what it can in one action does
-exactly that, whatever the failures, and a lower effort follows such wording more literally.
+exactly that, whatever the failures, and a lower effort follows such wording more literally. Its finish line is the whole
+`batch-check`: told `--fast`, a worker stops with mutants it has never seen.
+
+Test points come from `new-card.py`, by rule of thumb on the card's words, and some ask what no game can show, as the order of a
+search and the shuffle after it. A point or a ruling may be answered with a sentence saying why, at least 20 characters. A mutant
+no game can reach or see goes in `equivalent_mutants` the same way: reading the code is evidence enough.
 
 Each batch appends a record to `$STATE/batches.jsonl`: cards, outcome by card, rounds, seconds by phase, tokens and price.
 

@@ -387,3 +387,119 @@ fn an_events_pattern_stays_on_one_line() {
     println!("{file}");
     assert!(file.contains("Event::ZoneChange { old, new, reason: ZoneReason::Resolve, .. } if"), "{file}");
 }
+
+fn trigger_card(function: &str) -> String {
+    format!(
+        "{function}
+        fn draw(g: &mut Game, item: &StackItem) -> GameResult {{ g.draw(item.controller, 1)?; Ok(()) }}
+        pub static CARD: CardDef = CardDef {{
+            abilities: &[triggered(when_it_happens, draw, \"Whenever a spell is cast, draw a card.\")],
+            ..BLANK
+        }};"
+    )
+}
+
+#[test]
+fn a_trigger_says_its_event_first() {
+    let raw = trigger_card(
+        "fn when_it_happens(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {
+            if let Event::SpellCast { spell, player, .. } = event {
+                let id = *spell;
+                if asker.controller == *player { return Fired::about(Target::Object(id)); }
+            }
+            None
+        }",
+    );
+    let file = render(&raw, "Sample", "Whenever a spell is cast, draw a card.", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(file.contains("let Event::SpellCast { spell, player, .. } = event else { return None };\n"), "{file}");
+    assert!(!file.contains("if let Event::"), "{file}");
+    assert!(file.contains("    None\n}"), "{file}");
+}
+
+#[test]
+fn two_events_keep_their_branches() {
+    let raw = trigger_card(
+        "fn when_it_happens(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {
+            if let Event::SpellCast { spell, .. } = event { return Fired::about(Target::Object(*spell)); }
+            if let Event::Attacks { attacker, .. } = event { return Fired::about(Target::Object(*attacker)); }
+            None
+        }",
+    );
+    let file = render(&raw, "Sample", "Whenever a spell is cast, draw a card.", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(file.contains("if let Event::SpellCast"), "{file}");
+    assert!(file.matches("Fired::about").count() == 2, "{file}");
+}
+
+#[test]
+fn a_cost_is_written_as_its_symbols() {
+    let raw = "pub static CARD: CardDef = CardDef {
+        madness: Some(ManaCost { generic: 3, x: 0, symbols: [0, 1, 0, 0, 0, 0], hybrid: [None, None, None, None, None, None],
+            twobrid: [0, 0, 0, 0, 0], phyrexian: [0, 0, 0, 0, 0] }),
+        foretell: Some(ManaCost { generic: 0, x: 1, symbols: [0, 0, 0, 2, 0, 0], ..ManaCost::ZERO }),
+        ..BLANK
+    };";
+    let file = render(raw, "Sample", "Madness {3}{U}", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(file.contains("madness: Some(mana(\"{3}{U}\"))"), "{file}");
+    assert!(file.contains("foretell: Some(mana(\"{X}{R}{R}\"))"), "{file}");
+    assert!(!file.contains("generic:"), "{file}");
+}
+
+#[test]
+fn a_cost_of_nothing_is_zero_and_a_hybrid_one_stays() {
+    let raw = "pub static CARD: CardDef = CardDef {
+        madness: Some(ManaCost { generic: 0, x: 0, symbols: [0, 0, 0, 0, 0, 0], hybrid: [None, None, None, None, None, None],
+            twobrid: [0, 0, 0, 0, 0], phyrexian: [0, 0, 0, 0, 0] }),
+        foretell: Some(ManaCost { generic: 1, x: 0, symbols: [0, 0, 0, 0, 0, 0], hybrid: [Some((Mana::W, Mana::U)), None, None, None, None, None],
+            twobrid: [0, 0, 0, 0, 0], phyrexian: [0, 0, 0, 0, 0] }),
+        ..BLANK
+    };";
+    let file = render(raw, "Sample", "Madness {0}", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(file.contains("madness: Some(ManaCost::ZERO)"), "{file}");
+    assert!(file.contains("Some((Mana::W, Mana::U))"), "{file}");
+}
+
+#[test]
+fn a_trigger_that_always_fires_ends_in_what_it_fires() {
+    for last in ["return Fired::about(Target::Object(id));", "{ return Fired::about(Target::Object(id)); }"] {
+        let raw = trigger_card(&format!(
+            "fn when_it_happens(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {{
+                if let Event::SpellCast {{ spell, .. }} = event {{
+                    let id = *spell;
+                    {last}
+                }}
+                None
+            }}"
+        ));
+        let file = render(&raw, "Sample", "Whenever a spell is cast, draw a card.", Characteristics::Oracle).unwrap();
+        println!("{file}");
+        assert!(file.contains("Fired::about(Target::Object(id))\n}"), "{file}");
+        assert!(!file.contains("None\n}"), "{file}");
+        assert!(!file.contains("return Fired"), "{file}");
+    }
+}
+
+#[test]
+fn mana_of_any_color_is_the_shared_ability() {
+    for amount in ["1", "1u32"] {
+        let raw = format!(
+            "fn ability_0_mana(g: &mut dyn Game, asker: &Asker, chosen: Option<Color>) -> Result<(), Suspend> {{
+                let Some(color) = chosen else {{ return Ok(()); }};
+                g.add_mana(asker.controller, color.mana(), {amount});
+                Ok(())
+            }}
+            pub static CARD: CardDef = CardDef {{
+                abilities: &[mana_ability(TAP, add_by(ability_0_mana).choose_color().colors(ColorSet(31)).yields_any(1), \"{{T}}: Add one mana of any color.\")],
+                ..BLANK
+            }};"
+        );
+        let file = render(&raw, "Sample", "{T}: Add one mana of any color.", Characteristics::Oracle).unwrap();
+        println!("{file}");
+        assert!(file.contains("add_any_color(1)"), "{file}");
+        assert!(!file.contains("yields_any"), "{file}");
+        assert!(!file.contains("fn "), "{file}");
+    }
+}
