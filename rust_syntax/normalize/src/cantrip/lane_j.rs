@@ -4255,24 +4255,51 @@ impl Compiler {
         }
         compiled?;
         out.push_str(&statements.concat());
+        // What the instruction reports is bound inside the guards: a read after
+        // them gets it from here, and nothing happened if a guard failed.
+        let mut names = Vec::new();
+        let mut values = Vec::new();
         if let (Instruction::Effect { result, .. }, false) = (instruction, present.is_empty()) {
-            let bound = [
-                self.selections.remove(&result.0).is_some(),
-                self.moved.remove(&result.0).is_some(),
-                self.creations.remove(&result.0).is_some(),
-                self.before.remove(&result.0).is_some(),
-                self.performed.remove(&result.0).is_some(),
-                self.values.remove(&result.0).is_some(),
-            ];
-            if bound.contains(&true) {
-                self.failed.insert(result.0);
+            let id = self.fresh();
+            let later = self.read_later(result);
+            for (kept, map) in [
+                &mut self.selections,
+                &mut self.moved,
+                &mut self.creations,
+                &mut self.before,
+                &mut self.performed,
+                &mut self.values,
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let Some(code) = map.remove(&result.0) else {
+                    continue;
+                };
+                if later {
+                    let name = format!("reported_{id}_{kept}");
+                    values.push(format!("({code}).clone()"));
+                    map.insert(result.0, name.clone());
+                    names.push(name);
+                }
             }
+        }
+        let values: Vec<String> = values.iter().map(|code| self.fetch(code.clone())).collect();
+        if !names.is_empty() {
+            write!(out, "let ({},) = ", names.join(", ")).unwrap();
         }
         for (local, read) in &present {
             write!(out, "if let Some({local}) = {} {{ ", self.fetch(read)).unwrap();
         }
         out.push_str(&inner);
-        out.push_str(&" }".repeat(present.len()));
+        match names.is_empty() {
+            true => out.push_str(&" }".repeat(present.len())),
+            false => {
+                write!(out, "({},)", values.join(", ")).unwrap();
+                out.push_str(&" } else { Default::default() }".repeat(present.len()));
+                out.push(';');
+            }
+        }
         out.push('\n');
         Ok(())
     }

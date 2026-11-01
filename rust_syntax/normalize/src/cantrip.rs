@@ -2224,6 +2224,10 @@ fn emit_face(
     let rust = lane_p::remembered(rust);
     let mut gaps = c.gaps;
     gaps.extend(planned::value_gaps(&rust));
+    // A stand-in leans on some other hole's report: with none, the card isn't whole.
+    if gaps.is_empty() && rust.contains(FOLLOWS_GAP) {
+        gaps.push(gap("result this instruction does not report"));
+    }
     Ok(EmittedModule {
         rust,
         extras: c.extras,
