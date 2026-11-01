@@ -258,6 +258,7 @@ impl Compiler {
                     subtypes: vec![subtype, S::Army],
                     power_toughness: Some((Expr::Constant(0), Expr::Constant(0))),
                     abilities: Vec::new(),
+                    abilities_of: None,
                 })?;
                 let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
                 let player = self.actor(&action)?;

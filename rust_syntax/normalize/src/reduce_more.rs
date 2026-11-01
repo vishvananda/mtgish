@@ -232,6 +232,7 @@ fn reduce_more_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         objects,
         amount: amount.cloned(),
         any_number,
+        ticket_cost: None,
     };
     let piles = |objects: &ObjectSet, count: Option<&Expr>, names, chooser: Option<&PlayerSet>| Operation::Piles {
         actor: actor.clone(),
@@ -460,6 +461,9 @@ fn card_term(operand: &Operand) -> Option<ObjectFilter> {
         Operand::Term { form, operands, .. } if form == "IsCardtype" => {
             Some(ObjectFilter::CardType(vocabulary_value(operands.first()?)?))
         }
+        Operand::Term { form, operands, .. } if form == "IsLandType" => Some(ObjectFilter::Subtype(
+            crate::subtype::land_type(&vocabulary_value(operands.first()?)?),
+        )),
         Operand::Term { form, operands, .. } if form == "IsNamed" => match operands.first()? {
             Operand::Term { operands, .. } => match operands.as_slice() {
                 [Operand::Text(name)] => Some(ObjectFilter::Name(name.clone())),
@@ -2498,6 +2502,11 @@ fn perpetual_changes(effects: &[Operand]) -> Option<Vec<Change>> {
                 ("AddAbility", [Operand::Ability(ability)]) => {
                     Some(Change::GrantAbility(ability.clone()))
                 }
+                ("AdjustPTX", [power, toughness, Operand::Number(x)]) => Some(Change::Pump {
+                    power: mod_x(power, x)?,
+                    toughness: mod_x(toughness, x)?,
+                }),
+                ("SetPT", [pt]) => set_pt(pt),
                 _ => match reduce_change(format!("LayerEffect::{form}"), operands.clone()) {
                     Change::Primitive { .. } => None,
                     change => Some(change),

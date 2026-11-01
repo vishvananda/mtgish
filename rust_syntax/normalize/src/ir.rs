@@ -680,6 +680,8 @@ pub enum ReplacedPlayerEvent {
     /// A life total about to go down by any means, as Forge's `LifeReduced`. Its
     /// amount for `Measured` is the total it would become, not the change.
     ReduceLifeTotal,
+    /// The step's turn-based untap (CR 502.3), whatever it untaps.
+    UntapPermanents,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -981,6 +983,8 @@ pub enum Instruction {
         binding: Binding,
         /// Turn order begins with this player instead of the active player.
         starting_with: Option<PlayerRef>,
+        /// Proceeds in the direction chosen earlier, not in turn order.
+        in_chosen_direction: bool,
         body: Program,
     },
     /// The decider picks one option as this resolves; no target is announced.
@@ -1440,6 +1444,8 @@ pub enum Operation {
         times: Expr,
         targets: NewTargets,
         effects: Vec<Operand>,
+        /// The card that goes onto the stack as the copy, when one does.
+        card: Option<ObjectRef>,
     },
     /// Change what a spell or ability targets, as Forge's `ChangeTargets`.
     Retarget {
@@ -1724,6 +1730,9 @@ pub enum Operation {
         amount: Option<Expr>,
         /// Distributed among any number of them.
         any_number: bool,
+        /// Only a sticker whose ticket cost compares this way, put on without
+        /// paying that cost.
+        ticket_cost: Option<(Comparison, Expr)>,
     },
     /// Forge's `TwoPiles`, for any number of piles.
     Piles {
@@ -1863,6 +1872,24 @@ pub enum Operation {
         among: ObjectSet,
         options: Vec<CounterStep>,
         optional: bool,
+    },
+    /// The X announced for this spell or ability has to compare this way.
+    LimitX {
+        comparison: Comparison,
+        value: Expr,
+    },
+    /// The game restarts, `keep` stays where it is, and `then` happens in the
+    /// new game, as Forge's `RestartGame`.
+    RestartGame {
+        keep: ObjectSet,
+        then: Box<Operation>,
+    },
+    /// This action for each number from `from` through `to`; inside it
+    /// `GameValue::EachValue` is that number.
+    EachNumber {
+        from: Expr,
+        to: Expr,
+        action: Box<Operation>,
     },
 }
 /// One thing to do for a kind of counter, in `Operation::EachCounterKind`.
@@ -2689,6 +2716,9 @@ pub struct TokenDefinition {
     pub power_toughness: Option<(Expr, Expr)>,
     /// Fresh scopes: "this" is the token, and "you" its ability's controller.
     pub abilities: Vec<Ability>,
+    /// "And all triggered abilities of the exiled cards": objects and kinds of
+    /// abilities read in the creating effect's scope as the token is made.
+    pub abilities_of: Option<(ObjectSet, Box<Operand>)>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2766,6 +2796,8 @@ pub enum EntryState {
     FaceDownWith {
         face_down: FaceDownAs,
         abilities: Vec<Operand>,
+        /// The card whose name is noted as this enters.
+        noted: Option<ObjectRef>,
     },
     FaceDownLand(Box<Operand>),
     NotAnAura,
@@ -3571,6 +3603,8 @@ pub struct PlayTerms {
     pub may_look: bool,
     /// Where the card goes instead when it would leave the stack.
     pub then: Option<Destination>,
+    /// Cast face down, as this creature spell.
+    pub face_down: Option<FaceDownAs>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -5156,6 +5190,7 @@ pub enum KeywordFamily {
     StartYourEngines,
     Embalm,
     Eternalize,
+    Partner,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -5624,6 +5659,11 @@ pub enum CostPart {
         to: ObjectSet,
         kind: Option<crate::counter::CounterKind>,
         amount: MovedCounters,
+    },
+    /// `Waterbend` with its {X} set here.
+    WaterbendX {
+        mana: Vec<ManaSymbol>,
+        x: Expr,
     },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -6159,6 +6199,7 @@ pub enum StickerKind {
     Name,
     Art,
     PowerToughness,
+    Ability,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -6370,6 +6411,8 @@ pub enum StackTrait {
     Keyword(AbilityKeyword),
     DungeonRoom,
     OfEmblem,
+    /// The ability reading this filter.
+    ThisAbility,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

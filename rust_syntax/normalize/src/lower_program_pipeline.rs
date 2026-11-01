@@ -61,6 +61,7 @@ impl Context {
             players,
             binding,
             starting_with: None,
+            in_chosen_direction: false,
             body,
         })
     }
@@ -499,6 +500,19 @@ impl Context {
     }
 }
 fn batch_actor_instruction(instruction: &Instruction) -> bool {
+    // "Each player chooses, then sacrifices the rest": one sacrifice for them all.
+    if let Instruction::Group(program) = instruction {
+        return matches!(
+            program.instructions.as_slice(),
+            [
+                Instruction::ForEachPlayer { .. },
+                Instruction::Effect {
+                    operation: Operation::Sacrifice { .. },
+                    ..
+                }
+            ]
+        );
+    }
     matches!(
         instruction,
         Instruction::Effect {

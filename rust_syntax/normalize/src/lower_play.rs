@@ -118,6 +118,7 @@ impl Context {
             flash: false,
             may_look: false,
             then: None,
+            face_down: None,
         };
         let alternate = has("ForAlternateCastingCost")
             || has("ForAlternateCost")

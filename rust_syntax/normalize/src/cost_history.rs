@@ -36,7 +36,6 @@ pub fn action(part: &CostPart) -> Option<PaymentAction> {
         CostPart::ExiledToGraveyard(_) => Some(PaymentAction::Exile),
         CostPart::Primitive { name, .. } => match name.as_str() {
             "Cost::SacrificeUptoNumberPermanents" => Some(PaymentAction::Sacrifice),
-            "Cost::ExileACardInGraveyardsAndPayItsManaCost" => Some(PaymentAction::Exile),
             _ => None,
         },
         // A cost paid as an action that picks one object and leaves it there.

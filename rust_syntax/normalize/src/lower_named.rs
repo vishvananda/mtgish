@@ -918,6 +918,10 @@ impl Context {
 
     fn primitive_cost(&self, value: &source::Cost) -> Option<Cost> {
         let (name, operands) = self.primitive("Cost", value)?;
+        let payer = self.payer.clone().unwrap_or(PlayerRef::AbilityController);
+        if let Some(parts) = crate::semantics::reduce_card_cost(&name, &operands, &payer) {
+            return Some(Cost { parts });
+        }
         let part = match (name.as_str(), operands.as_slice()) {
             ("Cost::PayEnergy", [Operand::Number(amount)]) => CostPart::Energy(amount.clone()),
             _ => match self.typed_cost(value) {

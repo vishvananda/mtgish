@@ -502,13 +502,9 @@ impl Context {
                     recipients,
                     self.excess_rider(instead),
                 ),
-            S::PermanentDealsDamageExcessReplacable(permanent, amount, recipients, instead) => self
-                .deal_with(
-                    self.object(permanent),
-                    amount,
-                    recipients,
-                    self.excess_rider(instead),
-                ),
+            S::PermanentDealsDamageExcessReplacable(permanent, amount, recipients, instead) => {
+                return Some(self.excess_damage(permanent, amount, recipients, instead))
+            }
             S::SpellDealsDamageEachPlayer(players, spell, amount, recipients) => {
                 return Some(self.spell_damage_each_player(players, spell, amount, None, recipients))
             }

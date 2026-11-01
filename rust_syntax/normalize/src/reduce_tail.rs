@@ -749,6 +749,7 @@ pub fn reduce_replacement_action(
     let plain = name.split_once("::").and_then(|(_, form)| {
         reduce_tail_actions(&actor, form, &operands)
             .or_else(|| reduce_card_replacement_action(&actor, form, &operands))
+            .or_else(|| reduce_card_actions(&actor, form, &operands))
     });
     plain.unwrap_or(Operation::Primitive {
         actor,
@@ -868,6 +869,14 @@ fn tail_inspection_step(
     use Destination as D;
     use Operand::{Filter, List, Number, Object, Objects, Player, Players};
     let you = || actor_of(actor);
+    if form == "ExileResolvingSpell" {
+        return Some(Operation::Move {
+            objects: cards.clone(),
+            destination: D::Exile,
+            entry: EntrySpec::default(),
+            face_down: false,
+        });
+    }
     let put = |cards: ObjectSet, destination, entry: &[Operand]| Operation::ChangeZone {
         actor: actor.clone(),
         cards,
@@ -1003,10 +1012,17 @@ fn reduced_entry_flag(form: &str, operands: &[Operand]) -> Option<EntryState> {
         ("EntersAsFaceDownArtifactCreature", [pt, kind]) => {
             EntryState::FaceDownAs(face_down(pt, Some(kind), true))
         }
-        ("EntersAsFaceDownCreatureWithAbilitiesAndNotedName", [pt, List(abilities)]) => {
+        ("EntersAsFaceDownCreatureWithAbilitiesAndNotedName", [pt, List(abilities), named]) => {
+            let Operand::Term { operands, .. } = named else {
+                return None;
+            };
+            let [Operand::Object(card)] = operands.as_slice() else {
+                return None;
+            };
             EntryState::FaceDownWith {
                 face_down: face_down(pt, None, false),
                 abilities: abilities.clone(),
+                noted: Some(card.clone()),
             }
         }
         ("EntersAsFaceDownLand", [land]) => EntryState::FaceDownLand(Box::new(land.clone())),

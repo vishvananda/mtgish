@@ -634,6 +634,10 @@ impl Context {
                 (self.grave_cards(c)?, Some(Count::UpTo(Expr::Constant(1))))
             }
             S::AnyNumberOfCardsInGraveyards(c) => (self.grave_cards(c)?, Some(Count::AnyNumber)),
+            S::UptoOneCardOfEachCardTypeAmongCardsInGraveyards(c) => (
+                self.grave_cards(c)?,
+                Some(Count::UpTo(Expr::Constant(each_card_type().len() as i64))),
+            ),
             S::Spell(s) => (ObjectSet::One(self.spell(s)?), None),
             S::EachSpell(s) => (
                 ObjectSet::Zone {
@@ -900,6 +904,11 @@ impl Context {
                 let choice = self.effect(Operation::ChooseObjects {
                     constraints: if random {
                         vec![SelectionConstraint::AtRandom]
+                    } else if matches!(
+                        item,
+                        source::Exilable::UptoOneCardOfEachCardTypeAmongCardsInGraveyards(_)
+                    ) {
+                        vec![SelectionConstraint::OneForEach(each_card_type())]
                     } else {
                         vec![]
                     },
