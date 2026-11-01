@@ -979,6 +979,31 @@ impl Compiler {
                 matched.batch = Some(false);
                 matched
             }
+            EventSpec::Pair {
+                event: pair @ (PairEvent::Blocks | PairEvent::BecomesBlockedBy),
+                others,
+                ..
+            } if count.is_some() && including.is_none() && *per == BatchPer::Subject => {
+                let Some((comparison, value)) = count else {
+                    return Err(gap("batch of pair"));
+                };
+                let mut matched = self.event(event)?;
+                let frame = matched.frame;
+                let value = self.matching(frame, |c| Ok(c.number(value)?.code))?;
+                let test = self.matching(frame, |c| c.filter(others, &Candidate::of("other")))?;
+                let (mine, theirs) = match pair {
+                    PairEvent::Blocks => ("b.blocker", "b.attacker"),
+                    _ => ("b.attacker", "b.blocker"),
+                };
+                let many = format!(
+                    "q.state().blocks.iter().filter(|b| {mine} == id).filter(|b| {{ let other = {theirs}; {test} }}).count() as i64"
+                );
+                for arm in &mut matched.arms {
+                    arm.tests.push(read::compare(&many, comparison, &value));
+                }
+                matched.batch = Some(true);
+                matched
+            }
             other => {
                 if count.is_some() || including.is_some() || *per != BatchPer::Whole {
                     return Err(gap(format!("batch of {}", form(other))));
@@ -1185,7 +1210,9 @@ impl Compiler {
     ) -> Result<Matched> {
         let frame = Frame {
             object: Some(Carried::Subject),
+            destination: Some(Carried::Subject),
             player: Some(Carried::Data(0)),
+            stack_controller: matches!(kind, DiscardKind::CausedBy(_)).then_some(Carried::Data(1)),
             ..Frame::default()
         };
         let mut tests = vec![
@@ -1228,7 +1255,17 @@ impl Compiler {
             mask,
             Arm {
                 pattern: pattern.into(),
-                locals: "let id = *card; let subject = Target::Object(id); let data = [u32::from(player.0), u32::MAX];".into(),
+                locals: format!(
+                    "let id = *card; let subject = Target::Object(id); let data = [u32::from(player.0), {}];",
+                    match kind {
+                        DiscardKind::CausedBy(_) => planned::planned_value(
+                            "engine: no discard cause in events",
+                            "u32::MAX",
+                            "cause.map_or(u32::MAX, |c: ObjectId| u32::from(q.controller(c).0))",
+                        ),
+                        _ => "u32::MAX".to_string(),
+                    }
+                ),
                 tests,
             },
             frame,
@@ -1606,6 +1643,13 @@ impl Compiler {
         if let Some(intervening) = intervening_if {
             match self.condition_function(intervening, &format!("{label}_if")) {
                 Ok(function) => condition = Some(function),
+                // What an ability's cost was does not change: the event's test is all.
+                Err(_) if lane_n::of_the_activation(intervening, matched.frame) => {
+                    let Condition::ObjectMatches { filter, .. } = intervening else {
+                        unreachable!("of_the_activation asks this");
+                    };
+                    extra.push(self.activation_test(filter, matched.frame)?);
+                }
                 Err(gap) if gap.feature.contains("event") => {
                     extra.push(self.matching(matched.frame, |c| c.condition(intervening))?);
                     guard = Some(intervening);

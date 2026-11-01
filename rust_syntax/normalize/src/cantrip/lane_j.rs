@@ -736,6 +736,15 @@ impl Compiler {
                 "Whenever this becomes unattached from a permanent",
                 false,
             ),
+            PairEvent::EntersAttachedTo => (
+                "ZONE_CHANGE",
+                "Event::ZoneChange { new, to, .. }",
+                "*new",
+                "q.state().obj(*new).attached_to.unwrap_or(*new)",
+                Some("to.is(ZoneKind::Battlefield) && q.state().obj(*new).attached_to.is_some()"),
+                "When this enters attached to a permanent",
+                false,
+            ),
             PairEvent::Enlists => (
                 "PAID_TO_ATTACK",
                 "Event::PaidToAttack { attacker, option: AttackOption::Enlist, tapped, .. }",
@@ -933,6 +942,29 @@ impl Compiler {
                     let test = format!("q.state().stack.iter().find(|i| i.kind == StackKind::Spell && i.object == id).is_some_and(|i| {{ let wanted: Vec<ObjectId> = {set}; q.state().targets(i).iter().filter_map(|t| t.object()).any(|o| wanted.contains(&o)) }})");
                     matched.arms[0].tests.push(test);
                 }
+                Ok(matched)
+            }
+            EventSpec::SpellTargeting {
+                players,
+                spells,
+                targets: None,
+                count: Some((comparison, value)),
+            } => {
+                let spell = EventSpec::Spell {
+                    event: SpellEvent::Cast,
+                    players: players.clone(),
+                    spells: spells.clone(),
+                };
+                let mut matched = self.event(&spell)?;
+                let frame = matched.frame;
+                if frame.amount.is_some() || format!("{frame:?}").contains("Data(1)") {
+                    return Err(gap("trigger event spell targeting"));
+                }
+                let value = self.matching(frame, |c| Ok(c.number(value)?.code))?;
+                let arm = &mut matched.arms[0];
+                arm.locals.push_str(" let many = q.state().stack.iter().find(|i| i.kind == StackKind::Spell && i.object == id).map_or(0, |i| q.state().targets(i).len()) as i64; let data = [data[0], many as u32];");
+                arm.tests.push(read::compare("many", comparison, &value));
+                matched.frame.amount = Some(Carried::Data(1));
                 Ok(matched)
             }
             EventSpec::SpellOrActivation {
@@ -1508,8 +1540,15 @@ impl Compiler {
         let test = format!(
             "match q.event_cause() {{ Cause::Spell(causer) | Cause::Ability {{ source: causer, .. }} => {test}, _ => false }}"
         );
+        let free = !format!("{frame:?}").contains("Data(1)");
         for arm in &mut matched.arms {
             arm.tests.push(test.clone());
+            if free {
+                arm.locals.push_str(" let data = [data[0], match q.event_cause() { Cause::Spell(c) | Cause::Ability { source: c, .. } => u32::from(q.controller(c).0), _ => u32::MAX }];");
+            }
+        }
+        if free {
+            matched.frame.stack_controller = Some(Carried::Data(1));
         }
         if self.history.is_none() {
             if matched.planned.is_empty() {
@@ -2217,7 +2256,8 @@ impl Compiler {
                 )
             }
             ObjectFilter::InResult(result) => {
-                format!("({}).contains(&{id})", self.named(result)?)
+                let list = self.objects(&ObjectSet::Named(result.clone()))?;
+                format!("({list}).contains(&{id})")
             }
             ObjectFilter::KickedWith(_) => held(format!("q.state().obj({id}).kicked_with(kicker)")),
             ObjectFilter::AlternateCostPaid(_) => {

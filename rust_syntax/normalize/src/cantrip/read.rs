@@ -973,11 +973,23 @@ impl Compiler {
                     "q.event_total(item)",
                 ))
             }
+            // Read as the ability triggers: its announcement, or "if you roll a 6".
+            Expr::EventAmount
+                if self.frame.amount.is_none()
+                    && self.frame != Frame::default()
+                    && self.event_at == EventAt::Matcher =>
+            {
+                count(planned::planned_value(
+                    "amount of an event its trigger does not carry",
+                    "0i64",
+                    "q.event_total_at(asker)",
+                ))
+            }
             Expr::EventAmount => {
                 let (_, data) = self.carried(
-                    self.frame
-                        .amount
-                        .ok_or_else(|| gap("event amount this trigger does not bind"))?,
+                    self.frame.amount.ok_or_else(|| {
+                        gap("event amount this trigger does not bind")
+                    })?,
                 )?;
                 let Some(Carried::Data(i)) = self.frame.amount else {
                     return Err(gap("event amount outside the event data"));

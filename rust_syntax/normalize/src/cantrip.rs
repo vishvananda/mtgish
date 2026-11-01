@@ -879,21 +879,21 @@ impl Compiler {
     fn selected(&self, result: &ResultId) -> Result<String> {
         match self.selections.get(&result.0) {
             Some(local) => Ok(format!("{local}.clone()")),
-            None if self.failed.contains(&result.0) => Ok(planned::unreported(NO_OBJECTS, result)),
+            None if self.failed_anywhere(result) => Ok(planned::unreported(NO_OBJECTS, result)),
             None => Err(gap("selection result outside generated scope")),
         }
     }
     fn created(&self, result: &ResultId) -> Result<String> {
         match self.creations.get(&result.0) {
             Some(local) => Ok(format!("{local}.clone()")),
-            None if self.failed.contains(&result.0) => Ok(planned::unreported(NO_OBJECTS, result)),
+            None if self.failed_anywhere(result) => Ok(planned::unreported(NO_OBJECTS, result)),
             None => Err(gap("token result outside generated scope")),
         }
     }
     fn moved(&self, result: &ResultId) -> Result<String> {
         match self.moved.get(&result.0) {
             Some(local) => Ok(format!("{local}.clone()")),
-            None if self.failed.contains(&result.0) => Ok(planned::unreported(NO_OBJECTS, result)),
+            None if self.failed_anywhere(result) => Ok(planned::unreported(NO_OBJECTS, result)),
             None => Err(gap("transition this instruction does not report")),
         }
     }

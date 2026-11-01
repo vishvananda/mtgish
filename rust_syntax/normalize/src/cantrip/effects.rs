@@ -290,7 +290,10 @@ impl Compiler {
                 code.push_str("all }");
                 code
             }
-            Recipients::Chosen => return Err(gap("chosen damage recipient")),
+            Recipients::Chosen => self
+                .chosen_local(ValueKind::Recipient)
+                .map(|chosen| format!("vec![{chosen}]"))
+                .map_err(|_| gap("chosen damage recipient"))?,
             Recipients::DamagedByEvent => return Err(gap("recipient of event damage")),
             Recipients::AttackedBy(object) => format!(
                 "{{ let attacker = {}; q.state().attackers.iter().find(|a| Some(a.id) == attacker).map(|a| a.target).filter(|t| *t != Target::None).into_iter().collect::<Vec<Target>>() }}",

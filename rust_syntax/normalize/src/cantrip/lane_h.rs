@@ -210,8 +210,10 @@ fn all_copiable(changes: &[Change]) -> bool {
 }
 /// Whether "you may have it enter as a copy" is what this optional body says.
 pub(super) fn asks_to_copy(body: &Program) -> bool {
+    let mut flat = Vec::new();
+    lane_m::flat_groups(&body.instructions, &mut flat);
     matches!(
-        body.instructions.first(),
+        flat.first(),
         Some(Instruction::Effect {
             operation: Operation::ModifyEvent {
                 change: EventChange::Entry(EntryState::CopyOf { .. }),
@@ -2958,6 +2960,8 @@ impl Compiler {
         body: &Program,
         out: &mut String,
     ) -> Result<()> {
+        let mut flat = Vec::new();
+        lane_m::flat_groups(&body.instructions, &mut flat);
         let [Instruction::Effect {
             result,
             operation:
@@ -2969,7 +2973,7 @@ impl Compiler {
                             until,
                         }),
                 },
-        }, rest @ ..] = body.instructions.as_slice()
+        }, rest @ ..] = flat.as_slice()
         else {
             return Err(gap("may enter as a copy"));
         };
@@ -3147,6 +3151,19 @@ impl Compiler {
                     return Err(gap("event change as it enters CountersOf"));
                 };
                 writeln!(out, "if let Some(&original) = {list}.first() {{ for kind in CounterKind::ALL {{ let count = g.obj(original).counters(kind); entering.counters[kind as usize] = entering.counters[kind as usize].saturating_add(count); }} }}").unwrap();
+            }
+            EntryState::AttachedToChosen(hosts) => {
+                let hosts = self.fetch(self.objects(&ObjectSet::Battlefield(hosts.clone()))?);
+                let could = planned::planned_value(
+                    "what a permanent could be attached to",
+                    "true",
+                    "q.could_be_attached(object, host)",
+                );
+                writeln!(
+                    out,
+                    "let object = entering.object; let hosts: Vec<ObjectId> = {hosts}.into_iter().filter(|&host| {{ let q: &dyn Query = g; {could} }}).collect(); cantrip_mechanics::choose::object_as_enters(g, entering, hosts, cantrip_mechanics::select::Selection::of(cantrip_mechanics::select::Count::UpTo(1), &[]))?; entering.attach = entering.chosen_object;"
+                )
+                .unwrap();
             }
             other => {
                 return Err(gap(format!(

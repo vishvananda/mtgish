@@ -702,6 +702,24 @@ impl Compiler {
                     )
                 )
             }
+            // `ReplacementDef::then` runs as the effect applies: this runs after it.
+            ("ZoneChange", C::Then(program)) => {
+                let id = self.fresh();
+                let steps = self.then_steps(frame, &program.instructions, None)?;
+                writeln!(self.functions, "#[allow(unused_variables, unused_mut, dead_code)] fn after_{id}(g: &mut dyn Game, asker: &Asker, subject: Target, data: [u32; 2]) -> Result<(), Suspend> {{ {steps} Ok(()) }}").unwrap();
+                format!(
+                    "{};",
+                    planned::planned_value(
+                        "event change then",
+                        "()",
+                        &format!("z.after(after_{id}, subject, data)"),
+                    )
+                )
+            }
+            ("TokenCreation", C::SetController(player)) => {
+                let player = self.matching(frame, |c| c.certain_player(player))?;
+                format!("t.controller = {player};")
+            }
             ("Damage", C::DamageAsInfect) => format!(
                 "{};",
                 planned::planned_value("event change damage as infect", "()", "e.as_infect = true")
@@ -772,6 +790,27 @@ impl Compiler {
             C::Repeats(n) => format!("p.times = {};", number(self, n)?),
             C::SearchTop(n) => format!("p.top = Some({});", number(self, n)?),
             C::FlipExtraCoin => "p.extra_flips += 1;".into(),
+            C::AddCopy { new_targets } => {
+                format!("p.count += 1; p.new_targets_for_added = {new_targets};")
+            }
+            C::ExchangeDieResult {
+                decider,
+                object,
+                properties,
+            } => {
+                let decider = self.matching(frame, |c| c.certain_player(decider))?;
+                let object = self.matching(frame, |c| c.object(object))?;
+                let properties = properties
+                    .iter()
+                    .map(|property| match property {
+                        Property::BasePower => Ok("DieExchange::BasePower"),
+                        Property::BaseToughness => Ok("DieExchange::BaseToughness"),
+                        other => Err(gap(format!("a die exchanged with {}", form(other)))),
+                    })
+                    .collect::<Result<Vec<_>>>()?
+                    .join(", ");
+                format!("p.exchange = Some(DieExchangeOffer {{ decider: {decider}, object: {object}, properties: &[{properties}] }});")
+            }
             C::RollExtraDie(DiceIgnore::Lowest) => {
                 "p.extra_dice += 1; p.ignore = Some(DiceIgnore::Lowest);".into()
             }
@@ -1313,6 +1352,73 @@ impl Compiler {
         }
         Ok(())
     }
+    /// "Choose a player or a planeswalker that player controls": no target, and
+    /// no one kind of thing to ask about.
+    pub(super) fn choose_recipient(
+        &mut self,
+        id: usize,
+        player: &str,
+        source: &str,
+        options: &[Operand],
+        local: &str,
+        out: &mut String,
+    ) -> Result<()> {
+        let [Operand::Recipients(candidates)] = options else {
+            return Err(gap("a choice of Recipient"));
+        };
+        let candidates = self.fetch(self.recipients(candidates)?);
+        let chosen = planned::planned_value(
+            "a choice of Recipient",
+            "Target::None",
+            &format!("cantrip_mechanics::choose::recipient(g, player_{id}, {source}, candidates_{id})?"),
+        );
+        writeln!(
+            out,
+            "let player_{id} = {player}; let candidates_{id}: Vec<Target> = {candidates}; let {local}: Target = {chosen};"
+        )
+        .unwrap();
+        Ok(())
+    }
+    /// What an instruction that says nothing did it to, for "those" later.
+    pub(super) fn report_objects(
+        &mut self,
+        op: &Operation,
+        result: &ResultId,
+        out: &mut String,
+    ) -> bool {
+        if !read_as_objects(&self.after, result) {
+            return false;
+        }
+        let id = self.fresh();
+        let list = match op {
+            Operation::Tap { objects, .. } => match self.acted_on(objects) {
+                Ok(list) => list,
+                Err(_) => return false,
+            },
+            Operation::Keyword {
+                action: KeywordAction::Proliferate,
+                ..
+            } => planned::planned_value(
+                "what a proliferate chose",
+                "Vec::<ObjectId>::new()",
+                "g.last_proliferated()",
+            ),
+            _ => return false,
+        };
+        writeln!(out, "let acted_{id}: Vec<ObjectId> = {list};").unwrap();
+        self.selections.insert(result.0, format!("acted_{id}"));
+        true
+    }
+    /// Whether the ability making this body knows what `result` did.
+    pub(super) fn bound_outside(&self, result: &ResultId) -> bool {
+        self.outer.as_ref().is_some_and(|outer| outer.knows(result))
+    }
+    /// Whether the instruction of `result`, here or in what makes this body, is
+    /// one with a hole of its own.
+    pub(super) fn failed_anywhere(&self, result: &ResultId) -> bool {
+        self.failed.contains(&result.0)
+            || self.outer.as_ref().is_some_and(|outer| outer.failed(result))
+    }
     /// Whether the event at hand is a move a replacement changed, its steps
     /// coming after it (CR 614.6): the object it moved is a new one there.
     pub(super) fn reads_replaced_move(&self) -> bool {
@@ -1388,6 +1494,19 @@ impl Compiler {
     }
 }
 
+/// "If that ability's activation cost contains {X}": asked of the activation.
+/// "If it isn't a mana ability" reaches here without its negation (the source
+/// data lost it), so a filter on mana stays a hole rather than the opposite rule.
+pub(super) fn of_the_activation(condition: &Condition, frame: Frame) -> bool {
+    matches!(
+        condition,
+        Condition::ObjectMatches {
+            object: ObjectRef::EventStackObject,
+            filter: ObjectFilter::OnStack(StackTrait::XInCost | StackTrait::TapSymbolInCost),
+        } if frame.activated.is_some()
+    )
+}
+
 /// Whether what comes later reads which cards a surveil put into the graveyard,
 /// which is what `InResult` of it says. "Cards you put on top" has no word of its
 /// own in the AST: `Named` of a surveil does not say which part it means.
@@ -1406,6 +1525,7 @@ pub(super) fn read_as_objects(after: &[Instruction], result: &ResultId) -> bool 
         format!("Named(ResultId({r}))"),
         format!("Named {{ result: ResultId({r})"),
         format!("InResult(ResultId({r}))"),
+        format!("Affected(ResultId({r}))"),
         format!("Transition {{ result: ResultId({r})"),
     ]
     .iter()

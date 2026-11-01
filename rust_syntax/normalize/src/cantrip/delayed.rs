@@ -23,6 +23,19 @@ pub(super) struct Outer {
     pub(super) parts: RefCell<Vec<String>>,
 }
 
+impl Outer {
+    pub(super) fn knows(&self, result: &ResultId) -> bool {
+        let c = &self.compiler;
+        c.selections.contains_key(&result.0)
+            || c.creations.contains_key(&result.0)
+            || c.moved.contains_key(&result.0)
+            || c.bound_outside(result)
+    }
+    pub(super) fn failed(&self, result: &ResultId) -> bool {
+        self.compiler.failed_anywhere(result)
+    }
+}
+
 /// The lists a delayed ability carries are one list to the engine, so each ends
 /// with an object nothing can be.
 pub(super) const ABOUT: &str = "fn about(q: &dyn Query, item: &StackItem, part: usize) -> Vec<ObjectId> { q.event_objects(item).split(|&id| id == ObjectId::NONE).nth(part).map_or_else(Vec::new, <[ObjectId]>::to_vec) }\n";
@@ -121,10 +134,11 @@ impl Compiler {
     }
     fn reads_itself(&self, object: &ObjectRef) -> bool {
         match object {
-            ObjectRef::Result { result, .. } => {
+            ObjectRef::Result { result, .. } | ObjectRef::Named { result, .. } => {
                 self.selections.contains_key(&result.0)
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)
+                    || !self.bound_outside(result)
             }
             ObjectRef::Target { slot, .. } => self.slots.contains_key(&slot.0),
             // A body watching for an event of its own reads that event.
@@ -212,6 +226,12 @@ impl Compiler {
             ObjectSet::Created(result) => self.creations.contains_key(&result.0),
             ObjectSet::Affected(result) => self.selections.contains_key(&result.0),
             ObjectSet::Transition { result, .. } => self.moved.contains_key(&result.0),
+            ObjectSet::Named(result) => {
+                self.selections.contains_key(&result.0)
+                    || self.creations.contains_key(&result.0)
+                    || self.moved.contains_key(&result.0)
+                    || !self.bound_outside(result)
+            }
             ObjectSet::Targets(slot) => self.slots.contains_key(&slot.0),
             ObjectSet::CostObjects { .. } => false,
             ObjectSet::One(object) => self.reads_itself(object),

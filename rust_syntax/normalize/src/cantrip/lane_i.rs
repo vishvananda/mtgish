@@ -1458,6 +1458,7 @@ impl Compiler {
             let acted = self.acted_on(objects)?;
             writeln!(out, "let acted_{id}: Vec<ObjectId> = {acted};").unwrap();
             self.moved.insert(result.0, format!("acted_{id}"));
+            self.selections.insert(result.0, format!("acted_{id}"));
         }
         // Actions with no call yet: what the card will say once there is one.
         let planned = match action {

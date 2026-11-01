@@ -313,6 +313,9 @@ impl Compiler {
             self.failed.insert(result.0);
             return;
         }
+        if self.report_objects(op, result, out) {
+            return;
+        }
         let happened = match op {
             // Each of these is done whatever the state of the game.
             Operation::Scry { .. }
