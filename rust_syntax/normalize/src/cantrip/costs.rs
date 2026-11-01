@@ -438,6 +438,8 @@ impl Compiler {
             Expr::Constant(n) => u8::try_from(*n).ok(),
             _ => None,
         };
+        let flat = lane_p::flat_modes(selection);
+        let modes = flat.as_ref().unwrap_or(modes);
         // "Choose one. If you control a commander, you may choose both instead."
         let (most, more) = match maximum {
             Expr::Conditional {
@@ -454,10 +456,17 @@ impl Compiler {
                 return Err(gap("target cardinality PerPlayer"));
             }
             let label = format!("{label}_mode_{i}");
-            let targets = match frame {
-                Some(frame) => self.targets_for(&mode.announcement, &label, frame)?,
-                None => self.announcement(&mode.announcement, &label)?,
+            // A mode that is a choice of modes itself, chosen its own way.
+            let inner = match &mode.announcement.modes {
+                Some(_) => Some(self.modal(&mode.announcement, &format!("{label}_inner"), None)?),
+                None => None,
             };
+            let announced = lane_p::without_modes(&mode.announcement);
+            let targets = match frame {
+                Some(frame) => self.targets_for(&announced, &label, frame)?,
+                None => self.announcement(&announced, &label)?,
+            };
+            let divide = self.dividing.take();
             let effect = match self.mode_guard.clone() {
                 Some(guard) => self.guarded_effect(&guard, &mode.body, &label)?,
                 None => self.effect(&mode.body, &label)?,
@@ -466,6 +475,22 @@ impl Compiler {
                 "mode({effect}, {}).targets({targets})",
                 quoted(&self.said_mode(i, modes.len(), ability_text(&mode.body)))
             );
+            let def = match divide {
+                Some(divide) => planned::planned_value(
+                    "target with a divided amount",
+                    &def,
+                    &format!("{def}.divide({divide})"),
+                ),
+                None => def,
+            };
+            let def = match inner {
+                Some(inner) => planned::planned_value(
+                    "modal announcement",
+                    &def,
+                    &format!("{def}.then_modes(&{inner})"),
+                ),
+                None => def,
+            };
             defs.push(match &mode.requires {
                 Some(condition) => {
                     let test = self.activation_condition(condition, &format!("{label}_open"))?;
@@ -1074,12 +1099,27 @@ impl Compiler {
                         return Err(gap("saga chapter shape"));
                     };
                     let label = format!("{label}_{i}");
-                    let targets = self.announcement(announcement, &label)?;
+                    let modal = self.reflexive_modes(announcement, &format!("{label}_modes"))?;
+                    let targets =
+                        self.announcement(&lane_p::without_modes(announcement), &label)?;
+                    let divide = self.dividing.take();
                     let effect = self.effect(body, &label)?;
-                    parts.abilities.push(format!(
+                    let def = format!(
                         "chapter({n}, {effect}, {}).targets({targets})",
                         quoted(&self.said_chapter(i64::from(*n), ability_text(body)))
-                    ));
+                    );
+                    let def = match divide {
+                        Some(divide) => format!("{def}.divide({divide})"),
+                        None => def,
+                    };
+                    parts.abilities.push(match modal {
+                        Some(modal) => planned::planned_value(
+                            "modal announcement",
+                            &def,
+                            &format!("{def}.modes(&{modal})"),
+                        ),
+                        None => def,
+                    });
                 }
             }
             Ability::Replacement {

@@ -328,7 +328,14 @@ impl Compiler {
                             types.join(",")
                         )
                     }
-                    None => return Err(gap("flash for spells other than by type")),
+                    None => {
+                        let test = self.stated_filter(spells)?;
+                        planned::planned_value(
+                            "flash for spells other than by type",
+                            "EffectKind::CastAsThoughFlash(TypeSet::NONE)",
+                            &format!("EffectKind::CastAsThoughFlash({test})"),
+                        )
+                    }
                 },
                 other => return Err(gap(format!("player rule for a while {}", form(other)))),
             };
@@ -435,6 +442,21 @@ impl Compiler {
 /// The card types a timing permission names, if that is all it names.
 fn listed_types(spells: &ObjectFilter) -> Option<Vec<String>> {
     match spells {
+        // Every spell has one of the types a spell can be (CR 300.1, 305.9).
+        ObjectFilter::Any => Some(
+            [
+                "Artifact",
+                "Battle",
+                "Creature",
+                "Enchantment",
+                "Instant",
+                "Kindred",
+                "Planeswalker",
+                "Sorcery",
+            ]
+            .map(String::from)
+            .to_vec(),
+        ),
         ObjectFilter::CardType(t) => Some(vec![card_type(t).ok()?.to_string()]),
         ObjectFilter::Either(filters) => {
             let mut types = Vec::new();

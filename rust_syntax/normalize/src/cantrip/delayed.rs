@@ -715,7 +715,8 @@ impl Compiler {
             .get(&performed.0)
             .filter(|value| value.starts_with("bound_"))
             .cloned()
-            .or_else(|| self.told_amount(performed, body));
+            .or_else(|| self.told_amount(performed, body))
+            .or_else(|| self.told_roll(performed, announcement, body));
         let slot = self.counted_slot(announcement);
         let amount = amount.or_else(|| slot.as_ref().map(|(_, code)| code.clone()));
         let counted = std::mem::replace(&mut self.counted, amount.as_ref().map(|_| performed.0));

@@ -408,7 +408,7 @@ struct Compiler {
     /// What runs once that choice found something, the rest of the block with it.
     chosen_guard: Option<String>,
     /// That guard is open, and the block has to close it.
-    guard_opened: bool,
+    guard_opened: usize,
     /// The target of the announcement being compiled that is the second of "two
     /// target creatures", which the AST keeps as a slot of its own.
     second_of_two: Option<usize>,
@@ -914,7 +914,7 @@ impl Compiler {
             quoted_used: BTreeSet::new(),
             may_choose: false,
             chosen_guard: None,
-            guard_opened: false,
+            guard_opened: 0,
             second_of_two: None,
             whole_mills: Default::default(),
             spell_targets: false,
@@ -974,7 +974,11 @@ impl Compiler {
         match (phase, self.before.get(&result.0)) {
             (ObjectPhase::Before, Some(list)) => Ok(list.clone()),
             (ObjectPhase::Before, None) if self.moved.contains_key(&result.0) => {
-                Err(gap("object as it was before an instruction moved it"))
+                Ok(planned::planned_value(
+                    "object as it was before an instruction moved it",
+                    "Vec::<ObjectId>::new()",
+                    &format!("q.as_they_were(&{})", self.moved[&result.0]),
+                ))
             }
             // Chosen or made and not moved: nothing happened to them since.
             _ if self.selections.contains_key(&result.0) && !self.moved.contains_key(&result.0) => {
@@ -1158,16 +1162,30 @@ impl Compiler {
             };
             let together = match spec.constraints.as_slice() {
                 [] => String::new(),
-                [SelectionConstraint::CommonProperty(property)] => self
-                    .common_property(property)
-                    .map(String::from)
-                    .map_err(|e| e.at(&at))?,
+                [SelectionConstraint::CommonProperty(property)]
+                    if self.common_property(property).is_ok() =>
+                {
+                    self.common_property(property)
+                        .map(String::from)
+                        .map_err(|e| e.at(&at))?
+                }
                 constraints => {
                     rule = self.slot_rule(constraints, i).map_err(|e| e.at(&at))?;
                     rule.together.clone()
                 }
             };
-            if let Some(total) = &spec.distribute {
+            if let (Some(total), true) = (&spec.distribute, i > 0) {
+                // Cantrip divides only among a first slot's targets.
+                let total = self
+                    .number(total)
+                    .and_then(|n| n.amount(u32::MAX.into(), "u32"))
+                    .map_err(|e| e.at(&at))?;
+                self.dividing = Some(planned::planned_value(
+                    "target with a divided amount",
+                    "Divide { total: 1, of_x: None }",
+                    &format!("Divide::of_slot({i}, {total})"),
+                ));
+            } else if let Some(total) = &spec.distribute {
                 let total = match total {
                     Expr::Constant(n) if i == 0 && *n >= 0 => n.to_string(),
                     Expr::AnnouncedX if i == 0 => "TargetSpec::COUNTED".to_string(),
@@ -1959,7 +1977,7 @@ fn emit_face(
         });
         if let Some(feature) = failure {
             c.reset_after_gap();
-            c.plan_ability(&feature, a);
+            c.plan_ability(&feature, a, &format!("ability_{i}"));
         }
     }
     parts
@@ -2125,8 +2143,7 @@ fn emit_face(
     let loyalty = match &ch.loyalty {
         Some(Expr::Constant(n)) => Some(*n),
         Some(other) => {
-            let gap = gap("printed loyalty expression");
-            c.plan_trait("characteristics.loyalty", gap, format!("{other:?}"));
+            c.plan_loyalty(other);
             None
         }
         None => None,

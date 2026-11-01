@@ -419,10 +419,12 @@ impl Compiler {
         let planned = self.gaps.len();
         let failure = self.attempt(format!("instructions[{i}]"), |c| {
             let gaps = c.gaps.len();
+            let may_choose = c.may_choose;
             match c.instruction(body, i, instruction, out) {
                 Err(failed) if lane_j::wants_a_player(&failed.feature) => {
                     out.truncate(mark);
                     c.gaps.truncate(gaps);
+                    c.may_choose = may_choose;
                     c.if_present(body, i, instruction, out)
                 }
                 compiled => compiled,
@@ -855,7 +857,15 @@ impl Compiler {
                 self.number(n)?.amount(u32::MAX.into(), "u32")?
             ),
             Count::AtLeast(_) => return Err(gap("at-least resolution choice")),
-            Count::Between { .. } => return Err(gap("bounded resolution choice")),
+            Count::Between { minimum, maximum } => {
+                let most = self.fetch(self.number(maximum)?.code);
+                let least = self.fetch(self.number(minimum)?.code);
+                planned::planned_value(
+                    "bounded resolution choice",
+                    &format!("cantrip_mechanics::select::Count::UpTo(({most}).max(0) as u32)"),
+                    &format!("cantrip_mechanics::select::Count::Between(({least}).max(0) as u32, ({most}).max(0) as u32)"),
+                )
+            }
             Count::PerPlayer { .. } => return Err(gap("per-player resolution choice")),
         })
     }
@@ -870,6 +880,9 @@ impl Compiler {
     ) -> Result<()> {
         if self.from_outside(objects) {
             self.notes.outside.insert(result.0);
+            if matches!(objects, ObjectSet::Union(_)) {
+                self.notes.outside_shown.insert(result.0);
+            }
         }
         let count = self.offered_count(count);
         let count = self.select_count(&count)?;
@@ -2048,6 +2061,7 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         let alone = self.one_object(objects);
+        let shown = self.outside_shown(objects);
         let revealed = self.revealed;
         let chosen = matches!(objects, ObjectSet::Selected(_));
         let objects = lane_k::shuffled_in_though_gone(objects, destination);
@@ -2090,7 +2104,7 @@ impl Compiler {
             }
             _ if !plain_entry(entry) => return Err(gap("move arrival flags")),
             // Into the game: CR 400.11b.
-            Destination::OwnersHand if outside => lane_p::bring_into_hand(id, revealed),
+            Destination::OwnersHand if outside => lane_p::bring_into_hand(id, revealed || shown),
             // All players can still see the card as it moves (603.10a, 701.20a).
             Destination::OwnersHand if revealed => {
                 format!("g.return_to_hand_revealed(&objects_{id})")
@@ -2203,15 +2217,21 @@ impl Compiler {
         writeln!(out, "let mut removed_{id}: i64 = 0;").unwrap();
         let mut counted = true;
         for (i, removal) in removals.iter().enumerate() {
-            if removal.selection.is_some() {
-                return Err(gap("counters removed by a resolution choice"));
-            }
             let Recipients::Objects(objects) = &removal.recipients else {
                 self.removed_from_players(id, removal, out)?;
                 continue;
             };
             let objects = self.fetch(self.objects(objects)?);
-            writeln!(out, "let objects_{id}_{i} = {objects};").unwrap();
+            match &removal.selection {
+                // "Remove a counter from each of any number of them": those chosen.
+                Some(selection) => {
+                    let player = self.fetch(self.certain_player(&selection.player)?);
+                    let count = self.select_count(&selection.count)?;
+                    let count = self.fetch(count);
+                    writeln!(out, "let among_{id}_{i} = {objects}; let chooser_{id}_{i} = {player}; let count_{id}_{i} = {count}; let objects_{id}_{i} = cantrip_mechanics::choose::select(g, chooser_{id}_{i}, asker.source, Purpose::Choose, among_{id}_{i}, cantrip_mechanics::select::Selection::of(count_{id}_{i}, &[]))?;").unwrap();
+                }
+                None => writeln!(out, "let objects_{id}_{i} = {objects};").unwrap(),
+            }
             match (&removal.kind, &removal.amount) {
                 (Some(kind), amount) => {
                     let amount = match amount {
@@ -2219,7 +2239,20 @@ impl Compiler {
                         CounterAmount::Count(Count::Exactly(n)) => {
                             self.fetch(self.number(n)?.amount(i16::MAX.into(), "i16")?)
                         }
-                        other => return Err(gap(format!("counter removal {}", form(other)))),
+                        other @ CounterAmount::Count(Count::UpTo(n))
+                            if !matches!(removal.selection, Some(_)) =>
+                        {
+                            let _ = other;
+                            let n = self.fetch(self.number(n)?.amount(i16::MAX.into(), "i16")?);
+                            let kind = counter_kind(kind)?;
+                            let player = self.fetch(self.certain_player(&removal.player)?);
+                            writeln!(out, "let player_{id}_{i} = {player}; let most_{id}_{i} = {n}; for object in objects_{id}_{i} {{ let most = g.state().obj(object).counters({kind}).min(most_{id}_{i}); let amount = cantrip_mechanics::choose::number(g, player_{id}_{i}, asker.source, 0, most.max(0) as u32, \"Remove\")?; removed_{id} += i64::from(g.remove_counters(object, {kind}, amount as i16)); }}").unwrap();
+                            continue;
+                        }
+                        _ => {
+                            self.removal_rest(id, i, removal, out)?;
+                            continue;
+                        }
                     };
                     writeln!(out, "let amount_{id}_{i} = {amount}; cantrip_api::instruction(g, |g| {{ for object in objects_{id}_{i} {{ removed_{id} += i64::from(g.remove_counters(object, {}, amount_{id}_{i})); }} }});", counter_kind(kind)?).unwrap();
                 }
@@ -2231,8 +2264,7 @@ impl Compiler {
                     writeln!(out, "cantrip_api::instruction(g, |g| {{ for object in objects_{id}_{i} {{ cantrip_mechanics::effects::remove_all_counters(g, object); }} }});").unwrap();
                 }
                 (None, CounterAmount::Count(Count::UpTo(n))) => {
-                    let n = costs::constant_u8(n)
-                        .ok_or_else(|| gap("removal of up to a changing number of counters"))?;
+                    let n = self.fetch(self.number(n)?.amount(u8::MAX.into(), "u8")?);
                     let player = self.fetch(self.certain_player(&removal.player)?);
                     writeln!(out, "let player_{id}_{i} = {player}; for object in objects_{id}_{i} {{ removed_{id} += i64::from(g.remove_counters_up_to(player_{id}_{i}, asker.source, object, {n})?); }}").unwrap();
                 }
@@ -2242,7 +2274,7 @@ impl Compiler {
                     let player = self.fetch(self.certain_player(&removal.player)?);
                     writeln!(out, "let player_{id}_{i} = {player}; for object in objects_{id}_{i} {{ if let Some(kind) = g.choose_counter_kind(player_{id}_{i}, asker.source, object)? {{ removed_{id} += i64::from(g.remove_counters(object, kind, 1)); }} }}").unwrap();
                 }
-                (None, _) => return Err(gap("counters of a kind chosen as the effect resolves")),
+                (None, _) => self.removal_rest(id, i, removal, out)?,
             }
         }
         if counted {

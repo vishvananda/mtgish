@@ -709,13 +709,23 @@ impl Compiler {
             Operand::Filter(filter) => {
                 tests.push(self.matching(frame, |c| c.filter(filter, &Candidate::of("by")))?)
             }
-            Operand::Term { form, operands, .. } => match (form.as_str(), operands.as_slice()) {
-                ("AnySpellOrAbility", []) => {}
-                ("ControlledByAPlayer", [Operand::Players(players)]) => {
-                    tests.push(self.matching(frame, |c| c.player_in(players, "controller"))?)
+            Operand::Term { form, operands, .. } => {
+                match (form.as_str(), operands.as_slice()) {
+                    ("AnySpellOrAbility", []) => {}
+                    ("ControlledByAPlayer", [Operand::Players(players)]) => {
+                        tests.push(self.matching(frame, |c| c.player_in(players, "controller"))?)
+                    }
+                    (other, operands) => {
+                        let feature = format!("targeted by {other}");
+                        let operands = self.stated_operands(operands);
+                        tests.push(planned::planned_value(
+                        &feature,
+                        "false",
+                        &format!("cantrip_mechanics::targets::targeted_by(q, by, {other:?}, {operands})"),
+                    ));
+                    }
                 }
-                (other, _) => return Err(gap(format!("targeted by {other}"))),
-            },
+            }
             other => return Err(gap(format!("targeted by {}", form(other)))),
         }
         Ok(single(

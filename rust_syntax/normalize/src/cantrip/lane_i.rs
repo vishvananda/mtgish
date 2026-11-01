@@ -1443,6 +1443,9 @@ impl Compiler {
                     self.static_guard = Some(condition.clone());
                     step
                 }
+                Ability::AttackCap { defender, amount } => {
+                    self.conditional_cap(condition, defender, amount, &label, parts)
+                }
                 other => Err(gap(format!("conditional {}", form(other)))),
             };
             if step.is_err() {

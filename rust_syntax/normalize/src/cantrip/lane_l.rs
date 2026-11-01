@@ -393,7 +393,12 @@ impl Compiler {
                 }
                 other => match self.set_rule(other) {
                     Some(part) => Some(format!(".together({part})")),
-                    None => return Err(gap(feature)),
+                    None => {
+                        let stated = self.stated_constraints(std::slice::from_ref(other))?;
+                        rule.planned
+                            .push((feature, format!(".with_rules({stated})")));
+                        None
+                    }
                 },
             };
             if let Some(together) = together {
@@ -417,18 +422,27 @@ impl Compiler {
             Count::Exactly(Expr::Constant(n)) => Some(*n as usize),
             _ => None,
         };
+        let in_slot = || {
+            planned::planned_value(
+                "target reference past a slot of no fixed size",
+                "Vec::<Target>::new()",
+                &format!("q.chosen_targets_of({referred})"),
+            )
+        };
         let mut skip = 0;
         for (i, spec) in self.slots.values() {
             if *i < referred {
-                skip += size(spec)
-                    .ok_or_else(|| gap("target reference past a slot of no fixed size"))?;
+                match size(spec) {
+                    Some(n) => skip += n,
+                    None => return Ok(in_slot()),
+                }
             }
         }
         let (_, spec) = &self.slots[&earlier.0];
         let take = match size(spec) {
             Some(n) => format!(".iter().skip({skip}).take({n})"),
             None if referred + 1 == choosing => format!(".iter().skip({skip})"),
-            None => return Err(gap("target reference past a slot of no fixed size")),
+            None => return Ok(in_slot()),
         };
         Ok(format!(
             "q.chosen_targets(){take}.copied().collect::<Vec<Target>>()"
@@ -755,7 +769,13 @@ impl Compiler {
                     random: false,
                     ordered: false,
                     up_to: false,
-                } if except.is_empty() => self.choose_value(id, actor, *kind, 1, options, out)?,
+                } if except.is_empty() => {
+                    let mut code = String::new();
+                    match self.choose_value(id, actor, *kind, 1, options, &mut code) {
+                        Ok(()) => out.push_str(&code),
+                        Err(_) => self.choose_value_terms(id, actor, *kind, terms, out)?,
+                    }
+                }
                 terms => self.choose_value_terms(id, actor, *kind, terms, out)?,
             },
             Operation::CopyCards {

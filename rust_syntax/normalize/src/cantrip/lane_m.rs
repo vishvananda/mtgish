@@ -205,6 +205,10 @@ impl Compiler {
                 "SnowManaOfOwnColorSpent",
                 format!("q.state().obj({id}).snow_spent.any_of({chars}.colors)"),
             ),
+            S::NonBasicLandType => unrecorded(
+                "NonBasicLandType",
+                format!("{chars}.has_nonbasic_land_type()"),
+            ),
             other => return Err(gap(format!("object state {}", form(other)))),
         })
     }
@@ -230,6 +234,8 @@ pub(super) struct Notes {
     pub filters: Option<(String, Vec<ObjectFilter>)>,
     /// Choices made among cards outside the game.
     pub outside: BTreeSet<u32>,
+    /// Those of them that also offer cards elsewhere.
+    pub outside_shown: BTreeSet<u32>,
 }
 
 /// The words `EarlierObjects` has for what an operation acts on.
@@ -261,6 +267,21 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
 impl Compiler {
     /// What an instruction leaves for later ones to read back.
     pub(super) fn note_step(&mut self, instruction: &Instruction) {
+        // "You may choose a creature": offered, taken or not.
+        if let Instruction::Optional { body, .. } = instruction {
+            for step in &body.instructions {
+                if let Instruction::Effect {
+                    operation: Operation::ChooseObjects { objects, .. },
+                    result,
+                } = step
+                {
+                    let walking = self.notes.walking.clone();
+                    self.notes
+                        .offered
+                        .insert(result.0, (objects.clone(), walking));
+                }
+            }
+        }
         let Instruction::Effect { operation, result } = instruction else {
             return;
         };
@@ -291,6 +312,12 @@ impl Compiler {
                 } => {
                     self.notes.own.insert(result.0);
                 }
+                Instruction::Effect {
+                    result,
+                    operation: Operation::Move { objects, .. },
+                } if lane_p::only_their_own(objects) => {
+                    self.notes.own.insert(result.0);
+                }
                 Instruction::Group(body) | Instruction::Optional { body, .. } => {
                     self.note_own(body)
                 }
@@ -305,12 +332,17 @@ impl Compiler {
         phase: &ObjectPhase,
         who: &str,
     ) -> Result<String> {
+        let stated = planned::planned_value(
+            "object collection MovedBy",
+            "Vec::<ObjectId>::new()",
+            &format!("q.moved_by(result_{}, {who})", result.0),
+        );
         if !self.notes.own.contains(&result.0) {
-            return Err(gap("object collection MovedBy"));
+            return Ok(stated);
         }
-        let moved = self
-            .transition(result, phase)
-            .map_err(|_| gap("object collection MovedBy"))?;
+        let Ok(moved) = self.transition(result, phase) else {
+            return Ok(stated);
+        };
         Ok(format!(
             "({moved}).into_iter().filter(|&o| Some(q.state().obj(o).owner) == {who}).collect::<Vec<ObjectId>>()"
         ))
@@ -1010,7 +1042,11 @@ pub(super) fn turn_window(window: &TurnWindow, step: &str) -> Result<String> {
         TurnWindow::AfterCombat => format!("{step} > (Step::EndOfCombat as u8)"),
         TurnWindow::EndOfCombatStep => "q.state().turn.step() == Step::EndOfCombat".into(),
         TurnWindow::BeforeEndOfCombatStep => format!("{step} < (Step::EndOfCombat as u8)"),
-        other => return Err(gap(format!("turn window {other:?}"))),
+        other => planned::planned_value(
+            &format!("turn window {other:?}"),
+            "false",
+            &format!("q.state().turn.is_in(TurnWindow::{other:?})"),
+        ),
     })
 }
 

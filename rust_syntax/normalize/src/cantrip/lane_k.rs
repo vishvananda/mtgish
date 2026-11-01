@@ -1529,7 +1529,9 @@ impl Compiler {
     pub(super) fn damage_source(&self, source: &ObjectRef) -> Result<String> {
         let read = self.object(source)?;
         match source {
-            ObjectRef::Target { slot, index } if self.choosing.is_none() => {
+            ObjectRef::Target { slot, index }
+                if self.choosing.is_none() && self.slots.contains_key(&slot.0) =>
+            {
                 let i = self.slot(slot)?;
                 Ok(format!(
                     "t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).and_then(|t: Target| t.object())"
@@ -1683,7 +1685,7 @@ impl Compiler {
     pub(super) fn open_guard(&mut self, chosen: &str, out: &mut String) {
         if let Some(code) = self.chosen_guard.take() {
             writeln!(out, "if !{chosen}.is_empty() {{ {code}").unwrap();
-            self.guard_opened = true;
+            self.guard_opened = 1;
         }
     }
     /// A block whose first choice is a "you may": `chosen` runs if it found anything.
@@ -1698,9 +1700,8 @@ impl Compiler {
         self.block(body, out, true)?;
         self.may_choose = false;
         self.chosen_guard = None;
-        if std::mem::take(&mut self.guard_opened) {
-            writeln!(out, "}}").unwrap();
-        }
+        let opened = std::mem::take(&mut self.guard_opened);
+        writeln!(out, "{}", "}".repeat(opened)).unwrap();
         Ok(())
     }
     /// Read a face's Oracle text, once, before its abilities are compiled.

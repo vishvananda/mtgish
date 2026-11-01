@@ -332,7 +332,11 @@ impl Compiler {
         for (i, spec) in self.slots.values() {
             if *i < referred {
                 let Count::Exactly(Expr::Constant(n)) = &spec.count else {
-                    return Err(gap("target reference past a slot of no fixed size"));
+                    return Ok(Some(planned::planned_value(
+                        "target reference past a slot of no fixed size",
+                        "None::<Target>",
+                        &format!("q.chosen_targets_of({referred}).get({index}).copied()"),
+                    )));
                 };
                 at += *n as usize;
             }
@@ -353,8 +357,15 @@ impl Compiler {
     }
     /// `Option<ObjectId>`: a reference that finds nothing selects nothing.
     pub(super) fn object(&self, object: &ObjectRef) -> Result<String> {
-        if let Some(carried) = self.outside_object(object)? {
+        let carried = match self.outside_object(object) {
+            Err(_) if self.target_gone(object).is_some() => None,
+            carried => carried?,
+        };
+        if let Some(carried) = carried {
             return Ok(carried);
+        }
+        if let Some(stated) = self.target_gone(object) {
+            return Ok(stated);
         }
         Ok(match object {
             ObjectRef::Primitive { name, .. } => {
@@ -573,8 +584,15 @@ impl Compiler {
     }
     /// `Vec<ObjectId>`.
     pub(super) fn objects(&self, objects: &ObjectSet) -> Result<String> {
-        if let Some(carried) = self.outside_objects(objects)? {
+        let carried = match self.outside_objects(objects) {
+            Err(_) if self.targets_gone(objects).is_some() => None,
+            carried => carried?,
+        };
+        if let Some(carried) = carried {
             return Ok(carried);
+        }
+        if let Some(stated) = self.targets_gone(objects) {
+            return Ok(stated);
         }
         Ok(match objects {
             ObjectSet::One(ObjectRef::Target { slot, .. }) | ObjectSet::Targets(slot)
@@ -1107,6 +1125,15 @@ impl Compiler {
                     self.object(object)?
                 ))
             }
+            // "Discard up to two cards. If you do, draw that many": as many as went.
+            Expr::CountObjects(objects)
+                if lane_p::paid_by_moving(objects).is_some_and(|result| {
+                    !self.before.contains_key(&result.0) && self.moved.contains_key(&result.0)
+                }) =>
+            {
+                let result = lane_p::paid_by_moving(objects).expect("just seen");
+                count(format!("({}.len() as i64)", self.moved[&result.0]))
+            }
             Expr::CountObjects(objects) => {
                 count(format!("({}).len() as i64", self.objects(objects)?))
             }
@@ -1149,9 +1176,10 @@ impl Compiler {
                     DistinctProperty::ManaValues => {
                         list(&format!("{}.mana_value()", self.cost_of("id", "q.chars(id)")))
                     }
-                    DistinctProperty::ManaCosts if self.reader != Reader::Layer => {
-                        list("q.mana_cost(id)")
-                    }
+                    // A card with no mana cost has no cost to differ (CR 202.1b).
+                    DistinctProperty::ManaCosts if self.reader != Reader::Layer => format!(
+                        "{{ let mut seen = Vec::new(); for id in {objects} {{ if q.chars(id).no_cost || !q.card(q.chars(id).card).has_cost {{ continue; }} let value = q.mana_cost(id); if !seen.contains(&value) {{ seen.push(value); }} }} seen.len() as i64 }}"
+                    ),
                     DistinctProperty::PermanentTypes => gather(
                         "TypeSet::NONE",
                         "for kind in q.chars(id).types.iter().filter(|kind| matches!(kind, CardType::Artifact | CardType::Battle | CardType::Creature | CardType::Enchantment | CardType::Land | CardType::Planeswalker)) { seen = seen.with(kind); }",
@@ -1202,7 +1230,14 @@ impl Compiler {
                     Aggregation::Sum => "sum::<i64>()",
                     Aggregation::Maximum => "max().unwrap_or(0)",
                     Aggregation::Minimum => "min().unwrap_or(0)",
-                    Aggregation::AnyOf => return Err(gap("comparison with any one value")),
+                    Aggregation::AnyOf => {
+                        let code = format!(
+                            "cantrip_mechanics::numbers::AnyOf(&({}).into_iter().map(|o: ObjectId| {}).collect::<Vec<i64>>())",
+                            self.objects(objects)?,
+                            read.code
+                        );
+                        return Ok(lane_j::held_number("comparison with any one value".to_string(), &code));
+                    }
                 };
                 Number {
                     code: format!(
@@ -1250,7 +1285,7 @@ impl Compiler {
                 max: i32::MAX.into(),
                 dynamic: true,
             },
-            Expr::Performed(result) | Expr::CountersRemoved(result)
+            Expr::Performed(result) | Expr::CountersRemoved(result) | Expr::DieResult(result)
                 if self.counted == Some(result.0) =>
             {
                 Number {
@@ -1498,7 +1533,13 @@ impl Compiler {
                     "Basic" => "basic",
                     "Legendary" => "legendary",
                     "Snow" => "snow",
-                    other => return Err(gap(format!("supertype {other}"))),
+                    other => {
+                        return Ok(planned::planned_value(
+                            &format!("supertype {other}"),
+                            "false",
+                            &format!("{chars}.supertypes.{}", other.to_lowercase()),
+                        ))
+                    }
                 }
             ),
             ObjectFilter::Subtype(t) => {
