@@ -513,10 +513,30 @@ impl Compiler {
     pub(super) fn choose_value_more(
         &mut self,
         kind: ValueKind,
+        id: usize,
+        player: &str,
         options: &[Operand],
         out: &mut String,
     ) -> Result<()> {
         match kind {
+            ValueKind::Parity if self.pending == Pending::Entering => self.entry_option(
+                PARITY.iter().map(|word| word.to_string()).collect(),
+                vec![String::new(); PARITY.len()],
+                out,
+            ),
+            ValueKind::Parity if self.stack_item => {
+                let base = self.choice_labels.len();
+                self.choice_labels.extend(PARITY.iter().map(|word| word.to_string()));
+                let end = self.choice_labels.len();
+                let words: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
+                self.entering_labels = Some(format!("&[{}]", words.join(", ")));
+                writeln!(
+                    out,
+                    "let player_{id} = {player}; let chosen_{id} = cantrip_mechanics::choose::option(g, player_{id}, asker.source, item.ability.card, {base}..{end})? - {base};"
+                )
+                .unwrap();
+                Ok(())
+            }
             // The words have no rules meaning, so nothing depends on them as it
             // enters: the abilities they head read them (CR 607.2f).
             ValueKind::Word if self.pending == Pending::Entering => {
@@ -766,6 +786,32 @@ impl Compiler {
                     ),
                 }
             }
+            // Odd is the first word, and even the second; the AST has it 1 for odd.
+            Expr::ChosenParity => match self.chosen_local(ValueKind::Parity) {
+                Ok(local) => counted(format!("i64::from({local} == 0)")),
+                Err(_) if self.reader == Reader::Layer => counted(
+                    "q.state().chosen_option(q.linked_to(asker.source)).filter(|c| std::ptr::eq(q.cards().get(c.card), &CARD)).map_or(-1i64, |c| i64::from(c.index == 0))".into(),
+                ),
+                Err(_) => counted(
+                    "cantrip_mechanics::choose::chosen_option(q, asker, &CARD).map_or(-1i64, |index| i64::from(index == 0))".into(),
+                ),
+            },
+            Expr::Noted { .. } => held_number(
+                "numeric expression Noted".into(),
+                &format!("q.noted(asker, {})", one_line(n)),
+            ),
+            Expr::AsOf { .. } => held_number(
+                "numeric expression AsOf".into(),
+                &format!("q.as_of(asker, {})", one_line(n)),
+            ),
+            Expr::DieResultAt { index, .. } => held_number(
+                "numeric expression DieResultAt".into(),
+                &format!("g.last_roll(asker.controller).dice[{index}]"),
+            ),
+            Expr::DraftNoted { .. } => held_number(
+                "numeric expression DraftNoted".into(),
+                &format!("q.draft_notes(asker.controller, {})", one_line(n)),
+            ),
             Expr::CoinFlipsWon(won) => held_number(
                 "numeric expression CoinFlipsWon".into(),
                 &format!("g.coin_flips(asker.controller, {won})"),
@@ -833,12 +879,68 @@ impl Compiler {
                     self.objects(among)?
                 )
             }
+            ObjectFilter::DraftNoted { .. } => planned::planned_value(
+                "object filter DraftNoted",
+                "false",
+                &format!("q.draft_notes({id}, {})", one_line(f)),
+            ),
             other => return Err(gap(format!("object filter {}", form(other)))),
         })
     }
     /// The rest of `condition`.
     pub(super) fn condition_more(&self, condition: &Condition) -> Result<String> {
         Ok(match condition {
+            Condition::Outcome(outcome) => planned::planned_value(
+                "condition Outcome",
+                "false",
+                &format!("q.outcome(asker, Outcome::{outcome:?})"),
+            ),
+            Condition::AsCast { .. } => planned::planned_value(
+                "condition AsCast",
+                "false",
+                &format!("q.as_cast(asker, {})", one_line(condition)),
+            ),
+            // A color no permanent has isn't the most common one.
+            Condition::MostCommonColor {
+                color,
+                objects,
+                tied,
+            } => {
+                let Operand::Vocabulary { form: color, .. } = &**color else {
+                    return Err(gap("condition MostCommonColor"));
+                };
+                let wanted = match color.as_str() {
+                    "TheChosenColor" => self.chosen_value(ValueKind::Color)?,
+                    "White" | "Blue" | "Black" | "Red" | "Green" => format!("Some(Color::{color})"),
+                    _ => return Err(gap("condition MostCommonColor")),
+                };
+                let alone = match tied {
+                    true => "",
+                    false => " && Color::ALL.into_iter().filter(|&c| count(c) == best).count() == 1",
+                };
+                format!(
+                    "{{ let those: Vec<ObjectId> = {}; let count = |c: Color| those.iter().filter(|&&o| q.chars(o).colors.has(c)).count(); let best = Color::ALL.into_iter().map(count).max().unwrap_or(0); {wanted}.is_some_and(|wanted: Color| count(wanted) > 0 && count(wanted) == best{alone}) }}",
+                    self.objects(objects)?
+                )
+            }
+            // A set of N with different values exists when there are N values.
+            Condition::SubsetMeets {
+                objects,
+                comparison: Comparison::GreaterOrEqual,
+                amount,
+                constraints,
+            } if matches!(constraints.as_slice(), [SelectionConstraint::DifferentProperty(_)]) => {
+                let [SelectionConstraint::DifferentProperty(property)] = constraints.as_slice()
+                else {
+                    return Err(gap("condition SubsetMeets"));
+                };
+                let value = self.property("id", property)?.code;
+                format!(
+                    "{{ let mut values: Vec<i64> = ({}).into_iter().map(|id: ObjectId| {value}).collect(); values.sort_unstable(); values.dedup(); (values.len() as i64) >= ({}) }}",
+                    self.objects(objects)?,
+                    self.number(amount)?.code
+                )
+            }
             // "• Khans — ...": the word its controller chose as it entered, read
             // only by the text that chose it (CR 607.2f).
             Condition::ChosenWord(word) => {
@@ -1018,6 +1120,14 @@ fn gives_flashback(changes: &[Change]) -> bool {
         return false;
     };
     matches!(cost.parts.as_slice(), [CostPart::ManaCostOf(ObjectRef::Source)])
+}
+
+/// The words of "choose odd or even", odd first.
+const PARITY: [&str; 2] = ["odd", "even"];
+
+/// A form of the AST on one line, to name it in a planned call.
+fn one_line(value: &impl std::fmt::Debug) -> String {
+    format!("{value:?}").split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// What an instruction leaves to be picked.

@@ -182,7 +182,7 @@ impl Compiler {
                 }
             }
             ValueKind::Ability => self.choose_ability(id, &player, options, out)?,
-            other => self.choose_value_more(other, options, out)?,
+            other => self.choose_value_more(other, id, &player, options, out)?,
         }
         self.chosen.push((kind, local));
         Ok(())
@@ -295,6 +295,17 @@ impl Compiler {
                 "Type",
                 format!(
                     "if let Some(chosen) = {} {{ chars.subtypes = chars.subtypes.with(chosen); }}",
+                    self.chosen_value(*kind)?
+                ),
+            ),
+            // Only a creature or a Kindred has creature types (205.3d).
+            Change::ChosenType {
+                kind: kind @ ValueKind::CreatureType,
+                mode: ChangeMode::Set,
+            } => statics::LayerChange::of(
+                "Type",
+                format!(
+                    "if let Some(chosen) = {} {{ chars.subtypes = chars.subtypes.minus(SubtypeSet::CREATURE_TYPES); if chars.is(CardType::Creature) || chars.is(CardType::Kindred) {{ chars.subtypes = chars.subtypes.with(chosen); }} }}",
                     self.chosen_value(*kind)?
                 ),
             ),

@@ -1647,6 +1647,21 @@ impl Compiler {
                 format_args!("{}.unwrap_or(PlayerId(u8::MAX))", self.player(player)?),
                 self.filter(filter, &Candidate::of("id"))?
             ),
+            // "A 1 or 2": one comparison for each value.
+            Condition::Compare {
+                left,
+                comparison,
+                right: Expr::AnyOf(values),
+            } => {
+                let tests = values
+                    .iter()
+                    .map(|value| {
+                        let number = self.number(left)?.code;
+                        Ok(compare(&number, comparison, &self.number(value)?.code))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                format!("({})", tests.join(" || "))
+            }
             Condition::Compare {
                 left,
                 comparison,

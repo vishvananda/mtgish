@@ -112,5 +112,467 @@
 "class": "engine",
 "needs": "a spell cast for madness says so once on the stack",
 "api": "Obj::marks.cast_for_madness"
+},
+{
+"match": "^numeric expression Votes$",
+"class": "engine",
+"needs": "a vote keeps its count per option for the rest of the resolution",
+"api": "g.votes().count(option)"
+},
+{
+"match": "^numeric expression CoinFlipsWon$",
+"class": "engine",
+"needs": "Game reports how many of the coin flips of this resolution a player won or lost",
+"api": "g.coin_flips(player, won)"
+},
+{
+"match": "^numeric expression TimesMutated$",
+"class": "mechanic",
+"needs": "mutate: an object counts the times it has mutated",
+"api": "Obj::mutations"
+},
+{
+"match": "^condition Outcome$",
+"class": "engine",
+"needs": "a resolution keeps how a step it asked about came out: a clash won, a guess wrong, an optional payment made, a sticker placed",
+"api": "q.outcome(asker, Outcome::X)"
+},
+{
+"match": "^condition AsCast$",
+"class": "engine",
+"needs": "a spell keeps what was done as it was cast: a reveal of its additional cost, or what was controlled then",
+"api": "q.as_cast(asker, action)"
+},
+{
+"match": "^numeric expression Noted$",
+"class": "engine",
+"needs": "a card notes a value of its own and keeps it for its later abilities",
+"api": "q.noted(asker, measure)"
+},
+{
+"match": "^numeric expression AsOf$",
+"class": "engine",
+"needs": "a number read as it was at an earlier moment of the turn or of the cast",
+"api": "q.as_of(asker, moment, value)"
+},
+{
+"match": "^numeric expression DieResultAt$",
+"class": "engine",
+"needs": "a roll of several dice keeps each result in the order kept",
+"api": "g.last_roll(player).dice[index]"
+},
+{
+"match": "^numeric expression Game$",
+"class": "engine",
+"needs": "a resolution keeps these values for a read: life paid to a cost, excess damage, players who have lost; an ability read before it resolves has no AbilityRef to count resolutions",
+"api": "q.history().resolutions(source, ability), q.life_paid(asker)"
+},
+{
+"match": "^numeric expression Dice$",
+"class": "engine",
+"needs": "a roll of several dice is kept for the rest of the resolution, each die with its result",
+"api": "g.last_roll(player)"
+},
+{
+"match": "^earlier objects ",
+"class": "engine",
+"needs": "a resolution keeps what its instructions and costs acted on, by kind: copies made, cards devoured, mana-cost sacrifices and the rest have no result a later read can name",
+"api": "q.acted_on(asker, Acted::X)"
+},
+{
+"match": "^duration (WhileOnBattlefield|UntilCast|UntilEvent|UntilNextUntapStep|DuringNextTurn)$",
+"class": "engine",
+"needs": "an effect lasts until this: Duration has no such end",
+"api": "Duration::WhileOnBattlefield(object), Duration::UntilCast(card), Duration::UntilEvent(mask), Duration::UntilNextUntapStep(player)"
+},
+{
+"match": "^continuous change RemoveSubtype$",
+"class": "engine",
+"needs": "a resolving effect removes one subtype",
+"api": "EffectKind::LoseSubtype(Subtype)"
+},
+{
+"match": "^(Kicker|Foretell|Madness|Unearth|Scavenge|Embalm|Eternalize|Squad|Miracle|Replicate|SpliceOnto) cost other than mana$",
+"class": "mechanic",
+"needs": "this mechanic takes a full Cost: CardDef and its WayDef hold a ManaCost only",
+"api": "mechanic::way(Cost, text)"
+},
+{
+"match": "^Escape cost other than exiling other graveyard cards$",
+"class": "mechanic",
+"needs": "escape takes a full Cost beside exiling other cards",
+"api": "escape::way(Cost, text)"
+},
+{
+"match": "^(Mobilize|Modular|Firebending) without a fixed number$",
+"class": "mechanic",
+"needs": "the mechanic takes its number at run time: today it is a const generic",
+"api": "mechanic::trigger_of(Number)"
+},
+{
+"match": "^earthbend ",
+"class": "mechanic",
+"needs": "earthbend of what the card reads, past one target and a fixed number",
+"api": "earthbend::earthbend(g, land, number)"
+},
+{
+"match": "^cleave that changes its targets$",
+"class": "mechanic",
+"needs": "cleave reaches the text of a spell with its targets",
+"api": "cleave::way"
+},
+{
+"match": "^landwalk of ",
+"class": "vocabulary",
+"needs": "landwalk of this kind of land: Keyword has the basic types only",
+"api": "Keyword::Landwalk(LandFilter)"
+},
+{
+"match": "^keyword (Prowess|Flanking|Devoid)$",
+"class": "mechanic",
+"needs": "a keyword with a trigger or rule of its own, granted by another object",
+"api": "Keywords gains the word, granted_keywords reaches its trigger"
+},
+{
+"match": "^keyword HexproofFrom ",
+"class": "engine",
+"needs": "hexproof from a quality HexproofFrom has no bit for",
+"api": "HexproofFrom::of(Property)"
+},
+{
+"match": "^protection from ",
+"class": "engine",
+"needs": "protection from a quality Protection has no form for",
+"api": "EffectKind::ProtectionFrom(filter)"
+},
+{
+"match": "^player keyword ",
+"class": "engine",
+"needs": "a player has protection from something",
+"api": "PlayerRule::Protection"
+},
+{
+"match": "^ability DungeonRoom$|^card type Dungeon$",
+"class": "mechanic",
+"needs": "dungeons: rooms and the Dungeon card type; a digital and tabletop mechanic that venture reaches only as Undercity",
+"api": "CardDef::rooms"
+},
+{
+"match": "^ability (AttackCap|PayToIgnore|CostOptions|BeforeGame|Triggers|WhileOnTopOfLibrary|CantEnter|FlashIf|Unique)$",
+"class": "engine",
+"needs": "an ability of this shape: CardDef has no field for it",
+"api": "CardDef field by this name"
+},
+{
+"match": "^ability functioning in the command zone$",
+"class": "engine",
+"needs": "an ability that works from the command zone: StaticDef and triggers look at the battlefield",
+"api": "AbilityDef::from_zones"
+},
+{
+"match": "^ability AsEvent$",
+"class": "engine",
+"needs": "As this is turned face up or transforms: a replacement on those events, which only Enters and AsTransforms have",
+"api": "CardDef::as_turned_up"
+},
+{
+"match": "^source-zone scope on ",
+"class": "engine",
+"needs": "this kind of ability works from another zone: only triggers and some statics say so",
+"api": "AbilityDef::from_zones"
+},
+{
+"match": "^player rule for a while (ActivationCost|ActivationGrant|AttackOnly|AttackWithoutTapping|DamageLifeFloor|Decides|GrantKeyword|HandSize|LifeForManaAbility|Prohibit\\ AttackDefender|Prohibit\\ AttackInto|Prohibit\\ AttackWith|Prohibit\\ BeTargeted|Prohibit\\ ReceiveCounters|RetainMana|SpellCost|SpellsHaveAbilities|SpendColorAs|TapOthersForMana|TargetableDespite|Visibility)$",
+"class": "engine",
+"needs": "a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form",
+"api": "EffectKind::PlayerRule(rule)"
+},
+{
+"match": "^player rule (ActivationTiming|AdditionalVote|AsManaEmpties|AttackOnly|CantBeCaused|CascadePut|DamageDoesNotCauseLifeLoss|DamageLifeFloor|Decides|DevotionBonus|DiceChange|DrawsDuringDrawStepOf|KeywordAccess|LifeForMana|LimitPerTurn|RetainMana|RevealDraws|SpellTiming|SpendColorAs|SurveilBonus|TargetableDespite|TargetsMustInclude|Unique|UnspentManaBecomes|UntapOnlyOneOfTypes|UntapsDuringUntapStepOf)$",
+"class": "engine",
+"needs": "a static ability gives a player this rule: the engine does not ask for it",
+"api": "StaticDef player rule by this name"
+},
+{
+"match": "^player state (CanDraw|CouldMulligan|HasBoon|PossibleDefender|ReceivedAVote|RolledHighest|ShuffledThisWay|WholePoolInDeck)$",
+"class": "engine",
+"needs": "the state of a player the rules or a vote leave",
+"api": "PlayerState field by this name"
+},
+{
+"match": "^static rule (ActivationsEachTurn|AssignDamageTo|AttachOnlyTo|AttackDrags|AttackException|AttacksWhenAttacking|BlockedByDefender|BlocksDespite|BlocksOnlyIf|CantAttackDefenderIf|CantGainAbility|CounterLimit|MayExert|OwnActivationCost|Prohibit\\ BeAttachedBy|Prohibit\\ BeAttacked|Prohibit\\ BeBeamedUp|Prohibit\\ BecomeSuspected|Prohibit\\ LoseCounters|Prohibit\\ PhaseIn|RequireCombat\\ BeBlocked|TapCostUsesToughness|TapPowerBonus|TargetableDespite|Unique|UntapStep)$",
+"class": "engine",
+"needs": "a static ability changes this rule of the object it affects: the engine has no hook for it",
+"api": "Rule by this name"
+},
+{
+"match": "^continuous rule (CombatGroup|Prohibit\\ BeTargeted|Prohibit\\ ReceiveCounters|TargetableDespite|Unique)$",
+"class": "engine",
+"needs": "a resolving effect changes this rule of an object",
+"api": "EffectKind by this name"
+},
+{
+"match": "^prohibited action (AttackWith|BlockWith|CastOutside|ReceiveCounters|SearchLibraries)$",
+"class": "engine",
+"needs": "players can be stopped from this: no prohibition reaches the action",
+"api": "Prohibition by this name"
+},
+{
+"match": "^replacement of (Adapts|BeginDrawStep|BeginExtraTurn|BeginTurn|Connives|Destroyed|DrawInDrawStep|GainLifeByEffect|GetEnergy|LeavesBattlefield|Planeswalk|PlaneswalkByDie|ReduceLifeTotal|RollD6|RollDice|RollPlanarDie|SetSchemeInMotion|UntapsInUntapStep)$",
+"class": "engine",
+"needs": "a replacement of this event: ReplacementDef has no hook for it",
+"api": "ReplacementDef over this event"
+},
+{
+"match": "^replacement event ",
+"class": "engine",
+"needs": "a replacement matching on this: ReplacementDef has no test for it",
+"api": "ReplacementDef test by this name"
+},
+{
+"match": "^replacement limited by ",
+"class": "engine",
+"needs": "a replacement good for a total amount",
+"api": "ReplacementDef::limit"
+},
+{
+"match": "^measured replacement of ",
+"class": "engine",
+"needs": "a replacement that reads the amount of an event with none",
+"api": "ReplacementDef::amount"
+},
+{
+"match": "^conditional (TriggerRule|Replacement)$",
+"class": "engine",
+"needs": "an ability of this kind under a condition",
+"api": "guard on the def"
+},
+{
+"match": "^trigger rule over ",
+"class": "engine",
+"needs": "a rule of how triggers fire, over objects other than the source",
+"api": "TriggerRule::over(filter)"
+},
+{
+"match": "^casting rule ",
+"class": "engine",
+"needs": "a rule of casting this card has no field in CardDef",
+"api": "CardDef::cast_rules"
+},
+{
+"match": "^spell cost (rule with terms|increase other than mana)$",
+"class": "engine",
+"needs": "a cost change on terms: CostChange reduces or adds mana for a test of the spell only",
+"api": "CostChange::terms"
+},
+{
+"match": "^activation cost of abilities ",
+"class": "engine",
+"needs": "a cost change on abilities by what they were",
+"api": "CostChange::of_abilities"
+},
+{
+"match": "^flash for spells other than by type$",
+"class": "engine",
+"needs": "cast as though it had flash by a filter of the spell, not by a TypeSet",
+"api": "EffectKind::CastAsThoughFlash(filter)"
+},
+{
+"match": "^hand size Adjust$",
+"class": "engine",
+"needs": "a change to a maximum hand size rather than a value",
+"api": "EffectKind::AdjustMaximumHandSize(n)"
+},
+{
+"match": "^counters on a player$|^counters removed from a player$",
+"class": "engine",
+"needs": "a player keeps counters of named kinds beyond poison, energy and experience",
+"api": "PlayerState::counters"
+},
+{
+"match": "^trigger total limit$",
+"class": "engine",
+"needs": "an ability that triggers only so many times in all",
+"api": "AbilityDef::total_limit"
+},
+{
+"match": "^snow mana spent$",
+"class": "engine",
+"needs": "mana spent records whether it was snow, as a spell keeps its colors",
+"api": "Obj::snow_spent"
+},
+{
+"match": "^damage kind ",
+"class": "engine",
+"needs": "an effect reads the excess of damage a dealing did",
+"api": "Event::Damage excess"
+},
+{
+"match": "^continuous change GainAbilitiesOf$|^static change GainAbilitiesOf$",
+"class": "engine",
+"needs": "an object has all abilities of another, as they are while it does: AddAbility names one",
+"api": "EffectKind::AddAbilitiesOf(object)"
+},
+{
+"match": "^continuous change AddEnchantmentType$",
+"class": "engine",
+"needs": "a resolving effect makes an object an Aura with an enchant ability",
+"api": "EffectKind::BecomesAura(enchant)"
+},
+{
+"match": "^continuous change ",
+"class": "engine",
+"needs": "a resolving effect changes this: no EffectKind for it",
+"api": "EffectKind by this name"
+},
+{
+"match": "^(static )?play permission ",
+"class": "engine",
+"needs": "a permission to play on these terms: PlayGrant and PlayRule have no field for them",
+"api": "PlayGrant field by this name"
+},
+{
+"match": "^cast the card itself on these terms$",
+"class": "engine",
+"needs": "an ability casts the card it is on, on terms of its own",
+"api": "g.cast_from(card, terms)"
+},
+{
+"match": "^granted (Conditional|Replacement|Scoped)$",
+"class": "engine",
+"needs": "a granted ability of this kind: granted abilities are one AbilityDef",
+"api": "CardDef::delayed of this kind"
+},
+{
+"match": "^granted ability that grants another$",
+"class": "engine",
+"needs": "a granted ability that itself grants",
+"api": "CardDef::delayed nesting"
+},
+{
+"match": "^backup grants ",
+"class": "mechanic",
+"needs": "backup gives a static ability",
+"api": "backup::grants"
+},
+{
+"match": "^(token recipe|tokens entering|token of|token copies|token copy|token with|token result|mixed token|adjusted token|dynamic defining token)",
+"class": "engine",
+"needs": "tokens of this shape: TokenSpec and copy tokens have no field for it",
+"api": "TokenSpec field by this name"
+},
+{
+"match": "^resolution cost ",
+"class": "engine",
+"needs": "an instruction asks for a cost of this kind as it resolves: pay_cost takes mana, life and sacrifices",
+"api": "g.pay(Cost)"
+},
+{
+"match": "^(counter removal|counters removed by)",
+"class": "engine",
+"needs": "a removal of counters of this shape as a cost or choice",
+"api": "Cost::remove_counters by this shape"
+},
+{
+"match": "^(tap cost shape|sacrifice cost without a fixed count)$",
+"class": "engine",
+"needs": "a cost of this shape: Cost has fixed counts",
+"api": "Cost by this shape"
+},
+{
+"match": "^mana (production|choice|of a color|symbols)",
+"class": "engine",
+"needs": "mana of this shape: ManaDef and the devotion read have no form for it",
+"api": "ManaDef by this name"
+},
+{
+"match": "^color (choice|Chosen)",
+"class": "engine",
+"needs": "colors read from a choice or a zone",
+"api": "ColorSet read"
+},
+{
+"match": "^name choice ",
+"class": "engine",
+"needs": "a card name chosen under this rule: Request::Name offers fixed kinds",
+"api": "Request::Name(filter)"
+},
+{
+"match": "^enchant graveyard card$",
+"class": "engine",
+"needs": "an Aura enchanting a card in a graveyard",
+"api": "EnchantHosts graveyard"
+},
+{
+"match": "^distinct |^sharing ",
+"class": "vocabulary",
+"needs": "a read of how many different values of this there are among objects",
+"api": "Property by this name"
+},
+{
+"match": "^numeric object property (BushidoValue|CardTypeCount|ColorSymbolCount|CrewCount|ExiledCount|SupertypeCount)$",
+"class": "vocabulary",
+"needs": "a number an object has that Query has no read for",
+"api": "Query read by this name"
+},
+{
+"match": "^object filter (DraftNoted|InStartingDeck|NameFirstPrintedIn|AbilityOf)$|^numeric expression DraftNoted$",
+"class": "vocabulary",
+"needs": "a word about a card outside the game rules: drafting, starting decks and printings, kept for casual play",
+"api": "q.card(id) field by this name"
+},
+{
+"match": "^object filter (AttachedCount|AttackingSame|BandedWith|CanTargetOnly|CastFromAmong|Chosen\\ CardName|ChosenBy|ChosenFilter|ChosenOn|CouldEnchant|CouldProduce|CouldProduceManaOf|ExiledBy|History\\ AttackedDefender|History\\ CountersPutBy|History\\ CycledOrDiscarded|History\\ DealtCombatDamage|History\\ Enlisted|History\\ ExiledFromGraveyard|History\\ Exploited|History\\ TappedToPayFor|InPile|InSector|ManaCostIs|ManaCostPayableWith|ManaSpentFrom|ManaSymbolInCost|MostCommonCreatureTypeIn|Noted|NthCast|NthChosen|PairedWith|ProtectedBy|SharesColorWithMana|SharesMostCommonColor|SharesNameWithAny|TargetableBy|TargetedBy|WasAttachedTo|WouldDestroy)$",
+"class": "vocabulary",
+"needs": "a word of filters with no read: Query has no way to ask it",
+"api": "Query read by this name"
+},
+{
+"match": "^numeric expression (AbilitiesAmong|ActivationCostSymbols|AdditionalCostPaid|AsOf|ChosenColorsOf|ChosenPowerToughness|ClampedDamage|CountersPaid|DamageBy|DieResultAt|DistributedShare|EventActivationX|HeadsFlipped|Noted|RepeatedCostsUnpaid|SharedValues|TimesActivatedThisTurn|TurnsSinceForetold)$",
+"class": "vocabulary",
+"needs": "a number with no read in Query or Game",
+"api": "Query read by this name"
+},
+{
+"match": "^condition (ChoseExtreme|ChoseNth|ChosenWord|CoinCameUp|CompletedDungeon|GraveyardPosition|HadExtreme|IsPrime|NotedForDraft|PlayerDid\\ ActivatedExhaust|PlayerDid\\ ActivatedGraveyardAbility|PlayerDid\\ AttackedDefender|PlayerDid\\ BentAllFour|PlayerDid\\ PaidOrLostEnergy|PlayerDid\\ PlayedFromExile|PlayerDid\\ PlayedLandNotFromHand|PlayerDid\\ RolledDie|PlayerDid\\ WasMonarch|PlayerTook|SubsetMeets|TargetsMatch|ValueChosen|ValueChosenIs|VotedAs|WasCastFrom|WonSubgame)$",
+"class": "vocabulary",
+"needs": "a condition with no read in Query or Game",
+"api": "Query read by this name"
+},
+{
+"match": "^object collection (AnyZone|EventGroup|FromHistory|MovedBy|Scoped|SplicedOnto|TargetsOf|Unselected)$",
+"class": "vocabulary",
+"needs": "a set of objects with no read in Query or Game",
+"api": "Query read by this name"
+},
+{
+"match": "^object reference (AtEnd|ChosenBy|MadeHere|NthChosen|Scoped|SoleTargetOf|SourceOf)$",
+"class": "vocabulary",
+"needs": "an object named with no read in Query or Game",
+"api": "Query read by this name"
+},
+{
+"match": "^player reference (Acting|AsOf|FirstWilling|InChosenDirection|NotedFor)$",
+"class": "vocabulary",
+"needs": "a player named with no read in Query or Game",
+"api": "Query read by this name"
+},
+{
+"match": "^history (window|measure) ",
+"class": "vocabulary",
+"needs": "a question of the history this window or measure does not ask",
+"api": "History by this name"
+},
+{
+"match": "^turn window ",
+"class": "vocabulary",
+"needs": "a part of the turn with no read",
+"api": "Query read by this name"
+},
+{
+"match": "^duration ",
+"class": "engine",
+"needs": "an effect lasts until this: Duration has no such end",
+"api": "Duration by this name"
 }
 ]
