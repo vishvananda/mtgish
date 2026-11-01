@@ -500,7 +500,11 @@ impl Context {
             self.open_searches.push(library.clone());
         }
         if let Operation::Reveal { objects } = &operation {
-            self.revealed = Some(objects.clone());
+            // The top of a library is other cards once one of these has left it.
+            self.revealed = Some(match objects {
+                ObjectSet::Take { .. } => ObjectSet::Observed(ResultId(self.result)),
+                objects => objects.clone(),
+            });
         }
         if matches!(operation, Operation::RemoveCounters { .. }) {
             self.removed_counters = Some(ResultId(self.result));
@@ -5546,17 +5550,21 @@ impl Context {
                 })
             }
             source::Cost::PutACardFromGraveyardIntoHand(cards) => {
+                let payer = self
+                    .payer
+                    .clone()
+                    .unwrap_or(self.player(&source::Player::You)?);
                 return Ok(Cost {
                     parts: vec![CostPart::Move {
                         selections: vec![CostObjectSelection {
-                            objects: self.grave_cards(cards)?,
+                            objects: Self::own_graveyard(self.grave_cards(cards)?, &payer),
                             choose: Some(Count::Exactly(Expr::Constant(1))),
                         }],
                         destination: Destination::OwnersHand,
                         entry: EntrySpec::default(),
                         face_down: false,
                     }],
-                })
+                });
             }
             source::Cost::PutACardFromHandOnBattlefield(cards, flags) => {
                 let payer = self

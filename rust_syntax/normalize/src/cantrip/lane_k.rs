@@ -347,25 +347,6 @@ pub(super) fn asks_even_of_one(out: &mut String, mark: usize) {
         "if eligible.len() < n as usize",
     ));
 }
-/// The AST of "whenever an opponent draws a card except the first one they draw
-/// in each of their draw steps" says the draw is one in a draw step and not the
-/// first: the draw, when that's what an event's filter is.
-pub(super) fn except_the_first_draw<'a>(
-    event: &'a EventSpec,
-    condition: &Condition,
-) -> Option<&'a EventSpec> {
-    match (event, condition) {
-        (
-            EventSpec::NthEachTurn {
-                event,
-                comparison: Comparison::NotEqual,
-                value: Expr::Constant(1),
-            },
-            Condition::Window(TurnWindow::DrawStep),
-        ) => Some(event),
-        _ => None,
-    }
-}
 /// Target counts of a slot something is divided among: at least one.
 pub(super) fn divided_among_some(count: String, divided: bool) -> String {
     match divided {
@@ -380,12 +361,11 @@ pub(super) fn dies_of_a_type(line: Option<&str>, objects: &ObjectFilter) -> bool
 }
 /// Whether what becomes a target is a permanent, for a filter that names no
 /// other place for it to be.
-pub(super) fn a_permanent_targeted(line: Option<&str>, objects: &ObjectFilter) -> bool {
+pub(super) fn a_permanent_targeted(objects: &ObjectFilter) -> bool {
     let said = format!("{objects:?}");
-    !printed_otherwise(line, " spell you control becomes")
-        && !["InZone", "Spell", "Stack", "Source"]
-            .iter()
-            .any(|word| said.contains(word))
+    !["InZone", "Spell", "Stack", "Source"]
+        .iter()
+        .any(|word| said.contains(word))
 }
 /// What a triggered mana ability adds, so what's offered to pay counts it.
 pub(super) fn triggered_mana(body: &Program) -> &'static str {
@@ -427,11 +407,6 @@ pub(super) fn convoked(objects: &ObjectSet) -> Option<&ObjectRef> {
         }) => Some(object),
         _ => None,
     }
-}
-/// Whether what the card says is revealed is, in the AST, only chosen.
-pub(super) fn revealed_only_chosen(line: Option<&str>, cards: &ObjectSet) -> bool {
-    printed_otherwise(line, "revealed this way")
-        && format!("{cards:?}").contains("Earlier { what: Selected")
 }
 /// Whether a target the card says is from any graveyard is, in the AST, from yours.
 pub(super) fn only_your_graveyard(line: Option<&str>, filter: &ObjectFilter) -> bool {
@@ -2031,8 +2006,7 @@ impl Compiler {
     }
     /// `count`, or up to it if this is the choice of a "you may".
     pub(super) fn offered_count(&mut self, count: &Count) -> Count {
-        let up_to = printed_otherwise(self.line_text(), "Put up to one");
-        match (std::mem::take(&mut self.may_choose) || up_to, count) {
+        match (std::mem::take(&mut self.may_choose), count) {
             (true, Count::Exactly(n) | Count::AsManyAsCan(n)) => Count::UpTo(n.clone()),
             _ => count.clone(),
         }

@@ -318,6 +318,7 @@ impl Compiler {
                 ),
                 _ => return Err(gap("recipient of event damage")),
             },
+            Recipients::CountersTheEventPut => return Err(gap("counters as a recipient")),
             Recipients::AttackedBy(object) => {
                 let carried = match self.frame.player {
                     Some(_) => format!(
@@ -928,7 +929,15 @@ impl Compiler {
                     &format!("cantrip_mechanics::select::Count::Between(({least}).max(0) as u32, ({most}).max(0) as u32)"),
                 )
             }
-            Count::PerPlayer { .. } => return Err(gap("per-player resolution choice")),
+            Count::PerPlayer { players, each } => {
+                let each = self.select_count(each)?;
+                let players = self.fetch(self.players(players)?);
+                planned::planned_value(
+                    "a move of so many cards from each player's zone",
+                    "cantrip_mechanics::select::Count::AnyNumber",
+                    &format!("cantrip_mechanics::select::Count::per_player({players}, {each})"),
+                )
+            }
         })
     }
     pub(super) fn choose(
@@ -940,6 +949,9 @@ impl Compiler {
         purpose: &str,
         out: &mut String,
     ) -> Result<()> {
+        if let Count::PerPlayer { players, each } = count {
+            return self.choose_from_each(player, objects, players, each, result, purpose, out);
+        }
         if self.from_outside(objects) {
             self.notes.outside.insert(result.0);
             if matches!(objects, ObjectSet::Union(_)) {
@@ -1376,14 +1388,6 @@ impl Compiler {
             Operation::CreateRegenerationShields { objects } => {
                 writeln!(out, "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for object in objects_{id} {{ g.add_effect(asker.source, object, EffectKind::RegenerationShield, Duration::EndOfTurn); }} }});", self.acted_on(objects)?).unwrap();
             }
-            Operation::Reveal { .. }
-                if lane_k::printed_otherwise(
-                    self.line_text(),
-                    "random creature card from among them",
-                ) =>
-            {
-                return Err(gap("the rest of cards revealed, once one has left them"));
-            }
             Operation::Reveal { objects } => {
                 self.revealed = true;
                 self.selections.insert(result.0, format!("objects_{id}"));
@@ -1485,11 +1489,15 @@ impl Compiler {
                 true => self.counter_reporting(id, objects, result, out),
                 false => self.counter_on_stack(id, objects, out),
             },
-            Operation::Counter { .. }
-                if lane_k::printed_otherwise(self.line_text(), "and all abilities") =>
-            {
-                return Err(gap("countering abilities, where the card says it does"));
-            }
+            Operation::Counter {
+                objects:
+                    ObjectSet::Zone {
+                        scope: ZoneScope::Shared(EventZone::Stack),
+                        kind: ObjectKind::Any,
+                        filter: ObjectFilter::ControlledBy(players),
+                    },
+                destination: Destination::OwnersGraveyard,
+            } => self.counter_all_on_stack(id, players, result, out)?,
             Operation::Counter {
                 objects,
                 destination,
@@ -1939,6 +1947,7 @@ impl Compiler {
             self.block_choosing_first(body, format!("paid_{id} = true;"), out)?;
             writeln!(out, "}}").unwrap();
             self.performed.insert(result.0, format!("paid_{id}"));
+            self.action_paid(body, result);
             return Ok(());
         }
         if let (true, Some(n)) = (optional, lane_k::blights(player, body)) {

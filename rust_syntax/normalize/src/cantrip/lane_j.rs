@@ -1346,12 +1346,6 @@ impl Compiler {
                 },
             ])
         })?;
-        if lane_k::printed_otherwise(self.line_text(), "the target of an ability") {
-            tests.push(
-                "!q.state().stack.iter().any(|i| i.kind == StackKind::Spell && i.object == by)"
-                    .into(),
-            );
-        }
         Ok(single(
             "BECAME_TARGET",
             Arm {

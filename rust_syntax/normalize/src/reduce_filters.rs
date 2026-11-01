@@ -183,7 +183,7 @@ fn reduce_object_trait(form: &str, operands: &[Operand]) -> Option<ObjectFilter>
             ObjectFilter::InSet(Box::new(ObjectSet::Scoped))
         }
         ("SneakCostWasPaidThisTurn", []) => {
-            ObjectFilter::State(ObjectState::CostPaid(CastCost::Sneak))
+            ObjectFilter::State(ObjectState::CostPaidThisTurn(CastCost::Sneak))
         }
         ("WasCastFromAmongCardsInExile", [Operand::Objects(objects)]) => {
             ObjectFilter::CastFromAmong(Box::new(objects.clone()))

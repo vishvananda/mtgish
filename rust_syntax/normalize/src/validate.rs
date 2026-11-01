@@ -1054,6 +1054,7 @@ impl<'a> Scope<'a> {
         match recipients {
             Recipients::DamagedByEvent if self.event.damage_any_recipient => Ok(()),
             Recipients::DamagedByEvent => Err("this event names no one damaged thing".into()),
+            Recipients::CountersTheEventPut => self.object(&ObjectRef::EventSubject),
             Recipients::Objects(objects) => self.objects(objects),
             Recipients::Players(players) => self.players(players),
             Recipients::Targets(slot) | Recipients::Target { slot, .. } => {
@@ -1114,8 +1115,9 @@ impl<'a> Scope<'a> {
                 self.expr(a)?;
                 self.expr(b)
             }
-            Expr::LargestSharedGroup { objects, .. }
-            | Expr::SharingWithAnother { objects, .. } => self.objects(objects),
+            Expr::LargestSharedGroup { objects, .. } | Expr::SharingWithAnother { objects, .. } => {
+                self.objects(objects)
+            }
             Expr::ManaSpentFrom { object, sources } => {
                 self.object(object)?;
                 self.filter(sources)
@@ -1238,9 +1240,7 @@ impl<'a> Scope<'a> {
             Expr::Performed(result)
             | Expr::PerformedTotal(result)
             | Expr::SurveilKeptOnTop(result)
-            | Expr::ClampedDamage(result) => {
-                Err(format!("result {} is unavailable", result.0))
-            }
+            | Expr::ClampedDamage(result) => Err(format!("result {} is unavailable", result.0)),
             Expr::PaidCountersRemoved { payment, component } => {
                 self.paid_component(payment, component).map(|_| ())
             }
@@ -1617,6 +1617,7 @@ impl<'a> Scope<'a> {
                 self.selection_constraints(constraints)
             }
             Condition::Window(_) => Ok(()),
+            Condition::FirstDrawInOwnDrawStep(player) => self.player(player),
             Condition::PlayerState { player, .. } => self.player(player),
             Condition::ItsNeitherDayNorNight | Condition::ItsNight => Ok(()),
             Condition::MostVotes { option, .. } | Condition::Voted(option) => {

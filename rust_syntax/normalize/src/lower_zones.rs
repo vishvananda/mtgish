@@ -987,6 +987,29 @@ impl Context {
         })
     }
     /// "Return a card from your graveyard to your hand": one chosen, then moved.
+    /// A card put from a graveyard into a hand comes from that player's own graveyard:
+    /// every card with the row says so, and its filter names no graveyard.
+    pub(crate) fn own_graveyard(objects: ObjectSet, player: &PlayerRef) -> ObjectSet {
+        match objects {
+            ObjectSet::Zone {
+                scope:
+                    ZoneScope::Players {
+                        zone: EventZone::Graveyard,
+                        players: PlayerSet::All,
+                    },
+                kind,
+                filter,
+            } => ObjectSet::Zone {
+                scope: ZoneScope::Players {
+                    zone: EventZone::Graveyard,
+                    players: PlayerSet::One(player.clone()),
+                },
+                kind,
+                filter,
+            },
+            objects => objects,
+        }
+    }
     fn put_from_graveyard_into_hand(
         &mut self,
         cards: &source::CardsInGraveyards,
@@ -995,7 +1018,7 @@ impl Context {
         let PlayerSet::One(player) = actor else {
             return Err(invalid("returning a card from a graveyard needs one player"));
         };
-        let objects = self.grave_cards(cards)?;
+        let objects = Self::own_graveyard(self.grave_cards(cards)?, player);
         let choice = self.effect(Operation::ChooseObjects {
             constraints: vec![],
             player: player.clone(),

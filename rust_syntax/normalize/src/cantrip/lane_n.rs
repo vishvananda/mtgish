@@ -576,6 +576,9 @@ impl Compiler {
     fn token_change(&mut self, copies: u32, tokens: &[TokenSpec], frame: Frame) -> Result<String> {
         const FEATURE: &str = "replacement of token creation with other tokens";
         let each = self.replacing.each_token;
+        if let Some(edits) = self.tokens_become_copies(copies, tokens, frame)? {
+            return Ok(edits);
+        }
         let mut edits = format!("let each = t.count; t.count = t.count.saturating_mul({copies}); ");
         for token in tokens {
             let TokenRecipe::Defined(definition) = &token.recipe else {

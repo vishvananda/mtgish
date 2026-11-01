@@ -4859,6 +4859,9 @@ pub enum Recipients {
     Chosen,
     /// Whatever the matched damage was dealt to, player or object.
     DamagedByEvent,
+    /// `from` of `DuplicateCounters`: the counters the event put, not all those on
+    /// what it put them on.
+    CountersTheEventPut,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -5422,6 +5425,9 @@ pub enum Condition {
         player: PlayerRef,
         note: DraftNote,
     },
+    /// This draw is the first this player makes in their own draw step, whatever
+    /// they drew earlier in the turn.
+    FirstDrawInOwnDrawStep(PlayerRef),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -6209,6 +6215,8 @@ pub enum ObjectState {
     Sticker(StickerKind),
     UnlockedDoor,
     Manifested,
+    /// `CostPaid`, on a spell cast this turn: "if her sneak cost was paid this turn".
+    CostPaidThisTurn(CastCost),
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

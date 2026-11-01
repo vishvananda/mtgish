@@ -562,6 +562,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
             .choose(up_to(n))
             .entry(flags)
         }
+        // The one card with this row says "up to one".
         ("PutACardDiscardedThisWayOntoTheBattlefield", [Filter(cards), flags, Operand::Result(result)]) => {
             ZoneMove::new(
                 ObjectSet::Matching {
@@ -570,7 +571,7 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
                 },
                 D::OwnersBattlefield,
             )
-            .one()
+            .choose(Count::UpTo(Expr::Constant(1)))
             .entry(flags)
         }
         ("PutEachCardOfTypeMilledThisWayOntoTheBattlefield", [Filter(cards), flags, Operand::Result(result)]) => {
@@ -1371,7 +1372,15 @@ fn reduce_stack_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             objects: stack_filter(term)?,
             targets: T::May,
         },
-        ("CounterEachSpellAndAbility" | "CounterEachAbility", [term]) => Operation::Counter {
+        ("CounterEachSpellAndAbility", [term]) => Operation::Counter {
+            objects: ObjectSet::Zone {
+                scope: ZoneScope::Shared(EventZone::Stack),
+                kind: ObjectKind::Any,
+                filter: stack_filter(term)?,
+            },
+            destination: Destination::OwnersGraveyard,
+        },
+        ("CounterEachAbility", [term]) => Operation::Counter {
             objects: on_stack(stack_filter(term)?),
             destination: Destination::OwnersGraveyard,
         },

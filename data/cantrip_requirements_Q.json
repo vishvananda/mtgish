@@ -14,5 +14,7 @@
 {"match": "^static rule Prohibit BePlayed$", "class": "engine", "needs": "a static that lands with a property can't be played: CantCast stops spells only (CR 305.1)", "api": "Rule::Cant(Action::BePlayed)"},
 {"match": "^player reference OtherChosen$", "class": "engine", "needs": "of two players chosen as a permanent entered, the one who isn't this one (Sower of Discord)", "api": "q.other_chosen_player(asker, player)"},
 {"match": "^player reference SoleTargetOf$", "class": "engine", "needs": "the one player a spell targets, when that is its only target", "api": "q.sole_target_player(spell)"},
+{"match": "^counters the event put$", "class": "engine", "needs": "the kinds and numbers of counters one event put, read by the ability it triggered, whatever else was on the object", "api": "g.counters_put_by(item)"},
+{"match": "^a move of so many cards from each player's zone$", "class": "mechanic", "needs": "a zone change choosing so many cards from each player's zone, one choice per player", "api": "cantrip_mechanics::select::Count::per_player(players, each)"},
 {"match": "^(planar deck|move to OwnersPlanarDeck)$", "class": "engine", "needs": "a planar deck as a zone cards can be looked at in and put on top or bottom of, in the casual Planechase variant", "api": "q.planar_deck(player), ZoneKind::PlanarDeck, g.put_on_planar_deck(&objects, SequenceEnd::Bottom)"}
 ]

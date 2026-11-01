@@ -542,7 +542,6 @@ fn reduce_more_counters(form: &str, operands: &[Operand]) -> Option<Operation> {
     let one = |object: &ObjectRef| Recipients::Objects(ObjectSet::One(object.clone()));
     let many = |objects: &ObjectSet| Recipients::Objects(objects.clone());
     let player = |who: &PlayerRef| Recipients::Players(PlayerSet::One(who.clone()));
-    let scoped = || Recipients::Objects(ObjectSet::Scoped);
     let duplicate = |from, to, copies| {
         Some(Operation::DuplicateCounters {
             from,
@@ -642,10 +641,10 @@ fn reduce_more_counters(form: &str, operands: &[Operand]) -> Option<Operation> {
             },
         )),
         ("DuplicateThoseCounterOnPermanent", [Object(to)]) => {
-            duplicate(scoped(), one(to), CounterCopies::All)
+            duplicate(Recipients::CountersTheEventPut, one(to), CounterCopies::All)
         }
         ("DuplicateACounterOfEachOfThoseKindsOnPermanent", [Object(to)]) => {
-            duplicate(scoped(), one(to), CounterCopies::OneOfEachKind)
+            duplicate(Recipients::CountersTheEventPut, one(to), CounterCopies::OneOfEachKind)
         }
         ("DoubleAllCountersPlayerHas", [Player(who)]) => {
             duplicate(player(who), player(who), CounterCopies::All)

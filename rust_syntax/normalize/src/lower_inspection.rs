@@ -759,7 +759,17 @@ impl Context {
             if let (true, Instruction::Effect { result, .. }) = (to_hand, &instruction) {
                 self.to_hand = Some(result.clone());
             }
+            let shown = match (action, &instruction) {
+                (
+                    S::MayRevealUptoNumberCardsOfTypeAndSetAside(..),
+                    Instruction::Effect { result, .. },
+                ) => Some(ObjectSet::Selected(result.clone())),
+                _ => None,
+            };
             instructions.push(instruction);
+            if let Some(objects) = shown {
+                instructions.push(self.effect(Operation::Reveal { objects }));
+            }
         }
         Ok(())
     }

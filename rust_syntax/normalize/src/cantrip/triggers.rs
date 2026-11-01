@@ -701,7 +701,7 @@ impl Compiler {
             ..Frame::default()
         };
         let mut tests = vec![self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?];
-        if lane_k::a_permanent_targeted(self.line_text(), objects) {
+        if lane_k::a_permanent_targeted(objects) {
             tests.push("q.is_on_battlefield(id)".into());
         }
         match kind {
@@ -1466,20 +1466,6 @@ impl Compiler {
                     });
                 }
                 merged.ok_or_else(|| gap("empty alternative event"))
-            }
-            // "Except the first one they draw in each of their draw steps."
-            EventSpec::Filtered { event, condition }
-                if lane_k::except_the_first_draw(event, condition).is_some() =>
-            {
-                let draw = lane_k::except_the_first_draw(event, condition);
-                let mut matched = self.event(draw.expect("just asked"))?;
-                for arm in &mut matched.arms {
-                    arm.tests.push(
-                        "!cantrip_mechanics::history::first_draw_in_own_draw_step(q, *player)"
-                            .to_string(),
-                    );
-                }
-                Ok(matched)
             }
             EventSpec::Filtered { event, condition } => {
                 let mut matched = self.event(event)?;

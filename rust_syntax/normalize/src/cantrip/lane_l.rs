@@ -198,6 +198,9 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         use CounterCopies as C;
+        if let (Recipients::CountersTheEventPut, Recipients::Objects(to)) = (from, to) {
+            return self.duplicate_what_the_event_put(id, to, copies, out);
+        }
         let (Recipients::Objects(from), Recipients::Objects(to)) = (from, to) else {
             let (Recipients::Players(from), Recipients::Players(to)) = (from, to) else {
                 return Err(gap("operation DuplicateCounters"));
@@ -743,6 +746,7 @@ impl Compiler {
                 let count = self.fetch(self.select_count(&count)?);
                 writeln!(out, "let player_{id} = {player}; let eligible_{id} = {}; let host_{id} = {}; let eligible_{id} = if host_{id}.is_some() {{ eligible_{id} }} else {{ Vec::new() }}; let count_{id} = {count}; let chosen_{id} = {M}::choose::select(g, player_{id}, asker.source, Purpose::Attach, eligible_{id}, {M}::select::Selection::of(count_{id}, &[]))?; if let Some(host) = host_{id} {{ cantrip_api::instruction(g, |g| {{ for &attachment in &chosen_{id} {{ g.attach(attachment, host); }} }}); }}", self.acted_on(attachments)?, self.fetch(self.object(host)?)).unwrap();
                 self.selections.insert(result.0, format!("chosen_{id}"));
+                self.open_guard(&format!("chosen_{id}"), out);
             }
             Operation::FightEach { fighters, others } => {
                 writeln!(out, "let fighters_{id} = {}; let others_{id} = {}; for &first in &fighters_{id} {{ for &second in &others_{id} {{ g.fight(first, second); }} }}", self.fetch(self.objects(fighters)?), self.fetch(self.objects(others)?)).unwrap();

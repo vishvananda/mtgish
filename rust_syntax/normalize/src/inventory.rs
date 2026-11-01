@@ -2273,7 +2273,7 @@ impl Inventory<'_> {
         match r {
             Recipients::Objects(o) => self.objects(o),
             Recipients::Players(p) => self.players(p),
-            Recipients::Chosen | Recipients::DamagedByEvent => {}
+            Recipients::Chosen | Recipients::DamagedByEvent | Recipients::CountersTheEventPut => {}
             Recipients::AttackedBy(attacker) => self.object(attacker),
             Recipients::Union(items) => {
                 for r in items {
@@ -2325,8 +2325,9 @@ impl Inventory<'_> {
                 self.expr(a);
                 self.expr(b);
             }
-            Expr::LargestSharedGroup { objects, .. }
-            | Expr::SharingWithAnother { objects, .. } => self.objects(objects),
+            Expr::LargestSharedGroup { objects, .. } | Expr::SharingWithAnother { objects, .. } => {
+                self.objects(objects)
+            }
             Expr::ManaSpentFrom { object, sources } => {
                 self.object(object);
                 self.filter(sources);
@@ -2779,6 +2780,7 @@ impl Inventory<'_> {
                 self.expr(amount);
             }
             Condition::Window(window) => self.form("TurnWindow", window),
+            Condition::FirstDrawInOwnDrawStep(player) => self.player(player),
             Condition::ItsNeitherDayNorNight | Condition::ItsNight => {}
             Condition::MostVotes { option, .. } | Condition::Voted(option) => {
                 self.vote_option(option)

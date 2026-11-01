@@ -1436,11 +1436,6 @@ impl Compiler {
                 self.moved.insert(result.0, format!("drafted_{id}"));
             }
             Operation::Search { .. } => self.search_zones_p(id, op, result, out)?,
-            Operation::ChangeZone { cards, .. }
-                if lane_k::revealed_only_chosen(self.line_text(), cards) =>
-            {
-                return Err(gap("cards revealed, where the AST has them only chosen"));
-            }
             Operation::ChangeZone { .. } => self.change_zone_p(id, op, result, out)?,
             Operation::Manifest { .. } => self.manifest(id, op, result, out)?,
             Operation::MoveTopCard { .. } => self.move_top_card(id, op, result, out)?,

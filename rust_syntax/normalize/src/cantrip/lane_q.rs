@@ -170,7 +170,8 @@ impl Compiler {
     /// "That player ... until that player's next turn": the walk that puts the rule
     /// on them already holds them, though the reference alone might name nobody.
     pub(super) fn note_own_turn(&mut self, players: &PlayerSet, duration: &crate::ir::Duration) {
-        if let (PlayerSet::One(on), crate::ir::Duration::UntilNextTurn(until)) = (players, duration) {
+        if let (PlayerSet::One(on), crate::ir::Duration::UntilNextTurn(until)) = (players, duration)
+        {
             let same = format!("{on:?}") == format!("{until:?}");
             if same && self.certain_player(until).is_err() {
                 self.notes.until_own_turn = Some(format!("{on:?}"));
@@ -188,5 +189,97 @@ impl Compiler {
             self.frame.activated = frame.activated;
             self.frame.spell_or_ability = frame.spell_or_ability;
         }
+    }
+    /// "Counter all spells and all abilities they control": what is on the stack,
+    /// spell or ability, by whose it is. Those still on the stack weren't countered.
+    pub(super) fn counter_all_on_stack(
+        &mut self,
+        id: usize,
+        players: &PlayerSet,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let theirs = self.fetch(self.players(players)?);
+        writeln!(
+            out,
+            "let players_{id} = {theirs}; let items_{id}: Vec<(ObjectId, usize)> = {{ let stack = &g.state().stack; stack.iter().enumerate().filter(|(_, e)| players_{id}.contains(&e.controller)).map(|(at, e)| (e.object, at)).collect() }}; g.counter_items(&items_{id}); let mut objects_{id}: Vec<ObjectId> = items_{id}.iter().map(|item| item.0).collect(); for left in g.state().stack.iter() {{ if let Some(at) = objects_{id}.iter().position(|o| *o == left.object) {{ objects_{id}.remove(at); }} }}"
+        )
+        .unwrap();
+        self.selections.insert(result.0, format!("objects_{id}"));
+        Ok(())
+    }
+    /// "Put the same number and kind of counters on ...", of those the event put.
+    pub(super) fn duplicate_what_the_event_put(
+        &mut self,
+        id: usize,
+        to: &ObjectSet,
+        copies: CounterCopies,
+        out: &mut String,
+    ) -> Result<()> {
+        let amount = match copies {
+            CounterCopies::All => "amount",
+            CounterCopies::OneOfEachKind => "1i16",
+            _ => return Err(gap("counters the event put, of some kinds")),
+        };
+        let to = self.fetch(self.objects(to)?);
+        let code = format!("let to_{id}: Vec<ObjectId> = {to}; let put_{id}: Vec<(CounterKind, i16)> = g.counters_put_by(item); let puts: Vec<(ObjectId, CounterKind, i16)> = to_{id}.iter().flat_map(|&o| put_{id}.iter().map(move |&(kind, amount)| (o, kind, {amount}))).collect(); g.add_counters_together(&puts);");
+        self.plan_code("counters the event put", &code, out);
+        Ok(())
+    }
+    /// "For each player, destroy up to one nonbasic land that player controls": one
+    /// choice for each, among what is theirs. One asks all the choices of one player.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn choose_from_each(
+        &mut self,
+        player: &PlayerRef,
+        objects: &ObjectSet,
+        players: &PlayerSet,
+        each: &Count,
+        result: &ResultId,
+        purpose: &str,
+        out: &mut String,
+    ) -> Result<()> {
+        let each = self.offered_count(each);
+        let count = self.fetch(self.select_count(&each)?);
+        let chooser = self.fetch(self.certain_player(player)?);
+        let pool = self.fetch(self.objects(objects)?);
+        let players = self.fetch(self.players(players)?);
+        let local = format!("selected_{}", self.fresh());
+        writeln!(out, "let {local}_player = {chooser}; let {local}_pool: Vec<ObjectId> = {pool}; let mut {local}: Vec<ObjectId> = Vec::new(); for each_player in {players} {{ let candidates: Vec<ObjectId> = {{ let q: &dyn Query = g; {local}_pool.iter().copied().filter(|&o| (if q.state().obj(o).zone.is(ZoneKind::Battlefield) {{ q.controller(o) }} else {{ q.state().obj(o).owner }}) == each_player).collect() }}; let count = {count}; {local}.extend(cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, candidates, cantrip_mechanics::select::Selection::of(count, &[]))?); }}").unwrap();
+        self.open_guard(&local, out);
+        self.selections.insert(result.0, local);
+        Ok(())
+    }
+    /// "Instead create that many tokens that are copies of it": the same event, the
+    /// tokens now each a copy of its copiable values (CR 707.2).
+    pub(super) fn tokens_become_copies(
+        &mut self,
+        copies: u32,
+        tokens: &[TokenSpec],
+        frame: Frame,
+    ) -> Result<Option<String>> {
+        let [TokenSpec {
+            amount: Expr::EventAmount,
+            recipe:
+                TokenRecipe::Copy {
+                    object,
+                    adjustments,
+                },
+            ..
+        }] = tokens
+        else {
+            return Ok(None);
+        };
+        if copies != 0
+            || adjustments.len() != 1
+            || !format!("{adjustments:?}").contains("NoTokenCopyEffects")
+            || matches!(object, ObjectRef::Result { .. })
+        {
+            return Ok(None);
+        }
+        let object = self.matching(frame, |c| c.object(object))?;
+        Ok(Some(format!(
+            "if let Some(object) = {object} {{ let values = q.copiable_values(object); t.token = values.card; t.copy = Some(values); }} "
+        )))
     }
 }

@@ -572,12 +572,10 @@ fn reduce_event_form(form: &str, operands: &[Operand]) -> Option<EventSpec> {
         }
         ("WhenAPlayerDrawsACardExceptTheFirstCardDuringTheirDrawStep", [Players(players)]) => {
             EventSpec::Filtered {
-                event: Box::new(nth(
-                    player(PlayerEvent::DrawsCard, players, None),
-                    &Comparison::NotEqual,
-                    &Expr::Constant(1),
-                )),
-                condition: Condition::Window(TurnWindow::DrawStep),
+                event: Box::new(player(PlayerEvent::DrawsCard, players, None)),
+                condition: Condition::Not(Box::new(Condition::FirstDrawInOwnDrawStep(
+                    PlayerRef::EventSubject,
+                ))),
             }
         }
         ("WhenAPlayerDrawsTheirNthCardDuringTheirTurn", [Players(players), Compare(c, n)]) => {

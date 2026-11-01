@@ -67,11 +67,11 @@ impl Compiler {
             // `mechanics` gives a spectacle way this text.
             S::CostPaid(CastCost::Spectacle) => self.cast_by_way(id, "w.text == \"Spectacle\""),
             S::CostPaid(CastCost::Sneak) if !layer => {
-                match lane_k::printed_otherwise(self.line_text(), "cost was paid this turn") {
-                    true => format!("cantrip_mechanics::sneak::sneak_cast_turn(q, {id}) == Some(q.history().turn)"),
-                    false => format!("cantrip_mechanics::sneak::was_cast_for_sneak(q, {id})"),
-                }
+                format!("cantrip_mechanics::sneak::was_cast_for_sneak(q, {id})")
             }
+            S::CostPaidThisTurn(CastCost::Sneak) if !layer => format!(
+                "cantrip_mechanics::sneak::sneak_cast_turn(q, {id}) == Some(q.history().turn)"
+            ),
             S::CostPaid(CastCost::Prowl) => planned::planned_value(
                 "object state CostPaid Prowl",
                 "false",
@@ -967,6 +967,10 @@ impl Compiler {
     /// The rest of `condition`.
     pub(super) fn condition_more(&self, condition: &Condition) -> Result<String> {
         Ok(match condition {
+            Condition::FirstDrawInOwnDrawStep(player) => format!(
+                "{}.is_some_and(|p: PlayerId| cantrip_mechanics::history::first_draw_in_own_draw_step(q, p))",
+                self.player(player)?
+            ),
             Condition::Outcome(PriorOutcome::NoLifePaid) if self.notes.life_paid.is_some() => {
                 format!("({} == 0)", self.notes.life_paid.as_deref().unwrap_or_default())
             }

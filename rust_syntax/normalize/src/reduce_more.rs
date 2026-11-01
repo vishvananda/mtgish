@@ -847,7 +847,10 @@ fn reduce_more_events(form: &str, operands: &[Operand]) -> Option<EventSpec> {
         }
         ("WhenASpellBecomesTheTargetOfASpellOrAbility", [Filter(spells), cause]) => {
             EventSpec::BecomesTarget {
-                objects: spells.clone(),
+                objects: ObjectFilter::All(vec![
+                    ObjectFilter::OnStack(StackTrait::Spell),
+                    spells.clone(),
+                ]),
                 kind: TargetingKind::SpellOrAbility,
                 by: Box::new(cause.clone()),
             }

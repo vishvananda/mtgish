@@ -453,7 +453,12 @@ impl Context {
                     if let Some(step) = self.sibling_step(action, player, instructions) {
                         return step;
                     }
-                    let objects = state.remaining();
+                    let objects = match (action, &state.found) {
+                        (S::PutAnyNumberOfFoundCardsOntoBattlefield(..), Some(found)) => {
+                            found.clone()
+                        }
+                        _ => state.remaining(),
+                    };
                     instructions.push(self.primitive_step(
                         "RevealTheTopNumberCardsOfLibraryAction",
                         action,
