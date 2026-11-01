@@ -184,6 +184,11 @@ impl Walker {
                 ("ObjectFilter", "InSet") => one_object_set(value),
                 ("ObjectSet", "Zone") => narrow_zone_scope(content_of(value)),
                 ("ObjectSet", "Battlefield") => drop_permanent_types(content_of(value)),
+                ("EventSpec", "ZoneChange") => {
+                    if value["ZoneChange"]["to"] == "Battlefield" {
+                        drop_permanent_types(&mut value["ZoneChange"]["objects"]);
+                    }
+                }
                 ("ObjectRef", "Damage") => {
                     if self.damage_subjects.last().cloned().flatten().as_ref()
                         == value.get("args")

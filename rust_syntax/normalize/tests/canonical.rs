@@ -121,3 +121,17 @@ fn permanent_types_narrow_nothing_on_the_battlefield() {
     let reduced = destroy(json!({"kind":"Battlefield","args":filter}));
     assert_eq!(reduced["args"], json!({"kind":"Tapped"}));
 }
+
+#[test]
+fn what_enters_the_battlefield_is_a_permanent() {
+    let six: Vec<serde_json::Value> = ["Artifact", "Battle", "Creature", "Enchantment", "Land", "Planeswalker"]
+        .iter()
+        .map(|name| json!({"kind":"CardType","args":name}))
+        .collect();
+    let mut value = json!([{"kind":"Triggered","args":{
+        "event":{"ZoneChange":{"objects":{"kind":"All","args":[{"kind":"Tapped"},{"kind":"Either","args":six}]},
+            "from":null,"to":"Battlefield"}},
+        "announcement":{"targets":[],"modes":null},"body":{"instructions":[]}}}]);
+    canonical::abilities(&mut value).unwrap();
+    assert_eq!(value[0]["args"]["event"]["ZoneChange"]["objects"], json!({"kind":"Tapped"}));
+}
