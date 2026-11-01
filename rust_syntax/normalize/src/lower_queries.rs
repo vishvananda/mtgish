@@ -194,7 +194,7 @@ impl Context {
             }),
             _ => self
                 .primitive("Spell", value)
-                .map(|(name, operands)| ObjectRef::Primitive { name, operands })
+                .map(|(name, operands)| crate::semantics::reduce_object(name, operands))
                 .ok_or_else(|| unsupported(value)),
         }
     }

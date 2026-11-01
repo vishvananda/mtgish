@@ -672,3 +672,124 @@ fn reduce_event_form(form: &str, operands: &[Operand]) -> Option<EventSpec> {
         _ => return None,
     })
 }
+
+/// A row that names what an earlier step acted on, by the step's words.
+fn earlier_reference(form: &str) -> Option<EarlierObjects> {
+    use EarlierObjects as E;
+    Some(match form {
+        "ThePermanentThisSpellBecame" => E::SpellBecame,
+        "ThePermanentChosenThisWay" | "TheExiledCardChosenThisWay" | "TheChosenExiledCard"
+        | "TheChosenPermanents" | "ThePermanentsChosenThisWay" | "TheGraveyardCardsChosenThisWay"
+        | "TheSecretlyChosenPermanents" => E::Selected,
+        "TheLastExiledCard" => E::LastExiled,
+        "TheCardExiledThisWay" | "TheCardsExiledThisWay" | "TheCardsExiledByPlayerThisWay"
+        | "ThePermanentExiledByPlayerThisWay" => E::Exiled,
+        "TheCreatureUnequippedThisWay" => E::Unattached,
+        "TheCopiedSpell" => E::CopiedSpell,
+        "TheCardsPutIntoAGraveyardThisWay" => E::PutInGraveyard,
+        "TheCreatedTokens" | "TheTokensCreatedByAPlayerThisWay" => E::Created,
+        "RevealedFromLibraryThisWay" | "RevealedFromPlayersLibraryThisWay" => E::Revealed,
+        "TheSpellMostRecentlyCastThisTurn" => E::LastCast,
+        _ => return None,
+    })
+}
+
+/// The event's own subject, under the name a row gives it.
+fn event_alias(form: &str) -> bool {
+    matches!(
+        form,
+        "WouldUntapDuringsItsControllersUntapStep_ThatPermanent"
+    )
+}
+
+pub fn reduce_object(name: String, operands: Vec<Operand>) -> ObjectRef {
+    let form = name.split_once("::").map_or("", |(_, form)| form);
+    if let [.., Operand::Result(result)] = operands.as_slice() {
+        let by = operands.iter().find_map(|operand| match operand {
+            Operand::Player(player) => Some(player.clone()),
+            _ => None,
+        });
+        return ObjectRef::Named {
+            result: result.clone(),
+            by,
+        };
+    }
+    if event_alias(form) {
+        return ObjectRef::EventSubject;
+    }
+    match (form, operands.as_slice(), earlier_reference(form)) {
+        (_, [], Some(what)) => ObjectRef::Earlier { what, by: None },
+        (_, [Operand::Player(player)], Some(what)) => ObjectRef::Earlier {
+            what,
+            by: Some(player.clone()),
+        },
+        ("PermanentSourceOfAbility", [Operand::Object(ability)], _) => {
+            ObjectRef::SourceOf(Box::new(ability.clone()))
+        }
+        ("ThisExiledPermanentCard", [], _) => ObjectRef::Source,
+        ("TheSpellThatGrantedThisAbility" | "ThePermanentThatCreatedThisEmblem", [], _) => {
+            ObjectRef::Granter
+        }
+        _ => ObjectRef::Primitive { name, operands },
+    }
+}
+
+pub fn reduce_objects(name: String, operands: Vec<Operand>) -> ObjectSet {
+    let form = name.split_once("::").map_or("", |(_, form)| form);
+    if let [.., Operand::Result(result)] = operands.as_slice() {
+        return ObjectSet::Named(result.clone());
+    }
+    match (operands.as_slice(), earlier_reference(form)) {
+        ([], Some(what)) => ObjectSet::Earlier { what, by: None },
+        ([Operand::Player(player)], Some(what)) => ObjectSet::Earlier {
+            what,
+            by: Some(PlayerSet::One(player.clone())),
+        },
+        ([Operand::Players(players)], Some(what)) => ObjectSet::Earlier {
+            what,
+            by: Some(players.clone()),
+        },
+        _ => ObjectSet::Primitive { name, operands },
+    }
+}
+
+/// A set an object filter names, by the step that made it.
+fn earlier_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter> {
+    if let [.., Operand::Result(result)] = operands {
+        if earlier_reference(form).is_some() {
+            return Some(ObjectFilter::InSet(Box::new(ObjectSet::Named(result.clone()))));
+        }
+    }
+    let what = earlier_reference(form)?;
+    let by = match operands {
+        [] => None,
+        [Operand::Player(player)] => Some(PlayerSet::One(player.clone())),
+        [Operand::Players(players)] => Some(players.clone()),
+        _ => return None,
+    };
+    Some(ObjectFilter::InSet(Box::new(ObjectSet::Earlier { what, by })))
+}
+
+/// A player read off the step that named them.
+pub fn reduce_player_ref(name: String, operands: Vec<Operand>) -> PlayerRef {
+    let form = name.split_once("::").map_or("", |(_, form)| form);
+    match (form, operands.as_slice()) {
+        (_, [Operand::Result(result)]) => PlayerRef::Named {
+            result: result.clone(),
+            index: match form {
+                "TheSecondPlayerChosenThisWay" => 1,
+                "TheThirdPlayerChosenThisWay" => 2,
+                _ => 0,
+            },
+        },
+        ("WinningBidder", []) => PlayerRef::Prior(PriorPlayer::WinningBidder),
+        ("RememberedPlayer", []) => PlayerRef::Prior(PriorPlayer::Remembered),
+        ("ThePlayerWhoCreatedThisAbility" | "ThePlayerThatAddedThisAbility", []) => {
+            PlayerRef::Prior(PriorPlayer::GrantedBy)
+        }
+        ("ControllerOfLeavingPermanent", []) => {
+            PlayerRef::ControllerOf(Box::new(ObjectRef::EventSubject))
+        }
+        _ => PlayerRef::Primitive { name, operands },
+    }
+}

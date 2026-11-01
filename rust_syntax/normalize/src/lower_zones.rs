@@ -289,7 +289,7 @@ impl Context {
             S::TheExiledCard => self.result_object(self.exiled.as_ref(), 0),
             _ => self
                 .primitive("CardInExile", value)
-                .map(|(name, operands)| ObjectRef::Primitive { name, operands })
+                .map(|(name, operands)| crate::semantics::reduce_object(name, operands))
                 .ok_or_else(|| unsupported(value)),
         }
     }
@@ -376,7 +376,7 @@ impl Context {
             }
             _ => self
                 .primitive("CardInHand", value)
-                .map(|(name, operands)| ObjectRef::Primitive { name, operands })
+                .map(|(name, operands)| crate::semantics::reduce_object(name, operands))
                 .ok_or_else(|| unsupported(value)),
         }
     }
@@ -720,7 +720,7 @@ impl Context {
                 let (name, operands) = self
                     .primitive("Exilable", value)
                     .ok_or_else(|| unsupported(value))?;
-                (ObjectSet::Primitive { name, operands }, None)
+                (crate::semantics::reduce_objects(name, operands), None)
             }
         };
         Ok((objects, choose))

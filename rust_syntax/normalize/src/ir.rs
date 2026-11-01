@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 152;
+pub const SCHEMA_VERSION: u32 = 153;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1685,6 +1685,11 @@ pub enum EarlierObjects {
     Shuffled,
     Entered,
     Evidence,
+    SpellBecame,
+    LastExiled,
+    CopiedSpell,
+    Created,
+    LastCast,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ObjectMeasure {
@@ -1740,6 +1745,12 @@ pub enum PriorOutcome {
     RevealedPutInHand,
     Unearthed,
     ArtSticker,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PriorPlayer {
+    WinningBidder,
+    Remembered,
+    GrantedBy,
 }
 /// What a face-down permanent is, when not a plain 2/2.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3861,6 +3872,18 @@ pub enum ObjectRef {
     PairedWith(Box<ObjectRef>),
     /// The one object this spell targets.
     SoleTargetOf(Box<ObjectRef>),
+    /// What a preceding instruction named, whatever kind of result it holds.
+    Named {
+        result: ResultId,
+        by: Option<PlayerRef>,
+    },
+    /// What an earlier step acted on, read from the card's words.
+    Earlier {
+        what: EarlierObjects,
+        by: Option<PlayerRef>,
+    },
+    /// The permanent an ability on the stack came from.
+    SourceOf(Box<ObjectRef>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4002,6 +4025,10 @@ pub enum ObjectSet {
         objects: Box<ObjectSet>,
         count: Count,
     },
+    Earlier {
+        what: EarlierObjects,
+        by: Option<PlayerSet>,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -4092,6 +4119,11 @@ pub enum PlayerRef {
         highest: bool,
     },
     SoleTargetOf(Box<ObjectRef>),
+    Named {
+        result: ResultId,
+        index: u16,
+    },
+    Prior(PriorPlayer),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

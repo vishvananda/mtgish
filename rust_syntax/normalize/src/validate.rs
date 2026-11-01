@@ -457,6 +457,14 @@ impl<'a> Scope<'a> {
 
     fn object(&self, object: &ObjectRef) -> Result {
         match object {
+            ObjectRef::Named { result, by } => {
+                if !self.results.contains_key(&result.0) {
+                    return Err(format!("result {} has not run", result.0));
+                }
+                by.iter().try_for_each(|player| self.player(player))
+            }
+            ObjectRef::Earlier { by, .. } => by.iter().try_for_each(|player| self.player(player)),
+            ObjectRef::SourceOf(ability) => self.object(ability),
             ObjectRef::Discarded if self.event.discarded => Ok(()),
             ObjectRef::Discarded => {
                 Err("discard event does not bind a singular discarded card".into())
@@ -628,6 +636,9 @@ impl<'a> Scope<'a> {
 
     fn player(&self, player: &PlayerRef) -> Result {
         match player {
+            PlayerRef::Named { result, .. } if self.results.contains_key(&result.0) => Ok(()),
+            PlayerRef::Named { result, .. } => Err(format!("result {} has not run", result.0)),
+            PlayerRef::Prior(_) => Ok(()),
             PlayerRef::Seat { of, .. } => self.player(of),
             PlayerRef::AttackingPlayer | PlayerRef::DefendingPlayer | PlayerRef::Holder(_) => {
                 Ok(())
@@ -705,6 +716,9 @@ impl<'a> Scope<'a> {
 
     fn objects(&self, objects: &ObjectSet) -> Result {
         match objects {
+            ObjectSet::Earlier { by, .. } => {
+                by.iter().try_for_each(|players| self.players(players))
+            }
             ObjectSet::Named(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectSet::Named(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectSet::DamageSources(filter)

@@ -1752,6 +1752,7 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
             ObjectFilter::AttackingDefender(Box::new(AttackDefenders::Players(players.clone())))
         }
         _ => reduce_object_filter(form, &operands)
+            .or_else(|| earlier_filter(form, &operands))
             .unwrap_or(ObjectFilter::Primitive { name, operands }),
     }
 }
@@ -5550,6 +5551,7 @@ impl Effects {
             ObjectRef::Query { objects, .. } => self.objects_library(objects),
             ObjectRef::Result { result, phase, .. } => self.result_library(result, phase),
             ObjectRef::ChosenBy { result, .. } => self.result_library(result, &ObjectPhase::After),
+            ObjectRef::Named { .. } | ObjectRef::Earlier { .. } | ObjectRef::SourceOf(_) => false,
             ObjectRef::Source
             | ObjectRef::KeywordHost
             | ObjectRef::MadeHere
@@ -5584,6 +5586,7 @@ impl Effects {
         match objects {
             ObjectSet::LibraryTops(_) => true,
             ObjectSet::Primitive { .. }
+            | ObjectSet::Earlier { .. }
             | ObjectSet::Named(_)
             | ObjectSet::AnyZone(_)
             | ObjectSet::OutsideTheGame(_) => false,

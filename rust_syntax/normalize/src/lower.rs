@@ -2629,7 +2629,7 @@ impl Context {
                 let (name, operands) = self
                     .primitive("DamageRecipient", value)
                     .ok_or_else(|| unsupported(value))?;
-                Recipients::Objects(ObjectSet::Primitive { name, operands })
+                Recipients::Objects(crate::semantics::reduce_objects(name, operands))
             }
             S::EachableTarget => Recipients::Objects(ObjectSet::One(ObjectRef::Bound(
                 self.iterated_object
@@ -2685,7 +2685,7 @@ impl Context {
                 let (name, operands) = self
                     .primitive("DamageRecipient", value)
                     .ok_or_else(|| unsupported(value))?;
-                Recipients::Objects(ObjectSet::Primitive { name, operands })
+                Recipients::Objects(crate::semantics::reduce_objects(name, operands))
             }
         })
     }

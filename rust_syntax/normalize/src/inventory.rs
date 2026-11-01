@@ -1975,6 +1975,11 @@ impl Inventory<'_> {
         self.form("ObjectSet", r);
         match r {
             ObjectSet::Named(_) => {}
+            ObjectSet::Earlier { by, .. } => {
+                if let Some(by) = by {
+                    self.players(by);
+                }
+            }
             ObjectSet::Primitive { name, .. } => self.primitive(name),
             ObjectSet::DamageSources(filter)
             | ObjectSet::AnyZone(filter)

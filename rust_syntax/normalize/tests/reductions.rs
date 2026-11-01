@@ -328,3 +328,18 @@ fn numbers_and_conditions_read_what_happened() {
         EventSpec::Caused { .. }
     ));
 }
+
+#[test]
+fn references_name_what_they_read() {
+    assert!(matches!(
+        semantics::reduce_player_ref("Player::WinningBidder".into(), vec![]),
+        PlayerRef::Prior(PriorPlayer::WinningBidder)
+    ));
+    assert!(matches!(
+        semantics::reduce_object("CardInExile::TheLastExiledCard".into(), vec![]),
+        ObjectRef::Earlier {
+            what: EarlierObjects::LastExiled,
+            by: None
+        }
+    ));
+}

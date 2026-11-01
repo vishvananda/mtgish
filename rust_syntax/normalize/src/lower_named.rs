@@ -447,10 +447,12 @@ impl Context {
         let (name, operands) = self.primitive_inspected(ty, value)?;
         Some(match ty {
             "Permanent" | "Spell" | "SpellOrAbility" | "CardInExile" | "CardInHand"
-            | "CardInGraveyards" => Operand::Object(ObjectRef::Primitive { name, operands }),
+            | "CardInGraveyards" => Operand::Object(crate::semantics::reduce_object(name, operands)),
             "Permanents" | "CardsInExile" | "CardsInHand" | "CardsInGraveyards"
-            | "CardsOutsideTheGame" => Operand::Objects(ObjectSet::Primitive { name, operands }),
-            "Player" => Operand::Player(PlayerRef::Primitive { name, operands }),
+            | "CardsOutsideTheGame" => {
+                Operand::Objects(crate::semantics::reduce_objects(name, operands))
+            }
+            "Player" => Operand::Player(crate::semantics::reduce_player_ref(name, operands)),
             "GameNumber" => Operand::Number(Expr::Primitive { name, operands }),
             "Condition" => Operand::Condition(Condition::Primitive { name, operands }),
             "Expiration" => Operand::Duration(Duration::Primitive { name, operands }),
@@ -1044,7 +1046,7 @@ impl Context {
             ("Permanent::TheCreaturePairedWithPermanent", [Operand::Object(object)]) => {
                 ObjectRef::PairedWith(Box::new(object.clone()))
             }
-            _ => ObjectRef::Primitive { name, operands },
+            _ => crate::semantics::reduce_object(name, operands),
         })
     }
 
@@ -1068,7 +1070,7 @@ impl Context {
                 let form = name_.split("::").nth(1).unwrap_or(name_);
                 match crate::semantics::reduce_player(form, operands_) {
                     Some(player) => player,
-                    None => PlayerRef::Primitive { name, operands },
+                    None => crate::semantics::reduce_player_ref(name, operands),
                 }
             }
         })
