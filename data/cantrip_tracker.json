@@ -2,8 +2,8 @@
  "cantrip": "af0a0be5ec",
  "totals": {
   "cards": 33529,
-  "ready": 26169,
-  "planned": 7312,
+  "ready": 26170,
+  "planned": 7311,
   "data": 48
  },
  "layouts": {
@@ -12,8 +12,8 @@
    "planned": 16
   },
   "Card": {
-   "ready": 25504,
-   "planned": 6682
+   "ready": 25505,
+   "planned": 6681
   },
   "Conspiracy": {
    "ready": 0,
@@ -82,7 +82,7 @@
  },
  "classes": {
   "engine": {
-   "requirements": 286,
+   "requirements": 287,
    "cards": 3097
   },
   "mechanic": {
@@ -91,7 +91,7 @@
   },
   "generator": {
    "requirements": 970,
-   "cards": 3767
+   "cards": 3766
   },
   "vocabulary": {
    "requirements": 280,
@@ -900,22 +900,6 @@
    ]
   },
   {
-   "id": "move-arrival-state",
-   "feature": "move arrival state",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "move arrival",
-   "cards": 33,
-   "alone": 30,
-   "examples": [
-    "Infectious Curse // Accursed Witch",
-    "Aetherplasm",
-    "Better Offer",
-    "Bronzehide Lion",
-    "Deathmist Raptor"
-   ]
-  },
-  {
    "id": "power-toughness-counter-other-than-1-1",
    "feature": "power/toughness counter other than ±1/±1",
    "class": "vocabulary",
@@ -945,6 +929,22 @@
     "Ambergris, Agent of Balance",
     "Armix, Filigree Thrasher",
     "Ashnod the Uncaring"
+   ]
+  },
+  {
+   "id": "move-arrival-state",
+   "feature": "move arrival state",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "move arrival",
+   "cards": 32,
+   "alone": 29,
+   "examples": [
+    "Infectious Curse // Accursed Witch",
+    "Aetherplasm",
+    "Better Offer",
+    "Bronzehide Lion",
+    "Deathmist Raptor"
    ]
   },
   {
@@ -6356,22 +6356,6 @@
    ]
   },
   {
-   "id": "move-arrival-with-a-color",
-   "feature": "move arrival with a color",
-   "class": "engine",
-   "needs": "a color in EntersAs, for a card that enters as a black Zombie or similar in addition to what it is.",
-   "family": "move arrival",
-   "cards": 6,
-   "alone": 5,
-   "examples": [
-    "Dread Slaver",
-    "Ever After",
-    "Ghouls' Night Out",
-    "Necromantic Selection",
-    "Rise from the Grave"
-   ]
-  },
-  {
    "id": "move-counters-of-kinds-the-mover-chooses",
    "feature": "move counters of kinds the mover chooses",
    "class": "engine",
@@ -7585,6 +7569,22 @@
     "Season of Weaving",
     "Season of the Bold",
     "Season of the Burrow"
+   ]
+  },
+  {
+   "id": "move-arrival-with-a-color",
+   "feature": "move arrival with a color",
+   "class": "engine",
+   "needs": "a color in EntersAs, for a card that enters as a black Zombie or similar in addition to what it is.",
+   "family": "move arrival",
+   "cards": 5,
+   "alone": 4,
+   "examples": [
+    "Dread Slaver",
+    "Ghouls' Night Out",
+    "Necromantic Selection",
+    "Rise from the Grave",
+    "The Master, Transcendent"
    ]
   },
   {
@@ -21122,6 +21122,18 @@
    ]
   },
   {
+   "id": "several-objects-entering-with-a-color",
+   "feature": "several objects entering with a color",
+   "class": "engine",
+   "needs": "EntersAs with colors it adds, as Ever After's 'black Zombie in addition to its other colors and types' (CR 614.12, 613.1e)",
+   "family": "several objects",
+   "cards": 1,
+   "alone": 1,
+   "examples": [
+    "Ever After"
+   ]
+  },
+  {
    "id": "sharing-land-types",
    "feature": "sharing LandTypes",
    "class": "generator",
@@ -29267,7 +29279,7 @@
    "counters-of-a-kind-chosen-as-the-effect-resolves"
   ],
   "Ever After": [
-   "move-arrival-with-a-color"
+   "several-objects-entering-with-a-color"
   ],
   "Everdream": [
    "engine-splice-onto-other-than-arcane"
@@ -43476,9 +43488,6 @@
   ],
   "Supernatural Rescue": [
    "ability-flash-if"
-  ],
-  "Supper for Spiders": [
-   "move-arrival-state"
   ],
   "Support Skyforge": [
    "engine-no-perpetual-effects",

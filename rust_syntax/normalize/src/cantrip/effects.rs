@@ -1828,10 +1828,10 @@ impl Compiler {
                     _ => "g.state().obj(o).owner".into(),
                 };
                 let rows = format!("let rows_{id}: Vec<(ObjectId, PlayerId, bool)> = objects_{id}.iter().map(|&o| (o, {controller}, {})).collect();", entry.tapped);
-                if let [EntryState::Changes(changes)] = entry.states.as_slice() {
-                    self.entering_as(id, entry, changes, &controller)?
-                } else if !entry.states.is_empty() && !alone {
+                if !entry.states.is_empty() && !alone {
                     self.arriving_together(id, entry, &controller)?
+                } else if let [EntryState::Changes(changes)] = entry.states.as_slice() {
+                    self.entering_as(id, entry, changes, &controller)?
                 } else if !entry.states.is_empty() {
                     let each = self.arrival(entry)?;
                     format!("{{ let mut moved: Vec<ObjectId> = Vec::new(); for &o in &objects_{id} {{ let controller = {controller}; {each} }} moved }}")
