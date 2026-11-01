@@ -89,6 +89,10 @@ impl Compiler {
     /// starts as the first one did.
     pub(super) fn reset_after_gap(&mut self) {
         self.pending = Pending::Nothing;
+        self.may_choose = false;
+        self.do_once = None;
+        self.chosen_guard = None;
+        self.guard_opened = false;
         self.dividing = None;
         self.asking = None;
         self.repeating = None;
@@ -247,7 +251,7 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
             let identity = corpus::Identity::of(&source)?;
             let lowered = crate::unified::lower(&source);
             let name = identity.names.join(" // ");
-            let whole = whole(&source, &lowered.card)
+            let whole = lane_f::whole_printed(&source, &lowered.card, Some(&oracle))
                 .map_err(|g| format!("{name}: {}: {} ({})", g.path, g.feature, g.message))?;
             let faces: Vec<TrackedFace> = whole
                 .faces

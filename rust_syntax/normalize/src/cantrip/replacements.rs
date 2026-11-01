@@ -188,6 +188,13 @@ impl Compiler {
             ))
         };
         Ok(match (kind, change) {
+            ("Damage", EventChange::SetAmount(Expr::Add(amount, plus)))
+                if matches!(**plus, Expr::ObjectProperty { .. }) =>
+            {
+                let amount = number(self, amount)?.code;
+                let plus = number(self, plus)?.code;
+                format!("e.amount = (({amount}) + ({plus}).max(0)).clamp(0, 65535) as u16;")
+            }
             ("Damage", EventChange::SetAmount(n)) => {
                 format!(
                     "e.amount = {};",
@@ -415,7 +422,7 @@ impl Compiler {
         if let Some(guard) = &guard {
             extra.push(self.matching(frame, |c| c.condition(guard))?);
         }
-        let hint = quoted(&ability_text(body));
+        let hint = quoted(&self.said(lane_k::Said::Sentence, ability_text(body)));
         if arms[0].kind == "Damage" {
             if let [change] = changes.as_slice() {
                 let amount = match change {
@@ -612,7 +619,7 @@ impl Compiler {
             return Err(gap("replacement made about several objects"));
         }
         let about = about.first().map(|o| self.object(o)).transpose()?;
-        let hint = quoted(&ability_text(body));
+        let hint = quoted(&self.said(lane_k::Said::Sentence, ability_text(body)));
         let label = format!("made_{}", self.fresh());
         let results = self.results();
         let scope = self.affected_in_scope;

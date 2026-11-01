@@ -23,6 +23,7 @@ mod lane_g;
 mod lane_h;
 mod lane_i;
 mod lane_j;
+mod lane_k;
 mod lane_l;
 mod lane_m;
 mod mechanics;
@@ -36,7 +37,7 @@ mod survey;
 mod triggers;
 pub use crate::report::BackendDiagnostic as Diagnostic;
 use effects::rule_name;
-pub use lane_f::{is_card, whole, whole_gaps, whole_module, Whole, WholeFace};
+pub use lane_f::{is_card, whole, whole_gaps, whole_module, whole_printed, Whole, WholeFace};
 use lane_j::{PaidFor, Picked, Share};
 use read::{counter_kind, zone_kind, Candidate, Carried, EventAt, Frame, History, Pending, Reader};
 pub use survey::survey;
@@ -117,6 +118,10 @@ fn generator_fingerprint() -> &'static str {
             (
                 "cantrip/lane_h.rs",
                 include_bytes!("cantrip/lane_h.rs").as_slice(),
+            ),
+            (
+                "cantrip/lane_k.rs",
+                include_bytes!("cantrip/lane_k.rs").as_slice(),
             ),
             (
                 "cantrip/card_file.rs",
@@ -387,8 +392,41 @@ impl Number {
 struct Compiler {
     /// The file's holes for what has no place in its code: see `planned`.
     holes: String,
-    /// The requirement and matcher of the trigger just compiled, if Cantrip
-
+    /// Each ability's printed line, where its Oracle text is known.
+    printed: Vec<Option<lane_k::Line>>,
+    /// A Saga's chapters as printed, by number.
+    chapters: BTreeMap<i64, String>,
+    /// The printed line of the ability being compiled.
+    line: Option<lane_k::Line>,
+    /// What of that line's quotes a granted ability has already read.
+    quoted_used: BTreeSet<usize>,
+    /// The next choice is a "you may": choosing nothing is declining.
+    may_choose: bool,
+    /// What runs once that choice found something, the rest of the block with it.
+    chosen_guard: Option<String>,
+    /// That guard is open, and the block has to close it.
+    guard_opened: bool,
+    /// The target of the announcement being compiled that is the second of "two
+    /// target creatures", which the AST keeps as a slot of its own.
+    second_of_two: Option<usize>,
+    /// Of the local holding a mill of a set number, that number.
+    whole_mills: std::collections::BTreeMap<String, String>,
+    /// Whether the face's spell has targets.
+    spell_targets: bool,
+    /// "Kicker—Sacrifice an artifact or creature", as the face prints it.
+    kicker_line: Option<String>,
+    /// The `labels` a question the code asks wants.
+    wanted_labels: Option<String>,
+    /// What each counter stage of the face prints.
+    stages: BTreeMap<i64, Vec<lane_k::Line>>,
+    /// What's left of the printed lines of the stage being compiled.
+    stage_lines: Vec<lane_k::Line>,
+    /// The next "may" is done once each turn, under this key.
+    do_once: Option<u8>,
+    /// The next tap or untap is a "may", which offers doing nothing with them.
+    may_tap_or_untap: bool,
+    /// Payments of "unless you pay": those ask whether to, whatever paying is.
+    unless_paid: BTreeSet<u32>,
     /// Compiling the event of `Expr::EventHistory`.
     history: Option<History>,
     /// A `StackItem` named `item` is in reach, with its targets and X.
@@ -845,6 +883,23 @@ impl Compiler {
             cipher: false,
             ability_guard: None,
             holes: String::new(),
+            printed: Vec::new(),
+            chapters: BTreeMap::new(),
+            line: None,
+            quoted_used: BTreeSet::new(),
+            may_choose: false,
+            chosen_guard: None,
+            guard_opened: false,
+            second_of_two: None,
+            whole_mills: Default::default(),
+            spell_targets: false,
+            kicker_line: None,
+            wanted_labels: None,
+            stages: BTreeMap::new(),
+            stage_lines: Vec::new(),
+            do_once: None,
+            may_tap_or_untap: false,
+            unless_paid: BTreeSet::new(),
         }
     }
     /// Compile one part, recording a gap rather than stopping at it, and prefix
@@ -947,7 +1002,7 @@ impl Compiler {
             TargetKind::DamageRecipient => {
                 let players = match &spec.players {
                     Some(players) => self.player_in(players, "p")?,
-                    None => "false".into(),
+                    None => "true".into(),
                 };
                 format!(
                     "match t {{ Target::Player(p) => {players}, Target::Object(id) => q.is_on_battlefield(id) && {{ let c = q.chars(id); c.is(CardType::Creature) || c.is(CardType::Planeswalker) || c.is(CardType::Battle) }} && ({}), _ => false }}",
@@ -975,7 +1030,7 @@ impl Compiler {
             Count::UpTo(n) if constant(n).is_some() => {
                 format!(".between(0, {})", constant(n).unwrap())
             }
-            Count::AnyNumber => ".between(0, cantrip_mechanics::ANY_NUMBER)".into(),
+            Count::AnyNumber => ".between(0, cantrip_api::TargetSpec::ANY_NUMBER)".into(),
             Count::Between { minimum, maximum }
                 if constant(minimum).is_some() && constant(maximum).is_some() =>
             {
@@ -1055,9 +1110,25 @@ impl Compiler {
     fn announced_targets(&mut self, a: &Announcement, label: &str) -> Result<String> {
         let mut targets = Vec::new();
         self.announced_filters.clear();
+        self.second_of_two = self.two_targets(a);
         for (i, spec) in a.targets.iter().enumerate() {
             let at = format!("targets[{i}]");
             let mut rule = lane_l::SlotRule::default();
+            // The second of "two target creatures" is the same slot's.
+            if self.second_of_two == Some(i) {
+                self.slots.insert(spec.slot.0, (i, spec.clone()));
+                continue;
+            }
+            let doubled;
+            let spec = if self.second_of_two.is_some() {
+                doubled = TargetSpec {
+                    count: Count::Exactly(Expr::Constant(2)),
+                    ..spec.clone()
+                };
+                &doubled
+            } else {
+                spec
+            };
             let together = match spec.constraints.as_slice() {
                 [] => String::new(),
                 [SelectionConstraint::CommonProperty(property)] => self
@@ -1177,7 +1248,7 @@ impl Compiler {
         };
         let id = self.next;
         self.next += 1;
-        let child = emit_module(&card, Some(&token.name))?;
+        let child = emit_face(&card, Some(&token.name), self.quoted_text())?;
         self.gaps
             .extend(child.gaps.iter().map(|g| g.clone().at("token")));
         writeln!(self.functions, "pub mod token_{id} {{\n{}\n}}", child.rust).unwrap();
@@ -1379,7 +1450,13 @@ impl Compiler {
             }
         }
         if let (_, Some(r)) = lane_g::mana_lasting(restriction.as_ref()) {
-            metadata.push_str(&format!(".only_for({})", self.mana_use(r)?));
+            let code = self.mana_use(r)?;
+            // The engine reads a restriction's words as the mana is added only
+            // for mana it adds itself, so such mana is listed.
+            if let Some(listed) = lane_k::listed_mana(&plan, rest, restriction.as_ref()) {
+                return Ok(format!("{listed}.only_for({code})"));
+            }
+            metadata.push_str(&format!(".only_for({code})"));
         }
         let mut out = String::new();
         self.stack_item = false;
@@ -1780,6 +1857,14 @@ fn emit_face(
     let mut c = Compiler::new();
     let mut parts = Parts::default();
     c.card_name = card.name.clone();
+    c.read_printed(&card.abilities, place.printed.as_deref());
+    if place
+        .printed
+        .as_deref()
+        .is_some_and(lane_k::reads_graveyard_order)
+    {
+        parts.field("reads_graveyard_order", "true".into());
+    }
     c.links_exile =
         place.links_exile || format!("{:?}", card.abilities).contains("ExiledWith(Source)");
     c.own_face = place.own_face;
@@ -1813,6 +1898,7 @@ fn emit_face(
         _ => Err(gap("two mechanics that need the first delayed ability")),
     });
     for (i, a) in card.abilities.iter().enumerate() {
+        c.on_ability(i);
         let failure = c.attempt(format!("abilities[{i}]"), |c| {
             let compiled = c.ability(a, &format!("ability_{i}"), &mut parts, None);
             if let Some(divide) = c.dividing.take() {
@@ -1846,6 +1932,14 @@ fn emit_face(
     });
     if c.cipher {
         parts.entry("statics", "cantrip_mechanics::cipher::STATIC".into());
+    }
+    if let Some(labels) = c.wanted_labels.take() {
+        let taken = parts.fields.contains_key("labels");
+        c.attempt("abilities".into(), |_| match taken {
+            true => Err(gap("a question beside other labels")),
+            false => Ok(()),
+        });
+        parts.field("labels", labels);
     }
     if c.tap_or_untap {
         let taken = parts.fields.contains_key("labels");
@@ -2044,7 +2138,7 @@ fn emit_face(
     let rust = format!(
         "// Generated by mtgish-ast, schema {}, normalized SHA256 {fingerprint}.\n// Generator SHA256 {generator}; Cantrip API SHA256 {api}.\n#[allow(unused_imports)] use cantrip_api::*;\n{}\npub static CARD: CardDef = CardDef {{ name: {}, token_words: {token_words}, oracle: {oracle}, cost: {mana}, has_cost: {}, types: TypeSet::of(&[{}]), subtypes: SubtypeSet::of(&[{}]), supertypes: Supertypes {{ basic: {}, legendary: {}, snow: {} }}, colors: {colors}, power: {}, toughness: {}, loyalty: {}, defense: {}, keywords: Keywords::of(&[{}]), protection: ColorSet({protection}), spell: {spell}, abilities: &[{}], statics: &[{}], replacements: &[{}], preventions: &[{}], block_rules: &[{}], block_requirements: &[{}], attack_rules: &[{}], untap_bans: &[{}], delayed: &[{}], enters: {enters}, modal: {modal}, enchant: {enchant}, {rest}..CardDef::BLANK }};\n{extra}",
         SCHEMA_VERSION,
-        c.functions,
+        lane_k::without_unread_data(&c.functions),
         name,
         ch.mana_cost.is_some(),
         types.join(","),

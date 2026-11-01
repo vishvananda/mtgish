@@ -2,8 +2,8 @@
  "cantrip": "af0a0be5ec",
  "totals": {
   "cards": 33529,
-  "ready": 26760,
-  "planned": 6721,
+  "ready": 26759,
+  "planned": 6722,
   "data": 48
  },
  "layouts": {
@@ -12,8 +12,8 @@
    "planned": 13
   },
   "Card": {
-   "ready": 26081,
-   "planned": 6105
+   "ready": 26080,
+   "planned": 6106
   },
   "Conspiracy": {
    "ready": 0,
@@ -95,7 +95,7 @@
   },
   "generator": {
    "requirements": 213,
-   "cards": 611
+   "cards": 612
   }
  },
  "requirements": [
@@ -884,6 +884,22 @@
    ]
   },
   {
+   "id": "transition-this-instruction-does-not-report",
+   "feature": "transition this instruction does not report",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "transition this",
+   "cards": 30,
+   "alone": 21,
+   "examples": [
+    "Ascent of the Worthy",
+    "Chandra, Chill of Compliance",
+    "Curse of the Werefox",
+    "Demonfire",
+    "Discerning Taste"
+   ]
+  },
+  {
    "id": "trigger-event-player-planeswalks",
    "feature": "trigger event Player Planeswalks",
    "class": "engine",
@@ -929,22 +945,6 @@
     "Broken Ambitions",
     "Captivating Glance",
     "Fire Juggler"
-   ]
-  },
-  {
-   "id": "transition-this-instruction-does-not-report",
-   "feature": "transition this instruction does not report",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "transition this",
-   "cards": 29,
-   "alone": 20,
-   "examples": [
-    "Ascent of the Worthy",
-    "Chandra, Chill of Compliance",
-    "Curse of the Werefox",
-    "Demonfire",
-    "Enlightened Confidant"
    ]
   },
   {
@@ -3162,7 +3162,7 @@
    "needs": "a generator arm, or a Cantrip feature if none exists",
    "family": "event trigger",
    "cards": 12,
-   "alone": 9,
+   "alone": 8,
    "examples": [
     "Arcbond",
     "Delif's Cube",
@@ -10329,20 +10329,6 @@
    ]
   },
   {
-   "id": "possibly-absent-player-controller-of",
-   "feature": "possibly absent player ControllerOf",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "possibly absent",
-   "cards": 3,
-   "alone": 3,
-   "examples": [
-    "Arcane Denial",
-    "Demolition Field",
-    "Kudzu"
-   ]
-  },
-  {
    "id": "prohibited-action-pay-life",
    "feature": "prohibited action PayLife",
    "class": "generator",
@@ -10550,6 +10536,20 @@
     "Furnace Layer",
     "Norn's Dominion",
     "Norn's Seedcore"
+   ]
+  },
+  {
+   "id": "target-reference",
+   "feature": "target reference",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "target reference",
+   "cards": 3,
+   "alone": 1,
+   "examples": [
+    "Ancient Brass Dragon",
+    "Arcbond",
+    "Thorin, Mountain-king"
    ]
   },
   {
@@ -12849,6 +12849,19 @@
    "examples": [
     "Círdan the Shipwright",
     "Mob Verdict"
+   ]
+  },
+  {
+   "id": "possibly-absent-player-controller-of",
+   "feature": "possibly absent player ControllerOf",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "possibly absent",
+   "cards": 2,
+   "alone": 2,
+   "examples": [
+    "Arcane Denial",
+    "Demolition Field"
    ]
   },
   {
@@ -21746,18 +21759,6 @@
    ]
   },
   {
-   "id": "target-reference",
-   "feature": "target reference",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "target reference",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Ancient Brass Dragon"
-   ]
-  },
-  {
    "id": "targeted-by-ability-of-a-permanent",
    "feature": "targeted by AbilityOfAPermanent",
    "class": "engine",
@@ -23219,7 +23220,8 @@
    "engine-no-aura-swamp"
   ],
   "Arcbond": [
-   "event-trigger-carrying-values"
+   "event-trigger-carrying-values",
+   "target-reference"
   ],
   "Arcbound Overseer": [
    "object-filter-has-keyword-family"
@@ -26968,6 +26970,9 @@
   "Disaster Radius": [
    "engine-no-record-of-what-paid-a-cost",
    "engine-no-reveal-cost"
+  ],
+  "Discerning Taste": [
+   "transition-this-instruction-does-not-report"
   ],
   "Disciple of Caelus Nin": [
    "static-rule-prohibit-phase-in"
@@ -32818,9 +32823,6 @@
   "Kruphix, God of Horizons": [
    "numeric-expression-count-mana-symbols",
    "player-rule-unspent-mana-becomes"
-  ],
-  "Kudzu": [
-   "possibly-absent-player-controller-of"
   ],
   "Kukemssa Pirates": [
    "continuous-rule-combat-damage-no-assignment"
@@ -42599,6 +42601,9 @@
   "Thomil, the Destroyer": [
    "a-token-that-is-a-named-card",
    "subtype-thomil"
+  ],
+  "Thorin, Mountain-king": [
+   "target-reference"
   ],
   "Thorn Elemental": [
    "static-rule-combat-damage-as-unblocked"

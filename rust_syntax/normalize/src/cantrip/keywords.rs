@@ -321,8 +321,16 @@ impl Compiler {
                 writeln!(out, "let amount_{id} = {n}; let player_{id} = {player}; g.change_energy(player_{id}, amount_{id});").unwrap();
             }
             K::BecomeMonarch => self.actor_action(&action, "g.become_monarch(player)", out)?,
-            K::LoseGame => self.actor_action(&action, "g.lose_game(player)", out)?,
-            K::WinGame => self.actor_action(&action, "g.win_game(player)", out)?,
+            K::LoseGame => self.actor_action(
+                &action,
+                "g.lose_game(player); if g.state().is_over() { return Ok(()); }",
+                out,
+            )?,
+            K::WinGame => self.actor_action(
+                &action,
+                "g.win_game(player); if g.state().is_over() { return Ok(()); }",
+                out,
+            )?,
             K::TakeExtraTurn => {
                 let times = self.times(&action)?;
                 let call = format!("let times = {times}; g.add_extra_turns(player, times)");
@@ -339,7 +347,11 @@ impl Compiler {
             K::TapOrUntap => {
                 let player = self.actor(&action)?;
                 self.tap_or_untap = true;
-                let call = format!("let card = g.card_id(&CARD); match {M}::choose::one_of(g, player_{id}, asker.source, vec![Label::Card(card, 0), Label::Card(card, 1)])? {{ 0 => g.tap(object), _ => g.untap(object) }}");
+                let (nothing, rest) = match std::mem::take(&mut self.may_tap_or_untap) {
+                    true => (", Label::Card(card, 2)", "1 => g.untap(object), _ => {}"),
+                    false => ("", "_ => g.untap(object)"),
+                };
+                let call = format!("let card = g.card_id(&CARD); match {M}::choose::one_of(g, player_{id}, asker.source, vec![Label::Card(card, 0), Label::Card(card, 1){nothing}])? {{ 0 => g.tap(object), {rest} }}");
                 writeln!(out, "let player_{id} = {player};").unwrap();
                 self.object_action(&action, &call, out)?;
             }

@@ -1182,11 +1182,18 @@ impl Compiler {
         if source_only {
             tests.push("id == asker.source".to_string());
         }
+        // "One or more cards" is a batch for each player who discards (603.2c).
+        let batched = matches!(grouping, DiscardGrouping::Player);
+        let second = if batched {
+            "u32::from(player.0)"
+        } else {
+            "u32::MAX"
+        };
         let mut matched = single(
             mask,
             Arm {
                 pattern: pattern.into(),
-                locals: "let id = *card; let subject = Target::Object(id); let data = [u32::from(player.0), u32::MAX];".into(),
+                locals: format!("let id = *card; let subject = Target::Object(id); let data = [u32::from(player.0), {second}];"),
                 tests,
             },
             frame,
@@ -1195,8 +1202,8 @@ impl Compiler {
         if source_only {
             matched.functions = Some("WHERE_A_DISCARD_ENDS".into());
         }
-        if let DiscardGrouping::Player = grouping {
-            matched.batch = Some(false);
+        if batched {
+            matched.batch = Some(true);
             matched.frame.members = true;
         }
         Ok(matched)
@@ -1486,7 +1493,8 @@ impl Compiler {
             let mut def = {
                 self.targets_for(announcement, label, Frame::default())?;
                 let effect = self.effect(body, label)?;
-                format!("state_triggered({state}, {effect}, \"When this state holds\")")
+                let text = self.said(lane_k::Said::Triggered, "When this state holds".into());
+                format!("state_triggered({state}, {effect}, {})", quoted(&text))
             };
             if let Some(per_turn) = limits.per_turn {
                 def.push_str(&format!(".triggers_each_turn({per_turn})"));
@@ -1545,6 +1553,8 @@ impl Compiler {
         if let Some(conditional) = &conditional {
             extra.push(self.matching(matched.frame, |c| c.condition(conditional))?);
         }
+        let done_once = self.done_once(limits, body);
+        extra.extend(done_once.map(lane_k::not_yet_done));
         if let Some(intervening) = intervening_if {
             match self.condition_function(intervening, &format!("{label}_if")) {
                 Ok(function) => condition = Some(function),
@@ -1568,6 +1578,7 @@ impl Compiler {
         self.frame = Frame::default();
         let effect = effect?;
         let text = format!("{}, {}", matched.phrase, ability_text(body));
+        let text = self.said(lane_k::Said::Triggered, text);
         let mut def = format!(
             "triggered({trigger}, {effect}, {}).targets({targets})",
             quoted(&text)
@@ -1590,7 +1601,7 @@ impl Compiler {
                 ".mana_ability(TriggeredMana::Unstated)"
             });
         }
-        if let Some(per_turn) = limits.per_turn {
+        if let Some(per_turn) = limits.per_turn.filter(|_| done_once.is_none()) {
             def.push_str(&format!(".triggers_each_turn({per_turn})"));
         }
         if let Some(divide) = self.dividing.take() {
@@ -1620,10 +1631,8 @@ impl Compiler {
         self.grouped = false;
         self.frame = Frame::default();
         let modal = modal?;
-        let mut def = format!(
-            "modal_triggered({trigger}, &{modal}, {})",
-            quoted(&matched.phrase)
-        );
+        let text = self.said(lane_k::Said::Triggered, matched.phrase.to_string());
+        let mut def = format!("modal_triggered({trigger}, &{modal}, {})", quoted(&text));
         if let Some(condition) = condition {
             def.push_str(&format!(".condition({condition})"));
         }

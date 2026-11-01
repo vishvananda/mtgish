@@ -32,6 +32,8 @@ pub(super) struct Place {
     pub holes: String,
     /// More definitions for `EXTRA`.
     pub extras: Vec<String>,
+    /// The face's Oracle text, where it is known.
+    pub printed: Option<String>,
 }
 
 /// A door of a Room (CR 709.5).
@@ -263,6 +265,8 @@ struct Joining<'a> {
     /// `CARD`'s place on the card.
     place: Place,
     gaps: Vec<Diagnostic>,
+    /// Each face's Oracle text, by name.
+    oracle: Option<&'a BTreeMap<String, String>>,
 }
 impl Joining<'_> {
     /// A face that is its own module beside `CARD`, compiled from `compiled`.
@@ -276,6 +280,7 @@ impl Joining<'_> {
         let place = Place {
             own_face: true,
             links_exile: self.links_exile,
+            printed: self.printed(at),
             ..place
         };
         let emitted = emit_face(compiled, None, place)?;
@@ -288,6 +293,10 @@ impl Joining<'_> {
         write!(self.modules, "pub mod {module} {{\n{}}}\n", emitted.rust).unwrap();
         self.record(at, emitted.rust, emitted.gaps);
         Ok(emitted.door_refused)
+    }
+    /// The Oracle text of the face `at`.
+    fn printed(&self, at: usize) -> Option<String> {
+        self.oracle?.get(&self.card.faces[at].name).cloned()
     }
     fn record(&mut self, at: usize, rust: String, gaps: Vec<Diagnostic>) {
         self.faces[at] = Some(WholeFace {
@@ -311,7 +320,8 @@ impl Joining<'_> {
     }
     /// `CARD` the face `at`, once all that it joins is known.
     fn main(&mut self, at: usize) -> Result<String> {
-        let place = std::mem::take(&mut self.place);
+        let mut place = std::mem::take(&mut self.place);
+        place.printed = self.printed(at);
         let emitted = emit_face(&self.card.faces[at], None, place)?;
         let file = format!("{}{}", emitted.rust, self.modules);
         self.record(at, emitted.rust, emitted.gaps);
@@ -389,6 +399,15 @@ pub fn is_card(card: &UnifiedCard) -> bool {
 /// A record whole, its faces joined where Cantrip joins them. Everything the
 /// card waits on is a gap of one of its faces: `tracked` and `survey` read this.
 pub fn whole(source: &OracleCard, card: &UnifiedCard) -> Result<Whole> {
+    whole_printed(source, card, None)
+}
+
+/// `whole`, with each ability's text from `oracle`, the printed text by face name.
+pub fn whole_printed(
+    source: &OracleCard,
+    card: &UnifiedCard,
+    oracle: Option<&BTreeMap<String, String>>,
+) -> Result<Whole> {
     let inspected = match card.layout.as_str() {
         "Card" => Value::Null,
         _ => crate::inspect::value(source).expect("source AST serialization"),
@@ -405,6 +424,7 @@ pub fn whole(source: &OracleCard, card: &UnifiedCard) -> Result<Whole> {
         modules: String::new(),
         place: Place::default(),
         gaps: Vec::new(),
+        oracle,
     };
     joining.place.links_exile = joining.links_exile;
     let rust = match shape(card, args) {

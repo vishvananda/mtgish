@@ -341,10 +341,16 @@ impl Compiler {
             self.helpers.insert("announced");
         }
         for (i, _) in self.slots.values() {
-            writeln!(
-                out,
-                "let t_{i}_raw = announced(g, item, {i}, false); let t_{i} = announced(g, item, {i}, true);"
-            )
+            match self.second_of_two == Some(*i) {
+                true => writeln!(
+                    out,
+                    "let t_{i}_raw: Vec<Target> = announced(g, item, 0, false).into_iter().skip(1).collect(); let t_{i} = announced(g, item, 0, true);"
+                ),
+                false => writeln!(
+                    out,
+                    "let t_{i}_raw = announced(g, item, {i}, false); let t_{i} = announced(g, item, {i}, true);"
+                ),
+            }
             .unwrap();
         }
         let reader = std::mem::replace(&mut self.reader, Reader::Resolution);
@@ -374,8 +380,16 @@ impl Compiler {
         // Each instruction here answers for its own players.
         let present = self.present.borrow_mut().take();
         let picked = self.picked.borrow().named.len();
-        for i in 0..body.instructions.len() {
-            self.step(body, i, out);
+        self.note_unless(body);
+        let mut i = 0;
+        while i < body.instructions.len() {
+            match self.one_question(&body.instructions[i..], out) {
+                true => i += 2,
+                false => {
+                    self.step(body, i, out);
+                    i += 1;
+                }
+            }
             if boundaries && self.pending == Pending::Nothing {
                 writeln!(out, "g.end_sentence();").unwrap();
             }
@@ -685,7 +699,10 @@ impl Compiler {
             Instruction::Effect { operation, result } => self.operation(operation, result, out),
             // One instruction of the card's text: no sentence boundary inside,
             // and its results stay in reach of what follows it.
-            Instruction::Group(group) => self.program(group, out, false),
+            Instruction::Group(group) => match self.dig(group, out)? {
+                true => Ok(()),
+                false => self.program(group, out, false),
+            },
             Instruction::If {
                 condition,
                 then,
@@ -733,11 +750,27 @@ impl Compiler {
             {
                 self.copy_as_enters(decider, body, out)
             }
+            Instruction::Optional { decider, body } if lane_k::tap_or_untap_only(body) => {
+                self.certain_player(decider)?;
+                self.may_tap_or_untap = true;
+                self.block(body, out, true)?;
+                self.may_tap_or_untap = false;
+                Ok(())
+            }
+            Instruction::Optional { decider, body } if lane_k::chooses_first(decider, body) => {
+                writeln!(out, "{{").unwrap();
+                self.block_choosing_first(body, String::new(), out)?;
+                writeln!(out, "}}").unwrap();
+                Ok(())
+            }
             Instruction::Optional { decider, body } => {
                 let player = self.certain_player(decider).map(|p| self.fetch(p));
+                let player_ref = decider;
                 let decider = planned::planned_read(player, "asker.controller", decider);
                 let id = self.fresh();
-                writeln!(out, "let decider_{id} = {decider}; if cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{").unwrap();
+                let (open, spent) = lane_k::once_a_turn(self.do_once.take(), id);
+                let open = open + &lane_k::asked_if(player_ref, id, body);
+                writeln!(out, "let decider_{id} = {decider}; if {open}cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{{spent}").unwrap();
                 self.block(body, out, true)?;
                 writeln!(out, "}}").unwrap();
                 Ok(())
@@ -813,9 +846,11 @@ impl Compiler {
         purpose: &str,
         out: &mut String,
     ) -> Result<()> {
-        let count = self.select_count(count)?;
+        let count = self.offered_count(count);
+        let count = self.select_count(&count)?;
         let local = format!("selected_{}", self.fresh());
         writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_count = {}; let {local} = cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of({local}_count, &[]))?;", self.fetch(self.certain_player(player)?), self.fetch(self.objects(objects)?), self.fetch(count)).unwrap();
+        self.open_guard(&local, out);
         self.selections.insert(result.0, local);
         Ok(())
     }
@@ -936,6 +971,10 @@ impl Compiler {
                 let number = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
                 writeln!(out,"let amount_{id} = {}; let mills_{id}: Vec<(PlayerId, u32)> = {}.into_iter().map(|p| (p, amount_{id})).collect(); let milled_{id} = g.mill_together(&mills_{id});",self.fetch(number),self.fetch(self.players(players)?)).unwrap();
                 self.moved.insert(result.0, format!("milled_{id}"));
+                if let Expr::Constant(n) = amount {
+                    self.whole_mills
+                        .insert(format!("milled_{id}"), n.to_string());
+                }
                 self.left_behind(result, format!("milled_{id}.clone()"));
             }
             Operation::Discard {
@@ -963,7 +1002,12 @@ impl Compiler {
                         writeln!(out, "cantrip_mechanics::discard_at_random(g, player_{id}, amount_{id} as usize);").unwrap();
                     }
                 } else {
-                    writeln!(out,"let amount_{id} = {}; let players_{id} = {}; let mut cards_{id} = Vec::new(); for player in players_{id} {{ cards_{id}.extend(cantrip_mechanics::choose_from_hand(g, player, asker.source, amount_{id})?); }} let discarded_{id} = g.discard_together(&cards_{id});",self.fetch(number),self.fetch(self.players(players)?)).unwrap();
+                    let choice = match std::mem::take(&mut self.may_choose) {
+                        true => format!("{{ let hand = g.state().zone(Zone::hand(player)).to_vec(); cantrip_mechanics::choose::cards(g, player, asker.source, Purpose::Discard, hand, amount_{id}, true)? }}"),
+                        false => format!("cantrip_mechanics::choose_from_hand(g, player, asker.source, amount_{id})?"),
+                    };
+                    writeln!(out,"let amount_{id} = {}; let players_{id} = {}; let mut cards_{id} = Vec::new(); for player in players_{id} {{ cards_{id}.extend({choice}); }} let discarded_{id} = g.discard_together(&cards_{id});",self.fetch(number),self.fetch(self.players(players)?)).unwrap();
+                    self.open_guard(&format!("cards_{id}"), out);
                     self.moved.insert(result.0, format!("discarded_{id}"));
                     self.shares
                         .insert(result.0, (format!("discarded_{id}"), Share::Owner));
@@ -1065,7 +1109,7 @@ impl Compiler {
                 } else {
                     (String::new(), "g.damage_together(&batch);".to_string())
                 };
-                writeln!(out, "{declare}let source_{id} = {}; let amount_{id} = {}; let recipients_{id} = {}; if let Some(source) = source_{id} {{ let batch: Vec<(ObjectId, Target, u16)> = recipients_{id}.iter().map(|t| (source, *t, amount_{id})).collect(); {deal} }}", self.fetch(self.object(source)?), self.fetch(amount), self.fetch(self.recipients(recipients)?)).unwrap();
+                writeln!(out, "{declare}let source_{id} = {}; let amount_{id} = {}; let recipients_{id} = {}; if let Some(source) = source_{id} {{ let batch: Vec<(ObjectId, Target, u16)> = recipients_{id}.iter().map(|t| (source, *t, amount_{id})).collect(); {deal} }}", self.fetch(self.damage_source(source)?), self.fetch(amount), self.fetch(self.recipients(recipients)?)).unwrap();
             }
             Operation::DealDamageParts {
                 source,
@@ -1375,18 +1419,28 @@ impl Compiler {
                 && (performed_by_itself(cost)
                     || (lane_l::chooses_what_pays(cost) && self.read_later(result))) =>
             {
-                writeln!(
-                    out,
-                    "let payer_{id} = {}; let (paid_{id}, after_{id}, before_{id}, picked_{id}): (bool, Vec<ObjectId>, Vec<ObjectId>, Vec<ObjectId>) = if cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)? {{",
-                    self.fetch(self.certain_player(player)?)
-                )
-                .unwrap();
                 let mandatory = Operation::PayCost {
                     player: player.clone(),
                     cost: cost.clone(),
                     optional: false,
                 };
-                self.operation(&mandatory, result, out)?;
+                let mut paying = String::new();
+                let chooses =
+                    lane_k::paid_by_a_choice(cost) && !self.unless_paid.contains(&result.0);
+                self.may_choose = chooses;
+                self.operation(&mandatory, result, &mut paying)?;
+                // A choice that may come to nothing is asked once, not twice.
+                let asked = match chooses && !std::mem::take(&mut self.may_choose) {
+                    true => "true".to_string(),
+                    false => format!("{}cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?", self.can_pay(id, cost)),
+                };
+                writeln!(
+                    out,
+                    "let payer_{id} = {}; let (paid_{id}, after_{id}, before_{id}, picked_{id}): (bool, Vec<ObjectId>, Vec<ObjectId>, Vec<ObjectId>) = if {asked} {{",
+                    self.fetch(self.certain_player(player)?)
+                )
+                .unwrap();
+                out.push_str(&paying);
                 let inner = self.performed.insert(result.0, format!("paid_{id}"));
                 let none = "Vec::new()".to_string();
                 let after = self.moved.get(&result.0);
@@ -1600,6 +1654,12 @@ impl Compiler {
                             None => {
                                 self.move_objects(id, objects, destination, entry, result, out)?
                             }
+                            Some(count @ Count::Exactly(_)) if self.may_choose => {
+                                let purpose = lane_g::move_purpose(destination);
+                                self.choose(player, objects, count, result, purpose, out)?;
+                                let chosen = ObjectSet::Selected(result.clone());
+                                self.move_objects(id, &chosen, destination, entry, result, out)?;
+                            }
                             Some(Count::Exactly(n)) => {
                                 self.select_whole(player, objects, n, destination, result, out)?;
                                 let chosen = ObjectSet::Selected(result.clone());
@@ -1615,7 +1675,11 @@ impl Compiler {
                                 return Err(gap("resolution cost moving a choice of objects"))
                             }
                         }
-                        writeln!(out, "let paid_{id} = !objects_{id}.is_empty();").unwrap();
+                        // "If you do" is that it got there (608.2c).
+                        match (destination, self.moved(result)) {
+                            (Destination::Exile, Ok(moved)) => writeln!(out, "let paid_{id} = {moved}.iter().any(|&o| g.obj(o).zone.is(ZoneKind::Exile));").unwrap(),
+                            _ => writeln!(out, "let paid_{id} = !objects_{id}.is_empty();").unwrap(),
+                        }
                     }
                     other => self.resolution_cost_beyond(id, player, cost, other, result, out)?,
                 }
@@ -1649,6 +1713,20 @@ impl Compiler {
         let CostPart::PlayerAction { body, .. } = part else {
             unreachable!("a player action");
         };
+        if optional && lane_k::chooses_first(player, body) {
+            writeln!(out, "let mut paid_{id} = false; {{").unwrap();
+            self.block_choosing_first(body, format!("paid_{id} = true;"), out)?;
+            writeln!(out, "}}").unwrap();
+            self.performed.insert(result.0, format!("paid_{id}"));
+            return Ok(());
+        }
+        if let (true, Some(n)) = (optional, lane_k::blights(player, body)) {
+            self.helpers.insert("pay_question");
+            let payer = self.fetch(self.certain_player(player)?);
+            writeln!(out, "let payer_{id} = {payer}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, cantrip_mechanics::blight::cost({n}), &PAY_QUESTION)?;").unwrap();
+            self.performed.insert(result.0, format!("paid_{id}"));
+            return Ok(());
+        }
         let willing = if optional {
             writeln!(
                 out,
@@ -1861,7 +1939,11 @@ impl Compiler {
     ) -> Result<()> {
         let alone = self.one_object(objects);
         let revealed = self.revealed;
+        let chosen = matches!(objects, ObjectSet::Selected(_));
+        let objects = lane_k::shuffled_in_though_gone(objects, destination);
         let objects = self.fetch(self.objects(objects)?);
+        let objects = lane_k::returning(objects, destination);
+        let objects = lane_k::on_top_in_turn(objects, chosen, destination);
         let library = |place: String| format!("g.put_into_library(&objects_{id}, {place})");
         let call = match destination {
             Destination::Battlefield(_) | Destination::OwnersBattlefield => {
@@ -1882,7 +1964,7 @@ impl Compiler {
                     let each = self.arrival(entry)?;
                     format!("{{ let mut moved: Vec<ObjectId> = Vec::new(); for &o in &objects_{id} {{ let controller = {controller}; {each} }} moved }}")
                 } else if entry.counters.is_empty() {
-                    format!("{{ {rows} g.put_all_onto_battlefield_as(&rows_{id})? }}")
+                    format!("{{ {rows} let came_{id} = g.put_all_onto_battlefield_as(&rows_{id})?; came_{id}.into_iter().filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)).collect::<Vec<ObjectId>>() }}")
                 } else {
                     let mut counters = Vec::new();
                     for (kind, n) in &entry.counters {
@@ -1975,7 +2057,7 @@ impl Compiler {
         })
     }
     /// Whether a set is known to hold one object at most when this runs.
-    fn one_object(&self, objects: &ObjectSet) -> bool {
+    pub(super) fn one_object(&self, objects: &ObjectSet) -> bool {
         match objects {
             ObjectSet::One(_) => true,
             ObjectSet::Take {
@@ -2090,8 +2172,9 @@ impl Compiler {
         match choose {
             None => writeln!(out, "for &object in &objects_{id} {{ let controller = g.controller(object); if players_{id}.contains(&controller) && g.can_sacrifice(controller, object) {{ picks_{id}.push((controller, object)); }} }}").unwrap(),
             Some(count) => {
-                let count = self.fetch(self.select_count(count)?);
-                writeln!(out, "let count_{id} = {count}; for player in players_{id} {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player && g.can_sacrifice(player, o)).collect(); for object in cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible, cantrip_mechanics::select::Selection::of(count_{id}.clone(), &[]))? {{ picks_{id}.push((player, object)); }} }}").unwrap();
+                let count = self.offered_count(count);
+                let count = self.fetch(self.select_count(&count)?);
+                writeln!(out, "let count_{id} = {count}; for player in players_{id} {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player && g.can_sacrifice(player, o)).collect(); let taken = match count_{id}.clone() {{ cantrip_mechanics::select::Count::Exactly(n) | cantrip_mechanics::select::Count::AsManyAsCan(n) if eligible.len() <= n as usize => eligible, _ => cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible, cantrip_mechanics::select::Selection::of(count_{id}.clone(), &[]))? }}; for object in taken {{ picks_{id}.push((player, object)); }} }}").unwrap();
             }
         }
         Ok(())
@@ -2286,8 +2369,8 @@ impl Compiler {
             }
             Change::Pump { power, toughness } => vec![format!(
                 "EffectKind::Pump({}, {})",
-                i16_of(power)?,
-                i16_of(toughness)?
+                self.pump_amount(power, i16_of(power)?),
+                self.pump_amount(toughness, i16_of(toughness)?)
             )],
             Change::SetBasePowerToughness { power, toughness } => vec![format!(
                 "EffectKind::SetPt({}, {})",
@@ -2322,7 +2405,10 @@ impl Compiler {
                 "EffectKind::LoseKeywords(Keywords::of(&[Keyword::{}]))",
                 statics::lost_keyword(lost)?
             )],
-            Change::AddLandType(t) => vec![format!("EffectKind::AddSubtype(Subtype::{})", name(t))],
+            Change::AddLandType(t) => vec![format!(
+                "EffectKind::AddSubtype({})",
+                lane_k::word_subtype(&name(t))
+            )],
             // A land type set takes the land's rules text with it (CR 305.7),
             // which only `sets_land_subtypes`, a static ability, does.
             Change::SetLandType(land) => {
@@ -2384,8 +2470,16 @@ impl Compiler {
                     color(c)?;
                     mask |= 1 << color_index(c)?;
                 }
-                vec![format!("EffectKind::SetColors(ColorSet({mask}))")]
+                vec![format!(
+                    "EffectKind::SetColors({})",
+                    lane_k::word_colors(mask)
+                )]
             }
+            // Set to none: "loses all creature types".
+            Change::CreatureTypes {
+                mode: ChangeMode::Set,
+                types: CreatureTypeSet::Listed(types),
+            } if types.is_empty() => vec!["EffectKind::LoseAllCreatureTypes".into()],
             Change::CreatureTypes {
                 mode,
                 types: CreatureTypeSet::Listed(types),
@@ -2397,9 +2491,12 @@ impl Compiler {
                         return Err(gap(format!("subtype {word}")));
                     }
                     kinds.push(if i == 0 && matches!(mode, ChangeMode::Set) {
-                        format!("EffectKind::SetCreatureType(Subtype::{word})")
+                        format!(
+                            "EffectKind::SetCreatureType({})",
+                            lane_k::word_subtype(&word)
+                        )
                     } else {
-                        format!("EffectKind::AddSubtype(Subtype::{word})")
+                        format!("EffectKind::AddSubtype({})", lane_k::word_subtype(&word))
                     });
                 }
                 kinds

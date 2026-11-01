@@ -163,3 +163,34 @@ fn only_a_gapless_record_has_a_module() {
     let lowered = unified::lower(&source);
     assert!(cantrip::whole_module(&source, &lowered.card).is_err());
 }
+
+/// Bonecrusher Giant's whole file, with `line` as the printed text of its creature face.
+fn printed(line: &str) -> String {
+    let source: OracleCard = include_str!("fixtures/layouts.ronl")
+        .lines()
+        .map(|s| ron::from_str(s).unwrap())
+        .find(|s| corpus::Identity::of(s).unwrap().names[0] == "Bonecrusher Giant")
+        .unwrap();
+    let lowered = unified::lower(&source);
+    let oracle = [("Bonecrusher Giant".to_string(), line.to_string())].into();
+    cantrip::whole_printed(&source, &lowered.card, Some(&oracle))
+        .unwrap()
+        .rust
+        .unwrap()
+}
+
+#[test]
+fn an_ability_reads_as_its_card_prints_it_without_reminder_text() {
+    let rust = printed(
+        "Whenever this creature becomes the target of a spell, it bites that spell's controller. (Ouch.)",
+    );
+    assert!(rust.contains("\"Whenever this creature becomes the target of a spell, it bites that spell's controller.\""));
+    assert!(!rust.contains("Ouch"));
+}
+
+#[test]
+fn a_line_that_cannot_be_aligned_leaves_the_label_as_it_was() {
+    let rust = printed("{T}: Lands are forests.");
+    assert!(!rust.contains("Lands are forests."));
+    assert_eq!(rust, whole("Bonecrusher Giant").0.rust.unwrap());
+}

@@ -50,8 +50,28 @@ impl Compiler {
             format!("{:?}", paid_announced.targets) == format!("{:?}", unpaid_announced.targets);
         match keyword {
             "Kicker" => {
-                parts.field("kicker", self.kicker(cost, label)?);
-                parts.field("late_targets", "true".into());
+                // Mana is a kicker's own; anything else is announced as an optional
+                // cost is, by its two labels.
+                match cost
+                    .parts
+                    .iter()
+                    .any(|part| matches!(part, CostPart::Mana(_)))
+                {
+                    true => parts.field("kicker", self.kicker(cost, label)?),
+                    false => {
+                        let cost_code = self.cost(cost, label)?;
+                        parts.field(
+                            "optional_cost",
+                            format!("Some(cantrip_mechanics::kicker::non_mana({cost_code}))"),
+                        );
+                    }
+                }
+                if !same_targets {
+                    parts.field("late_targets", "true".into());
+                }
+                if !matches!(cost.parts.as_slice(), [CostPart::Mana(_)]) {
+                    self.cost_labels(cost, parts);
+                }
                 let targets = self.branch_targets(paid_announced, unpaid_announced, label)?;
                 let effect = self.branch_effect(
                     "item.kicked > 0",
@@ -89,12 +109,10 @@ impl Compiler {
                 let [CostPart::Mana(symbols)] = cost.parts.as_slice() else {
                     return Err(gap("cleave cost other than mana"));
                 };
+                let text = quoted(&self.said_word("Cleave".into()));
                 parts.table(
                     "ways",
-                    format!(
-                        "cantrip_mechanics::cleave::way({}, \"Cleave\")",
-                        mana(symbols)?
-                    ),
+                    format!("cantrip_mechanics::cleave::way({}, {text})", mana(symbols)?),
                 );
                 let targets = self.announcement(unpaid_announced, &format!("{label}_unpaid"))?;
                 let effect = self.branch_effect(
@@ -183,6 +201,15 @@ impl Compiler {
     ) -> Result<String> {
         if paid.modes.is_some() || unpaid.modes.is_some() {
             return Err(gap("kicked spell with modes"));
+        }
+        // Kicked or not, the same targets: nothing waits for the kicker.
+        if format!("{:?}", paid.targets) == format!("{:?}", unpaid.targets) {
+            for spec in &paid.targets {
+                target_range(&spec.count)?;
+            }
+            let targets = self.announcement(unpaid, &format!("{label}_unpaid"))?;
+            self.announced_filters.clear();
+            return Ok(targets);
         }
         // Compiling each announcement generates its slots' filters.
         self.announcement(paid, &format!("{label}_paid"))?;
@@ -285,13 +312,14 @@ impl Compiler {
             },
             CastingRule::AlternativeCost(cost) => {
                 let cost = self.cost(cost, label)?;
-                let text = quoted("Alternative cost");
+                let text = quoted(&self.said(lane_k::Said::Sentence, "Alternative cost".into()));
                 let def = way(self, format!("way({cost}, ZoneKind::Hand, {text})"), label)?;
                 parts.table("ways", def);
             }
             CastingRule::AlternativeCostWithFlash(cost) => {
                 let cost = self.cost(cost, label)?;
-                let text = quoted("Alternative cost with flash");
+                let text = "Alternative cost with flash".to_string();
+                let text = quoted(&self.said(lane_k::Said::Sentence, text));
                 let def = way(
                     self,
                     format!("way({cost}, ZoneKind::Hand, {text}).instant_speed()"),
@@ -322,11 +350,12 @@ impl Compiler {
                     }
                 };
                 let cost = self.cost(cost, label)?;
-                let text = quoted(if matches!(origin, CastingOrigin::Flashback) {
-                    "Flashback"
+                let text = if matches!(origin, CastingOrigin::Flashback) {
+                    self.said_word("Flashback".into())
                 } else {
-                    "Cast from your graveyard"
-                });
+                    self.said(lane_k::Said::Sentence, "Cast from your graveyard".into())
+                };
+                let text = quoted(&text);
                 let mut def = format!("way({cost}, ZoneKind::Graveyard, {text}).only_from()");
                 if exile {
                     def.push_str(".exile_after()");
@@ -351,15 +380,23 @@ impl Compiler {
                 repetition: CostRepetition::Once,
             } if condition.is_none() => {
                 if let [CostPart::Choice(costs)] = cost.parts.as_slice() {
+                    let printed = self.said_costs(costs.len());
+                    let mut beholds = false;
                     for (i, choice) in costs.iter().enumerate() {
                         let cost = self.cost(choice, &format!("{label}_choice_{i}"))?;
+                        beholds |= cost.contains("behold::cost");
+                        let text = printed.get(i).cloned();
                         parts.table(
                             "additional_choice",
                             format!(
                                 "ExtraCost {{ text: {}, cost: {cost} }}",
-                                quoted(&format!("Cost {}", i + 1))
+                                quoted(&text.unwrap_or_else(|| format!("Cost {}", i + 1)))
                             ),
                         );
+                    }
+                    // What's beheld is settled before the spell's target is.
+                    if beholds && self.spell_targets {
+                        parts.field("late_targets", "true".into());
                     }
                 } else {
                     self.paid_for = PaidFor::Spell;

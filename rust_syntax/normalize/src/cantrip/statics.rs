@@ -156,6 +156,12 @@ impl Compiler {
         parts: &mut Parts,
     ) -> Result<bool> {
         const PRELUDE: &str = "let asker = &Asker::new(source, q.controller(source));";
+        if let Some(word) =
+            lane_k::rule_keyword(affected, rule).filter(|_| self.static_guard.is_none())
+        {
+            parts.keywords.push(format!("Keyword::{word}"));
+            return Ok(true);
+        }
         let guard = match &self.static_guard {
             Some(condition) => format!("({}) && ", self.condition(condition)?),
             None => String::new(),
@@ -265,8 +271,8 @@ impl Compiler {
                 "PtModify",
                 format!(
                     "let (p, t) = ({}, {}); chars.power = chars.power.map(|v| v.saturating_add(p)); chars.toughness = chars.toughness.map(|v| v.saturating_add(t));",
-                    i16_of(self, power)?,
-                    i16_of(self, toughness)?
+                    self.pump_amount(power, i16_of(self, power)?),
+                    self.pump_amount(toughness, i16_of(self, toughness)?)
                 ),
             ),
             Change::SetBasePowerToughness { power, toughness } => LayerChange::of(
@@ -305,7 +311,7 @@ impl Compiler {
             ),
             Change::GrantKeyword(k) => LayerChange::of(
                 "Ability",
-                format!("chars.keywords = chars.keywords.with({});", keyword(k)?),
+                lane_k::keyword_granted(&keyword(k)?),
             ),
             Change::Colors { mode, colors } => {
                 let mut set = String::from("ColorSet::NONE");
@@ -606,7 +612,8 @@ impl Compiler {
         let mut defs = Vec::new();
         let mut last = None;
         for (i, change, part) in layered {
-            let text = quoted(&format!("Static: {}.", form(change)));
+            let text = format!("Static: {}.", form(change));
+            let text = quoted(&self.said(lane_k::Said::Sentence, text));
             let def = match part.whole {
                 Some(builder) => format!("{builder}({affects}, {text})"),
                 None => {

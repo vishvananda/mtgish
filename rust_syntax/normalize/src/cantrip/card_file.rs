@@ -280,7 +280,7 @@ fn printed_lines(oracle_text: &str) -> Vec<String> {
 
 /// A line with its parentheses gone. Cantrip's accepted cards print a rules
 /// line bare (CR 207.2: reminder text has no game function).
-fn without_reminder(line: &str) -> String {
+pub(super) fn without_reminder(line: &str) -> String {
     let mut out = String::new();
     let mut depth = 0usize;
     for c in line.chars() {

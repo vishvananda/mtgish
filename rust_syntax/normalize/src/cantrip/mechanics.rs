@@ -112,7 +112,7 @@ impl Compiler {
         };
         if let Some(module) = way_module {
             let cost = mana_alone(cost, mechanic)?;
-            let text = quoted(&format!("{mechanic:?}"));
+            let text = quoted(&self.said_word(format!("{mechanic:?}")));
             parts.table("ways", format!("{M}::{module}::way({cost}, {text})"));
         }
         let face_down = match mechanic {
@@ -123,7 +123,7 @@ impl Compiler {
         };
         if let Some(module) = face_down {
             let cost = self.mechanic_cost(cost, mechanic, label)?;
-            let text = quoted(&format!("{mechanic:?}"));
+            let text = quoted(&self.said_word(format!("{mechanic:?}")));
             parts.table("ways", format!("{M}::{module}::way({cost}, {text})"));
         }
         if only_way(mechanic) {
@@ -147,8 +147,13 @@ impl Compiler {
             K::Warp => parts.field("end_step_riders", format!("{M}::warp::RIDERS")),
             K::Evoke => {
                 let cost = self.mechanic_cost(cost, mechanic, label)?;
-                parts.table("ways", format!("{M}::evoke::way({cost}, \"Evoke\")"));
-                ability(parts, format!("{M}::evoke::sacrifice_trigger(\"Evoke\")"));
+                let text = quoted(&self.said_word("Evoke".into()));
+                parts.table("ways", format!("{M}::evoke::way({cost}, {text})"));
+                let sacrifice = quoted(&format!(
+                    "When {} enters, if its evoke cost was paid, its controller sacrifices it.",
+                    self.card_name
+                ));
+                ability(parts, format!("{M}::evoke::sacrifice_trigger({sacrifice})"));
             }
             K::Emerge => {
                 let [CostPart::Mana(symbols)] = cost.map_or(&[][..], |c| &c.parts) else {
@@ -216,7 +221,7 @@ impl Compiler {
                     K::Plot => ("plot", "plot"),
                     _ => ("ninjutsu", "ninjutsu"),
                 };
-                let text = quoted(&format!("{mechanic:?}"));
+                let text = quoted(&self.said_word(format!("{mechanic:?}")));
                 let cost = mana_alone(cost, mechanic)?;
                 ability(parts, format!("{M}::{module}::{function}({cost}, {text})"));
             }
@@ -382,10 +387,8 @@ impl Compiler {
             K::Impending => {
                 let n = number(amount, mechanic)?;
                 let cost = mana_alone(cost, mechanic)?;
-                parts.table(
-                    "ways",
-                    format!("{M}::impending::way({cost}, \"Impending\")"),
-                );
+                let text = quoted(&self.said_word("Impending".into()));
+                parts.table("ways", format!("{M}::impending::way({cost}, {text})"));
                 parts.enters.push(format!("{M}::impending::enters::<{n}>"));
                 parts
                     .statics
@@ -418,13 +421,15 @@ impl Compiler {
             K::Reconfigure => {
                 let cost = mana_alone(cost, mechanic)?;
                 parts.field("reconfigure", "true".into());
+                let (attach, unattach) =
+                    lane_k::reconfigure_texts(&self.said_word("Reconfigure".into()));
                 ability(
                     parts,
-                    format!("{M}::reconfigure::attach({cost}, \"Reconfigure\")"),
+                    format!("{M}::reconfigure::attach({cost}, {})", quoted(&attach)),
                 );
                 ability(
                     parts,
-                    format!("{M}::reconfigure::unattach({cost}, \"Reconfigure\")"),
+                    format!("{M}::reconfigure::unattach({cost}, {})", quoted(&unattach)),
                 );
                 parts
                     .statics
@@ -455,9 +460,10 @@ impl Compiler {
             }
             K::Escape => {
                 let (mana, exiled) = escape_cost(cost)?;
+                let text = quoted(&self.said_word("Escape".into()));
                 parts.table(
                     "ways",
-                    format!("{M}::escape::way({mana}, {exiled}, \"Escape\")"),
+                    format!("{M}::escape::way({mana}, {exiled}, {text})"),
                 );
             }
             other => self.mechanic_beyond(other, cost, amount, filter, label, parts)?,

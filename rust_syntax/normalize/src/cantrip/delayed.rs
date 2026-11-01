@@ -328,6 +328,12 @@ impl Compiler {
                 true => format!("{local} > 0"),
                 false => local.clone(),
             }
+        } else if let Some(amount) = self
+            .moved
+            .get(&performed.0)
+            .and_then(|m| self.whole_mills.get(m))
+        {
+            format!("{}.len() as u32 >= {amount}", self.moved(performed)?)
         } else if self.moved.contains_key(&performed.0) {
             format!("!{}.is_empty()", self.moved(performed)?)
         } else if self.selections.contains_key(&performed.0) {
@@ -364,7 +370,8 @@ impl Compiler {
         self.counted = counted;
         self.sized_slot = sized;
         let (outer, targets) = closed.map_err(lane_l::reads_as_a_target)?;
-        let mut def = format!("delayed_trigger({label}, {})", quoted(&ability_text(body)));
+        let text = self.said(lane_k::Said::Triggered, ability_text(body));
+        let mut def = format!("delayed_trigger({label}, {})", quoted(&text));
         if let Some(targets) = targets {
             write!(def, ".targets({targets})").unwrap();
         }
@@ -406,10 +413,9 @@ impl Compiler {
         let when = self.delayed_when(event, start, expires)?;
         let label = format!("delayed_{}", self.fresh());
         let (outer, _) = self.closure(&label, false, None, intervening_if, body)?;
-        self.delayed.push(format!(
-            "delayed_trigger({label}, {})",
-            quoted(&ability_text(body))
-        ));
+        let text = self.said(lane_k::Said::Triggered, ability_text(body));
+        self.delayed
+            .push(format!("delayed_trigger({label}, {})", quoted(&text)));
         let index = self.delayed.len() - 1;
         let ability = format!("AbilityRef::delayed(item.ability.card, {index})");
         let objects = outer.objects.borrow();
@@ -428,7 +434,22 @@ impl Compiler {
                 for list in lists {
                     write!(about, "about.extend({}); about.push(ObjectId::NONE); ", self.fetch(list)).unwrap();
                 }
-                writeln!(out, "{{ {about} g.delayed_trigger_about({when}, item.object, item.controller, {ability}, &about); }}").unwrap();
+                let only_about_them = lists.len() == 1
+                    && matches!(
+                        body.instructions.as_slice(),
+                        [Instruction::Effect {
+                            operation: Operation::Move {
+                                destination: Destination::Exile | Destination::OwnersHand,
+                                ..
+                            },
+                            ..
+                        }]
+                    );
+                let any = match only_about_them {
+                    true => "if about.iter().any(|&o| o != ObjectId::NONE) ",
+                    false => "",
+                };
+                writeln!(out, "{{ {about} {any}{{ g.delayed_trigger_about({when}, item.object, item.controller, {ability}, &about); }} }}").unwrap();
             }
             _ => return Err(gap("delayed ability about objects and a player")),
         }

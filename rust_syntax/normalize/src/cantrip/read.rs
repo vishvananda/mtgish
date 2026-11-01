@@ -427,6 +427,10 @@ impl Compiler {
                 };
                 match matches {
                     Some(found) => format!("{found}.get({index}).copied()"),
+                    None if lane_k::from_a_graveyard(objects) => format!(
+                        "({}).into_iter().rev().nth({index} as usize)",
+                        self.objects(objects)?
+                    ),
                     None => format!("({}).get({index}).copied()", self.objects(objects)?),
                 }
             }
@@ -476,10 +480,11 @@ impl Compiler {
                 "{}.and_then(|t: Target| t.player())",
                 self.earlier_target(slot, *index)?.expect("choosing")
             ),
-            PlayerRef::Target { slot, index } => format!(
-                "t_{}_raw.get({index}).copied().and_then(|t: Target| t.player())",
-                self.slot(slot)?
-            ),
+            // A player no longer a legal target is no one to act on (608.2b).
+            PlayerRef::Target { slot, index } => {
+                let i = self.slot(slot)?;
+                format!("t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).and_then(|t: Target| t.player())")
+            }
             PlayerRef::EventSubject => self.carried_player(self.frame.player)?,
             PlayerRef::EventOtherPlayer => self.carried_player(self.frame.other_player)?,
             PlayerRef::Bound(binding) if self.bound_players.contains(&binding.0) => {
@@ -531,9 +536,16 @@ impl Compiler {
             _ => false,
         };
         if is_certain {
+            // Certain even of one that's no longer a legal target.
+            let read = match player {
+                PlayerRef::Target { slot, index } if self.choosing.is_none() => format!(
+                    "t_{}_raw.get({index}).copied().and_then(|t: Target| t.player())",
+                    self.slot(slot)?
+                ),
+                _ => self.player(player)?,
+            };
             Ok(format!(
-                "{}.expect(\"a reference that always names a player\")",
-                self.player(player)?
+                "{read}.expect(\"a reference that always names a player\")"
             ))
         } else if self.present.borrow().is_some() {
             let read = self.player(player)?;
@@ -627,6 +639,16 @@ impl Compiler {
                 }
                 code.push_str("all }");
                 code
+            }
+            // What a move took from a zone: those objects are gone, and keep where they were.
+            ObjectSet::InZone { objects, zone }
+                if matches!(&**objects, ObjectSet::Transition { phase: ObjectPhase::Before, .. }) =>
+            {
+                format!(
+                    "({}).into_iter().filter(|&id| q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
+                    self.objects(objects)?,
+                    zone_kind(zone)?
+                )
             }
             ObjectSet::InZone { objects, zone } => format!(
                 "({}).into_iter().filter(|&id| q.state().obj(id).became.is_none() && q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
@@ -972,6 +994,11 @@ impl Compiler {
                     }
                     other => return Err(gap(format!("history window {}", form(other)))),
                 };
+                if let (HistoryWindow::ThisTurn, HistoryMeasure::Occurrences, Some(entered)) =
+                    (window, measure, self.entered_this_turn(event)?)
+                {
+                    return Ok(count(entered));
+                }
                 let mut asked = self.clone();
                 asked.history = Some(History {
                     outer: self.candidates.borrow().last().map(|c| c.id.clone()),
@@ -1432,7 +1459,11 @@ impl Compiler {
                 format!("!(q.state().obj({id}).token || q.state().obj({id}).card_copy)")
             }
             ObjectFilter::Attacking => {
-                format!("q.state().attackers.iter().any(|a| a.id == {id})")
+                // Combat forgets a creature the moment it leaves (506.4).
+                match self.reader {
+                    Reader::Layer => format!("q.state().attackers.iter().any(|a| a.id == {id})"),
+                    _ => format!("(q.state().attackers.iter().any(|a| a.id == {id}) || q.was_attacking({id}))"),
+                }
             }
             ObjectFilter::Blocking => {
                 format!("q.state().blocks.iter().any(|b| b.blocker == {id})")

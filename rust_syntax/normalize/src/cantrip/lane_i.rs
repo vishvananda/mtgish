@@ -99,6 +99,8 @@ fn walks_whole(instruction: &Instruction) -> bool {
 #[derive(Clone)]
 enum Guard {
     May,
+    /// A "may" that is its choice: choosing nothing is declining.
+    Chooses,
     If(Condition),
 }
 /// One step of a per-player body. Every player finishes a step before the next
@@ -529,7 +531,10 @@ impl Compiler {
                         && !effects::asks_by_paying(decider, body)
                         && !playing::may_only_play(decider, body) =>
                 {
-                    guards.push(Guard::May);
+                    guards.push(match lane_k::chooses_first(decider, body) {
+                        true => Guard::Chooses,
+                        false => Guard::May,
+                    });
                     let inner = guards.len() - 1;
                     self.flatten(each, &body.instructions, Some(inner), flat, steps, guards);
                     continue;
@@ -595,6 +600,10 @@ impl Compiler {
         let player = format!("bound_{}", each.binding.0);
         let test = match &guards[guard] {
             Guard::May => format!("cantrip_mechanics::effects::ask_may(g, {player}, asker.source, Purpose::Optional)?"),
+            Guard::Chooses => {
+                self.may_choose = true;
+                "true".to_string()
+            }
             Guard::If(condition) => {
                 let test = self.condition(condition).map(|c| self.fetch(c));
                 planned::planned_read(test, "false", condition)
@@ -1303,7 +1312,7 @@ impl Compiler {
                     abilities: abilities.clone(),
                 };
                 let name = TokenName::Explicit(card.name.clone());
-                let child = emit_module(&card, Some(&name))?;
+                let child = emit_face(&card, Some(&name), self.quoted_text())?;
                 self.gaps
                     .extend(child.gaps.iter().map(|g| g.clone().at("emblem")));
                 writeln!(self.functions, "pub mod emblem_{id} {{\n{}\n}}", child.rust).unwrap();
