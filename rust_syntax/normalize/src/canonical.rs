@@ -140,7 +140,11 @@ impl Walker {
             self.fields(content, fields, &format!("{name}::{variant}"));
             if commutative(name, &variant) {
                 if let Value::Array(items) = content {
+                    flatten(items, &variant);
                     items.sort_by_cached_key(Value::to_string);
+                }
+                if let Some(only) = single(content) {
+                    *value = only;
                 }
             }
         }
@@ -166,6 +170,28 @@ impl Walker {
                 }
             }
         }
+    }
+}
+
+/// `All([a, All([b])])` means `All([a, b])`, for `All` and for `Either`.
+fn flatten(items: &mut Vec<Value>, variant: &str) {
+    let mut flat = Vec::with_capacity(items.len());
+    for item in items.drain(..) {
+        match (item.get("kind").and_then(Value::as_str), item.get("args")) {
+            (Some(kind), Some(Value::Array(inner))) if kind == variant => {
+                flat.extend(inner.iter().cloned());
+            }
+            _ => flat.push(item),
+        }
+    }
+    *items = flat;
+}
+
+/// A commutative list of one item means that item.
+fn single(content: &Value) -> Option<Value> {
+    match content {
+        Value::Array(items) if items.len() == 1 => items.first().cloned(),
+        _ => None,
     }
 }
 
