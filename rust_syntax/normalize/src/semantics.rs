@@ -286,6 +286,11 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
         Operation::ChooseDefender { .. } => {
             "Action::ChooseAPlayerOrPlaneswalkerCurrentlyAttackedByPlayer"
         }
+        Operation::EachPlayer { action, .. }
+            if matches!(**action, Operation::GiveControl { .. }) =>
+        {
+            "Action::GainControlOfAPermanentControlledByEachPlayerUntil"
+        }
         Operation::MillUntil { .. } => {
             "Action::MillCardsUntilACardOfTypeIsMilledOrUntilNumberCardsHaveBeenPutIntoGraveyardThisWay"
         }
@@ -2420,6 +2425,9 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
 
 /// A row's cost in generic form, or the row itself.
 pub fn reduce_cost(name: String, operands: Vec<Operand>) -> CostPart {
+    if let Some(part) = reduce_tail_cost(&name, &operands) {
+        return part;
+    }
     let keyword = |action, amount: Option<&Expr>| CostPart::Keyword {
         action,
         amount: amount.cloned(),
@@ -4004,6 +4012,7 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
             }
         }
         ("HasASingleTarget" | "TargetsOnlyASinglePermanentOrPlayer", []) => is(T::SingleTarget),
+        ("IsCardtype", [_]) => ObjectFilter::AbilityOf(Box::new(card_term(operand)?)),
         ("TriggeredAbility", []) => is(T::Triggered),
         ("ActivatedAbility", []) => is(T::Activated),
         ("RoomAbilityOfDungeon", [Operand::Term { operands, .. }]) => match operands.as_slice() {
@@ -5718,6 +5727,7 @@ impl Effects {
                     | Operation::PutCountersCapped { .. }
                     | Operation::ChooseDefender { .. }
                     | Operation::MillUntil { .. }
+                    | Operation::EachObject { .. }
                     | Operation::FightEach { .. }
                     | Operation::Note(_)
                     | Operation::Bid { .. }

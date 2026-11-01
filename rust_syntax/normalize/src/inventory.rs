@@ -434,6 +434,10 @@ impl Inventory<'_> {
                 self.players(players);
                 self.operation(action);
             }
+            Operation::EachObject { objects, action } => {
+                self.objects(objects);
+                self.operation(action);
+            }
             Operation::CounterWith { .. }
             | Operation::ReduceSpeed { .. }
             | Operation::PutCountersCapped { .. } => {}
@@ -1188,7 +1192,9 @@ impl Inventory<'_> {
                 self.expr(amount);
                 match rider {
                     DamageRider::DividedEvenly(_) => {}
-                    DamageRider::ExcessTo(player) => self.player(player),
+                    DamageRider::ExcessTo(player) | DamageRider::DividedBy(player) => {
+                        self.player(player)
+                    }
                     DamageRider::Prevented(prevented) => self.expr(prevented),
                 }
             }

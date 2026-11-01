@@ -800,7 +800,7 @@ impl Context {
                     let (name, operands) = self
                         .primitive("ExileFlag", flag)
                         .ok_or_else(|| unsupported(flag).at(format!("flags[{i}]")))?;
-                    entry.states.push(EntryState::Primitive { name, operands });
+                    entry.states.push(crate::semantics::reduce_entry_flag(name, operands));
                 }
             }
         }
@@ -1169,7 +1169,7 @@ impl Context {
                     let (name, operands) = self
                         .primitive("EnterFlag", flag)
                         .ok_or_else(|| unsupported(flag).at(format!("entry[{i}]")))?;
-                    entry.states.push(EntryState::Primitive { name, operands });
+                    entry.states.push(crate::semantics::reduce_entry_flag(name, operands));
                 }
             }
         }

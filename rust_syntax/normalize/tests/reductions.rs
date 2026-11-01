@@ -689,3 +689,21 @@ fn single_cards_with_a_general_shape_reduce() {
         ObjectFilter::InSet(_)
     ));
 }
+
+#[test]
+fn entry_flags_and_routed_fallbacks_reduce() {
+    let spawn = semantics::reduce_replacement(
+        "ReplacableEventWouldEnter::PermanentWouldEnterTheBattlefieldAndWasntCastOrNoManaWasSpentToCast"
+            .into(),
+        vec![Operand::Object(ObjectRef::Source)],
+    );
+    assert!(matches!(spawn, ReplacementEvent::Enter { .. }));
+    let shares = semantics::reduce_filter(
+        "DamageSources::SharesAColorWithExiledCard".into(),
+        vec![Operand::Object(ObjectRef::Source)],
+    );
+    assert!(matches!(
+        shares,
+        ObjectFilter::SharesColorWith(ObjectRef::Source)
+    ));
+}

@@ -108,7 +108,7 @@ impl Context {
             let (name, operands) = self
                 .primitive("EventPreventDamage", value)
                 .ok_or_else(|| unsupported(value))?;
-            return Ok(ReplacementEvent::Primitive { name, operands });
+            return Ok(crate::semantics::reduce_replacement(name, operands));
         }
         if let S::Or(items) = value {
             return Ok(ReplacementEvent::Either(

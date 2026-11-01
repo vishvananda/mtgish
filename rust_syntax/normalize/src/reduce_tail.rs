@@ -68,6 +68,74 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             filter: cards.clone(),
             reveal: false,
         },
+        (
+            "ForEachPermanentConjureCardOntoBattlefield",
+            [Objects(objects), Text(card), List(entry)],
+        ) => Operation::EachObject {
+            objects: objects.clone(),
+            action: Box::new(Operation::Conjure {
+                actor: actor.clone(),
+                card: ConjuredCard::Named(card.clone()),
+                count: Expr::Constant(1),
+                zone: Z::Battlefield,
+                owner: None,
+                spot: None,
+                entry: entry.clone(),
+            }),
+        },
+        (
+            "GainControlOfAPermanentControlledByEachPlayerUntil",
+            [Objects(objects), Players(players), Operand::Duration(until)],
+        ) => each(
+            players,
+            Operation::GiveControl {
+                players: actor.clone(),
+                objects: ObjectSet::Chosen {
+                    chooser: actor.clone(),
+                    objects: Box::new(ObjectSet::Matching {
+                        objects: Box::new(objects.clone()),
+                        filter: ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::Acting)),
+                    }),
+                    count: Count::Exactly(Expr::Constant(1)),
+                },
+                until: Some(until.clone()),
+            },
+        ),
+        ("PutACommanderFromCommandZoneOntoBattlefield", [commanders, List(entry)]) => {
+            Operation::ChangeZone {
+                actor: actor.clone(),
+                cards: commanders_in(Z::Command, Some(commanders), actor)?,
+                count: Some(Count::UpTo(Expr::Constant(1))),
+                random: false,
+                group: None,
+                destination: D::OwnersBattlefield,
+                entry: entry.clone(),
+                face_down: None,
+            }
+        }
+        (
+            "PermanentDealsDamageDividedAsPlayerChooses",
+            [Object(source), Number(amount), Operand::Recipients(recipients), Player(chooser)],
+        ) => Operation::DealDamageWith {
+            source: source.clone(),
+            recipients: recipients.clone(),
+            amount: amount.clone(),
+            rider: DamageRider::DividedBy(chooser.clone()),
+        },
+        (
+            "MayCastASpellFromAmongGraveyardCardsIntoExileOrBattlefield",
+            [Filter(spells), Filter(cards)],
+        ) => cast_with(
+            actor,
+            CardPlayAction::CastSpell,
+            ObjectSet::AnyZone(ObjectFilter::All(vec![spells.clone(), cards.clone()])),
+            Count::UpTo(Expr::Constant(1)),
+            PlayTerms {
+                into_exile: true,
+                ..play_terms()
+            },
+            None,
+        ),
         ("ChooseACardtypeExceptFromList", except) if !except.is_empty() => choose_with(
             ValueKind::CardType,
             ChoiceTerms {
@@ -577,6 +645,7 @@ fn reduce_tail_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter> 
             ObjectWindow::ThisGame,
         )),
         ("InThePermanentPileChosenThisWay", []) => ObjectFilter::InPile(None),
+        ("ColorsWithMostVotesOrTiedForMostVotes", []) => ObjectFilter::State(ObjectState::MostVotes),
         ("IsLandTypeVariable", [Term { form, .. }]) if form == "TheFirstChosenLandType" => {
             ObjectFilter::NthChosen(0)
         }
@@ -917,6 +986,135 @@ fn tail_inspection_step(
             count: 1,
             options: options.to_vec(),
         },
+        _ => return None,
+    })
+}
+
+/// Entry flags that say what the entering object is or how long its exile lasts.
+fn reduced_entry_flag(form: &str, operands: &[Operand]) -> Option<EntryState> {
+    use Operand::{Duration as Lasting, List, Objects};
+    let face_down = |pt: &Operand, kind: Option<&Operand>, artifact| FaceDownAs {
+        power_toughness: Box::new(pt.clone()),
+        creature_type: kind.map(|kind| Box::new(kind.clone())),
+        artifact,
+    };
+    Some(match (form, operands) {
+        ("EntersAsFaceDownArtifactCreature", [pt, kind]) => {
+            EntryState::FaceDownAs(face_down(pt, Some(kind), true))
+        }
+        ("EntersAsFaceDownCreatureWithAbilitiesAndNotedName", [pt, List(abilities)]) => {
+            EntryState::FaceDownWith {
+                face_down: face_down(pt, None, false),
+                abilities: abilities.clone(),
+            }
+        }
+        ("EntersAsFaceDownLand", [land]) => EntryState::FaceDownLand(Box::new(land.clone())),
+        ("EntersAsNonAuraEnchantment", []) => EntryState::NotAnAura,
+        ("EntersWithNotedCounters", []) => EntryState::NotedCounters,
+        ("EntersWithPerpetualEffect", effects) => EntryState::Perpetual(perpetual_changes(effects)?),
+        ("MayActions", flags) if !flags.is_empty() => EntryState::May(flags.to_vec()),
+        ("Limited", [Lasting(until)]) => EntryState::ExiledFor(until.clone()),
+        ("LimitedWithTriggerEnters", [Lasting(until), Objects(objects), body]) => {
+            EntryState::ExiledForWith {
+                until: until.clone(),
+                objects: objects.clone(),
+                body: Box::new(body.clone()),
+            }
+        }
+        ("EntersWithRuleEffectUntil", [List(rules), Lasting(until)]) => EntryState::RulesUntil {
+            rules: rules.clone(),
+            until: until.clone(),
+        },
+        _ => return None,
+    })
+}
+
+pub fn reduce_entry_flag(name: String, operands: Vec<Operand>) -> EntryState {
+    let reduced = name
+        .split_once("::")
+        .and_then(|(_, form)| reduced_entry_flag(form, &operands));
+    reduced.unwrap_or(EntryState::Primitive { name, operands })
+}
+
+fn tail_objects(form: &str, operands: &[Operand]) -> Option<ObjectSet> {
+    use Operand::{Filter, Number, Objects, Players, Term};
+    let hand = |term: &Operand| match term {
+        Term { operands, .. } => match operands.as_slice() {
+            [Players(players)] => Some(players.clone()),
+            _ => None,
+        },
+        _ => None,
+    };
+    Some(match (form, operands) {
+        (
+            "NumberPermanentsCardsInHandOrCardsInGraveyards",
+            [Number(count), Objects(permanents), held, Filter(graveyard)],
+        ) => ObjectSet::Chosen {
+            chooser: hand(held)?,
+            objects: Box::new(ObjectSet::Union(vec![
+                permanents.clone(),
+                zone_set(EventZone::Hand, hand(held)?, ObjectFilter::Any),
+                ObjectSet::AnyZone(graveyard.clone()),
+            ])),
+            count: Count::Exactly(count.clone()),
+        },
+        ("NumberPermanentsOrCardsInHand", [Number(count), Objects(permanents), held]) => {
+            ObjectSet::Chosen {
+                chooser: hand(held)?,
+                objects: Box::new(ObjectSet::Union(vec![
+                    permanents.clone(),
+                    zone_set(EventZone::Hand, hand(held)?, ObjectFilter::Any),
+                ])),
+                count: Count::Exactly(count.clone()),
+            }
+        }
+        ("TheBottomCardOfTypeInLibrary", [Filter(cards)]) => ObjectSet::Take {
+            objects: Box::new(zone_set(
+                EventZone::Library,
+                PlayerSet::One(PlayerRef::AbilityController),
+                cards.clone(),
+            )),
+            count: Expr::Constant(1),
+            from: SequenceEnd::Bottom,
+        },
+        _ => return None,
+    })
+}
+
+/// Delayed triggers that read like their ordinary trigger, or as one spell or activation.
+pub fn reduce_future_event(name: String, operands: Vec<Operand>) -> EventSpec {
+    use Operand::Player;
+    let form = name.split_once("::").map_or("", |(_, form)| form);
+    let reduced = match (form, operands.as_slice()) {
+        (
+            "WhenPlayerCastsTheirNextSpellOrActivatesTheirNextAbilityThisTurn",
+            [Player(player), which],
+        ) => stack_filter(which).map(|filter| EventSpec::SpellOrActivation {
+            players: PlayerSet::One(player.clone()),
+            spells: filter.clone(),
+            abilities: filter,
+        }),
+        (form, operands) => match reduce_event(format!("Trigger::{form}"), operands.to_vec()) {
+            EventSpec::Primitive { .. } => None,
+            event => Some(event),
+        },
+    };
+    reduced.unwrap_or(EventSpec::Primitive { name, operands })
+}
+
+fn reduce_tail_cost(name: &str, operands: &[Operand]) -> Option<CostPart> {
+    use Operand::{Filter, Number};
+    Some(match (name, operands) {
+        ("Cost::RevealNumberGroupCardsFromHand", [Number(count), Filter(cards), group]) => {
+            CostPart::Constrained {
+                part: Box::new(CostPart::Reveal {
+                    count: Count::Exactly(count.clone()),
+                    filter: cards.clone(),
+                    random: false,
+                }),
+                constraints: vec![group_constraint(group)?],
+            }
+        }
         _ => return None,
     })
 }

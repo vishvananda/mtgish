@@ -5,7 +5,9 @@ impl Context {
             let (name, operands) = self.rescue(error, || self.primitive("ManaProduce", value))?;
             if matches!(
                 name.as_str(),
-                "ManaProduce::ManaOfTheChosenColor" | "ManaProduce::ManaOfAChosenColor"
+                "ManaProduce::ManaOfTheChosenColor"
+                    | "ManaProduce::ManaOfAChosenColor"
+                    | "ManaProduce::AnyManaColorCircled"
             ) {
                 return Ok(ManaProduction::Amount {
                     color: ManaColor::Chosen,

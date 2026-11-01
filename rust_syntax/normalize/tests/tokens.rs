@@ -342,7 +342,7 @@ fn entry_counters_stay_in_the_creation_and_timed_entry_rules_are_named() {
     ));
     let named = format!("{:?}", lower::card(&probe(vec![action])).unwrap());
     assert!(
-        named.contains("TokenFlag::EntersWithRuleEffectUntil"),
+        named.contains("RulesUntil"),
         "{named}"
     );
 }

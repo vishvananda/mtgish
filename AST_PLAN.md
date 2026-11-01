@@ -15,14 +15,14 @@ The priorities, in order, are:
 
 ### Where things stand
 
-Unified, complete and blocker rows are current at schema 161. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
+Unified, complete and blocker rows are current at schema 162. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
 
 | Measure | Value |
 |---|---|
 | Records | 33,529 |
-| Unified, schema 161 | 33,529 (100%) |
+| Unified, schema 162 | 33,529 (100%) |
 | Complete | 33,529 (100.0%) |
-| Complete with no primitive | 33,347 (99.5%) |
+| Complete with no primitive | 33,372 (99.5%) |
 | Distinct forms blocking the rest | 0 |
 | Structurally preserved | 33,529 |
 | Source enums / declared variants | 346 / 8,668 |
@@ -231,6 +231,7 @@ Hand-written lowerers are the exception from step 1 on. A form gets hand-written
 | 159 | Casting and activation rules (`FlashWithRider`, `TaxPaidAsLife`, `ManaInstead`, spend-only rules, target-count cost changes) plus the rest of the trigger-doubling rules; conditions and numbers read turn history through `EventHistory` (`MostFromOneSource`, `SinceLastTurnOf`, `AsOf` a spell's cast), group tests through `SubsetMeets`, and draft notes through `NotedForDraft`; player facts bind their player. | 33,122 |
 | 160 | Look, reveal and search steps read through `reduce_inspection` over the cards in hand; reflexive actions become `WithReflexive` with a closed `ReflexiveWhen`; perpetual effects read their own effect forms and hand or library subjects; reveal-until reflexives lower through the shared path and keep their follow-on steps; 22 zero-operand actions join the keyword list |
 | 161 | One-card forms that still have a general shape: `EachPlayer` wraps an action for each player, `CounterWith`, `Populate`, `ReduceSpeed`, `PutCountersCapped`, `ChooseDefender`, `MillUntil`; choices take `up_to` and a `ColorAndCreatureType` kind; `Manifest` keeps its entry flags; replacement events gain the missing player and object events plus `CopySpell`, `Countered`, `DrawCausedBy`, `ProduceColor`; event changes gain `SearchTop`, `Repeats`, `AddCopy`, `FlipExtraCoin`, `DamageAsInfect`, `IgnoreCounters`; object history records counters, phasing, cycling, sacrifice and surveil |
+| 162 | Entry flags and object sets take typed states: `FaceDownAs`, `FaceDownWith`, `FaceDownLand`, `NotAnAura`, `NotedCounters`, `Perpetual`, `May`, `ExiledFor`, `ExiledForWith`, `RulesUntil`. `EachObject` wraps an action for each object and `DamageRider::DividedBy` names who divides. Future events, costs and object sets gain tail reductions. The damage-source, prevention and Primeval Spawn fallbacks that built a primitive directly now go through the reducers. |
 
 Schema 80 and 81 do not shrink the vocabulary. `KeywordAction` has 25 forms and `Mechanic` 149, and they count as forms: the names moved into enums, so the 2,360 is typed parameters and an exhaustive match for consumers, not simplification. Keyword mechanics are still not expanded into reusable definitions, which is the reduction this plan asks for. The Cantrip backend still reports these as gaps until it maps them; the engine has direct events for most of schema 78 and 79. At 02210fe all 17,095 records the backend advertises compiled against the engine. That build needs `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_INCREMENTAL=0`: with debug info it runs out of disk quota writing the archive.
 

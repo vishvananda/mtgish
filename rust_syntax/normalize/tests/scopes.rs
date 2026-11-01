@@ -1672,7 +1672,7 @@ fn entry_flags_exiled_sets_and_protection_colors_fall_back_to_rows() {
     let exile = lowered(
         "SpellActions(ActionList([Exile([TheBottomCardOfTypeInLibrary(IsCardtype(Creature))], [])]))",
     );
-    assert!(exile.contains("TheBottomCardOfTypeInLibrary"), "{exile}");
+    assert!(exile.contains("from: Bottom"), "{exile}");
     let priest = lowered(
         "ReplaceWouldEnter(APermanentWouldEnterTheBattlefieldAndWasntCast(And([IsNonToken, IsCardtype(Creature)])), [ExileItInstead])",
     );

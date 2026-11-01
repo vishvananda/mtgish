@@ -768,6 +768,9 @@ pub fn reduce_objects(name: String, operands: Vec<Operand>) -> ObjectSet {
     if let [.., Operand::Result(result)] = operands.as_slice() {
         return ObjectSet::Named(result.clone());
     }
+    if let Some(objects) = tail_objects(form, &operands) {
+        return objects;
+    }
     match (operands.as_slice(), earlier_reference(form)) {
         ([], Some(what)) => ObjectSet::Earlier { what, by: None },
         ([Operand::Player(player)], Some(what)) => ObjectSet::Earlier {

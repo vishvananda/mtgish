@@ -161,7 +161,10 @@ impl Context {
                         let (name, operands) = self
                             .primitive("ProtectableColor", colors)
                             .ok_or_else(|| unsupported(colors))?;
-                        objects(ObjectKind::Any, ObjectFilter::Primitive { name, operands })
+                        objects(
+                            ObjectKind::Any,
+                            crate::semantics::reduce_filter(name, operands),
+                        )
                     }
                 }
             }

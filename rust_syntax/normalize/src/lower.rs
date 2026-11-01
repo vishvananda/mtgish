@@ -1259,7 +1259,7 @@ impl Context {
                         .primitive("FutureTrigger", event)
                         .map(|(name, operands)| {
                             (
-                                EventSpec::Primitive { name, operands },
+                                crate::semantics::reduce_future_event(name, operands),
                                 DelayedStart::Immediately,
                                 None,
                             )
@@ -5879,14 +5879,11 @@ impl Context {
                     let (name, operands) = self
                         .primitive("ReplacableEventWouldEnter", event)
                         .ok_or_else(|| unsupported(event))?;
-                    return self.entry_replacement(
-                        ReplacementActive::SourceEntering,
-                        ObjectFilter::All(vec![
-                            ObjectFilter::SameObject(ObjectRef::Source),
-                            ObjectFilter::Primitive { name, operands },
-                        ]),
-                        actions,
-                    );
+                    let objects = match crate::semantics::reduce_replacement(name, operands) {
+                        ReplacementEvent::Enter { objects } => objects,
+                        _ => return Err(unsupported(event)),
+                    };
+                    return self.entry_replacement(ReplacementActive::SourceEntering, objects, actions);
                 }
                 let objects = match event {
                     source::ReplacableEventWouldEnter::APermanentWouldEnterTheBattlefield(p) => self.filter(p)?,

@@ -48,7 +48,7 @@ impl Context {
                 let (name, operands) = self
                     .primitive("DamageSources", value)
                     .ok_or_else(|| unsupported(value))?;
-                ObjectFilter::Primitive { name, operands }
+                crate::semantics::reduce_filter(name, operands)
             }
         })
     }

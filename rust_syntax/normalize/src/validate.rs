@@ -692,7 +692,23 @@ impl<'a> Scope<'a> {
             | EntryState::Prepared
             | EntryState::FaceDown
             | EntryState::Flipped
+            | EntryState::NotAnAura
+            | EntryState::NotedCounters
+            | EntryState::FaceDownAs(_)
+            | EntryState::FaceDownWith { .. }
+            | EntryState::FaceDownLand(_)
+            | EntryState::May(_)
             | EntryState::ExilePile { .. } => Ok(()),
+            EntryState::Perpetual(changes) => {
+                changes.iter().try_for_each(|change| self.change(change))
+            }
+            EntryState::ExiledFor(until) | EntryState::RulesUntil { until, .. } => {
+                self.duration(until)
+            }
+            EntryState::ExiledForWith { until, objects, .. } => {
+                self.duration(until)?;
+                self.objects(objects)
+            }
             EntryState::Attacking { player, .. } => player.iter().try_for_each(|p| self.player(p)),
             EntryState::Blocking(object) | EntryState::AttachedTo(object) => self.object(object),
             EntryState::AttachedToChosen(filter) => self.filter(filter),
@@ -2272,7 +2288,9 @@ impl<'a> Scope<'a> {
                 })?,
                 CostPart::Constrained { part, constraints } => {
                     let selectable = match part.as_ref() {
-                        CostPart::Sacrifice { .. } | CostPart::Discard { .. } => true,
+                        CostPart::Sacrifice { .. }
+                        | CostPart::Discard { .. }
+                        | CostPart::Reveal { .. } => true,
                         CostPart::ChangeTapState {
                             selections,
                             symbol: false,
@@ -2683,6 +2701,10 @@ impl<'a> Scope<'a> {
             Operation::AnyPlayerMayPay { players, .. } => self.players(players),
             Operation::EachPlayer { players, action } => {
                 self.players(players)?;
+                self.operation(action)
+            }
+            Operation::EachObject { objects, action } => {
+                self.objects(objects)?;
                 self.operation(action)
             }
             Operation::CounterWith { object, when, .. } => {
@@ -3676,7 +3698,9 @@ impl<'a> Scope<'a> {
                     DamageRider::ExcessTo(_) if matches!(recipients, Recipients::Players(_)) => {
                         Err("a player has no lethal damage to exceed".into())
                     }
-                    DamageRider::ExcessTo(player) => self.player(player),
+                    DamageRider::ExcessTo(player) | DamageRider::DividedBy(player) => {
+                        self.player(player)
+                    }
                     DamageRider::Prevented(prevented) => self.expr(prevented),
                 }
             }

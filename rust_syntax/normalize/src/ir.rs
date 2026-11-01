@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 161;
+pub const SCHEMA_VERSION: u32 = 162;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1822,6 +1822,11 @@ pub enum Operation {
         actor: PlayerSet,
         attacker: PlayerRef,
     },
+    /// This action once for each object; inside it `ObjectRef::Affected` is that object.
+    EachObject {
+        objects: ObjectSet,
+        action: Box<Operation>,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ExchangeKind {
@@ -2700,6 +2705,29 @@ pub enum EntryState {
     CountersOf {
         object: ObjectRef,
         one_of_each: bool,
+    },
+    FaceDownAs(FaceDownAs),
+    FaceDownWith {
+        face_down: FaceDownAs,
+        abilities: Vec<Operand>,
+    },
+    FaceDownLand(Box<Operand>),
+    NotAnAura,
+    /// The counters noted when the object was exiled.
+    NotedCounters,
+    Perpetual(Vec<Change>),
+    /// These entry flags apply if its controller chooses.
+    May(Vec<Operand>),
+    /// Stays exiled only for this long.
+    ExiledFor(Duration),
+    ExiledForWith {
+        until: Duration,
+        objects: ObjectSet,
+        body: Box<Operand>,
+    },
+    RulesUntil {
+        rules: Vec<Operand>,
+        until: Duration,
     },
 }
 
@@ -4232,6 +4260,7 @@ pub enum DamageRider {
     ExcessTo(PlayerRef),
     /// This much of the damage is prevented.
     Prevented(Expr),
+    DividedBy(PlayerRef),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
