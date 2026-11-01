@@ -1066,6 +1066,9 @@ impl Context {
                     | S::DidntDiscardedACardOfTypeThisWay(_) => {
                         PlayerSet::Intersection(vec![self.offered()?, matching])
                     }
+                    S::DidntPayCost if self.offered.is_some() => {
+                        PlayerSet::Intersection(vec![self.offered()?, matching])
+                    }
                     _ => matching,
                 }
             }
@@ -2763,6 +2766,9 @@ impl Context {
             return Ok(instruction);
         }
         if let Some(instruction) = self.coin_action(value, actor)? {
+            return Ok(instruction);
+        }
+        if let Some(instruction) = self.card_action(value, actor)? {
             return Ok(instruction);
         }
         if let Some(recipe) =
@@ -5253,21 +5259,7 @@ impl Context {
                     target.count = Count::UpTo(self.number(n)?);
                 }
                 S::UptoOneTargetGraveyardCardOfEachCardType(c) => {
-                    use crate::mtg_types::CardType::*;
-                    let each: Vec<_> = [
-                        Artifact,
-                        Battle,
-                        Creature,
-                        Enchantment,
-                        Instant,
-                        Kindred,
-                        Land,
-                        Planeswalker,
-                        Sorcery,
-                    ]
-                    .into_iter()
-                    .map(ObjectFilter::CardType)
-                    .collect();
+                    let each = each_card_type();
                     target.kind = TargetKind::Object(ObjectDomain::card(EventZone::Graveyard));
                     target.filter = self.grave_filter(c)?;
                     target.count = Count::UpTo(Expr::Constant(each.len() as i64));
@@ -5393,10 +5385,9 @@ impl Context {
                 return Err(unsupported(value));
             }
             let (comparison, amount) = self.comparison(allowed)?;
-            let limit = self.effect(Operation::Primitive {
-                actor: PlayerSet::One(PlayerRef::AbilityController),
-                name: form.into(),
-                operands: vec![Operand::Comparison(comparison, amount)],
+            let limit = self.effect(Operation::LimitX {
+                comparison,
+                value: amount,
             });
             let mut program = self.actions(body)?;
             program.instructions.insert(0, limit);
@@ -6558,3 +6549,4 @@ include!("lower_reflexive.rs");
 include!("lower_reveal.rs");
 include!("lower_replace.rs");
 include!("lower_play.rs");
+include!("lower_card_actions.rs");

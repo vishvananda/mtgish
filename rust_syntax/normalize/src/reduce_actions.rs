@@ -298,7 +298,10 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
             D::OwnersHand,
         ),
         ("PutACommanderFromCommandZoneOntoBattlefield", [commanders, flags]) => ZoneMove::new(
-            commanders_in(Z::Command, Some(commanders), actor)?,
+            ObjectSet::Matching {
+                objects: Box::new(commanders_in(Z::Command, Some(commanders), actor)?),
+                filter: ObjectFilter::OwnedBy(actor.clone()),
+            },
             D::OwnersBattlefield,
         )
         .one()
@@ -443,6 +446,12 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
             "PutEachGraveyardCardOntoBattlefieldFaceDownAsAnArtifactCreature",
             [Filter(cards), flags, pt, kind],
         ) => ZoneMove::new(graveyard(cards), D::OwnersBattlefield)
+            .entry(flags)
+            .face_down(artifact_creature(pt, kind)),
+        (
+            "PutEachGraveyardCardOntoBattlefieldFaceDownAsAnArtifactCreature",
+            [Objects(cards), flags, pt, kind],
+        ) => ZoneMove::new(cards.clone(), D::OwnersBattlefield)
             .entry(flags)
             .face_down(artifact_creature(pt, kind)),
         (
@@ -1302,6 +1311,7 @@ fn reduce_stack_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         times,
         targets,
         effects: vec![],
+        card: None,
     };
     let once = || Expr::Constant(1);
     let retarget = |object: &ObjectRef, targets| Operation::Retarget {

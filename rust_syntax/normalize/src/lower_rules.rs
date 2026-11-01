@@ -358,6 +358,7 @@ impl Context {
             S::AnyLandwalk => return Ok(ObjectFilter::HasKeywordFamily(KeywordFamily::Landwalk)),
             S::AnyHexproof => return Ok(ObjectFilter::HasKeywordFamily(KeywordFamily::Hexproof)),
             S::AnyToxic => return Ok(ObjectFilter::HasKeywordFamily(KeywordFamily::Toxic)),
+            S::AnyPartner => return Ok(ObjectFilter::HasKeywordFamily(KeywordFamily::Partner)),
             S::Landwalk(lands) => {
                 return Ok(ObjectFilter::HasKeyword(Keyword::Landwalk(Box::new(
                     self.filter(lands)?,

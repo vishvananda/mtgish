@@ -422,9 +422,17 @@ impl Inventory<'_> {
     fn operation(&mut self, op: &Operation) {
         self.form("Operation", op);
         match op {
-            Operation::Meld { objects, .. }
-            | Operation::PutStickers { objects, .. }
-            | Operation::Piles { objects, .. } => self.objects(objects),
+            Operation::Meld { objects, .. } | Operation::Piles { objects, .. } => {
+                self.objects(objects)
+            }
+            Operation::PutStickers {
+                objects,
+                ticket_cost,
+                ..
+            } => {
+                self.objects(objects);
+                ticket_cost.iter().for_each(|(_, n)| self.expr(n));
+            }
             Operation::ChoosePile { actor, .. }
             | Operation::Guess { actor, .. }
             | Operation::Seek { actor, .. }
@@ -436,6 +444,16 @@ impl Inventory<'_> {
             }
             Operation::EachObject { objects, action } => {
                 self.objects(objects);
+                self.operation(action);
+            }
+            Operation::LimitX { value, .. } => self.expr(value),
+            Operation::RestartGame { keep, then } => {
+                self.objects(keep);
+                self.operation(then);
+            }
+            Operation::EachNumber { from, to, action } => {
+                self.expr(from);
+                self.expr(to);
                 self.operation(action);
             }
             Operation::CounterWith { .. }
@@ -510,12 +528,14 @@ impl Inventory<'_> {
                 object,
                 times,
                 targets,
+                card,
                 ..
             } => {
                 self.players(actor);
                 self.object(object);
                 self.expr(times);
                 self.new_targets(targets);
+                card.iter().for_each(|o| self.object(o));
             }
             Operation::Retarget {
                 actor,
@@ -1110,6 +1130,9 @@ impl Inventory<'_> {
                     for ty in &definition.subtypes {
                         self.form("Subtype", ty);
                     }
+                    if let Some((objects, _)) = &definition.abilities_of {
+                        self.objects(objects);
+                    }
                     if let Some((power, toughness)) = &definition.power_toughness {
                         self.expr(power);
                         self.expr(toughness);
@@ -1417,6 +1440,7 @@ impl Inventory<'_> {
                 CostPart::ExiledToGraveyard(cards) => self.objects(cards),
                 CostPart::RevealTop(filter) => self.filter(filter),
                 CostPart::Waterbend(_) | CostPart::Teamwork(_) => {}
+                CostPart::WaterbendX { x, .. } => self.expr(x),
                 CostPart::PutCounters(placements) => {
                     for p in placements {
                         self.recipients(&p.recipients);

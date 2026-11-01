@@ -170,6 +170,9 @@ impl Context {
 
     fn entry_action(&mut self, value: &source::ReplacementActionWouldEnter) -> Result<Instruction> {
         use source::ReplacementActionWouldEnter as S;
+        if let Some(instruction) = self.card_entry(value)? {
+            return Ok(instruction);
+        }
         let change = match value {
             S::Reflexive_EnterAsACopyOfAPermanent_WhenYouDo(objects, effects, actions) => {
                 let base = S::EnterAsACopyOfAPermanent(objects.clone(), effects.clone());

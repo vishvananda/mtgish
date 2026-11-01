@@ -695,10 +695,12 @@ impl<'a> Scope<'a> {
             | EntryState::NotAnAura
             | EntryState::NotedCounters
             | EntryState::FaceDownAs(_)
-            | EntryState::FaceDownWith { .. }
             | EntryState::FaceDownLand(_)
             | EntryState::May(_)
             | EntryState::ExilePile { .. } => Ok(()),
+            EntryState::FaceDownWith { noted, .. } => {
+                noted.iter().try_for_each(|card| self.object(card))
+            }
             EntryState::Perpetual(changes) => {
                 changes.iter().try_for_each(|change| self.change(change))
             }
@@ -2398,6 +2400,7 @@ impl<'a> Scope<'a> {
                 CostPart::ExiledToGraveyard(cards) => self.objects(cards)?,
                 CostPart::RevealTop(filter) => self.filter(filter)?,
                 CostPart::Waterbend(_) | CostPart::Teamwork(_) => {}
+                CostPart::WaterbendX { x, .. } => self.expr(x)?,
                 CostPart::PutCounters(placements) => {
                     for placement in placements {
                         self.recipients(&placement.recipients)?;
@@ -2619,10 +2622,12 @@ impl<'a> Scope<'a> {
                 actor,
                 objects,
                 amount,
+                ticket_cost,
                 ..
             } => {
                 self.players(actor)?;
                 self.objects(objects)?;
+                ticket_cost.iter().try_for_each(|(_, n)| self.expr(n))?;
                 amount.iter().try_for_each(|n| self.expr(n))
             }
             Operation::Piles {
@@ -2705,6 +2710,16 @@ impl<'a> Scope<'a> {
             }
             Operation::EachObject { objects, action } => {
                 self.objects(objects)?;
+                self.operation(action)
+            }
+            Operation::LimitX { value, .. } => self.expr(value),
+            Operation::RestartGame { keep, then } => {
+                self.objects(keep)?;
+                self.operation(then)
+            }
+            Operation::EachNumber { from, to, action } => {
+                self.expr(from)?;
+                self.expr(to)?;
                 self.operation(action)
             }
             Operation::CounterWith { object, when, .. } => {
@@ -2846,11 +2861,13 @@ impl<'a> Scope<'a> {
                 times,
                 targets,
                 effects,
+                card,
             } => {
                 self.players(actor)?;
                 self.object(object)?;
                 self.expr(times)?;
                 self.new_targets(targets)?;
+                card.iter().try_for_each(|o| self.object(o))?;
                 effects.iter().try_for_each(|o| self.operand(o))
             }
             Operation::Retarget {
@@ -3605,6 +3622,10 @@ impl<'a> Scope<'a> {
                     {
                         return Err("colorless is not a token color".into());
                     }
+                    if let Some((objects, kinds)) = &definition.abilities_of {
+                        self.objects(objects)?;
+                        self.operand(kinds)?;
+                    }
                     if let Some((power, toughness)) = &definition.power_toughness {
                         self.expr(power)?;
                         self.expr(toughness)?;
@@ -4145,6 +4166,7 @@ impl<'a> Scope<'a> {
                         binding,
                         starting_with,
                         body,
+                        ..
                     } => {
                         self.players(players)?;
                         if let Some(player) = starting_with {

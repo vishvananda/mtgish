@@ -811,6 +811,7 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
             .or_else(|| reduce_reflexive(&actor, form, &operands))
             .or_else(|| reduce_perpetual(form, &operands))
             .or_else(|| reduce_tail_actions(&actor, form, &operands))
+            .or_else(|| reduce_card_actions(&actor, form, &operands))
     }) {
         return operation;
     }
@@ -1546,6 +1547,7 @@ fn reduce_stack_copy(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Opt
             times,
             targets,
             effects: effects.to_vec(),
+            card: None,
         };
     let retarget = |object: &ObjectRef, targets| Operation::Retarget {
         actor: actor.clone(),
@@ -1895,6 +1897,7 @@ include!("reduce_effects.rs");
 include!("reduce_filters.rs");
 include!("reduce_more.rs");
 include!("reduce_tail.rs");
+include!("reduce_card_actions.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
@@ -2566,6 +2569,7 @@ pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
                 flash: false,
                 may_look: false,
                 then: None,
+                face_down: None,
             },
         };
     let abilities = |spells: &ObjectFilter, from, nth_each_turn, abilities: &Operand| {
@@ -5728,6 +5732,7 @@ impl Effects {
                     | Operation::ChooseDefender { .. }
                     | Operation::MillUntil { .. }
                     | Operation::EachObject { .. }
+                    | Operation::LimitX { .. }
                     | Operation::FightEach { .. }
                     | Operation::Note(_)
                     | Operation::Bid { .. }
@@ -5832,6 +5837,8 @@ impl Effects {
                     | Operation::PlayCards { .. }
                     | Operation::PlayWith { .. }
                     | Operation::Together(_)
+                    | Operation::RestartGame { .. }
+                    | Operation::EachNumber { .. }
                     | Operation::WithReflexive { .. }
                     | Operation::Repeat { .. }
                     | Operation::TurnFaceDownAs { .. }
@@ -6006,6 +6013,7 @@ impl Effects {
                 CostPart::Primitive { .. }
                 | CostPart::ManaWithX { .. }
                 | CostPart::Waterbend(_)
+                | CostPart::WaterbendX { .. }
                 | CostPart::Teamwork(_)
                 | CostPart::Keyword { .. }
                 | CostPart::DiscardHand

@@ -2055,8 +2055,10 @@ fn a_limit_on_x_is_a_step_the_reviewed_card_keeps() {
     let rule = "SpellActions(X(GreaterThan(Integer(0)), ActionList([DrawNumberCards(ValueX)])))";
     assert!(custom(rule).is_err());
     let body = format!("{:?}", on_card("Mind Grind", rule).unwrap());
-    assert!(body.contains("\"Actions::X\""), "{body}");
-    assert!(body.contains("Comparison(Greater, Constant(0))"), "{body}");
+    assert!(
+        body.contains("LimitX { comparison: Greater, value: Constant(0) }"),
+        "{body}"
+    );
 }
 
 #[test]

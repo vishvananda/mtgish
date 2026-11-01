@@ -72,6 +72,13 @@ fn commander_filter(term: &Operand) -> Option<ObjectFilter> {
                 PlayerRef::AbilityController,
             ))),
             ("IsCardtype", [kind]) => Some(ObjectFilter::CardType(vocabulary_value(kind)?)),
+            ("ManaValueIs", [Operand::Comparison(comparison, value)]) => {
+                Some(ObjectFilter::Property {
+                    property: Property::ManaValue,
+                    comparison: comparison.clone(),
+                    value: value.clone(),
+                })
+            }
             ("And", items) => Some(ObjectFilter::All(
                 items.iter().map(filter).collect::<Option<_>>()?,
             )),

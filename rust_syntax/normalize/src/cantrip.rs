@@ -906,6 +906,9 @@ impl Compiler {
         if token.chosen_creature_type {
             return Err(gap("token of the chosen creature type"));
         }
+        if token.abilities_of.is_some() {
+            return Err(gap("token with the abilities of other objects"));
+        }
         let pt = token
             .power_toughness
             .as_ref()

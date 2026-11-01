@@ -645,6 +645,7 @@ impl Compiler {
                 players,
                 binding,
                 starting_with: None,
+                in_chosen_direction: false,
                 body,
             } => self.for_each_player(players, binding, body, out),
             other => Err(gap(format!("instruction {}", form(other)))),
@@ -746,6 +747,7 @@ impl Compiler {
                 times: Expr::Constant(1),
                 targets: NewTargets::May,
                 effects,
+                card: None,
             } if effects.is_empty() && !matches!(object, ObjectRef::EventStackObject) => {
                 let copier = self.fetch(self.certain_player(player)?);
                 let list = self.acted_on(&ObjectSet::One(object.clone()))?;

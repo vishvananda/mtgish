@@ -48,6 +48,7 @@ fn play_terms() -> PlayTerms {
         flash: false,
         may_look: false,
         then: None,
+        face_down: None,
     }
 }
 
@@ -1712,6 +1713,10 @@ fn reduce_cost_part(bare: &str, operands: &[Operand]) -> Option<CostPart> {
         }
         ("ShuffleACardFromHandIntoLibrary", []) => CostPart::ShuffleFromHand,
         ("PlayALandFromTopOfLibrary", [Filter(cards)]) => CostPart::PlayFromTop(cards.clone()),
+        ("WaterbendCustomX", [List(symbols), Number(x)]) => CostPart::WaterbendX {
+            mana: mana_terms(symbols)?,
+            x: x.clone(),
+        },
         _ => return None,
     })
 }
