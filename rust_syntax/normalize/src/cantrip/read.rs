@@ -938,6 +938,15 @@ impl Compiler {
             {
                 count("q.event_objects(item).len() as i64".into())
             }
+            // "That many" of an event the engine reports without the number, or of
+            // several events the ability is one answer to.
+            Expr::EventAmount if self.frame.amount.is_none() && self.event_at == EventAt::Item => {
+                count(planned::planned_value(
+                    "amount of an event its trigger does not carry",
+                    "0i64",
+                    "q.event_total(item)",
+                ))
+            }
             Expr::EventAmount => {
                 let (_, data) = self.carried(
                     self.frame
@@ -1140,12 +1149,16 @@ impl Compiler {
                 max: i32::MAX.into(),
                 dynamic: true,
             },
-            Expr::Performed(result) if self.counted == Some(result.0) => Number {
-                code: "i64::from(item.x)".into(),
-                min: 0,
-                max: u16::MAX.into(),
-                dynamic: true,
-            },
+            Expr::Performed(result) | Expr::CountersRemoved(result)
+                if self.counted == Some(result.0) =>
+            {
+                Number {
+                    code: "i64::from(item.x)".into(),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
             Expr::Performed(result) | Expr::CountersRemoved(result) => {
                 match (self.performed.get(&result.0), self.moved.get(&result.0)) {
                     (Some(local), _) => count(format!("({local} as i64)")),

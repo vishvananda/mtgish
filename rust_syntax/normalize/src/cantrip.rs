@@ -490,6 +490,8 @@ struct Compiler {
     paying: lane_g::Paying,
     /// The instruction a reflexive ability's body counts: it is the item's `x`.
     counted: Option<u32>,
+    /// The count of a reflexive ability's slot, which the ability is told.
+    sized_slot: Option<String>,
     /// What a mana ability's definition ends with, and the requirement if any.
     mana_colors: Option<(String, Option<&'static str>)>,
     /// Small generated functions that this module uses.
@@ -807,6 +809,7 @@ impl Compiler {
             costing_targets: false,
             paying: lane_g::Paying::Ability,
             counted: None,
+            sized_slot: None,
             mana_colors: None,
             only_way: false,
             tap_or_untap: false,
@@ -887,6 +890,13 @@ impl Compiler {
             (ObjectPhase::Before, None) if self.moved.contains_key(&result.0) => {
                 Err(gap("object as it was before an instruction moved it"))
             }
+            // Chosen or made and not moved: nothing happened to them since.
+            _ if self.selections.contains_key(&result.0) && !self.moved.contains_key(&result.0) => {
+                self.selected(result)
+            }
+            _ if self.creations.contains_key(&result.0) && !self.moved.contains_key(&result.0) => {
+                self.created(result)
+            }
             _ => self.moved(result),
         }
     }
@@ -950,6 +960,10 @@ impl Compiler {
         Ok(match count {
             Count::Exactly(n) if constant(n) == Some(1) => String::new(),
             Count::Exactly(Expr::AnnouncedX) => ".counted()".into(),
+            Count::Exactly(n) if lane_l::sizes_slot(&self.sized_slot, n) => ".counted()".into(),
+            Count::UpTo(n) if lane_l::sizes_slot(&self.sized_slot, n) => {
+                ".between(0, TargetSpec::COUNTED)".into()
+            }
             Count::Exactly(n) if constant(n).is_some() => {
                 let n = constant(n).unwrap();
                 format!(".between({n}, {n})")

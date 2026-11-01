@@ -69,7 +69,278 @@ fn total_rule(functions: &mut String, name: &str, read: &str, words: &str, most:
     format!("cantrip_api::select::set_part(&({name} as SelectFn), &(largest_{name} as cantrip_api::select::LargestFn), {most}, {words:?})")
 }
 
+/// The instructions of one option of a choice between actions: a program, the
+/// programs of a list one after another, or a named action's.
+fn action_program(option: &Operand) -> Option<Program> {
+    match option {
+        Operand::Program(program) => Some(program.clone()),
+        Operand::List(items) => {
+            let mut instructions = Vec::new();
+            for item in items {
+                instructions.extend(action_program(item)?.instructions);
+            }
+            Some(Program { instructions })
+        }
+        Operand::Term { form, operands, .. } if form == "NamedAction" => {
+            match operands.as_slice() {
+                [Operand::Text(_), list] => action_program(list),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Whether `count` is what a reflexive ability's slot was told.
+pub(super) fn sizes_slot(sized: &Option<String>, count: &Expr) -> bool {
+    sized.as_deref() == Some(format!("{count:?}").as_str())
+}
+
+/// A target rule of a reflexive ability that reads what its ability did: no
+/// local reaches a target filter, and the engine tells the ability one count.
+pub(super) fn reads_as_a_target(failed: Diagnostic) -> Diagnostic {
+    let read = matches!(
+        failed.feature.as_str(),
+        "transition this instruction does not report"
+            | "result this instruction does not report"
+            | "selection result outside generated scope"
+            | "token result outside generated scope"
+            | "event object this trigger does not bind"
+            | "event player this trigger does not bind"
+            | "event amount this trigger does not bind"
+    );
+    if !read || !failed.path.starts_with("targets") {
+        return failed;
+    }
+    let path = failed.path.clone();
+    gap("target of a reflexive ability reading what its ability did").at(path)
+}
+
+/// A cost a player pays at resolution by picking what pays it, any number of
+/// them: done as the instruction it is, so what picked is known. `may_pay` has
+/// no way to say which objects paid.
+pub(super) fn chooses_what_pays(cost: &Cost) -> bool {
+    match cost.parts.as_slice() {
+        [CostPart::Sacrifice {
+            choose: Some(Count::AnyNumber),
+            ..
+        }]
+        | [CostPart::Reveal {
+            count: Count::AnyNumber,
+            random: false,
+            ..
+        }] => true,
+        [CostPart::Move {
+            selections,
+            face_down: false,
+            ..
+        }]
+        | [CostPart::ChangeTapState {
+            selections,
+            tapped: true,
+            symbol: false,
+        }] => matches!(
+            selections.as_slice(),
+            [CostObjectSelection {
+                choose: Some(Count::AnyNumber),
+                ..
+            }]
+        ),
+        _ => false,
+    }
+}
+
 impl Compiler {
+    /// A count made by the ability that makes a reflexive one, which that reflexive
+    /// ability reads: the engine tells it one count, kept as `item.x`.
+    pub(super) fn told_amount(&self, performed: &ResultId, body: &Program) -> Option<String> {
+        let local = self.performed.get(&performed.0)?;
+        let text = format!("{body:?}");
+        let reads = [
+            format!("Performed(ResultId({}))", performed.0),
+            format!("CountersRemoved(ResultId({}))", performed.0),
+        ];
+        let counts = local.starts_with("removed_") || local.starts_with("done_");
+        (counts && reads.iter().any(|read| text.contains(read))).then(|| format!("({local} as i64)"))
+    }
+    /// The first slot's count, if the ability making it reads it now: "up to that
+    /// many target creatures". The code of the count goes with what it is, so the
+    /// slot is `COUNTED` and the ability is told the number (CR 603.3d, 601.2c).
+    pub(super) fn counted_slot(&self, announcement: &Announcement) -> Option<(String, String)> {
+        let (Count::Exactly(count) | Count::UpTo(count)) = &announcement.targets.first()?.count
+        else {
+            return None;
+        };
+        if matches!(count, Expr::Constant(_) | Expr::AnnouncedX) {
+            return None;
+        }
+        let code = self.number(count).ok()?.code;
+        Some((format!("{count:?}"), format!("({} as i64)", self.fetch(code))))
+    }
+    /// Counters put on `to` by what is on `from`, which keeps its own. The kinds
+    /// are read before any goes on; "choose a counter" is a choice of a kind.
+    fn duplicate_counters(
+        &mut self,
+        id: usize,
+        from: &Recipients,
+        to: &Recipients,
+        copies: CounterCopies,
+        kind: Option<&crate::counter::CounterKind>,
+        out: &mut String,
+    ) -> Result<()> {
+        use CounterCopies as C;
+        let (Recipients::Objects(from), Recipients::Objects(to)) = (from, to) else {
+            let (Recipients::Players(from), Recipients::Players(to)) = (from, to) else {
+                return Err(gap("operation DuplicateCounters"));
+            };
+            let from = self.fetch(self.players(from)?);
+            let to = self.fetch(self.players(to)?);
+            let call = format!("let from: Vec<PlayerId> = {from}; let to: Vec<PlayerId> = {to}; {M}::counters::duplicate_on_players(g, asker, &from, &to, {})?;", quoted(&format!("{copies:?}")));
+            self.plan_code("counters a player has, by kind", &call, out);
+            return Ok(());
+        };
+        let same = format!("{from:?}") == format!("{to:?}");
+        let sources = self.fetch(self.objects(from)?);
+        let recipients = self.fetch(self.objects(to)?);
+        let only = match kind {
+            Some(kind) => format!("kind == {}", counter_kind(kind)?),
+            None => "true".to_string(),
+        };
+        writeln!(out, "let from_{id}: Vec<ObjectId> = {sources}; let to_{id}: Vec<ObjectId> = {recipients}; let kinds_{id}: Vec<CounterKind> = CounterKind::ALL.into_iter().filter(|&kind| {only} && from_{id}.iter().any(|&o| g.obj(o).counter_array()[kind as usize] > 0)).collect();").unwrap();
+        let chosen = format!("kinds_{id}[{M}::choose::one_of(g, asker.controller, asker.source, kinds_{id}.iter().map(|&k| Label::Counter(k)).collect())? as usize]");
+        let each = |lacking: bool| {
+            let lacks = match lacking {
+                true => ".filter(|&o| g.obj(o).counter_array()[kind as usize] == 0)",
+                false => "",
+            };
+            format!("let puts: Vec<(ObjectId, CounterKind, i16)> = to_{id}.iter().copied(){lacks}.map(|o| (o, kind, 1i16)).collect(); g.add_counters_together(&puts);")
+        };
+        let code = match copies {
+            C::All if same => format!("let puts: Vec<(ObjectId, CounterKind, i16)> = to_{id}.iter().flat_map(|&o| {{ let have = g.obj(o).counter_array(); kinds_{id}.iter().copied().filter(move |&kind| have[kind as usize] > 0).map(move |kind| (o, kind, have[kind as usize])).collect::<Vec<_>>() }}).collect(); g.add_counters_together(&puts);"),
+            C::All => format!("let puts: Vec<(ObjectId, CounterKind, i16)> = to_{id}.iter().flat_map(|&o| kinds_{id}.iter().map(|&kind| (o, kind, from_{id}.iter().map(|&f| g.obj(f).counter_array()[kind as usize]).sum::<i16>())).collect::<Vec<_>>()).collect(); g.add_counters_together(&puts);"),
+            C::OneOfEachKind => format!("let puts: Vec<(ObjectId, CounterKind, i16)> = to_{id}.iter().flat_map(|&o| kinds_{id}.iter().map(move |&kind| (o, kind, 1i16)).collect::<Vec<_>>()).collect(); g.add_counters_together(&puts);"),
+            C::OneOfEachKindDistributed => format!("for kind in kinds_{id}.clone() {{ if let Some(object) = {M}::choose::card(g, asker.controller, asker.source, Purpose::ChooseAsEnters, to_{id}.clone())? {{ g.add_counters(object, kind, 1); }} }}"),
+            C::One => format!("if !kinds_{id}.is_empty() {{ let kind = {chosen}; {} }}", each(false)),
+            C::OneMissing => format!("if !kinds_{id}.is_empty() {{ let kind = {chosen}; {} }}", each(true)),
+            C::UpToOne => format!("if !kinds_{id}.is_empty() {{ let kind = {chosen}; if {M}::effects::ask_may(g, asker.controller, asker.source, Purpose::Optional)? {{ {} }} }}", each(false)),
+        };
+        writeln!(out, "{code}").unwrap();
+        Ok(())
+    }
+    /// "As this enters, choose another creature you control": the permanent keeps
+    /// it for the abilities of its text (CR 607.2d). Only a choice of one object,
+    /// and only one nothing after it in this replacement reads.
+    pub(super) fn object_as_it_enters(
+        &mut self,
+        objects: &ObjectSet,
+        count: &Count,
+        rest: &[Instruction],
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<bool> {
+        let one = matches!(
+            count,
+            Count::Exactly(Expr::Constant(1))
+                | Count::AsManyAsCan(Expr::Constant(1))
+                | Count::UpTo(Expr::Constant(1))
+        );
+        let read = format!("ResultId({})", result.0);
+        let reads = rest.iter().any(|i| format!("{i:?}").contains(&read));
+        if !one || reads || self.event_at != EventAt::Entering {
+            return Ok(false);
+        }
+        let pool = self.fetch(self.objects(objects)?);
+        let count = self.fetch(self.select_count(count)?);
+        writeln!(out, "let permanents = {pool}; let count = {count}; {M}::choose::object_as_enters(g, entering, permanents, {M}::select::Selection::of(count, &[]))?;").unwrap();
+        Ok(true)
+    }
+    /// "You may tap any number of ...".
+    pub(super) fn tap_any_number(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        objects: &ObjectSet,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        self.choose(player, objects, &Count::AnyNumber, result, "Tap", out)?;
+        let tap = Operation::Tap {
+            objects: ObjectSet::Selected(result.clone()),
+            tapped: true,
+        };
+        self.operation(&tap, result, out)?;
+        writeln!(out, "let paid_{id} = !{}.is_empty();", self.moved(result)?).unwrap();
+        Ok(())
+    }
+    /// "Those that paid", where `may_pay` paid them: it does not say which.
+    pub(super) fn objects_that_paid(&mut self, id: usize, result: &ResultId, out: &mut String) {
+        let mark = format!("Resolution(ResultId({}))", result.0);
+        if !self.after.iter().any(|i| format!("{i:?}").contains(&mark)) {
+            return;
+        }
+        let paid = planned::planned_value(
+            "objects that paid a cost at resolution",
+            "Vec::<ObjectId>::new()",
+            "g.objects_that_paid()",
+        );
+        writeln!(out, "let paid_objects_{id}: Vec<ObjectId> = {paid};").unwrap();
+        self.moved.insert(result.0, format!("paid_objects_{id}"));
+    }
+    /// What an instruction did, for the instructions after it that ask, when it
+    /// compiled and left no word of it. If its code waits on Cantrip, so does the
+    /// answer, and that code's hole says so.
+    pub(super) fn report(
+        &mut self,
+        op: &Operation,
+        result: &ResultId,
+        waits: bool,
+        out: &mut String,
+    ) {
+        let reported = self.selections.contains_key(&result.0)
+            || self.moved.contains_key(&result.0)
+            || self.creations.contains_key(&result.0)
+            || self.performed.contains_key(&result.0)
+            || self.values.contains_key(&result.0)
+            || self.flips.contains_key(&result.0);
+        if reported || !self.read_later(result) {
+            return;
+        }
+        if waits {
+            self.failed.insert(result.0);
+            return;
+        }
+        let happened = match op {
+            // Each of these is done whatever the state of the game.
+            Operation::Scry { .. }
+            | Operation::Surveil { .. }
+            | Operation::Shuffle { .. }
+            | Operation::ChooseAtRandom { .. } => "true".to_string(),
+            // Countered, the card is a new object where the spell went.
+            Operation::Counter { objects, .. } => {
+                let Ok(spells) = self.objects(objects) else {
+                    return;
+                };
+                let id = self.fresh();
+                writeln!(out, "let countered_{id}: Vec<ObjectId> = {}.into_iter().filter_map(|o: ObjectId| g.state().obj(o).became).collect();", self.fetch(spells)).unwrap();
+                self.moved.insert(result.0, format!("countered_{id}"));
+                return;
+            }
+            Operation::Keyword { object: None, .. } => "true".to_string(),
+            Operation::Attach { host: object, .. }
+            | Operation::Keyword {
+                object: Some(object),
+                ..
+            } => match self.object(object) {
+                Ok(code) => format!("({}).is_some()", self.fetch(code)),
+                Err(_) => return,
+            },
+            _ => return,
+        };
+        let id = self.fresh();
+        writeln!(out, "let happened_{id}: bool = {happened};").unwrap();
+        self.performed.insert(result.0, format!("happened_{id}"));
+    }
+
     /// What a slot's constraints ask, one at a time: a slot has one rule together.
     pub(super) fn slot_rule(
         &mut self,
@@ -845,6 +1116,12 @@ impl Compiler {
                 };
                 self.plan_code(&feature, &format!("{M}::combat::change(g, asker, {change})?"), out);
             }
+            Operation::DuplicateCounters {
+                from,
+                to,
+                copies,
+                kind,
+            } => self.duplicate_counters(id, from, to, *copies, kind.as_ref(), out)?,
             Operation::ChooseAction {
                 actor,
                 options,
@@ -852,10 +1129,7 @@ impl Compiler {
             } => {
                 let programs = options
                     .iter()
-                    .map(|option| match option {
-                        Operand::Program(program) => Ok(program.clone()),
-                        _ => Err(gap(format!("operation {}", form(op)))),
-                    })
+                    .map(|option| action_program(option).ok_or_else(|| gap(feature.clone())))
                     .collect::<Result<Vec<Program>>>()?;
                 let PlayerSet::One(decider) = actor else {
                     return Err(gap(feature));

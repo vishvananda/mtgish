@@ -392,6 +392,7 @@ impl Compiler {
         let mut after = body.instructions[i + 1..].to_vec();
         after.extend_from_slice(&self.after);
         let around = std::mem::replace(&mut self.after, after);
+        let planned = self.gaps.len();
         let failure = self.attempt(format!("instructions[{i}]"), |c| {
             let gaps = c.gaps.len();
             match c.instruction(body, i, instruction, out) {
@@ -403,6 +404,10 @@ impl Compiler {
                 compiled => compiled,
             }
         });
+        if let (None, Instruction::Effect { result, operation }) = (&failure, instruction) {
+            let waits = self.gaps.len() > planned;
+            self.report(operation, result, waits, out);
+        }
         self.after = around;
         if let Some(feature) = failure {
             out.truncate(mark);
@@ -562,12 +567,16 @@ impl Compiler {
                     return Ok(());
                 }
                 let rest = &body.instructions[i + 1..];
+                if self.object_as_it_enters(objects, count, rest, result, out)? {
+                    return Ok(());
+                }
                 let purpose = purpose(result, rest)
                     .or_else(|| purpose(result, &self.after))
                     .or_else(|| referred_to(result, rest).then_some("ChooseAsEnters"))
                     .or_else(|| referred_to(result, &self.after).then_some("ChooseAsEnters"))
                     .or_else(|| lane_l::plain_purpose(result, rest))
                     .or_else(|| lane_l::plain_purpose(result, &self.after))
+                    .or_else(|| self.read_later(result).then_some("ChooseAsEnters"))
                     .ok_or_else(|| gap("resolution choice prompt purpose"))?;
                 self.choose(player, objects, count, result, purpose, out)
             }
@@ -1009,6 +1018,8 @@ impl Compiler {
                 )
                 .unwrap();
                 self.moved.insert(result.0, format!("turned_{id}"));
+                // "Those creatures": all of them, whatever state each was in.
+                self.selections.insert(result.0, format!("objects_{id}"));
                 self.left_behind(result, format!("turned_{id}.clone()"));
             }
             Operation::Sacrifice {
@@ -1346,7 +1357,10 @@ impl Compiler {
                 player,
                 cost,
                 optional: true,
-            } if self.asking.is_none() && performed_by_itself(cost) => {
+            } if self.asking.is_none()
+                && (performed_by_itself(cost)
+                    || (lane_l::chooses_what_pays(cost) && self.read_later(result))) =>
+            {
                 writeln!(
                     out,
                     "let payer_{id} = {}; let (paid_{id}, after_{id}, before_{id}, picked_{id}): (bool, Vec<ObjectId>, Vec<ObjectId>, Vec<ObjectId>) = if cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)? {{",
@@ -1454,6 +1468,7 @@ impl Compiler {
                 let asked = self.ask_to_pay(id, player, cost)?;
                 writeln!(out, "{asked}").unwrap();
                 self.performed.insert(result.0, format!("paid_{id}"));
+                self.objects_that_paid(id, result, out);
             }
             Operation::PayCost {
                 player,
@@ -1497,7 +1512,9 @@ impl Compiler {
                     } => {
                         let owed = self.fetch(self.number(count)?.amount(u32::MAX.into(), "u32")?);
                         let who = self.fetch(self.certain_player(player)?);
-                        writeln!(out, "let owed_{id} = {owed} as usize; let player_{id} = {who}; let paid_{id} = g.state().zone(Zone::hand(player_{id})).len() >= owed_{id}; if paid_{id} {{ cantrip_mechanics::discard_at_random(g, player_{id}, owed_{id}); }}").unwrap();
+                        writeln!(out, "let owed_{id} = {owed} as usize; let player_{id} = {who}; let paid_{id} = g.state().zone(Zone::hand(player_{id})).len() >= owed_{id}; let hand_{id} = g.state().zone(Zone::hand(player_{id})).to_vec(); if paid_{id} {{ cantrip_mechanics::discard_at_random(g, player_{id}, owed_{id}); }} let discarded_{id}: Vec<ObjectId> = hand_{id}.iter().filter_map(|&o| g.state().obj(o).became).collect();").unwrap();
+                        self.moved.insert(result.0, format!("discarded_{id}"));
+                        self.left_behind(result, format!("discarded_{id}.clone()"));
                     }
                     CostPart::Discard {
                         count,
@@ -1520,7 +1537,7 @@ impl Compiler {
                         count,
                         filter,
                         random: false,
-                    } if reveals_one(count) => {
+                    } if reveals_one(count) || matches!(count, Count::AnyNumber) => {
                         let hand = ObjectSet::Zone {
                             scope: ZoneScope::Players {
                                 zone: EventZone::Hand,
@@ -1571,6 +1588,12 @@ impl Compiler {
                             }
                             Some(Count::Exactly(n)) => {
                                 self.select_whole(player, objects, n, destination, result, out)?;
+                                let chosen = ObjectSet::Selected(result.clone());
+                                self.move_objects(id, &chosen, destination, entry, result, out)?;
+                            }
+                            Some(count @ Count::AnyNumber) => {
+                                let purpose = lane_g::move_purpose(destination);
+                                self.choose(player, objects, count, result, purpose, out)?;
                                 let chosen = ObjectSet::Selected(result.clone());
                                 self.move_objects(id, &chosen, destination, entry, result, out)?;
                             }
