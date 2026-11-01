@@ -707,6 +707,19 @@ impl Compiler {
             for def in &mut defs {
                 write!(def, "{own}.everywhere()").unwrap();
             }
+            // Cantrip's card table refuses this: losing abilities reaches permanents only.
+            let (lost, rest): (Vec<_>, Vec<_>) = defs
+                .into_iter()
+                .partition(|def: &String| def.starts_with("loses_all_abilities("));
+            defs = rest;
+            for def in lost {
+                self.plan_entry(
+                    "a static ability that makes cards outside the battlefield lose all abilities",
+                    "statics",
+                    &def,
+                    parts,
+                );
+            }
         }
         parts.statics.extend(defs);
         Ok(())

@@ -1709,14 +1709,10 @@ mod scenarios {
         let rest: Vec<ObjectId> = top[1..].iter().rev().copied().collect();
         let order = rest.clone();
         resolve_asking(&mut g, &mut |_, kind| match kind {
-            RequestKind::ChooseCards { cards, .. } => {
-                assert_eq!(cards, &top);
-                Answer::Cards(vec![top[0]])
-            }
             RequestKind::DistributeCards { cards, .. } => {
-                assert_eq!(cards.len(), 3, "what was taken is not in the rest");
+                assert_eq!(cards, &top);
                 Answer::Placements {
-                    placements: vec![order.clone()],
+                    placements: vec![vec![top[0]], order.clone()],
                     shuffle: false,
                 }
             }
@@ -1751,7 +1747,8 @@ mod scenarios {
             resolve_asking(&mut g, &mut |_, kind| match kind {
                 RequestKind::May { .. } if accept => Answer::Yes,
                 RequestKind::May { .. } => Answer::No,
-                RequestKind::ChooseCards { cards, .. } => Answer::Cards(vec![cards[0]]),
+                RequestKind::ChooseCards { cards, .. } if accept => Answer::Cards(vec![cards[0]]),
+                RequestKind::ChooseCards { .. } => Answer::Cards(vec![]),
                 other => panic!("unexpected question {other:?}"),
             });
             assert_eq!(g.state.obj(bears).became.is_some(), accept);
@@ -2868,18 +2865,17 @@ mod scenarios {
         let (mut g, spell, splitter) = game("Detonate", Some("Bonesplitter"));
         let splitter = splitter.unwrap();
         let life = g.state.player(ME).life;
-        announce_at(
-            &mut g,
-            spell,
-            ActionKind::CastSpell,
-            Target::Object(splitter),
-        );
+        announce(&mut g, spell, ActionKind::CastSpell);
         g.run();
         let request = g.pending().cloned().unwrap();
         g.answer(request.id, request.player, Answer::Announce(1))
             .unwrap();
-        resolve_asking(&mut g, &mut |_, kind| {
-            panic!("unexpected question {kind:?}")
+        resolve_asking(&mut g, &mut |_, kind| match kind {
+            RequestKind::ChooseTarget { candidates, .. } => {
+                assert_eq!(candidates, &vec![Target::Object(splitter)]);
+                Answer::Targets(vec![Target::Object(splitter)])
+            }
+            other => panic!("unexpected question {other:?}"),
         });
         assert!(permanents_named(&g, "Bonesplitter").is_empty());
         assert_eq!(g.state.player(ME).life, life - 1);
@@ -4323,10 +4319,8 @@ mod scenarios {
         g.answer(request.id, request.player, Answer::Announce(3)).unwrap();
         resolve_asking(&mut g, &mut |g, kind| match kind {
             RequestKind::ChooseCards { .. } if !yes => Answer::Cards(vec![]),
-            RequestKind::ChooseCards { .. } => {
-                let exile = g.state.zone(Zone::exile(THEM));
-                let card = g.cards.find("Divination").unwrap();
-                Answer::Cards(vec![*exile.iter().find(|&&id| g.state.obj(id).card == card).unwrap()])
+            RequestKind::ChooseCards { rule, .. } => {
+                Answer::Cards(vec![rule.among.as_ref().unwrap()[0]])
             }
             RequestKind::May { .. } => Answer::Yes,
             other => panic!("unexpected question {other:?}"),
