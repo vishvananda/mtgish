@@ -862,10 +862,401 @@ impl Compiler {
                     .extend(child.extras.into_iter().map(|p| format!("emblem_{id}::{p}")));
                 writeln!(out, "for player in {} {{ cantrip_mechanics::tokens::create_emblem(g, player, &{path}); }}", self.fetch(self.players(actor)?)).unwrap();
             }
+            Operation::KeywordEach {
+                actor,
+                action,
+                objects,
+                until,
+            } => self.keyword_each(id, actor, action, objects, until.as_ref(), result, out)?,
+            Operation::Move {
+                objects,
+                destination: Destination::Exile,
+                entry,
+                face_down: true,
+            } if effects::plain_entry(entry) => {
+                let by = match (self.links_exile, self.stack_item) {
+                    (true, true) => "Some(g.linked(item))",
+                    (true, false) => {
+                        return Err(gap("exile outside a stack item that an ability reads as exiled with its source"))
+                    }
+                    (false, _) => "None",
+                };
+                writeln!(out, "let objects_{id} = {}; let by_{id} = {by}; let moved_{id} = g.exile_face_down(&objects_{id}, by_{id});", self.fetch(self.objects(objects)?)).unwrap();
+                self.moved.insert(result.0, format!("moved_{id}"));
+                self.left_behind(result, effects::gone(&format!("objects_{id}")));
+            }
+            Operation::Conjure { .. } => self.conjure(id, op, result, out)?,
+            Operation::DraftFromSpellbook {
+                actor,
+                spellbook,
+                times,
+            } => {
+                let times = self.number(times)?.amount(u32::MAX.into(), "u32")?;
+                let call = planned::planned_value(
+                    "operation DraftFromSpellbook",
+                    "Vec::<ObjectId>::new()",
+                    &format!("cantrip_mechanics::conjure::draft_from_spellbook(g, player, asker.source, {spellbook:?}, times_{id})?"),
+                );
+                writeln!(out, "let times_{id}: u32 = {}; let mut drafted_{id}: Vec<ObjectId> = Vec::new(); for player in {} {{ drafted_{id}.extend({call}); }}", self.fetch(times), self.fetch(self.players(actor)?)).unwrap();
+                self.creations.insert(result.0, format!("drafted_{id}"));
+                self.moved.insert(result.0, format!("drafted_{id}"));
+            }
+            Operation::Search { .. } => self.search_zones(id, op, result, out)?,
             other => return Err(gap(format!("operation {}", form(other)))),
         }
         Ok(())
     }
+    /// Whether anything after this instruction in its ability reads `result`.
+    pub(super) fn read_later(&self, result: &ResultId) -> bool {
+        let mark = format!("ResultId({})", result.0);
+        self.after
+            .iter()
+            .any(|instruction| format!("{instruction:?}").contains(&mark))
+    }
+    /// A keyword action on each of a set. What the rules do to them together is
+    /// one call; the others go through the action on one object.
+    #[allow(clippy::too_many_arguments)]
+    fn keyword_each(
+        &mut self,
+        id: usize,
+        actor: &PlayerSet,
+        action: &KeywordAction,
+        objects: &ObjectSet,
+        until: Option<&crate::ir::Duration>,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        use KeywordAction as K;
+        const M: &str = "cantrip_mechanics";
+        let controller = matches!(actor, PlayerSet::One(PlayerRef::AbilityController));
+        // Actions with no call yet: what the card will say once there is one.
+        let planned = match action {
+            K::Detain => Some(("keyword action Detain", format!("{M}::detain::detain(g, item, object)"))),
+            K::Unsuspect => Some(("keyword action Unsuspect", "g.unsuspect(object)".to_string())),
+            K::Unprepare => Some(("keyword action Unprepare", "g.unprepare(object)".to_string())),
+            K::Ungoad => Some(("keyword action Ungoad", format!("{M}::goad::ungoad(g, object)"))),
+            K::BecomeBlocked => Some(("keyword action BecomeBlocked", "g.become_blocked(object)".to_string())),
+            K::TurnFaceDown => Some(("keyword action TurnFaceDown", "g.turn_face_down(object)".to_string())),
+            K::RemoveFromCombat => Some(("engine: no effect removes from combat", "g.remove_from_combat(object)".to_string())),
+            _ => None,
+        };
+        match (action, until) {
+            (_, None) if planned.is_some() => {
+                let (feature, call) = planned.expect("checked");
+                let objects = self.acted_on(objects)?;
+                self.plan_code(feature, &format!("for object in {objects} {{ {call}; }}"), out);
+            }
+            (K::PhaseOut, None) => writeln!(out, "let objects_{id} = {}; g.phase_out(&objects_{id});", self.acted_on(objects)?).unwrap(),
+            (K::Airbend, None) => writeln!(out, "let objects_{id} = {}; {M}::airbend_all(g, &objects_{id});", self.acted_on(objects)?).unwrap(),
+            (K::Cipher, None) if controller && self.stack_item => {
+                const TRIGGER: &str = "cantrip_mechanics::cipher::TRIGGER";
+                match self.delayed.first().map(String::as_str) {
+                    Some(TRIGGER) => {}
+                    None => self.delayed.push(TRIGGER.into()),
+                    Some(_) => return Err(gap("cipher beside another first delayed ability")),
+                }
+                self.cipher = true;
+                writeln!(out, "{M}::cipher::encode(g, item)?;").unwrap();
+            }
+            (K::Goad, Some(until)) if controller && self.stack_item => {
+                let duration = self.duration(until)?;
+                writeln!(out, "let objects_{id} = {}; let duration_{id} = {duration}; for object in objects_{id} {{ {M}::goad::goad_for(g, item, object, duration_{id}); }}", self.acted_on(objects)?).unwrap();
+            }
+            (_, Some(_)) => return Err(gap("keyword action with a duration of its own")),
+            _ => {
+                let binding = u32::MAX - id as u32;
+                let each = ObjectRef::Bound(Binding(binding));
+                writeln!(out, "for bound_{binding} in {} {{", self.fetch(self.objects(objects)?)).unwrap();
+                self.bound_objects.insert(binding);
+                let one = keywords::Action {
+                    actor,
+                    action: action.clone(),
+                    object: Some(&each),
+                    other: None,
+                    amount: None,
+                    subtype: None,
+                };
+                let inner = self.fresh();
+                let compiled = self.keyword_action(inner, one, result, out);
+                self.bound_objects.remove(&binding);
+                compiled?;
+                writeln!(out, "}}").unwrap();
+            }
+        }
+        Ok(())
+    }
+    /// A move's arrival past what `arrival` knows, as one object's `each`.
+    pub(super) fn arrival_in_state(&mut self, entry: &EntrySpec, counters: &str) -> Result<String> {
+        let tapped = entry.tapped;
+        Ok(match entry.states.as_slice() {
+            [EntryState::Transformed] => {
+                let call = match counters.is_empty() {
+                    true => format!("g.put_onto_battlefield_transformed(o, controller, {tapped})?"),
+                    false => format!("g.put_onto_battlefield_transformed_with_counters(o, controller, {tapped}, &[{counters}])?"),
+                };
+                format!("let entered = {call}; if g.is_on_battlefield(entered) {{ moved.push(entered); }}")
+            }
+            [EntryState::FaceDown] if counters.is_empty() => {
+                let call = planned::planned_value(
+                    "move arrival FaceDown",
+                    "None::<ObjectId>",
+                    &format!("g.put_onto_battlefield_face_down(o, controller, FaceDown::Bare, {tapped})?"),
+                );
+                format!("moved.extend({call});")
+            }
+            [EntryState::AttachedToPlayer(player)] if counters.is_empty() && !tapped => {
+                let player = self.fetch(self.player(player)?);
+                let call = planned::planned_value(
+                    "move arrival AttachedToPlayer",
+                    "None::<ObjectId>",
+                    &format!("{player}.and_then(|player| g.put_onto_battlefield_enchanting(o, controller, player)?)"),
+                );
+                format!("moved.extend({call});")
+            }
+            _ => return Err(gap("move arrival state")),
+        })
+    }
+    /// Objects that enter together as `changes` says (CR 614.12): one static
+    /// `EntersAs`, read by the engine as they enter.
+    pub(super) fn entering_as(
+        &mut self,
+        id: usize,
+        entry: &EntrySpec,
+        changes: &[Change],
+        controller: &str,
+    ) -> Result<String> {
+        if !self.stack_item || entry.tapped {
+            return Err(gap("move arrival state"));
+        }
+        let mut fields = Vec::new();
+        let mut adds = Vec::new();
+        let mut subtypes = Vec::new();
+        let mut keywords = Vec::new();
+        let mut abilities = Vec::new();
+        for change in changes {
+            match change {
+                Change::SetCardTypes(types) => {
+                    let types = types
+                        .iter()
+                        .map(|t| card_type(t).map(|t| format!("CardType::{t}")))
+                        .collect::<Result<Vec<_>>>()?;
+                    fields.push(format!("types: Some(TypeSet::of(&[{}]))", types.join(", ")));
+                }
+                Change::AddCardType(t) => adds.push(format!("CardType::{}", card_type(t)?)),
+                Change::CreatureTypes {
+                    mode: ChangeMode::Add,
+                    types: CreatureTypeSet::Listed(types),
+                } => {
+                    for t in types {
+                        let word = name(t);
+                        if !crate::cantrip_vocab::SUBTYPES.contains(&word.as_str()) {
+                            return Err(gap(format!("subtype {word}")));
+                        }
+                        subtypes.push(format!("Subtype::{word}"));
+                    }
+                }
+                Change::SetBasePowerToughness {
+                    power: Expr::Constant(power),
+                    toughness: Expr::Constant(toughness),
+                } => fields.push(format!("power_toughness: Some(({power}, {toughness}))")),
+                Change::GrantAbility(ability) => {
+                    abilities.push(self.grant(ability)?.to_string());
+                }
+                Change::GrantKeyword(k) if !matches!(k, Keyword::Protection(_) | Keyword::Ward(_)) => {
+                    keywords.push(keyword(k)?)
+                }
+                Change::RemoveAllAbilities => fields.push("loses_other_abilities: true".to_string()),
+                Change::Colors { .. } => return Err(gap("move arrival with a color")),
+                _ => return Err(gap("move arrival state")),
+            }
+        }
+        if !adds.is_empty() {
+            fields.push(format!("adds_types: TypeSet::of(&[{}])", adds.join(", ")));
+        }
+        if !subtypes.is_empty() {
+            fields.push(format!("subtypes: &[{}]", subtypes.join(", ")));
+        }
+        if !keywords.is_empty() {
+            fields.push(format!("keywords: Keywords::of(&[{}])", keywords.join(", ")));
+        }
+        if !abilities.is_empty() {
+            fields.push(format!("abilities: &[{}]", abilities.join(", ")));
+        }
+        writeln!(self.functions, "static ENTERS_{id}: EntersAs = EntersAs {{ {}, ..EntersAs::NONE }};", fields.join(", ")).unwrap();
+        let mut counters = Vec::new();
+        for (kind, n) in &entry.counters {
+            let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+            counters.push(format!("({}, {})", counter_kind(kind)?, self.fetch(n)));
+        }
+        Ok(format!("{{ let rows: Vec<(ObjectId, PlayerId)> = objects_{id}.iter().map(|&o| (o, {controller})).collect(); let counters: Vec<(CounterKind, i16)> = vec![{}]; g.put_all_onto_battlefield_becoming(&rows, item, &ENTERS_{id}, &counters)? }}", counters.join(", ")))
+    }
+    /// A conjured card, in the form it will have once Cantrip conjures: its
+    /// `what` and `to` are the operation's own, and what it conjured is real.
+    fn conjure(&mut self, id: usize, op: &Operation, result: &ResultId, out: &mut String) -> Result<()> {
+        let Operation::Conjure {
+            actor,
+            card,
+            count,
+            zone,
+            owner,
+            spot,
+            entry,
+        } = op
+        else {
+            return Err(gap("operation Conjure"));
+        };
+        let what = match card {
+            ConjuredCard::Named(name) => format!("Conjured::Named({name:?})"),
+            ConjuredCard::OneOf(names) => format!("Conjured::OneOf(&{names:?})"),
+            ConjuredCard::Each(names) => format!("Conjured::Each(&{names:?})"),
+            ConjuredCard::Spellbook { book, pick } => {
+                format!("Conjured::FromSpellbook({book:?}, SpellbookPick::{pick:?})")
+            }
+            ConjuredCard::Duplicate(objects) => {
+                writeln!(out, "let duplicated_{id} = {};", self.fetch(self.objects(objects)?)).unwrap();
+                format!("Conjured::DuplicateOf(&duplicated_{id})")
+            }
+            ConjuredCard::Random(_) | ConjuredCard::SpellbookMatching { .. } => {
+                return Err(gap("operation Conjure"))
+            }
+        };
+        let tapped = conjured_tapped(entry).ok_or_else(|| gap("operation Conjure"))?;
+        let place = |c: &Self, n: &Expr| -> Result<String> {
+            Ok(c.fetch(c.number(n)?.amount(u32::MAX.into(), "usize")?))
+        };
+        let to = match (zone, spot) {
+            (EventZone::Hand, None) => "ConjureTo::Hand".to_string(),
+            (EventZone::Graveyard, None) => "ConjureTo::Graveyard".to_string(),
+            (EventZone::Exile, None) => "ConjureTo::Exile".to_string(),
+            (EventZone::Battlefield, None) => format!("ConjureTo::Battlefield {{ tapped: {tapped} }}"),
+            (EventZone::Library, None) => "ConjureTo::Library(ConjureSpot::Random)".to_string(),
+            (EventZone::Library, Some(ConjureSpot::Shuffled)) => "ConjureTo::Library(ConjureSpot::Shuffled)".to_string(),
+            (EventZone::Library, Some(ConjureSpot::Top)) => "ConjureTo::Library(ConjureSpot::Top)".to_string(),
+            (EventZone::Library, Some(ConjureSpot::AmongTop(n))) => {
+                format!("ConjureTo::Library(ConjureSpot::AmongTop({}))", place(self, n)?)
+            }
+            (EventZone::Library, Some(ConjureSpot::FromTop(n))) => {
+                format!("ConjureTo::Library(ConjureSpot::FromTop({}))", place(self, n)?)
+            }
+            _ => return Err(gap("operation Conjure")),
+        };
+        let owner = match owner {
+            Some(owner) => self.fetch(self.certain_player(owner)?),
+            None => "player".to_string(),
+        };
+        let count = self.number(count)?.amount(u32::MAX.into(), "u32")?;
+        let call = planned::planned_value(
+            "operation Conjure",
+            "Vec::<ObjectId>::new()",
+            &format!("cantrip_mechanics::conjure::conjure(g, player, {owner}, asker.source, {what}, count_{id}, {to})?"),
+        );
+        writeln!(out, "let count_{id}: u32 = {}; let mut conjured_{id}: Vec<ObjectId> = Vec::new(); for player in {} {{ conjured_{id}.extend({call}); }}", self.fetch(count), self.fetch(self.players(actor)?)).unwrap();
+        self.creations.insert(result.0, format!("conjured_{id}"));
+        self.moved.insert(result.0, format!("conjured_{id}"));
+        Ok(())
+    }
+    /// A search past one library: "and/or" (the searcher picks whether the library
+    /// is searched), or a list of zones searched one by one, the library last.
+    fn search_zones(&mut self, id: usize, op: &Operation, result: &ResultId, out: &mut String) -> Result<()> {
+        let Operation::Search {
+            player,
+            library,
+            top: None,
+            choices,
+            also,
+            either,
+            outside: false,
+        } = op
+        else {
+            return Err(gap("operation Search"));
+        };
+        let [choice] = choices.as_slice() else {
+            return Err(gap("search with several find clauses"));
+        };
+        if let Some(constraint) = choice.constraints.first() {
+            return Err(gap(format!("search constraint {}", form(constraint))));
+        }
+        if also.is_empty() {
+            return Err(gap("operation Search"));
+        }
+        let zone_of = |zone: &EventZone, owner: &str| match zone {
+            EventZone::Graveyard => Ok((format!("Zone::graveyard({owner})"), "graveyard", "Graveyard")),
+            EventZone::Hand => Ok((format!("Zone::hand({owner})"), "hand", "Hand")),
+            _ => Err(gap("operation Search")),
+        };
+        if effects::one_at_most(&choice.count) {
+            self.single.insert(result.0);
+        }
+        let filter = self.filter(&choice.filter, &Candidate::of("id"))?;
+        let destination = effects::search_destination(result, &self.after);
+        let purpose = match destination {
+            "Battlefield" | "BattlefieldTapped" => "PutOntoBattlefield",
+            "Graveyard" => "PutIntoGraveyard",
+            "Exile" => "Exile",
+            "TopOfLibrary" => "PutOnTop",
+            _ => "PutIntoHand",
+        };
+        let searcher = self.fetch(self.certain_player(player)?);
+        let owner = self.fetch(self.certain_player(library)?);
+        writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = {owner};").unwrap();
+        const LIBRARY: &str = "cantrip_mechanics::library";
+        const SELECTION: &str = "cantrip_mechanics::select::Selection";
+        if *either {
+            if format!("{player:?}") != format!("{library:?}") {
+                return Err(gap("operation Search"));
+            }
+            let [zone] = also.as_slice() else {
+                return Err(gap("operation Search"));
+            };
+            let (zone, word, title) = zone_of(zone, &format!("searcher_{id}"))?;
+            writeln!(self.functions, "static ASK_{id}: Question = Question::new(\"SearchLibrary\", \"search your library as well as your {word}?\", \"Then shuffle. If you don't, you search only your {word}\", \"Search both\", \"{title} only\");").unwrap();
+            let count = self.fetch(self.select_count(&choice.count)?);
+            writeln!(out, "let rule_count_{id} = {count}; let zone_{id} = {zone}; let mut shown_{id} = {LIBRARY}::searched_cards(g, searcher_{id}); shown_{id}.extend(g.state().zone(zone_{id}).iter().copied()); let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }}; let (found_{id}, searched_{id}) = {LIBRARY}::search_zone_and_or_library(g, searcher_{id}, asker.source, zone_{id}, SearchDestination::{destination}, Purpose::{purpose}, &ASK_{id}, {SELECTION}::listed(rule_count_{id}, &shown_{id}, can_{id}))?;").unwrap();
+            self.searched.insert(result.0, format!("searched_{id}"));
+        } else {
+            // One search, with the cards of each zone chosen in the order named:
+            // "up to" holds across them, and the library is searched last.
+            let limit = match &choice.count {
+                Count::AnyNumber => None,
+                Count::UpTo(n) => Some(self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?)),
+                _ => return Err(gap("operation Search")),
+            };
+            let count = |id: usize| match limit {
+                Some(_) => format!("cantrip_mechanics::select::Count::UpTo(left_{id})"),
+                None => "cantrip_mechanics::select::Count::AnyNumber".to_string(),
+            };
+            let spend = |id: usize| match limit {
+                Some(_) => format!("left_{id} -= taken.len() as u32;"),
+                None => String::new(),
+            };
+            if let Some(limit) = &limit {
+                writeln!(out, "let mut left_{id}: u32 = {limit};").unwrap();
+            }
+            writeln!(out, "let mut found_{id}: Vec<ObjectId> = Vec::new();").unwrap();
+            for zone in also {
+                let (zone, ..) = zone_of(zone, &format!("owner_{id}"))?;
+                writeln!(out, "{{ let shown = g.state().zone({zone}).to_vec(); let can: Vec<ObjectId> = {{ let q: &dyn Query = g; shown.iter().copied().filter(|&id| {filter}).collect() }}; if !can.is_empty() {{ let taken = cantrip_mechanics::choose::select(g, searcher_{id}, asker.source, Purpose::{purpose}, shown.clone(), {SELECTION}::listed({}, &shown, can))?; {} found_{id}.extend(taken); }} }}", count(id), spend(id)).unwrap();
+            }
+            writeln!(out, "{{ let shown = {LIBRARY}::searched_cards(g, owner_{id}); let can: Vec<ObjectId> = {{ let q: &dyn Query = g; shown.iter().copied().filter(|&id| {filter}).collect() }}; let taken = {LIBRARY}::search(g, searcher_{id}, owner_{id}, asker.source, SearchDestination::{destination}, {SELECTION}::listed({}, &shown, can))?; found_{id}.extend(taken); }}", count(id)).unwrap();
+            self.searched.insert(result.0, "true".to_string());
+        }
+        self.selections.insert(result.0, format!("found_{id}"));
+        Ok(())
+    }
+}
+
+/// Whether a conjured permanent enters tapped, if that is all its entry says.
+fn conjured_tapped(entry: &[Operand]) -> Option<bool> {
+    let mut tapped = false;
+    for operand in entry {
+        match operand {
+            Operand::List(flags) => tapped |= conjured_tapped(flags)?,
+            Operand::Term { form, .. } if form == "EntersNormally" => {}
+            Operand::Term { form, .. } if form == "EntersTapped" => tapped = true,
+            _ => return None,
+        }
+    }
+    Some(tapped)
 }
 
 fn same_kind(a: ViewKind, b: ViewKind) -> bool {

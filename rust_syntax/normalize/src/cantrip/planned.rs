@@ -87,6 +87,7 @@ impl Compiler {
         self.dividing = None;
         self.asking = None;
         self.repeating = None;
+        self.after.clear();
         self.stack_item = true;
         self.reader = Reader::Resolution;
         self.event_at = EventAt::Nowhere;

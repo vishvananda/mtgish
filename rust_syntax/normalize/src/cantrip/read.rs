@@ -979,12 +979,13 @@ impl Compiler {
                 dynamic: true,
             },
             Expr::Performed(result) | Expr::CountersRemoved(result) => {
-                match self.performed.get(&result.0) {
-                    Some(local) => count(format!("({local} as i64)")),
-                    None if self.failed.contains(&result.0) => {
+                match (self.performed.get(&result.0), self.moved.get(&result.0)) {
+                    (Some(local), _) => count(format!("({local} as i64)")),
+                    (None, Some(moved)) => count(format!("({moved}.len() as i64)")),
+                    _ if self.failed.contains(&result.0) => {
                         count(planned::unreported("0i64", result))
                     }
-                    None => return Err(gap("result this instruction does not report")),
+                    _ => return Err(gap("result this instruction does not report")),
                 }
             }
             Expr::BoundValue(result) | Expr::DieResult(result) => {
@@ -1421,6 +1422,11 @@ impl Compiler {
             Condition::Primitive { name, .. } => {
                 return Err(gap(format!("primitive condition {name}")))
             }
+            Condition::Searched(result) => match self.searched.get(&result.0) {
+                Some(local) => local.clone(),
+                None if self.failed.contains(&result.0) => planned::unreported("false", result),
+                None => return Err(gap("condition Searched")),
+            },
             Condition::All(items) => combine(items, " && ", "true")?,
             Condition::Either(items) => combine(items, " || ", "false")?,
             Condition::Not(c) => format!("!({})", self.condition(c)?),

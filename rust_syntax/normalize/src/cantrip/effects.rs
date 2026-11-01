@@ -5,7 +5,7 @@ use super::*;
 
 /// The prompt a choice asks with, from what its result is for. It is wording: a
 /// choice nothing consumes in sight stays a gap rather than asking something odd.
-fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'static str> {
+pub(super) fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'static str> {
     let picked = |object: &ObjectRef| matches!(object, ObjectRef::Result { result: r, .. } if r.0 == result.0);
     let chosen = |objects: &ObjectSet| match objects {
         ObjectSet::Selected(r) => r.0 == result.0,
@@ -165,7 +165,7 @@ pub(super) fn gone(list: &str) -> String {
 
 /// What a result of the search that found it is about to become, for the search
 /// prompt. The move itself stays an ordinary later instruction.
-fn search_destination(result: &ResultId, rest: &[Instruction]) -> &'static str {
+pub(super) fn search_destination(result: &ResultId, rest: &[Instruction]) -> &'static str {
     let chosen = |objects: &ObjectSet| matches!(objects, ObjectSet::Selected(r) if r.0 == result.0);
     for instruction in rest {
         if let Instruction::Effect {
@@ -200,7 +200,7 @@ fn search_destination(result: &ResultId, rest: &[Instruction]) -> &'static str {
     "Hand"
 }
 
-fn plain_entry(entry: &EntrySpec) -> bool {
+pub(super) fn plain_entry(entry: &EntrySpec) -> bool {
     !entry.tapped && entry.counters.is_empty() && entry.states.is_empty()
 }
 
@@ -215,6 +215,7 @@ pub(super) struct Results {
     pub(super) values: BTreeMap<u32, String>,
     pub(super) flips: BTreeMap<u32, String>,
     pub(super) chosen: Vec<(ValueKind, String)>,
+    pub(super) searched: BTreeMap<u32, String>,
     failed: BTreeSet<u32>,
 }
 
@@ -228,7 +229,7 @@ enum Hoist {
 }
 
 /// A count that picks one object, or none.
-fn one_at_most(count: &Count) -> bool {
+pub(super) fn one_at_most(count: &Count) -> bool {
     matches!(
         count,
         Count::Exactly(Expr::Constant(1)) | Count::UpTo(Expr::Constant(1))
@@ -328,7 +329,9 @@ impl Compiler {
         let reader = std::mem::replace(&mut self.reader, Reader::Resolution);
         let at = std::mem::replace(&mut self.event_at, EventAt::Item);
         let hoisted = self.hoisted.replace(Vec::new());
+        let around = std::mem::take(&mut self.after);
         let compiled = self.program(body, &mut out, true);
+        self.after = around;
         let declared = std::mem::replace(&mut self.hoisted, hoisted);
         self.reader = reader;
         self.event_at = at;
@@ -361,9 +364,13 @@ impl Compiler {
         let instruction = &body.instructions[i];
         let mark = out.len();
         let scope = self.results();
+        let mut after = body.instructions[i + 1..].to_vec();
+        after.extend_from_slice(&self.after);
+        let around = std::mem::replace(&mut self.after, after);
         let failure = self.attempt(format!("instructions[{i}]"), |c| {
             c.instruction(body, i, instruction, out)
         });
+        self.after = around;
         if let Some(feature) = failure {
             out.truncate(mark);
             self.restore_results(scope);
@@ -385,6 +392,7 @@ impl Compiler {
             values: self.values.clone(),
             flips: self.flips.clone(),
             chosen: self.chosen.clone(),
+            searched: self.searched.clone(),
             failed: self.failed.clone(),
         }
     }
@@ -399,6 +407,7 @@ impl Compiler {
             values,
             flips,
             chosen,
+            searched,
             failed,
         } = results;
         self.selections = selections;
@@ -410,6 +419,7 @@ impl Compiler {
         self.values = values;
         self.flips = flips;
         self.chosen = chosen;
+        self.searched = searched;
         self.failed = failed;
     }
     /// A nested block: what it binds is out of Rust's scope once it closes. The
@@ -511,7 +521,9 @@ impl Compiler {
                 }
                 let rest = &body.instructions[i + 1..];
                 let purpose = purpose(result, rest)
+                    .or_else(|| purpose(result, &self.after))
                     .or_else(|| referred_to(result, rest).then_some("ChooseAsEnters"))
+                    .or_else(|| referred_to(result, &self.after).then_some("ChooseAsEnters"))
                     .ok_or_else(|| gap("resolution choice prompt purpose"))?;
                 self.choose(player, objects, count, result, purpose, out)
             }
@@ -546,6 +558,7 @@ impl Compiler {
                 let count = self.fetch(count);
                 writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = {owner}; let rule_count_{id} = {count}; let shown_{id} = cantrip_mechanics::library::searched_cards(g, owner_{id}); let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }}; let found_{id} = cantrip_mechanics::library::search(g, searcher_{id}, owner_{id}, asker.source, SearchDestination::{destination}, cantrip_mechanics::select::Selection::listed(rule_count_{id}, &shown_{id}, can_{id}))?;").unwrap();
                 self.selections.insert(result.0, format!("found_{id}"));
+                self.searched.insert(result.0, "true".into());
                 Ok(())
             }
             // The cards left out go somewhere chosen at once, so a whole shuffle
@@ -799,7 +812,19 @@ impl Compiler {
                     Operation::GainLife { .. } => ("gain_life", i32::MAX.into(), "i32"),
                     _ => ("lose_life", i32::MAX.into(), "i32"),
                 };
-                writeln!(out,"let amount_{id} = {}; let players_{id} = {}; for player in players_{id} {{ g.{method}(player, amount_{id}); }}",self.fetch(number.amount(max,ty)?),self.fetch(self.players(players)?)).unwrap();
+                let amount = self.fetch(number.amount(max, ty)?);
+                let players = self.fetch(self.players(players)?);
+                writeln!(out, "let amount_{id} = {amount}; let players_{id} = {players};").unwrap();
+                if self.read_later(result) {
+                    let measure = match op {
+                        Operation::Draw { .. } => "g.history().drawn(player) as i64",
+                        _ => "i64::from(g.state().player(player).life)",
+                    };
+                    writeln!(out, "let mut done_{id}: i64 = 0; for player in players_{id} {{ let before = {measure}; g.{method}(player, amount_{id}); done_{id} += ({measure} - before).abs(); }}").unwrap();
+                    self.performed.insert(result.0, format!("done_{id}"));
+                } else {
+                    writeln!(out, "for player in players_{id} {{ g.{method}(player, amount_{id}); }}").unwrap();
+                }
             }
             Operation::Mill { players, amount } => {
                 let number = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
@@ -817,7 +842,16 @@ impl Compiler {
                     let PlayerSet::One(player) = players else {
                         return Err(gap("random discard by several players"));
                     };
-                    writeln!(out, "let amount_{id} = {}; let player_{id} = {}; cantrip_mechanics::discard_at_random(g, player_{id}, amount_{id} as usize);", self.fetch(number), self.fetch(self.certain_player(player)?)).unwrap();
+                    let amount = self.fetch(number);
+                    let player = self.fetch(self.certain_player(player)?);
+                    writeln!(out, "let amount_{id} = {amount}; let player_{id} = {player};").unwrap();
+                    if self.read_later(result) {
+                        writeln!(out, "let mut hand_{id} = g.state().zone(Zone::hand(player_{id})).to_vec(); let mut picked_{id}: Vec<ObjectId> = Vec::new(); while (picked_{id}.len() as u32) < amount_{id} && !hand_{id}.is_empty() {{ let at = g.choose_at_random(hand_{id}.len()); picked_{id}.push(hand_{id}.remove(at)); }} let discarded_{id} = g.discard_together(&picked_{id});").unwrap();
+                        self.moved.insert(result.0, format!("discarded_{id}"));
+                        self.left_behind(result, format!("discarded_{id}.clone()"));
+                    } else {
+                        writeln!(out, "cantrip_mechanics::discard_at_random(g, player_{id}, amount_{id} as usize);").unwrap();
+                    }
                 } else {
                     writeln!(out,"let amount_{id} = {}; let players_{id} = {}; let mut cards_{id} = Vec::new(); for player in players_{id} {{ cards_{id}.extend(cantrip_mechanics::choose_from_hand(g, player, asker.source, amount_{id})?); }} let discarded_{id} = g.discard_together(&cards_{id});",self.fetch(number),self.fetch(self.players(players)?)).unwrap();
                     self.moved.insert(result.0, format!("discarded_{id}"));
@@ -906,7 +940,10 @@ impl Compiler {
                 preventable: true,
             } => {
                 let amount = self.number(amount)?.amount(u16::MAX.into(), "u16")?;
-                writeln!(out, "let source_{id} = {}; let amount_{id} = {}; let recipients_{id} = {}; if let Some(source) = source_{id} {{ let batch: Vec<(ObjectId, Target, u16)> = recipients_{id}.iter().map(|t| (source, *t, amount_{id})).collect(); g.damage_together(&batch); }}", self.fetch(self.object(source)?), self.fetch(amount), self.fetch(self.recipients(recipients)?)).unwrap();
+                writeln!(out, "let mut done_{id}: i64 = 0; let source_{id} = {}; let amount_{id} = {}; let recipients_{id} = {}; if let Some(source) = source_{id} {{ let batch: Vec<(ObjectId, Target, u16)> = recipients_{id}.iter().map(|t| (source, *t, amount_{id})).collect(); done_{id} += g.damage_together(&batch).iter().map(|&n| i64::from(n)).sum::<i64>(); }}", self.fetch(self.object(source)?), self.fetch(amount), self.fetch(self.recipients(recipients)?)).unwrap();
+                if self.read_later(result) {
+                    self.performed.insert(result.0, format!("done_{id}"));
+                }
             }
             Operation::DealDamageParts {
                 source,
@@ -1411,6 +1448,7 @@ impl Compiler {
         self.values.clear();
         self.flips.clear();
         self.chosen.clear();
+        self.searched.clear();
         self.failed.clear();
     }
     pub(super) fn create_tokens(
@@ -1571,7 +1609,8 @@ impl Compiler {
         let library = |place: String| format!("g.put_into_library(&objects_{id}, {place})");
         let call = match destination {
             Destination::Battlefield(_) | Destination::OwnersBattlefield => {
-                if !entry.states.is_empty() && !alone {
+                let becoming = matches!(entry.states.as_slice(), [EntryState::Changes(_)]);
+                if !entry.states.is_empty() && !alone && !becoming {
                     return Err(gap("several objects arriving in a state"));
                 }
                 let controller = match destination {
@@ -1583,7 +1622,9 @@ impl Compiler {
                     _ => "g.state().obj(o).owner".into(),
                 };
                 let rows = format!("let rows_{id}: Vec<(ObjectId, PlayerId, bool)> = objects_{id}.iter().map(|&o| (o, {controller}, {})).collect();", entry.tapped);
-                if !entry.states.is_empty() {
+                if let [EntryState::Changes(changes)] = entry.states.as_slice() {
+                    self.entering_as(id, entry, changes, &controller)?
+                } else if !entry.states.is_empty() {
                     let each = self.arrival(entry)?;
                     format!("{{ let mut moved: Vec<ObjectId> = Vec::new(); for &o in &objects_{id} {{ let controller = {controller}; {each} }} moved }}")
                 } else if entry.counters.is_empty() {
@@ -1668,7 +1709,7 @@ impl Compiler {
                 };
                 format!("let defender = {defender}; moved.push(g.put_onto_battlefield_attacking(o, controller, defender, &[{counters}])?);")
             }
-            _ => return Err(gap("move arrival state")),
+            _ => return self.arrival_in_state(entry, &counters),
         })
     }
     /// Whether a set is known to hold one object at most when this runs.

@@ -310,7 +310,7 @@ impl Compiler {
             return Err(gap("reflexive trigger outside a resolving ability"));
         }
         let happened = if let Some(local) = self.performed.get(&performed.0) {
-            match local.starts_with("removed_") {
+            match local.starts_with("removed_") || local.starts_with("done_") {
                 true => format!("{local} > 0"),
                 false => local.clone(),
             }
@@ -320,6 +320,8 @@ impl Compiler {
             format!("!{}.is_empty()", self.selected(performed)?)
         } else if self.creations.contains_key(&performed.0) {
             format!("!{}.is_empty()", self.created(performed)?)
+        } else if self.values.contains_key(&performed.0) {
+            "true".to_string()
         } else if self.failed.contains(&performed.0) {
             planned::unreported("false", performed)
         } else {

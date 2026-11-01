@@ -428,6 +428,13 @@ struct Compiler {
     repeating: Option<usize>,
     /// The name of the card being compiled, for what is named after it.
     card_name: String,
+    /// What follows the instruction being compiled in this ability, nearest
+    /// first: its own program, then the rest of those around it.
+    after: Vec<Instruction>,
+    /// Whether a search's library was searched, by the search's result.
+    searched: BTreeMap<u32, String>,
+    /// The spell ends in cipher, so the card has what an encoded card gives.
+    cipher: bool,
 }
 
 enum ManaPlan {
@@ -694,6 +701,9 @@ impl Compiler {
             failed: BTreeSet::new(),
             repeating: None,
             card_name: String::new(),
+            after: Vec::new(),
+            searched: BTreeMap::new(),
+            cipher: false,
             holes: String::new(),
         }
     }
@@ -1547,6 +1557,9 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
             false => Ok(()),
         }
     });
+    if c.cipher {
+        parts.entry("statics", "cantrip_mechanics::cipher::STATIC".into());
+    }
     if c.tap_or_untap {
         let taken = parts.fields.contains_key("labels");
         c.attempt("abilities".into(), |_| match taken {
