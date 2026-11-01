@@ -225,7 +225,7 @@ pub(super) fn may_retarget(body: &Program) -> Option<(&PlayerRef, &ObjectRef)> {
                 Operation::Retarget {
                     actor: PlayerSet::One(player),
                     object,
-                    targets: NewTargets::Must,
+                    targets: NewTargets::Must | NewTargets::May,
                 },
             ..
         }] => Some((player, object)),
@@ -1242,7 +1242,13 @@ impl Compiler {
             .unwrap();
             return Ok(());
         }
-        let list = self.acted_on(&ObjectSet::One(object.clone()))?;
+        let mut list = self.acted_on(&ObjectSet::One(object.clone()))?;
+        if list.contains("item.subject.object()") {
+            list = list.replace(
+                ".into_iter().filter(|&o| q.state().obj(o).became.is_none()).collect::<Vec<ObjectId>>()",
+                "",
+            );
+        }
         writeln!(out, "let copier_{id} = {copier}; let spell_{id}: Option<ObjectId> = ({list}).first().copied();").unwrap();
         if effects.is_empty() {
             writeln!(
@@ -1397,6 +1403,11 @@ impl Compiler {
                 self.moved.insert(result.0, format!("drafted_{id}"));
             }
             Operation::Search { .. } => self.search_zones_p(id, op, result, out)?,
+            Operation::ChangeZone { cards, .. }
+                if lane_k::revealed_only_chosen(self.line_text(), cards) =>
+            {
+                return Err(gap("cards revealed, where the AST has them only chosen"));
+            }
             Operation::ChangeZone { .. } => self.change_zone_p(id, op, result, out)?,
             Operation::Manifest { .. } => self.manifest(id, op, result, out)?,
             Operation::MoveTopCard { .. } => self.move_top_card(id, op, result, out)?,

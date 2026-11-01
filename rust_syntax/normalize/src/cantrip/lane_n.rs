@@ -1195,7 +1195,11 @@ impl Compiler {
     /// told, as code for its source, its controller and the card it is on.
     pub(super) fn maker(&self) -> (&'static str, &'static str, String) {
         if self.stack_item {
-            ("item.object", "item.controller", "item.ability.card".into())
+            let card = match self.spliced() {
+                true => "g.card_id(&CARD)",
+                false => "item.ability.card",
+            };
+            ("item.object", "item.controller", card.into())
         } else {
             (
                 "asker.source",

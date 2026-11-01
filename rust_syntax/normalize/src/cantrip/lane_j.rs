@@ -1331,7 +1331,7 @@ impl Compiler {
             stack_controller: Some(Carried::Data(1)),
             ..Frame::default()
         };
-        let tests = self.matching(frame, |c| {
+        let mut tests = self.matching(frame, |c| {
             Ok(vec![
                 c.player_in(players, "*target")?,
                 match by {
@@ -1342,6 +1342,12 @@ impl Compiler {
                 },
             ])
         })?;
+        if lane_k::printed_otherwise(self.line_text(), "the target of an ability") {
+            tests.push(
+                "!q.state().stack.iter().any(|i| i.kind == StackKind::Spell && i.object == by)"
+                    .into(),
+            );
+        }
         Ok(single(
             "BECAME_TARGET",
             Arm {
@@ -2107,10 +2113,12 @@ impl Compiler {
                 "new, from, to",
                 &format!("new == {id} && from.is(ZoneKind::Battlefield) && to.is(ZoneKind::Graveyard)"),
             ),
-            H::Convoked(object) => format!(
-                "Event::Convoked {{ creature, spell }} if creature == {id} && {} == Some(spell)",
-                self.object(object)?
-            ),
+            H::Convoked(object) => {
+                return Ok(format!(
+                    "{}.is_some_and(|o: ObjectId| q.history().convoked(o).any(|c| c == {id}))",
+                    self.object(object)?
+                ));
+            }
             H::DamagedBy(object) => format!(
                 "Event::Damage {{ source, target: Target::Object(hit), .. }} if hit == {id} && {} == Some(source)",
                 self.object(object)?
@@ -2228,7 +2236,9 @@ impl Compiler {
                     CastScope::Turn => "q.history().this_turn()",
                     CastScope::Game => "q.history().all()",
                 };
-                let earlier = self.filter(spells, &Candidate::of("cast.spell"))?;
+                let earlier = self
+                    .filter(spells, &Candidate::of("cast.spell"))?
+                    .replace("q.chars(cast.spell)", "cast.chars(q)");
                 let who = match by {
                     Some(by) => self.player_in(by, "cast.player")?,
                     None => "true".into(),
@@ -3436,7 +3446,7 @@ impl Compiler {
             let effect = self.effect(body, &label)?;
             defs.push(format!(
                 "mode({effect}, {}).targets({targets}).cost({})",
-                quoted(&ability_text(body)),
+                quoted(&self.said_mode(i, modes.len(), ability_text(body))),
                 mana(symbols)?
             ));
         }
@@ -3725,12 +3735,18 @@ impl Compiler {
         self.reader = reader;
         self.stack_item = true;
         compiled?;
+        let named = lane_k::color_as_activated(&out);
+        let adds = match named.is_some() {
+            true => format!("add_any_color(1).by({label})"),
+            false => format!("add_by({label})"),
+        };
+        let out = named.unwrap_or(out);
         writeln!(
             self.functions,
             "fn {label}(g: &mut dyn Game, asker: &Asker, chosen: Option<Color>) -> Result<(),Suspend> {{ {out} Ok(()) }}"
         )
         .unwrap();
-        Ok(format!("add_by({label})"))
+        Ok(adds)
     }
     /// What limits a mana ability's color to the one chosen as it entered, and
     /// to the colors it can always make beside it.
@@ -4044,8 +4060,8 @@ impl Compiler {
         for ManaReduction { color: of, amount } in reductions {
             let n = self.number(amount)?.fit(0, 255, "u8")?;
             lines.push(match of {
-                Some(c) => format!("less.symbols[{}] = {n};", color_index(c)?),
-                None => format!("less.generic = {n};"),
+                Some(c) => format!("less.symbols[{}] += {n};", color_index(c)?),
+                None => format!("less.generic += {n};"),
             });
         }
         Ok(format!(
@@ -4389,6 +4405,11 @@ impl Compiler {
             TriggerRule::TriggersAgain => "additional_triggers",
             TriggerRule::DoesntTrigger => "trigger_rules",
         };
+        if lane_k::printed_otherwise(self.line_text(), "abilities of permanents your opponents") {
+            return Err(gap(
+                "a rule on triggering, where the card says whose abilities",
+            ));
+        }
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let abilities = self.triggering_ability(abilities);
