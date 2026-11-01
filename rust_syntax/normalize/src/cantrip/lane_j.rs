@@ -2683,7 +2683,7 @@ pub(super) fn property_rest(property: &Property, id: &str) -> Result<Number> {
             format!("i64::from(q.state().obj({id}).intensity)"),
             i16::MAX,
         ),
-        other => return Err(gap(format!("numeric object property {}", form(other)))),
+        other => return lane_p::property_p(other, id),
     };
     Ok(Number {
         code: planned::planned_value(feature, "0i64", &code),
@@ -2715,7 +2715,7 @@ pub(super) fn sharing(property: &DistinctProperty) -> Result<&'static str> {
             "a.subtypes.iter().any(|s| SubtypeSet::CREATURE_TYPES.has(s) && b.subtypes.has(s))"
         }
         DistinctProperty::Colors => "a.colors.intersects(b.colors)",
-        other => return Err(gap(format!("sharing {other:?}"))),
+        other => return lane_p::sharing_p(other),
     })
 }
 /// Those of a program's players a choice has named, for `Compiler::pick`.

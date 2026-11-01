@@ -602,7 +602,8 @@ impl Compiler {
                     .or_else(|| lane_l::plain_purpose(result, rest))
                     .or_else(|| lane_l::plain_purpose(result, &self.after))
                     .or_else(|| self.read_later(result).then_some("ChooseAsEnters"))
-                    .ok_or_else(|| gap("resolution choice prompt purpose"))?;
+                    // Nothing it says yet happens to them: the prompt's plain word.
+                    .unwrap_or("Choose");
                 self.choose(player, objects, count, result, purpose, out)
             }
             Instruction::Effect {
@@ -846,6 +847,9 @@ impl Compiler {
         purpose: &str,
         out: &mut String,
     ) -> Result<()> {
+        if self.from_outside(objects) {
+            self.notes.outside.insert(result.0);
+        }
         let count = self.offered_count(count);
         let count = self.select_count(&count)?;
         let local = format!("selected_{}", self.fresh());
@@ -934,7 +938,7 @@ impl Compiler {
                 players,
                 tokens,
                 entry,
-            } => self.create_tokens(id, players, tokens, entry, result, out)?,
+            } => self.create_tokens_p(id, players, tokens, entry, result, out)?,
             Operation::Draw { players, amount }
             | Operation::GainLife { players, amount }
             | Operation::LoseLife { players, amount } => {
@@ -1063,7 +1067,7 @@ impl Compiler {
                 destination,
                 entry,
                 face_down: false,
-            } => self.move_objects(id, objects, destination, entry, result, out)?,
+            } => self.move_objects_p(id, objects, destination, entry, false, result, out)?,
             Operation::Tap { objects, tapped } => {
                 writeln!(
                     out,
@@ -1941,6 +1945,7 @@ impl Compiler {
         let revealed = self.revealed;
         let chosen = matches!(objects, ObjectSet::Selected(_));
         let objects = lane_k::shuffled_in_though_gone(objects, destination);
+        let outside = self.from_outside(objects);
         let objects = self.fetch(self.objects(objects)?);
         let objects = lane_k::returning(objects, destination);
         let objects = lane_k::on_top_in_turn(objects, chosen, destination);
@@ -1978,6 +1983,8 @@ impl Compiler {
                 self.exile_with_counters(id, entry)?
             }
             _ if !plain_entry(entry) => return Err(gap("move arrival flags")),
+            // Into the game: CR 400.11b.
+            Destination::OwnersHand if outside => lane_p::bring_into_hand(id, revealed),
             // All players can still see the card as it moves (603.10a, 701.20a).
             Destination::OwnersHand if revealed => {
                 format!("g.return_to_hand_revealed(&objects_{id})")
