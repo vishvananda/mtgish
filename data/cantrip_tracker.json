@@ -2,8 +2,8 @@
  "cantrip": "af0a0be5ec",
  "totals": {
   "cards": 33529,
-  "ready": 27040,
-  "planned": 6441,
+  "ready": 27061,
+  "planned": 6420,
   "data": 48
  },
  "layouts": {
@@ -12,8 +12,8 @@
    "planned": 11
   },
   "Card": {
-   "ready": 26346,
-   "planned": 5840
+   "ready": 26367,
+   "planned": 5819
   },
   "Conspiracy": {
    "ready": 0,
@@ -82,20 +82,16 @@
  },
  "classes": {
   "engine": {
-   "requirements": 965,
-   "cards": 5048
+   "requirements": 983,
+   "cards": 5055
   },
   "mechanic": {
    "requirements": 244,
    "cards": 1501
   },
   "vocabulary": {
-   "requirements": 393,
-   "cards": 812
-  },
-  "generator": {
-   "requirements": 23,
-   "cards": 42
+   "requirements": 391,
+   "cards": 795
   }
  },
  "requirements": [
@@ -330,7 +326,7 @@
    "needs": "X announced for a spell or activation is readable while its costs are chosen and paid, not only in a target filter",
    "family": "numeric expression",
    "cards": 75,
-   "alone": 17,
+   "alone": 18,
    "examples": [
     "Aladdin's Lamp",
     "Arcanis, the Omnipotent Avatar",
@@ -596,6 +592,22 @@
    ]
   },
   {
+   "id": "reflexive-ability-about-a-list-of-objects",
+   "feature": "reflexive ability about a list of objects",
+   "class": "engine",
+   "needs": "A reflexive ability that carries a list of objects; `reflexive_trigger` carries one subject and `delayed_trigger_about` is for delayed triggers alone.",
+   "family": "reflexive ability",
+   "cards": 42,
+   "alone": 27,
+   "examples": [
+    "Argentum Masticore",
+    "Augusta, Order Returned",
+    "Bolg of the North",
+    "Borborygmos and Fblthp",
+    "Caldera Breaker"
+   ]
+  },
+  {
    "id": "engine-no-protection-from-this-quality",
    "feature": "engine: no protection from this quality",
    "class": "engine",
@@ -612,19 +624,19 @@
    ]
   },
   {
-   "id": "reflexive-ability-about-a-list-of-objects",
-   "feature": "reflexive ability about a list of objects",
+   "id": "event-trigger-carrying-values",
+   "feature": "event trigger carrying values",
    "class": "engine",
-   "needs": "A reflexive ability that carries a list of objects; `reflexive_trigger` carries one subject and `delayed_trigger_about` is for delayed triggers alone.",
-   "family": "reflexive ability",
-   "cards": 41,
-   "alone": 27,
+   "needs": "a delayed trigger waiting on an event keeps values of the ability that made it, and its matcher can read them",
+   "family": "event trigger",
+   "cards": 38,
+   "alone": 23,
    "examples": [
-    "Argentum Masticore",
-    "Augusta, Order Returned",
-    "Bolg of the North",
-    "Borborygmos and Fblthp",
-    "Caldera Breaker"
+    "Acidic Dagger",
+    "Arcbond",
+    "Delif's Cube",
+    "Fire Giant's Fury",
+    "Gaze of the Gorgon"
    ]
   },
   {
@@ -673,22 +685,6 @@
     "Barrowin of Clan Undurr",
     "Clattering Skeletons",
     "Cloister Gargoyle"
-   ]
-  },
-  {
-   "id": "event-trigger-carrying-values",
-   "feature": "event trigger carrying values",
-   "class": "engine",
-   "needs": "a delayed trigger waiting on an event keeps values of the ability that made it, and its matcher can read them",
-   "family": "event trigger",
-   "cards": 37,
-   "alone": 23,
-   "examples": [
-    "Acidic Dagger",
-    "Arcbond",
-    "Delif's Cube",
-    "Fire Giant's Fury",
-    "Gaze of the Gorgon"
    ]
   },
   {
@@ -852,6 +848,22 @@
    ]
   },
   {
+   "id": "engine-no-resolving-effect-sets-land-types",
+   "feature": "engine: no resolving effect sets land types",
+   "class": "engine",
+   "needs": "A resolving effect that sets land types and takes the rules text with it (CR 305.7): today only a static does (sets_land_subtypes).",
+   "family": "engine: no",
+   "cards": 31,
+   "alone": 27,
+   "examples": [
+    "Cyclopean Tomb",
+    "Deepwood Elder",
+    "Dream Thrush",
+    "Dreamwinder",
+    "Elsewhere Flask"
+   ]
+  },
+  {
    "id": "static-rule-block-capacity",
    "feature": "static rule BlockCapacity",
    "class": "engine",
@@ -881,22 +893,6 @@
     "Aretopolis",
     "Cliffside Market",
     "Dalek Intensive Care"
-   ]
-  },
-  {
-   "id": "engine-no-resolving-effect-sets-land-types",
-   "feature": "engine: no resolving effect sets land types",
-   "class": "engine",
-   "needs": "A resolving effect that sets land types and takes the rules text with it (CR 305.7): today only a static does (sets_land_subtypes).",
-   "family": "engine: no",
-   "cards": 30,
-   "alone": 27,
-   "examples": [
-    "Cyclopean Tomb",
-    "Deepwood Elder",
-    "Dream Thrush",
-    "Dreamwinder",
-    "Elsewhere Flask"
    ]
   },
   {
@@ -2020,22 +2016,6 @@
    ]
   },
   {
-   "id": "object-reference-scoped",
-   "feature": "object reference Scoped",
-   "class": "vocabulary",
-   "needs": "an object named with no read in Query or Game",
-   "family": "object reference",
-   "cards": 18,
-   "alone": 6,
-   "examples": [
-    "Abu Ja'far",
-    "Ashiok, Nightmare Muse",
-    "Beamsplitter Mage",
-    "Bitter Feud",
-    "Chaotic Transformation"
-   ]
-  },
-  {
    "id": "replacement-of-token-creation-with-other-tokens",
    "feature": "replacement of token creation with other tokens",
    "class": "engine",
@@ -2068,22 +2048,6 @@
    ]
   },
   {
-   "id": "condition-outcome",
-   "feature": "condition Outcome",
-   "class": "engine",
-   "needs": "a resolution keeps how a step it asked about came out: a clash won, a guess wrong, an optional payment made, a sticker placed",
-   "family": "condition Outcome",
-   "cards": 17,
-   "alone": 5,
-   "examples": [
-    "Covenant of Minds",
-    "Entangling Trap",
-    "Goblin Airbrusher",
-    "Lazav, Wearer of Faces",
-    "Liar's Pendulum"
-   ]
-  },
-  {
    "id": "continuous-rule-prohibit-regenerate",
    "feature": "continuous rule Prohibit Regenerate",
    "class": "engine",
@@ -2113,6 +2077,22 @@
     "Magewright's Stone",
     "Midnight Arsonist",
     "Moonsilver Key"
+   ]
+  },
+  {
+   "id": "condition-outcome",
+   "feature": "condition Outcome",
+   "class": "engine",
+   "needs": "a resolution keeps how a step it asked about came out: a clash won, a guess wrong, an optional payment made, a sticker placed",
+   "family": "condition Outcome",
+   "cards": 16,
+   "alone": 5,
+   "examples": [
+    "Covenant of Minds",
+    "Entangling Trap",
+    "Goblin Airbrusher",
+    "Lazav, Wearer of Faces",
+    "Liar's Pendulum"
    ]
   },
   {
@@ -2298,7 +2278,7 @@
    "needs": "A resolved ban on casting spells that match, for a duration (CR 101.2, 611.2c), since EffectKind::CantCastSpellsFrom knows only zones.",
    "family": "player rule",
    "cards": 16,
-   "alone": 8,
+   "alone": 9,
    "examples": [
     "Abeyance",
     "Academic Probation",
@@ -2353,6 +2333,22 @@
     "Bloodthirsty Blade",
     "Coercive Impetus",
     "Eye of Nidhogg"
+   ]
+  },
+  {
+   "id": "token-recipe-copy-one",
+   "feature": "token recipe CopyOne",
+   "class": "engine",
+   "needs": "tokens of this shape: TokenSpec and copy tokens have no field for it",
+   "family": "token recipe",
+   "cards": 16,
+   "alone": 5,
+   "examples": [
+    "Calix, Guided by Fate",
+    "Caller of the Untamed",
+    "Gut, Bestial Fanatic",
+    "Gut, Brutal Fanatic",
+    "Gut, Devious Fanatic"
    ]
   },
   {
@@ -2516,19 +2512,19 @@
    ]
   },
   {
-   "id": "token-recipe-copy-one",
-   "feature": "token recipe CopyOne",
+   "id": "operation-copy-on-stack",
+   "feature": "operation CopyOnStack",
    "class": "engine",
-   "needs": "tokens of this shape: TokenSpec and copy tokens have no field for it",
-   "family": "token recipe",
+   "needs": "Copying or retargeting a spell or ability with the new targets stated: each legal target, to a set, at random; `copy_spell` and the change-target calls only ask the player or keep them.",
+   "family": "operation CopyOnStack",
    "cards": 15,
-   "alone": 5,
+   "alone": 4,
    "examples": [
-    "Calix, Guided by Fate",
-    "Caller of the Untamed",
-    "Gut, Bestial Fanatic",
-    "Gut, Brutal Fanatic",
-    "Gut, Devious Fanatic"
+    "Agrus Kos, Eternal Soldier",
+    "Beamsplitter Mage",
+    "Chef's Kiss",
+    "Exterminator Magmarch",
+    "Feather, Radiant Arbiter"
    ]
   },
   {
@@ -2673,22 +2669,6 @@
     "Choose Your Demise",
     "Curator of Destinies",
     "Fortune's Favor"
-   ]
-  },
-  {
-   "id": "operation-copy-on-stack",
-   "feature": "operation CopyOnStack",
-   "class": "engine",
-   "needs": "Copying or retargeting a spell or ability with the new targets stated: each legal target, to a set, at random; `copy_spell` and the change-target calls only ask the player or keep them.",
-   "family": "operation CopyOnStack",
-   "cards": 14,
-   "alone": 4,
-   "examples": [
-    "Beamsplitter Mage",
-    "Chef's Kiss",
-    "Exterminator Magmarch",
-    "Feather, Radiant Arbiter",
-    "Frontline Heroism"
    ]
   },
   {
@@ -5092,6 +5072,22 @@
    ]
   },
   {
+   "id": "continuous-rule-prohibit-attack",
+   "feature": "continuous rule Prohibit Attack",
+   "class": "engine",
+   "needs": "A resolving effect that puts this rule on objects for a duration",
+   "family": "continuous rule",
+   "cards": 7,
+   "alone": 0,
+   "examples": [
+    "Agyrem",
+    "Chaos Dragon",
+    "Chronomantic Escape",
+    "Immortal Obligation",
+    "Jace, Multiverse Architect"
+   ]
+  },
+  {
    "id": "copy-exception-add-ability",
    "feature": "copy exception AddAbility",
    "class": "engine",
@@ -5450,7 +5446,7 @@
    "needs": "whether an Aura could legally enchant a host (CR 303.4)",
    "family": "object filter",
    "cards": 7,
-   "alone": 4,
+   "alone": 5,
    "examples": [
     "Auratouched Mage",
     "Infectious Rage",
@@ -5620,22 +5616,6 @@
    ]
   },
   {
-   "id": "result-this-instruction-does-not-report",
-   "feature": "result this instruction does not report",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "result this",
-   "cards": 7,
-   "alone": 4,
-   "examples": [
-    "Alliance of Arms",
-    "Collective Voyage",
-    "Liege of the Hollows",
-    "Minds Aglow",
-    "Plague of Vermin"
-   ]
-  },
-  {
    "id": "target-constraint-at-random",
    "feature": "target constraint AtRandom",
    "class": "engine",
@@ -5665,22 +5645,6 @@
     "Apex Observatory // Eye of Ojer Taq",
     "Karona, False God",
     "Stenn, Paranoid Partisan"
-   ]
-  },
-  {
-   "id": "continuous-rule-prohibit-attack",
-   "feature": "continuous rule Prohibit Attack",
-   "class": "engine",
-   "needs": "A resolving effect that puts this rule on objects for a duration",
-   "family": "continuous rule",
-   "cards": 6,
-   "alone": 0,
-   "examples": [
-    "Agyrem",
-    "Chaos Dragon",
-    "Chronomantic Escape",
-    "Immortal Obligation",
-    "Jace, Multiverse Architect"
    ]
   },
   {
@@ -5729,6 +5693,22 @@
     "Miss Highwater",
     "Nightkin Ambusher",
     "Vault 12: The Necropolis"
+   ]
+  },
+  {
+   "id": "duration-while-matches",
+   "feature": "duration WhileMatches",
+   "class": "engine",
+   "needs": "an effect lasts until this: Duration has no such end",
+   "family": "duration WhileMatches",
+   "cards": 6,
+   "alone": 2,
+   "examples": [
+    "Assimilation Aegis",
+    "Blade of Shared Souls",
+    "Eriette, the Beguiler",
+    "Illusionary Mask",
+    "Resourceful Collector"
    ]
   },
   {
@@ -5860,29 +5840,13 @@
    ]
   },
   {
-   "id": "object-collection-scoped",
-   "feature": "object collection Scoped",
-   "class": "vocabulary",
-   "needs": "a set of objects with no read in Query or Game",
-   "family": "object collection",
-   "cards": 6,
-   "alone": 4,
-   "examples": [
-    "Aragorn, Company Leader",
-    "Bold Plagiarist",
-    "Captain Marvel, Apex Avenger",
-    "Love on the Battlefield",
-    "Orvar, the All-Form"
-   ]
-  },
-  {
    "id": "object-filter-on-stack",
    "feature": "object filter OnStack",
    "class": "engine",
    "needs": "a filter over abilities on the stack: an ability shares its object with its source, so nothing tells a filter which stack item it is asking about",
    "family": "object filter",
    "cards": 6,
-   "alone": 0,
+   "alone": 1,
    "examples": [
     "Magus Lucea Kane",
     "Peace Talks",
@@ -6342,8 +6306,8 @@
   {
    "id": "a-mana-ability-test-that-lost-its-negation",
    "feature": "a mana ability test that lost its negation",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "source bug #127 awaiting upstream: the row says \"a mana ability\" where the card says it isn't one, so the card stays a hole until the row is fixed; then a trigger on activating a non-mana ability, or a static on it, reads the negation",
    "family": "a mana",
    "cards": 5,
    "alone": 5,
@@ -6657,22 +6621,6 @@
     "Extraordinary Journey",
     "Gix, Yawgmoth Praetor",
     "Lightstall Inquisitor"
-   ]
-  },
-  {
-   "id": "duration-while-matches",
-   "feature": "duration WhileMatches",
-   "class": "engine",
-   "needs": "an effect lasts until this: Duration has no such end",
-   "family": "duration WhileMatches",
-   "cards": 5,
-   "alone": 2,
-   "examples": [
-    "Assimilation Aegis",
-    "Blade of Shared Souls",
-    "Eriette, the Beguiler",
-    "Resourceful Collector",
-    "Zygon Infiltrator"
    ]
   },
   {
@@ -7108,6 +7056,22 @@
    ]
   },
   {
+   "id": "object-collection-from-history",
+   "feature": "object collection FromHistory",
+   "class": "vocabulary",
+   "needs": "a set of objects with no read in Query or Game",
+   "family": "object collection",
+   "cards": 5,
+   "alone": 3,
+   "examples": [
+    "Backdraft",
+    "First Family",
+    "Herald of Vengeance",
+    "Suffocation",
+    "Twinning Glass"
+   ]
+  },
+  {
    "id": "object-collection-unpaid",
    "feature": "object collection Unpaid",
    "class": "engine",
@@ -7156,6 +7120,22 @@
    ]
   },
   {
+   "id": "object-reference-scoped",
+   "feature": "object reference Scoped",
+   "class": "vocabulary",
+   "needs": "an object named with no read in Query or Game",
+   "family": "object reference",
+   "cards": 5,
+   "alone": 0,
+   "examples": [
+    "Demon of Fate's Design",
+    "Dream Halls",
+    "Soul Partition",
+    "Takklemaggot",
+    "Unpredictable Cyclone"
+   ]
+  },
+  {
    "id": "object-state-most-votes",
    "feature": "object state MostVotes",
    "class": "engine",
@@ -7185,22 +7165,6 @@
     "Proficient Pyrodancer",
     "Roxi, Publicist to the Stars",
     "Sword-Swallowing Seraph"
-   ]
-  },
-  {
-   "id": "open-set-affected",
-   "feature": "open set Affected",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "open set",
-   "cards": 5,
-   "alone": 2,
-   "examples": [
-    "Arcane Lighthouse",
-    "My Crushing Masterstroke",
-    "Promise of Loyalty",
-    "Suicidal Charge",
-    "Taunt from the Rampart"
    ]
   },
   {
@@ -8070,6 +8034,21 @@
    ]
   },
   {
+   "id": "event-trigger-for-end-of-combat",
+   "feature": "event trigger for EndOfCombat",
+   "class": "engine",
+   "needs": "a delayed trigger on an event can last for any duration, firing each time or only once",
+   "family": "event trigger",
+   "cards": 4,
+   "alone": 1,
+   "examples": [
+    "Goblin Flotilla",
+    "Love on the Battlefield",
+    "Melee",
+    "Stensian Sanguinist // Exsanguinate"
+   ]
+  },
+  {
    "id": "history-measure-distinct-sources",
    "feature": "history measure DistinctSources",
    "class": "vocabulary",
@@ -8082,6 +8061,21 @@
     "Case of the Burning Masks",
     "Indulge // Excess",
     "Inferno Trap"
+   ]
+  },
+  {
+   "id": "history-window-since-last-turn-of",
+   "feature": "history window SinceLastTurnOf",
+   "class": "vocabulary",
+   "needs": "a question of the history this window or measure does not ask",
+   "family": "history window",
+   "cards": 4,
+   "alone": 2,
+   "examples": [
+    "Concert Kaboomist",
+    "I Bask in Your Silent Awe",
+    "Marchesa, Resolute Monarch // Invasion of Fiora",
+    "Premature Burial"
    ]
   },
   {
@@ -8930,6 +8924,20 @@
    ]
   },
   {
+   "id": "an-amount-read-by-each-player-as-their-own",
+   "feature": "an amount read by each player as their own",
+   "class": "vocabulary",
+   "needs": "source bug to be filed: Collective Voyage, Minds Aglow and Shared Trauma use AmountOfManaPaidThisWay for a total, where the rows should use TheTotalAmountOfManaPaidThisWay; each player's own share is only stated for tokens today, and a total reads as Alliance of Arms does",
+   "family": "an amount",
+   "cards": 3,
+   "alone": 2,
+   "examples": [
+    "Collective Voyage",
+    "Minds Aglow",
+    "Shared Trauma"
+   ]
+  },
+  {
    "id": "base-toughness",
    "feature": "base toughness",
    "class": "engine",
@@ -9364,6 +9372,20 @@
    ]
   },
   {
+   "id": "counters-the-event-put",
+   "feature": "counters the event put",
+   "class": "engine",
+   "needs": "the kinds and numbers of counters one event put, read by the ability it triggered, whatever else was on the object",
+   "family": "counters the",
+   "cards": 3,
+   "alone": 2,
+   "examples": [
+    "Aragorn, Company Leader",
+    "Bold Plagiarist",
+    "Captain Marvel, Apex Avenger"
+   ]
+  },
+  {
    "id": "delayed-trigger-at-main-phase-begins",
    "feature": "delayed trigger at MainPhaseBegins",
    "class": "engine",
@@ -9644,20 +9666,6 @@
    ]
   },
   {
-   "id": "event-trigger-for-end-of-combat",
-   "feature": "event trigger for EndOfCombat",
-   "class": "engine",
-   "needs": "a delayed trigger on an event can last for any duration, firing each time or only once",
-   "family": "event trigger",
-   "cards": 3,
-   "alone": 1,
-   "examples": [
-    "Goblin Flotilla",
-    "Melee",
-    "Stensian Sanguinist // Exsanguinate"
-   ]
-  },
-  {
    "id": "event-value-outside-its-ability",
    "feature": "event value outside its ability",
    "class": "engine",
@@ -9697,20 +9705,6 @@
     "Call Forth the Tempest",
     "Genesis of the Daleks",
     "Rootha, Mastering the Moment"
-   ]
-  },
-  {
-   "id": "history-window-since-last-turn-of",
-   "feature": "history window SinceLastTurnOf",
-   "class": "vocabulary",
-   "needs": "a question of the history this window or measure does not ask",
-   "family": "history window",
-   "cards": 3,
-   "alone": 2,
-   "examples": [
-    "Concert Kaboomist",
-    "I Bask in Your Silent Awe",
-    "Premature Burial"
    ]
   },
   {
@@ -9854,20 +9848,6 @@
    ]
   },
   {
-   "id": "object-collection-from-history",
-   "feature": "object collection FromHistory",
-   "class": "vocabulary",
-   "needs": "a set of objects with no read in Query or Game",
-   "family": "object collection",
-   "cards": 3,
-   "alone": 2,
-   "examples": [
-    "Herald of Vengeance",
-    "Suffocation",
-    "Twinning Glass"
-   ]
-  },
-  {
    "id": "object-filter-ability-of",
    "feature": "object filter AbilityOf",
    "class": "vocabulary",
@@ -9907,6 +9887,20 @@
     "Apocalypse Chime",
     "City in a Bottle",
     "Golgothian Sylex"
+   ]
+  },
+  {
+   "id": "object-filter-nth-chosen",
+   "feature": "object filter NthChosen",
+   "class": "engine",
+   "needs": "the value chosen at a given place in a sequence of choices, as a test",
+   "family": "object filter",
+   "cards": 3,
+   "alone": 0,
+   "examples": [
+    "Illusionary Terrain",
+    "Rite of Ruin",
+    "Vision Charm"
    ]
   },
   {
@@ -10512,34 +10506,6 @@
    ]
   },
   {
-   "id": "token-recipe-copy",
-   "feature": "token recipe Copy",
-   "class": "engine",
-   "needs": "tokens of this shape: TokenSpec and copy tokens have no field for it",
-   "family": "token recipe",
-   "cards": 3,
-   "alone": 0,
-   "examples": [
-    "Esix, Fractal Bloom",
-    "Mirrormind Crown",
-    "Moonlit Meditation"
-   ]
-  },
-  {
-   "id": "transition-this-instruction-does-not-report",
-   "feature": "transition this instruction does not report",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "transition this",
-   "cards": 3,
-   "alone": 2,
-   "examples": [
-    "Illusionist's Gambit",
-    "Starving Revenant",
-    "Unexpected Request"
-   ]
-  },
-  {
    "id": "trigger-event-causes-trigger",
    "feature": "trigger event CausesTrigger",
    "class": "engine",
@@ -10593,20 +10559,6 @@
     "Ertai's Familiar",
     "Teferi's Imp",
     "The War Doctor"
-   ]
-  },
-  {
-   "id": "trigger-event-player-becomes-target-of-what-is-not-said",
-   "feature": "trigger event Player BecomesTarget of what is not said",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "trigger event",
-   "cards": 3,
-   "alone": 2,
-   "examples": [
-    "Dormant Gomazoa",
-    "Imprison This Insolent Wretch",
-    "Leyline of Combustion"
    ]
   },
   {
@@ -11732,19 +11684,6 @@
    ]
   },
   {
-   "id": "event-object-this-trigger-does-not-bind",
-   "feature": "event object this trigger does not bind",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "event object",
-   "cards": 2,
-   "alone": 0,
-   "examples": [
-    "Agrus Kos, Eternal Soldier",
-    "Mirror-Shield Hoplite"
-   ]
-  },
-  {
    "id": "event-trigger-for-until-end-of-next-turn",
    "feature": "event trigger for UntilEndOfNextTurn",
    "class": "engine",
@@ -11773,8 +11712,8 @@
   {
    "id": "granted-trigger-rule",
    "feature": "granted TriggerRule",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "a permanent gives another object an ability that changes how often abilities trigger: a granted CardDef's additional_triggers and trigger_rules are read only from a printed card",
    "family": "granted TriggerRule",
    "cards": 2,
    "alone": 0,
@@ -11911,19 +11850,6 @@
    "examples": [
     "Lukamina, Moon Druid",
     "Shadowheart, Sharran Cleric"
-   ]
-  },
-  {
-   "id": "land-type-term",
-   "feature": "land type Term",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "land type",
-   "cards": 2,
-   "alone": 0,
-   "examples": [
-    "Illusionary Terrain",
-    "Vision Charm"
    ]
   },
   {
@@ -12174,6 +12100,19 @@
    ]
   },
   {
+   "id": "object-collection-targets-of",
+   "feature": "object collection TargetsOf",
+   "class": "engine",
+   "needs": "the targets of a spell or ability on the stack",
+   "family": "object collection",
+   "cards": 2,
+   "alone": 0,
+   "examples": [
+    "Battlefield Thaumaturge",
+    "Orvar, the All-Form"
+   ]
+  },
+  {
    "id": "object-filter-chosen-by",
    "feature": "object filter ChosenBy",
    "class": "engine",
@@ -12262,19 +12201,6 @@
    "examples": [
     "Favored Enemy",
     "Long List of the Ents"
-   ]
-  },
-  {
-   "id": "object-filter-nth-chosen",
-   "feature": "object filter NthChosen",
-   "class": "engine",
-   "needs": "the value chosen at a given place in a sequence of choices, as a test",
-   "family": "object filter",
-   "cards": 2,
-   "alone": 0,
-   "examples": [
-    "Illusionary Terrain",
-    "Rite of Ruin"
    ]
   },
   {
@@ -12431,19 +12357,6 @@
    "examples": [
     "Catch // Release",
     "Perilous Predicament"
-   ]
-  },
-  {
-   "id": "per-player-resolution-choice",
-   "feature": "per-player resolution choice",
-   "class": "engine",
-   "needs": "What each player does as one batch of events when a choice falls between (CR 101.4, 603.2c): `instruction` holds one batch only without a suspension, so where the steps can't be gathered into one call each player's turn is its own batch.",
-   "family": "per-player resolution",
-   "cards": 2,
-   "alone": 2,
-   "examples": [
-    "Krenko's Buzzcrusher",
-    "The Weaver King"
    ]
   },
   {
@@ -13214,6 +13127,19 @@
    ]
   },
   {
+   "id": "the-ability-an-event-is-about",
+   "feature": "the ability an event is about",
+   "class": "engine",
+   "needs": "What an activation event says of the ability on the stack, read as an object, where Cantrip knows that ability only by a serial inside a Target.",
+   "family": "the ability",
+   "cards": 2,
+   "alone": 0,
+   "examples": [
+    "Agrus Kos, Eternal Soldier",
+    "Way of the Mind Sculptor"
+   ]
+  },
+  {
    "id": "the-loyalty-abilities-of-other-permanents",
    "feature": "the loyalty abilities of other permanents",
    "class": "mechanic",
@@ -13419,19 +13345,6 @@
    "examples": [
     "Marvo, Deep Operative",
     "Sylvan Echoes"
-   ]
-  },
-  {
-   "id": "zone-that-belongs-to-no-player",
-   "feature": "zone that belongs to no player",
-   "class": "vocabulary",
-   "needs": "Ante (casual): a zone all players share",
-   "family": "zone that",
-   "cards": 2,
-   "alone": 0,
-   "examples": [
-    "Jeweled Bird",
-    "Susan Foreman"
    ]
   },
   {
@@ -13675,6 +13588,18 @@
    ]
   },
   {
+   "id": "a-land-type-chosen-second",
+   "feature": "a land type chosen second",
+   "class": "engine",
+   "needs": "the second of two chosen land types, read by a static or an effect: a permanent keeps one chosen land type today",
+   "family": "a land",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Illusionary Terrain"
+   ]
+  },
+  {
    "id": "a-rule-on-triggering-where-the-card-says-whose-abilities",
    "feature": "a rule on triggering, where the card says whose abilities",
    "class": "vocabulary",
@@ -13735,22 +13660,10 @@
    ]
   },
   {
-   "id": "activated-ability-card-type",
-   "feature": "activated ability CardType",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "activated ability",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "Repeated Reverberation"
-   ]
-  },
-  {
    "id": "activated-ability-mana-spent",
    "feature": "activated ability ManaSpent",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "how much mana paid for the ability being activated, asked as it is activated",
    "family": "activated ability",
    "cards": 1,
    "alone": 1,
@@ -13792,18 +13705,6 @@
    "alone": 1,
    "examples": [
     "Carth the Lion"
-   ]
-  },
-  {
-   "id": "alternative-replacement-events-of-different-kinds",
-   "feature": "alternative replacement events of different kinds",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "alternative replacement",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Illusionary Mask"
    ]
   },
   {
@@ -13888,18 +13789,6 @@
    "alone": 0,
    "examples": [
     "The Ur-Sphinx"
-   ]
-  },
-  {
-   "id": "cards-revealed-where-the-a-s-t-has-them-only-chosen",
-   "feature": "cards revealed, where the AST has them only chosen",
-   "class": "vocabulary",
-   "needs": "the AST to reveal what it says is chosen, and to read creature cards apart from land cards revealed",
-   "family": "cards revealed,",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "Zimone's Experiment"
    ]
   },
   {
@@ -14121,11 +14010,11 @@
   {
    "id": "condition-player-did-was-dealt-combat-damage",
    "feature": "condition PlayerDid WasDealtCombatDamage",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "whether a player was dealt combat damage in a window of history reaching back past this turn",
    "family": "condition PlayerDid",
    "cards": 1,
-   "alone": 1,
+   "alone": 0,
    "examples": [
     "Marchesa, Resolute Monarch // Invasion of Fiora"
    ]
@@ -14212,6 +14101,18 @@
    "alone": 0,
    "examples": [
     "Artificial Evolution"
+   ]
+  },
+  {
+   "id": "continuous-rule-cant-gain-ability",
+   "feature": "continuous rule CantGainAbility",
+   "class": "engine",
+   "needs": "an effect on an object that it can't have or gain an ability for a while, as Arcane Lighthouse's hexproof and shroud",
+   "family": "continuous rule",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Arcane Lighthouse"
    ]
   },
   {
@@ -16087,18 +15988,6 @@
    ]
   },
   {
-   "id": "countering-abilities-where-the-card-says-it-does",
-   "feature": "countering abilities, where the card says it does",
-   "class": "vocabulary",
-   "needs": "the AST to say Glen Elendra's Answer counters abilities as well as spells",
-   "family": "countering abilities,",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "Glen Elendra's Answer"
-   ]
-  },
-  {
    "id": "craft-materials-that-must-have-something-in-common",
    "feature": "craft materials that must have something in common",
    "class": "mechanic",
@@ -16192,6 +16081,18 @@
    "alone": 0,
    "examples": [
     "Brazen Cannonade"
+   ]
+  },
+  {
+   "id": "duration-extra-combat",
+   "feature": "duration ExtraCombat",
+   "class": "engine",
+   "needs": "an effect lasts until this: Duration has no such end",
+   "family": "duration ExtraCombat",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Illusionist's Gambit"
    ]
   },
   {
@@ -17925,8 +17826,8 @@
   {
    "id": "move-to-owners-planar-deck",
    "feature": "move to OwnersPlanarDeck",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "a planar deck as a zone cards can be looked at in and put on top or bottom of, in the casual Planechase variant",
    "family": "move to",
    "cards": 1,
    "alone": 0,
@@ -18001,7 +17902,7 @@
    "needs": "the damage a source dealt in a turn",
    "family": "numeric expression",
    "cards": 1,
-   "alone": 1,
+   "alone": 0,
    "examples": [
     "Backdraft"
    ]
@@ -18163,6 +18064,18 @@
    ]
   },
   {
+   "id": "object-collection-scoped",
+   "feature": "object collection Scoped",
+   "class": "vocabulary",
+   "needs": "a set of objects with no read in Query or Game",
+   "family": "object collection",
+   "cards": 1,
+   "alone": 1,
+   "examples": [
+    "Spirit of Resilience"
+   ]
+  },
+  {
    "id": "object-collection-spliced-onto",
    "feature": "object collection SplicedOnto",
    "class": "engine",
@@ -18172,18 +18085,6 @@
    "alone": 1,
    "examples": [
     "Minamo's Meddling"
-   ]
-  },
-  {
-   "id": "object-collection-targets-of",
-   "feature": "object collection TargetsOf",
-   "class": "engine",
-   "needs": "the targets of a spell or ability on the stack",
-   "family": "object collection",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Battlefield Thaumaturge"
    ]
   },
   {
@@ -18273,8 +18174,8 @@
   {
    "id": "object-filter-history-counters-put-with",
    "feature": "object filter History CountersPutWith",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "the history keeps which object's ability put or removed counters of a kind on a permanent, as Cyclopean Tomb asks",
    "family": "object filter",
    "cards": 1,
    "alone": 0,
@@ -18285,8 +18186,8 @@
   {
    "id": "object-filter-history-counters-removed-with",
    "feature": "object filter History CountersRemovedWith",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "the history keeps which object's ability put or removed counters of a kind on a permanent, as Cyclopean Tomb asks",
    "family": "object filter",
    "cards": 1,
    "alone": 0,
@@ -18357,8 +18258,8 @@
   {
    "id": "object-filter-history-phased-out-with",
    "feature": "object filter History PhasedOutWith",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "the history keeps which object phased a permanent out, as Ferris Wheel asks",
    "family": "object filter",
    "cards": 1,
    "alone": 0,
@@ -18885,8 +18786,8 @@
   {
    "id": "planar-deck",
    "feature": "planar deck",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "a planar deck as a zone cards can be looked at in and put on top or bottom of, in the casual Planechase variant",
    "family": "planar deck",
    "cards": 1,
    "alone": 0,
@@ -19101,8 +19002,8 @@
   {
    "id": "player-reference-other-chosen",
    "feature": "player reference OtherChosen",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "of two players chosen as a permanent entered, the one who isn't this one (Sower of Discord)",
    "family": "player reference",
    "cards": 1,
    "alone": 0,
@@ -19113,8 +19014,8 @@
   {
    "id": "player-reference-sole-target-of",
    "feature": "player reference SoleTargetOf",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "the one player a spell targets, when that is its only target",
    "family": "player reference",
    "cards": 1,
    "alone": 0,
@@ -19353,8 +19254,8 @@
   {
    "id": "player-rule-for-a-while-attacked-only-by",
    "feature": "player rule for a while AttackedOnlyBy",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "a resolved rule that a player can be attacked only by creatures that pass a test, for a while (Island Sanctuary)",
    "family": "player rule",
    "cards": 1,
    "alone": 0,
@@ -19615,18 +19516,6 @@
    ]
   },
   {
-   "id": "possibly-absent-player-owner-of",
-   "feature": "possibly absent player OwnerOf",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "possibly absent",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Firestorm Phoenix"
-   ]
-  },
-  {
    "id": "prevention-a-player-may-decline",
    "feature": "prevention a player may decline",
    "class": "engine",
@@ -19792,6 +19681,30 @@
    "alone": 1,
    "examples": [
     "Biomancer's Familiar"
+   ]
+  },
+  {
+   "id": "replacement-of-assigns-combat-damage",
+   "feature": "replacement of AssignsCombatDamage",
+   "class": "engine",
+   "needs": "a replacement of a creature assigning combat damage, the assignment then going ahead (Illusionary Mask)",
+   "family": "replacement of",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Illusionary Mask"
+   ]
+  },
+  {
+   "id": "replacement-of-becomes-tapped",
+   "feature": "replacement of BecomesTapped",
+   "class": "engine",
+   "needs": "a replacement of a permanent becoming tapped, the tap then going ahead (Illusionary Mask)",
+   "family": "replacement of",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Illusionary Mask"
    ]
   },
   {
@@ -20191,18 +20104,6 @@
    ]
   },
   {
-   "id": "spells-cast-at-no-stated-time",
-   "feature": "spells cast at no stated time",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "spells cast",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "First Family"
-   ]
-  },
-  {
    "id": "static-change-add-names",
    "feature": "static change AddNames",
    "class": "engine",
@@ -20433,8 +20334,8 @@
   {
    "id": "static-rule-prohibit-be-played",
    "feature": "static rule Prohibit BePlayed",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "a static that lands with a property can't be played: CantCast stops spells only (CR 305.1)",
    "family": "static rule",
    "cards": 1,
    "alone": 0,
@@ -21481,7 +21382,7 @@
    "needs": "Target slots whose size depends on the branch of a cost, target rules that read which ability targets, and reads past a slot of no fixed size: `chosen_targets` holds a flat list.",
    "family": "targeted by",
    "cards": 1,
-   "alone": 0,
+   "alone": 1,
    "examples": [
     "Mirror-Shield Hoplite"
    ]
@@ -21496,18 +21397,6 @@
    "alone": 0,
    "examples": [
     "Agrus Kos, Eternal Soldier"
-   ]
-  },
-  {
-   "id": "the-ability-an-event-is-about",
-   "feature": "the ability an event is about",
-   "class": "engine",
-   "needs": "What an activation event says of the ability on the stack, read as an object, where Cantrip knows that ability only by a serial inside a Target.",
-   "family": "the ability",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Way of the Mind Sculptor"
    ]
   },
   {
@@ -21535,15 +21424,15 @@
    ]
   },
   {
-   "id": "the-rest-of-cards-revealed-once-one-has-left-them",
-   "feature": "the rest of cards revealed, once one has left them",
-   "class": "vocabulary",
-   "needs": "the AST to name what was revealed where it says the rest: it reads the top of the library again after a card has left it",
-   "family": "the rest",
+   "id": "token-recipe-copy",
+   "feature": "token recipe Copy",
+   "class": "engine",
+   "needs": "tokens of this shape: TokenSpec and copy tokens have no field for it",
+   "family": "token recipe",
    "cards": 1,
-   "alone": 1,
+   "alone": 0,
    "examples": [
-    "Getaway Barrel"
+    "Esix, Fractal Bloom"
    ]
   },
   {
@@ -22193,6 +22082,18 @@
    "examples": [
     "Desert Were-Worm"
    ]
+  },
+  {
+   "id": "zone-that-belongs-to-no-player",
+   "feature": "zone that belongs to no player",
+   "class": "vocabulary",
+   "needs": "Ante (casual): a zone all players share",
+   "family": "zone that",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Jeweled Bird"
+   ]
   }
  ],
  "cards": {
@@ -22271,9 +22172,6 @@
   ],
   "Abstruse Appropriation": [
    "play-permission-with-one-mana-as-though-any-color"
-  ],
-  "Abu Ja'far": [
-   "object-reference-scoped"
   ],
   "Abundance": [
    "instruction-choose-one"
@@ -22492,8 +22390,9 @@
    "instruction-choose-one"
   ],
   "Agrus Kos, Eternal Soldier": [
-   "event-object-this-trigger-does-not-bind",
-   "targeted-by-targets-only-single-permanent"
+   "operation-copy-on-stack",
+   "targeted-by-targets-only-single-permanent",
+   "the-ability-an-event-is-about"
   ],
   "Agyrem": [
    "card-type-plane",
@@ -22607,9 +22506,6 @@
   ],
   "All-Out Assault": [
    "engine-no-additional-phase-but-combat"
-  ],
-  "Alliance of Arms": [
-   "result-this-instruction-does-not-report"
   ],
   "Allure of the Unknown": [
    "player-reference-performer"
@@ -22932,8 +22828,8 @@
    "object-filter-history-enlisted"
   ],
   "Aragorn, Company Leader": [
+   "counters-the-event-put",
    "instruction-choose-one",
-   "object-collection-scoped",
    "object-reference-ring-bearer",
    "trigger-event-player-ring-tempts"
   ],
@@ -22975,8 +22871,8 @@
    "numeric-expression-die-result-at"
   ],
   "Arcane Lighthouse": [
-   "losing-ability-any-hexproof",
-   "open-set-affected"
+   "continuous-rule-cant-gain-ability",
+   "losing-ability-any-hexproof"
   ],
   "Arcane Savant": [
    "ability-draft-rule",
@@ -23219,9 +23115,6 @@
   "Ashiok, Dream Render": [
    "player-rule-cant-be-caused"
   ],
-  "Ashiok, Nightmare Muse": [
-   "object-reference-scoped"
-  ],
   "Ashiok, Wicked Manipulator": [
    "replacement-of-pay-life"
   ],
@@ -23452,7 +23345,8 @@
    "engine-no-record-of-what-paid-a-cost"
   ],
   "Backdraft": [
-   "numeric-expression-damage-by"
+   "numeric-expression-damage-by",
+   "object-collection-from-history"
   ],
   "Backslide": [
    "engine-no-effect-turns-a-permanent-face-down"
@@ -23660,7 +23554,6 @@
   ],
   "Beamsplitter Mage": [
    "object-filter-targetable-by",
-   "object-reference-scoped",
    "operation-copy-on-stack"
   ],
   "Bear Umbra": [
@@ -23873,8 +23766,7 @@
   ],
   "Bitter Feud": [
    "a-choice-of-several-values",
-   "condition-value-chosen-is",
-   "object-reference-scoped"
+   "condition-value-chosen-is"
   ],
   "Bitter Ordeal": [
    "engine-no-gravestorm"
@@ -24119,7 +24011,7 @@
    "play-permission-for-another-cost"
   ],
   "Bold Plagiarist": [
-   "object-collection-scoped"
+   "counters-the-event-put"
   ],
   "Bolg of the North": [
    "numeric-expression-excess-damage",
@@ -24725,7 +24617,7 @@
    "target-with-a-divided-amount-read-as-chosen"
   ],
   "Captain Marvel, Apex Avenger": [
-   "object-collection-scoped"
+   "counters-the-event-put"
   ],
   "Captain Vargus Wrath": [
    "engine-no-commander"
@@ -25034,9 +24926,6 @@
    "layout-planar",
    "operation-game-effect",
    "trigger-event-player-encounters-phenomenon"
-  ],
-  "Chaotic Transformation": [
-   "object-reference-scoped"
   ],
   "Chapel Shieldgeist // Chaplain of Alms": [
    "engine-no-disturb"
@@ -25471,8 +25360,8 @@
    "event-value-in-a-target-filter-beyond-its-subject"
   ],
   "Collective Voyage": [
-   "object-reference-bound",
-   "result-this-instruction-does-not-report"
+   "an-amount-read-by-each-player-as-their-own",
+   "object-reference-bound"
   ],
   "Colonel Autumn": [
    "engine-no-exploit",
@@ -26809,9 +26698,6 @@
   ],
   "Doomsday Confluence": [
    "mode-count-that-is-not-a-constant"
-  ],
-  "Dormant Gomazoa": [
-   "trigger-event-player-becomes-target-of-what-is-not-said"
   ],
   "Dorothea's Retribution // Dorothea, Vengeful Victim": [
    "engine-no-disturb"
@@ -28431,8 +28317,7 @@
   ],
   "Firestorm Phoenix": [
    "player-rule-for-a-while-prohibit-play-card",
-   "player-rule-for-a-while-visibility",
-   "possibly-absent-player-owner-of"
+   "player-rule-for-a-while-visibility"
   ],
   "Firion, Wild Rose Warrior": [
    "copy-exception-add-ability",
@@ -28446,7 +28331,7 @@
    "trigger-event-player-day-night-changes"
   ],
   "First Family": [
-   "spells-cast-at-no-stated-time"
+   "object-collection-from-history"
   ],
   "Fisher's Talent": [
    "replacement-of-token-creation-with-other-tokens"
@@ -29168,9 +29053,6 @@
   "Gerrard's Hourglass Pendant": [
    "replacement-of-begin-extra-turn"
   ],
-  "Getaway Barrel": [
-   "the-rest-of-cards-revealed-once-one-has-left-them"
-  ],
   "Geth, Thane of Contracts": [
    "granted-replacement"
   ],
@@ -29382,9 +29264,6 @@
    "layout-planar",
    "subtype-lorwyn",
    "trigger-event-player-chaos-ensues"
-  ],
-  "Glen Elendra's Answer": [
-   "countering-abilities-where-the-card-says-it-does"
   ],
   "Gliding Licid": [
    "duration-until-paid",
@@ -30941,24 +30820,26 @@
    "ability-draft-rule"
   ],
   "Illusionary Mask": [
-   "alternative-replacement-events-of-different-kinds",
+   "duration-while-matches",
    "object-filter-mana-cost-payable-with",
-   "operation-play-with"
+   "operation-play-with",
+   "replacement-of-assigns-combat-damage",
+   "replacement-of-becomes-tapped"
   ],
   "Illusionary Presence": [
    "landwalk-of-chosen"
   ],
   "Illusionary Terrain": [
    "a-choice-of-several-values",
-   "land-type-term",
+   "a-land-type-chosen-second",
    "object-filter-nth-chosen"
   ],
   "Illusionist's Bracers": [
    "a-mana-ability-test-that-lost-its-negation"
   ],
   "Illusionist's Gambit": [
-   "engine-no-effect-removes-from-combat",
-   "transition-this-instruction-does-not-report"
+   "duration-extra-combat",
+   "engine-no-effect-removes-from-combat"
   ],
   "Imagecrafter": [
    "operation-choose-value-with"
@@ -31063,7 +30944,6 @@
    "layout-scheme",
    "operation-abandon-scheme",
    "supertype-ongoing",
-   "trigger-event-player-becomes-target-of-what-is-not-said",
    "trigger-event-player-sets-scheme-in-motion"
   ],
   "Improvisation Capstone": [
@@ -31170,8 +31050,7 @@
    "mobilize-without-a-fixed-number"
   ],
   "Infectious Rage": [
-   "object-filter-could-enchant",
-   "object-reference-scoped"
+   "object-filter-could-enchant"
   ],
   "Infernal Captor": [
    "engine-no-exploit",
@@ -31375,7 +31254,8 @@
    "operation-search"
   ],
   "Marchesa, Resolute Monarch // Invasion of Fiora": [
-   "condition-player-did-was-dealt-combat-damage"
+   "condition-player-did-was-dealt-combat-damage",
+   "history-window-since-last-turn-of"
   ],
   "Zilortha, Apex of Ikoria // Invasion of Ikoria": [
    "static-rule-combat-damage-as-unblocked"
@@ -32375,9 +32255,6 @@
   "Krav, the Unredeemed": [
    "sacrificing-x-permanents-to-activate-an-ability"
   ],
-  "Krenko's Buzzcrusher": [
-   "per-player-resolution-choice"
-  ],
   "Kresh the Bloodbraided Avatar": [
    "card-type-vanguard",
    "earlier-objects-devoured",
@@ -32748,9 +32625,6 @@
   "Leyline Tyrant": [
    "player-rule-retain-mana"
   ],
-  "Leyline of Combustion": [
-   "trigger-event-player-becomes-target-of-what-is-not-said"
-  ],
   "Liar's Pendulum": [
    "condition-outcome",
    "operation-guess"
@@ -32772,9 +32646,6 @@
   ],
   "Lich's Mirror": [
    "replacement-of-lose-game"
-  ],
-  "Liege of the Hollows": [
-   "result-this-instruction-does-not-report"
   ],
   "Liege of the Tangle": [
    "counter-kind-awakening"
@@ -33058,7 +32929,8 @@
    "engine-no-read-ahead"
   ],
   "Love on the Battlefield": [
-   "object-collection-scoped"
+   "event-trigger-carrying-values",
+   "event-trigger-for-end-of-combat"
   ],
   "Loxodon Hierarch Avatar": [
    "card-type-vanguard",
@@ -33325,8 +33197,7 @@
    "counter-kind-eon"
   ],
   "Magus Lucea Kane": [
-   "object-filter-on-stack",
-   "object-reference-scoped"
+   "object-filter-on-stack"
   ],
   "Magus of the Abyss": [
    "targets-chosen-by-another-player"
@@ -33996,7 +33867,7 @@
    "prohibited-action-search-libraries"
   ],
   "Minds Aglow": [
-   "result-this-instruction-does-not-report"
+   "an-amount-read-by-each-player-as-their-own"
   ],
   "Mindslaver": [
    "operation-toward-player"
@@ -34088,7 +33959,6 @@
    "operation-toward-player"
   ],
   "Mirror-Shield Hoplite": [
-   "event-object-this-trigger-does-not-bind",
    "targeted-by-backup-ability"
   ],
   "Mirror-Style Master": [
@@ -34109,8 +33979,7 @@
   "Mirrormind Crown": [
    "event-change-in-the-program-of-another-event",
    "instruction-choose-one",
-   "replacement-event-first-each-turn",
-   "token-recipe-copy"
+   "replacement-event-first-each-turn"
   ],
   "Mirrorshell Crab": [
    "a-spell-or-ability-on-the-stack-read-as-an-object"
@@ -34331,8 +34200,7 @@
   "Moonlit Meditation": [
    "event-change-in-the-program-of-another-event",
    "instruction-choose-one",
-   "replacement-event-first-each-turn",
-   "token-recipe-copy"
+   "replacement-event-first-each-turn"
   ],
   "Moonlit Strider": [
    "engine-no-soulshift"
@@ -34544,7 +34412,6 @@
   "My Crushing Masterstroke": [
    "card-type-scheme",
    "layout-scheme",
-   "open-set-affected",
    "trigger-event-player-sets-scheme-in-motion"
   ],
   "My Followers Ascend": [
@@ -35711,7 +35578,8 @@
   ],
   "Orvar, the All-Form": [
    "engine-no-discard-cause-in-events",
-   "object-collection-scoped"
+   "object-collection-targets-of",
+   "token-recipe-copy-one"
   ],
   "Orzhov Advokist": [
    "continuous-rule-prohibit-attack",
@@ -36401,10 +36269,6 @@
    "engine-no-toxic-granted",
    "object-filter-has-keyword-family"
   ],
-  "Plague of Vermin": [
-   "condition-outcome",
-   "result-this-instruction-does-not-report"
-  ],
   "Plaguecrafter's Familiar": [
    "engine-no-perpetual-effects"
   ],
@@ -36783,8 +36647,8 @@
    "engine-no-protection-from-this-quality"
   ],
   "Promise of Loyalty": [
+   "continuous-rule-prohibit-attack",
    "counter-kind-vow",
-   "open-set-affected",
    "per-player-put-counters"
   ],
   "Promised Kannushi": [
@@ -37513,7 +37377,6 @@
    "engine-no-reading-of-what-a-permanent-could-produce"
   ],
   "Reflector Mage": [
-   "object-reference-scoped",
    "player-rule-for-a-while-can-t-cast-some-spells"
   ],
   "Refraction Trap": [
@@ -37601,9 +37464,6 @@
   ],
   "Renegade Krasis": [
    "trigger-event-object-evolves"
-  ],
-  "Repeated Reverberation": [
-   "activated-ability-card-type"
   ],
   "Replicating Ring": [
    "counter-kind-night"
@@ -38737,9 +38597,6 @@
   "Search for Survivors": [
    "engine-no-order-of-a-graveyard"
   ],
-  "Search the City": [
-   "object-reference-scoped"
-  ],
   "Searing Blood": [
    "event-trigger-carrying-values"
   ],
@@ -39112,7 +38969,7 @@
    "player-reference-affected"
   ],
   "Shared Trauma": [
-   "result-this-instruction-does-not-report"
+   "an-amount-read-by-each-player-as-their-own"
   ],
   "Shark Shredder, Killer Clone": [
    "event-value-in-a-target-filter-beyond-its-subject"
@@ -40304,9 +40161,6 @@
    "engine-no-jump-start",
    "engine-no-planar-deck"
   ],
-  "Starving Revenant": [
-   "transition-this-instruction-does-not-report"
-  ],
   "Stasis": [
    "skipping-a-step-of-the-turn"
   ],
@@ -40621,9 +40475,6 @@
    "damage-source-kind-spell",
    "object-collection-from-history"
   ],
-  "Suicidal Charge": [
-   "open-set-affected"
-  ],
   "Summitfest Closing Ceremony": [
    "engine-no-starting-intensity",
    "intensity",
@@ -40766,8 +40617,7 @@
    "engine-no-planar-deck",
    "move-to-owners-planar-deck",
    "planar-deck",
-   "replacement-of-planeswalk",
-   "zone-that-belongs-to-no-player"
+   "replacement-of-planeswalk"
   ],
   "Suspend": [
    "exiled-card-gains-suspend",
@@ -40942,8 +40792,7 @@
    "skipping-a-step-of-the-turn"
   ],
   "Taii Wakeen, Perfect Shot": [
-   "numeric-expression-announced-x",
-   "object-reference-scoped"
+   "numeric-expression-announced-x"
   ],
   "Tajic, Legion's Valor": [
    "operation-conjure"
@@ -41083,9 +40932,6 @@
    "duration-during-next-turn",
    "engine-no-resolving-rule-on-an-open-set-require-combat-attack"
   ],
-  "Taunt from the Rampart": [
-   "open-set-affected"
-  ],
   "Taunting Arbormage": [
    "continuous-rule-require-combat-be-blocked"
   ],
@@ -41106,6 +40952,7 @@
    "engine-no-untap-event",
    "move-arrival-state",
    "operation-note",
+   "reflexive-ability-about-a-list-of-objects",
    "several-objects-arriving-attached"
   ],
   "Tawnos, Solemn Survivor": [
@@ -41421,9 +41268,6 @@
   ],
   "The Astonishing Ant-Man": [
    "numeric-expression-paid-counters-removed"
-  ],
-  "The Beast, Deathless Prince": [
-   "object-reference-scoped"
   ],
   "The Belligerent": [
    "play-permission-to-play-land",
@@ -41859,8 +41703,7 @@
   "The Parting of the Ways": [
    "engine-no-time-travel",
    "exiled-card-gains-suspend",
-   "object-filter-has-keyword-family",
-   "object-reference-scoped"
+   "object-filter-has-keyword-family"
   ],
   "The Peregrine Dynamo": [
    "engine-no-commander"
@@ -41951,8 +41794,7 @@
    "operation-choose-value-with",
    "operation-guess",
    "operation-reveal-choices",
-   "player-reference-named",
-   "result-this-instruction-does-not-report"
+   "player-reference-named"
   ],
   "The Twelfth Doctor": [
    "engine-no-demonstrate",
@@ -41999,9 +41841,6 @@
   ],
   "The Weatherseed Treaty": [
    "engine-no-read-ahead"
-  ],
-  "The Weaver King": [
-   "per-player-resolution-choice"
   ],
   "The Wedding of River Song": [
    "earlier-objects-it",
@@ -43077,9 +42916,6 @@
    "engine-no-hidden-agenda",
    "layout-conspiracy"
   ],
-  "Unexpected Request": [
-   "transition-this-instruction-does-not-report"
-  ],
   "Unexplained Absence": [
    "target-cardinality-per-player"
   ],
@@ -43626,7 +43462,8 @@
    "numeric-expression-paid-counters-removed"
   ],
   "Vision Charm": [
-   "land-type-term",
+   "engine-no-resolving-effect-sets-land-types",
+   "object-filter-nth-chosen",
    "operation-together"
   ],
   "Vision, Spectral Synthezoid": [
@@ -44087,9 +43924,6 @@
   ],
   "Well of Lost Dreams": [
    "cost-part-mana-x-bounded"
-  ],
-  "Well-Laid Plans": [
-   "object-reference-scoped"
   ],
   "Werewolf Pack Leader": [
    "continuous-change-remove-subtype"
@@ -44825,9 +44659,6 @@
   ],
   "Zilortha, Strength Incarnate": [
    "static-rule-unique"
-  ],
-  "Zimone's Experiment": [
-   "cards-revealed-where-the-a-s-t-has-them-only-chosen"
   ],
   "Zinnia, Valley's Voice": [
    "base-power",

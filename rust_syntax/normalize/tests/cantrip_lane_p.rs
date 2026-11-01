@@ -45,8 +45,6 @@ const CARDS: &[(&str, &str)] = &[
     ("Kari Zev, Crew of Two", "operation Conjure"),
     // A delayed ability's target is carried once for each of its share.
     ("Bounty of the Hunt", "g.delayed_trigger_about"),
-    // No stated time for spells cast, so no reading of one: a hole, with its reason.
-    ("First Family", "spells cast at no stated time"),
 ];
 
 #[test]

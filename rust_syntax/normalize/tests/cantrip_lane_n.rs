@@ -68,15 +68,7 @@ const CARDS: &[(&str, &str)] = &[
 /// spell" as anything. Each keeps its gap.
 const LOST: &[(&str, &str)] = &[
     ("Harsh Mentor", "a mana ability test that lost its negation"),
-    (
-        "Dormant Gomazoa",
-        "trigger event Player BecomesTarget of what is not said",
-    ),
-    (
-        "Starving Revenant",
-        "transition this instruction does not report",
-    ),
-    ("Minds Aglow", "result this instruction does not report"),
+    ("Minds Aglow", "an amount read by each player as their own"),
 ];
 
 fn modules(names: Vec<String>) -> Option<BTreeMap<String, String>> {
