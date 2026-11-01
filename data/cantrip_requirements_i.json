@@ -112,5 +112,11 @@
     "class": "engine",
     "needs": "a player may choose new targets for an activated or triggered ability on the stack: choose_new_targets takes only a spell's object.",
     "api": "Game::choose_new_targets_of(target, chooser)"
+  },
+  {
+    "match": "^move counters of kinds the mover chooses$",
+    "class": "engine",
+    "needs": "the mover chooses which of an object's counters to move, of any kind: no request asks for counters to move, only to remove.",
+    "api": "cantrip_mechanics::counters::move_chosen(g, actor, from, to, least, most)"
   }
 ]

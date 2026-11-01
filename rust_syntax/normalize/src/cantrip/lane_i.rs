@@ -948,6 +948,95 @@ impl Compiler {
         writeln!(out, "}}").unwrap();
         Ok(())
     }
+    /// Whether counters move in a way `move_counters` writes: a set number
+    /// comes from one object, and "all" from each.
+    fn moves_counters(
+        &self,
+        from: &ObjectSet,
+        kind: Option<&crate::counter::CounterKind>,
+        amount: &MovedCounters,
+    ) -> bool {
+        matches!(amount, MovedCounters::All)
+            || matches!(from, ObjectSet::One(_))
+            || (kind.is_some() && matches!(amount, MovedCounters::AnyNumber))
+    }
+    /// "Move a +1/+1 counter from this onto target creature" (CR 122.5): each
+    /// kind by itself, which is how `move_counters` takes them.
+    #[allow(clippy::too_many_arguments)]
+    fn move_counters(
+        &mut self,
+        id: usize,
+        result: &ResultId,
+        player: &PlayerRef,
+        from: &ObjectSet,
+        to: &ObjectSet,
+        kind: Option<&crate::counter::CounterKind>,
+        amount: &MovedCounters,
+        out: &mut String,
+    ) -> Result<()> {
+        let kinds = match kind {
+            Some(kind) => format!("[{}]", read::counter_kind(kind)?),
+            None => "CounterKind::ALL".to_string(),
+        };
+        let actor = self.fetch(self.certain_player(player)?);
+        let sources = self.acted_on(from)?;
+        let recipient = self.acted_on(to)?;
+        let moving = format!("done_{id} += i64::from(g.move_counters(from, to, kind, amount));");
+        let step = match (amount, kind) {
+            (MovedCounters::One, Some(_)) => format!("let amount = 1i16; {moving}"),
+            (MovedCounters::Exactly(n), Some(_)) => {
+                let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+                writeln!(out, "let amount_{id}: i16 = {};", self.fetch(n)).unwrap();
+                format!("let amount = amount_{id}; {moving}")
+            }
+            (MovedCounters::All, _) => format!("let amount = i16::MAX; {moving}"),
+            (MovedCounters::AnyNumber, Some(_)) => format!("let most = g.state().obj(from).counters(kind).clamp(0, 255) as u32; if most > 0 {{ let amount = cantrip_mechanics::choose::number(g, actor_{id}, asker.source, 0, most, \"Move counters\")? as i16; {moving} }}"),
+            (MovedCounters::OneOfEachKindMissing, _) => format!("if g.state().obj(to).counters(kind) == 0 {{ let amount = 1i16; {moving} }}"),
+            _ => {
+                let least = match amount {
+                    MovedCounters::One => "1".to_string(),
+                    MovedCounters::AtLeast(n) => self.fetch(self.number(n)?.amount(i16::MAX.into(), "i16")?),
+                    _ => "0".to_string(),
+                };
+                let most = if matches!(amount, MovedCounters::One) { "1" } else { "i16::MAX" };
+                writeln!(out, "let mut done_{id}: i64 = 0; let actor_{id} = {actor}; let sources_{id} = {sources}; let to_{id}: Option<ObjectId> = ({recipient}).first().copied(); if let (Some(&from), Some(to)) = (sources_{id}.first(), to_{id}) {{").unwrap();
+                self.plan_code(
+                    "move counters of kinds the mover chooses",
+                    &format!("done_{id} += cantrip_mechanics::counters::move_chosen(g, actor_{id}, from, to, {least}, {most})?"),
+                    out,
+                );
+                writeln!(out, "}}").unwrap();
+                if self.read_later(result) {
+                    self.performed.insert(result.0, format!("done_{id}"));
+                }
+                return Ok(());
+            }
+        };
+        writeln!(out, "let mut done_{id}: i64 = 0; let actor_{id} = {actor}; let sources_{id} = {sources}; let to_{id}: Option<ObjectId> = ({recipient}).first().copied(); if let Some(to) = to_{id} {{ for from in sources_{id} {{ for kind in {kinds} {{ {step} }} }} }}").unwrap();
+        if self.read_later(result) {
+            self.performed.insert(result.0, format!("done_{id}"));
+        }
+        Ok(())
+    }
+    /// "Put its counters on target creature": what it has, or last had, of
+    /// each kind goes on together, and none comes off it (CR 122.6, 608.2h).
+    fn put_counters_of(
+        &mut self,
+        id: usize,
+        from: &ObjectSet,
+        to: &ObjectSet,
+        kind: Option<&crate::counter::CounterKind>,
+        out: &mut String,
+    ) -> Result<()> {
+        let sources = self.fetch(self.objects(from)?);
+        let recipients = self.acted_on(to)?;
+        let only = match kind {
+            Some(kind) => format!(".filter(|put| put.1 == {})", read::counter_kind(kind)?),
+            None => String::new(),
+        };
+        writeln!(out, "let sources_{id}: Vec<[i16; CounterKind::COUNT]> = ({sources}).iter().map(|&from| g.obj(from).counter_array()).collect(); let recipients_{id}: Vec<ObjectId> = {recipients}; let puts_{id}: Vec<(ObjectId, CounterKind, i16)> = recipients_{id}.iter().flat_map(|&to| sources_{id}.iter().flat_map(move |counts| CounterKind::ALL.into_iter().map(move |kind| (to, kind, counts[kind as usize])))){only}.collect(); g.add_counters_together(&puts_{id});").unwrap();
+        Ok(())
+    }
     /// "Copy it" (CR 707.10), a spell's copy with what it is excepted in
     /// (CR 707.9). A copy of a spell with an X has that X, read from the spell
     /// when a trigger of its own makes the copies.
@@ -1040,6 +1129,21 @@ impl Compiler {
                     | NewTargets::May
                     | NewTargets::To(ObjectSet::One(ObjectRef::Source))),
             } => self.retarget(id, player, object, targets, out)?,
+            Operation::MoveCounters {
+                actor: PlayerSet::One(player),
+                from,
+                to: to @ ObjectSet::One(_),
+                kind,
+                amount,
+            } if self.moves_counters(from, kind.as_ref(), amount) => {
+                self.move_counters(id, result, player, from, to, kind.as_ref(), amount, out)?;
+            }
+            Operation::DuplicateCounters {
+                from: Recipients::Objects(from),
+                to: Recipients::Objects(to),
+                copies: CounterCopies::All,
+                kind,
+            } => self.put_counters_of(id, from, to, kind.as_ref(), out)?,
             Operation::RepeatProcess => {
                 let process = self
                     .repeating
