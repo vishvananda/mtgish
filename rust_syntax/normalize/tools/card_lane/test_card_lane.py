@@ -151,26 +151,27 @@ class Keywords(unittest.TestCase):
     def test_a_keyword_it_cannot_play_is_left_out(self):
         self.assertEqual(self.repaired({"oracleText": "Protection from red; banding"}), ["Banding"])
 
-    def test_each_keyword_is_a_change_that_takes_only_it_off(self):
-        self.path.write_text(json.dumps({"name": "Card", "keywords": ["Trample", "Banding"]}), encoding="utf-8")
+    def changes(self, card):
+        self.path.write_text(json.dumps(card), encoding="utf-8")
         missing = Path(self.tree.name) / "no-file.rs"
-        card_file, lane.card_file = lane.card_file, lambda name: missing
-        try:
-            changes, total = lane.changes_of("Card", None)
-        finally:
-            lane.card_file = card_file
+        with mock.patch.multiple(lane, card_file=lambda name: missing, names_of=lambda name: ("card", "card", "CARD")):
+            return lane.changes_of("Card", None)
+
+    def test_each_keyword_is_a_change_that_takes_only_it_off(self):
+        changes, total = self.changes({"name": "Card", "keywords": ["Trample", "Banding"]})
         self.assertEqual(total, 0)
         self.assertEqual([c["key"] for c in changes], ["keyword Trample", "keyword Banding"])
-        self.assertEqual(json.loads(changes[0]["text"])["keywords"], ["Banding"])
+        self.assertIn("Keywords::of(&[Keyword::Banding])", changes[0]["text"])
+        self.assertIn("Keywords::of(&[Keyword::Trample])", changes[1]["text"])
 
-    def test_the_last_keyword_taken_off_leaves_no_list(self):
-        self.path.write_text(json.dumps({"name": "Card", "keywords": ["Trample"]}), encoding="utf-8")
-        card_file, lane.card_file = lane.card_file, lambda name: Path(self.tree.name) / "no-file.rs"
-        try:
-            changes, _ = lane.changes_of("Card", None)
-        finally:
-            lane.card_file = card_file
-        self.assertNotIn("keywords", json.loads(changes[0]["text"]))
+    def test_the_last_keyword_taken_off_leaves_none(self):
+        changes, _ = self.changes({"name": "Card", "keywords": ["Trample"]})
+        self.assertIn("Keywords::of(&[])", changes[0]["text"])
+
+    def test_a_word_the_oracle_crate_ignores_has_nothing_to_take_off(self):
+        changes, _ = self.changes({"name": "Card", "keywords": ["Trample", "Equip"]})
+        self.assertEqual([c["key"] for c in changes], ["keyword Trample"])
+        self.assertIn("Keywords::of(&[])", changes[0]["text"])
 
 
 class Prompt(unittest.TestCase):
@@ -245,7 +246,9 @@ class RememberedMutants(unittest.TestCase):
             builds = []
             gates = {"A": mock.Mock()}
             gates["A"].results = [{}]
-            with mock.patch.multiple(lane, tool_module=mock.Mock(), changes_of=mock.Mock(return_value=(changes, 2)), card_file=mock.Mock(return_value=source),
+            shadow = mock.Mock()
+            shadow.return_value.ready.return_value = []  # so the tree's bench, whose build and play are faked here
+            with mock.patch.multiple(lane, Shadow=shadow, tool_module=mock.Mock(), changes_of=mock.Mock(return_value=(changes, 2)), card_file=mock.Mock(return_value=source),
                                      content_file=mock.Mock(return_value=content), card_dir=mock.Mock(return_value=root / "state"),
                                      scenarios_digest=mock.Mock(return_value="now"), scenario_digest=mock.Mock(return_value="said"),
                                      build_corpus=mock.Mock(side_effect=lambda: builds.append(source.read_text(encoding="utf-8")) or (0, "")),
@@ -254,18 +257,163 @@ class RememberedMutants(unittest.TestCase):
             return survivors, builds, source.read_text(encoding="utf-8"), json.loads((root / "state" / "mutants.json").read_text(encoding="utf-8"))
 
     def test_only_what_is_unknown_is_built(self):
-        known = {"one": {"change": lane.digest("one"), "verdict": "caught", "by": "s", "said": "said", "together": "now"}}
+        known = {lane.digest("one"): {"change": lane.digest("one"), "verdict": "caught", "by": "s", "said": "said", "together": "now"}}
         survivors, builds, source, memo = self.run_gate(known)
         self.assertEqual(survivors, {"A": []})
         self.assertEqual(builds, ["two", "real"])  # the one left, then the card put back
         self.assertEqual(source, "real")
-        self.assertEqual(memo["two"]["verdict"], "caught")
+        self.assertEqual(memo[lane.digest("two")]["verdict"], "caught")
 
     def test_a_kept_survivor_is_still_reported_and_nothing_is_built(self):
-        known = {k: {"change": lane.digest(k), "verdict": "SURVIVED", "by": None, "said": None, "together": "now"} for k in ("one", "two")}
+        known = {lane.digest(k): {"change": lane.digest(k), "verdict": "SURVIVED", "by": None, "said": None, "together": "now"} for k in ("one", "two")}
         survivors, builds, _, _ = self.run_gate(known)
         self.assertEqual(survivors, {"A": [("one", "one detail"), ("two", "two detail")]})
         self.assertEqual(builds, [])
+
+
+class ShadowTree(unittest.TestCase):
+    def tree(self, root):
+        """A small Cantrip: two crates, three cards, two scenarios."""
+        cards = root / "real" / lane.CARDS_DIR
+        cards.mkdir(parents=True)
+        (root / "real" / "crates" / "cantrip-cards" / "Cargo.toml").write_text("x", encoding="utf-8")
+        (root / "real" / "crates" / "cantrip-cards" / "src" / "lib.rs").write_text("x", encoding="utf-8")
+        (root / "real" / "crates" / "cantrip-engine").mkdir()
+        (root / "real" / "Cargo.toml").write_text("x", encoding="utf-8")
+        (root / "real" / ".git").mkdir()
+        (root / "real" / "target").mkdir()
+        (cards / "alpha.rs").write_text("prepare: Some(&crate::beta::CARD)", encoding="utf-8")
+        (cards / "beta.rs").write_text("pub static CARD", encoding="utf-8")
+        (cards / "gamma.rs").write_text("pub static CARD", encoding="utf-8")
+        (cards / "filler.rs").write_text("pub static CARD", encoding="utf-8")
+        scenarios = root / "real" / "scenarios"
+        scenarios.mkdir()
+        (scenarios / "a.cantrip").write_text("# x\n[Bot1 Deck]\nAlpha\nFiller x3\n[Bot2 Deck]\n2 Island\n[Actions]\nGamma\n", encoding="utf-8")
+        (scenarios / "b.cantrip").write_text("[Bot1 Deck]\nGamma\n[Actions]\n", encoding="utf-8")
+        return root / "real"
+
+    def shadow(self, root, names=("Alpha",)):
+        real = self.tree(root)
+        with mock.patch.multiple(lane, CANTRIP=real, SHADOW=root / "shadow", names_of=mock.Mock(side_effect=lambda n: (n.lower(), n.lower(), n.upper()))):
+            return real, lane.Shadow(list(names))
+
+    def test_it_holds_the_cards_played_and_what_they_reach(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            _, bench = self.shadow(Path(scratch))
+            self.assertEqual(sorted(p.name for p in (bench.tree / lane.CARDS_DIR).glob("*.rs")), ["alpha.rs", "beta.rs", "filler.rs"])
+
+    def test_the_cards_are_copies_and_the_rest_are_links(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            real, bench = self.shadow(Path(scratch))
+            self.assertFalse((bench.tree / lane.CARDS_DIR / "alpha.rs").is_symlink())
+            self.assertTrue((bench.tree / "scenarios").is_symlink())
+            self.assertTrue((bench.tree / "crates" / "cantrip-engine").is_symlink())
+            self.assertTrue((bench.tree / "crates" / "cantrip-cards" / "Cargo.toml").is_symlink())
+            self.assertFalse((bench.tree / ".git").exists())
+            self.assertFalse((bench.tree / "target").exists())
+
+    def test_a_change_lands_in_the_shadow_and_never_in_the_tree(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            real, bench = self.shadow(Path(scratch))
+            with mock.patch.object(lane, "CANTRIP", real):
+                place = bench.place(real / lane.CARDS_DIR / "alpha.rs")
+            self.assertEqual(place, bench.tree / lane.CARDS_DIR / "alpha.rs")
+
+    def test_a_card_no_longer_played_goes(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            real, bench = self.shadow(root)
+            with mock.patch.multiple(lane, CANTRIP=real, SHADOW=root / "shadow", names_of=mock.Mock(side_effect=lambda n: (n.lower(), n.lower(), n.upper()))):
+                lane.Shadow(["Gamma"])
+            self.assertEqual(sorted(p.name for p in (bench.tree / lane.CARDS_DIR).glob("*.rs")), ["alpha.rs", "beta.rs", "filler.rs", "gamma.rs"][3:])
+
+    def test_a_shadow_of_another_tree_starts_again(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            real, bench = self.shadow(root)
+            moved = root / "moved"
+            real.rename(moved)
+            with mock.patch.multiple(lane, CANTRIP=moved, SHADOW=root / "shadow", names_of=mock.Mock(side_effect=lambda n: (n.lower(), n.lower(), n.upper()))):
+                lane.Shadow(["Alpha"])
+            self.assertEqual((bench.tree / "Cargo.toml").resolve(), (moved / "Cargo.toml").resolve())
+
+    def test_a_card_the_shadow_cannot_play_goes_to_the_tree(self):
+        gates = {}
+        shadow = mock.Mock()
+        shadow.return_value.ready.return_value = ["A"]
+        with mock.patch.object(lane, "Shadow", shadow), mock.patch.object(lane, "break_cards", side_effect=lambda names, g, bench: {n: bench for n in names}) as broken, mock.patch("builtins.print"):
+            out = lane.mutation_gates(["A", "B"], gates)
+        self.assertIs(out["A"], shadow.return_value)
+        self.assertIsInstance(out["B"], lane.Bench)
+        self.assertEqual(broken.call_count, 2)
+
+    def test_ready_needs_every_scenario_found_and_passing(self):
+        bench = lane.Shadow.__new__(lane.Shadow)
+        bench.target, bench.tree = Path("/t"), Path("/t")
+        said = {"Good": (0, "3 scenarios: 3 pass, 0 fail, 0 known bugs, 0 need cards the engine does not have."),
+                "Missing": (0, "3 scenarios: 2 pass, 0 fail, 0 known bugs, 1 need cards the engine does not have."),
+                "Fails": (1, "3 scenarios: 2 pass, 1 fail, 0 known bugs, 0 need cards the engine does not have."),
+                "None": (0, "14108 scenarios: 0 pass, 0 fail, 0 known bugs, 0 need cards the engine does not have.")}
+        with mock.patch.object(lane.Shadow, "build", return_value=(0, "")), mock.patch.object(lane, "shell", side_effect=lambda *a, **k: said[a[2]]):
+            self.assertEqual(bench.ready(list(said)), ["Good"])
+
+
+class DeckNames(unittest.TestCase):
+    def test_every_way_of_saying_a_card(self):
+        text = "# Mox Ruby in a comment\n[Bot1 Deck]\nMountain\n2 Lightning Bolt\nIsland x20\nIsland X3\n[Bot1 Sideboard]\nFury\n[Bot2 Companion]\nLurrus\n[Life]\nBot1 7\n[Actions]\nBot1.Hand.Fury.Cast\n"
+        self.assertEqual(lane.deck_names(text), ["Mountain", "Lightning Bolt", "Island", "Island", "Fury", "Lurrus"])
+
+
+class KeywordChanges(unittest.TestCase):
+    CORE = {"Flying", "Trample"}
+
+    def change(self, source, kept, name="A Card"):
+        with mock.patch.object(lane, "names_of", return_value=("a_card", "a-card", "A_CARD")):
+            return lane.without_keyword(name, source, kept, self.CORE)
+
+    def test_a_card_with_a_file_keeps_its_file(self):
+        source = "use x;\npub static CARD: CardDef = CardDef {\n    spell: None,\n    ..oracle::A_CARD\n};\n"
+        text = self.change(source, ["Flying"])
+        self.assertIn("keywords: Keywords::of(&[Keyword::Flying]), toxic: 0,\n    ..oracle::A_CARD", text)
+        self.assertIn("spell: None", text)
+
+    def test_a_card_with_no_file_gets_one_of_that_field(self):
+        text = self.change(None, [])
+        self.assertIn("keywords: Keywords::of(&[]), toxic: 0, ..oracle::A_CARD", text)
+        self.assertIn("pub static CARD", text)
+
+    def test_toxic_stays_a_number(self):
+        self.assertIn("toxic: 3", self.change(None, ["Toxic 1", "Toxic 2"]))
+
+    def test_a_file_taking_nothing_from_the_oracle_cannot_change(self):
+        self.assertIsNone(self.change("pub static CARD: CardDef = CardDef { name: \"X\" };", []))
+
+
+class TwoChangesOnOneLine(unittest.TestCase):
+    def test_each_keeps_its_own_verdict(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            source = root / "card.rs"
+            source.write_text("real", encoding="utf-8")
+            content = root / "card.json"
+            content.write_text("{}", encoding="utf-8")
+            (root / "state").mkdir()
+            changes = [{"key": "line 4: 1 to 2", "text": text, "path": source, "detail": "d"} for text in ("first", "second")]
+            builds = []
+            gates = {"A": mock.Mock()}
+            gates["A"].results = [{}]
+            shadow = mock.Mock()
+            shadow.return_value.ready.return_value = []
+            with mock.patch.multiple(lane, Shadow=shadow, tool_module=mock.Mock(), changes_of=mock.Mock(return_value=(changes, 2)), card_file=mock.Mock(return_value=source),
+                                     content_file=mock.Mock(return_value=content), card_dir=mock.Mock(return_value=root / "state"),
+                                     scenarios_digest=mock.Mock(return_value="now"), scenario_digest=mock.Mock(return_value="said"),
+                                     build_corpus=mock.Mock(side_effect=lambda: builds.append(source.read_text(encoding="utf-8")) or (0, "")),
+                                     corpus_verdict=mock.Mock(return_value=(1, "s"))), mock.patch("builtins.print"):
+                lane.mutation_gates(["A"], gates)
+                self.assertEqual(builds, ["first", "second", "real"])
+                builds.clear()
+                lane.mutation_gates(["A"], gates)
+                self.assertEqual(builds, [])
 
 
 class Repairs(unittest.TestCase):

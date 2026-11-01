@@ -118,10 +118,18 @@ Every step of a worker resends the session, so cost follows steps, not bytes rea
 most of its budget on searches of `scenarios/` and finished a third of its cards. One build serves the whole batch, every
 card's coverage comes from one instrumented run, and mutation runs only for a card with nothing else wrong.
 
-Mutation is the dearest gate, about one build per change, so verdicts are kept in the card's `mutants.json`. A change caught
-stays caught while the scenario that caught it is unchanged, a survivor is played again when any of the card's scenarios
-changes, and a change that does not compile is not tried again. The first round pays for all of them; later ones pay only for
-what an edit touched.
+Mutation would be the dearest gate. In the tree one mutant costs a rebuild of the whole card crate, 38 seconds with thousands
+of cards in it, and the tree must be built back after. So it runs in a shadow under `$TARGET/mutants`: links to the real tree,
+with a `cantrip-cards` of only the cards these scenarios play, copied in. A build takes about 3 seconds, the first at a path
+about a minute, and the tree is never touched. A card whose scenarios do not all run and pass in the shadow goes to the tree
+instead, so a smaller card table cannot turn into a pass. On seven cards and 73 mutants the two gave the same verdict every time.
+
+A keyword is taken off in the card's own file rather than its content, since content would rebuild the oracle crate and
+everything above it. A card with no file gets one of that single field for the change.
+
+Verdicts are kept in the card's `mutants.json`, by the mutant's text. A change caught stays caught while the scenario that
+caught it is unchanged, a survivor is played again when any of the card's scenarios changes, and a change that does not compile
+is not tried again.
 
 A repair prompt must tell the worker to keep going until the cards pass. A worker told to fix what it can in one action does
 exactly that, whatever the failures, and a lower effort follows such wording more literally.

@@ -57,6 +57,7 @@ CANTRIP = Path(os.environ.get("CARD_LANE_CANTRIP", LANE / "cantrip"))
 STATE = Path(os.environ.get("CARD_LANE_STATE", LANE / "state"))
 BRANCH = os.environ.get("CARD_LANE_BRANCH", "card-lane/pioneer-pilot")
 TARGET = Path(os.environ.get("CARD_LANE_TARGET", LANE / "targets" / "cantrip"))
+SHADOW = TARGET / "mutants"  # a tree of a few cards, for breaking them (Shadow)
 AST = LANE / "targets" / "ast" / "debug" / "ast"
 GEN = LANE / "gen"
 SCRYFALL = LANE / "scryfall"
@@ -1417,9 +1418,14 @@ def build_corpus():
     return code, out
 
 
+def broken_stems(out):
+    """The card files a compiler error names."""
+    return set(re.findall(r"--> \S*?cantrip-cards/src/cards/(\w+)\.rs", out))
+
+
 def broken_cards(out):
     """The open cards a compiler error names."""
-    stems = set(re.findall(r"--> \S*?cantrip-cards/src/cards/(\w+)\.rs", out))
+    stems = broken_stems(out)
     return [name for name in BATCH if names_of(name)[0] in stems]
 
 
@@ -1568,7 +1574,7 @@ WAYS = {
     "work": """Tools, from the working directory:
 - `{lane} batch-check --fast`: plays every card's scenarios and judges each card and its report. Prints what failed.
 - `{lane} corpus --file PATH --brief`: one scenario. Add `--dump`, `--diff N` or `--next` to see what it can see.
-- `{lane} batch-check --card "NAME"`: the same, and it breaks that card one change at a time: minutes the first time, seconds after.
+- `{lane} batch-check --card "NAME"`: the same, and it breaks that card one change at a time: a minute or two the first time, seconds after.
 - `{lane} tool find-cards.py ...`, `{lane} tool cr.py 603.6a`.
 
 Build out the scenarios for every card: what each owes is every printed line, test point, ruling and keyword. Play them, fix them
@@ -1693,11 +1699,11 @@ def coverage_gates(names, gates, contexts):
     return [n for n in names if gates[n].ok]
 
 
-def corpus_verdict(name):
+def corpus_verdict(name, corpus=None, cwd=None):
     """The card's scenarios on the built corpus: (exit status, the first scenario that failed, or None). A change that makes
     the game run on is caught, by nothing that can be named."""
     try:
-        code, out = shell(TARGET / "cards" / "corpus", "--card", name, "--brief", timeout=300)
+        code, out = shell(corpus or TARGET / "cards" / "corpus", "--card", name, "--brief", timeout=300, cwd=cwd or CANTRIP)
     except subprocess.TimeoutExpired:
         return 1, None
     failed = re.search(r"^\s*FAIL (\S+)", out, re.M)
@@ -1744,32 +1750,181 @@ def changes_of(name, mutate):
         total = len(found)
         out += [{"path": path, "key": f"line {n}: {what}", "text": "\n".join(lines[:n - 1] + [new] + lines[n:]),
                  "detail": f"{path.name}:{n}: {what}, was: {lines[n - 1].strip()} now: {new.strip()}"} for n, what, new in found[:MUTATION_LIMIT]]
-    content = content_file(name)
-    card = json.loads(content.read_text(encoding="utf-8-sig"))
-    for keyword in card.get("keywords") or []:
-        rest = {k: v for k, v in card.items() if k != "keywords"}
-        kept = [k for k in card["keywords"] if k != keyword]
-        out.append({"path": content, "key": f"keyword {keyword}", "text": json.dumps(dict(rest, keywords=kept) if kept else rest, indent=2, ensure_ascii=False) + "\n",
-                    "detail": f"{keyword} taken off the card, and every scenario still passes: nothing shows the card has it"})
+    words = json.loads(content_file(name).read_text(encoding="utf-8-sig")).get("keywords") or []
+    source = path.read_text(encoding="utf-8") if path.exists() else None
+    core = set(core_keywords().values())
+    for keyword in words:
+        text = without_keyword(name, source, [k for k in words if k != keyword], core) if keyword in core or toxic_of(keyword) else None
+        if text is not None:
+            out.append({"path": path, "key": f"keyword {keyword}", "text": text,
+                        "detail": f"{keyword} taken off the card, and every scenario still passes: nothing shows the card has it"})
     return out, total
 
 
+def toxic_of(keyword):
+    """The N of "Toxic N", or 0."""
+    found = re.fullmatch(r"Toxic (\d+)", keyword)
+    return int(found[1]) if found else 0
+
+
+def without_keyword(name, source, kept, core):
+    """The card's file with its characteristics' keywords replaced by these: what the content would build if it listed only
+    them, without rebuilding the oracle crate and all that depends on it. `source` None is a card with no file, and a file of
+    this one field wins over its plain entry. None when the file's card takes nothing from the oracle crate, or a keyword
+    the oracle crate does not read: there is nothing to take off."""
+    fields = f"keywords: Keywords::of(&[{', '.join(f'Keyword::{k}' for k in kept if k in core)}]), toxic: {sum(toxic_of(k) for k in kept)},"
+    if source is None:
+        return f"use cantrip_api::*;\nuse cantrip_oracle as oracle;\n\npub static CARD: CardDef = CardDef {{ {fields} ..oracle::{names_of(name)[2]} }};\n"
+    found = re.search(r"pub static CARD\b.*?(\.\.oracle::\w+)", source, re.S)
+    return f"{source[:found.start(1)]}{fields}\n    {source[found.start(1):]}" if found else None
+
+
+def deck_names(text):
+    """The cards a scenario's decks, sideboards and companions hold, as the script parser reads them."""
+    names, on = [], False
+    for line in text.split("[Actions]", 1)[0].splitlines():
+        line = line.strip()
+        if line.startswith("["):
+            on = line.upper().endswith((" DECK]", " SIDEBOARD]", " COMPANION]"))
+        elif on and line and not line.startswith("#"):
+            names.append(re.sub(r"^\d+\s+|\s+[xX]\d+$", "", line).strip())
+    return names
+
+
+def files_played(names):
+    """The stems of the card files that scenarios of these cards play, and those files reach."""
+    wanted = {name.lower() for name in names}
+    stems = {names_of(name)[0] for name in names}
+    for path in (CANTRIP / SCENARIOS_DIR).glob("*.cantrip"):
+        decks = deck_names(path.read_text(encoding="utf-8"))
+        if wanted & {deck.lower() for deck in decks}:
+            stems |= {names_of(deck)[0] for deck in decks}
+    folder = CANTRIP / CARDS_DIR
+    stems = {stem for stem in stems if (folder / f"{stem}.rs").exists()}
+    todo = list(stems)
+    while todo:
+        for stem in re.findall(r"\b(?:super|crate)::(?:r#)?(\w+)::", (folder / f"{todo.pop()}.rs").read_text(encoding="utf-8")):
+            if stem not in stems and (folder / f"{stem}.rs").exists():
+                stems.add(stem)
+                todo.append(stem)
+    return stems
+
+
+class Bench:
+    """Where a card's changes are built and played: the tree itself. One card's edit rebuilds the whole card crate there,
+    38 seconds with thousands of cards in it, and the tree has to be built back afterwards."""
+
+    def place(self, path):
+        return path
+
+    def build(self):
+        return build_corpus()
+
+    def play(self, name):
+        return corpus_verdict(name)
+
+    def finish(self, builds):
+        if builds:
+            build_corpus()
+
+
+class Shadow(Bench):
+    """The same engine and the same scenarios, through links to the tree, with a card crate of only the cards being played:
+    three seconds a build, and the tree is never touched. The first build at a path takes a minute, and the rest reuse it."""
+
+    def __init__(self, names):
+        self.root, self.tree, self.target = SHADOW, SHADOW / "tree", SHADOW / "target"
+        self.link()
+        folder = self.tree / CARDS_DIR
+        stems = files_played(names)
+        for path in folder.glob("*.rs"):
+            if path.stem not in stems:
+                path.unlink()
+        for stem in stems:
+            source, copy = CANTRIP / CARDS_DIR / f"{stem}.rs", folder / f"{stem}.rs"
+            if not copy.exists() or copy.read_bytes() != source.read_bytes():
+                copy.write_bytes(source.read_bytes())
+
+    def link(self):
+        """Links to everything, but real folders down to the cards. A shadow carried into a snapshot points at the old tree,
+        so it starts again."""
+        if self.tree.exists() and (self.tree / "Cargo.toml").resolve() != (CANTRIP / "Cargo.toml").resolve():
+            shutil.rmtree(self.root)
+        cards = Path(CARDS_DIR)
+        real = {Path(*cards.parts[:n]) for n in range(1, len(cards.parts) + 1)}
+
+        def mirror(relative):
+            (self.tree / relative).mkdir(parents=True, exist_ok=True)
+            for entry in (CANTRIP / relative).iterdir():
+                inner = relative / entry.name
+                if inner in real:
+                    if inner != cards:
+                        mirror(inner)
+                    else:
+                        (self.tree / inner).mkdir(parents=True, exist_ok=True)
+                elif entry.name not in (".git", "target") and not (self.tree / inner).is_symlink():
+                    (self.tree / inner).symlink_to(entry)
+        mirror(Path())
+
+    def place(self, path):
+        return self.tree / path.relative_to(CANTRIP)
+
+    def build(self):
+        return shell("cargo", "build", "--profile", "cards", "-p", "cantrip-script", "--bin", "corpus", cwd=self.tree,
+                     env=dict(environment(), CARGO_TARGET_DIR=str(self.target)))
+
+    def play(self, name):
+        return corpus_verdict(name, self.target / "cards" / "corpus", self.tree)
+
+    def finish(self, builds):
+        pass
+
+    def ready(self, names):
+        """The cards it plays as the tree does, every scenario found and passing. Anything else goes to the tree: a card
+        reached by a way nothing here can see, which a smaller table must not turn into a pass."""
+        code, out = self.build()
+        if code != 0:
+            print(f"   shadow build failed: {out[-300:]}", flush=True)
+            return []
+
+        def whole(name):
+            code, out = shell(self.target / "cards" / "corpus", "--card", name, "--brief", cwd=self.tree, timeout=300)
+            return code == 0 and re.search(r"[1-9]\d* pass\b", out) and re.search(r"\b0 need cards", out)
+        with multiprocessing.pool.ThreadPool(16) as pool:
+            return [name for name, good in zip(names, pool.map(whole, names)) if good]
+
+
 def mutation_gates(names, gates):
-    """Breaks each card one change at a time and plays its scenarios. A round breaks one thing of every card still to go, so
-    one build serves them all, and each card's scenarios judge its own change: cards do not read each other, since no
-    scenario holds another card of the batch. A change that does not compile is set aside and the round built again, as
-    card-mutate.py skips it. The number of builds is the most changes any one card has, not the sum. {card: its survivors}."""
+    """Breaks each card one change at a time and plays its scenarios: in a shadow of the tree where it can, in the tree where
+    it cannot. {card: its survivors}."""
+    shadow = Shadow(names)
+    ready = shadow.ready(names)
+    rest = [name for name in names if name not in ready]
+    if rest:
+        print(f"   mutation in the tree, the shadow cannot play: {', '.join(rest)}", flush=True)
+    survivors = break_cards(ready, gates, shadow) if ready else {}
+    if rest:
+        survivors.update(break_cards(rest, gates, Bench()))
+    return survivors
+
+
+def break_cards(names, gates, bench):
+    """A round breaks one thing of every card still to go, so one build serves them all, and each card's scenarios judge its
+    own change: cards do not read each other, since no scenario holds another card of the batch. A change that does not
+    compile is set aside and the round built again, as card-mutate.py skips it. The number of builds is the most changes any
+    one card has, not the sum."""
     mutate = tool_module("card-mutate.py")
     plans, started, kept = {}, time.time(), 0
     for name in names:
         changes, total = changes_of(name, mutate)
-        originals = {path: path.read_bytes() for path in (card_file(name), content_file(name)) if path.exists()}
+        place = bench.place(card_file(name))
+        originals = {place: place.read_bytes() if place.exists() else None}  # None: a card with no file, given one for a change
         memo = card_dir(name) / "mutants.json"
         known = json.loads(memo.read_text(encoding="utf-8")) if memo.exists() else {}
         plan = {"changes": [], "any": bool(changes), "total": total, "originals": originals, "log": [], "survivors": [], "next": 0,
                 "memo": memo, "known": known, "together": scenarios_digest(name)}
         for change in changes:
-            verdict = verdict_of(change, known.get(change["key"]), plan["together"])
+            verdict = verdict_of(change, known.get(digest(change["text"])), plan["together"])
             if verdict is None:
                 plan["changes"].append(change)
                 continue
@@ -1781,12 +1936,15 @@ def mutation_gates(names, gates):
     builds = 0
 
     def remember(plan, change, verdict, by=None):
-        plan["known"][change["key"]] = {"change": digest(change["text"]), "verdict": verdict, "by": by, "said": scenario_digest(by) if by else None,
+        plan["known"][digest(change["text"])] = {"change": digest(change["text"]), "verdict": verdict, "by": by, "said": scenario_digest(by) if by else None,
                                         "together": plan["together"]}
 
     def restore(plan):
         for path, text in plan["originals"].items():
-            path.write_bytes(text)
+            if text is None:
+                path.unlink(missing_ok=True)
+            else:
+                path.write_bytes(text)
     try:
         while True:
             live = [n for n, p in plans.items() if p["next"] < len(p["changes"])]
@@ -1794,13 +1952,13 @@ def mutation_gates(names, gates):
                 break
             for name in live:
                 change = plans[name]["changes"][plans[name]["next"]]
-                change["path"].write_text(change["text"], encoding="utf-8", newline="\n")
+                bench.place(change["path"]).write_text(change["text"], encoding="utf-8", newline="\n")
             while live:
                 builds += 1
-                code, out = build_corpus()
+                code, out = bench.build()
                 if code == 0:
                     break
-                for name in [n for n in live if n in broken_cards(out)] or list(live):
+                for name in [n for n in live if names_of(n)[0] in broken_stems(out)] or list(live):
                     plan = plans[name]
                     plan["log"].append(f"{plan['changes'][plan['next']]['key']}: no build")
                     remember(plan, plan["changes"][plan["next"]], "no build")
@@ -1808,7 +1966,7 @@ def mutation_gates(names, gates):
                     plan["next"] += 1
                     live.remove(name)
             with multiprocessing.pool.ThreadPool(16) as pool:
-                verdicts = pool.map(corpus_verdict, live)
+                verdicts = pool.map(bench.play, live)
             for name, (code, by) in zip(live, verdicts):
                 plan = plans[name]
                 change = plan["changes"][plan["next"]]
@@ -1822,8 +1980,7 @@ def mutation_gates(names, gates):
         for plan in plans.values():
             restore(plan)
             plan["memo"].write_text(json.dumps(plan["known"], ensure_ascii=False), encoding="utf-8")
-    if builds:
-        build_corpus()
+    bench.finish(builds)
     print(f"   mutation: {sum(len(p['changes']) for p in plans.values())} played, {kept} kept from before, {builds} builds, {time.time() - started:.0f}s", flush=True)
     spent = (time.time() - started) / max(1, len(plans))
     for name, plan in plans.items():
@@ -1890,7 +2047,7 @@ def batch_repair(gates, way, left):
     lane = f"python3 {Path(__file__).resolve()}"
     tools = (f"You can use these now. `{lane} corpus --file PATH --brief` plays one scenario; add `--dump`, `--diff N` or `--next` to see what it can see. "
              f"`{lane} batch-check --fast` plays every card still open and judges their reports. `{lane} batch-check --card \"NAME\"` also breaks that card one change "
-             "at a time: minutes the first time, seconds after, since only what your edits touched is played again. ") if way == "draft" else ""
+             "at a time: a minute or two the first time, seconds after, since only what your edits touched is played again. ") if way == "draft" else ""
     return (f"The gates failed as below. {tools}\n\n"
             "Work through every failure, card by card, and keep going until each card passes or has a stop. Play a scenario after you change it. "
             "Before you finish, run the fast check and fix what it says. Do not finish with a failure you know of, with a change you have not played, or "
