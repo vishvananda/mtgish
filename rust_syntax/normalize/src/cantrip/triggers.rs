@@ -105,6 +105,8 @@ impl Compiler {
         // A question a layer asks of the history keeps to what a layer can read.
         let reader = match (self.reader, &self.history) {
             (Reader::Layer, Some(_)) => Reader::Layer,
+            // Asked inside a resolving effect, where the targets are in reach.
+            (Reader::Resolution, Some(_)) if self.stack_item => Reader::Resolution,
             _ => Reader::Query,
         };
         let (event_at, frame) = match &self.history {

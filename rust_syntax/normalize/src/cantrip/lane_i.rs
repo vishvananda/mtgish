@@ -1342,7 +1342,7 @@ impl Compiler {
             Operation::Manifest { .. } => self.manifest(id, op, result, out)?,
             Operation::MoveTopCard { .. } => self.move_top_card(id, op, result, out)?,
             Operation::EffectOn { .. } => self.effect_on(id, op, out)?,
-            other => return Err(gap(format!("operation {}", form(other)))),
+            other => self.resolving(id, other, result, out)?,
         }
         Ok(())
     }

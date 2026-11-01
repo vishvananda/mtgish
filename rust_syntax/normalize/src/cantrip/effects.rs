@@ -224,6 +224,7 @@ pub(super) fn plain_entry(entry: &EntrySpec) -> bool {
 /// The locals earlier instructions bound, keyed by the result that names them.
 pub(super) struct Results {
     pub(super) selections: BTreeMap<u32, String>,
+    pub(super) unchosen: BTreeMap<u32, String>,
     pub(super) reveal_matches: BTreeMap<u32, String>,
     pub(super) creations: BTreeMap<u32, String>,
     pub(super) moved: BTreeMap<u32, String>,
@@ -416,6 +417,7 @@ impl Compiler {
     pub(super) fn results(&self) -> Results {
         Results {
             selections: self.selections.clone(),
+            unchosen: self.unchosen.clone(),
             reveal_matches: self.reveal_matches.clone(),
             creations: self.creations.clone(),
             moved: self.moved.clone(),
@@ -431,6 +433,7 @@ impl Compiler {
     pub(super) fn restore_results(&mut self, results: Results) {
         let Results {
             selections,
+            unchosen,
             reveal_matches,
             creations,
             moved,
@@ -443,6 +446,7 @@ impl Compiler {
             failed,
         } = results;
         self.selections = selections;
+        self.unchosen = unchosen;
         self.reveal_matches = reveal_matches;
         self.creations = creations;
         self.moved = moved;
@@ -559,6 +563,8 @@ impl Compiler {
                     .or_else(|| purpose(result, &self.after))
                     .or_else(|| referred_to(result, rest).then_some("ChooseAsEnters"))
                     .or_else(|| referred_to(result, &self.after).then_some("ChooseAsEnters"))
+                    .or_else(|| lane_l::plain_purpose(result, rest))
+                    .or_else(|| lane_l::plain_purpose(result, &self.after))
                     .ok_or_else(|| gap("resolution choice prompt purpose"))?;
                 self.choose(player, objects, count, result, purpose, out)
             }
@@ -1627,6 +1633,7 @@ impl Compiler {
     }
     pub(super) fn reset_results(&mut self) {
         self.selections.clear();
+        self.unchosen.clear();
         self.reveal_matches.clear();
         self.known_one.clear();
         self.revealed = false;

@@ -23,6 +23,7 @@ mod lane_g;
 mod lane_h;
 mod lane_i;
 mod lane_j;
+mod lane_l;
 mod mechanics;
 pub mod planned;
 mod players;
@@ -428,6 +429,8 @@ struct Compiler {
     /// names the top card twice), and an unmarked move of a card all players saw
     /// is refused, so every later move into a hand or library is marked.
     revealed: bool,
+    /// What was left over of a choice between piles, by the result of the choice.
+    unchosen: BTreeMap<u32, String>,
     creations: BTreeMap<u32, String>,
     moved: BTreeMap<u32, String>,
     /// The same transitions as `moved`, by the identities they left behind.
@@ -771,6 +774,7 @@ impl Compiler {
             mana_x: false,
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
+            unchosen: BTreeMap::new(),
             reveal_matches: BTreeMap::new(),
             revealed: false,
             creations: BTreeMap::new(),
