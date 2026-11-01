@@ -347,6 +347,7 @@ impl Compiler {
     ) -> Result<()> {
         for (i, instruction) in body.instructions.iter().enumerate() {
             let mark = out.len();
+            let scope = self.results();
             let failure = self.attempt(format!("instructions[{i}]"), |c| {
                 let compiled = c.instruction(body, i, instruction, out);
                 if compiled.is_err() {
@@ -357,7 +358,9 @@ impl Compiler {
                 compiled
             });
             if let Some(feature) = failure {
+                // Nothing it bound exists: its code is gone.
                 out.truncate(mark);
+                self.restore_results(scope);
                 self.plan_instruction(&feature, instruction, out);
             }
             if boundaries && self.pending == Pending::Nothing {
