@@ -1122,11 +1122,14 @@ impl Compiler {
         if source_only {
             tests.push("id == asker.source".to_string());
         }
+        // "One or more cards" is a batch for each player who discards (603.2c).
+        let batched = matches!(grouping, DiscardGrouping::Player);
+        let second = if batched { "u32::from(player.0)" } else { "u32::MAX" };
         let mut matched = single(
             mask,
             Arm {
                 pattern: pattern.into(),
-                locals: "let id = *card; let subject = Target::Object(id); let data = [u32::from(player.0), u32::MAX];".into(),
+                locals: format!("let id = *card; let subject = Target::Object(id); let data = [u32::from(player.0), {second}];"),
                 tests,
             },
             frame,
@@ -1135,8 +1138,8 @@ impl Compiler {
         if source_only {
             matched.functions = Some("WHERE_A_DISCARD_ENDS".into());
         }
-        if let DiscardGrouping::Player = grouping {
-            matched.batch = Some(false);
+        if batched {
+            matched.batch = Some(true);
         }
         Ok(matched)
     }

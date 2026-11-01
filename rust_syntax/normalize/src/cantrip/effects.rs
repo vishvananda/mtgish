@@ -337,10 +337,16 @@ impl Compiler {
             self.helpers.insert("announced");
         }
         for (i, _) in self.slots.values() {
-            writeln!(
-                out,
-                "let t_{i}_raw = announced(g, item, {i}, false); let t_{i} = announced(g, item, {i}, true);"
-            )
+            match self.second_of_two == Some(*i) {
+                true => writeln!(
+                    out,
+                    "let t_{i}_raw: Vec<Target> = announced(g, item, 0, false).into_iter().skip(1).collect(); let t_{i} = announced(g, item, 0, true);"
+                ),
+                false => writeln!(
+                    out,
+                    "let t_{i}_raw = announced(g, item, {i}, false); let t_{i} = announced(g, item, {i}, true);"
+                ),
+            }
             .unwrap();
         }
         let reader = std::mem::replace(&mut self.reader, Reader::Resolution);
@@ -368,8 +374,15 @@ impl Compiler {
         boundaries: bool,
     ) -> Result<()> {
         self.note_unless(body);
-        for i in 0..body.instructions.len() {
-            self.step(body, i, out);
+        let mut i = 0;
+        while i < body.instructions.len() {
+            match self.one_question(&body.instructions[i..], out) {
+                true => i += 2,
+                false => {
+                    self.step(body, i, out);
+                    i += 1;
+                }
+            }
             if boundaries && self.pending == Pending::Nothing {
                 writeln!(out, "g.end_sentence();").unwrap();
             }
@@ -710,9 +723,11 @@ impl Compiler {
             }
             Instruction::Optional { decider, body } => {
                 let player = self.certain_player(decider).map(|p| self.fetch(p));
+                let player_ref = decider;
                 let decider = planned::planned_read(player, "asker.controller", decider);
                 let id = self.fresh();
                 let (open, spent) = lane_k::once_a_turn(self.do_once.take(), id);
+                let open = open + &lane_k::asked_if(player_ref, id, body);
                 writeln!(out, "let decider_{id} = {decider}; if {open}cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{{spent}").unwrap();
                 self.block(body, out, true)?;
                 writeln!(out, "}}").unwrap();
@@ -1326,7 +1341,7 @@ impl Compiler {
                 // A choice that may come to nothing is asked once, not twice.
                 let asked = match chooses && !std::mem::take(&mut self.may_choose) {
                     true => "true".to_string(),
-                    false => format!("cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?"),
+                    false => format!("{}cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?", self.can_pay(id, cost)),
                 };
                 writeln!(
                     out,
@@ -1537,6 +1552,12 @@ impl Compiler {
                             None => {
                                 self.move_objects(id, objects, destination, entry, result, out)?
                             }
+                            Some(count @ Count::Exactly(_)) if self.may_choose => {
+                                let purpose = lane_g::move_purpose(destination);
+                                self.choose(player, objects, count, result, purpose, out)?;
+                                let chosen = ObjectSet::Selected(result.clone());
+                                self.move_objects(id, &chosen, destination, entry, result, out)?;
+                            }
                             Some(Count::Exactly(n)) => {
                                 self.select_whole(player, objects, n, destination, result, out)?;
                                 let chosen = ObjectSet::Selected(result.clone());
@@ -1546,7 +1567,11 @@ impl Compiler {
                                 return Err(gap("resolution cost moving a choice of objects"))
                             }
                         }
-                        writeln!(out, "let paid_{id} = !objects_{id}.is_empty();").unwrap();
+                        // "If you do" is that it got there (608.2c).
+                        match (destination, self.moved(result)) {
+                            (Destination::Exile, Ok(moved)) => writeln!(out, "let paid_{id} = {moved}.iter().any(|&o| g.obj(o).zone.is(ZoneKind::Exile));").unwrap(),
+                            _ => writeln!(out, "let paid_{id} = !objects_{id}.is_empty();").unwrap(),
+                        }
                     }
                     other => self.resolution_cost_beyond(id, player, cost, other, result, out)?,
                 }
@@ -1584,6 +1609,13 @@ impl Compiler {
             writeln!(out, "let mut paid_{id} = false; {{").unwrap();
             self.block_choosing_first(body, format!("paid_{id} = true;"), out)?;
             writeln!(out, "}}").unwrap();
+            self.performed.insert(result.0, format!("paid_{id}"));
+            return Ok(());
+        }
+        if let (true, Some(n)) = (optional, lane_k::blights(player, body)) {
+            self.helpers.insert("pay_question");
+            let payer = self.fetch(self.certain_player(player)?);
+            writeln!(out, "let payer_{id} = {payer}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, cantrip_mechanics::blight::cost({n}), &PAY_QUESTION)?;").unwrap();
             self.performed.insert(result.0, format!("paid_{id}"));
             return Ok(());
         }
@@ -1988,7 +2020,7 @@ impl Compiler {
             Some(count) => {
                 let count = self.offered_count(count);
                 let count = self.fetch(self.select_count(&count)?);
-                writeln!(out, "let count_{id} = {count}; for player in players_{id} {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player && g.can_sacrifice(player, o)).collect(); for object in cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible, cantrip_mechanics::select::Selection::of(count_{id}.clone(), &[]))? {{ picks_{id}.push((player, object)); }} }}").unwrap();
+                writeln!(out, "let count_{id} = {count}; for player in players_{id} {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player && g.can_sacrifice(player, o)).collect(); let taken = match count_{id}.clone() {{ cantrip_mechanics::select::Count::Exactly(n) | cantrip_mechanics::select::Count::AsManyAsCan(n) if eligible.len() <= n as usize => eligible, _ => cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible, cantrip_mechanics::select::Selection::of(count_{id}.clone(), &[]))? }}; for object in taken {{ picks_{id}.push((player, object)); }} }}").unwrap();
             }
         }
         Ok(())
@@ -2283,6 +2315,11 @@ impl Compiler {
                     lane_k::word_colors(mask)
                 )]
             }
+            // Set to none: "loses all creature types".
+            Change::CreatureTypes {
+                mode: ChangeMode::Set,
+                types: CreatureTypeSet::Listed(types),
+            } if types.is_empty() => vec!["EffectKind::LoseAllCreatureTypes".into()],
             Change::CreatureTypes {
                 mode,
                 types: CreatureTypeSet::Listed(types),

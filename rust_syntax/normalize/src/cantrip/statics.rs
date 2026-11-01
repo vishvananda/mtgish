@@ -302,7 +302,7 @@ impl Compiler {
             }
             Change::GrantKeyword(k) => LayerChange::of(
                 "Ability",
-                format!("chars.keywords = chars.keywords.with({});", keyword(k)?),
+                lane_k::keyword_granted(&keyword(k)?),
             ),
             Change::Colors { mode, colors } => {
                 let mut set = String::from("ColorSet::NONE");

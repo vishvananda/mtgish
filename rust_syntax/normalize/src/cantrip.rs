@@ -402,6 +402,15 @@ struct Compiler {
     chosen_guard: Option<String>,
     /// That guard is open, and the block has to close it.
     guard_opened: bool,
+    /// The target of the announcement being compiled that is the second of "two
+    /// target creatures", which the AST keeps as a slot of its own.
+    second_of_two: Option<usize>,
+    /// Whether the face's spell has targets.
+    spell_targets: bool,
+    /// "Kicker—Sacrifice an artifact or creature", as the face prints it.
+    kicker_line: Option<String>,
+    /// The `labels` a question the code asks wants.
+    wanted_labels: Option<String>,
     /// What each counter stage of the face prints.
     stages: BTreeMap<i64, Vec<lane_k::Line>>,
     /// What's left of the printed lines of the stage being compiled.
@@ -837,6 +846,10 @@ impl Compiler {
             may_choose: false,
             chosen_guard: None,
             guard_opened: false,
+            second_of_two: None,
+            spell_targets: false,
+            kicker_line: None,
+            wanted_labels: None,
             stages: BTreeMap::new(),
             stage_lines: Vec::new(),
             do_once: None,
@@ -935,7 +948,7 @@ impl Compiler {
             TargetKind::DamageRecipient => {
                 let players = match &spec.players {
                     Some(players) => self.player_in(players, "p")?,
-                    None => "false".into(),
+                    None => "true".into(),
                 };
                 format!(
                     "match t {{ Target::Player(p) => {players}, Target::Object(id) => q.is_on_battlefield(id) && {{ let c = q.chars(id); c.is(CardType::Creature) || c.is(CardType::Planeswalker) || c.is(CardType::Battle) }} && ({}), _ => false }}",
@@ -1039,8 +1052,24 @@ impl Compiler {
     fn announced_targets(&mut self, a: &Announcement, label: &str) -> Result<String> {
         let mut targets = Vec::new();
         self.announced_filters.clear();
+        self.second_of_two = self.two_targets(a);
         for (i, spec) in a.targets.iter().enumerate() {
             let at = format!("targets[{i}]");
+            // The second of "two target creatures" is the same slot's.
+            if self.second_of_two == Some(i) {
+                self.slots.insert(spec.slot.0, (i, spec.clone()));
+                continue;
+            }
+            let doubled;
+            let spec = if self.second_of_two.is_some() {
+                doubled = TargetSpec {
+                    count: Count::Exactly(Expr::Constant(2)),
+                    ..spec.clone()
+                };
+                &doubled
+            } else {
+                spec
+            };
             let together = match spec.constraints.as_slice() {
                 [] => "",
                 [SelectionConstraint::CommonProperty(property)] => {
@@ -1741,6 +1770,9 @@ fn emit_face(
     let mut parts = Parts::default();
     c.card_name = card.name.clone();
     c.read_printed(&card.abilities, place.printed.as_deref());
+    if place.printed.as_deref().is_some_and(lane_k::reads_graveyard_order) {
+        parts.field("reads_graveyard_order", "true".into());
+    }
     c.links_exile =
         place.links_exile || format!("{:?}", card.abilities).contains("ExiledWith(Source)");
     c.own_face = place.own_face;
@@ -1808,6 +1840,14 @@ fn emit_face(
     });
     if c.cipher {
         parts.entry("statics", "cantrip_mechanics::cipher::STATIC".into());
+    }
+    if let Some(labels) = c.wanted_labels.take() {
+        let taken = parts.fields.contains_key("labels");
+        c.attempt("abilities".into(), |_| match taken {
+            true => Err(gap("a question beside other labels")),
+            false => Ok(()),
+        });
+        parts.field("labels", labels);
     }
     if c.tap_or_untap {
         let taken = parts.fields.contains_key("labels");

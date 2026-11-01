@@ -198,9 +198,16 @@ impl Printed {
         let mut stage = None;
         for raw in oracle.lines() {
             let line = loyalty_printed(&without_reminder(raw));
-            if let Some(minimum) = stage_marker(&line) {
+            // "12+ | {1}{R}, {T}: ..." prints the stage and its line as one.
+            let (marker, line) = match line.split_once(" | ") {
+                Some((marker, rest)) if stage_marker(marker).is_some() => (marker.to_string(), rest.to_string()),
+                _ => (line.clone(), line),
+            };
+            let opened = stage_marker(&marker);
+            if marker == line && opened.is_some() {
+                stage = opened;
+            } else if let Some(minimum) = opened.or(stage) {
                 stage = Some(minimum);
-            } else if let Some(minimum) = stage {
                 // Beside what it says, a stage prints a power and toughness.
                 let numbers = line.chars().all(|c| c.is_ascii_digit() || "/*".contains(c));
                 if !numbers {
@@ -313,6 +320,17 @@ pub(super) fn paid_by_a_choice(cost: &Cost) -> bool {
             filter: ObjectFilter::Any,
             random: false,
         }] => true,
+        [CostPart::Move {
+            selections,
+            face_down: false,
+            ..
+        }] => matches!(
+            selections.as_slice(),
+            [CostObjectSelection {
+                choose: Some(Count::Exactly(Expr::Constant(1))),
+                ..
+            }]
+        ),
         _ => false,
     }
 }
@@ -332,6 +350,30 @@ pub(super) fn chooses_first(decider: &PlayerRef, body: &Program) -> bool {
                         players: PlayerSet::One(player),
                         amount: Expr::Constant(1),
                         random: false,
+                    },
+                ..
+            } => return format!("{player:?}") == format!("{decider:?}"),
+            Instruction::Effect {
+                operation:
+                    Operation::Sacrifice {
+                        players: PlayerSet::One(player),
+                        choose: Some(Count::Exactly(Expr::Constant(1)) | Count::AsManyAsCan(Expr::Constant(1))),
+                        ..
+                    },
+                ..
+            } => return format!("{player:?}") == format!("{decider:?}"),
+            Instruction::Effect {
+                operation:
+                    Operation::ChangeZone {
+                        actor: PlayerSet::One(player),
+                        count:
+                            Some(
+                                Count::UpTo(_)
+                                | Count::Exactly(Expr::Constant(1))
+                                | Count::AsManyAsCan(Expr::Constant(1)),
+                            ),
+                        random: false,
+                        ..
                     },
                 ..
             } => return format!("{player:?}") == format!("{decider:?}"),
@@ -450,6 +492,7 @@ fn chars_test(filter: &ObjectFilter, id: usize, lets: &mut Vec<String>) -> Optio
         ObjectFilter::All(filters) => all(filters, " && ")?,
         ObjectFilter::Not(inner) => format!("!{}", chars_test(inner, id, lets)?),
         ObjectFilter::CardType(card) => format!("c.is(CardType::{})", card_type(card).ok()?),
+        ObjectFilter::HasKeyword(word) => format!("c.has({})", keyword(word).ok()?),
         ObjectFilter::Subtype(subtype) => {
             let word = format!("word_{id}_{}", lets.len());
             lets.push(format!(
@@ -577,6 +620,165 @@ pub(super) fn once_a_turn(key: Option<u8>, id: usize) -> (String, String) {
         format!("!g.history().done(asker.source, {done}, decider_{id}) && "),
         format!(" g.note_done(asker.source, {done}, decider_{id});"),
     )
+}
+
+/// What must hold for a "may" to be asked at all, as the start of a test: no one
+/// is asked to pay energy they haven't got, or to draw when they can't (121.3).
+pub(super) fn asked_if(decider: &PlayerRef, id: usize, body: &Program) -> String {
+    let mut first = body;
+    while let [Instruction::Group(group), ..] = first.instructions.as_slice() {
+        first = group;
+    }
+    let same = |player: &PlayerRef| format!("{player:?}") == format!("{decider:?}");
+    match first.instructions.first() {
+        Some(Instruction::Effect {
+            operation: Operation::PayCost { player, cost, .. },
+            ..
+        }) if same(player) => match cost.parts.as_slice() {
+            [CostPart::Energy(Expr::Constant(n))] => {
+                format!("g.state().player(decider_{id}).energy() >= {n} && ")
+            }
+            _ => String::new(),
+        },
+        Some(Instruction::Effect {
+            operation:
+                Operation::Draw {
+                    players: PlayerSet::One(player),
+                    amount,
+                },
+            ..
+        }) if same(player) => {
+            let n = match amount {
+                Expr::Constant(n) => *n,
+                _ => 1,
+            };
+            format!("!cant_draw(g, decider_{id}, {n}) && ")
+        }
+        // Moving the source: it's a new object once it has moved (400.7).
+        Some(Instruction::Effect {
+            operation:
+                Operation::Move {
+                    objects: ObjectSet::One(ObjectRef::Source),
+                    ..
+                },
+            ..
+        }) => "g.state().obj(asker.source).became.is_none() && ".to_string(),
+        _ => String::new(),
+    }
+}
+
+/// How much `body` blights, if that's all `player` may do: Cantrip's cost "blight
+/// N", which it asks as a payment (118.12).
+pub(super) fn blights(player: &PlayerRef, body: &Program) -> Option<u8> {
+    let [Instruction::Effect {
+        operation:
+            Operation::Keyword {
+                actor: PlayerSet::One(actor),
+                action: KeywordAction::Blight,
+                object: None,
+                other: None,
+                amount: Some(Expr::Constant(n)),
+                subtype: None,
+            },
+        ..
+    }] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    (format!("{actor:?}") == format!("{player:?}"))
+        .then(|| u8::try_from(*n).ok())
+        .flatten()
+}
+
+/// Giving a keyword, in a static ability's layer function. A landwalk's land type is
+/// a word of the text, which an effect may have changed (612.2).
+pub(super) fn keyword_granted(keyword: &str) -> String {
+    let land = ["Plains", "Island", "Swamp", "Mountain", "Forest"]
+        .into_iter()
+        .find(|land| keyword.strip_prefix("Keyword::") == Some(&format!("{}walk", land.trim_end_matches('s'))));
+    match land {
+        Some(land) => format!("if let Some(walk) = Keyword::landwalk(q.words(source).subtype(Subtype::{land})) {{ chars.keywords = chars.keywords.with(walk); }}"),
+        None => format!("chars.keywords = chars.keywords.with({keyword});"),
+    }
+}
+
+/// Whether `objects` are read out of a graveyard, whose first card is its top.
+pub(super) fn from_a_graveyard(objects: &ObjectSet) -> bool {
+    matches!(
+        objects,
+        ObjectSet::Zone {
+            scope: ZoneScope::Players {
+                zone: EventZone::Graveyard,
+                ..
+            },
+            ..
+        }
+    )
+}
+
+/// Whether this Oracle text reads the order of a graveyard (404.2): a sentence
+/// about a graveyard that places something in it ("the top creature card of your
+/// graveyard", "with a creature card directly above it"), not a "top" whose place
+/// is a library. The core asks an owner to order cards only for such a card.
+pub(super) fn reads_graveyard_order(oracle: &str) -> bool {
+    let text = without_reminder(oracle).to_lowercase().replace('\u{2019}', "'");
+    text.split(['.', '\n']).any(|sentence| {
+        sentence.contains("graveyard")
+            && (["above it", "below it", "directly above", "directly below"]
+                .iter()
+                .any(|words| sentence.contains(words))
+                || ["top", "bottom"].iter().any(|end| {
+                    sentence.match_indices(end).any(|(at, _)| {
+                        let after = &sentence[at..];
+                        match (after.find("graveyard"), after.find("library")) {
+                            (Some(graveyard), Some(library)) => graveyard < library,
+                            (Some(_), None) => true,
+                            _ => false,
+                        }
+                    })
+                }))
+    })
+}
+
+/// What may be discarded, if `cost` is discarding one card of some kind.
+fn discards_one(cost: &Cost) -> Option<Vec<&ObjectFilter>> {
+    fn of(parts: &[CostPart]) -> Option<&ObjectFilter> {
+        match parts {
+            [CostPart::Discard {
+                count: Expr::Constant(1),
+                random: false,
+                filter,
+            }] => Some(filter),
+            _ => None,
+        }
+    }
+    match cost.parts.as_slice() {
+        [CostPart::Choice(options)] => options.iter().map(|option| of(&option.parts)).collect(),
+        parts => of(parts).map(|filter| vec![filter]),
+    }
+}
+
+/// Whether a choice of costs is sacrificing an artifact or discarding a card.
+fn sacrifice_or_discard(options: &[Cost]) -> bool {
+    let [sacrifice, discard] = options else {
+        return false;
+    };
+    let artifact = matches!(
+        sacrifice.parts.as_slice(),
+        [CostPart::Sacrifice {
+            objects: ObjectSet::Battlefield(ObjectFilter::CardType(card)),
+            choose: Some(Count::Exactly(Expr::Constant(1))),
+        }] if format!("{card:?}") == "Artifact"
+    );
+    let card = matches!(
+        discard.parts.as_slice(),
+        [CostPart::Discard {
+            count: Expr::Constant(1),
+            filter: ObjectFilter::Any,
+            random: false,
+        }]
+    );
+    artifact && card
 }
 
 /// The text of Reconfigure's two abilities, from "Reconfigure {2}".
@@ -710,10 +912,155 @@ impl Compiler {
             false => Vec::new(),
         }
     }
+    /// How many permanents entered this turn as `event` says, from what the history
+    /// keeps of each as it entered: who controlled it then and its types then (603.6a),
+    /// whatever it is now and wherever it has gone.
+    pub(super) fn entered_this_turn(&self, event: &EventSpec) -> Result<Option<String>> {
+        // "That crewed it this turn": the history keeps who crewed what.
+        if let EventSpec::Pair {
+            event: PairEvent::Crews,
+            objects: ObjectFilter::SameObject(ObjectRef::Candidate),
+            others: ObjectFilter::SameObject(ObjectRef::Source),
+        } = event
+        {
+            return Ok(self.candidates.borrow().last().map(|candidate| {
+                format!(
+                    "q.history().crewed(asker.source).filter(|&c| c == {}).count() as i64",
+                    candidate.id
+                )
+            }));
+        }
+        let EventSpec::ZoneChange {
+            objects,
+            from: None,
+            to: EventZone::Battlefield,
+        } = event
+        else {
+            return Ok(None);
+        };
+        let mut tests = Vec::new();
+        Ok(match self.as_it_entered(objects, &mut tests)? {
+            true => Some(format!(
+                "q.history().entered().filter(|e| {}).count() as i64",
+                tests.join(" && ")
+            )),
+            false => None,
+        })
+    }
+    fn as_it_entered(&self, filter: &ObjectFilter, tests: &mut Vec<String>) -> Result<bool> {
+        match filter {
+            ObjectFilter::Any => {}
+            ObjectFilter::All(filters) => {
+                for filter in filters {
+                    if !self.as_it_entered(filter, tests)? {
+                        return Ok(false);
+                    }
+                }
+            }
+            ObjectFilter::CardType(card) => tests.push(format!("e.is(CardType::{})", card_type(card)?)),
+            ObjectFilter::ControlledBy(players) => tests.push(self.player_in(players, "e.controller")?),
+            ObjectFilter::Not(inner) if matches!(&**inner, ObjectFilter::SameObject(ObjectRef::Source)) => {
+                tests.push("e.permanent != asker.source".to_string());
+            }
+            ObjectFilter::SameObject(ObjectRef::Candidate) => {
+                match self.candidates.borrow().last() {
+                    Some(candidate) => tests.push(format!("e.permanent == {}", candidate.id)),
+                    None => return Ok(false),
+                }
+            }
+            _ => return Ok(false),
+        }
+        Ok(true)
+    }
+    /// What must hold for `payer_{id}` to be asked to pay `cost` as it resolves, as
+    /// the start of a test: a cost that can't be paid isn't offered (118.3).
+    pub(super) fn can_pay(&self, id: usize, cost: &Cost) -> String {
+        match cost.parts.as_slice() {
+            [CostPart::Sacrifice {
+                objects: ObjectSet::One(object),
+                choose: None,
+            }] => match self.object(object) {
+                Ok(read) => format!(
+                    "({}).is_some_and(|o| g.can_sacrifice(payer_{id}, o)) && ",
+                    self.fetch(read)
+                ),
+                Err(_) => String::new(),
+            },
+            [CostPart::Draw {
+                count: Expr::Constant(n),
+            }] => format!("!cant_draw(g, payer_{id}, {n}) && "),
+            [CostPart::Energy(Expr::Constant(n))] => {
+                format!("g.state().player(payer_{id}).energy() >= {n} && ")
+            }
+            [CostPart::ChangeTapState {
+                selections,
+                tapped: true,
+                ..
+            }] => match selections.as_slice() {
+                [CostObjectSelection {
+                    objects,
+                    choose: Some(Count::Exactly(Expr::Constant(n))),
+                }] => match self.objects(objects) {
+                    Ok(read) => format!("({}).len() >= {n} && ", self.fetch(read)),
+                    Err(_) => String::new(),
+                },
+                _ => String::new(),
+            },
+            [CostPart::PutCounters(placements)] => match placements.as_slice() {
+                [CounterPlacement {
+                    recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)),
+                    ..
+                }] => "g.is_on_battlefield(asker.source) && ".to_string(),
+                _ => String::new(),
+            },
+            _ => String::new(),
+        }
+    }
+    /// The target that makes "two target creatures" of the one before it: the same
+    /// target but for being another object. The printed words tell it from "target
+    /// creature fights another target creature", whose targets differ.
+    pub(super) fn two_targets(&self, announcement: &Announcement) -> Option<usize> {
+        let [first, second] = announcement.targets.as_slice() else {
+            return None;
+        };
+        let ObjectFilter::All(filters) = &second.filter else {
+            return None;
+        };
+        let [ObjectFilter::Not(other), filter] = filters.as_slice() else {
+            return None;
+        };
+        let another = matches!(&**other, ObjectFilter::SameObject(ObjectRef::Target { slot, index: 0 }) if slot.0 == first.slot.0);
+        let single = |count: &Count| matches!(count, Count::Exactly(Expr::Constant(1)));
+        let same = another
+            && single(&first.count)
+            && single(&second.count)
+            && first.kind == second.kind
+            && format!("{:?}", first.filter) == format!("{filter:?}")
+            && first.constraints.is_empty()
+            && second.constraints.is_empty();
+        let printed = self.line.as_ref().is_some_and(|line| line.text.contains("two target"));
+        (same && printed).then_some(1)
+    }
+    /// What a block rule that lasts says, from the line that makes it: "can't be
+    /// blocked except by creatures with haste", as the object has it for the turn.
+    pub(super) fn block_rule_words(&self) -> Option<String> {
+        let text = &self.line.as_ref()?.text;
+        let at = text.find("can't be blocked").or_else(|| text.find("can't block"))?;
+        let words = text[at..].split('.').next()?.replace(" this turn", "");
+        Some(capitalized(&words))
+    }
+    /// Whether the line being compiled names the hand, or there is no line to say.
+    pub(super) fn says_from_hand(&self) -> bool {
+        self.line.as_ref().is_none_or(|line| line.text.contains("from your hand"))
+    }
     /// The two answers of the question that offers an optional cost: without it
     /// first, as Cantrip's cards have them, and a scenario names them.
     pub(super) fn cost_labels(&self, cost: &Cost, parts: &mut Parts) {
         let (without, with) = match (cost.parts.as_slice(), &self.line) {
+            _ if self.kicker_line.is_some() => (
+                "kicking".to_string(),
+                self.kicker_line.clone().unwrap_or_default(),
+            ),
             ([CostPart::Teamwork(n)], _) => (
                 "teamwork".to_string(),
                 format!("Teamwork {n}: Tap any number of creatures you control with total power {n} or more"),
@@ -766,6 +1113,96 @@ impl Compiler {
         let depth = self.fetch(self.number(depth)?.amount(u32::MAX.into(), "usize")?);
         let at = (looker.as_str(), depth.as_str());
         match rest {
+            // "Put up to one of them on top of your library and the rest on the
+            // bottom": one question, as what's taken to the hand is.
+            [Instruction::Effect {
+                result: chosen,
+                operation:
+                    Operation::ChooseObjects {
+                        player: chooser,
+                        objects: ObjectSet::InZone { .. },
+                        count: Count::UpTo(Expr::Constant(most)),
+                        constraints,
+                    },
+            }, Instruction::Effect {
+                operation:
+                    Operation::ReorderLibrary {
+                        objects: ObjectSet::Selected(selected),
+                        end: SequenceEnd::Top,
+                        order: CardOrder::Chosen,
+                        ..
+                    },
+                ..
+            }, Instruction::Effect {
+                operation:
+                    Operation::ReorderLibrary {
+                        end: SequenceEnd::Bottom,
+                        order: rest_order @ (CardOrder::Random | CardOrder::Chosen),
+                        ..
+                    },
+                ..
+            }] if format!("{player:?}") == format!("{chooser:?}")
+                && selected.0 == chosen.0
+                && constraints.is_empty()
+                && u8::try_from(*most).is_ok() =>
+            {
+                let id = self.fresh();
+                let bottom = match rest_order {
+                    CardOrder::Random => format!("g.bottom_in_random_order(player_{id}, &placements[1]);"),
+                    _ => format!("g.arrange_library(player_{id}, &[], &placements[1]);"),
+                };
+                writeln!(out, "let player_{id} = {looker}; let depth_{id} = {depth}; let looked_{id} = cantrip_mechanics::top_of_library(g, player_{id}, depth_{id}); if !looked_{id}.is_empty() {{ g.look_at(player_{id}, &looked_{id}); let ask = RequestKind::DistributeCards {{ source: asker.source, cards: looked_{id}.clone(), destinations: vec![Destination {{ kind: DestinationKind::LibraryTop, min: 0, max: {most}, eligible: looked_{id}.clone() }}, Destination {{ kind: DestinationKind::LibraryBottom, min: 0, max: u8::MAX, eligible: looked_{id}.clone() }}], may_shuffle: false }}; if let Answer::Placements {{ placements, .. }} = g.ask(player_{id}, ask)? {{ g.arrange_library(player_{id}, &placements[0], &[]); {bottom} }} }}").unwrap();
+                Ok(true)
+            }
+            // "Put one of them into your hand, put one of them on the bottom of your
+            // library, and exile one of them": one question with three places, each
+            // filled in the order written as far as the cards go (608.2c).
+            [Instruction::Effect {
+                result: to_hand,
+                operation:
+                    Operation::ChooseObjects {
+                        objects: ObjectSet::InZone { .. },
+                        count: Count::AsManyAsCan(Expr::Constant(1)),
+                        ..
+                    },
+            }, Instruction::Effect {
+                operation:
+                    Operation::Move {
+                        objects: ObjectSet::Selected(hand),
+                        destination: Destination::OwnersHand,
+                        ..
+                    },
+                ..
+            }, Instruction::Effect {
+                result: to_bottom,
+                operation:
+                    Operation::ChooseObjects {
+                        objects: ObjectSet::InZone { .. },
+                        count: Count::AsManyAsCan(Expr::Constant(1)),
+                        ..
+                    },
+            }, Instruction::Effect {
+                operation:
+                    Operation::ReorderLibrary {
+                        objects: ObjectSet::Selected(bottom),
+                        end: SequenceEnd::Bottom,
+                        ..
+                    },
+                ..
+            }, Instruction::Effect {
+                result: exiled,
+                operation:
+                    Operation::Move {
+                        objects: ObjectSet::InZone { .. },
+                        destination: Destination::Exile,
+                        ..
+                    },
+            }] if hand.0 == to_hand.0 && bottom.0 == to_bottom.0 => {
+                let id = self.fresh();
+                writeln!(out, "let player_{id} = {looker}; let depth_{id} = {depth}; let looked_{id} = cantrip_mechanics::top_of_library(g, player_{id}, depth_{id}); let mut moved_{id}: Vec<ObjectId> = Vec::new(); if !looked_{id}.is_empty() {{ let hand = looked_{id}.len().min(1) as u8; let bottom = (looked_{id}.len() - hand as usize).min(1) as u8; let exile = (looked_{id}.len() - hand as usize - bottom as usize).min(1) as u8; let ask = RequestKind::DistributeCards {{ source: asker.source, cards: looked_{id}.clone(), destinations: vec![Destination {{ kind: DestinationKind::Hand, min: hand, max: hand, eligible: looked_{id}.clone() }}, Destination {{ kind: DestinationKind::LibraryBottom, min: bottom, max: bottom, eligible: looked_{id}.clone() }}, Destination {{ kind: DestinationKind::Exile, min: exile, max: exile, eligible: looked_{id}.clone() }}], may_shuffle: false }}; if let Answer::Placements {{ placements, .. }} = g.ask(player_{id}, ask)? {{ g.return_to_hand(&placements[0]); g.arrange_library(player_{id}, &[], &placements[1]); moved_{id} = g.exile_all(&placements[2]); }} }}").unwrap();
+                self.moved.insert(exiled.0, format!("moved_{id}"));
+                Ok(true)
+            }
             // "If you gained life this turn, you may instead reveal two."
             [Instruction::If {
                 condition,
@@ -886,6 +1323,9 @@ impl Compiler {
     /// Which of `body`'s payments are read as "unless", where what follows is for
     /// not paying.
     pub(super) fn note_unless(&mut self, body: &Program) {
+        if !self.line.as_ref().is_some_and(|line| line.text.contains("unless ")) {
+            return;
+        }
         for instruction in &body.instructions {
             if let Instruction::If { condition, .. } = instruction {
                 if let Condition::Not(inner) = condition {
@@ -930,6 +1370,69 @@ impl Compiler {
     pub(super) fn on_stage(&mut self, minimum: i64) {
         self.stage_lines = self.stages.get(&minimum).cloned().unwrap_or_default();
     }
+    /// A payment and what hangs on it, where they're one question of the card's
+    /// `labels`: whether these instructions were that.
+    pub(super) fn one_question(&mut self, rest: &[Instruction], out: &mut String) -> bool {
+        let [Instruction::Effect { result, operation: Operation::PayCost { player: PlayerRef::AbilityController, cost, optional: true } }, Instruction::If { condition, then, otherwise }, ..] = rest
+        else {
+            return false;
+        };
+        if !otherwise.instructions.is_empty() || !self.stack_item {
+            return false;
+        }
+        let you = |players: &PlayerSet| matches!(players, PlayerSet::One(PlayerRef::AbilityController));
+        let then = then.instructions.as_slice();
+        let (call, labels) = match (cost.parts.as_slice(), condition, then) {
+            // "You may sacrifice an artifact or discard a card. If you do, draw a card."
+            ([CostPart::Choice(options)], Condition::PaymentChosen(paid), [Instruction::Effect { operation: Operation::Draw { players, amount: Expr::Constant(n) }, .. }])
+                if paid.0 == result.0 && you(players) && sacrifice_or_discard(options) =>
+            {
+                (
+                    format!("cantrip_mechanics::effects::may_sacrifice_an_artifact_or_discard_to_draw(g, item, {n})?;"),
+                    Some("&[\"Sacrifice an artifact\", \"Discard a card\", \"Neither\"]".to_string()),
+                )
+            }
+            // "You may draw a card. If you do, discard a card": "if you do" is that
+            // a card was drawn, and an empty library draws none.
+            ([CostPart::Draw { count: Expr::Constant(1) }], Condition::PaymentChosen(paid), [Instruction::Effect { operation: Operation::Discard { players, amount: Expr::Constant(1), random: false }, .. }])
+                if paid.0 == result.0 && you(players) =>
+            {
+                ("cantrip_mechanics::effects::may_draw_then_discard(g, item)?;".to_string(), None)
+            }
+            // "Discard two cards unless you discard an artifact card."
+            (_, Condition::Not(unpaid), [Instruction::Effect { operation: Operation::Discard { players, amount: Expr::Constant(2), random: false }, .. }])
+                if matches!(&**unpaid, Condition::PaymentChosen(paid) if paid.0 == result.0) && you(players) =>
+            {
+                let mut lets = Vec::new();
+                let id = self.fresh();
+                let (Some(filters), Some(line)) = (discards_one(cost), &self.line) else {
+                    return false;
+                };
+                let tests: Option<Vec<String>> = filters
+                    .iter()
+                    .map(|filter| chars_test(filter, id, &mut lets).map(|test| format!("({test})")))
+                    .collect();
+                let (Some(tests), Some((_, words))) = (tests, line.text.split_once("unless you ")) else {
+                    return false;
+                };
+                if !lets.is_empty() {
+                    return false;
+                }
+                let test = tests.join(" || ");
+                let words = capitalized(words.split('.').next().unwrap_or(words));
+                (
+                    format!("cantrip_mechanics::discard_two_unless_discarding(g, &[asker.controller], asker.source, |c| {test})?;"),
+                    Some(format!("&[{}, \"Discard two cards\"]", quoted(&words))),
+                )
+            }
+            _ => return false,
+        };
+        writeln!(out, "{call}").unwrap();
+        if labels.is_some() {
+            self.wanted_labels = labels;
+        }
+        true
+    }
     /// `count`, or up to it if this is the choice of a "you may".
     pub(super) fn offered_count(&mut self, count: &Count) -> Count {
         match (std::mem::take(&mut self.may_choose), count) {
@@ -970,6 +1473,14 @@ impl Compiler {
         self.printed = printed.aligned(abilities);
         self.chapters = printed.chapters;
         self.stages = printed.stages;
+        self.spell_targets = abilities.iter().any(|ability| {
+            matches!(ability, Ability::Spell { announcement, .. } if !announcement.targets.is_empty())
+        });
+        self.kicker_line = printed
+            .lines
+            .iter()
+            .find(|line| line.text.starts_with("Kicker\u{2014}"))
+            .map(|line| line.text.trim_end_matches('.').to_string());
     }
     /// The ability at `at` is the next one compiled.
     pub(super) fn on_ability(&mut self, at: usize) {

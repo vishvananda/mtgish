@@ -1040,7 +1040,7 @@ impl Compiler {
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool {{ {PRELUDE} !({subject} == source && {}) }}", test?).unwrap();
                 self.made_block_rules.push(format!(
                     "LastingBlockRule {{ text: {}, allows: {function} }}",
-                    quoted(&form(action))
+                    quoted(&self.block_rule_words().unwrap_or_else(|| form(action)))
                 ));
                 vec![format!(
                     "EffectKind::BlockRestriction {{ card: {}, index: {index} }}",
@@ -2646,16 +2646,16 @@ impl Compiler {
         let (cost, text) = match &terms.cost {
             PlayCost::Free => (
                 "InsteadOfManaCost::WithoutPaying".to_string(),
-                "Without paying its mana cost",
+                "Without paying its mana cost".to_string(),
             ),
             PlayCost::Alternate(Operand::Cost(price)) => match price.parts.as_slice() {
                 [CostPart::Energy(Expr::Constant(n))] if u8::try_from(*n).is_ok() => (
                     format!("InsteadOfManaCost::Energy({n})"),
-                    "Pay energy rather than its mana cost",
+                    format!("Pay {} rather than its mana cost", "{E}".repeat(*n as usize)),
                 ),
                 [CostPart::Mana(symbols)] => (
                     format!("InsteadOfManaCost::Mana({})", mana(symbols)?),
-                    "Pay mana rather than its mana cost",
+                    "Pay mana rather than its mana cost".to_string(),
                 ),
                 _ => return Err(gap("play permission for another cost")),
             },
@@ -2665,7 +2665,11 @@ impl Compiler {
         let (more, feature) =
             self.play_tests(action, &EventZone::Hand, terms, "spell", "player")?;
         tests.extend(more);
-        tests.push("q.obj(spell).zone == Zone::hand(player)".to_string());
+        // An alternative cost applies wherever the spell may be cast from, unless
+        // the card says where.
+        if self.says_from_hand() {
+            tests.push("q.obj(spell).zone == Zone::hand(player)".to_string());
+        }
         let body = tests.join(" && ");
         let flash = terms.flash;
         self.permission_entry(

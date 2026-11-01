@@ -50,7 +50,15 @@ impl Compiler {
             format!("{:?}", paid_announced.targets) == format!("{:?}", unpaid_announced.targets);
         match keyword {
             "Kicker" => {
-                parts.field("kicker", self.kicker(cost, label)?);
+                // Mana is a kicker's own; anything else is announced as an optional
+                // cost is, by its two labels.
+                match cost.parts.iter().any(|part| matches!(part, CostPart::Mana(_))) {
+                    true => parts.field("kicker", self.kicker(cost, label)?),
+                    false => {
+                        let cost_code = self.cost(cost, label)?;
+                        parts.field("optional_cost", format!("Some(cantrip_mechanics::kicker::non_mana({cost_code}))"));
+                    }
+                }
                 if !same_targets {
                     parts.field("late_targets", "true".into());
                 }
@@ -369,8 +377,10 @@ impl Compiler {
             } if condition.is_none() => {
                 if let [CostPart::Choice(costs)] = cost.parts.as_slice() {
                     let printed = self.said_costs(costs.len());
+                    let mut beholds = false;
                     for (i, choice) in costs.iter().enumerate() {
                         let cost = self.cost(choice, &format!("{label}_choice_{i}"))?;
+                        beholds |= cost.contains("behold::cost");
                         let text = printed.get(i).cloned();
                         parts.table(
                             "additional_choice",
@@ -379,6 +389,10 @@ impl Compiler {
                                 quoted(&text.unwrap_or_else(|| format!("Cost {}", i + 1)))
                             ),
                         );
+                    }
+                    // What's beheld is settled before the spell's target is.
+                    if beholds && self.spell_targets {
+                        parts.field("late_targets", "true".into());
                     }
                 } else {
                     let cost = self.cost(cost, label)?;

@@ -147,7 +147,7 @@ fn removes_one_counter(removals: &[CounterRemoval]) -> bool {
 }
 
 /// What the choice of a cost that moves objects is for.
-fn move_purpose(destination: &Destination) -> &'static str {
+pub(super) fn move_purpose(destination: &Destination) -> &'static str {
     match destination {
         Destination::OwnersHand => "PutIntoHand",
         Destination::OwnersGraveyard => "PutIntoGraveyard",
