@@ -89,6 +89,7 @@ impl Compiler {
     /// starts as the first one did.
     pub(super) fn reset_after_gap(&mut self) {
         self.pending = Pending::Nothing;
+        self.replacing = Default::default();
         self.dividing = None;
         self.asking = None;
         self.repeating = None;

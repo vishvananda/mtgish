@@ -21,7 +21,7 @@ const DAMAGE_LOCALS: &str =
 /// Replace the objects `event` names by what the callbacks will call them, and
 /// collect those objects: the resolving ability's references mean nothing later.
 /// Its source is the effect's, which the callbacks are told anyway.
-fn capture(event: &mut ReplacementEvent, found: &mut Vec<ObjectRef>) {
+pub(super) fn capture(event: &mut ReplacementEvent, found: &mut Vec<ObjectRef>) {
     let mut name = |filter: &mut ObjectFilter| {
         if let ObjectFilter::SameObject(object) = filter {
             if !matches!(object, ObjectRef::Source) {
@@ -40,9 +40,9 @@ fn capture(event: &mut ReplacementEvent, found: &mut Vec<ObjectRef>) {
                 name(objects);
             }
         }
-        ReplacementEvent::Enter { objects } | ReplacementEvent::ZoneChange { objects, .. } => {
-            name(objects)
-        }
+        ReplacementEvent::Enter { objects }
+        | ReplacementEvent::ZoneChange { objects, .. }
+        | ReplacementEvent::Object { objects, .. } => name(objects),
         ReplacementEvent::Either(events) => {
             for event in events {
                 capture(event, found);
@@ -63,7 +63,7 @@ fn names_target(recipients: &Recipients) -> bool {
 }
 
 impl Compiler {
-    fn watched(&mut self, event: &ReplacementEvent) -> Result<(Vec<Watched>, Frame)> {
+    pub(super) fn watched(&mut self, event: &ReplacementEvent) -> Result<(Vec<Watched>, Frame)> {
         if let Some(found) = self.more_watched(event)? {
             return Ok(found);
         }
@@ -159,10 +159,10 @@ impl Compiler {
                 amount,
             } => {
                 let (mut arms, frame) = self.watched(event)?;
-                if arms
-                    .iter()
-                    .any(|a| !matches!(a.kind, "Damage" | "ManaProduction" | "LifeChange"))
-                {
+                if arms.iter().any(|a| {
+                    !matches!(a.kind, "Damage" | "ManaProduction" | "LifeChange" | "DrawInstruction")
+                        && self.replacing.planned.is_none()
+                }) {
                     return Err(gap("measured replacement of an event without an amount"));
                 }
                 let amount = self.matching(frame, |c| Ok(c.number(amount)?.code))?;
@@ -178,7 +178,7 @@ impl Compiler {
     }
     /// The change a static effect makes to a proposal, as statements with
     /// `binding` in scope; `reads` are computed before the proposal is borrowed.
-    fn reshape(&mut self, kind: &str, change: &EventChange, frame: Frame) -> Result<String> {
+    pub(super) fn reshape(&mut self, kind: &str, change: &EventChange, frame: Frame) -> Result<String> {
         let number = |c: &mut Self, n: &Expr| c.matching(frame, |c| c.number(n));
         let counter = |c: &mut Self, kind: &crate::counter::CounterKind, amount: &Expr| {
             let n = number(c, amount)?.amount(i16::MAX.into(), "i16")?;
@@ -196,7 +196,7 @@ impl Compiler {
             }
             ("Damage", EventChange::Cancel) => "e.amount = 0;".into(),
             ("Damage", EventChange::RedirectDamage(recipients)) => {
-                if names_target(recipients) {
+                if names_target(recipients) && self.outer.is_none() {
                     return Err(gap("redirect to a target the callback cannot read"));
                 }
                 let recipients = self.matching(frame, |c| c.recipients(recipients))?;
@@ -210,15 +210,19 @@ impl Compiler {
                 let owner = "q.state().obj(z.object).owner";
                 match destination {
                     Destination::Exile if self.links_exile => {
-                        return Err(gap(
-                            "exile instead that an ability reads as exiled with its source",
-                        ))
+                        return self.reshape_rest(kind, change, frame)
                     }
                     Destination::Exile => format!("z.to = Zone::exile({owner});"),
                     Destination::OwnersHand => format!("z.to = Zone::hand({owner});"),
                     Destination::OwnersGraveyard => format!("z.to = Zone::graveyard({owner});"),
                     Destination::OwnersLibraryShuffled => {
                         format!("z.to = Zone::library({owner}); z.shuffle = true;")
+                    }
+                    Destination::OwnersLibraryTop
+                    | Destination::OwnersLibraryBottom
+                    | Destination::OwnersBattlefield
+                    | Destination::Battlefield(_) => {
+                        return self.reshape_rest(kind, change, frame)
                     }
                     other => return Err(gap(format!("replacement destination {}", form(other)))),
                 }
@@ -269,7 +273,7 @@ impl Compiler {
     /// `Operation::ModifyEvent` inside an `Enters` callback.
     pub(super) fn modify_entering(&mut self, change: &EventChange, out: &mut String) -> Result<()> {
         if self.pending != Pending::Entering {
-            return Err(gap("event change in the program of another event"));
+            return self.change_in_then(change, out);
         }
         match change {
             EventChange::SetTapped(tapped) => writeln!(out, "entering.tapped = {tapped};").unwrap(),
@@ -348,7 +352,7 @@ impl Compiler {
             }
         }
         writeln!(
-            self.functions,
+            self.callbacks(),
             "#[allow(unused_variables)] fn {function}{signature} -> bool {{ {body} false }}"
         )
         .unwrap();
@@ -361,6 +365,13 @@ impl Compiler {
         body: &Program,
         parts: &mut Parts,
     ) -> Result<()> {
+        if let Some(events) = lane_n::separate_events(event) {
+            for (i, event) in events.iter().enumerate() {
+                self.replacement(&format!("{label}_{i}"), active, event, body, parts)?;
+            }
+            return Ok(());
+        }
+        self.replacing = Default::default();
         let guard = self.ability_guard.take();
         if guard.is_none() && lane_h::reveal_and_shuffle_instead(active, event, body) {
             parts.replacements.push(
@@ -410,6 +421,7 @@ impl Compiler {
             return Ok(());
         }
         let (arms, frame) = self.watched(event)?;
+        self.note_event(event, &arms);
         let (mut extra, changes, rest) = self.program_parts(body, frame)?;
         let (changes, rest) = lane_h::life_amount(arms[0].kind, changes, rest);
         if let Some(guard) = &guard {
@@ -434,10 +446,8 @@ impl Compiler {
                     _ => None,
                 };
                 if let Some(amount) = amount {
-                    if !rest.is_empty() {
-                        return Err(gap("prevention with an effect besides"));
-                    }
-                    return self.prevention(label, &arms, &extra, amount, hint, parts);
+                    let then = self.prevention_then(label, &arms, frame, &rest, "")?;
+                    return self.prevention(label, &arms, &extra, amount, hint, then, parts);
                 }
             }
         }
@@ -450,7 +460,10 @@ impl Compiler {
         if let Some(then) = then {
             def.push_str(&format!(".then({then})"));
         }
-        parts.replacements.push(def);
+        if let Some(ask) = self.replacing.may.take() {
+            def.push_str(&format!(".optional(&{ask})"));
+        }
+        self.add_replacement(def, parts);
         Ok(())
     }
     /// What decides a replacement program and what it does: "if it does X,
@@ -474,21 +487,7 @@ impl Compiler {
             }
             _ => body,
         };
-        // The changes are to the event and the rest happens with it, wherever in
-        // the program the words put them; what reads a step before it stays a gap.
-        let mut steps = Vec::new();
-        lane_m::flat_groups(&program.instructions, &mut steps);
-        let mut changes = Vec::new();
-        let mut rest = Vec::new();
-        for step in steps {
-            match step {
-                Instruction::Effect {
-                    operation: Operation::ModifyEvent { change },
-                    ..
-                } => changes.push(change),
-                other => rest.push(other),
-            }
-        }
+        let (changes, rest) = self.split_program(program, frame);
         Ok((extra, changes, rest))
     }
     /// The callbacks of an effect that reshapes its event: `made` for one a
@@ -515,18 +514,42 @@ impl Compiler {
         let arm = &arms[0];
         let (kind, variant, binding, locals) =
             (arm.kind, arm.variant, arm.binding, arm.locals.clone());
+        self.replacing.event = Some((variant, binding, frame));
+        let shape = lane_n::shape_of(kind, variant);
         let mut edits = String::new();
         for change in changes {
-            edits.push_str(&self.reshape(kind, change, frame)?);
+            edits.push_str(&self.reshape(shape, change, frame)?);
         }
+        edits.push_str(&self.guarded_edits(shape, frame)?);
+        edits.push_str(&self.replacing.edits);
         let apply = format!("{label}_apply");
         // Reads see a copy, so `apply` may write as it reads.
-        writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {apply}(q: &dyn Query, asker: &Asker, {about}proposal: &mut Proposal) {{ let seen = *proposal; if let Proposal::{variant}(seen) = &seen {{ let {binding} = seen; {locals} if let Proposal::{variant}({binding}) = proposal {{ {edits} }} }} }}").unwrap();
+        writeln!(self.callbacks(), "#[allow(unused_variables, unused_mut)] fn {apply}(q: &dyn Query, asker: &Asker, {about}proposal: &mut Proposal) {{ let seen = *proposal; if let Proposal::{variant}(seen) = &seen {{ let {binding} = seen; {locals} if let Proposal::{variant}({binding}) = proposal {{ {edits} }} }} }}").unwrap();
         if rest.is_empty() {
             return Ok((kind, applies, apply, None));
         }
         let then = format!("{label}_then");
+        let out = self.then_steps(frame, rest, None)?;
+        let pass = if made { "affected, " } else { "" };
+        writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {then}_steps(g: &mut dyn Game, asker: &Asker, {about}subject: Target, data: [u32; 2]) -> Result<(), Suspend> {{ {out} Ok(()) }}").unwrap();
+        writeln!(self.callbacks(), "#[allow(unused_variables)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}before: &Proposal, _: &Proposal) {{ if let Proposal::{variant}({binding}) = before {{ let q: &dyn Query = g; {locals} let _ = {then}_steps(g, asker, {pass}subject, data); }} }}").unwrap();
+        Ok((kind, applies, apply, Some(then)))
+    }
+    /// What an effect does besides changing its event, run once it has: the
+    /// statements, with `performed` as the local that says how it went.
+    pub(super) fn then_steps(
+        &mut self,
+        frame: Frame,
+        rest: &[Instruction],
+        performed: Option<(u32, &str)>,
+    ) -> Result<String> {
         self.reset_results();
+        if let Some((result, local)) = performed {
+            self.performed.insert(result, local.to_string());
+        }
+        for result in self.replacing.changed.clone() {
+            self.performed.insert(result, "true".to_string());
+        }
         let saved = (
             self.reader,
             self.event_at,
@@ -563,10 +586,7 @@ impl Compiler {
             self.frame,
         ) = saved;
         compiled?;
-        let pass = if made { "affected, " } else { "" };
-        writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {then}_steps(g: &mut dyn Game, asker: &Asker, {about}subject: Target, data: [u32; 2]) -> Result<(), Suspend> {{ {out} Ok(()) }}").unwrap();
-        writeln!(self.functions, "#[allow(unused_variables)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}before: &Proposal, _: &Proposal) {{ if let Proposal::{variant}({binding}) = before {{ {locals} let _ = {then}_steps(g, asker, {pass}subject, data); }} }}").unwrap();
-        Ok((kind, applies, apply, Some(then)))
+        Ok(out)
     }
     /// `Operation::CreateReplacement`: a continuous effect (CR 611.2) whose
     /// callbacks outlive the resolution, so all they can know of it is the
@@ -582,30 +602,40 @@ impl Compiler {
         if !self.stack_item || self.pending != Pending::Nothing {
             return Err(gap("replacement made outside a resolving ability"));
         }
-        let duration = self.duration(duration)?;
-        let mut plain = event.clone();
-        let mut to = None;
-        if let ReplacementEvent::Damage(damage) = &mut plain {
-            to = match &damage.recipients {
-                DamageRecipients::Target { slot, index } => {
-                    Some(self.recipients(&Recipients::Target {
-                        slot: slot.clone(),
-                        index: *index,
-                    })?)
+        let saved = self.clone();
+        let mark = out.len();
+        let first = match self.free_replacement(event, limit, duration, body, out) {
+            Ok(()) => return Ok(()),
+            Err(first) => first,
+        };
+        *self = saved.clone();
+        out.truncate(mark);
+        if !self.granting && self.outer.is_none() {
+            for one in [true, false] {
+                match self.carried_replacement(event, limit, duration, body, one, out) {
+                    Ok(()) => return Ok(()),
+                    Err(_) => {
+                        *self = saved.clone();
+                        out.truncate(mark);
+                    }
                 }
-                DamageRecipients::Players(PlayerSet::One(player)) => {
-                    Some(self.recipients(&Recipients::Players(PlayerSet::One(player.clone())))?)
-                }
-                DamageRecipients::Objects(ObjectFilter::SameObject(object)) => Some(format!(
-                    "({}).map(Target::Object).into_iter().collect::<Vec<Target>>()",
-                    self.object(object)?
-                )),
-                _ => None,
-            };
-            if to.is_some() {
-                damage.recipients = DamageRecipients::Any;
             }
         }
+        Err(first)
+    }
+    /// A made effect whose callbacks need nothing of the ability making it.
+    fn free_replacement(
+        &mut self,
+        event: &ReplacementEvent,
+        limit: &ReplacementLimit,
+        duration: &crate::ir::Duration,
+        body: &Program,
+        out: &mut String,
+    ) -> Result<()> {
+        let duration = self.duration(duration)?;
+        let shield = self.made_shield(limit, body)?;
+        let mut plain = event.clone();
+        let to = self.named_recipient_of(&mut plain)?;
         let mut about = Vec::new();
         capture(&mut plain, &mut about);
         if about.len() > 1 {
@@ -618,15 +648,19 @@ impl Compiler {
         let scope = self.affected_in_scope;
         self.reset_results();
         self.affected_in_scope = true;
+        // A loop's object is out of reach as well: it has to be the effect's.
+        let bound = std::mem::take(&mut self.bound_objects);
         let compiled = self.made_effect(
             &label,
             &plain,
             limit,
+            shield,
             body,
             hint,
             to.is_some(),
             about.is_some(),
         );
+        self.bound_objects = bound;
         self.affected_in_scope = scope;
         self.restore_results(results);
         let kind = compiled?;
@@ -648,37 +682,57 @@ impl Compiler {
         writeln!(out, "{{ {shield} let to = {to}; let about = {about}; if let (Some(to), Some(about)) = (to, about) {{ {effect} }} }}").unwrap();
         Ok(())
     }
+    /// Whom a made prevention protects, taken out of its event: the recipient
+    /// is the effect's to keep, so the callbacks need not read it.
+    pub(super) fn named_recipient_of(
+        &self,
+        event: &mut ReplacementEvent,
+    ) -> Result<Option<String>> {
+        let ReplacementEvent::Damage(damage) = event else {
+            return Ok(None);
+        };
+        let to = match &damage.recipients {
+            DamageRecipients::Target { slot, index } => {
+                Some(self.recipients(&Recipients::Target {
+                    slot: slot.clone(),
+                    index: *index,
+                })?)
+            }
+            DamageRecipients::Players(PlayerSet::One(player)) => {
+                Some(self.recipients(&Recipients::Players(PlayerSet::One(player.clone())))?)
+            }
+            DamageRecipients::Objects(ObjectFilter::SameObject(object)) => Some(format!(
+                "({}).map(Target::Object).into_iter().collect::<Vec<Target>>()",
+                self.object(object)?
+            )),
+            _ => None,
+        };
+        if to.is_some() {
+            damage.recipients = DamageRecipients::Any;
+        }
+        Ok(to)
+    }
     /// The definition a created effect names, and how to make the effect: a
     /// shield's size to compute first, then a statement to run with `to`,
     /// `about` and `shield` bound.
-    fn made_effect(
+    pub(super) fn made_effect(
         &mut self,
         label: &str,
         event: &ReplacementEvent,
         limit: &ReplacementLimit,
+        shield: Option<String>,
         body: &Program,
         hint: String,
         to: bool,
         about: bool,
     ) -> Result<(Option<String>, String)> {
+        self.replacing = Default::default();
         let (arms, frame) = self.watched(event)?;
+        self.note_event(event, &arms);
         let (extra, changes, rest) = self.program_parts(body, frame)?;
-        if arms[0].kind == "Damage" && matches!(changes.as_slice(), [EventChange::PreventDamage]) {
-            if !rest.is_empty() {
-                return Err(gap("prevention with an effect besides"));
-            }
-            let shield = match limit {
-                ReplacementLimit::UntilExpired => None,
-                ReplacementLimit::TotalDamage(n) => {
-                    let saved = (self.reader, self.affected_in_scope);
-                    (self.reader, self.affected_in_scope) = (Reader::Resolution, false);
-                    let amount = self.number(n);
-                    (self.reader, self.affected_in_scope) = saved;
-                    Some(amount?.amount(u16::MAX.into(), "u16")?)
-                }
-                ReplacementLimit::NextOccurrence => None,
-                other => return Err(gap(format!("prevention limited by {}", form(other)))),
-            };
+        if arms[0].kind == "Damage" && lane_n::prevents(&changes) {
+            let then = self.prevention_then(label, &arms, frame, &rest, "affected: ObjectId, ")?;
+            let of = self.made_prevention_amount(label, &arms, frame, &changes)?;
             let applies = format!("{label}_applies");
             self.watch_function(
                 &applies,
@@ -687,12 +741,23 @@ impl Compiler {
                 &extra,
                 true,
             );
-            self.made_preventions.push(format!(
-                "GrantedPreventionDef {{ hint: {hint}, damage: \"damage\", of_it: None, applies: {applies} }}"
+            let may = self.replacing.may.take();
+            self.made_preventions.push(lane_n::granted_prevention(
+                &hint,
+                &applies,
+                then.as_deref(),
+                of.as_deref(),
+                may.as_deref(),
             ));
             let index = self.made_preventions.len() - 1;
             let next_time = matches!(limit, ReplacementLimit::NextOccurrence);
-            let shield_value = if shield.is_some() {
+            let shield_value = if matches!(limit, ReplacementLimit::DamageToEach(_)) {
+                planned::planned_value(
+                    "prevention limited by DamageToEach",
+                    "Shield::All",
+                    "Shield::NextToEach(shield)",
+                )
+            } else if shield.is_some() {
                 "Shield::Next(shield)".to_string()
             } else if next_time {
                 planned::planned_value(
@@ -718,6 +783,7 @@ impl Compiler {
         let once = match limit {
             ReplacementLimit::UntilExpired => false,
             ReplacementLimit::NextOccurrence => true,
+            _ if shield.is_some() => false,
             other => return Err(gap(format!("replacement limited by {}", form(other)))),
         };
         let (kind, applies, apply, then) =
@@ -730,8 +796,11 @@ impl Compiler {
         if let Some(then) = then {
             def.push_str(&format!(".then({then})"));
         }
-        self.made_replacements.push(def);
+        self.add_made_replacement(def);
         let index = self.made_replacements.len() - 1;
+        if shield.is_some() {
+            return Ok((shield, lane_n::shielded_redirect(index)));
+        }
         Ok((
             None,
             if about {
@@ -748,6 +817,7 @@ impl Compiler {
         extra: &[String],
         amount: Option<String>,
         hint: String,
+        then: Option<String>,
         parts: &mut Parts,
     ) -> Result<()> {
         let applies = format!("{label}_applies");
@@ -766,9 +836,25 @@ impl Compiler {
                 format!("Some({function})")
             }
         };
-        parts.preventions.push(format!(
-            "PreventionDef {{ hint: {hint}, applies: {applies}, amount: {amount} }}"
-        ));
+        let may = self.replacing.may.take();
+        let mut more = String::new();
+        if let Some(then) = &then {
+            write!(more, ", then: Some({then})").unwrap();
+        }
+        if let Some(ask) = &may {
+            write!(more, ", optional: Some(&{ask})").unwrap();
+        }
+        let def =
+            format!("PreventionDef {{ hint: {hint}, applies: {applies}, amount: {amount}{more} }}");
+        match (then, may) {
+            (None, None) => parts.preventions.push(def),
+            (Some(_), _) => {
+                self.plan_entry("prevention with an effect besides", "preventions", &def, parts)
+            }
+            (None, Some(_)) => {
+                self.plan_entry("prevention a player may decline", "preventions", &def, parts)
+            }
+        }
         Ok(())
     }
 }

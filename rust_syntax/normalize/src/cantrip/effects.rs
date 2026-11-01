@@ -260,6 +260,9 @@ pub(super) fn one_at_most(count: &Count) -> bool {
 impl Compiler {
     /// `Vec<Target>`.
     pub(super) fn recipients(&self, recipients: &Recipients) -> Result<String> {
+        if let Some(carried) = self.outside_recipients(recipients)? {
+            return Ok(carried);
+        }
         Ok(match recipients {
             Recipients::Objects(objects) => format!(
                 "({}).into_iter().map(Target::Object).collect::<Vec<Target>>()",
@@ -1342,9 +1345,16 @@ impl Compiler {
                 announcement,
                 body,
                 once,
-                intervening_if: None,
-            } => self.create_trigger(event, duration, announcement, body, *once, out)?,
-            Operation::CreateTrigger { .. } => return Err(gap("conditional delayed trigger")),
+                intervening_if,
+            } => self.create_trigger(
+                event,
+                duration,
+                announcement,
+                body,
+                *once,
+                intervening_if,
+                out,
+            )?,
             Operation::CreateDelayedTrigger {
                 event,
                 start,
@@ -1718,16 +1728,17 @@ impl Compiler {
             return Ok(());
         }
         let first = &tokens[0].words;
-        if tokens
+        let mixed = tokens
             .iter()
-            .any(|t| std::mem::discriminant(&t.words) != std::mem::discriminant(first))
-        {
+            .any(|t| std::mem::discriminant(&t.words) != std::mem::discriminant(first));
+        if mixed && (!defined || !entry.counters.is_empty()) {
             return Err(gap("mixed token text origins in one creation batch"));
         }
-        let words = match first {
+        let words_of = |words: &TokenWords| match words {
             TokenWords::Rules => "Words::NONE",
             TokenWords::CreatingEffect => "g.words(asker.source)",
         };
+        let words = words_of(first);
         if let [TokenSpec {
             amount,
             recipe:
@@ -1823,6 +1834,25 @@ impl Compiler {
         writeln!(out, "}} let words_{id} = {words};").unwrap();
         let tapped = entry.tapped;
         let creation = format!("g.create_tokens_worded(&tokens_{id}, {tapped}, None, words_{id})?");
+        // Each definition's words are its own: a Treasure's are the rules', a
+        // named creature's the card's (CR 111.10, 612.2a).
+        let creation = if mixed {
+            let each: Vec<String> = tokens
+                .iter()
+                .enumerate()
+                .map(|(i, t)| format!("(def_{id}_{i}, {})", words_of(&t.words)))
+                .collect();
+            planned::planned_value(
+                "mixed token text origins in one creation batch",
+                &creation,
+                &format!(
+                    "g.create_tokens_each_worded(&tokens_{id}, {tapped}, None, &[{}])?",
+                    each.join(", ")
+                ),
+            )
+        } else {
+            creation
+        };
         match entry.states.as_slice() {
             [] => writeln!(out, "let created_{id} = {creation};").unwrap(),
             [EntryState::AttachedTo(host)] if !tapped => {

@@ -323,6 +323,14 @@ impl Compiler {
             K::BecomeMonarch => self.actor_action(&action, "g.become_monarch(player)", out)?,
             K::LoseGame => self.actor_action(&action, "g.lose_game(player)", out)?,
             K::WinGame => self.actor_action(&action, "g.win_game(player)", out)?,
+            K::TakeExtraTurn
+                if format!("{:?}", self.after)
+                    .contains(&format!("ExtraTurn(ResultId({}))", result.0)) =>
+            {
+                let player = self.actor(&action)?;
+                writeln!(out, "let turn_{id} = g.add_extra_turn({player});").unwrap();
+                self.performed.insert(result.0, format!("turn_{id}"));
+            }
             K::TakeExtraTurn => {
                 let times = self.times(&action)?;
                 let call = format!("let times = {times}; g.add_extra_turns(player, times)");

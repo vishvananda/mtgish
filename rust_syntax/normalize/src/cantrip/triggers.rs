@@ -1121,7 +1121,15 @@ impl Compiler {
                 c.filter(objects, &Candidate::of("o"))?,
                 c.player_in(players, "p")?
             )),
-            other => Err(gap(format!("damage recipients {}", form(other)))),
+            DamageRecipients::Target { slot, index } => {
+                c.named_recipient(&Recipients::Target {
+                    slot: slot.clone(),
+                    index: *index,
+                })
+            }
+            DamageRecipients::Targets(slot) => {
+                c.named_recipient(&Recipients::Targets(slot.clone()))
+            }
         })?);
         let subject = if by_source {
             "Target::Object(source)"
@@ -1466,10 +1474,19 @@ impl Compiler {
         announcement: &Announcement,
         body: &Program,
     ) -> Result<String> {
-        let gate = self.trigger_gate.take();
-        if limits.total.is_some() {
-            return Err(gap("trigger total limit"));
+        if let Some(total) = limits.total {
+            let free = TriggerLimits {
+                per_turn: limits.per_turn,
+                total: None,
+            };
+            let def = self.triggered(label, event, intervening_if, &free, announcement, body)?;
+            return Ok(planned::planned_value(
+                "trigger total limit",
+                &def,
+                &format!("{def}.triggers_total({total})"),
+            ));
         }
+        let gate = self.trigger_gate.take();
         let conditional = self.ability_guard.take();
         if conditional.is_some()
             && (matches!(event, EventSpec::State { .. }) || announcement.modes.is_some())

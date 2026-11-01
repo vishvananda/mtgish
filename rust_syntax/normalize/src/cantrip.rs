@@ -25,6 +25,7 @@ mod lane_i;
 mod lane_j;
 mod lane_l;
 mod lane_m;
+mod lane_n;
 mod mechanics;
 pub mod planned;
 mod players;
@@ -387,6 +388,10 @@ impl Number {
 struct Compiler {
     /// The file's holes for what has no place in its code: see `planned`.
     holes: String,
+    /// The replacement program being compiled.
+    replacing: lane_n::Replacing,
+    /// The closure being opened is of an ability with a matcher to read it.
+    watching: bool,
     /// The requirement and matcher of the trigger just compiled, if Cantrip
 
     /// Compiling the event of `Expr::EventHistory`.
@@ -845,6 +850,8 @@ impl Compiler {
             cipher: false,
             ability_guard: None,
             holes: String::new(),
+            replacing: Default::default(),
+            watching: false,
         }
     }
     /// Compile one part, recording a gap rather than stopping at it, and prefix

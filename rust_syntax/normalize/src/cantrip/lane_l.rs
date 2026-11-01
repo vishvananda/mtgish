@@ -71,7 +71,7 @@ fn total_rule(functions: &mut String, name: &str, read: &str, words: &str, most:
 
 /// The instructions of one option of a choice between actions: a program, the
 /// programs of a list one after another, or a named action's.
-fn action_program(option: &Operand) -> Option<Program> {
+pub(super) fn action_program(option: &Operand) -> Option<Program> {
     match option {
         Operand::Program(program) => Some(program.clone()),
         Operand::List(items) => {

@@ -775,7 +775,7 @@ impl Compiler {
                     variant: "DrawInstruction",
                     binding: "d",
                     locals:
-                        "let subject = Target::Player(d.player); let data = [d.count, u32::MAX];"
+                        "let amount = d.count; let subject = Target::Player(d.player); let data = [d.count, u32::MAX];"
                             .into(),
                     tests: vec![self.matching(player_frame, |c| c.player_in(players, "d.player"))?],
                 },
@@ -906,7 +906,7 @@ impl Compiler {
                     object_frame,
                 )
             }
-            _ => Ok(None),
+            _ => self.watched_rest(event),
         }
     }
     /// The changes those events take, as `reshape` writes the others'.
@@ -938,9 +938,6 @@ impl Compiler {
             ),
             ("TokenCreation", EventChange::ReplaceTokens { copies, tokens }) if tokens.is_empty() => {
                 format!("t.count = t.count.saturating_mul({copies});")
-            }
-            ("TokenCreation", EventChange::ReplaceTokens { .. }) => {
-                return Err(gap("replacement of token creation with other tokens"))
             }
             ("Counters", EventChange::SetAmount(n)) => {
                 let amount = self
@@ -988,7 +985,7 @@ impl Compiler {
                     .amount(u32::MAX.into(), "u32")?;
                 format!("for mana in m.mana.0.iter_mut() {{ *mana = mana.saturating_mul({times}); }}")
             }
-            (_, other) => return Err(gap(format!("event change {}", form(other)))),
+            _ => return self.reshape_rest(kind, change, frame),
         })
     }
     /// A rule a resolving spell or ability makes, as what `EffectKind` says of it
