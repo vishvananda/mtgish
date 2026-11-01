@@ -585,11 +585,11 @@ fn every_advertised_module_compiles_against_cantrip() {
         .filter(|r| r.backend_capable && wanted(r.line))
     {
         let parsed: OracleCard = ron::from_str(lines[record.line - 1]).unwrap();
-        let card = lower::card(&parsed).unwrap();
+        let lowered = mtgish_ast::unified::lower(&parsed);
         rust.push_str(&format!(
             "pub mod card_{} {{\n{}\n}}\n",
             record.line,
-            cantrip::module(&card).unwrap()
+            cantrip::whole_module(&parsed, &lowered.card).unwrap()
         ));
         loaded.push_str(&format!(
             "(&card_{0}::CARD, card_{0}::EXTRA),\n",

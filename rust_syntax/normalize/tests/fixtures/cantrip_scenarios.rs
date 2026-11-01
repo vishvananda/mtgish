@@ -610,7 +610,7 @@ mod scenarios {
         for p in [ME, THEM] {
             for mana in Mana::ALL {
                 g.state
-                    .add_mana(p, mana, starting_mana, ObjectId::NONE, None, false);
+                    .add_mana(p, mana, starting_mana, ObjectId::NONE, None, Default::default());
             }
         }
         let source = *g
