@@ -236,7 +236,7 @@ impl Inventory<'_> {
             Ability::PayToIgnore { cost, .. } => self.cost(cost),
             Ability::CountsAsNamed { .. } => {}
             Ability::Unique(rule) => self.form("UniqueAbility", rule),
-            Ability::WhileOnTopOfLibrary(abilities) => {
+            Ability::WhileOnTopOfLibrary(abilities) | Ability::Triggers(abilities) => {
                 for ability in abilities {
                     self.ability(ability);
                 }
@@ -983,6 +983,7 @@ impl Inventory<'_> {
                         self.expr(amount);
                         self.recipients(recipients);
                     }
+                    EventChange::Then(body) => self.program(body),
                     EventChange::Entry(_)
                     | EventChange::AddMana(_)
                     | EventChange::ReplaceMana(_)
@@ -1603,6 +1604,7 @@ impl Inventory<'_> {
             | ManaProduction::OtherColor
             | ManaProduction::LastNoted { .. }
             | ManaProduction::LostThisWay(_) => {}
+            ManaProduction::DraftNotedColor(note) => self.player(&note.player),
             ManaProduction::ColorsAmong { objects, .. } => self.objects(objects),
             ManaProduction::ManaCostOf(object) | ManaProduction::SymbolsOf(object) => {
                 self.object(object)
@@ -2207,6 +2209,7 @@ impl Inventory<'_> {
             | Expr::AdditionalCostPaid(_)
             | Expr::DraftNoted { .. }
             | Expr::TurnsSinceForetold
+            | Expr::ActivationCostSymbols(_)
             | Expr::ChosenColorsOf(_)
             | Expr::AbilitiesAmong { .. } => {}
             Expr::Earlier { filter, by, .. } => {
@@ -2738,6 +2741,7 @@ impl Inventory<'_> {
             Duration::WhileItMatches(filter) => self.filter(filter),
             Duration::ThroughNextTurn
             | Duration::ExtraCombat(_)
+            | Duration::UntilStateBasedActionsChecked
             | Duration::DuringControllersNextUntapSteps(_) => {}
             Duration::EndOfCombatOnNextTurn(player)
             | Duration::UntilNextUntapStep(player)
@@ -2845,6 +2849,14 @@ impl Inventory<'_> {
                 if let Some(player) = by {
                     self.player(player);
                 }
+            }
+            ReplacementEvent::Caused { cause, event } => {
+                self.filter(cause);
+                self.replacement_event(event);
+            }
+            ReplacementEvent::PutOntoBattlefield { players, objects } => {
+                self.players(players);
+                self.filter(objects);
             }
             ReplacementEvent::Measured { event, amount, .. } => {
                 self.replacement_event(event);

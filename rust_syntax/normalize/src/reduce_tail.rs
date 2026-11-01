@@ -746,9 +746,10 @@ pub fn reduce_replacement_action(
     name: String,
     operands: Vec<Operand>,
 ) -> Operation {
-    let plain = name
-        .split_once("::")
-        .and_then(|(_, form)| reduce_tail_actions(&actor, form, &operands));
+    let plain = name.split_once("::").and_then(|(_, form)| {
+        reduce_tail_actions(&actor, form, &operands)
+            .or_else(|| reduce_card_replacement_action(&actor, form, &operands))
+    });
     plain.unwrap_or(Operation::Primitive {
         actor,
         name,
@@ -1095,7 +1096,7 @@ pub fn reduce_future_event(name: String, operands: Vec<Operand>) -> EventSpec {
             abilities: filter,
         }),
         (form, operands) => match reduce_event(format!("Trigger::{form}"), operands.to_vec()) {
-            EventSpec::Primitive { .. } => None,
+            EventSpec::Primitive { .. } => reduce_card_future_event(form, operands),
             event => Some(event),
         },
     };

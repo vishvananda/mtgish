@@ -117,6 +117,16 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
         ReplacementEvent::Measured { event, .. } | ReplacementEvent::EachPoint(event) => {
             replacement_bindings(event)
         }
+        ReplacementEvent::Caused { event, .. } => EventBindings {
+            stack_object: true,
+            ..replacement_bindings(event)
+        },
+        ReplacementEvent::PutOntoBattlefield { .. } => EventBindings {
+            object: true,
+            permanent: true,
+            player: true,
+            ..Default::default()
+        },
         ReplacementEvent::Damage(damage) => event_bindings(&EventSpec::Damage(damage.clone())),
         ReplacementEvent::Player { event, .. } => EventBindings {
             player: true,
@@ -1895,6 +1905,7 @@ include!("reduce_effects.rs");
 include!("reduce_filters.rs");
 include!("reduce_more.rs");
 include!("reduce_tail.rs");
+include!("reduce_card_rules.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
@@ -2417,7 +2428,9 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
                 .filter(|(family, _)| {
                     matches!(*family, "LayerEffect" | "StaticLayerEffect" | "SpellEffect")
                 })
-                .and_then(|(_, form)| reduce_layer(form, &operands));
+                .and_then(|(_, form)| {
+                    reduce_layer(form, &operands).or_else(|| reduce_card_layer(form, &operands))
+                });
             layer.unwrap_or(Change::Primitive { name, operands })
         }
     }
@@ -2541,10 +2554,9 @@ pub fn reduce_rule(name: String, operands: Vec<Operand>) -> RuleChange {
 
 /// A row's rule about a player in generic form, or the row itself.
 pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
-    if let Some(rule) = name
-        .strip_prefix("PlayerEffect::")
-        .and_then(|form| reduce_tail_rule(form, &operands))
-    {
+    if let Some(rule) = name.strip_prefix("PlayerEffect::").and_then(|form| {
+        reduce_tail_rule(form, &operands).or_else(|| reduce_card_player_rule(form, &operands))
+    }) {
         return rule;
     }
     let permission =
@@ -3383,6 +3395,9 @@ pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
     if let Some(ability) = reduce_more_abilities(&name, &operands) {
         return ability;
     }
+    if let Some(ability) = reduce_card_ability(&name, &operands) {
+        return ability;
+    }
     if let Some(rule) = name
         .strip_prefix("CastEffect::")
         .and_then(|form| reduce_casting(form, &operands))
@@ -4074,6 +4089,9 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
         }
         ("IsSpell", [Operand::Filter(spells)]) => {
             ObjectFilter::All(vec![is(T::Spell), spells.clone()])
+        }
+        ("CanTargetOnly", [Operand::Objects(set)]) => {
+            ObjectFilter::CanTargetOnly(Box::new(event_filter(set)?))
         }
         ("TargetsAPermanent", [Operand::Objects(set)]) => target(Recipients::Objects(set.clone())),
         ("TargetsPermanent", [Operand::Object(object)]) => {
@@ -5096,6 +5114,7 @@ pub fn reduce_replacement(name: String, operands: Vec<Operand>) -> ReplacementEv
     let plain = name.strip_prefix("Future").unwrap_or(&name);
     reduced_replacement(plain, &operands)
         .or_else(|| reduce_tail_replacement(plain, &operands))
+        .or_else(|| reduce_card_replacement(plain, &operands))
         .unwrap_or(ReplacementEvent::Primitive { name, operands })
 }
 
@@ -5110,6 +5129,7 @@ pub fn body_replaces(event: &ReplacementEvent) -> bool {
         | ReplacementEvent::ProduceMana { .. } => true,
         ReplacementEvent::Measured { event, .. }
         | ReplacementEvent::EachPoint(event)
+        | ReplacementEvent::Caused { event, .. }
         | ReplacementEvent::FirstEachTurn(event) => body_replaces(event),
         _ => false,
     }

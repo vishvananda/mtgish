@@ -361,6 +361,9 @@ pub enum Ability {
     },
     /// An ability one or two cards print, with nothing to parameterise.
     Unique(UniqueAbility),
+    /// One printed ability with an event and an effect for each: each `Triggered`
+    /// reads its own event, which `EventSpec::Either` can't let a shared body do.
+    Triggers(Vec<Ability>),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum AsEvent {
@@ -408,6 +411,9 @@ pub enum StaticKind {
         keyword: Option<Keyword>,
         contributes_to_color_identity: bool,
     },
+    /// Ordinary while its source functions, and goes on for this long after the
+    /// source leaves the battlefield, as Forge's static with an `Effect` on leaving.
+    ContinuesAfterLeaving(Duration),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -627,6 +633,17 @@ pub enum ReplacementEvent {
         sources: ObjectFilter,
         color: ManaColor,
     },
+    /// `event`, when a matching spell or ability would cause it: Forge's `ValidCause$`.
+    Caused {
+        cause: ObjectFilter,
+        event: Box<ReplacementEvent>,
+    },
+    /// One of `players` about to put a matching permanent onto the battlefield,
+    /// which playing a land does. The player binding is that player.
+    PutOntoBattlefield {
+        players: PlayerSet,
+        objects: ObjectFilter,
+    },
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -660,6 +677,9 @@ pub enum ReplacedPlayerEvent {
     PayLife,
     /// Gaining life from a spell or ability, for its controller.
     GainLifeByEffect,
+    /// A life total about to go down by any means, as Forge's `LifeReduced`. Its
+    /// amount for `Measured` is the total it would become, not the change.
+    ReduceLifeTotal,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -671,6 +691,8 @@ pub enum ReplacedObjectEvent {
     Connives,
     Adapts,
     Explores,
+    BecomesTapped,
+    AssignsCombatDamage,
 }
 /// How long a created replacement effect keeps applying within its duration.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -735,6 +757,8 @@ pub enum EventChange {
     FlipExtraCoin,
     DamageAsInfect,
     IgnoreCounters(crate::counter::CounterKind),
+    /// The event happens, then this runs at once. A body otherwise completes first.
+    Then(Program),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2164,6 +2188,7 @@ mechanics!(
     BeamMeUp,
     SpaceSculptor,
     DoubleAgenda,
+    StickerKicker,
 );
 
 #[derive(
@@ -2510,6 +2535,8 @@ pub enum ManaProduction {
     LastNoted {
         amount: bool,
     },
+    /// One mana of any color noted during the draft.
+    DraftNotedColor(DraftNote),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ManaChoiceTiming {
@@ -4035,6 +4062,9 @@ pub enum Expr {
         abilities: Box<Operand>,
         objects: Box<ObjectSet>,
     },
+    /// Mana symbols of these colors in the activation cost being changed, counted
+    /// as `CountManaSymbols` counts a mana cost.
+    ActivationCostSymbols(Vec<ManaColor>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -5290,6 +5320,9 @@ pub enum Duration {
     },
     /// The next this many untap steps of the object's controller.
     DuringControllersNextUntapSteps(Expr),
+    /// Ends the next time state-based actions are checked, as Forge's
+    /// `UntilStateBasedActionChecked`.
+    UntilStateBasedActionsChecked,
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.
@@ -6236,6 +6269,8 @@ pub enum EventZone {
     Stack,
     Command,
     Ante,
+    /// Not a zone, but where a card outside the game is played from.
+    Outside,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DiscardKind {

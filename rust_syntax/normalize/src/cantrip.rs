@@ -445,6 +445,7 @@ fn mana_plan(value: &ManaProduction) -> Result<ManaPlan> {
         | ManaProduction::DifferentColors(_)
         | ManaProduction::OtherColor
         | ManaProduction::LostThisWay(_)
+        | ManaProduction::DraftNotedColor(_)
         | ManaProduction::LastNoted { .. }) => {
             return Err(gap(format!("mana production {}", form(other))))
         }
