@@ -177,6 +177,66 @@ fn generator_fingerprint() -> &'static str {
                 "cantrip_vocab.rs",
                 include_bytes!("cantrip_vocab.rs").as_slice(),
             ),
+            (
+                "cantrip/chosen.rs",
+                include_bytes!("cantrip/chosen.rs").as_slice(),
+            ),
+            (
+                "cantrip/copies.rs",
+                include_bytes!("cantrip/copies.rs").as_slice(),
+            ),
+            (
+                "cantrip/keywords.rs",
+                include_bytes!("cantrip/keywords.rs").as_slice(),
+            ),
+            (
+                "cantrip/lane_f.rs",
+                include_bytes!("cantrip/lane_f.rs").as_slice(),
+            ),
+            (
+                "cantrip/lane_g.rs",
+                include_bytes!("cantrip/lane_g.rs").as_slice(),
+            ),
+            (
+                "cantrip/lane_i.rs",
+                include_bytes!("cantrip/lane_i.rs").as_slice(),
+            ),
+            (
+                "cantrip/lane_j.rs",
+                include_bytes!("cantrip/lane_j.rs").as_slice(),
+            ),
+            (
+                "cantrip/lane_l.rs",
+                include_bytes!("cantrip/lane_l.rs").as_slice(),
+            ),
+            (
+                "cantrip/lane_m.rs",
+                include_bytes!("cantrip/lane_m.rs").as_slice(),
+            ),
+            (
+                "cantrip/lane_n.rs",
+                include_bytes!("cantrip/lane_n.rs").as_slice(),
+            ),
+            (
+                "cantrip/lane_o.rs",
+                include_bytes!("cantrip/lane_o.rs").as_slice(),
+            ),
+            (
+                "cantrip/lane_p.rs",
+                include_bytes!("cantrip/lane_p.rs").as_slice(),
+            ),
+            (
+                "cantrip/mechanics.rs",
+                include_bytes!("cantrip/mechanics.rs").as_slice(),
+            ),
+            (
+                "cantrip/planned.rs",
+                include_bytes!("cantrip/planned.rs").as_slice(),
+            ),
+            (
+                "cantrip/playing.rs",
+                include_bytes!("cantrip/playing.rs").as_slice(),
+            ),
         ]
         .into_iter()
         .map(|(name, bytes)| (name, corpus::digest(bytes)))

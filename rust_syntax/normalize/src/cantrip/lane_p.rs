@@ -812,6 +812,9 @@ impl Compiler {
                 feature,
                 &format!("{}.map_or(0, |o: ObjectId| q.modes_chosen(o))", self.object(object)?),
             ),
+            Expr::TimesActivatedThisTurn => {
+                held_number(feature, "i64::from(q.times_activated_this_turn(asker))")
+            }
             other => return Err(gap(format!("numeric expression {}", form(other)))),
         })
     }
@@ -1136,6 +1139,12 @@ impl Compiler {
                 }
                 format!("({})", tests.join(" && "))
             }
+            // A permanent the destruction of would be a thing the rules forbid to
+            // the filter's objects (Equinox), asked of what the spell would destroy.
+            ObjectFilter::WouldDestroy(filter) => held(
+                &feature,
+                &format!("q.would_destroy({id}, |id: ObjectId| {})", test(filter, "id")?),
+            ),
             other => return Err(gap(format!("object filter {}", form(other)))),
         })
     }
@@ -1290,6 +1299,29 @@ impl Compiler {
                     "{}.zip({}).is_some_and(|(a, b): (PlayerId, PlayerId)| g.votes().same(a, b) == {same})",
                     self.player(player)?,
                     self.player(other)?
+                ),
+            ),
+            Condition::Searched(result) => held(&feature, &format!("q.searched(asker, {})", result.0)),
+            Condition::ValueChosen(kind) => held(
+                &feature,
+                &format!(
+                    "q.state().chosen_value({}, ChoiceKind::{kind:?}).is_some()",
+                    self.linked()
+                ),
+            ),
+            Condition::ChoseNth { player, nth } => held(
+                &feature,
+                &format!(
+                    "{}.is_some_and(|p: PlayerId| q.chose_nth(asker, p, {nth}))",
+                    self.player(player)?
+                ),
+            ),
+            Condition::WonSubgame { player, result } => held(
+                &feature,
+                &format!(
+                    "{}.is_some_and(|p: PlayerId| q.won_subgame(p, {}))",
+                    self.player(player)?,
+                    result.0
                 ),
             ),
             other => return Err(gap(format!("condition {}", form(other)))),

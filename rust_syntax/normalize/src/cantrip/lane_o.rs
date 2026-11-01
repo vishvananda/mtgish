@@ -1947,6 +1947,7 @@ impl Compiler {
             PlayerRef::NotedFor(object) => {
                 format!("q.noted_for(asker, {})", self.object(object)?)
             }
+            PlayerRef::Prior(prior) => format!("q.prior_player(asker, PriorPlayer::{prior:?})"),
             other => return Err(gap(format!("player reference {}", form(other)))),
         };
         Ok(planned::planned_value(
@@ -2950,6 +2951,8 @@ impl Compiler {
             H::PlayedLandNotFromHand => "PlayerDeed::PlayedLandNotFromHand".to_string(),
             H::ActivatedExhaust => "PlayerDeed::ActivatedExhaust".to_string(),
             H::WasMonarch => "PlayerDeed::WasMonarch".to_string(),
+            H::ActivatedGraveyardAbility => "PlayerDeed::ActivatedGraveyardAbility".to_string(),
+            H::BentAllFour => "PlayerDeed::BentAllFour".to_string(),
             H::AttackedDefender(filter) => {
                 format!("PlayerDeed::AttackedDefender({})", self.over(filter, "id")?)
             }

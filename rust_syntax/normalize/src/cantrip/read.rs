@@ -1197,6 +1197,11 @@ impl Compiler {
                         "0i64",
                         &format!("cantrip_mechanics::domain::color_pairs(q, &{objects})"),
                     ),
+                    DistinctProperty::UnlockedDoorNames => planned::planned_value(
+                        "distinct UnlockedDoorNames",
+                        "0i64",
+                        &format!("cantrip_mechanics::rooms::unlocked_door_names(q, &{objects})"),
+                    ),
                     other => return Err(gap(format!("distinct {}", form(other)))),
                 })
             }
@@ -1926,11 +1931,31 @@ impl Compiler {
                 "false",
                 "q.shuffled_this_way(asker, player)",
             ),
-            PlayerState::ReceivedAVote
-            | PlayerState::CouldMulligan
-            | PlayerState::PossibleDefender
-            | PlayerState::RolledHighest
-            | PlayerState::CanDraw => return Err(gap(format!("player state {state:?}"))),
+            PlayerState::ReceivedAVote => planned::planned_value(
+                "player state ReceivedAVote",
+                "false",
+                "g.votes().received(player)",
+            ),
+            PlayerState::CouldMulligan => planned::planned_value(
+                "player state CouldMulligan",
+                "false",
+                "q.state().could_mulligan(player)",
+            ),
+            PlayerState::PossibleDefender => planned::planned_value(
+                "player state PossibleDefender",
+                "false",
+                "q.could_be_attacked(asker.controller, player)",
+            ),
+            PlayerState::RolledHighest => planned::planned_value(
+                "player state RolledHighest",
+                "false",
+                "q.rolled_highest(asker, player)",
+            ),
+            PlayerState::CanDraw => planned::planned_value(
+                "player state CanDraw",
+                "false",
+                "q.can_draw(player)",
+            ),
             PlayerState::CompletedDungeon => {
                 "q.history().any(EventQuery::kind(EventMask::DUNGEON_COMPLETED).player(player))"
                     .into()
