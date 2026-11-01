@@ -774,16 +774,15 @@ impl Compiler {
         scope: Option<Scope>,
     ) -> Result<()> {
         match ability {
-            Ability::Keyword(k) => {
-                match k {
-                    Keyword::Prowess => parts
-                        .abilities
-                        .push("cantrip_mechanics::triggers::PROWESS".into()),
-                    Keyword::Flanking => parts
-                        .abilities
-                        .push("cantrip_mechanics::flanking::TRIGGER".into()),
-                    Keyword::Ward(cost) => {
-                        let ward = match cost.parts.as_slice() {
+            Ability::Keyword(k) => match k {
+                Keyword::Prowess => parts
+                    .abilities
+                    .push("cantrip_mechanics::triggers::PROWESS".into()),
+                Keyword::Flanking => parts
+                    .abilities
+                    .push("cantrip_mechanics::flanking::TRIGGER".into()),
+                Keyword::Ward(cost) => {
+                    let ward = match cost.parts.as_slice() {
                         [CostPart::Mana(symbols)] => match symbols.as_slice() {
                             [ManaSymbol::Generic(n)] if u8::try_from(*n).is_ok() => {
                                 format!("cantrip_mechanics::triggers::ward::<{n}>(\"Ward {{{n}}}\")")
@@ -805,21 +804,20 @@ impl Compiler {
                         })] => "cantrip_mechanics::triggers::ward_life_equal_to_power(\"Ward--Pay life equal to this creature's power\")".into(),
                         _ => self.ward_beyond(cost, label)?,
                     };
-                        parts.abilities.push(ward);
-                    }
-                    Keyword::Protection(protection) => match protection.as_ref() {
-                        Protection::Objects {
-                            kind: ObjectKind::Any,
-                            filter: ObjectFilter::Color(c),
-                        } => {
-                            color(c)?;
-                            parts.protection |= 1 << color_index(c)?;
-                        }
-                        other => self.protection_beyond(other, parts)?,
-                    },
-                    k => parts.keywords.push(keyword(k)?),
+                    parts.abilities.push(ward);
                 }
-            }
+                Keyword::Protection(protection) => match protection.as_ref() {
+                    Protection::Objects {
+                        kind: ObjectKind::Any,
+                        filter: ObjectFilter::Color(c),
+                    } => {
+                        color(c)?;
+                        parts.protection |= 1 << color_index(c)?;
+                    }
+                    other => self.protection_beyond(other, parts)?,
+                },
+                k => parts.keywords.push(keyword(k)?),
+            },
             Ability::Casting(rule) => self.casting(rule, label, parts, None)?,
             Ability::CostBranch {
                 keyword,
@@ -954,7 +952,13 @@ impl Compiler {
                 }
                 self.conditional(condition, then, label, parts, scope)?;
                 let unless = Condition::Not(Box::new(condition.clone()));
-                self.conditional(&unless, otherwise, &format!("{label}_otherwise"), parts, scope)?;
+                self.conditional(
+                    &unless,
+                    otherwise,
+                    &format!("{label}_otherwise"),
+                    parts,
+                    scope,
+                )?;
             }
             Ability::Saga { chapters } => {
                 for (i, chapter) in chapters.iter().enumerate() {

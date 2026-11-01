@@ -616,7 +616,9 @@ impl Compiler {
         match event {
             // The history has it, for what asks who crewed; no ability sees it.
             PairEvent::Crews => self.plan_event(&mut matched, "engine: no crew event", true)?,
-            PairEvent::Saddles => self.plan_event(&mut matched, "engine: no saddle event", false)?,
+            PairEvent::Saddles => {
+                self.plan_event(&mut matched, "engine: no saddle event", false)?
+            }
             PairEvent::Exploits => {
                 self.plan_event(&mut matched, "engine: no exploit event", false)?
             }

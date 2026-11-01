@@ -269,9 +269,7 @@ pub(super) fn plain_removal(removals: &[CounterRemoval]) -> bool {
             selection,
             ..
         }] => match objects {
-            ObjectSet::One(ObjectRef::Source) => {
-                selection.is_none() && (kind.is_some() || *n == 1)
-            }
+            ObjectSet::One(ObjectRef::Source) => selection.is_none() && (kind.is_some() || *n == 1),
             ObjectSet::Battlefield(_) => selection.as_ref().is_none_or(|s| {
                 *n == 1
                     && matches!(s.count, Count::Exactly(Expr::Constant(1)))
@@ -296,10 +294,24 @@ fn other_untapped_creatures(filter: &ObjectFilter) -> bool {
     let items = each_filter(filter);
     let has = |test: &dyn Fn(&ObjectFilter) -> bool| items.iter().any(|f| test(f));
     items.len() == 4
-        && has(&|f| matches!(f, ObjectFilter::Not(inner) if matches!(**inner, ObjectFilter::Tapped)))
-        && has(&|f| matches!(f, ObjectFilter::CardType(crate::mtg_types::CardType::Creature)))
-        && has(&|f| matches!(f, ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController))))
-        && has(&|f| matches!(f, ObjectFilter::Not(inner) if matches!(**inner, ObjectFilter::SameObject(ObjectRef::Source))))
+        && has(
+            &|f| matches!(f, ObjectFilter::Not(inner) if matches!(**inner, ObjectFilter::Tapped)),
+        )
+        && has(&|f| {
+            matches!(
+                f,
+                ObjectFilter::CardType(crate::mtg_types::CardType::Creature)
+            )
+        })
+        && has(&|f| {
+            matches!(
+                f,
+                ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController))
+            )
+        })
+        && has(
+            &|f| matches!(f, ObjectFilter::Not(inner) if matches!(**inner, ObjectFilter::SameObject(ObjectRef::Source))),
+        )
 }
 
 /// A set rule a cost's choice is held to: the engine's `select` words.
@@ -324,15 +336,14 @@ fn behold_words(what: &Operand) -> Result<(String, String)> {
         return Err(gap("cost part Behold"));
     };
     match (form.as_str(), operands.as_slice()) {
-        (
-            "IsCreatureType" | "IsPlaneswalkerType",
-            [Operand::Vocabulary { form: subtype, .. }],
-        ) => {
+        ("IsCreatureType" | "IsPlaneswalkerType", [Operand::Vocabulary { form: subtype, .. }]) => {
             if !crate::cantrip_vocab::SUBTYPES.contains(&subtype.as_str()) {
                 return Err(gap(format!("subtype {subtype}")));
             }
             Ok((
-                format!("q.chars(id).has_subtype(q.words(asker.source).subtype(Subtype::{subtype}))"),
+                format!(
+                    "q.chars(id).has_subtype(q.words(asker.source).subtype(Subtype::{subtype}))"
+                ),
                 subtype.clone(),
             ))
         }
@@ -416,8 +427,9 @@ fn spell_words(filter: &ObjectFilter, chose_as_entered: bool) -> Option<String> 
         if let ([a, b], true) = (v.as_slice(), v.iter().any(creature)) {
             let other = if creature(a) { b } else { a };
             if matches!(other, ObjectFilter::Chosen(ValueKind::CreatureType)) {
-                return chose_as_entered
-                    .then(|| "ManaRestriction::Subtypes(SubtypeSpells::CHOSEN_TYPE_CREATURE)".into());
+                return chose_as_entered.then(|| {
+                    "ManaRestriction::Subtypes(SubtypeSpells::CHOSEN_TYPE_CREATURE)".into()
+                });
             }
             let word = subtype(other)?;
             return Some(format!(
@@ -435,7 +447,12 @@ fn spell_words(filter: &ObjectFilter, chose_as_entered: bool) -> Option<String> 
 }
 
 /// The printed price of a keyword: its mana where that is all it is.
-fn priced(c: &mut Compiler, cost: Option<&Cost>, mechanic: Mechanic, label: &str) -> Result<String> {
+fn priced(
+    c: &mut Compiler,
+    cost: Option<&Cost>,
+    mechanic: Mechanic,
+    label: &str,
+) -> Result<String> {
     match cost.map(|c| c.parts.as_slice()) {
         Some([CostPart::Mana(symbols)]) => mana(symbols),
         _ => c.mechanic_cost(cost, mechanic, label),
@@ -606,9 +623,17 @@ impl Compiler {
             self.objects(objects)?
         ));
         let players = self.fetch(self.players(players)?);
-        writeln!(out, "let colors_{id} = {colors}; for player in {players} {{").unwrap();
+        writeln!(
+            out,
+            "let colors_{id} = {colors}; for player in {players} {{"
+        )
+        .unwrap();
         if each {
-            writeln!(out, "for color in colors_{id}.iter() {{ g.add_mana(player, color.mana(), 1); }}").unwrap();
+            writeln!(
+                out,
+                "for color in colors_{id}.iter() {{ g.add_mana(player, color.mana(), 1); }}"
+            )
+            .unwrap();
         } else {
             writeln!(out, "if !colors_{id}.is_empty() {{ let colors = {M}::choose_colors(g, player, asker.source, colors_{id}, 1)?; g.add_mana(player, colors[0].mana(), 1); }}").unwrap();
         }
@@ -655,33 +680,46 @@ impl Compiler {
             format!("add_by({label}).choose_color().yields_any(1){only}")
         };
         Ok(Some(match mana {
-            ManaProduction::ColorsAmong { objects, each: true } => {
+            ManaProduction::ColorsAmong {
+                objects,
+                each: true,
+            } => {
                 let colors = self.colors_of(objects)?;
                 writeln!(self.functions, "fn {label}(g: &mut dyn Game, asker: &Asker, _: Option<Color>) -> Result<(), Suspend> {{ let colors = {{ let q: &dyn Query = g; {colors} }}; for color in colors.iter() {{ {chosen_mana} }} Ok(()) }}").unwrap();
                 format!("add_by({label}){only}")
             }
-            ManaProduction::ColorsAmong { objects, each: false } => {
+            ManaProduction::ColorsAmong {
+                objects,
+                each: false,
+            } => {
                 let colors = self.colors_of(objects)?;
                 writeln!(self.functions, "#[allow(unused_variables)] fn {label}_colors(q: &dyn Query, asker: &Asker) -> ColorSet {{ {colors} }}").unwrap();
                 self.mana_colors = Some((format!(".colors_from({label}_colors)"), None));
                 any_of(self)
             }
             // The engine reads what the cost's permanent could produce (106.7).
-            ManaProduction::CouldProduce { objects, colors_only: false }
-                if matches!(
-                    objects,
-                    ObjectSet::Earlier { .. } | ObjectSet::One(ObjectRef::Query { .. })
-                ) && rule.is_none() =>
+            ManaProduction::CouldProduce {
+                objects,
+                colors_only: false,
+            } if matches!(
+                objects,
+                ObjectSet::Earlier { .. } | ObjectSet::One(ObjectRef::Query { .. })
+            ) && rule.is_none() =>
             {
                 self.mana_colors = Some((".colors_from_sacrifice()".to_string(), None));
                 "add_any_color(1)".to_string()
             }
-            ManaProduction::CouldProduce { objects, colors_only } => {
+            ManaProduction::CouldProduce {
+                objects,
+                colors_only,
+            } => {
                 let mut asked = self.clone();
                 (asked.reader, asked.event_at) = (Reader::Query, EventAt::Nowhere);
                 let list = asked.objects(objects)?;
                 self.mana_colors = Some((
-                    format!(".colors_from(|q, asker| q.mana_could_produce(&{list}, {colors_only}))"),
+                    format!(
+                        ".colors_from(|q, asker| q.mana_could_produce(&{list}, {colors_only}))"
+                    ),
                     Some("engine: no reading of what a permanent could produce"),
                 ));
                 any_of(self)
@@ -745,7 +783,11 @@ impl Compiler {
             planned_kind(FEATURE, format!("EffectKind::ProtectionFrom({code})")),
             format!(
                 "{};",
-                planned::planned_value(FEATURE, "()", &format!("chars.protection_from.push({code})"))
+                planned::planned_value(
+                    FEATURE,
+                    "()",
+                    &format!("chars.protection_from.push({code})")
+                )
             ),
         ));
         Ok(())
@@ -950,10 +992,11 @@ impl Compiler {
                 format!("Cost {{ variable: Some(VariableCost::RemoveAnyNumberOfCounters({kind})), ..Cost::NONE }}")
             }
             // How many is read as the cost is paid, while the effect resolves.
-            (
-                ObjectSet::One(ObjectRef::Source),
-                CounterAmount::Count(Count::Exactly(n)),
-            ) if label == PAID && kind.is_some() && exactly(&Count::Exactly(n.clone())).is_none() => {
+            (ObjectSet::One(ObjectRef::Source), CounterAmount::Count(Count::Exactly(n)))
+                if label == PAID
+                    && kind.is_some()
+                    && exactly(&Count::Exactly(n.clone())).is_none() =>
+            {
                 let kind = kind.ok_or_else(|| gap(SHAPE))?;
                 let n = self.fetch(self.number(n)?.amount(255, "u8")?);
                 format!("Cost {{ remove_counters: Some(({kind}, {n})), ..Cost::NONE }}")
@@ -1025,7 +1068,11 @@ impl Compiler {
         let resolving = label == PAID;
         let field = |text: &str| format!("Cost {{ {text}, ..Cost::NONE }}");
         let plan = |feature: &str, text: &str| {
-            planned::planned_value(feature, "Cost::NONE", &format!("Cost {{ {text}, ..Cost::NONE }}"))
+            planned::planned_value(
+                feature,
+                "Cost::NONE",
+                &format!("Cost {{ {text}, ..Cost::NONE }}"),
+            )
         };
         Ok(match part {
             CostPart::Loyalty(Expr::Multiply(a, b))
@@ -1033,17 +1080,14 @@ impl Compiler {
             {
                 "loyalty_minus_x()".into()
             }
-            CostPart::Life(Expr::AnnouncedX)
-                if !resolving && self.paying == Paying::Additional =>
-            {
+            CostPart::Life(Expr::AnnouncedX) if !resolving && self.paying == Paying::Additional => {
                 field("pay_x_life: true")
             }
-            CostPart::Life(Expr::AnnouncedX) if !resolving => {
-                plan("engine: pay X life outside a spell's additional cost", "pay_x_life: true")
-            }
-            CostPart::Life(n) => {
-                self.sized_cost(n, label, "life", "u32", "i64::from(u32::MAX)")?
-            }
+            CostPart::Life(Expr::AnnouncedX) if !resolving => plan(
+                "engine: pay X life outside a spell's additional cost",
+                "pay_x_life: true",
+            ),
+            CostPart::Life(n) => self.sized_cost(n, label, "life", "u32", "i64::from(u32::MAX)")?,
             CostPart::Energy(Expr::AnnouncedX) if !resolving => plan(
                 "engine: pay X energy",
                 "variable: Some(VariableCost::PayEnergyX)",
@@ -1059,14 +1103,18 @@ impl Compiler {
             CostPart::Sacrifice {
                 objects: ObjectSet::One(ObjectRef::AttachedTo(host)),
                 choose: None,
-            } if !resolving && matches!(**host, ObjectRef::Source) => {
-                plan("engine: no cost sacrifices what this is attached to", "sacrifice_host: true")
-            }
+            } if !resolving && matches!(**host, ObjectRef::Source) => plan(
+                "engine: no cost sacrifices what this is attached to",
+                "sacrifice_host: true",
+            ),
             CostPart::Discard {
                 count: Expr::Constant(n),
                 filter: ObjectFilter::Any,
                 random: true,
-            } => plan("engine: no random discard cost", &format!("discard_at_random: {n}")),
+            } => plan(
+                "engine: no random discard cost",
+                &format!("discard_at_random: {n}"),
+            ),
             CostPart::Discard {
                 count: Expr::AnnouncedX,
                 filter: ObjectFilter::Any,
@@ -1078,9 +1126,10 @@ impl Compiler {
             CostPart::DiscardHand => "DISCARD_HAND".into(),
             CostPart::Exert(ObjectRef::Source) if !resolving => "EXERT".into(),
             CostPart::Unattach(ObjectRef::Source) => "UNATTACH_THIS".into(),
-            CostPart::Unattach(ObjectRef::Granter) => {
-                plan("engine: no cost unattaches what gave the ability", "unattach_granter: true")
-            }
+            CostPart::Unattach(ObjectRef::Granter) => plan(
+                "engine: no cost unattaches what gave the ability",
+                "unattach_granter: true",
+            ),
             CostPart::Teamwork(n) => field(&format!(
                 "tap_creatures: Some(TapCreatures {{ power: {n}, greater_with: None }})"
             )),
@@ -1145,9 +1194,10 @@ impl Compiler {
             } => {
                 const FEATURE: &str = "engine: no reveal cost";
                 match (count, filter) {
-                    (Count::Exactly(Expr::Constant(1)), ObjectFilter::SameObject(ObjectRef::Source)) => {
-                        plan(FEATURE, "reveal_self: true")
-                    }
+                    (
+                        Count::Exactly(Expr::Constant(1)),
+                        ObjectFilter::SameObject(ObjectRef::Source),
+                    ) => plan(FEATURE, "reveal_self: true"),
                     (Count::Exactly(Expr::Constant(n)), filter) => {
                         let filter = self.cost_filter(filter, label)?;
                         plan(FEATURE, &format!("reveal: Some(({n}, {filter}))"))
@@ -1305,7 +1355,11 @@ impl Compiler {
         let (test, quality) = behold_words(what)?;
         let function = format!("{label}_behold_{}", self.fresh());
         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ {test} }}").unwrap();
-        let count = if call == "cost_of" { format!("{n}, ") } else { String::new() };
+        let count = if call == "cost_of" {
+            format!("{n}, ")
+        } else {
+            String::new()
+        };
         Ok(format!(
             "{M}::behold::{call}({count}{function}, {})",
             quoted(&quality)
@@ -1346,7 +1400,10 @@ impl Compiler {
                 &format!("{def}.cant_be_copied()"),
             ),
             ActivationRule::AnyTimeOfInstant => format!("{def}.only_as_an_instant()"),
-            ActivationRule::RestrictMana { portion, color: spent } => {
+            ActivationRule::RestrictMana {
+                portion,
+                color: spent,
+            } => {
                 let rule = match spent {
                     Some(spent) => format!("ManaSpendRule::Colors(&[Color::{}])", color(spent)?),
                     None => "ManaSpendRule::ChosenColor".to_string(),
@@ -1658,7 +1715,9 @@ impl Compiler {
                     return Ok(());
                 }
                 if !same_targets {
-                    return Err(gap(format!("cost branch {keyword} with targets of its own")));
+                    return Err(gap(format!(
+                        "cost branch {keyword} with targets of its own"
+                    )));
                 }
                 let targets = self.announcement(unpaid_announced, &format!("{label}_unpaid"))?;
                 let effect = self.branch_effect(
@@ -1679,7 +1738,8 @@ impl Compiler {
                 let targets = self.announcement(paid_announced, &paid_label)?;
                 let effect = self.effect(paid_body, &paid_label)?;
                 self.resolving_slots_of(unpaid_announced);
-                let unpaid_targets = self.announcement(unpaid_announced, &format!("{label}_unpaid"))?;
+                let unpaid_targets =
+                    self.announcement(unpaid_announced, &format!("{label}_unpaid"))?;
                 let unpaid_effect = self.effect(unpaid_body, &format!("{label}_unpaid"))?;
                 parts.spell = format!("spell({unpaid_targets}, {unpaid_effect})");
                 self.plan_entry(
@@ -1714,8 +1774,11 @@ impl Compiler {
             return None;
         };
         use Mechanic as K;
-        matches!(mechanic, K::Banding | K::Decayed | K::Phasing | K::SplitSecond)
-            .then(|| format!("Keyword::{mechanic:?}"))
+        matches!(
+            mechanic,
+            K::Banding | K::Decayed | K::Phasing | K::SplitSecond
+        )
+        .then(|| format!("Keyword::{mechanic:?}"))
     }
     /// What a spell's body says of the card as a whole.
     pub(super) fn spell_keywords(&mut self, parts: &mut Parts) {
@@ -1962,10 +2025,7 @@ impl Compiler {
     /// An ability an object keeps: one of `delayed` where it is one ability, and
     /// otherwise all that its rules add to a card, as a definition of their own.
     fn perpetual_grant(&mut self, ability: &Ability) -> Result<String> {
-        if matches!(
-            ability,
-            Ability::Casting(CastingRule::SpendAsThoughAnyType)
-        ) {
+        if matches!(ability, Ability::Casting(CastingRule::SpendAsThoughAnyType)) {
             return Ok(format!("{PERPETUAL}::SpendAsThoughAnyType"));
         }
         let id = self.fresh();
@@ -1982,7 +2042,12 @@ impl Compiler {
         }
         let enters = self.enters(&grown.enters);
         let name = format!("PERPETUAL_{id}");
-        writeln!(self.functions, "static {name}: CardDef = {};", grown.card(&enters)).unwrap();
+        writeln!(
+            self.functions,
+            "static {name}: CardDef = {};",
+            grown.card(&enters)
+        )
+        .unwrap();
         Ok(format!("{PERPETUAL}::Rules(&{name})"))
     }
     /// A keyword that isn't one of the many `mechanic` lists by the same shape.
@@ -2097,7 +2162,10 @@ impl Compiler {
                 entries.push(("enters", format!("{M}::bloodthirst::enters_x")));
             }
             K::Vanishing => {
-                entries.push(("abilities", format!("{M}::vanishing::upkeep(\"Vanishing\")")));
+                entries.push((
+                    "abilities",
+                    format!("{M}::vanishing::upkeep(\"Vanishing\")"),
+                ));
                 entries.push(("abilities", format!("{M}::vanishing::LAST_COUNTER")));
             }
             K::Graft => {
@@ -2110,7 +2178,10 @@ impl Compiler {
             }
             K::Encore | K::Specialize | K::Recover | K::Fortify | K::SpecializeFromGraveyard => {
                 let price = priced(self, cost, mechanic, label)?;
-                entries.push(("abilities", format!("{M}::{path}::ability({price}, {word:?})")));
+                entries.push((
+                    "abilities",
+                    format!("{M}::{path}::ability({price}, {word:?})"),
+                ));
             }
             K::Reinforce => {
                 let price = priced(self, cost, mechanic, label)?;
@@ -2138,7 +2209,10 @@ impl Compiler {
                 entries.push(("statics", format!("{M}::living_metal::ON_YOUR_TURN")));
             }
             K::StartingIntensity => {
-                entries.push(("enters", format!("{M}::intensity::starting::<{}>", fixed()?)));
+                entries.push((
+                    "enters",
+                    format!("{M}::intensity::starting::<{}>", fixed()?),
+                ));
             }
             K::JumpStart => {
                 entries.push(("ways", format!("{M}::jump_start::way(\"Jump-start\")")));

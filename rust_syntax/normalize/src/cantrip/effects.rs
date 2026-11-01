@@ -147,13 +147,10 @@ pub(super) fn asks_by_paying(decider: &PlayerRef, body: &Program) -> bool {
             ..
         }) => {
             format!("{player:?}") == format!("{decider:?}")
-                && cost
-                    .parts
-                    .iter()
-                    .all(|part| {
-                        matches!(part, CostPart::Mana(_) | CostPart::Life(_))
-                            || lane_g::payer_sets_the_size(part)
-                    })
+                && cost.parts.iter().all(|part| {
+                    matches!(part, CostPart::Mana(_) | CostPart::Life(_))
+                        || lane_g::payer_sets_the_size(part)
+                })
         }
         _ => false,
     }
@@ -787,7 +784,12 @@ impl Compiler {
             self.objects(objects)?
         )))
     }
-    pub(super) fn operation(&mut self, op: &Operation, result: &ResultId, out: &mut String) -> Result<()> {
+    pub(super) fn operation(
+        &mut self,
+        op: &Operation,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
         let id = self.fresh();
         match op {
             Operation::AddMana {
@@ -848,7 +850,11 @@ impl Compiler {
                 };
                 let amount = self.fetch(number.amount(max, ty)?);
                 let players = self.fetch(self.players(players)?);
-                writeln!(out, "let amount_{id} = {amount}; let players_{id} = {players};").unwrap();
+                writeln!(
+                    out,
+                    "let amount_{id} = {amount}; let players_{id} = {players};"
+                )
+                .unwrap();
                 if matches!(op, Operation::Draw { .. }) && self.read_later(result) {
                     writeln!(out, "let mut done_{id}: i64 = 0; let mut drawn_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ let before = g.history().drawn(player) as i64; let held = g.state().zone(Zone::hand(player)).to_vec(); g.draw(player, amount_{id}); done_{id} += g.history().drawn(player) as i64 - before; drawn_{id}.extend(g.state().zone(Zone::hand(player)).iter().copied().filter(|c| !held.contains(c))); }}").unwrap();
                     self.performed.insert(result.0, format!("done_{id}"));
@@ -858,7 +864,11 @@ impl Compiler {
                     writeln!(out, "let mut done_{id}: i64 = 0; for player in players_{id} {{ let before = {measure}; g.{method}(player, amount_{id}); done_{id} += ({measure} - before).abs(); }}").unwrap();
                     self.performed.insert(result.0, format!("done_{id}"));
                 } else {
-                    writeln!(out, "for player in players_{id} {{ g.{method}(player, amount_{id}); }}").unwrap();
+                    writeln!(
+                        out,
+                        "for player in players_{id} {{ g.{method}(player, amount_{id}); }}"
+                    )
+                    .unwrap();
                 }
             }
             Operation::Mill { players, amount } => {
@@ -879,7 +889,11 @@ impl Compiler {
                     };
                     let amount = self.fetch(number);
                     let player = self.fetch(self.certain_player(player)?);
-                    writeln!(out, "let amount_{id} = {amount}; let player_{id} = {player};").unwrap();
+                    writeln!(
+                        out,
+                        "let amount_{id} = {amount}; let player_{id} = {player};"
+                    )
+                    .unwrap();
                     if self.read_later(result) {
                         writeln!(out, "let mut hand_{id} = g.state().zone(Zone::hand(player_{id})).to_vec(); let mut picked_{id}: Vec<ObjectId> = Vec::new(); while (picked_{id}.len() as u32) < amount_{id} && !hand_{id}.is_empty() {{ let at = g.choose_at_random(hand_{id}.len()); picked_{id}.push(hand_{id}.remove(at)); }} let discarded_{id} = g.discard_together(&picked_{id});").unwrap();
                         self.moved.insert(result.0, format!("discarded_{id}"));
@@ -2100,7 +2114,9 @@ impl Compiler {
         }
         if let Change::GrantAbility(ability) = change {
             if let Some(keyword) = self.grants_keyword(ability) {
-                return Ok(vec![format!("EffectKind::AddKeywords(Keywords::of(&[{keyword}]))")]);
+                return Ok(vec![format!(
+                    "EffectKind::AddKeywords(Keywords::of(&[{keyword}]))"
+                )]);
             }
             let index = self.grant(ability)?;
             return Ok(vec![format!(

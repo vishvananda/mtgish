@@ -409,7 +409,11 @@ impl Compiler {
                 if !self.extras.contains(&token) {
                     self.extras.push(token);
                 }
-                self.actor_action(action, &format!("{M}::recruit::recruit(g, player, asker.source)?"), out)?;
+                self.actor_action(
+                    action,
+                    &format!("{M}::recruit::recruit(g, player, asker.source)?"),
+                    out,
+                )?;
             }
             K::Saddle => self.object_action(action, "g.become_saddled(object)", out)?,
             K::RemoveAllDamage => self.object_action(action, "g.heal(object)", out)?,
@@ -437,11 +441,17 @@ impl Compiler {
                 "g.lock_or_unlock_a_door(object, asker.controller)?",
                 out,
             )?,
-            K::ReverseTurnOrder => {
-                self.plan_code("engine: no reversed turn order", "g.reverse_turn_order();", out)
+            K::ReverseTurnOrder => self.plan_code(
+                "engine: no reversed turn order",
+                "g.reverse_turn_order();",
+                out,
+            ),
+            K::EndCombat => {
+                self.plan_code("engine: no effect ends combat", "g.end_combat()?;", out)
             }
-            K::EndCombat => self.plan_code("engine: no effect ends combat", "g.end_combat()?;", out),
-            K::DrawGame => self.plan_code("engine: no effect draws the game", "g.draw_game();", out),
+            K::DrawGame => {
+                self.plan_code("engine: no effect draws the game", "g.draw_game();", out)
+            }
             K::ShuffleGraveyard => self.plan_for_actor(
                 "engine: no order of a graveyard",
                 action,
@@ -513,12 +523,16 @@ impl Compiler {
             }
             K::Awaken => {
                 let n = self.action_amount(action, i16::MAX.into(), "i16")?;
-                let call = format!("let amount = {n}; {M}::awaken::awaken(g, asker.source, object, amount)?");
+                let call = format!(
+                    "let amount = {n}; {M}::awaken::awaken(g, asker.source, object, amount)?"
+                );
                 self.plan_for_object("engine: no Awaken", action, &call, out)?;
             }
             K::Endure => {
                 let n = self.action_amount(action, i16::MAX.into(), "i16")?;
-                let call = format!("let amount = {n}; {M}::endure::endure(g, asker.controller, object, amount)?");
+                let call = format!(
+                    "let amount = {n}; {M}::endure::endure(g, asker.controller, object, amount)?"
+                );
                 self.plan_for_object("engine: no Endure", action, &call, out)?;
             }
             K::Detain => self.plan_for_object(
@@ -577,20 +591,29 @@ impl Compiler {
             )?,
             K::Epic => {
                 self.controlled_by_item(action)?;
-                self.plan_code("engine: no Epic", &format!("{M}::epic::epic(g, item)?;"), out);
+                self.plan_code(
+                    "engine: no Epic",
+                    &format!("{M}::epic::epic(g, item)?;"),
+                    out,
+                );
             }
             K::Intensify => {
                 let n = match action.amount {
                     Some(_) => self.action_amount(action, i16::MAX.into(), "i16")?,
                     None => "1".to_string(),
                 };
-                let call = format!("let amount = {n}; {M}::intensity::intensify(g, player, asker.source, amount)");
+                let call = format!(
+                    "let amount = {n}; {M}::intensity::intensify(g, player, asker.source, amount)"
+                );
                 self.plan_for_actor("engine: no Intensity", action, &call, out)?;
             }
             K::Fateseal => {
                 let n = self.action_amount(action, u32::MAX.into(), "u32")?;
                 let object = action.object.map(|o| self.object(o)).transpose()?;
-                let call = format!("let amount = {n}; {M}::fateseal::fateseal(g, player, {}, amount)?", object.unwrap_or_else(|| "None".into()));
+                let call = format!(
+                    "let amount = {n}; {M}::fateseal::fateseal(g, player, {}, amount)?",
+                    object.unwrap_or_else(|| "None".into())
+                );
                 self.plan_for_actor("engine: no Fateseal", action, &call, out)?;
             }
             K::Skip(part) => {

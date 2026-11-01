@@ -900,7 +900,10 @@ impl Compiler {
             }
             // One slot for each opponent, "that player" being whose it is.
             Count::PerPlayer { players, each } if constant_one(each) => {
-                if matches!(players, PlayerSet::OpponentsOf(PlayerRef::AbilityController)) {
+                if matches!(
+                    players,
+                    PlayerSet::OpponentsOf(PlayerRef::AbilityController)
+                ) {
                     ".between(0, TargetSpec::EACH_OPPONENT)".into()
                 } else {
                     format!(
@@ -1678,7 +1681,11 @@ fn emit_face(
             _ => None,
         })
         .collect();
-    firsts.extend(place.earthbend.then(|| keywords::EARTHBEND_RETURN.to_string()));
+    firsts.extend(
+        place
+            .earthbend
+            .then(|| keywords::EARTHBEND_RETURN.to_string()),
+    );
     c.attempt("abilities".into(), |c| match firsts.as_slice() {
         [] => Ok(()),
         [first] => {
