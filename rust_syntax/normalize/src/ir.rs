@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 158;
+pub const SCHEMA_VERSION: u32 = 159;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -470,6 +470,10 @@ pub enum CastingRule {
         reductions: Vec<ManaReduction>,
         cost: Cost,
     },
+    /// May be cast as though it had flash, with a rider when that mattered.
+    FlashWithRider(Box<Operand>),
+    /// The commander tax is paid in life, this much for each previous cast.
+    TaxPaidAsLife(Expr),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CastingOrigin {
@@ -1812,6 +1816,8 @@ pub enum StickerMeasure {
     NamesBeginningWith(Box<Operand>),
     TotalPower,
     TotalToughness,
+    Letter(Box<Operand>),
+    UniqueVowels,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum NotedMeasure {
@@ -1829,6 +1835,10 @@ pub enum GameValue {
     ManaPaidThisWay,
     PlayersWhoLost,
     ResolutionsThisTurn,
+    ExcessDamageThisWay,
+    ManaLostThisWay,
+    EachValue,
+    MostDiscardedThisWay,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PriorOutcome {
@@ -1843,6 +1853,7 @@ pub enum PriorOutcome {
     RevealedPutInHand,
     Unearthed,
     ArtSticker,
+    TappedForAttacking,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PriorPlayer {
@@ -2295,6 +2306,8 @@ pub enum SelectionConstraint {
     /// Counts against that earlier slot's limit, as "up to three target creatures
     /// and/or creature cards in graveyards".
     SharesLimitWith(Slot),
+    /// Every object has the same set of values of this property.
+    AllSameProperty(DistinctProperty),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CardOrder {
@@ -3171,6 +3184,8 @@ pub enum ActivationCostChange {
         amount: Box<Operand>,
         times: Expr,
     },
+    /// An extra cost to pay.
+    Additional(Cost),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PlayerAction {
@@ -3825,6 +3840,19 @@ pub enum Expr {
     },
     Game(GameValue),
     Difference(Box<Expr>, Box<Expr>),
+    DamageBy(ObjectRef),
+    AdditionalCostPaid(Vec<Operand>),
+    DraftNoted {
+        note: DraftNote,
+        highest: bool,
+    },
+    ModesChosen(ObjectRef),
+    TurnsSinceForetold,
+    ChosenColorsOf(ObjectRef),
+    AbilitiesAmong {
+        abilities: Box<Operand>,
+        objects: Box<ObjectSet>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3840,11 +3868,13 @@ pub enum HistoryWindow {
     LastTurn,
     ThisCombat,
     ThisGame,
+    SinceLastTurnOf(PlayerRef),
 }
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum Moment {
     ThisSpellCast,
     TurnBegan,
+    Cast(ObjectRef),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum HistoryMeasure {
@@ -3855,6 +3885,7 @@ pub enum HistoryMeasure {
     /// A property of the objects that matched, as Forge's `Count$ValidStack`.
     Property(Property, Aggregation),
     Distinct(DistinctProperty),
+    MostFromOneSource,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum SpentManaAggregation {
@@ -3969,6 +4000,9 @@ pub enum PlayerNumber {
     CommanderColorIdentity,
     UnspentManaOf(ManaColor),
     RingTemptations,
+    StartingDeckSize,
+    EnergyPaidOrLostThisTurn,
+    CardsDrawnThisTurn,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DistinctProperty {
@@ -4947,6 +4981,31 @@ pub enum Condition {
         player: Option<PlayerRef>,
         outcome: CoinOutcome,
     },
+    /// It has this many targets among these.
+    TargetCount {
+        object: ObjectRef,
+        filter: ObjectFilter,
+        comparison: Comparison,
+        value: Expr,
+    },
+    /// The Nth object the player chose this way.
+    ChoseNth {
+        player: PlayerRef,
+        nth: u32,
+    },
+    IsPrime(Expr),
+    WonSubgame {
+        player: PlayerRef,
+        result: ResultId,
+    },
+    CompletedDungeon {
+        player: PlayerRef,
+        name: String,
+    },
+    NotedForDraft {
+        player: PlayerRef,
+        note: DraftNote,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -5266,6 +5325,13 @@ pub enum ActivationRule {
     AnyTimeOfInstant,
     /// Only these players may activate this ability.
     OnlyBy(PlayerSet),
+    /// Spend only mana of this color (none is the chosen color).
+    RestrictMana {
+        portion: ManaCostPortion,
+        color: Option<ManaColor>,
+    },
+    /// This cost may be paid rather than each mana of the activation cost.
+    ManaInstead(Cost),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -5773,6 +5839,11 @@ pub enum PlayerState {
     Poisoned,
     ReceivedAVote,
     HasBoon,
+    CouldMulligan,
+    WholePoolInDeck,
+    PossibleDefender,
+    RolledHighest,
+    ShuffledThisWay,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -5927,6 +5998,8 @@ pub enum StackTrait {
     SingleTarget,
     /// The ability a keyword gives: `Ninjutsu`, `Equip` and so on.
     Keyword(AbilityKeyword),
+    DungeonRoom,
+    OfEmblem,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

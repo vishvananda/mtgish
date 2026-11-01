@@ -1016,6 +1016,14 @@ impl<'a> Scope<'a> {
 
     fn expr(&self, expression: &Expr) -> Result {
         match expression {
+            Expr::DamageBy(object) | Expr::ModesChosen(object) => self.object(object),
+            Expr::AdditionalCostPaid(symbols) => {
+                symbols.iter().try_for_each(|symbol| self.operand(symbol))
+            }
+            Expr::DraftNoted { note, .. } => self.player(&note.player),
+            Expr::TurnsSinceForetold => Ok(()),
+            Expr::ChosenColorsOf(object) => self.object(object),
+            Expr::AbilitiesAmong { objects, .. } => self.objects(objects),
             Expr::Earlier {
                 result, filter, by, ..
             } => {
@@ -1395,6 +1403,25 @@ impl<'a> Scope<'a> {
 
     fn condition(&self, condition: &Condition) -> Result {
         match condition {
+            Condition::ChoseNth { player, .. } => self.player(player),
+            Condition::IsPrime(value) => self.expr(value),
+            Condition::WonSubgame { player, .. } | Condition::CompletedDungeon { player, .. } => {
+                self.player(player)
+            }
+            Condition::NotedForDraft { player, note } => {
+                self.player(player)?;
+                self.player(&note.player)
+            }
+            Condition::TargetCount {
+                object,
+                filter,
+                value,
+                ..
+            } => {
+                self.object(object)?;
+                self.filter(filter)?;
+                self.expr(value)
+            }
             Condition::AsCast { player, action } => {
                 self.player(player)?;
                 match action {
@@ -2108,6 +2135,7 @@ impl<'a> Scope<'a> {
     }
     fn activation_cost_change(&self, change: &ActivationCostChange) -> Result {
         match change {
+            ActivationCostChange::Additional(cost) => self.cost(cost),
             ActivationCostChange::Reduce(amount) | ActivationCostChange::Increase(amount) => {
                 self.operand(amount)
             }
@@ -2166,6 +2194,8 @@ impl<'a> Scope<'a> {
     }
     fn activation_rule(&self, rule: &ActivationRule) -> Result {
         match rule {
+            ActivationRule::RestrictMana { .. } => Ok(()),
+            ActivationRule::ManaInstead(cost) => self.cost(cost),
             ActivationRule::Cost {
                 modifier,
                 condition,
@@ -2354,6 +2384,8 @@ impl<'a> Scope<'a> {
 
     fn casting_rule(&self, rule: &CastingRule) -> Result {
         match rule {
+            CastingRule::FlashWithRider(rider) => self.operand(rider),
+            CastingRule::TaxPaidAsLife(life) => self.expr(life),
             CastingRule::Permission {
                 origin,
                 player,

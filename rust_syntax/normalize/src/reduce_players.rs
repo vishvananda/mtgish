@@ -508,7 +508,9 @@ fn reduce_player_condition(name: &str, operands: &[Operand]) -> Option<Condition
     let (family, form) = name.split_once("::")?;
     match (family, operands) {
         ("Players", [Operand::Player(player), rest @ ..]) => {
-            player_check(form, player, rest).or_else(|| player_fact(form, player, rest))
+            player_check(form, player, rest)
+                .or_else(|| player_fact(form, player, rest))
+                .or_else(|| more_player_fact(form, player, rest))
         }
         ("Condition", _) => {
             reduce_game_condition(form, operands).or_else(|| as_cast(form, operands))

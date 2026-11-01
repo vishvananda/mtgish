@@ -552,3 +552,42 @@ fn triggers_watch_by_shape() {
         }
     ));
 }
+
+#[test]
+fn numbers_and_conditions_read_what_the_game_recorded() {
+    assert!(matches!(
+        semantics::reduce_condition(
+            "Condition::NoPermanentsLeftTheBattlefieldThisTurn".into(),
+            vec![Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any))],
+        ),
+        Condition::Compare { .. }
+    ));
+    assert!(matches!(
+        semantics::reduce_number(
+            "GameNumber::TheNumberOfTimesModeChosenForSpell".into(),
+            vec![Operand::Object(ObjectRef::EventSubject)],
+        ),
+        Expr::ModesChosen(_)
+    ));
+    assert!(matches!(
+        semantics::reduce_condition(
+            "Players::CouldMulligan".into(),
+            vec![Operand::Player(PlayerRef::AbilityController)],
+        ),
+        Condition::PlayerState {
+            state: PlayerState::CouldMulligan,
+            ..
+        }
+    ));
+}
+
+#[test]
+fn abilities_change_their_own_activation() {
+    assert!(matches!(
+        semantics::reduce_activation(
+            "ActivateModifier::ReduceManaCostForEachAlternateCost".into(),
+            vec![Operand::Cost(Cost { parts: vec![] })],
+        ),
+        Change::ActivationRule(ActivationRule::ManaInstead(_))
+    ));
+}

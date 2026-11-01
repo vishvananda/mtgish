@@ -216,7 +216,7 @@ fn player_fact(form: &str, player: &PlayerRef, rest: &[Operand]) -> Option<Condi
         highest,
     };
     let hand = |cards: &Operand| {
-        hand_filter(cards).map(|filter| {
+        card_term(cards).map(|filter| {
             count_of(ObjectSet::Zone {
                 scope: ZoneScope::Players {
                     zone: EventZone::Hand,

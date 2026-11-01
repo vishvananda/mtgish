@@ -16,6 +16,7 @@ fn reduction_terms(operand: &Operand, factor: &Expr) -> Option<Vec<ManaReduction
             };
             let (color, amount) = match (form, operands) {
                 ("CostReduceGeneric", [Operand::Integer(n)]) if *n >= 0 => (None, *n),
+                ("CostReduceX", []) => (None, 1),
                 ("CostReduceW", []) => (Some(ManaColor::White), 1),
                 ("CostReduceU", []) => (Some(ManaColor::Blue), 1),
                 ("CostReduceB", []) => (Some(ManaColor::Black), 1),

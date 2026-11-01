@@ -1496,6 +1496,8 @@ impl Inventory<'_> {
     fn casting_rule(&mut self, rule: &CastingRule) {
         self.form("CastingRule", rule);
         match rule {
+            CastingRule::FlashWithRider(_) => {}
+            CastingRule::TaxPaidAsLife(life) => self.expr(life),
             CastingRule::Permission {
                 origin,
                 player,
@@ -1830,6 +1832,7 @@ impl Inventory<'_> {
             Change::ActivationRule(rule) => {
                 self.form("ActivationRule", rule);
                 match rule {
+                    ActivationRule::RestrictMana { .. } | ActivationRule::ManaInstead(_) => {}
                     ActivationRule::Cost {
                         modifier,
                         condition,
@@ -2171,6 +2174,13 @@ impl Inventory<'_> {
     fn expr(&mut self, e: &Expr) {
         self.form("Expr", e);
         match e {
+            Expr::DamageBy(_)
+            | Expr::ModesChosen(_)
+            | Expr::AdditionalCostPaid(_)
+            | Expr::DraftNoted { .. }
+            | Expr::TurnsSinceForetold
+            | Expr::ChosenColorsOf(_)
+            | Expr::AbilitiesAmong { .. } => {}
             Expr::Earlier { filter, by, .. } => {
                 if let Some(filter) = filter {
                     self.filter(filter);
@@ -2522,6 +2532,15 @@ impl Inventory<'_> {
     fn condition(&mut self, c: &Condition) {
         self.form("Condition", c);
         match c {
+            Condition::IsPrime(value) => self.expr(value),
+            Condition::ChoseNth { .. }
+            | Condition::WonSubgame { .. }
+            | Condition::CompletedDungeon { .. }
+            | Condition::NotedForDraft { .. } => {}
+            Condition::TargetCount { filter, value, .. } => {
+                self.filter(filter);
+                self.expr(value);
+            }
             Condition::AsCast { player, action } => {
                 self.player(player);
                 match action {

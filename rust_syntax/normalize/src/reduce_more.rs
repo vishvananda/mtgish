@@ -445,6 +445,27 @@ fn card_term(operand: &Operand) -> Option<ObjectFilter> {
         Operand::Term { form, operands, .. } if form == "IsCreatureType" => {
             Some(ObjectFilter::Subtype(vocabulary_value(operands.first()?)?))
         }
+        Operand::Term { form, operands, .. } if form == "And" || form == "Or" => {
+            let filters = operands.iter().map(card_term).collect::<Option<Vec<_>>>()?;
+            Some(if form == "And" {
+                ObjectFilter::All(filters)
+            } else {
+                ObjectFilter::Either(filters)
+            })
+        }
+        Operand::Term { form, operands, .. } if form == "Other" => {
+            Some(ObjectFilter::Not(Box::new(card_term(operands.first()?)?)))
+        }
+        Operand::Term { form, operands, .. } if form == "IsCardtype" => {
+            Some(ObjectFilter::CardType(vocabulary_value(operands.first()?)?))
+        }
+        Operand::Term { form, operands, .. } if form == "IsNamed" => match operands.first()? {
+            Operand::Term { operands, .. } => match operands.as_slice() {
+                [Operand::Text(name)] => Some(ObjectFilter::Name(name.clone())),
+                _ => None,
+            },
+            _ => None,
+        },
         other => hand_filter(other),
     }
 }
@@ -876,6 +897,934 @@ fn reduce_more_events(form: &str, operands: &[Operand]) -> Option<EventSpec> {
                 None,
             )
         }
+        _ => return None,
+    })
+}
+
+/// A casting rule by how it changes the cast, as Forge's `ReduceCost` static.
+fn reduce_casting(form: &str, operands: &[Operand]) -> Option<CastingRule> {
+    use Operand::{Cost as Paid, Number, Program};
+    let one = Expr::Constant(1);
+    let reduce = |terms: &Operand, factor: &Expr| {
+        Some(CastingRule::ReduceCost(reduction_terms(terms, factor)?))
+    };
+    let only_if = |condition, rule| {
+        Some(CastingRule::If {
+            condition,
+            rule: Box::new(rule),
+        })
+    };
+    match (form, operands) {
+        ("MayCastAsThoughItHadFlashWithSpecialAction", [rider @ Program(_)]) => {
+            Some(CastingRule::FlashWithRider(Box::new(rider.clone())))
+        }
+        ("PayLifeForEachPreviousCastRatherThanManaForEachPreviousCast", [Number(life)]) => {
+            Some(CastingRule::TaxPaidAsLife(life.clone()))
+        }
+        ("ReduceCastingCostForAlternateCost", [terms, Paid(cost)]) => {
+            Some(CastingRule::ReduceForEachPaid {
+                reductions: reduction_terms(terms, &one)?,
+                cost: cost.clone(),
+            })
+        }
+        ("ReduceCastingCostForEachWithMaxReduction", [terms, Number(each), cap]) => {
+            let caps = reduction_terms(cap, &one)?;
+            let [cap] = caps.as_slice() else {
+                return None;
+            };
+            let mut reductions = reduction_terms(terms, each)?;
+            for reduction in &mut reductions {
+                reduction.amount = Expr::Minimum(
+                    Box::new(reduction.amount.clone()),
+                    Box::new(cap.amount.clone()),
+                );
+            }
+            Some(CastingRule::ReduceCost(reductions))
+        }
+        ("ReduceCastingCostIfItTargetsASpellOrAbility", [terms, targets]) => only_if(
+            Condition::TargetsMatch {
+                object: ObjectRef::Source,
+                kind: ObjectKind::Any,
+                filter: stack_filter(targets)?,
+            },
+            reduce(terms, &one)?,
+        ),
+        ("ReduceCastingCostIfItsBargained", [terms]) => only_if(
+            Condition::ObjectMatches {
+                object: ObjectRef::Source,
+                filter: ObjectFilter::State(ObjectState::Bargained),
+            },
+            reduce(terms, &one)?,
+        ),
+        _ => None,
+    }
+}
+
+/// What an activated ability's own line changes about activating it.
+pub fn reduce_activation(name: String, operands: Vec<Operand>) -> Change {
+    let form = name.strip_prefix("ActivateModifier::").unwrap_or(&name);
+    reduced_activation(form, &operands).map_or(
+        Change::Primitive {
+            name: name.clone(),
+            operands: operands.clone(),
+        },
+        Change::ActivationRule,
+    )
+}
+
+fn reduced_activation(form: &str, operands: &[Operand]) -> Option<ActivationRule> {
+    use Operand::{Comparison as Compare, Cost as Paid, Number, Objects};
+    let one = Expr::Constant(1);
+    let restrict = |portion, color: &Operand| {
+        Some(ActivationRule::RestrictMana {
+            portion,
+            color: match vocabulary_form(color)? {
+                "TheChosenColor" => None,
+                _ => Some(vocabulary_value(color)?),
+            },
+        })
+    };
+    let targeted = |terms: &Operand, condition| {
+        Some(ActivationRule::Cost {
+            modifier: reduced_cost(terms, &one)?,
+            condition: Some(condition),
+        })
+    };
+    match (form, operands) {
+        ("ReduceCostIfItTargetsAPermanent", [Objects(set), terms]) => targeted(
+            terms,
+            Condition::TargetsMatch {
+                object: ObjectRef::Source,
+                kind: ObjectKind::Permanent,
+                filter: objects_filter(set),
+            },
+        ),
+        ("ReduceCostIfItTargetsANumberOfPermanent", [Compare(comparison, value), Objects(set), terms]) => {
+            targeted(
+                terms,
+                Condition::TargetCount {
+                    object: ObjectRef::Source,
+                    filter: objects_filter(set),
+                    comparison: comparison.clone(),
+                    value: value.clone(),
+                },
+            )
+        }
+        ("ReduceCostX", [terms, Number(amount)]) => Some(ActivationRule::Cost {
+            modifier: reduced_cost(terms, amount)?,
+            condition: None,
+        }),
+        ("ReduceManaCostForEachAlternateCost", [Paid(cost)]) => {
+            Some(ActivationRule::ManaInstead(cost.clone()))
+        }
+        ("SpendOnlyColoredMana", [color]) => restrict(ManaCostPortion::All, color),
+        ("SpendOnlyColoredManaOnX", [color]) => restrict(ManaCostPortion::X, color),
+        _ => None,
+    }
+}
+
+/// Rules past the first passes, by the shape Forge's statics give them.
+fn reduce_more_abilities(name: &str, operands: &[Operand]) -> Option<Ability> {
+    use Operand::{Filter, List, Objects, Players, Term};
+    let form = name.strip_prefix("Rule::").unwrap_or(name);
+    let again = |cause, abilities: &Operand| {
+        Some(Ability::TriggerRule {
+            cause: Some(cause),
+            abilities: Some(stack_filter(abilities)?),
+            rule: TriggerRule::TriggersAgain,
+        })
+    };
+    let spell = |event, players: &PlayerSet, spells: &ObjectFilter| EventSpec::Spell {
+        event,
+        players: players.clone(),
+        spells: spells.clone(),
+    };
+    match (form, operands) {
+        (
+            "APermanentBecomingTheTargetOfASpellOrAbilityCausesAbilitiesToTriggerAnAdditionalTime",
+            [Objects(set), by, abilities],
+        ) => again(
+            EventSpec::BecomesTarget {
+                objects: objects_filter(set),
+                kind: TargetingKind::SpellOrAbility,
+                by: Box::new(by.clone()),
+            },
+            abilities,
+        ),
+        ("APermanentBeingDealtDamageCausesAbilitiesToTriggerAnAdditionalTime", [Objects(set), abilities]) => {
+            again(
+                EventSpec::Damage(DamageEvent {
+                    source_kind: ObjectKind::Any,
+                    sources: ObjectFilter::Any,
+                    recipients: DamageRecipients::Objects(objects_filter(set)),
+                    kind: DamageKind::Any,
+                    grouping: DamageGrouping::Recipient,
+                    subject: DamageSubject::Recipient,
+                }),
+                abilities,
+            )
+        }
+        (
+            "APermanentDealingCombatDamageToAPlayerCausesAbilitiesToTriggerAnAdditionalTime",
+            [Objects(set), Players(players), abilities],
+        ) => again(
+            EventSpec::Damage(DamageEvent {
+                source_kind: ObjectKind::Permanent,
+                sources: objects_filter(set),
+                recipients: DamageRecipients::Players(players.clone()),
+                kind: DamageKind::Combat,
+                grouping: DamageGrouping::SourceRecipient,
+                subject: DamageSubject::Source,
+            }),
+            abilities,
+        ),
+        (
+            "APlayerCastingOrCopyingASpellCausesAnAbilityToTriggerAnAdditionalTime",
+            [Players(players), Filter(spells), abilities],
+        ) => again(
+            EventSpec::Either(vec![
+                spell(SpellEvent::Cast, players, spells),
+                spell(SpellEvent::Copy, players, spells),
+            ]),
+            abilities,
+        ),
+        ("ActivatedAbilityEffect", [abilities, Term { form, operands, .. }]) => {
+            let [Operand::Cost(cost)] = operands.as_slice() else {
+                return None;
+            };
+            if form != "AdditionalCost" {
+                return None;
+            }
+            Some(Ability::Static {
+                kind: StaticKind::Ordinary,
+                affected: EffectSubjects::Players(PlayerSet::All),
+                changes: vec![Change::PlayerRule(PlayerRule::ActivationCost {
+                    abilities: stack_filter(abilities)?,
+                    change: ActivationCostChange::Additional(cost.clone()),
+                    floor: None,
+                })],
+            })
+        }
+        ("StackEffect", [any, List(effects)]) => {
+            let [Operand::Vocabulary { form, .. }] = effects.as_slice() else {
+                return None;
+            };
+            if form != "CantBeCountered" {
+                return None;
+            }
+            Some(Ability::Static {
+                kind: StaticKind::Ordinary,
+                affected: EffectSubjects::Objects(ObjectSet::AnyZone(stack_filter(any)?)),
+                changes: vec![Change::Rule(RuleChange::Prohibit(ObjectAction::Counter))],
+            })
+        }
+        _ => None,
+    }
+}
+
+fn group_constraint(term: &Operand) -> Option<SelectionConstraint> {
+    use DistinctProperty as D;
+    use SelectionConstraint as C;
+    let (form, operands): (&str, &[Operand]) = match term {
+        Operand::Term { form, operands, .. } => (form, operands),
+        Operand::Vocabulary { form, .. } => (form, &[]),
+        _ => return None,
+    };
+    Some(match (form, operands) {
+        ("ShareAColor", []) => C::CommonProperty(D::Colors),
+        ("ShareACardType", []) => C::CommonProperty(D::CardTypes),
+        ("ShareACreatureType", []) => C::CommonProperty(D::CreatureTypes),
+        ("SameNames", []) => C::CommonProperty(D::Names),
+        ("ShareAllCardTypes", []) => C::AllSameProperty(D::CardTypes),
+        ("HasAColorNotInCommon", []) => C::NoCommonProperty(D::Colors),
+        ("TotalPowerIs", [Operand::Comparison(comparison, amount)]) => C::TotalProperty {
+            property: Property::Power,
+            comparison: comparison.clone(),
+            amount: amount.clone(),
+        },
+        _ => return None,
+    })
+}
+
+fn turn_history(event: EventSpec, measure: HistoryMeasure) -> Expr {
+    Expr::EventHistory {
+        event: Box::new(event),
+        window: HistoryWindow::ThisTurn,
+        measure,
+    }
+}
+
+fn occurred(event: EventSpec) -> Expr {
+    turn_history(event, HistoryMeasure::Occurrences)
+}
+
+fn dealt(sources: ObjectFilter, recipients: DamageRecipients, kind: DamageKind) -> EventSpec {
+    EventSpec::Damage(DamageEvent {
+        source_kind: ObjectKind::Any,
+        sources,
+        recipients,
+        kind,
+        grouping: DamageGrouping::SourceRecipient,
+        subject: DamageSubject::Source,
+    })
+}
+
+fn left_graveyard_filter(owners: &PlayerSet, cards: &ObjectFilter) -> ObjectFilter {
+    ObjectFilter::All(vec![
+        cards.clone(),
+        ObjectFilter::OwnedBy(owners.clone()),
+    ])
+}
+
+/// What happened this turn or this way, read as a condition.
+fn reduce_more_conditions(form: &str, operands: &[Operand]) -> Option<Condition> {
+    use EventZone as Z;
+    use Operand::{Comparison as Compare, Filter, Object, Objects, Player, Players, Result as Run};
+    let some_happened = |event| some_of(occurred(event));
+    let subset = |objects: ObjectSet, comparison: &Comparison, amount: &Expr, group: &Operand| {
+        Some(Condition::SubsetMeets {
+            objects,
+            comparison: comparison.clone(),
+            amount: amount.clone(),
+            constraints: vec![group_constraint(group)?],
+        })
+    };
+    Some(match (form, operands) {
+        (
+            "ANumberOfCardsWerePutIntoPlayersGraveyardFromAnywhereOtherThanTheBattlefieldThisTurn",
+            [Compare(comparison, value), Filter(cards), Players(owners)],
+        ) => compared(
+            occurred(EventSpec::ZoneChangeFromElsewhere {
+                objects: left_graveyard_filter(owners, cards),
+                except: vec![Z::Battlefield],
+                to: Z::Graveyard,
+            }),
+            comparison,
+            value,
+        ),
+        ("ANumberOfCreaturesAttackedThisTurn", [Compare(comparison, value), Objects(set)]) => {
+            compared(
+                occurred(EventSpec::Object {
+                    event: ObjectEvent::Attacks,
+                    objects: objects_filter(set),
+                }),
+                comparison,
+                value,
+            )
+        }
+        ("ANumberOfGraveyardCardsLeftThisTurn", [Compare(comparison, value), Filter(cards)]) => {
+            compared(
+                occurred(EventSpec::Object {
+                    event: ObjectEvent::LeavesGraveyard,
+                    objects: cards.clone(),
+                }),
+                comparison,
+                value,
+            )
+        }
+        ("ANumberOfSourcesDealtDamageThisTurn", [Compare(comparison, value), Filter(sources)]) => {
+            compared(
+                turn_history(
+                    dealt(sources.clone(), DamageRecipients::Any, DamageKind::Any),
+                    HistoryMeasure::DistinctSources,
+                ),
+                comparison,
+                value,
+            )
+        }
+        ("ASourceDealtDamageThisTurn", [Filter(sources), Compare(comparison, value)]) => compared(
+            turn_history(
+                dealt(sources.clone(), DamageRecipients::Any, DamageKind::Any),
+                HistoryMeasure::MostFromOneSource,
+            ),
+            comparison,
+            value,
+        ),
+        ("SourcesDealtNonCombatDamageThisTurn", [Filter(sources), Compare(comparison, value)]) => {
+            compared(
+                turn_history(
+                    dealt(sources.clone(), DamageRecipients::Any, DamageKind::Noncombat),
+                    HistoryMeasure::TotalAmount,
+                ),
+                comparison,
+                value,
+            )
+        }
+        ("ExcessDamageWasDealtToACreatureOrPlaneswalkerThisTurn", [Objects(set)]) => some_happened(
+            dealt(
+                ObjectFilter::Any,
+                DamageRecipients::Objects(objects_filter(set)),
+                DamageKind::Excess,
+            ),
+        ),
+        ("APermanentWasDestroyedByASpellOrAbilityThisTurn", [Objects(set), cause]) => {
+            some_happened(caused(
+                stack_filter(cause)?,
+                EventSpec::Object {
+                    event: ObjectEvent::Destroyed,
+                    objects: objects_filter(set),
+                },
+            ))
+        }
+        ("ASpellWasCountedByASpellOrAbilityThisTurn", [Filter(spells), cause]) => {
+            some_happened(caused(
+                stack_filter(cause)?,
+                EventSpec::Object {
+                    event: ObjectEvent::Countered,
+                    objects: spells.clone(),
+                },
+            ))
+        }
+        ("APlayerTurnedAPermanentFaceUpThisTurn", [Players(players), Objects(set)]) => {
+            some_happened(EventSpec::Player {
+                event: PlayerEvent::TurnsFaceUp,
+                players: players.clone(),
+                objects: Some(objects_filter(set)),
+            })
+        }
+        ("NoPermanentsLeftTheBattlefieldThisTurn", [Objects(set)]) => none_of(occurred(
+            EventSpec::Object {
+                event: ObjectEvent::LeavesBattlefield,
+                objects: objects_filter(set),
+            },
+        )),
+        ("CardIsOnlyCardInPlayersGraveyard", [Object(object), Filter(cards), Player(player)]) => {
+            Condition::All(vec![
+                Condition::ObjectMatches {
+                    object: object.clone(),
+                    filter: cards.clone(),
+                },
+                exactly(
+                    count_of(zone_set(
+                        Z::Graveyard,
+                        PlayerSet::One(player.clone()),
+                        cards.clone(),
+                    )),
+                    1,
+                ),
+            ])
+        }
+        ("CastSpellOrActivatedAbilityPassesFilter", [term]) => Condition::ObjectMatches {
+            object: ObjectRef::EventStackObject,
+            filter: stack_filter(term)?,
+        },
+        ("SpellOrAbilityPassesFilter", [Object(object), term]) => Condition::ObjectMatches {
+            object: object.clone(),
+            filter: stack_filter(term)?,
+        },
+        ("ManaFromAPermanentWasSpentToActivateThisAbility", [Objects(set)]) => {
+            Condition::ObjectMatches {
+                object: ObjectRef::Source,
+                filter: ObjectFilter::ManaSpentFrom(Box::new(objects_filter(set))),
+            }
+        }
+        ("NumberOfColorsOfManaSpentToActivateThisAbilityIs", [Compare(comparison, value)]) => {
+            compared(
+                Expr::ManaSpent {
+                    object: ObjectRef::Source,
+                    filter: SpentManaFilter {
+                        colors: None,
+                        snow: false,
+                    },
+                    aggregation: SpentManaAggregation::DistinctColors,
+                },
+                comparison,
+                value,
+            )
+        }
+        ("TheNumberOfCardsOfTypeInPlayersLibraryIs", [Filter(cards), Player(player), Compare(comparison, value)]) => {
+            compared(
+                count_of(zone_set(
+                    Z::Library,
+                    PlayerSet::One(player.clone()),
+                    cards.clone(),
+                )),
+                comparison,
+                value,
+            )
+        }
+        ("TheTotalManaValueOfExiledCardsIs", [Objects(set), Compare(comparison, value)]) => {
+            compared(
+                Expr::Aggregate {
+                    objects: Box::new(set.clone()),
+                    property: Property::ManaValue,
+                    aggregation: Aggregation::Sum,
+                },
+                comparison,
+                value,
+            )
+        }
+        ("TriggerChoseCreatureAsRingBearer", [Objects(set)]) => Condition::ObjectMatches {
+            object: ObjectRef::RingBearer(PlayerRef::AbilityController),
+            filter: objects_filter(set),
+        },
+        ("TriggerXIs", [Compare(comparison, value)]) => {
+            compared(Expr::CastX(ObjectRef::EventSubject), comparison, value)
+        }
+        ("WhenAPermanentBecomesTapped_NotTappedForAttacking", []) => {
+            negated(Condition::Outcome(PriorOutcome::TappedForAttacking))
+        }
+        ("PermanentsPassGroupFilter", [Objects(set), group]) => subset(
+            set.clone(),
+            &Comparison::Equal,
+            &count_of(set.clone()),
+            group,
+        )?,
+        ("NumGroupCardsWereMilledThisWay" | "ANumberOfGroupCardsWereExiledThisWay", [Compare(comparison, value), Filter(cards), group, Run(result)]) => {
+            subset(
+                matching(&ObjectSet::Named(result.clone()), cards),
+                comparison,
+                value,
+                group,
+            )?
+        }
+        _ => return None,
+    })
+}
+
+/// Numbers past the first passes, each a measure of what the game recorded.
+fn reduce_more_numbers(form: &str, operands: &[Operand]) -> Option<Expr> {
+    use EventZone as Z;
+    use GameValue as G;
+    use Operand::{Filter, Object, Objects, Player, Players, Result as Run, Text};
+    let exiled_with = |object: &ObjectRef| ObjectSet::Zone {
+        scope: ZoneScope::Shared(Z::Exile),
+        kind: ObjectKind::Card,
+        filter: ObjectFilter::ExiledWith(object.clone()),
+    };
+    let earlier_count = |what, filter: Option<ObjectFilter>| Expr::Earlier {
+        what,
+        measure: ObjectMeasure::Count,
+        result: None,
+        filter: filter.map(Box::new),
+        by: None,
+    };
+    let draft = |kind, player: &PlayerRef, card: &str| {
+        Some(DraftNote {
+            kind,
+            player: player.clone(),
+            card: card.into(),
+        })
+    };
+    let cast_before = |spells: &ObjectFilter, players: PlayerSet, object: &ObjectRef| Expr::AsOf {
+        moment: Moment::Cast(object.clone()),
+        value: Box::new(occurred(EventSpec::Spell {
+            event: SpellEvent::Cast,
+            players,
+            spells: spells.clone(),
+        })),
+    };
+    let from_sources = |sources| Expr::ManaSpentFrom {
+        object: ObjectRef::Source,
+        sources: Box::new(sources),
+    };
+    let attacked_by = |attacker: &PlayerRef, binding: Binding| PlayerSet::Matching {
+        binding: binding.clone(),
+        condition: Box::new(Condition::PlayerAttacks {
+            attacker: attacker.clone(),
+            defender: PlayerRef::Bound(binding),
+        }),
+    };
+    Some(match (form, operands) {
+        ("AmountOfExcessDamageDealtThisWay", []) => Expr::Game(G::ExcessDamageThisWay),
+        ("AsLoseUnspentMana_AmountOfUnspentMana", []) => Expr::Game(G::ManaLostThisWay),
+        ("EachableNumber", []) => Expr::Game(G::EachValue),
+        ("TheGreatestNumberOfCardsDiscardedThisWay", []) => Expr::Game(G::MostDiscardedThisWay),
+        ("LifePaidWithVanguard", [_]) => Expr::Game(G::LifePaid),
+        ("DamageDealtByResolvedSpell", [Object(object)]) => Expr::DamageBy(object.clone()),
+        ("EachAdditionalManaCostPaid", symbols) => {
+            Expr::AdditionalCostPaid(symbols.to_vec())
+        }
+        ("HighestNumberPlayerNotedForCardDuringDraft", [Player(player), Text(card)]) => {
+            Expr::DraftNoted {
+                note: draft(DraftNoteKind::Number, player, card)?,
+                highest: true,
+            }
+        }
+        ("NumCardsPlayerRemovedWithCardDuringDraft", [Player(player), Text(card)]) => {
+            Expr::DraftNoted {
+                note: draft(DraftNoteKind::Removed, player, card)?,
+                highest: false,
+            }
+        }
+        ("ManaValueOfTheExiledCardUsedToCraftPermanent", [Object(object)]) => Expr::Aggregate {
+            objects: Box::new(exiled_with(object)),
+            property: Property::ManaValue,
+            aggregation: Aggregation::Sum,
+        },
+        ("TheNumberOfColorsAmongTheCardsUsedToCraftPermanent", [Object(object)]) => {
+            Expr::CountDistinct {
+                objects: Box::new(exiled_with(object)),
+                property: DistinctProperty::Colors,
+            }
+        }
+        ("NumPermanentsAttachedToDeadPermanent", [Objects(set)]) => count_of(filtered(
+            set,
+            ObjectFilter::WasAttachedTo(ObjectRef::EventSubject),
+        )),
+        ("NumPermanentsDevouredByEnteringPermanent", [Objects(set)]) => {
+            earlier_count(EarlierObjects::Devoured, Some(objects_filter(set)))
+        }
+        ("TheNumberOfPermanentsSacrificedAsPermenantEnteredBattlefield", [Objects(set), Object(_)]) => {
+            earlier_count(EarlierObjects::Sacrificed, Some(objects_filter(set)))
+        }
+        ("NumSpellsCastByAnyPlayerBeforeSpellThisTurn", [Filter(spells), Players(players), Object(object)]) => {
+            cast_before(spells, players.clone(), object)
+        }
+        ("NumSpellsCastByPlayerBeforeSpellThisTurn", [Filter(spells), Player(player), Object(object)]) => {
+            cast_before(spells, PlayerSet::One(player.clone()), object)
+        }
+        ("NumberOfColorManaSymbolsInManaCostOfTheSacrificedPermanent", [color]) => {
+            Expr::CountManaSymbols {
+                objects: Box::new(ObjectSet::Earlier {
+                    what: EarlierObjects::Sacrificed,
+                    by: None,
+                }),
+                colors: vec![vocabulary_value(color)?],
+            }
+        }
+        ("TheAmountOfManaFromATreasureSpentToActivateThisAbility", []) => {
+            from_sources(ObjectFilter::Subtype(serde_json::from_value(
+                serde_json::Value::String("Treasure".into()),
+            ).ok()?))
+        }
+        ("TheNumberGuessedThisWay", [Run(result)]) => Expr::BoundValue(result.clone()),
+        ("TheAmountOfManaFromSourcesSpentToCastIt", [Operand::Term { form, operands, .. }])
+            if form == "IsCardtype" =>
+        {
+            from_sources(ObjectFilter::CardType(vocabulary_value(operands.first()?)?))
+        }
+        ("TheAmountOfEnergyPaidOrLostByPlayersThisTurn", [Players(players)]) => Expr::AmongPlayers {
+            players: players.clone(),
+            number: PlayerNumber::EnergyPaidOrLostThisTurn,
+            aggregation: Aggregation::Sum,
+        },
+        ("TheGreatestNumberOfCardsDrawnByAPlayerThisTurn", [Players(players)]) => {
+            Expr::AmongPlayers {
+                players: players.clone(),
+                number: PlayerNumber::CardsDrawnThisTurn,
+                aggregation: Aggregation::Maximum,
+            }
+        }
+        (
+            "TheGreatestAmongOfDamageDealtByASourceToAPlayerOrAPermanentThisTurn",
+            [Filter(sources), Players(players), Objects(set)],
+        ) => turn_history(
+            dealt(
+                sources.clone(),
+                DamageRecipients::ObjectsAndPlayers {
+                    objects: objects_filter(set),
+                    players: players.clone(),
+                },
+                DamageKind::Any,
+            ),
+            HistoryMeasure::MostFromOneSource,
+        ),
+        ("TheNumberOfLettersInNameStickersOnPermanent", [letter, Object(object)]) => Expr::Stickers {
+            objects: Box::new(ObjectSet::One(object.clone())),
+            measure: StickerMeasure::Letter(Box::new(letter.clone())),
+        },
+        ("TheNumberOfUniqueVowelsOnNameSticker", [_]) => Expr::Stickers {
+            objects: Box::new(ObjectSet::Earlier {
+                what: EarlierObjects::It,
+                by: None,
+            }),
+            measure: StickerMeasure::UniqueVowels,
+        },
+        ("ManaValueOfYourCommander", []) => Expr::Aggregate {
+            objects: Box::new(ObjectSet::AnyZone(ObjectFilter::All(vec![
+                ObjectFilter::State(ObjectState::Commander),
+                ObjectFilter::OwnedBy(PlayerSet::One(PlayerRef::AbilityController)),
+            ]))),
+            property: Property::ManaValue,
+            aggregation: Aggregation::Sum,
+        },
+        ("NumManaSymbolsInCostOfSpell", [symbol, Object(object)]) => Expr::CountManaSymbols {
+            objects: Box::new(ObjectSet::One(object.clone())),
+            colors: vec![match symbol {
+                Operand::Term { form, .. } | Operand::Vocabulary { form, .. } => match form.as_str() {
+                    "ManaCostW" => ManaColor::White,
+                    "ManaCostU" => ManaColor::Blue,
+                    "ManaCostB" => ManaColor::Black,
+                    "ManaCostR" => ManaColor::Red,
+                    "ManaCostG" => ManaColor::Green,
+                    _ => return None,
+                },
+                _ => return None,
+            }],
+        },
+        ("TheNumberOfChosenColorsItIs", []) => Expr::ChosenColorsOf(ObjectRef::Source),
+        ("TheNumberOfChosenColorsSpellIs", [Object(object)]) => {
+            Expr::ChosenColorsOf(object.clone())
+        }
+        ("TheNumberOfColorsAmongPermanentsAndSpellsCastThisTurn", [Objects(set), Filter(spells)]) => {
+            Expr::CountDistinct {
+                objects: Box::new(ObjectSet::Union(vec![
+                    set.clone(),
+                    ObjectSet::AnyZone(spells.clone()),
+                ])),
+                property: DistinctProperty::Colors,
+            }
+        }
+        ("TheNumberOfCardsInHandRevealedThisWayThatShareAManaValue", []) => {
+            Expr::LargestSharedGroup {
+                objects: Box::new(ObjectSet::Earlier {
+                    what: EarlierObjects::Revealed,
+                    by: None,
+                }),
+                property: DistinctProperty::ManaValues,
+            }
+        }
+        ("TheNumberOfAbilitiesAmongPermanents", [abilities, Objects(set)]) => Expr::AbilitiesAmong {
+            abilities: Box::new(abilities.clone()),
+            objects: Box::new(set.clone()),
+        },
+        ("TheNumberOfCardTypesAmongThePermanentsSacrificedThisTurn", []) => turn_history(
+            EventSpec::Object {
+                event: ObjectEvent::Sacrificed,
+                objects: ObjectFilter::Any,
+            },
+            HistoryMeasure::Distinct(DistinctProperty::CardTypes),
+        ),
+        ("TheNumberOfCardsThatWerePutIntoAPlayersGraveyardFromTheirHandOrLibraryThisTurn", [Players(owners)]) => {
+            let from = |zone| zone_change(ObjectFilter::OwnedBy(owners.clone()), Some(zone), Z::Graveyard);
+            occurred(EventSpec::Either(vec![from(Z::Hand), from(Z::Library)]))
+        }
+        ("TheNumberOfCountersOfTypeMovedThisWay", [_, Run(result)]) => {
+            Expr::Performed(result.clone())
+        }
+        ("TheNumberOfCreaturesThatConvokedPermanent", [Object(object)]) => {
+            count_of(ObjectSet::Battlefield(history(
+                ObjectHistory::Convoked(object.clone()),
+                ObjectWindow::ThisGame,
+            )))
+        }
+        ("TheNumberOfPlayersAttackedByPlayerThisCombat", [Players(players), Player(player)]) => {
+            Expr::CountPlayers(PlayerSet::Intersection(vec![
+                players.clone(),
+                attacked_by(player, Binding(1)),
+            ]))
+        }
+        ("TheNumberOfSpellsCastByAnyPlayerSinceTheBeginningOfPlayersLastTurn", [Filter(spells), Players(players), Player(player)]) => {
+            Expr::EventHistory {
+                event: Box::new(EventSpec::Spell {
+                    event: SpellEvent::Cast,
+                    players: players.clone(),
+                    spells: spells.clone(),
+                }),
+                window: HistoryWindow::SinceLastTurnOf(player.clone()),
+                measure: HistoryMeasure::Occurrences,
+            }
+        }
+        ("TheNumberOfTimesModeChosenForSpell", [Object(object)]) => {
+            Expr::ModesChosen(object.clone())
+        }
+        ("TheNumberOfTurnsPlayerHasBegunSinceItWasForetold", []) => Expr::TurnsSinceForetold,
+        ("TheTotalNumberOfCountersOfTypeAmongCardsInGraveyards", [kind, Filter(cards)]) => {
+            Expr::CountCounters {
+                recipients: Box::new(Recipients::Objects(zone_set(
+                    Z::Graveyard,
+                    PlayerSet::All,
+                    cards.clone(),
+                ))),
+                kind: Some(counter_kind(kind)?),
+                information: Information::CurrentOrLastKnown,
+            }
+        }
+        ("TheTotalPowerOfPermanentsThatDiedThisTurn", [Objects(set)]) => turn_history(
+            zone_change(objects_filter(set), Some(Z::Battlefield), Z::Graveyard),
+            HistoryMeasure::Property(Property::Power, Aggregation::Sum),
+        ),
+        ("TotalManaValueOfSpells", [Filter(spells)]) => Expr::Aggregate {
+            objects: Box::new(ObjectSet::Zone {
+                scope: ZoneScope::Shared(Z::Stack),
+                kind: ObjectKind::Spell,
+                filter: spells.clone(),
+            }),
+            property: Property::ManaValue,
+            aggregation: Aggregation::Sum,
+        },
+        ("Trigger_NumberOfPlayersBeingAttacked", []) => {
+            Expr::CountPlayers(PlayerSet::Matching {
+                binding: Binding(1),
+                condition: Box::new(Condition::PlayerState {
+                    player: PlayerRef::Bound(Binding(1)),
+                    state: PlayerState::BeingAttacked,
+                }),
+            })
+        }
+        _ => return None,
+    })
+}
+
+/// Facts about one player, tested as that player is bound.
+fn more_player_fact(form: &str, player: &PlayerRef, rest: &[Operand]) -> Option<Condition> {
+    use EventZone as Z;
+    use Operand::{Comparison as Compare, Filter, Player, Players, Result as Run, Text};
+    let one = || PlayerSet::One(player.clone());
+    let state = |state| {
+        Some(Condition::PlayerState {
+            player: player.clone(),
+            state,
+        })
+    };
+    let by_them = |what, filter: Option<ObjectFilter>, result: Option<&ResultId>| Expr::Earlier {
+        what,
+        measure: ObjectMeasure::Count,
+        result: result.cloned(),
+        filter: filter.map(Box::new),
+        by: Some(player.clone()),
+    };
+    let draft = |kind, by: &PlayerRef, card: &str| Condition::NotedForDraft {
+        player: player.clone(),
+        note: DraftNote {
+            kind,
+            player: by.clone(),
+            card: card.into(),
+        },
+    };
+    let attacks = |defender: PlayerRef| Condition::PlayerAttacks {
+        attacker: player.clone(),
+        defender,
+    };
+    let hand = |filter| count_of(zone_set(Z::Hand, one(), filter));
+    Some(match (form, rest) {
+        ("AllCardsInHandAre", [cards, named]) => exactly(
+            hand(ObjectFilter::All(vec![
+                card_term(cards)?,
+                ObjectFilter::Not(Box::new(card_term(named)?)),
+            ])),
+            0,
+        ),
+        ("ChoseAFirstPermanentThisWay", []) => Condition::ChoseNth {
+            player: player.clone(),
+            nth: 1,
+        },
+        ("ChoseASecondPermanentThisWay", []) => Condition::ChoseNth {
+            player: player.clone(),
+            nth: 2,
+        },
+        ("ControlsNum", [Operand::Term { form, .. }, Operand::Objects(set)]) if form == "Prime" => {
+            Condition::IsPrime(count_of(filtered(
+                set,
+                ObjectFilter::ControlledBy(one()),
+            )))
+        }
+        ("CouldMulligan", []) => return state(PlayerState::CouldMulligan),
+        ("DidntDiscardedACardOfTypeThisWay", [Filter(cards)]) => none_of(by_them(
+            EarlierObjects::Discarded,
+            Some(cards.clone()),
+            None,
+        )),
+        ("DidntDiscardedNumberCardsOfTypeThisWay", [Compare(comparison, value), cards, Run(result)]) => {
+            negated(compared(
+                by_them(EarlierObjects::Discarded, Some(card_term(cards)?), Some(result)),
+                comparison,
+                value,
+            ))
+        }
+        ("RevealedACardOfTheirChosenName", []) => some_of(by_them(
+            EarlierObjects::Revealed,
+            Some(ObjectFilter::Chosen(ValueKind::CardName)),
+            None,
+        )),
+        ("DidntRevealACardOfTheirChosenName", []) => none_of(by_them(
+            EarlierObjects::Revealed,
+            Some(ObjectFilter::Chosen(ValueKind::CardName)),
+            None,
+        )),
+        ("DidntWinTheSubgameThisWay", [Run(result)]) => negated(Condition::WonSubgame {
+            player: player.clone(),
+            result: result.clone(),
+        }),
+        ("EveryCardInTheirCardPoolStartedTheGameInTheirLibraryOrTheCommandZone", []) => {
+            return state(PlayerState::WholePoolInDeck)
+        }
+        ("GuessedCorrectlyForDraftCard", [Text(card)]) => {
+            draft(DraftNoteKind::Guessed, player, card)
+        }
+        ("APlayerNotedByPlayerForCardDuringDraft", [Player(by), Text(card)]) => {
+            draft(DraftNoteKind::Player, by, card)
+        }
+        ("HadANumberOfCardsInTheirStartingDeck", [Compare(comparison, value)]) => compared(
+            Expr::PlayerNumber {
+                player: player.clone(),
+                number: PlayerNumber::StartingDeckSize,
+            },
+            comparison,
+            value,
+        ),
+        ("HasNotCompletedDungeon", [Text(name)]) => negated(Condition::CompletedDungeon {
+            player: player.clone(),
+            name: name.clone(),
+        }),
+        ("HaventAddedManaWithThisAbility", []) => {
+            exactly(Expr::Game(GameValue::ResolutionsThisTurn), 0)
+        }
+        ("IsAttackingNumberPlayers", [Compare(comparison, value), Players(players)]) => compared(
+            Expr::CountPlayers(PlayerSet::Intersection(vec![
+                players.clone(),
+                PlayerSet::Matching {
+                    binding: Binding(1),
+                    condition: Box::new(attacks(PlayerRef::Bound(Binding(1)))),
+                },
+            ])),
+            comparison,
+            value,
+        ),
+        ("IsNotAttackingAPlayer", [Players(players)]) => negated(Condition::ExistsPlayer {
+            players: players.clone(),
+            binding: Binding(1),
+            condition: Box::new(attacks(PlayerRef::Bound(Binding(1)))),
+        }),
+        ("NumCardsInHandAtBeginningOfTurnWas", [Compare(comparison, value)]) => compared(
+            Expr::AsOf {
+                moment: Moment::TurnBegan,
+                value: Box::new(Expr::PlayerNumber {
+                    player: player.clone(),
+                    number: PlayerNumber::CardsInHand,
+                }),
+            },
+            comparison,
+            value,
+        ),
+        ("NumCardtypesOnBattlefiendAndInGraveyardIs", [Compare(comparison, value)]) => compared(
+            Expr::CountDistinct {
+                objects: Box::new(ObjectSet::Union(vec![
+                    ObjectSet::Battlefield(ObjectFilter::ControlledBy(one())),
+                    zone_set(Z::Graveyard, one(), ObjectFilter::Any),
+                ])),
+                property: DistinctProperty::CardTypes,
+            },
+            comparison,
+            value,
+        ),
+        ("Opponent", []) => Condition::PlayerIn {
+            player: player.clone(),
+            players: PlayerSet::OpponentsOf(PlayerRef::AbilityController),
+        },
+        ("OwnedAPermanentChosenThisWay", [Run(result)]) => at_least(
+            count_of(matching(
+                &ObjectSet::Named(result.clone()),
+                &ObjectFilter::OwnedBy(one()),
+            )),
+            1,
+        ),
+        ("OwnsASpell", [Filter(spells)]) => at_least(
+            count_of(ObjectSet::Zone {
+                scope: ZoneScope::Shared(Z::Stack),
+                kind: ObjectKind::Spell,
+                filter: ObjectFilter::All(vec![
+                    spells.clone(),
+                    ObjectFilter::OwnedBy(one()),
+                ]),
+            }),
+            1,
+        ),
+        ("PossibleDefendingPlayerThisCombat", []) => return state(PlayerState::PossibleDefender),
+        ("RolledHighestD20Value", []) => return state(PlayerState::RolledHighest),
+        ("ShuffledLibraryThisWay", []) => return state(PlayerState::ShuffledThisWay),
+        ("SpellDefendingPlayer", []) => return state(PlayerState::BeingAttacked),
         _ => return None,
     })
 }

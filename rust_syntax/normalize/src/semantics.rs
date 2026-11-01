@@ -2001,10 +2001,9 @@ fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
 
 /// A row's condition in generic form, or the row itself when it has none.
 pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
-    if let Some(condition) = name
-        .strip_prefix("Condition::")
-        .and_then(|form| reduce_event_condition(form, &operands))
-    {
+    if let Some(condition) = name.strip_prefix("Condition::").and_then(|form| {
+        reduce_event_condition(form, &operands).or_else(|| reduce_more_conditions(form, &operands))
+    }) {
         return condition;
     }
     match name.as_str() {
@@ -3262,6 +3261,15 @@ pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
     if let Some(ability) = reduce_rule_ability(&name, &operands) {
         return ability;
     }
+    if let Some(ability) = reduce_more_abilities(&name, &operands) {
+        return ability;
+    }
+    if let Some(rule) = name
+        .strip_prefix("CastEffect::")
+        .and_then(|form| reduce_casting(form, &operands))
+    {
+        return Ability::Casting(rule);
+    }
     match (name.as_str(), operands.as_slice()) {
         (
             "Rule::AsSelfDraft"
@@ -3878,6 +3886,23 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
         ("AnyAbility" | "AnySpellOrAbility", []) => ObjectFilter::Any,
         ("TriggeredAbility", []) => is(T::Triggered),
         ("ActivatedAbility", []) => is(T::Activated),
+        ("RoomAbilityOfDungeon", [Operand::Term { operands, .. }]) => match operands.as_slice() {
+            [Operand::Players(players)] => ObjectFilter::All(vec![
+                is(T::DungeonRoom),
+                ObjectFilter::ControlledBy(players.clone()),
+            ]),
+            _ => return None,
+        },
+        ("AbilityOfAnEmblem", [Operand::Term { operands, .. }]) => match operands.as_slice() {
+            [Operand::Players(players)] => ObjectFilter::All(vec![
+                is(T::OfEmblem),
+                ObjectFilter::ControlledBy(players.clone()),
+            ]),
+            _ => return None,
+        },
+        ("AbilityOfASpell", [Operand::Filter(spells)]) => {
+            ObjectFilter::All(vec![is(T::Spell), spells.clone()])
+        }
         ("ManaAbility", []) => is(T::Mana),
         ("NonManaAbility", []) => not(T::Mana),
         ("LoyaltyAbility", []) => is(T::Loyalty),
@@ -4486,10 +4511,9 @@ fn distinct(objects: &ObjectSet, property: DistinctProperty) -> Expr {
 
 /// A row's number in generic form, or the row itself when it has none.
 pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
-    if let Some(number) = name
-        .strip_prefix("GameNumber::")
-        .and_then(|form| reduce_event_number(form, &operands))
-    {
+    if let Some(number) = name.strip_prefix("GameNumber::").and_then(|form| {
+        reduce_event_number(form, &operands).or_else(|| reduce_more_numbers(form, &operands))
+    }) {
         return number;
     }
     match (name.as_str(), operands.as_slice()) {

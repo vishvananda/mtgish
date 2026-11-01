@@ -5719,7 +5719,7 @@ impl Context {
                 Some((name, operands)) => {
                     limits.modifiers.push(match self.activation_rule(value) {
                         Some(rule) => Change::ActivationRule(rule),
-                        None => Change::Primitive { name, operands },
+                        None => crate::semantics::reduce_activation(name, operands),
                     })
                 }
                 None => return Err(unsupported(value)),
@@ -5800,8 +5800,9 @@ impl Context {
                 .map(Ability::Casting)
                 .or_else(|error| {
                     self.rescue(error, || {
-                        self.primitive("CastEffect", rule)
-                            .map(|(name, operands)| Ability::Primitive { name, operands })
+                        self.primitive("CastEffect", rule).map(|(name, operands)| {
+                            crate::semantics::reduce_ability(name, operands)
+                        })
                     })
                 }),
             S::NoMoreThanNumberCreaturesCanAttack(n) | S::NoMoreThanNumberCreaturesCanBlock(n) => {

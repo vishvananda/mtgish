@@ -1537,9 +1537,13 @@ impl Compiler {
             PlayerState::InTheirMainPhase => format!(
                 "{active} && matches!({step}, Step::PrecombatMain | Step::PostcombatMain)"
             ),
-            PlayerState::ReceivedAVote | PlayerState::HasBoon => {
-                return Err(gap(format!("player state {state:?}")))
-            }
+            PlayerState::ReceivedAVote
+            | PlayerState::HasBoon
+            | PlayerState::CouldMulligan
+            | PlayerState::WholePoolInDeck
+            | PlayerState::PossibleDefender
+            | PlayerState::RolledHighest
+            | PlayerState::ShuffledThisWay => return Err(gap(format!("player state {state:?}"))),
             PlayerState::CompletedDungeon => {
                 "q.history().any(EventQuery::kind(EventMask::DUNGEON_COMPLETED).player(player))"
                     .into()
