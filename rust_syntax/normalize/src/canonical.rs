@@ -2,6 +2,9 @@
 //! the order they are defined, and commutative lists sorted. Two cards that
 //! differ only in lowering order are equal here. The walk reads the IR's own
 //! type table, so a new field of an id type is covered without a change here.
+//! Spellings the lowerer reaches by different routes that mean the same thing
+//! (`All` holding `Any`, a zone scope narrowed by its filter, a one-object
+//! `InSet`, an open count bounded by the total divided) reduce to one form.
 use crate::ir::Card;
 use crate::ir_schema::{Fields, Schema, Ty, TypeDef};
 use serde_json::Value;
@@ -108,7 +111,12 @@ impl Walker {
         }
         let schema = self.schema;
         match schema.types.get(name) {
-            Some(TypeDef::Struct(fields)) => self.fields(value, fields, name),
+            Some(TypeDef::Struct(fields)) => {
+                self.fields(value, fields, name);
+                if name == "TargetSpec" {
+                    bound_divided_count(value);
+                }
+            }
             Some(TypeDef::Enum { adjacent, .. }) => self.variant(value, name, *adjacent),
             None => {}
         }
@@ -141,11 +149,20 @@ impl Walker {
             if commutative(name, &variant) {
                 if let Value::Array(items) = content {
                     flatten(items, &variant);
+                    if variant == "All" {
+                        drop_identity(items);
+                    }
                     items.sort_by_cached_key(Value::to_string);
                 }
                 if let Some(only) = single(content) {
                     *value = only;
                 }
+                return;
+            }
+            match (name, variant.as_str()) {
+                ("ObjectFilter", "InSet") => one_object_set(value),
+                ("ObjectSet", "Zone") => narrow_zone_scope(content_of(value)),
+                _ => {}
             }
         }
     }
@@ -185,6 +202,70 @@ fn flatten(items: &mut Vec<Value>, variant: &str) {
         }
     }
     *items = flat;
+}
+
+/// `All` of nothing but `Any` keeps one, so the list still means `Any`.
+fn drop_identity(items: &mut Vec<Value>) {
+    let any = |item: &Value| item.get("kind").and_then(Value::as_str) == Some("Any");
+    if items.iter().any(|item| !any(item)) {
+        items.retain(|item| !any(item));
+    } else {
+        items.truncate(1);
+    }
+}
+
+fn content_of(value: &mut Value) -> &mut Value {
+    match value.get("args") {
+        Some(_) => &mut value["args"],
+        None => value,
+    }
+}
+
+/// `InSet(One(x))` is `SameObject(x)`.
+fn one_object_set(value: &mut Value) {
+    if value["args"]["kind"] == "One" {
+        let object = value["args"]["args"].take();
+        *value = serde_json::json!({"kind": "SameObject", "args": object});
+    }
+}
+
+/// A scope over all players narrowed by an `InZone` of that zone is that
+/// player's zone, however the filter is nested.
+fn narrow_zone_scope(zone: &mut Value) {
+    let wide = |scope: &Value| scope["Players"]["players"]["kind"] == "All";
+    if !wide(&zone["scope"]) {
+        return;
+    }
+    let same_zone = |filter: &Value, scope: &Value| {
+        filter["kind"] == "InZone" && filter["args"]["Players"]["zone"] == scope["Players"]["zone"]
+    };
+    let scope = zone["scope"].clone();
+    if same_zone(&zone["filter"], &scope) {
+        zone["scope"] = zone["filter"]["args"].clone();
+        zone["filter"] = serde_json::json!({"kind": "Any"});
+        return;
+    }
+    if zone["filter"]["kind"] != "All" {
+        return;
+    }
+    let Some(items) = zone["filter"]["args"].as_array_mut() else {
+        return;
+    };
+    let Some(index) = items.iter().position(|item| same_zone(item, &scope)) else {
+        return;
+    };
+    let narrowed = items.remove(index);
+    if let Some(only) = single(&zone["filter"]["args"]) {
+        zone["filter"] = only;
+    }
+    zone["scope"] = narrowed["args"].clone();
+}
+
+/// Divided among any number of targets: at most one target per point.
+fn bound_divided_count(spec: &mut Value) {
+    if spec["count"] == "AnyNumber" && !spec["distribute"].is_null() {
+        spec["count"] = serde_json::json!({"UpTo": spec["distribute"].clone()});
+    }
 }
 
 /// A commutative list of one item means that item.
