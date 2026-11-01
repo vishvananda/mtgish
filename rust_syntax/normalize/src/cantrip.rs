@@ -352,6 +352,12 @@ struct Compiler {
     static_guard: Option<Condition>,
     /// Asked with a triggered ability's event and not again: a Class's level.
     trigger_gate: Option<Condition>,
+    /// What this triggered ability's event is always about, as "this creature"
+    /// is: read where no event reaches, as "another creature" in a cost.
+    event_object: Option<ObjectRef>,
+    /// While an instruction is compiled to happen only if its players exist:
+    /// the local each stands for, and how to read it. See `lane_j`.
+    present: std::rc::Rc<std::cell::RefCell<Option<Vec<(String, String)>>>>,
     slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
     /// The cards that ended each reveal, by the result that names all it showed.
@@ -652,6 +658,8 @@ impl Compiler {
             affected_in_scope: false,
             static_guard: None,
             trigger_gate: None,
+            event_object: None,
+            present: Default::default(),
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
             reveal_matches: BTreeMap::new(),

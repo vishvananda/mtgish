@@ -345,10 +345,20 @@ impl Compiler {
         out: &mut String,
         boundaries: bool,
     ) -> Result<()> {
+        // Each instruction here answers for its own players.
+        let present = self.present.borrow_mut().take();
         for (i, instruction) in body.instructions.iter().enumerate() {
             let mark = out.len();
             let failure = self.attempt(format!("instructions[{i}]"), |c| {
-                let compiled = c.instruction(body, i, instruction, out);
+                let gaps = c.gaps.len();
+                let compiled = match c.instruction(body, i, instruction, out) {
+                    Err(failed) if failed.feature.starts_with("possibly absent player") => {
+                        out.truncate(mark);
+                        c.gaps.truncate(gaps);
+                        c.if_present(body, i, instruction, out)
+                    }
+                    compiled => compiled,
+                };
                 if compiled.is_err() {
                     if let Instruction::Effect { result, .. } = instruction {
                         c.failed.insert(result.0);
@@ -369,6 +379,7 @@ impl Compiler {
                 writeln!(out, "g.end_sentence();").unwrap();
             }
         }
+        *self.present.borrow_mut() = present;
         Ok(())
     }
     pub(super) fn results(&self) -> Results {
@@ -447,7 +458,7 @@ impl Compiler {
             known.insert(*result, local);
         }
     }
-    fn instruction(
+    pub(super) fn instruction(
         &mut self,
         body: &Program,
         i: usize,
@@ -744,6 +755,15 @@ impl Compiler {
                 cost,
                 optional,
             } => self.first_willing(id, players, cost, *optional, result, out)?,
+            // What targeted this, spell or ability, and where it is on the stack.
+            Operation::Counter {
+                objects: ObjectSet::One(ObjectRef::EventStackObject),
+                destination: Destination::OwnersGraveyard,
+            } if self.event_at == EventAt::Item
+                && self.frame.stack_controller == Some(Carried::Data(1)) =>
+            {
+                writeln!(out, "cantrip_api::instruction(g, |g| g.counter_item(ObjectId(item.data[0]), (item.data[1] >> 8) as usize));").unwrap();
+            }
             Operation::AddMana {
                 players,
                 mana,

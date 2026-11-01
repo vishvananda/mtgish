@@ -872,6 +872,7 @@ impl Compiler {
                 announcement,
                 body,
             } => {
+                self.event_object = lane_j::event_object(event);
                 let def = self.triggered(
                     label,
                     event,
@@ -880,6 +881,7 @@ impl Compiler {
                     announcement,
                     body,
                 );
+                self.event_object = None;
                 let def = match scope {
                     Some(scope) if scope.condition.is_some() => {
                         Err(gap("conditional scope on a triggered ability"))

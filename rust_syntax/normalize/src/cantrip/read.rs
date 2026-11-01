@@ -73,6 +73,10 @@ pub(super) enum Pending {
 #[derive(Clone)]
 pub(super) struct History {
     pub outer: Option<String>,
+    /// An event reference in the question is to the event of the ability that
+    /// asks it, not the one in the record.
+    pub event_at: EventAt,
+    pub frame: Frame,
 }
 
 /// Where one event value travels from the matcher to the resolving ability.
@@ -98,6 +102,8 @@ pub(super) struct Frame {
     pub stack_controller: Option<Carried>,
     pub attacker: Option<Carried>,
     pub blocker: Option<Carried>,
+    /// "That many" of a "one or more" ability is how many objects its batch has.
+    pub members: bool,
 }
 impl Frame {
     /// What every branch of an alternative event binds the same way.
@@ -118,6 +124,7 @@ impl Frame {
             stack_controller: same(self.stack_controller, other.stack_controller),
             attacker: same(self.attacker, other.attacker),
             blocker: same(self.blocker, other.blocker),
+            members: self.members && other.members,
         }
     }
 }
@@ -201,10 +208,11 @@ impl Compiler {
         format!("{{ let q: &dyn Query = g; {} }}", code.as_ref())
     }
     fn carried(&self, carried: Carried) -> Result<(String, String)> {
-        if self.history.is_some() {
-            return Err(gap("event reference in a history question"));
-        }
         let (subject, data) = match self.event_at {
+            // The asking matcher's locals, past the record's of the same names.
+            EventAt::Matcher if self.history.is_some() => {
+                ("outer_subject".to_string(), "outer_data".to_string())
+            }
             EventAt::Matcher => ("subject".to_string(), "data".to_string()),
             EventAt::Item => ("item.subject".into(), "item.data".into()),
             EventAt::TargetFilter => ("q.event_subject()".into(), String::new()),
@@ -225,7 +233,16 @@ impl Compiler {
         }
     }
     pub(super) fn carried_object(&self, carried: Option<Carried>) -> Result<String> {
-        let carried = carried.ok_or_else(|| gap("event object this trigger does not bind"))?;
+        // What is entering is what a replacement of its entering is about.
+        if let (EventAt::Nowhere, None, Some(Carried::Subject), Some(object)) =
+            (self.event_at, &self.outer, carried, &self.event_object)
+        {
+            return self.object(object);
+        }
+        let entering = (self.event_at == EventAt::Entering).then_some(Carried::Subject);
+        let carried = carried
+            .or(entering)
+            .ok_or_else(|| gap("event object this trigger does not bind"))?;
         let (subject, data) = self.carried(carried)?;
         Ok(match carried {
             Carried::Subject => format!("{subject}.object()"),
@@ -288,7 +305,7 @@ impl Compiler {
                 format!("Some({})", self.affected_object.unwrap_or_default())
             }
             ObjectRef::Candidate if self.history.is_some() => match &self.history {
-                Some(History { outer: Some(outer) }) => format!("Some({outer})"),
+                Some(History { outer: Some(outer), .. }) => format!("Some({outer})"),
                 _ => {
                     return Err(gap(
                         "candidate in a history question with no filter around it",
@@ -446,6 +463,13 @@ impl Compiler {
                 "{}.expect(\"a reference that always names a player\")",
                 self.player(player)?
             ))
+        } else if self.present.borrow().is_some() {
+            let read = self.player(player)?;
+            let mut present = self.present.borrow_mut();
+            let list = present.as_mut().expect("just seen");
+            let local = format!("present_{}_{}", self.next, list.len());
+            list.push((local.clone(), read));
+            Ok(local)
         } else {
             Err(gap(format!("possibly absent player {}", form(player))))
         }
@@ -825,6 +849,11 @@ impl Compiler {
                 max: u16::MAX.into(),
                 dynamic: true,
             },
+            Expr::EventAmount
+                if self.frame.members && self.grouped && self.event_at == EventAt::Item =>
+            {
+                count("q.event_objects(item).len() as i64".into())
+            }
             Expr::EventAmount => {
                 let (_, data) = self.carried(
                     self.frame
@@ -852,13 +881,15 @@ impl Compiler {
                 let mut asked = self.clone();
                 asked.history = Some(History {
                     outer: self.candidates.borrow().last().map(|c| c.id.clone()),
+                    event_at: self.event_at,
+                    frame: self.frame,
                 });
                 let matched = asked.event(event)?;
                 if let Some(feature) = matched.planned {
                     return Err(gap(feature));
                 }
                 let hits = format!("{scope}.filter_map({})", matched.history_test());
-                count(match measure {
+                let answer = match measure {
                     HistoryMeasure::Occurrences => format!("{hits}.count() as i64"),
                     HistoryMeasure::TotalAmount
                         if matched.frame.amount == Some(Carried::Data(0)) =>
@@ -866,6 +897,11 @@ impl Compiler {
                         format!("{hits}.map(|f: Fired| i64::from(f.data[0])).sum::<i64>()")
                     }
                     other => return Err(gap(format!("history measure {}", form(other)))),
+                };
+                count(if self.event_at == EventAt::Matcher {
+                    format!("{{ let (outer_subject, outer_data) = (subject, data); {answer} }}")
+                } else {
+                    answer
                 })
             }
             Expr::ManaSpent {

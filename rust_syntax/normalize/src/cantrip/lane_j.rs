@@ -1140,7 +1140,7 @@ impl Compiler {
             return Err(gap("an ordinal of grouped events"));
         }
         let mut asked = self.clone();
-        asked.history = Some(History { outer: None });
+        asked.history = Some(History { outer: None, event_at: EventAt::Matcher, frame: Frame::default() });
         let past = asked.event(event)?;
         let same = if by_subject {
             ".filter(|f: &Fired| f.subject == subject)"
@@ -1227,7 +1227,7 @@ impl Compiler {
             "BECAME_TARGET",
             Arm {
                 pattern: "Event::BecameTarget { target: Target::Player(target), by, controller, .. }".into(),
-                locals: "let by = *by; let controller = *controller; let subject = Target::Player(*target); let data = [by.0, u32::from(controller.0)];".into(),
+                locals: "let by = *by; let controller = *controller; let subject = Target::Player(*target); let data = [by.0, u32::from(controller.0) | (q.state().stack.len().saturating_sub(1) as u32) << 8];".into(),
                 tests,
             },
             frame,
@@ -1587,6 +1587,12 @@ impl Compiler {
     /// The rest of `player`.
     pub(super) fn player_rest(&self, player: &PlayerRef) -> Result<String> {
         Ok(match player {
+            PlayerRef::OneOf(players) if matches!(**players, PlayerSet::One(_)) => {
+                let PlayerSet::One(player) = &**players else {
+                    unreachable!("just matched");
+                };
+                self.player(player)?
+            }
             PlayerRef::Chosen => match self.chosen_local(ValueKind::Player) {
                 Ok(local) => format!("Some({local})"),
                 Err(_) => format!("q.state().chosen_player({})", self.linked()),
@@ -2248,6 +2254,27 @@ fn symbols_text(symbols: &[ManaSymbol]) -> Option<String> {
     Some(text)
 }
 
+/// What an event is always about: "whenever this creature attacks", "whenever
+/// equipped creature attacks".
+pub(super) fn event_object(event: &EventSpec) -> Option<ObjectRef> {
+    let (EventSpec::ZoneChange {
+        objects,
+        to: EventZone::Battlefield,
+        ..
+    }
+    | EventSpec::Object { objects, .. }
+    | EventSpec::Attack {
+        attackers: objects, ..
+    }) = event
+    else {
+        return None;
+    };
+    match objects {
+        ObjectFilter::SameObject(object) => Some(object.clone()),
+        _ => None,
+    }
+}
+
 /// Abilities `costs.rs` has no arm for.
 impl Compiler {
     pub(super) fn ability_rest(
@@ -2588,6 +2615,41 @@ impl Compiler {
             _ => "asker.source",
         };
         format!("q.state().obj({source}).class_level >= {level}")
+    }
+    /// An instruction about a player a reference may not name: it does nothing
+    /// without them (CR 609.3). What it binds stays in that block.
+    pub(super) fn if_present(
+        &mut self,
+        body: &Program,
+        index: usize,
+        instruction: &Instruction,
+        out: &mut String,
+    ) -> Result<()> {
+        *self.present.borrow_mut() = Some(Vec::new());
+        let mut inner = String::new();
+        let compiled = self.instruction(body, index, instruction, &mut inner);
+        let present = self.present.borrow_mut().take().unwrap_or_default();
+        compiled?;
+        if let Instruction::Effect { result, .. } = instruction {
+            let bound = [
+                self.selections.remove(&result.0).is_some(),
+                self.moved.remove(&result.0).is_some(),
+                self.creations.remove(&result.0).is_some(),
+                self.before.remove(&result.0).is_some(),
+                self.performed.remove(&result.0).is_some(),
+                self.values.remove(&result.0).is_some(),
+            ];
+            if bound.contains(&true) {
+                self.failed.insert(result.0);
+            }
+        }
+        for (local, read) in &present {
+            write!(out, "if let Some({local}) = {} {{ ", self.fetch(read)).unwrap();
+        }
+        out.push_str(&inner);
+        out.push_str(&" }".repeat(present.len()));
+        out.push('\n');
+        Ok(())
     }
     /// Panharmonicon's and Torpor Orb's rule on triggering (CR 603.2d, 603.2g):
     /// asked of one event and one ability that event triggered.

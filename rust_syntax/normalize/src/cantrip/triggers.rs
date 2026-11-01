@@ -107,7 +107,11 @@ impl Compiler {
             (Reader::Layer, Some(_)) => Reader::Layer,
             _ => Reader::Query,
         };
-        (self.reader, self.event_at, self.frame) = (reader, EventAt::Matcher, frame);
+        let (event_at, frame) = match &self.history {
+            Some(history) => (history.event_at, history.frame),
+            None => (EventAt::Matcher, frame),
+        };
+        (self.reader, self.event_at, self.frame) = (reader, event_at, frame);
         let compiled = part(self);
         (self.reader, self.event_at, self.frame) = saved;
         compiled
@@ -585,7 +589,7 @@ impl Compiler {
             "BECAME_TARGET",
             Arm {
                 pattern: "Event::BecameTarget { target: Target::Object(target), by, controller, .. }".into(),
-                locals: "let id = *target; let by = *by; let controller = *controller; let subject = Target::Object(id); let data = [by.0, u32::from(controller.0)];".into(),
+                locals: "let id = *target; let by = *by; let controller = *controller; let subject = Target::Object(id); let data = [by.0, u32::from(controller.0) | (q.state().stack.len().saturating_sub(1) as u32) << 8];".into(),
                 tests,
             },
             frame,
@@ -833,6 +837,8 @@ impl Compiler {
         };
         // No one of a whole batch is the event's, however the form binds it.
         if *per == BatchPer::Whole {
+            matched.frame.members = matched.frame.object == Some(Carried::Subject)
+                && !matches!(event, EventSpec::Counters { .. });
             matched.frame.object = None;
         }
         matched.frame.amount = matched.frame.amount.filter(|_| *per == BatchPer::Subject);
@@ -873,7 +879,7 @@ impl Compiler {
             (true, None) => return Err(gap("an ordinal of an event with no player")),
         };
         let mut asked = self.clone();
-        asked.history = Some(History { outer: None });
+        asked.history = Some(History { outer: None, event_at: EventAt::Matcher, frame: Frame::default() });
         let past = asked.event(event)?;
         let value = self.matching(matched.frame, |c| Ok(c.number(value)?.code))?;
         let count = format!(
@@ -1040,6 +1046,7 @@ impl Compiler {
         }
         if let DiscardGrouping::Player = grouping {
             matched.batch = Some(false);
+            matched.frame.members = true;
         }
         Ok(matched)
     }
