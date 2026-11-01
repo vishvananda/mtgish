@@ -1403,6 +1403,11 @@ impl Compiler {
     /// "Reveal the top four cards. You may put a land card from among them into
     /// your hand. Put the rest into your graveyard": Cantrip's one question.
     fn rest_to_graveyard(&mut self, group: &Program, out: &mut String) -> Result<bool> {
+        if group.instructions.last().is_some_and(
+            |last| matches!(last, Instruction::Effect { result, .. } if self.read_later(result)),
+        ) {
+            return Ok(false);
+        }
         let [Instruction::Effect {
             operation: first, ..
         }, Instruction::Effect {
@@ -1695,12 +1700,14 @@ impl Compiler {
         chosen: String,
         out: &mut String,
     ) -> Result<()> {
+        // One may sit inside another: each closes what it opened.
+        let around = std::mem::take(&mut self.guard_opened);
         self.may_choose = true;
         self.chosen_guard = Some(chosen);
         self.block(body, out, true)?;
         self.may_choose = false;
         self.chosen_guard = None;
-        let opened = std::mem::take(&mut self.guard_opened);
+        let opened = std::mem::replace(&mut self.guard_opened, around);
         writeln!(out, "{}", "}".repeat(opened)).unwrap();
         Ok(())
     }

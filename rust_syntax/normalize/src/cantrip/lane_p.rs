@@ -1451,9 +1451,10 @@ impl Compiler {
         if announcement.modes.is_none() {
             return Ok(None);
         }
-        // Each mode is a body of its own, compiled amid this one.
+        // Each mode is a body of its own, compiled amid this one, and its target
+        // filters read what the ability is about, as any of its reads.
         let scope = self.results();
-        let name = self.modal(announcement, label, None);
+        let name = self.modal(announcement, label, Some(Frame::default()));
         self.restore_results(scope);
         Ok(Some(name?))
     }
@@ -1483,7 +1484,11 @@ impl Compiler {
         least: &Expr,
         most: &Expr,
     ) -> Result<String> {
-        let (least, most) = (self.number(least)?.code, self.number(most)?.code);
+        let told = |code: String| code.replace("i64::from(item.x)", "q.told_amount(asker)");
+        let (least, most) = (
+            told(self.number(least)?.code),
+            told(self.number(most)?.code),
+        );
         Ok(planned::planned_value(
             "mode count that is not a constant",
             &format!("{listed}.choose(1, 1)"),

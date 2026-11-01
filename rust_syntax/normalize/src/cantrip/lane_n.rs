@@ -800,6 +800,11 @@ impl Compiler {
             C::Repeats(n) => format!("p.times = {};", number(self, n)?),
             C::SearchTop(n) => format!("p.top = Some({});", number(self, n)?),
             C::FlipExtraCoin => "p.extra_flips += 1;".into(),
+            // It still happens, reading no such counters.
+            C::IgnoreCounters(kind) => format!(
+                "p.replaced = false; p.ignore_counters = Some({});",
+                counter_kind(kind)?
+            ),
             C::AddCopy { new_targets } => {
                 format!("p.count += 1; p.new_targets_for_added = {new_targets};")
             }
@@ -1215,10 +1220,16 @@ impl Compiler {
             return Err(gap(format!("delayed trigger starting {}", form(start))));
         }
         let when = match expires {
-            None => "DelayedWhen::UntilEvent",
-            Some(D::EndOfTurn) => "DelayedWhen::NextThisTurn",
+            None => "DelayedWhen::UntilEvent".to_string(),
+            Some(D::EndOfTurn) => "DelayedWhen::NextThisTurn".to_string(),
+            Some(other @ D::UntilStateBasedActionsChecked) => planned::planned_value(
+                &format!("delayed trigger until {}", form(other)),
+                "DelayedWhen::NextThisTurn",
+                "DelayedWhen::UntilStateBasedActionsChecked",
+            ),
             Some(other) => return Err(gap(format!("delayed trigger until {}", form(other)))),
         };
+        let when = when.as_str();
         let (watched, source) = self.watching_source(event, body)?;
         let saved = self.clone();
         let mark = out.len();
@@ -1421,6 +1432,31 @@ impl Compiler {
         .unwrap();
         Ok(())
     }
+    /// The spells a cast of cards made, "those spells".
+    pub(super) fn report_played(&mut self, result: &ResultId) {
+        if let Some(played) = self.played.take().filter(|_| self.read_later(result)) {
+            self.selections.insert(result.0, played);
+        }
+    }
+    /// What one action did is what paid for it, "the creature attached this way".
+    pub(super) fn action_paid(&mut self, body: &Program, result: &ResultId) {
+        let mut steps = Vec::new();
+        lane_m::flat_groups(&body.instructions, &mut steps);
+        let [Instruction::Effect { result: inner, .. }] = steps.as_slice() else {
+            return;
+        };
+        let list = self
+            .selections
+            .get(&inner.0)
+            .or_else(|| self.moved.get(&inner.0))
+            .cloned();
+        if let Some(list) = list {
+            self.before
+                .entry(result.0)
+                .or_insert(format!("{list}.clone()"));
+            self.moved.entry(result.0).or_insert(list);
+        }
+    }
     /// What an instruction that says nothing did it to, for "those" later.
     pub(super) fn report_objects(
         &mut self,
@@ -1482,10 +1518,176 @@ impl Compiler {
     ) -> Result<String> {
         let mut defs = Vec::new();
         for (i, event) in events.iter().enumerate() {
-            let label = format!("{label}_or_{i}");
-            defs.push(self.triggered(&label, event, intervening_if, limits, announcement, body)?);
+            let each = format!("{label}_or_{i}");
+            let def = self.triggered(&each, event, intervening_if, limits, announcement, body)?;
+            // "This ability triggers only once each turn" is of the one ability.
+            defs.push(match limits.per_turn {
+                Some(_) => planned::planned_value(
+                    "a limit shared by the abilities of one sentence",
+                    &def,
+                    &format!("{def}.limit_shared_with({})", quoted(label)),
+                ),
+                None => def,
+            });
         }
         Ok(defs.join(", "))
+    }
+    /// What a replacement made by an effect will be where no event of Cantrip's
+    /// could carry it.
+    pub(super) fn stated_replacement(
+        &mut self,
+        event: &ReplacementEvent,
+        limit: &ReplacementLimit,
+        duration: &crate::ir::Duration,
+        body: &Program,
+        out: &mut String,
+    ) -> Result<bool> {
+        match (event, limit, body.instructions.as_slice()) {
+            // "If target Plains is tapped for mana, it produces colorless mana
+            // instead of white mana": an effect on that land.
+            (
+                ReplacementEvent::ProduceColor {
+                    sources: ObjectFilter::SameObject(object),
+                    color,
+                },
+                ReplacementLimit::UntilExpired,
+                [Instruction::Effect {
+                    operation:
+                        Operation::ModifyEvent {
+                            change:
+                                EventChange::ReplaceMana(ManaProduction::Amount {
+                                    color: instead,
+                                    amount: Expr::Constant(1),
+                                }),
+                        },
+                    ..
+                }],
+            ) => {
+                let object = self.fetch(self.object(object)?);
+                let until = self.stated_until(duration)?;
+                let (color, instead) = (lane_j::mana_letter(color), lane_j::mana_letter(instead));
+                self.plan_code(
+                    "replacement event ProduceColor",
+                    &format!("if let Some(object) = {object} {{ g.add_effect(asker.source, object, EffectKind::ProducesInstead {{ color: Mana::{color}, instead: Mana::{instead} }}, {until}); }}"),
+                    out,
+                );
+                Ok(true)
+            }
+            // "During your next untap step, as you untap your permanents": a mana
+            // ability has no item to hold such an effect.
+            (
+                ReplacementEvent::Player {
+                    event: ReplacedPlayerEvent::UntapPermanents,
+                    players: PlayerSet::One(player),
+                },
+                ReplacementLimit::NextOccurrence,
+                _,
+            ) if !self.stack_item => {
+                let player = self.fetch(self.certain_player(player)?);
+                let action = self.stated(&Operand::Program(body.clone()))?;
+                self.plan_code(
+                    "replacement made outside a resolving ability",
+                    &format!("cantrip_mechanics::untap::as_permanents_untap(g, asker.source, {player}, {action})"),
+                    out,
+                );
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
+    }
+    /// `event` during an activation, as a cost being paid is.
+    pub(super) fn while_activating(
+        &mut self,
+        event: &EventSpec,
+        players: &PlayerSet,
+        abilities: &ObjectFilter,
+    ) -> Result<triggers::Matched> {
+        let mut matched = self.event(event)?;
+        let frame = matched.frame;
+        let who = self.matching(frame, |c| c.player_in(players, "player"))?;
+        let what = self.activation_test(abilities, frame)?;
+        let test = planned::planned_value(
+            "trigger event WhileActivating",
+            "false",
+            &format!("q.activation_under_way().is_some_and(|(player, def): (PlayerId, Option<&ActivatedDef>)| {who} && {what})"),
+        );
+        for arm in &mut matched.arms {
+            arm.tests.push(test.clone());
+        }
+        Ok(matched)
+    }
+    /// What playing a card this way does: "it" is the spell cast.
+    pub(super) fn play_rider(&mut self, effect: &Operand) -> Result<String> {
+        let around = (self.event_at, self.frame);
+        (self.event_at, self.frame) = (
+            EventAt::Item,
+            Frame {
+                object: Some(Carried::Subject),
+                ..Frame::default()
+            },
+        );
+        let rider = self.stated(effect);
+        (self.event_at, self.frame) = around;
+        let rider = rider?;
+        Ok(match rider.contains("item.subject.object()") {
+            true => rider
+                .replace("item.subject.object()", "Some(spell)")
+                .replace(
+                    "|g: &mut dyn Game, asker: &Asker|",
+                    "|g: &mut dyn Game, asker: &Asker, spell: ObjectId|",
+                ),
+            false => rider,
+        })
+    }
+    /// The ability on the stack an activation event is about, as the object it is
+    /// on the stack. Cantrip knows it by a serial, and only `Target` reads that.
+    pub(super) fn activated_object(&self) -> Result<String> {
+        Ok(planned::planned_value(
+            "the ability an event is about",
+            "None::<ObjectId>",
+            &format!("q.ability_on_stack({})", self.carried_ability()?),
+        ))
+    }
+    /// "Whenever a player gets this" from a boon: an ability of that player's,
+    /// used up after `times` uses. It is compiled as a delayed ability is, so its
+    /// event and its body read what its own trigger says.
+    pub(super) fn create_boon(
+        &mut self,
+        feature: &str,
+        player: String,
+        times: String,
+        event: &EventSpec,
+        condition: Option<&Condition>,
+        body: &Operand,
+        out: &mut String,
+    ) -> Result<()> {
+        let Operand::Program(program) = body else {
+            return Err(gap(feature));
+        };
+        let label = format!("boon_{}", self.fresh());
+        let (limits, announcement) = (
+            TriggerLimits::default(),
+            Announcement {
+                targets: Vec::new(),
+                modes: None,
+            },
+        );
+        let (outer, def) = self.closing_for_matcher(false, |c| {
+            c.reset_results();
+            c.triggered(&label, event, condition, &limits, &announcement, program)
+        })?;
+        if !outer.objects.borrow().is_empty() || outer.player.borrow().is_some() {
+            return Err(gap("a boon that carries what its maker read"));
+        }
+        self.delayed.push(def);
+        let index = self.delayed.len() - 1;
+        let (_, _, card) = self.maker();
+        self.plan_code(
+            feature,
+            &format!("cantrip_mechanics::boon::create(g, asker.source, {player}, {times}, AbilityRef::delayed({card}, {index}))"),
+            out,
+        );
+        Ok(())
     }
     /// The rest of what a rule on triggering asks of an ability.
     pub(super) fn triggering_more(&self, filter: &ObjectFilter) -> Result<String> {
@@ -1546,17 +1748,154 @@ impl Compiler {
     }
 }
 
-/// "If that ability's activation cost contains {X}": asked of the activation.
-/// "If it isn't a mana ability" reaches here without its negation (the source
-/// data lost it), so a filter on mana stays a hole rather than the opposite rule.
-pub(super) fn of_the_activation(condition: &Condition, frame: Frame) -> bool {
+/// The steps of a program that prevent damage.
+pub(super) fn preventions(program: &Program) -> Vec<u32> {
+    let mut steps = Vec::new();
+    lane_m::flat_groups(&program.instructions, &mut steps);
+    steps
+        .iter()
+        .filter_map(|step| match step {
+            Instruction::Effect {
+                operation: Operation::ModifyEvent { change },
+                result,
+            } if prevents(std::slice::from_ref(change)) => Some(result.0),
+            _ => None,
+        })
+        .collect()
+}
+/// "If this would enter and ...": the same replacement, asked as it enters.
+pub(super) fn entering_if(event: &ReplacementEvent, body: &Program) -> Option<Program> {
+    let ReplacementEvent::Enter {
+        objects: ObjectFilter::All(filters),
+    } = event
+    else {
+        return None;
+    };
+    let [ObjectFilter::SameObject(ObjectRef::Source), rest @ ..] = filters.as_slice() else {
+        return None;
+    };
+    let filter = match rest {
+        [one] => one.clone(),
+        many => ObjectFilter::All(many.to_vec()),
+    };
+    Some(Program {
+        instructions: vec![Instruction::If {
+            condition: Condition::ObjectMatches {
+                object: ObjectRef::Source,
+                filter,
+            },
+            then: body.clone(),
+            otherwise: Program {
+                instructions: Vec::new(),
+            },
+        }],
+    })
+}
+/// "It has changeling": an ability that makes its object every creature type.
+pub(super) fn every_creature_type(ability: &Ability) -> bool {
+    let Ability::Static {
+        affected: EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
+        changes,
+        ..
+    } = ability
+    else {
+        return false;
+    };
     matches!(
-        condition,
-        Condition::ObjectMatches {
-            object: ObjectRef::EventStackObject,
-            filter: ObjectFilter::OnStack(StackTrait::XInCost | StackTrait::TapSymbolInCost),
-        } if frame.activated.is_some()
+        changes.as_slice(),
+        [Change::CreatureTypes {
+            mode: ChangeMode::Set,
+            types: CreatureTypeSet::All,
+        }]
     )
+}
+/// "A card exiled with this creature", of a card played: the object it was with.
+pub(super) fn played_from_exile_with(objects: &ObjectFilter) -> Option<&ObjectRef> {
+    let ObjectFilter::InSet(set) = objects else {
+        return None;
+    };
+    match &**set {
+        ObjectSet::Zone {
+            scope: ZoneScope::Shared(EventZone::Exile),
+            filter: ObjectFilter::ExiledWith(object),
+            ..
+        } => Some(object),
+        _ => None,
+    }
+}
+/// What is said of an activation by the words of an event object.
+pub(super) fn of_the_activation(condition: &Condition, frame: Frame) -> bool {
+    let Condition::ObjectMatches { object, filter } = condition else {
+        return false;
+    };
+    let mana = |filter: &ObjectFilter| matches!(filter, ObjectFilter::OnStack(StackTrait::Mana));
+    frame.activated.is_some()
+        && matches!(
+            object,
+            ObjectRef::EventStackObject | ObjectRef::EventSubject
+        )
+        && match filter {
+            ObjectFilter::OnStack(StackTrait::XInCost | StackTrait::TapSymbolInCost) => true,
+            ObjectFilter::ManaSpentFrom(_) => true,
+            ObjectFilter::Not(inner) => mana(inner),
+            _ => false,
+        }
+}
+/// "If it isn't a mana ability" reaches here without its negation: the AST says
+/// the opposite of the card, so this stays a hole rather than the opposite rule.
+pub(super) fn lost_its_negation(condition: &Condition, frame: Frame) -> bool {
+    frame.activated.is_some()
+        && matches!(
+            condition,
+            Condition::ObjectMatches {
+                object: ObjectRef::EventStackObject,
+                filter: ObjectFilter::OnStack(StackTrait::Mana),
+            }
+        )
+}
+/// A spell or an ability, as two events, where what reads the event must know
+/// which: no one object stands for both, and no one happening is both.
+pub(super) fn spell_or_ability(
+    event: &EventSpec,
+    intervening_if: Option<&Condition>,
+    body: &Program,
+) -> Option<Vec<EventSpec>> {
+    if let EventSpec::Either(events) = event {
+        // "That permanent or player": the two are read from different places.
+        if format!("{body:?}").contains("DamagedByEvent") {
+            return Some(events.clone());
+        }
+    }
+    let events = match event {
+        EventSpec::SpellOrActivation {
+            players,
+            spells,
+            abilities,
+        } => vec![
+            EventSpec::Spell {
+                event: SpellEvent::Cast,
+                players: players.clone(),
+                spells: spells.clone(),
+            },
+            EventSpec::Activated {
+                players: players.clone(),
+                abilities: abilities.clone(),
+            },
+        ],
+        EventSpec::Either(events)
+            if matches!(
+                events.as_slice(),
+                [EventSpec::Spell { .. }, EventSpec::Activated { .. }]
+            ) =>
+        {
+            events.clone()
+        }
+        _ => return None,
+    };
+    let text = format!("{intervening_if:?} {body:?}");
+    let reads = text.contains("EventStackObject")
+        || text.contains("ObjectMatches { object: EventSubject, filter: ManaSpentFrom");
+    reads.then_some(events)
 }
 
 /// Whether what comes later reads which cards a surveil put into the graveyard,
@@ -1571,19 +1910,30 @@ pub(super) fn reads_graveyard_part(after: &[Instruction], result: &ResultId) -> 
         ))
 }
 
+/// A cost of moving objects it names, as "exile it".
+pub(super) fn moves_named_objects(cost: &Cost) -> bool {
+    matches!(
+        cost.parts.as_slice(),
+        [CostPart::Move { selections, face_down: false, .. }]
+            if matches!(selections.as_slice(), [CostObjectSelection { choose: None, .. }])
+    )
+}
+
 /// Whether what comes later reads an instruction's result as objects.
 pub(super) fn read_as_objects(after: &[Instruction], result: &ResultId) -> bool {
     let r = result.0;
     let text = format!("{after:?}");
-    [
-        format!("Named(ResultId({r}))"),
-        format!("Named {{ result: ResultId({r})"),
-        format!("InResult(ResultId({r}))"),
-        format!("Affected(ResultId({r}))"),
-        format!("Transition {{ result: ResultId({r})"),
-    ]
-    .iter()
-    .any(|read| text.contains(read))
+    let joined = after.iter().any(|i| matches!(i, Instruction::Effect { operation: Operation::JoinResults { results }, .. } if results.iter().any(|joined| joined.0 == r)));
+    joined
+        || [
+            format!("Named(ResultId({r}))"),
+            format!("Named {{ result: ResultId({r})"),
+            format!("InResult(ResultId({r}))"),
+            format!("Affected(ResultId({r}))"),
+            format!("Transition {{ result: ResultId({r})"),
+        ]
+        .iter()
+        .any(|read| text.contains(read))
 }
 
 /// Whether an amount a walk over the players made is read player by player.
@@ -1639,9 +1989,9 @@ fn mana_choices(production: &ManaProduction) -> Result<Vec<String>> {
 /// The field of `PlayerCounters` a kind of counter is kept in.
 fn player_counter(kind: &crate::counter::CounterKind) -> Option<&'static str> {
     match format!("{kind:?}").as_str() {
-        "Poison" => Some("poison"),
-        "Energy" => Some("energy"),
-        "Experience" => Some("experience"),
+        "Poison" | "Named(PoisonCounter)" => Some("poison"),
+        "Energy" | "Named(EnergyCounter)" => Some("energy"),
+        "Experience" | "Named(ExperienceCounter)" => Some("experience"),
         _ => None,
     }
 }

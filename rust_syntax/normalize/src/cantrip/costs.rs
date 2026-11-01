@@ -142,8 +142,12 @@ impl Compiler {
     /// A generated `ObjectFilter`: what a cost accepts of an object.
     pub(super) fn cost_filter(&mut self, filter: &ObjectFilter, label: &str) -> Result<String> {
         // A cost's filter is a plain function, with no event or stack item to read.
+        // What is entering is its asker's source.
         let saved = (self.reader, self.event_at);
-        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+        (self.reader, self.event_at) = match saved.1 {
+            EventAt::Entering => (Reader::Query, EventAt::Entering),
+            _ => (Reader::Query, EventAt::Nowhere),
+        };
         let test = self.filter(filter, &Candidate::of("id"));
         (self.reader, self.event_at) = saved;
         let function = format!("{label}_{}", self.fresh());
@@ -516,7 +520,11 @@ impl Compiler {
             );
         }
         if let Some((condition, Some(most))) = more {
-            let test = self.activation_condition(condition, &format!("{label}_more_modes"))?;
+            let around = self.frame;
+            self.frame = frame.unwrap_or(around);
+            let test = self.activation_condition(condition, &format!("{label}_more_modes"));
+            self.frame = around;
+            let test = test?;
             modal.push_str(&format!(".up_to_if({test}, {most})"));
         }
         if *repeat {

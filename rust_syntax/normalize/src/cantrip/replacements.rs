@@ -305,6 +305,11 @@ impl Compiler {
                 "entering.instead = Some(Zone::graveyard(g.obj(entering.object).owner));"
             )
             .unwrap(),
+            EventChange::SetDestination(Destination::Exile) => writeln!(
+                out,
+                "entering.instead = Some(Zone::exile(g.obj(entering.object).owner));"
+            )
+            .unwrap(),
             EventChange::SetController(PlayerRef::OneOf(players)) => {
                 let players = self.fetch(self.players(players)?);
                 self.plan_code(
@@ -403,12 +408,20 @@ impl Compiler {
             if guard.is_some() {
                 return Err(gap("conditional Replacement"));
             }
-            let ReplacementEvent::Enter {
-                objects: ObjectFilter::SameObject(ObjectRef::Source),
-            } = event
-            else {
+            let narrowed = lane_n::entering_if(event, body);
+            let body = narrowed.as_ref().unwrap_or(body);
+            if narrowed.is_some() {
+                // What it was cast as is the spell's, and it is leaving the stack.
+                self.gaps
+                    .push(gap("as-enters replacement of another event"));
+            } else if !matches!(
+                event,
+                ReplacementEvent::Enter {
+                    objects: ObjectFilter::SameObject(ObjectRef::Source),
+                }
+            ) {
                 return Err(gap("as-enters replacement of another event"));
-            };
+            }
             let function = format!("{label}_enters");
             match self.static_guard.clone() {
                 Some(condition) => self.entering(
@@ -572,6 +585,12 @@ impl Compiler {
         }
         for result in self.replacing.changed.clone() {
             self.performed.insert(result, "true".to_string());
+            if frame.object == Some(Carried::Subject) {
+                self.moved.insert(
+                    result,
+                    "subject.object().into_iter().collect::<Vec<ObjectId>>()".into(),
+                );
+            }
         }
         let saved = (
             self.reader,
@@ -622,6 +641,9 @@ impl Compiler {
         body: &Program,
         out: &mut String,
     ) -> Result<()> {
+        if self.stated_replacement(event, limit, duration, body, out)? {
+            return Ok(());
+        }
         if !self.stack_item || self.pending != Pending::Nothing {
             return Err(gap("replacement made outside a resolving ability"));
         }
@@ -635,7 +657,7 @@ impl Compiler {
         };
         *self = saved.clone();
         out.truncate(mark);
-        if !self.granting && self.outer.is_none() {
+        if self.outer.is_none() {
             for one in [true, false] {
                 match self.carried_replacement(event, limit, duration, body, one, out) {
                     Ok(()) => return Ok(()),
@@ -797,12 +819,7 @@ impl Compiler {
                 "g.add_effect(item.object, about, EffectKind::Prevention {{ card: item.ability.card, index: {index}, to, shield: {shield_value} }}, DURATION);"
             )));
         }
-        // The engine finds these through the source's own card, which a granted
-        // ability is not printed on, and hands them no recipient.
-        if self.granting {
-            return Err(gap("replacement made by a granted ability"));
-        }
-        if to {
+        if to && !self.granting {
             return Err(gap("replacement of damage to a named recipient"));
         }
         let once = match limit {
@@ -823,17 +840,21 @@ impl Compiler {
         }
         self.add_made_replacement(def);
         let index = self.made_replacements.len() - 1;
-        if shield.is_some() {
-            return Ok((shield, lane_n::shielded_redirect(index)));
+        let made = if shield.is_some() {
+            lane_n::shielded_redirect(index)
+        } else if about {
+            format!("let _ = to; g.add_effect(item.object, about, EffectKind::Replacement {{ card: item.ability.card, index: {index} }}, DURATION);")
+        } else {
+            format!("let _ = (to, about); g.add_player_effect(item.controller, item.object, EffectKind::ReplacementRule {{ card: item.ability.card, index: {index} }}, DURATION);")
+        };
+        // The engine finds these through the source's own card, which a granted
+        // ability is not printed on, and hands them no recipient.
+        if self.granting {
+            let mut planned = String::new();
+            self.plan_code("replacement made by a granted ability", &made, &mut planned);
+            return Ok((shield, planned));
         }
-        Ok((
-            None,
-            if about {
-                format!("let _ = to; g.add_effect(item.object, about, EffectKind::Replacement {{ card: item.ability.card, index: {index} }}, DURATION);")
-            } else {
-                format!("let _ = (to, about); g.add_player_effect(item.controller, item.object, EffectKind::ReplacementRule {{ card: item.ability.card, index: {index} }}, DURATION);")
-            },
-        ))
+        Ok((shield, made))
     }
     fn prevention(
         &mut self,

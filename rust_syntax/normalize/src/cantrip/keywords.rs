@@ -149,8 +149,12 @@ impl Compiler {
             }
             K::ExchangeControl => {
                 let pair = self.pair_action(&action, id, out)?;
-                writeln!(out, "let exchanged_{id} = match {pair} {{ (Some(first), Some(second)) => g.exchange_control(asker.source, first, second), _ => false }};").unwrap();
+                writeln!(out, "let pair_{id} = {pair}; let exchanged_{id} = match pair_{id} {{ (Some(first), Some(second)) => g.exchange_control(asker.source, first, second), _ => false }};").unwrap();
                 self.performed.insert(result.0, format!("exchanged_{id}"));
+                if self.read_later(result) {
+                    writeln!(out, "let traded_{id}: Vec<ObjectId> = if exchanged_{id} {{ [pair_{id}.0, pair_{id}.1].into_iter().flatten().collect() }} else {{ Vec::new() }};").unwrap();
+                    self.moved.insert(result.0, format!("traded_{id}"));
+                }
             }
             K::Investigate => {
                 let clue = format!("{M}::tokens::CLUE");
@@ -201,12 +205,16 @@ impl Compiler {
             }
             K::Bolster => {
                 let n = self.action_amount(&action, i16::MAX.into(), "i16")?;
-                let call = format!("let amount = {n}; let creatures: Vec<ObjectId> = g.permanents_of(player).into_iter().filter(|&o| g.chars(o).is(CardType::Creature)).collect(); let least = creatures.iter().map(|&o| g.chars(o).toughness.unwrap_or(0)).min(); let fewest: Vec<ObjectId> = creatures.into_iter().filter(|&o| Some(g.chars(o).toughness.unwrap_or(0)) == least).collect(); if let Some(creature) = {M}::choose::card(g, player, asker.source, Purpose::ChooseAsEnters, fewest)? {{ g.add_counters(creature, CounterKind::PlusOne, amount); }}");
+                writeln!(out, "let mut bolstered_{id}: Vec<ObjectId> = Vec::new();").unwrap();
+                let call = format!("let amount = {n}; let creatures: Vec<ObjectId> = g.permanents_of(player).into_iter().filter(|&o| g.chars(o).is(CardType::Creature)).collect(); let least = creatures.iter().map(|&o| g.chars(o).toughness.unwrap_or(0)).min(); let fewest: Vec<ObjectId> = creatures.into_iter().filter(|&o| Some(g.chars(o).toughness.unwrap_or(0)) == least).collect(); if let Some(creature) = {M}::choose::card(g, player, asker.source, Purpose::ChooseAsEnters, fewest)? {{ g.add_counters(creature, CounterKind::PlusOne, amount); bolstered_{id}.push(creature); }}");
                 self.actor_action(&action, &call, out)?;
+                self.selections.insert(result.0, format!("bolstered_{id}"));
             }
             K::Populate => {
-                let call = format!("let tokens: Vec<ObjectId> = g.permanents_of(player).into_iter().filter(|&o| g.obj(o).token && g.chars(o).is(CardType::Creature)).collect(); if let Some(token) = {M}::choose::card(g, player, asker.source, Purpose::CopyWhich, tokens)? {{ let values = g.copiable_values(token); g.create_token_copies_tapped(values, player, 1, false)?; }}");
+                writeln!(out, "let mut populated_{id}: Vec<ObjectId> = Vec::new();").unwrap();
+                let call = format!("let tokens: Vec<ObjectId> = g.permanents_of(player).into_iter().filter(|&o| g.obj(o).token && g.chars(o).is(CardType::Creature)).collect(); if let Some(token) = {M}::choose::card(g, player, asker.source, Purpose::CopyWhich, tokens)? {{ let values = g.copiable_values(token); populated_{id}.extend(g.create_token_copies_tapped(values, player, 1, false)?); }}");
                 self.actor_action(&action, &call, out)?;
+                self.creations.insert(result.0, format!("populated_{id}"));
             }
             K::Learn => {
                 self.controlled_by_item(&action)?;

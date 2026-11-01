@@ -2,8 +2,8 @@
  "cantrip": "af0a0be5ec",
  "totals": {
   "cards": 33529,
-  "ready": 27032,
-  "planned": 6449,
+  "ready": 27051,
+  "planned": 6430,
   "data": 48
  },
  "layouts": {
@@ -12,8 +12,8 @@
    "planned": 11
   },
   "Card": {
-   "ready": 26338,
-   "planned": 5848
+   "ready": 26357,
+   "planned": 5829
   },
   "Conspiracy": {
    "ready": 0,
@@ -82,20 +82,20 @@
  },
  "classes": {
   "engine": {
-   "requirements": 952,
-   "cards": 5027
+   "requirements": 963,
+   "cards": 5046
   },
   "mechanic": {
-   "requirements": 241,
-   "cards": 1496
+   "requirements": 243,
+   "cards": 1500
   },
   "vocabulary": {
-   "requirements": 382,
-   "cards": 795
+   "requirements": 386,
+   "cards": 803
   },
   "generator": {
-   "requirements": 43,
-   "cards": 114
+   "requirements": 23,
+   "cards": 41
   }
  },
  "requirements": [
@@ -281,8 +281,8 @@
    "class": "engine",
    "needs": "A slot's size read as it is chosen; a TargetSpec's bounds are constants or the X announced.",
    "family": "target cardinality",
-   "cards": 84,
-   "alone": 15,
+   "cards": 86,
+   "alone": 16,
    "examples": [
     "Aether Burst",
     "Agility Bobblehead",
@@ -313,8 +313,8 @@
    "class": "engine",
    "needs": "A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes.",
    "family": "operation ChangeSpell",
-   "cards": 77,
-   "alone": 51,
+   "cards": 79,
+   "alone": 52,
    "examples": [
     "Alter Reality",
     "Arcane Archery",
@@ -362,7 +362,7 @@
    "needs": "A prevention effect that also does something when it prevents damage (CR 615.5), such as 'prevent that damage and put a counter on this', since PreventionDef has no follow-up as a replacement has.",
    "family": "prevention with",
    "cards": 66,
-   "alone": 36,
+   "alone": 37,
    "examples": [
     "Acolyte's Reward",
     "Angel of Suffering",
@@ -388,6 +388,22 @@
    ]
   },
   {
+   "id": "event-value-in-a-target-filter-beyond-its-subject",
+   "feature": "event value in a target filter beyond its subject",
+   "class": "engine",
+   "needs": "a target filter of a triggered ability can read the data of its event, as Query::event_subject reads the subject",
+   "family": "event value",
+   "cards": 56,
+   "alone": 39,
+   "examples": [
+    "Black Bolt, Inhuman King",
+    "Blade of Shared Souls",
+    "Bladegriff Prototype",
+    "Body Launderer",
+    "Carrion Thrash"
+   ]
+  },
+  {
    "id": "granted-static",
    "feature": "granted Static",
    "class": "engine",
@@ -404,22 +420,6 @@
    ]
   },
   {
-   "id": "event-value-in-a-target-filter-beyond-its-subject",
-   "feature": "event value in a target filter beyond its subject",
-   "class": "engine",
-   "needs": "a target filter of a triggered ability can read the data of its event, as Query::event_subject reads the subject",
-   "family": "event value",
-   "cards": 55,
-   "alone": 39,
-   "examples": [
-    "Black Bolt, Inhuman King",
-    "Blade of Shared Souls",
-    "Bladegriff Prototype",
-    "Body Launderer",
-    "Carrion Thrash"
-   ]
-  },
-  {
    "id": "engine-no-record-of-what-paid-a-cost",
    "feature": "engine: no record of what paid a cost",
    "class": "engine",
@@ -433,6 +433,22 @@
     "Baron Helmut Zemo",
     "Bloodfire Infusion",
     "Burn at the Stake"
+   ]
+  },
+  {
+   "id": "operation-effect-on",
+   "feature": "operation EffectOn",
+   "class": "engine",
+   "needs": "Effects made at resolution on objects, players, each spell that matches including later ones, or the next matching spell, for a duration: discounts, abilities gained, plays allowed.",
+   "family": "operation EffectOn",
+   "cards": 50,
+   "alone": 35,
+   "examples": [
+    "Alaundo the Seer",
+    "Armor Wars",
+    "Azor, the Lawbringer",
+    "Ballad of the Black Flag",
+    "Blind Seer"
    ]
   },
   {
@@ -481,22 +497,6 @@
     "Capricopian",
     "Casey Jones, Asphalt Hooligan",
     "Clergy of the Holy Nimbus"
-   ]
-  },
-  {
-   "id": "operation-effect-on",
-   "feature": "operation EffectOn",
-   "class": "engine",
-   "needs": "Effects made at resolution on objects, players, each spell that matches including later ones, or the next matching spell, for a duration: discounts, abilities gained, plays allowed.",
-   "family": "operation EffectOn",
-   "cards": 49,
-   "alone": 35,
-   "examples": [
-    "Alaundo the Seer",
-    "Armor Wars",
-    "Azor, the Lawbringer",
-    "Ballad of the Black Flag",
-    "Blind Seer"
    ]
   },
   {
@@ -564,6 +564,22 @@
    ]
   },
   {
+   "id": "continuous-rule-untap-step",
+   "feature": "continuous rule UntapStep",
+   "class": "engine",
+   "needs": "An effect that a permanent doesn't untap during its controller's untap step, for a duration (CR 502.3), weaker than CantBecomeUntapped since other effects still untap it.",
+   "family": "continuous rule",
+   "cards": 42,
+   "alone": 22,
+   "examples": [
+    "Amber Prison",
+    "Blinding Beam",
+    "Bontu's Last Reckoning",
+    "Cone of Cold",
+    "Deserter's Quarters"
+   ]
+  },
+  {
    "id": "engine-no-specialize-event",
    "feature": "engine: no specialize event",
    "class": "engine",
@@ -577,22 +593,6 @@
     "Gut, Devious Fanatic",
     "Gut, Furious Fanatic",
     "Gut, Zealous Fanatic"
-   ]
-  },
-  {
-   "id": "continuous-rule-untap-step",
-   "feature": "continuous rule UntapStep",
-   "class": "engine",
-   "needs": "An effect that a permanent doesn't untap during its controller's untap step, for a duration (CR 502.3), weaker than CantBecomeUntapped since other effects still untap it.",
-   "family": "continuous rule",
-   "cards": 41,
-   "alone": 22,
-   "examples": [
-    "Amber Prison",
-    "Blinding Beam",
-    "Bontu's Last Reckoning",
-    "Cone of Cold",
-    "Deserter's Quarters"
    ]
   },
   {
@@ -617,7 +617,7 @@
    "class": "engine",
    "needs": "A reflexive ability that carries a list of objects; `reflexive_trigger` carries one subject and `delayed_trigger_about` is for delayed triggers alone.",
    "family": "reflexive ability",
-   "cards": 40,
+   "cards": 41,
    "alone": 27,
    "examples": [
     "Argentum Masticore",
@@ -676,6 +676,22 @@
    ]
   },
   {
+   "id": "event-trigger-carrying-values",
+   "feature": "event trigger carrying values",
+   "class": "engine",
+   "needs": "a delayed trigger waiting on an event keeps values of the ability that made it, and its matcher can read them",
+   "family": "event trigger",
+   "cards": 37,
+   "alone": 23,
+   "examples": [
+    "Acidic Dagger",
+    "Arcbond",
+    "Delif's Cube",
+    "Fire Giant's Fury",
+    "Gaze of the Gorgon"
+   ]
+  },
+  {
    "id": "numeric-expression-paid-counters-removed",
    "feature": "numeric expression PaidCountersRemoved",
    "class": "engine",
@@ -724,19 +740,19 @@
    ]
   },
   {
-   "id": "event-trigger-carrying-values",
-   "feature": "event trigger carrying values",
-   "class": "engine",
-   "needs": "a delayed trigger waiting on an event keeps values of the ability that made it, and its matcher can read them",
-   "family": "event trigger",
-   "cards": 35,
-   "alone": 22,
+   "id": "power-toughness-counter-other-than-1-1",
+   "feature": "power/toughness counter other than ±1/±1",
+   "class": "vocabulary",
+   "needs": "counter kinds that change power and toughness by something other than ±1/±1, as older cards' +1/+0 and +2/+2 counters do (CR 122.1a), with the layer that applies them",
+   "family": "power/toughness counter",
+   "cards": 36,
+   "alone": 27,
    "examples": [
-    "Acidic Dagger",
-    "Arcbond",
-    "Delif's Cube",
-    "Fire Giant's Fury",
-    "Gaze of the Gorgon"
+    "Armor Thrull",
+    "Balduvian Hydra",
+    "Baron Sengir",
+    "Brass-Talon Chimera",
+    "Clockwork Avian"
    ]
   },
   {
@@ -820,38 +836,6 @@
    ]
   },
   {
-   "id": "power-toughness-counter-other-than-1-1",
-   "feature": "power/toughness counter other than ±1/±1",
-   "class": "vocabulary",
-   "needs": "counter kinds that change power and toughness by something other than ±1/±1, as older cards' +1/+0 and +2/+2 counters do (CR 122.1a), with the layer that applies them",
-   "family": "power/toughness counter",
-   "cards": 33,
-   "alone": 27,
-   "examples": [
-    "Armor Thrull",
-    "Balduvian Hydra",
-    "Baron Sengir",
-    "Brass-Talon Chimera",
-    "Clockwork Avian"
-   ]
-  },
-  {
-   "id": "target-reference-outside-a-resolving-ability",
-   "feature": "target reference outside a resolving ability",
-   "class": "engine",
-   "needs": "A trigger or replacement made by a resolving ability reads the targets of the ability that made it (603.7c): a created effect has no closure over them. A few are a cost change that reads targets.",
-   "family": "target reference",
-   "cards": 33,
-   "alone": 12,
-   "examples": [
-    "Angel of Salvation",
-    "Bamboozling Beeble",
-    "Callidus Assassin",
-    "Captain's Maneuver",
-    "Embolden"
-   ]
-  },
-  {
    "id": "engine-no-mutate-event",
    "feature": "engine: no mutate event",
    "class": "engine",
@@ -932,6 +916,22 @@
    ]
   },
   {
+   "id": "target-reference-outside-a-resolving-ability",
+   "feature": "target reference outside a resolving ability",
+   "class": "engine",
+   "needs": "A trigger or replacement made by a resolving ability reads the targets of the ability that made it (603.7c): a created effect has no closure over them. A few are a cost change that reads targets.",
+   "family": "target reference",
+   "cards": 30,
+   "alone": 9,
+   "examples": [
+    "Acolyte's Reward",
+    "Angel of Salvation",
+    "Bamboozling Beeble",
+    "Captain's Maneuver",
+    "Divine Deflection"
+   ]
+  },
+  {
    "id": "ability-draft-rule",
    "feature": "ability DraftRule",
    "class": "engine",
@@ -980,6 +980,22 @@
    ]
   },
   {
+   "id": "targets-chosen-by-another-player",
+   "feature": "targets chosen by another player",
+   "class": "engine",
+   "needs": "A target slot chosen by a player other than the controller (CR 601.2c, 603.3d).",
+   "family": "targets chosen",
+   "cards": 29,
+   "alone": 17,
+   "examples": [
+    "Arena",
+    "Bladegriff Prototype",
+    "Confusion in the Ranks",
+    "Cuombajj Witches",
+    "Curse of Inertia"
+   ]
+  },
+  {
    "id": "engine-no-resolving-rule-on-an-open-set-prohibit-block",
    "feature": "engine: no resolving rule on an open set: Prohibit Block",
    "class": "engine",
@@ -993,22 +1009,6 @@
     "Droning Bureaucrats",
     "Eunuchs' Intrigues",
     "Falter"
-   ]
-  },
-  {
-   "id": "targets-chosen-by-another-player",
-   "feature": "targets chosen by another player",
-   "class": "engine",
-   "needs": "A target slot chosen by a player other than the controller (CR 601.2c, 603.3d).",
-   "family": "targets chosen",
-   "cards": 28,
-   "alone": 16,
-   "examples": [
-    "Arena",
-    "Bladegriff Prototype",
-    "Confusion in the Ranks",
-    "Cuombajj Witches",
-    "Curse of Inertia"
    ]
   },
   {
@@ -1300,6 +1300,22 @@
    ]
   },
   {
+   "id": "operation-change-zone",
+   "feature": "operation ChangeZone",
+   "class": "engine",
+   "needs": "cards chosen under a rule of the group (one per card type, a total mana value, different names) moved together, in a state, face down or into a pile",
+   "family": "operation ChangeZone",
+   "cards": 24,
+   "alone": 17,
+   "examples": [
+    "Atraxa, Grand Unifier",
+    "Cybership",
+    "Death in Heaven",
+    "Eerie Ultimatum",
+    "Hurkyl, Master Wizard"
+   ]
+  },
+  {
    "id": "cost-part-player-action",
    "feature": "cost part PlayerAction",
    "class": "engine",
@@ -1361,22 +1377,6 @@
     "Amok",
     "Barbarian Bully",
     "Canyon Drake"
-   ]
-  },
-  {
-   "id": "operation-change-zone",
-   "feature": "operation ChangeZone",
-   "class": "engine",
-   "needs": "cards chosen under a rule of the group (one per card type, a total mana value, different names) moved together, in a state, face down or into a pile",
-   "family": "operation ChangeZone",
-   "cards": 23,
-   "alone": 17,
-   "examples": [
-    "Atraxa, Grand Unifier",
-    "Cybership",
-    "Death in Heaven",
-    "Eerie Ultimatum",
-    "Hurkyl, Master Wizard"
    ]
   },
   {
@@ -1540,6 +1540,22 @@
    ]
   },
   {
+   "id": "target-with-a-divided-amount-read-as-chosen",
+   "feature": "target with a divided amount read as chosen",
+   "class": "engine",
+   "needs": "a divided total read from the game as the targets are chosen: Divide holds a constant, the announced X, or a function of X.",
+   "family": "target with",
+   "cards": 22,
+   "alone": 3,
+   "examples": [
+    "Broodlord",
+    "Captain America, First Avenger",
+    "Case of the Market Melee",
+    "Grand Ossuary",
+    "Impact Resonance"
+   ]
+  },
+  {
    "id": "a-choice-of-card-name-outside-its-body",
    "feature": "a choice of CardName outside its body",
    "class": "engine",
@@ -1620,19 +1636,19 @@
    ]
   },
   {
-   "id": "transition-this-instruction-does-not-report",
-   "feature": "transition this instruction does not report",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "transition this",
-   "cards": 21,
-   "alone": 9,
+   "id": "amount-of-an-event-its-trigger-does-not-carry",
+   "feature": "amount of an event its trigger does not carry",
+   "class": "engine",
+   "needs": "The total of the events an ability answers ('one or more ... that much', 'that many'), or the number of an event that reports none: `event_objects` gives the objects of a batch and no amounts.",
+   "family": "amount of",
+   "cards": 20,
+   "alone": 6,
    "examples": [
-    "Cemetery Desecrator",
-    "Demonfire",
-    "Discerning Taste",
-    "Feather, Radiant Arbiter",
-    "Flickerform"
+    "\"Lifetime\" Pass Holder",
+    "All Will Be One",
+    "Arcee, Acrobatic Coupe // Arcee, Sharpshooter",
+    "Bioessence Hydra",
+    "Broodcaller Scourge"
    ]
   },
   {
@@ -1812,22 +1828,6 @@
    ]
   },
   {
-   "id": "target-with-a-divided-amount-read-as-chosen",
-   "feature": "target with a divided amount read as chosen",
-   "class": "engine",
-   "needs": "a divided total read from the game as the targets are chosen: Divide holds a constant, the announced X, or a function of X.",
-   "family": "target with",
-   "cards": 20,
-   "alone": 2,
-   "examples": [
-    "Broodlord",
-    "Captain America, First Avenger",
-    "Grand Ossuary",
-    "Impact Resonance",
-    "Jaws of Stone"
-   ]
-  },
-  {
    "id": "a-card-a-player-may-look-at-for-a-while",
    "feature": "a card a player may look at for a while",
    "class": "engine",
@@ -1921,22 +1921,6 @@
     "Gale, Conduit of the Arcane",
     "Gut, Fanatical Priestess",
     "Imoen, Trickster Friend"
-   ]
-  },
-  {
-   "id": "event-object-this-trigger-does-not-bind",
-   "feature": "event object this trigger does not bind",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "event object",
-   "cards": 19,
-   "alone": 10,
-   "examples": [
-    "Agrus Kos, Eternal Soldier",
-    "Battlemage's Bracers",
-    "Bill Potts",
-    "Creepy Puppeteer",
-    "Galea, Kindler of Hope"
    ]
   },
   {
@@ -2081,22 +2065,6 @@
     "Archangel of Wrath",
     "Cetavolver",
     "Degavolver"
-   ]
-  },
-  {
-   "id": "amount-of-an-event-its-trigger-does-not-carry",
-   "feature": "amount of an event its trigger does not carry",
-   "class": "engine",
-   "needs": "The total of the events an ability answers ('one or more ... that much', 'that many'), or the number of an event that reports none: `event_objects` gives the objects of a batch and no amounts.",
-   "family": "amount of",
-   "cards": 17,
-   "alone": 6,
-   "examples": [
-    "\"Lifetime\" Pass Holder",
-    "All Will Be One",
-    "Arcee, Acrobatic Coupe // Arcee, Sharpshooter",
-    "Bioessence Hydra",
-    "Broodcaller Scourge"
    ]
   },
   {
@@ -2708,6 +2676,22 @@
    ]
   },
   {
+   "id": "operation-copy-on-stack",
+   "feature": "operation CopyOnStack",
+   "class": "engine",
+   "needs": "Copying or retargeting a spell or ability with the new targets stated: each legal target, to a set, at random; `copy_spell` and the change-target calls only ask the player or keep them.",
+   "family": "operation CopyOnStack",
+   "cards": 14,
+   "alone": 4,
+   "examples": [
+    "Beamsplitter Mage",
+    "Chef's Kiss",
+    "Exterminator Magmarch",
+    "Feather, Radiant Arbiter",
+    "Frontline Heroism"
+   ]
+  },
+  {
    "id": "play-permission-to-play-land",
    "feature": "play permission to PlayLand",
    "class": "engine",
@@ -2929,22 +2913,6 @@
     "Dance of Many",
     "Dance of the Dead",
     "Diabolic Servitude"
-   ]
-  },
-  {
-   "id": "operation-copy-on-stack",
-   "feature": "operation CopyOnStack",
-   "class": "engine",
-   "needs": "Copying or retargeting a spell or ability with the new targets stated: each legal target, to a set, at random; `copy_spell` and the change-target calls only ask the player or keep them.",
-   "family": "operation CopyOnStack",
-   "cards": 13,
-   "alone": 4,
-   "examples": [
-    "Beamsplitter Mage",
-    "Chef's Kiss",
-    "Exterminator Magmarch",
-    "Frontline Heroism",
-    "Glimmervoid Basin"
    ]
   },
   {
@@ -3220,6 +3188,38 @@
    ]
   },
   {
+   "id": "modal-announcement",
+   "feature": "modal announcement",
+   "class": "engine",
+   "needs": "modes on a chapter or a reflexive ability, and a mode that is itself a choice of modes",
+   "family": "modal announcement",
+   "cards": 12,
+   "alone": 4,
+   "examples": [
+    "Caesar, Legion's Emperor",
+    "Cemetery Desecrator",
+    "Etched Slith",
+    "Gorbag of Minas Morgul",
+    "Hawkeye, Master Marksman"
+   ]
+  },
+  {
+   "id": "objects-that-paid-a-cost-at-resolution",
+   "feature": "objects that paid a cost at resolution",
+   "class": "engine",
+   "needs": "`may_pay` of a cost with several parts or a choice inside it to report which objects paid: 'you may pay {1}{R} and discard a card. If you do, deals damage equal to the discarded card's mana value'.",
+   "family": "objects that",
+   "cards": 12,
+   "alone": 3,
+   "examples": [
+    "Duplicity",
+    "Reflection of Kiki-Jiki // Fable of the Mirror-Breaker",
+    "Galloping Lizrog",
+    "Grub, Notorious Auntie // Grub, Storied Matriarch",
+    "Moonring Mirror"
+   ]
+  },
+  {
    "id": "operation-piles",
    "feature": "operation Piles",
    "class": "engine",
@@ -3281,22 +3281,6 @@
     "Arena",
     "Bargaining Table",
     "Echo Chamber"
-   ]
-  },
-  {
-   "id": "result-this-instruction-does-not-report",
-   "feature": "result this instruction does not report",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "result this",
-   "cards": 12,
-   "alone": 5,
-   "examples": [
-    "Alliance of Arms",
-    "Collective Voyage",
-    "Hawkeye, Master Marksman",
-    "Liege of the Hollows",
-    "Minds Aglow"
    ]
   },
   {
@@ -3636,6 +3620,22 @@
    ]
   },
   {
+   "id": "several-objects-arriving-attached",
+   "feature": "several objects arriving attached",
+   "class": "engine",
+   "needs": "several Auras and Equipment put onto the battlefield at once, each attached to a named or chosen object (CR 110.2a, 303.4f): put_onto_battlefield_attached takes one",
+   "family": "several objects",
+   "cards": 11,
+   "alone": 5,
+   "examples": [
+    "Bruna, Light of Alabaster",
+    "Cass, Hand of Vengeance",
+    "Evershrike",
+    "Flickerform",
+    "Liberated Livestock"
+   ]
+  },
+  {
    "id": "a-maximum-hand-size-of-other-players",
    "feature": "a maximum hand size of other players",
    "class": "engine",
@@ -3748,6 +3748,22 @@
    ]
   },
   {
+   "id": "engine-no-cost-puts-an-exiled-card-into-a-graveyard",
+   "feature": "engine: no cost puts an exiled card into a graveyard",
+   "class": "engine",
+   "needs": "A cost that puts a card you own from exile into its owner's graveyard.",
+   "family": "engine: no",
+   "cards": 10,
+   "alone": 9,
+   "examples": [
+    "Blight Herder",
+    "Cryptic Cruiser",
+    "Jester's Scepter",
+    "Oracle of Dust",
+    "Processor Assault"
+   ]
+  },
+  {
    "id": "engine-no-discard-cause-in-events",
    "feature": "engine: no discard cause in events",
    "class": "engine",
@@ -3796,22 +3812,6 @@
    ]
   },
   {
-   "id": "modal-announcement",
-   "feature": "modal announcement",
-   "class": "engine",
-   "needs": "modes on a chapter or a reflexive ability, and a mode that is itself a choice of modes",
-   "family": "modal announcement",
-   "cards": 10,
-   "alone": 4,
-   "examples": [
-    "Caesar, Legion's Emperor",
-    "Cemetery Desecrator",
-    "Etched Slith",
-    "Gorbag of Minas Morgul",
-    "Hylda of the Icy Crown"
-   ]
-  },
-  {
    "id": "numeric-expression-coin-flips-won",
    "feature": "numeric expression CoinFlipsWon",
    "class": "engine",
@@ -3841,38 +3841,6 @@
     "Centaur of Attention",
     "Circuits Act",
     "Clay Golem"
-   ]
-  },
-  {
-   "id": "object-reference-affected",
-   "feature": "object reference Affected",
-   "class": "engine",
-   "needs": "the object an effect or replacement is being applied to, as its own instructions read it",
-   "family": "object reference",
-   "cards": 10,
-   "alone": 2,
-   "examples": [
-    "Battlefield Thaumaturge",
-    "Cemetery Prowler",
-    "Drought",
-    "Eriette, the Beguiler",
-    "Feather, the Redeemed"
-   ]
-  },
-  {
-   "id": "objects-that-paid-a-cost-at-resolution",
-   "feature": "objects that paid a cost at resolution",
-   "class": "engine",
-   "needs": "`may_pay` of a cost with several parts or a choice inside it to report which objects paid: 'you may pay {1}{R} and discard a card. If you do, deals damage equal to the discarded card's mana value'.",
-   "family": "objects that",
-   "cards": 10,
-   "alone": 1,
-   "examples": [
-    "Duplicity",
-    "Reflection of Kiki-Jiki // Fable of the Mirror-Breaker",
-    "Galloping Lizrog",
-    "Moonring Mirror",
-    "Sarulf, Realm Eater"
    ]
   },
   {
@@ -4180,6 +4148,22 @@
    ]
   },
   {
+   "id": "duration-while-on-battlefield",
+   "feature": "duration WhileOnBattlefield",
+   "class": "engine",
+   "needs": "an effect lasts until this: Duration has no such end",
+   "family": "duration WhileOnBattlefield",
+   "cards": 9,
+   "alone": 4,
+   "examples": [
+    "Calix, Destiny's Hand",
+    "Dreams of the Dead",
+    "Isareth the Awakener",
+    "Kheru Lich Lord",
+    "Lumbering Battlement"
+   ]
+  },
+  {
    "id": "engine-no-amplify",
    "feature": "engine: no Amplify",
    "class": "mechanic",
@@ -4225,22 +4209,6 @@
     "Isperia's Skywatch",
     "Lyev Skyknight",
     "Martial Law"
-   ]
-  },
-  {
-   "id": "engine-no-cost-puts-an-exiled-card-into-a-graveyard",
-   "feature": "engine: no cost puts an exiled card into a graveyard",
-   "class": "engine",
-   "needs": "A cost that puts a card you own from exile into its owner's graveyard.",
-   "family": "engine: no",
-   "cards": 9,
-   "alone": 8,
-   "examples": [
-    "Blight Herder",
-    "Cryptic Cruiser",
-    "Jester's Scepter",
-    "Oracle of Dust",
-    "Processor Assault"
    ]
   },
   {
@@ -4321,6 +4289,22 @@
     "Arcane Savant",
     "Caller of the Untamed",
     "Noble Banneret"
+   ]
+  },
+  {
+   "id": "object-reference-affected",
+   "feature": "object reference Affected",
+   "class": "engine",
+   "needs": "the object an effect or replacement is being applied to, as its own instructions read it",
+   "family": "object reference",
+   "cards": 9,
+   "alone": 2,
+   "examples": [
+    "Battlefield Thaumaturge",
+    "Cemetery Prowler",
+    "Drought",
+    "Eriette, the Beguiler",
+    "Feather, the Redeemed"
    ]
   },
   {
@@ -4433,22 +4417,6 @@
     "Guardian Angel",
     "Idol of Endurance",
     "North Star"
-   ]
-  },
-  {
-   "id": "several-objects-arriving-attached",
-   "feature": "several objects arriving attached",
-   "class": "engine",
-   "needs": "several Auras and Equipment put onto the battlefield at once, each attached to a named or chosen object (CR 110.2a, 303.4f): put_onto_battlefield_attached takes one",
-   "family": "several objects",
-   "cards": 9,
-   "alone": 4,
-   "examples": [
-    "Bruna, Light of Alabaster",
-    "Cass, Hand of Vengeance",
-    "Evershrike",
-    "Liberated Livestock",
-    "Mantle of the Ancients"
    ]
   },
   {
@@ -4708,19 +4676,19 @@
    ]
   },
   {
-   "id": "duration-while-on-battlefield",
-   "feature": "duration WhileOnBattlefield",
+   "id": "duration-until-event",
+   "feature": "duration UntilEvent",
    "class": "engine",
    "needs": "an effect lasts until this: Duration has no such end",
-   "family": "duration WhileOnBattlefield",
+   "family": "duration UntilEvent",
    "cards": 8,
-   "alone": 4,
+   "alone": 1,
    "examples": [
-    "Calix, Destiny's Hand",
-    "Dreams of the Dead",
-    "Isareth the Awakener",
-    "Kheru Lich Lord",
-    "Lumbering Battlement"
+    "Agyrem",
+    "Celestine Reef",
+    "Chaotic Aether",
+    "Eloren Wilds",
+    "Ferris Wheel"
    ]
   },
   {
@@ -5044,6 +5012,22 @@
    ]
   },
   {
+   "id": "activated-ability-on-stack",
+   "feature": "activated ability OnStack",
+   "class": "engine",
+   "needs": "What an activated ability is, read of the event of its activation",
+   "family": "activated ability",
+   "cards": 7,
+   "alone": 4,
+   "examples": [
+    "Bill Potts",
+    "Frenzied Raider",
+    "Herald of Anafenza",
+    "Market Gnome",
+    "Marvel Boy, Noh-Varr"
+   ]
+  },
+  {
    "id": "adjusted-token-copy",
    "feature": "adjusted token copy",
    "class": "engine",
@@ -5169,22 +5153,6 @@
     "Kheru Spellsnatcher",
     "Masked Bandits",
     "Rakish Revelers"
-   ]
-  },
-  {
-   "id": "duration-until-event",
-   "feature": "duration UntilEvent",
-   "class": "engine",
-   "needs": "an effect lasts until this: Duration has no such end",
-   "family": "duration UntilEvent",
-   "cards": 7,
-   "alone": 1,
-   "examples": [
-    "Agyrem",
-    "Celestine Reef",
-    "Chaotic Aether",
-    "Eloren Wilds",
-    "Ferris Wheel"
    ]
   },
   {
@@ -5338,7 +5306,7 @@
    "needs": "An event for a creature saddling a Mount (CR 702.171), in the history and to abilities.",
    "family": "engine: no",
    "cards": 7,
-   "alone": 6,
+   "alone": 7,
    "examples": [
     "Calamity, Galloping Inferno",
     "Canyon Vaulter",
@@ -5361,22 +5329,6 @@
     "Foggy Swamp Visions",
     "The Unagi of Kyoshi Island",
     "Water Whip"
-   ]
-  },
-  {
-   "id": "event-value-outside-its-ability",
-   "feature": "event value outside its ability",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "event value",
-   "cards": 7,
-   "alone": 5,
-   "examples": [
-    "Bow to My Command",
-    "Depth Defiler",
-    "Garland, Royal Kidnapper",
-    "Riku of Many Paths",
-    "Tadeas, Juniper Ascendant"
    ]
   },
   {
@@ -5668,6 +5620,22 @@
    ]
   },
   {
+   "id": "result-this-instruction-does-not-report",
+   "feature": "result this instruction does not report",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "result this",
+   "cards": 7,
+   "alone": 4,
+   "examples": [
+    "Alliance of Arms",
+    "Collective Voyage",
+    "Liege of the Hollows",
+    "Minds Aglow",
+    "Plague of Vermin"
+   ]
+  },
+  {
    "id": "target-constraint-at-random",
    "feature": "target constraint AtRandom",
    "class": "engine",
@@ -5684,22 +5652,6 @@
    ]
   },
   {
-   "id": "target-reference",
-   "feature": "target reference",
-   "class": "engine",
-   "needs": "a delayed or reflexive ability reads a target of the ability that made it: the item keeps those targets and each one's divided share",
-   "family": "target reference",
-   "cards": 7,
-   "alone": 7,
-   "examples": [
-    "Bounty of the Hunt",
-    "Energy Arc",
-    "Falling Timber",
-    "Redeem",
-    "Serene Sunset"
-   ]
-  },
-  {
    "id": "a-choice-of-card-type-outside-its-body",
    "feature": "a choice of CardType outside its body",
    "class": "engine",
@@ -5713,38 +5665,6 @@
     "Apex Observatory // Eye of Ojer Taq",
     "Karona, False God",
     "Stenn, Paranoid Partisan"
-   ]
-  },
-  {
-   "id": "a-made-effect-about-a-target-that-may-be-a-player",
-   "feature": "a made effect about a target that may be a player",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "a made",
-   "cards": 6,
-   "alone": 1,
-   "examples": [
-    "Acolyte's Reward",
-    "Divine Deflection",
-    "Refraction Trap",
-    "Stuffy Doll Avatar",
-    "Vengeful Archon"
-   ]
-  },
-  {
-   "id": "activated-ability-on-stack",
-   "feature": "activated ability OnStack",
-   "class": "engine",
-   "needs": "What an activated ability is, read of the event of its activation",
-   "family": "activated ability",
-   "cards": 6,
-   "alone": 4,
-   "examples": [
-    "Bill Potts",
-    "Frenzied Raider",
-    "Herald of Anafenza",
-    "Marvel Boy, Noh-Varr",
-    "Satoru Umezawa"
    ]
   },
   {
@@ -5940,6 +5860,22 @@
    ]
   },
   {
+   "id": "object-collection-scoped",
+   "feature": "object collection Scoped",
+   "class": "vocabulary",
+   "needs": "a set of objects with no read in Query or Game",
+   "family": "object collection",
+   "cards": 6,
+   "alone": 4,
+   "examples": [
+    "Aragorn, Company Leader",
+    "Bold Plagiarist",
+    "Captain Marvel, Apex Avenger",
+    "Love on the Battlefield",
+    "Orvar, the All-Form"
+   ]
+  },
+  {
    "id": "object-filter-on-stack",
    "feature": "object filter OnStack",
    "class": "engine",
@@ -6049,6 +5985,22 @@
     "Merfolk Tunnel-Guide",
     "Tasteful Offering",
     "Underbridge Warlock"
+   ]
+  },
+  {
+   "id": "operation-retarget",
+   "feature": "operation Retarget",
+   "class": "engine",
+   "needs": "Copying or retargeting a spell or ability with the new targets stated: each legal target, to a set, at random; `copy_spell` and the change-target calls only ask the player or keep them.",
+   "family": "operation Retarget",
+   "cards": 6,
+   "alone": 3,
+   "examples": [
+    "Captured by the Consulate",
+    "Grip of Chaos",
+    "Meddle",
+    "Quicksilver Dragon",
+    "Rebound"
    ]
   },
   {
@@ -6276,6 +6228,22 @@
    ]
   },
   {
+   "id": "target-reference",
+   "feature": "target reference",
+   "class": "engine",
+   "needs": "a delayed or reflexive ability reads a target of the ability that made it: the item keeps those targets and each one's divided share",
+   "family": "target reference",
+   "cards": 6,
+   "alone": 5,
+   "examples": [
+    "Energy Arc",
+    "Falling Timber",
+    "Redeem",
+    "Sacred Boon",
+    "Serene Sunset"
+   ]
+  },
+  {
    "id": "trigger-event-object-becomes",
    "feature": "trigger event ObjectBecomes",
    "class": "engine",
@@ -6372,6 +6340,22 @@
    ]
   },
   {
+   "id": "a-mana-ability-test-that-lost-its-negation",
+   "feature": "a mana ability test that lost its negation",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "a mana",
+   "cards": 5,
+   "alone": 5,
+   "examples": [
+    "Battlemage's Bracers",
+    "Harsh Mentor",
+    "Illusionist's Bracers",
+    "Kurkesh, Onakke Ancient",
+    "Rings of Brighthearth"
+   ]
+  },
+  {
    "id": "a-value-chosen-by-several-players",
    "feature": "a value chosen by several players",
    "class": "engine",
@@ -6449,6 +6433,22 @@
     "Lunar Rejection",
     "Parasitic Grasp",
     "Wash Away"
+   ]
+  },
+  {
+   "id": "condition-had-extreme",
+   "feature": "condition HadExtreme",
+   "class": "engine",
+   "needs": "the most or least a player did of something in a choice each player made",
+   "family": "condition HadExtreme",
+   "cards": 5,
+   "alone": 2,
+   "examples": [
+    "Cait, Cage Brawler",
+    "Psychic Battle",
+    "Scythe Specter",
+    "Stronghold Gambit",
+    "Timesifter"
    ]
   },
   {
@@ -6932,6 +6932,22 @@
    ]
   },
   {
+   "id": "mode-count-that-is-not-a-constant",
+   "feature": "mode count that is not a constant",
+   "class": "engine",
+   "needs": "a choice of modes whose count the game works out as it is announced",
+   "family": "mode count",
+   "cards": 5,
+   "alone": 3,
+   "examples": [
+    "Bumi, King of Three Trials",
+    "Doomsday Confluence",
+    "Hawkeye, Master Marksman",
+    "The Ruinous Wrecking Crew",
+    "Tranquil Frillback"
+   ]
+  },
+  {
    "id": "modes-chosen-at-random",
    "feature": "modes chosen at random",
    "class": "engine",
@@ -7092,22 +7108,6 @@
    ]
   },
   {
-   "id": "object-collection-scoped",
-   "feature": "object collection Scoped",
-   "class": "vocabulary",
-   "needs": "a set of objects with no read in Query or Game",
-   "family": "object collection",
-   "cards": 5,
-   "alone": 3,
-   "examples": [
-    "Aragorn, Company Leader",
-    "Captain Marvel, Apex Avenger",
-    "Love on the Battlefield",
-    "Orvar, the All-Form",
-    "Spirit of Resilience"
-   ]
-  },
-  {
    "id": "object-collection-unpaid",
    "feature": "object collection Unpaid",
    "class": "engine",
@@ -7249,22 +7249,6 @@
     "Invoke the Ancients",
     "Kathril, Aspect Warper",
     "Super-Adaptoid"
-   ]
-  },
-  {
-   "id": "operation-retarget",
-   "feature": "operation Retarget",
-   "class": "engine",
-   "needs": "Copying or retargeting a spell or ability with the new targets stated: each legal target, to a set, at random; `copy_spell` and the change-target calls only ask the player or keep them.",
-   "family": "operation Retarget",
-   "cards": 5,
-   "alone": 3,
-   "examples": [
-    "Captured by the Consulate",
-    "Meddle",
-    "Quicksilver Dragon",
-    "Rebound",
-    "Reflecting Mirror"
    ]
   },
   {
@@ -7556,6 +7540,22 @@
    ]
   },
   {
+   "id": "target-cardinality-exactly",
+   "feature": "target cardinality Exactly",
+   "class": "engine",
+   "needs": "A slot's size read as it is chosen; a TargetSpec's bounds are constants or the X announced.",
+   "family": "target cardinality",
+   "cards": 5,
+   "alone": 4,
+   "examples": [
+    "Comet Storm",
+    "Lost in the Maze",
+    "Mysterious Stranger",
+    "Primitive Justice",
+    "Strength of the Tajuru"
+   ]
+  },
+  {
    "id": "trigger-event-object-crewed",
    "feature": "trigger event Object Crewed",
    "class": "engine",
@@ -7767,21 +7767,6 @@
     "Death Spark",
     "Krovikan Horror",
     "Nether Shadow"
-   ]
-  },
-  {
-   "id": "condition-had-extreme",
-   "feature": "condition HadExtreme",
-   "class": "engine",
-   "needs": "the most or least a player did of something in a choice each player made",
-   "family": "condition HadExtreme",
-   "cards": 4,
-   "alone": 2,
-   "examples": [
-    "Cait, Cage Brawler",
-    "Scythe Specter",
-    "Stronghold Gambit",
-    "Timesifter"
    ]
   },
   {
@@ -8115,6 +8100,21 @@
    ]
   },
   {
+   "id": "keyword-action-with-a-duration-of-its-own",
+   "feature": "keyword action with a duration of its own",
+   "class": "mechanic",
+   "needs": "A keyword action with no call, or with an amount the call does not take: stakes, attractions, time travel, sectors, a chosen copy, a mana ability activated by an effect.",
+   "family": "keyword action",
+   "cards": 4,
+   "alone": 1,
+   "examples": [
+    "Ferris Wheel",
+    "Out of Time",
+    "The Moment",
+    "Unyaro"
+   ]
+  },
+  {
    "id": "mode-with-a-requirement",
    "feature": "mode with a requirement",
    "class": "engine",
@@ -8175,6 +8175,21 @@
    ]
   },
   {
+   "id": "object-filter-mana-spent",
+   "feature": "object filter ManaSpent",
+   "class": "engine",
+   "needs": "mana spent to cast a spell, by color, source and who paid",
+   "family": "object filter",
+   "cards": 4,
+   "alone": 2,
+   "examples": [
+    "Desecrate Reality",
+    "Inga and Esika",
+    "Primeval Spawn",
+    "Yume, Chronicler of Valor"
+   ]
+  },
+  {
    "id": "object-filter-nth-cast",
    "feature": "object filter NthCast",
    "class": "engine",
@@ -8187,21 +8202,6 @@
     "Maelstrom Nexus",
     "Rain of Riches",
     "The Twelfth Doctor"
-   ]
-  },
-  {
-   "id": "object-reference-bound",
-   "feature": "object reference Bound",
-   "class": "vocabulary",
-   "needs": "the object a walk over objects is on, read by the code inside a walk that is itself stated",
-   "family": "object reference",
-   "cards": 4,
-   "alone": 0,
-   "examples": [
-    "Collective Voyage",
-    "Kefka, Dancing Mad",
-    "Mind Grind",
-    "Seize the Spotlight"
    ]
   },
   {
@@ -8550,21 +8550,6 @@
    ]
   },
   {
-   "id": "selection-result-outside-generated-scope",
-   "feature": "selection result outside generated scope",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "selection result",
-   "cards": 4,
-   "alone": 1,
-   "examples": [
-    "Finale of Promise",
-    "Fortune, Loyal Steed",
-    "Kefka, Dancing Mad",
-    "Strago and Relm"
-   ]
-  },
-  {
    "id": "several-objects-arriving-in-a-state",
    "feature": "several objects arriving in a state",
    "class": "engine",
@@ -8652,21 +8637,6 @@
     "Hedron Fields of Agadeem",
     "Murasa",
     "Tazeem"
-   ]
-  },
-  {
-   "id": "target-cardinality-exactly",
-   "feature": "target cardinality Exactly",
-   "class": "engine",
-   "needs": "A slot's size read as it is chosen; a TargetSpec's bounds are constants or the X announced.",
-   "family": "target cardinality",
-   "cards": 4,
-   "alone": 4,
-   "examples": [
-    "Comet Storm",
-    "Lost in the Maze",
-    "Mysterious Stranger",
-    "Strength of the Tajuru"
    ]
   },
   {
@@ -8886,6 +8856,20 @@
     "Comet, Stellar Pup",
     "Curse of the Pierced Heart",
     "Vial Smasher the Fierce"
+   ]
+  },
+  {
+   "id": "a-target-filter-reading-the-amount-its-ability-was-told",
+   "feature": "a target filter reading the amount its ability was told",
+   "class": "engine",
+   "needs": "A reflexive ability told an amount by what made it reads that amount while its targets are chosen, so a target filter needs it before the ability is on the stack.",
+   "family": "a target",
+   "cards": 3,
+   "alone": 0,
+   "examples": [
+    "Ancient Brass Dragon",
+    "Vhal, Scholar of Mortality",
+    "Vhal, Scholar of Tactics"
    ]
   },
   {
@@ -9267,6 +9251,20 @@
    ]
   },
   {
+   "id": "counter-kind-poison",
+   "feature": "counter kind Poison",
+   "class": "vocabulary",
+   "needs": "the counter in Cantrip's counter_kinds",
+   "family": "counter kind",
+   "cards": 3,
+   "alone": 0,
+   "examples": [
+    "Leeches",
+    "Melira, Sylvok Outcast",
+    "Melira, the Living Cure"
+   ]
+  },
+  {
    "id": "counter-kind-slime",
    "feature": "counter kind Slime",
    "class": "vocabulary",
@@ -9320,6 +9318,20 @@
     "Eventide's Shadow",
     "Overseer of Vault 76",
     "Sensational Spider-Man"
+   ]
+  },
+  {
+   "id": "counters-of-a-kind-chosen-as-the-effect-resolves",
+   "feature": "counters of a kind chosen as the effect resolves",
+   "class": "mechanic",
+   "needs": "a counter removal whose kind the remover picks as it resolves",
+   "family": "counters of",
+   "cards": 3,
+   "alone": 2,
+   "examples": [
+    "Cemetery Desecrator",
+    "Rhys, the Evermore",
+    "Thornmantle Striker"
    ]
   },
   {
@@ -9603,20 +9615,6 @@
    ]
   },
   {
-   "id": "event-amount-this-trigger-does-not-bind",
-   "feature": "event amount this trigger does not bind",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "event amount",
-   "cards": 3,
-   "alone": 1,
-   "examples": [
-    "Case of the Market Melee",
-    "Soundwave, Superior Captain // Soundwave, Sonic Spy",
-    "The Wise Mothman"
-   ]
-  },
-  {
    "id": "event-trigger-for-end-of-combat",
    "feature": "event trigger for EndOfCombat",
    "class": "engine",
@@ -9628,6 +9626,20 @@
     "Goblin Flotilla",
     "Melee",
     "Stensian Sanguinist // Exsanguinate"
+   ]
+  },
+  {
+   "id": "event-value-outside-its-ability",
+   "feature": "event value outside its ability",
+   "class": "engine",
+   "needs": "A cost paid at resolution whose filter reads the ability's event: Picks::Matching is a plain function, so \"they control\" of the event's player cannot reach it.",
+   "family": "event value",
+   "cards": 3,
+   "alone": 2,
+   "examples": [
+    "Bow to My Command",
+    "Garland, Royal Kidnapper",
+    "Riku of Many Paths"
    ]
   },
   {
@@ -9701,20 +9713,6 @@
    ]
   },
   {
-   "id": "keyword-action-with-a-duration-of-its-own",
-   "feature": "keyword action with a duration of its own",
-   "class": "mechanic",
-   "needs": "A keyword action with no call, or with an amount the call does not take: stakes, attractions, time travel, sectors, a chosen copy, a mana ability activated by an effect.",
-   "family": "keyword action",
-   "cards": 3,
-   "alone": 1,
-   "examples": [
-    "Ferris Wheel",
-    "Out of Time",
-    "The Moment"
-   ]
-  },
-  {
    "id": "landwalk-of-all",
    "feature": "landwalk of All",
    "class": "vocabulary",
@@ -9740,20 +9738,6 @@
     "Giant Slug",
     "Illusionary Presence",
     "Traveler's Cloak"
-   ]
-  },
-  {
-   "id": "mode-count-that-is-not-a-constant",
-   "feature": "mode count that is not a constant",
-   "class": "engine",
-   "needs": "a choice of modes whose count the game works out as it is announced",
-   "family": "mode count",
-   "cards": 3,
-   "alone": 3,
-   "examples": [
-    "Bumi, King of Three Trials",
-    "Doomsday Confluence",
-    "The Ruinous Wrecking Crew"
    ]
   },
   {
@@ -9841,6 +9825,20 @@
    ]
   },
   {
+   "id": "object-collection-from-history",
+   "feature": "object collection FromHistory",
+   "class": "vocabulary",
+   "needs": "a set of objects with no read in Query or Game",
+   "family": "object collection",
+   "cards": 3,
+   "alone": 2,
+   "examples": [
+    "Herald of Vengeance",
+    "Suffocation",
+    "Twinning Glass"
+   ]
+  },
+  {
    "id": "object-filter-ability-of",
    "feature": "object filter AbilityOf",
    "class": "vocabulary",
@@ -9866,20 +9864,6 @@
     "Camel",
     "Icatian Skirmishers",
     "Urza's Engine"
-   ]
-  },
-  {
-   "id": "object-filter-mana-spent",
-   "feature": "object filter ManaSpent",
-   "class": "engine",
-   "needs": "mana spent to cast a spell, by color, source and who paid",
-   "family": "object filter",
-   "cards": 3,
-   "alone": 2,
-   "examples": [
-    "Desecrate Reality",
-    "Inga and Esika",
-    "Yume, Chronicler of Valor"
    ]
   },
   {
@@ -9922,6 +9906,20 @@
     "Cass, Hand of Vengeance",
     "Hateful Eidolon",
     "Zack Fair"
+   ]
+  },
+  {
+   "id": "object-reference-bound",
+   "feature": "object reference Bound",
+   "class": "vocabulary",
+   "needs": "the object a walk over objects is on, read by the code inside a walk that is itself stated",
+   "family": "object reference",
+   "cards": 3,
+   "alone": 0,
+   "examples": [
+    "Collective Voyage",
+    "Mind Grind",
+    "Seize the Spotlight"
    ]
   },
   {
@@ -10048,6 +10046,20 @@
     "Fiery Gambit",
     "Karplusan Minotaur",
     "Negative Zone Portal"
+   ]
+  },
+  {
+   "id": "operation-copy-each",
+   "feature": "operation CopyEach",
+   "class": "engine",
+   "needs": "Copying or retargeting a spell or ability with the new targets stated: each legal target, to a set, at random; `copy_spell` and the change-target calls only ask the player or keep them.",
+   "family": "operation CopyEach",
+   "cards": 3,
+   "alone": 2,
+   "examples": [
+    "Display of Power",
+    "Finale of Promise",
+    "Ulalek, Fused Atrocity"
    ]
   },
   {
@@ -10690,6 +10702,19 @@
    ]
   },
   {
+   "id": "a-card-played-from-among-those-exiled-with-an-object",
+   "feature": "a card played from among those exiled with an object",
+   "class": "engine",
+   "needs": "Whether a card that has left exile to be played had been exiled with an object: what an exile link says of a card that is gone from exile.",
+   "family": "a card",
+   "cards": 2,
+   "alone": 1,
+   "examples": [
+    "Prowl, Pursuit Vehicle // Prowl, Stoic Strategist",
+    "Volt-Charged Berserker // Voltaic Visionary"
+   ]
+  },
+  {
    "id": "a-choice-of-planeswalker-type",
    "feature": "a choice of PlaneswalkerType",
    "class": "vocabulary",
@@ -10713,6 +10738,19 @@
    "examples": [
     "Brilliant Ultimatum",
     "Hauken's Insight // Jacob Hauken, Inspector"
+   ]
+  },
+  {
+   "id": "a-limit-shared-by-the-abilities-of-one-sentence",
+   "feature": "a limit shared by the abilities of one sentence",
+   "class": "engine",
+   "needs": "One \"once each turn\" over a sentence that two abilities carry, as \"a spell or an ability\": the abilities share one count, which TriggeredDef counts per ability.",
+   "family": "a limit",
+   "cards": 2,
+   "alone": 0,
+   "examples": [
+    "Bill Potts",
+    "Glava, Five-Advents Mage"
    ]
   },
   {
@@ -11223,19 +11261,6 @@
    ]
   },
   {
-   "id": "counter-kind-poison",
-   "feature": "counter kind Poison",
-   "class": "vocabulary",
-   "needs": "the counter in Cantrip's counter_kinds",
-   "family": "counter kind",
-   "cards": 2,
-   "alone": 0,
-   "examples": [
-    "Leeches",
-    "Melira, Sylvok Outcast"
-   ]
-  },
-  {
    "id": "counter-kind-scream",
    "feature": "counter kind Scream",
    "class": "vocabulary",
@@ -11275,19 +11300,6 @@
    ]
   },
   {
-   "id": "counters-of-a-kind-chosen-as-the-effect-resolves",
-   "feature": "counters of a kind chosen as the effect resolves",
-   "class": "mechanic",
-   "needs": "a counter removal whose kind the remover picks as it resolves",
-   "family": "counters of",
-   "cards": 2,
-   "alone": 2,
-   "examples": [
-    "Rhys, the Evermore",
-    "Thornmantle Striker"
-   ]
-  },
-  {
    "id": "counters-put-as-a-cost-on-another-object",
    "feature": "counters put as a cost on another object",
    "class": "engine",
@@ -11301,13 +11313,26 @@
    ]
   },
   {
+   "id": "damage-prevented-by-an-effect-of-this-ability",
+   "feature": "damage prevented by an effect of this ability",
+   "class": "engine",
+   "needs": "A delayed ability made by a prevention is told how much that prevention prevented.",
+   "family": "damage prevented",
+   "cards": 2,
+   "alone": 0,
+   "examples": [
+    "Sacred Boon",
+    "Scars of the Veteran"
+   ]
+  },
+  {
    "id": "damage-source-kind-spell",
    "feature": "damage source kind Spell",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "vocabulary",
+   "needs": "Whether damage was dealt by a spell, asked afterwards, when the spell has left the stack.",
    "family": "damage source",
    "cards": 2,
-   "alone": 2,
+   "alone": 1,
    "examples": [
     "Aegar, the Freezing Flame",
     "Suffocation"
@@ -11337,6 +11362,19 @@
    "examples": [
     "Azor, the Lawbringer",
     "Peace Talks"
+   ]
+  },
+  {
+   "id": "duration-while-controlled",
+   "feature": "duration WhileControlled",
+   "class": "engine",
+   "needs": "an effect lasts until this: Duration has no such end",
+   "family": "duration WhileControlled",
+   "cards": 2,
+   "alone": 1,
+   "examples": [
+    "Vislor Turlough",
+    "Wall of Stolen Identity"
    ]
   },
   {
@@ -11652,6 +11690,19 @@
    ]
   },
   {
+   "id": "event-object-this-trigger-does-not-bind",
+   "feature": "event object this trigger does not bind",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "event object",
+   "cards": 2,
+   "alone": 0,
+   "examples": [
+    "Agrus Kos, Eternal Soldier",
+    "Mirror-Shield Hoplite"
+   ]
+  },
+  {
    "id": "event-trigger-for-until-end-of-next-turn",
    "feature": "event trigger for UntilEndOfNextTurn",
    "class": "engine",
@@ -11964,6 +12015,19 @@
    ]
   },
   {
+   "id": "numeric-expression-additional-cost-paid",
+   "feature": "numeric expression AdditionalCostPaid",
+   "class": "engine",
+   "needs": "how many times an additional cost was paid",
+   "family": "numeric expression",
+   "cards": 2,
+   "alone": 0,
+   "examples": [
+    "Primitive Justice",
+    "Taste of Paradise"
+   ]
+  },
+  {
    "id": "numeric-expression-chosen-colors-of",
    "feature": "numeric expression ChosenColorsOf",
    "class": "engine",
@@ -12055,19 +12119,6 @@
    ]
   },
   {
-   "id": "object-as-it-was-before-an-instruction-moved-it",
-   "feature": "object as it was before an instruction moved it",
-   "class": "engine",
-   "needs": "an instruction's moved objects as they were before it, for a list to take them out of",
-   "family": "object as",
-   "cards": 2,
-   "alone": 0,
-   "examples": [
-    "Dragon-Kami's Egg // The Dragon-Kami Reborn",
-    "Wolf of Devil's Breach"
-   ]
-  },
-  {
    "id": "object-collection-chosen",
    "feature": "object collection Chosen",
    "class": "engine",
@@ -12078,19 +12129,6 @@
    "examples": [
     "Demonic Hordes",
     "Descent into Madness"
-   ]
-  },
-  {
-   "id": "object-collection-from-history",
-   "feature": "object collection FromHistory",
-   "class": "vocabulary",
-   "needs": "a set of objects with no read in Query or Game",
-   "family": "object collection",
-   "cards": 2,
-   "alone": 2,
-   "examples": [
-    "Herald of Vengeance",
-    "Twinning Glass"
    ]
   },
   {
@@ -12247,19 +12285,6 @@
    "examples": [
     "Dúnedain Rangers",
     "Lord of the Nazgûl"
-   ]
-  },
-  {
-   "id": "operation-copy-each",
-   "feature": "operation CopyEach",
-   "class": "engine",
-   "needs": "Copying or retargeting a spell or ability with the new targets stated: each legal target, to a set, at random; `copy_spell` and the change-target calls only ask the player or keep them.",
-   "family": "operation CopyEach",
-   "cards": 2,
-   "alone": 1,
-   "examples": [
-    "Display of Power",
-    "Ulalek, Fused Atrocity"
    ]
   },
   {
@@ -12598,6 +12623,19 @@
    "examples": [
     "Conjurer's Ban",
     "Shaman's Trance"
+   ]
+  },
+  {
+   "id": "player-rule-for-a-while-prohibit-receive-counters",
+   "feature": "player rule for a while Prohibit ReceiveCounters",
+   "class": "engine",
+   "needs": "a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form",
+   "family": "player rule",
+   "cards": 2,
+   "alone": 0,
+   "examples": [
+    "Melira, the Living Cure",
+    "Suncleanser"
    ]
   },
   {
@@ -13114,7 +13152,7 @@
    "needs": "A rule of targets `select` has no part for, or that needs a part read as chosen: limits shared with another slot, no common property.",
    "family": "target constraint",
    "cards": 2,
-   "alone": 2,
+   "alone": 1,
    "examples": [
     "Ancient Brass Dragon",
     "Rampaging Yao Guai"
@@ -13157,6 +13195,19 @@
    "examples": [
     "Littjara Mirrorlake",
     "Ochre Jelly"
+   ]
+  },
+  {
+   "id": "transition-this-instruction-does-not-report",
+   "feature": "transition this instruction does not report",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "transition this",
+   "cards": 2,
+   "alone": 1,
+   "examples": [
+    "Illusionist's Gambit",
+    "Starving Revenant"
    ]
   },
   {
@@ -13300,19 +13351,6 @@
    "examples": [
     "Curator of Sun's Creation",
     "Val, Marooned Surveyor"
-   ]
-  },
-  {
-   "id": "trigger-event-player-plays-card-from-exile-of-a-set-of-cards",
-   "feature": "trigger event Player PlaysCardFromExile of a set of cards",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "trigger event",
-   "cards": 2,
-   "alone": 1,
-   "examples": [
-    "Prowl, Pursuit Vehicle // Prowl, Stoic Strategist",
-    "Volt-Charged Berserker // Voltaic Visionary"
    ]
   },
   {
@@ -13668,6 +13706,18 @@
    ]
   },
   {
+   "id": "activated-ability-mana-spent-from",
+   "feature": "activated ability ManaSpentFrom",
+   "class": "engine",
+   "needs": "Which sources paid the mana of an activated ability, asked of the ability on the stack.",
+   "family": "activated ability",
+   "cards": 1,
+   "alone": 1,
+   "examples": [
+    "Vazi, Keen Negotiator"
+   ]
+  },
+  {
    "id": "activation-cost-of-abilities-on-stack",
    "feature": "activation cost of abilities OnStack",
    "class": "engine",
@@ -13718,8 +13768,8 @@
   {
    "id": "an-ordinal-of-grouped-events",
    "feature": "an ordinal of grouped events",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "Whether an earlier record belongs to the same batch as this event, so \"the first time\" of events happening at once counts the batch as one.",
    "family": "an ordinal",
    "cards": 1,
    "alone": 1,
@@ -13742,8 +13792,8 @@
   {
    "id": "as-enters-replacement-of-another-event",
    "feature": "as-enters replacement of another event",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "What an entering permanent asks of how it was cast, so \"if it was not cast\" can be answered in a function run as it enters.",
    "family": "as-enters replacement",
    "cards": 1,
    "alone": 0,
@@ -14178,7 +14228,7 @@
    "needs": "A copy that keeps this value of the object that copied",
    "family": "copy exception",
    "cards": 1,
-   "alone": 0,
+   "alone": 1,
    "examples": [
     "Vesuvan Doppelganger"
    ]
@@ -14349,18 +14399,6 @@
    "alone": 0,
    "examples": [
     "Ziatora's Envoy"
-   ]
-  },
-  {
-   "id": "cost-part-reveal",
-   "feature": "cost part Reveal",
-   "class": "engine",
-   "needs": "A cost a `Cost` can't hold: an action by a player, mana with a bound X, a choice revealed, a part that targets, or an exile of a stated object.",
-   "family": "cost part",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Ignite Memories"
    ]
   },
   {
@@ -15996,30 +16034,6 @@
    ]
   },
   {
-   "id": "damage-grouped-per-source-controller",
-   "feature": "damage grouped per source controller",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "damage grouped",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "Nelly Borca, Impulsive Accuser"
-   ]
-  },
-  {
-   "id": "damage-source-kind-card",
-   "feature": "damage source kind Card",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "damage source",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Mount Keralia"
-   ]
-  },
-  {
    "id": "delayed-ability-about-objects-and-a-player",
    "feature": "delayed ability about objects and a player",
    "class": "engine",
@@ -16038,7 +16052,7 @@
    "needs": "`DelayedWhen` for events and times it has no variant for, and delayed triggers made by a static or replacement that has no stack item: an object or player event, main phase begins, an extra turn, a stated player's next turn, one that lapses at end of turn.",
    "family": "delayed trigger",
    "cards": 1,
-   "alone": 1,
+   "alone": 0,
    "examples": [
     "Skyshroud Ambush"
    ]
@@ -16137,18 +16151,6 @@
    "alone": 0,
    "examples": [
     "Orcish Farmer"
-   ]
-  },
-  {
-   "id": "duration-while-controlled",
-   "feature": "duration WhileControlled",
-   "class": "engine",
-   "needs": "an effect lasts until this: Duration has no such end",
-   "family": "duration WhileControlled",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "Vislor Turlough"
    ]
   },
   {
@@ -17016,22 +17018,10 @@
    ]
   },
   {
-   "id": "event-change-ignore-counters",
-   "feature": "event change IgnoreCounters",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "event change",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "Biomancer's Familiar"
-   ]
-  },
-  {
    "id": "event-change-as-it-enters-copiable-grant-ability",
    "feature": "event change as it enters Copiable GrantAbility",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "vocabulary",
+   "needs": "Copiable values with every creature type added, written into an entering copy.",
    "family": "event change",
    "cards": 1,
    "alone": 0,
@@ -17042,8 +17032,8 @@
   {
    "id": "event-change-as-it-enters-entry-copy-of",
    "feature": "event change as it enters Entry CopyOf",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "An entry replacement that makes the permanent a copy of a card chosen as it enters, with the rest of its entry as stated.",
    "family": "event change",
    "cards": 1,
    "alone": 1,
@@ -17054,11 +17044,11 @@
   {
    "id": "event-change-as-it-enters-entry-counters-of-choice",
    "feature": "event change as it enters Entry CountersOfChoice",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "mechanic",
+   "needs": "A permanent entering with one kind of counter out of a list, chosen as it enters by its controller.",
    "family": "event change",
    "cards": 1,
-   "alone": 1,
+   "alone": 0,
    "examples": [
     "Frankenstein's Monster"
    ]
@@ -17109,18 +17099,6 @@
    "alone": 1,
    "examples": [
     "Land Equilibrium"
-   ]
-  },
-  {
-   "id": "event-player-this-trigger-does-not-bind",
-   "feature": "event player this trigger does not bind",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "event player",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "Bold Plagiarist"
    ]
   },
   {
@@ -17205,6 +17183,18 @@
    "alone": 0,
    "examples": [
     "Midnight Oil"
+   ]
+  },
+  {
+   "id": "history-measure-distinct-causes",
+   "feature": "history measure DistinctCauses",
+   "class": "vocabulary",
+   "needs": "a question of the history this window or measure does not ask",
+   "family": "history measure",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "The Celestial Toymaker"
    ]
   },
   {
@@ -17916,15 +17906,15 @@
    ]
   },
   {
-   "id": "numeric-expression-additional-cost-paid",
-   "feature": "numeric expression AdditionalCostPaid",
+   "id": "numeric-expression-counters-paid",
+   "feature": "numeric expression CountersPaid",
    "class": "engine",
-   "needs": "how many times an additional cost was paid",
+   "needs": "the counters of a kind removed to pay a cost",
    "family": "numeric expression",
    "cards": 1,
    "alone": 0,
    "examples": [
-    "Taste of Paradise"
+    "Way of the Mind Sculptor"
    ]
   },
   {
@@ -18069,6 +18059,18 @@
    "alone": 0,
    "examples": [
     "Spiny Starfish"
+   ]
+  },
+  {
+   "id": "object-as-it-was-before-an-instruction-moved-it",
+   "feature": "object as it was before an instruction moved it",
+   "class": "engine",
+   "needs": "an instruction's moved objects as they were before it, for a list to take them out of",
+   "family": "object as",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Dragon-Kami's Egg // The Dragon-Kami Reborn"
    ]
   },
   {
@@ -19344,18 +19346,6 @@
    ]
   },
   {
-   "id": "player-rule-for-a-while-prohibit-receive-counters",
-   "feature": "player rule for a while Prohibit ReceiveCounters",
-   "class": "engine",
-   "needs": "a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form",
-   "family": "player rule",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Suncleanser"
-   ]
-  },
-  {
    "id": "player-rule-for-a-while-prohibit-sacrifice",
    "feature": "player rule for a while Prohibit Sacrifice",
    "class": "engine",
@@ -19632,30 +19622,6 @@
    ]
   },
   {
-   "id": "recipient-of-event-damage",
-   "feature": "recipient of event damage",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "recipient of",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "Ghyrson Starn, Kelermorph"
-   ]
-  },
-  {
-   "id": "reflexive-trigger-on-what-an-instruction-does-not-report",
-   "feature": "reflexive trigger on what an instruction does not report",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "reflexive trigger",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "Yannik, Scavenging Sentinel"
-   ]
-  },
-  {
    "id": "replacement-event-copy-spell",
    "feature": "replacement event CopySpell",
    "class": "engine",
@@ -19707,10 +19673,10 @@
    "id": "replacement-event-produce-color",
    "feature": "replacement event ProduceColor",
    "class": "engine",
-   "needs": "a replacement matching on this: ReplacementDef has no test for it",
+   "needs": "A mana production replaced by mana of another color, as an effect on a permanent.",
    "family": "replacement event",
    "cards": 1,
-   "alone": 1,
+   "alone": 0,
    "examples": [
     "Quarum Trench Gnomes"
    ]
@@ -19718,8 +19684,8 @@
   {
    "id": "replacement-made-by-a-granted-ability",
    "feature": "replacement made by a granted ability",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "Cantrip finds a replacement effect through the source's own card, which a granted ability is not printed on, and hands it no recipient.",
    "family": "replacement made",
    "cards": 1,
    "alone": 0,
@@ -19730,13 +19696,25 @@
   {
    "id": "replacement-made-outside-a-resolving-ability",
    "feature": "replacement made outside a resolving ability",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "mechanic",
+   "needs": "A replacement of untapping made by a mana ability, which has no stack item to make it from: \"as you untap your permanents\".",
    "family": "replacement made",
    "cards": 1,
    "alone": 1,
    "examples": [
     "Undiscovered Paradise"
+   ]
+  },
+  {
+   "id": "replacement-of-adapts",
+   "feature": "replacement of Adapts",
+   "class": "engine",
+   "needs": "a replacement of this event: ReplacementDef has no hook for it",
+   "family": "replacement of",
+   "cards": 1,
+   "alone": 1,
+   "examples": [
+    "Biomancer's Familiar"
    ]
   },
   {
@@ -19896,18 +19874,6 @@
    ]
   },
   {
-   "id": "replacement-of-counters-a-player-cannot-have",
-   "feature": "replacement of counters a player cannot have",
-   "class": "engine",
-   "needs": "a replacement can stop any kind of counter from being put on a player, and PlayerCounters holds three kinds only",
-   "family": "replacement of",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "Melira, the Living Cure"
-   ]
-  },
-  {
    "id": "resolution-cost-change-tap-state",
    "feature": "resolution cost ChangeTapState",
    "class": "engine",
@@ -20010,7 +19976,7 @@
    "needs": "an instruction asks for a cost of this kind as it resolves: pay_cost takes mana, life and sacrifices",
    "family": "resolution cost",
    "cards": 1,
-   "alone": 0,
+   "alone": 1,
    "examples": [
     "Ignite Memories"
    ]
@@ -21408,18 +21374,6 @@
    ]
   },
   {
-   "id": "target-of-a-reflexive-ability-reading-what-its-ability-did",
-   "feature": "target of a reflexive ability reading what its ability did",
-   "class": "engine",
-   "needs": "A target rule of a reflexive ability that reads a value of the ability that made it (an object, a player, a number past the one count): a target filter is given no stack item, and the engine tells a reflexive ability one count, read only as `TargetSpec::COUNTED`.",
-   "family": "target of",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Vhal, Scholar of Mortality"
-   ]
-  },
-  {
    "id": "targeted-by-ability-of-a-permanent",
    "feature": "targeted by AbilityOfAPermanent",
    "class": "engine",
@@ -21468,6 +21422,18 @@
    ]
   },
   {
+   "id": "the-ability-an-event-is-about",
+   "feature": "the ability an event is about",
+   "class": "engine",
+   "needs": "What an activation event says of the ability on the stack, read as an object, where Cantrip knows that ability only by a serial inside a Target.",
+   "family": "the ability",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Way of the Mind Sculptor"
+   ]
+  },
+  {
    "id": "the-card-a-discover-found",
    "feature": "the card a discover found",
    "class": "mechanic",
@@ -21477,18 +21443,6 @@
    "alone": 1,
    "examples": [
     "Hit the Mother Lode"
-   ]
-  },
-  {
-   "id": "token-result-outside-generated-scope",
-   "feature": "token result outside generated scope",
-   "class": "engine",
-   "needs": "tokens of this shape: TokenSpec and copy tokens have no field for it",
-   "family": "token result",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "Determined Iteration"
    ]
   },
   {
@@ -21609,6 +21563,18 @@
    "alone": 0,
    "examples": [
     "Savior of Ollenbock"
+   ]
+  },
+  {
+   "id": "trigger-event-onto-stack",
+   "feature": "trigger event OntoStack",
+   "class": "engine",
+   "needs": "a spell or ability put onto the stack raises one event, whether cast, copied or triggered",
+   "family": "trigger event",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Grip of Chaos"
    ]
   },
   {
@@ -21746,8 +21712,8 @@
   {
    "id": "trigger-event-player-guesses",
    "feature": "trigger event Player Guesses",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "vocabulary",
+   "needs": "Events for a player guessing and a player grouping objects into piles (Doctor Who, casual).",
    "family": "trigger event",
    "cards": 1,
    "alone": 0,
@@ -21938,11 +21904,11 @@
   {
    "id": "trigger-event-while-activating",
    "feature": "trigger event WhileActivating",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "class": "engine",
+   "needs": "Whether an ability is being activated now, between its announcement and its costs being paid, and by whom.",
    "family": "trigger event",
    "cards": 1,
-   "alone": 1,
+   "alone": 0,
    "examples": [
     "Market Gnome"
    ]
@@ -22236,8 +22202,8 @@
    "engine-no-renown"
   ],
   "Acolyte's Reward": [
-   "a-made-effect-about-a-target-that-may-be-a-player",
-   "prevention-with-an-effect-besides"
+   "prevention-with-an-effect-besides",
+   "target-reference-outside-a-resolving-ability"
   ],
   "Acquired Mutation": [
    "rad-counters",
@@ -22663,6 +22629,7 @@
    "engine-no-commander"
   ],
   "Ancient Brass Dragon": [
+   "a-target-filter-reading-the-amount-its-ability-was-told",
    "target-constraint-total-property"
   ],
   "Andradite Leech": [
@@ -23552,7 +23519,7 @@
    "object-reference-affected"
   ],
   "Battlemage's Bracers": [
-   "event-object-this-trigger-does-not-bind"
+   "a-mana-ability-test-that-lost-its-negation"
   ],
   "Battletide Alchemist": [
    "prevention-a-player-may-decline"
@@ -23723,9 +23690,9 @@
    "engine-no-effect-removes-from-combat"
   ],
   "Bill Potts": [
+   "a-limit-shared-by-the-abilities-of-one-sentence",
    "activated-ability-on-stack",
-   "activated-ability-targets-any",
-   "event-object-this-trigger-does-not-bind"
+   "activated-ability-targets-any"
   ],
   "Bill the Pony": [
    "continuous-rule-combat-damage-use-toughness"
@@ -23747,7 +23714,7 @@
    "operation-put-sticker"
   ],
   "Biomancer's Familiar": [
-   "event-change-ignore-counters"
+   "replacement-of-adapts"
   ],
   "Biophagus": [
    "mana-spending-effect"
@@ -24027,7 +23994,7 @@
    "play-permission-for-another-cost"
   ],
   "Bold Plagiarist": [
-   "event-player-this-trigger-does-not-bind"
+   "object-collection-scoped"
   ],
   "Bolg of the North": [
    "numeric-expression-excess-damage",
@@ -24154,9 +24121,6 @@
   ],
   "Bounty of the Deep": [
    "operation-seek"
-  ],
-  "Bounty of the Hunt": [
-   "target-reference"
   ],
   "Bow to My Command": [
    "a-choice-of-player-outside-its-body",
@@ -24567,9 +24531,6 @@
    "object-filter-draft-noted",
    "token-recipe-copy-one"
   ],
-  "Callidus Assassin": [
-   "target-reference-outside-a-resolving-ability"
-  ],
   "Jaraku the Interloper // Callow Jushi": [
    "counter-kind-ki",
    "keyword-action-flip",
@@ -24700,7 +24661,8 @@
    "operation-conjure"
   ],
   "Case of the Market Melee": [
-   "event-amount-this-trigger-does-not-bind"
+   "amount-of-an-event-its-trigger-does-not-carry",
+   "target-with-a-divided-amount-read-as-chosen"
   ],
   "Case of the Pilfered Proof": [
    "replacement-of-token-creation-with-other-tokens"
@@ -24805,8 +24767,8 @@
    "trigger-event-player-day-night-changes"
   ],
   "Cemetery Desecrator": [
-   "modal-announcement",
-   "transition-this-instruction-does-not-report"
+   "counters-of-a-kind-chosen-as-the-effect-resolves",
+   "modal-announcement"
   ],
   "Cemetery Prowler": [
    "object-reference-affected"
@@ -25777,9 +25739,6 @@
    "a-choice-of-card-type-outside-its-body",
    "a-choice-of-permanent-type"
   ],
-  "Creepy Puppeteer": [
-   "event-object-this-trigger-does-not-bind"
-  ],
   "Crescendo Conductor // Boltwave": [
    "trigger-event-player-conjures"
   ],
@@ -26380,8 +26339,7 @@
   ],
   "Demonfire": [
    "object-filter-damaged-by",
-   "operation-deal-damage",
-   "transition-this-instruction-does-not-report"
+   "operation-deal-damage"
   ],
   "Demonic Attorney": [
    "card-outside-ordinary-play",
@@ -26408,9 +26366,6 @@
   ],
   "Deny the Witch": [
    "a-spell-or-ability-on-the-stack-read-as-an-object"
-  ],
-  "Depth Defiler": [
-   "event-value-outside-its-ability"
   ],
   "Deranged Assistant": [
    "engine-no-mill-cost"
@@ -26481,9 +26436,6 @@
   ],
   "Detention Vortex": [
    "engine-no-activation-by-other-players"
-  ],
-  "Determined Iteration": [
-   "token-result-outside-generated-scope"
   ],
   "Detritivore": [
    "engine-no-event-for-a-counter-being-removed",
@@ -26577,9 +26529,6 @@
    "engine-no-record-of-what-paid-a-cost",
    "engine-no-reveal-cost"
   ],
-  "Discerning Taste": [
-   "transition-this-instruction-does-not-report"
-  ],
   "Disciple of Caelus Nin": [
    "static-rule-prohibit-phase-in"
   ],
@@ -26654,8 +26603,8 @@
    "modes-implied-by-the-target-chosen"
   ],
   "Divine Deflection": [
-   "a-made-effect-about-a-target-that-may-be-a-player",
-   "prevention-with-an-effect-besides"
+   "prevention-with-an-effect-besides",
+   "target-reference-outside-a-resolving-ability"
   ],
   "Divine Intervention": [
    "counter-kind-intervention",
@@ -27776,9 +27725,6 @@
    "layout-scheme",
    "trigger-event-player-sets-scheme-in-motion"
   ],
-  "Evil Twin": [
-   "target-reference-outside-a-resolving-ability"
-  ],
   "Evra, Halcyon Witness": [
    "operation-exchange"
   ],
@@ -28138,7 +28084,7 @@
   "Feather, Radiant Arbiter": [
    "object-filter-targetable-by",
    "operation-choose-and-pay",
-   "transition-this-instruction-does-not-report"
+   "operation-copy-on-stack"
   ],
   "Feather, the Redeemed": [
    "object-reference-affected",
@@ -28291,7 +28237,7 @@
    "counters-removed-from-a-player"
   ],
   "Finale of Promise": [
-   "selection-result-outside-generated-scope"
+   "operation-copy-each"
   ],
   "Find the Path": [
    "engine-venture-into-the-dungeon-reaches-only-undercity"
@@ -28483,7 +28429,7 @@
    "engine-no-vanishing-enters-granted"
   ],
   "Flickerform": [
-   "transition-this-instruction-does-not-report"
+   "several-objects-arriving-attached"
   ],
   "Flickering Ward": [
    "ability-protection-except",
@@ -28660,9 +28606,7 @@
    "operation-piles"
   ],
   "Fortune, Loyal Steed": [
-   "engine-no-saddle-event",
-   "selection-result-outside-generated-scope",
-   "transition-this-instruction-does-not-report"
+   "engine-no-saddle-event"
   ],
   "Forum Filibuster": [
    "move-arrival-state"
@@ -28707,7 +28651,8 @@
    "engine-no-planar-deck"
   ],
   "Frankenstein's Monster": [
-   "event-change-as-it-enters-entry-counters-of-choice"
+   "event-change-as-it-enters-entry-counters-of-choice",
+   "power-toughness-counter-other-than-1-1"
   ],
   "Frantic Scapegoat": [
    "cost-part-object-action",
@@ -28903,7 +28848,7 @@
    "engine-no-perpetual-effects"
   ],
   "Galea, Kindler of Hope": [
-   "event-object-this-trigger-does-not-bind",
+   "operation-change-spell",
    "static-play-permission-with-an-effect-on-what-is-played"
   ],
   "Waildrifter // Galedrifter": [
@@ -28988,9 +28933,6 @@
   ],
   "Gatta and Luzzu": [
    "prevention-with-an-effect-besides"
-  ],
-  "Gauntlets of Chaos": [
-   "transition-this-instruction-does-not-report"
   ],
   "Gavel of the Righteous": [
    "engine-no-choice-between-the-costs-of-an-ability"
@@ -29164,9 +29106,6 @@
    "engine-no-effect-adds-colors",
    "move-arrival-with-a-color"
   ],
-  "Ghyrson Starn, Kelermorph": [
-   "recipient-of-event-damage"
-  ],
   "Giant Beaver": [
    "engine-no-saddle-event"
   ],
@@ -29288,6 +29227,7 @@
    "operation-delayed-unless-paid"
   ],
   "Glava, Five-Advents Mage": [
+   "a-limit-shared-by-the-abilities-of-one-sentence",
    "operation-players-do",
    "operation-set-x"
   ],
@@ -29774,7 +29714,8 @@
    "play-permission-lasting-until-next"
   ],
   "Grip of Chaos": [
-   "event-object-this-trigger-does-not-bind"
+   "operation-retarget",
+   "trigger-event-onto-stack"
   ],
   "Grist, the Plague Swarm // Grist, Voracious Larva": [
    "adjusted-token-copy"
@@ -29824,7 +29765,7 @@
    "operation-seek"
   ],
   "Grub, Notorious Auntie // Grub, Storied Matriarch": [
-   "transition-this-instruction-does-not-report"
+   "objects-that-paid-a-cost-at-resolution"
   ],
   "Grudge Keeper": [
    "condition-voted-as",
@@ -30110,7 +30051,7 @@
    "granted-static"
   ],
   "Harsh Mentor": [
-   "event-object-this-trigger-does-not-bind"
+   "a-mana-ability-test-that-lost-its-negation"
   ],
   "Harsh Mercy": [
    "a-choice-of-creature-type-outside-its-body"
@@ -30166,8 +30107,9 @@
    "play-permission-with-an-effect-on-what-is-played"
   ],
   "Hawkeye, Master Marksman": [
-   "operation-pay-repeatedly",
-   "result-this-instruction-does-not-report"
+   "modal-announcement",
+   "mode-count-that-is-not-a-constant",
+   "operation-pay-repeatedly"
   ],
   "Hazduhr the Abbot": [
    "replacement-of-damage-to-a-named-recipient"
@@ -30286,9 +30228,6 @@
   ],
   "Helm of Kaldra": [
    "operation-attach-each"
-  ],
-  "Helmut Zemo, Mastermind": [
-   "transition-this-instruction-does-not-report"
   ],
   "Henry Wu, InGen Geneticist": [
    "earlier-objects-sacrificed",
@@ -30804,9 +30743,7 @@
    "engine-no-activation-by-other-players"
   ],
   "Ignite Memories": [
-   "cost-part-reveal",
-   "resolution-cost-reveal",
-   "transition-this-instruction-does-not-report"
+   "resolution-cost-reveal"
   ],
   "Ignite the Cloneforge!": [
    "card-type-scheme",
@@ -30874,7 +30811,7 @@
    "object-filter-nth-chosen"
   ],
   "Illusionist's Bracers": [
-   "event-object-this-trigger-does-not-bind"
+   "a-mana-ability-test-that-lost-its-negation"
   ],
   "Illusionist's Gambit": [
    "engine-no-effect-removes-from-combat",
@@ -31714,9 +31651,7 @@
   ],
   "Judgment of Alexander": [
    "engine-no-commander",
-   "event-object-this-trigger-does-not-bind",
    "object-collection-damage",
-   "object-reference-affected",
    "prevention-with-an-effect-besides"
   ],
   "Judith, Carnage Connoisseur": [
@@ -31967,10 +31902,6 @@
   ],
   "Keeper of the Lens": [
    "cards-a-player-may-look-at"
-  ],
-  "Kefka, Dancing Mad": [
-   "object-reference-bound",
-   "selection-result-outside-generated-scope"
   ],
   "Kefnet's Last Word": [
    "continuous-rule-untap-step",
@@ -32365,7 +32296,7 @@
    "layout-flip"
   ],
   "Kurkesh, Onakke Ancient": [
-   "event-object-this-trigger-does-not-bind"
+   "a-mana-ability-test-that-lost-its-negation"
   ],
   "Kuro's Taken": [
    "engine-no-bushido"
@@ -32863,8 +32794,8 @@
    "cost-part-energy-one-or-more"
   ],
   "Loch Larent": [
-   "event-object-this-trigger-does-not-bind",
-   "operation-create-boon"
+   "operation-create-boon",
+   "operation-effect-on"
   ],
   "Loch Mare": [
    "engine-no-cost-removes-counters-this-way"
@@ -32893,8 +32824,7 @@
    "operation-choose-value-with"
   ],
   "Long River Lurker": [
-   "event-trigger-carrying-values",
-   "transition-this-instruction-does-not-report"
+   "event-trigger-carrying-values"
   ],
   "Long-Term Plans": [
    "shuffle-around-cards-that-stay-where-they-are"
@@ -33225,8 +33155,7 @@
   ],
   "Magma Pummeler": [
    "amount-of-an-event-its-trigger-does-not-carry",
-   "prevention-with-an-effect-besides",
-   "target-reference-outside-a-resolving-ability"
+   "prevention-with-an-effect-besides"
   ],
   "Magmatic Chasm": [
    "engine-no-resolving-rule-on-an-open-set-prohibit-block"
@@ -33472,6 +33401,7 @@
    "engine-no-resolving-rule-on-an-open-set-prohibit-block"
   ],
   "Market Gnome": [
+   "activated-ability-on-stack",
    "trigger-event-while-activating"
   ],
   "Maro Avatar": [
@@ -33694,7 +33624,8 @@
    "prohibited-action-receive-counters"
   ],
   "Melira, the Living Cure": [
-   "replacement-of-counters-a-player-cannot-have"
+   "counter-kind-poison",
+   "player-rule-for-a-while-prohibit-receive-counters"
   ],
   "Melt Through": [
    "engine-no-perpetual-effects"
@@ -34142,7 +34073,7 @@
    "trigger-event-player-finish-voting"
   ],
   "Mogg Assassin": [
-   "target-reference-outside-a-resolving-ability"
+   "targets-chosen-by-another-player"
   ],
   "Mogg Flunkies": [
    "static-rule-combat-group-attacker",
@@ -34338,7 +34269,6 @@
   "Mount Keralia": [
    "card-type-plane",
    "counter-kind-pressure",
-   "damage-source-kind-card",
    "layout-planar",
    "subtype-regatha",
    "trigger-event-player-chaos-ensues",
@@ -34851,9 +34781,6 @@
    "card-type-vanguard",
    "layout-vanguard"
   ],
-  "Nelly Borca, Impulsive Accuser": [
-   "damage-grouped-per-source-controller"
-  ],
   "Nemesis Mask": [
    "static-rule-require-combat-block"
   ],
@@ -34943,7 +34870,6 @@
    "engine-no-detain"
   ],
   "New Way Forward": [
-   "event-object-this-trigger-does-not-bind",
    "object-collection-damage-sources",
    "prevention-limited-by-next-occurrence",
    "prevention-with-an-effect-besides"
@@ -35506,7 +35432,7 @@
   "Optimus Prime, Autobot Leader // Optimus Prime, Hero": [
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye",
-   "transition-this-instruction-does-not-report"
+   "event-trigger-carrying-values"
   ],
   "Opulent Clomper": [
    "a-choice-of-color-outside-its-body",
@@ -36242,8 +36168,7 @@
    "event-change-damage-as-infect"
   ],
   "Phyrexian Vindicator": [
-   "prevention-with-an-effect-besides",
-   "target-reference-outside-a-resolving-ability"
+   "prevention-with-an-effect-besides"
   ],
   "Pick-a-Beeble": [
    "ability-visit",
@@ -36389,7 +36314,7 @@
   ],
   "Plumb the Forbidden": [
    "cost-part-player-action",
-   "transition-this-instruction-does-not-report"
+   "reflexive-ability-about-a-list-of-objects"
   ],
   "Plumes of Peace": [
    "activated-keyword-forecast",
@@ -36620,6 +36545,7 @@
   ],
   "Primeval Spawn": [
    "as-enters-replacement-of-another-event",
+   "object-filter-mana-spent",
    "operation-play-with"
   ],
   "Primitive Etchings": [
@@ -36628,7 +36554,8 @@
   ],
   "Primitive Justice": [
    "cost-part-mana-any-number-of-times",
-   "target-reference-outside-a-resolving-ability"
+   "numeric-expression-additional-cost-paid",
+   "target-cardinality-exactly"
   ],
   "Primo, the Unbounded": [
    "amount-of-an-event-its-trigger-does-not-carry",
@@ -36768,15 +36695,15 @@
    "object-filter-damaged-by"
   ],
   "Prowl, Pursuit Vehicle // Prowl, Stoic Strategist": [
+   "a-card-played-from-among-those-exiled-with-an-object",
    "engine-no-living-metal",
-   "engine-no-more-than-meets-the-eye",
-   "trigger-event-player-plays-card-from-exile-of-a-set-of-cards"
+   "engine-no-more-than-meets-the-eye"
   ],
   "Psionic Ritual": [
    "replicate-cost-other-than-mana"
   ],
   "Psychic Battle": [
-   "event-object-this-trigger-does-not-bind",
+   "condition-had-extreme",
    "trigger-event-targets-chosen"
   ],
   "Psychic Impetus": [
@@ -36947,6 +36874,7 @@
    "amount-of-an-event-its-trigger-does-not-carry"
   ],
   "Quarum Trench Gnomes": [
+   "duration-while-on-battlefield",
    "replacement-event-produce-color"
   ],
   "Quasiduplicate": [
@@ -37257,9 +37185,6 @@
   "Ravenous Rotbelly": [
    "reflexive-ability-about-a-list-of-objects"
   ],
-  "Ravenous Slime": [
-   "transition-this-instruction-does-not-report"
-  ],
   "Ravenous Tyrannosaurus": [
    "engine-no-devour",
    "operation-deal-damage-with"
@@ -37328,7 +37253,7 @@
    "trigger-event-player-sets-scheme-in-motion"
   ],
   "Reap": [
-   "target-reference-outside-a-resolving-ability"
+   "target-cardinality-up-to"
   ],
   "Reaper King Avatar": [
    "card-type-vanguard",
@@ -37449,9 +37374,9 @@
    "player-rule-for-a-while-can-t-cast-some-spells"
   ],
   "Refraction Trap": [
-   "a-made-effect-about-a-target-that-may-be-a-player",
    "object-collection-damage-sources",
-   "prevention-with-an-effect-besides"
+   "prevention-with-an-effect-besides",
+   "target-reference-outside-a-resolving-ability"
   ],
   "Regal Leosaur": [
    "engine-no-mutate",
@@ -37742,7 +37667,7 @@
    "engine-no-perpetual-effects"
   ],
   "Rings of Brighthearth": [
-   "event-object-this-trigger-does-not-bind"
+   "a-mana-ability-test-that-lost-its-negation"
   ],
   "Ringsight": [
    "engine-no-ring-temptation"
@@ -38193,8 +38118,10 @@
    "engine-no-blitz"
   ],
   "Sacred Boon": [
+   "damage-prevented-by-an-effect-of-this-ability",
+   "power-toughness-counter-other-than-1-1",
    "prevention-with-an-effect-besides",
-   "result-this-instruction-does-not-report"
+   "target-reference"
   ],
   "Sacred Excavation": [
    "object-filter-has-activated-ability"
@@ -38549,9 +38476,9 @@
    "static-rule-combat-group-attacker"
   ],
   "Scars of the Veteran": [
-   "prevention-with-an-effect-besides",
-   "result-this-instruction-does-not-report",
-   "target-reference-outside-a-resolving-ability"
+   "damage-prevented-by-an-effect-of-this-ability",
+   "power-toughness-counter-other-than-1-1",
+   "prevention-with-an-effect-besides"
   ],
   "Scarwood Hag": [
    "losing-ability-landwalk"
@@ -38999,9 +38926,6 @@
    "play-permission-to-play-land",
    "player-rule-for-a-while-prohibit-cast-spell",
    "player-rule-for-a-while-prohibit-play-land"
-  ],
-  "Shambling Swarm": [
-   "target-reference"
   ],
   "Shameless Charlatan": [
    "engine-no-commander"
@@ -39487,7 +39411,8 @@
    "modes-implied-by-the-target-chosen"
   ],
   "Skyshroud Ambush": [
-   "delayed-trigger-until-until-state-based-actions-checked"
+   "delayed-trigger-until-until-state-based-actions-checked",
+   "event-trigger-carrying-values"
   ],
   "Skyshroud Cutter": [
    "cost-part-each-player-action"
@@ -39824,8 +39749,9 @@
    "engine-no-vanishing-enters"
   ],
   "Soundwave, Superior Captain // Soundwave, Sonic Spy": [
+   "amount-of-an-event-its-trigger-does-not-carry",
    "engine-no-more-than-meets-the-eye",
-   "event-amount-this-trigger-does-not-bind"
+   "event-value-in-a-target-filter-beyond-its-subject"
   ],
   "Souvenir Snatcher": [
    "engine-no-mutate",
@@ -40046,9 +39972,6 @@
   ],
   "Spiritual Focus": [
    "engine-no-discard-cause-in-events"
-  ],
-  "Spiteful Repossession": [
-   "result-this-instruction-does-not-report"
   ],
   "Splicer's Skill": [
    "engine-splice-onto-other-than-arcane"
@@ -40416,8 +40339,7 @@
    "play-permission-on-an-open-set-of-cards"
   ],
   "Strago and Relm": [
-   "selection-result-outside-generated-scope",
-   "transition-this-instruction-does-not-report"
+   "operation-change-spell"
   ],
   "Stranglehold": [
    "prohibited-action-search-libraries",
@@ -40512,11 +40434,11 @@
    "mana-spending-effect"
   ],
   "Stuffy Doll Avatar": [
-   "a-made-effect-about-a-target-that-may-be-a-player",
    "card-type-vanguard",
    "layout-vanguard",
    "object-collection-damage-sources",
-   "prevention-with-an-effect-besides"
+   "prevention-with-an-effect-besides",
+   "target-reference-outside-a-resolving-ability"
   ],
   "Stumpsquall Hydra": [
    "engine-no-commander"
@@ -40544,7 +40466,8 @@
    "modes-implied-by-the-target-chosen"
   ],
   "Suffocation": [
-   "damage-source-kind-spell"
+   "damage-source-kind-spell",
+   "object-collection-from-history"
   ],
   "Suicidal Charge": [
    "open-set-affected"
@@ -40646,9 +40569,6 @@
   "Superior Foes of Spider-Man": [
    "duration-until-another-exiled",
    "play-permission-lasting-until-another-exiled"
-  ],
-  "Superior Spider-Man": [
-   "transition-this-instruction-does-not-report"
   ],
   "Support Skyforge": [
    "engine-no-perpetual-effects",
@@ -40850,9 +40770,6 @@
    "a-choice-of-several-values",
    "numeric-expression-chosen-colors-of"
   ],
-  "Tadeas, Juniper Ascendant": [
-   "event-value-outside-its-ability"
-  ],
   "Tahngarth": [
    "card-type-vanguard",
    "layout-vanguard"
@@ -41036,7 +40953,7 @@
    "engine-no-untap-event",
    "move-arrival-state",
    "operation-note",
-   "transition-this-instruction-does-not-report"
+   "several-objects-arriving-attached"
   ],
   "Tawnos, Solemn Survivor": [
    "engine-no-record-of-what-paid-a-cost"
@@ -41402,6 +41319,7 @@
    "trigger-event-player-chaos-ensues"
   ],
   "The Celestial Toymaker": [
+   "history-measure-distinct-causes",
    "operation-change-zone",
    "operation-choose-pile",
    "trigger-event-player-guesses"
@@ -41834,9 +41752,6 @@
   "The Ruinous Wrecking Crew": [
    "mode-count-that-is-not-a-constant"
   ],
-  "The Sea Devils": [
-   "event-object-this-trigger-does-not-bind"
-  ],
   "The Second Doctor": [
    "a-maximum-hand-size-of-other-players",
    "duration-during-next-turn",
@@ -41951,8 +41866,9 @@
    "trigger-event-player-planeswalks"
   ],
   "The Wise Mothman": [
-   "event-amount-this-trigger-does-not-bind",
-   "rad-counters"
+   "amount-of-an-event-its-trigger-does-not-carry",
+   "rad-counters",
+   "target-cardinality-up-to"
   ],
   "The World Spell": [
    "engine-no-read-ahead"
@@ -42544,8 +42460,9 @@
    "engine-no-conspire"
   ],
   "Tranquil Frillback": [
-   "operation-pay-repeatedly",
-   "result-this-instruction-does-not-report"
+   "modal-announcement",
+   "mode-count-that-is-not-a-constant",
+   "operation-pay-repeatedly"
   ],
   "Transforming Flourish": [
    "engine-no-demonstrate"
@@ -42650,9 +42567,10 @@
   ],
   "Triumph of Saint Katherine": [
    "cost-part-move",
+   "objects-that-paid-a-cost-at-resolution",
+   "operation-change-zone",
    "resolution-cost-move",
-   "static-subjects-take",
-   "transition-this-instruction-does-not-report"
+   "static-subjects-take"
   ],
   "Triumphant Adventurer": [
    "engine-venture-into-the-dungeon-reaches-only-undercity"
@@ -42882,7 +42800,7 @@
    "operation-copy-each"
   ],
   "Ulamog's Despoiler": [
-   "event-value-outside-its-ability"
+   "engine-no-cost-puts-an-exiled-card-into-a-graveyard"
   ],
   "Ulamog's Nullifier": [
    "engine-no-cost-puts-an-exiled-card-into-a-graveyard"
@@ -43003,9 +42921,6 @@
    "engine-no-hidden-agenda",
    "layout-conspiracy"
   ],
-  "Unexpected Request": [
-   "transition-this-instruction-does-not-report"
-  ],
   "Unexplained Absence": [
    "target-cardinality-per-player"
   ],
@@ -43066,6 +42981,8 @@
   ],
   "Unyaro": [
    "card-type-plane",
+   "duration-until-event",
+   "keyword-action-with-a-duration-of-its-own",
    "layout-planar",
    "subtype-zhalfir",
    "trigger-event-player-chaos-ensues",
@@ -43273,7 +43190,7 @@
    "target-cardinality-per-player"
   ],
   "Vazi, Keen Negotiator": [
-   "event-object-this-trigger-does-not-bind"
+   "activated-ability-mana-spent-from"
   ],
   "Vectis Gloves": [
    "landwalk-of-card-type"
@@ -43328,8 +43245,8 @@
    "continuous-rule-require-combat-be-blocked"
   ],
   "Vengeful Archon": [
-   "a-made-effect-about-a-target-that-may-be-a-player",
-   "prevention-with-an-effect-besides"
+   "prevention-with-an-effect-besides",
+   "target-reference-outside-a-resolving-ability"
   ],
   "Vengeful Dreams": [
    "discarding-x-cards-as-a-cost"
@@ -43359,8 +43276,7 @@
    "trigger-event-pays-to-activate"
   ],
   "Vesuvan Doppelganger": [
-   "copy-exception-keep-color",
-   "target-reference-outside-a-resolving-ability"
+   "copy-exception-keep-color"
   ],
   "Vesuvan Duplimancy": [
    "object-reference-sole-target-of"
@@ -43433,15 +43349,16 @@
    "engine-no-specialize-event"
   ],
   "Vhal, Scholar of Mortality": [
+   "a-target-filter-reading-the-amount-its-ability-was-told",
    "counter-kind-study",
-   "engine-no-specialize-event",
-   "target-of-a-reflexive-ability-reading-what-its-ability-did"
+   "engine-no-specialize-event"
   ],
   "Vhal, Scholar of Prophecy": [
    "counter-kind-study",
    "engine-no-specialize-event"
   ],
   "Vhal, Scholar of Tactics": [
+   "a-target-filter-reading-the-amount-its-ability-was-told",
    "counter-kind-study",
    "engine-no-specialize-event",
    "target-with-a-divided-amount-read-as-chosen"
@@ -43704,7 +43621,7 @@
    "mana-spending-predicate"
   ],
   "Volt-Charged Berserker // Voltaic Visionary": [
-   "trigger-event-player-plays-card-from-exile-of-a-set-of-cards"
+   "a-card-played-from-among-those-exiled-with-an-object"
   ],
   "Voltstorm Angel": [
    "modal-announcement"
@@ -43797,8 +43714,9 @@
    "object-filter-can-target-only"
   ],
   "Wall of Stolen Identity": [
-   "earlier-objects-selected",
-   "event-object-this-trigger-does-not-bind"
+   "continuous-rule-untap-step",
+   "duration-while-controlled",
+   "earlier-objects-selected"
   ],
   "Wall of Tombstones": [
    "engine-no-effect-sets-power-or-toughness-alone"
@@ -43937,7 +43855,8 @@
    "counter-kind-ki"
   ],
   "Way of the Mind Sculptor": [
-   "event-object-this-trigger-does-not-bind"
+   "numeric-expression-counters-paid",
+   "the-ability-an-event-is-about"
   ],
   "Waystone's Guidance": [
    "operation-change-spell"
@@ -44324,7 +44243,6 @@
    "stickers"
   ],
   "Wolf of Devil's Breach": [
-   "object-as-it-was-before-an-instruction-moved-it",
    "objects-that-paid-a-cost-at-resolution"
   ],
   "Wolfir Silverheart": [
@@ -44355,7 +44273,7 @@
    "operation-pick-from-hand"
   ],
   "Words of War": [
-   "a-made-effect-about-a-target-that-may-be-a-player"
+   "target-reference-outside-a-resolving-ability"
   ],
   "Workshop Assistant": [
    "event-value-in-a-target-filter-beyond-its-subject"
@@ -44501,7 +44419,7 @@
    "object-filter-damaged-by"
   ],
   "Yannik, Scavenging Sentinel": [
-   "reflexive-trigger-on-what-an-instruction-does-not-report"
+   "target-with-a-divided-amount-read-as-chosen"
   ],
   "Yare": [
    "continuous-rule-block-capacity"
@@ -44738,8 +44656,7 @@
   "Ziatora's Envoy": [
    "cost-part-play-from-top",
    "cost-part-player-action",
-   "engine-no-blitz",
-   "event-value-outside-its-ability"
+   "engine-no-blitz"
   ],
   "Ziatora, the Incinerator": [
    "reflexive-ability-about-a-list-of-objects"

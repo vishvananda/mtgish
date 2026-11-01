@@ -153,9 +153,14 @@ pub(super) fn chooses_what_pays(cost: &Cost) -> bool {
 impl Compiler {
     /// A count made by the ability that makes a reflexive one, which that reflexive
     /// ability reads: the engine tells it one count, kept as `item.x`.
-    pub(super) fn told_amount(&self, performed: &ResultId, body: &Program) -> Option<String> {
+    pub(super) fn told_amount(
+        &self,
+        performed: &ResultId,
+        body: &Program,
+        announcement: &Announcement,
+    ) -> Option<String> {
         let local = self.performed.get(&performed.0)?;
-        let text = format!("{body:?}");
+        let text = format!("{body:?} {announcement:?}");
         let reads = [
             format!("Performed(ResultId({}))", performed.0),
             format!("CountersRemoved(ResultId({}))", performed.0),
@@ -289,6 +294,8 @@ impl Compiler {
         );
         writeln!(out, "let paid_objects_{id}: Vec<ObjectId> = {paid};").unwrap();
         self.moved.insert(result.0, format!("paid_objects_{id}"));
+        self.before
+            .insert(result.0, format!("paid_objects_{id}.clone()"));
     }
     /// What an instruction did, for the instructions after it that ask, when it
     /// compiled and left no word of it. If its code waits on Cantrip, so does the
@@ -413,7 +420,7 @@ impl Compiler {
     /// The targets an earlier slot chose, read while a later slot is chosen. A slot
     /// of no fixed size has to be the last before this one: what follows it in
     /// `chosen_targets` is this slot's own, which a target can't repeat anyway.
-    fn chosen_in_slot(&self, earlier: &Slot, choosing: usize) -> Result<String> {
+    pub(super) fn chosen_in_slot(&self, earlier: &Slot, choosing: usize) -> Result<String> {
         let referred = match self.slots.get(&earlier.0) {
             Some((i, _)) if *i < choosing => *i,
             _ => return Err(gap("target reference to no earlier slot")),
@@ -1285,11 +1292,15 @@ impl Compiler {
             Operation::ReturnAfter { objects, duration } => {
                 let objects = self.fetch(self.objects(objects)?);
                 let until = self.duration(duration)?;
+                writeln!(out, "let returning_{id}: Vec<ObjectId> = {objects};").unwrap();
                 self.plan_code(
                     &feature,
-                    &format!("{M}::exile_until::return_when(g, asker.source, &{objects}, {until})"),
+                    &format!(
+                        "{M}::exile_until::return_when(g, asker.source, &returning_{id}, {until})"
+                    ),
                     out,
                 );
+                self.moved.insert(result.0, format!("returning_{id}"));
             }
             Operation::TurnFaceDownAs { objects, .. } => {
                 let objects = self.fetch(self.objects(objects)?);
@@ -1431,10 +1442,15 @@ impl Compiler {
             } => {
                 let player = self.one_actor(actor, &feature)?;
                 let times = self.fetch(self.number(times)?.amount(u32::MAX.into(), "u32")?);
-                let event = quoted(&format!("{event:?}"));
-                let condition = condition.as_ref().map(|c| format!("{c:?}"));
-                let body = self.operand_code(body);
-                self.plan_code(&feature, &format!("{M}::boon::create(g, asker.source, {player}, {times}, {event}, {condition:?}, {body})"), out);
+                self.create_boon(
+                    &feature,
+                    player,
+                    times,
+                    event,
+                    condition.as_deref(),
+                    body,
+                    out,
+                )?;
             }
             Operation::DelayedUnlessPaid {
                 event,
@@ -1561,13 +1577,20 @@ impl Compiler {
                 let player = self.fetch(self.certain_player(player)?);
                 let most = self.fetch(self.number(at_most)?.amount(u16::MAX.into(), "u16")?);
                 let cost = quoted(&format!("{cost:?}"));
-                self.plan_code(
+                let times = planned::planned_value(
                     &feature,
+                    "0i64",
                     &format!(
                         "{M}::players::pay_repeatedly(g, {player}, asker.source, {cost}, {most})?"
                     ),
-                    out,
                 );
+                writeln!(
+                    out,
+                    "let bound_{id}: i64 = {times}; let done_{id}: i64 = bound_{id};"
+                )
+                .unwrap();
+                self.performed.insert(result.0, format!("done_{id}"));
+                self.values.insert(result.0, format!("bound_{id}"));
             }
             Operation::PlayersPayRepeatedly {
                 players,
@@ -1587,7 +1610,10 @@ impl Compiler {
                 let player = self.one_actor(actor, &feature)?;
                 let objects = self.fetch(self.objects(objects)?);
                 let cost = quoted(&format!("{cost:?}"));
-                self.plan_code(&feature, &format!("{M}::players::choose_and_pay(g, {player}, asker.source, {objects}, {cost})?"), out);
+                let chosen = planned::planned_value(&feature, "Vec::<ObjectId>::new()", &format!("{M}::players::choose_and_pay(g, {player}, asker.source, {objects}, {cost})?"));
+                writeln!(out, "let chosen_{id}: Vec<ObjectId> = {chosen};").unwrap();
+                self.selections.insert(result.0, format!("chosen_{id}"));
+                self.moved.insert(result.0, format!("chosen_{id}"));
             }
             Operation::EachCounterKind {
                 actor,
