@@ -31,7 +31,8 @@ impl Context {
                 ("ManaProduce::AnyManaColorInCommanderColorIdentity", []) => {
                     ManaProduction::CommanderIdentity
                 }
-                _ => ManaProduction::Primitive { name, operands },
+                _ => crate::semantics::reduce_mana_production(&name, &operands)
+                    .unwrap_or(ManaProduction::Primitive { name, operands }),
             })
         })
     }

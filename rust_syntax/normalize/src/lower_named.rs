@@ -455,7 +455,10 @@ impl Context {
             "Player" => Operand::Player(crate::semantics::reduce_player_ref(name, operands)),
             "GameNumber" => Operand::Number(Expr::Primitive { name, operands }),
             "Condition" => Operand::Condition(Condition::Primitive { name, operands }),
-            "Expiration" => Operand::Duration(Duration::Primitive { name, operands }),
+            "Expiration" => Operand::Duration(
+                crate::semantics::reduce_duration(&name, &operands)
+                    .unwrap_or(Duration::Primitive { name, operands }),
+            ),
             "Cards" | "CardsInOracle" | "CardsInLibrary" | "CreatureTypeVariable"
             | "CheckHasable" => {
                 Operand::Filter(ObjectFilter::Primitive { name, operands })

@@ -1179,6 +1179,10 @@ fn settable_color(operand: &Operand, mode: ChangeMode) -> Option<Change> {
     };
     match (form.as_str(), operands.as_slice()) {
         ("TheChosenColor", []) => Some(Change::ChosenColor { mode }),
+        ("Colorless", []) => Some(Change::Colors {
+            mode,
+            colors: vec![],
+        }),
         ("SimpleColorList", colors) => Some(Change::Colors {
             mode,
             colors: colors.iter().map(color_form).collect::<Option<_>>()?,

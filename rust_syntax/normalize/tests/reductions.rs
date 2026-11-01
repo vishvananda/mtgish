@@ -343,3 +343,42 @@ fn references_name_what_they_read() {
         }
     ));
 }
+
+#[test]
+fn continuous_effects_say_what_they_change() {
+    assert!(matches!(
+        semantics::reduce_change("SpellEffect::HasAllCreatureTypes".into(), vec![]),
+        Change::CreatureTypes {
+            types: CreatureTypeSet::All,
+            ..
+        }
+    ));
+    assert!(matches!(
+        semantics::reduce_change(
+            "LayerEffect::AddLandTypeVariable".into(),
+            vec![Operand::Term {
+                family: "LandTypeVariable".into(),
+                form: "EachBasicLandType".into(),
+                operands: vec![],
+            }],
+        ),
+        Change::LandTypes {
+            scope: LandTypeScope::Basic,
+            mode: ChangeMode::Add,
+        }
+    ));
+    assert!(matches!(
+        semantics::reduce_duration("Expiration::UntilEndOfTheNextTurn", &[]),
+        Some(Duration::ThroughNextTurn)
+    ));
+    assert!(matches!(
+        semantics::reduce_mana_production("ManaProduce::AnyTwoDifferentManaColors", &[]),
+        Some(ManaProduction::DifferentColors(2))
+    ));
+    assert!(matches!(
+        semantics::reduce_mana_use("ManaUseModifier::CanOnlySpendToCastForetoldSpells", &[]),
+        Some(ManaUse::CastSpell(ObjectFilter::State(
+            ObjectState::Foretold
+        )))
+    ));
+}

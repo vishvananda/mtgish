@@ -55,9 +55,9 @@ impl Context {
                 }]
             }
             S::CDA_Types(source::CDA_Types::HasAllNonbasicLandTypes) => {
-                vec![Change::Primitive {
-                    name: "CDA_Types::HasAllNonbasicLandTypes".into(),
-                    operands: vec![],
+                vec![Change::LandTypes {
+                    scope: LandTypeScope::Nonbasic,
+                    mode: ChangeMode::Add,
                 }]
             }
             S::CDA_Types(types) => vec![match types {

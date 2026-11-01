@@ -1546,7 +1546,16 @@ impl Inventory<'_> {
     fn mana(&mut self, mana: &ManaProduction) {
         self.form("ManaProduction", mana);
         match mana {
-            ManaProduction::SameTypeAsProduced | ManaProduction::CommanderIdentity => {}
+            ManaProduction::SameTypeAsProduced
+            | ManaProduction::CommanderIdentity
+            | ManaProduction::DifferentColors(_)
+            | ManaProduction::OtherColor
+            | ManaProduction::LastNoted { .. }
+            | ManaProduction::LostThisWay(_) => {}
+            ManaProduction::ColorsAmong { objects, .. } => self.objects(objects),
+            ManaProduction::ManaCostOf(object) | ManaProduction::SymbolsOf(object) => {
+                self.object(object)
+            }
             ManaProduction::CouldProduce { objects, .. } => self.objects(objects),
             ManaProduction::Primitive { name, .. } => self.primitive(name),
             ManaProduction::Amount { color, amount } => {
@@ -1589,7 +1598,8 @@ impl Inventory<'_> {
                 changes.iter().for_each(|c| self.change(c));
                 self.duration(until);
             }
-            ManaUse::Purpose(_) => {}
+            ManaUse::Purpose(_) | ManaUse::WhenSpent { .. } => {}
+            ManaUse::SpentGives { spells, .. } => self.filter(spells),
             ManaUse::Primitive { name, .. } => self.primitive(name),
         }
     }
@@ -1748,6 +1758,10 @@ impl Inventory<'_> {
             Change::SetController(p) => self.player(p),
             Change::GrantKeyword(k) => self.keyword(k),
             Change::GainAbilitiesOf { objects, .. } => self.objects(objects),
+            Change::AddNames(filter) => self.filter(filter),
+            Change::CreatureTypesOf { object, .. } => self.object(object),
+            Change::OnlyAbilities(abilities) => abilities.iter().for_each(|a| self.ability(a)),
+            Change::GrantAbilityIfAbsent(a) => self.ability(a),
             Change::GrantAbility(a) | Change::OnlyAbility(a) => self.ability(a),
             Change::CreatureTypes { mode, types } => {
                 self.form("ChangeMode", mode);
@@ -1777,6 +1791,11 @@ impl Inventory<'_> {
             | Change::SwitchPowerToughness
             | Change::LosesAbility(_)
             | Change::SetName(_)
+            | Change::LandTypes { .. }
+            | Change::RemoveAllLandTypes
+            | Change::RemoveSubtype(_)
+            | Change::ColorlessDamageSource
+            | Change::TextOf { .. }
             | Change::ReplaceWord { .. }
             | Change::AddEnchantmentType(_)
             | Change::SetLandType(_) => {}
@@ -2599,6 +2618,17 @@ impl Inventory<'_> {
         self.form("Duration", d);
         match d {
             Duration::UntilEvent(event) => self.event(event),
+            Duration::While(condition) => self.condition(condition),
+            Duration::WhileItMatches(filter) => self.filter(filter),
+            Duration::ThroughNextTurn | Duration::ExtraCombat(_) => {}
+            Duration::EndOfCombatOnNextTurn(player)
+            | Duration::UntilNextUntapStep(player)
+            | Duration::UntilLibraryTopChanges(player)
+            | Duration::WhilePlayerHasCounter { player, .. } => self.player(player),
+            Duration::UntilAnotherExiled { by, with } => {
+                self.players(by);
+                self.object(with);
+            }
             Duration::Primitive { name, .. } => self.primitive(name),
             Duration::ExtraTurn(_) => {}
             Duration::EndOfTurn

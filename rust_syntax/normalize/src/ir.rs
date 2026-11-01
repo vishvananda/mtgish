@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 153;
+pub const SCHEMA_VERSION: u32 = 154;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2231,6 +2231,25 @@ pub enum ManaProduction {
         colors_only: bool,
     },
     CommanderIdentity,
+    /// One mana of a color among these objects, or of each such color.
+    ColorsAmong {
+        objects: ObjectSet,
+        each: bool,
+    },
+    /// Mana equal to this object's mana cost.
+    ManaCostOf(ObjectRef),
+    /// One mana for each colored symbol in this object's mana cost.
+    SymbolsOf(ObjectRef),
+    /// This many mana, each of a different color.
+    DifferentColors(u32),
+    /// Mana of a color other than the one just produced.
+    OtherColor,
+    /// The mana this instruction took away.
+    LostThisWay(ResultId),
+    /// The mana this object noted; `amount` keeps how much as well as what type.
+    LastNoted {
+        amount: bool,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ManaChoiceTiming {
@@ -2264,6 +2283,18 @@ pub enum ManaUse {
         spells: ObjectFilter,
         changes: Vec<Change>,
         until: Duration,
+    },
+    /// Forge's `TriggersWhenSpent$`.
+    WhenSpent {
+        spells: ObjectFilter,
+        abilities: bool,
+        this_turn: bool,
+        body: Box<Operand>,
+    },
+    /// What a spell or the permanent it becomes gets when this mana pays for it.
+    SpentGives {
+        spells: ObjectFilter,
+        effects: Vec<Operand>,
     },
 }
 
@@ -2506,6 +2537,10 @@ pub enum Change {
     GainAbilitiesOf {
         objects: ObjectSet,
         kinds: Box<Operand>,
+        /// Only one of the gained abilities may be activated each turn.
+        once_each_turn: bool,
+        /// How mana may be spent to activate them.
+        spend_as: Option<SpendAs>,
     },
     /// CR 612: a text-changing effect replacing one word with another.
     ReplaceWord {
@@ -2519,6 +2554,31 @@ pub enum Change {
     },
     /// Part of the object's copiable values (707.2).
     Copiable(Vec<Change>),
+    /// Every land type of this scope (CR 305.6).
+    LandTypes {
+        scope: LandTypeScope,
+        mode: ChangeMode,
+    },
+    RemoveAllLandTypes,
+    RemoveSubtype(SubType),
+    /// The creature types this object has.
+    CreatureTypesOf {
+        object: ObjectRef,
+        mode: ChangeMode,
+    },
+    /// Loses all other abilities and has these, in one effect.
+    OnlyAbilities(Vec<Ability>),
+    /// Has this ability unless it already does.
+    GrantAbilityIfAbsent(Box<Ability>),
+    /// Also has every name of these cards.
+    AddNames(ObjectFilter),
+    /// Counts as colorless wherever it is a source of damage.
+    ColorlessDamageSource,
+    /// Has this object's full text, and more.
+    TextOf {
+        object: ObjectRef,
+        plus: Box<Operand>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2527,6 +2587,12 @@ pub struct DamagePart {
     pub amount: Expr,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum LandTypeScope {
+    All,
+    Basic,
+    Nonbasic,
+}
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ChangeMode {
     Set,
@@ -3097,6 +3163,7 @@ pub enum SpendAs {
     AnyType,
     ColorlessAsAnyColor,
     SnowAsAnyColor,
+    ColorAsAnyColor(ManaColor),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3685,6 +3752,7 @@ pub enum ManaPurpose {
     Foretell,
     ClassLevel,
     AbilityKeyword(AbilityKeyword),
+    CostContaining(Box<Operand>),
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -4666,6 +4734,27 @@ pub enum Duration {
     ExtraTurn(ResultId),
     /// Ends when this event next happens.
     UntilEvent(Box<EventSpec>),
+    /// Ends as soon as this stops being true.
+    While(Box<Condition>),
+    /// Ends when the object affected stops matching.
+    WhileItMatches(ObjectFilter),
+    /// Through the end of the next turn, whoever's it is.
+    ThroughNextTurn,
+    EndOfCombatOnNextTurn(PlayerRef),
+    UntilNextUntapStep(PlayerRef),
+    /// Ends when this card stops being on top of this player's library.
+    UntilLibraryTopChanges(PlayerRef),
+    /// Through the combat phase this instruction created.
+    ExtraCombat(ResultId),
+    WhilePlayerHasCounter {
+        player: PlayerRef,
+        kind: crate::counter::CounterKind,
+    },
+    /// Ends when these players next exile a card with this object.
+    UntilAnotherExiled {
+        by: PlayerSet,
+        with: ObjectRef,
+    },
 }
 
 /// Eligibility gates for a scheduled trigger, relative to its creation.
@@ -5262,6 +5351,7 @@ pub enum ObjectState {
     CostPaid(CastCost),
     Sticker(StickerKind),
     UnlockedDoor,
+    Manifested,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

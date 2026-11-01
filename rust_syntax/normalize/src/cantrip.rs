@@ -438,7 +438,14 @@ fn mana_plan(value: &ManaProduction) -> Result<ManaPlan> {
         }
         other @ (ManaProduction::SameTypeAsProduced
         | ManaProduction::CouldProduce { .. }
-        | ManaProduction::CommanderIdentity) => {
+        | ManaProduction::CommanderIdentity
+        | ManaProduction::ColorsAmong { .. }
+        | ManaProduction::ManaCostOf(_)
+        | ManaProduction::SymbolsOf(_)
+        | ManaProduction::DifferentColors(_)
+        | ManaProduction::OtherColor
+        | ManaProduction::LostThisWay(_)
+        | ManaProduction::LastNoted { .. }) => {
             return Err(gap(format!("mana production {}", form(other))))
         }
         ManaProduction::Amount { color, amount } => {

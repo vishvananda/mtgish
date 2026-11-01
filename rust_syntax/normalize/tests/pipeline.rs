@@ -1795,7 +1795,7 @@ fn tap_costs_preserve_mana_ability_classification_and_granted_symbol_host_scope(
 fn schema_46_costs_roundtrip_and_reject_previous_versions_at_validation() {
     let source=custom("Activated(And([UntapPermanent(ThisPermanent),TapAPermanent(AnyPermanent)]),ActionList([DrawACard]))");
     let card = pipeline::finalize(&source).unwrap();
-    assert_eq!(card.schema_version, 153);
+    assert_eq!(card.schema_version, 154);
     let json = serde_json::to_value(&card).unwrap();
     let bytes = bincode::encode_to_vec(&card, bincode::config::standard()).unwrap();
     let (binary, used): (Card, usize) =
@@ -3087,7 +3087,7 @@ fn either_branch_leaves_one_result() {
 #[test]
 fn a_mana_rider_names_the_spell_it_paid_for() {
     let text = ability_json("Activated(TapPermanent(ThisPermanent), ActionList([AddManaWithModifiers(ManaProduceR, TriggerSpentOnSpell(IsColor(Red), ActionList([CopySpellAndMayChooseNewTargets(Trigger_ThatSpell)])))]))");
-    assert!(text.contains("TriggerSpentOnSpell"), "{text}");
+    assert!(text.contains("WhenSpent"), "{text}");
     assert!(text.contains("EventSubject"), "{text}");
 }
 

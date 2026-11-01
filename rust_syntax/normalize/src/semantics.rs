@@ -1763,6 +1763,7 @@ include!("reduce_players.rs");
 include!("reduce_rules.rs");
 include!("reduce_actions.rs");
 include!("reduce_events.rs");
+include!("reduce_effects.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
@@ -2241,8 +2242,8 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
         (
             "StaticLayerEffect::AddAbilityFromCardsInGraveyardsHasable",
             [Operand::Filter(cards), kinds],
-        ) => Change::GainAbilitiesOf {
-            objects: ObjectSet::Zone {
+        ) => gain_abilities(
+            ObjectSet::Zone {
                 scope: ZoneScope::Players {
                     zone: EventZone::Graveyard,
                     players: PlayerSet::All,
@@ -2250,25 +2251,19 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
                 kind: ObjectKind::Card,
                 filter: cards.clone(),
             },
-            kinds: Box::new(kinds.clone()),
-        },
+            kinds,
+        ),
         (
             "LayerEffect::AddAbilityFromPermanentHasable"
             | "LayerEffect::AddAbilityFromGraveyardCardHasable"
             | "StaticLayerEffect::AddAbilityFromExiledHasable",
             [Operand::Object(object), kinds],
-        ) => Change::GainAbilitiesOf {
-            objects: ObjectSet::One(object.clone()),
-            kinds: Box::new(kinds.clone()),
-        },
+        ) => gain_abilities(ObjectSet::One(object.clone()), kinds),
         (
             "LayerEffect::AddAbilityFromEachPermanentHasable"
             | "StaticLayerEffect::AddAbilityFromAnExiledHasable",
             [Operand::Objects(objects), kinds],
-        ) => Change::GainAbilitiesOf {
-            objects: objects.clone(),
-            kinds: Box::new(kinds.clone()),
-        },
+        ) => gain_abilities(objects.clone(), kinds),
         (
             "LayerEffect::ReplaceColorWordVariableWithNewColorWordVariable"
             | "LayerEffect::ReplaceLandTypeVariableWithNewLandTypeVariable",
@@ -2284,7 +2279,15 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
             object: object.clone(),
             effects: Box::new(effects.clone()),
         },
-        _ => Change::Primitive { name, operands },
+        _ => {
+            let layer = name
+                .split_once("::")
+                .filter(|(family, _)| {
+                    matches!(*family, "LayerEffect" | "StaticLayerEffect" | "SpellEffect")
+                })
+                .and_then(|(_, form)| reduce_layer(form, &operands));
+            layer.unwrap_or(Change::Primitive { name, operands })
+        }
     }
 }
 
@@ -3152,7 +3155,11 @@ fn reduce_rule_statics(name: &str, operands: &[Operand]) -> Option<Ability> {
 /// What mana may be spent on, past spells and abilities in general.
 pub fn reduce_mana_use(name: &str, operands: &[Operand]) -> Option<ManaUse> {
     use ManaPurpose as P;
-    let purpose = match name.strip_prefix("ManaUseModifier::")? {
+    let form = name.strip_prefix("ManaUseModifier::")?;
+    if let Some(mana_use) = reduce_mana_effect(form, operands) {
+        return Some(mana_use);
+    }
+    let purpose = match form {
         "CanOnlySpendOnXCost" => P::XCost,
         "CanOnlySpendOnCumulativeUpkeepCosts" => P::CumulativeUpkeep,
         "CanOnlySpendToUnlockDoors" => P::UnlockDoor,
@@ -3181,6 +3188,12 @@ pub fn reduce_mana_use(name: &str, operands: &[Operand]) -> Option<ManaUse> {
 
 /// A duration that ends on an event the trigger table already names.
 pub fn reduce_duration(name: &str, operands: &[Operand]) -> Option<Duration> {
+    if let Some(duration) = name
+        .strip_prefix("Expiration::")
+        .and_then(|form| reduce_expiration(form, operands))
+    {
+        return Some(duration);
+    }
     let [Operand::Players(players)] = operands else {
         return None;
     };

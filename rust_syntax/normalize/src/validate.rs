@@ -601,6 +601,19 @@ impl<'a> Scope<'a> {
     fn duration(&self, duration: &Duration) -> Result {
         match duration {
             Duration::UntilEvent(event) => self.event(event),
+            Duration::While(condition) => self.condition(condition),
+            Duration::WhileItMatches(filter) => self.filter(filter),
+            Duration::ThroughNextTurn => Ok(()),
+            Duration::EndOfCombatOnNextTurn(player)
+            | Duration::UntilNextUntapStep(player)
+            | Duration::UntilLibraryTopChanges(player)
+            | Duration::WhilePlayerHasCounter { player, .. } => self.player(player),
+            Duration::UntilAnotherExiled { by, with } => {
+                self.players(by)?;
+                self.object(with)
+            }
+            Duration::ExtraCombat(result) if self.results.contains_key(&result.0) => Ok(()),
+            Duration::ExtraCombat(result) => Err(format!("result {} is unavailable", result.0)),
             Duration::Primitive { name, operands } => self.primitive(name, operands),
             Duration::ExtraTurn(result) if self.results.contains_key(&result.0) => Ok(()),
             Duration::ExtraTurn(result) => Err(format!("result {} is unavailable", result.0)),
@@ -1587,8 +1600,20 @@ impl<'a> Scope<'a> {
             Change::ActivationRule(_) => {
                 Err("an activation rule belongs to an activated ability".into())
             }
-            Change::SetName(_) => Ok(()),
-            Change::GainAbilitiesOf { objects, kinds } => {
+            Change::SetName(_)
+            | Change::LandTypes { .. }
+            | Change::RemoveAllLandTypes
+            | Change::RemoveSubtype(_)
+            | Change::ColorlessDamageSource => Ok(()),
+            Change::AddNames(filter) => self.filter(filter),
+            Change::CreatureTypesOf { object, .. } => self.object(object),
+            Change::TextOf { object, plus } => {
+                self.object(object)?;
+                self.operand(plus)
+            }
+            Change::OnlyAbilities(abilities) => abilities.iter().try_for_each(validate_ability),
+            Change::GrantAbilityIfAbsent(ability) => validate_ability(ability),
+            Change::GainAbilitiesOf { objects, kinds, .. } => {
                 self.objects(objects)?;
                 self.operand(kinds)
             }
@@ -3356,7 +3381,19 @@ impl<'a> Scope<'a> {
 
     fn mana(&self, mana: &ManaProduction) -> Result {
         match mana {
-            ManaProduction::SameTypeAsProduced | ManaProduction::CommanderIdentity => Ok(()),
+            ManaProduction::SameTypeAsProduced
+            | ManaProduction::CommanderIdentity
+            | ManaProduction::DifferentColors(_)
+            | ManaProduction::OtherColor
+            | ManaProduction::LastNoted { .. } => Ok(()),
+            ManaProduction::ColorsAmong { objects, .. } => self.objects(objects),
+            ManaProduction::ManaCostOf(object) | ManaProduction::SymbolsOf(object) => {
+                self.object(object)
+            }
+            ManaProduction::LostThisWay(result) if self.results.contains_key(&result.0) => Ok(()),
+            ManaProduction::LostThisWay(result) => {
+                Err(format!("result {} is unavailable", result.0))
+            }
             ManaProduction::CouldProduce { objects, .. } => self.objects(objects),
             ManaProduction::Primitive { name, operands } => self.primitive(name, operands),
             ManaProduction::Amount { amount, .. } => self.count(&Count::Exactly(amount.clone())),
@@ -3397,7 +3434,23 @@ impl<'a> Scope<'a> {
                 changes.iter().try_for_each(|c| self.change(c))?;
                 self.duration(until)
             }
+            ManaUse::Purpose(ManaPurpose::CostContaining(symbol)) => self.operand(symbol),
             ManaUse::Purpose(_) => Ok(()),
+            ManaUse::WhenSpent { spells, body, .. } => {
+                self.filter(spells)?;
+                let mut scoped = self.clone();
+                scoped.event = crate::semantics::event_bindings(&EventSpec::Spell {
+                    event: SpellEvent::Cast,
+                    players: PlayerSet::All,
+                    spells: spells.clone(),
+                });
+                scoped.event.stack_object = true;
+                scoped.operand(body)
+            }
+            ManaUse::SpentGives { spells, effects } => {
+                self.filter(spells)?;
+                effects.iter().try_for_each(|effect| self.operand(effect))
+            }
             ManaUse::Primitive { name, operands } => self.primitive(name, operands),
         }
     }
@@ -4251,6 +4304,7 @@ fn validate_ability_in(
                             | Change::ChosenColor { .. }
                             | Change::ChosenType { .. }
                             | Change::CreatureTypes { .. }
+                            | Change::LandTypes { .. }
                             | Change::Primitive { .. }
                     )
                 }) {
