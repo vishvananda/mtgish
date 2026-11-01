@@ -217,6 +217,7 @@ impl Compiler {
             subject: subject_only.then(|| RefCell::new(None)),
         });
         let results = self.results();
+        let repeating = self.repeating.take();
         let scope = (
             self.event_at,
             self.frame,
@@ -229,6 +230,7 @@ impl Compiler {
         self.outer = Some(outer.clone());
         let compiled = compile(self);
         self.outer = None;
+        self.repeating = repeating;
         (
             self.event_at,
             self.frame,
@@ -277,6 +279,11 @@ impl Compiler {
                 }
             }
         }
+        if !format!("{body:?}").contains("Source") {
+            if let Some(object) = lane_i::watched(&mut event) {
+                source = self.fetch(self.object(&object)?);
+            }
+        }
         let label = format!("watch_{}", self.fresh());
         let limits = TriggerLimits::default();
         let (outer, def) = self.closing(false, |c| {
@@ -308,7 +315,7 @@ impl Compiler {
             return Err(gap("reflexive trigger outside a resolving ability"));
         }
         let happened = if let Some(local) = self.performed.get(&performed.0) {
-            match local.starts_with("removed_") {
+            match local.starts_with("removed_") || local.starts_with("done_") {
                 true => format!("{local} > 0"),
                 false => local.clone(),
             }
@@ -318,6 +325,10 @@ impl Compiler {
             format!("!{}.is_empty()", self.selected(performed)?)
         } else if self.creations.contains_key(&performed.0) {
             format!("!{}.is_empty()", self.created(performed)?)
+        } else if self.values.contains_key(&performed.0) {
+            "true".to_string()
+        } else if self.failed.contains(&performed.0) {
+            planned::unreported("false", performed)
         } else {
             return Err(gap(
                 "reflexive trigger on what an instruction does not report",

@@ -19,6 +19,7 @@ mod delayed;
 mod effects;
 mod keywords;
 mod lane_f;
+mod lane_i;
 mod mechanics;
 pub mod planned;
 mod players;
@@ -34,9 +35,11 @@ pub use lane_f::{is_card, whole, whole_gaps, whole_module, Whole, WholeFace};
 use read::{counter_kind, zone_kind, Candidate, Carried, EventAt, Frame, History, Pending, Reader};
 pub use survey::survey;
 type Result<T> = std::result::Result<T, Diagnostic>;
-/// A reference to the result of an instruction that already reported a gap.
-/// It says nothing new, so it is dropped rather than counted against the card.
+/// The result of an instruction that already reported a gap, read where its
+/// value stands in. It says nothing new, so it is not counted against the card.
 const FOLLOWS_GAP: &str = "depends on an instruction with a gap";
+/// What a list of objects from a failed instruction reads as until it has code.
+const NO_OBJECTS: &str = "Vec::<ObjectId>::new()";
 fn gap(feature: impl Into<String>) -> Diagnostic {
     Diagnostic {
         path: String::new(),
@@ -54,6 +57,10 @@ impl Diagnostic {
         self
     }
 }
+fn constant_one(count: &Count) -> bool {
+    matches!(count, Count::UpTo(Expr::Constant(1)))
+}
+
 fn name(value: &impl std::fmt::Debug) -> String {
     format!("{value:?}")
 }
@@ -427,6 +434,19 @@ struct Compiler {
     gaps: Vec<Diagnostic>,
     /// Results of instructions that have a gap.
     failed: BTreeSet<u32>,
+    /// The process a `RepeatProcess` here repeats: its `again_` flag's number.
+    repeating: Option<usize>,
+    /// The name of the card being compiled, for what is named after it.
+    card_name: String,
+    /// What follows the instruction being compiled in this ability, nearest
+    /// first: its own program, then the rest of those around it.
+    after: Vec<Instruction>,
+    /// Whether a search's library was searched, by the search's result.
+    searched: BTreeMap<u32, String>,
+    /// The spell ends in cipher, so the card has what an encoded card gives.
+    cipher: bool,
+    /// "As long as": asked as the next ability's event happens.
+    ability_guard: Option<Condition>,
 }
 
 enum ManaPlan {
@@ -693,6 +713,12 @@ impl Compiler {
             next: 0,
             gaps: Vec::new(),
             failed: BTreeSet::new(),
+            repeating: None,
+            card_name: String::new(),
+            after: Vec::new(),
+            searched: BTreeMap::new(),
+            cipher: false,
+            ability_guard: None,
             holes: String::new(),
         }
     }
@@ -708,9 +734,7 @@ impl Compiler {
         let mut failure = None;
         if let Err(gap) = part(self) {
             failure = Some(gap.feature.clone());
-            if gap.feature != FOLLOWS_GAP {
-                self.gaps.push(gap);
-            }
+            self.gaps.push(gap);
         }
         for gap in &mut self.gaps[mark..] {
             *gap = gap.clone().at(&path);
@@ -720,21 +744,21 @@ impl Compiler {
     fn selected(&self, result: &ResultId) -> Result<String> {
         match self.selections.get(&result.0) {
             Some(local) => Ok(format!("{local}.clone()")),
-            None if self.failed.contains(&result.0) => Err(gap(FOLLOWS_GAP)),
+            None if self.failed.contains(&result.0) => Ok(planned::unreported(NO_OBJECTS, result)),
             None => Err(gap("selection result outside generated scope")),
         }
     }
     fn created(&self, result: &ResultId) -> Result<String> {
         match self.creations.get(&result.0) {
             Some(local) => Ok(format!("{local}.clone()")),
-            None if self.failed.contains(&result.0) => Err(gap(FOLLOWS_GAP)),
+            None if self.failed.contains(&result.0) => Ok(planned::unreported(NO_OBJECTS, result)),
             None => Err(gap("token result outside generated scope")),
         }
     }
     fn moved(&self, result: &ResultId) -> Result<String> {
         match self.moved.get(&result.0) {
             Some(local) => Ok(format!("{local}.clone()")),
-            None if self.failed.contains(&result.0) => Err(gap(FOLLOWS_GAP)),
+            None if self.failed.contains(&result.0) => Ok(planned::unreported(NO_OBJECTS, result)),
             None => Err(gap("transition this instruction does not report")),
         }
     }
@@ -771,6 +795,9 @@ impl Compiler {
     fn target_test(&self, spec: &TargetSpec) -> Result<String> {
         let id = Candidate::of("id");
         Ok(match &spec.kind {
+            TargetKind::Object(domain) if lane_i::on_the_stack(domain) => {
+                self.stack_target_test(&spec.filter)?
+            }
             TargetKind::Object(domain) => format!(
                 "matches!(t, Target::Object(id) if {} && ({}))",
                 Self::target_domain(domain)?,
@@ -820,6 +847,33 @@ impl Compiler {
                     constant(maximum).unwrap()
                 )
             }
+            // One slot for each opponent, "that player" being whose it is.
+            Count::PerPlayer { players, each } if constant_one(each) => {
+                if matches!(players, PlayerSet::OpponentsOf(PlayerRef::AbilityController)) {
+                    ".between(0, TargetSpec::EACH_OPPONENT)".into()
+                } else {
+                    format!(
+                        ".between(0, {})",
+                        planned::planned_value(
+                            "target cardinality PerPlayer",
+                            "1u32",
+                            "TargetSpec::EACH_PLAYER",
+                        )
+                    )
+                }
+            }
+            // How many is read as the slot is chosen, and a slot's size is a constant.
+            Count::UpTo(n) => format!(
+                ".between(0, {})",
+                planned::planned_value(
+                    "target cardinality UpTo",
+                    "1u32",
+                    &format!(
+                        "TargetSpec::read_as_chosen(|q: &dyn Query, asker: &Asker| {})",
+                        self.number(n)?.amount(u32::MAX.into(), "u32")?
+                    ),
+                )
+            ),
             other => return Err(gap(format!("target cardinality {}", form(other)))),
         })
     }
@@ -875,6 +929,17 @@ impl Compiler {
                 let total = match total {
                     Expr::Constant(n) if i == 0 && *n >= 0 => n.to_string(),
                     Expr::AnnouncedX if i == 0 => "TargetSpec::COUNTED".to_string(),
+                    other if i == 0 => {
+                        let total = self
+                            .number(other)
+                            .and_then(|n| n.amount(u32::MAX.into(), "u32"))
+                            .map_err(|e| e.at(&at))?;
+                        planned::planned_value(
+                            "target with a divided amount read as chosen",
+                            "1u32",
+                            &format!("Divide::read(|q: &dyn Query, asker: &Asker| {total})"),
+                        )
+                    }
                     _ => return Err(gap("target with a divided amount").at(at)),
                 };
                 self.dividing = Some(format!("Divide {{ total: {total}, of_x: None }}"));
@@ -896,7 +961,7 @@ impl Compiler {
             self.choosing = Some(i);
             let test = self.target_test(spec).map_err(|e| e.at(&at));
             self.choosing = None;
-            let test = test?;
+            let test = lane_i::per_player_target(&spec.count, test?);
             let function = format!("{label}_target_{i}");
             writeln!(
                 self.functions,
@@ -1507,6 +1572,7 @@ fn emit_face(
     })?;
     let mut c = Compiler::new();
     let mut parts = Parts::default();
+    c.card_name = card.name.clone();
     c.links_exile =
         place.links_exile || format!("{:?}", card.abilities).contains("ExiledWith(Source)");
     c.own_face = place.own_face;
@@ -1537,8 +1603,20 @@ fn emit_face(
     for (i, a) in card.abilities.iter().enumerate() {
         let failure = c.attempt(format!("abilities[{i}]"), |c| {
             let compiled = c.ability(a, &format!("ability_{i}"), &mut parts, None);
-            if c.dividing.take().is_some() {
-                return Err(gap("target with a divided amount"));
+            if let Some(divide) = c.dividing.take() {
+                // Only spells and triggered abilities divide yet.
+                if compiled.is_err() || !matches!(a, Ability::Activated { .. }) {
+                    return Err(gap("target with a divided amount"));
+                }
+                let Some(def) = parts.abilities.pop() else {
+                    return Err(gap("target with a divided amount"));
+                };
+                c.plan_entry(
+                    "target with a divided amount",
+                    "abilities",
+                    &format!("{def}.divide({divide})"),
+                    &mut parts,
+                );
             }
             compiled
         });
@@ -1554,6 +1632,9 @@ fn emit_face(
             false => Ok(()),
         }
     });
+    if c.cipher {
+        parts.entry("statics", "cantrip_mechanics::cipher::STATIC".into());
+    }
     if c.tap_or_untap {
         let taken = parts.fields.contains_key("labels");
         c.attempt("abilities".into(), |_| match taken {

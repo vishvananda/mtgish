@@ -54,7 +54,7 @@ impl Compiler {
             ("AddCardtypes", list) => words(list)?.iter().fold(values, |values, word| {
                 format!("{values}.with_type(CardType::{word})")
             }),
-            ("AddCreatureTypes" | "AddArtifactTypes" | "AddLandTypes", list) => {
+            ("AddCreatureType" | "AddCreatureTypes" | "AddArtifactTypes" | "AddLandTypes", list) => {
                 words(list)?.iter().fold(values, |values, word| {
                     format!("{values}.with_subtype(Subtype::{word})")
                 })
@@ -77,6 +77,11 @@ impl Compiler {
             ("SetName", [Operand::Text(text)]) => format!("{values}.named({})", quoted(text)),
             ("SetLoyalty", [Operand::Integer(n)]) => format!("{values}.with_loyalty({n})"),
             ("HasNoManaCost", []) => format!("{values}.costless()"),
+            // A spell's copy, read while `original` names that spell.
+            ("IfPermanentSpell", list) => format!(
+                "{{ let plain = {values}; if cantrip_mechanics::targets::is_permanent_card(&q.chars(original)) {{ {} }} else {{ plain }} }}",
+                self.excepted("plain".into(), list)?
+            ),
             (other, _) => return Err(gap(format!("copy exception {other}"))),
         })
     }

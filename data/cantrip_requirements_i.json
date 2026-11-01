@@ -1,0 +1,128 @@
+[
+ {
+  "match": "^operation Conjure$",
+  "class": "mechanic",
+  "needs": "conjure (Alchemy, digital-only): create a card from outside the game in a player's hand, graveyard, exile, library or the battlefield, named, a duplicate, or from a spellbook.",
+  "api": "cantrip_mechanics::conjure::conjure(g, player, owner, source, Conjured, count, ConjureTo)"
+ },
+ {
+  "match": "^operation DraftFromSpellbook$",
+  "class": "mechanic",
+  "needs": "draft from a spellbook (Alchemy, digital-only): the player picks one of three random cards of a named card's spellbook and puts it into hand, the given number of times.",
+  "api": "cantrip_mechanics::conjure::draft_from_spellbook(g, player, source, spellbook, times)"
+ },
+ {
+  "match": "^keyword action Detain$",
+  "class": "mechanic",
+  "needs": "detain (CR 701.35): until the controller's next turn the permanent can't attack or block and its activated abilities can't be activated.",
+  "api": "cantrip_mechanics::detain::detain(g, item, object)"
+ },
+ {
+  "match": "^keyword action Unsuspect$",
+  "class": "engine",
+  "needs": "an effect that ends a creature's suspected designation (CR 701.60d).",
+  "api": "g.unsuspect(object)"
+ },
+ {
+  "match": "^keyword action Unprepare$",
+  "class": "mechanic",
+  "needs": "an effect that ends a permanent's prepared state, the other half of become_prepared.",
+  "api": "g.unprepare(object)"
+ },
+ {
+  "match": "^keyword action Ungoad$",
+  "class": "mechanic",
+  "needs": "an effect that ends the goaded state a creature has, whoever goaded it.",
+  "api": "cantrip_mechanics::goad::ungoad(g, object)"
+ },
+ {
+  "match": "^keyword action BecomeBlocked$",
+  "class": "engine",
+  "needs": "an attacking creature that becomes blocked with nothing blocking it (CR 509.1h).",
+  "api": "g.become_blocked(object)"
+ },
+ {
+  "match": "^keyword action TurnFaceDown$",
+  "class": "engine",
+  "needs": "a permanent turned face down by an effect, a 2/2 with no text and no name (CR 708.2).",
+  "api": "g.turn_face_down(object)"
+ },
+ {
+  "match": "^move arrival FaceDown$",
+  "class": "engine",
+  "needs": "a card put onto the battlefield face down that is neither manifested nor cloaked: FaceDown has only those two values, and a third has no way to be turned up.",
+  "api": "g.put_onto_battlefield_face_down(o, controller, FaceDown::Bare, tapped)"
+ },
+ {
+  "match": "^move arrival AttachedToPlayer$",
+  "class": "engine",
+  "needs": "an Aura put onto the battlefield enchanting a player: Entering.attach_player exists for a spell, nothing sets it for a card put there by an effect.",
+  "api": "g.put_onto_battlefield_enchanting(o, controller, player)"
+ },
+ {
+  "match": "^move arrival with a color$",
+  "class": "engine",
+  "needs": "a color in EntersAs, for a card that enters as a black Zombie or similar in addition to what it is.",
+  "api": "EntersAs.colors"
+ },
+ {
+  "match": "^target cardinality UpTo$",
+  "class": "engine",
+  "needs": "a target slot whose most is a number read as the targets are chosen, such as one plus the cards in graveyards: TargetSpec holds a constant, or the announced X.",
+  "api": "TargetSpec::read_as_chosen(|q, asker| n)"
+ },
+ {
+  "match": "^exiled card gains suspend$",
+  "class": "mechanic",
+  "needs": "a card already in exile that gains suspend, with the time counters it was given (CR 702.62): the triggers read CardDef.suspend, which a card without it does not have.",
+  "api": "cantrip_mechanics::suspend::gains_suspend(g, card)"
+ },
+ {
+  "match": "^move to Ante$",
+  "class": "engine",
+  "needs": "the ante zone (CR 407, casual only): a card moved there stays out of play until the ante is settled.",
+  "api": "g.ante(&objects)"
+ },
+ {
+  "match": "^move to CommandZone$",
+  "class": "engine",
+  "needs": "a card moved to the command zone by an effect (CR 408), for commanders and their replacement.",
+  "api": "g.put_into_command_zone(&objects)"
+ },
+ {
+  "match": "^target with a divided amount read as chosen$",
+  "class": "engine",
+  "needs": "a divided total read from the game as the targets are chosen: Divide holds a constant, the announced X, or a function of X.",
+  "api": "Divide::read(|q, asker| total)"
+ },
+ {
+  "match": "^target with a divided amount$",
+  "class": "engine",
+  "needs": "a divided total on an activated ability, on a mode of a modal spell or ability, or on a slot past the first: only a spell's and a triggered ability's first slot divide.",
+  "api": "AbilityDef::divide on an activated ability; ModeDef::divide"
+ },
+ {
+  "match": "^target cardinality PerPlayer$",
+  "class": "engine",
+  "needs": "one target slot for each player, or each player but you, and inside a mode: EACH_OPPONENT is only for a controller's opponents, and not valid in a mode.",
+  "api": "TargetSpec::EACH_PLAYER, targets::controlled_by_slot_player(q, id)"
+ },
+ {
+  "match": "^choose new targets for an ability$",
+  "class": "engine",
+  "needs": "a player may choose new targets for an activated or triggered ability on the stack: choose_new_targets takes only a spell's object.",
+  "api": "Game::choose_new_targets_of(target, chooser)"
+ },
+ {
+  "match": "^move counters of kinds the mover chooses$",
+  "class": "engine",
+  "needs": "the mover chooses which of an object's counters to move, of any kind: no request asks for counters to move, only to remove.",
+  "api": "cantrip_mechanics::counters::move_chosen(g, actor, from, to, least, most)"
+ },
+ {
+  "match": "^a choice among options offered at random$",
+  "class": "mechanic",
+  "needs": "choosing among a random number of a list of options, which only digital cards do",
+  "api": "cantrip_mechanics::choose::among_random(g, item, offered, options)"
+ }
+]
