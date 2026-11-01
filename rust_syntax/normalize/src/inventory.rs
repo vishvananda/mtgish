@@ -359,8 +359,14 @@ impl Inventory<'_> {
         self.form("NewTargets", targets);
         match targets {
             NewTargets::To(objects) | NewTargets::Each(objects) => self.objects(objects),
-            NewTargets::ToPlayers(players) => self.players(players),
-            NewTargets::Same | NewTargets::May | NewTargets::Must => {}
+            NewTargets::ToPlayers(players) | NewTargets::EachPlayer(players) => {
+                self.players(players)
+            }
+            NewTargets::Random(_)
+            | NewTargets::Same
+            | NewTargets::May
+            | NewTargets::Must
+            | NewTargets::EachLegal => {}
         }
     }
     fn program(&mut self, p: &Program) {
@@ -481,6 +487,100 @@ impl Inventory<'_> {
             }
             Operation::AbandonScheme { actor } | Operation::BeginOnBattlefield { actor, .. } => {
                 self.players(actor)
+            }
+            Operation::Together(operations) => operations.iter().for_each(|o| self.operation(o)),
+            Operation::Repeat { times, body } => {
+                self.expr(times);
+                self.operation(body);
+            }
+            Operation::TurnFaceDownAs { objects, .. } => self.objects(objects),
+            Operation::Exchange { kind, until, .. } => {
+                self.form("ExchangeKind", kind);
+                if let Some(until) = until {
+                    self.duration(until);
+                }
+            }
+            Operation::ChooseValueWith { actor, kind, .. } => {
+                self.players(actor);
+                self.form("ValueKind", kind);
+            }
+            Operation::RevealChoices { kind } => self.form("ValueKind", kind),
+            Operation::CoinFlips {
+                actor, times, each, ..
+            } => {
+                self.players(actor);
+                if let Some(times) = times {
+                    self.expr(times);
+                }
+                if let Some(each) = each {
+                    self.objects(each);
+                }
+            }
+            Operation::AttachEach {
+                actor,
+                attachments,
+                count,
+                hosts,
+                ..
+            } => {
+                self.players(actor);
+                self.objects(attachments);
+                if let Some(count) = count {
+                    self.count(count);
+                }
+                self.recipients(hosts);
+            }
+            Operation::CopyEach {
+                actor,
+                objects,
+                targets,
+            }
+            | Operation::RetargetEach {
+                actor,
+                objects,
+                targets,
+            } => {
+                self.players(actor);
+                self.filter(objects);
+                self.new_targets(targets);
+            }
+            Operation::TakeSpell {
+                actor,
+                object,
+                targets,
+            } => {
+                self.players(actor);
+                self.object(object);
+                self.new_targets(targets);
+            }
+            Operation::SetX { object, value } => {
+                self.object(object);
+                self.expr(value);
+            }
+            Operation::ChangeCombat { change } => self.form("CombatChange", change),
+            Operation::PlayersDo { players, .. } => self.players(players),
+            Operation::CreateBoon {
+                actor,
+                event,
+                times,
+                ..
+            } => {
+                self.players(actor);
+                self.event(event);
+                self.expr(times);
+            }
+            Operation::AddPhases { actor, count, .. } => {
+                self.players(actor);
+                self.expr(count);
+            }
+            Operation::ChooseAndPay {
+                actor,
+                objects,
+                cost,
+            } => {
+                self.players(actor);
+                self.objects(objects);
+                self.cost(cost);
             }
             Operation::EffectOn { subject, until, .. } => {
                 match subject {
@@ -1880,6 +1980,19 @@ impl Inventory<'_> {
             | ObjectSet::AnyZone(filter)
             | ObjectSet::OutsideTheGame(filter) => self.filter(filter),
             ObjectSet::LibraryTops(players) => self.players(players),
+            ObjectSet::Random { objects, count } => {
+                self.objects(objects);
+                self.expr(count);
+            }
+            ObjectSet::Chosen {
+                chooser,
+                objects,
+                count,
+            } => {
+                self.players(chooser);
+                self.objects(objects);
+                self.count(count);
+            }
             ObjectSet::Affected(_) => {}
             ObjectSet::CostObjects {
                 payment,

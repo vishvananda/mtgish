@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 150;
+pub const SCHEMA_VERSION: u32 = 151;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1490,8 +1490,9 @@ pub enum Operation {
         at_most: Expr,
     },
     /// Cards change zones, as Forge's `ChangeZone`. `count` is how many the
-    /// actor chooses, or which at `random`; none means all of `cards`. `group`
-    /// is a rule the chosen cards keep together.
+    /// actor chooses, or which at `random`; none means all of `cards`, and
+    /// `random` then means in a random order. `group` is a rule the chosen
+    /// cards keep together.
     ChangeZone {
         actor: PlayerSet,
         cards: ObjectSet,
@@ -1511,6 +1512,155 @@ pub enum Operation {
         terms: PlayTerms,
         group: Option<Box<Operand>>,
     },
+    /// These happen at once.
+    Together(Vec<Operation>),
+    Repeat {
+        times: Expr,
+        body: Box<Operation>,
+    },
+    TurnFaceDownAs {
+        objects: ObjectSet,
+        as_creature: FaceDownAs,
+    },
+    /// Two things trade places, for good unless `until` says otherwise.
+    Exchange {
+        kind: ExchangeKind,
+        first: Box<Operand>,
+        second: Box<Operand>,
+        until: Option<Duration>,
+    },
+    /// `ChooseValue` on terms.
+    ChooseValueWith {
+        actor: PlayerSet,
+        kind: ValueKind,
+        terms: ChoiceTerms,
+    },
+    /// Secret choices or votes of this kind become known.
+    RevealChoices {
+        kind: ValueKind,
+    },
+    /// `times` flips, one flip for each of `each`, or flips until `until_lost`.
+    CoinFlips {
+        actor: PlayerSet,
+        times: Option<Expr>,
+        each: Option<ObjectSet>,
+        until_lost: bool,
+        may_stop: bool,
+        called: bool,
+    },
+    /// `hosts` may be objects or players; with `each_host`, each gets `count`.
+    AttachEach {
+        actor: PlayerSet,
+        attachments: ObjectSet,
+        count: Option<Count>,
+        hosts: Recipients,
+        each_host: bool,
+    },
+    CopyEach {
+        actor: PlayerSet,
+        objects: ObjectFilter,
+        targets: NewTargets,
+    },
+    RetargetEach {
+        actor: PlayerSet,
+        objects: ObjectFilter,
+        targets: NewTargets,
+    },
+    /// Gain control of a spell, whose targets then change.
+    TakeSpell {
+        actor: PlayerSet,
+        object: ObjectRef,
+        targets: NewTargets,
+    },
+    SetX {
+        object: ObjectRef,
+        value: Expr,
+    },
+    ChangeCombat {
+        change: CombatChange,
+    },
+    /// Actions done by these players, or by one of them if `any_one`.
+    /// `optional` lets the deciding player decline; `otherwise` follows when
+    /// they did.
+    PlayersDo {
+        players: PlayerSet,
+        any_one: bool,
+        optional: bool,
+        once_each_turn: bool,
+        body: Vec<Operand>,
+        otherwise: Vec<Operand>,
+    },
+    /// A boon: a trigger on the player, used up after `times` uses.
+    CreateBoon {
+        actor: PlayerSet,
+        event: Box<EventSpec>,
+        condition: Option<Box<Condition>>,
+        times: Expr,
+        body: Box<Operand>,
+    },
+    AddPhases {
+        actor: PlayerSet,
+        phases: AddedPhases,
+        count: Expr,
+        at_start: Option<Box<Operand>>,
+    },
+    /// Choose any number of objects and pay `cost` for each.
+    ChooseAndPay {
+        actor: PlayerSet,
+        objects: ObjectSet,
+        cost: Cost,
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ExchangeKind {
+    Ownership,
+    Control,
+    LifeTotals,
+    LifeWithPower,
+    LifeWithToughness,
+    TextBoxes,
+    Power,
+    Ante,
+    Zones(EventZone, EventZone),
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct ChoiceTerms {
+    /// What may be chosen: values, or a `Comparison` each number must meet.
+    pub options: Vec<Operand>,
+    pub except: Vec<Operand>,
+    pub count: Option<Expr>,
+    pub secret: bool,
+    /// Not what was chosen before.
+    pub unchosen: bool,
+    pub random: bool,
+    pub ordered: bool,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CombatChange {
+    Reselect {
+        objects: ObjectSet,
+        players_only: bool,
+        optional: bool,
+    },
+    AssignAttack {
+        objects: ObjectSet,
+        to: Box<Operand>,
+    },
+    Block {
+        blocker: ObjectRef,
+        attackers: ObjectSet,
+    },
+    SwapBlocks {
+        first: ObjectRef,
+        second: ObjectRef,
+        attacking: bool,
+    },
+    /// During the phase `during` added, otherwise this turn.
+    OnlyAttackers {
+        objects: ObjectSet,
+        during: Option<ResultId>,
+    },
+    OnlyBlockers(ObjectSet),
 }
 /// What a face-down permanent is, when not a plain 2/2.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -1765,6 +1915,26 @@ pub enum KeywordAction {
     Epic,
     Paradigm,
     CollectEvidence,
+    PhaseIn,
+    Ungoad,
+    UnlockDoor,
+    LockOrUnlockDoor,
+    BecomeBlocked,
+    Assimilate,
+    RemoveFromCombatUnblocking,
+    ReverseTurnOrder,
+    LoseUnspentMana,
+    DoubleUnspentMana,
+    DrawGame,
+    ShuffleGraveyard,
+    RollPlanarDie,
+    VisitAttractions,
+    EndCombat,
+    RollKeepHighest(u32),
+    RollTwoInOrder(u32),
+    TakeExtraTurnAfterNext,
+    TakeExtraTurnSkippingUntap,
+    PlaySubgame,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum MovedCounters {
@@ -1846,6 +2016,12 @@ pub enum ValueKind {
     Recipient,
     /// One of the filters listed as options.
     Filter,
+    Object,
+    PermanentType,
+    NonbasicLandType,
+    Letter,
+    /// One of the programs listed as options.
+    Action,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -1855,6 +2031,8 @@ pub enum SkippedPart {
     UntapStep,
     DrawStep,
     CombatPhase,
+    CombatPhaseThisTurn,
+    AllCombatPhasesNextTurn,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -1863,6 +2041,8 @@ pub enum AddedPhases {
     Combat,
     CombatAndMain,
     Beginning,
+    Upkeep,
+    End,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct SearchChoice {
@@ -2154,6 +2334,7 @@ pub enum Destination {
     OwnersLibraryTopOrBottom,
     Hand(PlayerRef),
     CommandZone,
+    Ante,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2311,6 +2492,12 @@ pub enum NewTargets {
     /// One copy for each of these, targeting it.
     Each(ObjectSet),
     ToPlayers(PlayerSet),
+    /// At random among legal targets, excepting these.
+    Random(Option<Box<Operand>>),
+    /// One copy for each legal target.
+    EachLegal,
+    /// One copy for each player, targeting them or something they control.
+    EachPlayer(PlayerSet),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ConjuredCard {
@@ -3702,6 +3889,17 @@ pub enum ObjectSet {
     AnyZone(ObjectFilter),
     /// Cards a player owns outside the game (CR 400.11).
     OutsideTheGame(ObjectFilter),
+    /// Some of these at random.
+    Random {
+        objects: Box<ObjectSet>,
+        count: Expr,
+    },
+    /// Some of these, which `chooser` picks as the instruction resolves.
+    Chosen {
+        chooser: PlayerSet,
+        objects: Box<ObjectSet>,
+        count: Count,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {

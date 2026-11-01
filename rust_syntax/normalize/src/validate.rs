@@ -699,6 +699,19 @@ impl<'a> Scope<'a> {
             | ObjectSet::AnyZone(filter)
             | ObjectSet::OutsideTheGame(filter) => self.filter(filter),
             ObjectSet::LibraryTops(players) => self.players(players),
+            ObjectSet::Random { objects, count } => {
+                self.objects(objects)?;
+                self.expr(count)
+            }
+            ObjectSet::Chosen {
+                chooser,
+                objects,
+                count,
+            } => {
+                self.players(chooser)?;
+                self.objects(objects)?;
+                self.count(count)
+            }
             ObjectSet::CostObjects {
                 payment,
                 component,
@@ -2280,8 +2293,11 @@ impl<'a> Scope<'a> {
     fn new_targets(&self, targets: &NewTargets) -> Result {
         match targets {
             NewTargets::To(objects) | NewTargets::Each(objects) => self.objects(objects),
-            NewTargets::ToPlayers(players) => self.players(players),
-            NewTargets::Same | NewTargets::May | NewTargets::Must => Ok(()),
+            NewTargets::ToPlayers(players) | NewTargets::EachPlayer(players) => {
+                self.players(players)
+            }
+            NewTargets::Random(except) => except.iter().try_for_each(|o| self.operand(o)),
+            NewTargets::Same | NewTargets::May | NewTargets::Must | NewTargets::EachLegal => Ok(()),
         }
     }
     fn operation(&self, operation: &Operation) -> Result {
@@ -2357,6 +2373,151 @@ impl<'a> Scope<'a> {
                 self.new_targets(targets)
             }
             Operation::AbandonScheme { actor } => self.players(actor),
+            Operation::Together(operations) => {
+                operations.iter().try_for_each(|o| self.operation(o))
+            }
+            Operation::Repeat { times, body } => {
+                self.expr(times)?;
+                self.operation(body)
+            }
+            Operation::TurnFaceDownAs {
+                objects,
+                as_creature,
+            } => {
+                self.objects(objects)?;
+                self.operand(&as_creature.power_toughness)?;
+                as_creature
+                    .creature_type
+                    .iter()
+                    .try_for_each(|o| self.operand(o))
+            }
+            Operation::Exchange {
+                first,
+                second,
+                until,
+                ..
+            } => {
+                self.operand(first)?;
+                self.operand(second)?;
+                until.iter().try_for_each(|until| self.duration(until))
+            }
+            Operation::ChooseValueWith { actor, terms, .. } => {
+                self.players(actor)?;
+                terms.options.iter().try_for_each(|o| self.operand(o))?;
+                terms.except.iter().try_for_each(|o| self.operand(o))?;
+                terms.count.iter().try_for_each(|n| self.expr(n))
+            }
+            Operation::RevealChoices { .. } => Ok(()),
+            Operation::CoinFlips {
+                actor, times, each, ..
+            } => {
+                self.players(actor)?;
+                times.iter().try_for_each(|n| self.expr(n))?;
+                each.iter().try_for_each(|o| self.objects(o))
+            }
+            Operation::AttachEach {
+                actor,
+                attachments,
+                count,
+                hosts,
+                ..
+            } => {
+                self.players(actor)?;
+                self.objects(attachments)?;
+                count.iter().try_for_each(|c| self.count(c))?;
+                self.recipients(hosts)
+            }
+            Operation::CopyEach {
+                actor,
+                objects,
+                targets,
+            }
+            | Operation::RetargetEach {
+                actor,
+                objects,
+                targets,
+            } => {
+                self.players(actor)?;
+                self.filter(objects)?;
+                self.new_targets(targets)
+            }
+            Operation::TakeSpell {
+                actor,
+                object,
+                targets,
+            } => {
+                self.players(actor)?;
+                self.object(object)?;
+                self.new_targets(targets)
+            }
+            Operation::SetX { object, value } => {
+                self.object(object)?;
+                self.expr(value)
+            }
+            Operation::ChangeCombat { change } => match change {
+                CombatChange::Reselect { objects, .. } | CombatChange::OnlyBlockers(objects) => {
+                    self.objects(objects)
+                }
+                CombatChange::OnlyAttackers { objects, .. } => self.objects(objects),
+                CombatChange::AssignAttack { objects, to } => {
+                    self.objects(objects)?;
+                    self.operand(to)
+                }
+                CombatChange::Block { blocker, attackers } => {
+                    self.object(blocker)?;
+                    self.objects(attackers)
+                }
+                CombatChange::SwapBlocks { first, second, .. } => {
+                    self.object(first)?;
+                    self.object(second)
+                }
+            },
+            Operation::PlayersDo {
+                players,
+                body,
+                otherwise,
+                ..
+            } => {
+                self.players(players)?;
+                body.iter().try_for_each(|o| self.operand(o))?;
+                otherwise.iter().try_for_each(|o| self.operand(o))
+            }
+            Operation::CreateBoon {
+                actor,
+                event,
+                condition,
+                times,
+                body,
+            } => {
+                self.players(actor)?;
+                self.event(event)?;
+                self.expr(times)?;
+                let mut child = self.clone();
+                child.replacement = false;
+                child.open_searches.clear();
+                child.event = crate::semantics::event_bindings(event);
+                condition.iter().try_for_each(|c| child.condition(c))?;
+                child.operand(body)
+            }
+            Operation::AddPhases {
+                actor,
+                count,
+                at_start,
+                ..
+            } => {
+                self.players(actor)?;
+                self.expr(count)?;
+                at_start.iter().try_for_each(|o| self.operand(o))
+            }
+            Operation::ChooseAndPay {
+                actor,
+                objects,
+                cost,
+            } => {
+                self.players(actor)?;
+                self.objects(objects)?;
+                self.cost(cost)
+            }
             Operation::DuplicateCounters { from, to, .. } => {
                 self.recipients(from)?;
                 self.recipients(to)

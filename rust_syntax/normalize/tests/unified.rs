@@ -131,13 +131,13 @@ fn layout_fields_outside_a_face_are_kept_as_data() {
 #[test]
 fn a_primitive_binds_its_operands_in_scope_and_is_complete() {
     let card = parse(
-        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Sorcery],Subtypes:[]),Rules:[SpellActions(ActionList([ReverseTurnOrder]))])"#,
+        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Sorcery],Subtypes:[]),Rules:[SpellActions(ActionList([ClaimThePrize]))])"#,
     );
     let strict = lower::card(&card).unwrap();
     validate::card(&strict).unwrap();
     let forms = unified::forms(&strict);
     assert!(forms.named.is_empty());
-    assert_eq!(forms.primitives["Action::ReverseTurnOrder"], 1);
+    assert_eq!(forms.primitives["Action::ClaimThePrize"], 1);
 }
 
 #[test]

@@ -232,3 +232,57 @@ fn actions_read_as_zone_changes_and_plays() {
         Operation::Primitive { .. }
     ));
 }
+
+#[test]
+fn set_and_stack_actions_are_typed() {
+    let you = || PlayerSet::One(PlayerRef::AbilityController);
+    let creatures = || Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any));
+    let reduced = |name: &str, operands| semantics::reduce_action(you(), name.into(), operands);
+    assert!(matches!(
+        reduced("Action::DestroyAPermanentAtRandom", vec![creatures()]),
+        Operation::Destroy {
+            objects: ObjectSet::Random { .. },
+            regeneration: true,
+        }
+    ));
+    assert!(matches!(
+        reduced("Action::PhaseOutAnyNumberOfPermanents", vec![creatures()]),
+        Operation::KeywordEach {
+            action: KeywordAction::PhaseOut,
+            objects: ObjectSet::Chosen { .. },
+            ..
+        }
+    ));
+    match reduced(
+        "Action::SimultaneouslyTapEachPermanentAndUntapEachPermanent",
+        vec![creatures(), creatures()],
+    ) {
+        Operation::Together(steps) => assert_eq!(steps.len(), 2),
+        other => panic!("{other:?}"),
+    }
+    assert!(matches!(
+        reduced(
+            "Action::SecretlyChooseANumberBetween",
+            vec![Operand::Integer(1), Operand::Integer(3)]
+        ),
+        Operation::ChooseValueWith {
+            kind: ValueKind::Number,
+            terms: ChoiceTerms { secret: true, .. },
+            ..
+        }
+    ));
+    assert!(matches!(
+        reduced("Action::ExchangeHandAndGraveyard", vec![]),
+        Operation::Exchange {
+            kind: ExchangeKind::Zones(EventZone::Hand, EventZone::Graveyard),
+            ..
+        }
+    ));
+    assert!(matches!(
+        reduced("Action::RollTwoD6AndChooseAnOrder", vec![]),
+        Operation::Keyword {
+            action: KeywordAction::RollTwoInOrder(6),
+            ..
+        }
+    ));
+}

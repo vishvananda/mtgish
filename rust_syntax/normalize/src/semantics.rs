@@ -213,6 +213,21 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
     }
     let name = match operation {
         Operation::Primitive { name, .. } => name.as_str(),
+        Operation::Reveal {
+            objects: ObjectSet::One(_) | ObjectSet::LibraryTops(_) | ObjectSet::Take { .. },
+        } => "Action::RevealFaceDownPermanent",
+        Operation::Exchange {
+            kind: ExchangeKind::Control,
+            until: Some(_),
+            ..
+        } => "Action::ExchangeControlOfEachPermanentWithPlayerUntil",
+        Operation::ChooseValueWith {
+            kind: ValueKind::Object,
+            terms,
+            ..
+        } if terms.secret && matches!(terms.options.as_slice(), [Operand::Filter(_)]) => {
+            "Action::SecretlyChooseAGraveyardCard"
+        }
         Operation::Keyword { action, .. } => {
             KEYWORD_ACTIONS.iter().find(|(_, row)| row == action)?.0
         }
@@ -355,6 +370,94 @@ const KEYWORD_ACTIONS: &[(&str, KeywordAction)] = &[
         "Action::SkipNextCombatPhase",
         KeywordAction::Skip(SkippedPart::CombatPhase),
     ),
+    (
+        "Action::SkipNextNumberTurns",
+        KeywordAction::Skip(SkippedPart::Turn),
+    ),
+    (
+        "Action::SkipNextCombatPhaseThisTurn",
+        KeywordAction::Skip(SkippedPart::CombatPhaseThisTurn),
+    ),
+    (
+        "Action::SkipAllCombatPhasesTheirNextTurn",
+        KeywordAction::Skip(SkippedPart::AllCombatPhasesNextTurn),
+    ),
+    ("Action::RollAD8", KeywordAction::RollDie(8)),
+    ("Action::RollAD12", KeywordAction::RollDie(12)),
+    ("Action::AirbendSpell", KeywordAction::Airbend),
+    ("Action::Assimilate", KeywordAction::Assimilate),
+    ("Action::PopulateNumberTimes", KeywordAction::Populate),
+    ("Action::TimeTravelNumberTimes", KeywordAction::TimeTravel),
+    (
+        "Action::ManifestDreadNumberTimes",
+        KeywordAction::ManifestDread,
+    ),
+    (
+        "Action::OpenNumberAttractions",
+        KeywordAction::OpenAttraction,
+    ),
+    (
+        "Action::ExploreWithPermanentNumberTimes",
+        KeywordAction::Explore,
+    ),
+    ("Action::PhaseInPermanent", KeywordAction::PhaseIn),
+    ("Action::UnlockADoorOfPermanent", KeywordAction::UnlockDoor),
+    (
+        "Action::LockOrUnlockADoorOfPermanent",
+        KeywordAction::LockOrUnlockDoor,
+    ),
+    ("Action::SetCreatureAsBlocked", KeywordAction::BecomeBlocked),
+    (
+        "Action::RemoveCreatureFromCombatAndUnblockBlockers",
+        KeywordAction::RemoveFromCombatUnblocking,
+    ),
+    ("Action::ReverseTurnOrder", KeywordAction::ReverseTurnOrder),
+    ("Action::LoseUnspentMana", KeywordAction::LoseUnspentMana),
+    (
+        "Action::DoubleEachTypeOfUnspentMana",
+        KeywordAction::DoubleUnspentMana,
+    ),
+    ("Action::DrawTheGame", KeywordAction::DrawGame),
+    ("Action::ShuffleGraveyard", KeywordAction::ShuffleGraveyard),
+    ("Action::RollThePlanarDie", KeywordAction::RollPlanarDie),
+    (
+        "Action::RollToVisitAttractions",
+        KeywordAction::VisitAttractions,
+    ),
+    ("Action::EndTheCombatPhase", KeywordAction::EndCombat),
+    (
+        "Action::RollNumberD20AndIgnoreAllButHighest",
+        KeywordAction::RollKeepHighest(20),
+    ),
+    (
+        "Action::RollTwoD4AndChooseAnOrder",
+        KeywordAction::RollTwoInOrder(4),
+    ),
+    (
+        "Action::RollTwoD6AndChooseAnOrder",
+        KeywordAction::RollTwoInOrder(6),
+    ),
+    (
+        "Action::RollTwoD8AndChooseAnOrder",
+        KeywordAction::RollTwoInOrder(8),
+    ),
+    (
+        "Action::RollTwoD10AndChooseAnOrder",
+        KeywordAction::RollTwoInOrder(10),
+    ),
+    (
+        "Action::RollTwoD12AndChooseAnOrder",
+        KeywordAction::RollTwoInOrder(12),
+    ),
+    (
+        "Action::TakeAnExtraTurnAfterNextTurn",
+        KeywordAction::TakeExtraTurnAfterNext,
+    ),
+    (
+        "Action::TakeAnExtraTurnAndSkipUntapStepOfThatTurn",
+        KeywordAction::TakeExtraTurnSkippingUntap,
+    ),
+    ("Action::PlayAMagicSubgame", KeywordAction::PlaySubgame),
     (
         "Action::ThereIsAnAdditionalCombatPhase",
         KeywordAction::AdditionalPhase(AddedPhases::Combat),
@@ -595,6 +698,13 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
         reduce_effect_on(form, &operands)
             .or_else(|| reduce_change_zone(&actor, form, &operands))
             .or_else(|| reduce_cast(&actor, form, &operands))
+            .or_else(|| reduce_set_action(&actor, form, &operands))
+            .or_else(|| reduce_exchange(&actor, form, &operands))
+            .or_else(|| reduce_stack_action(&actor, form, &operands))
+            .or_else(|| reduce_choice(&actor, form, &operands))
+            .or_else(|| reduce_coins(&actor, form, &operands))
+            .or_else(|| reduce_combat_change(form, &operands))
+            .or_else(|| reduce_player_does(&actor, form, &operands))
     }) {
         return operation;
     }
@@ -5321,6 +5431,23 @@ impl Effects {
                     | Operation::DoubleCounters { .. }
                     | Operation::PlayCards { .. }
                     | Operation::PlayWith { .. }
+                    | Operation::Together(_)
+                    | Operation::Repeat { .. }
+                    | Operation::TurnFaceDownAs { .. }
+                    | Operation::Exchange { .. }
+                    | Operation::ChooseValueWith { .. }
+                    | Operation::RevealChoices { .. }
+                    | Operation::CoinFlips { .. }
+                    | Operation::AttachEach { .. }
+                    | Operation::CopyEach { .. }
+                    | Operation::RetargetEach { .. }
+                    | Operation::TakeSpell { .. }
+                    | Operation::SetX { .. }
+                    | Operation::ChangeCombat { .. }
+                    | Operation::PlayersDo { .. }
+                    | Operation::CreateBoon { .. }
+                    | Operation::AddPhases { .. }
+                    | Operation::ChooseAndPay { .. }
                     | Operation::CopyCards { .. }
                     | Operation::ChangeSpell { .. }
                     | Operation::KeywordEach { .. }
@@ -5380,7 +5507,8 @@ impl Effects {
             | Destination::Battlefield(_)
             | Destination::OwnersBattlefield
             | Destination::Hand(_)
-            | Destination::CommandZone => false,
+            | Destination::CommandZone
+            | Destination::Ante => false,
         }
     }
     fn object_library(&self, object: &ObjectRef) -> bool {
@@ -5440,7 +5568,9 @@ impl Effects {
             ObjectSet::InZone { zone, .. } => matches!(zone, EventZone::Library),
             ObjectSet::One(o) => self.object_library(o),
             ObjectSet::Union(sets) => sets.iter().any(|s| self.objects_library(s)),
-            ObjectSet::Take { objects, .. } => self.objects_library(objects),
+            ObjectSet::Take { objects, .. }
+            | ObjectSet::Random { objects, .. }
+            | ObjectSet::Chosen { objects, .. } => self.objects_library(objects),
             ObjectSet::Targets(slot) => self.targets.get(&slot.0).copied().unwrap_or(false),
             ObjectSet::Selected(result) | ObjectSet::Unselected(result) => {
                 self.result_library(result, &ObjectPhase::After)
