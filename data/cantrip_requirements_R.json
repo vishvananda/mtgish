@@ -1,0 +1,4 @@
+[
+ {"match": "^a lasting block rule reading what its ability chose$", "class": "engine", "needs": "A `LastingBlockRule` holds a plain function, so it can't read the color or player a resolving ability chose; it needs that value carried with the effect.", "api": "LastingBlockRule { text, allows, chosen: Some(value) }"},
+ {"match": "^a cost at resolution filtered by who is asked to pay it$", "class": "engine", "needs": "A cost built at resolution filters with plain functions, so it can't read the player found as it resolves; `Asker` needs the payer.", "api": "Asker::payer(), read by the cost's filter"}
+]

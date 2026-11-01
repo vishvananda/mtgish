@@ -632,6 +632,7 @@ impl Compiler {
     ) {
         self.view_each(views);
         let before = self.results();
+        let guards_around = std::mem::take(&mut self.guard_opened);
         let mut body = String::new();
         let mut closing = String::new();
         if let Some(guard) = step.guard {
@@ -767,7 +768,9 @@ impl Compiler {
             true => ("g.one_instruction(&mut |g| {", "Ok(()) })?;"),
             false => ("", ""),
         };
-        writeln!(out, "{open} for (index_{id}, bound_{binding}) in players_{id}.iter().copied().enumerate() {{ {body} {tail} {closing} }} {close}").unwrap();
+        // A "you may" that opened a guard in this turn closes it in this turn.
+        let shut = "}".repeat(std::mem::replace(&mut self.guard_opened, guards_around));
+        writeln!(out, "{open} for (index_{id}, bound_{binding}) in players_{id}.iter().copied().enumerate() {{ {body} {tail} {shut} {closing} }} {close}").unwrap();
     }
     /// A player's turn at a step that adds to a batch.
     fn gather(

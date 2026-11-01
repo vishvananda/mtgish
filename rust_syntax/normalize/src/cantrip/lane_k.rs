@@ -1686,6 +1686,15 @@ impl Compiler {
             _ => count.clone(),
         }
     }
+    /// Whether `code` reads something only the running ability holds, so that it
+    /// can't stand in a function of its own.
+    pub(super) fn reads_a_local(&self, code: &str) -> bool {
+        code.contains("willing_")
+            || self
+                .chosen
+                .iter()
+                .any(|(_, local)| code.contains(local.as_str()))
+    }
     /// Past a choice of a "you may", only what was chosen goes on.
     pub(super) fn open_guard(&mut self, chosen: &str, out: &mut String) {
         if let Some(code) = self.chosen_guard.take() {

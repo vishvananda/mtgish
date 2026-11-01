@@ -2,8 +2,8 @@
  "cantrip": "af0a0be5ec",
  "totals": {
   "cards": 33529,
-  "ready": 27051,
-  "planned": 6430,
+  "ready": 27050,
+  "planned": 6431,
   "data": 48
  },
  "layouts": {
@@ -12,8 +12,8 @@
    "planned": 11
   },
   "Card": {
-   "ready": 26357,
-   "planned": 5829
+   "ready": 26356,
+   "planned": 5830
   },
   "Conspiracy": {
    "ready": 0,
@@ -82,8 +82,8 @@
  },
  "classes": {
   "engine": {
-   "requirements": 963,
-   "cards": 5046
+   "requirements": 965,
+   "cards": 5048
   },
   "mechanic": {
    "requirements": 243,
@@ -3610,7 +3610,7 @@
    "needs": "a player named with no read in Query or Game",
    "family": "player reference",
    "cards": 11,
-   "alone": 7,
+   "alone": 6,
    "examples": [
     "Barbarian Bully",
     "Book Burning",
@@ -8859,6 +8859,20 @@
    ]
   },
   {
+   "id": "a-lasting-block-rule-reading-what-its-ability-chose",
+   "feature": "a lasting block rule reading what its ability chose",
+   "class": "engine",
+   "needs": "A `LastingBlockRule` holds a plain function, so it can't read the color or player a resolving ability chose; it needs that value carried with the effect.",
+   "family": "a lasting",
+   "cards": 3,
+   "alone": 1,
+   "examples": [
+    "Skrelv, Defector Mite",
+    "Sungold Sentinel",
+    "The Black Gate"
+   ]
+  },
+  {
    "id": "a-target-filter-reading-the-amount-its-ability-was-told",
    "feature": "a target filter reading the amount its ability was told",
    "class": "engine",
@@ -9691,7 +9705,7 @@
    "needs": "hexproof from a quality HexproofFrom has no bit for",
    "family": "keyword HexproofFrom",
    "cards": 3,
-   "alone": 2,
+   "alone": 1,
    "examples": [
     "Mondo Gecko",
     "Skrelv, Defector Mite",
@@ -13619,6 +13633,18 @@
    "alone": 0,
    "examples": [
     "Leori, Sparktouched Hunter"
+   ]
+  },
+  {
+   "id": "a-cost-at-resolution-filtered-by-who-is-asked-to-pay-it",
+   "feature": "a cost at resolution filtered by who is asked to pay it",
+   "class": "engine",
+   "needs": "A cost built at resolution filters with plain functions, so it can't read the player found as it resolves; `Asker` needs the payer.",
+   "family": "a cost",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Reservoir Kraken"
    ]
   },
   {
@@ -37479,6 +37505,7 @@
    "operation-clash"
   ],
   "Reservoir Kraken": [
+   "a-cost-at-resolution-filtered-by-who-is-asked-to-pay-it",
    "player-reference-first-willing"
   ],
   "Reset": [
@@ -39351,6 +39378,7 @@
    "object-filter-has-keyword-family"
   ],
   "Skrelv, Defector Mite": [
+   "a-lasting-block-rule-reading-what-its-ability-chose",
    "engine-no-toxic-granted",
    "keyword-hexproof-from-chosen"
   ],
@@ -40539,6 +40567,7 @@
    "player-rule-spend-color-as"
   ],
   "Sungold Sentinel": [
+   "a-lasting-block-rule-reading-what-its-ability-chose",
    "keyword-hexproof-from-chosen"
   ],
   "Sunken Palace": [
@@ -41281,6 +41310,9 @@
   ],
   "The Black Breath": [
    "engine-no-ring-temptation"
+  ],
+  "The Black Gate": [
+   "a-lasting-block-rule-reading-what-its-ability-chose"
   ],
   "The Book of Exalted Deeds": [
    "counter-kind-enlightened",

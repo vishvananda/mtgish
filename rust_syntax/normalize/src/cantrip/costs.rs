@@ -150,8 +150,14 @@ impl Compiler {
         };
         let test = self.filter(filter, &Candidate::of("id"));
         (self.reader, self.event_at) = saved;
+        let test = test?;
+        if self.reads_a_local(&test) {
+            return Err(gap(
+                "a cost at resolution filtered by who is asked to pay it",
+            ));
+        }
         let function = format!("{label}_{}", self.fresh());
-        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ {} }}", test?).unwrap();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ {test} }}").unwrap();
         Ok(function)
     }
     fn cost_part(&mut self, part: &CostPart, label: &str) -> Result<String> {

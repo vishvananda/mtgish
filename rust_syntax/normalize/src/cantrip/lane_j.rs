@@ -3947,7 +3947,7 @@ impl Compiler {
                 }
                 let tapped = tapped.join(" || ");
                 Ok(format!(
-                    "{{ let rows_{id}: Vec<(ObjectId, PlayerId, bool)> = objects_{id}.iter().map(|&o| (o, {controller}, {tapped})).collect(); g.put_all_onto_battlefield_as(&rows_{id})? }}"
+                    "{{ let rows_{id}: Vec<(ObjectId, PlayerId, bool)> = {{ let q: &dyn Query = g; objects_{id}.iter().map(|&o| (o, {controller}, {tapped})).collect() }}; g.put_all_onto_battlefield_as(&rows_{id})? }}"
                 ))
             }
             _ => Err(gap("several objects arriving in a state")),
