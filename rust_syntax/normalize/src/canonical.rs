@@ -43,11 +43,46 @@ impl Ids {
     }
 }
 
+#[derive(Clone, Copy, PartialEq)]
+enum Subject {
+    Other,
+    /// A trigger on the source's own event: its subject is that same object.
+    Source,
+    /// The source's own entry: subject and controller are the source's as well.
+    Entering,
+}
+
+/// What an ability's event is about, through a `Filtered` wrapper.
+fn event_objects(event: &Value) -> Option<&Value> {
+    if let Some(filtered) = event.get("Filtered") {
+        return event_objects(&filtered["event"]);
+    }
+    ["Object", "ZoneChange", "Pair"]
+        .iter()
+        .find_map(|kind| event.get(*kind))
+        .map(|body| &body["objects"])
+}
+
+fn subject_of(ability: &Value) -> Subject {
+    let args = &ability["args"];
+    if args["active"] == "SourceEntering" {
+        return Subject::Entering;
+    }
+    let source = serde_json::json!({"kind": "SameObject", "args": {"kind": "Source"}});
+    if event_objects(&args["event"]) == Some(&source) {
+        Subject::Source
+    } else {
+        Subject::Other
+    }
+}
+
 struct Walker {
     schema: &'static Schema,
     scopes: Vec<Ids>,
     /// The role each open ability's damage event calls its subject.
     damage_subjects: Vec<Option<Value>>,
+    /// Whether each open ability's event is about the source itself.
+    subjects: Vec<Subject>,
     /// Keep ids and list order, for callers that read the text back out.
     keep_order: bool,
 }
@@ -88,8 +123,13 @@ impl Walker {
             Ty::Opaque => {}
             Ty::Vec(inner) => {
                 if let Value::Array(items) = value {
-                    for item in items {
+                    for item in items.iter_mut() {
                         self.walk(item, inner, false);
+                    }
+                    if **inner == Ty::Named("Instruction".into()) {
+                        splice_groups(items);
+                    } else if **inner == Ty::Named("Ability".into()) {
+                        merge_statics(items);
                     }
                 }
             }
@@ -126,6 +166,7 @@ impl Walker {
             let outer = self.damage_subjects.last().cloned().flatten();
             self.damage_subjects
                 .push(damage_subject(&value["args"]["event"]).or(outer));
+            self.subjects.push(subject_of(value));
         }
         let schema = self.schema;
         match schema.types.get(name) {
@@ -141,6 +182,7 @@ impl Walker {
         if scoped {
             self.scopes.pop();
             self.damage_subjects.pop();
+            self.subjects.pop();
         }
     }
 
@@ -158,6 +200,11 @@ impl Walker {
         let Some((_, fields)) = schema.variant(name, &variant) else {
             return;
         };
+        let subject = self.subjects.last().copied().unwrap_or(Subject::Other);
+        if name == "ObjectRef" && variant == "EventSubject" && self.names_source(subject) {
+            *value = serde_json::json!({"kind": "Source"});
+            return;
+        }
         let content = if adjacent {
             value.get_mut("args")
         } else {
@@ -196,10 +243,27 @@ impl Walker {
                         *value = serde_json::json!({"kind": "EventSubject"});
                     }
                 }
+                ("PlayerRef", "ControllerOf") => {
+                    if subject == Subject::Entering && value["args"]["kind"] == "Source" {
+                        *value = serde_json::json!({"kind": "AbilityController"});
+                    }
+                }
+                ("ObjectRef", "Query") => {
+                    if in_event_destination(&value["args"]) {
+                        let source = self.names_source(subject);
+                        let kind = if source { "Source" } else { "EventSubject" };
+                        *value = serde_json::json!({"kind": kind});
+                    }
+                }
                 ("Recipients", "Union") => self.merge_permanent_groups(value),
                 _ => {}
             }
         }
+    }
+
+    /// A printer reads `it` back from the event's subject, so only comparison merges them.
+    fn names_source(&self, subject: Subject) -> bool {
+        subject == Subject::Entering || (subject == Subject::Source && !self.keep_order)
     }
 
     /// Damage to two groups of permanents is damage to the permanents of either.
@@ -245,6 +309,52 @@ impl Walker {
             }
         }
     }
+}
+
+/// A group only nests a sequence; its instructions run in the sequence around it.
+fn splice_groups(items: &mut Vec<Value>) {
+    if !items.iter().any(|item| item["kind"] == "Group") {
+        return;
+    }
+    let mut flat = Vec::with_capacity(items.len());
+    for item in items.drain(..) {
+        match item["args"]["instructions"].as_array() {
+            Some(inner) if item["kind"] == "Group" => flat.extend(inner.iter().cloned()),
+            _ => flat.push(item),
+        }
+    }
+    *items = flat;
+}
+
+/// Two statics in a row for the same objects are one static with both changes.
+fn merge_statics(items: &mut Vec<Value>) {
+    let mut merged: Vec<Value> = Vec::with_capacity(items.len());
+    for item in items.drain(..) {
+        if let Some(last) = merged.last_mut() {
+            let same = item["kind"] == "Static"
+                && last["kind"] == "Static"
+                && item["args"]["kind"] == last["args"]["kind"]
+                && item["args"]["affected"] == last["args"]["affected"];
+            if same {
+                let more = item["args"]["changes"].as_array().cloned().unwrap_or_default();
+                if let Some(changes) = last["args"]["changes"].as_array_mut() {
+                    changes.extend(more);
+                }
+                continue;
+            }
+        }
+        merged.push(item);
+    }
+    *items = merged;
+}
+
+/// The card a zone-change trigger's event just put in that zone.
+fn in_event_destination(query: &Value) -> bool {
+    let objects = &query["objects"];
+    query["index"] == 0
+        && objects["kind"] == "InZone"
+        && objects["args"]["objects"]["kind"] == "One"
+        && objects["args"]["objects"]["args"]["kind"] == "EventDestination"
 }
 
 /// `All([a, All([b])])` means `All([a, b])`, for `All` and for `Either`.
@@ -377,6 +487,7 @@ fn normalize(value: &mut Value, keep_order: bool) -> Result<(), String> {
         schema: schema()?,
         scopes: Vec::new(),
         damage_subjects: Vec::new(),
+        subjects: Vec::new(),
         keep_order,
     };
     walker.walk(value, &Ty::Vec(Box::new(Ty::Named("Ability".into()))), false);

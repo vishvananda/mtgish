@@ -135,3 +135,43 @@ fn what_enters_the_battlefield_is_a_permanent() {
     canonical::abilities(&mut value).unwrap();
     assert_eq!(value[0]["args"]["event"]["ZoneChange"]["objects"], json!({"kind":"Tapped"}));
 }
+
+fn triggered(event: serde_json::Value, objects: serde_json::Value) -> serde_json::Value {
+    json!([{"kind":"Triggered","args":{"event":event,"intervening_if":null,"limits":{"per_turn":null,"total":null},
+        "announcement":{"targets":[],"modes":null},
+        "body":{"instructions":[effect(0, json!({"kind":"One","args":objects}))]}}}])
+}
+
+#[test]
+fn a_trigger_on_the_source_calls_its_subject_the_source() {
+    let source = json!({"kind":"SameObject","args":{"kind":"Source"}});
+    let event = json!({"Object":{"event":"Attacks","objects":source}});
+    let mut subject = triggered(event.clone(), json!({"kind":"EventSubject"}));
+    let mut named = triggered(event, json!({"kind":"Source"}));
+    canonical::abilities(&mut subject).unwrap();
+    canonical::abilities(&mut named).unwrap();
+    assert_eq!(subject, named);
+}
+
+#[test]
+fn another_creature_keeps_its_event_subject() {
+    let event = json!({"Object":{"event":"Attacks","objects":{"kind":"CardType","args":"Creature"}}});
+    let mut subject = triggered(event.clone(), json!({"kind":"EventSubject"}));
+    let mut named = triggered(event, json!({"kind":"Source"}));
+    canonical::abilities(&mut subject).unwrap();
+    canonical::abilities(&mut named).unwrap();
+    assert_ne!(subject, named);
+}
+
+#[test]
+fn groups_and_adjacent_statics_flatten() {
+    let flat = json!([{"kind":"Spell","args":{"announcement":{"targets":[],"modes":null},
+        "body":{"instructions":[effect(0, json!({"kind":"One","args":{"kind":"Source"}}))]}}}]);
+    let mut grouped = flat.clone();
+    let body = grouped[0]["args"]["body"].clone();
+    grouped[0]["args"]["body"]["instructions"] = json!([{"kind":"Group","args":body}]);
+    canonical::abilities(&mut grouped).unwrap();
+    let mut flat = flat;
+    canonical::abilities(&mut flat).unwrap();
+    assert_eq!(grouped, flat);
+}
