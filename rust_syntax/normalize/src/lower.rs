@@ -271,7 +271,9 @@ impl Done {
             Operation::Sacrifice { .. } => Self::Sacrificed,
             Operation::Move { destination, .. } => match destination {
                 Destination::OwnersHand | Destination::Hand(_) => Self::Returned,
-                Destination::CommandZone | Destination::Ante => return None,
+                Destination::CommandZone | Destination::Ante | Destination::OwnersPlanarDeck(_) => {
+                    return None
+                }
                 Destination::Exile => Self::Exiled,
                 Destination::OwnersGraveyard => Self::Graveyard,
                 Destination::Battlefield(_) | Destination::OwnersBattlefield => Self::Entered,
@@ -4012,9 +4014,13 @@ impl Context {
                 );
                 return self.action(&may, actor);
             }
-            S::ChooseAnAction(options) => {
+            S::ChooseAnAction(options) | S::ChooseOneOfNumberRandomActions(_, options) => {
                 let PlayerSet::One(decider) = actor else {
                     return Err(invalid("a choice of actions needs one player"));
+                };
+                let offered = match value {
+                    S::ChooseOneOfNumberRandomActions(offered, _) => Some(self.number(offered)?),
+                    _ => None,
                 };
                 let mut programs = Vec::new();
                 let mut branches = Vec::new();
@@ -4032,6 +4038,7 @@ impl Context {
                 let branch = Instruction::ChooseOne {
                     decider: decider.clone(),
                     options: programs,
+                    offered,
                 };
                 return Ok(self.joined(branch, &branches.iter().collect::<Vec<_>>()));
             }
@@ -4056,6 +4063,7 @@ impl Context {
                     Ok(Instruction::ChooseOne {
                         decider: decider.clone(),
                         options: programs,
+                        offered: None,
                     })
                 });
             }
@@ -6590,3 +6598,4 @@ include!("lower_search.rs");
 include!("lower_replace.rs");
 include!("lower_play.rs");
 include!("lower_card_actions.rs");
+include!("lower_last_cards.rs");

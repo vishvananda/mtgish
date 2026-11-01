@@ -753,6 +753,7 @@ pub fn reduce_replacement_action(
         reduce_tail_actions(&actor, form, &operands)
             .or_else(|| reduce_card_replacement_action(&actor, form, &operands))
             .or_else(|| reduce_card_actions(&actor, form, &operands))
+            .or_else(|| reduce_last_replacement_action(&actor, form, &operands))
     });
     plain.unwrap_or(Operation::Primitive {
         actor,

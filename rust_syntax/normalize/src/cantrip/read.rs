@@ -167,6 +167,7 @@ fn event_zone(zone: &EventZone) -> Result<&'static str> {
         EventZone::Command => "Command",
         EventZone::Ante => return Err(gap("ante zone")),
         EventZone::Outside => return Err(gap("outside the game")),
+        EventZone::PlanarDeck => return Err(gap("planar deck")),
     })
 }
 pub(super) fn zone_kind(zone: &EventZone) -> Result<String> {

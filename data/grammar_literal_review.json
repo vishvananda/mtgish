@@ -80,14 +80,302 @@
    "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
   },
   {
-   "id": "de9a5b589208f3968fe25596d405218d03e39fe518bb08453e94175bca3b4026",
+   "id": "c11e0f253d4faf843bdb37d17ea1b6a3880fef01fee2eccd991d7383179c9eef",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "AtTheBeginningOfAPlayersUpkeep",
+   "word": "beginn",
+   "support": "146/147",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "130e663663d434e5553dd3330aaf5ce87e20bdd4c226d11d95e040a2fa193945",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "AtTheBeginningOfAPlayersUpkeep",
+   "word": "upkeep",
+   "support": "146/147",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "ce1ceed319d36fe0fcffa6c4abae58afa009f8bea9e379a271d80838b27b9014",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "CastByPlayer",
+   "word": "cast",
+   "support": "33/34",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "e8ece077188e66a89786044534510ac050dce603025cb70fb00296d043d75c2a",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "ConjureCardIntoHand",
+   "word": "conjure",
+   "support": "15/17",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "4f76cdf84d561dfd60812dd57c8690ca15909f069fc127b08ec4888ab6cd6d02",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "ConjureCardIntoHand",
+   "word": "hand",
+   "support": "16/17",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "fc65e632a21190a12a8ba32c27b0530303adf6b1bf2e2ad56c3f9d8b25bc41e7",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "ConjureCardIntoHand",
+   "word": "into",
+   "support": "16/17",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "c5de47b14d7d41de4dca95b6a45b849bda1d84f15a794370ddfddca2fd579570",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "ConjureCardIntoHand",
+   "word": "named",
+   "support": "16/17",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "7bfbaf65afbbcb200a5b4f959c17e13799bb420dcfdf6f5a08a8d4cea24d96fe",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "CreatePerpetualCardsInHandEffect",
+   "word": "perpetually",
+   "support": "17/18",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "7ab8dda18135fc5c5cdc55a9895d4c8a817f1863ed6f9bb5ba65cc8355890efe",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "CreatePerpetualEachPermanentEffect",
+   "word": "perpetually",
+   "support": "15/16",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "26e6421f6658356e6d232b496347277f466efe859164eb0657e1abea2a7dceff",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "DecreaseManaCost",
+   "word": "cost",
+   "support": "11/12",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "c1629ee5b89dcc7140aa7283bd5dfaa79453e98c00a315af8a2fe26b84578eaa",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "DecreaseManaCost",
+   "word": "less",
+   "support": "11/12",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "2147c035f90cbb093c48cbd61e1cea606674625700be5a5fbcd6fcc5faeb52ed",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "DrawNumberCards",
+   "word": "draw",
+   "support": "741/742",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "1fa2148e17251cd15a85ad93a1dd905391a5968266d32fa559bf26d0bbd790c2",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "GainLife",
+   "word": "gain",
+   "support": "679/680",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "efc84c7a5ceb903d8c90479cec6a28120c2b6b97f9b6150e0e38734d2efa6d27",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "GainLife",
+   "word": "life",
+   "support": "679/680",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "860ccf970ff7e79b6ebada6b4ccc65164762e1b52cac7d10667fd10b27b01d57",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "GetAnEmblem",
+   "word": "emblem",
+   "support": "18/19",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "c43294cb707231f46df438203059661ac2cdc4c9f0b0863d258f378b8fab3533",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "IncreaseSpellCost",
+   "word": "cast",
+   "support": "23/24",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "893cbf07634c336b01793620edddc12cc01082c1a5f6602ac33357d2a87cd7d4",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "IncreaseSpellCost",
+   "word": "cost",
+   "support": "23/24",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "6e80720925b2b4c77616bcb947d186282b1ed828acc7d5ef99f506b583f22616",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "IncreaseSpellCost",
+   "word": "more",
+   "support": "22/24",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "4471f3eeff66bae2b7f6cb16f982e7d50532b1bf25ee21b29751ab0dd385c268",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "LoseLife",
+   "word": "life",
+   "support": "581/582",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "1d054a01039dbafb1a7e83d8cbe95e8c29630fa8a4f2565c11b2c92e6dc2844b",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "LoseLife",
+   "word": "lose",
+   "support": "581/582",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "e65d05c29af561955d6c245e152128e824b78bc6eaf6160b0ece7e134d10167d",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "LoseLifeForEach",
+   "word": "life",
+   "support": "40/41",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "f9d67afacf7b2e6e29ed30221a62b8ec8711355fd3bbd41d5fdbdef68921dac9",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "LoseLifeForEach",
+   "word": "lose",
+   "support": "40/41",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "ca1970639e966fba69004befa947dbb4b4da963c70d5d2287664d8f28bb26e89",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "ManaValueIs",
+   "word": "mana",
+   "support": "556/557",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "b15dc8239842fcd26a89a749eff391c738d8947c709b4b72c84f2733ea6269d5",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "Opponent",
+   "word": "opponent",
+   "support": "2251/2252",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "96c170201dc4fbe3d740614798469344a585fc5fb29dc5d9b8dd1f871fa91867",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "Planeswalker",
+   "word": "planeswalker",
+   "support": "228/229",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "0ddc3fde47db5d9a1f53dc71820fd836c536cfd455bedacc180288c63bf39871",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "TheTopNumberCardsOfLibrary",
+   "word": "library",
+   "support": "142/143",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "71da6a1eda51b715c676e83e7020acb5253c033686839066159a71d6492f5594",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "TheTopNumberCardsOfLibrary",
+   "word": "top",
+   "support": "141/143",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "bb27a0fc4844ec54452e847b0b90d9846c4bc3b0828c1b9b5b485bf7a378e126",
+   "kind": "mined_token",
+   "rule": "ActivatedActions",
+   "token": "WhenAPlayerDrawsACard",
+   "word": "draw",
+   "support": "22/23",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "4b5891ebc9263362104bdf56ef0efce387e529a1c073c9513d7450625f8c0aa7",
+   "kind": "token_rule",
+   "rule": "ActivatedActions",
+   "token": "NextUpkeep|APlayersUpkeep",
+   "word": "(?i)upkeep",
+   "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
+  },
+  {
+   "id": "55fd2293dba83266906aa595fd335d71c1bc088762ce8d9acd93ce330e9ab875",
    "kind": "token_rule",
    "rule": "ActivatedActions",
    "token": "Random",
    "word": "(?i)random",
    "template": "Accept one of Davriel's offers, then accept one of Davriel's conditions",
-   "result": "ActionList([AcceptARandomOffer(\"Davriel, Soul Broker\"), AcceptARandomCondition(\"Davriel, Soul Broker\")])",
-   "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
+   "reason": "reviewed 2026-11-01: Oracle's sentence omits the offers and conditions, which live on the digital card, so the row spells out the sixteen options from Forge's davriel.txt and their words cannot be in the template"
   },
   {
    "id": "70cf9a1ff183fc91eed9df62b9a24ca1995d10952ad33c0c6990af857a373e35",

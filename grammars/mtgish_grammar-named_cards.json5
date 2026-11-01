@@ -76,9 +76,6 @@
     "\"Veils of Fear\"": "",
     "\"Yawning Portal\"": ""
   },
-  "{{OFFERER}}": {
-    "\"Davriel, Soul Broker\"": ""
-  },
   "{{QUOTED_ORACLE_TOKEN}}": {
     "\"Akroma, Angel of Wrath\"": "",
     "\"Baneslayer Angel\"": "",
@@ -93,6 +90,7 @@
     "\"Tarmogoyf\"": "",
   },
   "{{QUOTED_NAMED_CARD}}": {
+    "\"Manor Guardian\"": "",
     "\"Zabu\"": "",
     "\"Redwing\"": "",
     "\"Moloid\"": "",

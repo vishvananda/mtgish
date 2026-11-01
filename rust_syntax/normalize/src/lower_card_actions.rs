@@ -293,6 +293,7 @@ impl Context {
         let branch = Instruction::ChooseOne {
             decider: decider.clone(),
             options: programs,
+            offered: None,
         };
         Ok(self.joined(branch, &branches.iter().collect::<Vec<_>>()))
     }

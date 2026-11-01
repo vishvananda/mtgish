@@ -44,6 +44,7 @@
     "AbilitySticker({{DIGITS}}, {{RULES}}), AbilitySticker({{DIGITS}}, {{RULES}})": ""
   },
   "{{ACTION_LIST_LIST}}": {
+    "[{{ACTION_LIST}}, {{ACTION_LIST}}, {{ACTION_LIST}}, {{ACTION_LIST}}, {{ACTION_LIST}}, {{ACTION_LIST}}, {{ACTION_LIST}}, {{ACTION_LIST}}]": "",
     "[{{ACTION_LIST}}, {{ACTION_LIST}}, {{ACTION_LIST}}, {{ACTION_LIST}}]": "",
     "[{{ACTION_LIST}}, {{ACTION_LIST}}, {{ACTION_LIST}}]": "",
     "[{{ACTION_LIST}}, {{ACTION_LIST}}]": ""
@@ -321,8 +322,6 @@
 
     "Recruit": "",
     "AbandonScheme(ThisScheme)": "",
-    "AcceptARandomCondition({{OFFERER}})": "",
-    "AcceptARandomOffer({{OFFERER}})": "",
     "ActivateAManaAbilityOfEachPermanentAndLoseUnspentMana({{PERMANENTS}})": "",
     "Adapt({{NUMBER}})": "",
     "AddCombinationMana(AnyColorManaSymbolInTheCardRevealedThisWay, {{NUMBER}})": "",
@@ -549,6 +548,7 @@
     "ChooseAnAbility([{{RULE}}, {{RULE}}])": "",
     "ChooseAnAbilityAtRandom([{{RULE}}, {{RULE}}])": "",
     "ChooseAnAction({{ACTION_LIST_LIST}})": "",
+    "ChooseOneOfNumberRandomActions({{NUMBER}}, {{ACTION_LIST_LIST}})": "",
     "ChooseAnAttackingCreatureForBlockerToBlock({{PERMANENTS}}, {{PERMANENT}})": "",
     "ChooseAnExiledCard({{CARDS_IN_EXILE}})": "",
     "ChooseAnExiledCardAtRandom({{CARDS_IN_EXILE}})": "",
@@ -759,6 +759,7 @@
     "CreatePerpetualCardInLibraryEffect(TheTopCardOfTypeInPlayersLibrary({{CARDS}}, {{PLAYER}}), {{PERPETUAL_EFFECT_LIST}})": "",
     "CreatePerpetualCardsInEachPlayersHandEffect(TheCardsConjuredIntoHandThisWay, {{PLAYERS}}, {{PERPETUAL_EFFECT_LIST}})": "",
     "CreatePerpetualCardsInHandEffect(TheCardsConjuredIntoHandThisWay, {{PERPETUAL_EFFECT_LIST}})": "",
+    "CreatePerpetualCardsInHandEffect(TheCardsReturnedToHandThisWay, {{PERPETUAL_EFFECT_LIST}})": "",
     "CreatePerpetualCardsInHandEffect({{CARDS_IN_HAND}}, {{PERPETUAL_EFFECT_LIST}})": "",
     "CreatePerpetualCardsInPlayersGraveyardEffect({{CARDS_IN_GRAVEYARDS}}, {{PLAYER}}, {{PERPETUAL_EFFECT_LIST}})": "",
     "CreatePerpetualCardsInPlayersHandAndCardsInPlayersLibraryEffect({{CARDS_IN_HAND}}, {{PLAYERS}}, {{CARDS_IN_LIBRARY}}, {{PLAYERS}}, {{PERPETUAL_EFFECT_LIST}})": "",

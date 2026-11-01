@@ -30,7 +30,7 @@ fn retag(value: &mut serde_json::Value, rename: &impl Fn(&str) -> Option<&'stati
 
 /// Forms that say what becomes of the event, so a body using one is explicit.
 /// A regeneration shield belongs here because it applies to the event itself.
-const EVENT_FORMS: [&str; 41] = [
+const EVENT_FORMS: [&str; 42] = [
     "SkipThisTurn",
     "SkipThisDrawStep",
     "EntersTapped",
@@ -55,6 +55,7 @@ const EVENT_FORMS: [&str; 41] = [
     "EntersWithLayerEffectOfChoice",
     "RollThatManyPlusOneAndIgnoreLowestInstead",
     "RollThatManyPlusOneAndPlayerChoosesOneToIgnore",
+    "RollThatManyAndMayExchangeOneWithPermanentsBasePowerOrBaseToughness",
     "CreateTokensInstead",
     "DealToPlayerInstead",
     "DealToCreatureOrPlaneswalkerInstead",
@@ -551,6 +552,17 @@ impl Context {
     ) -> Result<Option<Instruction>> {
         let variant = step["variant"].as_str().unwrap_or_default();
         let args = &step["args"];
+        if variant == "LookAtTheTopNumberCardsOfPlanarDeck" {
+            let look: source::ReplacementActionWouldPlaneswalk = decode_step(step)?;
+            let source::ReplacementActionWouldPlaneswalk::LookAtTheTopNumberCardsOfPlanarDeck(
+                amount,
+                actions,
+            ) = look
+            else {
+                return Err(unsupported_step(step));
+            };
+            return self.inspect_planar_deck(&amount, &actions, actor).map(Some);
+        }
         if variant == "MayCost" && names_event_change(step) {
             // Skipping is the replacement; what follows it adds to that.
             self.body_replaces = false;
