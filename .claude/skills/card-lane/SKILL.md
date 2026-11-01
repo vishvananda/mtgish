@@ -5,8 +5,8 @@ description: Turn Cantrip cards the mtgish generator writes whole into card comm
 
 # The card lane
 
-The mtgish generator has a closed table of recipes: a card whose every ability has one, in shared mechanics that exist, gets
-a whole file in the form Cantrip accepts. Any other card has a gap and never comes here, so a card in this lane needs no
+The mtgish generator writes a card from a closed table of recipes in shared mechanics, or from the whole generated card put
+in the form Cantrip accepts. A card it can't write whole has a gap and never comes here, so a card in this lane needs no
 mechanic and no engine work, and its code and content are final. Your job has two parts: **validate the generated card
 against its Oracle text, and write the scenarios that prove it.** A tool writes the card and placeholder scenarios, the
 gates judge, and a passing card becomes one `Card:` commit on a local Cantrip branch.

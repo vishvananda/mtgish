@@ -295,11 +295,19 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
                 })
                 .collect();
             let file = match faces.as_slice() {
-                [one] if one.gaps.is_empty() && lowered.card.layout == "Card" => one
-                    .oracle
-                    .as_deref()
-                    .and_then(|text| card_file::card_file(&lowered.card.faces[0], text).ok())
-                    .flatten(),
+                [one] if one.gaps.is_empty() && lowered.card.layout == "Card" => {
+                    one.oracle.as_deref().and_then(|text| {
+                        match card_file::card_file(&lowered.card.faces[0], text) {
+                            Ok(file) => file,
+                            Err(_) => super::pr_form::render(
+                                &one.rust,
+                                &one.name,
+                                text,
+                                super::pr_form::Characteristics::Oracle,
+                            ),
+                        }
+                    })
+                }
                 _ => None,
             };
             Ok(TrackedCard {

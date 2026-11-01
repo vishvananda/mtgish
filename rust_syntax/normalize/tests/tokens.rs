@@ -329,10 +329,7 @@ fn entry_counters_stay_in_the_creation_and_timed_entry_rules_are_named() {
     };
     assert_eq!(body.instructions.len(), 1);
     #[cfg(feature = "cantrip")]
-    assert_eq!(
-        mtgish_ast::cantrip::module(&c).unwrap_err().feature,
-        "tokens entering with counters"
-    );
+    assert!(mtgish_ast::cantrip::module(&c).unwrap().contains("counter"));
     let source::Action::CreateTokens(_, flags) = &mut action else {
         panic!()
     };

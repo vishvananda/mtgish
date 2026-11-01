@@ -38,19 +38,11 @@ fn corpus_reports_ast_and_backend_capability_separately_and_counts_nested_forms(
     {
         assert!(backend.backend_checked);
         assert_eq!(backend.complete, report.complete);
-        assert_eq!(backend.backend_capable, 1);
-        assert!(backend.records.iter().any(|r| r
-            .identity
-            .names
-            .iter()
-            .any(|n| n == "Kessig Wolf Run")
-            && r.complete
-            && !r.backend_capable
-            && r.backend_diagnostic.is_some()));
+        assert_eq!(backend.backend_capable, 2);
         assert!(backend
             .records
             .iter()
-            .any(|r| !r.complete && !r.backend_capable && r.backend_diagnostic.is_none()));
+            .any(|r| r.complete && !r.backend_capable && r.backend_diagnostic.is_some()));
     }
     assert!(report.forms["Keyword"].contains_key("Trample"));
     assert!(report.forms["Expr"].contains_key("AnnouncedX"));

@@ -34,6 +34,7 @@ mod mechanics;
 pub mod planned;
 mod players;
 mod playing;
+pub mod pr_form;
 mod read;
 mod replacements;
 mod statics;
@@ -1757,7 +1758,14 @@ pub fn card_files(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<
             };
             let (rust, gap) = match card_file::card_file(face, text) {
                 Ok(rust) => (rust, None),
-                Err(gap) => (None, Some(gap.feature)),
+                Err(recipe) => match lane_f::whole_printed(&source, &lowered.card, Some(&oracle)) {
+                    Ok(whole) if whole.faces.iter().all(|f| f.gaps.is_empty()) => {
+                        let module: String = whole.faces.iter().map(|f| f.rust.as_str()).collect();
+                        let characteristics = pr_form::Characteristics::Oracle;
+                        (pr_form::render(&module, &name, text, characteristics), None)
+                    }
+                    _ => (None, Some(recipe.feature)),
+                },
             };
             Ok(Some(CardFileRow {
                 line,

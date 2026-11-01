@@ -3,10 +3,12 @@
 Turns cards the mtgish generator writes whole into `Card:` commits on a local Cantrip branch. One worktree, one card at a
 time, one commit per card. It replaces nothing in vizier, and it pushes and posts nothing.
 
-Only cards with no gap come here. `ast cantrip-files` has a closed table of recipes (`src/cantrip/card_file.rs`), and any
-ability, keyword or target with no recipe in shared mechanics is a gap, recorded in the row's `gap`. A card with no gap needs
-no mechanic and no engine work, so its code and content are final, and a worker does two things: validate them against the
-Oracle text, and write the scenarios. To widen the lane, add recipes to that table, not more to the worker's job.
+Only cards with no gap come here. `ast cantrip-files` writes a card from its closed table of recipes
+(`src/cantrip/card_file.rs`), or, for a card no recipe covers, from the whole generated card put in the form a person would
+leave it (`src/cantrip/pr_form.rs`: shared triggers, mana, targets and effects, names and quotes from the printed text,
+characteristics from Oracle). What it can't write whole is a gap, recorded in the row's `gap`. A card with no gap needs no
+mechanic and no engine work, so its code and content are final, and a worker does two things: validate them against the
+Oracle text, and write the scenarios. To widen the lane, teach the generator, not more to the worker's job.
 `backend_capable` in `ast check-cantrip` is a different question: that scan inlines whatever a card needs, so it says the
 card compiles, not that it needs nothing new.
 

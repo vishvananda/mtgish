@@ -268,8 +268,8 @@ fn spending_predicates_and_milling_costs_survive_lowering() {
         }
     )));
     #[cfg(feature = "cantrip")]
-    assert!(mtgish_ast::cantrip::module(&mill)
-        .unwrap_err()
-        .feature
-        .contains("cost part"));
+    assert_eq!(
+        mtgish_ast::cantrip::module(&mill).unwrap_err().feature,
+        "engine: no mill cost"
+    );
 }

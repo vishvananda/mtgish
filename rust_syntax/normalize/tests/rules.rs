@@ -331,12 +331,9 @@ fn activation_guards_are_checked_before_costs_and_combined_without_turning_into_
         .iter()
         .any(|e| e.message.contains("payment reference")));
     #[cfg(feature = "cantrip")]
-    assert_eq!(
-        mtgish_ast::cantrip::module(&card("Bloodshot Trainee"))
-            .unwrap_err()
-            .feature,
-        "activation condition"
-    );
+    assert!(mtgish_ast::cantrip::module(&card("Bloodshot Trainee"))
+        .unwrap()
+        .contains("power"));
 }
 
 #[test]

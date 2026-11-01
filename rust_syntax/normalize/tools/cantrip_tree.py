@@ -351,7 +351,7 @@ def swap(args):
     for card in read_rows(args.rows):
         path = cards / f"{stem_of(card['name'])}.rs"
         if status_of(card) == "ready" and card["layout"] == "Card" and path.exists():
-            path.write_text(header(card) + body(card), encoding="utf-8")
+            path.write_text(card.get("file") or (header(card) + body(card)), encoding="utf-8")
             swapped.append(card["name"])
     (Path(args.cantrip) / "swapped.txt").write_text("".join(n + "\n" for n in swapped))
     print(f"{len(swapped)} hand-written cards replaced")

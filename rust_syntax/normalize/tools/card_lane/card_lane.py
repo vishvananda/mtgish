@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Turn the Cantrip cards the generator writes whole into card commits, one card at a time, whoever does the checking.
 
-Only a card with no gap comes here: the generator's closed table of recipes (`ast cantrip-files`, card_file.rs) wrote it
-from shared mechanics alone, so it needs no mechanic and no engine work. Its code and content are final. The worker
+Only a card with no gap comes here: the generator (`ast cantrip-files`) wrote it from its closed table of recipes
+(card_file.rs) or from the whole-card form (pr_form.rs), so it needs no mechanic and no engine work. Its code and content
+are final. The worker
 validates them against the Oracle text and writes the scenarios, and a card that is wrong is a generator bug, not an edit.
 
 What a person or an agent uses, inside a session (the `card-lane` skill says how):
@@ -30,7 +31,9 @@ Nothing here pushes or posts. Commits stay on the lane's local Cantrip branch. S
 import argparse
 import collections
 import datetime
+import importlib.util
 import json
+import multiprocessing.pool
 import os
 import re
 import runpy
@@ -52,7 +55,7 @@ LANE = Path(os.environ.get("CARD_LANE", Path.home() / "card-lane"))
 CANTRIP = Path(os.environ.get("CARD_LANE_CANTRIP", LANE / "cantrip"))
 STATE = Path(os.environ.get("CARD_LANE_STATE", LANE / "state"))
 BRANCH = os.environ.get("CARD_LANE_BRANCH", "card-lane/pioneer-pilot")
-TARGET = LANE / "targets" / "cantrip"
+TARGET = Path(os.environ.get("CARD_LANE_TARGET", LANE / "targets" / "cantrip"))
 AST = LANE / "targets" / "ast" / "debug" / "ast"
 GEN = LANE / "gen"
 SCRYFALL = LANE / "scryfall"
@@ -74,6 +77,8 @@ RATES = {"gpt-6-luna": (.10, .01, .50), "gpt-5.6-luna": (.20, .02, 1.20), "gpt-6
 MUTATION_LIMIT = 40  # about 16 s each; a card past this is reported as partly tested, not passed silently
 PRIOR_ART, PRIOR_ART_CHARS = 3, 3000  # scenarios in a packet's prior-art.md, and the most of any one
 STOPS = ("generator_bug", "engine_gap", "needs_review")  # what a worker can report instead of `done`; no gate can undo these
+BATCH = []  # the cards open together in the one tree, if any. Paths then go by owner: see `owner`
+BATCH_DIR = STATE / "batch"
 
 
 def now():
@@ -86,7 +91,7 @@ def environment():
     env.update(PATH=os.pathsep.join([str(BIN), str(Path.home() / ".cargo" / "bin"), "/usr/local/bin", "/usr/bin", "/bin"]),
                CARGO_TARGET_DIR=str(TARGET), CARGO_NET_OFFLINE="true", LLVM_COV=shutil.which("llvm-cov") or "llvm-cov",
                LLVM_PROFDATA=shutil.which("llvm-profdata") or "llvm-profdata", PYTHONDONTWRITEBYTECODE="1", CANTRIP_VERIFY="1",
-               CARD_LANE=str(LANE), CARD_LANE_CANTRIP=str(CANTRIP), CARD_LANE_STATE=str(STATE), CARD_LANE_BRANCH=BRANCH)
+               CARD_LANE=str(LANE), CARD_LANE_CANTRIP=str(CANTRIP), CARD_LANE_STATE=str(STATE), CARD_LANE_BRANCH=BRANCH, CARD_LANE_TARGET=str(TARGET))
     return env
 
 
@@ -290,8 +295,13 @@ class GeneratorBug(Exception):
     """The generator's output cannot go to a worker. No worker may change it, so none is spent on it."""
 
 
+ROWS = {}  # the open batch's rows, so its many gates do not each read the whole file
+
+
 def generated_row(name):
     """The card's row of `ast cantrip-files`: its file in `rust`, or none for a card of core keywords alone."""
+    if name in ROWS:
+        return ROWS[name]
     for line in (GEN / "rows.jsonl").open(encoding="utf-8"):
         row = json.loads(line)
         if row["name"] == name:
@@ -383,8 +393,8 @@ def placeholders(card_name):
     if written:
         return written
     lines = [re.sub(r"\s*\([^)]*\)", "", l).strip() for l in card.get("oracleText", "").split("\n")]
-    lines = [l for l in lines if l] or [""]
-    for number, line in enumerate(lines[:3], 1):
+    lines = [l for l in lines if l and not all(w in cs.KEYWORDS for w in re.split(r",\s*", l.lower()))] or [""]
+    for number, line in enumerate(lines, 1):
         code, out = tool("new-card.py", card_name, "--scenario", f"todo-line-{number}")
         if code != 0:
             sys.exit(out[-2000:])
@@ -421,7 +431,7 @@ def prior_art(source, reference):
     return "\n".join(out)
 
 
-def prepare(card):
+def prepare(card, build=True):
     """Everything a worker starts from, in the worktree and the packet. The generator's file goes in as it is, its fields
     on their own lines, which `card-mutate.py` needs: it passes over any line naming `oracle::`. If it cannot stand, no
     worker is started."""
@@ -453,15 +463,18 @@ def prepare(card):
     oracle_text = json.loads(content_file(name).read_text(encoding="utf-8-sig")).get("oracleText", "")
     (packet / "report.json").write_text(json.dumps(report_skeleton(points, parse_rulings(out), printed_lines(oracle_text)), indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     scenarios = placeholders(name)
-    code, out = run_corpus(name)
-    (packet / "first-build.txt").write_text(out, encoding="utf-8")
-    if re.search(r"^error", out, re.M) or "could not compile" in out:
-        raise GeneratorBug(f"the generated file does not compile: {out[-500:]}")
+    if build:
+        code, out = run_corpus(name)
+        (packet / "first-build.txt").write_text(out, encoding="utf-8")
+        if re.search(r"^error", out, re.M) or "could not compile" in out:
+            raise GeneratorBug(f"the generated file does not compile: {out[-500:]}")
     (packet / "prompt.md").write_text(brief(card), encoding="utf-8")
     return {"scenarios": scenarios}
 
 
 def run_corpus(name):
+    if BATCH:  # built once for them all
+        return shell(TARGET / "cards" / "corpus", "--card", name, "--brief")
     return shell("cargo", "run", "--profile", "cards", "-q", "-p", "cantrip-script", "--bin", "corpus", "--", "--card", name, "--brief")
 
 
@@ -557,19 +570,45 @@ def changed_paths():
 
 def scope_problems(name):
     """Paths a card may not touch. One new content file, one new card file, new scenarios, an owner's note deleted."""
-    stem, slug, _ = names_of(name)
-    allowed = {f"{CONTENT_DIR}/{slug}.json", f"{CARDS_DIR}/{stem}.rs"}
+    allowed, notes = set(), set()
+    for each in BATCH or [name]:
+        stem, slug, _ = names_of(each)
+        allowed |= {f"{CONTENT_DIR}/{slug}.json", f"{CARDS_DIR}/{stem}.rs"}
+        notes.add(f"docs/card-notes/{stem}.md")
     problems = []
     for status, path in changed_paths():
         scenario = path.startswith(SCENARIOS_DIR + "/") and path.endswith(".cantrip") and status == "??"
-        note = path == f"docs/card-notes/{stem}.md" and "D" in status
+        note = path in notes and "D" in status
         if not (path in allowed or scenario or note):
             problems.append(f"{status} {path}")
+        elif scenario and BATCH and owner(Path(path).name) is None:
+            problems.append(f"{path}: its name starts with no card of this batch")
     return problems
 
 
-def card_scenarios():
-    return sorted(CANTRIP / p for s, p in changed_paths() if p.startswith(SCENARIOS_DIR + "/") and p.endswith(".cantrip"))
+def owner(scenario):
+    """Which open card a scenario file belongs to, by the longest card name it starts with."""
+    best, length = None, 0
+    for name in BATCH:
+        stem, slug, _ = names_of(name)
+        for start in (stem.replace("_", "-"), slug):
+            if scenario.startswith(start + "-") and len(start) > length:
+                best, length = name, len(start)
+    return best
+
+
+def owned_paths(name):
+    """The changed paths of one open card, of the batch or of a tree holding only it."""
+    if not BATCH:
+        return [p for _, p in changed_paths()]
+    stem, slug, _ = names_of(name)
+    own = {f"{CONTENT_DIR}/{slug}.json", f"{CARDS_DIR}/{stem}.rs", f"docs/card-notes/{stem}.md"}
+    return [p for _, p in changed_paths() if p in own or (p.startswith(SCENARIOS_DIR + "/") and owner(Path(p).name) == name)]
+
+
+def card_scenarios(name=None):
+    paths = sorted(CANTRIP / p for s, p in changed_paths() if p.startswith(SCENARIOS_DIR + "/") and p.endswith(".cantrip"))
+    return [p for p in paths if owner(p.name) == name] if BATCH and name else paths
 
 
 def generated_problems(name):
@@ -732,6 +771,8 @@ def expectation_problem(pair, label):
     if not name or not path.is_file():
         return f"{label}: no scenario {SCENARIOS_DIR}/{name}.cantrip"
     lines = path.read_text(encoding="utf-8").splitlines()
+    if pair.get("expect") and not pair.get("line"):
+        return f"{label}: {path.name} has no line `{pair['expect']}`"
     try:
         number = int(pair.get("line", 0))
     except (TypeError, ValueError):
@@ -806,7 +847,8 @@ def scenario_liveness(name):
     has_code = bool(re.search(r"\bfn\s+\w+\s*\(|\|g, item\|", source))
     dead, seen = [], {}
     corpus = TARGET / "llvm-cov-target" / "cards" / "corpus"
-    for scenario in card_scenarios():
+    hits = {}
+    for scenario in card_scenarios(name):
         text = scenario.read_text(encoding="utf-8")
         actions = text.split("[Actions]", 1)[-1].split("[Expect]", 1)[0]
         if not has_code:
@@ -823,11 +865,13 @@ def scenario_liveness(name):
                 dead.append(f"{scenario.name}: no profile ({out[-200:]})")
                 continue
             code, lcov = shell(env_tool("LLVM_COV"), "export", "-format=lcov", f"-instr-profile={merged}", corpus, "-sources", path)
-            hit = sum(1 for count in line_hits(lcov, path).values() if count)
-            seen[scenario.name] = hit
-            if hit == 0:
+            lines = line_hits(lcov, path)
+            for number, count in lines.items():
+                hits[number] = hits.get(number, 0) + count
+            seen[scenario.name] = sum(1 for count in lines.values() if count)
+            if seen[scenario.name] == 0:
                 dead.append(f"{scenario.name}: executed no line of {path.name}")
-    return dead, seen
+    return dead, hits
 
 
 def env_tool(name):
@@ -844,6 +888,45 @@ def check(name, fast=False):
     on it; a commit always takes the whole of it. The report is checked either way, so that a worker sees what would
     otherwise cost it a repair round."""
     gates = Gates(name, fast)
+    context = early_gates(gates, name)
+    if context is None:
+        return finish(gates)
+    path, source = context["path"], context["source"]
+
+    started = time.time()
+    code, out = tool("card-coverage.py", name)
+    gates.add("coverage", code == 0, out[-1500:] if code else "", started)
+    if code != 0:
+        return finish(gates)
+
+    started = time.time()
+    dead, _ = scenario_liveness(name)
+    gates.add("liveness", not dead, "\n".join(dead), started)
+
+    survivors = []
+    if source and not fast:
+        started = time.time()
+        _, listing = tool("card-mutate.py", name, "--list")
+        total = re.search(r"(\d+) changes", listing)
+        if total and int(total[1]):
+            code, out = tool("card-mutate.py", name, "--max", MUTATION_LIMIT)
+            (card_dir(name) / "mutate.txt").write_text(out, encoding="utf-8")
+            survivors = [(f"line {m[1]}: {m[2]}", f"{m[0].removeprefix('SURVIVED ')} {m[3].strip()} {m[4].strip()}")
+                         for m in re.finditer(r"^SURVIVED \S+?:(\d+): (.*)\n(\s+was: .*)\n(\s+now: .*)$", out, re.M)]
+            capped = int(total[1]) > MUTATION_LIMIT
+            gates.add("mutation", "restored" in out and not capped,
+                      (f"{total[1]} possible changes, only {MUTATION_LIMIT} tried\n" if capped else "") + ("" if "restored" in out else out[-800:]), started)
+    if "statics:" in source and not fast:
+        started = time.time()
+        code, out = shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases")
+        gates.add("layers", code == 0, out[-1500:] if code else "", started)
+    report_gate(gates, name, context, survivors)
+    return finish(gates)
+
+
+def early_gates(gates, name):
+    """The gates up to the corpus, which need no build beyond the corpus's own. What the later gates need, or None if
+    the scenarios do not pass, as nothing after that can say anything."""
     started = time.time()
     problems = scope_problems(name)
     gates.add("scope", not problems, "\n".join(problems), started)
@@ -860,13 +943,15 @@ def check(name, fast=False):
     write_test_points(name, points)
 
     started = time.time()
-    scenarios = card_scenarios()
+    scenarios = card_scenarios(name)
     bad = [p.name for p in scenarios if "-todo" in p.name or "TODO" in p.read_text(encoding="utf-8")]
     bad += [f"{p.name}: says Known bug, so it asserts an engine failure" for p in scenarios if "Known bug" in p.read_text(encoding="utf-8")]
     bad += [f"{p.name}: does not open with what it shows (a # comment)" for p in scenarios if not p.read_text(encoding="utf-8").lstrip().startswith("#")]
     bad += [f"{p.name}: no [Expect]" for p in scenarios if "[Expect]" not in p.read_text(encoding="utf-8")]
     if scenarios and costs_mana(name) and not any(re.search(r"\.Mana =", p.read_text(encoding="utf-8")) for p in scenarios):
         bad.append("no scenario shows the cost paid exactly: `? Bot1.Mana =` right after a cast, so a cost too low fails")
+    bad += [f"{p.name}: uses {other}, which may not land with this card" for p in scenarios for other in BATCH
+            if other != name and re.search(rf"^(\d+ )?{re.escape(other)}( x\d+)?\s*$", p.read_text(encoding="utf-8"), re.M | re.I)]
     gates.add("scenarios", scenarios and not bad, "\n".join(bad) or ("" if scenarios else "the card has no new scenario"), started)
 
     path = card_file(name)
@@ -891,46 +976,23 @@ def check(name, fast=False):
     ok = code == 0 and tally and int(tally[-1][0]) >= len(scenarios) and tally[-1][1] == "0" and tally[-1][2] == "0"
     gates.add("corpus", ok, ("" if ok else out[max(out.find("  FAIL "), len(out) - 2500):][:2500]), started)
     if not ok:
-        return finish(gates)
-    warned = re.findall(r"^warning: (.*)\n\s*--> (.*" + re.escape(path.name) + r".*)$", out, re.M) if source else []
+        return None
+    warned = re.findall(r"^warning: (.*)\n\s*--> (.*" + re.escape(path.name) + r".*)$", out + BUILT.get("out", ""), re.M) if source else []
     gates.add("warnings", not warned, "\n".join(f"{where}: {what}" for what, where in warned))
+    return {"path": path, "source": source, "points": points, "looks": looks}
 
+
+def report_gate(gates, name, context, survivors):
     started = time.time()
-    code, out = tool("card-coverage.py", name)
-    gates.add("coverage", code == 0, out[-1500:] if code else "", started)
-    if code != 0:
-        return finish(gates)
-
-    started = time.time()
-    dead, seen = scenario_liveness(name)
-    gates.add("liveness", not dead, "\n".join(dead), started)
-
-    survivors = []
-    if source and not fast:
-        started = time.time()
-        _, listing = tool("card-mutate.py", name, "--list")
-        total = re.search(r"(\d+) changes", listing)
-        if total and int(total[1]):
-            code, out = tool("card-mutate.py", name, "--max", MUTATION_LIMIT)
-            (card_dir(name) / "mutate.txt").write_text(out, encoding="utf-8")
-            survivors = [(f"line {m[1]}: {m[2]}", f"{m[0].removeprefix('SURVIVED ')} {m[3].strip()} {m[4].strip()}")
-                         for m in re.finditer(r"^SURVIVED \S+?:(\d+): (.*)\n(\s+was: .*)\n(\s+now: .*)$", out, re.M)]
-            capped = int(total[1]) > MUTATION_LIMIT
-            gates.add("mutation", "restored" in out and not capped,
-                      (f"{total[1]} possible changes, only {MUTATION_LIMIT} tried\n" if capped else "") + ("" if "restored" in out else out[-800:]), started)
-    if "statics:" in source and not fast:
-        started = time.time()
-        code, out = shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases")
-        gates.add("layers", code == 0, out[-1500:] if code else "", started)
-
-    started = time.time()
-    found = overlaps(name, source)
-    problems = report_problems(name, points, looks + [(o.split(" repeats ")[1].split(":")[0], o) for o in found], survivors)
+    found = overlaps(name, context["source"])
+    problems = report_problems(name, context["points"], context["looks"] + [(o.split(" repeats ")[1].split(":")[0], o) for o in found], survivors)
     report = report_of(name) or {}
     if report.get("decision") not in ("done", None):
         problems.insert(0, f"the worker reported {report.get('decision')}: {report.get('reason', '')}")
     gates.add("report", not problems, "\n".join(problems), started)
-    return finish(gates)
+
+
+BUILT = {}  # what the batch's one build printed: its warnings are the warnings gate's
 
 
 def finish(gates):
@@ -957,7 +1019,7 @@ def commit_card(card):
     if problems:
         raise RuntimeError("out of scope: " + "; ".join(problems))
     before = git("rev-parse", "HEAD").strip()
-    git("add", "--", *[p for _, p in changed_paths()])
+    git("add", "--", *owned_paths(name))
     message = f"Card: {name}\n" + (f"\nCloses #{card['issue']}\n" if card.get("issue") else "")
     code, out = shell("git", "-C", CANTRIP, "commit", "-q", "-m", message)
     if code != 0:
@@ -979,7 +1041,7 @@ def clean_tree():
 
 def save_patch(card):
     """The card's work as a patch, new files included, before the tree is cleaned."""
-    paths = [p for _, p in changed_paths()]
+    paths = owned_paths(card["name"])
     if not paths:
         return
     git("add", "-A", "--", *paths)
@@ -1056,7 +1118,7 @@ class Codex:
     def command(self, card, session):
         env = environment()
         settings = ",".join(f"{k}={json.dumps(v)}" for k, v in env.items())
-        roots = json.dumps([str(TARGET), str(card_dir(card["name"]))])
+        roots = json.dumps([str(TARGET), *map(str, card.get("dirs") or [card_dir(card["name"])])])
         command = ["codex", "exec", "--model", self.model, "--sandbox", "workspace-write", "--skip-git-repo-check", "--ignore-user-config", "--json",
                    "--color", "never", "--config", f"model_reasoning_effort={self.effort}", "--config", "sandbox_workspace_write.network_access=false",
                    "--config", f"sandbox_workspace_write.writable_roots={roots}", "--config", "shell_environment_policy.inherit=none",
@@ -1089,7 +1151,7 @@ class Claude:
 
     def command(self, card, session):
         command = ["claude", "-p", "--model", self.model, "--output-format", "stream-json", "--verbose", "--permission-mode", "acceptEdits",
-                   "--allowedTools", "Bash(python3:*) Bash(cargo:*) Bash(grep:*) Bash(ls:*) Bash(git status:*) Bash(git diff:*)", "--add-dir", str(card_dir(card["name"]))]
+                   "--allowedTools", "Bash(python3:*) Bash(cargo:*) Bash(grep:*) Bash(ls:*) Bash(git status:*) Bash(git diff:*)", "--add-dir", *map(str, card.get("dirs") or [card_dir(card["name"])])]
         if self.effort:
             command += ["--effort", self.effort]
         return command + (["--resume", session] if session else [])
@@ -1296,6 +1358,507 @@ def cmd_status(args):
         print_status(queue)
 
 
+
+
+
+# ---- Batches --------------------------------------------------------------------------------------------------------
+#
+# Several cards in one tree and one worker session. What a card costs is the worker reading, the context it pays for on
+# every step, and the builds: so the prompt carries all the worker needs, one build serves every card, and a round of
+# mutation breaks one line of each card at once. Each card still gets its own gates and its own commit.
+
+def open_batch(names):
+    BATCH[:] = names
+    BATCH_DIR.mkdir(parents=True, exist_ok=True)
+    wanted = set(names)
+    for line in (GEN / "rows.jsonl").open(encoding="utf-8"):
+        if len(ROWS) == len(wanted):
+            break
+        row = json.loads(line)
+        if row["name"] in wanted:
+            ROWS[row["name"]] = row
+
+
+def close_batch():
+    BATCH.clear()
+    ROWS.clear()
+    (BATCH_DIR / "open.json").unlink(missing_ok=True)
+
+
+def reopen_batch():
+    path = BATCH_DIR / "open.json"
+    if not path.exists():
+        sys.exit("no batch is open")
+    open_batch(json.loads(path.read_text(encoding="utf-8")))
+
+
+def build_corpus():
+    """The one build every card's gates share. (exit status, what it printed)."""
+    code, out = shell("cargo", "build", "--profile", "cards", "-p", "cantrip-script", "--bin", "corpus")
+    BUILT["out"] = out
+    return code, out
+
+
+def broken_cards(out):
+    """The open cards a compiler error names."""
+    stems = set(re.findall(r"--> \S*?cantrip-cards/src/cards/(\w+)\.rs", out))
+    return [name for name in BATCH if names_of(name)[0] in stems]
+
+
+def prepare_batch(cards, queue):
+    """Prepares every card, then builds once. A card that cannot stand leaves the batch and is recorded; the others go on."""
+    standing = []
+    for card in cards:
+        try:
+            prepare(card, build=False)
+            standing.append(card)
+        except GeneratorBug as error:
+            card["failure"] = str(error)[:600]
+            discard(card, queue, "generator_bug")
+    while standing:
+        code, out = build_corpus()
+        if code == 0:
+            break
+        broken = broken_cards(out)
+        if not broken:
+            raise RuntimeError(f"the batch does not build: {out[-800:]}")
+        for card in [c for c in standing if c["name"] in broken]:
+            card["failure"] = f"the generated file does not compile: {out[-500:]}"
+            discard(card, queue, "generator_bug")
+            standing.remove(card)
+    with multiprocessing.pool.ThreadPool(16) as pool:
+        for card, (_, out) in zip(standing, pool.map(lambda c: run_corpus(c["name"]), standing)):
+            (card_dir(card["name"]) / "first-build.txt").write_text(out, encoding="utf-8")
+    return standing
+
+
+def discard(card, queue, outcome):
+    """A card out of the batch: its work kept as a patch, its files gone, the rest of the tree left alone."""
+    save_patch(card)
+    for path in owned_paths(card["name"]):
+        (CANTRIP / path).unlink(missing_ok=True)
+    if card["name"] in BATCH:
+        BATCH.remove(card["name"])
+    conclude(card, queue, outcome)
+
+
+def card_section(number, card):
+    """What a worker needs of one card, so it reads nothing to get it."""
+    name = card["name"]
+    packet = card_dir(name)
+    content = json.loads(content_file(name).read_text(encoding="utf-8-sig"))
+    skeleton = json.loads((packet / "report.json").read_text(encoding="utf-8"))
+    (packet / "report.skeleton.json").write_text(json.dumps(skeleton, indent=1, ensure_ascii=False), encoding="utf-8")
+    path = card_file(name)
+    source = path.read_text(encoding="utf-8") if path.exists() else ""
+    _, lint = tool("card-lint.py", name)
+    looks = [line.split("/")[-1] for line in lint.splitlines() if ": LOOK:" in line]
+    facts = {k: v for k, v in content.items() if k not in ("oracleText", "name")}
+    out = [f"## Card {number}: {name}", "", json.dumps(facts, ensure_ascii=False), "", "Printed lines:"]
+    out += [f"{i}. {v['line']}" for i, v in enumerate(skeleton["validation"], 1)]
+    if skeleton["test_points"]:
+        out += ["", "Test points:"] + [f"{p['id']}. {p['point']}" for p in skeleton["test_points"]]
+    if skeleton["rulings"]:
+        out += ["", "Rulings:"] + [f"{i}. {r['ruling']}" for i, r in enumerate(skeleton["rulings"], 1)]
+    if looks:
+        out += ["", "Lint asks you to look at these; answer each in `looks`, naming its line as `line 12`:"] + looks
+    out += ["", f"Its file, `{CARDS_DIR}/{path.name}`:" if source else "It has no file: the content's keywords are the whole card.", ""]
+    out += ["```rust", source.rstrip(), "```", ""] if source else []
+    written = card_scenarios(name)
+    seeded = [p for p in written if "TODO" not in p.read_text(encoding="utf-8")]
+    if seeded:
+        out += ["Scenarios the tool wrote from the card's words. Keep one that proves what it says; fix or replace the rest:", ""]
+        for scenario in seeded:
+            out += [f"`{SCENARIOS_DIR}/{scenario.name}`", "```", scenario.read_text(encoding="utf-8").rstrip(), "```", ""]
+    todo = [p.name for p in written if p not in seeded]
+    if todo:
+        out += ["Placeholders to delete once replaced: " + ", ".join(f"`{n}`" for n in todo), ""]
+    out.append(f"Name its scenarios `{SCENARIOS_DIR}/{names_of(name)[0].replace('_', '-')}-<what-it-proves>.cantrip`.")
+    return "\n".join(out)
+
+
+def shared_section(cards):
+    """The shared code the cards call, each definition once."""
+    seen, out = set(), []
+    for card in cards:
+        path = card_file(card["name"])
+        text = shared_code(path.read_text(encoding="utf-8")) if path.exists() else ""
+        for block in re.split(r"(?m)^(?=## )", text):
+            if block.strip() and block not in seen:
+                seen.add(block)
+                out.append(block.rstrip())
+    return "\n\n".join(out)
+
+
+REPORT_FORMAT = """Write the reports to `{path}`, one JSON object for all the cards, keyed by card name:
+
+```json
+{{"Card Name": {{"decision": "done", "lines": ["what implements printed line 1", "..."],
+  "points": [["scenario-file-name", "? Bot2.Life = 17"], ["..."]],
+  "rulings": [["scenario-file-name", "Bot1.Graveyard.Count = 2"], "why the card's own code decides nothing here"],
+  "looks": ["line 12: why it is right"], "equivalent": [{{"mutant": "line 6: 4 to 5", "why": "..."}}], "notes": ""}}}}
+```
+
+`lines` has one entry per printed line, `points` one per test point, `rulings` one per ruling, in order. A `points` or `rulings`
+pair is a scenario and the exact text of the expectation in it that catches the thing: a `?`, a `!` or a line under `[Expect]`.
+
+Validation comes first: before writing a card's scenarios work out from its words what must happen, then read its file and the
+shared code and say in `lines` what implements each printed line. Read bodies, not names: amounts and who gets them, what is
+legal to target, the trigger's event and whose, the duration and the order. A line with no code is a disagreement.
+A card that is wrong is worse than a card that is missing. If a line disagrees, or a scenario shows the card does other than its
+text says, the card's entry is `{{"decision": "generator_bug", "reason": "the line, what the code does, what the text requires"}}`;
+if the card is right and the engine plays the rules wrongly, `engine_gap`; if a tool is broken, `needs_review`. These are normal
+results and cost little. Do not work around them."""
+
+
+WAYS = {
+    "work": """Tools, from the working directory:
+- `{lane} batch-check --fast`: plays every card's scenarios and judges each card and its report. Prints what failed.
+- `{lane} corpus --file PATH --brief`: one scenario. Add `--dump`, `--diff N` or `--next` to see what it can see.
+- `{lane} tool find-cards.py ...`, `{lane} tool cr.py 603.6a`.
+
+Write all the cards, then run `batch-check --fast` once and fix what it names, rather than running each scenario as you write
+it. One command at a time, in the foreground. Stop when it passes.""",
+    "draft": """Do not run anything now: no corpus, no check, no search. You have all you need above. Write every card's scenarios and the
+reports in one go and stop. A driver plays them and sends back what failed, for every card at once, and you fix them then. When
+it does, it will say what tools you may use.""",
+}
+
+
+def batch_prompt(cards, way):
+    lane = f"python3 {Path(__file__).resolve()}"
+    head = [f"# {len(cards)} generated card{'s' if len(cards) > 1 else ''}", "",
+            f"The mtgish generator wrote each card below. Validate each against its Oracle text and write the scenarios that prove it. "
+            f"You write new files under `{SCENARIOS_DIR}/` and the reports, nothing else: the cards' files and content are read-only, and no `git`. "
+            f"Your working directory is the Cantrip tree `{CANTRIP}`. Delete a placeholder when you replace it. Never `--release`. A driver makes the commits.", "",
+            (HERE / "handbook.md").read_text(encoding="utf-8").rstrip(), "", "# The reports", "",
+            REPORT_FORMAT.format(path=BATCH_DIR / "reports.json"), "", "# How to work", "", WAYS[way].format(lane=lane), "", "# The cards", ""]
+    shared = shared_section(cards)
+    tail = ["", "# Shared code the cards call", "", shared] if shared else []
+    return "\n".join(head + ["\n\n".join(card_section(i, c) for i, c in enumerate(cards, 1))] + tail) + "\n"
+
+
+def expected_line(scenario, text):
+    """The line of a scenario holding this expectation, counted from 1, or 0."""
+    path = CANTRIP / SCENARIOS_DIR / f"{str(scenario).removesuffix('.cantrip')}.cantrip"
+    if not path.is_file():
+        return 0
+    lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines()]
+    return lines.index(text.strip()) + 1 if text.strip() in lines else 0
+
+
+def expand_reports(names):
+    """The one reports file into each card's `report.json`, which is what the gates read. A worker names an expectation by
+    its text, so that editing a scenario cannot leave a report pointing at the wrong line."""
+    path = BATCH_DIR / "reports.json"
+    try:
+        reports = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    except ValueError as error:
+        reports = {name: {"decision": "invalid", "reason": f"reports.json is not JSON: {error}"} for name in names}
+    for name in names:
+        entry = next((v for k, v in reports.items() if k.lower() == name.lower()), None)
+        if not isinstance(entry, dict):
+            continue
+        report = json.loads((card_dir(name) / "report.skeleton.json").read_text(encoding="utf-8"))
+        report.update(decision=entry.get("decision", "todo"), reason=entry.get("reason", ""), notes=entry.get("notes", ""),
+                      look_answers=entry.get("looks") or [], equivalent_mutants=entry.get("equivalent") or [])
+        for line, text in zip(report["validation"], entry.get("lines") or []):
+            line.update(code=str(text), agrees=report["decision"] == "done" or None)
+        for point, pair in zip(report["test_points"], entry.get("points") or []):
+            if isinstance(pair, list) and len(pair) == 2:
+                point.update(scenario=str(pair[0]).removesuffix(".cantrip"), expect=pair[1], line=expected_line(pair[0], str(pair[1])))
+        for ruling, answer in zip(report["rulings"], entry.get("rulings") or []):
+            if isinstance(answer, list) and len(answer) == 2:
+                ruling.update(scenario=str(answer[0]).removesuffix(".cantrip"), expect=answer[1], line=expected_line(answer[0], str(answer[1])))
+            elif answer:
+                ruling.update(no_decision=str(answer))
+        (card_dir(name) / "report.json").write_text(json.dumps(report, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def tool_module(script):
+    """A Cantrip maintenance script as a module."""
+    sys.path.insert(0, str(CANTRIP / "tools" / "maintenance"))
+    spec = importlib.util.spec_from_file_location(script.removesuffix(".py").replace("-", "_"), CANTRIP / "tools" / "maintenance" / script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def coverage_gates(names, gates, contexts):
+    """Coverage and liveness of every card from one instrumented build. They are one measurement: what each of a card's
+    scenarios ran, added up, is what card-coverage.py measures of them together. The cards that pass both."""
+    started = time.time()
+    coded = [n for n in names if contexts[n]["source"]]
+    if coded:
+        code, out = shell("cargo", "llvm-cov", "run", "--profile", "cards", "--dep-coverage", "cantrip-cards", "-p", "cantrip-script", "--bin", "corpus",
+                          "--no-report", "--", "--card", coded[0])
+        if code != 0:
+            for name in names:
+                gates[name].add("coverage", False, out[-1500:], started)
+            return []
+    spent = (time.time() - started) / max(1, len(names))
+    measure = tool_module("card-coverage.py")
+
+    def one(name):
+        started = time.time()
+        dead, hits = scenario_liveness(name)
+        source = contexts[name]["source"]
+        exempt = measure.const_fn_lines(source.splitlines())
+        missed = sorted(n for n, count in hits.items() if not count and n not in exempt)
+        empty = bool(source) and not hits and re.search(r"\bfn\s+\w+\s*\(", source)
+        lines = source.splitlines()
+        detail = "no instrumented line ran" if empty else "\n".join(f"line {n} never ran: {lines[n - 1].strip()}" for n in missed)
+        gates[name].add("coverage", not missed and not empty, detail)
+        gates[name].results[-1]["seconds"] = round(spent, 1)
+        gates[name].add("liveness", not dead, "\n".join(dead), started)
+    with multiprocessing.pool.ThreadPool(16) as pool:
+        pool.map(one, names)
+    return [n for n in names if gates[n].ok]
+
+
+def corpus_exit(name):
+    """Exit status of the card's scenarios on the built corpus. A change that makes the game run on is caught."""
+    try:
+        return shell(TARGET / "cards" / "corpus", "--card", name, "--brief", timeout=300)[0]
+    except subprocess.TimeoutExpired:
+        return 1
+
+
+def mutation_gates(names, gates):
+    """`card-mutate.py` over the batch. A round breaks one line of every card still to go, so one build serves them all, and
+    each card's scenarios judge its own change: cards do not read each other, since no scenario holds another card of the
+    batch. A change that does not compile is set aside and the round built again, as card-mutate.py skips it. The number of
+    builds is the most changes any one card has, not the sum. {card: its survivors}."""
+    mutate = tool_module("card-mutate.py")
+    plans, started = {}, time.time()
+    for name in names:
+        path = card_file(name)
+        if path.exists():
+            original = path.read_text(encoding="utf-8")
+            lines = original.split("\n")
+            found = mutate.mutants(lines, set(range(1, len(lines) + 1)))
+            plans[name] = {"path": path, "original": original, "lines": lines, "found": found[:MUTATION_LIMIT], "total": len(found), "log": [], "survivors": [], "next": 0}
+    builds = 0
+
+    def restore(plan):
+        plan["path"].write_text(plan["original"], encoding="utf-8", newline="\n")
+    try:
+        while True:
+            live = [n for n, p in plans.items() if p["next"] < len(p["found"])]
+            if not live:
+                break
+            for name in live:
+                plan = plans[name]
+                n, _, new = plan["found"][plan["next"]]
+                plan["path"].write_text("\n".join(plan["lines"][:n - 1] + [new] + plan["lines"][n:]), encoding="utf-8", newline="\n")
+            while live:
+                builds += 1
+                code, out = build_corpus()
+                if code == 0:
+                    break
+                for name in [n for n in live if n in broken_cards(out)] or list(live):
+                    plan = plans[name]
+                    n, what, _ = plan["found"][plan["next"]]
+                    plan["log"].append(f"{n} {what}: no build")
+                    restore(plan)
+                    plan["next"] += 1
+                    live.remove(name)
+            with multiprocessing.pool.ThreadPool(16) as pool:
+                verdicts = pool.map(corpus_exit, live)
+            for name, code in zip(live, verdicts):
+                plan = plans[name]
+                n, what, new = plan["found"][plan["next"]]
+                plan["log"].append(f"{n} {what}: {'caught' if code else 'SURVIVED'}")
+                if code == 0:
+                    plan["survivors"].append((f"line {n}: {what}", f"{plan['path'].name}:{n}: {what}, was: {plan['lines'][n - 1].strip()} now: {new.strip()}"))
+                restore(plan)
+                plan["next"] += 1
+    finally:
+        for plan in plans.values():
+            restore(plan)
+    if builds:
+        build_corpus()
+    spent = (time.time() - started) / max(1, len(plans))
+    for name, plan in plans.items():
+        (card_dir(name) / "mutate.txt").write_text("\n".join(plan["log"]) + "\n", encoding="utf-8")
+        if plan["found"]:
+            capped = plan["total"] > MUTATION_LIMIT
+            gates[name].add("mutation", not capped, f"{plan['total']} possible changes, only {MUTATION_LIMIT} tried" if capped else "")
+            gates[name].results[-1]["seconds"] = round(spent, 1)
+    return {name: plan["survivors"] for name, plan in plans.items()}
+
+
+def batch_gates(names, fast=False):
+    """`check` over the open cards, in the same order and by the same gates, with the builds shared. {card: Gates}."""
+    gates = {name: Gates(name, fast) for name in names}
+    code, out = build_corpus()
+    if code != 0:
+        for name in names:
+            gates[name].add("build", False, out[-1500:])
+            finish(gates[name])
+        return gates
+    with multiprocessing.pool.ThreadPool(8) as pool:
+        contexts = dict(zip(names, pool.map(lambda name: early_gates(gates[name], name), names)))
+    passing = [n for n in names if contexts[n] is not None and gates[n].ok]
+    covered = coverage_gates(passing, gates, contexts)
+    survivors = {}
+    if not fast and covered:
+        survivors = mutation_gates(covered, gates)
+        statics = [n for n in covered if "statics:" in contexts[n]["source"]]
+        if statics:
+            started = time.time()
+            code, out = shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases")
+            for name in statics:
+                gates[name].add("layers", code == 0, out[-1500:] if code else "", started)
+    for name in names:
+        if contexts[name] is not None:
+            report_gate(gates[name], name, contexts[name], survivors.get(name, []))
+        finish(gates[name])
+    return gates
+
+
+def batch_text(gates, limit=1400):
+    """What failed, card by card: the only thing a worker needs to read back."""
+    out = []
+    for name, card in gates.items():
+        failed = card.failures()
+        out.append(f"{'PASS' if not failed else 'FAIL'} {name}" + (": " + ", ".join(r["gate"] for r in failed) if failed else ""))
+    for name, card in gates.items():
+        for failure in card.failures():
+            out += ["", f"### {name}: {failure['gate']}", failure["detail"][:limit]]
+    return "\n".join(out)
+
+
+def cmd_batch_check(args):
+    reopen_batch()
+    expand_reports(BATCH)
+    gates = batch_gates([args.card] if args.card else list(BATCH), args.fast)
+    print(batch_text(gates))
+    return 0 if all(g.ok for g in gates.values()) else 1
+
+
+def batch_repair(gates, way):
+    tools = (f"You may now use `python3 {Path(__file__).resolve()} corpus --file PATH --brief` (with `--dump`, `--diff N`, `--next`) on a scenario "
+             "you cannot fix from this report. " if way == "draft" else "")
+    return (f"The gates failed as below. Fix what they name in your scenarios and `{BATCH_DIR / 'reports.json'}`, nothing else, and stop. {tools}"
+            "A scenario must not be weakened to pass, and a mutant is only declared equivalent if it truly changes nothing the rules can see. If they show "
+            "a card is wrong, its decision is `generator_bug`.\n\n" + batch_text({n: g for n, g in gates.items() if not g.ok}))
+
+
+def run_batch(cards, backend, args, queue):
+    """Some cards, start to finish, in one session: prepared together, written together, judged together, each committed
+    alone. A card that passes leaves the batch. Returns the batch's record."""
+    started, phases, usage, session, rounds = time.time(), {}, Usage(), None, 0
+    names = [c["name"] for c in cards]
+    open_batch(names)
+    (BATCH_DIR / "open.json").write_text(json.dumps(names, ensure_ascii=False), encoding="utf-8")
+    (BATCH_DIR / "reports.json").unlink(missing_ok=True)
+    log = BATCH_DIR / f"worker-{int(started)}.jsonl"
+    who = f"{backend.name}:{backend.model}"
+    for card in cards:
+        begin(card, queue, who)
+        card_dir(card["name"]).mkdir(parents=True, exist_ok=True)
+    remaining = list(cards)
+    try:
+        t = time.time()
+        remaining = prepare_batch(cards, queue)
+        phases["prepare"] = round(time.time() - t, 1)
+        prompt = batch_prompt(remaining, args.way)
+        (BATCH_DIR / "prompt.md").write_text(prompt, encoding="utf-8")
+        phases["prompt_chars"] = len(prompt)
+        place = {"name": names[0], "dirs": [STATE]}
+        deadline = started + args.timeout
+        drafting = args.way == "draft"
+        while remaining:
+            t = time.time()
+            code, session, used = spawn(backend, place, prompt, session, max(1, deadline - time.time()), log)
+            phases["worker"] = round(phases.get("worker", 0) + time.time() - t, 1)
+            usage.add(used, backend.cumulative)
+            rounds += 1
+            print(f"   round {rounds}: worker {time.time() - t:.0f}s, {usage.input} in, {usage.output} out", flush=True)
+            if code is None or (code != 0 and used.turns == 0):
+                for card in remaining:
+                    card["failure"] = "timeout" if code is None else "the worker did not run"
+                break
+            expand_reports(BATCH)
+            for card in list(remaining):
+                report = report_of(card["name"]) or {}
+                if report.get("decision") in STOPS:
+                    card["failure"] = str(report.get("reason", ""))[:400]
+                    discard(card, queue, report["decision"])
+                    remaining.remove(card)
+            if not remaining:
+                break
+            t = time.time()
+            gates = batch_gates([c["name"] for c in remaining], fast=drafting)
+            if drafting and all(g.ok for g in gates.values()):
+                drafting = False
+                gates = batch_gates([c["name"] for c in remaining])
+            elif drafting and rounds >= args.draft_rounds:
+                drafting = False
+            phases["check"] = round(phases.get("check", 0) + time.time() - t, 1)
+            print(f"   gates {time.time() - t:.0f}s: " + ", ".join(f"{n}: {'ok' if g.ok else '/'.join(r['gate'] for r in g.failures())}" for n, g in gates.items()), flush=True)
+            for card in list(remaining):
+                result = gates[card["name"]]
+                if result.ok and not result.fast:
+                    card["commit"] = commit_card(card)
+                    card.update(rounds=rounds)
+                    conclude(card, queue, "committed")
+                    remaining.remove(card)
+                    BATCH.remove(card["name"])
+            if not remaining:
+                break
+            if rounds > args.repairs or time.time() >= deadline:
+                for card in remaining:
+                    failures = gates[card["name"]].failures()
+                    card["failed_gates"] = [r["gate"] for r in failures]
+                    card["failure"] = "; ".join(f"{r['gate']}: {r['detail'][:160]}" for r in failures)[:600]
+                break
+            prompt = batch_repair(gates, args.way)
+    except Exception as error:  # a batch's trouble is recorded on its cards, and the tree goes back clean
+        for card in remaining:
+            card["failure"] = f"{type(error).__name__}: {error}"[:600]
+        raise
+    finally:
+        for card in list(remaining):
+            discard(card, queue, "failed_gates")
+        close_batch()
+        clean_tree()
+    tally = collections.Counter(c["status"] for c in cards)
+    record = {"cards": names, "way": args.way, "who": who, "effort": args.effort, "rounds": rounds, "seconds": round(time.time() - started, 1), "phases": phases,
+              "usage": usage.record(backend.model), "outcomes": dict(tally), "log": str(log),
+              "by_card": {c["name"]: {k: c.get(k) for k in ("status", "commit", "failure", "failed_gates")} for c in cards}}
+    with (STATE / "batches.jsonl").open("a", encoding="utf-8") as out:
+        out.write(json.dumps(record, ensure_ascii=False) + "\n")
+    share = {k: (v / max(1, len(cards)) if isinstance(v, (int, float)) else v) for k, v in record["usage"].items()}
+    for card in cards:
+        card.update(usage={k: round(v, 4) if isinstance(v, float) else v for k, v in share.items()}, phases=phases)
+    save_queue(queue)
+    return record
+
+
+def cmd_batch_run(args):
+    queue = load_queue()
+    recover(queue)
+    save_queue(queue)
+    backend = BACKENDS[args.backend](args.command if args.backend == "command" else args.model, args.effort)
+    names = args.only or []
+    if args.only_file:
+        names += [line.strip() for line in Path(args.only_file).read_text(encoding="utf-8").splitlines() if line.strip()]
+    pending = [c for c in queue["cards"] if c["status"] == "pending" and c.get("attempts", 0) < args.attempts]
+    if names:
+        order = {n: i for i, n in enumerate(names)}
+        pending = sorted((c for c in pending if c["name"] in order), key=lambda c: order[c["name"]])
+    pending = pending[:args.limit]
+    for start in range(0, len(pending), args.size):
+        cards = pending[start:start + args.size]
+        print(f"== batch of {len(cards)}: {', '.join(c['name'] for c in cards)}", flush=True)
+        record = run_batch(cards, backend, args, queue)
+        u = record["usage"]
+        print(f"   {record['outcomes']} in {record['seconds']:.0f}s, {record['rounds']} round(s), {u['input']} in/{u['cached']} cached/{u['output']} out, ${u['usd_api_equivalent']}", flush=True)
+    print_status(queue)
+
+
 # ---- Setup ----------------------------------------------------------------------------------------------------------
 
 def cmd_setup(args):
@@ -1411,6 +1974,25 @@ def main():
     p.add_argument("--attempts", type=int, default=2, help="runs a card may take across restarts")
     p.add_argument("--stop-after", type=int, default=3, help="stop if this many first cards all fail")
     p.set_defaults(func=cmd_run)
+    p = sub.add_parser("batch-run", help="cards together in one worker session")
+    p.add_argument("--backend", choices=BACKENDS, default="codex")
+    p.add_argument("--model")
+    p.add_argument("--effort")
+    p.add_argument("--command")
+    p.add_argument("--size", type=int, default=10, help="cards in a session")
+    p.add_argument("--limit", type=int, default=10, help="cards in all")
+    p.add_argument("--only", nargs="*", default=[])
+    p.add_argument("--only-file", help="a file of card names, one to a line, in order")
+    p.add_argument("--way", choices=WAYS, default="work", help="`work` lets the worker run the tools; `draft` writes everything blind, then a driver sends back what failed")
+    p.add_argument("--draft-rounds", type=int, default=3, help="with draft: rounds on the fast gates before the whole of them")
+    p.add_argument("--timeout", type=int, default=3600, help="seconds a batch may take")
+    p.add_argument("--repairs", type=int, default=4, help="rounds a worker is sent back with failed gates")
+    p.add_argument("--attempts", type=int, default=2)
+    p.set_defaults(func=cmd_batch_run)
+    p = sub.add_parser("batch-check", help="the gates over the open batch, or one of its cards")
+    p.add_argument("--fast", action="store_true")
+    p.add_argument("--card")
+    p.set_defaults(func=cmd_batch_check)
     if sys.argv[1:2] == ["corpus"]:  # before argparse, which would take a leading `--card` for an option of its own
         return cmd_corpus(sys.argv[2:])
     args = parser.parse_args()

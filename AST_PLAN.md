@@ -31,6 +31,22 @@ Unified, complete and blocker rows are current at schema 166. The other rows, an
 | Forms on no complete card | 6,429 |
 | Rewrite registry rows | 451 |
 
+### The form a card ships in
+
+`cantrip::pr_form` turns a generated card into the form Cantrip's review accepts, and `ast cantrip-files` writes it for every card that has no gap: the Oracle text in a comment at the top, each ability's printed line beside it, shared targets, triggers and effects by name, `..oracle::X` for the characteristics, no generator scaffolding. Measured on the single-faced cards at schema 166:
+
+| Measure | Value |
+|---|---|
+| Card files rendered | 22,098 for cards new to Cantrip; the tree took 22,079 of them plus 3,178 replacing existing files |
+| Clean on the lane's style and `card-lint` NEVER gates | 22,079 |
+| Lint NEVER left | 19 (16 random order, 3 keyword filters on hexproof, all legitimate rules uses, so they stay out of the queue) |
+| Lines, median / p90 / max | 64 / 128 / 414 |
+| Generated tree | compiles with 0 errors and 0 warnings |
+| Corpus scenarios, machine form | 13,969 of 14,096 pass |
+| Corpus scenarios, PR form | 13,978 of 14,096 pass: 0 regressions, 9 fixed |
+
+The multi-face layouts, about 670 ready rows, keep the machine form for now.
+
 Hand lowering will not finish this. Batch gains have been falling (+215, +97, +87 records), while first-failure diagnostics understate the work: 9,754 of the 18,256 incomplete records contain unproven forms their diagnostics never mention. On the other hand, 7,385 records are blocked by exactly one unproven form. Planning from full-tree forms gives this greedy curve. Each row assumes every listed form lowers everywhere it appears, so these are upper bounds:
 
 | Forms lowered | Complete records | Share |
