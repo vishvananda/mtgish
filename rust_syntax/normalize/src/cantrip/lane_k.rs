@@ -1403,6 +1403,9 @@ impl Compiler {
     /// "Reveal the top four cards. You may put a land card from among them into
     /// your hand. Put the rest into your graveyard": Cantrip's one question.
     fn rest_to_graveyard(&mut self, group: &Program, out: &mut String) -> Result<bool> {
+        if group.instructions.last().is_some_and(|last| matches!(last, Instruction::Effect { result, .. } if self.read_later(result))) {
+            return Ok(false);
+        }
         let [Instruction::Effect {
             operation: first, ..
         }, Instruction::Effect {
@@ -1529,7 +1532,9 @@ impl Compiler {
     pub(super) fn damage_source(&self, source: &ObjectRef) -> Result<String> {
         let read = self.object(source)?;
         match source {
-            ObjectRef::Target { slot, index } if self.choosing.is_none() => {
+            ObjectRef::Target { slot, index }
+                if self.choosing.is_none() && self.slots.contains_key(&slot.0) =>
+            {
                 let i = self.slot(slot)?;
                 Ok(format!(
                     "t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).and_then(|t: Target| t.object())"
@@ -1693,12 +1698,14 @@ impl Compiler {
         chosen: String,
         out: &mut String,
     ) -> Result<()> {
+        // One may sit inside another: each closes what it opened.
+        let around = std::mem::take(&mut self.guard_opened);
         self.may_choose = true;
         self.chosen_guard = Some(chosen);
         self.block(body, out, true)?;
         self.may_choose = false;
         self.chosen_guard = None;
-        if std::mem::take(&mut self.guard_opened) {
+        if std::mem::replace(&mut self.guard_opened, around) {
             writeln!(out, "}}").unwrap();
         }
         Ok(())

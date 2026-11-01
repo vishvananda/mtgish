@@ -500,6 +500,8 @@ struct Compiler {
     /// Locals an effect declares up front to outlive its nested blocks. `None`
     /// in code that isn't an effect's own body.
     hoisted: Option<Vec<String>>,
+    /// The local of the spells the last cast of cards made.
+    played: Option<String>,
     /// Choices and searches that yield one object at most.
     single: BTreeSet<u32>,
     /// Results that moved or found one object at most.
@@ -564,6 +566,10 @@ struct Compiler {
     lasting: Vec<String>,
     /// `CardDef::lasting_block_rules`.
     made_block_rules: Vec<String>,
+    /// Instructions that made an effect preventing damage: its amount comes later.
+    prevented: BTreeSet<u32>,
+    /// A resolving effect is on what its event is about.
+    rule_on_event_object: bool,
     /// `CardDef::labels`: the options of a choice as it enters.
     entering_labels: Option<String>,
     /// The mana cost printed on the card.
@@ -852,6 +858,7 @@ impl Compiler {
             returning: BTreeSet::new(),
             dividing: None,
             hoisted: None,
+            played: None,
             single: BTreeSet::new(),
             known_one: BTreeSet::new(),
             links_exile: false,
@@ -886,6 +893,8 @@ impl Compiler {
             replaced_counter: None,
             lasting: Vec::new(),
             made_block_rules: Vec::new(),
+            prevented: BTreeSet::new(),
+            rule_on_event_object: false,
             entering_labels: None,
             printed_mana: None,
             made_cost_changes: Vec::new(),
@@ -1186,11 +1195,15 @@ impl Compiler {
                 };
                 self.dividing = Some(format!("Divide {{ total: {total}, of_x: None }}"));
             }
-            if let Some(chooser) = &spec.chooser {
-                self.chosen_by_another(chooser, &mut rule)
-                    .map_err(|e| e.at(&at))?;
-            }
-            let count = self.target_count(&spec.count).map_err(|e| e.at(&at))?;
+            self.choosing = Some(i);
+            let chosen_by = match &spec.chooser {
+                Some(chooser) => self.chosen_by_another(chooser, &mut rule),
+                None => Ok(()),
+            };
+            let count = self.target_count(&spec.count);
+            self.choosing = None;
+            chosen_by.map_err(|e| e.at(&at))?;
+            let count = count.map_err(|e| e.at(&at))?;
             self.slots.insert(spec.slot.0, (i, spec.clone()));
             if spec.kind == TargetKind::DamageRecipient
                 && spec.players.is_none()

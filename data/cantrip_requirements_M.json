@@ -336,7 +336,7 @@
 "api": "Proposal variant of this event, with replaced, count, times; Proposal::DieRoll with extra_dice, ignore, exchange: Option<DieExchangeOffer { decider, object, properties: &[DieExchange] }>"
 },
 {
-"match": "^replacement event ",
+"match": "^replacement event (?!ProduceColor$)",
 "class": "engine",
 "needs": "a replacement matching on this: ReplacementDef has no test for it",
 "api": "ReplacementDef::first_each_turn(), ::each_point(), q.proposal_cause(); Proposal::SpellCopy { player, spell, count, new_targets_for_added }"

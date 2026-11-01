@@ -889,9 +889,13 @@ impl Compiler {
                 self.moved.insert(result.0, format!("milled_{local}"));
                 self.left_behind(&result, format!("milled_{local}.clone()"));
             }
-            Gathered::Damage { .. } => {
-                writeln!(out, "g.damage_together(&gathered_{local});").unwrap();
-            }
+            Gathered::Damage { .. } => match &program.instructions[at] {
+                Instruction::Effect { result, .. } if self.read_later(result) => {
+                    writeln!(out, "let done_{local}: i64 = g.damage_together(&gathered_{local}).iter().map(|&n| i64::from(n)).sum();").unwrap();
+                    self.performed.insert(result.0, format!("done_{local}"));
+                }
+                _ => writeln!(out, "g.damage_together(&gathered_{local});").unwrap(),
+            },
             Gathered::Tokens {
                 token,
                 tapped,
@@ -1541,7 +1545,17 @@ impl Compiler {
                 match self.delayed.first().map(String::as_str) {
                     Some(TRIGGER) => {}
                     None => self.delayed.push(TRIGGER.into()),
-                    Some(_) => return Err(gap("cipher beside another first delayed ability")),
+                    Some(_) => {
+                        // Cantrip reads the trigger from the first delayed ability.
+                        let at = self.delayed.len();
+                        self.delayed.push(TRIGGER.into());
+                        self.plan_code(
+                            "cipher beside another first delayed ability",
+                            &format!("{M}::cipher::encode_with_trigger_at(g, item, {at})?"),
+                            out,
+                        );
+                        return Ok(());
+                    }
                 }
                 self.cipher = true;
                 writeln!(out, "{M}::cipher::encode(g, item)?;").unwrap();

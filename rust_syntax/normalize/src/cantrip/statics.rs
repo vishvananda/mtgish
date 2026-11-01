@@ -111,6 +111,8 @@ impl Compiler {
             self.frame,
             self.static_guard.take(),
         );
+        let around_item = (self.stack_item, self.pending);
+        (self.stack_item, self.pending) = (true, Pending::Nothing);
         let outer = self.outer.take();
         (self.reader, self.event_at, self.frame) =
             (Reader::Resolution, EventAt::Nowhere, Frame::default());
@@ -123,6 +125,7 @@ impl Compiler {
         self.restore_results(results);
         self.slots = slots;
         (self.reader, self.event_at, self.frame, self.static_guard) = saved;
+        (self.stack_item, self.pending) = around_item;
         self.outer = outer;
         compiled?;
         Ok(grown)

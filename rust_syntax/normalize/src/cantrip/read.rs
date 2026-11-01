@@ -97,6 +97,8 @@ pub(super) struct Frame {
     pub amount: Option<Carried>,
     pub damage_source: Option<Carried>,
     pub damage_recipient: Option<Carried>,
+    /// Damage dealt to a permanent or a player: `data` holds which, as `Target`.
+    pub recipient: Option<Carried>,
     pub stack_object: Option<Carried>,
     /// The serial of the activated ability an event is about, on the stack.
     pub activated: Option<Carried>,
@@ -122,6 +124,7 @@ impl Frame {
             amount: same(self.amount, other.amount),
             damage_source: same(self.damage_source, other.damage_source),
             damage_recipient: same(self.damage_recipient, other.damage_recipient),
+            recipient: same(self.recipient, other.recipient),
             stack_object: same(self.stack_object, other.stack_object),
             activated: same(self.activated, other.activated),
             stack_controller: same(self.stack_controller, other.stack_controller),
@@ -256,7 +259,7 @@ impl Compiler {
     pub(super) fn fetch(&self, code: impl AsRef<str>) -> String {
         format!("{{ let q: &dyn Query = g; {} }}", code.as_ref())
     }
-    fn carried(&self, carried: Carried) -> Result<(String, String)> {
+    pub(super) fn carried(&self, carried: Carried) -> Result<(String, String)> {
         let (subject, data) = match self.event_at {
             // The asking matcher's locals, past the record's of the same names.
             EventAt::Matcher if self.history.is_some() => {
@@ -414,6 +417,11 @@ impl Compiler {
             }
             ObjectRef::EventDestination => self.carried_object(self.frame.destination)?,
             ObjectRef::EventOther => self.carried_object(self.frame.other)?,
+            ObjectRef::EventStackObject
+                if self.frame.stack_object.is_none() && self.frame.activated.is_some() =>
+            {
+                self.activated_object()?
+            }
             ObjectRef::EventStackObject => self.carried_object(self.frame.stack_object)?,
             ObjectRef::BlockPair(BlockRole::Attacker) => {
                 self.carried_object(self.frame.attacker)?
@@ -590,6 +598,13 @@ impl Compiler {
             ObjectSet::Targets(slot) if self.choosing == Some(1) && self.is_first_slot(slot) => {
                 "q.chosen_targets().iter().filter_map(|t| t.object()).collect::<Vec<ObjectId>>()"
                     .to_string()
+            }
+            ObjectSet::Targets(slot) if self.choosing.is_some() => {
+                let choosing = self.choosing.expect("just asked");
+                format!(
+                    "{}.into_iter().filter_map(|t: Target| t.object()).collect::<Vec<ObjectId>>()",
+                    self.chosen_in_slot(slot, choosing)?
+                )
             }
             ObjectSet::One(ObjectRef::Target { slot, index }) => format!(
                 "t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).and_then(|t: Target| t.object()).into_iter().collect::<Vec<_>>()",
@@ -1005,7 +1020,7 @@ impl Compiler {
             Expr::EventAmount
                 if self.frame.amount.is_none()
                     && self.frame != Frame::default()
-                    && self.event_at == EventAt::Matcher =>
+                    && matches!(self.event_at, EventAt::Matcher | EventAt::TargetFilter) =>
             {
                 count(planned::planned_value(
                     "amount of an event its trigger does not carry",
@@ -1050,9 +1065,6 @@ impl Compiler {
                     frame: self.frame,
                 });
                 let matched = asked.event(event)?;
-                if let Some(feature) = matched.planned.first() {
-                    return Err(gap(feature.clone()));
-                }
                 let hits = format!("{scope}.filter_map({})", matched.history_test());
                 let answer = match measure {
                     HistoryMeasure::Occurrences => format!("{hits}.count() as i64"),
@@ -1062,6 +1074,11 @@ impl Compiler {
                         format!("{hits}.map(|f: Fired| i64::from(f.data[0])).sum::<i64>()")
                     }
                     other => lane_p::history_measure(other, &hits),
+                };
+                // The event is one the engine will have: the question is stated.
+                let answer = match matched.planned.first() {
+                    Some(feature) => planned::planned_value(feature, "0i64", &answer),
+                    None => answer,
                 };
                 count(if self.event_at == EventAt::Matcher {
                     format!("{{ let (outer_subject, outer_data) = (subject, data); {answer} }}")
@@ -1254,7 +1271,14 @@ impl Compiler {
                 if self.counted == Some(result.0) =>
             {
                 Number {
-                    code: "i64::from(item.x)".into(),
+                    code: match self.event_at {
+                        EventAt::TargetFilter => planned::planned_value(
+                            "a target filter reading the amount its ability was told",
+                            "0i64",
+                            "q.told_amount(asker)",
+                        ),
+                        _ => "i64::from(item.x)".into(),
+                    },
                     min: 0,
                     max: u16::MAX.into(),
                     dynamic: true,
@@ -1267,6 +1291,11 @@ impl Compiler {
                     _ if self.failed.contains(&result.0) => {
                         count(planned::unreported("0i64", result))
                     }
+                    _ if self.prevented.contains(&result.0) => count(planned::planned_value(
+                        "damage prevented by an effect of this ability",
+                        "0i64",
+                        "q.told_amount(asker)",
+                    )),
                     _ => return Err(gap("result this instruction does not report")),
                 }
             }

@@ -570,6 +570,26 @@ impl Compiler {
                 };
                 (mask, pattern, "let id = *permanent; let subject = Target::Object(id); let data = [u32::from(player.0), 0];", "*player", acted(), None, phrase, true)
             }
+            E::Guesses => (
+                "GUESSED",
+                "Event::Guessed { player, .. }",
+                ONE,
+                "*player",
+                about,
+                None,
+                "Whenever a player guesses",
+                true,
+            ),
+            E::GroupsIntoPiles => (
+                "GROUPED_INTO_PILES",
+                "Event::GroupedIntoPiles { player, .. }",
+                ONE,
+                "*player",
+                about,
+                None,
+                "Whenever a player groups objects into piles",
+                true,
+            ),
             E::CompletesDungeon => (
                 "DUNGEON_COMPLETED",
                 "Event::DungeonCompleted { player }",
@@ -1146,7 +1166,10 @@ impl Compiler {
                 ))
             }
             EventSpec::OntoStack(filter) => {
-                let frame = plain();
+                let frame = Frame {
+                    stack_object: Some(Carried::Subject),
+                    ..plain()
+                };
                 let test = self.matching(frame, |c| c.filter(filter, &Candidate::of("id")))?;
                 Ok(held_arm(
                     "ONTO_STACK",
@@ -1159,7 +1182,10 @@ impl Compiler {
                 ))
             }
             EventSpec::TargetsChosen { players, .. } => {
-                let frame = plain();
+                let frame = Frame {
+                    stack_object: Some(Carried::Subject),
+                    ..plain()
+                };
                 let test = self.matching(frame, |c| c.player_in(players, "*player"))?;
                 Ok(held_arm(
                     "TARGETS_CHOSEN",
@@ -1171,6 +1197,11 @@ impl Compiler {
                     "trigger event TargetsChosen",
                 ))
             }
+            EventSpec::WhileActivating {
+                event,
+                players,
+                abilities,
+            } => self.while_activating(event, players, abilities),
             EventSpec::Resolves(filter) => {
                 let frame = plain();
                 let test = self.activation_test(filter, frame)?;
@@ -1207,9 +1238,6 @@ impl Compiler {
             return Err(gap("an ordinal event in a history question"));
         }
         let mut matched = self.event(event)?;
-        if matched.sums {
-            return Err(gap("an ordinal of grouped events"));
-        }
         let mut asked = self.clone();
         asked.history = Some(History {
             outer: None,
@@ -1226,6 +1254,18 @@ impl Compiler {
             "{scope}.filter_map({}){same}.count() == 0",
             past.history_test()
         );
+        // Summed events are one happening: the rest of it is no earlier one.
+        let test = match matched.sums {
+            true => planned::planned_value(
+                "an ordinal of grouped events",
+                "false",
+                &format!(
+                    "{scope}.filter(|r| !r.in_batch_of(event)).filter_map({}){same}.count() == 0",
+                    past.history_test()
+                ),
+            ),
+            false => test,
+        };
         for arm in &mut matched.arms {
             arm.tests.push(test.clone());
         }
@@ -1324,8 +1364,10 @@ impl Compiler {
         event: &PlayerEvent,
     ) -> Result<Matched> {
         let any = ObjectFilter::Any;
+        let exiled_with = objects.and_then(lane_n::played_from_exile_with);
         let spells = match objects {
             None => &any,
+            _ if exiled_with.is_some() => &any,
             Some(ObjectFilter::InSet(set))
                 if matches!(
                     &**set,
@@ -1364,6 +1406,17 @@ impl Compiler {
             matched.arms[1].pattern =
                 "Event::ZoneChange { new, from, to, reason: ZoneReason::PlayLand, .. }".into();
             matched.arms[1].tests.push(format!("from.is({zone})"));
+        }
+        if let Some(object) = exiled_with {
+            let by = self.matching(matched.frame, |c| c.object(object))?;
+            let test = planned::planned_value(
+                "a card played from among those exiled with an object",
+                "false",
+                &format!("{by}.is_some_and(|by: ObjectId| q.was_exiled_with(id, by))"),
+            );
+            for arm in &mut matched.arms {
+                arm.tests.push(test.clone());
+            }
         }
         Ok(matched)
     }
@@ -1454,11 +1507,14 @@ impl Compiler {
         if self.history.is_some() {
             return Err(gap("who attacked alongside whom, in a history question"));
         }
+        let (comparison, value) = count;
+        let alone = matches!(comparison, Comparison::Equal) && matches!(value, Expr::Constant(1));
         let frame = Frame {
             other_player: Some(Carried::Data(0)),
+            other: alone.then_some(Carried::Data(1)),
             ..plain()
         };
-        let (comparison, value) = count;
+        let mut alongside = String::new();
         let tests = self.matching(frame, |c| {
             let object = c.object(object)?;
             let other = c.filter(others, &Candidate::of("o"))?;
@@ -1471,6 +1527,9 @@ impl Compiler {
             let many = format!(
                 "q.state().attackers.iter().filter(|a| {{ let o = a.id; o != id{apart} && {other} }}).count() as i64"
             );
+            if alone {
+                alongside = format!(" let data = [data[0], q.state().attackers.iter().filter(|a| {{ let o = a.id; o != id{apart} && {other} }}).map(|a| a.id.0).next().unwrap_or(u32::MAX)];");
+            }
             let mut tests = vec![format!("{object} == Some(id)"), compare(&many, comparison, &value)];
             if let Some(by) = by {
                 tests.push(c.player_in(by, "q.controller(id)")?);
@@ -1481,7 +1540,7 @@ impl Compiler {
             "ATTACKS",
             Arm {
                 pattern: "Event::Attacks { attacker, defending, .. }".into(),
-                locals: object_fired("*attacker", "u32::from(defending.0)"),
+                locals: object_fired("*attacker", "u32::from(defending.0)") + &alongside,
                 tests,
             },
             frame,
@@ -2408,7 +2467,7 @@ impl Compiler {
 }
 
 /// A color's mana letter.
-fn mana_letter(color: &ManaColor) -> String {
+pub(super) fn mana_letter(color: &ManaColor) -> String {
     let word = form(color);
     match word.as_str() {
         "White" => "W".into(),
@@ -2848,6 +2907,7 @@ pub(super) fn event_object(event: &EventSpec) -> Option<ObjectRef> {
         ..
     }
     | EventSpec::Object { objects, .. }
+    | EventSpec::Spell { spells: objects, .. }
     | EventSpec::Attack {
         attackers: objects, ..
     }) = event

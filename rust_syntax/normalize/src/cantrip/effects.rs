@@ -294,7 +294,30 @@ impl Compiler {
                 .chosen_local(ValueKind::Recipient)
                 .map(|chosen| format!("vec![{chosen}]"))
                 .map_err(|_| gap("chosen damage recipient"))?,
-            Recipients::DamagedByEvent => return Err(gap("recipient of event damage")),
+            Recipients::DamagedByEvent => match self.frame {
+                Frame {
+                    recipient: Some(Carried::Data(i)),
+                    ..
+                } => {
+                    let (_, data) = self.carried(Carried::Data(i))?;
+                    format!("vec![{{ let r = {data}[{i}]; if r >= u32::MAX - 1 - u32::from(u8::MAX) {{ Target::Player(PlayerId((u32::MAX - 1 - r) as u8)) }} else {{ Target::Object(ObjectId(r)) }} }}]")
+                }
+                Frame {
+                    damage_recipient: Some(carried),
+                    ..
+                } => format!(
+                    "{}.map(Target::Object).into_iter().collect::<Vec<Target>>()",
+                    self.carried_object(Some(carried))?
+                ),
+                Frame {
+                    player: Some(carried),
+                    ..
+                } => format!(
+                    "{}.map(Target::Player).into_iter().collect::<Vec<Target>>()",
+                    self.carried_player(Some(carried))?
+                ),
+                _ => return Err(gap("recipient of event damage")),
+            },
             Recipients::AttackedBy(object) => format!(
                 "{{ let attacker = {}; q.state().attackers.iter().find(|a| Some(a.id) == attacker).map(|a| a.target).filter(|t| *t != Target::None).into_iter().collect::<Vec<Target>>() }}",
                 self.object(object)?
@@ -560,10 +583,16 @@ impl Compiler {
         match instruction {
             Instruction::Effect {
                 operation: operation @ Operation::PlayCards { .. },
-                ..
-            } => self.play_cards(operation, false, out),
-            Instruction::Effect { operation, .. } if lane_i::plain_play(operation).is_some() => {
-                self.play_cards(operation, false, out)
+                result,
+            } => {
+                self.play_cards(operation, false, out)?;
+                self.report_played(result);
+                Ok(())
+            }
+            Instruction::Effect { operation, result } if lane_i::plain_play(operation).is_some() => {
+                self.play_cards(operation, false, out)?;
+                self.report_played(result);
+                Ok(())
             }
             Instruction::Effect {
                 operation:
@@ -706,8 +735,13 @@ impl Compiler {
                         objects: ObjectSet::Transition { result, .. },
                         ..
                     },
-                ..
-            } if self.returning.contains(&result.0) => Ok(()),
+                result: returned,
+            } if self.returning.contains(&result.0) => {
+                if let Some(moved) = self.moved.get(&result.0).cloned() {
+                    self.moved.insert(returned.0, moved);
+                }
+                Ok(())
+            }
             Instruction::Effect { operation, result } => self.operation(operation, result, out),
             // One instruction of the card's text: no sentence boundary inside,
             // and its results stay in reach of what follows it.
@@ -738,10 +772,13 @@ impl Compiler {
                 while let [Instruction::Group(group)] = plays.instructions.as_slice() {
                     plays = group;
                 }
-                let [Instruction::Effect { operation, .. }] = plays.instructions.as_slice() else {
+                let [Instruction::Effect { operation, result }] = plays.instructions.as_slice()
+                else {
                     return Err(gap("may play"));
                 };
-                self.play_cards(operation, true, out)
+                self.play_cards(operation, true, out)?;
+                self.report_played(result);
+                Ok(())
             }
             // "You may choose new targets" (115.7d) already leaves any of them.
             Instruction::Optional { body, .. } if lane_i::may_retarget(body).is_some() => {
@@ -1426,7 +1463,13 @@ impl Compiler {
                     }
                     EffectEvaluation::Live => return Err(gap("live continuous effect")),
                     _ => {
-                        self.continuous(id, source, affected, changes, duration, out)?;
+                        self.rule_on_event_object = matches!(
+                            affected,
+                            EffectSubjects::Objects(ObjectSet::One(ObjectRef::EventSubject))
+                        );
+                        let made = self.continuous(id, source, affected, changes, duration, out);
+                        self.rule_on_event_object = false;
+                        made?;
                         self.selections.insert(result.0, format!("objects_{id}"));
                     }
                 }
@@ -1474,7 +1517,10 @@ impl Compiler {
                 limit,
                 duration,
                 body,
-            } => self.create_replacement(event, limit, duration, body, out)?,
+            } => {
+                self.prevented.extend(lane_n::preventions(body));
+                self.create_replacement(event, limit, duration, body, out)?
+            }
             Operation::PayCost {
                 player,
                 cost,
@@ -1490,7 +1536,8 @@ impl Compiler {
                 optional: true,
             } if self.asking.is_none()
                 && (performed_by_itself(cost)
-                    || (lane_l::chooses_what_pays(cost) && self.read_later(result))) =>
+                    || ((lane_l::chooses_what_pays(cost) || lane_n::moves_named_objects(cost))
+                        && self.read_later(result))) =>
             {
                 let mandatory = Operation::PayCost {
                     player: player.clone(),
@@ -1641,6 +1688,7 @@ impl Compiler {
                         cost,
                         out,
                     )?;
+                    self.objects_that_paid(id, result, out);
                     self.performed.insert(result.0, format!("paid_{id}"));
                     return Ok(());
                 };
@@ -1806,6 +1854,7 @@ impl Compiler {
             let payer = self.fetch(self.certain_player(player)?);
             writeln!(out, "let payer_{id} = {payer}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, cantrip_mechanics::blight::cost({n}), &PAY_QUESTION)?;").unwrap();
             self.performed.insert(result.0, format!("paid_{id}"));
+            self.objects_that_paid(id, result, out);
             return Ok(());
         }
         let willing = if optional {
@@ -1823,6 +1872,7 @@ impl Compiler {
         self.block(body, out, true)?;
         writeln!(out, "}}").unwrap();
         self.performed.insert(result.0, format!("paid_{id}"));
+        self.action_paid(body, result);
         Ok(())
     }
     pub(super) fn left_behind(&mut self, result: &ResultId, list: String) {
@@ -2210,11 +2260,16 @@ impl Compiler {
                 self.removed_from_players(id, removal, out)?;
                 continue;
             };
-            let objects = self.fetch(self.objects(objects)?);
+            let shares = self.outside_shares(removal)?;
+            let objects = match &shares {
+                Some(shares) => self.fetch(shares),
+                None => self.fetch(self.objects(objects)?),
+            };
             writeln!(out, "let objects_{id}_{i} = {objects};").unwrap();
             match (&removal.kind, &removal.amount) {
                 (Some(kind), amount) => {
                     let amount = match amount {
+                        _ if shares.is_some() => "1i16".to_string(),
                         CounterAmount::All => "i16::MAX".to_string(),
                         CounterAmount::Count(Count::Exactly(n)) => {
                             self.fetch(self.number(n)?.amount(i16::MAX.into(), "i16")?)

@@ -1251,7 +1251,8 @@ impl Compiler {
         if announcement.modes.is_none() {
             return Ok(None);
         }
-        let name = self.modal(announcement, label, None)?;
+        // Its target filters read what the ability is about, as any of its reads.
+        let name = self.modal(announcement, label, Some(Frame::default()))?;
         Ok(Some(name))
     }
     /// A spell's second body, as "... Then ..." after its modes or its branches.
@@ -1280,7 +1281,8 @@ impl Compiler {
         least: &Expr,
         most: &Expr,
     ) -> Result<String> {
-        let (least, most) = (self.number(least)?.code, self.number(most)?.code);
+        let told = |code: String| code.replace("i64::from(item.x)", "q.told_amount(asker)");
+        let (least, most) = (told(self.number(least)?.code), told(self.number(most)?.code));
         Ok(planned::planned_value(
             "mode count that is not a constant",
             &format!("{listed}.choose(1, 1)"),

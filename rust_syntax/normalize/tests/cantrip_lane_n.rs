@@ -26,12 +26,43 @@ const CARDS: &[(&str, &str)] = &[
         "\"Lifetime\" Pass Holder",
         "amount of an event its trigger does not carry",
     ),
+    // "If those permanents are exchanged this way".
+    ("Gauntlets of Chaos", "traded_"),
+    // "For each counter you put on a creature this way": once per counter.
+    ("Shambling Swarm", "std::iter::repeat(o).take(share)"),
+    ("Bounty of the Hunt", "std::iter::repeat(o).take(share)"),
+    // A reflexive ability's damage comes from a target of what made it.
+    ("Thorin, Mountain-king", "item.subject.object()"),
+    // "That permanent or player": the two are read from different places.
+    ("Ghyrson Starn, Kelermorph", "ability_1_or_1_event"),
+    // "The damage dealt this way", of a batch gathered one player at a time.
+    ("Spiteful Repossession", "let done_"),
+    // What Cantrip doesn't have yet is named as a requirement.
+    ("Sacred Boon", "damage prevented by an effect of this ability"),
+    ("Bill Potts", "a limit shared by the abilities of one sentence"),
+    ("Market Gnome", "trigger event WhileActivating"),
+    ("Divine Deflection", "target reference outside a resolving ability"),
+    ("Arcbond", "event trigger carrying values"),
+    ("Undiscovered Paradise", "replacement made outside a resolving ability"),
+    ("The Mimeoplasm", "event change as it enters Entry CopyOf"),
+    ("Martyrdom", "replacement made by a granted ability"),
+    ("Suffocation", "damage source kind Spell"),
+    ("Primeval Spawn", "as-enters replacement of another event"),
+    ("Quarum Trench Gnomes", "replacement event ProduceColor"),
 ];
 
-/// Cards whose source lost a word, so code from it would say the opposite of the
-/// card: "if it isn't a mana ability" reaches the generator as "if it is". Each
-/// keeps its gap.
-const LOST: &[(&str, &str)] = &[("Harsh Mentor", "event object this trigger does not bind")];
+/// Cards whose source lost a word, so code from it would say what the card does
+/// not: "if it isn't a mana ability" reaches the generator as "if it is", and "a
+/// spell" as anything. Each keeps its gap.
+const LOST: &[(&str, &str)] = &[
+    ("Harsh Mentor", "a mana ability test that lost its negation"),
+    (
+        "Dormant Gomazoa",
+        "trigger event Player BecomesTarget of what is not said",
+    ),
+    ("Starving Revenant", "transition this instruction does not report"),
+    ("Minds Aglow", "result this instruction does not report"),
+];
 
 fn modules(names: Vec<String>) -> Option<BTreeMap<String, String>> {
     let corpus = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/mtgish.lines.ron");

@@ -9,9 +9,9 @@ pub(super) struct Outer {
     /// The making instruction's view, to read references as they stand then.
     compiler: Compiler,
     /// `Vec<ObjectId>` code for each list carried.
-    objects: RefCell<Vec<String>>,
+    pub(super) objects: RefCell<Vec<String>>,
     /// `Option<PlayerId>` code for the player carried.
-    player: RefCell<Option<String>>,
+    pub(super) player: RefCell<Option<String>>,
     /// `Option<ObjectId>` code of the object carried as a subject, for an
     /// ability that cannot carry lists.
     pub(super) subject: Option<RefCell<Option<String>>>,
@@ -100,16 +100,18 @@ impl Compiler {
                 || outer.compiler.slots.get(&slot.0).is_some_and(|(_, spec)| {
                     matches!(spec.count, Count::Exactly(Expr::Constant(1)))
                 });
-            if !(of_an_object && single) {
-                return Err(gap("a made effect about a target that may be a player"));
+            if of_an_object && single {
+                let object = ObjectRef::Target {
+                    slot: slot.clone(),
+                    index,
+                };
+                return Ok(self.outside_object(&object)?.map(|code| {
+                    format!("({code}).map(Target::Object).into_iter().collect::<Vec<Target>>()")
+                }));
             }
-            let object = ObjectRef::Target {
-                slot: slot.clone(),
-                index,
-            };
-            return Ok(self.outside_object(&object)?.map(|code| {
-                format!("({code}).map(Target::Object).into_iter().collect::<Vec<Target>>()")
-            }));
+            if outer.made.is_none() {
+                return Err(gap("a reflexive ability about a target that may be a player"));
+            }
         }
         let Some(feature) = &outer.made else {
             return Ok(None);
@@ -143,7 +145,9 @@ impl Compiler {
             ObjectRef::EventSubject => self.frame.object.is_some(),
             ObjectRef::EventDestination => self.frame.destination.is_some(),
             ObjectRef::EventOther => self.frame.other.is_some(),
-            ObjectRef::EventStackObject => self.frame.stack_object.is_some(),
+            ObjectRef::EventStackObject => {
+                self.frame.stack_object.is_some() || self.frame.activated.is_some()
+            }
             ObjectRef::BlockPair(BlockRole::Attacker) => self.frame.attacker.is_some(),
             ObjectRef::BlockPair(BlockRole::Blocker) => self.frame.blocker.is_some(),
             ObjectRef::BlockPair(BlockRole::Other) => self.frame.other.is_some(),
@@ -212,6 +216,32 @@ impl Compiler {
             self.carried_list(outer, code)
         )))
     }
+    /// `Vec<ObjectId>`: the targets of the maker's division, each as often as its
+    /// share, for a removal of that many from each.
+    pub(super) fn outside_shares(&self, removal: &CounterRemoval) -> Result<Option<String>> {
+        let (
+            Recipients::Objects(ObjectSet::Targets(slot)),
+            CounterAmount::Count(Count::Exactly(Expr::DistributedShare(share))),
+        ) = (&removal.recipients, &removal.amount)
+        else {
+            return Ok(None);
+        };
+        let Some(outer) = self.carrying() else {
+            return Ok(None);
+        };
+        if slot.0 != share.0
+            || self.slots.contains_key(&slot.0)
+            || outer.subject.is_some()
+            || outer.made.is_some()
+        {
+            return Ok(None);
+        }
+        let at = outer.compiler.slot(slot)?;
+        let code = format!(
+            "q.state().targets(item).iter().enumerate().filter(|(_, t)| t_{at}.contains(t)).flat_map(|(i, t)| {{ let share = q.state().share(item, i) as usize; t.object().into_iter().flat_map(move |o| std::iter::repeat(o).take(share)) }}).collect::<Vec<ObjectId>>()"
+        );
+        Ok(Some(self.carried_list(outer, code)))
+    }
     /// A `Vec<ObjectId>` this body cannot read for itself, if `objects` is.
     pub(super) fn outside_objects(&self, objects: &ObjectSet) -> Result<Option<String>> {
         let Some(outer) = self.carrying() else {
@@ -231,6 +261,10 @@ impl Compiler {
                     || !self.bound_outside(result)
             }
             ObjectSet::Targets(slot) => self.slots.contains_key(&slot.0),
+            ObjectSet::CostObjects {
+                payment: PaymentRef::Resolution(result),
+                ..
+            } => self.moved.contains_key(&result.0),
             ObjectSet::CostObjects { .. } => false,
             ObjectSet::One(object) => self.reads_itself(object),
             _ => true,
@@ -491,6 +525,10 @@ impl Compiler {
         });
         let results = self.results();
         let repeating = self.repeating.take();
+        let around_item = (self.stack_item, self.pending);
+        if outer.made.is_none() {
+            (self.stack_item, self.pending) = (true, Pending::Nothing);
+        }
         let scope = (
             self.event_at,
             self.frame,
@@ -507,6 +545,7 @@ impl Compiler {
         self.outer = around;
         self.affected_in_scope = affected;
         self.repeating = repeating;
+        (self.stack_item, self.pending) = around_item;
         (
             self.event_at,
             self.frame,
@@ -715,17 +754,22 @@ impl Compiler {
             .get(&performed.0)
             .filter(|value| value.starts_with("bound_"))
             .cloned()
-            .or_else(|| self.told_amount(performed, body));
+            .or_else(|| self.told_amount(performed, body, announcement));
         let slot = self.counted_slot(announcement);
         let amount = amount.or_else(|| slot.as_ref().map(|(_, code)| code.clone()));
         let counted = std::mem::replace(&mut self.counted, amount.as_ref().map(|_| performed.0));
         let sized = std::mem::replace(&mut self.sized_slot, slot.map(|(count, _)| count));
-        let modal = self.reflexive_modes(announcement, &label);
         let announced = lane_p::without_modes(announcement);
-        let closed = self.closure(&label, true, Some(&announced), &None, body);
+        let closed = self.closing(true, |c| {
+            c.reset_results();
+            let targets = c.targets_for(&announced, &label, Frame::default())?;
+            let modal = c.reflexive_modes(announcement, &label);
+            c.effect(body, &label)?;
+            Ok((Some(targets), modal))
+        });
         self.counted = counted;
         self.sized_slot = sized;
-        let (outer, targets) = closed.map_err(lane_l::reads_as_a_target)?;
+        let (outer, (targets, modal)) = closed.map_err(lane_l::reads_as_a_target)?;
         let text = self.said(lane_k::Said::Triggered, ability_text(body));
         let mut def = format!("delayed_trigger({label}, {})", quoted(&text));
         if let Some(targets) = targets {

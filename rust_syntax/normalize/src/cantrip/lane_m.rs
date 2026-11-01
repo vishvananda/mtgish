@@ -634,6 +634,12 @@ impl Compiler {
     pub(super) fn player_more(&self, player: &PlayerRef) -> Result<String> {
         let feature = format!("player reference {}", form(player));
         Ok(match player {
+            // "That player" of an event that binds one, outside any row of players.
+            PlayerRef::Prior(PriorPlayer::That)
+                if self.row_player().is_err() && self.frame.player.is_some() =>
+            {
+                self.carried_player(self.frame.player)?
+            }
             PlayerRef::Acting | PlayerRef::Prior(PriorPlayer::That) => match self.row_player() {
                 Ok(row) => row,
                 Err(_) if matches!(player, PlayerRef::Acting) => {

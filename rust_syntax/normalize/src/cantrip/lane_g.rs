@@ -468,11 +468,8 @@ impl Compiler {
         feature: &str,
         in_history: bool,
     ) -> Result<()> {
-        if self.history.is_some() {
-            return match in_history {
-                true => Ok(()),
-                false => Err(gap(feature)),
-            };
+        if self.history.is_some() && in_history {
+            return Ok(());
         }
         matched.planned.push(feature.into());
         Ok(())
@@ -917,9 +914,26 @@ impl Compiler {
             {
                 self.tap_any_number(id, player, &selections[0].objects, result, out)?;
             }
+            CostPart::Reveal {
+                count,
+                filter: ObjectFilter::Any,
+                random: true,
+            } if self.read_later(result) => {
+                let [count] = [self.select_count(count)?];
+                let who = self.fetch(self.certain_player(player)?);
+                let revealed = planned::planned_value(
+                    "resolution cost Reveal",
+                    "Vec::<ObjectId>::new()",
+                    &format!("cantrip_mechanics::reveal_at_random(g, payer_{id}, asker.source, {count})?"),
+                );
+                writeln!(out, "let payer_{id} = {who}; let revealed_{id}: Vec<ObjectId> = {revealed}; let paid_{id} = !revealed_{id}.is_empty();").unwrap();
+                self.selections.insert(result.0, format!("revealed_{id}"));
+                self.before.insert(result.0, format!("revealed_{id}.clone()"));
+            }
             other => {
                 let feature = format!("resolution cost {}", form(other));
-                return self.stated_payment(&feature, id, player, cost, out);
+                self.stated_payment(&feature, id, player, cost, out)?;
+                self.objects_that_paid(id, result, out);
             }
         }
         Ok(())

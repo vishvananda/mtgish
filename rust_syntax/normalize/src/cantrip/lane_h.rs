@@ -1032,7 +1032,14 @@ impl Compiler {
                 };
                 let saved = (self.reader, self.event_at);
                 (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+                // A block rule's source is the object the effect is on.
+                let event = (self.frame, self.event_object.clone());
+                if self.rule_on_event_object {
+                    self.frame.object = Some(Carried::Subject);
+                    self.event_object = Some(ObjectRef::Source);
+                }
                 let test = self.filter(filter, &Candidate::of(other));
+                (self.frame, self.event_object) = event;
                 (self.reader, self.event_at) = saved;
                 let index = self.made_block_rules.len();
                 let function = format!("block_rule_{index}");
@@ -3032,6 +3039,19 @@ impl Compiler {
     }
     /// What it is as it enters, its own copiable values changed.
     fn copiable_entry(&mut self, changes: &[Change], out: &mut String) -> Result<()> {
+        // "And has changeling", of what it chose to enter as a copy of.
+        if let [Change::Copiable(list)] = changes {
+            if let [Change::GrantAbility(ability)] = list.as_slice() {
+                if lane_n::every_creature_type(ability) {
+                    self.plan_code(
+                        "event change as it enters Copiable GrantAbility",
+                        "entering.copy = entering.copy.map(|values| values.with_every_creature_type());",
+                        out,
+                    );
+                    return Ok(());
+                }
+            }
+        }
         let mut values = "q.copiable_values(entering.object)".to_string();
         for change in changes {
             let Change::Copiable(list) = change else {
@@ -3154,6 +3174,40 @@ impl Compiler {
                     labels.push(label.join(" and "));
                 }
                 self.entry_option(labels, arms, out)?;
+            }
+            // One choice for each: "for each card exiled this way".
+            EntryState::CountersOfChoice {
+                kinds,
+                amount,
+                distinct: false,
+            } => {
+                let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
+                let kinds = kinds
+                    .iter()
+                    .map(counter_kind)
+                    .collect::<Result<Vec<_>>>()?
+                    .join(", ");
+                self.plan_code(
+                    "event change as it enters Entry CountersOfChoice",
+                    &format!(
+                        "let many = {}; for _ in 0..many {{ cantrip_mechanics::choose::counter_as_enters(g, entering, &[{kinds}])?; }}",
+                        self.fetch(amount)
+                    ),
+                    out,
+                );
+            }
+            EntryState::CopyOf {
+                objects: ObjectSet::One(object),
+                effects,
+                until: None,
+            } => {
+                let object = self.object(object)?;
+                let values = self.copy_values(&object, std::slice::from_ref(&**effects))?;
+                self.plan_code(
+                    "event change as it enters Entry CopyOf",
+                    &format!("entering.copy = {values};"),
+                    out,
+                );
             }
             EntryState::CountersOf {
                 object: ObjectRef::Named { result, .. },

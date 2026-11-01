@@ -524,7 +524,10 @@ impl Compiler {
             }
             Operand::Program(program) => {
                 let saved = (self.reader, self.event_at);
-                (self.reader, self.event_at) = (Reader::Resolution, EventAt::Nowhere);
+                (self.reader, self.event_at) = match saved.1 {
+                    EventAt::Item => (Reader::Resolution, EventAt::Item),
+                    _ => (Reader::Resolution, EventAt::Nowhere),
+                };
                 let mut body = String::new();
                 let compiled = self.block(program, &mut body, true);
                 (self.reader, self.event_at) = saved;
@@ -695,7 +698,7 @@ impl Compiler {
         if !terms.effects.is_empty() {
             let mut riders = Vec::new();
             for effect in &terms.effects {
-                riders.push(self.stated(effect)?);
+                riders.push(self.play_rider(effect)?);
             }
             write!(grant, "rider: Some(&[{}]), ", riders.join(", ")).unwrap();
         }
@@ -2772,7 +2775,10 @@ impl Compiler {
             ))
         };
         let code = read(self).map_err(|_| failed.clone())?;
-        self.plan_code(&failed.feature, &code, out);
+        let id = self.fresh();
+        let played = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", code.trim_end_matches(';'));
+        writeln!(out, "let played_{id}: Vec<ObjectId> = {played};").unwrap();
+        self.played = Some(format!("played_{id}"));
         Ok(())
     }
     /// A rule of casting this card no field of the engine's holds.
@@ -3021,6 +3027,10 @@ impl Compiler {
                 format!("def.is_some_and(|d| d.keyword_of() == Some(AbilityKeyword::{word:?}))")
             }
             ObjectFilter::OnStack(other) => format!("q.activation_has(id, StackTrait::{other:?})"),
+            ObjectFilter::ManaSpentFrom(sources) => format!(
+                "q.activation_mana_from(id).any(|source: ObjectId| {})",
+                self.filter(sources, &Candidate::of("source"))?
+            ),
             ObjectFilter::TargetsAny(targets) => format!(
                 "q.activation_targets_any(id, |t: &Target| {})",
                 self.targeted(targets)?

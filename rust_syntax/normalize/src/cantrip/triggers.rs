@@ -554,7 +554,7 @@ impl Compiler {
             Some(objects) if frame.object.is_some() => {
                 tests.push(self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?)
             }
-            None if frame.object.is_none() => {}
+            None => {}
             _ => return Err(gap(format!("trigger event Player {} objects", form(event)))),
         }
         let mut matched = single(
@@ -917,7 +917,15 @@ impl Compiler {
             amount: Some(Carried::Data(0)),
             ..Frame::default()
         };
-        let mut tests = vec![self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?];
+        let putting = Frame {
+            player: by.map(|_| Carried::Data(1)),
+            ..frame
+        };
+        let test = self.matching(putting, |c| c.filter(objects, &Candidate::of("id")))?;
+        let mut tests = vec![match test.contains("data[1]") {
+            true => format!("{{ let data = [0u32, u32::from(by.0)]; {test} }}"),
+            false => test,
+        }];
         if let Some(kind) = kind {
             tests.push(format!("*kind == {}", read::counter_kind(kind)?));
         }
@@ -1051,7 +1059,8 @@ impl Compiler {
         let mut matched = self.event(event)?;
         // The first of a batch is the batch's: the rest see it in the history.
         let first = matches!(comparison, Comparison::Equal) && matches!(value, Expr::Constant(1));
-        if (matched.batch.is_some() && !first) || matched.sums {
+        let summed = matched.sums;
+        if (matched.batch.is_some() || summed) && !first {
             return Err(gap("an ordinal of grouped events"));
         }
         let same = match (by_player, matched.frame.player) {
@@ -1070,11 +1079,17 @@ impl Compiler {
         });
         let past = asked.event(event)?;
         let value = self.matching(matched.frame, |c| Ok(c.number(value)?.code))?;
+        // Summed events are one happening: the rest of it is no earlier one.
+        let others = if summed { ".filter(|r| !r.in_batch_of(event))" } else { "" };
         let count = format!(
-            "q.history().this_turn().iter().filter_map({}){same}.count() as i64 + 1",
+            "q.history().this_turn().iter(){others}.filter_map({}){same}.count() as i64 + 1",
             past.history_test()
         );
         let test = read::compare(&count, comparison, &value);
+        let test = match summed {
+            true => planned::planned_value("an ordinal of grouped events", "false", &test),
+            false => test,
+        };
         for arm in &mut matched.arms {
             arm.tests.push(test.clone());
         }
@@ -1113,6 +1128,7 @@ impl Compiler {
         };
         let keyed_by_recipient = matches!(grouping, DamageGrouping::Recipient);
         let second = match (by_source, grouping) {
+            (_, DamageGrouping::SourceController) => "u32::from(q.controller(source).0)",
             (false, DamageGrouping::Recipient) => recipient_code,
             (false, _) => "source.0",
             (true, DamageGrouping::Source) => "source.0",
@@ -1133,11 +1149,16 @@ impl Compiler {
                     frame.player = carried_second;
                 } else if to_objects {
                     frame.damage_recipient = carried_second;
+                } else {
+                    frame.recipient = carried_second;
                 }
             }
         } else {
-            // A player is no object: "that creature" is a gap here, not a player.
-            frame.object = (!player_subject).then_some(Carried::Subject);
+            // The player a target filter reads is no object: "it" is the source.
+            frame.object = match player_subject {
+                true => (!keyed_by_recipient).then_some(Carried::Data(1)),
+                false => Some(Carried::Subject),
+            };
             frame.player = Some(Carried::Subject);
             frame.damage_recipient = Some(Carried::Subject);
             if !keyed_by_recipient {
@@ -1161,6 +1182,13 @@ impl Compiler {
             ObjectKind::Spell if self.history.is_none() => {
                 "q.state().obj(source).zone.is(ZoneKind::Stack)".to_string()
             }
+            // Asked afterwards, when a spell has left the stack.
+            ObjectKind::Spell => planned::planned_value(
+                "damage source kind Spell",
+                "false",
+                "q.history().dealt_by_spell(source)",
+            ),
+            ObjectKind::Card => "!q.state().obj(source).token".to_string(),
             other => return Err(gap(format!("damage source kind {}", form(other)))),
         });
         tests.push(self.matching(frame, |c| c.filter(sources, &Candidate::of("source")))?);
@@ -1293,11 +1321,10 @@ impl Compiler {
         matched.batch = match damage.grouping {
             _ if matched.sums => None,
             DamageGrouping::SourceRecipient => None,
-            DamageGrouping::Source | DamageGrouping::Recipient => Some(true),
+            DamageGrouping::Source
+            | DamageGrouping::Recipient
+            | DamageGrouping::SourceController => Some(true),
             DamageGrouping::Batch => Some(false),
-            DamageGrouping::SourceController => {
-                return Err(gap("damage grouped per source controller"))
-            }
         };
         Ok(matched)
     }
@@ -1315,6 +1342,7 @@ impl Compiler {
                 let frame = Frame {
                     object: Some(Carried::Subject),
                     player: Some(Carried::Data(0)),
+                    stack_object: Some(Carried::Subject),
                     ..Frame::default()
                 };
                 let test = self.matching(frame, |c| {
@@ -1577,6 +1605,18 @@ impl Compiler {
             }
             return Ok(def);
         }
+        if let Some(events) = lane_n::spell_or_ability(event, intervening_if, body) {
+            if gate.is_none() && conditional.is_none() && limits.total.is_none() {
+                return self.triggered_each(
+                    label,
+                    &events,
+                    intervening_if,
+                    limits,
+                    announcement,
+                    body,
+                );
+            }
+        }
         self.recipient_subject =
             format!("{:?}", announcement.targets).contains("ControlledBy(One(EventSubject))");
         let matched = self.event(event);
@@ -1645,22 +1685,27 @@ impl Compiler {
         let done_once = self.done_once(limits, body);
         extra.extend(done_once.map(lane_k::not_yet_done));
         if let Some(intervening) = intervening_if {
-            match self.condition_function(intervening, &format!("{label}_if")) {
-                Ok(function) => condition = Some(function),
-                // What an ability's cost was does not change: the event's test is all.
-                Err(_) if lane_n::of_the_activation(intervening, matched.frame) => {
-                    let Condition::ObjectMatches { filter, .. } = intervening else {
-                        unreachable!("of_the_activation asks this");
-                    };
-                    extra.push(self.activation_test(filter, matched.frame)?);
-                }
-                Err(gap) if gap.feature.contains("event") => {
-                    extra.push(self.matching(matched.frame, |c| c.condition(intervening))?);
-                    guard = Some(intervening);
-                }
-                Err(gap) => {
-                    self.frame = Frame::default();
-                    return Err(gap);
+            if lane_n::lost_its_negation(intervening, matched.frame) {
+                self.frame = Frame::default();
+                return Err(gap("a mana ability test that lost its negation"));
+            }
+            // What an ability's cost was does not change: the event's test is all.
+            if lane_n::of_the_activation(intervening, matched.frame) {
+                let Condition::ObjectMatches { filter, .. } = intervening else {
+                    unreachable!("of_the_activation asks this");
+                };
+                extra.push(self.activation_test(filter, matched.frame)?);
+            } else {
+                match self.condition_function(intervening, &format!("{label}_if")) {
+                    Ok(function) => condition = Some(function),
+                    Err(gap) if gap.feature.contains("event") => {
+                        extra.push(self.matching(matched.frame, |c| c.condition(intervening))?);
+                        guard = Some(intervening);
+                    }
+                    Err(gap) => {
+                        self.frame = Frame::default();
+                        return Err(gap);
+                    }
                 }
             }
         }

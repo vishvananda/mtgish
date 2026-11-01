@@ -203,7 +203,7 @@ impl Compiler {
         } else {
             ""
         };
-        writeln!(out, "let caster_{id} = {caster}; let mut pool_{id}: Vec<ObjectId> = {pool}; let mut left_{id}: u32 = {most};").unwrap();
+        writeln!(out, "let caster_{id} = {caster}; let mut pool_{id}: Vec<ObjectId> = {pool}; let mut left_{id}: u32 = {most}; let mut played_{id}: Vec<ObjectId> = Vec::new();").unwrap();
         for (i, number) in numbers.iter().enumerate() {
             writeln!(out, "let limit_{id}_{i}: i64 = i64::from({number});").unwrap();
         }
@@ -213,8 +213,9 @@ impl Compiler {
         writeln!(out, "let Some(card_{id}) = picked_{id} else {{ break; }}; pool_{id}.retain(|&c| c != card_{id});").unwrap();
         writeln!(out, "let ways_{id}: Vec<CastWay> = g.cast_ways_during_resolution_by(card_{id}, caster_{id}).into_iter().filter(|w| {test}).collect();").unwrap();
         writeln!(out, "let done_{id} = if ways_{id}.is_empty() {{ g.play_land_during_resolution(card_{id})?.is_some() }} else {{ let way = cantrip_mechanics::choose::cast_way(g, caster_{id}, card_{id}, ways_{id})?.map(|w| w.way); g.cast_during_resolution_as(card_{id}, CastTerms {{ instead: {instead}, way, caster: Some(caster_{id}), exile_instead: ExileInstead::{exile}, ..CastTerms::default() }})? }};").unwrap();
-        writeln!(out, "if done_{id} {{ left_{id} -= 1; }}").unwrap();
+        writeln!(out, "if done_{id} {{ left_{id} -= 1; played_{id}.push(g.state().obj(card_{id}).became.unwrap_or(card_{id})); }}").unwrap();
         writeln!(out, "}}").unwrap();
+        self.played = Some(format!("played_{id}"));
         Ok(())
     }
 }
