@@ -20,7 +20,12 @@ pub fn future_expiry(name: &str) -> Option<Duration> {
 
 /// Whether a delayed trigger's body reads the event it waits for, not its creator's.
 pub fn delayed_reads_event(event: &EventSpec) -> bool {
-    matches!(event, EventSpec::Primitive { .. } | EventSpec::Activated { .. })
+    matches!(
+        event,
+        EventSpec::Primitive { .. }
+            | EventSpec::Activated { .. }
+            | EventSpec::SpellOrActivation { .. }
+    )
 }
 
 fn pending_damage(

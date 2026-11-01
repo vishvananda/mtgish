@@ -236,6 +236,16 @@ pub(super) struct Notes {
     pub outside: BTreeSet<u32>,
     /// Those of them that also offer cards elsewhere.
     pub outside_shown: BTreeSet<u32>,
+    /// What each player's runs of a walk did, by the walk's step, where a later
+    /// instruction reads it player by player.
+    pub shares: BTreeMap<u32, String>,
+    /// Amounts a walk made that are read a player at a time, as their own.
+    pub read_as_own: BTreeSet<u32>,
+    /// The life the last walk's players paid, together.
+    pub life_paid: Option<String>,
+    /// The player a rule for a while is on, where it lasts until their own next
+    /// turn and they can only be read inside the walk that puts it on them.
+    pub until_own_turn: Option<String>,
 }
 
 /// The words `EarlierObjects` has for what an operation acts on.
@@ -951,6 +961,9 @@ impl Compiler {
     /// The rest of `condition`.
     pub(super) fn condition_more(&self, condition: &Condition) -> Result<String> {
         Ok(match condition {
+            Condition::Outcome(PriorOutcome::NoLifePaid) if self.notes.life_paid.is_some() => {
+                format!("({} == 0)", self.notes.life_paid.as_deref().unwrap_or_default())
+            }
             Condition::Outcome(outcome) => planned::planned_value(
                 "condition Outcome",
                 "false",

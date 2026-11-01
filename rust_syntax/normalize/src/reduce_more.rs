@@ -857,7 +857,7 @@ fn reduce_more_events(form: &str, operands: &[Operand]) -> Option<EventSpec> {
             [Players(players), Objects(set), cause],
         ) => batch(
             EventSpec::Either(vec![
-                player(PlayerEvent::BecomesTarget, players, None),
+                player(PlayerEvent::BecomesTarget, players, stack_filter(cause)),
                 EventSpec::BecomesTarget {
                     objects: objects_filter(set),
                     kind: TargetingKind::SpellOrAbility,
@@ -1567,13 +1567,13 @@ fn reduce_more_numbers(form: &str, operands: &[Operand]) -> Option<Expr> {
             Expr::CountDistinct {
                 objects: Box::new(ObjectSet::Union(vec![
                     set.clone(),
-                    ObjectSet::AnyZone(spells.clone()),
+                    spells_cast_this_turn_set(spells),
                 ])),
                 property: DistinctProperty::Colors,
             }
         }
         ("TheNumberOfCardsInHandRevealedThisWayThatShareAManaValue", []) => {
-            Expr::LargestSharedGroup {
+            Expr::SharingWithAnother {
                 objects: Box::new(ObjectSet::Earlier {
                     what: EarlierObjects::Revealed,
                     by: None,

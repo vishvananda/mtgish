@@ -630,6 +630,25 @@ impl Compiler {
         compiled?;
         Ok(out)
     }
+    /// Alternatives one replacement can't watch together: each is a replacement
+    /// of its own, doing the same thing and ending the same way.
+    fn alternatives_apart<'e>(
+        &self,
+        event: &'e ReplacementEvent,
+    ) -> Option<&'e [ReplacementEvent]> {
+        let ReplacementEvent::Either(events) = event else {
+            return None;
+        };
+        let mut probe = self.clone();
+        match probe.watched(event) {
+            Err(failed)
+                if failed.feature == "alternative replacement events of different kinds" =>
+            {
+                Some(events)
+            }
+            _ => None,
+        }
+    }
     /// `Operation::CreateReplacement`: a continuous effect (CR 611.2) whose
     /// callbacks outlive the resolution, so all they can know of it is the
     /// object it is about and, for prevention, whom the damage is dealt to.
@@ -641,6 +660,12 @@ impl Compiler {
         body: &Program,
         out: &mut String,
     ) -> Result<()> {
+        if let Some(events) = self.alternatives_apart(event) {
+            for one in events {
+                self.create_replacement(one, limit, duration, body, out)?;
+            }
+            return Ok(());
+        }
         if self.stated_replacement(event, limit, duration, body, out)? {
             return Ok(());
         }

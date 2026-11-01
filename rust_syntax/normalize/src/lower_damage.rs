@@ -82,7 +82,8 @@ impl Context {
                 }
                 event.source_kind = ObjectKind::Permanent;
                 event.sources = self.filter(p)?;
-                event.recipients = DamageRecipients::Players(self.players(players)?);
+                event.recipients =
+                    DamageRecipients::Players(owner_of_damage_source(self.players(players)?));
                 event.kind = if matches!(
                     value,
                     S::WhenACreatureDealsCombatDamageToAPlayer(..)
@@ -336,7 +337,25 @@ fn legacy_damage_ambiguity(event: &EventSpec) -> bool {
 // you control deals damage to a creature, that [type] deals that much damage
 // to that creature's controller". The two legacy aliases name different roles.
 // Match its typed output, with arbitrary source/recipient predicates; no names.
+/// "Deals combat damage to its owner": the owner is the owner of what deals it.
+fn owner_of_damage_source(players: PlayerSet) -> PlayerSet {
+    match players {
+        PlayerSet::One(PlayerRef::OwnerOf(object)) if matches!(*object, ObjectRef::Scoped) => {
+            let source = ObjectRef::Damage(DamageSubject::Source);
+            PlayerSet::One(PlayerRef::OwnerOf(Box::new(source)))
+        }
+        players => players,
+    }
+}
+
 fn legacy_damage_recipient_alias(trigger: &source::Trigger, actions: &source::Actions) -> bool {
+    // A source that deals damage needn't be a permanent: this is what was dealt it.
+    if matches!(
+        trigger,
+        source::Trigger::WhenASourceDealsNoncombatDamageToAPermanent(..)
+    ) {
+        return true;
+    }
     if !matches!(
         trigger,
         source::Trigger::WhenAPermanentDealsDamageToAPermanent(..)

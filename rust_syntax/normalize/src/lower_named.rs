@@ -90,6 +90,7 @@ const THIS_WAY: &[(&[&str], &[&str])] = &[
     (&["Votes"], &["Vote"]),
     (&["Lost"], &["Lose"]),
     (&["Returned", "PutInto", "PutOn", "Left"], &["Move", "Return"]),
+    (&["RemovedFromCombat"], &["FromCombat"]),
 ];
 
 /// A row reporting what an earlier action did, which it must name.
@@ -537,7 +538,20 @@ impl Context {
         if let Some(result) = self.this_way_result(&name) {
             operands.push(Operand::Result(result));
         }
+        operands.extend(self.row_referent(&name));
         Some((name, operands))
+    }
+
+    /// What a row that says "those" or "each" means here, where only this scope knows.
+    fn row_referent(&self, name: &str) -> Option<Operand> {
+        match name.split("::").nth(1)? {
+            "SharesACardtypeWithEachableExiledPermanent" => {
+                let each = self.iterated_object.clone()?;
+                Some(Operand::Object(ObjectRef::Bound(each)))
+            }
+            "Trigger_ThoseCreatures" => self.group_effect.clone().map(Operand::Result),
+            _ => None,
+        }
     }
 
     /// Record what a reviewed row says this operation did.
@@ -833,6 +847,9 @@ impl Context {
             .perpetual(value, operands.first())
             .unwrap_or_else(|| crate::semantics::reduce_action(actor.clone(), name, operands));
         self.note_yield(&operation, &result);
+        if let Operation::ChooseObjects { player, .. } = &operation {
+            self.picks.push((Some(player.clone()), result.clone()));
+        }
         if crate::semantics::singular_operation(&operation, |_| false) {
             self.singular.insert(result.0);
         }
@@ -1202,6 +1219,10 @@ impl Context {
             return None;
         }
         let form = name.split("::").nth(1).unwrap_or(name);
+        // A later step that takes a card back out of exile also says "Exile".
+        if let ("TheOtherPermanentsExiledThisWay", Some(exiled)) = (form, &self.exiled) {
+            return Some(exiled.clone());
+        }
         let words = THIS_WAY
             .iter()
             .find(|(row, _)| row.iter().any(|word| form.contains(word)))

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 165;
+pub const SCHEMA_VERSION: u32 = 166;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -4170,6 +4170,17 @@ pub enum Expr {
     /// The damage of this instruction, counted only up to each recipient's life,
     /// loyalty or toughness before it was dealt.
     ClampedDamage(ResultId),
+    /// What every run of a `ForEachPlayer` did, added up. `Performed` read by
+    /// another instruction over the players is each player's own.
+    PerformedTotal(ResultId),
+    /// How many of `objects` have `property` in common with another of them.
+    SharingWithAnother {
+        objects: Box<ObjectSet>,
+        property: DistinctProperty,
+    },
+    /// How many of the cards a surveil looked at it left on top, as it finished:
+    /// drawing them afterwards doesn't change the number.
+    SurveilKeptOnTop(ResultId),
 }
 
 /// Mana a number or filter reads that did not pay for a whole spell.

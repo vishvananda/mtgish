@@ -2107,6 +2107,10 @@ impl Compiler {
             H::ExiledFromGraveyard(players) => format!(", {}", self.players(players)?),
             H::TappedToPayFor(object) => format!(", {}", self.object(object)?),
             H::CountersPutBy { .. } => String::new(),
+            H::CountersPutWith { kind, with } | H::CountersRemovedWith { kind, with } => {
+                format!(", {}, {}", counter_kind(kind)?, self.object(with)?)
+            }
+            H::PhasedOutWith(with) => format!(", {}", self.object(with)?),
             _ => String::new(),
         };
         let during = self.object_window(window)?;

@@ -693,6 +693,7 @@ impl Compiler {
         let frame = Frame {
             object: Some(Carried::Subject),
             stack_object: matches!(kind, TargetingKind::Spell).then_some(Carried::Data(0)),
+            activated: matches!(kind, TargetingKind::Ability).then_some(Carried::Position(1)),
             stack_controller: Some(Carried::Data(1)),
             ..Frame::default()
         };
@@ -1079,7 +1080,9 @@ impl Compiler {
             (true, Some(Carried::Data(i))) => {
                 format!(".filter(|f: &Fired| f.data[{i}] == data[{i}])")
             }
-            (true, None) => return Err(gap("an ordinal of an event with no player")),
+            (true, None | Some(Carried::Position(_))) => {
+                return Err(gap("an ordinal of an event with no player"))
+            }
         };
         let mut asked = self.clone();
         asked.history = Some(History {

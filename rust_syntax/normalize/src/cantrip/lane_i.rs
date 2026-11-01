@@ -722,6 +722,28 @@ impl Compiler {
                 writeln!(declared, "let mut {total}: i64 = 0;").unwrap();
                 writeln!(tail, "{total} += {local};").unwrap();
             }
+            if let (
+                Some(total),
+                Instruction::Effect {
+                    operation:
+                        Operation::PayAnyAmount {
+                            resource: PaidResource::Life,
+                            ..
+                        },
+                    ..
+                },
+            ) = (&total, &program.instructions[step.at])
+            {
+                self.notes.life_paid = Some(total.clone());
+            }
+            if matches!(kind, ViewKind::Performed) {
+                let bound = format!("bound_{}", each.binding.0);
+                let rest = each.rest;
+                self.tally_share(result, &local, &bound, rest, &mut declared, &mut tail);
+                if lane_n::read_player_by_player(rest, &result) {
+                    self.notes.read_as_own.insert(result);
+                }
+            }
             let view = View {
                 kind,
                 result,
@@ -1225,6 +1247,17 @@ impl Compiler {
                 return Err(gap("operation CopyOnStack"));
             }
             writeln!(out, "let copier_{id} = {copier}; if let Some(t) = ({listed}).first().copied() {{ {open}match t {{ Target::Object(spell) => {{ {plain} }} t => {{ {copy_ability} }} }}{close} }}").unwrap();
+            return Ok(());
+        }
+        if matches!(object, ObjectRef::EventStackObject) && self.frame.spell_or_ability {
+            if !effects.is_empty() {
+                return Err(gap("operation CopyOnStack"));
+            }
+            writeln!(
+                out,
+                "let copier_{id} = {copier}; {open}match item.subject {{ Target::Object(spell) => {{ {plain} }} _ => {{ let t = Target::Ability(item.data[1]); {copy_ability} }} }}{close}"
+            )
+            .unwrap();
             return Ok(());
         }
         if matches!(object, ObjectRef::EventStackObject) && self.frame.activated.is_some() {

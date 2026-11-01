@@ -991,17 +991,21 @@ impl Compiler {
                 players,
                 spells,
                 abilities,
-            } => self.event(&EventSpec::Either(vec![
-                EventSpec::Spell {
-                    event: SpellEvent::Cast,
-                    players: players.clone(),
-                    spells: spells.clone(),
-                },
-                EventSpec::Activated {
-                    players: players.clone(),
-                    abilities: abilities.clone(),
-                },
-            ])),
+            } => {
+                let mut matched = self.event(&EventSpec::Either(vec![
+                    EventSpec::Spell {
+                        event: SpellEvent::Cast,
+                        players: players.clone(),
+                        spells: spells.clone(),
+                    },
+                    EventSpec::Activated {
+                        players: players.clone(),
+                        abilities: abilities.clone(),
+                    },
+                ]))?;
+                matched.frame.spell_or_ability = true;
+                Ok(matched)
+            }
             EventSpec::TappedForManaOf { objects, by, mana } => {
                 self.tapped_for_mana_of(objects, by.as_ref(), mana)
             }
@@ -1311,15 +1315,15 @@ impl Compiler {
         Ok(matched)
     }
 
-    /// `PlayerEvent::BecomesTarget`. A filter of `Any` has lost what targeted the
-    /// player ("of a spell", against "of a spell or ability"), so it isn't read.
+    /// `PlayerEvent::BecomesTarget`. A filter of `Any` is "a spell or ability":
+    /// "of a spell" and "of an ability" each say so.
     fn player_targeted(
         &mut self,
         players: &PlayerSet,
         objects: Option<&ObjectFilter>,
     ) -> Result<Matched> {
         let by = match objects {
-            Some(ObjectFilter::Any) | None => {
+            None => {
                 return Err(gap(
                     "trigger event Player BecomesTarget of what is not said",
                 ))
@@ -1943,6 +1947,21 @@ impl Compiler {
                 };
                 counted(format!(
                     "{{ let those: Vec<ObjectId> = {}; {group}.unwrap_or(0) as i64 }}",
+                    self.objects(objects)?
+                ))
+            }
+            Expr::SharingWithAnother { objects, property } => {
+                let same = match property {
+                    DistinctProperty::ManaValues => "q.mana_value(a) == q.mana_value(b)",
+                    other => {
+                        return Err(gap(format!(
+                            "numeric expression SharingWithAnother {}",
+                            form(other)
+                        )))
+                    }
+                };
+                counted(format!(
+                    "{{ let those: Vec<ObjectId> = {}; those.iter().filter(|&&a| those.iter().any(|&b| b != a && {same})).count() as i64 }}",
                     self.objects(objects)?
                 ))
             }

@@ -870,7 +870,10 @@ impl Compiler {
                 };
                 self.each_player(each, out)
             }
-            Instruction::Repeatable(body) => self.repeat(None, body, out),
+            Instruction::Repeatable(inner) => {
+                self.hoist_shares(&body.instructions[i + 1..], out);
+                self.repeat(None, inner, out)
+            }
             Instruction::Times { amount, body } => self.repeat(Some(amount), body, out),
             Instruction::ChooseOne {
                 decider,
@@ -1018,6 +1021,11 @@ impl Compiler {
                 self.keyword_action(id, action, result, out)?;
             }
             Operation::CreateTokens {
+                players: PlayerSet::All,
+                tokens,
+                entry,
+            } if self.reads_own_share(tokens) => self.own_share_tokens(tokens, entry, out)?,
+            Operation::CreateTokens {
                 players,
                 tokens,
                 entry,
@@ -1123,13 +1131,18 @@ impl Compiler {
                 let amount = self.number(amount)?.amount(u32::MAX.into(), "usize")?;
                 let reported =
                     method == "surveil" && lane_n::reads_graveyard_part(&self.after, result);
+                let kept = lane_q::reads_kept_on_top(&self.after, result);
                 let (method, bind) = match reported {
                     true => ("surveil_into_graveyard", format!("let moved_{id} = ")),
                     false => (method, String::new()),
                 };
-                writeln!(out, "let amount_{id} = {}; let player_{id} = {}; {bind}cantrip_mechanics::{method}(g, player_{id}, asker.source, amount_{id})?;", self.fetch(amount), self.fetch(self.certain_player(player)?)).unwrap();
+                let (look, keep) = lane_q::looked_and_kept(id, kept);
+                writeln!(out, "let amount_{id} = {}; let player_{id} = {}; {look}{bind}cantrip_mechanics::{method}(g, player_{id}, asker.source, amount_{id})?;{keep}", self.fetch(amount), self.fetch(self.certain_player(player)?)).unwrap();
                 if reported {
                     self.moved.insert(result.0, format!("moved_{id}"));
+                }
+                if kept {
+                    self.performed.insert(result.0, format!("kept_{id}"));
                 }
             }
             Operation::SetLifeTotal { players, amount } => {
@@ -1452,7 +1465,11 @@ impl Compiler {
                     return Ok(());
                 }
                 if let EffectSubjects::Players(players) = affected {
-                    return self.continuous_on_players(id, source, players, changes, duration, out);
+                    self.note_own_turn(players, duration);
+                    let made =
+                        self.continuous_on_players(id, source, players, changes, duration, out);
+                    self.notes.until_own_turn = None;
+                    return made;
                 }
                 // "Live" subjects differ from read ones only where the set
                 // could gain a member, which names of objects never do, nor
@@ -1463,6 +1480,7 @@ impl Compiler {
                         ObjectSet::One(_)
                             | ObjectSet::Targets(_)
                             | ObjectSet::Selected(_)
+                            | ObjectSet::Affected(_)
                             | ObjectSet::Unselected(_)
                             | ObjectSet::Created(_)
                             | ObjectSet::Transition { .. }
@@ -2196,6 +2214,11 @@ impl Compiler {
                 NO_OBJECTS,
                 &format!("g.put_into_command_zone(&objects_{id})"),
             ),
+            Destination::OwnersPlanarDeck(end) => planned::planned_value(
+                "move to OwnersPlanarDeck",
+                NO_OBJECTS,
+                &format!("g.put_on_planar_deck(&objects_{id}, SequenceEnd::{end:?})"),
+            ),
             other => return Err(gap(format!("move to {}", form(other)))),
         };
         writeln!(
@@ -2395,6 +2418,11 @@ impl Compiler {
             D::EndOfCombat => "Duration::EndOfCombat".into(),
             D::Indefinite => "Duration::Indefinite".into(),
             D::WhileOnBattlefield(ObjectRef::Source) => "Duration::WhileSourceOnBattlefield".into(),
+            D::UntilNextTurn(player)
+                if self.notes.until_own_turn.as_deref() == Some(format!("{player:?}").as_str()) =>
+            {
+                "Duration::UntilNextTurnOf(player)".into()
+            }
             D::UntilNextTurn(player) => format!(
                 "Duration::UntilNextTurnOf({})",
                 self.fetch(self.certain_player(player)?)
@@ -2619,12 +2647,14 @@ impl Compiler {
             // A land type set takes the land's rules text with it (CR 305.7),
             // which only `sets_land_subtypes`, a static ability, does.
             Change::SetLandType(land) => {
-                let Operand::Vocabulary { form: word, .. } = &**land else {
-                    return Err(gap(format!("land type {}", form(&**land))));
+                let word = match &**land {
+                    Operand::Vocabulary { form: word, .. } => format!("Subtype::{word}"),
+                    other => lane_q::second_chosen_land_type(other)
+                        .ok_or_else(|| gap(format!("land type {}", form(other))))?,
                 };
                 vec![lane_g::planned_kind(
                     "engine: no resolving effect sets land types",
-                    format!("EffectKind::SetLandType(Subtype::{word})"),
+                    format!("EffectKind::SetLandType({word})"),
                 )]
             }
             Change::SetPower(n) => vec![lane_g::planned_kind(

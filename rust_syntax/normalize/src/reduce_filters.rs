@@ -95,8 +95,13 @@ fn reduce_object_trait(form: &str, operands: &[Operand]) -> Option<ObjectFilter>
         ("SharesACardtypeWithTheCycledCard" | "SharesACardtypeWithEachableExiledPermanent", []) => {
             shares(D::CardTypes, scoped())
         }
+        ("SharesACardtypeWithEachableExiledPermanent", [Operand::Object(with)]) => {
+            shares(D::CardTypes, with.clone())
+        }
         ("SharesAColorWithIt", []) => ObjectFilter::SharesColorWith(scoped()),
-        ("SharesANameWithThePlayedCard", []) => ObjectFilter::SharesNameWith(scoped()),
+        ("SharesANameWithThePlayedCard", []) => {
+            ObjectFilter::SharesNameWith(ObjectRef::EventSubject)
+        }
         ("SharesCardtypeWithPermanent", [kind, Operand::Object(with)]) => {
             ObjectFilter::SharesTypeFrom {
                 types: vec![vocabulary_value(kind)?],
@@ -134,11 +139,16 @@ fn reduce_object_trait(form: &str, operands: &[Operand]) -> Option<ObjectFilter>
         ("AttachedToAPermanent", [Operand::Objects(objects)]) => {
             ObjectFilter::AttachedTo(Box::new(ObjectFilter::InSet(Box::new(objects.clone()))))
         }
-        ("BlockedDeadAttacker", []) => ObjectFilter::BlockingObject(scoped()),
-        ("WasBlockingDeadDefender", []) => ObjectFilter::BlockedByObject(scoped()),
-        ("CouldBeTargetedBySpell_ThoseTargets", []) => ObjectFilter::TargetableBy(scoped()),
+        ("BlockedDeadAttacker", []) => ObjectFilter::BlockingObject(ObjectRef::EventSubject),
+        ("WasBlockingDeadDefender", []) => ObjectFilter::BlockedByObject(ObjectRef::EventSubject),
+        // "One of those creatures": other creatures you control the spell could target.
+        ("CouldBeTargetedBySpell_ThoseTargets", []) => ObjectFilter::All(vec![
+            ObjectFilter::TargetableBy(ObjectRef::EventSubject),
+            ObjectFilter::Not(Box::new(ObjectFilter::SameObject(ObjectRef::Source))),
+            ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)),
+        ]),
         ("CanBeEnchantedByDeadGuest", []) => {
-            ObjectFilter::CouldEnchant(Box::new(ObjectSet::One(scoped())))
+            ObjectFilter::CouldEnchant(Box::new(ObjectSet::One(ObjectRef::Source)))
         }
         ("IsAttackingTheSamePlayerOrPlaneswalkerAsCreature", [Operand::Object(object)]) => {
             ObjectFilter::AttackingSame(object.clone())
@@ -159,9 +169,17 @@ fn reduce_object_trait(form: &str, operands: &[Operand]) -> Option<ObjectFilter>
         | ("RevealedFromPlayersLibraryThisWay", [Operand::Player(_), Operand::Result(result)]) => {
             ObjectFilter::InResult(result.clone())
         }
-        ("Trigger_ThoseCreatures", [])
-        | ("TargetsAPermanent_ThosePermanents", [])
-        | ("Trigger_ThoseGraveyardCards", []) => {
+        // Those the instruction before gave its abilities to, the event being over.
+        ("Trigger_ThoseCreatures", [Operand::Result(result)]) => {
+            ObjectFilter::InSet(Box::new(ObjectSet::Affected(result.clone())))
+        }
+        // Orvar's intervening "if": the other permanents you control it targets.
+        ("TargetsAPermanent_ThosePermanents", []) => ObjectFilter::All(vec![
+            ObjectFilter::InSet(Box::new(ObjectSet::TargetsOf(ObjectRef::EventSubject))),
+            ObjectFilter::Not(Box::new(ObjectFilter::SameObject(ObjectRef::Source))),
+            ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)),
+        ]),
+        ("Trigger_ThoseCreatures", []) | ("Trigger_ThoseGraveyardCards", []) => {
             ObjectFilter::InSet(Box::new(ObjectSet::Scoped))
         }
         ("SneakCostWasPaidThisTurn", []) => {

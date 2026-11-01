@@ -148,7 +148,9 @@ impl Compiler {
             ObjectRef::EventDestination => self.frame.destination.is_some(),
             ObjectRef::EventOther => self.frame.other.is_some(),
             ObjectRef::EventStackObject => {
-                self.frame.stack_object.is_some() || self.frame.activated.is_some()
+                self.frame.stack_object.is_some()
+                    || self.frame.activated.is_some()
+                    || self.frame.spell_or_ability
             }
             ObjectRef::BlockPair(BlockRole::Attacker) => self.frame.attacker.is_some(),
             ObjectRef::BlockPair(BlockRole::Blocker) => self.frame.blocker.is_some(),

@@ -386,7 +386,7 @@
     {"source": "Trigger::WhenAPlayerPlaneswalksAwayFromAPlane", "text": "planeswalk", "binds": ["player"]},
     {"source": "Trigger::WhenAPlayerAttacksWithANumberOfCreatures", "text": "attack", "binds": ["player", "group"]},
     {"source": "Trigger::WhenASpellOrAbilityCausesAPlayerToDiscardACard", "text": "discard", "binds": ["player", "moved", "stack_object", "object"]},
-    {"source": "Trigger::WhenAPlayerPlaysACard", "text": "play", "binds": ["player"]},
+    {"source": "Trigger::WhenAPlayerPlaysACard", "text": "play", "binds": ["player", "object"]},
     {"source": "Action::ChooseAColor", "text": "choose|chosen|choice|color", "keeps": true},
     {"source": "Action::ChooseUptoOnePermanent", "text": "choose|chosen"},
     {"source": "Cost::PayManaX", "text": "{x}|x"},

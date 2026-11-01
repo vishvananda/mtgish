@@ -193,7 +193,7 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         }
         ("ChooseASpellThatResolvedThisTurn", [Filter(spells)]) => Operation::ChooseObjects {
             player: you(),
-            objects: ObjectSet::AnyZone(spells.clone()),
+            objects: spells_cast_this_turn_set(spells),
             count: Count::Exactly(Expr::Constant(1)),
             constraints: vec![],
         },
@@ -1102,6 +1102,33 @@ fn tail_objects(form: &str, operands: &[Operand]) -> Option<ObjectSet> {
     })
 }
 
+/// "An instant spell, a sorcery spell, or a loyalty ability": what speaks of a spell
+/// says nothing of an activation. A filter of neither sort speaks of both.
+fn spell_and_ability_parts(filter: ObjectFilter) -> (ObjectFilter, ObjectFilter) {
+    let of_a_spell = |part: &ObjectFilter| match part {
+        ObjectFilter::All(parts) => parts
+            .iter()
+            .any(|p| matches!(p, ObjectFilter::OnStack(StackTrait::Spell))),
+        _ => false,
+    };
+    let one = |mut parts: Vec<ObjectFilter>| match parts.len() {
+        1 => parts.remove(0),
+        _ => ObjectFilter::Either(parts),
+    };
+    match &filter {
+        ObjectFilter::Either(parts) => {
+            let (spells, abilities): (Vec<_>, Vec<_>) =
+                parts.iter().cloned().partition(|part| of_a_spell(part));
+            if spells.is_empty() || abilities.is_empty() {
+                (filter.clone(), filter)
+            } else {
+                (one(spells), one(abilities))
+            }
+        }
+        _ => (filter.clone(), filter),
+    }
+}
+
 /// Delayed triggers that read like their ordinary trigger, or as one spell or activation.
 pub fn reduce_future_event(name: String, operands: Vec<Operand>) -> EventSpec {
     use Operand::Player;
@@ -1110,10 +1137,13 @@ pub fn reduce_future_event(name: String, operands: Vec<Operand>) -> EventSpec {
         (
             "WhenPlayerCastsTheirNextSpellOrActivatesTheirNextAbilityThisTurn",
             [Player(player), which],
-        ) => stack_filter(which).map(|filter| EventSpec::SpellOrActivation {
-            players: PlayerSet::One(player.clone()),
-            spells: filter.clone(),
-            abilities: filter,
+        ) => stack_filter(which).map(|filter| {
+            let (spells, abilities) = spell_and_ability_parts(filter);
+            EventSpec::SpellOrActivation {
+                players: PlayerSet::One(player.clone()),
+                spells,
+                abilities,
+            }
         }),
         (form, operands) => match reduce_event(format!("Trigger::{form}"), operands.to_vec()) {
             EventSpec::Primitive { .. } => reduce_card_future_event(form, operands),

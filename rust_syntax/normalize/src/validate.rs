@@ -525,23 +525,20 @@ impl<'a> Scope<'a> {
             EventSpec::Turn { players, .. } => self.players(players),
             EventSpec::Damage(event) => {
                 self.filter(&event.sources)?;
+                // A recipient can be named by the source that dealt the damage.
+                let bound = crate::semantics::event_bindings(&EventSpec::Damage(event.clone()));
+                let mut scoped = self.clone();
+                scoped.event.damage_source |= bound.damage_source;
                 match &event.recipients {
                     DamageRecipients::Any => Ok(()),
                     DamageRecipients::Target { slot, .. } | DamageRecipients::Targets(slot) => {
                         self.recipients(&Recipients::Targets(slot.clone()))
                     }
-                    // A recipient can be named by the source that dealt the damage.
-                    DamageRecipients::Objects(f) => {
-                        let bound =
-                            crate::semantics::event_bindings(&EventSpec::Damage(event.clone()));
-                        let mut scoped = self.clone();
-                        scoped.event.damage_source |= bound.damage_source;
-                        scoped.filter(f)
-                    }
-                    DamageRecipients::Players(p) => self.players(p),
+                    DamageRecipients::Objects(f) => scoped.filter(f),
+                    DamageRecipients::Players(p) => scoped.players(p),
                     DamageRecipients::ObjectsAndPlayers { objects, players } => {
-                        self.filter(objects)?;
-                        self.players(players)
+                        scoped.filter(objects)?;
+                        scoped.players(players)
                     }
                 }
             }
@@ -1117,7 +1114,8 @@ impl<'a> Scope<'a> {
                 self.expr(a)?;
                 self.expr(b)
             }
-            Expr::LargestSharedGroup { objects, .. } => self.objects(objects),
+            Expr::LargestSharedGroup { objects, .. }
+            | Expr::SharingWithAnother { objects, .. } => self.objects(objects),
             Expr::ManaSpentFrom { object, sources } => {
                 self.object(object)?;
                 self.filter(sources)
@@ -1225,6 +1223,8 @@ impl<'a> Scope<'a> {
             }
             Expr::ExcessDamage { result, .. } => Err(format!("result {} is unavailable", result.0)),
             Expr::Performed(result)
+            | Expr::PerformedTotal(result)
+            | Expr::SurveilKeptOnTop(result)
             | Expr::ClampedDamage(result)
             | Expr::ChosenPowerToughness { result, .. }
             | Expr::DieResultAt { result, .. }
@@ -1235,7 +1235,10 @@ impl<'a> Scope<'a> {
             Expr::ChosenPowerToughness { result, .. } | Expr::DieResultAt { result, .. } => {
                 Err(format!("result {} is unavailable", result.0))
             }
-            Expr::Performed(result) | Expr::ClampedDamage(result) => {
+            Expr::Performed(result)
+            | Expr::PerformedTotal(result)
+            | Expr::SurveilKeptOnTop(result)
+            | Expr::ClampedDamage(result) => {
                 Err(format!("result {} is unavailable", result.0))
             }
             Expr::PaidCountersRemoved { payment, component } => {

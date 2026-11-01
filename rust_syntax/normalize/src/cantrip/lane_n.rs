@@ -1248,6 +1248,7 @@ impl Compiler {
                     Frame::default(),
                 )?;
                 let trigger = c.trigger(&matched, &format!("{label}_event"), &[]);
+                c.reads_stack_object_of(&watched, matched.frame);
                 match intervening_if {
                     Some(condition) => c.guarded_effect(condition, body, &label),
                     None => c.effect(body, &label),

@@ -211,6 +211,11 @@ struct Context {
     replaced_exile: bool,
     replaced_hand: bool,
     grave_choice: Option<ResultId>,
+    /// Every graveyard choice made in this scope, the last being `grave_choice`.
+    grave_picks: Vec<ResultId>,
+    /// The last effect on an event's whole group: what "those creatures" still
+    /// names in a trigger it goes on to make, past the event.
+    group_effect: Option<ResultId>,
     narrowed_choice: Option<ResultId>,
     extra_turn: Option<ResultId>,
     iterated_object: Option<Binding>,
@@ -474,6 +479,15 @@ impl Context {
         self.note_acted(&operation, &ResultId(self.result));
         if matches!(operation, Operation::LookAt { .. }) {
             self.looked = Some(ResultId(self.result));
+        }
+        if matches!(
+            operation,
+            Operation::CreateContinuousEffect {
+                affected: EffectSubjects::Objects(ObjectSet::EventGroup),
+                ..
+            }
+        ) {
+            self.group_effect = Some(ResultId(self.result));
         }
         if let Operation::ChooseObjects { player, .. } = &operation {
             self.picks
@@ -3138,7 +3152,7 @@ impl Context {
                 let cards = self.grave_cards(cards)?;
                 let count = Count::AsManyAsCan(self.number(amount)?);
                 let (choice, result) = self.pick(actor, cards.clone(), count, vec![])?;
-                self.grave_choice = Some(result);
+                self.note_grave_choice(result);
                 return Ok(choice);
             }
             S::ChooseUptoNumberPermanentsForEach(amount, objects, each)

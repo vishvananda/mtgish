@@ -664,11 +664,16 @@ fn reduce_event_form(form: &str, operands: &[Operand]) -> Option<EventSpec> {
         (
             "WhenAPlayerAttacksAPlaneswalkerWithAnyNumberOfCreatures",
             [Players(by), Objects(defenders), Objects(set)],
-        ) => whole(EventSpec::Attack {
-            attackers: objects_filter(set),
-            by: Some(by.clone()),
-            defenders: AttackDefenders::Objects(objects_filter(defenders)),
-        }),
+        ) => EventSpec::Batch {
+            event: Box::new(EventSpec::Attack {
+                attackers: objects_filter(set),
+                by: Some(by.clone()),
+                defenders: AttackDefenders::Objects(objects_filter(defenders)),
+            }),
+            per: BatchPer::Defender,
+            count: None,
+            including: None,
+        },
         _ => return None,
     })
 }
@@ -738,11 +743,15 @@ pub fn reduce_object(name: String, operands: Vec<Operand>) -> ObjectRef {
         }
         ("ThisExiledPermanentCard", [], _) => ObjectRef::Source,
         (
-            "Trigger_ThatPermanent" | "WouldDealDamage_ThatPermanent" | "ThatSpell"
-            | "Trigger_ThatSpellOrAbility" | "EachableExiled",
+            "Trigger_ThatPermanent" | "ThatSpell",
             [],
             _,
         ) => ObjectRef::Scoped,
+        // In the filter of the damage event that names it: what would deal the damage.
+        ("WouldDealDamage_ThatPermanent", [], _) => ObjectRef::Damage(DamageSubject::Source),
+        // The card an instruction on each exiled card is looking at.
+        ("EachableExiled", [], _) => ObjectRef::Affected,
+        ("Trigger_ThatSpellOrAbility", [], _) => ObjectRef::EventStackObject,
         ("PlayersRingBearer", [Operand::Player(player)], _) => ObjectRef::RingBearer(player.clone()),
         ("TheCreatureHauntedByExiledCard", [Operand::Object(object)], _) => {
             ObjectRef::HauntedBy(Box::new(object.clone()))
@@ -841,13 +850,17 @@ pub fn reduce_player_ref(name: String, operands: Vec<Operand>) -> PlayerRef {
             | "EachablePlayer",
             [],
         ) => PlayerRef::Prior(PriorPlayer::That),
-        (
-            "WouldDealDamage_ControllerOfDamageSource"
-            | "Trigger_ControllerOfThoseCreatures"
-            | "ControllerOfDeadPermanent",
-            [],
-        ) => PlayerRef::ControllerOf(Box::new(ObjectRef::Scoped)),
-        ("OwnerOfTargetPermanent", []) => PlayerRef::OwnerOf(Box::new(ObjectRef::Scoped)),
+        ("WouldDealDamage_ControllerOfDamageSource", []) => {
+            PlayerRef::ControllerOf(Box::new(ObjectRef::Damage(DamageSubject::Source)))
+        }
+        ("Trigger_ControllerOfThoseCreatures" | "ControllerOfDeadPermanent", []) => {
+            PlayerRef::ControllerOf(Box::new(ObjectRef::Scoped))
+        }
+        // Each row has the one target: the permanent just returned to that hand.
+        ("OwnerOfTargetPermanent", []) => PlayerRef::OwnerOf(Box::new(ObjectRef::Target {
+            slot: Slot(0),
+            index: 0,
+        })),
         ("AssociatedPlayerForPermanent", [Operand::Object(object)]) => {
             PlayerRef::NotedFor(Box::new(object.clone()))
         }

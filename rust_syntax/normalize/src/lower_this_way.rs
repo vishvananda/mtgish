@@ -283,7 +283,12 @@ impl Context {
                 Box::new(ObjectSet::Affected(self.done(Done::Counters)?)),
             )),
             S::TheNumberOfCountersPutThisWay => Ok(Expr::Performed(self.done(Done::Counters)?)),
-            S::TheTotalAmountOfManaPaidThisWay => self.number(&S::AmountOfManaPaidThisWay),
+            S::TheTotalAmountOfManaPaidThisWay => {
+                Ok(match self.number(&S::AmountOfManaPaidThisWay)? {
+                    Expr::Performed(result) => Expr::PerformedTotal(result),
+                    other => other,
+                })
+            }
             S::TheNumberOfLibraryCardsRevealedThisWay => self
                 .revealed
                 .clone()
@@ -516,6 +521,11 @@ impl Context {
         })())
         .filter(|result| !matches!(result, Err(e) if e.source_type != "invariant"))
     }
+    /// A choice in a graveyard: "those cards" reads it with the ones before it.
+    fn note_grave_choice(&mut self, result: ResultId) {
+        self.grave_picks.push(result.clone());
+        self.grave_choice = Some(result);
+    }
     /// Later "chosen" references of this zone read this choice.
     fn note_choice(&mut self, objects: &ObjectSet, result: ResultId) {
         let zone = match objects {
@@ -539,7 +549,7 @@ impl Context {
         };
         match zone {
             EventZone::Hand => self.hand_choice = Some(result),
-            EventZone::Graveyard => self.grave_choice = Some(result),
+            EventZone::Graveyard => self.note_grave_choice(result),
             EventZone::Exile => self.exile_choice = Some(result),
             _ => self.permanent_choice = Some(result),
         }
@@ -606,7 +616,7 @@ impl Context {
         let objects = self.private_cards(EventZone::Graveyard, owner.clone(), filter);
         let count = Count::AsManyAsCan(amount);
         let (choice, result) = self.pick(actor, objects, count, vec![])?;
-        self.grave_choice = Some(result);
+        self.note_grave_choice(result);
         Ok(choice)
     }
 }

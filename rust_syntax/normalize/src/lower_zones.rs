@@ -418,7 +418,20 @@ impl Context {
             S::TheChosenGraveyardCards | S::TheGraveyardCardsChosenThisWay
                 if self.grave_choice.is_some() =>
             {
-                ObjectSet::Selected(self.grave_choice.clone().unwrap())
+                let last = self.grave_choice.clone().unwrap();
+                match self.grave_picks.last() {
+                    Some(result) if result.0 == last.0 => Self::all_picked(&self.grave_picks),
+                    _ => ObjectSet::Selected(last),
+                }
+            }
+            S::TheDiscardedCardsChosenThisWay if self.did.contains_key(&Done::Discarded) => {
+                let discard = self.done(Done::Discarded)?.0;
+                let picks = self.picks.iter().map(|(_, result)| result.clone());
+                let picks: Vec<ResultId> = picks.filter(|result| result.0 > discard).collect();
+                if picks.is_empty() {
+                    return Err(invalid("no card was chosen from among those discarded"));
+                }
+                Self::all_picked(&picks)
             }
             S::TheGraveyardCardsNotChosenThisWay if self.grave_choice.is_some() => {
                 ObjectSet::Unselected(self.grave_choice.clone().unwrap())
@@ -433,6 +446,13 @@ impl Context {
                 self.grave_filter(value)?,
             ),
         })
+    }
+    /// What these choices chose, together.
+    fn all_picked(picks: &[ResultId]) -> ObjectSet {
+        match picks {
+            [one] => ObjectSet::Selected(one.clone()),
+            many => ObjectSet::Union(many.iter().cloned().map(ObjectSet::Selected).collect()),
+        }
     }
     /// Another ability of this card did the exiling (607.2a).
     fn exiled_with_source(&self) -> ObjectSet {

@@ -84,6 +84,9 @@ pub(super) struct History {
 pub(super) enum Carried {
     Subject,
     Data(usize),
+    /// The stack position in the high bits of `data[i]`: what was put on the
+    /// stack as the event happened.
+    Position(usize),
 }
 
 /// What a matched event binds, for the matcher and the ability it triggers.
@@ -102,6 +105,8 @@ pub(super) struct Frame {
     pub stack_object: Option<Carried>,
     /// The serial of the activated ability an event is about, on the stack.
     pub activated: Option<Carried>,
+    /// A spell's cast or an activation: a spell in `subject`, or else a serial in `data[1]`.
+    pub spell_or_ability: bool,
     /// Who controls what `stack_object` names, spell or ability.
     pub stack_controller: Option<Carried>,
     pub attacker: Option<Carried>,
@@ -127,6 +132,7 @@ impl Frame {
             recipient: same(self.recipient, other.recipient),
             stack_object: same(self.stack_object, other.stack_object),
             activated: same(self.activated, other.activated),
+            spell_or_ability: self.spell_or_ability && other.spell_or_ability,
             stack_controller: same(self.stack_controller, other.stack_controller),
             attacker: same(self.attacker, other.attacker),
             blocker: same(self.blocker, other.blocker),
@@ -187,6 +193,13 @@ fn event_zone(zone: &EventZone) -> Result<&'static str> {
     })
 }
 pub(super) fn zone_kind(zone: &EventZone) -> Result<String> {
+    if matches!(zone, EventZone::PlanarDeck) {
+        return Ok(planned::planned_value(
+            "planar deck",
+            "ZoneKind::Command",
+            "ZoneKind::PlanarDeck",
+        ));
+    }
     Ok(format!("ZoneKind::{}", event_zone(zone)?))
 }
 pub(super) fn counter_kind(kind: &crate::counter::CounterKind) -> Result<String> {
@@ -273,7 +286,7 @@ impl Compiler {
         };
         match carried {
             Carried::Subject => Ok((subject, data)),
-            Carried::Data(_) if data.is_empty() => Ok((
+            Carried::Data(_) | Carried::Position(_) if data.is_empty() => Ok((
                 subject,
                 planned::planned_value(
                     "event value in a target filter beyond its subject",
@@ -281,7 +294,7 @@ impl Compiler {
                     "q.event_data()",
                 ),
             )),
-            Carried::Data(_) => Ok((subject, data)),
+            Carried::Data(_) | Carried::Position(_) => Ok((subject, data)),
         }
     }
     pub(super) fn carried_object(&self, carried: Option<Carried>) -> Result<String> {
@@ -301,6 +314,7 @@ impl Compiler {
             Carried::Data(i) => {
                 format!("Some(ObjectId({data}[{i}])).filter(|o| *o != ObjectId::NONE)")
             }
+            Carried::Position(_) => return Err(gap("event object this trigger does not bind")),
         })
     }
     /// `Target`: the ability on the stack an activation event is about.
@@ -310,6 +324,9 @@ impl Compiler {
         let (subject, data) = self.carried(carried)?;
         match carried {
             Carried::Data(i) => Ok(format!("Target::Ability({data}[{i}])")),
+            Carried::Position(i) => Ok(self.fetch(format!(
+                "Target::Ability(q.state().stack.get(({data}[{i}] >> 8) as usize).map_or(u32::MAX, |e| e.serial))"
+            ))),
             Carried::Subject => Ok(subject.to_string()),
         }
     }
@@ -319,6 +336,7 @@ impl Compiler {
         Ok(match carried {
             Carried::Subject => format!("{subject}.player()"),
             Carried::Data(i) => format!("Some(PlayerId({data}[{i}] as u8))"),
+            Carried::Position(_) => return Err(gap("event player this trigger does not bind")),
         })
     }
     /// `Option<Target>` of a target announced ahead of the slot whose filter is
@@ -834,6 +852,15 @@ impl Compiler {
             EventZone::Hand => "hand",
             EventZone::Library => "library",
             EventZone::Exile => "exile",
+            EventZone::PlanarDeck => {
+                return Ok(planned::planned_value(
+                    "planar deck",
+                    NO_OBJECTS,
+                    &format!(
+                        "({players}).into_iter().flat_map(|p: PlayerId| q.planar_deck(p)).collect::<Vec<ObjectId>>()"
+                    ),
+                ))
+            }
             _ => return Err(gap("zone that belongs to no player")),
         };
         Ok(format!(
@@ -1324,7 +1351,10 @@ impl Compiler {
                     dynamic: true,
                 }
             }
-            Expr::Performed(result) | Expr::CountersRemoved(result) => {
+            Expr::Performed(result)
+            | Expr::PerformedTotal(result)
+            | Expr::SurveilKeptOnTop(result)
+            | Expr::CountersRemoved(result) => {
                 match (self.performed.get(&result.0), self.moved.get(&result.0)) {
                     (Some(local), _) => count(format!("({local} as i64)")),
                     (None, Some(moved)) => count(format!("({moved}.len() as i64)")),
@@ -1336,6 +1366,9 @@ impl Compiler {
                         "0i64",
                         "q.told_amount(asker)",
                     )),
+                    _ if self.notes.read_as_own.contains(&result.0) => {
+                        return Err(gap("an amount read by each player as their own"))
+                    }
                     _ => return Err(gap("result this instruction does not report")),
                 }
             }

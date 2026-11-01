@@ -2325,7 +2325,8 @@ impl Inventory<'_> {
                 self.expr(a);
                 self.expr(b);
             }
-            Expr::LargestSharedGroup { objects, .. } => self.objects(objects),
+            Expr::LargestSharedGroup { objects, .. }
+            | Expr::SharingWithAnother { objects, .. } => self.objects(objects),
             Expr::ManaSpentFrom { object, sources } => {
                 self.object(object);
                 self.filter(sources);
@@ -2373,6 +2374,8 @@ impl Inventory<'_> {
             | Expr::CountersRemoved(_)
             | Expr::PaidCountersRemoved { .. }
             | Expr::Performed(_)
+            | Expr::PerformedTotal(_)
+            | Expr::SurveilKeptOnTop(_)
             | Expr::ClampedDamage(_)
             | Expr::ChosenPowerToughness { .. }
             | Expr::DieResultAt { .. }

@@ -60,7 +60,7 @@ impl Context {
                     constraints: vec![],
                 });
                 if let Instruction::Effect { result, .. } = &choice {
-                    self.grave_choice = Some(result.clone());
+                    self.note_grave_choice(result.clone());
                 }
                 Ok(choice)
             }

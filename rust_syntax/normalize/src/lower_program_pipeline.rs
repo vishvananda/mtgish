@@ -115,6 +115,9 @@ impl Context {
         let result = child.bind_program_recipe(recipe, actor)?;
         self.result = child.result;
         self.invalidate_child_bindings(&child);
+        // What a "may" chose is still what "those cards" reads after it.
+        let picks = child.picks[self.picks.len()..].iter().cloned();
+        self.picks.extend(picks.collect::<Vec<_>>());
         Ok(result)
     }
     fn bind_program_recipe(

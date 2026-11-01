@@ -1271,7 +1271,12 @@ impl Compiler {
                 changes,
                 duration,
                 ..
-            } => self.stated_on_players(feature, source, players, changes, duration, out),
+            } => {
+                self.note_own_turn(players, duration);
+                let made = self.stated_on_players(feature, source, players, changes, duration, out);
+                self.notes.until_own_turn = None;
+                made
+            }
             _ => Err(gap(feature)),
         };
         if stated.is_err() {
@@ -1951,6 +1956,14 @@ impl Compiler {
                 format!("q.noted_for(asker, {})", self.object(object)?)
             }
             PlayerRef::Prior(prior) => format!("q.prior_player(asker, PriorPlayer::{prior:?})"),
+            PlayerRef::OtherChosen(of) => format!(
+                "{}.and_then(|p: PlayerId| q.other_chosen_player(asker, p))",
+                self.player(of)?
+            ),
+            PlayerRef::SoleTargetOf(of) => format!(
+                "{}.and_then(|o: ObjectId| q.sole_target_player(o))",
+                self.object(of)?
+            ),
             other => return Err(gap(format!("player reference {}", form(other)))),
         };
         Ok(planned::planned_value(
@@ -2963,6 +2976,7 @@ impl Compiler {
             H::WasMonarch => "PlayerDeed::WasMonarch".to_string(),
             H::ActivatedGraveyardAbility => "PlayerDeed::ActivatedGraveyardAbility".to_string(),
             H::BentAllFour => "PlayerDeed::BentAllFour".to_string(),
+            H::WasDealtCombatDamage => "PlayerDeed::WasDealtCombatDamage".to_string(),
             H::AttackedDefender(filter) => {
                 format!("PlayerDeed::AttackedDefender({})", self.over(filter, "id")?)
             }
@@ -3037,6 +3051,17 @@ impl Compiler {
             ObjectFilter::ManaSpentFrom(sources) => format!(
                 "q.activation_mana_from(id).any(|source: ObjectId| {})",
                 self.filter(sources, &Candidate::of("source"))?
+            ),
+            ObjectFilter::ManaSpent {
+                color: None,
+                sources: None,
+                payers: None,
+                comparison,
+                value,
+            } => read::compare(
+                "q.activation_mana_spent(id)",
+                comparison,
+                &self.number(value)?.code,
             ),
             ObjectFilter::TargetsAny(targets) => format!(
                 "q.activation_targets_any(id, |t: &Target| {})",

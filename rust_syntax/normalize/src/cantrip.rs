@@ -29,6 +29,7 @@ mod lane_m;
 mod lane_n;
 mod lane_o;
 mod lane_p;
+mod lane_q;
 mod mechanics;
 pub mod planned;
 mod players;

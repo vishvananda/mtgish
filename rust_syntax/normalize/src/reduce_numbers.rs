@@ -115,6 +115,39 @@ fn spells_cast_this_turn(spells: &ObjectFilter, measure: HistoryMeasure) -> Expr
     }
 }
 
+/// The spells cast this turn that `spells` asks for, as they last existed. Who
+/// cast one is the event's, and the rest is said of the spell.
+fn spells_cast_this_turn_set(spells: &ObjectFilter) -> ObjectSet {
+    let caster = |filter: &ObjectFilter| match filter {
+        ObjectFilter::Cast {
+            by: Some(by),
+            from: None,
+        } => Some(by.clone()),
+        _ => None,
+    };
+    let (players, spells) = match spells {
+        ObjectFilter::All(filters) => match filters.iter().find_map(caster) {
+            Some(by) => {
+                let rest = filters.iter().filter(|f| caster(f).is_none());
+                (by, ObjectFilter::All(rest.cloned().collect()))
+            }
+            None => (PlayerSet::All, spells.clone()),
+        },
+        other => match caster(other) {
+            Some(by) => (by, ObjectFilter::Any),
+            None => (PlayerSet::All, spells.clone()),
+        },
+    };
+    ObjectSet::FromHistory {
+        event: Box::new(EventSpec::Spell {
+            event: SpellEvent::Cast,
+            players,
+            spells,
+        }),
+        window: HistoryWindow::ThisTurn,
+    }
+}
+
 fn as_of(moment: Moment, value: Expr) -> Expr {
     Expr::AsOf {
         moment,
@@ -335,10 +368,13 @@ fn reduce_game_number(form: &str, operands: &[Operand]) -> Option<Expr> {
             | "NumHandCardsExiledFaceDownThisWay"
             | "TheNumberOfCreaturesGoadedThisWay"
             | "NumPermanentsPhasedOutThisWay"
-            | "TheNumberOfSpellsCounteredThisWay"
-            | "TheNumberOfCardsSurveilledOnTopOfLibraryThisWay",
+            | "TheNumberOfSpellsCounteredThisWay",
             [Run(result)],
         ) => count(named_results(result)),
+        // What the surveil looked at and left where it was.
+        ("TheNumberOfCardsSurveilledOnTopOfLibraryThisWay", [Run(result)]) => {
+            Expr::SurveilKeptOnTop(result.clone())
+        }
         ("NumberOfCardsOfTypeExiledThisWay", [Filter(filter), Run(result)]) => {
             count(matching_results(result, filter.clone()))
         }

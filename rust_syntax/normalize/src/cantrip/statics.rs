@@ -402,11 +402,25 @@ impl Compiler {
                 let words = match &**land {
                     Operand::Vocabulary { form: word, .. } => vec![word.as_str()],
                     Operand::List(list) => copies::words(list)?,
+                    other if lane_q::second_chosen_land_type(other).is_some() => Vec::new(),
                     other => return Err(gap(format!("land type {}", form(other)))),
                 };
-                let set = words.iter().fold("SubtypeSet::NONE".to_string(), |set, word| {
-                    format!("{set}.with(q.words(asker.source).subtype(Subtype::{word}))")
-                });
+                let set = words.iter().fold(
+                    lane_q::second_chosen_land_type(land).map_or(
+                        "SubtypeSet::NONE".to_string(),
+                        |word| {
+                            let held = planned::planned_value(
+                                "a land type chosen second",
+                                "Subtype::Plains",
+                                &word,
+                            );
+                            format!("SubtypeSet::NONE.with({held})")
+                        },
+                    ),
+                    |set, word| {
+                        format!("{set}.with(q.words(asker.source).subtype(Subtype::{word}))")
+                    },
+                );
                 LayerChange {
                     layer: "Type",
                     body: format!("chars.set_land_subtypes({set});"),

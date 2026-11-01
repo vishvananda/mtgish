@@ -290,7 +290,7 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
         Operation::PayAnyAmount { .. } => "Action::PayAnyAmountOfMana",
         Operation::Seek { top: None, .. } => "Action::SeekCards",
         Operation::ChooseObjects {
-            objects: ObjectSet::AnyZone(_),
+            objects: ObjectSet::AnyZone(_) | ObjectSet::FromHistory { .. },
             ..
         } => "Action::ChooseASpellThatResolvedThisTurn",
         Operation::ChooseObjects {
@@ -5201,11 +5201,30 @@ pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
             [Operand::Players(players), by],
         ) => {
             if let Some(by) = stack_filter(by) {
+                let spell = ObjectFilter::OnStack(StackTrait::Spell);
                 return EventSpec::Player {
                     event: PlayerEvent::BecomesTarget,
                     players: players.clone(),
-                    objects: Some(by),
+                    objects: Some(match name.as_str() {
+                        "Trigger::WhenAPlayerBecomesTheTargetOfAnAbility" => {
+                            ObjectFilter::All(vec![ObjectFilter::Not(Box::new(spell)), by])
+                        }
+                        _ => by,
+                    }),
                 };
+            }
+        }
+        (
+            "Trigger::WhenAPlayerBecomesTheTargetOfASpell",
+            [Operand::Players(players), Operand::Filter(spells)],
+        ) => {
+            return EventSpec::Player {
+                event: PlayerEvent::BecomesTarget,
+                players: players.clone(),
+                objects: Some(ObjectFilter::All(vec![
+                    ObjectFilter::OnStack(StackTrait::Spell),
+                    spells.clone(),
+                ])),
             }
         }
         (

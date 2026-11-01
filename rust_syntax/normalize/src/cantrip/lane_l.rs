@@ -783,7 +783,10 @@ impl Compiler {
                         Err(_) => self.choose_value_terms(id, actor, *kind, terms, out)?,
                     }
                 }
-                terms => self.choose_value_terms(id, actor, *kind, terms, out)?,
+                terms => {
+                    self.choose_value_terms(id, actor, *kind, terms, out)?;
+                    self.chosen_number_performed(*kind, result);
+                }
             },
             Operation::CopyCards {
                 actor,
