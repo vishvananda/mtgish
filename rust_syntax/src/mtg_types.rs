@@ -1565,7 +1565,6 @@ type DungeonRoomName = String;
 type NameString = String;
 type LetterString = String;
 type SpellBookName = String;
-type Offerer = String;
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]
 #[ts(export)]
@@ -8959,8 +8958,6 @@ pub enum Action {
   APlayerGainsControlOfPermanent(Box<Players>, Box<Permanent>),
   APlayerMayAction(Box<Players>, Box<Action>),
   AbandonScheme(SingleScheme),
-  AcceptARandomCondition(Offerer),
-  AcceptARandomOffer(Offerer),
   ActionForEachCardtype(Vec<CardType>, Vec<Action>),
   ActionForEachCheckableAbility(Vec<CheckHasable>, Vec<Action>),
   ActionForEachDistributedAnyTarget(Vec<Action>),
@@ -10161,6 +10158,7 @@ pub enum Action {
   WinTheGame,
   WouldDealExcessDamage_DealExcessToPlayerInstead(Box<Player>),
   RevealHandAndPlayerChoosesNumberCardsOfTypeToDiscard(Box<Player>, Box<GameNumber>, Box<Cards>),
+  ChooseOneOfNumberRandomActions(Box<GameNumber>, Vec<Vec<Action>>),
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, bincode::Encode, bincode::Decode, ts_rs::TS)]

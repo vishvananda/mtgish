@@ -1922,6 +1922,7 @@ include!("reduce_card_values.rs");
 include!("reduce_card_rules.rs");
 include!("reduce_search.rs");
 include!("reduce_card_actions.rs");
+include!("reduce_last_cards.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
@@ -4692,6 +4693,7 @@ pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
             .or_else(|| reduce_more_numbers(form, &operands))
             .or_else(|| reduce_tail_number(form, &operands))
             .or_else(|| reduce_value_number(form, &operands))
+            .or_else(|| reduce_last_number(form, &operands))
     }) {
         return number;
     }
@@ -5168,7 +5170,9 @@ pub fn body_replaces(event: &ReplacementEvent) -> bool {
 /// A row's event in generic form, or the row itself when it has none.
 pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
     if let Some(event) = name.strip_prefix("Trigger::").and_then(|form| {
-        reduce_event_form(form, &operands).or_else(|| reduce_more_events(form, &operands))
+        reduce_event_form(form, &operands)
+            .or_else(|| reduce_more_events(form, &operands))
+            .or_else(|| reduce_last_event(form, &operands))
     }) {
         return event;
     }
@@ -5492,6 +5496,10 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
         EventSpec::NthEachTurn { event, .. } => event_bindings(event),
         EventSpec::Caused { event, .. } => EventBindings {
             stack_object: true,
+            ..event_bindings(event)
+        },
+        EventSpec::WhileActivating { event, .. } => EventBindings {
+            player: true,
             ..event_bindings(event)
         },
         EventSpec::ZoneChangeFromElsewhere { to, .. } => EventBindings {
@@ -5964,7 +5972,8 @@ impl Effects {
             | Destination::OwnersBattlefield
             | Destination::Hand(_)
             | Destination::CommandZone
-            | Destination::Ante => false,
+            | Destination::Ante
+            | Destination::OwnersPlanarDeck(_) => false,
         }
     }
     fn object_library(&self, object: &ObjectRef) -> bool {

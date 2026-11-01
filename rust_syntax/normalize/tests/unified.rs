@@ -131,13 +131,18 @@ fn layout_fields_outside_a_face_are_kept_as_data() {
 #[test]
 fn a_primitive_binds_its_operands_in_scope_and_is_complete() {
     let card = parse(
-        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Sorcery],Subtypes:[]),Rules:[SpellActions(ActionList([AcceptARandomOffer("Test")]))])"#,
+        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Enchantment],Subtypes:[]),Rules:[ReplaceWouldProduceMana(TappingPermanentWouldProduceMana(ThisPermanent),[WouldProduceMana_AddMana(AnyManaColor)])])"#,
     );
     let strict = lower::card(&card).unwrap();
     validate::card(&strict).unwrap();
     let forms = unified::forms(&strict);
     assert!(forms.named.is_empty());
-    assert_eq!(forms.primitives["Action::AcceptARandomOffer"], 1);
+    assert_eq!(
+        forms.primitives["ReplacableEventWouldProduceMana::TappingPermanentWouldProduceMana"],
+        1
+    );
+    let json = serde_json::to_string(&strict).unwrap();
+    assert!(json.contains("\"Source\""), "{json}");
 }
 
 #[test]
@@ -166,12 +171,11 @@ fn every_primitive_row_is_a_real_source_form() {
 #[test]
 fn trigger_primitives_are_counted_for_the_audit() {
     let card = parse(
-        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Enchantment],Subtypes:[]),Rules:[TriggerA(WhenAPermanentIsExiledFromTheBattlefieldWhileAPlayerIsActivatingACraftAbility(SinglePermanent(ThisPermanent),SinglePlayer(You)),ActionList([DrawACard]))])"#,
+        r#"Card(Name:"Test",Typeline:(Supertypes:[],Cardtypes:[Enchantment],Subtypes:[]),Rules:[TriggerA(WhenCardSpecializes(TheCardWithTheChosenName),ActionList([DrawACard]))])"#,
     );
     let strict = lower::card(&card).unwrap();
     assert_eq!(
-        unified::forms(&strict).primitives
-            ["Trigger::WhenAPermanentIsExiledFromTheBattlefieldWhileAPlayerIsActivatingACraftAbility"],
+        unified::forms(&strict).primitives["Trigger::WhenCardSpecializes"],
         1
     );
 }
@@ -229,8 +233,8 @@ fn primitives_in_every_family_bind_their_operands() {
             "Cost::RevealTopCardOfLibrary",
         ),
         (
-            "TriggerA(WhenAPermanentIsExiledFromTheBattlefieldWhileAPlayerIsActivatingACraftAbility(SinglePermanent(ThisPermanent), SinglePlayer(You)), ActionList([DrawACard]))",
-            "Trigger::WhenAPermanentIsExiledFromTheBattlefieldWhileAPlayerIsActivatingACraftAbility",
+            "TriggerA(WhenCardSpecializes(TheCardWithTheChosenName), ActionList([DrawACard]))",
+            "Trigger::WhenCardSpecializes",
         ),
     ] {
         let json = lowered(rule).unwrap();

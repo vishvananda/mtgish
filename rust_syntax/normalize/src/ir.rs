@@ -761,6 +761,13 @@ pub enum EventChange {
     IgnoreCounters(crate::counter::CounterKind),
     /// The event happens, then this runs at once. A body otherwise completes first.
     Then(Program),
+    /// The dice are rolled, then the decider may swap one result with the value
+    /// of one of these properties of `object`, as Forge's `DicePTExchanges`.
+    ExchangeDieResult {
+        decider: PlayerRef,
+        object: ObjectRef,
+        properties: Vec<Property>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -988,9 +995,12 @@ pub enum Instruction {
         body: Program,
     },
     /// The decider picks one option as this resolves; no target is announced.
+    /// With `offered`, the game first picks that many options at random and the
+    /// decider picks among those, as Forge's `GenericChoice | NumRandomChoices$`.
     ChooseOne {
         decider: PlayerRef,
         options: Vec<Program>,
+        offered: Option<Expr>,
     },
     /// Run `body`, and run it again each time it reached `RepeatProcess`, for
     /// at most this many runs in all: "repeat this process X more times".
@@ -2839,6 +2849,8 @@ pub enum Destination {
     Hand(PlayerRef),
     CommandZone,
     Ante,
+    /// This end of its owner's planar deck (901.3).
+    OwnersPlanarDeck(SequenceEnd),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4208,6 +4220,9 @@ pub enum HistoryMeasure {
     Property(Property, Aggregation),
     Distinct(DistinctProperty),
     MostFromOneSource,
+    /// How many different spells and abilities caused it, read through
+    /// `EventSpec::Caused`. Two abilities of one source are two causes.
+    DistinctCauses,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum SpentManaAggregation {
@@ -5983,6 +5998,13 @@ pub enum EventSpec {
     },
     /// State trigger on objects: one comes to match this (603.8).
     ObjectBecomes(ObjectFilter),
+    /// `event`, during the activation of one of `abilities` by one of `players`,
+    /// as Forge's `WhileKeyword$`. The player binding is the activating player.
+    WhileActivating {
+        event: Box<EventSpec>,
+        players: PlayerSet,
+        abilities: ObjectFilter,
+    },
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -6379,6 +6401,10 @@ pub enum PlayerEvent {
     /// `objects` is what targeted the player.
     BecomesTarget,
     UntapsDuringUntapStep,
+    /// Guessed at something hidden or undecided because of a spell or ability.
+    Guesses,
+    /// Separated cards or permanents into piles.
+    GroupsIntoPiles,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum TurnPoint {
@@ -6427,6 +6453,7 @@ pub enum AbilityKeyword {
     Ninjutsu,
     Outlast,
     PowerUp,
+    Craft,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum SpellEvent {
@@ -6445,6 +6472,8 @@ pub enum EventZone {
     Ante,
     /// Not a zone, but where a card outside the game is played from.
     Outside,
+    /// Each player's own ordered deck of planes and phenomena (901.3).
+    PlanarDeck,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DiscardKind {

@@ -412,8 +412,15 @@ impl Inventory<'_> {
                     self.players(players);
                     self.program(body);
                 }
-                Instruction::ChooseOne { decider, options } => {
+                Instruction::ChooseOne {
+                    decider,
+                    options,
+                    offered,
+                } => {
                     self.player(decider);
+                    if let Some(offered) = offered {
+                        self.expr(offered);
+                    }
                     options.iter().for_each(|option| self.program(option));
                 }
             }
@@ -1016,6 +1023,12 @@ impl Inventory<'_> {
                         self.expr(amount);
                     }
                     EventChange::SetController(player) => self.player(player),
+                    EventChange::ExchangeDieResult {
+                        decider, object, ..
+                    } => {
+                        self.player(decider);
+                        self.object(object);
+                    }
                     EventChange::PreventDamage
                     | EventChange::Cancel
                     | EventChange::SetDestination(_) => {}
@@ -2990,6 +3003,15 @@ impl Inventory<'_> {
             EventSpec::Caused { cause, event } => {
                 self.filter(cause);
                 self.event(event);
+            }
+            EventSpec::WhileActivating {
+                event,
+                players,
+                abilities,
+            } => {
+                self.event(event);
+                self.players(players);
+                self.filter(abilities);
             }
             EventSpec::ZoneChangeFromElsewhere { objects, .. } => self.filter(objects),
             EventSpec::AttackUnblocked { attackers, .. } => self.filter(attackers),

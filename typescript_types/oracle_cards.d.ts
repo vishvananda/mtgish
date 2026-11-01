@@ -163,8 +163,6 @@ type Action =
 | { "_Action": "APlayerGainsControlOfPermanent", "args": [Players, Permanent] }
 | { "_Action": "APlayerMayAction", "args": [Players, Action] }
 | { "_Action": "AbandonScheme", "args": SingleScheme }
-| { "_Action": "AcceptARandomCondition", "args": string }
-| { "_Action": "AcceptARandomOffer", "args": string }
 | { "_Action": "ActionForEachCardtype", "args": [Array<CardType>, Array<Action>] }
 | { "_Action": "ActionForEachCheckableAbility", "args": [Array<CheckHasable>, Array<Action>] }
 | { "_Action": "ActionForEachDistributedAnyTarget", "args": Array<Action> }
@@ -357,6 +355,7 @@ type Action =
 | { "_Action": "ChooseAnAbility", "args": Array<Rule> }
 | { "_Action": "ChooseAnAbilityAtRandom", "args": Array<Rule> }
 | { "_Action": "ChooseAnAction", "args": Array<Array<Action>> }
+| { "_Action": "ChooseOneOfNumberRandomActions", "args": [GameNumber, Array<Array<Action>>] }
 | { "_Action": "ChooseAnAttackingCreatureForBlockerToBlock", "args": [Permanents, Permanent] }
 | { "_Action": "ChooseAnExiledCard", "args": CardsInExile }
 | { "_Action": "ChooseAnExiledCardAtRandom", "args": CardsInExile }

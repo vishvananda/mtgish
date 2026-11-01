@@ -142,7 +142,8 @@ impl<'a> Scope<'a> {
                 | EventZone::Ante,
             ) => Ok(()),
             ZoneScope::Players {
-                zone: EventZone::Graveyard | EventZone::Hand | EventZone::Library,
+                zone:
+                    EventZone::Graveyard | EventZone::Hand | EventZone::Library | EventZone::PlanarDeck,
                 players,
             } => self.players(players),
             _ => Err("zone query uses a shared/private zone with the wrong scope".into()),
@@ -178,7 +179,7 @@ impl<'a> Scope<'a> {
             ObjectSet::Zone {
                 scope:
                     ZoneScope::Players {
-                        zone: EventZone::Library | EventZone::Graveyard,
+                        zone: EventZone::Library | EventZone::Graveyard | EventZone::PlanarDeck,
                         players: PlayerSet::One(_),
                     },
                 ..
@@ -340,6 +341,15 @@ impl<'a> Scope<'a> {
             EventSpec::Caused { cause, event } => {
                 self.filter(cause)?;
                 self.event(event)
+            }
+            EventSpec::WhileActivating {
+                event,
+                players,
+                abilities,
+            } => {
+                self.event(event)?;
+                self.players(players)?;
+                self.filter(abilities)
             }
             EventSpec::ZoneChangeFromElsewhere { objects, .. } => self.filter(objects),
             EventSpec::AttackUnblocked {
@@ -3546,6 +3556,18 @@ impl<'a> Scope<'a> {
                         self.count(&Count::Exactly(amount.clone()))
                     }
                     EventChange::SetController(player) => self.player(player),
+                    EventChange::ExchangeDieResult {
+                        decider,
+                        object,
+                        properties,
+                    } => {
+                        self.player(decider)?;
+                        self.object(object)?;
+                        if properties.len() < 2 {
+                            return Err("an exchange offers at least two properties".into());
+                        }
+                        Ok(())
+                    }
                     EventChange::PreventDamage
                     | EventChange::Cancel
                     | EventChange::SetDestination(_) => Ok(()),
@@ -4288,10 +4310,17 @@ impl<'a> Scope<'a> {
                         each.program(body)?;
                         self.adopt_choices(body, &each);
                     }
-                    Instruction::ChooseOne { decider, options } => {
+                    Instruction::ChooseOne {
+                        decider,
+                        options,
+                        offered,
+                    } => {
                         self.player(decider)?;
                         if options.len() < 2 {
                             return Err("a choice needs at least two options".into());
+                        }
+                        if let Some(offered) = offered {
+                            self.count(&Count::Exactly(offered.clone()))?;
                         }
                         for option in options {
                             self.clone().program(option)?;

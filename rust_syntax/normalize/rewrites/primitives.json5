@@ -2115,8 +2115,6 @@
     {"source": "Action::AfterThisMainPhaseThereAreAnAdditionalNumberCombatPhases", "text": "phases"},
     {"source": "Action::ActionForEachSpellAndAbility", "text": "ability"},
     {"source": "Action::ActionForEachCardInHand", "text": "hand"},
-    {"source": "Action::AcceptARandomOffer", "text": "accept"},
-    {"source": "Action::AcceptARandomCondition", "text": "condition"},
     {"source": "ReplacementActionWouldEnter::EnterAsACopyOfACardInAPlayersGraveyard", "text": "copy", "yields": "chosen"},
     {"source": "GameNumber::TheNumberOfUniqueVowelsOnNameSticker", "text": "vowel"},
     {"source": "GameNumber::TheNumberOfDiceResults", "text": "dice"},
