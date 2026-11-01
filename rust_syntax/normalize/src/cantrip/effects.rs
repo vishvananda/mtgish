@@ -915,6 +915,9 @@ impl Compiler {
                 let number = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
                 writeln!(out,"let amount_{id} = {}; let mills_{id}: Vec<(PlayerId, u32)> = {}.into_iter().map(|p| (p, amount_{id})).collect(); let milled_{id} = g.mill_together(&mills_{id});",self.fetch(number),self.fetch(self.players(players)?)).unwrap();
                 self.moved.insert(result.0, format!("milled_{id}"));
+                if let Expr::Constant(n) = amount {
+                    self.whole_mills.insert(format!("milled_{id}"), n.to_string());
+                }
                 self.left_behind(result, format!("milled_{id}.clone()"));
             }
             Operation::Discard {
@@ -1808,6 +1811,7 @@ impl Compiler {
         let alone = self.one_object(objects);
         let revealed = self.revealed;
         let chosen = matches!(objects, ObjectSet::Selected(_));
+        let objects = lane_k::shuffled_in_though_gone(objects, destination);
         let objects = self.fetch(self.objects(objects)?);
         let objects = lane_k::returning(objects, destination);
         let objects = lane_k::on_top_in_turn(objects, chosen, destination);
@@ -1833,7 +1837,7 @@ impl Compiler {
                     let each = self.arrival(entry)?;
                     format!("{{ let mut moved: Vec<ObjectId> = Vec::new(); for &o in &objects_{id} {{ let controller = {controller}; {each} }} moved }}")
                 } else if entry.counters.is_empty() {
-                    format!("{{ {rows} g.put_all_onto_battlefield_as(&rows_{id})? }}")
+                    format!("{{ {rows} let came_{id} = g.put_all_onto_battlefield_as(&rows_{id})?; came_{id}.into_iter().filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)).collect::<Vec<ObjectId>>() }}")
                 } else {
                     let mut counters = Vec::new();
                     for (kind, n) in &entry.counters {

@@ -309,6 +309,55 @@ impl Printed {
 
 /// Whether "you may" of this cost is its choice, up to one: the question is which
 /// object, and answering none is declining (Cantrip's `may_discard_a_card`).
+/// A trigger keeps the new object's number only if something reads it: the game
+/// compares what a trigger carries to find a loop (732.4), and a number that grows
+/// round the loop would keep it from ever coming back to the same position.
+pub(super) fn without_unread_data(functions: &str) -> String {
+    const KEPT: &str = "let data = [new.0, u32::MAX];";
+    if !functions.contains(KEPT) || functions.contains("item.data") || functions.contains("data[0]") {
+        return functions.to_string();
+    }
+    functions.replace(KEPT, "let data = [0u32, u32::MAX];")
+}
+/// "Shuffle it into its owner's library" of a card in a zone: the object as named,
+/// not as found, since the library is shuffled even if it has gone (701.24c).
+pub(super) fn shuffled_in_though_gone<'a>(objects: &'a ObjectSet, destination: &Destination) -> &'a ObjectSet {
+    if let (ObjectSet::One(ObjectRef::Query { objects: found, index: 0 }), Destination::OwnersLibraryShuffled) =
+        (objects, destination)
+    {
+        if let ObjectSet::InZone { objects: named, .. } = found.as_ref() {
+            if matches!(named.as_ref(), ObjectSet::One(_)) {
+                return named;
+            }
+        }
+    }
+    objects
+}
+/// "Ward--Sacrifice a Food" and its like, where Cantrip has the ability.
+pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
+    let [CostPart::Sacrifice {
+        objects: ObjectSet::Battlefield(filter),
+        choose: Some(Count::Exactly(Expr::Constant(n))),
+    }] = cost.parts.as_slice()
+    else {
+        return None;
+    };
+    let call = |function: String, what: &str| {
+        Some(format!(
+            "cantrip_mechanics::triggers::{function}(\"Ward--Sacrifice {what}\")"
+        ))
+    };
+    match (filter, *n) {
+        (ObjectFilter::Subtype(subtype), 1) if name(subtype) == "Food" => {
+            call("ward_sacrifice_a_food".into(), "a Food")
+        }
+        (ObjectFilter::Any, n) => call(format!("ward_sacrifice::<{n}>"), &format!("{n} permanents")),
+        (ObjectFilter::Not(inner), n) if matches!(**inner, ObjectFilter::CardType(crate::mtg_types::CardType::Land)) => {
+            call(format!("ward_sacrifice_nonland::<{n}>"), &format!("{n} nonland permanents"))
+        }
+        _ => None,
+    }
+}
 pub(super) fn paid_by_a_choice(cost: &Cost) -> bool {
     match cost.parts.as_slice() {
         [CostPart::Sacrifice {
@@ -992,6 +1041,11 @@ impl Compiler {
             [CostPart::Energy(Expr::Constant(n))] => {
                 format!("g.state().player(payer_{id}).energy() >= {n} && ")
             }
+            [CostPart::Discard {
+                count: Expr::Constant(n),
+                filter: ObjectFilter::Any,
+                ..
+            }] => format!("g.state().zone(Zone::hand(payer_{id})).len() >= {n} && "),
             [CostPart::ChangeTapState {
                 selections,
                 tapped: true,

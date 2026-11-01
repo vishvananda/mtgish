@@ -790,6 +790,9 @@ impl Compiler {
                 Keyword::Flanking => parts
                     .abilities
                     .push("cantrip_mechanics::flanking::TRIGGER".into()),
+                Keyword::Ward(cost) if lane_k::ward_by_sacrifice(cost).is_some() => {
+                    parts.abilities.extend(lane_k::ward_by_sacrifice(cost));
+                }
                 Keyword::Ward(cost) => {
                     let ward = match cost.parts.as_slice() {
                         [CostPart::Mana(symbols)] => match symbols.as_slice() {

@@ -321,8 +321,8 @@ impl Compiler {
                 writeln!(out, "let amount_{id} = {n}; let player_{id} = {player}; g.change_energy(player_{id}, amount_{id});").unwrap();
             }
             K::BecomeMonarch => self.actor_action(&action, "g.become_monarch(player)", out)?,
-            K::LoseGame => self.actor_action(&action, "g.lose_game(player)", out)?,
-            K::WinGame => self.actor_action(&action, "g.win_game(player)", out)?,
+            K::LoseGame => self.actor_action(&action, "g.lose_game(player); if g.state().is_over() { return Ok(()); }", out)?,
+            K::WinGame => self.actor_action(&action, "g.win_game(player); if g.state().is_over() { return Ok(()); }", out)?,
             K::TakeExtraTurn => {
                 let times = self.times(&action)?;
                 let call = format!("let times = {times}; g.add_extra_turns(player, times)");

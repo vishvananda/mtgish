@@ -319,6 +319,8 @@ impl Compiler {
                 true => format!("{local} > 0"),
                 false => local.clone(),
             }
+        } else if let Some(amount) = self.moved.get(&performed.0).and_then(|m| self.whole_mills.get(m)) {
+            format!("{}.len() as u32 >= {amount}", self.moved(performed)?)
         } else if self.moved.contains_key(&performed.0) {
             format!("!{}.is_empty()", self.moved(performed)?)
         } else if self.selections.contains_key(&performed.0) {
@@ -414,7 +416,22 @@ impl Compiler {
                 for list in lists {
                     write!(about, "about.extend({}); about.push(ObjectId::NONE); ", self.fetch(list)).unwrap();
                 }
-                writeln!(out, "{{ {about} g.delayed_trigger_about({when}, item.object, item.controller, {ability}, &about); }}").unwrap();
+                let only_about_them = lists.len() == 1
+                    && matches!(
+                        body.instructions.as_slice(),
+                        [Instruction::Effect {
+                            operation: Operation::Move {
+                                destination: Destination::Exile | Destination::OwnersHand,
+                                ..
+                            },
+                            ..
+                        }]
+                    );
+                let any = match only_about_them {
+                    true => "if about.iter().any(|&o| o != ObjectId::NONE) ",
+                    false => "",
+                };
+                writeln!(out, "{{ {about} {any}{{ g.delayed_trigger_about({when}, item.object, item.controller, {ability}, &about); }} }}").unwrap();
             }
             _ => return Err(gap("delayed ability about objects and a player")),
         }

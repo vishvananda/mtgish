@@ -592,7 +592,8 @@ impl Compiler {
                 ask("asker.source", "asker.source", &cost)
             }
         };
-        Ok(format!("let payer_{id} = {payer}; let paid_{id} = {paid};"))
+        let able = self.can_pay(id, cost);
+        Ok(format!("let payer_{id} = {payer}; let paid_{id} = {able}{paid};"))
     }
     /// "Add one mana of any type that land produced": the trigger's data names
     /// the player and the types, and with none produced nothing is added (106.12a).

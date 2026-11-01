@@ -188,6 +188,13 @@ impl Compiler {
             ))
         };
         Ok(match (kind, change) {
+            ("Damage", EventChange::SetAmount(Expr::Add(amount, plus)))
+                if matches!(**plus, Expr::ObjectProperty { .. }) =>
+            {
+                let amount = number(self, amount)?.code;
+                let plus = number(self, plus)?.code;
+                format!("e.amount = (({amount}) + ({plus}).max(0)).clamp(0, 65535) as u16;")
+            }
             ("Damage", EventChange::SetAmount(n)) => {
                 format!(
                     "e.amount = {};",
