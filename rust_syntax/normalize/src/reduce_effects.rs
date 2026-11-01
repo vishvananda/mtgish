@@ -348,7 +348,7 @@ pub fn reduce_mana_production(name: &str, operands: &[Operand]) -> Option<ManaPr
         }
         ("LastNotedManaTypeAndAmount", []) => ManaProduction::LastNoted { amount: true },
         ("ManaOfTheLastNotedType", []) => ManaProduction::LastNoted { amount: false },
-        _ => return None,
+        (form, operands) => return reduce_card_mana(form, operands),
     })
 }
 
@@ -520,7 +520,7 @@ fn reduce_expiration(form: &str, operands: &[Operand]) -> Option<Duration> {
             by: PlayerSet::One(player.clone()),
             with: object.clone(),
         },
-        _ => return None,
+        _ => return reduce_card_expiration(form, operands),
     })
 }
 

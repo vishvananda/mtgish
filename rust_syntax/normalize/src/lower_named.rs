@@ -904,10 +904,10 @@ impl Context {
                     Some(Operand::Ability(Box::new(self.fresh().ability(&rule).ok()?)))
                 })
                 .collect::<Option<_>>()?;
-            return Some(Ability::Primitive {
-                name: "Rule::TriggerModalA".into(),
-                operands: vec![Operand::List(abilities)],
-            });
+            return Some(crate::semantics::reduce_ability(
+                "Rule::TriggerModalA".into(),
+                vec![Operand::List(abilities)],
+            ));
         }
         let (name, operands) = match value {
             source::Rule::DeckConstruction(deck) => self.primitive("DeckConstruction", deck)?,

@@ -1258,10 +1258,11 @@ impl Context {
                     Err(_) => self
                         .primitive("FutureTrigger", event)
                         .map(|(name, operands)| {
+                            let expires = crate::semantics::future_expiry(&name);
                             (
                                 crate::semantics::reduce_future_event(name, operands),
                                 DelayedStart::Immediately,
-                                None,
+                                expires,
                             )
                         })
                         .ok_or(error),
@@ -1271,7 +1272,7 @@ impl Context {
         // Existing reference bindings remain captured and read-only.
         child.open_searches.clear();
         // A row's event names what it binds; typed events read their creator's.
-        if matches!(event, EventSpec::Primitive { .. }) {
+        if crate::semantics::delayed_reads_event(&event) {
             child.event = crate::semantics::with_event(&child.event, &event);
         }
         let source::Actions::ActionList(actions) = actions else {

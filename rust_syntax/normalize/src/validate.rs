@@ -306,7 +306,17 @@ impl<'a> Scope<'a> {
             ReplacementEvent::EachPoint(event) => self.replacement_event(event),
             ReplacementEvent::Measured { event, amount, .. } => {
                 self.replacement_event(event)?;
-                self.expr(amount)
+                let mut scope = self.clone();
+                scope.event = crate::semantics::with_replacement(&self.event, event);
+                scope.expr(amount)
+            }
+            ReplacementEvent::Caused { cause, event } => {
+                self.filter(cause)?;
+                self.replacement_event(event)
+            }
+            ReplacementEvent::PutOntoBattlefield { players, objects } => {
+                self.players(players)?;
+                self.filter(objects)
             }
             ReplacementEvent::FirstEachTurn(event) => self.replacement_event(event),
             ReplacementEvent::Either(events) => {
@@ -746,7 +756,7 @@ impl<'a> Scope<'a> {
             Duration::UntilEvent(event) => self.event(event),
             Duration::While(condition) => self.condition(condition),
             Duration::WhileItMatches(filter) => self.filter(filter),
-            Duration::ThroughNextTurn => Ok(()),
+            Duration::ThroughNextTurn | Duration::UntilStateBasedActionsChecked => Ok(()),
             Duration::DuringControllersNextUntapSteps(steps) => self.expr(steps),
             Duration::EndOfCombatOnNextTurn(player)
             | Duration::UntilNextUntapStep(player)
@@ -1073,7 +1083,7 @@ impl<'a> Scope<'a> {
                 symbols.iter().try_for_each(|symbol| self.operand(symbol))
             }
             Expr::DraftNoted { note, .. } => self.player(&note.player),
-            Expr::TurnsSinceForetold => Ok(()),
+            Expr::TurnsSinceForetold | Expr::ActivationCostSymbols(_) => Ok(()),
             Expr::ChosenColorsOf(object) => self.object(object),
             Expr::AbilitiesAmong { objects, .. } => self.objects(objects),
             Expr::Earlier {
@@ -2090,7 +2100,14 @@ impl<'a> Scope<'a> {
                 if let Some(condition) = &terms.condition {
                     self.condition(condition)?;
                 }
-                terms.effects.iter().try_for_each(|o| self.operand(o))
+                // A program here runs as the card is cast, and reads that spell.
+                let mut cast = self.clone();
+                cast.event.object = true;
+                cast.event.spell = true;
+                terms.effects.iter().try_for_each(|o| match o {
+                    Operand::Program(_) => cast.operand(o),
+                    _ => self.operand(o),
+                })
             }
             PlayerRule::Primitive { name, operands } => self.primitive(name, operands),
             PlayerRule::SpellsHaveAbilities {
@@ -3343,7 +3360,7 @@ impl<'a> Scope<'a> {
                 child.replacement = false;
                 child.open_searches.clear();
                 // A row's event says what it binds, as a typed one's creator did.
-                if matches!(event, EventSpec::Primitive { .. }) {
+                if crate::semantics::delayed_reads_event(event) {
                     child.event = crate::semantics::with_event(&child.event, event);
                 }
                 if let Some(condition) = intervening_if {
@@ -3500,6 +3517,12 @@ impl<'a> Scope<'a> {
                     | EventChange::ReplaceColoredMana(mana) => self.mana(mana),
                     EventChange::RollExtraDie(DiceIgnore::Lowest) => Ok(()),
                     EventChange::RollExtraDie(DiceIgnore::ChosenBy(player)) => self.player(player),
+                    EventChange::Then(body) => {
+                        // The event is over, so nothing here can change it.
+                        let mut child = self.clone();
+                        child.replacement = false;
+                        child.program(body)
+                    }
                     EventChange::ReplaceTokens { tokens, .. } => tokens
                         .iter()
                         .try_for_each(|token| self.count(&Count::Exactly(token.amount.clone()))),
@@ -3845,6 +3868,7 @@ impl<'a> Scope<'a> {
             | ManaProduction::DifferentColors(_)
             | ManaProduction::OtherColor
             | ManaProduction::LastNoted { .. } => Ok(()),
+            ManaProduction::DraftNotedColor(note) => self.player(&note.player),
             ManaProduction::ColorsAmong { objects, .. } => self.objects(objects),
             ManaProduction::ManaCostOf(object) | ManaProduction::SymbolsOf(object) => {
                 self.object(object)
@@ -4534,7 +4558,7 @@ fn validate_ability_in(
             return scope.operand(rules);
         }
         Ability::CountsAsNamed { .. } | Ability::Unique(_) => return Ok(()),
-        Ability::WhileOnTopOfLibrary(abilities) => {
+        Ability::WhileOnTopOfLibrary(abilities) | Ability::Triggers(abilities) => {
             for ability in abilities {
                 validate_ability_in(ability, zones, casting_costs)?;
             }

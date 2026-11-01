@@ -30,7 +30,7 @@ fn retag(value: &mut serde_json::Value, rename: &impl Fn(&str) -> Option<&'stati
 
 /// Forms that say what becomes of the event, so a body using one is explicit.
 /// A regeneration shield belongs here because it applies to the event itself.
-const EVENT_FORMS: [&str; 40] = [
+const EVENT_FORMS: [&str; 41] = [
     "SkipThisTurn",
     "SkipThisDrawStep",
     "EntersTapped",
@@ -50,6 +50,7 @@ const EVENT_FORMS: [&str; 40] = [
     "WouldProduceMana_AddMana",
     "WouldProduceMana_ReplaceType",
     "WouldProduceMana_ReplaceColorWithTheChosenColor",
+    "WouldProduceMana_ReplaceColor",
     "EntersWithLayerEffect",
     "EntersWithLayerEffectOfChoice",
     "RollThatManyPlusOneAndIgnoreLowestInstead",
@@ -155,6 +156,18 @@ impl Context {
                     DamageFrom::Sources(sources),
                     DamageTo::List(recipients),
                     DamageKind::Any,
+                )?;
+                self.measured(ReplacementEvent::Damage(shape), comparison)
+            }
+            S::AnAmountOfNonCombatDamageWouldBeDealtByASourceToARecipient(
+                comparison,
+                sources,
+                recipients,
+            ) => {
+                let shape = self.damage_shape(
+                    DamageFrom::Sources(sources),
+                    DamageTo::List(recipients),
+                    DamageKind::Noncombat,
                 )?;
                 self.measured(ReplacementEvent::Damage(shape), comparison)
             }
@@ -300,6 +313,14 @@ impl Context {
             }));
         }
         for (i, step) in steps.iter().enumerate() {
+            // The event goes ahead, and what is left of the body waits for it.
+            if step["variant"] == "WouldPutPermanentOnBattlefield_PutPermanentOnBattlefield" {
+                let then = self.replacement_child(&steps[i + 1..], actor)?;
+                instructions.push(self.effect(Operation::ModifyEvent {
+                    change: EventChange::Then(then),
+                }));
+                break;
+            }
             let step = self
                 .replacement_step(step, actor)
                 .map_err(|e| e.at(format!("replacement[{i}]")))?;
@@ -373,6 +394,13 @@ impl Context {
                 vec![EventChange::ReplaceColoredMana(
                     self.mana_production(&source::ManaProduce::ManaOfTheChosenColor)?,
                 )]
+            }
+            "WouldProduceMana_ReplaceColor" => {
+                let color: source::Color = decode_step(args)?;
+                vec![EventChange::ReplaceColoredMana(ManaProduction::Amount {
+                    color: casting_color(&color)?,
+                    amount: Expr::Constant(1),
+                })]
             }
             "EntersWithLayerEffect" => {
                 let effects = args

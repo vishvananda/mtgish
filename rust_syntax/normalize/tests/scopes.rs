@@ -1826,8 +1826,9 @@ fn different_targets_and_future_rows_lower_with_their_scope() {
     let ambush = lowered(
         "SpellActions(Targeted([TargetPermanent(AnyPermanent), TargetPermanent(AnyPermanent)], ActionList([CreateFutureTrigger(WhenPermanentWinsAFightAgainstPermanent(Ref_TargetPermanent1, Ref_TargetPermanent2), ActionList([DrawACard]))])))",
     );
+    assert!(ambush.contains("event: LeavesBattlefield"), "{ambush}");
     assert!(
-        ambush.contains("WhenPermanentWinsAFightAgainstPermanent"),
+        ambush.contains("expires: Some(UntilStateBasedActionsChecked)"),
         "{ambush}"
     );
 }
