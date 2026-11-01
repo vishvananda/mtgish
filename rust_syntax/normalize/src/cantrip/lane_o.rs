@@ -62,6 +62,21 @@ fn ability_word(operand: &Operand) -> Result<String> {
     }
 }
 
+/// Whether playing cards failed for what `stated_play` can say.
+pub(super) fn play_stated(feature: &str) -> bool {
+    feature.starts_with("cards played by")
+        || feature.starts_with("play count")
+        || feature.starts_with("a land played by")
+}
+
+/// Whether a cost branch failed for what `stated_branch` can say.
+pub(super) fn branch_stated(feature: &str) -> bool {
+    feature.starts_with("cost branch")
+        || feature.starts_with("target count by branch")
+        || feature.starts_with("cost objects of Branch")
+        || feature == "cleave cost other than mana"
+}
+
 impl Compiler {
     /// `|q, asker, id| test` of what the filter says of the object `id`.
     pub(super) fn over(&self, filter: &ObjectFilter, id: &str) -> Result<String> {
@@ -254,7 +269,7 @@ impl Compiler {
                 permanents,
             } => {
                 let players = match players {
-                    Some(player) => format!("Some({})", self.certain_player(player)?),
+                    Some(player) => self.player(player)?,
                     None => "None".to_string(),
                 };
                 format!(
@@ -409,12 +424,12 @@ impl Compiler {
                 self.read(self.certain_player(player)?)
             ),
             D::UntilNextTurn(player) => format!(
-                "Duration::UntilNextTurn({})",
-                self.read(self.certain_player(player)?)
+                "Duration::UntilNextTurnOf({})",
+                self.read(self.player(player)?)
             ),
             D::UntilEndOfNextTurn(player) => format!(
-                "Duration::UntilEndOfNextTurn({})",
-                self.read(self.certain_player(player)?)
+                "Duration::UntilEndOfNextTurnOf({})",
+                self.read(self.player(player)?)
             ),
             D::Either(durations) => {
                 let mut all = Vec::new();
@@ -701,11 +716,42 @@ impl Compiler {
                 filter: filter.clone(),
             },
         };
-        let (zone, cards) = (zone_kind(from)?, self.fetch(self.objects(&chosen)?));
+        let zone = match from {
+            EventZone::Outside => "ZoneKind::Outside".to_string(),
+            other => zone_kind(other)?,
+        };
+        let cards = self.cards_of_rule(&chosen)?;
         let grant = self.play_grant(action, terms)?;
         Ok(format!(
-            "PlayerRule::Play {{ zone: {zone}, cards: |q: &dyn Query, asker: &Asker, card: ObjectId| ({cards}).contains(&card), grant: {grant} }}"
+            "PlayerRule::Play {{ zone: {zone}, cards: {cards}, grant: {grant} }}"
         ))
+    }
+    /// The cards a rule is about. A rule is asked after the resolution that
+    /// made it, when `g` is gone: it reads them then with what it is asked
+    /// by, keeping the resolution's locals; and what only that resolution
+    /// could read, or what reads nothing later, it keeps as they were read.
+    fn cards_of_rule(&mut self, cards: &ObjectSet) -> Result<String> {
+        let test = "|q: &dyn Query, asker: &Asker, card: ObjectId|";
+        if !matches!(self.reader, Reader::Resolution) {
+            // Of a static rule, which holds for each player it holds for.
+            return Ok(format!(
+                "CardsOfRule::Asked(|q: &dyn Query, asker: &Asker, player: PlayerId, card: ObjectId| ({}).contains(&card))",
+                self.objects(cards)?
+            ));
+        }
+        let gaps = self.gaps.len();
+        match self.queried(|c| c.objects(cards)) {
+            Ok(code) if code.contains("q.") => Ok(format!(
+                "CardsOfRule::kept(move {test} ({code}).contains(&card))"
+            )),
+            _ => {
+                self.gaps.truncate(gaps);
+                Ok(format!(
+                    "CardsOfRule::These({})",
+                    self.fetch(self.objects(cards)?)
+                ))
+            }
+        }
     }
     fn cost_modifier(&mut self, modifier: &SpellCostModifier) -> Result<String> {
         use SpellCostModifier as S;
@@ -992,7 +1038,11 @@ impl Compiler {
                 count(self, n)?
             ),
             R::AttackOnly(defenders) => {
-                format!("PlayerRule::AttackOnly({})", self.defenders(defenders)?)
+                // Who may attack is asked of the attacker: "nearest opponent".
+                format!(
+                    "PlayerRule::AttackOnly(|q: &dyn Query, asker: &Asker, player: PlayerId, defender: Target| {})",
+                    self.defended(defenders)?
+                )
             }
             R::AttackedOnlyBy(filter) => {
                 format!("PlayerRule::AttackedOnlyBy({})", self.over(filter, "attacker")?)
@@ -1759,6 +1809,39 @@ impl Compiler {
         })
     }
 
+    /// `Option<ObjectId>`: an object nothing else reads.
+    pub(super) fn object_stated(&self, object: &ObjectRef) -> Result<String> {
+        let feature = format!("object reference {}", form(object));
+        let code = match object {
+            // The spell or card a rule on many of them is being asked about.
+            ObjectRef::Scoped => "q.scoped_object(asker)",
+            // A choice as the source entered (CR 607.2).
+            ObjectRef::Chosen => "q.chosen_object(asker)",
+            _ => return Err(gap(feature)),
+        };
+        Ok(planned::planned_value(&feature, "None::<ObjectId>", code))
+    }
+    /// `Vec<ObjectId>`: objects nothing else reads.
+    pub(super) fn objects_stated(&self, objects: &ObjectSet) -> Result<String> {
+        let feature = format!("object collection {}", form(objects));
+        let code = match objects {
+            ObjectSet::MovedBy { result, player, .. } => format!(
+                "q.moved_by(asker, {}, {})",
+                result.0,
+                self.player(player)?
+            ),
+            ObjectSet::Earlier {
+                what,
+                by: Some(players),
+            } => format!(
+                "q.earlier_objects_of(asker, {}, EarlierObjects::{what:?})",
+                self.players(players)?
+            ),
+            _ => return Err(gap(feature)),
+        };
+        Ok(planned::planned_value(&feature, "Vec::<ObjectId>::new()", &code))
+    }
+
     // --- Players with no read yet.
 
     /// A reference to a player nothing else reads.
@@ -1808,7 +1891,14 @@ impl Compiler {
         if let Some((_, local)) = self.picked.borrow().named.iter().find(|(k, _)| *k == key) {
             return Ok(local.clone());
         }
-        if self.present.borrow().is_none() || !self.stack_item {
+        if !self.stack_item {
+            return Ok(planned::planned_value(
+                FEATURE,
+                "None::<PlayerId>",
+                &format!("q.first_willing_for(asker, {})", self.players(players)?),
+            ));
+        }
+        if self.present.borrow().is_none() {
             return Err(gap(FEATURE));
         }
         let among = self.fetch(self.players(players)?);
@@ -2085,13 +2175,34 @@ impl Compiler {
                 self.count_code(count)?,
                 self.over(filter, "id")?
             ),
+            // Paid before anything resolves, with nothing to read but the asker.
             P::PlayerAction { player, body } => {
-                let body = self.stated(&Operand::Program(body.clone()))?;
-                format!(
-                    "Cost::performed(|q: &dyn Query, asker: &Asker| {}, {body})",
-                    self.player(player)?
-                )
+                let saved = std::mem::replace(&mut self.stack_item, false);
+                let read = self
+                    .stated(&Operand::Program(body.clone()))
+                    .and_then(|body| Ok((body, self.player(player)?)));
+                self.stack_item = saved;
+                let (body, player) = read?;
+                format!("Cost::performed(|q: &dyn Query, asker: &Asker| {player}, {body})")
             }
+            P::Discard {
+                count,
+                filter,
+                random,
+            } => format!(
+                "Cost::discards(|q: &dyn Query, asker: &Asker| {}, {}, {random})",
+                self.asked(count)?,
+                self.over(filter, "id")?
+            ),
+            P::Draw { count } => {
+                format!("Cost::draws(|q: &dyn Query, asker: &Asker| {})", self.asked(count)?)
+            }
+            P::Behold { count, what } => format!(
+                "Cost::beholds(|q: &dyn Query, asker: &Asker| {}, {})",
+                self.asked(count)?,
+                self.stated(what)?
+            ),
+            P::LifeEqualToOwnManaValue => "Cost::life_equal_to_mana_value()".to_string(),
             P::ManaWithX { mana: symbols, x } => format!(
                 "Cost::mana_with_x({}, {})",
                 mana(symbols)?,
@@ -2480,6 +2591,106 @@ impl Compiler {
         let toughness = read(self, toughness).map_err(|_| failed())?;
         Ok(Some(format!("|q: &dyn Query, asker: &Asker| ({power}, {toughness})")))
     }
+    /// How many cards an instruction lets be played.
+    fn play_count(&mut self, count: &Count) -> Result<String> {
+        Ok(match count {
+            Count::Exactly(n) => format!(
+                "PlayCount::Exactly({})",
+                self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?)
+            ),
+            Count::UpTo(n) => format!(
+                "PlayCount::UpTo({})",
+                self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?)
+            ),
+            Count::AnyNumber => "PlayCount::AnyNumber".to_string(),
+            Count::PerPlayer { players, each } => format!(
+                "PlayCount::PerPlayer({}, &{})",
+                self.fetch(self.players(players)?),
+                self.play_count(each)?
+            ),
+            other => return Err(gap(format!("play count {}", form(other)))),
+        })
+    }
+    /// "Cast one card from among them for each opponent", and the plays the
+    /// offer of one card at a time doesn't say.
+    pub(super) fn stated_play(
+        &mut self,
+        operation: &Operation,
+        optional: bool,
+        failed: Diagnostic,
+        out: &mut String,
+    ) -> Result<()> {
+        let plain = lane_i::plain_play(operation);
+        let Operation::PlayCards {
+            actor,
+            action,
+            cards,
+            count,
+            cost,
+            into_exile,
+        } = plain.as_ref().unwrap_or(operation)
+        else {
+            return Err(failed);
+        };
+        let read = |c: &mut Self| -> Result<String> {
+            let players = c.fetch(c.players(actor)?);
+            let pool = c.fetch(c.objects(cards)?);
+            let count = c.play_count(count)?;
+            let cost = match cost {
+                PlayCost::Free => "PlayCost::Free".to_string(),
+                PlayCost::Normal => "PlayCost::Normal".to_string(),
+                other => return Err(gap(format!("play cost {}", form(other)))),
+            };
+            Ok(format!(
+                "{M}::playing::play_each(g, {players}, {pool}, CardPlayAction::{action:?}, {count}, {cost}, {optional}, {into_exile}, asker.source)?;"
+            ))
+        };
+        let code = read(self).map_err(|_| failed.clone())?;
+        self.plan_code(&failed.feature, &code, out);
+        Ok(())
+    }
+    /// A rule of casting this card no field of the engine's holds.
+    pub(super) fn stated_casting(&mut self, rule: &CastingRule, parts: &mut Parts) -> Result<()> {
+        let feature = format!("casting rule {}", form(rule));
+        let code = match rule {
+            CastingRule::ProhibitTargets { filter, .. } => {
+                format!("CastRule::ProhibitTargets({})", self.over(filter, "id")?)
+            }
+            CastingRule::TaxPaidAsLife(amount) => format!(
+                "CastRule::TaxPaidAsLife(|q: &dyn Query, asker: &Asker| {})",
+                self.asked(amount)?
+            ),
+            _ => return Err(gap(feature)),
+        };
+        self.plan_entry(&feature, "cast_rules", &code, parts);
+        Ok(())
+    }
+    /// "If this spell was kicked, do this instead": a cost, and the spell it makes.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn stated_branch(
+        &mut self,
+        keyword: &str,
+        cost: &Cost,
+        paid: &Ability,
+        unpaid: &Ability,
+        label: &str,
+        failed: Diagnostic,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let read = |c: &mut Self| -> Result<String> {
+            // The branch that failed may have left its own items under `label`.
+            let cost = c.cost(cost, &format!("{label}_branch_cost"))?;
+            let paid = c.resolved_body(paid, &format!("{label}_branch_paid"))?;
+            let unpaid = c.resolved_body(unpaid, &format!("{label}_branch_unpaid"))?;
+            Ok(format!(
+                "CostBranch {{ keyword: {}, cost: {cost}, paid: {paid}, unpaid: {unpaid} }}",
+                quoted(keyword)
+            ))
+        };
+        let code = read(self).map_err(|_| failed.clone())?;
+        self.plan_entry(&failed.feature, "cost_branches", &code, parts);
+        Ok(())
+    }
     /// "You may cast this card from your graveyard" on terms of its own.
     pub(super) fn stated_own_cast(
         &mut self,
@@ -2595,6 +2806,82 @@ impl Compiler {
                 "t_{at}_raw.iter().filter_map(|&t: &Target| q.stack_item_object(Some(t))).collect::<Vec<ObjectId>>()"
             ),
         ))
+    }
+    /// What a player did that no event of the record names.
+    pub(super) fn did_stated(
+        &self,
+        player: &PlayerRef,
+        event: &PlayerHistory,
+        scope: &str,
+    ) -> Result<String> {
+        use PlayerHistory as H;
+        let feature = format!("condition PlayerDid {}", form(event));
+        let deed = match event {
+            H::PlayedLandNotFromHand => "PlayerDeed::PlayedLandNotFromHand".to_string(),
+            H::ActivatedExhaust => "PlayerDeed::ActivatedExhaust".to_string(),
+            H::WasMonarch => "PlayerDeed::WasMonarch".to_string(),
+            H::AttackedDefender(filter) => {
+                format!("PlayerDeed::AttackedDefender({})", self.over(filter, "id")?)
+            }
+            H::PlayedFromExile(filter) => {
+                format!("PlayerDeed::PlayedFromExile({})", self.over(filter, "id")?)
+            }
+            H::PaidOrLostEnergy(comparison, n) => format!(
+                "PlayerDeed::PaidOrLostEnergy({}, {})",
+                comparing(comparison),
+                self.asked(n)?
+            ),
+            H::RolledDie(comparison, n) => format!(
+                "PlayerDeed::RolledDie({}, {})",
+                comparing(comparison),
+                self.asked(n)?
+            ),
+            H::Cycled(comparison, n, filter) => format!(
+                "PlayerDeed::Cycled({}, {}, {})",
+                comparing(comparison),
+                self.asked(n)?,
+                self.over(filter, "id")?
+            ),
+            _ => return Err(gap(feature)),
+        };
+        Ok(planned::planned_value(
+            &feature,
+            "false",
+            &format!("q.player_did({scope}, {}, {deed})", self.player(player)?),
+        ))
+    }
+    /// What a rule on abilities asks that `ability_test` does not.
+    pub(super) fn ability_stated(&self, filter: &ObjectFilter) -> Result<String> {
+        let feature = format!("activation cost of abilities {}", form(filter));
+        let test = match filter {
+            ObjectFilter::OnStack(StackTrait::Keyword(word)) => {
+                format!("def.is_some_and(|d| d.keyword_of() == Some(AbilityKeyword::{word:?}))")
+            }
+            ObjectFilter::NthCast {
+                ordinal,
+                spells,
+                by,
+                scope,
+            } => {
+                let by = match by {
+                    Some(players) => format!("Some({})", self.players(players)?),
+                    None => "None".to_string(),
+                };
+                let which = match self.ability_filter(spells) {
+                    Ok(test) => test,
+                    Err(_) => format!(
+                        "|q: &dyn Query, asker: &Asker, id: ObjectId| {}",
+                        self.activated_stated(spells)?
+                    ),
+                };
+                format!(
+                    "q.is_nth_activation(permanent, def, {}, {which}, {by}, CastScope::{scope:?})",
+                    self.asked(ordinal)?
+                )
+            }
+            _ => return Err(gap(feature)),
+        };
+        Ok(planned::planned_value(&feature, "false", &test))
     }
     /// What a trigger on an activation asks that `activation_test` does not.
     pub(super) fn activated_stated(&self, filter: &ObjectFilter) -> Result<String> {
@@ -2723,15 +3010,23 @@ impl Compiler {
         Ok(planned::planned_value(&failed.feature, "HexproofFrom::NONE", &code))
     }
     /// What a player's protection is from.
-    fn quality_code(&self, quality: &Protection) -> Result<String> {
+    fn quality_code(&mut self, quality: &Protection) -> Result<String> {
         Ok(match quality {
             Protection::Objects { filter, .. } => {
                 format!("Protection::Objects({})", self.over(filter, "id")?)
             }
-            Protection::Players(players) => format!(
-                "Protection::Players(|q: &dyn Query, asker: &Asker| {})",
-                self.read(self.players(players)?)
-            ),
+            Protection::Players(players) => {
+                let gaps = self.gaps.len();
+                match self.queried(|c| c.players(players)) {
+                    Ok(code) => {
+                        format!("Protection::Players(move |q: &dyn Query, asker: &Asker| {code})")
+                    }
+                    Err(_) => {
+                        self.gaps.truncate(gaps);
+                        format!("Protection::These({})", self.read(self.players(players)?))
+                    }
+                }
+            }
             Protection::Each(qualities) => {
                 let mut all = Vec::new();
                 for each in qualities {
@@ -2816,11 +3111,30 @@ impl Compiler {
                 };
                 let mut code = values.clone();
                 for operand in list {
-                    let Operand::Ability(ability) = operand else {
-                        return Err(gap(feature));
-                    };
-                    for each in self.granted_refs(ability)? {
-                        code = format!("{code}.{method}({each})");
+                    match operand {
+                        Operand::Ability(ability) => {
+                            let refs = self.granted_refs(ability).or_else(|failed| {
+                                let Ability::Mechanic {
+                                    mechanic,
+                                    amount: Some(amount),
+                                    ..
+                                } = &**ability
+                                else {
+                                    return Err(failed);
+                                };
+                                Ok(vec![format!(
+                                    "AbilityRef::mechanic(Mechanic::{mechanic:?}, {})",
+                                    self.fetch(self.number(amount)?.amount(u32::MAX.into(), "u32")?)
+                                )])
+                            });
+                            for each in refs? {
+                                code = format!("{code}.{method}({each})");
+                            }
+                        }
+                        lost if name == "LosesAbility" => {
+                            code = format!("{code}.losing({})", self.lost_word(lost)?);
+                        }
+                        _ => return Err(gap(feature)),
                     }
                 }
                 code

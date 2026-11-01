@@ -2209,7 +2209,7 @@ impl Compiler {
                     ..Candidate::of("permanent")
                 },
             )?,
-            other => return Err(gap(format!("activation cost of abilities {}", form(other)))),
+            other => return self.ability_stated(other),
         })
     }
     /// "Activated abilities of creatures you control cost {1} less to activate"

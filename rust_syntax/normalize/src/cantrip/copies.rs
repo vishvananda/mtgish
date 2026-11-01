@@ -43,6 +43,9 @@ impl Compiler {
             ("AddSupertypes", list) if words(list)? == ["Legendary"] => {
                 format!("{values}.legendary()")
             }
+            ("SetColor", [Operand::Term { form, .. }]) if form == "Colorless" => {
+                format!("{values}.colored(ColorSet::NONE)")
+            }
             ("SetColor", [Operand::Term { form, operands, .. }]) if form == "SimpleColorList" => {
                 let set = words(operands)?
                     .iter()

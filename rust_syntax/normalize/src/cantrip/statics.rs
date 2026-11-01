@@ -137,7 +137,9 @@ impl Compiler {
             ObjectSet::Battlefield(filter) => self.filter(filter, &Candidate::of(id))?,
             other => match self.outside_subject(other, &Candidate::of(id))? {
                 Some(test) => test,
-                None => return Err(gap(format!("static rule subjects {}", form(other)))),
+                None => self
+                    .stated_subject(other, &Candidate::of(id))
+                    .map_err(|_| gap(format!("static rule subjects {}", form(other))))?,
             },
         })
     }
@@ -388,12 +390,17 @@ impl Compiler {
                 )
             }
             Change::SetLandType(land) => {
-                let Operand::Vocabulary { form: word, .. } = &**land else {
-                    return Err(gap(format!("land type {}", form(&**land))));
+                let words = match &**land {
+                    Operand::Vocabulary { form: word, .. } => vec![word.as_str()],
+                    Operand::List(list) => copies::words(list)?,
+                    other => return Err(gap(format!("land type {}", form(other)))),
                 };
+                let set = words.iter().fold("SubtypeSet::NONE".to_string(), |set, word| {
+                    format!("{set}.with(q.words(asker.source).subtype(Subtype::{word}))")
+                });
                 LayerChange {
                     layer: "Type",
-                    body: format!("chars.set_land_subtypes(SubtypeSet::NONE.with(q.words(asker.source).subtype(Subtype::{word})));"),
+                    body: format!("chars.set_land_subtypes({set});"),
                     whole: None,
                     each: false,
                     land: true,

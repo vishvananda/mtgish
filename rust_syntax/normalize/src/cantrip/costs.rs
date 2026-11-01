@@ -869,7 +869,12 @@ impl Compiler {
                 cost,
                 paid,
                 unpaid,
-            } => self.cost_branch(keyword, cost, paid, unpaid, label, parts)?,
+            } => match self.cost_branch(keyword, cost, paid, unpaid, label, parts) {
+                Err(failed) if lane_o::branch_stated(&failed.feature) => {
+                    self.stated_branch(keyword, cost, paid, unpaid, label, failed, parts)?
+                }
+                other => other?,
+            },
             Ability::Scoped {
                 zones,
                 condition,

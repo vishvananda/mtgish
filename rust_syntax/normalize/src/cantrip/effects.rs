@@ -735,6 +735,16 @@ impl Compiler {
             {
                 self.copy_as_enters(decider, body, out)
             }
+            Instruction::Optional { decider, body }
+                if self.certain_player(decider).is_err() && self.player(decider).is_ok() =>
+            {
+                let id = self.fresh();
+                let decider = self.fetch(self.player(decider)?);
+                writeln!(out, "if let Some(decider_{id}) = {decider} {{ if cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{").unwrap();
+                self.block(body, out, true)?;
+                writeln!(out, "}} }}").unwrap();
+                Ok(())
+            }
             Instruction::Optional { decider, body } => {
                 let player = self.certain_player(decider).map(|p| self.fetch(p));
                 let decider = planned::planned_read(player, "asker.controller", decider);
@@ -1137,7 +1147,19 @@ impl Compiler {
                                 self.plan_code("rad counters", &code, out);
                                 continue;
                             }
-                            other => return Err(gap(format!("{} on a player", form(other)))),
+                            other => {
+                                let kind = counter_kind(other)?;
+                                let amount = self
+                                    .number(&placement.amount)?
+                                    .amount(i16::MAX.into(), "i16")?;
+                                let code = format!(
+                                    "let amount = {}; for player in {} {{ g.give_player_counters(player, {kind}, amount); }}",
+                                    self.fetch(amount),
+                                    self.fetch(self.players(players)?)
+                                );
+                                self.plan_code("counters on a player", &code, out);
+                                continue;
+                            }
                         };
                         let amount = self
                             .number(&placement.amount)?

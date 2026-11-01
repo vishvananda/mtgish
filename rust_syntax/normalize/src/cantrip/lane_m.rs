@@ -694,7 +694,7 @@ impl Compiler {
                 what,
                 by: None | Some(PlayerRef::AbilityController),
             } => format!("({}).first().copied()", self.earlier_objects(what)?),
-            other => return Err(gap(format!("object reference {}", form(other)))),
+            other => return self.object_stated(other),
         })
     }
     /// The rest of `objects`.
@@ -703,7 +703,7 @@ impl Compiler {
             ObjectSet::Earlier { what, by: None } => self.earlier_objects(what)?,
             ObjectSet::Copies(result) => self.named(result)?,
             ObjectSet::Unselected(result) => self.unselected(result)?,
-            other => return Err(gap(format!("object collection {}", form(other)))),
+            other => return self.objects_stated(other),
         })
     }
     /// What a choice offered and didn't take, all the players' for a choice each

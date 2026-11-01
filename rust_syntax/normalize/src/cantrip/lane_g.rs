@@ -1579,7 +1579,7 @@ impl Compiler {
                     parts,
                 );
             }
-            (other, _) => return Err(gap(format!("casting rule {}", form(other)))),
+            (other, _) => return self.stated_casting(other, parts),
         }
         Ok(())
     }

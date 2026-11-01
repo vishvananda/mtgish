@@ -457,7 +457,16 @@ impl Compiler {
             ));
             return Ok(());
         }
-        let player = self.certain_player(chooser)?;
+        let Ok(player) = self.certain_player(chooser) else {
+            rule.planned.push((
+                "targets chosen by another player".to_string(),
+                format!(
+                    ".chosen_by_one_of(|q: &dyn Query, asker: &Asker| {}.into_iter().collect::<Vec<PlayerId>>())",
+                    self.player(chooser)?
+                ),
+            ));
+            return Ok(());
+        };
         rule.planned.push((
             "targets chosen by another player".to_string(),
             format!(".chosen_by(|q: &dyn Query, asker: &Asker| {player})"),
@@ -1758,6 +1767,14 @@ impl Compiler {
             ),
             NewTargets::Random(_) => "NewTargets::Random".to_string(),
             NewTargets::EachLegal => "NewTargets::EachLegal".to_string(),
+            NewTargets::EachPlayer(players) => planned::planned_value(
+                "new targets EachPlayer",
+                "NewTargets::EachLegal",
+                &format!(
+                    "NewTargets::EachPlayer({})",
+                    self.fetch(self.players(players)?)
+                ),
+            ),
             #[allow(unreachable_patterns)]
             other => return Err(gap(format!("new targets {}", form(other)))),
         })

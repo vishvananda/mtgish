@@ -1,0 +1,704 @@
+[
+{
+"match": "^(player reference OneOf)$",
+"class": "engine",
+"needs": "Reading one player of a set where nothing is resolving, the one picked as the ability is announced or as the permanent enters",
+"api": "q.player_picked_for(asker, players) -> PlayerId"
+},
+{
+"match": "^(player reference FirstWilling)$",
+"class": "engine",
+"needs": "Reading the first player of a set who agrees to something, asked in turn order",
+"api": "cantrip_mechanics::choose::first_willing(g, among, source)?; q.first_willing_for(asker, players)"
+},
+{
+"match": "^(player reference ModeChooser)$",
+"class": "engine",
+"needs": "Reading the player who chose a modal spell or ability's modes when that is not its controller",
+"api": "q.mode_chooser(asker) -> Option<PlayerId>"
+},
+{
+"match": "^(player reference ClashOpponent)$",
+"class": "engine",
+"needs": "Reading the opponent a clash was with",
+"api": "q.clash_opponent(asker) -> Option<PlayerId>"
+},
+{
+"match": "^(player reference Acting)$",
+"class": "engine",
+"needs": "Reading the player a choice was last offered to, outside a walk of players",
+"api": "q.acting_player(asker) -> Option<PlayerId>"
+},
+{
+"match": "^(player reference DefendingPlayer)$",
+"class": "engine",
+"needs": "Reading the defending player of the combat under way without naming an attacker",
+"api": "q.defending_player_now() -> Option<PlayerId>"
+},
+{
+"match": "^(player reference Bound)$",
+"class": "engine",
+"needs": "Reading a player another ability of the object remembered",
+"api": "q.remembered_player(asker) -> Option<PlayerId>"
+},
+{
+"match": "^(player reference Performer)$",
+"class": "engine",
+"needs": "Reading who performed an earlier instruction of the effect",
+"api": "q.performer_of(asker, result) -> Option<PlayerId>"
+},
+{
+"match": "^(player reference Named)$",
+"class": "engine",
+"needs": "Reading the nth player an earlier instruction named",
+"api": "q.named_player(asker, result, index) -> Option<PlayerId>"
+},
+{
+"match": "^(player reference InChosenDirection)$",
+"class": "engine",
+"needs": "Reading the next or nearest player in the direction last chosen",
+"api": "q.next_in_chosen_direction(asker, from); q.nearest_in_chosen_direction(asker, from, among)"
+},
+{
+"match": "^(player reference NotedFor)$",
+"class": "engine",
+"needs": "Reading the player noted for an object",
+"api": "q.noted_for(asker, object) -> Option<PlayerId>"
+},
+{
+"match": "^(player collection DamagedBy)$",
+"class": "engine",
+"needs": "Reading the players an earlier instruction of the effect dealt damage to",
+"api": "q.players_damaged_by(asker, result) -> Vec<PlayerId>"
+},
+{
+"match": "^(player collection DamageRecipients)$",
+"class": "engine",
+"needs": "Reading the players that the damage of the event just dealt reached",
+"api": "q.recipients_of_event_damage(asker) -> Vec<PlayerId>"
+},
+{
+"match": "^(player collection Scoped)$",
+"class": "engine",
+"needs": "Reading the players a rule on many of them is being asked about",
+"api": "q.players_in_scope(asker) -> Vec<PlayerId>"
+},
+{
+"match": "^(object reference Scoped)$",
+"class": "engine",
+"needs": "Reading the card or spell a rule on many of them is being asked about, as a cost that names its mana value does",
+"api": "q.scoped_object(asker) -> Option<ObjectId>"
+},
+{
+"match": "^(object reference Chosen)$",
+"class": "engine",
+"needs": "Reading the object chosen as a permanent entered",
+"api": "q.chosen_object(asker) -> Option<ObjectId>"
+},
+{
+"match": "^(object collection MovedBy)$",
+"class": "engine",
+"needs": "Reading what one player moved in an instruction of several players after the effect is over",
+"api": "q.moved_by(asker, result, player) -> Vec<ObjectId>"
+},
+{
+"match": "^(object collection Earlier)$",
+"class": "engine",
+"needs": "Reading what these players did to objects earlier, after the effect that did it is over",
+"api": "q.earlier_objects_of(asker, players, EarlierObjects::..) -> Vec<ObjectId>"
+},
+{
+"match": "^(a spell or ability on the stack read as an object)$",
+"class": "engine",
+"needs": "Reading the object of a stack item a slot targets, so a rule of objects can be asked of a spell or an ability",
+"api": "q.stack_item_object(Option<Target>) -> Option<ObjectId>"
+},
+{
+"match": "^(a value chosen by several players)$",
+"class": "engine",
+"needs": "One choice of a value by each of several players, kept per player",
+"api": "cantrip_mechanics::choose::each_chooses(g, players, source, ChoiceKind::..)?"
+},
+{
+"match": "^(a choice of Color outside its body|a choice of Player outside its body|a choice of CreatureType outside its body|a choice of BasicLandType outside its body|a choice of LandType outside its body|a choice of Number outside its body)$",
+"class": "engine",
+"needs": "Reading a choice made by another ability of the same source, which the engine keeps only as it enters",
+"api": "q.chosen_{player,color,subtype,number}_by(asker)"
+},
+{
+"match": "^(targets chosen by another player)$",
+"class": "engine",
+"needs": "A slot whose targets one of several players chooses, or a player who may be gone",
+"api": ".chosen_by_one_of(|q, asker| players)"
+},
+{
+"match": "^(condition PlayerTook)$",
+"class": "engine",
+"needs": "Reading whether a player took part in an instruction once its walk of players is over",
+"api": "q.took_part(asker, player, result) -> bool"
+},
+{
+"match": "^(poisoned player in a filter)$",
+"class": "engine",
+"needs": "Nothing: the code reads the poison counters",
+"api": "q.state().player(player).poison()"
+},
+{
+"match": "^(a party read in a layer)$",
+"class": "engine",
+"needs": "Counting a party from a layer without reading other objects' characteristics out of order",
+"api": "cantrip_mechanics::party::size_in_layer(q, player) -> i64"
+},
+{
+"match": "^(mana symbols other than a devotion to one color)$",
+"class": "engine",
+"needs": "Counting mana symbols among the mana costs of any set of objects",
+"api": "cantrip_mechanics::devotion::symbols_among(q, objects, &[Color])"
+},
+{
+"match": "^(snow mana spent)$",
+"class": "engine",
+"needs": "Recording how much of the mana spent came from snow sources",
+"api": "ManaSpent::snow"
+},
+{
+"match": "^(counters on a player)$",
+"class": "engine",
+"needs": "A player holds and gets counters of any kind, not only poison, experience, and rad.",
+"api": "q.state().player(p).counters(Option<CounterKind>); g.give_player_counters(player, kind, amount)"
+},
+{
+"match": "^(counters removed from a player)$",
+"class": "engine",
+"needs": "Removing counters of a kind, or any, from a player",
+"api": "g.remove_player_counters(player, Option<CounterKind>, amount) -> i16"
+},
+{
+"match": "^(player state HasBoon)$",
+"class": "engine",
+"needs": "Reading whether a player has a boon",
+"api": "q.state().player(player).has_boon()"
+},
+{
+"match": "^(player state WholePoolInDeck)$",
+"class": "engine",
+"needs": "Draft: reading whether a player's whole card pool is in their deck",
+"api": "q.state().player(player).whole_pool_in_deck()"
+},
+{
+"match": "^(player state ShuffledThisWay)$",
+"class": "engine",
+"needs": "Reading whether a player shuffled because of this effect",
+"api": "q.shuffled_this_way(asker, player)"
+},
+{
+"match": "^(condition PlayerDid RolledDie|condition PlayerDid PlayedFromExile|condition PlayerDid ActivatedExhaust|condition PlayerDid WasMonarch|condition PlayerDid PlayedLandNotFromHand|condition PlayerDid PaidOrLostEnergy|condition PlayerDid AttackedDefender|condition PlayerDid Cycled)$",
+"class": "vocabulary",
+"needs": "The history needs a word for this deed of a player",
+"api": "q.player_did(window, player, PlayerDeed::..) -> bool"
+},
+{
+"match": "^(player rule SpecialAction)$",
+"class": "engine",
+"needs": "A static rule letting a player take a special action",
+"api": "PlayerRule::SpecialAction(..) in player_rule(applies, rule)"
+},
+{
+"match": "^(player rule AdditionalLandPlays)$",
+"class": "engine",
+"needs": "A static rule giving players more land plays where the land table is not enough",
+"api": "PlayerRule::AdditionalLandPlays(n)"
+},
+{
+"match": "^(player rule MustAttack)$",
+"class": "engine",
+"needs": "A static requirement on all of a player's creatures to attack",
+"api": "PlayerRule::MustAttack(..)"
+},
+{
+"match": "^(player rule HandSize Set)$",
+"class": "engine",
+"needs": "A maximum hand size set to a value that is not fixed",
+"api": "PlayerRule::HandSize(ChangeMode::Set, ..)"
+},
+{
+"match": "^(player rule LimitPerTurn Not)$",
+"class": "engine",
+"needs": "A limit each turn on what is not a filter of the engine's",
+"api": "PlayerRule::LimitPerTurn(action, amount)"
+},
+{
+"match": "^(player rule SpendManaAs Abilities)$",
+"class": "engine",
+"needs": "Spending mana as though of another type on abilities",
+"api": "PlayerRule::SpendManaAs { .. }"
+},
+{
+"match": "^(player rule AttackOnly|player rule for a while AttackOnly)$",
+"class": "engine",
+"needs": "A rule that a player's creatures attack only the named defender",
+"api": "PlayerRule::AttackOnly(fn(&dyn Query, &Asker, PlayerId, Target) -> bool)"
+},
+{
+"match": "^(player keyword Protection|player rule for a while GrantKeyword)$",
+"class": "engine",
+"needs": "A player with protection, or a keyword for a while, from a quality the engine has no player rule for",
+"api": "PlayerRule::Protection(Protection::Objects|Players|These|Each); PlayerRule::HexproofFrom(q); PlayerRule::Keyword(k); EffectKind::PlayerRule(rule)"
+},
+{
+"match": "^(player rule for a while SpecialAction|player rule for a while MustAttack|player rule for a while Prohibit Activate|player rule for a while Prohibit PlayLand|player rule for a while Prohibit CastSpell|player rule for a while Prohibit Sacrifice|player rule for a while Prohibit BeTargeted|player rule for a while Skip|player rule for a while AdditionalLandPlays|player rule for a while BlockerLimit|player rule for a while Visibility)$",
+"class": "engine",
+"needs": "A resolving effect that puts this rule on a player for a duration",
+"api": "g.add_player_effect(player, source, EffectKind::PlayerRule(rule), until)"
+},
+{
+"match": "^(prohibited action CastSpell|prohibited action PayLife|prohibited action PlayLand|prohibited action Sacrifice)$",
+"class": "engine",
+"needs": "A player rule that bars this action of a kind the spell rule table does not reach",
+"api": "PlayerRule::Cant(Prohibited::..)"
+},
+{
+"match": "^(hand size Set)$",
+"class": "engine",
+"needs": "A maximum hand size read as a value",
+"api": "PlayerRule::HandSize(ChangeMode::Set, n)"
+},
+{
+"match": "^(static rule Prohibit Activate|static rule Prohibit Crew|static rule Prohibit Transform|static rule Prohibit TurnFaceUp|static rule Prohibit ChangeControl|static rule Prohibit Regenerate)$",
+"class": "engine",
+"needs": "A static rule that an object can't do this, as a rule read of the object",
+"api": "object_rule(applies, Rule::Cant(Action::..))"
+},
+{
+"match": "^(static rule RequireCombat Attack|static rule AssignDamageTo|static rule ActivationsEachTurn|static rule OwnActivationCost|static rule MayExert)$",
+"class": "engine",
+"needs": "A static rule of combat or activation on an object with no table of its own",
+"api": "object_rule(applies, Rule::..)"
+},
+{
+"match": "^(continuous rule Prohibit Attack|continuous rule Prohibit PhaseOut|continuous rule CombatCost|continuous rule RequireCombat Attack)$",
+"class": "engine",
+"needs": "A resolving effect that puts this rule on objects for a duration",
+"api": "EffectKind::Rule(rule)"
+},
+{
+"match": "^(engine: no resolving rule on an open set: CombatCost|engine: no resolving rule on an open set: Prohibit BeBlocked)$",
+"class": "engine",
+"needs": "A resolving effect that puts a rule on every matching object, those to come included",
+"api": "g.add_open_effect(source, closure, EffectKind::Rule(rule), until)"
+},
+{
+"match": "^(static subjects One|static subjects Union|static subjects Matching|static rule subjects One)$",
+"class": "engine",
+"needs": "A static ability whose subjects a filter does not name",
+"api": "q.chosen_object(q.linked_to(source)) == Some(id); (objects).contains(&id)"
+},
+{
+"match": "^(static change ChosenType)$",
+"class": "engine",
+"needs": "Static changes of chosen land type or card name",
+"api": "q.chosen_name(..), chars.set_name(chosen)"
+},
+{
+"match": "^(static change LandTypes)$",
+"class": "engine",
+"needs": "The set of all nonbasic land types",
+"api": "SubtypeSet::NONBASIC_LAND_TYPES"
+},
+{
+"match": "^(static change ColorlessDamageSource)$",
+"class": "engine",
+"needs": "Marking that a colored object deals damage as colorless",
+"api": "chars.colorless_damage_source = true"
+},
+{
+"match": "^(static change CreatureTypesOf)$",
+"class": "engine",
+"needs": "A layer that gives an object the creature types of another",
+"api": "chars.creature_types_of(object)"
+},
+{
+"match": "^(static change AddNames)$",
+"class": "engine",
+"needs": "An object having more than one name",
+"api": "chars.add_names_of(objects)"
+},
+{
+"match": "^(static change SetController)$",
+"class": "engine",
+"needs": "A control change a layer reads rather than a resolving effect makes",
+"api": "chars.controller = player"
+},
+{
+"match": "^(static change ChosenAbility)$",
+"class": "engine",
+"needs": "Keywords chosen as a permanent entered, kept to be read by a layer",
+"api": "q.chosen_abilities(source, &[Keyword])"
+},
+{
+"match": "^(static change CopyOf|static change TextOf)$",
+"class": "engine",
+"needs": "A static ability that makes an object a copy, or gives it the text, of another (CR 613.2a, Cantrip has no copy layer)",
+"api": "copy_of(fn, object, effects); full_text_of(..) in statics"
+},
+{
+"match": "^(static change ReplaceWord)$",
+"class": "engine",
+"needs": "A static ability that changes words in text on the battlefield and on the stack",
+"api": "chars.replace_words(from, to)"
+},
+{
+"match": "^(losing Ability|losing ability TheChosenAbility|losing ability ProtectionFromColor)$",
+"class": "engine",
+"needs": "Taking away an ability that is not a plain keyword",
+"api": "EffectKind::LosesAbility(Lost::..); chars.lose(Lost::..)"
+},
+{
+"match": "^(granted ProtectionExcept|granted Keyword|granted Casting|granted AttackCap|granted DeckRule|granted ability that grants another)$",
+"class": "engine",
+"needs": "A granted ability that has no ability definition: the card keeps its rules in a list a grant can name",
+"api": "AbilityRef::granted_static(card, index), CardDef::granted_rules"
+},
+{
+"match": "^(backup grants Static)$",
+"class": "mechanic",
+"needs": "Backup granting a static ability beside keywords",
+"api": "cantrip_mechanics::backup::resolve_granting(g, item, n, &[Keyword], ability, &[AbilityRef])"
+},
+{
+"match": "^(copy exception SetCardtypes)$",
+"class": "engine",
+"needs": "A copy whose card types are replaced and nothing else",
+"api": "Copiable::typed_as(TypeSet)"
+},
+{
+"match": "^(copy exception SetArtifactTypes)$",
+"class": "engine",
+"needs": "A copy whose subtypes of one card type are replaced",
+"api": "Copiable::subtyped_as(CardType, SubtypeSet)"
+},
+{
+"match": "^(copy exception AddSupertypes|copy exception RemoveSupertypes)$",
+"class": "engine",
+"needs": "A copy with a supertype other than legendary added or taken away",
+"api": "Copiable::with_supertypes(&[Supertype]); Copiable::without_supertypes(&[Supertype])"
+},
+{
+"match": "^(copy exception AddColor)$",
+"class": "engine",
+"needs": "A copy with a color in addition to its colors",
+"api": "Copiable::with_colors(&[Color])"
+},
+{
+"match": "^(copy exception KeepPT|copy exception KeepName|copy exception KeepColor)$",
+"class": "engine",
+"needs": "A copy that keeps this value of the object that copied",
+"api": "Copiable::keeping_power_toughness(); keeping_name(); keeping_colors()"
+},
+{
+"match": "^(copy exception RemoveThisAbility|copy exception LosesAbility)$",
+"class": "engine",
+"needs": "A copy without one of the copied abilities",
+"api": "Copiable::without_ability(ability); Copiable::losing(Lost::..)"
+},
+{
+"match": "^(copy exception AddAbility|copy exception AddAbilityIfItDoesntHaveAbility)$",
+"class": "engine",
+"needs": "A copy with several abilities added, or an ability only if it lacks it",
+"api": "Copiable::with_ability(ref); Copiable::with_ability_if_absent(ref); AbilityRef::mechanic(Mechanic, n)"
+},
+{
+"match": "^(copy exception SetLoyalty|copy exception of a power and toughness not fixed)$",
+"class": "engine",
+"needs": "A copy with a size or loyalty read from the game",
+"api": "Copiable::sized_by(power, toughness); Copiable::with_loyalty(n)"
+},
+{
+"match": "^(duration WhileExiled|duration WhileAnyExiled|duration UntilAnotherExiled|duration UntilLibraryTopChanges|duration ExtraTurn|duration ThroughNextTurn|duration WhileMatches|duration EndOfCombatOnNextTurn)$",
+"class": "engine",
+"needs": "A duration of a continuous effect the engine has no word for",
+"api": "Duration::WhileExiled(o); WhileAnyExiled(os); UntilAnotherExiled { by, with }; UntilLibraryTopChanges(p); ThroughExtraTurn(result); ThroughNextTurn; WhileObjectMatches(o, f); EndOfCombatOnNextTurn(p)"
+},
+{
+"match": "^(play permission lasting UntilAnotherExiled|play permission lasting WhileMatches|play permission lasting EndOfCombatOnNextTurn|play permission lasting UntilNextTurn|play permission lasting UntilEndOfNextTurn)$",
+"class": "engine",
+"needs": "A permission lasting a duration the engine has no word for",
+"api": "g.add_player_effect(player, source, EffectKind::PlayerRule(PlayerRule::Play { zone, cards, grant }), until); cards: CardsOfRule::Asked(fn(&dyn Query, &Asker, PlayerId, ObjectId) -> bool) | CardsOfRule::kept(closure over resolution locals) | CardsOfRule::These(Vec<ObjectId>)"
+},
+{
+"match": "^keyword HexproofFrom ",
+"class": "engine",
+"needs": "Hexproof from a quality that is not one of the constants",
+"api": "HexproofFrom::of(|q, asker, id| ..); HexproofFrom::of_players(|q, asker| ..)"
+},
+{
+"match": "^(cast the card itself on these terms)$",
+"class": "engine",
+"needs": "A card's own permission to cast it from a zone on terms the exile and graveyard fields do not hold",
+"api": "CardDef::own_casts: &[OwnCast { zone, condition, grant }]"
+},
+{
+"match": "^(casting rule ProhibitTargets|casting rule TaxPaidAsLife)$",
+"class": "engine",
+"needs": "A rule of casting this spell with no field",
+"api": "CardDef::cast_rules: &[CastRule::..]"
+},
+{
+"match": "^cost branch ",
+"class": "engine",
+"needs": "A spell whose paid and unpaid forms differ in what no field of CardDef holds",
+"api": "CardDef::cost_branches: &[CostBranch { keyword, cost, paid, unpaid }]"
+},
+{
+"match": "^(target count by branch PerPlayer|target count by branch AnyNumber|cost objects of Branch|cleave cost other than mana)$",
+"class": "engine",
+"needs": "A spell whose paid and unpaid forms differ in what no field of CardDef holds",
+"api": "CardDef::cost_branches: &[CostBranch { keyword, cost, paid, unpaid }]"
+},
+{
+"match": "^(spell cost increase other than mana)$",
+"class": "engine",
+"needs": "Spells costing more of what is not mana",
+"api": "CostDelta::more_cost(Cost); Cost::repeated(cost, times)"
+},
+{
+"match": "^(a land played by what it is as a spell|a land played by another player|play count Exactly|play count PerPlayer|cards played by All)$",
+"class": "engine",
+"needs": "Playing several cards at once, or by counts the one-at-a-time offer does not say",
+"api": "cantrip_mechanics::playing::play_each(g, players, pool, action, PlayCount::.., cost, optional, into_exile, source)?"
+},
+{
+"match": "^cost part ",
+"class": "engine",
+"needs": "A cost part that only resolving effects have a way to pay",
+"api": "Cost::performed(player, body); Cost::discards(n, filter, random); Cost::draws(n); Cost::beholds(n, what); Cost::life_equal_to_mana_value(); Cost::repeated(cost, times); Cost::waterbend_x(mana, x)"
+},
+{
+"match": "^(another way beside a mechanic's only way)$",
+"class": "engine",
+"needs": "A mechanic with more than one cost beside it",
+"api": "cantrip_mechanics::<mechanic>::way(cost, text)"
+},
+{
+"match": "^(Bestow|Emerge|Freerunning|Harmonize|Mayhem|Plot|Reconfigure|Warp) cost other than mana$",
+"class": "mechanic",
+"needs": "The mechanic takes any cost, not only mana",
+"api": "cantrip_mechanics::<mechanic>::way(Cost, text)"
+},
+{
+"match": "^(mana production LastNoted|mana production CouldProduce|mana production SymbolsOf|mana production DraftNotedColor|mana production ColorsAmong|mana production SameTypeAsProduced|mana production DifferentColors|mana production ManaCostOf|mana production LostThisWay|mana production OtherColor)$",
+"class": "engine",
+"needs": "Adding mana of what only the game can say",
+"api": "cantrip_mechanics::mana::add_production(g, player, Production::.., rule, lasting)?"
+},
+{
+"match": "^(combined mana choices in one production|mana choice among different bundles|mana of a color not chosen as it entered)$",
+"class": "engine",
+"needs": "Adding mana of what only the game can say",
+"api": "cantrip_mechanics::mana::add_production(g, player, Production::.., rule, lasting)?"
+},
+{
+"match": "^(dynamic defining token characteristics)$",
+"class": "engine",
+"needs": "A token whose power and toughness are read as it is created",
+"api": "CardDef::sized_as_created(|q, asker| (power, toughness))"
+},
+{
+"match": "^(exile outside a stack item that an ability reads as exiled with its source)$",
+"class": "engine",
+"needs": "Linking exiled cards to their source where no stack item is resolving",
+"api": "g.linked_to(source)"
+},
+{
+"match": "^(activated ability OnStack|activated ability TargetsAny)$",
+"class": "engine",
+"needs": "What an activated ability is, read of the event of its activation",
+"api": "ActivatedDef::keyword_of(); q.activation_has(id, StackTrait); q.activation_targets_any(id, |t| ..)"
+},
+{
+"match": "^(activation cost of abilities NthCast|activation cost of abilities OnStack)$",
+"class": "engine",
+"needs": "What an activated ability is, read of a rule on its cost",
+"api": "ActivatedDef::keyword_of(); q.is_nth_activation(permanent, def, n, which, by, scope)"
+},
+{
+"match": "^(keyword action with a duration of its own)$",
+"class": "engine",
+"needs": "Phasing out for a duration of its own",
+"api": "g.phase_out_until(object, duration)"
+},
+{
+"match": "^(new targets EachPlayer)$",
+"class": "engine",
+"needs": "A copy for each of several players, each with one of them as its target",
+"api": "NewTargets::EachPlayer(players)"
+},
+{
+"match": "^(keyword action ChaosEnsues|keyword action PlanarDeckChaos|keyword action PlanarDeckPlaneswalkWithoutLeaving|keyword action RevealTopOfPlanarDeck|keyword action TopOfPlanarDeckToBottom|keyword action PlanarDeckPickPlane with an amount|keyword action PlanarDeckPlaneswalkToEach with an amount|keyword action PlanarDeckChaosEach with an amount)$",
+"class": "mechanic",
+"needs": "Planechase (casual): the planar deck and the chaos ability",
+"api": "cantrip_mechanics::planechase::{chaos_ensues, chaos_of_top, planeswalk_without_leaving, reveal_top, top_to_bottom, pick_from_top, planeswalk_to_each_of_top, chaos_of_each_of_top}"
+},
+{
+"match": "^keyword action (RollDie\\(\\d+\\) with an amount|RollKeepHighest\\(\\d+\\) with an amount|RollTwoInOrder\\(\\d+\\)|RollAndStoreD6 with an amount|RerollStoredDice)$",
+"class": "mechanic",
+"needs": "Rolling several dice at once, keeping or storing their results",
+"api": "cantrip_mechanics::dice::{roll_several, roll_keep_highest, roll_two_in_order, roll_and_store, reroll_stored}"
+},
+{
+"match": "^(keyword action SetStake with an amount|keyword action DoubleStake)$",
+"class": "mechanic",
+"needs": "Game of Chaos keeps a stake through its rounds",
+"api": "cantrip_mechanics::stakes::{set_stake, double_stake}"
+},
+{
+"match": "^(keyword action ShuffleIfSearched|keyword action RemainingToBottomAtRandom)$",
+"class": "mechanic",
+"needs": "A library action that finishes a search or a look begun earlier in the effect",
+"api": "cantrip_mechanics::library::{shuffle_if_searched, rest_to_bottom_at_random}"
+},
+{
+"match": "^(keyword action ChooseProtection|keyword action ChooseDamageNumber)$",
+"class": "mechanic",
+"needs": "A choice of a value the choice kinds do not have",
+"api": "cantrip_mechanics::choose::{protection, damage_number}"
+},
+{
+"match": "^(keyword action ChooseCopy)$",
+"class": "mechanic",
+"needs": "Choosing one of the copies an effect made",
+"api": "cantrip_mechanics::copy::choose_copy(g, player, source)?"
+},
+{
+"match": "^(keyword action ChooseSector)$",
+"class": "mechanic",
+"needs": "Space sculptor (Unfinity): sectors of the battlefield",
+"api": "cantrip_mechanics::sectors::choose_sector(g, player, source)?"
+},
+{
+"match": "^(keyword action ClaimPrize)$",
+"class": "mechanic",
+"needs": "Attractions (Unfinity): the prize of an Attraction",
+"api": "cantrip_mechanics::attractions::claim_prize(g, player, source)?"
+},
+{
+"match": "^(keyword action TurnPileFaceUp)$",
+"class": "mechanic",
+"needs": "Turning a face-down pile of exiled cards face up",
+"api": "cantrip_mechanics::piles::turn_pile_face_up(g, player, source)?"
+},
+{
+"match": "^(keyword action ActivateManaAbility)$",
+"class": "mechanic",
+"needs": "Making a player activate a mana ability of a permanent",
+"api": "cantrip_mechanics::mana::activate_mana_ability(g, player, object)?"
+},
+{
+"match": "^(keyword action SetRepeatablePlayers)$",
+"class": "mechanic",
+"needs": "Naming the players who repeat a process",
+"api": "cantrip_mechanics::players::set_repeatable(g, players, source)?"
+},
+{
+"match": "^(player reference Affected)$",
+"class": "engine",
+"needs": "Reading the player a rule is being asked about where the rule has no player of its own",
+"api": "Some(player) in the rule; q.affected_player(asker)"
+},
+{
+"match": "^(exile cost an ability reads as exiled with its source)$",
+"class": "engine",
+"needs": "A cost that exiles what another ability of the source later reads as exiled with it",
+"api": "Cost::moves(Picks::.., Destination::Exile, ..) linked to source"
+},
+{
+"match": "^(counters put as a cost on another object)$",
+"class": "engine",
+"needs": "A cost that puts counters on an object other than the source",
+"api": "Cost::puts_counters(&[Placement { on, kind, amount }])"
+},
+{
+"match": "^(possibly absent player ControllerOf|possibly absent player DefendingPlayerOf|possibly absent player Target)$",
+"class": "engine",
+"needs": "A resolving ability needs one player who may not exist, as a choice of what to do with nobody to ask",
+"api": "if let Some(decider) = player"
+},
+{
+"match": "^(operation EachPlayer)$",
+"class": "engine",
+"needs": "One instruction whose parts each player does in turn",
+"api": "g.begin_batch(); g.end_batch() around the walk"
+},
+{
+"match": "^(zone that belongs to no player)$",
+"class": "vocabulary",
+"needs": "Ante (casual): a zone all players share",
+"api": "Zone::Ante"
+},
+{
+"match": "^(two rules for cast_only_if)$",
+"class": "engine",
+"needs": "A spell with two separate conditions on casting it",
+"api": "CardDef::cast_rules: &[CastRule::..]"
+},
+{
+"match": "^(ability AttackCap|conditional AttackCap)$",
+"class": "engine",
+"needs": "A limit on how many creatures can attack a player",
+"api": "CardDef::attack_caps: &[AttackCap { defender, amount }]"
+},
+{
+"match": "^(ability PayToIgnore)$",
+"class": "engine",
+"needs": "A cost that lets a player ignore a rule",
+"api": "CardDef::pay_to_ignore: &[PayToIgnore { .. }]"
+},
+{
+"match": "^(ability CostOptions)$",
+"class": "engine",
+"needs": "Choices among costs a keyword may be paid with",
+"api": "CardDef::cost_options: &[CostOptions { keyword, options }]"
+},
+{
+"match": "^(ability BeforeGame)$",
+"class": "engine",
+"needs": "Draft and opening-hand actions before the game (casual and conspiracy)",
+"api": "CardDef::before_game: &[(BeforeGameMoment, body)]"
+},
+{
+"match": "^(ability CantEnter)$",
+"class": "engine",
+"needs": "A rule that cards can't enter from a zone",
+"api": "CardDef::cant_enter: &[CantEnter { cards, from }]"
+},
+{
+"match": "^(ability WhileOnTopOfLibrary)$",
+"class": "engine",
+"needs": "Abilities that work while the card is on top of the library",
+"api": "CardDef::on_top_of_library"
+},
+{
+"match": "^(ability KickedHas|ability StartingHandSize|ability VillainousChoiceTwice|ability ExilesSearchedCards)$",
+"class": "engine",
+"needs": "A rule of the card with no field of its own",
+"api": "kicked_has(..); starting_hand_size(..); villainous_choice_twice(..); exiles_searched_cards(..)"
+},
+{
+"match": "^(ability AsEvent|ability DungeonRoom)$",
+"class": "engine",
+"needs": "What a card does as an event happens, and the rooms of a dungeon",
+"api": "CardDef::as_events: &[AsEventDef]; CardDef::rooms: &[Room { name, effect, leads_to }]"
+},
+{
+"match": "^(player rule for a while Prohibit PlayCard)$",
+"class": "engine",
+"needs": "A rule lasting for a duration can stop a player playing the cards a test picks, as Memory Vessel stops them playing from hand.",
+"api": "EffectKind::PlayerRule(PlayerRule::Cant(Prohibition::PlayCard(fn(&dyn Query, &Asker, PlayerId, ObjectId) -> bool)))"
+},
+{
+"match": "^(static subjects Take)$",
+"class": "engine",
+"needs": "A move of several sets together can name a set by taking the first cards of a zone, as the top six cards of a library go with the creature into one pile.",
+"api": "Cost::Move { objects: |q, asker, id| (first n of the zone).contains(&id), count, destination, arrival }"
+}
+]

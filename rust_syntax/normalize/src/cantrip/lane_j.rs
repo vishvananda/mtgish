@@ -1762,8 +1762,9 @@ impl Compiler {
                 aggregation,
             } => {
                 let pick = match aggregation {
-                    Aggregation::Maximum => "max",
-                    Aggregation::Minimum => "min",
+                    Aggregation::Maximum => "max().unwrap_or(0)",
+                    Aggregation::Minimum => "min().unwrap_or(0)",
+                    Aggregation::Sum => "sum::<i64>()",
                     other => {
                         return Err(gap(format!(
                             "numeric expression AmongPlayers {}",
@@ -1772,7 +1773,7 @@ impl Compiler {
                     }
                 };
                 counted(format!(
-                    "({}).into_iter().map(|p: PlayerId| {}).{pick}().unwrap_or(0)",
+                    "({}).into_iter().map(|p: PlayerId| {}).{pick}",
                     self.players(players)?,
                     self.player_number("p", number)?
                 ))
@@ -1933,7 +1934,7 @@ impl Compiler {
                 players: one,
                 objects: Some((**objects).clone()),
             },
-            other => return Err(gap(format!("condition PlayerDid {}", form(other)))),
+            other => return self.did_stated(player, other, &scope),
         };
         let mut asked = self.clone();
         asked.history = Some(History {

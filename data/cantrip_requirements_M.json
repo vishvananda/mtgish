@@ -249,7 +249,7 @@
 "match": "^keyword HexproofFrom ",
 "class": "engine",
 "needs": "hexproof from a quality HexproofFrom has no bit for",
-"api": "HexproofFrom::of(Property)"
+"api": "HexproofFrom::of(Property); HexproofFrom::of(|q, asker, id| ..); HexproofFrom::of_players(|q, asker| ..)"
 },
 {
 "match": "^protection from ",
@@ -261,19 +261,19 @@
 "match": "^player keyword ",
 "class": "engine",
 "needs": "a player has protection from something",
-"api": "PlayerRule::Protection"
+"api": "PlayerRule::Protection; PlayerRule::Protection(Protection::Objects|Players|Each); PlayerRule::HexproofFrom(q); PlayerRule::Keyword(k); EffectKind::PlayerRule(rule); PlayerRule::Protection(Protection::Objects|Players|These|Each); PlayerRule::HexproofFrom(q); PlayerRule::Keyword(k); EffectKind::PlayerRule(rule)"
 },
 {
 "match": "^ability DungeonRoom$|^card type Dungeon$",
 "class": "mechanic",
 "needs": "dungeons: rooms and the Dungeon card type; a digital and tabletop mechanic that venture reaches only as Undercity",
-"api": "CardDef::rooms"
+"api": "CardDef::rooms; CardDef::as_events: &[AsEventDef]; CardDef::rooms: &[Room { name, effect, leads_to }]"
 },
 {
 "match": "^ability (AttackCap|PayToIgnore|CostOptions|BeforeGame|Triggers|WhileOnTopOfLibrary|CantEnter|FlashIf|Unique)$",
 "class": "engine",
 "needs": "an ability of this shape: CardDef has no field for it",
-"api": "CardDef field by this name"
+"api": "CardDef field by this name; CardDef::attack_caps: &[AttackCap { defender, amount }]; CardDef::before_game: &[(BeforeGameMoment, body)]; CardDef::cant_enter: &[CantEnter { cards, from }]; CardDef::cost_options: &[CostOptions { keyword, options }]; CardDef::on_top_of_library; CardDef::pay_to_ignore: &[PayToIgnore { .. }]"
 },
 {
 "match": "^ability functioning in the command zone$",
@@ -285,7 +285,7 @@
 "match": "^ability AsEvent$",
 "class": "engine",
 "needs": "As this is turned face up or transforms: a replacement on those events, which only Enters and AsTransforms have",
-"api": "CardDef::as_turned_up"
+"api": "CardDef::as_turned_up; CardDef::as_events: &[AsEventDef]; CardDef::rooms: &[Room { name, effect, leads_to }]"
 },
 {
 "match": "^source-zone scope on ",
@@ -297,25 +297,25 @@
 "match": "^player rule for a while (ActivationCost|ActivationGrant|AttackOnly|AttackWithoutTapping|DamageLifeFloor|Decides|GrantKeyword|HandSize|LifeForManaAbility|Prohibit\\ AttackDefender|Prohibit\\ AttackInto|Prohibit\\ AttackWith|Prohibit\\ BeTargeted|Prohibit\\ ReceiveCounters|RetainMana|SpellCost|SpellsHaveAbilities|SpendColorAs|TapOthersForMana|TargetableDespite|Visibility)$",
 "class": "engine",
 "needs": "a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form",
-"api": "EffectKind::PlayerRule(rule)"
+"api": "EffectKind::PlayerRule(rule); PlayerRule::AttackOnly(fn(&dyn Query, &Asker, PlayerId, Target) -> bool); PlayerRule::Protection(Protection::Objects|Players|Each); PlayerRule::HexproofFrom(q); PlayerRule::Keyword(k); EffectKind::PlayerRule(rule); g.add_player_effect(player, source, EffectKind::PlayerRule(rule), until); PlayerRule::Protection(Protection::Objects|Players|These|Each); PlayerRule::HexproofFrom(q); PlayerRule::Keyword(k); EffectKind::PlayerRule(rule)"
 },
 {
 "match": "^player rule (ActivationTiming|AdditionalVote|AsManaEmpties|AttackOnly|CantBeCaused|CascadePut|DamageDoesNotCauseLifeLoss|DamageLifeFloor|Decides|DevotionBonus|DiceChange|DrawsDuringDrawStepOf|KeywordAccess|LifeForMana|LimitPerTurn|RetainMana|RevealDraws|SpellTiming|SpendColorAs|SurveilBonus|TargetableDespite|TargetsMustInclude|Unique|UnspentManaBecomes|UntapOnlyOneOfTypes|UntapsDuringUntapStepOf)$",
 "class": "engine",
 "needs": "a static ability gives a player this rule: the engine does not ask for it",
-"api": "StaticDef player rule by this name"
+"api": "StaticDef player rule by this name; PlayerRule::AttackOnly(fn(&dyn Query, &Asker, PlayerId, Target) -> bool)"
 },
 {
 "match": "^player state (CanDraw|CouldMulligan|HasBoon|PossibleDefender|ReceivedAVote|RolledHighest|ShuffledThisWay|WholePoolInDeck)$",
 "class": "engine",
 "needs": "the state of a player the rules or a vote leave",
-"api": "PlayerState field by this name"
+"api": "PlayerState field by this name; q.shuffled_this_way(asker, player); q.state().player(player).has_boon(); q.state().player(player).whole_pool_in_deck()"
 },
 {
 "match": "^static rule (ActivationsEachTurn|AssignDamageTo|AttachOnlyTo|AttackDrags|AttackException|AttacksWhenAttacking|BlockedByDefender|BlocksDespite|BlocksOnlyIf|CantAttackDefenderIf|CantGainAbility|CounterLimit|MayExert|OwnActivationCost|Prohibit\\ BeAttachedBy|Prohibit\\ BeAttacked|Prohibit\\ BeBeamedUp|Prohibit\\ BecomeSuspected|Prohibit\\ LoseCounters|Prohibit\\ PhaseIn|RequireCombat\\ BeBlocked|TapCostUsesToughness|TapPowerBonus|TargetableDespite|Unique|UntapStep)$",
 "class": "engine",
 "needs": "a static ability changes this rule of the object it affects: the engine has no hook for it",
-"api": "Rule by this name"
+"api": "Rule by this name; object_rule(applies, Rule::..)"
 },
 {
 "match": "^continuous rule (CombatGroup|Prohibit\\ BeTargeted|Prohibit\\ ReceiveCounters|TargetableDespite|Unique)$",
@@ -369,19 +369,19 @@
 "match": "^casting rule ",
 "class": "engine",
 "needs": "a rule of casting this card has no field in CardDef",
-"api": "CardDef::cast_rules"
+"api": "CardDef::cast_rules; CardDef::cast_rules: &[CastRule::..]"
 },
 {
 "match": "^spell cost (rule with terms|increase other than mana)$",
 "class": "engine",
 "needs": "a cost change on terms: CostChange reduces or adds mana for a test of the spell only",
-"api": "CostChange::terms"
+"api": "CostChange::terms; CostDelta::more_cost(Cost); Cost::repeated(cost, times)"
 },
 {
 "match": "^activation cost of abilities ",
 "class": "engine",
 "needs": "a cost change on abilities by what they were",
-"api": "CostChange::of_abilities"
+"api": "CostChange::of_abilities; ActivatedDef::keyword_of(); q.is_nth_activation(permanent, def, n, which, by, scope)"
 },
 {
 "match": "^flash for spells other than by type$",
@@ -399,7 +399,7 @@
 "match": "^counters on a player$|^counters removed from a player$",
 "class": "engine",
 "needs": "a player keeps counters of named kinds beyond poison, energy and experience",
-"api": "PlayerState::counters"
+"api": "PlayerState::counters; g.remove_player_counters(player, Option<CounterKind>, amount) -> i16; q.state().player(p).counters(Option<CounterKind>); q.state().player(p).counters(Option<CounterKind>); g.give_player_counters(player, kind, amount)"
 },
 {
 "match": "^trigger total limit$",
@@ -411,7 +411,7 @@
 "match": "^snow mana spent$",
 "class": "engine",
 "needs": "mana spent records whether it was snow, as a spell keeps its colors",
-"api": "Obj::snow_spent"
+"api": "Obj::snow_spent; ManaSpent::snow"
 },
 {
 "match": "^damage kind ",
@@ -441,13 +441,13 @@
 "match": "^(static )?play permission ",
 "class": "engine",
 "needs": "a permission to play on these terms: PlayGrant and PlayRule have no field for them",
-"api": "PlayGrant field by this name"
+"api": "PlayGrant field by this name; g.add_player_effect(player, source, EffectKind::PlayerRule(PlayerRule::Play { .. }), until); g.add_player_effect(player, source, EffectKind::PlayerRule(PlayerRule::Play { zone, cards, grant }), until); cards: CardsOfRule::Asked(fn(&dyn Query, &Asker, PlayerId, ObjectId) -> bool) | CardsOfRule::kept(closure over resolution locals) | CardsOfRule::These(Vec<ObjectId>)"
 },
 {
 "match": "^cast the card itself on these terms$",
 "class": "engine",
 "needs": "an ability casts the card it is on, on terms of its own",
-"api": "g.cast_from(card, terms)"
+"api": "g.cast_from(card, terms); CardDef::own_casts: &[OwnCast { zone, condition, grant }]"
 },
 {
 "match": "^granted (Conditional|Replacement|Scoped)$",
@@ -465,13 +465,13 @@
 "match": "^backup grants ",
 "class": "mechanic",
 "needs": "backup gives a static ability",
-"api": "backup::grants"
+"api": "backup::grants; cantrip_mechanics::backup::resolve_granting(g, item, n, &[Keyword], ability, &[AbilityRef])"
 },
 {
 "match": "^(token recipe|tokens entering|token of|token copies|token copy|token with|token result|mixed token|adjusted token|dynamic defining token)",
 "class": "engine",
 "needs": "tokens of this shape: TokenSpec and copy tokens have no field for it",
-"api": "TokenSpec field by this name"
+"api": "TokenSpec field by this name; CardDef::sized_as_created(|q, asker| (power, toughness))"
 },
 {
 "match": "^resolution cost ",
@@ -495,7 +495,7 @@
 "match": "^mana (production|choice|of a color|symbols)",
 "class": "engine",
 "needs": "mana of this shape: ManaDef and the devotion read have no form for it",
-"api": "ManaDef by this name"
+"api": "ManaDef by this name; cantrip_mechanics::devotion::symbols_among(q, objects, &[Color]); cantrip_mechanics::mana::add_production(g, player, Production::.., rule, lasting)?"
 },
 {
 "match": "^color (choice|Chosen)",
@@ -549,25 +549,25 @@
 "match": "^condition (ChoseExtreme|ChoseNth|ChosenWord|CoinCameUp|CompletedDungeon|GraveyardPosition|HadExtreme|IsPrime|NotedForDraft|PlayerDid\\ ActivatedExhaust|PlayerDid\\ ActivatedGraveyardAbility|PlayerDid\\ AttackedDefender|PlayerDid\\ BentAllFour|PlayerDid\\ PaidOrLostEnergy|PlayerDid\\ PlayedFromExile|PlayerDid\\ PlayedLandNotFromHand|PlayerDid\\ RolledDie|PlayerDid\\ WasMonarch|PlayerTook|SubsetMeets|TargetsMatch|ValueChosen|ValueChosenIs|VotedAs|WasCastFrom|WonSubgame)$",
 "class": "vocabulary",
 "needs": "a condition with no read in Query or Game",
-"api": "Query read by this name"
+"api": "Query read by this name; q.player_did(window, player, PlayerDeed::..) -> bool; q.took_part(asker, player, result) -> bool"
 },
 {
 "match": "^object collection (AnyZone|EventGroup|FromHistory|MovedBy|Scoped|SplicedOnto|TargetsOf|Unselected)$",
 "class": "vocabulary",
 "needs": "a set of objects with no read in Query or Game",
-"api": "Query read by this name"
+"api": "Query read by this name; q.moved_by(asker, result, player) -> Vec<ObjectId>"
 },
 {
 "match": "^object reference (AtEnd|ChosenBy|MadeHere|NthChosen|Scoped|SoleTargetOf|SourceOf)$",
 "class": "vocabulary",
 "needs": "an object named with no read in Query or Game",
-"api": "Query read by this name"
+"api": "Query read by this name; q.scoped_object(asker) -> Option<ObjectId>"
 },
 {
 "match": "^player reference (Acting|AsOf|FirstWilling|InChosenDirection|NotedFor)$",
 "class": "vocabulary",
 "needs": "a player named with no read in Query or Game",
-"api": "Query read by this name"
+"api": "Query read by this name; cantrip_mechanics::choose::first_willing(g, among, source)?; q.first_willing_for(asker, players); q.acting_player(asker) -> Option<PlayerId>; q.next_in_chosen_direction(asker, from); q.nearest_in_chosen_direction(asker, from, among); q.noted_for(asker, object) -> Option<PlayerId>"
 },
 {
 "match": "^history (window|measure) ",
@@ -585,6 +585,6 @@
 "match": "^duration ",
 "class": "engine",
 "needs": "an effect lasts until this: Duration has no such end",
-"api": "Duration by this name"
+"api": "Duration by this name; Duration::WhileExiled(o); WhileAnyExiled(os); UntilAnotherExiled { by, with }; UntilLibraryTopChanges(p); ThroughExtraTurn(result); ThroughNextTurn; WhileObjectMatches(o, f); EndOfCombatOnNextTurn(p)"
 }
 ]
