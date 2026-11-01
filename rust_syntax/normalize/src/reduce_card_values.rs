@@ -97,9 +97,6 @@ fn reduce_value_number(form: &str, operands: &[Operand]) -> Option<Expr> {
             mana_of(ManaOccurrence::SpentOnEventCost, term)?
         }
         ("TheAmountOfColorManaSpentOnX", [term]) => mana_of(ManaOccurrence::SpentOnX, term)?,
-        ("ManaCostsOfCombatCreatures", [Objects(objects)]) => {
-            Expr::ManaCostsOf(Box::new(objects.clone()))
-        }
         ("PermanentItTargets", [Objects(objects)]) => {
             Expr::CountObjects(Box::new(ObjectSet::Matching {
                 objects: Box::new(ObjectSet::TargetsOf(ObjectRef::Affected)),
@@ -217,7 +214,6 @@ fn reduce_value_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter>
         ("NotAColorInCommanderColorIdentity", []) => {
             ObjectFilter::ColorOutsideCommanderIdentity(PlayerRef::AbilityController)
         }
-        ("EachableAbility", []) => ObjectFilter::HasEachAbility,
         ("TargetSpellOrAbility", [Term { form, .. }]) if form == "HasOneOrMoreTargets" => {
             ObjectFilter::TargetCount(Comparison::GreaterOrEqual, Expr::Constant(1))
         }

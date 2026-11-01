@@ -210,11 +210,6 @@ fn each_card_reads_its_value_in_a_typed_shape() {
             "\"PutIntoHand\"",
         ),
         ("Wyll's Reversal", "HasOneOrMoreTargets", "\"TargetCount\""),
-        (
-            "Akroma, Vision of Ixidor",
-            "EachableAbility",
-            "\"HasEachAbility\"",
-        ),
     ] {
         let card = json(name);
         assert!(!card.contains(row), "{name} still reads {row}");
@@ -263,10 +258,6 @@ fn forms_on_faces_a_card_export_cannot_reach_reduce_directly() {
             },
             ..
         }
-    ));
-    assert!(matches!(
-        semantics::reduce_number("GameNumber::ManaCostsOfCombatCreatures".into(), vec![rooms],),
-        Expr::ManaCostsOf(_)
     ));
     assert!(matches!(
         semantics::reduce_condition(

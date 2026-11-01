@@ -1151,7 +1151,6 @@ impl<'a> Scope<'a> {
                 }
                 self.player(player)
             }
-            Expr::ManaCostsOf(objects) => self.objects(objects),
             Expr::EventHistory { event, .. } => self.event(event),
             Expr::CountPlayers(players) => self.players(players),
             Expr::ManaSpent { object, filter, .. } => {
@@ -1420,9 +1419,7 @@ impl<'a> Scope<'a> {
             ObjectFilter::ManaSpentFrom(sources) => self.filter(sources),
             ObjectFilter::TargetedBy(filter) => self.filter(filter),
             ObjectFilter::ColorOutsideCommanderIdentity(player) => self.player(player),
-            ObjectFilter::SharesColorWithMana(_)
-            | ObjectFilter::ManaCostPayableWith(_)
-            | ObjectFilter::HasEachAbility => Ok(()),
+            ObjectFilter::SharesColorWithMana(_) | ObjectFilter::ManaCostPayableWith(_) => Ok(()),
             ObjectFilter::KickedWith(kicker) => {
                 kicker.iter().try_for_each(|operand| self.operand(operand))
             }

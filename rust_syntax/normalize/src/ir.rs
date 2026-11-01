@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 162;
+pub const SCHEMA_VERSION: u32 = 163;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -4152,8 +4152,6 @@ pub enum Expr {
         result: ResultId,
         player: PlayerRef,
     },
-    /// The mana costs of these objects, one each, for an action that matches them.
-    ManaCostsOf(Box<ObjectSet>),
     /// Mana symbols of these colors in the activation cost being changed, counted
     /// as `CountManaSymbols` counts a mana cost.
     ActivationCostSymbols(Vec<ManaColor>),
@@ -5052,8 +5050,6 @@ pub enum ObjectFilter {
     TargetedBy(Box<ObjectFilter>),
     /// Has a color outside the color identity of this player's commander.
     ColorOutsideCommanderIdentity(PlayerRef),
-    /// Has the ability the enclosing `for each ability` loop is at.
-    HasEachAbility,
 }
 
 /// Something a player did or had done to them. See `Condition::PlayerDid`.

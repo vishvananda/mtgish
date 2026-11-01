@@ -2354,7 +2354,6 @@ impl Inventory<'_> {
                 self.objects(with);
             }
             Expr::RepeatedCostsUnpaid { player, .. } => self.player(player),
-            Expr::ManaCostsOf(objects) => self.objects(objects),
             Expr::BoundValue(_)
             | Expr::ChosenParity
             | Expr::ChosenNumber
@@ -2578,7 +2577,6 @@ impl Inventory<'_> {
             ObjectFilter::SharesColorWithMana(mana) | ObjectFilter::ManaCostPayableWith(mana) => {
                 self.form("ManaOccurrence", mana)
             }
-            ObjectFilter::HasEachAbility => {}
             ObjectFilter::KickedWith(_) => {}
             ObjectFilter::HasAttached(filter) => self.filter(filter),
             ObjectFilter::AttachedToPlayer(player) => self.player(player),

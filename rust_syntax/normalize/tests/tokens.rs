@@ -341,8 +341,5 @@ fn entry_counters_stay_in_the_creation_and_timed_entry_rules_are_named() {
         source::Expiration::UntilEndOfTurn,
     ));
     let named = format!("{:?}", lower::card(&probe(vec![action])).unwrap());
-    assert!(
-        named.contains("RulesUntil"),
-        "{named}"
-    );
+    assert!(named.contains("RulesUntil"), "{named}");
 }
