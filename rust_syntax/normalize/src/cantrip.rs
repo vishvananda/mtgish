@@ -30,7 +30,7 @@ mod survey;
 mod triggers;
 pub use crate::report::BackendDiagnostic as Diagnostic;
 use effects::rule_name;
-use lane_j::{Picked, Share};
+use lane_j::{Paying, Picked, Share};
 use read::{counter_kind, zone_kind, Candidate, Carried, EventAt, Frame, History, Pending, Reader};
 pub use survey::survey;
 type Result<T> = std::result::Result<T, Diagnostic>;
@@ -364,6 +364,9 @@ struct Compiler {
     picked: std::rc::Rc<std::cell::RefCell<Picked>>,
     /// What each player's part of a batch was, by the result it is part of.
     shares: BTreeMap<u32, (String, Share)>,
+    /// What the cost being compiled pays for, and whether it has an {X}.
+    paying: Paying,
+    mana_x: bool,
     slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
     /// The cards that ended each reveal, by the result that names all it showed.
@@ -668,6 +671,8 @@ impl Compiler {
             present: Default::default(),
             picked: Default::default(),
             shares: BTreeMap::new(),
+            paying: Paying::Ability,
+            mana_x: false,
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
             reveal_matches: BTreeMap::new(),

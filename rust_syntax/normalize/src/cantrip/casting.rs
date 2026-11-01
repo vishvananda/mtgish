@@ -349,31 +349,25 @@ impl Compiler {
                         );
                     }
                 } else {
-                    let cost = self.cost(cost, label)?;
-                    one_field(parts, "additional_cost", format!("Some({cost})"))?;
+                    self.paying = Paying::Spell;
+                    let cost = self.cost(cost, label);
+                    self.paying = Paying::Ability;
+                    one_field(parts, "additional_cost", format!("Some({})", cost?))?;
                 }
             }
             CastingRule::ReduceCost(reductions) => {
-                let [ManaReduction {
-                    color: None,
-                    amount,
-                }] = reductions.as_slice()
-                else {
-                    return Err(gap("spell cost reduction of colored mana"));
-                };
                 let saved = (self.reader, self.event_at);
                 (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
                 self.costing_targets = true;
                 let reads = self
-                    .number(amount)
-                    .and_then(|n| n.fit(0, 255, "u8"))
+                    .cost_reduction(reductions)
                     .and_then(|n| Ok((n, condition.map(|c| self.condition(c)).transpose()?)));
                 self.costing_targets = false;
                 (self.reader, self.event_at) = saved;
                 let (amount, test) = reads?;
                 let test = test.unwrap_or_else(|| "true".into());
                 let function = format!("{label}_cost");
-                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ let asker = &Asker::new(source, player); if costed == Costed::Spell(source) && {test} {{ CostDelta::less({amount}) }} else {{ CostDelta::NONE }} }}").unwrap();
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ let asker = &Asker::new(source, player); if costed == Costed::Spell(source) && {test} {{ {amount} }} else {{ CostDelta::NONE }} }}").unwrap();
                 parts.table("own_cost_changes", function);
             }
             CastingRule::Require(required) if condition.is_none() => {

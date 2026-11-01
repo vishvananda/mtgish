@@ -140,7 +140,7 @@ fn cant_be_countered(zones: &[EventZone], affected: &EffectSubjects, changes: &[
 
 impl Compiler {
     /// A generated `ObjectFilter`: what a cost accepts of an object.
-    fn cost_filter(&mut self, filter: &ObjectFilter, label: &str) -> Result<String> {
+    pub(super) fn cost_filter(&mut self, filter: &ObjectFilter, label: &str) -> Result<String> {
         // A cost's filter is a plain function, with no event or stack item to read.
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
@@ -159,8 +159,9 @@ impl Compiler {
                 objects: ObjectSet::Battlefield(filter),
                 choose,
             } => {
-                let n = exactly_u8(choose.as_ref())
-                    .ok_or_else(|| gap("sacrifice cost without a fixed count"))?;
+                let Some(n) = exactly_u8(choose.as_ref()) else {
+                    return self.sacrifice_count(filter, choose.as_ref(), label);
+                };
                 format!("sacrifice({n}, {})", self.cost_filter(filter, label)?)
             }
             CostPart::Discard {
@@ -173,8 +174,9 @@ impl Compiler {
                 filter,
                 random: false,
             } => {
-                let n =
-                    constant_u8(count).ok_or_else(|| gap("discard cost without a fixed count"))?;
+                let Some(n) = constant_u8(count) else {
+                    return self.discard_count(count, filter, label);
+                };
                 match filter {
                     ObjectFilter::Any => format!("discard_cards({n})"),
                     filter => format!("discard({n}, {})", self.cost_filter(filter, label)?),
@@ -192,8 +194,9 @@ impl Compiler {
                 else {
                     return Err(gap("tap cost shape"));
                 };
-                let n = exactly_u8(choose.as_ref())
-                    .ok_or_else(|| gap("tap cost without a fixed count"))?;
+                let Some(n) = exactly_u8(choose.as_ref()) else {
+                    return self.tap_count(filter, choose.as_ref(), label);
+                };
                 format!("tap_untapped({n}, {})", self.cost_filter(filter, label)?)
             }
             // Put on the source by the activating player (Mazemind Tome's form).
@@ -221,7 +224,9 @@ impl Compiler {
                 else {
                     return Err(gap("counter removal cost shape"));
                 };
-                let n = constant_u8(n).ok_or_else(|| gap("counter cost without a fixed count"))?;
+                let Some(n) = constant_u8(n) else {
+                    return self.counters_count(objects, kind.as_ref(), n, selection.is_some());
+                };
                 // One counter from one of them is one counter from among them.
                 if let Some(selection) = selection {
                     let one = matches!(&selection.count, Count::Exactly(Expr::Constant(1)));
@@ -320,6 +325,9 @@ impl Compiler {
     }
     /// A `Cost`. Mana symbols combine into one part before bounds are checked.
     pub(super) fn cost(&mut self, value: &Cost, label: &str) -> Result<String> {
+        self.mana_x = value.parts.iter().any(|part| {
+            matches!(part, CostPart::Mana(mana) if mana.iter().any(|s| matches!(s, ManaSymbol::X)))
+        });
         let mut symbols = Vec::new();
         let (mut tap, mut life_total, mut loyalty_delta) = (false, 0u32, None);
         let mut sacrifice_this = false;
@@ -556,9 +564,12 @@ impl Compiler {
             == crate::semantics::ActivationKind::Mana
         {
             let adds = self.mana_ability(body, &format!("{label}_mana"))?;
+            self.paying = Paying::Mana;
+            let cost = self.cost(price, label);
+            self.paying = Paying::Ability;
             format!(
                 "mana_ability({}, {adds}, {}){}",
-                self.cost(price, label)?,
+                cost?,
                 quoted(&text),
                 self.colors_from(body, label)?
             )

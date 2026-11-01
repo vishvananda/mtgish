@@ -221,7 +221,7 @@ impl Compiler {
         })
     }
     /// An `Enters` callback for the source's own arrival.
-    fn entering(&mut self, body: &Program, label: &str) -> Result<()> {
+    pub(super) fn entering(&mut self, body: &Program, label: &str) -> Result<()> {
         self.reset_results();
         let saved = (
             self.reader,
@@ -342,6 +342,10 @@ impl Compiler {
         parts: &mut Parts,
     ) -> Result<()> {
         if let ReplacementActive::SourceEntering = active {
+            if lane_j::escapes(event) {
+                self.escapes_with(body, label, parts)?;
+                return Ok(());
+            }
             let ReplacementEvent::Enter {
                 objects: ObjectFilter::SameObject(ObjectRef::Source),
             } = event

@@ -4,6 +4,7 @@
 //! compiled code: the whole ability goes in a `planned_item!`, with the body it
 //! triggers compiled, so the event is all the card waits on.
 use super::casting::target_range;
+use super::costs::constant_u8;
 use super::read::compare;
 use crate::mtg_types::CardType;
 use super::triggers::{object_fired, single, Arm, Matched};
@@ -2358,6 +2359,84 @@ fn symbols_text(symbols: &[ManaSymbol]) -> Option<String> {
     Some(text)
 }
 
+/// "This creature escapes with ...": a replacement of its entering, if it escaped.
+pub(super) fn escapes(event: &ReplacementEvent) -> bool {
+    let ReplacementEvent::Enter {
+        objects: ObjectFilter::All(parts),
+    } = event
+    else {
+        return false;
+    };
+    matches!(
+        parts.as_slice(),
+        [
+            ObjectFilter::SameObject(ObjectRef::Source),
+            ObjectFilter::State(ObjectState::Escaped)
+        ]
+    )
+}
+/// What a static ability lets a spell's caster pay rather than its mana cost
+/// (CR 118.9), and what the choice is called.
+pub(super) fn instead_of_mana_cost(cost: &PlayCost) -> Option<(String, String)> {
+    let parts = match cost {
+        PlayCost::Free => {
+            return Some((
+                "Without paying its mana cost".into(),
+                "InsteadOfManaCost::WithoutPaying".into(),
+            ))
+        }
+        PlayCost::Alternate(Operand::Cost(cost)) => cost.parts.as_slice(),
+        _ => return None,
+    };
+    match parts {
+        [CostPart::Mana(symbols)] => Some((
+            format!("Pay {}", symbols_text(symbols)?),
+            format!("InsteadOfManaCost::Mana({})", mana(symbols).ok()?),
+        )),
+        [CostPart::Energy(Expr::Constant(n))] if (0..=255).contains(n) => Some((
+            format!("Pay {n} energy"),
+            format!("InsteadOfManaCost::Energy({n})"),
+        )),
+        _ => None,
+    }
+}
+/// A quoted rule Cantrip holds as a keyword of the object that has it: "This
+/// creature can't block", which leaves with the object's abilities (CR 613.1f).
+pub(super) fn granted_keyword(ability: &Ability) -> Option<&'static str> {
+    let Ability::Static {
+        kind: StaticKind::Ordinary,
+        affected: EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
+        changes,
+    } = ability
+    else {
+        return None;
+    };
+    let [Change::Rule(rule)] = changes.as_slice() else {
+        return None;
+    };
+    match rule {
+        RuleChange::Prohibit(ObjectAction::Block(ObjectFilter::Any)) => Some("Keyword::CantBlock"),
+        RuleChange::Prohibit(ObjectAction::BeBlocked(ObjectFilter::Any)) => {
+            Some("Keyword::CantBeBlocked")
+        }
+        RuleChange::CombatGroup {
+            role: CombatRole::BlockedAttacker,
+            participants: ObjectFilter::Any,
+            others_only: false,
+            comparison: Comparison::LessOrEqual,
+            amount: Expr::Constant(1),
+        } => Some("Keyword::CantBeBlockedByMoreThanOne"),
+        _ => None,
+    }
+}
+
+/// What a cost pays for: Cantrip's variable costs are a spell's or an ability's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Paying {
+    Ability,
+    Mana,
+    Spell,
+}
 /// How to tell which player of a batch did which part of it, for `ObjectSet::MovedBy`.
 #[derive(Clone, Debug)]
 pub(super) enum Share {
@@ -2840,6 +2919,203 @@ impl Compiler {
         )
         .unwrap();
         Ok(format!(".colors_from({label}_colors)"))
+    }
+    /// Whether the activated ability `ability` of `object` is one of these. What
+    /// "of artifacts" says of permanents, a name says in any zone (CR 109.2, 201.2).
+    pub(super) fn barred_activation(&self, filter: &ActivationFilter) -> Result<String> {
+        Ok(match filter {
+            ActivationFilter::Any => "true".into(),
+            ActivationFilter::Cycling => "ability.cycling".into(),
+            ActivationFilter::Mana | ActivationFilter::Is(StackTrait::Mana) => {
+                "ability.is_mana_ability()".into()
+            }
+            ActivationFilter::Is(StackTrait::Loyalty) => "ability.is_loyalty_ability()".into(),
+            ActivationFilter::Not(inner) => format!("!({})", self.barred_activation(inner)?),
+            ActivationFilter::All(parts) => parts
+                .iter()
+                .map(|p| Ok(format!("({})", self.barred_activation(p)?)))
+                .collect::<Result<Vec<_>>>()?
+                .join(" && "),
+            ActivationFilter::Either(parts) => parts
+                .iter()
+                .map(|p| Ok(format!("({})", self.barred_activation(p)?)))
+                .collect::<Result<Vec<_>>>()?
+                .join(" || "),
+            ActivationFilter::Of(sources) => {
+                let test = self.filter(sources, &Candidate::of("object"))?;
+                match **sources {
+                    ObjectFilter::Chosen(..) => test,
+                    _ => format!("q.is_on_battlefield(object) && {test}"),
+                }
+            }
+            other => return Err(gap(format!("prohibited action Activate {}", form(other)))),
+        })
+    }
+    /// "Costs {1} less", "costs {W}{U} less", "costs {G} less for each green
+    /// permanent you control" (CR 118.7): a `CostDelta`.
+    pub(super) fn cost_reduction(&self, reductions: &[ManaReduction]) -> Result<String> {
+        if let [ManaReduction {
+            color: None,
+            amount,
+        }] = reductions
+        {
+            return Ok(format!(
+                "CostDelta::less({})",
+                self.number(amount)?.fit(0, 255, "u8")?
+            ));
+        }
+        let mut lines = Vec::new();
+        for ManaReduction { color: of, amount } in reductions {
+            let n = self.number(amount)?.fit(0, 255, "u8")?;
+            lines.push(match of {
+                Some(c) => format!("less.symbols[{}] = {n};", color_index(c)?),
+                None => format!("less.generic = {n};"),
+            });
+        }
+        Ok(format!(
+            "{{ let mut less = ManaCost::ZERO; {} CostDelta::less_mana(less) }}",
+            lines.join(" ")
+        ))
+    }
+    /// "This creature escapes with a +1/+1 counter on it" (CR 702.138c).
+    pub(super) fn escapes_with(
+        &mut self,
+        body: &Program,
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let inner = format!("{label}_escaped");
+        self.entering(body, &inner)?;
+        let function = format!("{label}_enters");
+        writeln!(
+            self.functions,
+            "fn {function}(g: &mut dyn Game, entering: &mut Entering) -> Result<(), Suspend> {{ let escaped = {{ let q: &dyn Query = g; cantrip_mechanics::escape::escaped(q, entering.object) }}; if escaped {{ {inner}(g, entering)?; }} Ok(()) }}"
+        )
+        .unwrap();
+        parts.enters.push(function);
+        Ok(())
+    }
+    /// A cost whose size the payer sets, once Cantrip has it.
+    fn planned_cost(feature: &str, variable: String) -> Result<String> {
+        Ok(planned::planned_value(
+            feature,
+            "Cost::NONE",
+            &format!("Cost {{ variable: Some(VariableCost::{variable}), ..Cost::NONE }}"),
+        ))
+    }
+    /// "Sacrifice X creatures", "sacrifice any number of creatures", "sacrifice
+    /// all lands you control". Cantrip takes the first two for a spell (CR 601.2b).
+    pub(super) fn sacrifice_count(
+        &mut self,
+        filter: &ObjectFilter,
+        choose: Option<&Count>,
+        label: &str,
+    ) -> Result<String> {
+        let spell = self.paying == Paying::Spell;
+        let variable = match choose {
+            Some(Count::Exactly(Expr::AnnouncedX)) if spell => "SacrificeX",
+            Some(Count::Exactly(Expr::AnnouncedX)) => {
+                let filter = self.cost_filter(filter, label)?;
+                return Self::planned_cost(
+                    "sacrificing X permanents to activate an ability",
+                    format!("SacrificeX({filter})"),
+                );
+            }
+            Some(Count::AnyNumber) => {
+                let filter = self.cost_filter(filter, label)?;
+                let any = format!("SacrificeAnyNumber {{ filter: {filter}, less_each: 0 }}");
+                return if spell {
+                    Ok(format!("Cost {{ variable: Some(VariableCost::{any}), ..Cost::NONE }}"))
+                } else {
+                    Self::planned_cost("sacrificing any number of permanents to activate an ability", any)
+                };
+            }
+            Some(Count::AtLeast(Expr::Constant(1))) if !spell => {
+                let filter = self.cost_filter(filter, label)?;
+                return Self::planned_cost(
+                    "sacrificing one or more permanents to activate an ability",
+                    format!("SacrificeOneOrMore({filter})"),
+                );
+            }
+            Some(Count::UpTo(n)) => {
+                let n = constant_u8(n).ok_or_else(|| gap("sacrifice cost without a fixed count"))?;
+                let filter = self.cost_filter(filter, label)?;
+                return Self::planned_cost(
+                    "sacrificing up to a number of permanents as a cost",
+                    format!("SacrificeUpTo({n}, {filter})"),
+                );
+            }
+            None => {
+                let filter = self.cost_filter(filter, label)?;
+                return Self::planned_cost(
+                    "sacrificing all of a kind of permanent as a cost",
+                    format!("SacrificeAll({filter})"),
+                );
+            }
+            _ => return Err(gap("sacrifice cost without a fixed count")),
+        };
+        let filter = self.cost_filter(filter, label)?;
+        Ok(format!("Cost {{ variable: Some(VariableCost::{variable}({filter})), ..Cost::NONE }}"))
+    }
+    /// "Discard X cards" (CR 118.3).
+    pub(super) fn discard_count(
+        &mut self,
+        count: &Expr,
+        filter: &ObjectFilter,
+        label: &str,
+    ) -> Result<String> {
+        if !matches!(count, Expr::AnnouncedX) {
+            return Err(gap("discard cost without a fixed count"));
+        }
+        let filter = self.cost_filter(filter, label)?;
+        Self::planned_cost("discarding X cards as a cost", format!("DiscardX({filter})"))
+    }
+    /// "Tap X untapped artifacts you control", "tap any number of untapped creatures".
+    pub(super) fn tap_count(
+        &mut self,
+        filter: &ObjectFilter,
+        choose: Option<&Count>,
+        label: &str,
+    ) -> Result<String> {
+        let (feature, variable) = match choose {
+            Some(Count::Exactly(Expr::AnnouncedX)) => ("tapping X permanents as a cost", "TapX"),
+            Some(Count::AnyNumber) => ("tapping any number of permanents as a cost", "TapAnyNumber"),
+            _ => return Err(gap("tap cost without a fixed count")),
+        };
+        let filter = self.cost_filter(filter, label)?;
+        Self::planned_cost(feature, format!("{variable}({filter})"))
+    }
+    /// "Remove X charge counters from this artifact": the X is the number
+    /// removed, announced as it is activated (CR 107.3, 118.3). Where mana pays
+    /// the same X, or the ability adds mana, Cantrip announces no such X.
+    pub(super) fn counters_count(
+        &mut self,
+        objects: &ObjectSet,
+        kind: Option<&crate::counter::CounterKind>,
+        count: &Expr,
+        selected: bool,
+    ) -> Result<String> {
+        let (ObjectSet::One(ObjectRef::Source), Some(kind), Expr::AnnouncedX, false) =
+            (objects, kind, count, selected)
+        else {
+            return Err(gap("counter cost without a fixed count"));
+        };
+        let kind = counter_kind(kind)?;
+        let variable = format!("RemoveAnyNumberOfCounters({kind})");
+        match (self.paying, self.mana_x) {
+            (Paying::Ability, false) => {
+                Ok(format!("Cost {{ variable: Some(VariableCost::{variable}), ..Cost::NONE }}"))
+            }
+            (Paying::Mana, _) => Self::planned_cost(
+                "removing X counters to activate a mana ability",
+                variable,
+            ),
+            (Paying::Ability, true) => Self::planned_cost(
+                "removing X counters where mana pays the same X",
+                format!("RemoveXCounters({kind})"),
+            ),
+            (Paying::Spell, _) => Err(gap("counter cost without a fixed count")),
+        }
     }
     /// "Put a +1/+1 counter on a creature you control": chosen as it resolves.
     pub(super) fn counters_by_choice(

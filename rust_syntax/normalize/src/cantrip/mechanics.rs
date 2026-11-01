@@ -279,9 +279,10 @@ impl Compiler {
                     _ => format!("multikicker({mana})"),
                 };
                 if parts.fields.contains_key("kicker") {
-                    return Err(gap("two costs a spell kicks with"));
+                    self.plan_entry("two costs a spell kicks with", "second_kicker", &field, parts);
+                } else {
+                    parts.field("kicker", field);
                 }
-                parts.field("kicker", field);
                 match mechanic {
                     K::Replicate => {
                         ability(parts, format!("{M}::replicate::trigger(\"Replicate\")"))

@@ -453,6 +453,13 @@ impl Compiler {
                 action: ObjectAction::Attack(AttackDefenders::Any),
                 amount: RequirementAmount::AtLeast(Expr::Constant(1)),
             }) => LayerChange::of("Ability", "chars.must_attack += 1;".into()),
+            Change::GrantAbility(ability) if lane_j::granted_keyword(ability).is_some() => {
+                let keyword = lane_j::granted_keyword(ability).expect("just seen");
+                LayerChange::of(
+                    "Ability",
+                    format!("chars.keywords = chars.keywords.with({keyword});"),
+                )
+            }
             Change::GrantAbility(ability) => {
                 let index = self.grant(ability)?;
                 LayerChange::of(

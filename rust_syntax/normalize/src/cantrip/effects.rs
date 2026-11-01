@@ -1994,6 +1994,9 @@ impl Compiler {
             return self.effect_kinds(&change);
         }
         if let Change::GrantAbility(ability) = change {
+            if let Some(keyword) = lane_j::granted_keyword(ability) {
+                return Ok(vec![format!("EffectKind::AddKeywords(Keywords::of(&[{keyword}]))")]);
+            }
             let index = self.grant(ability)?;
             return Ok(vec![format!(
                 "EffectKind::AddAbility(AbilityRef::delayed({}, {index}))",

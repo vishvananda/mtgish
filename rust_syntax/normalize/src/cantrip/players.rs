@@ -100,6 +100,26 @@ impl Compiler {
             PlayerRule::Primitive { name, .. } => {
                 return Err(gap(format!("primitive player rule {name}")))
             }
+            PlayerRule::SpellCost {
+                spells,
+                modifier: SpellCostModifier::Alternate { cost, limit: None },
+            } if lane_j::instead_of_mana_cost(cost).is_some() => {
+                let (text, instead) = lane_j::instead_of_mana_cost(cost).expect("just seen");
+                let test = self.filter(spells, &cast_card())?;
+                let (guard, member) = (self.guard()?, self.player_member(players)?);
+                writeln!(
+                    self.functions,
+                    "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, spell: ObjectId, player: PlayerId) -> bool {{ {guard}{member} && {test} }}"
+                )
+                .unwrap();
+                parts.table(
+                    "spell_alternatives",
+                    format!(
+                        "SpellAlternative {{ text: {}, applies: {function}, cost: {instead}, flash: false }}",
+                        quoted(&text)
+                    ),
+                );
+            }
             PlayerRule::SpellCost { spells, modifier } => {
                 let delta = self.cost_delta(modifier)?;
                 let test = self.filter(
@@ -357,15 +377,7 @@ impl Compiler {
                 reductions,
                 spill_into_generic: _,
             } => {
-                let [ManaReduction {
-                    color: None,
-                    amount,
-                }] = reductions.as_slice()
-                else {
-                    return Err(gap("spell cost reduction of colored mana"));
-                };
-                let amount = self.number(amount)?.fit(0, 255, "u8")?;
-                format!("CostDelta::less({amount})")
+                self.cost_reduction(reductions)?
             }
             SpellCostModifier::Alternate { .. } => {
                 return Err(gap("alternate spell cost rule"));
@@ -419,6 +431,14 @@ impl Compiler {
                 self.table_entry(parts, "land_play_rules", function, format!(
                     "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, land: ObjectId, face: CardId) -> bool {{ !({banned} && {test}) }}"
                 ));
+            }
+            PlayerAction::Activate(filter) => {
+                let test = self.barred_activation(filter)?;
+                let (table, function) = ("activation_rules", function.to_string());
+                let code = format!(
+                    "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, object: ObjectId, ability: &ActivatedDef) -> bool {{ let player = q.controller(object); !({banned} && {test}) }}"
+                );
+                self.table_entry(parts, table, &function, code);
             }
             other => return Err(gap(format!("prohibited action {}", form(other)))),
         }

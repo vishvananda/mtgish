@@ -63,6 +63,10 @@ impl Compiler {
                 Ability::Keyword(k) if keyword(k).is_ok() => {
                     format!("{values}.with_keyword({})", keyword(k)?)
                 }
+                ability if lane_j::granted_keyword(ability).is_some() => {
+                    let keyword = lane_j::granted_keyword(ability).expect("just seen");
+                    format!("{values}.with_keyword({keyword})")
+                }
                 ability => {
                     let index = self.grant(ability)?;
                     format!(
