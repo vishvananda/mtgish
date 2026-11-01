@@ -910,6 +910,61 @@ impl Compiler {
         }
         Ok(())
     }
+    /// `then` under a condition: the same abilities, or those of its otherwise
+    /// with the condition turned over.
+    pub(super) fn conditional(
+        &mut self,
+        condition: &Condition,
+        then: &[Ability],
+        label: &str,
+        parts: &mut Parts,
+        scope: Option<costs::Scope>,
+    ) -> Result<()> {
+        self.static_guard = Some(condition.clone());
+        let mut compiled = Ok(());
+        for (i, inner) in then.iter().enumerate() {
+            let label = format!("{label}_{i}");
+            let step = match inner {
+                Ability::Static { .. } => self.ability(inner, &label, parts, scope),
+                Ability::Keyword(k) => self.static_ability(
+                    &label,
+                    &StaticKind::Ordinary,
+                    &EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
+                    &[Change::GrantKeyword(k.clone())],
+                    parts,
+                ),
+                Ability::Triggered { .. } | Ability::Replacement { .. } => {
+                    self.ability_guard = Some(condition.clone());
+                    self.static_guard = None;
+                    let step = self.ability(inner, &label, parts, scope);
+                    self.static_guard = Some(condition.clone());
+                    self.ability_guard = None;
+                    step
+                }
+                // As long as it holds it can be activated, and only then.
+                Ability::Activated { .. } => {
+                    let mut gated = inner.clone();
+                    if let Ability::Activated { limits, .. } = &mut gated {
+                        limits.condition = Some(match limits.condition.take() {
+                            Some(own) => Condition::All(vec![condition.clone(), own]),
+                            None => condition.clone(),
+                        });
+                    }
+                    self.static_guard = None;
+                    let step = self.ability(&gated, &label, parts, scope);
+                    self.static_guard = Some(condition.clone());
+                    step
+                }
+                other => Err(gap(format!("conditional {}", form(other)))),
+            };
+            if step.is_err() {
+                compiled = step;
+                break;
+            }
+        }
+        self.static_guard = None;
+        compiled
+    }
     /// Whether anything after this instruction in its ability reads `result`.
     pub(super) fn read_later(&self, result: &ResultId) -> bool {
         let mark = format!("ResultId({})", result.0);
@@ -1438,6 +1493,24 @@ impl Compiler {
         self.selections.insert(result.0, format!("found_{id}"));
         Ok(())
     }
+}
+
+/// A target test in a slot of its own for each player: that player controls it.
+pub(super) fn per_player_target(count: &Count, test: String) -> String {
+    let Count::PerPlayer { players, .. } = count else {
+        return test;
+    };
+    let controls = match players {
+        PlayerSet::OpponentsOf(PlayerRef::AbilityController) => {
+            "cantrip_mechanics::targets::controlled_by_slot_opponent(q, id)".to_string()
+        }
+        _ => planned::planned_value(
+            "target cardinality PerPlayer",
+            "true",
+            "cantrip_mechanics::targets::controlled_by_slot_player(q, id)",
+        ),
+    };
+    format!("matches!(t, Target::Object(id) if {controls}) && ({test})")
 }
 
 /// `PlayWith` on no terms past what `PlayCards` says, as that.

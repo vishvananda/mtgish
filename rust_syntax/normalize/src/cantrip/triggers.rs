@@ -1258,6 +1258,12 @@ impl Compiler {
         if limits.total.is_some() {
             return Err(gap("trigger total limit"));
         }
+        let conditional = self.ability_guard.take();
+        if conditional.is_some()
+            && (matches!(event, EventSpec::State { .. }) || announcement.modes.is_some())
+        {
+            return Err(gap("conditional Triggered"));
+        }
         if let EventSpec::State { condition } = event {
             let state = self.condition_function(condition, &format!("{label}_state"))?;
             let mut def = {
@@ -1311,6 +1317,10 @@ impl Compiler {
         let mut extra = Vec::new();
         let mut guard = None;
         let mut condition = None;
+        // The ability is there or isn't when the event happens, and only then.
+        if let Some(conditional) = &conditional {
+            extra.push(self.matching(matched.frame, |c| c.condition(conditional))?);
+        }
         if let Some(intervening) = intervening_if {
             match self.condition_function(intervening, &format!("{label}_if")) {
                 Ok(function) => condition = Some(function),

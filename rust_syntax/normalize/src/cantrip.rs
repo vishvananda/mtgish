@@ -55,6 +55,10 @@ impl Diagnostic {
         self
     }
 }
+fn constant_one(count: &Count) -> bool {
+    matches!(count, Count::UpTo(Expr::Constant(1)))
+}
+
 fn name(value: &impl std::fmt::Debug) -> String {
     format!("{value:?}")
 }
@@ -435,6 +439,8 @@ struct Compiler {
     searched: BTreeMap<u32, String>,
     /// The spell ends in cipher, so the card has what an encoded card gives.
     cipher: bool,
+    /// "As long as": asked as the next ability's event happens.
+    ability_guard: Option<Condition>,
 }
 
 enum ManaPlan {
@@ -704,6 +710,7 @@ impl Compiler {
             after: Vec::new(),
             searched: BTreeMap::new(),
             cipher: false,
+            ability_guard: None,
             holes: String::new(),
         }
     }
@@ -829,6 +836,21 @@ impl Compiler {
                     constant(maximum).unwrap()
                 )
             }
+            // One slot for each opponent, "that player" being whose it is.
+            Count::PerPlayer { players, each } if constant_one(each) => {
+                if matches!(players, PlayerSet::OpponentsOf(PlayerRef::AbilityController)) {
+                    ".between(0, TargetSpec::EACH_OPPONENT)".into()
+                } else {
+                    format!(
+                        ".between(0, {})",
+                        planned::planned_value(
+                            "target cardinality PerPlayer",
+                            "1u32",
+                            "TargetSpec::EACH_PLAYER",
+                        )
+                    )
+                }
+            }
             // How many is read as the slot is chosen, and a slot's size is a constant.
             Count::UpTo(n) => format!(
                 ".between(0, {})",
@@ -896,6 +918,17 @@ impl Compiler {
                 let total = match total {
                     Expr::Constant(n) if i == 0 && *n >= 0 => n.to_string(),
                     Expr::AnnouncedX if i == 0 => "TargetSpec::COUNTED".to_string(),
+                    other if i == 0 => {
+                        let total = self
+                            .number(other)
+                            .and_then(|n| n.amount(u32::MAX.into(), "u32"))
+                            .map_err(|e| e.at(&at))?;
+                        planned::planned_value(
+                            "target with a divided amount read as chosen",
+                            "1u32",
+                            &format!("Divide::read(|q: &dyn Query, asker: &Asker| {total})"),
+                        )
+                    }
                     _ => return Err(gap("target with a divided amount").at(at)),
                 };
                 self.dividing = Some(format!("Divide {{ total: {total}, of_x: None }}"));
@@ -917,7 +950,7 @@ impl Compiler {
             self.choosing = Some(i);
             let test = self.target_test(spec).map_err(|e| e.at(&at));
             self.choosing = None;
-            let test = test?;
+            let test = lane_i::per_player_target(&spec.count, test?);
             let function = format!("{label}_target_{i}");
             writeln!(
                 self.functions,
@@ -1552,8 +1585,20 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     for (i, a) in card.abilities.iter().enumerate() {
         let failure = c.attempt(format!("abilities[{i}]"), |c| {
             let compiled = c.ability(a, &format!("ability_{i}"), &mut parts, None);
-            if c.dividing.take().is_some() {
-                return Err(gap("target with a divided amount"));
+            if let Some(divide) = c.dividing.take() {
+                // Only spells and triggered abilities divide yet.
+                if compiled.is_err() || !matches!(a, Ability::Activated { .. }) {
+                    return Err(gap("target with a divided amount"));
+                }
+                let Some(def) = parts.abilities.pop() else {
+                    return Err(gap("target with a divided amount"));
+                };
+                c.plan_entry(
+                    "target with a divided amount",
+                    "abilities",
+                    &format!("{def}.divide({divide})"),
+                    &mut parts,
+                );
             }
             compiled
         });

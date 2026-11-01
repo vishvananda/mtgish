@@ -97,6 +97,7 @@ impl Compiler {
         self.affected_in_scope = false;
         self.affected_object = None;
         self.static_guard = None;
+        self.ability_guard = None;
         self.history = None;
         self.choosing = None;
         self.costing_targets = false;

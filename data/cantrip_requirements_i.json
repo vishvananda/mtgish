@@ -88,5 +88,23 @@
     "class": "engine",
     "needs": "a card moved to the command zone by an effect (CR 408), for commanders and their replacement.",
     "api": "g.put_into_command_zone(&objects)"
+  },
+  {
+    "match": "^target with a divided amount read as chosen$",
+    "class": "engine",
+    "needs": "a divided total read from the game as the targets are chosen: Divide holds a constant, the announced X, or a function of X.",
+    "api": "Divide::read(|q, asker| total)"
+  },
+  {
+    "match": "^target with a divided amount$",
+    "class": "engine",
+    "needs": "a divided total on an activated ability, on a mode of a modal spell or ability, or on a slot past the first: only a spell's and a triggered ability's first slot divide.",
+    "api": "AbilityDef::divide on an activated ability; ModeDef::divide"
+  },
+  {
+    "match": "^target cardinality PerPlayer$",
+    "class": "engine",
+    "needs": "one target slot for each player, or each player but you, and inside a mode: EACH_OPPONENT is only for a controller's opponents, and not valid in a mode.",
+    "api": "TargetSpec::EACH_PLAYER, targets::controlled_by_slot_player(q, id)"
   }
 ]

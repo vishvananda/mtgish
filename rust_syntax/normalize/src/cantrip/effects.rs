@@ -818,11 +818,12 @@ impl Compiler {
                 let amount = self.fetch(number.amount(max, ty)?);
                 let players = self.fetch(self.players(players)?);
                 writeln!(out, "let amount_{id} = {amount}; let players_{id} = {players};").unwrap();
-                if self.read_later(result) {
-                    let measure = match op {
-                        Operation::Draw { .. } => "g.history().drawn(player) as i64",
-                        _ => "i64::from(g.state().player(player).life)",
-                    };
+                if matches!(op, Operation::Draw { .. }) && self.read_later(result) {
+                    writeln!(out, "let mut done_{id}: i64 = 0; let mut drawn_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ let before = g.history().drawn(player) as i64; let held = g.state().zone(Zone::hand(player)).to_vec(); g.draw(player, amount_{id}); done_{id} += g.history().drawn(player) as i64 - before; drawn_{id}.extend(g.state().zone(Zone::hand(player)).iter().copied().filter(|c| !held.contains(c))); }}").unwrap();
+                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.moved.insert(result.0, format!("drawn_{id}"));
+                } else if self.read_later(result) {
+                    let measure = "i64::from(g.state().player(player).life)";
                     writeln!(out, "let mut done_{id}: i64 = 0; for player in players_{id} {{ let before = {measure}; g.{method}(player, amount_{id}); done_{id} += ({measure} - before).abs(); }}").unwrap();
                     self.performed.insert(result.0, format!("done_{id}"));
                 } else {
@@ -943,10 +944,16 @@ impl Compiler {
                 preventable: true,
             } => {
                 let amount = self.number(amount)?.amount(u16::MAX.into(), "u16")?;
-                writeln!(out, "let mut done_{id}: i64 = 0; let source_{id} = {}; let amount_{id} = {}; let recipients_{id} = {}; if let Some(source) = source_{id} {{ let batch: Vec<(ObjectId, Target, u16)> = recipients_{id}.iter().map(|t| (source, *t, amount_{id})).collect(); done_{id} += g.damage_together(&batch).iter().map(|&n| i64::from(n)).sum::<i64>(); }}", self.fetch(self.object(source)?), self.fetch(amount), self.fetch(self.recipients(recipients)?)).unwrap();
-                if self.read_later(result) {
+                let (declare, deal) = if self.read_later(result) {
                     self.performed.insert(result.0, format!("done_{id}"));
-                }
+                    (
+                        format!("let mut done_{id}: i64 = 0; "),
+                        format!("done_{id} += g.damage_together(&batch).iter().map(|&n| i64::from(n)).sum::<i64>();"),
+                    )
+                } else {
+                    (String::new(), "g.damage_together(&batch);".to_string())
+                };
+                writeln!(out, "{declare}let source_{id} = {}; let amount_{id} = {}; let recipients_{id} = {}; if let Some(source) = source_{id} {{ let batch: Vec<(ObjectId, Target, u16)> = recipients_{id}.iter().map(|t| (source, *t, amount_{id})).collect(); {deal} }}", self.fetch(self.object(source)?), self.fetch(amount), self.fetch(self.recipients(recipients)?)).unwrap();
             }
             Operation::DealDamageParts {
                 source,
@@ -1089,7 +1096,9 @@ impl Compiler {
                 let chooser = self.fetch(self.certain_player(player)?);
                 let cards = self.fetch(self.objects(objects)?);
                 // Only what is still in that library moves (701.20e).
-                writeln!(out, "let library_{id} = {library}; let cards_{id}: Vec<ObjectId> = {cards}.into_iter().filter(|&o| g.state().obj(o).became.is_none() && g.state().obj(o).zone == Zone::library(library_{id})).collect();").unwrap();
+                writeln!(out, "let library_{id} = {library}; let cards_{id}: Vec<ObjectId> = {cards}.into_iter().filter(|&o| g.state().obj(o).became.is_none() && g.state().obj(o).zone == Zone::library(library_{id})).collect(); let placed_{id} = cards_{id}.clone();").unwrap();
+                self.moved.insert(result.0, format!("placed_{id}"));
+                self.left_behind(result, format!("placed_{id}.clone()"));
                 let (kind, place) = match end {
                     SequenceEnd::Top => (
                         "LibraryTop",

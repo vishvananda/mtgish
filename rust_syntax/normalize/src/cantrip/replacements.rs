@@ -341,7 +341,11 @@ impl Compiler {
         body: &Program,
         parts: &mut Parts,
     ) -> Result<()> {
+        let guard = self.ability_guard.take();
         if let ReplacementActive::SourceEntering = active {
+            if guard.is_some() {
+                return Err(gap("conditional Replacement"));
+            }
             let ReplacementEvent::Enter {
                 objects: ObjectFilter::SameObject(ObjectRef::Source),
             } = event
@@ -354,7 +358,10 @@ impl Compiler {
             return Ok(());
         }
         let (arms, frame) = self.watched(event)?;
-        let (extra, changes, rest) = self.program_parts(body, frame)?;
+        let (mut extra, changes, rest) = self.program_parts(body, frame)?;
+        if let Some(guard) = &guard {
+            extra.push(self.matching(frame, |c| c.condition(guard))?);
+        }
         let hint = quoted(&ability_text(body));
         if arms[0].kind == "Damage" {
             if let [change] = changes.as_slice() {

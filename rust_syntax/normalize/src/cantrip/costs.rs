@@ -450,6 +450,10 @@ impl Compiler {
             if mode.requires.is_some() {
                 return Err(gap("mode with a requirement"));
             }
+            // A slot in a mode reads a `max` above 1 as a range.
+            if format!("{:?}", mode.announcement.targets).contains("PerPlayer {") {
+                return Err(gap("target cardinality PerPlayer"));
+            }
             let label = format!("{label}_mode_{i}");
             let targets = match frame {
                 Some(frame) => self.targets_for(&mode.announcement, &label, frame)?,
@@ -911,35 +915,12 @@ impl Compiler {
                 then,
                 otherwise,
             } => {
-                if !otherwise.is_empty() {
-                    return Err(gap("conditional ability with an otherwise"));
-                }
                 if self.static_guard.is_some() {
                     return Err(gap("nested conditional ability"));
                 }
-                self.static_guard = Some(condition.clone());
-                let mut compiled = Ok(());
-                for (i, inner) in then.iter().enumerate() {
-                    let step = match inner {
-                        Ability::Static { .. } => {
-                            self.ability(inner, &format!("{label}_{i}"), parts, scope)
-                        }
-                        Ability::Keyword(k) => self.static_ability(
-                            &format!("{label}_{i}"),
-                            &StaticKind::Ordinary,
-                            &EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
-                            &[Change::GrantKeyword(k.clone())],
-                            parts,
-                        ),
-                        other => Err(gap(format!("conditional {}", form(other)))),
-                    };
-                    if step.is_err() {
-                        compiled = step;
-                        break;
-                    }
-                }
-                self.static_guard = None;
-                compiled?;
+                self.conditional(condition, then, label, parts, scope)?;
+                let unless = Condition::Not(Box::new(condition.clone()));
+                self.conditional(&unless, otherwise, &format!("{label}_otherwise"), parts, scope)?;
             }
             Ability::Saga { chapters } => {
                 for (i, chapter) in chapters.iter().enumerate() {
