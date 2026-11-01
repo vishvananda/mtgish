@@ -1355,6 +1355,7 @@ impl Compiler {
             Operation::Primitive { name, .. } => {
                 return Err(gap(format!("primitive operation {name}")))
             }
+            Operation::Meld { objects, into, .. } => self.plan_meld(objects, into, out)?,
             _ => return Err(gap(format!("operation {}", form(op)))),
         }
         Ok(())
@@ -1920,7 +1921,7 @@ impl Compiler {
             let index = self.grant(ability)?;
             return Ok(vec![format!(
                 "EffectKind::AddAbility(AbilityRef::delayed({}, {index}))",
-                read::SOURCE_CARD
+                self.source_card()
             )]);
         }
         let i16_of = |n: &Expr| -> Result<String> {

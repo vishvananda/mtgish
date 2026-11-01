@@ -8,7 +8,7 @@ use std::{
     path::Path,
 };
 
-/// Every gap of one complete, primitive-free, single-face record.
+/// Every gap of one complete, primitive-free record.
 #[derive(Serialize)]
 pub struct Blocked {
     pub line: usize,
@@ -30,8 +30,8 @@ pub struct Survey {
     pub total: usize,
     pub complete: usize,
     pub complete_without_primitives: usize,
-    /// Primitive-free complete records of another layout, which the generator
-    /// has no face model for and the scan does not attempt.
+    /// Primitive-free complete records that are no card, such as a token
+    /// definition or a sticker sheet, which the scan does not attempt.
     pub other_layouts: usize,
     pub capable: usize,
     /// Every gap the capable records would otherwise show, by record count.
@@ -98,10 +98,10 @@ pub fn survey(input: &Path) -> corpus::Result<Survey> {
             if !forms.primitives.is_empty() {
                 return Ok(Outcome::Primitive(forms.primitives.into_keys().collect()));
             }
-            if lowered.card.layout != "Card" {
+            if !super::lane_f::is_card(&lowered.card) {
                 return Ok(Outcome::OtherLayout);
             }
-            let gaps = lowered.card.faces.iter().flat_map(super::gaps).collect();
+            let gaps = super::whole_gaps(&source, &lowered.card);
             Ok(Outcome::Compiled(Blocked {
                 line,
                 name: identity.names.join(" // "),

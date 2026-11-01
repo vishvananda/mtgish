@@ -67,7 +67,7 @@ impl Compiler {
                     let index = self.grant(ability)?;
                     format!(
                         "{values}.with_ability(AbilityRef::delayed({}, {index}))",
-                        read::SOURCE_CARD
+                        self.source_card()
                     )
                 }
             },

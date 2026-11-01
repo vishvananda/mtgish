@@ -4,7 +4,7 @@ use super::*;
 
 const M: &str = "cantrip_mechanics";
 /// The card's first delayed ability, which `earthbend::effect` gives the land.
-const EARTHBEND_RETURN: &str = "cantrip_mechanics::earthbend::RETURN";
+pub(super) const EARTHBEND_RETURN: &str = "cantrip_mechanics::earthbend::RETURN";
 
 /// One `Operation::Keyword`.
 pub(super) struct Action<'a> {
@@ -319,6 +319,12 @@ impl Compiler {
             K::TakeExtraTurn => self.actor_action(&action, "g.add_extra_turns(player, 1)", out)?,
             K::PhaseOut => self.object_action(&action, "g.phase_out(&[object])", out)?,
             K::Prepare => self.object_action(&action, "g.become_prepared(object)", out)?,
+            K::Flip => {
+                let object = self.acted_object(action.object)?;
+                writeln!(out, "if let Some(object) = {object} {{").unwrap();
+                self.plan_code("keyword action Flip", "g.flip(object);", out);
+                writeln!(out, "}}").unwrap();
+            }
             K::TapOrUntap => {
                 let player = self.actor(&action)?;
                 self.tap_or_untap = true;

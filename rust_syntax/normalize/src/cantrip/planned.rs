@@ -27,6 +27,11 @@ pub fn requirement(feature: &str) -> String {
 /// Adding one here and regenerating is all a card waiting on it needs.
 const LANDED: &[&str] = &[];
 
+/// Whether `feature` has landed in Cantrip.
+pub(super) fn landed(feature: &str) -> bool {
+    LANDED.contains(&requirement(feature).as_str())
+}
+
 /// A value inside compiled code that Cantrip has no word for yet: `placeholder`
 /// keeps the file compiling, `code` is what it will say, and `feature` is found
 /// again by `value_gaps`, since a read has no way to record a gap of its own.
@@ -165,6 +170,8 @@ pub struct TrackedCard {
     pub name: String,
     pub layout: String,
     pub faces: Vec<TrackedFace>,
+    /// The card's file where its faces are joined into one card.
+    pub rust: Option<String>,
     /// A gapless single face's file in Cantrip's hand-written style.
     pub file: Option<String>,
 }
@@ -181,24 +188,18 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
             let identity = corpus::Identity::of(&source)?;
             let lowered = crate::unified::lower(&source);
             let name = identity.names.join(" // ");
-            let mut faces = Vec::new();
-            for face in &lowered.card.faces {
-                let (rust, gaps) = tracked_module(face)
-                    .map_err(|g| format!("{name}: {}: {} ({})", g.path, g.feature, g.message))?;
-                faces.push(TrackedFace {
-                    name: face.name.clone(),
+            let whole = whole(&source, &lowered.card)
+                .map_err(|g| format!("{name}: {}: {} ({})", g.path, g.feature, g.message))?;
+            let faces: Vec<TrackedFace> = whole
+                .faces
+                .into_iter()
+                .map(|face| TrackedFace {
                     oracle: oracle.get(&face.name).cloned(),
-                    rust,
-                    gaps,
-                });
-            }
-            // A card of several faces is only whole once they are one card.
-            if lowered.card.layout != "Card" && lowered.card.layout != "TokenDefinition" {
-                if let Some(first) = faces.first_mut() {
-                    let needs = gap(format!("layout {}", lowered.card.layout));
-                    first.gaps.push(needs.at("layout"));
-                }
-            }
+                    name: face.name,
+                    rust: face.rust,
+                    gaps: face.gaps,
+                })
+                .collect();
             let file = match faces.as_slice() {
                 [one] if one.gaps.is_empty() && lowered.card.layout == "Card" => one
                     .oracle
@@ -212,6 +213,7 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
                 name,
                 layout: lowered.card.layout.clone(),
                 faces,
+                rust: whole.rust,
                 file,
             })
         },

@@ -500,7 +500,8 @@ impl Compiler {
     /// ability's place on its card, the same on a copy (CR 707.2).
     fn activations_each_turn(&mut self, n: i64, index: usize, label: &str) -> String {
         let function = format!("{label}_each_turn");
-        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ let o = q.state().obj(asker.source); let this = AbilityRef {{ card: o.copied_card().unwrap_or(o.card), index: {index} }}; (q.history().this_turn().iter().filter(|r| matches!(r.event, Event::AbilityActivated {{ source, ability, .. }} if source == asker.source && ability == this)).count() as i64) < {n} }}").unwrap();
+        let card = self.source_card();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ let this = AbilityRef {{ card: {card}, index: {index} }}; (q.history().this_turn().iter().filter(|r| matches!(r.event, Event::AbilityActivated {{ source, ability, .. }} if source == asker.source && ability == this)).count() as i64) < {n} }}").unwrap();
         function
     }
     fn activated(
