@@ -40,7 +40,10 @@ fn base_form(name: &str, args: &serde_json::Value) -> Option<Base> {
     };
     let form = |ty| serde_json::json!({ "enum": ty, "variant": name, "args": args });
     let mut action = form("Action");
-    retag(&mut action, &|n: &str| (n == "CardsInHand").then_some("Cards"));
+    let library = name.starts_with("RevealCardsFromTheTopOfLibraryUntil");
+    retag(&mut action, &|n: &str| {
+        (n == "CardsInHand" || (library && n == "CardsInLibrary")).then_some("Cards")
+    });
     decode(&action)
         .map(Base::Action)
         .or_else(|_| decode(&form("Cost")).map(Base::Cost))
@@ -159,9 +162,15 @@ impl Context {
                 "APermanentIsSacrificedThisWay" => Some(
                     source::Condition::APermanentWasSacrificedThisWay(decode(&args.pop()?).ok()?),
                 ),
-                "YouRevealACardOfTypeThisWay" => Some(source::Condition::ACardWasRevealedThisWay(
-                    decode(&args.pop()?).ok()?,
-                )),
+                "YouRevealACardOfTypeThisWay" => {
+                    let mut cards = args.pop()?;
+                    retag(&mut cards, &|n: &str| {
+                        (n == "CardsInLibrary").then_some("Cards")
+                    });
+                    Some(source::Condition::ACardWasRevealedThisWay(
+                        decode(&cards).ok()?,
+                    ))
+                }
                 "APermanentEntersThisWay" if args.len() == 3 => {
                     Some(source::Condition::PermanentPassesFilter(
                         Box::new(source::Permanent::ThePermanentPutOnTheBattlefieldThisWay),

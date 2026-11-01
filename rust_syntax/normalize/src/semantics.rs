@@ -290,6 +290,52 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
 
 /// Action rows that are one keyword action. Each keeps its reviewed `yields`.
 const KEYWORD_ACTIONS: &[(&str, KeywordAction)] = &[
+    ("Action::ChooseADamageNumber", KeywordAction::ChooseDamageNumber),
+    ("Action::ChooseASector", KeywordAction::ChooseSector),
+    ("Action::ClaimThePrize", KeywordAction::ClaimPrize),
+    (
+        "Action::ChooseProtectionFromAColorOrFromArtifact",
+        KeywordAction::ChooseProtection,
+    ),
+    ("Action::SetStake", KeywordAction::SetStake),
+    ("Action::DoubleTheStake", KeywordAction::DoubleStake),
+    ("Action::ChooseCopyFromCopies", KeywordAction::ChooseCopy),
+    (
+        "Action::PutTopOfPlanarDeckOnBottomOfPlanarDeck",
+        KeywordAction::TopOfPlanarDeckToBottom,
+    ),
+    ("Action::RevealTopCardOfPlanarDeck", KeywordAction::RevealTopOfPlanarDeck),
+    (
+        "Action::RevealCardsFromTheTopOfPlanarDeckUntilRevealAPlaneCardThenChaosEnsuresOnThatPlaneThenPutAllCardsOnBottomInAnyOrder",
+        KeywordAction::PlanarDeckChaos,
+    ),
+    (
+        "Action::RevealCardsFromTheTopOfPlanarDeckUntilRevealAPlaneCardThenPlaneswalkToItWhileNotPlaneswalkingAwayAndPutTheRestOnBottomInAnyOrder",
+        KeywordAction::PlanarDeckPlaneswalkWithoutLeaving,
+    ),
+    (
+        "Action::RevealCardsFromTheTopOfPlanarDeckUntilRevealNumberPlaneCardsAndPutAPlaneCardFromAmongOnTopAndTheRestOnBottomInARandomOrder",
+        KeywordAction::PlanarDeckPickPlane,
+    ),
+    (
+        "Action::RevealCardsFromTheTopOfPlanarDeckUntilRevealNumberPlaneCardsSimultaneouslyPlaneswalkToThemThenPutOnBottomInAnyOrder",
+        KeywordAction::PlanarDeckPlaneswalkToEach,
+    ),
+    (
+        "Action::RevealTheTopNumberCardsOfPlanarDeckAndTriggerEachCHAOSAbilityThenPutOnBottomOfPlanarDeckInAnyOrder",
+        KeywordAction::PlanarDeckChaosEach,
+    ),
+    ("Action::ShuffleLibraryIfSearched", KeywordAction::ShuffleIfSearched),
+    ("Action::RerollAnyNumberOfTheStoredD6Results", KeywordAction::RerollStoredDice),
+    ("Action::RollNumberD6AndStoreTheResult", KeywordAction::RollAndStoreD6),
+    ("Action::SetRepeatablePlayers", KeywordAction::SetRepeatablePlayers),
+    ("Action::SetSchemeInMotion", KeywordAction::SetSchemeInMotion),
+    ("Action::ReorderPlayersGraveyard", KeywordAction::ReorderGraveyard),
+    ("Action::DiscardAnyNumberOfCardsAtRandom", KeywordAction::DiscardAnyNumberAtRandom),
+    (
+        "Action::PutTheRemainingLibraryCardsOnTheBottomOfLibraryInARandomOrder",
+        KeywordAction::RemainingToBottomAtRandom,
+    ),
     ("Action::TransformPermanent", KeywordAction::Transform),
     ("Action::Fight", KeywordAction::Fight),
     ("Action::CollectEvidence", KeywordAction::CollectEvidence),
@@ -727,6 +773,9 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
             .or_else(|| reduce_combat_change(form, &operands))
             .or_else(|| reduce_player_does(&actor, form, &operands))
             .or_else(|| reduce_more_actions(&actor, form, &operands))
+            .or_else(|| reduce_rest_actions(&actor, form, &operands))
+            .or_else(|| reduce_reflexive(&actor, form, &operands))
+            .or_else(|| reduce_perpetual(form, &operands))
     }) {
         return operation;
     }
@@ -5539,6 +5588,11 @@ impl Effects {
                     | Operation::PutChosenCounters { .. }
                     | Operation::Piles { .. }
                     | Operation::ChoosePile { .. }
+                    | Operation::GiveControl { .. }
+                    | Operation::AnyPlayerMayPay { .. }
+                    | Operation::PlayersPayRepeatedly { .. }
+                    | Operation::DelayedUnlessPaid { .. }
+                    | Operation::FightEach { .. }
                     | Operation::Note(_)
                     | Operation::Bid { .. }
                     | Operation::Guess { .. }
@@ -5642,6 +5696,7 @@ impl Effects {
                     | Operation::PlayCards { .. }
                     | Operation::PlayWith { .. }
                     | Operation::Together(_)
+                    | Operation::WithReflexive { .. }
                     | Operation::Repeat { .. }
                     | Operation::TurnFaceDownAs { .. }
                     | Operation::Exchange { .. }

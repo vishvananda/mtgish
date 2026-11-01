@@ -615,11 +615,11 @@ impl Context {
             self.forget_results();
         }
         operands.insert(0, Operand::Objects(objects));
-        let step = self.effect(Operation::Primitive {
-            actor: PlayerSet::One(actor.clone()),
+        let step = self.effect(crate::semantics::reduce_inspection(
+            PlayerSet::One(actor.clone()),
             name,
             operands,
-        });
+        ));
         if let Instruction::Effect { result, operation } = &step {
             self.note_yield(operation, result);
         }

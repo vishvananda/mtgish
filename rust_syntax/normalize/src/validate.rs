@@ -2612,6 +2612,7 @@ impl<'a> Scope<'a> {
                 NoteKind::Number(value) => self.expr(value),
                 NoteKind::Player(player) => self.player(player),
                 NoteKind::CountersOn(object) => self.object(object),
+                NoteKind::Numbered(objects) => self.objects(objects),
                 NoteKind::LifeTotal | NoteKind::ManaSpent { .. } => Ok(()),
             },
             Operation::Bid { players, start } => {
@@ -2650,6 +2651,28 @@ impl<'a> Scope<'a> {
                 self.expr(discard)
             }
             Operation::RedistributeLife(players) => self.players(players),
+            Operation::WithReflexive { action, .. } => self.operation(action),
+            Operation::GiveControl {
+                players, objects, ..
+            } => {
+                self.players(players)?;
+                self.objects(objects)
+            }
+            Operation::AnyPlayerMayPay { players, .. } => self.players(players),
+            Operation::PlayersPayRepeatedly {
+                players,
+                cost,
+                at_most,
+            } => {
+                self.players(players)?;
+                self.cost(cost)?;
+                self.expr(at_most)
+            }
+            Operation::DelayedUnlessPaid { payer, .. } => self.player(payer),
+            Operation::FightEach { fighters, others } => {
+                self.objects(fighters)?;
+                self.objects(others)
+            }
             Operation::PickFromHand {
                 actor,
                 player,

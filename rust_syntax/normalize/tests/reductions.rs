@@ -591,3 +591,55 @@ fn abilities_change_their_own_activation() {
         Change::ActivationRule(ActivationRule::ManaInstead(_))
     ));
 }
+
+#[test]
+fn reflexive_triggers_and_perpetual_terms_keep_their_shape() {
+    let you = || PlayerSet::One(PlayerRef::AbilityController);
+    let body = || {
+        Operand::Program(Program {
+            instructions: vec![],
+        })
+    };
+    assert!(matches!(
+        semantics::reduce_action(
+            you(),
+            "Action::Reflexive_CollectEvidenceAnyX_WhenYouDo".into(),
+            vec![body()],
+        ),
+        Operation::WithReflexive {
+            when: ReflexiveWhen::YouDo,
+            ..
+        }
+    ));
+    let adjust = Operand::Term {
+        family: "PerpetualEffect".into(),
+        form: "AdjustPT".into(),
+        operands: vec![Operand::Integer(1), Operand::Integer(1)],
+    };
+    let top_creature = Operand::Term {
+        family: "CardInLibrary".into(),
+        form: "TheTopCardOfTypeInPlayersLibrary".into(),
+        operands: vec![
+            Operand::Filter(ObjectFilter::Any),
+            Operand::Player(PlayerRef::AbilityController),
+        ],
+    };
+    assert!(matches!(
+        semantics::reduce_action(
+            you(),
+            "Action::CreatePerpetualCardInLibraryEffect".into(),
+            vec![top_creature, Operand::List(vec![adjust])],
+        ),
+        Operation::CreatePerpetualEffect {
+            objects: ObjectSet::Take { .. },
+            ..
+        }
+    ));
+    assert!(matches!(
+        semantics::reduce_action(you(), "Action::SetSchemeInMotion".into(), vec![]),
+        Operation::Keyword {
+            action: KeywordAction::SetSchemeInMotion,
+            ..
+        }
+    ));
+}

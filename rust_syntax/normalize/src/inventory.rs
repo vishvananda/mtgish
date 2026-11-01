@@ -430,6 +430,12 @@ impl Inventory<'_> {
             | Operation::Seek { actor, .. }
             | Operation::PickFromHand { actor, .. } => self.players(actor),
             Operation::Note(_) => {}
+            Operation::WithReflexive { action, .. } => self.operation(action),
+            Operation::GiveControl { objects, .. } => self.objects(objects),
+            Operation::FightEach { fighters, .. } => self.objects(fighters),
+            Operation::AnyPlayerMayPay { players, .. }
+            | Operation::PlayersPayRepeatedly { players, .. } => self.players(players),
+            Operation::DelayedUnlessPaid { .. } => {}
             Operation::Bid { players, .. }
             | Operation::DrawThenDiscard { players, .. }
             | Operation::RedistributeLife(players) => self.players(players),

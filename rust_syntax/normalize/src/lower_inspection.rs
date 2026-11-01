@@ -722,14 +722,11 @@ impl Context {
                 if let Some(step) = self.sibling_step(action, player, instructions) {
                     return step;
                 }
-                let (name, operands) = self
+                let (name, mut operands) = self
                     .primitive("LookAtTopOfLibraryAction", action)
                     .ok_or_else(|| unsupported(action))?;
-                Operation::Primitive {
-                    actor: PlayerSet::One(player.clone()),
-                    name,
-                    operands,
-                }
+                operands.insert(0, Operand::Objects(remaining));
+                crate::semantics::reduce_inspection(PlayerSet::One(player.clone()), name, operands)
             }
         };
         if matches!(

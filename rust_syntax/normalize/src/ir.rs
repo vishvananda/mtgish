@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 159;
+pub const SCHEMA_VERSION: u32 = 160;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1673,6 +1673,8 @@ pub enum Operation {
         random: bool,
         names: Vec<String>,
         object: Option<ObjectRef>,
+        /// Where the chosen pile goes.
+        then: Option<Destination>,
     },
     /// Remembers a value for later, as Forge's `Remember` and `NoteCounters`.
     Note(NoteKind),
@@ -1707,6 +1709,38 @@ pub enum Operation {
         filter: ObjectFilter,
         count: Count,
         then: HandPick,
+    },
+    /// Do `action`, then a reflexive trigger on what came of it (603.12).
+    WithReflexive {
+        action: Box<Operation>,
+        when: ReflexiveWhen,
+        body: Box<Operand>,
+    },
+    GiveControl {
+        players: PlayerSet,
+        objects: ObjectSet,
+        until: Option<Duration>,
+    },
+    AnyPlayerMayPay {
+        players: PlayerSet,
+        mana: Vec<Operand>,
+        then: Vec<Operand>,
+    },
+    PlayersPayRepeatedly {
+        players: PlayerSet,
+        cost: Cost,
+        at_most: Expr,
+    },
+    /// Forge's `UnlessCost` on a delayed trigger.
+    DelayedUnlessPaid {
+        event: Box<Operand>,
+        body: Box<Operand>,
+        payer: PlayerRef,
+        mana: Box<Operand>,
+    },
+    FightEach {
+        fighters: ObjectSet,
+        others: ObjectSet,
     },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2136,6 +2170,28 @@ pub enum KeywordAction {
     TakeExtraTurnAfterNext,
     TakeExtraTurnSkippingUntap,
     PlaySubgame,
+    ChooseDamageNumber,
+    ChooseSector,
+    ClaimPrize,
+    ChooseProtection,
+    SetStake,
+    DoubleStake,
+    ChooseCopy,
+    TopOfPlanarDeckToBottom,
+    RevealTopOfPlanarDeck,
+    PlanarDeckChaos,
+    PlanarDeckPlaneswalkWithoutLeaving,
+    PlanarDeckPickPlane,
+    PlanarDeckPlaneswalkToEach,
+    PlanarDeckChaosEach,
+    ShuffleIfSearched,
+    RerollStoredDice,
+    RollAndStoreD6,
+    SetRepeatablePlayers,
+    SetSchemeInMotion,
+    ReorderGraveyard,
+    DiscardAnyNumberAtRandom,
+    RemainingToBottomAtRandom,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum MovedCounters {
@@ -2758,6 +2814,13 @@ pub enum ActivationPayment {
     Sacrifice,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ReflexiveWhen {
+    YouDo,
+    ExcessDamage(Option<ObjectRef>),
+    Revealed(ObjectFilter),
+    Regenerates,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum NoteKind {
     Number(Expr),
     Player(PlayerRef),
@@ -2767,6 +2830,8 @@ pub enum NoteKind {
     ManaSpent {
         amount: bool,
     },
+    /// Numbers these in order starting from zero.
+    Numbered(ObjectSet),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum HandPick {

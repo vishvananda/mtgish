@@ -15,14 +15,14 @@ The priorities, in order, are:
 
 ### Where things stand
 
-Unified, complete and blocker rows are current at schema 159. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
+Unified, complete and blocker rows are current at schema 160. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
 
 | Measure | Value |
 |---|---|
 | Records | 33,529 |
-| Unified, schema 159 | 33,529 (100%) |
+| Unified, schema 160 | 33,529 (100%) |
 | Complete | 33,529 (100.0%) |
-| Complete with no primitive | 33,122 (98.8%) |
+| Complete with no primitive | 33,222 (99.1%) |
 | Distinct forms blocking the rest | 0 |
 | Structurally preserved | 33,529 |
 | Source enums / declared variants | 346 / 8,668 |
@@ -229,6 +229,7 @@ Hand-written lowerers are the exception from step 1 on. A form gets hand-written
 | 157 | Actions keep reducing by what they do: `Conjure` covers random, either-or, several and spellbook-filtered cards, `Meld`, `PutStickers`, `Piles` and `ChoosePile` (Forge's `TwoPiles` for any count), `Note`, `Bid`, `Guess`, `Seek`, `DrawThenDiscard`, `RedistributeLife`, `PickFromHand`; perpetual effects read library cards at random and `Incorporate`. | 32,906 |
 | 158 | Triggers reduce by what the rules watch: attackers unblocked or attacking together (Forge's `AttackersDeclared`, `AttackerUnblocked`), spells by target count and what they target, payments to activate, Panharmonicon's `CausesTrigger`, resolved and on-stack abilities, mana of a color, control changing hands, and `ObjectBecomes` for state triggers on objects. Each new variant keeps the bindings its row listed. Market Gnome's craft exile stays one reviewed row. | 32,970 |
 | 159 | Casting and activation rules (`FlashWithRider`, `TaxPaidAsLife`, `ManaInstead`, spend-only rules, target-count cost changes) plus the rest of the trigger-doubling rules; conditions and numbers read turn history through `EventHistory` (`MostFromOneSource`, `SinceLastTurnOf`, `AsOf` a spell's cast), group tests through `SubsetMeets`, and draft notes through `NotedForDraft`; player facts bind their player. | 33,122 |
+| 160 | Look, reveal and search steps read through `reduce_inspection` over the cards in hand; reflexive actions become `WithReflexive` with a closed `ReflexiveWhen`; perpetual effects read their own effect forms and hand or library subjects; reveal-until reflexives lower through the shared path and keep their follow-on steps; 22 zero-operand actions join the keyword list |
 
 Schema 80 and 81 do not shrink the vocabulary. `KeywordAction` has 25 forms and `Mechanic` 149, and they count as forms: the names moved into enums, so the 2,360 is typed parameters and an exhaustive match for consumers, not simplification. Keyword mechanics are still not expanded into reusable definitions, which is the reduction this plan asks for. The Cantrip backend still reports these as gaps until it maps them; the engine has direct events for most of schema 78 and 79. At 02210fe all 17,095 records the backend advertises compiled against the engine. That build needs `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_INCREMENTAL=0`: with debug info it runs out of disk quota writing the archive.
 

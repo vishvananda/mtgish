@@ -246,6 +246,7 @@ fn reduce_more_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         random,
         names,
         object: object.cloned(),
+        then: None,
     };
     let seek = |cards: Vec<ObjectFilter>, count: Expr, top: Option<&Expr>| Operation::Seek {
         actor: actor.clone(),
@@ -1826,5 +1827,737 @@ fn more_player_fact(form: &str, player: &PlayerRef, rest: &[Operand]) -> Option<
         ("ShuffledLibraryThisWay", []) => return state(PlayerState::ShuffledThisWay),
         ("SpellDefendingPlayer", []) => return state(PlayerState::BeingAttacked),
         _ => return None,
+    })
+}
+
+/// A step taken with cards being looked at, revealed or found, handed first
+/// as the cards that step works with.
+pub fn reduce_inspection(actor: PlayerSet, name: String, operands: Vec<Operand>) -> Operation {
+    let reduced = name.split_once("::").and_then(|(_, form)| match operands.as_slice() {
+        [Operand::Objects(cards), rest @ ..] => inspection_step(&actor, form, cards, rest),
+        _ => None,
+    });
+    reduced.unwrap_or(Operation::Primitive {
+        actor,
+        name,
+        operands,
+    })
+}
+
+fn inspection_step(
+    actor: &PlayerSet,
+    form: &str,
+    cards: &ObjectSet,
+    rest: &[Operand],
+) -> Option<Operation> {
+    use CardPlayAction as A;
+    use Destination as D;
+    use Operand::{Filter, List, Number, Player, Players};
+    let free = || PlayTerms {
+        cost: PlayCost::Free,
+        ..play_terms()
+    };
+    let may_one = || Count::UpTo(Expr::Constant(1));
+    let exactly_one = || Count::Exactly(Expr::Constant(1));
+    let cast = |who: &PlayerSet, cards, count| cast_with(who, A::CastSpell, cards, count, free(), None);
+    let put = |who: &PlayerSet, cards, count, destination, entry: &[Operand]| Operation::ChangeZone {
+        actor: who.clone(),
+        cards,
+        count,
+        random: false,
+        group: None,
+        destination,
+        entry: entry.to_vec(),
+        face_down: None,
+    };
+    let grouped = |cards, group: Operand, destination| Operation::ChangeZone {
+        actor: actor.clone(),
+        cards,
+        count: Some(Count::AnyNumber),
+        random: false,
+        group: Some(Box::new(group)),
+        destination,
+        entry: vec![],
+        face_down: None,
+    };
+    let flag = |form: &str| Operand::Vocabulary {
+        family: "ExileFlag".into(),
+        form: form.into(),
+    };
+    let per_type = |form: &str| Operand::Vocabulary {
+        family: "GroupFilter".into(),
+        form: form.into(),
+    };
+    let piles = |names: &[&str]| Operation::Piles {
+        actor: actor.clone(),
+        objects: cards.clone(),
+        count: Some(Expr::Constant(2)),
+        names: names.iter().map(|name| name.to_string()).collect(),
+        chooser: None,
+    };
+    let pile = |who: PlayerSet, then| Operation::ChoosePile {
+        actor: who,
+        from: None,
+        random: false,
+        names: vec![],
+        object: None,
+        then: Some(then),
+    };
+    let flags = |operand: &Operand| match operand {
+        List(items) => items.clone(),
+        single => vec![single.clone()],
+    };
+    Some(match (form, rest) {
+        ("MayCastASpellFromAmongThemWithoutPaying", [Filter(spells)]) => {
+            cast(actor, matching(cards, spells), may_one())
+        }
+        ("APlayerMayCastASpellFromAmongThemWithoutPaying", [Players(who), Filter(spells)]) => {
+            cast(who, matching(cards, spells), may_one())
+        }
+        (
+            "APlayerMayCastUptoNumberSpellsFromAmongThemWithoutPaying",
+            [Players(who), Number(amount), Filter(spells)],
+        ) => cast(who, matching(cards, spells), Count::UpTo(amount.clone())),
+        ("MayCastFoundCardsWithoutPaying", []) => cast(actor, cards.clone(), Count::AnyNumber),
+        ("CastFoundCardsWithoutPaying", []) => cast(actor, cards.clone(), exactly_one()),
+        ("MayPutFoundCardsOntoBattlefield" | "PutAnyNumberOfFoundCardsOntoBattlefield", [entry]) => {
+            put(
+                actor,
+                cards.clone(),
+                Some(Count::AnyNumber),
+                D::OwnersBattlefield,
+                &flags(entry),
+            )
+        }
+        ("PutNumberFoundCardsOntoBattlefield", [Number(amount), entry]) => put(
+            actor,
+            cards.clone(),
+            Some(Count::Exactly(amount.clone())),
+            D::OwnersBattlefield,
+            &flags(entry),
+        ),
+        ("APlayerMayPutACardOfTypeOntoTheBattlefield", [Players(who), Filter(wanted), entry @ ..]) => {
+            put(
+                who,
+                matching(cards, wanted),
+                Some(may_one()),
+                D::OwnersBattlefield,
+                entry,
+            )
+        }
+        ("MayPutUptoNumberCardsOfTypeOntoTheBattlefield", [Number(amount), Filter(wanted), entry]) => {
+            put(
+                actor,
+                matching(cards, wanted),
+                Some(Count::UpTo(amount.clone())),
+                D::OwnersBattlefield,
+                &flags(entry),
+            )
+        }
+        ("PutEachCardOfTypeIntoGraveyard", [Filter(wanted)]) => put(
+            actor,
+            matching(cards, wanted),
+            None,
+            D::OwnersGraveyard,
+            &[],
+        ),
+        ("MayPutAnyNumberOfGroupCardsIntoHand", [Filter(wanted), group]) => {
+            grouped(matching(cards, wanted), group.clone(), D::OwnersHand)
+        }
+        ("MayPutACardOfEachCardtypeIntoHand", []) => {
+            grouped(cards.clone(), per_type("OnePerCardType"), D::OwnersHand)
+        }
+        ("MayExileACardOfEachCardType", []) => {
+            grouped(cards.clone(), per_type("OnePerCardType"), D::Exile)
+        }
+        ("MayPutACardOfEachCardtypeAmongSpellsCastThisTurnIntoHand", [spells @ Filter(_)]) => grouped(
+            cards.clone(),
+            Operand::Term {
+                family: "GroupFilter".into(),
+                form: "OnePerCardTypeAmong".into(),
+                operands: vec![spells.clone()],
+            },
+            D::OwnersHand,
+        ),
+        ("PutAGenericCardAndAllCardsWithTheSameNameIntoHand", []) => {
+            grouped(cards.clone(), per_type("OneAndAllSameName"), D::OwnersHand)
+        }
+        ("ExileTheRemainingCardsWithACounterOfType", [kind]) => {
+            put(actor, cards.clone(), None, D::Exile, &[kind.clone()])
+        }
+        ("ExileAnyNumberOfGenericCardsInAFaceDownPile", []) => put(
+            actor,
+            cards.clone(),
+            Some(Count::AnyNumber),
+            D::Exile,
+            &[flag("FaceDownPile")],
+        ),
+        ("ExileTheRemainingCardsInAFaceUpPile", []) => {
+            put(actor, cards.clone(), None, D::Exile, &[flag("FaceUpPile")])
+        }
+        ("ExileNumberGenericCardsAtRandom", [Number(amount)]) => Operation::ChangeZone {
+            actor: actor.clone(),
+            cards: cards.clone(),
+            count: Some(Count::Exactly(amount.clone())),
+            random: true,
+            group: None,
+            destination: D::Exile,
+            entry: vec![],
+            face_down: None,
+        },
+        ("PlayerLooksAtRemainingCardsAndPutsAGenericCardIntoHand", [Player(who)]) => put(
+            &PlayerSet::One(who.clone()),
+            cards.clone(),
+            Some(exactly_one()),
+            D::OwnersHand,
+            &[],
+        ),
+        ("SeparateIntoFaceUpFileAndFaceDownPile", []) => piles(&["face up", "face down"]),
+        ("SeparateIntoTwoFaceDownPiles", []) => piles(&["face down", "face down"]),
+        ("APlayerChoosesAPileTopPutIntoHand", [Players(who)]) => pile(who.clone(), D::OwnersHand),
+        ("PlayerChoosesPileTopPutIntoHand", [Player(who)]) => {
+            pile(PlayerSet::One(who.clone()), D::OwnersHand)
+        }
+        ("PlayerExilesAPile", [Player(who)]) => pile(PlayerSet::One(who.clone()), D::Exile),
+        ("APlayerPutsTheRemainingCardsOnTheTopOfLibraryInAnyOrder", [Players(PlayerSet::One(who))]) => {
+            Operation::ReorderLibrary {
+                player: who.clone(),
+                library: who.clone(),
+                objects: cards.clone(),
+                end: SequenceEnd::Top,
+                order: CardOrder::Chosen,
+            }
+        }
+        ("ChooseACardThatsExactlyEachColorPair", []) => Operation::ChooseObjects {
+            player: actor_of(actor),
+            objects: cards.clone(),
+            count: Count::AnyNumber,
+            constraints: vec![SelectionConstraint::NoCommonProperty(
+                DistinctProperty::ColorPairs,
+            )],
+        },
+        ("PutFoundCardsAndExiledCardsOntoBattlefield", [Operand::Objects(exiled), entry]) => put(
+            actor,
+            ObjectSet::Union(vec![cards.clone(), exiled.clone()]),
+            None,
+            D::OwnersBattlefield,
+            &flags(entry),
+        ),
+        ("EachPlayerLosesLife", [Players(players), Number(amount)]) => Operation::LoseLife {
+            players: players.clone(),
+            amount: amount.clone(),
+        },
+        _ => return None,
+    })
+}
+
+/// What a reflexive trigger waits on, with the action it follows.
+fn reduce_reflexive(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Operation> {
+    use Operand::{Filter, List, Number, Object, Player, Recipients as To, Term};
+    let then = |action, when, body: &Operand| {
+        Some(Operation::WithReflexive {
+            action: Box::new(action),
+            when,
+            body: Box::new(body.clone()),
+        })
+    };
+    let keyword = |action, object: Option<&ObjectRef>, other: Option<&ObjectRef>, amount| {
+        Operation::Keyword {
+            actor: actor.clone(),
+            action,
+            object: object.cloned(),
+            other: other.cloned(),
+            amount,
+            subtype: None,
+        }
+    };
+    let you = actor_of(actor);
+    match (form, operands) {
+        ("Reflexive_CollectEvidenceAnyX_WhenYouDo", [body]) => then(
+            keyword(
+                KeywordAction::CollectEvidence,
+                None,
+                None,
+                Some(Expr::AnnouncedX),
+            ),
+            ReflexiveWhen::YouDo,
+            body,
+        ),
+        (
+            "Reflexive_DealDamage_WhenExcessDamageIsDealtThisWay",
+            [Term { operands: dealer, .. }, Number(amount), To(recipients), body],
+        ) => {
+            let [Object(source)] = dealer.as_slice() else {
+                return None;
+            };
+            then(
+                Operation::DealDamage {
+                    source: source.clone(),
+                    recipients: recipients.clone(),
+                    amount: amount.clone(),
+                    preventable: true,
+                },
+                ReflexiveWhen::ExcessDamage(None),
+                body,
+            )
+        }
+        (
+            "Reflexive_Fight_WhenExcessDamageIsDealtToPermanent",
+            [Object(first), Object(second), Object(recipient), body],
+        ) => then(
+            keyword(KeywordAction::Fight, Some(first), Some(second), None),
+            ReflexiveWhen::ExcessDamage(Some(recipient.clone())),
+            body,
+        ),
+        ("Reflexive_HavePlayerGainControlOfPermanent_WhenYouDo", [Player(player), Object(object), body]) => {
+            then(
+                Operation::GiveControl {
+                    players: PlayerSet::One(player.clone()),
+                    objects: ObjectSet::One(object.clone()),
+                    until: None,
+                },
+                ReflexiveWhen::YouDo,
+                body,
+            )
+        }
+        (
+            "Reflexive_RevealTheTopNumberCardsOfLibrary_WhenAnyNumberOfCardsOfTypeRevealedThisWay",
+            [Number(top), Filter(cards), body],
+        ) => then(
+            Operation::Reveal {
+                objects: ObjectSet::Take {
+                    objects: Box::new(zone_set(
+                        EventZone::Library,
+                        PlayerSet::One(you),
+                        ObjectFilter::Any,
+                    )),
+                    count: top.clone(),
+                    from: SequenceEnd::Top,
+                },
+            },
+            ReflexiveWhen::Revealed(cards.clone()),
+            body,
+        ),
+        ("RegeneratePermanent_WhenItRengeratesThisWay", [Object(object), body]) => then(
+            Operation::CreateRegenerationShields {
+                objects: ObjectSet::One(object.clone()),
+            },
+            ReflexiveWhen::Regenerates,
+            body,
+        ),
+        _ => None,
+    }
+}
+
+/// Actions left after the keyword table, each said by what it does.
+fn reduce_rest_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Option<Operation> {
+    use CardPlayAction as A;
+    use Destination as D;
+    use EventZone as Z;
+    use Operand::{
+        Cost as Paid, Duration as Lasting, Filter, List, Number, Object, Objects, Player, Players,
+        Recipients as To, Result as Run, Term,
+    };
+    let free = || PlayTerms {
+        cost: PlayCost::Free,
+        ..play_terms()
+    };
+    let may_one = || Count::UpTo(Expr::Constant(1));
+    let one = || Count::Exactly(Expr::Constant(1));
+    let cast = |who: &PlayerSet, cards, count, group: Option<&Operand>, terms: PlayTerms| {
+        cast_with(who, A::CastSpell, cards, count, terms, group)
+    };
+    let choose = |objects, count| Operation::ChooseObjects {
+        player: actor_of(actor),
+        objects,
+        count,
+        constraints: vec![],
+    };
+    let hand_of = |players: &PlayerSet, cards: &ObjectFilter| {
+        zone_set(Z::Hand, players.clone(), cards.clone())
+    };
+    let grave_of = |players: &PlayerSet, cards: &ObjectFilter| {
+        zone_set(Z::Graveyard, players.clone(), cards.clone())
+    };
+    let both = |first: &ObjectFilter, second: &ObjectFilter| {
+        ObjectFilter::All(vec![first.clone(), second.clone()])
+    };
+    let copies = |objects, times| Operation::CopyCards {
+        actor: actor.clone(),
+        objects,
+        times,
+    };
+    let pile_form = |from, names, then| Operation::ChoosePile {
+        actor: actor.clone(),
+        from,
+        random: false,
+        names,
+        object: None,
+        then,
+    };
+    let revealed = || ObjectSet::Earlier {
+        what: EarlierObjects::Revealed,
+        by: None,
+    };
+    let pumped = |object: &ObjectRef, power: Expr, toughness: Expr| Operation::CreateContinuousEffect {
+        source: ObjectRef::Source,
+        affected: EffectSubjects::Objects(ObjectSet::One(object.clone())),
+        changes: vec![Change::Pump { power, toughness }],
+        duration: Duration::EndOfTurn,
+        evaluation: EffectEvaluation::Snapshot,
+    };
+    let stat = |object: &ObjectRef, property| Expr::ObjectProperty {
+        object: object.clone(),
+        property,
+        information: Information::CurrentOrLastKnown,
+    };
+    Some(match (form, operands) {
+        (
+            "CastASpellFromHandGraveyardOrExileWithoutPaying",
+            [Filter(spells), Filter(hand), Filter(grave), Objects(exile)],
+        ) => cast(
+            actor,
+            ObjectSet::Union(vec![
+                hand_of(actor, &both(spells, hand)),
+                grave_of(actor, &both(spells, grave)),
+                matching(exile, spells),
+            ]),
+            may_one(),
+            None,
+            free(),
+        ),
+        ("CastASpellFromRevealedCardInHandsWithoutPaying", [Filter(cards), Filter(spells)]) => cast(
+            actor,
+            matching(&revealed(), &both(cards, spells)),
+            may_one(),
+            None,
+            free(),
+        ),
+        (
+            "CastUptoNumberGroupSpellsFromGraveyardOrHandWithoutPayingIntoExile",
+            [Number(amount), Filter(spells), group],
+        ) => cast(
+            actor,
+            ObjectSet::Union(vec![grave_of(actor, spells), hand_of(actor, spells)]),
+            Count::UpTo(amount.clone()),
+            Some(group),
+            PlayTerms {
+                into_exile: true,
+                ..free()
+            },
+        ),
+        ("MayCastASpellFromAmongCardsInHandsWithoutPaying", [Filter(spells), Term { operands, .. }]) => {
+            let [Players(players)] = operands.as_slice() else {
+                return None;
+            };
+            cast(actor, hand_of(players, spells), may_one(), None, free())
+        }
+        (
+            "ForEachPlayerMayCastASpellFromAmongCardsThatPlayerMilledThisWayWithoutPaying",
+            [Players(players), Filter(spells), Run(result)],
+        ) => cast(
+            players,
+            matching(&ObjectSet::Named(result.clone()), spells),
+            may_one(),
+            None,
+            free(),
+        ),
+        ("PlayACardFromOutsideGame", []) => cast_with(
+            actor,
+            A::Either,
+            ObjectSet::OutsideTheGame(ObjectFilter::Any),
+            one(),
+            play_terms(),
+            None,
+        ),
+        ("ChooseACardFromOutsideGame", [Objects(cards)]) => choose(cards.clone(), one()),
+        ("ChooseACardInHandOrAPermanent", [Filter(cards), Objects(set)]) => choose(
+            ObjectSet::Union(vec![hand_of(actor, cards), set.clone()]),
+            one(),
+        ),
+        ("ChooseASecondPermanentAtRandom", [Objects(set)]) => Operation::ChooseObjects {
+            player: actor_of(actor),
+            objects: set.clone(),
+            count: one(),
+            constraints: vec![SelectionConstraint::AtRandom],
+        },
+        ("ChooseAPermanentPile" | "ChooseAnExiledPile", []) => pile_form(None, vec![], None),
+        ("DestroyEachPermanent", [Term { form, .. }]) if form == "InTheChosenPile" => {
+            Operation::Destroy {
+                objects: ObjectSet::Battlefield(ObjectFilter::InPile(None)),
+                regeneration: true,
+            }
+        }
+        ("TapEachPermanent", [Term { form, .. }]) if form == "NotInTheChosenPile" => Operation::Tap {
+            objects: ObjectSet::Battlefield(ObjectFilter::Not(Box::new(ObjectFilter::InPile(None)))),
+            tapped: true,
+        },
+        ("ChooseActionAtRandom", [List(options)]) => Operation::ChooseAtRandom {
+            kind: ValueKind::Action,
+            options: options.clone(),
+        },
+        ("AnyPlayerMayPayMana", [Players(players), List(mana), List(then)]) => {
+            Operation::AnyPlayerMayPay {
+                players: players.clone(),
+                mana: mana.clone(),
+                then: then.clone(),
+            }
+        }
+        ("EachPlayerRepeatedMayCost", [Players(players), Number(at_most), Paid(cost)]) => {
+            Operation::PlayersPayRepeatedly {
+                players: players.clone(),
+                cost: cost.clone(),
+                at_most: at_most.clone(),
+            }
+        }
+        ("APlayerGainsControlOfPermanent", [Players(players), Object(object)]) => {
+            Operation::GiveControl {
+                players: players.clone(),
+                objects: ObjectSet::One(object.clone()),
+                until: None,
+            }
+        }
+        ("CopyCard", [Operand::Vocabulary { form, .. }]) if form == "TheCardWithTheChosenName" => {
+            copies(
+                ObjectSet::OutsideTheGame(ObjectFilter::Chosen(ValueKind::CardName)),
+                Expr::Constant(1),
+            )
+        }
+        ("CopyCardWithTheNotedName", []) => copies(
+            ObjectSet::OutsideTheGame(ObjectFilter::Noted(ValueKind::CardName)),
+            Expr::Constant(1),
+        ),
+        ("CopyEnchantedGraveyardCard", []) => copies(
+            ObjectSet::One(ObjectRef::AttachedTo(Box::new(ObjectRef::Source))),
+            Expr::Constant(1),
+        ),
+        ("CopyNumberCardsAtRandom", [Number(amount), Filter(cards)]) => copies(
+            ObjectSet::Random {
+                objects: Box::new(ObjectSet::OutsideTheGame(cards.clone())),
+                count: amount.clone(),
+            },
+            Expr::Constant(1),
+        ),
+        ("CopyEachAbilityAndMayChooseNewTargets", [abilities]) => Operation::CopyEach {
+            actor: actor.clone(),
+            objects: stack_filter(abilities)?,
+            targets: NewTargets::May,
+        },
+        ("CounterEachSpellAndAbility", [Objects(set)]) => Operation::Counter {
+            objects: set.clone(),
+            destination: D::OwnersGraveyard,
+        },
+        ("DiscardTheCardRevealedThisWay", []) => Operation::DiscardObjects { objects: revealed() },
+        ("CreateFutureTrigger_UnlessPlayerPaysManaBefore", [event, body, Player(payer), mana]) => {
+            Operation::DelayedUnlessPaid {
+                event: Box::new(event.clone()),
+                body: Box::new(body.clone()),
+                payer: payer.clone(),
+                mana: Box::new(mana.clone()),
+            }
+        }
+        ("MultiDraw", [Term { operands: first, .. }, Term { operands: second, .. }]) => {
+            let ([Number(amount)], [Players(players)]) = (first.as_slice(), second.as_slice()) else {
+                return None;
+            };
+            Operation::Together(vec![
+                Operation::Draw {
+                    players: actor.clone(),
+                    amount: amount.clone(),
+                },
+                Operation::Draw {
+                    players: players.clone(),
+                    amount: Expr::Constant(1),
+                },
+            ])
+        }
+        ("MultiFight", [Objects(fighters), Objects(others)]) => Operation::FightEach {
+            fighters: fighters.clone(),
+            others: others.clone(),
+        },
+        ("NumberEachPermanentStartingFromZero", [Objects(set)]) => {
+            Operation::Note(NoteKind::Numbered(set.clone()))
+        }
+        ("PutUptoOneCardOfEachCardtypeAmongPermanentsFromHandOnTheBattlefield", [Objects(set)]) => {
+            Operation::ChangeZone {
+                actor: actor.clone(),
+                cards: hand_of(actor, &ObjectFilter::Any),
+                count: Some(Count::AnyNumber),
+                random: false,
+                group: Some(Box::new(Operand::Term {
+                    family: "GroupFilter".into(),
+                    form: "OnePerCardTypeAmong".into(),
+                    operands: vec![Objects(set.clone())],
+                })),
+                destination: D::OwnersBattlefield,
+                entry: vec![],
+                face_down: None,
+            }
+        }
+        (
+            "PermanentDealsDamageAndPermanentDealsDamage",
+            [Object(first), Number(first_amount), To(first_to), Object(second), Number(second_amount), To(second_to)],
+        ) => Operation::Together(vec![
+            Operation::DealDamage {
+                source: first.clone(),
+                recipients: first_to.clone(),
+                amount: first_amount.clone(),
+                preventable: true,
+            },
+            Operation::DealDamage {
+                source: second.clone(),
+                recipients: second_to.clone(),
+                amount: second_amount.clone(),
+                preventable: true,
+            },
+        ]),
+        ("GraveyardCardDealsMultipleDamage", [Object(source), List(parts)]) => {
+            Operation::DealDamageParts {
+                source: source.clone(),
+                parts: parts
+                    .iter()
+                    .map(|part| match part {
+                        Term { operands, .. } => match operands.as_slice() {
+                            [Number(amount), To(recipients)] => Some(DamagePart {
+                                recipients: recipients.clone(),
+                                amount: amount.clone(),
+                            }),
+                            _ => None,
+                        },
+                        _ => None,
+                    })
+                    .collect::<Option<_>>()?,
+                preventable: true,
+            }
+        }
+        ("TripleCreaturesPowerAndToughnessUntilEndOfTurn", [Object(object)]) => pumped(
+            object,
+            Expr::Multiply(
+                Box::new(Expr::Constant(2)),
+                Box::new(stat(object, Property::Power)),
+            ),
+            Expr::Multiply(
+                Box::new(Expr::Constant(2)),
+                Box::new(stat(object, Property::Toughness)),
+            ),
+        ),
+        ("DoubleCreaturesPowerNumberTimesUntilEndOfTurn", [Object(object), Number(times)]) => pumped(
+            object,
+            Expr::Multiply(
+                Box::new(stat(object, Property::Power)),
+                Box::new(Expr::Subtract(
+                    Box::new(Expr::Power(
+                        Box::new(Expr::Constant(2)),
+                        Box::new(times.clone()),
+                    )),
+                    Box::new(Expr::Constant(1)),
+                )),
+            ),
+            Expr::Constant(0),
+        ),
+        ("EachPlayerCantCastSpellsDuringTheirNextTurn", [Players(players), Filter(spells)]) => {
+            Operation::EffectOn {
+                subject: EffectSubject::Players(players.clone()),
+                effects: vec![Filter(spells.clone()), Operand::Vocabulary {
+                    family: "PlayerEffect".into(),
+                    form: "CantCastSpells".into(),
+                }],
+                until: Some(Duration::ThroughNextTurn),
+            }
+        }
+        ("PhaseOutPermanentUntilWithEffects", [Object(object), Lasting(until), effect]) => {
+            Operation::EffectOn {
+                subject: EffectSubject::Objects(ObjectSet::One(object.clone())),
+                effects: vec![effect.clone()],
+                until: Some(until.clone()),
+            }
+        }
+        _ => return None,
+    })
+}
+
+fn perpetual_changes(effects: &[Operand]) -> Option<Vec<Change>> {
+    effects
+        .iter()
+        .map(|effect| {
+            let Operand::Term { form, operands, .. } = effect else {
+                return None;
+            };
+            match (form.as_str(), operands.as_slice()) {
+                ("AdjustPT", [Operand::Integer(power), Operand::Integer(toughness)]) => {
+                    Some(Change::Pump {
+                        power: Expr::Constant(*power),
+                        toughness: Expr::Constant(*toughness),
+                    })
+                }
+                ("AddAbility", [Operand::Ability(ability)]) => {
+                    Some(Change::GrantAbility(ability.clone()))
+                }
+                _ => match reduce_change(format!("LayerEffect::{form}"), operands.clone()) {
+                    Change::Primitive { .. } => None,
+                    change => Some(change),
+                },
+            }
+        })
+        .collect()
+}
+
+/// Perpetual changes to cards the row picked out by a term.
+fn reduce_perpetual(form: &str, operands: &[Operand]) -> Option<Operation> {
+    use EventZone as Z;
+    use Operand::{Filter, List, Object, Objects, Player, Players, Term, Vocabulary};
+    let picked = || ObjectSet::One(earlier_object(EarlierObjects::Selected));
+    let found = || ObjectSet::One(earlier_object(EarlierObjects::Found));
+    let (objects, effects) = match (form, operands) {
+        ("CreatePerpetualCardInHandEffect", [Object(card), List(effects)]) => {
+            (ObjectSet::One(card.clone()), effects)
+        }
+        ("CreatePerpetualCardInHandEffect", [Vocabulary { .. }, List(effects)]) => {
+            (picked(), effects)
+        }
+        ("CreatePerpetualCardsInHandEffect", [Term { .. }, List(effects)]) => (picked(), effects),
+        ("CreatePerpetualCardInLibraryEffect", [Object(card), List(effects)]) => {
+            (ObjectSet::One(card.clone()), effects)
+        }
+        ("CreatePerpetualCardInLibraryEffect", [Vocabulary { .. }, List(effects)]) => {
+            (found(), effects)
+        }
+        ("CreatePerpetualCardInLibraryEffect", [Term { form, operands, .. }, List(effects)]) => {
+            let [Filter(cards), Player(player)] = operands.as_slice() else {
+                return None;
+            };
+            let library = zone_set(Z::Library, PlayerSet::One(player.clone()), cards.clone());
+            let objects = match form.as_str() {
+                "TheTopCardOfTypeInPlayersLibrary" => ObjectSet::Take {
+                    objects: Box::new(library),
+                    count: Expr::Constant(1),
+                    from: SequenceEnd::Top,
+                },
+                "ARandomCardOfTypeFromPlayersLibrary" => ObjectSet::Random {
+                    objects: Box::new(library),
+                    count: Expr::Constant(1),
+                },
+                _ => return None,
+            };
+            (objects, effects)
+        }
+        ("CreatePerpetualCardsInEachPlayersHandEffect", [Objects(set), Players(players), List(effects)]) => {
+            (zone_set(Z::Hand, players.clone(), objects_filter(set)), effects)
+        }
+        (
+            "CreatePerpetualCardsInPlayersHandAndCardsInPlayersLibraryEffect",
+            [hand, Players(holders), Filter(library), Players(owners), List(effects)],
+        ) => (
+            ObjectSet::Union(vec![
+                zone_set(Z::Hand, holders.clone(), card_term(hand)?),
+                zone_set(Z::Library, owners.clone(), library.clone()),
+            ]),
+            effects,
+        ),
+        _ => return None,
+    };
+    Some(Operation::CreatePerpetualEffect {
+        objects,
+        changes: perpetual_changes(effects)?,
     })
 }

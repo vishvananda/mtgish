@@ -297,7 +297,10 @@ fn regeneration_creates_shields_without_immediate_tapping_damage_removal_or_comb
     assert!(matches!(
         program(&c).instructions.as_slice(),
         [Instruction::Effect {
-            operation: Operation::Primitive { .. },
+            operation: Operation::WithReflexive {
+                when: ReflexiveWhen::Regenerates,
+                ..
+            },
             ..
         }]
     ));
