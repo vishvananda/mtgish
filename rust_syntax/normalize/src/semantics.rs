@@ -259,6 +259,7 @@ pub fn yields(operation: &Operation) -> Option<&'static str> {
             ..
         } => return None,
         Operation::PayAnyAmount { .. } => "Action::PayAnyAmountOfMana",
+        Operation::Seek { top: None, .. } => "Action::SeekCards",
         Operation::DrawUpTo { .. } => "Action::DrawUptoNumberCards",
         Operation::DiscardAllBut { .. } => "Action::DiscardAllButNumberCards",
         Operation::RevealFromHand {
@@ -725,6 +726,7 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
             .or_else(|| reduce_coins(&actor, form, &operands))
             .or_else(|| reduce_combat_change(form, &operands))
             .or_else(|| reduce_player_does(&actor, form, &operands))
+            .or_else(|| reduce_more_actions(&actor, form, &operands))
     }) {
         return operation;
     }
@@ -1430,7 +1432,7 @@ fn reduce_conjure(actor: &PlayerSet, name: &str, operands: &[Operand]) -> Option
             ("EachCardFromSpellBookOntoTheBattlefield", [Text(b), flags @ ..]) => {
                 (book(b, Pick::Each), one, Z::Battlefield, None, None, flags)
             }
-            _ => return None,
+            _ => return reduce_more_conjure(actor, form, operands),
         };
     Some(Operation::Conjure {
         actor: actor.clone(),
@@ -1798,6 +1800,7 @@ include!("reduce_actions.rs");
 include!("reduce_events.rs");
 include!("reduce_effects.rs");
 include!("reduce_filters.rs");
+include!("reduce_more.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
@@ -5423,8 +5426,19 @@ impl Effects {
                     | Operation::DistributeCounters { .. }
                     | Operation::PutCountersEach { .. }
                     | Operation::PutChosenCounters { .. }
-                    | Operation::ChooseAtRandom { .. }
-                    | Operation::ChooseValue { .. } => {}
+                    | Operation::Piles { .. }
+                    | Operation::ChoosePile { .. }
+                    | Operation::Note(_)
+                    | Operation::Bid { .. }
+                    | Operation::Guess { .. }
+                    | Operation::PutStickers { .. }
+                    | Operation::RedistributeLife(_)
+                    | Operation::PickFromHand { .. }
+                    | Operation::Meld { .. } => {}
+                    Operation::Seek { .. } | Operation::DrawThenDiscard { .. } => {
+                        self.library = true
+                    }
+                    Operation::ChooseAtRandom { .. } | Operation::ChooseValue { .. } => {}
                     Operation::JoinResults { results } => {
                         let joined = results
                             .iter()

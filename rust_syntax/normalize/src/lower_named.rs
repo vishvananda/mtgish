@@ -681,18 +681,37 @@ impl Context {
                     PlayerSet::One(self.player(player).ok()?),
                     self.grave_filter(cards).ok()?,
                 ),
+            (
+                S::CreatePerpetualCardInLibraryEffect(
+                    source::CardInLibrary::ARandomCardOfTypeFromPlayersLibrary(cards, player),
+                    _,
+                ),
+                _,
+            ) => ObjectSet::Random {
+                objects: Box::new(self.private_cards(
+                    EventZone::Library,
+                    PlayerSet::One(self.player(player).ok()?),
+                    self.card_filter(cards).ok()?,
+                )),
+                count: Expr::Constant(1),
+            },
             (_, Some(Operand::Object(object))) => ObjectSet::One(object.clone()),
             (_, Some(Operand::Objects(objects))) => objects.clone(),
             _ => return None,
         };
-        let layers = effects
-            .iter()
-            .map(|effect| as_family(effect, "LayerEffect"))
-            .collect::<Option<Vec<source::LayerEffect>>>()?;
-        Some(Operation::CreatePerpetualEffect {
-            objects,
-            changes: self.changes(&layers).ok()?,
-        })
+        let mut changes = vec![];
+        for effect in effects {
+            match effect {
+                source::PerpetualEffect::Incorporate(mana) => changes.push(Change::Incorporate(
+                    mana.iter().map(mana_symbol).collect::<Result<_>>().ok()?,
+                )),
+                effect => {
+                    let layer: source::LayerEffect = as_family(effect, "LayerEffect")?;
+                    changes.extend(self.changes(&[layer]).ok()?);
+                }
+            }
+        }
+        Some(Operation::CreatePerpetualEffect { objects, changes })
     }
 
     /// A change to a spell, or the row when any effect has no generic form.

@@ -1673,7 +1673,8 @@ impl<'a> Scope<'a> {
             | Change::LandTypes { .. }
             | Change::RemoveAllLandTypes
             | Change::RemoveSubtype(_)
-            | Change::ColorlessDamageSource => Ok(()),
+            | Change::ColorlessDamageSource
+            | Change::Incorporate(_) => Ok(()),
             Change::AddNames(filter) => self.filter(filter),
             Change::CreatureTypesOf { object, .. } => self.object(object),
             Change::TextOf { object, plus } => {
@@ -2458,6 +2459,94 @@ impl<'a> Scope<'a> {
     }
     fn operation(&self, operation: &Operation) -> Result {
         match operation {
+            Operation::Meld { objects, entry, .. } => {
+                self.objects(objects)?;
+                entry.iter().try_for_each(|flag| self.operand(flag))
+            }
+            Operation::PutStickers {
+                actor,
+                objects,
+                amount,
+                ..
+            } => {
+                self.players(actor)?;
+                self.objects(objects)?;
+                amount.iter().try_for_each(|n| self.expr(n))
+            }
+            Operation::Piles {
+                actor,
+                objects,
+                count,
+                chooser,
+                ..
+            } => {
+                self.players(actor)?;
+                self.objects(objects)?;
+                count.iter().try_for_each(|n| self.expr(n))?;
+                chooser.iter().try_for_each(|p| self.players(p))
+            }
+            Operation::ChoosePile {
+                actor,
+                from,
+                object,
+                ..
+            } => {
+                self.players(actor)?;
+                from.iter().try_for_each(|p| self.players(p))?;
+                object.iter().try_for_each(|o| self.object(o))
+            }
+            Operation::Note(kind) => match kind {
+                NoteKind::Number(value) => self.expr(value),
+                NoteKind::Player(player) => self.player(player),
+                NoteKind::CountersOn(object) => self.object(object),
+                NoteKind::LifeTotal | NoteKind::ManaSpent { .. } => Ok(()),
+            },
+            Operation::Bid { players, start } => {
+                self.players(players)?;
+                start.iter().try_for_each(|n| self.expr(n))
+            }
+            Operation::Guess {
+                actor,
+                object,
+                filter,
+                player,
+            } => {
+                self.players(actor)?;
+                object.iter().try_for_each(|o| self.object(o))?;
+                filter.iter().try_for_each(|f| self.filter(f))?;
+                player.iter().try_for_each(|p| self.player(p))
+            }
+            Operation::Seek {
+                actor,
+                cards,
+                count,
+                top,
+            } => {
+                self.players(actor)?;
+                cards.iter().try_for_each(|f| self.filter(f))?;
+                self.expr(count)?;
+                top.iter().try_for_each(|n| self.expr(n))
+            }
+            Operation::DrawThenDiscard {
+                players,
+                draw,
+                discard,
+            } => {
+                self.players(players)?;
+                self.expr(draw)?;
+                self.expr(discard)
+            }
+            Operation::RedistributeLife(players) => self.players(players),
+            Operation::PickFromHand {
+                actor,
+                player,
+                filter,
+                ..
+            } => {
+                self.players(actor)?;
+                self.player(player)?;
+                self.filter(filter)
+            }
             Operation::DistributeCounters {
                 amount, objects, ..
             } => {

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 156;
+pub const SCHEMA_VERSION: u32 = 157;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1640,6 +1640,70 @@ pub enum Operation {
         objects: ObjectSet,
         choice: CounterChoice,
     },
+    /// Forge's `Meld`.
+    Meld {
+        objects: ObjectSet,
+        into: String,
+        entry: Vec<Operand>,
+    },
+    PutStickers {
+        actor: PlayerSet,
+        /// None lets the actor pick.
+        kind: Option<StickerKind>,
+        objects: ObjectSet,
+        amount: Option<Expr>,
+        /// Distributed among any number of them.
+        any_number: bool,
+    },
+    /// Forge's `TwoPiles`, for any number of piles.
+    Piles {
+        actor: PlayerSet,
+        objects: ObjectSet,
+        count: Option<Expr>,
+        names: Vec<String>,
+        chooser: Option<PlayerSet>,
+    },
+    ChoosePile {
+        actor: PlayerSet,
+        from: Option<PlayerSet>,
+        random: bool,
+        names: Vec<String>,
+        object: Option<ObjectRef>,
+    },
+    /// Remembers a value for later, as Forge's `Remember` and `NoteCounters`.
+    Note(NoteKind),
+    /// Forge's `Bid`.
+    Bid {
+        players: PlayerSet,
+        start: Option<Expr>,
+    },
+    Guess {
+        actor: PlayerSet,
+        object: Option<ObjectRef>,
+        filter: Option<ObjectFilter>,
+        player: Option<PlayerRef>,
+    },
+    /// Forge's `Seek`.
+    Seek {
+        actor: PlayerSet,
+        cards: Vec<ObjectFilter>,
+        count: Expr,
+        top: Option<Expr>,
+    },
+    DrawThenDiscard {
+        players: PlayerSet,
+        draw: Expr,
+        discard: Expr,
+    },
+    RedistributeLife(PlayerSet),
+    /// Looking at a hand and taking a card from it.
+    PickFromHand {
+        actor: PlayerSet,
+        player: PlayerRef,
+        filter: ObjectFilter,
+        count: Count,
+        then: HandPick,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ExchangeKind {
@@ -1723,6 +1787,7 @@ pub enum EarlierObjects {
     GainedControl,
     Conjured,
     LastDrawn,
+    Sought,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ObjectMeasure {
@@ -2626,6 +2691,8 @@ pub enum Change {
         object: ObjectRef,
         plus: Box<Operand>,
     },
+    /// Adds these symbols to its mana cost and their colors (perpetually).
+    Incorporate(Vec<ManaSymbol>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2671,6 +2738,23 @@ pub enum CounterChoice {
         kinds: Vec<Operand>,
         missing_only: bool,
     },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum NoteKind {
+    Number(Expr),
+    Player(PlayerRef),
+    LifeTotal,
+    CountersOn(ObjectRef),
+    /// Spent on this activation: its type, and how much if `amount`.
+    ManaSpent {
+        amount: bool,
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum HandPick {
+    TheyPlayIt,
+    TopOfLibrary,
+    CastFree,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum LandTypeScope {
@@ -2748,6 +2832,16 @@ pub enum ConjuredCard {
     Spellbook {
         book: String,
         pick: SpellbookPick,
+    },
+    /// A card the rules pick at random from all that match.
+    Random(Box<Operand>),
+    /// One of these, chosen.
+    OneOf(Vec<String>),
+    Each(Vec<String>),
+    /// A card from the spellbook that matches.
+    SpellbookMatching {
+        book: String,
+        cards: Box<Operand>,
     },
 }
 #[derive(

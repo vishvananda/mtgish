@@ -457,3 +457,48 @@ fn counters_and_would_events_say_what_happens() {
         }
     ));
 }
+
+#[test]
+fn actions_keep_what_they_do() {
+    assert!(matches!(
+        semantics::reduce_action(
+            PlayerSet::All,
+            "Action::ConjureCardOrCardIntoHand".into(),
+            vec![Operand::Text("A".into()), Operand::Text("B".into())],
+        ),
+        Operation::Conjure {
+            card: ConjuredCard::OneOf(_),
+            ..
+        }
+    ));
+    assert!(matches!(
+        semantics::reduce_action(
+            PlayerSet::All,
+            "Action::SeparatePermanentsIntoNumberPiles".into(),
+            vec![
+                Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any)),
+                Operand::Number(Expr::Constant(3)),
+            ],
+        ),
+        Operation::Piles { count: Some(_), .. }
+    ));
+    assert!(matches!(
+        semantics::reduce_action(
+            PlayerSet::All,
+            "Action::NoteNumber".into(),
+            vec![Operand::Number(Expr::Constant(3))],
+        ),
+        Operation::Note(NoteKind::Number(_))
+    ));
+    assert!(matches!(
+        semantics::reduce_action(
+            PlayerSet::All,
+            "Action::StartBiddingWarAmongPlayersAtNumber".into(),
+            vec![
+                Operand::Players(PlayerSet::All),
+                Operand::Number(Expr::Constant(1)),
+            ],
+        ),
+        Operation::Bid { start: Some(_), .. }
+    ));
+}

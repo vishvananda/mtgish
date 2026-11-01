@@ -422,6 +422,17 @@ impl Inventory<'_> {
     fn operation(&mut self, op: &Operation) {
         self.form("Operation", op);
         match op {
+            Operation::Meld { objects, .. }
+            | Operation::PutStickers { objects, .. }
+            | Operation::Piles { objects, .. } => self.objects(objects),
+            Operation::ChoosePile { actor, .. }
+            | Operation::Guess { actor, .. }
+            | Operation::Seek { actor, .. }
+            | Operation::PickFromHand { actor, .. } => self.players(actor),
+            Operation::Note(_) => {}
+            Operation::Bid { players, .. }
+            | Operation::DrawThenDiscard { players, .. }
+            | Operation::RedistributeLife(players) => self.players(players),
             Operation::DistributeCounters {
                 amount, objects, ..
             }
@@ -1805,6 +1816,7 @@ impl Inventory<'_> {
             | Change::RemoveAllLandTypes
             | Change::RemoveSubtype(_)
             | Change::ColorlessDamageSource
+            | Change::Incorporate(_)
             | Change::TextOf { .. }
             | Change::ReplaceWord { .. }
             | Change::AddEnchantmentType(_)
