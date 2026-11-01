@@ -7,6 +7,42 @@ const PRELUDE: &str = "let asker = &Asker::new(source, q.controller(source));";
 /// The shape of most object tables: `id` is the permanent the rule is about.
 const ASKED: &str = "(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool";
 
+/// A play permission that says nothing but where from.
+fn plain_terms() -> PlayTerms {
+    PlayTerms {
+        limit: None,
+        during: None,
+        cost: PlayCost::Normal,
+        spend_as: None,
+        into_exile: false,
+        condition: None,
+        effects: Vec::new(),
+        flash: false,
+        may_look: false,
+        then: None,
+        face_down: None,
+    }
+}
+
+/// The generic mana a cost change names: `{2}` as a term, alone or in a list.
+fn generic_amount(amount: &Operand) -> Option<u8> {
+    match amount {
+        Operand::List(items) => match items.as_slice() {
+            [item] => generic_amount(item),
+            _ => None,
+        },
+        Operand::Term { form, operands, .. }
+            if form == "CostReduceGeneric" || form == "ManaCostGeneric" =>
+        {
+            match operands.as_slice() {
+                [Operand::Integer(n)] => u8::try_from(*n).ok(),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
 /// Whether a filter reads only what a token's characteristics say.
 fn chars_only(filter: &ObjectFilter) -> bool {
     use ObjectFilter as F;
@@ -985,19 +1021,7 @@ impl Compiler {
         out: &mut String,
     ) -> Result<bool> {
         use crate::ir::Duration as D;
-        let plain = PlayTerms {
-            limit: None,
-            during: None,
-            cost: PlayCost::Normal,
-            spend_as: None,
-            into_exile: false,
-            condition: None,
-            effects: Vec::new(),
-            flash: false,
-            may_look: false,
-            then: None,
-            face_down: None,
-        };
+        let plain = plain_terms();
         let (permission, terms) = match rule {
             PlayerRule::PlayPermissionWith { permission, terms } => (&**permission, terms),
             other => (other, &plain),
@@ -1163,6 +1187,675 @@ impl Compiler {
             None => writeln!(out, "{code}").unwrap(),
         }
         Ok(true)
+    }
+    /// A rule on players the arms in `players.rs` have no word for.
+    pub(super) fn more_player_rule(
+        &mut self,
+        label: &str,
+        players: &PlayerSet,
+        rule: &PlayerRule,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        match rule {
+            PlayerRule::ActivationCost {
+                abilities,
+                change,
+                floor,
+            } => self.activation_cost(label, players, abilities, change, *floor, parts),
+            PlayerRule::PlayPermission { .. } | PlayerRule::PlayPermissionWith { .. } => {
+                self.static_play(label, players, rule, parts)
+            }
+            other => Err(gap(format!("player rule {}", form(other)))),
+        }
+    }
+    /// "Until end of turn, target player can't cast spells": a rule about the
+    /// player, not an ability of anything (CR 611.2c). False if this is no such rule.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn prohibit_for_a_while(
+        &mut self,
+        id: usize,
+        i: usize,
+        source: &ObjectRef,
+        players: &PlayerSet,
+        rule: &PlayerRule,
+        duration: &crate::ir::Duration,
+        out: &mut String,
+    ) -> Result<bool> {
+        let PlayerRule::Prohibit(action) = rule else {
+            return Ok(false);
+        };
+        let (kind, feature) = match action {
+            PlayerAction::GainLife => ("EffectKind::CantGainLife(player)".to_string(), None),
+            PlayerAction::CastSpell {
+                from: None,
+                filter: ObjectFilter::Any,
+            } => (
+                "EffectKind::CantCastSpellsFrom(player, ZoneKinds::ALL)".to_string(),
+                None,
+            ),
+            PlayerAction::CastOutside(zone) => (
+                format!(
+                    "EffectKind::CantCastSpellsFrom(player, ZoneKinds::all_but(&[{}]))",
+                    zone_kind(zone)?
+                ),
+                None,
+            ),
+            PlayerAction::CastSpell { from: None, filter } => {
+                let test = self.filter(filter, &super::players::cast_card())?;
+                (
+                    format!("EffectKind::CantCast {{ player, spells: SpellSet::matching(move |q, spell| {test}) }}"),
+                    Some("player rule for a while can't cast some spells"),
+                )
+            }
+            PlayerAction::PlayLand {
+                from: None,
+                filter: ObjectFilter::Any,
+            } => (
+                "EffectKind::CantPlayLands(player)".to_string(),
+                Some("player rule for a while can't play lands"),
+            ),
+            PlayerAction::LoseGame { reason: None } => (
+                "EffectKind::CantLoseGame(player)".to_string(),
+                Some("player rule for a while can't lose the game"),
+            ),
+            PlayerAction::WinGame => (
+                "EffectKind::CantWinGame(player)".to_string(),
+                Some("player rule for a while can't win the game"),
+            ),
+            PlayerAction::LoseLife => (
+                "EffectKind::CantLoseLife(player)".to_string(),
+                Some("player rule for a while can't lose life"),
+            ),
+            PlayerAction::SearchLibraries => (
+                "EffectKind::CantSearchLibraries(player)".to_string(),
+                Some("player rule for a while can't search libraries"),
+            ),
+            PlayerAction::BecomeMonarch => (
+                "EffectKind::CantBecomeMonarch(player)".to_string(),
+                Some("player rule for a while can't become the monarch"),
+            ),
+            other => {
+                return Err(gap(format!(
+                    "player rule for a while Prohibit {}",
+                    form(other)
+                )))
+            }
+        };
+        let players = self.fetch(self.players(players)?);
+        let source = self.fetch(self.object(source)?);
+        let duration = self.duration(duration)?;
+        let code = format!(
+            "let players_{id}_{i} = {players}; if let Some(source) = {source} {{ for &player in &players_{id}_{i} {{ g.add_player_effect(asker.controller, source, {kind}, {duration}); }} }}"
+        );
+        match feature {
+            Some(feature) => self.plan_code(feature, &code, out),
+            None => writeln!(out, "{code}").unwrap(),
+        }
+        Ok(true)
+    }
+    /// What the rule asks of the ability being activated, `def` its definition
+    /// (none for the core's own) and `permanent` its source. "Of a creature" means a
+    /// permanent (109.2) unless the words name a zone or say "sources".
+    fn ability_test(&self, filter: &ObjectFilter) -> Result<String> {
+        let def = |test: &str| format!("def.is_some_and(|d| {test})");
+        Ok(match filter {
+            ObjectFilter::Any => "true".into(),
+            ObjectFilter::All(filters) | ObjectFilter::Either(filters) => {
+                let tests = filters
+                    .iter()
+                    .map(|f| self.ability_test(f))
+                    .collect::<Result<Vec<_>>>()?;
+                let joint = if matches!(filter, ObjectFilter::All(_)) {
+                    " && "
+                } else {
+                    " || "
+                };
+                format!("({})", tests.join(joint))
+            }
+            ObjectFilter::Not(inner) => format!("!({})", self.ability_test(inner)?),
+            ObjectFilter::OnStack(StackTrait::Mana) => def("d.is_mana_ability()"),
+            ObjectFilter::OnStack(StackTrait::Loyalty) => def("d.is_loyalty_ability()"),
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Equip)) => def("d.equip"),
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::PowerUp)) => {
+                def("d.power_up")
+            }
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Exhaust)) => def("d.exhaust"),
+            ObjectFilter::AbilityOf(objects) => {
+                let test = self.filter(objects, &Candidate::of("permanent"))?;
+                let words = format!("{objects:?}");
+                if words.contains("InZone") || words.contains("Chosen(") {
+                    test
+                } else {
+                    format!("(def.is_some_and(|d| d.from == ZoneKind::Battlefield) && {test})")
+                }
+            }
+            ObjectFilter::TargetsAny(_) => self.filter(
+                filter,
+                &Candidate {
+                    announced: Some("targets".into()),
+                    ..Candidate::of("permanent")
+                },
+            )?,
+            other => return Err(gap(format!("activation cost of abilities {}", form(other)))),
+        })
+    }
+    /// "Activated abilities of creatures you control cost {1} less to activate"
+    /// (CR 601.2f, 118.7), which the core asks of every ability but a mana ability.
+    fn activation_cost(
+        &mut self,
+        label: &str,
+        players: &PlayerSet,
+        abilities: &ObjectFilter,
+        change: &ActivationCostChange,
+        floor: Option<i64>,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let test = self.ability_test(abilities)?;
+        let less = |n: &str| match floor {
+            None => Ok(format!("CostDelta::less({n})")),
+            Some(1) => Ok(format!("CostDelta::less_to_one({n})")),
+            Some(_) => Err(gap("activation cost reduction to another floor")),
+        };
+        let mut feature = None;
+        let delta = match change {
+            ActivationCostChange::Reduce(amount) => {
+                let n = generic_amount(amount)
+                    .ok_or_else(|| gap("activation cost reduction of colored mana"))?;
+                less(&n.to_string())?
+            }
+            ActivationCostChange::ReduceX { amount, times }
+                if format!("{amount:?}").contains("CostReduceX") =>
+            {
+                less(&self.number(times)?.fit(0, 255, "u8")?)?
+            }
+            ActivationCostChange::ReduceX { .. } => {
+                return Err(gap("activation cost reduction of colored mana"))
+            }
+            ActivationCostChange::Increase(amount) => match &**amount {
+                Operand::Cost(Cost { parts: priced }) => match priced.as_slice() {
+                    [CostPart::Mana(symbols)] => match symbols.as_slice() {
+                        [ManaSymbol::Generic(n)] if u8::try_from(*n).is_ok() => {
+                            format!("CostDelta::more({n})")
+                        }
+                        _ => return Err(gap("activation cost increase of colored mana")),
+                    },
+                    [CostPart::Loyalty(Expr::Constant(n))] if u8::try_from(*n).is_ok() => {
+                        feature = Some("activation cost of an additional loyalty");
+                        format!("CostDelta {{ loyalty: {n}, ..CostDelta::NONE }}")
+                    }
+                    _ => return Err(gap("activation cost increase other than mana")),
+                },
+                other => {
+                    let n = generic_amount(other)
+                        .ok_or_else(|| gap("activation cost increase of colored mana"))?;
+                    format!("CostDelta::more({n})")
+                }
+            },
+            ActivationCostChange::Additional(cost) => {
+                feature = Some("activation cost with another cost");
+                let cost = self.cost(cost, &format!("{label}_also"))?;
+                format!("CostDelta {{ also: {cost}, ..CostDelta::NONE }}")
+            }
+        };
+        let (guard, member) = (self.guard()?, self.player_member(players)?);
+        let body = format!(
+            "{PRELUDE} let Costed::Ability(permanent, ability, _) = costed else {{ return CostDelta::NONE; }}; let def = q.activated_ability(ability); if {guard}{member} && {test} {{ {delta} }} else {{ CostDelta::NONE }}"
+        );
+        self.permission_entry(
+            feature,
+            "cost_changes",
+            &format!("{label}_rule"),
+            ("q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]", "q, source, player, costed, targets", "CostDelta"),
+            &body,
+            |function| function.to_string(),
+            parts,
+        );
+        Ok(())
+    }
+    /// An entry of a table, and the function it asks: a closure of the same words
+    /// where the entry waits on `feature`, as uncompiled code must not reach `functions`.
+    fn permission_entry(
+        &mut self,
+        feature: Option<&str>,
+        table: &'static str,
+        function: &str,
+        (params, names, returns): (&str, &str, &str),
+        body: &str,
+        entry: impl Fn(&str) -> String,
+        parts: &mut Parts,
+    ) {
+        match feature {
+            Some(feature) => {
+                let closure = format!("|{names}| {{ {body} }}");
+                self.plan_entry(feature, table, &entry(&closure), parts);
+            }
+            None => {
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}({params}) -> {returns} {{ {body} }}").unwrap();
+                parts.table(table, entry(function));
+            }
+        }
+    }
+    /// What a play permission asks whatever zone it opens: while what, on whose
+    /// turn, how often. `card` is the card asked of, `player` who may play it.
+    fn play_tests(
+        &self,
+        action: &CardPlayAction,
+        from: &EventZone,
+        terms: &PlayTerms,
+        card: &str,
+        player: &str,
+    ) -> Result<(Vec<String>, Option<&'static str>)> {
+        let mut tests = Vec::new();
+        let mut feature = None;
+        if let Some(condition) = &terms.condition {
+            tests.push(format!("({})", self.condition(condition)?));
+        }
+        match &terms.during {
+            None => {}
+            Some(PlayerSet::One(PlayerRef::AbilityController | PlayerRef::Affected)) => {
+                tests.push(format!("q.state().turn.active == {player}"))
+            }
+            Some(other) => return Err(gap(format!("play permission during {}", form(other)))),
+        }
+        match terms.limit {
+            None => {}
+            Some(PlayLimit::EachTurn(1)) => tests.push(
+                if matches!((from, action), (EventZone::Exile, CardPlayAction::CastSpell)) {
+                    // A land played by a permission beside this one is no spell.
+                    "!q.history().this_turn().iter().any(|r| matches!(r.event, Event::Cast(c) if c.granted_by().is_some_and(|g| g.object == asker.source)))".to_string()
+                } else {
+                    "!cantrip_mechanics::history::permission_used_this_turn(q, asker.source)"
+                        .to_string()
+                },
+            ),
+            Some(PlayLimit::OnePerCardType(_)) => {
+                feature = Some("play permission of one card of each permanent type");
+                tests.push(format!("!cantrip_mechanics::history::permanent_type_used_this_turn(q, asker.source, {card})"));
+            }
+            Some(_) => return Err(gap("play permission for a number of cards")),
+        }
+        Ok((tests, feature))
+    }
+    /// "You may play lands from your graveyard", "you may cast spells from among
+    /// cards exiled with this": permissions a permanent gives while it is there
+    /// (CR 601.3, 305.1, 604.1), each in the table for the zone it opens.
+    fn static_play(
+        &mut self,
+        label: &str,
+        players: &PlayerSet,
+        rule: &PlayerRule,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let plain = plain_terms();
+        let (permission, terms) = match rule {
+            PlayerRule::PlayPermissionWith { permission, terms } => (&**permission, terms),
+            other => (other, &plain),
+        };
+        let PlayerRule::PlayPermission {
+            cards,
+            from,
+            action,
+            filter,
+        } = permission
+        else {
+            return Err(gap(format!("player rule {}", form(rule))));
+        };
+        if !matches!(
+            players,
+            PlayerSet::One(PlayerRef::AbilityController) | PlayerSet::All
+        ) {
+            return Err(gap(format!("play permission for {}", form(players))));
+        }
+        if !terms.effects.is_empty() {
+            return Err(gap("static play permission with an effect on what is played"));
+        }
+        if terms.may_look || terms.then.is_some() || terms.face_down.is_some() {
+            return Err(gap("static play permission on other terms"));
+        }
+        let own = |set: &PlayerSet| {
+            matches!(
+                set,
+                PlayerSet::One(PlayerRef::AbilityController | PlayerRef::Affected)
+            )
+        };
+        match (from, cards) {
+            (
+                EventZone::Graveyard,
+                ObjectSet::Zone {
+                    scope:
+                        ZoneScope::Players {
+                            zone: EventZone::Graveyard,
+                            players: scope,
+                        },
+                    filter: within,
+                    ..
+                },
+            ) => {
+                let own = own(scope) || format!("{within:?}").contains("InZone");
+                self.graveyard_play(label, players, action, within, filter, terms, own, parts)
+            }
+            (
+                EventZone::Exile,
+                ObjectSet::Zone {
+                    scope: ZoneScope::Shared(EventZone::Exile),
+                    filter: within,
+                    ..
+                },
+            ) => self.exile_play(label, players, action, within, filter, terms, parts),
+            (
+                EventZone::Hand,
+                ObjectSet::Zone {
+                    scope:
+                        ZoneScope::Players {
+                            zone: EventZone::Hand,
+                            players: scope,
+                        },
+                    filter: within,
+                    ..
+                },
+            ) if own(scope) => self.hand_play(label, players, action, within, filter, terms, parts),
+            (
+                EventZone::Library,
+                ObjectSet::Take {
+                    objects,
+                    count: Expr::Constant(1),
+                    from: SequenceEnd::Top,
+                },
+            ) if matches!(players, PlayerSet::One(_))
+                && matches!(
+                    &**objects,
+                    ObjectSet::Zone {
+                        scope: ZoneScope::Players { zone: EventZone::Library, players: scope },
+                        filter: ObjectFilter::Any,
+                        ..
+                    } if own(scope)
+                ) =>
+            {
+                self.library_top_play(label, action, filter, terms, parts)
+            }
+            _ => Err(gap(format!("play permission {}", form(cards)))),
+        }
+    }
+    /// Who, and which cards: a permission's tests that are the same in each table.
+    fn permission_tests(
+        &self,
+        players: &PlayerSet,
+        within: &ObjectFilter,
+        filter: &ObjectFilter,
+        card: &str,
+    ) -> Result<Vec<String>> {
+        let mut tests = vec![self.player_member(players)?];
+        if let Some(condition) = &self.static_guard {
+            tests.push(format!("({})", self.condition(condition)?));
+        }
+        for filter in [within, filter] {
+            if !matches!(filter, ObjectFilter::Any) {
+                tests.push(self.filter(filter, &Candidate::of(card))?);
+            }
+        }
+        Ok(tests)
+    }
+    /// `GrantedWay`: only the caster's own graveyard, unless `own` says it is not.
+    #[allow(clippy::too_many_arguments)]
+    fn graveyard_play(
+        &mut self,
+        label: &str,
+        players: &PlayerSet,
+        action: &CardPlayAction,
+        within: &ObjectFilter,
+        filter: &ObjectFilter,
+        terms: &PlayTerms,
+        own: bool,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        if terms.spend_as.is_some() {
+            return Err(gap("static play permission on other terms"));
+        }
+        let mut tests = self.permission_tests(players, within, filter, "card")?;
+        let (more, mut feature) =
+            self.play_tests(action, &EventZone::Graveyard, terms, "card", "player")?;
+        tests.extend(more);
+        let lands = match action {
+            CardPlayAction::Either => true,
+            CardPlayAction::CastSpell => false,
+            CardPlayAction::PlayLand => {
+                tests.push("q.chars(card).is(CardType::Land)".to_string());
+                true
+            }
+        };
+        const PRINTED: &str = "Cost::mana(q.card(q.chars(card).card).cost)";
+        let (price, permission) = match &terms.cost {
+            PlayCost::Normal => (PRINTED.to_string(), true),
+            PlayCost::Free => ("Cost::NONE".to_string(), false),
+            PlayCost::Alternate(Operand::Cost(price)) => {
+                (self.cost(price, &format!("{label}_cost"))?, false)
+            }
+            PlayCost::Additional(Operand::Cost(price)) => (
+                format!(
+                    "{PRINTED}.and({})",
+                    self.cost(price, &format!("{label}_cost"))?
+                ),
+                false,
+            ),
+            _ => return Err(gap("play permission for another cost")),
+        };
+        let mut fields = format!("text: \"Cast from your graveyard\", permission: {permission}, lands: {lands}, ");
+        if terms.flash {
+            fields.push_str("instant_speed: true, ");
+        }
+        if terms.into_exile {
+            fields.push_str("flashback: true, ");
+        }
+        if !own {
+            feature = Some("play permission from every graveyard");
+            fields.push_str("any_graveyard: true, ");
+        }
+        let body = format!("({}).then(|| {price})", tests.join(" && "));
+        self.permission_entry(
+            feature,
+            "granted_ways",
+            &format!("{label}_cost"),
+            ("q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId", "q, asker, card, player", "Option<Cost>"),
+            &body,
+            |cost| format!("GrantedWay {{ {fields}cost: {cost}, ..GrantedWay::CAST }}"),
+            parts,
+        );
+        Ok(())
+    }
+    /// `ExileCast`: a permission and no way of paying.
+    #[allow(clippy::too_many_arguments)]
+    fn exile_play(
+        &mut self,
+        label: &str,
+        players: &PlayerSet,
+        action: &CardPlayAction,
+        within: &ObjectFilter,
+        filter: &ObjectFilter,
+        terms: &PlayTerms,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        if terms.into_exile {
+            return Err(gap("static play permission on other terms"));
+        }
+        let mut tests = self.permission_tests(players, within, filter, "card")?;
+        let (more, mut feature) =
+            self.play_tests(action, &EventZone::Exile, terms, "card", "player")?;
+        tests.extend(more);
+        let lands = match action {
+            CardPlayAction::Either => true,
+            CardPlayAction::CastSpell => false,
+            CardPlayAction::PlayLand => {
+                tests.push("q.chars(card).is(CardType::Land)".to_string());
+                true
+            }
+        };
+        let (additional, life) = match &terms.cost {
+            PlayCost::Normal => ("Cost::NONE".to_string(), false),
+            PlayCost::Additional(Operand::Cost(price)) => {
+                (self.cost(price, &format!("{label}_cost"))?, false)
+            }
+            PlayCost::Alternate(Operand::Cost(price))
+                if matches!(price.parts.as_slice(), [CostPart::LifeEqualToOwnManaValue]) =>
+            {
+                ("Cost::NONE".to_string(), true)
+            }
+            _ => return Err(gap("play permission for another cost")),
+        };
+        let mut any_type = false;
+        let mut extra = String::new();
+        match &terms.spend_as {
+            None => {}
+            Some(SpendAs::AnyType) => any_type = true,
+            Some(SpendAs::AnyColor) => {
+                feature = Some("play permission with mana as though any color");
+                extra.push_str(", any_color: true");
+            }
+            Some(other) => {
+                feature = Some("play permission with one mana as though any color");
+                write!(extra, ", spend_as: SpendAs::{}", form(other)).unwrap();
+            }
+        }
+        if terms.flash {
+            feature = Some("play permission from exile as though with flash");
+            extra.push_str(", flash: true");
+        }
+        let text = if lands { "Play from exile" } else { "Cast from exile" };
+        let body = tests.join(" && ");
+        self.permission_entry(
+            feature,
+            "exile_casts",
+            &format!("{label}_allows"),
+            ("q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId", "q, asker, card, player", "bool"),
+            &body,
+            |allows| format!("ExileCast {{ text: \"{text}\", allows: {allows}, additional: {additional}, any_type: {any_type}, lands: {lands}, life_for_mana_value: {life}{extra} }}"),
+            parts,
+        );
+        Ok(())
+    }
+    /// `SpellAlternative`: a cost other than the mana cost, for cards in a hand.
+    #[allow(clippy::too_many_arguments)]
+    fn hand_play(
+        &mut self,
+        label: &str,
+        players: &PlayerSet,
+        action: &CardPlayAction,
+        within: &ObjectFilter,
+        filter: &ObjectFilter,
+        terms: &PlayTerms,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        if !matches!(action, CardPlayAction::CastSpell)
+            || terms.spend_as.is_some()
+            || terms.into_exile
+        {
+            return Err(gap("static play permission on other terms"));
+        }
+        if matches!(terms.limit, Some(PlayLimit::EachTurn(_))) && terms.during.is_none() {
+            // Both cards that say it print "once during each of your turns".
+            return Err(gap("play permission from a hand once each turn"));
+        }
+        let (cost, text) = match &terms.cost {
+            PlayCost::Free => (
+                "InsteadOfManaCost::WithoutPaying".to_string(),
+                "Without paying its mana cost",
+            ),
+            PlayCost::Alternate(Operand::Cost(price)) => match price.parts.as_slice() {
+                [CostPart::Energy(Expr::Constant(n))] if u8::try_from(*n).is_ok() => (
+                    format!("InsteadOfManaCost::Energy({n})"),
+                    "Pay energy rather than its mana cost",
+                ),
+                [CostPart::Mana(symbols)] => (
+                    format!("InsteadOfManaCost::Mana({})", mana(symbols)?),
+                    "Pay mana rather than its mana cost",
+                ),
+                _ => return Err(gap("play permission for another cost")),
+            },
+            _ => return Err(gap("play permission for another cost")),
+        };
+        let mut tests = self.permission_tests(players, within, filter, "spell")?;
+        let (more, feature) = self.play_tests(action, &EventZone::Hand, terms, "spell", "player")?;
+        tests.extend(more);
+        tests.push("q.obj(spell).zone == Zone::hand(player)".to_string());
+        let body = tests.join(" && ");
+        let flash = terms.flash;
+        self.permission_entry(
+            feature,
+            "spell_alternatives",
+            &format!("{label}_applies"),
+            ("q: &dyn Query, asker: &Asker, spell: ObjectId, player: PlayerId", "q, asker, spell, player", "bool"),
+            &body,
+            |applies| format!("SpellAlternative {{ text: \"{text}\", applies: {applies}, cost: {cost}, flash: {flash} }}"),
+            parts,
+        );
+        Ok(())
+    }
+    /// `PlayRule`: the top card of the library of the permanent's controller.
+    fn library_top_play(
+        &mut self,
+        label: &str,
+        action: &CardPlayAction,
+        filter: &ObjectFilter,
+        terms: &PlayTerms,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        if terms.spend_as.is_some() || terms.into_exile {
+            return Err(gap("static play permission on other terms"));
+        }
+        let mut tests = Vec::new();
+        if !matches!(filter, ObjectFilter::Any) {
+            tests.push(self.filter(filter, &Candidate::of("card"))?);
+        }
+        let (more, feature) =
+            self.play_tests(action, &EventZone::Library, terms, "card", "asker.controller")?;
+        if feature.is_some() {
+            return Err(gap("play permission for a number of cards"));
+        }
+        tests.extend(more);
+        let test = if tests.is_empty() {
+            "true".to_string()
+        } else {
+            tests.join(" && ")
+        };
+        let closure = format!("|q, asker, card| {test}");
+        match action {
+            CardPlayAction::Either => return Err(gap("play permission from the top of a library on other terms")),
+            CardPlayAction::PlayLand => {
+                if test == "true" && matches!(terms.cost, PlayCost::Normal) {
+                    return self.play_rule(label, "PlayRule::LibraryTopLands".into(), parts);
+                }
+                self.plan_entry(
+                    "play permission for lands from the top of a library with a filter",
+                    "play_rules",
+                    &format!("PlayRule::LibraryTopLandsIf({closure})"),
+                    parts,
+                );
+            }
+            CardPlayAction::CastSpell => {
+                let extra = match &terms.cost {
+                    PlayCost::Normal => "Cost::NONE".to_string(),
+                    PlayCost::Additional(Operand::Cost(price)) => {
+                        self.cost(price, &format!("{label}_cost"))?
+                    }
+                    _ => return Err(gap("play permission for another cost")),
+                };
+                if extra == "Cost::NONE" && !terms.flash {
+                    let function = format!("{label}_rule");
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, card: ObjectId) -> bool {{ {test} }}").unwrap();
+                    return self.play_rule(
+                        label,
+                        format!("PlayRule::LibraryTopSpells({function}, None)"),
+                        parts,
+                    );
+                }
+                self.plan_entry(
+                    "play permission from the top of a library on other terms",
+                    "play_rules",
+                    &format!("PlayRule::LibraryTopSpellsWith({closure}, LibraryTerms {{ additional: {extra}, flash: {} }})", terms.flash),
+                    parts,
+                );
+            }
+        }
+        Ok(())
     }
     /// A static ability that functions from a zone other than the battlefield
     /// (CR 113.6): a permission to cast the card itself, a rule about the spell,
