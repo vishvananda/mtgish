@@ -183,6 +183,7 @@ impl Walker {
             match (name, variant.as_str()) {
                 ("ObjectFilter", "InSet") => one_object_set(value),
                 ("ObjectSet", "Zone") => narrow_zone_scope(content_of(value)),
+                ("ObjectSet", "Battlefield") => drop_permanent_types(content_of(value)),
                 ("ObjectRef", "Damage") => {
                     if self.damage_subjects.last().cloned().flatten().as_ref()
                         == value.get("args")
@@ -277,6 +278,38 @@ fn one_object_set(value: &mut Value) {
     if value["args"]["kind"] == "One" {
         let object = value["args"]["args"].take();
         *value = serde_json::json!({"kind": "SameObject", "args": object});
+    }
+}
+
+/// Every object on the battlefield is a permanent, so naming all six types
+/// narrows nothing there. Other zones keep it: it is what `permanent card` means.
+fn drop_permanent_types(filter: &mut Value) {
+    let names_all = |item: &Value| {
+        let Some(cases) = item["args"].as_array() else {
+            return false;
+        };
+        item["kind"] == "Either"
+            && cases.len() == 6
+            && ["Artifact", "Battle", "Creature", "Enchantment", "Land", "Planeswalker"]
+                .iter()
+                .all(|name| {
+                    cases
+                        .iter()
+                        .any(|case| case["kind"] == "CardType" && case["args"] == *name)
+                })
+    };
+    if names_all(filter) {
+        *filter = serde_json::json!({"kind": "Any"});
+        return;
+    }
+    if filter["kind"] != "All" {
+        return;
+    }
+    if let Some(items) = filter["args"].as_array_mut() {
+        items.retain(|item| !names_all(item));
+    }
+    if let Some(only) = single(&filter["args"]) {
+        *filter = only;
     }
 }
 

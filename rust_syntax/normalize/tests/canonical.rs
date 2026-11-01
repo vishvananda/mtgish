@@ -107,3 +107,17 @@ fn reduced_form_keeps_ids_and_order() {
     let items = &instruction["operation"]["args"]["objects"]["args"]["args"];
     assert_eq!(items, &json!([{"kind":"Tapped"},{"kind":"CardType","args":"Creature"}]));
 }
+
+#[test]
+fn permanent_types_narrow_nothing_on_the_battlefield() {
+    let six: Vec<serde_json::Value> = ["Land", "Artifact", "Battle", "Creature", "Enchantment", "Planeswalker"]
+        .iter()
+        .map(|name| json!({"kind":"CardType","args":name}))
+        .collect();
+    let either = json!({"kind":"Either","args":six});
+    let reduced = destroy(json!({"kind":"Battlefield","args":either}));
+    assert_eq!(reduced["args"], json!({"kind":"Any"}));
+    let filter = json!({"kind":"All","args":[{"kind":"Tapped"},either]});
+    let reduced = destroy(json!({"kind":"Battlefield","args":filter}));
+    assert_eq!(reduced["args"], json!({"kind":"Tapped"}));
+}
