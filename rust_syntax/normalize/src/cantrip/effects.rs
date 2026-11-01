@@ -264,6 +264,7 @@ impl Compiler {
                 code
             }
             Recipients::Chosen => return Err(gap("chosen damage recipient")),
+            Recipients::DamagedByEvent => return Err(gap("recipient of event damage")),
             Recipients::AttackedBy(object) => format!(
                 "{{ let attacker = {}; q.state().attackers.iter().find(|a| Some(a.id) == attacker).map(|a| a.target).filter(|t| *t != Target::None).into_iter().collect::<Vec<Target>>() }}",
                 self.object(object)?

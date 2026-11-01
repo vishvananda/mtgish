@@ -1089,6 +1089,14 @@ impl Context {
         let (name, operands) = self.primitive("Player", value)?;
         Some(match (name.as_str(), operands.as_slice()) {
             ("Player::ClashOpponent", []) => PlayerRef::ClashOpponent,
+            // The targets share one graveyard, so its owner owns the first.
+            ("Player::SingleGraveyardOwner", []) => match self.targets.first() {
+                Some(spec) => PlayerRef::OwnerOf(Box::new(ObjectRef::Target {
+                    slot: spec.slot.clone(),
+                    index: 0,
+                })),
+                None => crate::semantics::reduce_player_ref(name, operands),
+            },
             (
                 "Player::LoseLife_ThatPlayer"
                 | "Player::PlayerAction_ThatPlayer"
@@ -1112,7 +1120,18 @@ impl Context {
     }
 
     fn primitive_number(&self, value: &source::GameNumber) -> Option<Expr> {
-        let (name, operands) = self.primitive("GameNumber", value)?;
+        let (name, mut operands) = self.primitive("GameNumber", value)?;
+        // Which payments went unmade is read off the loop that offered them.
+        if name == "GameNumber::TheNumberOfRepeatedCostsNotPaidByPlayer" {
+            let offered = self
+                .reported
+                .iter()
+                .rev()
+                .find(|(_, row)| row == "Action::EachPlayerRepeatedMayCost");
+            if let Some((result, _)) = offered {
+                operands.push(Operand::Result(result.clone()));
+            }
+        }
         if name == "GameNumber::ManaValueOfTheCardDiscardedThisWay" {
             use crate::number_spec::PaymentAction;
             if let Ok(object) = self.paid_object(PaymentAction::Discard) {

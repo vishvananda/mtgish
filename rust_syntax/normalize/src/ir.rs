@@ -2876,6 +2876,11 @@ pub enum Change {
     },
     /// Adds these symbols to its mana cost and their colors (perpetually).
     Incorporate(Vec<ManaSymbol>),
+    /// Takes the color of the mana an earlier instruction added.
+    ColorOfMana {
+        mode: ChangeMode,
+        mana: ResultId,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4035,8 +4040,44 @@ pub enum Expr {
         abilities: Box<Operand>,
         objects: Box<ObjectSet>,
     },
+    /// Mana other than what paid for a whole spell, in `filter`.
+    ManaOf {
+        mana: ManaOccurrence,
+        filter: SpentManaFilter,
+    },
+    /// Counters removed to pay for this spell or ability.
+    CountersPaid {
+        object: ObjectRef,
+        kind: crate::counter::CounterKind,
+    },
+    /// How many values of `property` this object has in common with any of `with`.
+    SharedValues {
+        object: ObjectRef,
+        property: DistinctProperty,
+        with: Box<ObjectSet>,
+    },
+    /// How many of the payments a `PlayersPayRepeatedly` offered this player
+    /// they left unpaid.
+    RepeatedCostsUnpaid {
+        result: ResultId,
+        player: PlayerRef,
+    },
+    /// The mana costs of these objects, one each, for an action that matches them.
+    ManaCostsOf(Box<ObjectSet>),
 }
 
+/// Mana a number or filter reads that did not pay for a whole spell.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ManaOccurrence {
+    /// Spent on the {X} of this spell or activation.
+    SpentOnX,
+    /// Spent on the whole cost of this activation.
+    SpentOnActivation,
+    /// Spent on the cost whose payment the matched event reports.
+    SpentOnEventCost,
+    /// What the matched event's mana ability produced.
+    ProducedByEvent,
+}
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct SpentManaFilter {
     /// None matches all six types. Some restricts to the listed actual types.
@@ -4057,6 +4098,11 @@ pub enum Moment {
     ThisSpellCast,
     TurnBegan,
     Cast(ObjectRef),
+    /// The last time this event happened in the window.
+    LastEvent {
+        event: Box<EventSpec>,
+        window: HistoryWindow,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum HistoryMeasure {
@@ -4084,6 +4130,8 @@ pub enum Aggregation {
     Sum,
     Maximum,
     Minimum,
+    /// Any one of the values, for a comparison against each of them.
+    AnyOf,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum Ballot {
@@ -4208,6 +4256,8 @@ pub enum DistinctProperty {
     PermanentTypes,
     ManaCosts,
     ColorPairs,
+    /// The names of unlocked doors, each face of a Room having its own.
+    UnlockedDoorNames,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4366,6 +4416,18 @@ pub enum ObjectRef {
         index: u32,
         by: Option<PlayerRef>,
     },
+    /// The other one of `among`, given the ones `excluding` names. Either of
+    /// them when `excluding` names them all, as Forge's Spellweaver Helix.
+    TheOther {
+        among: Box<ObjectSet>,
+        excluding: Box<ObjectSet>,
+    },
+    /// The object at this end of a set that holds an order of its own: a pile
+    /// shuffled as it was exiled, or a history, whose `Top` is its earliest.
+    AtEnd {
+        objects: Box<ObjectSet>,
+        end: SequenceEnd,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4513,6 +4575,16 @@ pub enum ObjectSet {
     },
     /// "Those" objects: whatever the row around this one names.
     Scoped,
+    /// The cards spliced onto this spell as it was cast (CR 702.47).
+    SplicedOnto(ObjectRef),
+    /// What this spell or ability targets, as it is being cast or on the stack.
+    TargetsOf(ObjectRef),
+    /// The subjects of an event in a window as they last existed, in the order
+    /// it happened, as Forge's `ThisTurnCast`.
+    FromHistory {
+        event: Box<EventSpec>,
+        window: HistoryWindow,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -4616,6 +4688,11 @@ pub enum PlayerRef {
         from: Option<Box<PlayerRef>>,
         among: Option<Box<PlayerSet>>,
     },
+    /// `player` read at an earlier moment, as `Expr::AsOf` reads a number.
+    AsOf {
+        moment: Box<Moment>,
+        player: Box<PlayerRef>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4658,6 +4735,8 @@ pub enum Recipients {
     },
     /// What `ValueKind::Recipient` chose.
     Chosen,
+    /// Whatever the matched damage was dealt to, player or object.
+    DamagedByEvent,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4870,6 +4949,16 @@ pub enum ObjectFilter {
     TargetCount(Comparison, Expr),
     /// Has the creature type most common in this player's library.
     MostCommonCreatureTypeIn(PlayerRef),
+    /// Shares a color with this mana. Colorless mana shares none.
+    SharesColorWithMana(ManaOccurrence),
+    /// Its mana cost could be paid with some or all of this mana.
+    ManaCostPayableWith(ManaOccurrence),
+    /// A target of a spell or ability on the stack that matches.
+    TargetedBy(Box<ObjectFilter>),
+    /// Has a color outside the color identity of this player's commander.
+    ColorOutsideCommanderIdentity(PlayerRef),
+    /// Has the ability the enclosing `for each ability` loop is at.
+    HasEachAbility,
 }
 
 /// Something a player did or had done to them. See `Condition::PlayerDid`.
@@ -4948,6 +5037,8 @@ pub enum ObjectHistory {
     Cycled,
     Sacrificed,
     Surveilled,
+    /// Put into a hand, as Forge's `ThisTurnEnteredYourHand`.
+    PutIntoHand,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -5003,6 +5094,7 @@ pub enum KeywordFamily {
     Exhaust,
     StartYourEngines,
     Embalm,
+    Eternalize,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -6049,6 +6141,8 @@ pub enum PlayerState {
     PossibleDefender,
     RolledHighest,
     ShuffledThisWay,
+    /// No effect stops this player drawing cards.
+    CanDraw,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

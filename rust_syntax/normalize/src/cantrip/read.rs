@@ -925,6 +925,7 @@ impl Compiler {
                     Aggregation::Sum => "sum::<i64>()",
                     Aggregation::Maximum => "max().unwrap_or(0)",
                     Aggregation::Minimum => "min().unwrap_or(0)",
+                    Aggregation::AnyOf => return Err(gap("comparison with any one value")),
                 };
                 Number {
                     code: format!(
@@ -1543,7 +1544,8 @@ impl Compiler {
             | PlayerState::WholePoolInDeck
             | PlayerState::PossibleDefender
             | PlayerState::RolledHighest
-            | PlayerState::ShuffledThisWay => return Err(gap(format!("player state {state:?}"))),
+            | PlayerState::ShuffledThisWay
+            | PlayerState::CanDraw => return Err(gap(format!("player state {state:?}"))),
             PlayerState::CompletedDungeon => {
                 "q.history().any(EventQuery::kind(EventMask::DUNGEON_COMPLETED).player(player))"
                     .into()

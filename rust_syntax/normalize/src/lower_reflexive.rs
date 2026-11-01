@@ -296,6 +296,14 @@ impl Context {
         let mut child = self.clone();
         child.open_searches.clear();
         child.modes = None;
+        child.reflexive_count = match &condition {
+            Some(Condition::Compare {
+                left,
+                comparison: Comparison::Greater,
+                right: Expr::Constant(0),
+            }) => Some(left.clone()),
+            _ => None,
+        };
         let known = child.targets.len();
         child.outer_targets = known;
         let body = child.actions(actions)?;
