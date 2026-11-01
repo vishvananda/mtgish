@@ -295,12 +295,15 @@ impl Compiler {
     /// `Operation::ReflexiveTrigger`.
     pub(super) fn create_reflexive(
         &mut self,
-        performed: &ResultId,
+        performed: &Option<ResultId>,
         condition: &Option<Condition>,
         announcement: &Announcement,
         body: &Program,
         out: &mut String,
     ) -> Result<()> {
+        let Some(performed) = performed else {
+            return Err(gap("reflexive trigger with no base action"));
+        };
         if !self.stack_item || self.pending != Pending::Nothing || self.outer.is_some() {
             return Err(gap("reflexive trigger outside a resolving ability"));
         }

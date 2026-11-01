@@ -1058,6 +1058,8 @@ pub enum Operation {
         also: Vec<EventZone>,
         /// "and/or": the searcher chooses which zones to look through.
         either: bool,
+        /// Also among the cards the searcher owns outside the game (CR 400.11).
+        outside: bool,
     },
     /// Explicit public revelation; searching never implies revelation.
     Reveal {
@@ -1161,9 +1163,10 @@ pub enum Operation {
     /// A reflexive trigger (603.12): once, if `performed` happened during this
     /// resolution, it goes on the stack and announces its own targets. `condition`
     /// is checked as it triggers. `body` closes over the creator like a delayed
-    /// trigger.
+    /// trigger. No `performed` means reaching this instruction is the event, as
+    /// Forge's `ImmediateTrigger`: an `If` around it says when.
     ReflexiveTrigger {
-        performed: ResultId,
+        performed: Option<ResultId>,
         condition: Option<Condition>,
         announcement: Announcement,
         body: Program,
@@ -1344,11 +1347,12 @@ pub enum Operation {
         actor: PlayerSet,
         abilities: Vec<Ability>,
     },
-    /// As Forge's `MoveCounter` with `Source$`, `Defined$` and `CounterNum$`.
+    /// As Forge's `MoveCounter` with `Source$`, `Defined$` and `CounterNum$`. The
+    /// actor divides the counters among `to` when it is more than one object.
     MoveCounters {
         actor: PlayerSet,
         from: ObjectSet,
-        to: ObjectRef,
+        to: ObjectSet,
         kind: Option<crate::counter::CounterKind>,
         amount: MovedCounters,
     },
@@ -1851,6 +1855,25 @@ pub enum Operation {
         objects: ObjectSet,
         action: Box<Operation>,
     },
+    /// For each kind of counter among `among`, `actor` does one of `options`,
+    /// or may do none if `optional`. As Forge's `AddOrRemoveCounter` with
+    /// `EachExistingCounter$` and `PutCounter` with `AltChoiceForEach$`.
+    EachCounterKind {
+        actor: PlayerSet,
+        among: ObjectSet,
+        options: Vec<CounterStep>,
+        optional: bool,
+    },
+}
+/// One thing to do for a kind of counter, in `Operation::EachCounterKind`.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CounterStep {
+    /// Put a counter of that kind on this object.
+    PutThatKind(ObjectRef),
+    /// Put a counter of this other kind on this object.
+    Put(crate::counter::CounterKind, ObjectRef),
+    /// Remove a counter of that kind from this object.
+    RemoveThatKind(ObjectRef),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ExchangeKind {
@@ -2313,6 +2336,9 @@ pub enum MovedCounters {
     All,
     AnyNumber,
     Exactly(Expr),
+    /// One of each kind the recipient doesn't have.
+    OneOfEachKindMissing,
+    AtLeast(Expr),
 }
 /// What a choice of a value picks, as Forge's `ChooseColor`, `ChooseType`,
 /// `NameCard` and `ChooseNumber`.
@@ -2422,7 +2448,8 @@ pub struct SearchChoice {
     pub filter: ObjectFilter,
     /// Qualified hidden-zone searches use UpTo (may fail to find). Unqualified
     /// quantities use AsManyAsCan; the distinction is not inferred from whether
-    /// matching cards happen to be present (CR 701.23b/d).
+    /// matching cards happen to be present (CR 701.23b/d). Exactly, on a group
+    /// with constraints, finds that whole group or fails to find.
     pub count: Count,
     pub constraints: Vec<SelectionConstraint>,
 }
@@ -2480,6 +2507,8 @@ pub enum SelectionConstraint {
     SharesLimitWith(Slot),
     /// Every object has the same set of values of this property.
     AllSameProperty(DistinctProperty),
+    /// Not what an earlier run of the enclosing player loop picked.
+    Unpicked,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CardOrder {
@@ -4240,6 +4269,8 @@ pub enum CounterCopies {
     /// One counter of a kind the recipient lacks.
     OneMissing,
     OneOfEachKindDistributed,
+    /// One counter, if the controller wants it.
+    UpToOne,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PlayerNumber {
@@ -5587,6 +5618,13 @@ pub enum CostPart {
     PlayFromTop(ObjectFilter),
     /// The selected cards of `part` all belong to one player.
     SinglePlayersCards(Box<CostPart>),
+    /// Counters move as the cost is paid; it can't be paid if they can't.
+    MoveCounters {
+        from: ObjectSet,
+        to: ObjectSet,
+        kind: Option<crate::counter::CounterKind>,
+        amount: MovedCounters,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum CostObjectAction {

@@ -648,7 +648,7 @@ fn reduce_move_counters(actor: &PlayerSet, operands: &[Operand]) -> Option<Opera
     Some(Operation::MoveCounters {
         actor: actor.clone(),
         from,
-        to: to.clone(),
+        to: ObjectSet::One(to.clone()),
         kind,
         amount,
     })
@@ -769,6 +769,9 @@ pub fn reduce_entry(name: &str, operands: &[Operand]) -> Option<EntryState> {
 
 /// A row's action in generic form, or the row itself when it has none.
 pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> Operation {
+    if let Some(operation) = reduce_search_action(&actor, &name, &operands) {
+        return operation;
+    }
     if name == "Action::MoveCounters" {
         if let Some(operation) = reduce_move_counters(&actor, &operands) {
             return operation;
@@ -1915,6 +1918,7 @@ include!("reduce_more.rs");
 include!("reduce_tail.rs");
 include!("reduce_card_values.rs");
 include!("reduce_card_rules.rs");
+include!("reduce_search.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
@@ -2122,6 +2126,7 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
         reduce_event_condition(form, &operands)
             .or_else(|| reduce_more_conditions(form, &operands))
             .or_else(|| reduce_tail_condition(form, &operands))
+            .or_else(|| reduce_search_condition(form, &operands))
     }) {
         return condition;
     }
@@ -2456,7 +2461,9 @@ pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
 
 /// A row's cost in generic form, or the row itself.
 pub fn reduce_cost(name: String, operands: Vec<Operand>) -> CostPart {
-    if let Some(part) = reduce_tail_cost(&name, &operands) {
+    if let Some(part) =
+        reduce_tail_cost(&name, &operands).or_else(|| reduce_search_cost(&name, &operands))
+    {
         return part;
     }
     let keyword = |action, amount: Option<&Expr>| CostPart::Keyword {
@@ -5868,6 +5875,7 @@ impl Effects {
                     | Operation::CreatePerpetualEffect { .. }
                     | Operation::CreateEmblem { .. }
                     | Operation::MoveCounters { .. }
+                    | Operation::EachCounterKind { .. }
                     | Operation::DoubleCounters { .. }
                     | Operation::PlayCards { .. }
                     | Operation::PlayWith { .. }
@@ -6071,6 +6079,7 @@ impl Effects {
                 | CostPart::ObjectAction { .. }
                 | CostPart::ManaFromTreasure(_)
                 | CostPart::SinglePlayersCards(_)
+                | CostPart::MoveCounters { .. }
                 | CostPart::PutCounters(_) => {}
                 CostPart::ShuffleFromHand | CostPart::PlayFromTop(_) => self.library = true,
                 CostPart::ExiledToGraveyard(_) => {}

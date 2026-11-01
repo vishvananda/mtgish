@@ -23,6 +23,12 @@ enum Base {
     Cost(source::Cost),
     /// A cost paid up to this many times.
     Repeated(source::Cost, source::GameNumber),
+    /// Cards chosen from those just looked at, put onto the battlefield.
+    Looked {
+        cards: source::CardsInLibrary,
+        count: Option<Expr>,
+        flags: Vec<source::EnterFlag>,
+    },
 }
 
 fn base_form(name: &str, args: &serde_json::Value) -> Option<Base> {
@@ -73,6 +79,21 @@ fn base_forms(name: &str, args: &serde_json::Value) -> Option<Vec<Base>> {
         let [wrapper] = wrappers.as_array()?.as_slice() else {
             return None;
         };
+        let count = match wrapper["variant"].as_str()? {
+            "ACardOfTypeFromLibrary" => Some(Some(Expr::Constant(1))),
+            "AnyNumberOfCardsFromLibrary" => Some(None),
+            _ => None,
+        };
+        if let Some(count) = count {
+            use crate::pipeline::source_tree::decode;
+            let mut cards = wrapper["args"].clone();
+            retag(&mut cards, &|n: &str| (n == "Cards").then_some("CardsInLibrary"));
+            return Some(vec![Base::Looked {
+                cards: decode(&cards).ok()?,
+                count,
+                flags: decode(flags).ok()?,
+            }]);
+        }
         let form = match wrapper["variant"].as_str()? {
             "CardInGraveyard" => "PutGraveyardCardOntoBattlefield",
             "CardInHand" => "PutCardFromHandOnBattlefield",
@@ -217,7 +238,7 @@ impl Context {
                         });
                         decode(&wrapped).ok().map(Base::Action)
                     }
-                    Base::Cost(_) | Base::Repeated(..) => None,
+                    Base::Cost(_) | Base::Repeated(..) | Base::Looked { .. } => None,
                 })
                 .collect::<Option<_>>()?;
         }
@@ -265,10 +286,60 @@ impl Context {
                         at_most,
                     })
                 }
+                Base::Looked {
+                    cards,
+                    count,
+                    flags,
+                } => {
+                    let PlayerSet::One(player) = actor else {
+                        return Err(invalid("a look is one player's"));
+                    };
+                    self.put_looked(player, cards, count.as_ref(), flags)?
+                }
             });
         }
         let condition = condition.map(|c| self.condition(c)).transpose()?;
         self.reflexive_after(instructions, condition, actions)
+    }
+
+    /// A card, or any number of them, from the cards just looked at. `MayAction`
+    /// around this is what makes it optional, so one card is as many as can.
+    fn put_looked(
+        &mut self,
+        player: &PlayerRef,
+        cards: &source::CardsInLibrary,
+        count: Option<&Expr>,
+        flags: &[source::EnterFlag],
+    ) -> Result<Instruction> {
+        let looked = self
+            .looked
+            .clone()
+            .ok_or_else(|| invalid("no cards were looked at in this scope"))?;
+        let filter = self.library_filter(cards)?;
+        let (destination, entry) = self.move_entry(flags, player.clone())?;
+        let mut instructions = vec![];
+        let objects = self.inspection_choice(
+            player,
+            ObjectSet::InZone {
+                objects: Box::new(ObjectSet::Observed(looked)),
+                zone: EventZone::Library,
+            },
+            filter,
+            count.map_or(Count::AnyNumber, |n| Count::AsManyAsCan(n.clone())),
+            vec![SelectionConstraint::CanMoveTo {
+                destination: destination.clone(),
+                entry: entry.clone(),
+                face_down: false,
+            }],
+            &mut instructions,
+        );
+        instructions.push(self.effect(Operation::Move {
+            objects,
+            destination,
+            entry,
+            face_down: false,
+        }));
+        Ok(Instruction::Group(Program { instructions }))
     }
 
     /// The base already lowered, then its reflexive trigger.
@@ -289,10 +360,11 @@ impl Context {
     /// The reflexive trigger of an already performed base action.
     fn reflexive_on(
         &mut self,
-        performed: ResultId,
+        performed: impl Into<Option<ResultId>>,
         condition: Option<Condition>,
         actions: &source::Actions,
     ) -> Result<Instruction> {
+        let performed = performed.into();
         let mut child = self.clone();
         child.open_searches.clear();
         child.modes = None;

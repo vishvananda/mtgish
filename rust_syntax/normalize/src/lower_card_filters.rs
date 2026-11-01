@@ -168,6 +168,16 @@ impl Context {
             ))),
             source::CardsInExile::WasExiledByPlayerThisWay(player) => {
                 let player = self.player(player)?;
+                let turn = self
+                    .exile_turns
+                    .iter()
+                    .find(|(who, _)| crate::semantics::same_player(who, &player));
+                if let Some((_, result)) = turn {
+                    return Ok(ObjectFilter::InSet(Box::new(ObjectSet::Transition {
+                        result: result.clone(),
+                        phase: ObjectPhase::After,
+                    })));
+                }
                 Ok(ObjectFilter::InSet(Box::new(self.moved_by(
                     Done::Exiled,
                     ObjectPhase::After,

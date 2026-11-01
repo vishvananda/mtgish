@@ -2462,6 +2462,16 @@ impl<'a> Scope<'a> {
                 CostPart::ExiledToGraveyard(cards) => self.objects(cards)?,
                 CostPart::RevealTop(filter) => self.filter(filter)?,
                 CostPart::Waterbend(_) | CostPart::Teamwork(_) => {}
+                CostPart::MoveCounters {
+                    from, to, amount, ..
+                } => {
+                    self.objects(from)?;
+                    self.objects(to)?;
+                    if let MovedCounters::Exactly(amount) | MovedCounters::AtLeast(amount) = amount
+                    {
+                        self.expr(amount)?;
+                    }
+                }
                 CostPart::PutCounters(placements) => {
                     for placement in placements {
                         self.recipients(&placement.recipients)?;
@@ -2769,7 +2779,9 @@ impl<'a> Scope<'a> {
             }
             Operation::EachObject { objects, action } => {
                 self.objects(objects)?;
-                self.operation(action)
+                let mut each = self.clone();
+                each.affected = true;
+                each.operation(action)
             }
             Operation::CounterWith { object, when, .. } => {
                 self.object(object)?;
@@ -3204,11 +3216,27 @@ impl<'a> Scope<'a> {
             } => {
                 self.players(actor)?;
                 self.objects(from)?;
-                self.object(to)?;
+                self.objects(to)?;
                 match amount {
-                    MovedCounters::Exactly(amount) => self.expr(amount),
+                    MovedCounters::Exactly(amount) | MovedCounters::AtLeast(amount) => {
+                        self.expr(amount)
+                    }
                     _ => Ok(()),
                 }
+            }
+            Operation::EachCounterKind {
+                actor,
+                among,
+                options,
+                ..
+            } => {
+                self.players(actor)?;
+                self.objects(among)?;
+                options.iter().try_for_each(|option| match option {
+                    CounterStep::PutThatKind(object)
+                    | CounterStep::Put(_, object)
+                    | CounterStep::RemoveThatKind(object) => self.object(object),
+                })
             }
             Operation::DoubleCounters { objects, .. } => self.objects(objects),
             Operation::Conjure {
@@ -3392,10 +3420,14 @@ impl<'a> Scope<'a> {
                     self.selection_constraints(&choice.constraints)?;
                     self.filter(&choice.filter)?;
                     self.count(&choice.count)?;
-                    if !matches!(
-                        choice.count,
-                        Count::UpTo(_) | Count::AsManyAsCan(_) | Count::AnyNumber
-                    ) {
+                    let whole_group =
+                        matches!(choice.count, Count::Exactly(_)) && !choice.constraints.is_empty();
+                    if !whole_group
+                        && !matches!(
+                            choice.count,
+                            Count::UpTo(_) | Count::AsManyAsCan(_) | Count::AnyNumber
+                        )
+                    {
                         return Err(
                             "search choice requires a fail-to-find or as-many-as-possible policy"
                                 .into(),
@@ -3563,7 +3595,10 @@ impl<'a> Scope<'a> {
                 announcement,
                 body,
             } => {
-                if !self.results.contains_key(&performed.0) {
+                if performed
+                    .as_ref()
+                    .is_some_and(|performed| !self.results.contains_key(&performed.0))
+                {
                     return Err("a reflexive trigger reads an action that has not run".into());
                 }
                 if let Some(condition) = condition {
@@ -4014,7 +4049,10 @@ impl<'a> Scope<'a> {
                         result.0,
                         if moved {
                             ResultKind::ObjectTransition
-                        } else if matches!(operation, Operation::Reveal { .. }) {
+                        } else if matches!(
+                            operation,
+                            Operation::Reveal { .. } | Operation::RevealUntil { .. }
+                        ) {
                             ResultKind::Observation
                         } else if matches!(operation, Operation::CreateTokens { .. }) {
                             ResultKind::CreatedObjects

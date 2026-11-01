@@ -138,6 +138,12 @@ struct Context {
     /// Zones the next search looks through besides a library, and whether it's "and/or".
     search_also: Vec<EventZone>,
     search_either: bool,
+    /// The next search also reaches outside the game.
+    search_outside: bool,
+    /// The cards just looked at, for a later step that names them.
+    looked: Option<ResultId>,
+    /// Who exiled which cards when players take turns, by exile.
+    exile_turns: Vec<(PlayerRef, ResultId)>,
     value_x: Option<ResultId>,
     revealed: Option<ObjectSet>,
     /// The player "they" means in an effect several players carry out.
@@ -464,6 +470,9 @@ impl Context {
             self.tapped = Some(objects.clone());
         }
         self.note_acted(&operation, &ResultId(self.result));
+        if matches!(operation, Operation::LookAt { .. }) {
+            self.looked = Some(ResultId(self.result));
+        }
         if let Operation::ChooseObjects { player, .. } = &operation {
             self.picks
                 .push((Some(player.clone()), ResultId(self.result)));
@@ -879,6 +888,19 @@ impl Context {
         use source::Player as S;
         Ok(match value {
             S::You => self.you.clone().unwrap_or(PlayerRef::AbilityController),
+            // An `If` has settled that one card is highest, so the set is one player.
+            S::PlayersRevealTopCardOfLibraryAndFindHighestManaValue_SingleWinner => {
+                let binding = Binding(self.binding_depth);
+                PlayerRef::OneOf(Box::new(PlayerSet::Matching {
+                    binding: binding.clone(),
+                    condition: Box::new(Condition::HadExtreme {
+                        player: PlayerRef::Bound(binding),
+                        what: EarlierObjects::Revealed,
+                        filter: None,
+                        highest: true,
+                    }),
+                }))
+            }
             S::SelfPlayer if self.self_player.borrow().is_some() => {
                 self.self_player.borrow().clone().unwrap()
             }
@@ -2760,6 +2782,9 @@ impl Context {
     }
 
     fn reduced_action(&mut self, value: &source::Action, actor: &PlayerSet) -> Result<Instruction> {
+        if let Some(result) = self.search_action(value, actor) {
+            return result;
+        }
         if let Some(result) = self.pile_action(value, actor) {
             return result;
         }
@@ -4145,7 +4170,7 @@ impl Context {
                     instructions: vec![choice, attach],
                 }));
             }
-            // The spell cast stays a row; only "when you do" needs the structure.
+            // "When you cast that spell" reads the cast, so it records one.
             S::Reflexive_CastGraveyardCardWithAdditionalCostIntoExile_WhenYouCastThatSpell(
                 card,
                 cost,
@@ -4159,11 +4184,14 @@ impl Context {
                     Operand::Object(self.grave_card(card)?),
                     Operand::Cost(self.cost(cost)?),
                 ];
-                let base = self.effect(Operation::Primitive {
-                    actor: actor.clone(),
-                    name: name.into(),
+                let base = self.effect(crate::semantics::reduce_action(
+                    actor.clone(),
+                    name.into(),
                     operands,
-                });
+                ));
+                if let Instruction::Effect { result, .. } = &base {
+                    self.did.insert(Done::Cast, result.clone());
+                }
                 return self.reflexive_after(vec![base], None, actions);
             }
             S::CreateValueX(value) => {
@@ -6560,5 +6588,6 @@ include!("lower_named.rs");
 include!("lower_took.rs");
 include!("lower_reflexive.rs");
 include!("lower_reveal.rs");
+include!("lower_search.rs");
 include!("lower_replace.rs");
 include!("lower_play.rs");
