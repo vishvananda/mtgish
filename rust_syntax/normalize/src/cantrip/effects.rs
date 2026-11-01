@@ -484,6 +484,9 @@ impl Compiler {
                 operation: operation @ Operation::PlayCards { .. },
                 ..
             } => self.play_cards(operation, false, out),
+            Instruction::Effect { operation, .. } if lane_i::plain_play(operation).is_some() => {
+                self.play_cards(operation, false, out)
+            }
             Instruction::Effect {
                 operation:
                     Operation::ChooseObjects {
@@ -724,7 +727,7 @@ impl Compiler {
             Count::PerPlayer { .. } => return Err(gap("per-player resolution choice")),
         })
     }
-    fn choose(
+    pub(super) fn choose(
         &mut self,
         player: &PlayerRef,
         objects: &ObjectSet,
@@ -1594,7 +1597,7 @@ impl Compiler {
         self.creations.insert(result.0, format!("created_{id}"));
         Ok(())
     }
-    fn move_objects(
+    pub(super) fn move_objects(
         &mut self,
         id: usize,
         objects: &ObjectSet,
@@ -1673,6 +1676,17 @@ impl Compiler {
                 let position = self.fetch(position);
                 library(format!("LibraryPlace::FromTop(({position}).saturating_sub(1))"))
             }
+            Destination::OwnersLibraryTopOrBottom => format!("{{ let mut moved: Vec<ObjectId> = Vec::new(); for &o in &objects_{id} {{ cantrip_mechanics::library::owner_puts_on_top_or_bottom(g, asker.source, o)?; moved.extend(g.state().obj(o).became); }} moved }}"),
+            Destination::Ante => planned::planned_value(
+                "move to Ante",
+                NO_OBJECTS,
+                &format!("g.ante(&objects_{id})"),
+            ),
+            Destination::CommandZone => planned::planned_value(
+                "move to CommandZone",
+                NO_OBJECTS,
+                &format!("g.put_into_command_zone(&objects_{id})"),
+            ),
             other => return Err(gap(format!("move to {}", form(other)))),
         };
         writeln!(

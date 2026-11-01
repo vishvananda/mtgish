@@ -76,14 +76,16 @@ fn peel(set: &ObjectSet) -> (ObjectSet, Vec<ObjectFilter>) {
 pub(super) fn may_only_play(decider: &PlayerRef, body: &Program) -> bool {
     match body.instructions.as_slice() {
         [Instruction::Group(group)] => may_only_play(decider, group),
-        [Instruction::Effect {
-            operation:
+        [Instruction::Effect { operation, .. }] => {
+            let plain = lane_i::plain_play(operation);
+            match plain.as_ref().unwrap_or(operation) {
                 Operation::PlayCards {
                     actor: PlayerSet::One(actor),
                     ..
-                },
-            ..
-        }] => format!("{actor:?}") == format!("{decider:?}"),
+                } => format!("{actor:?}") == format!("{decider:?}"),
+                _ => false,
+            }
+        }
         _ => false,
     }
 }
@@ -132,6 +134,7 @@ impl Compiler {
         optional: bool,
         out: &mut String,
     ) -> Result<()> {
+        let plain = lane_i::plain_play(operation);
         let Operation::PlayCards {
             actor,
             action,
@@ -139,7 +142,7 @@ impl Compiler {
             count,
             cost,
             into_exile,
-        } = operation
+        } = plain.as_ref().unwrap_or(operation)
         else {
             return Err(gap("play cards"));
         };

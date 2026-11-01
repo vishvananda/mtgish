@@ -902,6 +902,10 @@ impl Compiler {
                 self.moved.insert(result.0, format!("drafted_{id}"));
             }
             Operation::Search { .. } => self.search_zones(id, op, result, out)?,
+            Operation::ChangeZone { .. } => self.change_zone(id, op, result, out)?,
+            Operation::Manifest { .. } => self.manifest(id, op, result, out)?,
+            Operation::MoveTopCard { .. } => self.move_top_card(id, op, result, out)?,
+            Operation::EffectOn { .. } => self.effect_on(id, op, out)?,
             other => return Err(gap(format!("operation {}", form(other)))),
         }
         Ok(())
@@ -1155,6 +1159,197 @@ impl Compiler {
         self.moved.insert(result.0, format!("conjured_{id}"));
         Ok(())
     }
+    /// Cards change zones: all of them, or those the actor or chance picks.
+    fn change_zone(&mut self, id: usize, op: &Operation, result: &ResultId, out: &mut String) -> Result<()> {
+        let unsupported = || gap("operation ChangeZone");
+        let Operation::ChangeZone {
+            actor,
+            cards,
+            count,
+            random,
+            group: None,
+            destination,
+            entry,
+            face_down: None,
+        } = op
+        else {
+            return Err(unsupported());
+        };
+        let (entry, mut destination) = entry_of(entry, destination).ok_or_else(unsupported)?;
+        let held = ResultId(u32::MAX - id as u32);
+        let picked = ObjectSet::Selected(held.clone());
+        let objects = match (count, random) {
+            (None, false) => cards.clone(),
+            (None, true) => {
+                match destination {
+                    Destination::OwnersLibraryBottom | Destination::OwnersLibraryBottomRandom => {}
+                    _ => return Err(unsupported()),
+                }
+                destination = Destination::OwnersLibraryBottomRandom;
+                cards.clone()
+            }
+            (Some(Count::Exactly(n) | Count::AsManyAsCan(n)), true) => {
+                let pool = self.fetch(self.objects(cards)?);
+                let n = self.fetch(self.number(n)?.amount(u32::MAX.into(), "usize")?);
+                writeln!(out, "let mut pool_{id} = {pool}; let count_{id} = {n}; let mut picked_{id}: Vec<ObjectId> = Vec::new(); while picked_{id}.len() < count_{id} && !pool_{id}.is_empty() {{ let at = g.choose_at_random(pool_{id}.len()); picked_{id}.push(pool_{id}.remove(at)); }}").unwrap();
+                self.selections.insert(held.0, format!("picked_{id}"));
+                picked.clone()
+            }
+            (Some(_), true) => return Err(unsupported()),
+            (Some(count), false) => {
+                let PlayerSet::One(player) = actor else {
+                    return Err(unsupported());
+                };
+                let rest = [Instruction::Effect {
+                    result: result.clone(),
+                    operation: Operation::Move {
+                        objects: picked.clone(),
+                        destination: destination.clone(),
+                        entry: entry.clone(),
+                        face_down: false,
+                    },
+                }];
+                let purpose = effects::purpose(&held, &rest).ok_or_else(unsupported)?;
+                self.choose(player, cards, count, &held, purpose, out)?;
+                picked.clone()
+            }
+        };
+        if count.as_ref().is_some_and(effects::one_at_most) {
+            self.single.insert(held.0);
+        }
+        // "Your choice of the top or bottom": `move_objects` asks the owner.
+        let moved = if let (Destination::OwnersLibraryTopOrBottom, PlayerSet::One(player)) =
+            (&destination, actor)
+        {
+            self.chooses_top_or_bottom(id, player, &objects, result, out)
+        } else {
+            let inner = self.fresh();
+            self.move_objects(inner, &objects, &destination, &entry, result, out)
+        };
+        self.selections.remove(&held.0);
+        self.single.remove(&held.0);
+        moved
+    }
+    fn chooses_top_or_bottom(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        objects: &ObjectSet,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let player = self.fetch(self.certain_player(player)?);
+        let objects = self.fetch(self.objects(objects)?);
+        writeln!(self.functions, "static TOP_OR_BOTTOM_{id}: Question = Question::new(\"PutOnTop\", \"put it on top of its owner's library?\", \"If you don't, it goes on the bottom\", \"Top\", \"Bottom\");").unwrap();
+        writeln!(out, "let objects_{id} = {objects}; let player_{id} = {player}; let top_{id} = cantrip_mechanics::effects::ask_may(g, player_{id}, asker.source, Purpose::Ask(&TOP_OR_BOTTOM_{id}))?; let moved_{id} = g.put_into_library(&objects_{id}, if top_{id} {{ LibraryPlace::Top }} else {{ LibraryPlace::Bottom }});").unwrap();
+        self.moved.insert(result.0, format!("moved_{id}"));
+        self.left_behind(result, effects::gone(&format!("objects_{id}")));
+        Ok(())
+    }
+    /// CR 701.40, 701.58: face down as a 2/2. Cards of a library go one at a time
+    /// (701.40c), and each sees the one before it enter.
+    fn manifest(&mut self, id: usize, op: &Operation, result: &ResultId, out: &mut String) -> Result<()> {
+        let Operation::Manifest {
+            actor: PlayerSet::One(actor),
+            source,
+            cloak,
+            entry,
+        } = op
+        else {
+            return Err(gap("operation Manifest"));
+        };
+        let tapped = conjured_tapped(entry).ok_or_else(|| gap("operation Manifest"))?;
+        let how = if *cloak { "FaceDown::Cloaked" } else { "FaceDown::Manifested" };
+        let controller = self.fetch(self.certain_player(actor)?);
+        writeln!(out, "let controller_{id} = {controller};").unwrap();
+        match source {
+            ManifestSource::TopOfLibrary { player, count } => {
+                let owner = self.fetch(self.certain_player(player)?);
+                let count = self.fetch(self.number(count)?.amount(u32::MAX.into(), "usize")?);
+                writeln!(out, "let owner_{id} = {owner}; let count_{id} = {count}; let mut entered_{id}: Vec<ObjectId> = Vec::new(); for _ in 0..count_{id} {{ let Some(&card) = cantrip_mechanics::top_of_library(g, owner_{id}, 1).first() else {{ break; }}; entered_{id}.extend(g.put_onto_battlefield_face_down(card, controller_{id}, {how}, {tapped})?); }}").unwrap();
+                self.moved.insert(result.0, format!("entered_{id}"));
+            }
+            ManifestSource::Cards(cards) => {
+                writeln!(out, "let cards_{id} = {}; let entered_{id}: Vec<ObjectId> = g.put_all_onto_battlefield_face_down(&cards_{id}, controller_{id}, {how}, {tapped})?.into_iter().flatten().collect();", self.fetch(self.objects(cards)?)).unwrap();
+                self.moved.insert(result.0, format!("entered_{id}"));
+                self.left_behind(result, effects::gone(&format!("cards_{id}")));
+            }
+        }
+        Ok(())
+    }
+    /// "Reveal the top card. If it's a land, put it into your hand."
+    fn move_top_card(&mut self, id: usize, op: &Operation, result: &ResultId, out: &mut String) -> Result<()> {
+        let Operation::MoveTopCard {
+            actor: PlayerSet::One(player),
+            cards,
+            reveal,
+            destination,
+            entry,
+        } = op
+        else {
+            return Err(gap("operation MoveTopCard"));
+        };
+        let (entry, destination) =
+            entry_of(entry, destination).ok_or_else(|| gap("operation MoveTopCard"))?;
+        let filter = self.filter(cards, &Candidate::of("id"))?;
+        writeln!(out, "let player_{id} = {}; let top_{id} = cantrip_mechanics::top_of_library(g, player_{id}, 1);", self.fetch(self.certain_player(player)?)).unwrap();
+        if *reveal {
+            writeln!(out, "g.reveal(player_{id}, &top_{id});").unwrap();
+        }
+        writeln!(out, "let matching_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; top_{id}.iter().copied().filter(|&id| {filter}).collect() }};").unwrap();
+        let held = ResultId(u32::MAX - id as u32);
+        self.selections.insert(held.0, format!("matching_{id}"));
+        self.single.insert(held.0);
+        let revealed = std::mem::replace(&mut self.revealed, *reveal);
+        let inner = self.fresh();
+        let objects = ObjectSet::Selected(held.clone());
+        let moved = self.move_objects(inner, &objects, &destination, &entry, result, out);
+        self.revealed = revealed;
+        self.selections.remove(&held.0);
+        self.single.remove(&held.0);
+        moved
+    }
+    /// What the objects get: what the engine has words for, and what it waits on.
+    fn effect_on(&mut self, id: usize, op: &Operation, out: &mut String) -> Result<()> {
+        let unsupported = || gap("operation EffectOn");
+        let Operation::EffectOn {
+            subject,
+            effects,
+            until,
+        } = op
+        else {
+            return Err(unsupported());
+        };
+        if effects
+            .iter()
+            .any(|e| matches!(e, Operand::Term { family, .. } if family == "PerpetualEffect"))
+        {
+            return Err(gap("engine: no perpetual effects"));
+        }
+        let (EffectSubject::Objects(objects), None) = (subject, until) else {
+            return Err(unsupported());
+        };
+        let [Operand::Term { family, form, operands }] = effects.as_slice() else {
+            return Err(unsupported());
+        };
+        match (family.as_str(), form.as_str()) {
+            ("ExiledCardEffect", "IsPlotted") => {
+                writeln!(out, "for card in {} {{ cantrip_mechanics::plot::become_plotted(g, card); }}", self.fetch(self.objects(objects)?)).unwrap();
+            }
+            ("ExiledCardEffect", "AddAbility" | "AddAbilityIfItDoesntHaveIt")
+                if format!("{operands:?}").contains("BasicSuspend") =>
+            {
+                writeln!(out, "let cards_{id} = {};", self.fetch(self.objects(objects)?)).unwrap();
+                self.plan_code(
+                    "exiled card gains suspend",
+                    &format!("for card in cards_{id} {{ cantrip_mechanics::suspend::gains_suspend(g, card); }}"),
+                    out,
+                );
+            }
+            _ => return Err(unsupported()),
+        }
+        Ok(())
+    }
     /// A search past one library: "and/or" (the searcher picks whether the library
     /// is searched), or a list of zones searched one by one, the library last.
     fn search_zones(&mut self, id: usize, op: &Operation, result: &ResultId, out: &mut String) -> Result<()> {
@@ -1243,6 +1438,80 @@ impl Compiler {
         self.selections.insert(result.0, format!("found_{id}"));
         Ok(())
     }
+}
+
+/// `PlayWith` on no terms past what `PlayCards` says, as that.
+pub(super) fn plain_play(op: &Operation) -> Option<Operation> {
+    let Operation::PlayWith {
+        actor,
+        action,
+        cards,
+        count,
+        terms,
+        group: None,
+    } = op
+    else {
+        return None;
+    };
+    let PlayTerms {
+        limit: None,
+        during: None,
+        cost: cost @ (PlayCost::Free | PlayCost::Normal),
+        spend_as: None,
+        into_exile,
+        condition: None,
+        effects,
+        flash: false,
+        may_look: false,
+        then: None,
+        face_down: None,
+    } = terms
+    else {
+        return None;
+    };
+    effects.is_empty().then(|| Operation::PlayCards {
+        actor: actor.clone(),
+        action: action.clone(),
+        cards: cards.clone(),
+        count: count.clone(),
+        cost: cost.clone(),
+        into_exile: *into_exile,
+    })
+}
+
+/// A move's flags as a move's entry and destination.
+fn entry_of(operands: &[Operand], destination: &Destination) -> Option<(EntrySpec, Destination)> {
+    fn read(operands: &[Operand], entry: &mut EntrySpec, destination: &mut Destination) -> Option<()> {
+        for operand in operands {
+            match operand {
+                Operand::List(flags) => read(flags, entry, destination)?,
+                Operand::Term { form, operands, .. } => match (form.as_str(), operands.as_slice()) {
+                    ("EntersNormally", []) => {}
+                    ("EntersTapped", []) => entry.tapped = true,
+                    ("EntersUnderPlayersControl", [Operand::Player(player)]) => {
+                        if !matches!(destination, Destination::OwnersBattlefield) {
+                            return None;
+                        }
+                        *destination = Destination::Battlefield(player.clone());
+                    }
+                    ("EntersAttachedToPermanent", [Operand::Object(host)]) => {
+                        entry.states.push(EntryState::AttachedTo(host.clone()))
+                    }
+                    _ => return None,
+                },
+                _ => return None,
+            }
+        }
+        Some(())
+    }
+    let mut entry = EntrySpec {
+        tapped: false,
+        counters: Vec::new(),
+        states: Vec::new(),
+    };
+    let mut destination = destination.clone();
+    read(operands, &mut entry, &mut destination)?;
+    Some((entry, destination))
 }
 
 /// Whether a conjured permanent enters tapped, if that is all its entry says.

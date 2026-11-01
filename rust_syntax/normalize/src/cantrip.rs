@@ -829,6 +829,18 @@ impl Compiler {
                     constant(maximum).unwrap()
                 )
             }
+            // How many is read as the slot is chosen, and a slot's size is a constant.
+            Count::UpTo(n) => format!(
+                ".between(0, {})",
+                planned::planned_value(
+                    "target cardinality UpTo",
+                    "1u32",
+                    &format!(
+                        "TargetSpec::read_as_chosen(|q: &dyn Query, asker: &Asker| {})",
+                        self.number(n)?.amount(u32::MAX.into(), "u32")?
+                    ),
+                )
+            ),
             other => return Err(gap(format!("target cardinality {}", form(other)))),
         })
     }

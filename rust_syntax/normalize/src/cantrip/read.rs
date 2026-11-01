@@ -400,6 +400,7 @@ impl Compiler {
                 "{}.and_then(|o: ObjectId| q.state().obj(o).attached_player)",
                 self.object(object)?
             ),
+            PlayerRef::Chosen => self.chosen_value(ValueKind::Player)?,
             other => return Err(gap(format!("player reference {}", form(other)))),
         })
     }
@@ -421,6 +422,7 @@ impl Compiler {
             PlayerRef::EventSubject => self.frame.player.is_some(),
             PlayerRef::EventOtherPlayer => self.frame.other_player.is_some(),
             PlayerRef::ControllerOf(object) | PlayerRef::OwnerOf(object) => certain(self, object),
+            PlayerRef::Chosen => self.chosen_local(ValueKind::Player).is_ok(),
             _ => false,
         };
         if is_certain {

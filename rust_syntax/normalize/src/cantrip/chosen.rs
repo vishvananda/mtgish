@@ -171,6 +171,16 @@ impl Compiler {
                     writeln!(out, "entering.chosen_card = Some({local});").unwrap();
                 }
             }
+            ValueKind::Player => {
+                let [Operand::Players(candidates)] = options else {
+                    return Err(gap("a choice of Player"));
+                };
+                let candidates = self.fetch(self.players(candidates)?);
+                writeln!(out, "let player_{id} = {player}; let candidates_{id} = {candidates}; let Some({local}) = {M}::choose::player(g, player_{id}, {source}, candidates_{id}, \"Choose\", 0)? else {{ return Ok(()) }};").unwrap();
+                if entering {
+                    writeln!(out, "entering.chosen_player = Some({local});").unwrap();
+                }
+            }
             other => return Err(gap(format!("a choice of {other:?}"))),
         }
         self.chosen.push((kind, local));
@@ -200,6 +210,7 @@ impl Compiler {
                 "chosen_subtype"
             }
             ValueKind::CardName => "chosen_card",
+            ValueKind::Player => "chosen_player",
             other => return Err(gap(format!("a choice of {other:?} kept on a permanent"))),
         };
         let linked = match self.reader {

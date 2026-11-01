@@ -64,5 +64,29 @@
     "class": "engine",
     "needs": "a color in EntersAs, for a card that enters as a black Zombie or similar in addition to what it is.",
     "api": "EntersAs.colors"
+  },
+  {
+    "match": "^target cardinality UpTo$",
+    "class": "engine",
+    "needs": "a target slot whose most is a number read as the targets are chosen, such as one plus the cards in graveyards: TargetSpec holds a constant, or the announced X.",
+    "api": "TargetSpec::read_as_chosen(|q, asker| n)"
+  },
+  {
+    "match": "^exiled card gains suspend$",
+    "class": "mechanic",
+    "needs": "a card already in exile that gains suspend, with the time counters it was given (CR 702.62): the triggers read CardDef.suspend, which a card without it does not have.",
+    "api": "cantrip_mechanics::suspend::gains_suspend(g, card)"
+  },
+  {
+    "match": "^move to Ante$",
+    "class": "engine",
+    "needs": "the ante zone (CR 407, casual only): a card moved there stays out of play until the ante is settled.",
+    "api": "g.ante(&objects)"
+  },
+  {
+    "match": "^move to CommandZone$",
+    "class": "engine",
+    "needs": "a card moved to the command zone by an effect (CR 408), for commanders and their replacement.",
+    "api": "g.put_into_command_zone(&objects)"
   }
 ]
