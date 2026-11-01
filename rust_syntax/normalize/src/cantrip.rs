@@ -406,7 +406,7 @@ struct Compiler {
     /// What runs once that choice found something, the rest of the block with it.
     chosen_guard: Option<String>,
     /// That guard is open, and the block has to close it.
-    guard_opened: bool,
+    guard_opened: usize,
     /// The target of the announcement being compiled that is the second of "two
     /// target creatures", which the AST keeps as a slot of its own.
     second_of_two: Option<usize>,
@@ -890,7 +890,7 @@ impl Compiler {
             quoted_used: BTreeSet::new(),
             may_choose: false,
             chosen_guard: None,
-            guard_opened: false,
+            guard_opened: 0,
             second_of_two: None,
             whole_mills: Default::default(),
             spell_targets: false,
@@ -1921,7 +1921,7 @@ fn emit_face(
         });
         if let Some(feature) = failure {
             c.reset_after_gap();
-            c.plan_ability(&feature, a);
+            c.plan_ability(&feature, a, &format!("ability_{i}"));
         }
     }
     c.attempt("abilities".into(), |c| {

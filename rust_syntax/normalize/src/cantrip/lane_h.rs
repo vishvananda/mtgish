@@ -682,7 +682,7 @@ impl Compiler {
                     quoted(&form(cost))
                 ),
             ),
-            other => lane_m::duration_more(other)?,
+            other => self.duration_p(other)?,
         })
     }
     /// The test of a "for as long as": `e` is the effect it is about.

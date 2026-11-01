@@ -389,7 +389,11 @@ impl Compiler {
                 }
                 other => match self.set_rule(other) {
                     Some(part) => Some(format!(".together({part})")),
-                    None => return Err(gap(feature)),
+                    None => {
+                        let stated = self.stated_constraints(std::slice::from_ref(other))?;
+                        rule.planned.push((feature, format!(".with_rules({stated})")));
+                        None
+                    }
                 },
             };
             if let Some(together) = together {

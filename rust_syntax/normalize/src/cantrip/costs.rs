@@ -435,6 +435,8 @@ impl Compiler {
             Expr::Constant(n) => u8::try_from(*n).ok(),
             _ => None,
         };
+        let flat = lane_p::flat_modes(selection);
+        let modes = flat.as_ref().unwrap_or(modes);
         // "Choose one. If you control a commander, you may choose both instead."
         let (most, more) = match maximum {
             Expr::Conditional {

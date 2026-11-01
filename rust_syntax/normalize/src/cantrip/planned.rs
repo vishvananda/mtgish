@@ -92,7 +92,7 @@ impl Compiler {
         self.may_choose = false;
         self.do_once = None;
         self.chosen_guard = None;
-        self.guard_opened = false;
+        self.guard_opened = 0;
         self.dividing = None;
         self.asking = None;
         self.repeating = None;
@@ -135,9 +135,19 @@ impl Compiler {
         writeln!(self.holes, "planned_item!({id:?}, {value:?});").unwrap();
     }
     /// An ability with no code: the file keeps its source.
-    pub(super) fn plan_ability(&mut self, feature: &str, ability: &Ability) {
+    pub(super) fn plan_ability(&mut self, feature: &str, ability: &Ability, label: &str) {
         let id = requirement(feature);
-        writeln!(self.holes, "planned_item!({id:?}, {});", source(ability)).unwrap();
+        let gaps = self.gaps.len();
+        let stated = self.state_ability(feature, ability, &format!("{label}_stated"));
+        self.gaps.truncate(gaps);
+        match stated {
+            Some(entries) if !entries.is_empty() => {
+                for (list, code) in entries {
+                    writeln!(self.holes, "planned_item!({id:?} => {list}: {code});").unwrap();
+                }
+            }
+            _ => writeln!(self.holes, "planned_item!({id:?}, {});", source(ability)).unwrap(),
+        }
     }
     /// The code a card will have once `feature` exists in Cantrip. Until then it
     /// is written out but not compiled, and the card waits on the requirement:
@@ -194,6 +204,10 @@ impl Compiler {
         out: &mut String,
     ) {
         let id = requirement(feature);
+        if let Some(code) = self.state_instruction(feature, instruction) {
+            writeln!(out, "planned!({id:?} => {code});").unwrap();
+            return;
+        }
         let value = serde_json::to_value(instruction).unwrap_or_default();
         let (form, fields) = match instruction {
             Instruction::Effect { .. } => (

@@ -271,8 +271,24 @@ impl Compiler {
     }
     /// Whether these objects are, or may be, cards from outside the game.
     pub(super) fn from_outside(&self, objects: &ObjectSet) -> bool {
-        let chosen = matches!(objects, ObjectSet::Selected(result) if self.notes.outside.contains(&result.0));
-        chosen || format!("{objects:?}").contains("OutsideTheGame")
+        match objects {
+            ObjectSet::OutsideTheGame(_) => true,
+            ObjectSet::Selected(result) => self.notes.outside.contains(&result.0),
+            ObjectSet::Union(sets) => sets.iter().any(|set| self.from_outside(set)),
+            ObjectSet::Matching { objects, .. }
+            | ObjectSet::Difference { objects, .. }
+            | ObjectSet::Take { objects, .. }
+            | ObjectSet::InZone { objects, .. }
+            | ObjectSet::Random { objects, .. }
+            | ObjectSet::Chosen { objects, .. }
+            | ObjectSet::One(ObjectRef::Query { objects, .. }) => self.from_outside(objects),
+            _ => false,
+        }
+    }
+    /// A choice between a card from outside the game and a card elsewhere: Karn
+    /// and Coax reveal the former, which the row does not say.
+    pub(super) fn outside_shown(&self, objects: &ObjectSet) -> bool {
+        matches!(objects, ObjectSet::Selected(result) if self.notes.outside_shown.contains(&result.0))
     }
     /// What `choose_value_rest` leaves.
     #[allow(clippy::too_many_arguments)]
@@ -464,6 +480,9 @@ impl Compiler {
                     self.player(by)?
                 ),
             ),
+            // What the effect around this one applies to, which no local holds here.
+            ObjectRef::Affected => held_object(&feature, "asker.affected()"),
+            ObjectRef::Bound(binding) => held_object(&feature, &format!("bound_{}", binding.0)),
             other => return Err(gap(format!("object reference {}", form(other)))),
         })
     }
@@ -480,6 +499,11 @@ impl Compiler {
             // CR 400.11: only what the sideboard holds is outside a match.
             ObjectSet::OutsideTheGame(filter) if self.reader != Reader::Layer => {
                 keep(filter, "q.outside_the_game(asker.controller)".into())?
+            }
+            // "Spells you've cast this turn": a spell gone from the stack is no
+            // object to look for, and the row has lost the turn.
+            ObjectSet::AnyZone(ObjectFilter::Cast { .. }) => {
+                return Err(gap("spells cast at no stated time"));
             }
             ObjectSet::AnyZone(filter) => keep(
                 filter,
@@ -533,6 +557,41 @@ impl Compiler {
                     self.object(of)?
                 ),
             ),
+            // "Each player exiles ..., then puts all cards they exiled this way
+            // ...": a player's share of a walk over the players.
+            ObjectSet::MovedBy {
+                result,
+                phase,
+                player,
+            } => {
+                let list = self.transition(result, phase)?;
+                let player = self.player(player)?;
+                match self.notes.own.contains(&result.0) {
+                    true => format!("({list}).into_iter().filter(|&o: &ObjectId| Some(q.state().obj(o).owner) == {player}).collect::<Vec<ObjectId>>()"),
+                    false => held_objects(&feature, &format!("q.moved_by({list}, {player})")),
+                }
+            }
+            ObjectSet::Unselected(result) => held_objects(
+                &feature,
+                &format!("q.not_chosen({})", self.selected(result)?),
+            ),
+            ObjectSet::FromHistory { event, window } => {
+                let scope = match window {
+                    HistoryWindow::ThisTurn => "q.history().this_turn().iter()".to_string(),
+                    HistoryWindow::ThisGame => "q.history().all().iter()".to_string(),
+                    HistoryWindow::LastTurn => "q.history().all().iter().filter(|r| r.turn + 1 == q.state().turn.number)".to_string(),
+                    HistoryWindow::ThisCombat => format!("{M}::history::this_combat(q).iter()"),
+                    other => self.history_window_to_come(other)?,
+                };
+                let mut asked = self.clone();
+                asked.history = Some(History {
+                    outer: self.candidates.borrow().last().map(|c| c.id.clone()),
+                    event_at: self.event_at,
+                    frame: self.frame,
+                });
+                let matched = asked.event(event)?;
+                held_objects(&feature, &format!("{scope}.filter_map({}).filter_map(|f: Fired| f.subject.object()).collect::<Vec<ObjectId>>()", matched.history_test()))
+            }
             other => return Err(gap(format!("object collection {}", form(other)))),
         })
     }
@@ -686,6 +745,18 @@ impl Compiler {
             Expr::TurnsSinceForetold => {
                 held_number(feature, "q.turns_since_foretold(asker.source)")
             }
+            // A number compared with "1 or 2": equal to one of them.
+            Expr::AnyOf(values) => {
+                let mut each = Vec::new();
+                for value in values {
+                    each.push(self.number(value)?.code);
+                }
+                held_number(feature, &format!("{M}::numbers::AnyOf(&[{}])", each.join(", ")))
+            }
+            Expr::ModesChosen(object) => held_number(
+                feature,
+                &format!("{}.map_or(0, |o: ObjectId| q.modes_chosen(o))", self.object(object)?),
+            ),
             other => return Err(gap(format!("numeric expression {}", form(other)))),
         })
     }
@@ -968,6 +1039,20 @@ impl Compiler {
                     &self.number(value)?.code,
                 ),
             ),
+            ObjectFilter::WasAttachedTo(host) => held(
+                &feature,
+                &format!("{}.is_some_and(|host: ObjectId| q.was_attached_to({id}, host))", self.object(host)?),
+            ),
+            ObjectFilter::AbilityOf(source) => held(
+                &feature,
+                &format!(
+                    "q.source_of_ability({id}).is_some_and(|id: ObjectId| {})",
+                    self.filter(source, &Candidate::of("id"))?
+                ),
+            ),
+            ObjectFilter::ChosenFilter => {
+                held(&feature, &format!("q.state().chosen_filter(asker.source).is_some_and(|f| f(q, asker, {id}))"))
+            }
             other => return Err(gap(format!("object filter {}", form(other)))),
         })
     }
@@ -1251,8 +1336,11 @@ impl Compiler {
         if announcement.modes.is_none() {
             return Ok(None);
         }
-        let name = self.modal(announcement, label, None)?;
-        Ok(Some(name))
+        // Each mode is a body of its own, compiled amid this one.
+        let scope = self.results();
+        let name = self.modal(announcement, label, None);
+        self.restore_results(scope);
+        Ok(Some(name?))
     }
     /// A spell's second body, as "... Then ..." after its modes or its branches.
     pub(super) fn later_spell(
@@ -1741,6 +1829,12 @@ pub(super) fn sharing_p(property: &DistinctProperty) -> Result<&'static str> {
         DistinctProperty::PermanentTypes => {
             "a.types.iter().any(|t| matches!(t, CardType::Artifact | CardType::Battle | CardType::Creature | CardType::Enchantment | CardType::Land | CardType::Planeswalker) && b.types.has(t))"
         }
+        DistinctProperty::ManaValues => {
+            "planned_value!(\"sharing ManaValues\", false => a.mana_value() == b.mana_value())"
+        }
+        DistinctProperty::ManaCosts => {
+            "planned_value!(\"sharing ManaCosts\", false => a.mana_cost() == b.mana_cost())"
+        }
         other => return Err(gap(format!("sharing {other:?}"))),
     })
 }
@@ -1766,4 +1860,703 @@ pub(super) fn property_p(property: &Property, id: &str) -> Result<Number> {
         Property::ExiledCount => held(format!("q.exiled_with(q.linked_to(&Asker::of({id}))).len() as i64")),
         other => return Err(gap(format!("numeric object property {}", form(other)))),
     })
+}
+
+/// `AuraSwamp` as a module's name: `aura_swamp`.
+fn snake(word: &str) -> String {
+    let mut out = String::new();
+    for (i, c) in word.chars().enumerate() {
+        if c.is_ascii_uppercase() && i > 0 {
+            out.push('_');
+        }
+        out.push(c.to_ascii_lowercase());
+    }
+    out
+}
+
+/// "Target permanent or suspended card" in a "choose one": a choice of target
+/// inside a mode is that many modes among those of the card (CR 700.2).
+pub(super) fn flat_modes(selection: &ModeSelection) -> Option<Vec<Mode>> {
+    let one = |n: &Expr| matches!(n, Expr::Constant(1));
+    let inner = |mode: &Mode| match &mode.announcement.modes {
+        Some(inner) if one(&inner.minimum) && one(&inner.maximum) && !inner.random => {
+            Some(inner.modes.clone())
+        }
+        _ => None,
+    };
+    if !one(&selection.minimum) || !one(&selection.maximum) || selection.random {
+        return None;
+    }
+    if !selection.modes.iter().any(|mode| inner(mode).is_some()) {
+        return None;
+    }
+    let mut flat = Vec::new();
+    for mode in &selection.modes {
+        match inner(mode) {
+            Some(modes) if mode.announcement.targets.is_empty() && mode.body.instructions.is_empty() => {
+                flat.extend(modes)
+            }
+            Some(_) => return None,
+            None => flat.push(mode.clone()),
+        }
+    }
+    Some(flat)
+}
+
+impl Compiler {
+    /// `read`, as a question asked of the game rather than of a resolution.
+    fn asked<T>(&mut self, read: impl FnOnce(&mut Self) -> Result<T>) -> Result<T> {
+        let saved = (self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+        let read = read(self);
+        (self.reader, self.event_at) = saved;
+        read
+    }
+    /// A target of the ability this one came from: a delayed ability's item has
+    /// no such slot, and what it remembers is still to come.
+    pub(super) fn target_gone(&self, object: &ObjectRef) -> Option<String> {
+        let ObjectRef::Target { slot, index } = object else {
+            return None;
+        };
+        let gone = self.reader == Reader::Resolution && self.stack_item && !self.slots.contains_key(&slot.0);
+        gone.then(|| {
+            planned::planned_value(
+                "target reference",
+                "None::<ObjectId>",
+                &format!("item.remembered_target({}, {index})", slot.0),
+            )
+        })
+    }
+    pub(super) fn targets_gone(&self, objects: &ObjectSet) -> Option<String> {
+        match objects {
+            ObjectSet::One(object) => self
+                .target_gone(object)
+                .map(|one| format!("{one}.into_iter().collect::<Vec<ObjectId>>()")),
+            ObjectSet::Targets(slot) => {
+                let gone = self.reader == Reader::Resolution && self.stack_item && !self.slots.contains_key(&slot.0);
+                gone.then(|| {
+                    planned::planned_value(
+                        "target reference",
+                        "Vec::<ObjectId>::new()",
+                        &format!("item.remembered_targets({})", slot.0),
+                    )
+                })
+            }
+            _ => None,
+        }
+    }
+    /// What happened to an object that the history keeps no record of yet.
+    pub(super) fn object_history_p(
+        &self,
+        event: &ObjectHistory,
+        id: &str,
+        window: &ObjectWindow,
+    ) -> Result<String> {
+        use ObjectHistory as H;
+        let feature = format!("object filter History {}", form(event));
+        let word = snake(&form(event));
+        let about = match event {
+            H::AttackedDefender(filter) | H::Enlisted(filter) => format!(
+                ", |q: &dyn Query, id: ObjectId| {}",
+                self.filter(filter, &Candidate::of("id"))?
+            ),
+            H::ExiledFromGraveyard(players) => format!(", {}", self.players(players)?),
+            H::TappedToPayFor(object) => format!(", {}", self.object(object)?),
+            H::CountersPutBy { .. } => String::new(),
+            _ => String::new(),
+        };
+        let during = self.object_window(window)?;
+        Ok(planned::planned_value(
+            &feature,
+            "false",
+            &format!("cantrip_mechanics::history::{word}({during}, {id}{about})"),
+        ))
+    }
+    /// A stretch of history with no word yet.
+    pub(super) fn object_window_p(&self, window: &ObjectWindow) -> Result<String> {
+        let feature = format!("history window {}", form(window));
+        let code = match window {
+            ObjectWindow::SinceLastTurnOf(player) => {
+                format!("cantrip_mechanics::history::since_last_turn_of(q, {}).iter()", self.player(player)?)
+            }
+            ObjectWindow::LastCombatOf(player) => {
+                format!("cantrip_mechanics::history::last_combat_of(q, {}).iter()", self.player(player)?)
+            }
+            ObjectWindow::SinceLastUpkeepOf(player) => {
+                format!("cantrip_mechanics::history::since_last_upkeep_of(q, {}).iter()", self.player(player)?)
+            }
+            other => return Err(gap(format!("history window {}", form(other)))),
+        };
+        Ok(planned::planned_value(&feature, "q.history().all().iter()", &code))
+    }
+    /// A number the game works out when it is needed.
+    fn number_fn(&mut self, number: &Expr) -> Result<String> {
+        let code = self.asked(|c| Ok(c.number(number)?.code))?;
+        Ok(format!("|q: &dyn Query, asker: &Asker| -> i64 {{ {code} }}"))
+    }
+    /// A filter the game asks of objects when it is needed.
+    fn filter_fn(&mut self, filter: &ObjectFilter) -> Result<String> {
+        let code = self.asked(|c| c.filter(filter, &Candidate::of("id")))?;
+        Ok(format!("|q: &dyn Query, asker: &Asker, id: ObjectId| -> bool {{ {code} }}"))
+    }
+    /// A condition the game asks when it is needed.
+    fn condition_fn(&mut self, condition: &Condition) -> Result<String> {
+        let code = self.asked(|c| c.condition(condition))?;
+        Ok(format!("|q: &dyn Query, asker: &Asker| -> bool {{ {code} }}"))
+    }
+    /// What a keyword with a number the game works out, or a mana cost with an
+    /// {X} of its own, will be in the card's lists.
+    fn mechanic_entry(
+        &mut self,
+        mechanic: Mechanic,
+        cost: Option<&Cost>,
+        amount: Option<&Expr>,
+        filter: Option<&ObjectFilter>,
+        label: &str,
+    ) -> Result<(&'static str, String)> {
+        use Mechanic as K;
+        let name = format!("{mechanic:?}");
+        let module = snake(name.trim_end_matches('X'));
+        let word = quoted(&self.said_word(name.clone()));
+        let open = || gap(format!("engine: no {mechanic:?}"));
+        let amount_fn = |c: &mut Self| -> Result<String> { c.number_fn(amount.ok_or_else(open)?) };
+        let price = |c: &mut Self| c.mechanic_cost(cost, mechanic, label);
+        Ok(match mechanic {
+            K::Firebending | K::Mobilize => (
+                "abilities",
+                format!("{M}::{module}::trigger_by({}, {word})", amount_fn(self)?),
+            ),
+            K::AnnihilatorX | K::Bushido | K::Soulshift => (
+                "abilities",
+                format!(
+                    "{M}::triggers::{}_by({}, {word})",
+                    snake(name.trim_end_matches('X')),
+                    amount_fn(self)?
+                ),
+            ),
+            // Modular—Sunburst: as many counters as colors of mana were spent.
+            K::Modular => match amount {
+                Some(Expr::ManaSpent { .. }) => {
+                    ("abilities", format!("{M}::modular::sunburst({word})"))
+                }
+                _ => ("abilities", format!("{M}::modular::ability_by({}, {word})", amount_fn(self)?)),
+            },
+            K::Reinforce => (
+                "abilities",
+                format!("{M}::reinforce::ability_x({}, {word})", price(self)?),
+            ),
+            K::BestowX | K::FreerunningX | K::SurgeX | K::WarpX => (
+                "ways",
+                format!("{M}::{module}::way_x({}, {word})", price(self)?),
+            ),
+            K::ForetellX => (
+                "abilities",
+                format!("{M}::foretell::ability_x({})", price(self)?),
+            ),
+            K::CommanderNinjutsu => (
+                "abilities",
+                format!("{M}::ninjutsu::commander_ability({}, {word})", price(self)?),
+            ),
+            K::EmergeFromArtifact => (
+                "ways",
+                format!("{M}::emerge::from_artifact({}, {word})", price(self)?),
+            ),
+            K::AuraSwamp => (
+                "abilities",
+                format!("{M}::aura_swap::ability({}, {word})", price(self)?),
+            ),
+            K::Equip => {
+                let filter = self.filter_fn(filter.ok_or_else(open)?)?;
+                let price = price(self)?;
+                ("abilities", format!("{M}::equip::ability_onto({price}, {filter}, {word})"))
+            }
+            K::TrampleOverPlaneswalkers => ("keywords", "Keyword::TrampleOverPlaneswalkers".into()),
+            K::BasicMayhem => ("ways", format!("{M}::mayhem::land_way({word})")),
+            K::SpaceSculptor => ("abilities", format!("{M}::space_sculptor::ABILITY")),
+            K::CasualtyX => (
+                "optional_cost",
+                format!("Some({M}::casualty::optional_x())"),
+            ),
+            // "Devour X, where X is the number of creatures devoured this way."
+            K::Devour => match amount {
+                Some(Expr::Earlier {
+                    what: EarlierObjects::Devoured,
+                    ..
+                }) => ("enters", format!("{M}::devour::enters_by(|devoured: u32| devoured)")),
+                _ => return Err(open()),
+            },
+            _ => return Err(open()),
+        })
+    }
+    /// The entries an ability makes, whatever lists they go in.
+    fn entries_of(&mut self, ability: &Ability, label: &str) -> Result<Vec<(&'static str, String)>> {
+        let mut parts = Parts::default();
+        self.ability(ability, label, &mut parts, None)?;
+        let mut entries = Vec::new();
+        for (list, each) in [
+            ("keywords", parts.keywords),
+            ("abilities", parts.abilities),
+            ("statics", parts.statics),
+            ("replacements", parts.replacements),
+            ("preventions", parts.preventions),
+            ("enters", parts.enters),
+            ("block_rules", parts.block_rules),
+            ("block_requirements", parts.block_requirements),
+            ("attack_rules", parts.attack_rules),
+            ("untap_bans", parts.untap_bans),
+        ] {
+            entries.extend(each.into_iter().map(|entry| (list, entry)));
+        }
+        for (list, each) in parts.tables {
+            entries.extend(each.into_iter().map(|entry| (list, entry)));
+        }
+        Ok(entries)
+    }
+    /// The entries a failed ability will be, where all of what it says can be
+    /// stated: `plan_ability` writes these in the place of its source.
+    pub(super) fn state_ability(
+        &mut self,
+        feature: &str,
+        ability: &Ability,
+        label: &str,
+    ) -> Option<Vec<(&'static str, String)>> {
+        match ability {
+            Ability::Mechanic {
+                mechanic,
+                cost,
+                amount,
+                filter,
+            } => {
+                let entry =
+                    self.mechanic_entry(*mechanic, cost.as_ref(), amount.as_ref(), filter.as_ref(), label);
+                self.dividing = None;
+                entry.ok().map(|entry| vec![entry])
+            }
+            // "This has annihilator X": what it says of itself.
+            Ability::Static {
+                affected: EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
+                changes,
+                ..
+            } => match changes.as_slice() {
+                [Change::GrantAbility(granted)] => self.state_ability(feature, granted, label),
+                _ => None,
+            },
+            // "Creature spells you cast have sticker kicker {1}."
+            Ability::Static {
+                affected: EffectSubjects::Objects(ObjectSet::Zone { filter, .. }),
+                changes,
+                ..
+            } => match changes.as_slice() {
+                [Change::GrantAbility(granted)] => {
+                    let Ability::Mechanic { mechanic, cost, .. } = &**granted else {
+                        return None;
+                    };
+                    let filter = self.filter_fn(filter).ok()?;
+                    let price = self.mechanic_cost(cost.as_ref(), *mechanic, label).ok()?;
+                    let module = snake(&format!("{mechanic:?}"));
+                    Some(vec![(
+                        "statics",
+                        format!("{M}::{module}::spells_have({filter}, {price})"),
+                    )])
+                }
+                _ => None,
+            },
+            Ability::Scoped {
+                zones,
+                condition,
+                ability,
+            } => {
+                let zones = zones.iter().map(|z| format!("EventZone::{z:?}")).collect::<Vec<_>>();
+                let test = match condition {
+                    Some(condition) => format!("Some({})", self.condition_fn(condition).ok()?),
+                    None => "None".to_string(),
+                };
+                let entries = self.entries_of(ability, label).ok()?;
+                let zones = zones.join(", ");
+                Some(
+                    entries
+                        .into_iter()
+                        .map(|(list, entry)| {
+                            (list, format!("{M}::zones::scoped(&[{zones}], {test}, {entry})"))
+                        })
+                        .collect(),
+                )
+            }
+            Ability::Conditional {
+                condition,
+                then,
+                otherwise,
+            } if otherwise.is_empty() => {
+                let test = self.condition_fn(condition).ok()?;
+                let mut entries = Vec::new();
+                for (i, ability) in then.iter().enumerate() {
+                    let label = format!("{label}_then_{i}");
+                    for (list, entry) in self.state_or_entries(feature, ability, &label)? {
+                        entries.push((list, format!("{M}::zones::when({test}, {entry})")));
+                    }
+                }
+                Some(entries)
+            }
+            Ability::Enchant {
+                hosts: EnchantHosts::GraveyardCards { filter, owners },
+            } => {
+                let filter = self.filter_fn(filter).ok()?;
+                let owners = self.asked(|c| c.player_in(owners, "owner")).ok()?;
+                Some(vec![(
+                    "enchant",
+                    format!("Some(cantrip_mechanics::targets::graveyard_card(|q: &dyn Query, asker: &Asker, owner: PlayerId| {owners}, {filter}))"),
+                )])
+            }
+            _ => None,
+        }
+    }
+    fn state_or_entries(
+        &mut self,
+        feature: &str,
+        ability: &Ability,
+        label: &str,
+    ) -> Option<Vec<(&'static str, String)>> {
+        match self.entries_of(ability, label) {
+            Ok(entries) => Some(entries),
+            Err(_) => self.state_ability(feature, ability, label),
+        }
+    }
+    /// What the rest of a counter removal needs: the arms Cantrip has a call for
+    /// come first, then what is stated.
+    pub(super) fn removal_rest(
+        &mut self,
+        id: usize,
+        i: usize,
+        removal: &CounterRemoval,
+        out: &mut String,
+    ) -> Result<()> {
+        let objects = format!("objects_{id}_{i}");
+        let player = self.fetch(self.certain_player(&removal.player)?);
+        let kind = match &removal.kind {
+            Some(kind) => format!("Some({})", counter_kind(kind)?),
+            None => "None".to_string(),
+        };
+        let (feature, amount) = match &removal.amount {
+            CounterAmount::AmongThem(count) => (
+                format!("counter removal {}", form(&removal.amount)),
+                format!("RemovedCounters::AmongThem({})", self.select_count(count)?),
+            ),
+            CounterAmount::Count(count) => {
+                let feature = match removal.kind {
+                    Some(_) => format!("counter removal {}", form(&removal.amount)),
+                    None => "counters of a kind chosen as the effect resolves".to_string(),
+                };
+                (feature, format!("RemovedCounters::Each({})", self.select_count(count)?))
+            }
+            CounterAmount::All => return Err(gap("counter removal All")),
+        };
+        let code = format!("removed_{id} += i64::from({M}::effects::remove_chosen_counters(g, {player}, asker.source, &{objects}, {kind}, {amount})?);");
+        self.plan_code(&feature, &code, out);
+        Ok(())
+    }
+    /// The code of a failed instruction, every operand of it in its place, for
+    /// `plan_instruction` to write where the operation has no generator arm.
+    pub(super) fn state_instruction(
+        &mut self,
+        feature: &str,
+        instruction: &Instruction,
+    ) -> Option<String> {
+        let Instruction::Effect { operation, .. } = instruction else {
+            return None;
+        };
+        self.state_operation(feature, operation).ok()
+    }
+    fn stated_players(&self, players: &PlayerSet) -> Result<String> {
+        Ok(self.fetch(self.players(players)?))
+    }
+    pub(super) fn stated_operands(&mut self, operands: &[Operand]) -> String {
+        let mut each = Vec::new();
+        for operand in operands {
+            each.push(self.operand_code(operand));
+        }
+        format!("&[{}]", each.join(", "))
+    }
+    fn state_operation(&mut self, feature: &str, operation: &Operation) -> Result<String> {
+        let source = "asker.source";
+        let refused = || gap(feature.to_string());
+        Ok(match operation {
+            Operation::Keyword {
+                actor,
+                action: KeywordAction::Earthbend,
+                object: Some(object),
+                amount: Some(amount),
+                ..
+            } => {
+                let actors = self.stated_players(actor)?;
+                let object = self.fetch(self.object(object)?);
+                let amount = self.fetch(self.number(amount)?.amount(i16::MAX.into(), "i16")?);
+                format!("for player in {actors} {{ if let Some(land) = {object} {{ {M}::earthbend::earthbend(g, player, land, {amount}, item)?; }} }}")
+            }
+            Operation::Keyword {
+                actor,
+                action: KeywordAction::TakeExtraTurn,
+                amount: Some(Expr::HeadsFlipped(result)),
+                ..
+            } => {
+                let actors = self.stated_players(actor)?;
+                let heads = self.flips.get(&result.0).cloned().unwrap_or_else(|| format!("result_{}", result.0));
+                format!("for player in {actors} {{ for _ in 0..{heads}.iter().filter(|won| **won).count() {{ g.take_extra_turn(player); }} }}")
+            }
+            Operation::Intensify { cards, owner } => {
+                let test = match cards {
+                    ObjectFilter::Subtype(word) => format!("|q: &dyn Query, asker: &Asker, id: ObjectId| -> bool {{ q.chars(id).has_subtype(Subtype::{word:?}) }}"),
+                    other => self.filter_fn(other)?,
+                };
+                let owner = self.fetch(self.certain_player(owner)?);
+                format!("{M}::intensity::intensify_all(g, {owner}, {test})")
+            }
+            Operation::ChooseAction {
+                actor,
+                options,
+                villainous,
+            } => {
+                let actors = self.stated_players(actor)?;
+                let options = self.stated_operands(options);
+                format!("{M}::choose::action(g, item, {actors}, {options}, {villainous})?")
+            }
+            Operation::ChoosePile {
+                actor,
+                from,
+                random,
+                names,
+                object,
+                then,
+            } => {
+                let actors = self.stated_players(actor)?;
+                let from = match from {
+                    Some(players) => format!("Some({})", self.stated_players(players)?),
+                    None => "None".to_string(),
+                };
+                let object = match object {
+                    Some(object) => self.fetch(self.object(object)?),
+                    None => "None".to_string(),
+                };
+                let then = match then {
+                    Some(destination) => format!("Some({})", self.destination_code(destination)?),
+                    None => "None".to_string(),
+                };
+                format!("{M}::piles::choose_pile(g, {source}, {actors}, {from}, {object}, &{names:?}, {random}, {then})?")
+            }
+            Operation::ChooseDefender { actor, attacker } => {
+                let actors = self.stated_players(actor)?;
+                let attacker = self.fetch(self.certain_player(attacker)?);
+                format!("{M}::combat::choose_defender(g, {source}, {actors}, {attacker})?")
+            }
+            Operation::EachNumber { from, to, action } => {
+                let from = self.fetch(self.number(from)?.code);
+                let to = self.fetch(self.number(to)?.code);
+                let action = self.state_operation(feature, action)?;
+                format!("for number in {from}..={to} {{ {action}; }}")
+            }
+            Operation::EachObject { objects, action } => {
+                let objects = self.fetch(self.objects(objects)?);
+                let saved = self.affected_object.replace("bound");
+                let action = self.state_operation(feature, action);
+                self.affected_object = saved;
+                format!("for bound in {objects} {{ {}; }}", action?)
+            }
+            Operation::MoveCounters {
+                actor,
+                from,
+                to,
+                kind,
+                amount,
+            } => {
+                let actors = self.stated_players(actor)?;
+                let from = self.fetch(self.objects(from)?);
+                let to = self.fetch(self.objects(to)?);
+                let kind = match kind {
+                    Some(kind) => format!("Some({})", counter_kind(kind)?),
+                    None => "None".to_string(),
+                };
+                let amount = match amount {
+                    MovedCounters::One => "MovedCounters::One".to_string(),
+                    MovedCounters::All => "MovedCounters::All".to_string(),
+                    MovedCounters::AnyNumber => "MovedCounters::AnyNumber".to_string(),
+                    MovedCounters::OneOfEachKindMissing => "MovedCounters::OneOfEachKindMissing".to_string(),
+                    MovedCounters::Exactly(n) => format!("MovedCounters::Exactly({})", self.fetch(self.number(n)?.code)),
+                    MovedCounters::AtLeast(n) => format!("MovedCounters::AtLeast({})", self.fetch(self.number(n)?.code)),
+                };
+                format!("{M}::counters::move_counters(g, {source}, {actors}, {from}, {to}, {kind}, {amount})?")
+            }
+            Operation::PutCountersEach {
+                amount,
+                kind,
+                objects,
+                up_to,
+            } => {
+                let objects = self.fetch(self.objects(objects)?);
+                let amount = self.fetch(self.number(amount)?.amount(i16::MAX.into(), "i16")?);
+                format!("{M}::counters::put_on_each(g, {source}, {objects}, {}, {amount}, {up_to})?", counter_kind(kind)?)
+            }
+            Operation::RevealUntilGroup {
+                library,
+                constraints,
+            } => {
+                let library = self.fetch(self.certain_player(library)?);
+                let rule = self.stated_constraints(constraints)?;
+                format!("let revealed = {M}::library::reveal_until_group(g, {library}, {source}, {rule})?")
+            }
+            Operation::RevealUntil {
+                library,
+                filter,
+                count,
+                at_most,
+            } => {
+                let library = self.fetch(self.certain_player(library)?);
+                let filter = self.filter_fn(filter)?;
+                let count = self.fetch(self.number(count)?.code);
+                let most = match at_most {
+                    Some(n) => format!("Some({})", self.fetch(self.number(n)?.code)),
+                    None => "None".to_string(),
+                };
+                format!("let revealed = {M}::library::reveal_until_or(g, {library}, {source}, {filter}, {count}, {most})?")
+            }
+            Operation::SetX { object, value } => {
+                let object = self.fetch(self.object(object)?);
+                let value = self.fetch(self.number(value)?.code);
+                format!("if let Some(spell) = {object} {{ g.set_x(spell, {value}); }}")
+            }
+            Operation::ChooseObjects {
+                player,
+                objects,
+                count,
+                constraints,
+            } => {
+                let player = self.fetch(self.certain_player(player)?);
+                let objects = self.fetch(self.objects(objects)?);
+                let count = self.fetch(self.select_count(count)?);
+                let rules = self.stated_constraints(constraints)?;
+                format!("{M}::choose::select_with(g, {player}, {source}, {objects}, {count}, {rules})?")
+            }
+            Operation::Search {
+                player,
+                library,
+                top,
+                choices,
+                also,
+                either,
+                outside,
+            } => {
+                let player = self.fetch(self.certain_player(player)?);
+                let library = self.fetch(self.certain_player(library)?);
+                let top = match top {
+                    Some(n) => format!("Some({})", self.fetch(self.number(n)?.code)),
+                    None => "None".to_string(),
+                };
+                let mut finds = Vec::new();
+                for choice in choices {
+                    let filter = self.filter_fn(&choice.filter)?;
+                    let count = self.fetch(self.select_count(&choice.count)?);
+                    let rules = self.stated_constraints(&choice.constraints)?;
+                    finds.push(format!("Find {{ filter: {filter}, count: {count}, rules: {rules} }}"));
+                }
+                let also: Vec<String> = also.iter().map(|z| format!("EventZone::{z:?}")).collect();
+                format!("{M}::library::search_for(g, {source}, {player}, {library}, {top}, &[{}], &[{}], {either}, {outside})?", finds.join(", "), also.join(", "))
+            }
+            Operation::Shuffle { players, excluding } => {
+                let players = self.stated_players(players)?;
+                let excluding = match excluding {
+                    Some(objects) => self.fetch(self.objects(objects)?),
+                    None => "Vec::new()".to_string(),
+                };
+                format!("for player in {players} {{ {M}::library::shuffle_around(g, player, &{excluding}); }}")
+            }
+            Operation::Counter { objects, destination } => {
+                let spells = self.fetch(self.objects(objects)?);
+                format!("{M}::effects::counter_onto(g, {source}, {spells}, CounterDestination::{destination:?})?")
+            }
+            Operation::ChooseValue {
+                actor,
+                kind,
+                count,
+                options,
+            } => {
+                let actors = self.stated_players(actor)?;
+                let options = self.stated_operands(options);
+                format!("{M}::choose::value(g, {source}, {actors}, ChoiceKind::{kind:?}, {count}, {options})?")
+            }
+            Operation::ChooseAtRandom { kind, options } => {
+                let options = self.stated_operands(options);
+                format!("{M}::choose::at_random(g, {source}, ChoiceKind::{kind:?}, {options})?")
+            }
+            _ => return Err(refused()),
+        })
+    }
+    /// What selection constraints say, for code that is stated.
+    pub(super) fn stated_constraints(&mut self, constraints: &[SelectionConstraint]) -> Result<String> {
+        let mut rules = Vec::new();
+        for constraint in constraints {
+            rules.push(match constraint {
+                SelectionConstraint::TotalProperty {
+                    property,
+                    comparison,
+                    amount,
+                } => format!(
+                    "SelectionRule::Total(Property::{}, Comparison::{}, {})",
+                    form(property),
+                    form(comparison),
+                    self.fetch(self.number(amount)?.code)
+                ),
+                SelectionConstraint::CommonProperty(property)
+                | SelectionConstraint::NoCommonProperty(property) => {
+                    format!("SelectionRule::{}(Property::{property:?})", form(constraint))
+                }
+                SelectionConstraint::NamedAfterOneEach(objects) => format!(
+                    "SelectionRule::NamedAfterOneEach({})",
+                    self.fetch(self.objects(objects)?)
+                ),
+                SelectionConstraint::OneForEach(filters) => {
+                    let mut each = Vec::new();
+                    for filter in filters {
+                        each.push(self.filter_fn(filter)?);
+                    }
+                    format!("SelectionRule::OneForEach(&[{}])", each.join(", "))
+                }
+                SelectionConstraint::CanMoveTo { destination, .. } => format!(
+                    "SelectionRule::CanMoveTo({})",
+                    self.destination_code(destination)?
+                ),
+                other => format!("SelectionRule::{}", form(other)),
+            });
+        }
+        Ok(format!("&[{}]", rules.join(", ")))
+    }
+    /// The durations with no word yet.
+    pub(super) fn duration_p(&mut self, duration: &crate::ir::Duration) -> Result<String> {
+        use crate::ir::Duration as D;
+        let feature = format!("duration {}", form(duration));
+        let later = "Duration::Indefinite";
+        let code = match duration {
+            D::ExtraTurn(result) => {
+                let turn = self.performed.get(&result.0).cloned().unwrap_or_else(|| format!("result_{}", result.0));
+                format!("Duration::ExtraTurn({turn})")
+            }
+            D::UntilNext { point, players } => format!(
+                "Duration::UntilNext(TurnPoint::{}, {})",
+                form(point),
+                self.fetch(self.players(players)?)
+            ),
+            D::ThroughNextTurn => "Duration::ThroughNextTurn".to_string(),
+            D::WhileControlled { player, object } => format!(
+                "Duration::WhileControlledBy({}, {})",
+                self.fetch(self.certain_player(player)?),
+                self.fetch(self.object(object)?)
+            ),
+            D::WhileMatches { object, filter } => format!(
+                "Duration::WhileMatches({}, {})",
+                self.fetch(self.object(object)?),
+                self.filter_fn(filter)?
+            ),
+            D::While(condition) => format!("Duration::While({})", self.condition_fn(condition)?),
+            D::WhileItMatches(filter) => format!("Duration::WhileItMatches({})", self.filter_fn(filter)?),
+            other => return lane_m::duration_more(other),
+        };
+        Ok(planned::planned_value(&feature, later, &code))
+    }
 }

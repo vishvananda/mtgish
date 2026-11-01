@@ -1875,7 +1875,7 @@ impl Compiler {
         })
     }
     /// The records of a window.
-    fn object_window(&self, window: &ObjectWindow) -> Result<String> {
+    pub(super) fn object_window(&self, window: &ObjectWindow) -> Result<String> {
         Ok(match window {
             ObjectWindow::ThisTurn => "q.history().this_turn().iter()".into(),
             ObjectWindow::ThisGame => "q.history().all().iter()".into(),
@@ -1886,7 +1886,7 @@ impl Compiler {
                 "{{ let of = {}; let turn = q.history().all().iter().rev().find(|r| Some(r.active) == of && r.turn < q.state().turn.number).map(|r| r.turn); q.history().all().iter().filter(move |r| Some(r.turn) == turn) }}",
                 self.player(player)?
             ),
-            other => return Err(gap(format!("history window {}", form(other)))),
+            other => return self.object_window_p(other),
         })
     }
     /// `Condition::PlayerDid`: the event it stands for, asked of the history.
@@ -1999,7 +1999,7 @@ impl Compiler {
                 "Event::Damage {{ source, target: Target::Object(hit), .. }} if hit == {id} && {} == Some(source)",
                 self.object(object)?
             ),
-            other => return Err(gap(format!("object filter History {}", form(other)))),
+            other => return self.object_history_p(other, id, window),
         };
         Ok(format!(
             "{}.any(|r| matches!(r.event, {pattern}))",
@@ -4152,7 +4152,8 @@ impl Compiler {
         Ok(local)
     }
     /// An instruction about a player a reference may not name: it does nothing
-    /// without them (CR 609.3). What it binds stays in that block.
+    /// without them (CR 609.3). What it binds comes out of that block, empty
+    /// without them; a "you may" choice keeps the rest of its block inside.
     pub(super) fn if_present(
         &mut self,
         body: &Program,
@@ -4163,6 +4164,7 @@ impl Compiler {
         *self.present.borrow_mut() = Some(Vec::new());
         let mut inner = String::new();
         let named = self.picked.borrow().named.len();
+        let opened = self.guard_opened;
         let compiled = self.instruction(body, index, instruction, &mut inner);
         let present = self.present.borrow_mut().take().unwrap_or_default();
         let statements = std::mem::take(&mut self.picked.borrow_mut().statements);
@@ -4171,26 +4173,59 @@ impl Compiler {
         }
         compiled?;
         out.push_str(&statements.concat());
-        if let (Instruction::Effect { result, .. }, false) = (instruction, present.is_empty()) {
-            let bound = [
-                self.selections.remove(&result.0).is_some(),
-                self.moved.remove(&result.0).is_some(),
-                self.creations.remove(&result.0).is_some(),
-                self.before.remove(&result.0).is_some(),
-                self.performed.remove(&result.0).is_some(),
-                self.values.remove(&result.0).is_some(),
-            ];
-            if bound.contains(&true) {
-                self.failed.insert(result.0);
-            }
+        let inside = self.guard_opened > opened;
+        let (names, reads) = match instruction {
+            Instruction::Effect { result, .. } if !inside && !present.is_empty() => self.carried_out(result),
+            _ => (Vec::new(), Vec::new()),
+        };
+        if !names.is_empty() {
+            write!(out, "let ({},) = ", names.join(", ")).unwrap();
         }
         for (local, read) in &present {
             write!(out, "if let Some({local}) = {} {{ ", self.fetch(read)).unwrap();
         }
         out.push_str(&inner);
-        out.push_str(&" }".repeat(present.len()));
+        if inside {
+            self.guard_opened += present.len();
+            return Ok(());
+        }
+        if !names.is_empty() {
+            write!(out, "({},)", reads.join(", ")).unwrap();
+            out.push_str(&" } else { Default::default() }".repeat(present.len()));
+            out.push(';');
+        } else {
+            out.push_str(&" }".repeat(present.len()));
+        }
         out.push('\n');
         Ok(())
+    }
+    /// What an instruction bound, renamed for its way out of a block: the new
+    /// names, and what they take from inside it.
+    fn carried_out(&mut self, result: &ResultId) -> (Vec<String>, Vec<String>) {
+        let id = self.fresh();
+        let mut names = Vec::new();
+        let mut reads = Vec::new();
+        for map in [
+            &mut self.selections,
+            &mut self.moved,
+            &mut self.creations,
+            &mut self.performed,
+            &mut self.values,
+        ] {
+            if let Some(code) = map.get_mut(&result.0) {
+                let name = format!("carried_{id}_{}", names.len());
+                reads.push(format!("{code}.clone()"));
+                *code = name.clone();
+                names.push(name);
+            }
+        }
+        if let Some(code) = self.before.get(&result.0).cloned() {
+            let name = format!("carried_{id}_{}", names.len());
+            reads.push(self.fetch(code));
+            self.before.insert(result.0, format!("{name}.clone()"));
+            names.push(name);
+        }
+        (names, reads)
     }
     /// Panharmonicon's and Torpor Orb's rule on triggering (CR 603.2d, 603.2g):
     /// asked of one event and one ability that event triggered.

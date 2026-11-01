@@ -230,6 +230,8 @@ pub(super) struct Notes {
     pub filters: Option<(String, Vec<ObjectFilter>)>,
     /// Choices made among cards outside the game.
     pub outside: BTreeSet<u32>,
+    /// Those of them that also offer cards elsewhere.
+    pub outside_shown: BTreeSet<u32>,
 }
 
 /// The words `EarlierObjects` has for what an operation acts on.
@@ -1002,7 +1004,11 @@ pub(super) fn turn_window(window: &TurnWindow, step: &str) -> Result<String> {
         TurnWindow::AfterCombat => format!("{step} > (Step::EndOfCombat as u8)"),
         TurnWindow::EndOfCombatStep => "q.state().turn.step() == Step::EndOfCombat".into(),
         TurnWindow::BeforeEndOfCombatStep => format!("{step} < (Step::EndOfCombat as u8)"),
-        other => return Err(gap(format!("turn window {other:?}"))),
+        other => planned::planned_value(
+            &format!("turn window {other:?}"),
+            "false",
+            &format!("q.state().turn.is_in(TurnWindow::{other:?})"),
+        ),
     })
 }
 
