@@ -1783,6 +1783,17 @@ impl Compiler {
                     self.linked()
                 )),
             },
+            Expr::Stickers { objects, measure } => {
+                let code = format!(
+                    "cantrip_mechanics::stickers::measure(q, &{}, StickerMeasure::{})",
+                    self.objects(objects)?,
+                    form(measure)
+                );
+                Number {
+                    code: planned::planned_value("stickers", "0i64", &code),
+                    ..counted(String::new())
+                }
+            }
             Expr::LargestSharedGroup { objects, property } => {
                 let group = match property {
                     DistinctProperty::CreatureTypes => "those.iter().flat_map(|&a| q.chars(a).subtypes.iter().filter(|s| s.card_types().has(CardType::Creature)).collect::<Vec<Subtype>>()).map(|s| those.iter().filter(|&&b| q.chars(b).has_subtype(s)).count()).max()",
@@ -2775,6 +2786,16 @@ impl Compiler {
                 let combat = if *combat_only { "combat && " } else { "" };
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, source: ObjectId, combat: bool) -> bool {{ {combat}{test} }}").unwrap();
                 parts.table("unpreventable_damage", function);
+                Ok(())
+            }
+            Ability::Offering(filter) => {
+                let filter = self.cost_filter(filter, label)?;
+                self.plan_entry(
+                    "offering",
+                    "abilities",
+                    &format!("cantrip_mechanics::offering::ability({filter}, \"Offering\")"),
+                    parts,
+                );
                 Ok(())
             }
             Ability::Spree { modes } => self.spree(modes, "spree", label, parts),

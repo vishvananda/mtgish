@@ -1044,7 +1044,12 @@ impl Compiler {
             }
             // A card that says it is out of the game has no game to generate.
             Ability::DeckRule(DeckRule::Banned | DeckRule::RemoveUnlessPlayingForAnte) => {
-                return Err(gap("card outside ordinary play"))
+                self.plan_entry(
+                    "card outside ordinary play",
+                    "deck_rules",
+                    "DeckRule::OnlyWhenPlayingForAnte",
+                    parts,
+                );
             }
             // How to build a deck, in no game: Cantrip's Sphinx's Approach says
             // the same of its line, "no line of code here".

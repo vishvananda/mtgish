@@ -111,5 +111,8 @@
  {"match": "^base toughness$", "class": "engine", "needs": "reading an object's base toughness: what it is before counters and pumps, after layer 7b", "api": "Query::base_toughness(id)"},
  {"match": "^intensity$", "class": "mechanic", "needs": "the intensity of a card (Alchemy, digital-only; CR 702.161): its starting intensity and what intensify added", "api": "Object::intensity"},
  {"match": "^a spell costing colored mana more$", "class": "engine", "needs": "a spell cost increase in colored mana, as 'White spells you cast cost {W} more to cast': CostDelta::more is generic mana alone (CR 601.2f)", "api": "CostDelta::more_mana(ManaCost)"},
- {"match": "^a token that is a named card$", "class": "engine", "needs": "finding a card by its name for a token that is that card ('Create a Tarmogoyf token', CR 111.3), Vanguard, Alchemy and Un-set forms among them", "api": "CardId::named(name)"}
+ {"match": "^a token that is a named card$", "class": "engine", "needs": "finding a card by its name for a token that is that card ('Create a Tarmogoyf token', CR 111.3), Vanguard, Alchemy and Un-set forms among them", "api": "CardId::named(name)"},
+ {"match": "^card outside ordinary play$", "class": "vocabulary", "needs": "a card played only for ante, or banned, as a deck rule: ante is not in Cantrip (CR 407, casual forms)", "api": "CardDef::deck_rules: &[DeckRule::OnlyWhenPlayingForAnte]"},
+ {"match": "^offering$", "class": "mechanic", "needs": "offering (CR 702.48): cast any time you could cast an instant by sacrificing a permanent of a kind and paying the difference in mana costs", "api": "cantrip_mechanics::offering::ability(filter, text)"},
+ {"match": "^stickers$", "class": "mechanic", "needs": "stickers on permanents and what they spell (Unfinity, acorn-stamped casual cards)", "api": "cantrip_mechanics::stickers::measure"}
 ]
