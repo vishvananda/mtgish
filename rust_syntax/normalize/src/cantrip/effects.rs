@@ -318,10 +318,23 @@ impl Compiler {
                 ),
                 _ => return Err(gap("recipient of event damage")),
             },
-            Recipients::AttackedBy(object) => format!(
-                "{{ let attacker = {}; q.state().attackers.iter().find(|a| Some(a.id) == attacker).map(|a| a.target).filter(|t| *t != Target::None).into_iter().collect::<Vec<Target>>() }}",
-                self.object(object)?
-            ),
+            Recipients::AttackedBy(object) => {
+                let carried = match self.frame.player {
+                    Some(_) => format!(
+                        ".or({}.map(Target::Player))",
+                        self.carried_player(self.frame.player)?
+                    ),
+                    None => String::new(),
+                };
+                let battle = match lane_k::printed_otherwise(self.line_text(), "player or planeswalker it's attacking") {
+                    true => ".filter(|t| !matches!(t, Target::Object(o) if q.state().obj(*o).became.is_some() || !q.chars(*o).is(CardType::Planeswalker)))",
+                    false => "",
+                };
+                format!(
+                    "{{ let attacker = {}; q.state().attackers.iter().find(|a| Some(a.id) == attacker).map(|a| a.target).filter(|t| *t != Target::None).or_else(|| q.history().this_turn().iter().rev().find_map(|r| match r.event {{ Event::Attacks {{ attacker: a, defender, .. }} if Some(a) == attacker => Some(defender), _ => None }})){carried}{battle}.into_iter().collect::<Vec<Target>>() }}",
+                    self.object(object)?
+                )
+            }
         })
     }
     fn target_slot(&self, slot: &Slot) -> Result<usize> {
@@ -820,7 +833,10 @@ impl Compiler {
                 self.may_tap_or_untap = false;
                 Ok(())
             }
-            Instruction::Optional { decider, body } if lane_k::chooses_first(decider, body) => {
+            Instruction::Optional { decider, body }
+                if lane_k::chooses_first(decider, body)
+                    && !lane_k::printed_otherwise(self.line_text(), "discard one or more") =>
+            {
                 writeln!(out, "{{").unwrap();
                 self.block_choosing_first(body, String::new(), out)?;
                 writeln!(out, "}}").unwrap();
@@ -832,7 +848,8 @@ impl Compiler {
                 let decider = planned::planned_read(player, "asker.controller", decider);
                 let id = self.fresh();
                 let (open, spent) = lane_k::once_a_turn(self.do_once.take(), id);
-                let open = open + &lane_k::asked_if(player_ref, id, body);
+                let open =
+                    open + &lane_k::asked_if(player_ref, id, body) + &self.asked_if_there(body);
                 writeln!(out, "let decider_{id} = {decider}; if {open}cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{{spent}").unwrap();
                 self.block(body, out, true)?;
                 writeln!(out, "}}").unwrap();
@@ -860,6 +877,9 @@ impl Compiler {
                 in_chosen_direction,
                 body: steps,
             } => {
+                if self.each_discards_two(players, binding, steps, out) {
+                    return Ok(());
+                }
                 let each = lane_i::EachPlayer {
                     players,
                     binding,
@@ -929,7 +949,15 @@ impl Compiler {
         let count = self.offered_count(count);
         let count = self.select_count(&count)?;
         let local = format!("selected_{}", self.fresh());
-        writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_count = {}; let {local} = cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of({local}_count, &[]))?;", self.fetch(self.certain_player(player)?), self.fetch(self.objects(objects)?), self.fetch(count)).unwrap();
+        let lone = match matches!(objects, ObjectSet::Created(_))
+            || lane_k::printed_otherwise(
+                self.line_text(),
+                "put one onto the battlefield tapped and the other",
+            ) {
+            true => format!("if {local}_candidates.len() <= 1 {{ {local}_candidates }} else "),
+            false => String::new(),
+        };
+        writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_count = {}; let {local} = {lone}{{ cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of({local}_count, &[]))? }};", self.fetch(self.certain_player(player)?), self.fetch(self.objects(objects)?), self.fetch(count)).unwrap();
         self.open_guard(&local, out);
         self.selections.insert(result.0, local);
         Ok(())
@@ -1119,6 +1147,16 @@ impl Compiler {
                 self.moved.insert(result.0, format!("discarded_{id}"));
                 self.left_behind(result, format!("discarded_{id}.clone()"));
             }
+            Operation::Surveil { .. }
+                if lane_k::printed_otherwise(
+                    self.line_text(),
+                    "nonland card into your graveyard",
+                ) =>
+            {
+                return Err(gap(
+                    "what a surveil put into a graveyard, of a kind the card says",
+                ));
+            }
             Operation::Scry { players, amount } | Operation::Surveil { players, amount } => {
                 let PlayerSet::One(player) = players else {
                     return Err(gap(format!("{} by several players", form(op))));
@@ -1174,11 +1212,14 @@ impl Compiler {
                 face_down: false,
             } => self.move_objects_p(id, objects, destination, entry, false, result, out)?,
             Operation::Tap { objects, tapped } => {
+                let turn = match tapped {
+                    true => format!("g.tap_together(&turned_{id});"),
+                    false => format!("cantrip_api::instruction(g, |g| {{ for &object in &turned_{id} {{ g.untap(object); }} }});"),
+                };
                 writeln!(
                     out,
-                    "let objects_{id} = {}; let turned_{id}: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.state().obj(o).tapped != {tapped}).collect(); cantrip_api::instruction(g, |g| {{ for &object in &turned_{id} {{ g.{}(object); }} }});",
+                    "let objects_{id} = {}; let turned_{id}: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.state().obj(o).tapped != {tapped}).collect(); {turn}",
                     self.acted_on(objects)?,
-                    if *tapped { "tap" } else { "untap" }
                 )
                 .unwrap();
                 self.moved.insert(result.0, format!("turned_{id}"));
@@ -1323,7 +1364,7 @@ impl Compiler {
                     let kind = counter_kind(&placement.kind)?;
                     writeln!(out, "let amount = {}; for t in {} {{ if let Target::Object(object) = t {{ counters_{id}.push((object, {kind}, amount)); }} }}", self.fetch(amount), self.fetch(self.recipients(&placement.recipients)?)).unwrap();
                 }
-                writeln!(out, "g.add_counters_together(&counters_{id}); let applied_{id}: Vec<ObjectId> = counters_{id}.iter().map(|c| c.0).collect();").unwrap();
+                writeln!(out, "let had_{id}: Vec<_> = counters_{id}.iter().map(|c| g.state().obj(c.0).counters(c.1)).collect(); g.add_counters_together(&counters_{id}); let applied_{id}: Vec<ObjectId> = counters_{id}.iter().zip(had_{id}).filter(|(c, had)| g.state().obj(c.0).counters(c.1) > *had).map(|(c, _)| c.0).collect();").unwrap();
                 self.selections.insert(result.0, format!("applied_{id}"));
             }
             Operation::RemoveCounters { removals } => {
@@ -1334,6 +1375,14 @@ impl Compiler {
             }
             Operation::CreateRegenerationShields { objects } => {
                 writeln!(out, "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for object in objects_{id} {{ g.add_effect(asker.source, object, EffectKind::RegenerationShield, Duration::EndOfTurn); }} }});", self.acted_on(objects)?).unwrap();
+            }
+            Operation::Reveal { .. }
+                if lane_k::printed_otherwise(
+                    self.line_text(),
+                    "random creature card from among them",
+                ) =>
+            {
+                return Err(gap("the rest of cards revealed, once one has left them"));
             }
             Operation::Reveal { objects } => {
                 self.revealed = true;
@@ -1436,6 +1485,11 @@ impl Compiler {
                 true => self.counter_reporting(id, objects, result, out),
                 false => self.counter_on_stack(id, objects, out),
             },
+            Operation::Counter { .. }
+                if lane_k::printed_otherwise(self.line_text(), "and all abilities") =>
+            {
+                return Err(gap("countering abilities, where the card says it does"));
+            }
             Operation::Counter {
                 objects,
                 destination,
@@ -1732,7 +1786,9 @@ impl Compiler {
                 let payer = PlayerSet::One(player.clone());
                 match part {
                     CostPart::Sacrifice { objects, choose } => {
+                        let mark = out.len();
                         self.sacrifice(id, &payer, objects, choose.as_ref(), result, out)?;
+                        lane_k::asks_even_of_one(out, mark);
                         writeln!(out, "let paid_{id} = !picks_{id}.is_empty();").unwrap();
                     }
                     // Paid only with the cards to pay it (CR 118.3).
@@ -1790,7 +1846,9 @@ impl Compiler {
                             result,
                             out,
                         )?;
-                        writeln!(out, "let paid_{id} = true;").unwrap();
+                        let drew = self.performed.get(&result.0);
+                        let paid = drew.map_or("true".to_string(), |n| format!("{n} > 0"));
+                        writeln!(out, "let paid_{id} = {paid};").unwrap();
                     }
                     CostPart::Mill { count } => {
                         self.operation(
@@ -2135,6 +2193,7 @@ impl Compiler {
         let shown = self.outside_shown(objects);
         let revealed = self.revealed;
         let chosen = matches!(objects, ObjectSet::Selected(_));
+        let targeted = matches!(objects, ObjectSet::Targets(_));
         let objects = lane_k::shuffled_in_though_gone(objects, destination);
         let outside = self.from_outside(objects);
         let objects = self.fetch(self.objects(objects)?);
@@ -2191,7 +2250,10 @@ impl Compiler {
             ),
             Destination::Exile => format!("g.exile_all(&objects_{id})"),
             // `put_into_graveyard` refuses permanents, so name each destination.
-            Destination::OwnersGraveyard => format!("{{ let moves: Vec<(ObjectId, Zone)> = objects_{id}.iter().map(|&o| (o, Zone::graveyard(g.state().obj(o).owner))).collect(); g.move_together(&moves, MoveReason::Other) }}"),
+            Destination::OwnersGraveyard => format!("{{ let moves: Vec<(ObjectId, Zone)> = objects_{id}.iter().map(|&o| (o, Zone::graveyard(g.state().obj(o).owner))).collect(); let moved = g.move_together(&moves, MoveReason::Other); moved.into_iter().filter(|&o| g.state().obj(o).zone.kind() == ZoneKind::Graveyard).collect::<Vec<ObjectId>>() }}"),
+            Destination::OwnersLibraryTop | Destination::OwnersLibraryBottom if targeted => {
+                lane_k::in_an_order_asked(id, destination)
+            }
             Destination::OwnersLibraryTop => library("LibraryPlace::Top".into()),
             Destination::OwnersLibraryBottom => library("LibraryPlace::Bottom".into()),
             Destination::OwnersLibraryBottomRandom => {
@@ -2353,7 +2415,7 @@ impl Compiler {
                 // which of its kinds (CR 122.1, 608.2d).
                 (None, CounterAmount::Count(Count::Exactly(Expr::Constant(1)))) => {
                     let player = self.fetch(self.certain_player(&removal.player)?);
-                    writeln!(out, "let player_{id}_{i} = {player}; for object in objects_{id}_{i} {{ if let Some(kind) = g.choose_counter_kind(player_{id}_{i}, asker.source, object)? {{ removed_{id} += i64::from(g.remove_counters(object, kind, 1)); }} }}").unwrap();
+                    writeln!(out, "let player_{id}_{i} = {player}; for object in objects_{id}_{i} {{ if g.remove_a_counter_from_among(player_{id}_{i}, asker.source, &[object])? {{ removed_{id} += 1; }} }}").unwrap();
                 }
                 (None, _) => self.removal_rest(id, i, removal, out)?,
             }

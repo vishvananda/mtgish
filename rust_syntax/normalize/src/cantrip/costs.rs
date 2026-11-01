@@ -36,6 +36,12 @@ fn crew(price: &Cost, text: &str) -> Result<String> {
         ) = (part.as_ref(), constraints.as_slice())
         {
             if let Ok(power) = u8::try_from(*power) {
+                let named = format!("Crew {power}");
+                let text = if text.starts_with("Crew") {
+                    text
+                } else {
+                    named.as_str()
+                };
                 return Ok(format!(
                     "cantrip_mechanics::crew::crew({power}, {})",
                     quoted(text)
@@ -150,8 +156,14 @@ impl Compiler {
         };
         let test = self.filter(filter, &Candidate::of("id"));
         (self.reader, self.event_at) = saved;
+        let test = test?;
+        if self.reads_a_local(&test) {
+            return Err(gap(
+                "a cost at resolution filtered by who is asked to pay it",
+            ));
+        }
         let function = format!("{label}_{}", self.fresh());
-        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ {} }}", test?).unwrap();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ {test} }}").unwrap();
         Ok(function)
     }
     fn cost_part(&mut self, part: &CostPart, label: &str) -> Result<String> {
@@ -508,7 +520,11 @@ impl Compiler {
             });
         }
         let listed = format!("modes(&[{}])", defs.join(","));
-        let mut modal = match (bound(minimum), bound(most)) {
+        let fewest = match lane_k::printed_otherwise(self.line_text(), "Choose up to") {
+            true => Some(0),
+            false => bound(minimum),
+        };
+        let mut modal = match (fewest, bound(most)) {
             (Some(min), Some(max)) => format!("{listed}.choose({min}, {max})"),
             _ => self.mode_count_to_come(&listed, minimum, most)?,
         };

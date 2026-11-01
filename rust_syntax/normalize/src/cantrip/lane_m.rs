@@ -67,7 +67,10 @@ impl Compiler {
             // `mechanics` gives a spectacle way this text.
             S::CostPaid(CastCost::Spectacle) => self.cast_by_way(id, "w.text == \"Spectacle\""),
             S::CostPaid(CastCost::Sneak) if !layer => {
-                format!("cantrip_mechanics::sneak::was_cast_for_sneak(q, {id})")
+                match lane_k::printed_otherwise(self.line_text(), "cost was paid this turn") {
+                    true => format!("cantrip_mechanics::sneak::sneak_cast_turn(q, {id}) == Some(q.history().turn)"),
+                    false => format!("cantrip_mechanics::sneak::was_cast_for_sneak(q, {id})"),
+                }
             }
             S::CostPaid(CastCost::Prowl) => planned::planned_value(
                 "object state CostPaid Prowl",
@@ -133,6 +136,9 @@ impl Compiler {
             S::CastDuringOwnMainPhase if !layer => format!(
                 "cast_of(q, {id}).is_some_and(|cast| q.history().all().iter().any(|r| matches!(r.event, Event::Cast(c) if c.spell == cast.spell) && r.active == cast.player && matches!(r.step, Step::PrecombatMain | Step::PostcombatMain)))"
             ),
+            S::FirstLandPlayedThisTurn if lane_k::printed_otherwise(self.line_text(), "wasn't the first") => {
+                return Err(gap("the first land played, where the card says it wasn't"))
+            }
             S::FirstLandPlayedThisTurn => format!(
                 "{{ let first = q.history().this_turn().iter().find_map(|r| match r.event {{ Event::LandPlayed {{ land, player, .. }} if player == {} => Some(land), _ => None }}); first == Some({id}) }}",
                 c.controller

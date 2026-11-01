@@ -225,7 +225,7 @@ pub(super) fn may_retarget(body: &Program) -> Option<(&PlayerRef, &ObjectRef)> {
                 Operation::Retarget {
                     actor: PlayerSet::One(player),
                     object,
-                    targets: NewTargets::Must,
+                    targets: NewTargets::Must | NewTargets::May,
                 },
             ..
         }] => Some((player, object)),
@@ -632,6 +632,7 @@ impl Compiler {
     ) {
         self.view_each(views);
         let before = self.results();
+        let guards_around = std::mem::take(&mut self.guard_opened);
         let mut body = String::new();
         let mut closing = String::new();
         if let Some(guard) = step.guard {
@@ -789,7 +790,9 @@ impl Compiler {
             true => ("g.one_instruction(&mut |g| {", "Ok(()) })?;"),
             false => ("", ""),
         };
-        writeln!(out, "{open} for (index_{id}, bound_{binding}) in players_{id}.iter().copied().enumerate() {{ {body} {tail} {closing} }} {close}").unwrap();
+        // A "you may" that opened a guard in this turn closes it in this turn.
+        let shut = "}".repeat(std::mem::replace(&mut self.guard_opened, guards_around));
+        writeln!(out, "{open} for (index_{id}, bound_{binding}) in players_{id}.iter().copied().enumerate() {{ {body} {tail} {shut} {closing} }} {close}").unwrap();
     }
     /// A player's turn at a step that adds to a batch.
     fn gather(
@@ -1272,7 +1275,13 @@ impl Compiler {
             .unwrap();
             return Ok(());
         }
-        let list = self.acted_on(&ObjectSet::One(object.clone()))?;
+        let mut list = self.acted_on(&ObjectSet::One(object.clone()))?;
+        if list.contains("item.subject.object()") {
+            list = list.replace(
+                ".into_iter().filter(|&o| q.state().obj(o).became.is_none()).collect::<Vec<ObjectId>>()",
+                "",
+            );
+        }
         writeln!(out, "let copier_{id} = {copier}; let spell_{id}: Option<ObjectId> = ({list}).first().copied();").unwrap();
         if effects.is_empty() {
             writeln!(
@@ -1427,6 +1436,11 @@ impl Compiler {
                 self.moved.insert(result.0, format!("drafted_{id}"));
             }
             Operation::Search { .. } => self.search_zones_p(id, op, result, out)?,
+            Operation::ChangeZone { cards, .. }
+                if lane_k::revealed_only_chosen(self.line_text(), cards) =>
+            {
+                return Err(gap("cards revealed, where the AST has them only chosen"));
+            }
             Operation::ChangeZone { .. } => self.change_zone_p(id, op, result, out)?,
             Operation::Manifest { .. } => self.manifest(id, op, result, out)?,
             Operation::MoveTopCard { .. } => self.move_top_card(id, op, result, out)?,

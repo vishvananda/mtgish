@@ -1044,6 +1044,9 @@ impl Compiler {
                 let test = self.filter(filter, &Candidate::of(other));
                 (self.frame, self.event_object) = event;
                 (self.reader, self.event_at) = saved;
+                if test.as_ref().is_ok_and(|code| self.reads_a_local(code)) {
+                    return Err(gap("a lasting block rule reading what its ability chose"));
+                }
                 let index = self.made_block_rules.len();
                 let function = format!("block_rule_{index}");
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool {{ {PRELUDE} !({subject} == source && {}) }}", test?).unwrap();
@@ -2527,9 +2530,8 @@ impl Compiler {
             ),
             _ => return Err(gap("play permission for another cost")),
         };
-        let mut fields = format!(
-            "text: \"Cast from your graveyard\", permission: {permission}, lands: {lands}, "
-        );
+        let text = quoted(&self.said(lane_k::Said::Sentence, "Cast from your graveyard".into()));
+        let mut fields = format!("text: {text}, permission: {permission}, lands: {lands}, ");
         if terms.flash {
             fields.push_str("instant_speed: true, ");
         }

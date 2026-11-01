@@ -2,8 +2,8 @@
  "cantrip": "af0a0be5ec",
  "totals": {
   "cards": 33529,
-  "ready": 27051,
-  "planned": 6430,
+  "ready": 27040,
+  "planned": 6441,
   "data": 48
  },
  "layouts": {
@@ -12,8 +12,8 @@
    "planned": 11
   },
   "Card": {
-   "ready": 26357,
-   "planned": 5829
+   "ready": 26346,
+   "planned": 5840
   },
   "Conspiracy": {
    "ready": 0,
@@ -82,20 +82,20 @@
  },
  "classes": {
   "engine": {
-   "requirements": 963,
-   "cards": 5046
+   "requirements": 965,
+   "cards": 5048
   },
   "mechanic": {
-   "requirements": 243,
-   "cards": 1500
+   "requirements": 244,
+   "cards": 1501
   },
   "vocabulary": {
-   "requirements": 386,
-   "cards": 803
+   "requirements": 393,
+   "cards": 812
   },
   "generator": {
    "requirements": 23,
-   "cards": 41
+   "cards": 42
   }
  },
  "requirements": [
@@ -3610,7 +3610,7 @@
    "needs": "a player named with no read in Query or Game",
    "family": "player reference",
    "cards": 11,
-   "alone": 7,
+   "alone": 6,
    "examples": [
     "Barbarian Bully",
     "Book Burning",
@@ -8205,6 +8205,21 @@
    ]
   },
   {
+   "id": "object-reference-bound",
+   "feature": "object reference Bound",
+   "class": "vocabulary",
+   "needs": "the object a walk over objects is on, read by the code inside a walk that is itself stated",
+   "family": "object reference",
+   "cards": 4,
+   "alone": 0,
+   "examples": [
+    "Collective Voyage",
+    "Mind Grind",
+    "Rottenmouth Viper",
+    "Seize the Spotlight"
+   ]
+  },
+  {
    "id": "object-state-cost-paid-prowl",
    "feature": "object state CostPaid Prowl",
    "class": "mechanic",
@@ -8856,6 +8871,20 @@
     "Comet, Stellar Pup",
     "Curse of the Pierced Heart",
     "Vial Smasher the Fierce"
+   ]
+  },
+  {
+   "id": "a-lasting-block-rule-reading-what-its-ability-chose",
+   "feature": "a lasting block rule reading what its ability chose",
+   "class": "engine",
+   "needs": "A `LastingBlockRule` holds a plain function, so it can't read the color or player a resolving ability chose; it needs that value carried with the effect.",
+   "family": "a lasting",
+   "cards": 3,
+   "alone": 1,
+   "examples": [
+    "Skrelv, Defector Mite",
+    "Sungold Sentinel",
+    "The Black Gate"
    ]
   },
   {
@@ -9691,7 +9720,7 @@
    "needs": "hexproof from a quality HexproofFrom has no bit for",
    "family": "keyword HexproofFrom",
    "cards": 3,
-   "alone": 2,
+   "alone": 1,
    "examples": [
     "Mondo Gecko",
     "Skrelv, Defector Mite",
@@ -9906,20 +9935,6 @@
     "Cass, Hand of Vengeance",
     "Hateful Eidolon",
     "Zack Fair"
-   ]
-  },
-  {
-   "id": "object-reference-bound",
-   "feature": "object reference Bound",
-   "class": "vocabulary",
-   "needs": "the object a walk over objects is on, read by the code inside a walk that is itself stated",
-   "family": "object reference",
-   "cards": 3,
-   "alone": 0,
-   "examples": [
-    "Collective Voyage",
-    "Mind Grind",
-    "Seize the Spotlight"
    ]
   },
   {
@@ -10511,6 +10526,20 @@
    ]
   },
   {
+   "id": "transition-this-instruction-does-not-report",
+   "feature": "transition this instruction does not report",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "transition this",
+   "cards": 3,
+   "alone": 2,
+   "examples": [
+    "Illusionist's Gambit",
+    "Starving Revenant",
+    "Unexpected Request"
+   ]
+  },
+  {
    "id": "trigger-event-causes-trigger",
    "feature": "trigger event CausesTrigger",
    "class": "engine",
@@ -10764,6 +10793,19 @@
    "examples": [
     "Archpriest of Iona",
     "Ravager's Mace"
+   ]
+  },
+  {
+   "id": "a-target-from-a-graveyard-where-the-card-says-any",
+   "feature": "a target from a graveyard, where the card says any",
+   "class": "vocabulary",
+   "needs": "the AST to say a target \"from a graveyard\" is from any graveyard: its filter says yours",
+   "family": "a target",
+   "cards": 2,
+   "alone": 2,
+   "examples": [
+    "From the Catacombs",
+    "Restless Cottage"
    ]
   },
   {
@@ -13198,19 +13240,6 @@
    ]
   },
   {
-   "id": "transition-this-instruction-does-not-report",
-   "feature": "transition this instruction does not report",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "transition this",
-   "cards": 2,
-   "alone": 1,
-   "examples": [
-    "Illusionist's Gambit",
-    "Starving Revenant"
-   ]
-  },
-  {
    "id": "trigger-event-control-changes",
    "feature": "trigger event ControlChanges",
    "class": "engine",
@@ -13622,6 +13651,18 @@
    ]
   },
   {
+   "id": "a-cost-at-resolution-filtered-by-who-is-asked-to-pay-it",
+   "feature": "a cost at resolution filtered by who is asked to pay it",
+   "class": "engine",
+   "needs": "A cost built at resolution filters with plain functions, so it can't read the player found as it resolves; `Asker` needs the payer.",
+   "family": "a cost",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Reservoir Kraken"
+   ]
+  },
+  {
    "id": "a-gift-of-another-kind",
    "feature": "a gift of another kind",
    "class": "mechanic",
@@ -13631,6 +13672,18 @@
    "alone": 1,
    "examples": [
     "Archival Whorl"
+   ]
+  },
+  {
+   "id": "a-rule-on-triggering-where-the-card-says-whose-abilities",
+   "feature": "a rule on triggering, where the card says whose abilities",
+   "class": "vocabulary",
+   "needs": "the AST to say Elesh Norn, Mother of Machines stops abilities of opponents' permanents: its filter is on the permanents entering",
+   "family": "a rule",
+   "cards": 1,
+   "alone": 1,
+   "examples": [
+    "Elesh Norn, Mother of Machines"
    ]
   },
   {
@@ -13835,6 +13888,18 @@
    "alone": 0,
    "examples": [
     "The Ur-Sphinx"
+   ]
+  },
+  {
+   "id": "cards-revealed-where-the-a-s-t-has-them-only-chosen",
+   "feature": "cards revealed, where the AST has them only chosen",
+   "class": "vocabulary",
+   "needs": "the AST to reveal what it says is chosen, and to read creature cards apart from land cards revealed",
+   "family": "cards revealed,",
+   "cards": 1,
+   "alone": 1,
+   "examples": [
+    "Zimone's Experiment"
    ]
   },
   {
@@ -16019,6 +16084,18 @@
    "alone": 1,
    "examples": [
     "Spectacle of Destruction"
+   ]
+  },
+  {
+   "id": "countering-abilities-where-the-card-says-it-does",
+   "feature": "countering abilities, where the card says it does",
+   "class": "vocabulary",
+   "needs": "the AST to say Glen Elendra's Answer counters abilities as well as spells",
+   "family": "countering abilities,",
+   "cards": 1,
+   "alone": 1,
+   "examples": [
+    "Glen Elendra's Answer"
    ]
   },
   {
@@ -21446,6 +21523,30 @@
    ]
   },
   {
+   "id": "the-first-land-played-where-the-card-says-it-wasn-t",
+   "feature": "the first land played, where the card says it wasn't",
+   "class": "vocabulary",
+   "needs": "the AST to say Fastbond's trigger is of a land that wasn't the first played: its intervening if has lost the negation",
+   "family": "the first",
+   "cards": 1,
+   "alone": 1,
+   "examples": [
+    "Fastbond"
+   ]
+  },
+  {
+   "id": "the-rest-of-cards-revealed-once-one-has-left-them",
+   "feature": "the rest of cards revealed, once one has left them",
+   "class": "vocabulary",
+   "needs": "the AST to name what was revealed where it says the rest: it reads the top of the library again after a card has left it",
+   "family": "the rest",
+   "cards": 1,
+   "alone": 1,
+   "examples": [
+    "Getaway Barrel"
+   ]
+  },
+  {
    "id": "token-with-the-abilities-of-other-objects",
    "feature": "token with the abilities of other objects",
    "class": "engine",
@@ -22022,6 +22123,18 @@
    ]
   },
   {
+   "id": "ways-to-pay-chosen-for-every-time-first-then-all-paid-at-once",
+   "feature": "ways to pay chosen for every time first, then all paid at once",
+   "class": "mechanic",
+   "needs": "each opponent makes all of the choices, one for each blight counter, a permanent or card chosen not offered again, and then the sacrifices, discards and life happen together",
+   "family": "ways to",
+   "cards": 1,
+   "alone": 0,
+   "examples": [
+    "Rottenmouth Viper"
+   ]
+  },
+  {
    "id": "what-a-permanent-could-be-attached-to",
    "feature": "what a permanent could be attached to",
    "class": "engine",
@@ -22043,6 +22156,18 @@
    "alone": 1,
    "examples": [
     "Ripples of Potential"
+   ]
+  },
+  {
+   "id": "what-a-surveil-put-into-a-graveyard-of-a-kind-the-card-says",
+   "feature": "what a surveil put into a graveyard, of a kind the card says",
+   "class": "vocabulary",
+   "needs": "the AST to say \"a noncreature, nonland card\" of what a surveil binned and to move only that card: it has either-of-nots and moves all",
+   "family": "what a",
+   "cards": 1,
+   "alone": 1,
+   "examples": [
+    "Chandra, Chill of Compliance"
    ]
   },
   {
@@ -24833,6 +24958,9 @@
   "Chandra, Awakened Inferno": [
    "object-filter-damaged-by"
   ],
+  "Chandra, Chill of Compliance": [
+   "what-a-surveil-put-into-a-graveyard-of-a-kind-the-card-says"
+  ],
   "Chandra, Fire Artisan": [
    "engine-no-event-for-a-counter-being-removed"
   ],
@@ -27200,6 +27328,9 @@
   "Elementalist's Palette": [
    "mana-spending-purpose"
   ],
+  "Elesh Norn, Mother of Machines": [
+   "a-rule-on-triggering-where-the-card-says-whose-abilities"
+  ],
   "Elfhame Druid": [
    "mana-spending-predicate"
   ],
@@ -28000,6 +28131,9 @@
   "Farrelite Priest": [
    "numeric-expression-times-activated-this-turn"
   ],
+  "Fastbond": [
+   "the-first-land-played-where-the-card-says-it-wasn-t"
+  ],
   "Fasting": [
    "counter-kind-hunger",
    "replacement-of-begin-draw-step"
@@ -28712,6 +28846,9 @@
   "From Under the Floorboards": [
    "cost-branch-madness"
   ],
+  "From the Catacombs": [
+   "a-target-from-a-graveyard-where-the-card-says-any"
+  ],
   "Frontline Devastator": [
    "engine-no-afflict"
   ],
@@ -29031,6 +29168,9 @@
   "Gerrard's Hourglass Pendant": [
    "replacement-of-begin-extra-turn"
   ],
+  "Getaway Barrel": [
+   "the-rest-of-cards-revealed-once-one-has-left-them"
+  ],
   "Geth, Thane of Contracts": [
    "granted-replacement"
   ],
@@ -29242,6 +29382,9 @@
    "layout-planar",
    "subtype-lorwyn",
    "trigger-event-player-chaos-ensues"
+  ],
+  "Glen Elendra's Answer": [
+   "countering-abilities-where-the-card-says-it-does"
   ],
   "Gliding Licid": [
    "duration-until-paid",
@@ -37479,6 +37622,7 @@
    "operation-clash"
   ],
   "Reservoir Kraken": [
+   "a-cost-at-resolution-filtered-by-who-is-asked-to-pay-it",
    "player-reference-first-willing"
   ],
   "Reset": [
@@ -37503,6 +37647,9 @@
   ],
   "Resourceful Defense": [
    "move-counters-of-kinds-the-mover-chooses"
+  ],
+  "Restless Cottage": [
+   "a-target-from-a-graveyard-where-the-card-says-any"
   ],
   "Restless Dreams": [
    "discarding-x-cards-as-a-cost"
@@ -37931,6 +38078,10 @@
    "card-type-scheme",
    "layout-scheme",
    "trigger-event-player-sets-scheme-in-motion"
+  ],
+  "Rottenmouth Viper": [
+   "object-reference-bound",
+   "ways-to-pay-chosen-for-every-time-first-then-all-paid-at-once"
   ],
   "Roughshod Duo": [
    "trigger-event-player-expends"
@@ -39351,6 +39502,7 @@
    "object-filter-has-keyword-family"
   ],
   "Skrelv, Defector Mite": [
+   "a-lasting-block-rule-reading-what-its-ability-chose",
    "engine-no-toxic-granted",
    "keyword-hexproof-from-chosen"
   ],
@@ -40539,6 +40691,7 @@
    "player-rule-spend-color-as"
   ],
   "Sungold Sentinel": [
+   "a-lasting-block-rule-reading-what-its-ability-chose",
    "keyword-hexproof-from-chosen"
   ],
   "Sunken Palace": [
@@ -41281,6 +41434,9 @@
   ],
   "The Black Breath": [
    "engine-no-ring-temptation"
+  ],
+  "The Black Gate": [
+   "a-lasting-block-rule-reading-what-its-ability-chose"
   ],
   "The Book of Exalted Deeds": [
    "counter-kind-enlightened",
@@ -42920,6 +43076,9 @@
    "card-type-conspiracy",
    "engine-no-hidden-agenda",
    "layout-conspiracy"
+  ],
+  "Unexpected Request": [
+   "transition-this-instruction-does-not-report"
   ],
   "Unexplained Absence": [
    "target-cardinality-per-player"
@@ -44666,6 +44825,9 @@
   ],
   "Zilortha, Strength Incarnate": [
    "static-rule-unique"
+  ],
+  "Zimone's Experiment": [
+   "cards-revealed-where-the-a-s-t-has-them-only-chosen"
   ],
   "Zinnia, Valley's Voice": [
    "base-power",

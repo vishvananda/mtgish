@@ -1214,6 +1214,9 @@ impl Compiler {
         self.second_of_two = self.two_targets(a);
         for (i, spec) in a.targets.iter().enumerate() {
             let at = format!("targets[{i}]");
+            if lane_k::only_your_graveyard(self.line_text(), &spec.filter) {
+                return Err(gap("a target from a graveyard, where the card says any").at(at));
+            }
             let mut rule = lane_l::SlotRule::default();
             // The second of "two target creatures" is the same slot's.
             if self.second_of_two == Some(i) {
@@ -1283,6 +1286,11 @@ impl Compiler {
             self.choosing = None;
             chosen_by.map_err(|e| e.at(&at))?;
             let count = count.map_err(|e| e.at(&at))?;
+            let count = lane_k::divided_among_some(
+                count,
+                spec.distribute.is_some()
+                    && lane_k::printed_otherwise(self.line_text(), "any number of target"),
+            );
             self.slots.insert(spec.slot.0, (i, spec.clone()));
             if spec.kind == TargetKind::DamageRecipient
                 && spec.players.is_none()

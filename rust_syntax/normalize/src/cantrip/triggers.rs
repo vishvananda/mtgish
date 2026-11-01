@@ -172,6 +172,9 @@ impl Compiler {
             tests.push(format!("from.is({})", zone_kind(from)?));
         }
         tests.push(self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?);
+        if lane_k::dies_of_a_type(self.line_text(), objects) {
+            tests.push("q.chars(id).is(CardType::Creature)".into());
+        }
         let own = matches!(objects, ObjectFilter::SameObject(ObjectRef::Source));
         let functions = if own && !entering && from != Some(&EventZone::Battlefield) {
             Some(format!("ZoneKinds::of(&[{}])", zone_kind(to)?))
@@ -698,6 +701,9 @@ impl Compiler {
             ..Frame::default()
         };
         let mut tests = vec![self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?];
+        if lane_k::a_permanent_targeted(self.line_text(), objects) {
+            tests.push("q.is_on_battlefield(id)".into());
+        }
         match kind {
             TargetingKind::SpellOrAbility => {}
             _ if self.history.is_some() => {
@@ -1461,6 +1467,20 @@ impl Compiler {
                 }
                 merged.ok_or_else(|| gap("empty alternative event"))
             }
+            // "Except the first one they draw in each of their draw steps."
+            EventSpec::Filtered { event, condition }
+                if lane_k::except_the_first_draw(event, condition).is_some() =>
+            {
+                let draw = lane_k::except_the_first_draw(event, condition);
+                let mut matched = self.event(draw.expect("just asked"))?;
+                for arm in &mut matched.arms {
+                    arm.tests.push(
+                        "!cantrip_mechanics::history::first_draw_in_own_draw_step(q, *player)"
+                            .to_string(),
+                    );
+                }
+                Ok(matched)
+            }
             EventSpec::Filtered { event, condition } => {
                 let mut matched = self.event(event)?;
                 let test = self.matching(matched.frame, |c| c.condition(condition))?;
@@ -1713,7 +1733,11 @@ impl Compiler {
                 };
                 extra.push(self.activation_test(filter, matched.frame)?);
             } else {
-                match self.condition_function(intervening, &format!("{label}_if")) {
+                let asked = match lane_k::asks_how_it_was_cast(intervening) {
+                    true => Err(gap("an event: how the object was cast")),
+                    false => self.condition_function(intervening, &format!("{label}_if")),
+                };
+                match asked {
                     Ok(function) => condition = Some(function),
                     Err(gap) if gap.feature.contains("event") => {
                         extra.push(self.matching(matched.frame, |c| c.condition(intervening))?);
@@ -1753,11 +1777,7 @@ impl Compiler {
             def.push_str(".sums_per_subject()");
         }
         if matched.mana {
-            def.push_str(if lane_g::adds_what_was_produced(body) {
-                ".mana_ability(TriggeredMana::OneOfProduced)"
-            } else {
-                ".mana_ability(TriggeredMana::Unstated)"
-            });
+            def.push_str(lane_k::triggered_mana(body));
         }
         if let Some(per_turn) = limits.per_turn.filter(|_| done_once.is_none()) {
             def.push_str(&format!(".triggers_each_turn({per_turn})"));
@@ -1783,7 +1803,11 @@ impl Compiler {
         let mut guard = None;
         let mut condition = None;
         if let Some(intervening) = intervening_if {
-            match self.condition_function(intervening, &format!("{label}_if")) {
+            let asked = match lane_k::asks_how_it_was_cast(intervening) {
+                true => Err(gap("an event: how the object was cast")),
+                false => self.condition_function(intervening, &format!("{label}_if")),
+            };
+            match asked {
                 Ok(function) => condition = Some(function),
                 // As `triggered` does: asked by the matcher, and by each mode.
                 Err(gap) if gap.feature.contains("event") => {

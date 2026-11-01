@@ -765,6 +765,7 @@ impl Compiler {
         let counted = std::mem::replace(&mut self.counted, amount.as_ref().map(|_| performed.0));
         let sized = std::mem::replace(&mut self.sized_slot, slot.map(|(count, _)| count));
         let announced = lane_p::without_modes(announcement);
+        let dividing = self.dividing.take();
         let closed = self.closing(true, |c| {
             c.reset_results();
             let targets = c.targets_for(&announced, &label, Frame::default())?;
@@ -774,11 +775,15 @@ impl Compiler {
         });
         self.counted = counted;
         self.sized_slot = sized;
+        let divided = std::mem::replace(&mut self.dividing, dividing);
         let (outer, (targets, modal)) = closed.map_err(lane_l::reads_as_a_target)?;
         let text = self.said(lane_k::Said::Triggered, ability_text(body));
         let mut def = format!("delayed_trigger({label}, {})", quoted(&text));
         if let Some(targets) = targets {
             write!(def, ".targets({targets})").unwrap();
+        }
+        if let Some(divide) = divided {
+            write!(def, ".divide({divide})").unwrap();
         }
         if let Some(modal) = modal? {
             def = planned::planned_value(
