@@ -154,6 +154,8 @@ def body(card):
     faces = card["faces"]
     if not faces:
         return ""
+    if card.get("rust"):
+        return card["rust"]
     if len(faces) == 1:
         return faces[0]["rust"]
     return "".join(f"pub mod face_{i} {{\n{face['rust']}\n}}\n" for i, face in enumerate(faces))

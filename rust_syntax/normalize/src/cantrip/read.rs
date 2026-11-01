@@ -7,7 +7,7 @@ use super::*;
 
 /// The card printing what is being compiled: `delayed` is that card's list, and
 /// a copy of the object has the same text (CR 707.2).
-pub(super) const SOURCE_CARD: &str =
+const SOURCE_CARD: &str =
     "{ let o = q.state().obj(asker.source); o.copied_card().unwrap_or(o.card) }";
 
 /// Which callback is being generated.
@@ -194,6 +194,16 @@ pub(super) fn counter_kind(kind: &crate::counter::CounterKind) -> Result<String>
 }
 
 impl Compiler {
+    /// `SOURCE_CARD`, or for a face an object's `card` doesn't name, that face: a
+    /// transformed permanent's `card` is its front and a Room's is the whole Room,
+    /// and neither lists what a back face or a door prints.
+    pub(super) fn source_card(&self) -> &'static str {
+        match (self.own_face, self.reader) {
+            (false, _) => SOURCE_CARD,
+            (true, Reader::Layer) => "q.cards().current(q.state().obj(asker.source))",
+            (true, _) => "q.card_id(&CARD)",
+        }
+    }
     /// A read made while resolving, where `g` is the only reader.
     pub(super) fn fetch(&self, code: impl AsRef<str>) -> String {
         format!("{{ let q: &dyn Query = g; {} }}", code.as_ref())

@@ -18,6 +18,7 @@ mod costs;
 mod delayed;
 mod effects;
 mod keywords;
+mod lane_f;
 mod mechanics;
 pub mod planned;
 mod players;
@@ -29,6 +30,7 @@ mod survey;
 mod triggers;
 pub use crate::report::BackendDiagnostic as Diagnostic;
 use effects::rule_name;
+pub use lane_f::{is_card, whole, whole_gaps, whole_module, Whole, WholeFace};
 use read::{counter_kind, zone_kind, Candidate, Carried, EventAt, Frame, History, Pending, Reader};
 pub use survey::survey;
 type Result<T> = std::result::Result<T, Diagnostic>;
@@ -378,6 +380,10 @@ struct Compiler {
     single: BTreeSet<u32>,
     /// Some ability of the card reads what was exiled with its source.
     links_exile: bool,
+    /// A face other than the definition an object's `card` names: `lane_f`.
+    own_face: bool,
+    /// Which door of its Room this face is.
+    door: Option<lane_f::Door>,
     /// The announcement slot whose filter is being compiled.
     choosing: Option<usize>,
     performed: BTreeMap<u32, String>,
@@ -660,6 +666,8 @@ impl Compiler {
             hoisted: None,
             single: BTreeSet::new(),
             links_exile: false,
+            own_face: false,
+            door: None,
             choosing: None,
             performed: BTreeMap::new(),
             values: BTreeMap::new(),
@@ -1333,22 +1341,19 @@ pub fn modules_named(input: &Path, names: &[String]) -> corpus::Result<Vec<(Stri
                 return Ok(None);
             };
             let lowered = crate::unified::lower(&source);
-            let rendered = lowered
-                .card
-                .faces
-                .iter()
-                .map(|face| match module(face) {
-                    Ok(rust) if std::env::var_os("MTGISH_SHOW_AST").is_some() => {
-                        format!("{face:#?}\n{rust}")
-                    }
-                    Ok(rust) => rust,
-                    Err(_) if std::env::var_os("MTGISH_SHOW_AST").is_some() => {
-                        format!("{face:#?}\n// gaps: {:?}", gaps(face))
-                    }
-                    Err(_) => format!("// gaps: {:?}", gaps(face)),
-                })
-                .collect::<Vec<_>>()
-                .join("\n");
+            let mut rendered = String::new();
+            if std::env::var_os("MTGISH_SHOW_AST").is_some() {
+                for face in &lowered.card.faces {
+                    writeln!(rendered, "{face:#?}").unwrap();
+                }
+            }
+            match whole_module(&source, &lowered.card) {
+                Ok(rust) => rendered.push_str(&rust),
+                Err(_) => {
+                    let gaps = whole_gaps(&source, &lowered.card);
+                    write!(rendered, "// gaps: {gaps:?}").unwrap()
+                }
+            }
             Ok(Some((name, rendered)))
         },
         |_, module| {
@@ -1359,7 +1364,8 @@ pub fn modules_named(input: &Path, names: &[String]) -> corpus::Result<Vec<(Stri
     Ok(found)
 }
 
-/// One complete card module. Never returns partially executable code.
+/// One complete card module of one face, whatever else its record holds. Never
+/// returns partially executable code. `whole_module` is a record's whole file.
 pub fn module(card: &Card) -> Result<String> {
     let mut module = emit_module(card, None)?;
     if module.gaps.is_empty() {
@@ -1368,13 +1374,8 @@ pub fn module(card: &Card) -> Result<String> {
         Err(module.gaps.swap_remove(0))
     }
 }
-/// A card's whole file: a card with gaps has a hole for each, and the gaps say
-/// what they wait on. Only `module`'s result is ever executable as the card.
-pub fn tracked_module(card: &Card) -> Result<(String, Vec<Diagnostic>)> {
-    let module = emit_module(card, None)?;
-    Ok((module.rust, module.gaps))
-}
-/// Everything the generator lacks for this card, not only the first gap.
+/// Everything the generator lacks for this face, not only the first gap.
+/// `whole_gaps` adds what its card lacks as a card.
 pub fn gaps(card: &Card) -> Vec<Diagnostic> {
     match emit_module(card, None) {
         Ok(module) => module.gaps,
@@ -1473,6 +1474,8 @@ struct EmittedModule {
     rust: String,
     extras: Vec<String>,
     gaps: Vec<Diagnostic>,
+    /// What this face has that a Room's door may not.
+    door_refused: Option<&'static str>,
 }
 /// How an object was cast: it as a spell, or the spell it resolved from. A
 /// spell's own `cast_from` isn't carried onto the permanent. A matcher sees the
@@ -1489,6 +1492,14 @@ const COMMON_CONTROLLER: &str = "fn controller_of(q: &dyn Query, id: ObjectId) -
 const COMMON_CREATURE_TYPE: &str = "fn common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let common = choice.selected.iter().fold(SubtypeSet::CREATURE_TYPES, |common, &c| common.minus(common.minus(q.chars(c).subtypes))); Verdict { complete: choice.selected.is_empty() || !common.is_empty(), addable: Bits::of(choice.candidates.len(), |i| common.intersects(q.chars(choice.candidates[i]).subtypes)) } }\nfn largest_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { SubtypeSet::CREATURE_TYPES.iter().map(|t| choice.candidates.iter().copied().filter(|&c| q.chars(c).subtypes.has(t)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
 
 fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedModule> {
+    emit_face(card, token_name, lane_f::Place::default())
+}
+/// A card's module, as `place` puts it among the faces of its card.
+fn emit_face(
+    card: &Card,
+    token_name: Option<&TokenName>,
+    place: lane_f::Place,
+) -> Result<EmittedModule> {
     validate::card(card).map_err(|e| Diagnostic {
         path: "card".into(),
         feature: "invalid AST".into(),
@@ -1496,14 +1507,17 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     })?;
     let mut c = Compiler::new();
     let mut parts = Parts::default();
-    c.links_exile = format!("{:?}", card.abilities).contains("ExiledWith(Source)");
+    c.links_exile =
+        place.links_exile || format!("{:?}", card.abilities).contains("ExiledWith(Source)");
+    c.own_face = place.own_face;
+    c.door = place.door;
     c.enters_choosing = chosen::enters_choosing(card);
     for (i, a) in card.abilities.iter().enumerate() {
         if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
             c.casting_costs.insert(i as u32, cost.clone());
         }
     }
-    let firsts: Vec<String> = card
+    let mut firsts: Vec<String> = card
         .abilities
         .iter()
         .filter_map(|a| match a {
@@ -1511,6 +1525,7 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
             _ => None,
         })
         .collect();
+    firsts.extend(place.earthbend.then(|| keywords::EARTHBEND_RETURN.to_string()));
     c.attempt("abilities".into(), |c| match firsts.as_slice() {
         [] => Ok(()),
         [first] => {
@@ -1636,7 +1651,8 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     for made in std::mem::take(&mut c.made_replacements) {
         parts.table("granted_replacements", made);
     }
-    let rest = parts.rest();
+    let door_refused = parts.door_refused();
+    let rest = parts.rest() + &place.fields;
     let Parts {
         keywords,
         abilities,
@@ -1679,7 +1695,7 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     };
     let fingerprint =
         corpus::digest(&serde_json::to_vec(&(card, token_name)).expect("serializable AST"));
-    let oracle = token_name.is_none();
+    let oracle = token_name.is_none() && !place.no_card;
     let (name, token_words) = match token_name {
         Some(TokenName::FromSubtypes) => {
             let words = ch.subtypes.iter().map(name).collect::<Vec<_>>().join(" ");
@@ -1700,12 +1716,28 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     ];
     let holes = std::mem::take(&mut c.holes);
     c.functions.push_str(&holes);
+    c.functions.push_str(&place.holes);
+    c.extras.extend(place.extras);
+    let mut listed = BTreeSet::new();
+    c.extras.retain(|path| listed.insert(path.clone()));
     let bestow = c.bestow.take();
     if bestow.is_some() {
         c.extras.push("BESTOWED".into());
     }
+    // What a card brings along is listed by the file's own `CARD`.
+    let extra = match place.own_face {
+        true => String::new(),
+        false => format!(
+            "pub static EXTRA: &[&CardDef] = &[{}];\n",
+            c.extras
+                .iter()
+                .map(|p| format!("&{p}"))
+                .collect::<Vec<_>>()
+                .join(",")
+        ),
+    };
     let rust = format!(
-        "// Generated by mtgish-ast, schema {}, normalized SHA256 {fingerprint}.\n// Generator SHA256 {generator}; Cantrip API SHA256 {api}.\n#[allow(unused_imports)] use cantrip_api::*;\n{}\npub static CARD: CardDef = CardDef {{ name: {}, token_words: {token_words}, oracle: {oracle}, cost: {mana}, has_cost: {}, types: TypeSet::of(&[{}]), subtypes: SubtypeSet::of(&[{}]), supertypes: Supertypes {{ basic: {}, legendary: {}, snow: {} }}, colors: {colors}, power: {}, toughness: {}, loyalty: {}, defense: {}, keywords: Keywords::of(&[{}]), protection: ColorSet({protection}), spell: {spell}, abilities: &[{}], statics: &[{}], replacements: &[{}], preventions: &[{}], block_rules: &[{}], block_requirements: &[{}], attack_rules: &[{}], untap_bans: &[{}], delayed: &[{}], enters: {enters}, modal: {modal}, enchant: {enchant}, {rest}..CardDef::BLANK }};\npub static EXTRA: &[&CardDef] = &[{}];\n",
+        "// Generated by mtgish-ast, schema {}, normalized SHA256 {fingerprint}.\n// Generator SHA256 {generator}; Cantrip API SHA256 {api}.\n#[allow(unused_imports)] use cantrip_api::*;\n{}\npub static CARD: CardDef = CardDef {{ name: {}, token_words: {token_words}, oracle: {oracle}, cost: {mana}, has_cost: {}, types: TypeSet::of(&[{}]), subtypes: SubtypeSet::of(&[{}]), supertypes: Supertypes {{ basic: {}, legendary: {}, snow: {} }}, colors: {colors}, power: {}, toughness: {}, loyalty: {}, defense: {}, keywords: Keywords::of(&[{}]), protection: ColorSet({protection}), spell: {spell}, abilities: &[{}], statics: &[{}], replacements: &[{}], preventions: &[{}], block_rules: &[{}], block_requirements: &[{}], attack_rules: &[{}], untap_bans: &[{}], delayed: &[{}], enters: {enters}, modal: {modal}, enchant: {enchant}, {rest}..CardDef::BLANK }};\n{extra}",
         SCHEMA_VERSION,
         c.functions,
         name,
@@ -1728,8 +1760,7 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
         block_requirements.join(","),
         attack_rules.join(","),
         untap_bans.join(","),
-        c.delayed.join(","),
-        c.extras.iter().map(|p|format!("&{p}")).collect::<Vec<_>>().join(",")
+        c.delayed.join(",")
     );
     // The creature and the Aura it is while bestowed have one text (CR 702.103b).
     let rust = match bestow {
@@ -1748,6 +1779,7 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
         rust,
         extras: c.extras,
         gaps,
+        door_refused,
     })
 }
 

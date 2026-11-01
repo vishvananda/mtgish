@@ -450,7 +450,7 @@ impl Compiler {
                 let index = self.grant(ability)?;
                 LayerChange::of(
                     "Ability",
-                    format!("let card = {}; if let Some(slot) = chars.abilities.iter().position(|a| a.is_none()) {{ chars.abilities[slot] = Some(AbilityRef::delayed(card, {index})); }}", read::SOURCE_CARD),
+                    format!("let card = {}; if let Some(slot) = chars.abilities.iter().position(|a| a.is_none()) {{ chars.abilities[slot] = Some(AbilityRef::delayed(card, {index})); }}", self.source_card()),
                 )
             }
             Change::Rule(RuleChange::CombatGroup {

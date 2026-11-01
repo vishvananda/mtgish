@@ -182,12 +182,12 @@ impl Report {
                     })?;
                     crate::inventory::Inventory(&mut forms).card(card);
                     count_operations(&serde_json::to_value(card)?, &mut operations);
-                    #[cfg(feature = "cantrip")]
-                    if backend && lowered.card.layout == "Card" {
-                        match crate::cantrip::module(card) {
-                            Ok(_) => backend_capable = true,
-                            Err(d) => backend_diagnostic = Some(d),
-                        }
+                }
+                #[cfg(feature = "cantrip")]
+                if backend && crate::cantrip::is_card(&lowered.card) {
+                    match crate::cantrip::whole_module(&source, &lowered.card) {
+                        Ok(_) => backend_capable = true,
+                        Err(d) => backend_diagnostic = Some(d),
                     }
                 }
             }

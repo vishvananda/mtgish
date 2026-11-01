@@ -1,0 +1,14 @@
+[
+ {"match": "^layout Flip$", "class": "engine", "needs": "flip cards (CR 710): a flipped half that gives a flipped permanent its name, text, types and power and toughness and keeps its mana cost and colors", "api": "CardDef::flip: Option<&'static CardDef>"},
+ {"match": "^keyword action Flip$", "class": "engine", "needs": "the flip action and the flipped status (CR 110.5, 710), which lasts until the permanent leaves the battlefield", "api": "Game::flip(object)"},
+ {"match": "^layout MeldPiece$", "class": "engine", "needs": "meld pairs (CR 712.4): a card that names the oversized back face it melds into with its counterpart", "api": "CardDef::melds_into: Option<&'static str>"},
+ {"match": "^layout Melded$", "class": "engine", "needs": "a melded back face (CR 712.4), two cards at once that exile and return as a pair, with a mana value of its fronts' total, and no card of its own in a deck", "api": "CardDef::melded: bool"},
+ {"match": "^operation Meld$", "class": "engine", "needs": "the meld keyword action (CR 701.42): the two exiled cards of a pair onto the battlefield with their back faces up, combined", "api": "Game::meld(&objects, name)"},
+ {"match": "^Room door with ", "class": "engine", "needs": "a Room that has what its unlocked doors print beyond their triggered, activated and play rules: CardTable::new refuses such a door (CR 709.5)", "api": "layers::doors, CardDef::door_unsupported"},
+ {"match": "^layout Planar$", "class": "engine", "needs": "Planechase (CR 901), a casual variant Cantrip does not play: the planar deck, the planar die, and planes and phenomena in the command zone", "api": "CardDef::variant: Option<Variant>, Variant::Planechase"},
+ {"match": "^layout Vanguard$", "class": "engine", "needs": "Vanguard (CR 902), a casual variant Cantrip does not play: an avatar in the command zone whose modifiers set starting hand size and life", "api": "CardDef::variant, Variant::Vanguard { hand, life }"},
+ {"match": "^layout Scheme$", "class": "engine", "needs": "Archenemy (CR 904), a casual variant Cantrip does not play: the scheme deck in the command zone, set in motion each turn", "api": "CardDef::variant, Variant::Archenemy"},
+ {"match": "^layout Conspiracy$", "class": "engine", "needs": "Conspiracy Draft (CR 905), a casual variant Cantrip does not play: conspiracies in the command zone, and what they do during the draft", "api": "CardDef::variant, Variant::ConspiracyDraft"},
+ {"match": "^layout Dungeon$", "class": "engine", "needs": "venturing into a dungeon a player chooses (CR 309, 701.49): CardDef::dungeon holds the rooms, but the engine reaches only Undercity, through the initiative", "api": "CardDef::dungeon, Game::venture"},
+ {"match": "^layout StickerSheet$", "class": "engine", "needs": "sticker sheets (CR 123), an Un-format sideboard of stickers and tickets; a sheet has no card face, so no card file waits on this", "api": "none: no card file"}
+]

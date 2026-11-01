@@ -405,6 +405,16 @@ impl Compiler {
                 Some("from.is(ZoneKind::Battlefield)"),
                 "Whenever a player sacrifices a permanent",
             ),
+            // "When you unlock this door": which door is its place on the Room.
+            PlayerEvent::UnlocksDoor if self.door.is_some() => (
+                "DOOR_UNLOCKED",
+                "Event::DoorUnlocked { permanent, door, player }",
+                "let id = *permanent; let subject = Target::Object(id); let data = [u32::from(player.0), 0];",
+                "*player",
+                acted,
+                self.door.map(lane_f::Door::unlocked),
+                "When you unlock this door",
+            ),
             PlayerEvent::PlaysLand => (
                 "ZONE_CHANGE",
                 "Event::ZoneChange { new, to, reason: ZoneReason::PlayLand, .. }",
@@ -561,7 +571,7 @@ impl Compiler {
         Ok(single(
             "BECAME_TARGET",
             Arm {
-                pattern: "Event::BecameTarget { target: Target::Object(target), by, controller }".into(),
+                pattern: "Event::BecameTarget { target: Target::Object(target), by, controller, .. }".into(),
                 locals: "let id = *target; let by = *by; let controller = *controller; let subject = Target::Object(id); let data = [by.0, u32::from(controller.0)];".into(),
                 tests,
             },
