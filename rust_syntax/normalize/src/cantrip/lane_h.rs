@@ -7,6 +7,39 @@ const PRELUDE: &str = "let asker = &Asker::new(source, q.controller(source));";
 /// The shape of most object tables: `id` is the permanent the rule is about.
 const ASKED: &str = "(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool";
 
+/// How long a permission on a card lasts.
+fn play_expiry(duration: &crate::ir::Duration) -> Result<String> {
+    use crate::ir::Duration as D;
+    Ok(match duration {
+        D::EndOfTurn => "Expiry::EndOfTurn".to_string(),
+        D::UntilEndOfNextTurn(PlayerRef::AbilityController) => {
+            "Expiry::EndOfYourNextTurn".to_string()
+        }
+        D::UntilNext {
+            point: TurnPoint::EndStepBegins,
+            players: PlayerSet::One(PlayerRef::AbilityController),
+        } => "Expiry::UntilYourNextEndStep".to_string(),
+        D::WhileControlled {
+            player: PlayerRef::AbilityController,
+            object: ObjectRef::Source,
+        } => "Expiry::WhileControls(asker.source)".to_string(),
+        D::Indefinite | D::WhileExiled(_) | D::WhileAnyExiled(_) => "Expiry::Never".to_string(),
+        other => return Err(gap(format!("play permission lasting {}", form(other)))),
+    })
+}
+
+/// `FirstStrike` as a card says it.
+fn camel_words(word: &str) -> String {
+    let mut out = String::new();
+    for (i, c) in word.chars().enumerate() {
+        if c.is_uppercase() && i > 0 {
+            out.push(' ');
+        }
+        out.extend(c.to_lowercase());
+    }
+    out
+}
+
 /// A play permission that says nothing but where from.
 fn plain_terms() -> PlayTerms {
     PlayTerms {
@@ -1020,7 +1053,6 @@ impl Compiler {
         duration: &crate::ir::Duration,
         out: &mut String,
     ) -> Result<bool> {
-        use crate::ir::Duration as D;
         let plain = plain_terms();
         let (permission, terms) = match rule {
             PlayerRule::PlayPermissionWith { permission, terms } => (&**permission, terms),
@@ -1040,22 +1072,7 @@ impl Compiler {
             CardPlayAction::CastSpell => false,
             other => return Err(gap(format!("play permission to {}", form(other)))),
         };
-        let expiry = match duration {
-            D::EndOfTurn => "Expiry::EndOfTurn".to_string(),
-            D::UntilEndOfNextTurn(PlayerRef::AbilityController) => {
-                "Expiry::EndOfYourNextTurn".to_string()
-            }
-            D::UntilNext {
-                point: TurnPoint::EndStepBegins,
-                players: PlayerSet::One(PlayerRef::AbilityController),
-            } => "Expiry::UntilYourNextEndStep".to_string(),
-            D::WhileControlled {
-                player: PlayerRef::AbilityController,
-                object: ObjectRef::Source,
-            } => "Expiry::WhileControls(asker.source)".to_string(),
-            D::Indefinite | D::WhileExiled(_) | D::WhileAnyExiled(_) => "Expiry::Never".to_string(),
-            other => return Err(gap(format!("play permission lasting {}", form(other)))),
-        };
+        let expiry = play_expiry(duration)?;
         if terms.during.is_some() || terms.flash || terms.may_look {
             return Err(gap("play permission on other terms"));
         }
@@ -1205,8 +1222,642 @@ impl Compiler {
             PlayerRule::PlayPermission { .. } | PlayerRule::PlayPermissionWith { .. } => {
                 self.static_play(label, players, rule, parts)
             }
+            PlayerRule::ActivationGrant { abilities, grant } => {
+                self.activation_grant(label, players, abilities, grant, parts)
+            }
+            PlayerRule::SpendManaAs { spend_as, on } => {
+                self.spend_mana_as(label, players, spend_as, on, parts)
+            }
+            PlayerRule::LimitPerTurn {
+                action: PlayerAction::CastSpell { from: None, filter },
+                amount: Expr::Constant(n),
+            } => self.cast_limit(label, players, filter, *n, parts),
+            PlayerRule::Skip(section) => {
+                let step = match section {
+                    TurnSection::Untap => "Step::Untap",
+                    TurnSection::Upkeep => "Step::Upkeep",
+                    TurnSection::Draw => "Step::Draw",
+                    other => return Err(gap(format!("player rule Skip {}", form(other)))),
+                };
+                let applies = self.player_test(players)?;
+                self.plan_entry(
+                    "skipping a step of the turn",
+                    "skip_steps",
+                    &format!("SkipStep {{ applies: {applies}, step: {step} }}"),
+                    parts,
+                );
+                Ok(())
+            }
+            PlayerRule::UntapLimit {
+                permanents,
+                amount: Expr::Constant(n),
+            } => {
+                let applies = self.player_test(players)?;
+                let test = self.filter(permanents, &Candidate::of("id"))?;
+                self.plan_entry(
+                    "a limit on what untaps in an untap step",
+                    "untap_limits",
+                    &format!("UntapLimit {{ applies: {applies}, permanents: |q, asker, id| {test}, amount: {n} }}"),
+                    parts,
+                );
+                Ok(())
+            }
+            PlayerRule::HandSize(size) => {
+                let size = match size {
+                    HandSizeRule::Unlimited => "HandSize::Unlimited".to_string(),
+                    HandSizeRule::Set(Expr::Constant(n)) => format!("HandSize::Set({n})"),
+                    HandSizeRule::Adjust(Expr::Constant(n)) => format!("HandSize::Adjust({n})"),
+                    other => return Err(gap(format!("player rule HandSize {}", form(other)))),
+                };
+                let applies = self.player_test(players)?;
+                self.plan_entry(
+                    "a maximum hand size of other players",
+                    "hand_size_rules",
+                    &format!("HandSizeRule {{ applies: {applies}, size: {size} }}"),
+                    parts,
+                );
+                Ok(())
+            }
+            PlayerRule::Visibility { objects, audience } => {
+                self.visibility(players, objects, audience, parts)
+            }
+            PlayerRule::SpellsHaveAbilities {
+                spells,
+                from,
+                nth_each_turn: None,
+                abilities,
+            } => self.spells_have(label, players, spells, from.as_ref(), abilities, parts),
+            PlayerRule::KeywordCost {
+                keyword,
+                cards,
+                change,
+                per,
+                first_each_turn,
+            } => self.keyword_cost(label, players, keyword, cards, change, per.as_ref(), *first_each_turn, parts),
             other => Err(gap(format!("player rule {}", form(other)))),
         }
+    }
+    /// "You may pay {0} rather than pay the equip cost of the first equip ability
+    /// you activate each turn" (CR 118.9), and what other keywords' costs want.
+    #[allow(clippy::too_many_arguments)]
+    fn keyword_cost(
+        &mut self,
+        label: &str,
+        players: &PlayerSet,
+        keyword: &CostedKeyword,
+        cards: &ObjectFilter,
+        change: &KeywordCostChange,
+        per: Option<&Expr>,
+        first_each_turn: bool,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let failure = || gap("player rule KeywordCost");
+        let (guard, member) = (self.guard()?, self.player_member(players)?);
+        if let (
+            CostedKeyword::Equip,
+            KeywordCostChange::Alternate(amount),
+            ObjectFilter::Any,
+            None,
+            true,
+        ) = (keyword, change, cards, per, first_each_turn)
+        {
+            if generic_amount(amount) == Some(0) {
+                self.permission_entry(
+                    None,
+                    "ability_alternatives",
+                    &format!("{label}_rule"),
+                    ("q: &dyn Query, asker: &Asker, player: PlayerId, permanent: ObjectId, def: &ActivatedDef", "", "Option<ManaCost>"),
+                    &format!("({guard}{member} && def.equip && !cantrip_mechanics::history::activated_an_equip_ability_this_turn(q, player)).then_some(ManaCost::ZERO)"),
+                    |function| function.to_string(),
+                    parts,
+                );
+                return Ok(());
+            }
+        }
+        let test = self.filter(cards, &Candidate::of("card"))?;
+        let amount = |c: &mut Self, amount: &Operand| match amount {
+            Operand::Cost(cost) => c.cost(cost, &format!("{label}_cost")),
+            other => generic_amount(other)
+                .map(|n| format!("Cost::generic({n})"))
+                .ok_or_else(failure),
+        };
+        let change = match change {
+            KeywordCostChange::Reduce(n) => format!("KeywordCostChange::Reduce({})", amount(self, n)?),
+            KeywordCostChange::Increase(n) => format!("KeywordCostChange::Increase({})", amount(self, n)?),
+            KeywordCostChange::Alternate(n) => format!("KeywordCostChange::Alternate({})", amount(self, n)?),
+        };
+        let per = match per {
+            None => "1".to_string(),
+            Some(per) => self.number(per)?.code,
+        };
+        self.plan_entry(
+            "a keyword's cost changed",
+            "keyword_costs",
+            &format!("KeywordCostRule {{ keyword: CostedKeyword::{}, applies: |q, asker, player, card| {guard}{member} && {test}, change: {change}, per: |q, asker| {per}, first_each_turn: {first_each_turn} }}", name(keyword)),
+            parts,
+        );
+        Ok(())
+    }
+    /// "Spells you cast have delve", "... from your hand have cascade": a keyword a
+    /// spell has as it is cast (CR 702.66a, 702.85a).
+    fn spells_have(
+        &mut self,
+        label: &str,
+        players: &PlayerSet,
+        spells: &ObjectFilter,
+        from: Option<&EventZone>,
+        abilities: &Operand,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let failure = || gap("player rule SpellsHaveAbilities");
+        let items = match abilities {
+            Operand::List(items) => items.as_slice(),
+            other => std::slice::from_ref(other),
+        };
+        let mut forms = Vec::new();
+        for item in items {
+            let Operand::Term { form, operands, .. } = item else {
+                return Err(failure());
+            };
+            if !operands.is_empty() {
+                return Err(failure());
+            }
+            forms.push(form.as_str());
+        }
+        let paying = |word: &str| matches!(word, "Convoke" | "Delve" | "Improvise" | "Assist");
+        if forms.iter().copied().all(paying) {
+            if from.is_some() {
+                return Err(failure());
+            }
+            let (guard, member) = (self.guard()?, self.player_member(players)?);
+            let test = self.filter(
+                spells,
+                &Candidate {
+                    announced: Some(String::new()),
+                    ..super::players::cast_card()
+                },
+            )?;
+            let fields: Vec<String> = forms.iter().map(|f| format!("{}: true", f.to_lowercase())).collect();
+            self.permission_entry(
+                None,
+                "grants_pay_with",
+                &format!("{label}_rule"),
+                ("q: &dyn Query, source: ObjectId, player: PlayerId, spell: ObjectId", "", "PayWith"),
+                &format!("{PRELUDE} if {guard}{member} && {test} {{ PayWith {{ {}, ..PayWith::NONE }} }} else {{ PayWith::NONE }}", fields.join(", ")),
+                |function| function.to_string(),
+                parts,
+            );
+            return Ok(());
+        }
+        let mut changes = Vec::new();
+        for word in &forms {
+            changes.push(match *word {
+                "Cascade" => Change::GrantAbility(Box::new(Ability::Mechanic {
+                    mechanic: Mechanic::Cascade,
+                    cost: None,
+                    amount: None,
+                    filter: None,
+                })),
+                "CantBeCountered" => Change::Rule(RuleChange::Prohibit(ObjectAction::Counter)),
+                _ => return Err(failure()),
+            });
+        }
+        let filter = ObjectFilter::All(vec![
+            ObjectFilter::Cast {
+                by: Some(players.clone()),
+                from: from.map(|zone| ZoneScope::Shared(zone.clone())),
+            },
+            spells.clone(),
+        ]);
+        let affected = EffectSubjects::Objects(ObjectSet::Zone {
+            scope: ZoneScope::Shared(EventZone::Stack),
+            kind: ObjectKind::Spell,
+            filter,
+        });
+        self.static_ability(label, &StaticKind::Ordinary, &affected, &changes, parts)
+    }
+    /// "You may look at that card for as long as it remains exiled": information a
+    /// resolved effect opens (CR 400.2). False if this is no such rule.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn look_for_a_while(
+        &mut self,
+        id: usize,
+        i: usize,
+        players: &PlayerSet,
+        rule: &PlayerRule,
+        duration: &crate::ir::Duration,
+        out: &mut String,
+    ) -> Result<bool> {
+        let PlayerRule::Visibility {
+            objects,
+            audience: VisibilityAudience::AffectedPlayer,
+        } = rule
+        else {
+            return Ok(false);
+        };
+        let expiry = play_expiry(duration)?;
+        let cards = self.fetch(self.objects(objects)?);
+        let players = self.fetch(self.players(players)?);
+        self.plan_code(
+            "a card a player may look at for a while",
+            &format!("let cards_{id}_{i} = {cards}; let players_{id}_{i} = {players}; for &card in &cards_{id}_{i} {{ for &player in &players_{id}_{i} {{ g.allow_look(card, player, {expiry}); }} }}"),
+            out,
+        );
+        Ok(true)
+    }
+    /// "Your choice of flying or vigilance": one of the card's own words, kept for
+    /// the `ChosenAbility` that follows in the same body.
+    pub(super) fn choose_ability(
+        &mut self,
+        id: usize,
+        player: &str,
+        options: &[Operand],
+        out: &mut String,
+    ) -> Result<()> {
+        let failure = || gap("a choice of Ability");
+        if !self.stack_item || (self.entering_labels.is_some() && self.choice_labels.is_empty()) {
+            return Err(failure());
+        }
+        let mut abilities = Vec::new();
+        let mut labels = Vec::new();
+        for option in options {
+            let Operand::Ability(ability) = option else {
+                return Err(failure());
+            };
+            let Ability::Keyword(keyword) = &**ability else {
+                return Err(failure());
+            };
+            labels.push(match keyword {
+                Keyword::Protection(quality) => match &**quality {
+                    Protection::Objects {
+                        filter: ObjectFilter::Color(color),
+                        ..
+                    } => format!("protection from {}", name(color).to_lowercase()),
+                    _ => return Err(failure()),
+                },
+                Keyword::Ward(_) => return Err(failure()),
+                other => camel_words(&form(other)),
+            });
+            abilities.push((**ability).clone());
+        }
+        let base = self.choice_labels.len();
+        let end = base + labels.len();
+        self.choice_labels.extend(labels);
+        let quoted_labels: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
+        self.entering_labels = Some(format!("&[{}]", quoted_labels.join(", ")));
+        self.ability_choice = abilities;
+        writeln!(
+            out,
+            "let player_{id} = {player}; let chosen_{id} = cantrip_mechanics::choose::option(g, player_{id}, asker.source, item.ability.card, {base}..{end})? - {base};"
+        )
+        .unwrap();
+        Ok(())
+    }
+    /// `Change::ChosenAbility`: the one effect the choice asks for.
+    pub(super) fn chosen_ability(&mut self) -> Result<Vec<String>> {
+        let local = self.chosen_local(ValueKind::Ability)?;
+        let options = self.ability_choice.clone();
+        let last = options.len().saturating_sub(1);
+        let mut arms = Vec::new();
+        for (i, ability) in options.iter().enumerate() {
+            let Ability::Keyword(keyword) = ability else {
+                return Err(gap("continuous change ChosenAbility"));
+            };
+            let kinds = self.effect_kinds(&Change::GrantKeyword(keyword.clone()))?;
+            let [kind] = kinds.as_slice() else {
+                return Err(gap("continuous change ChosenAbility"));
+            };
+            let pattern = if i == last { "_".to_string() } else { i.to_string() };
+            arms.push(format!("{pattern} => {kind},"));
+        }
+        Ok(vec![format!("match {local} {{ {} }}", arms.join(" "))])
+    }
+    /// A closure over `player`: whether the rule is about them now.
+    fn player_test(&self, players: &PlayerSet) -> Result<String> {
+        let (guard, member) = (self.guard()?, self.player_member(players)?);
+        Ok(format!("|q, asker, player| {guard}{member}"))
+    }
+    /// "Play with the top card of your library revealed", "you may look at cards
+    /// exiled with this": information a rule opens (CR 400.2, 401.5, 402.3).
+    fn visibility(
+        &mut self,
+        players: &PlayerSet,
+        objects: &ObjectSet,
+        audience: &VisibilityAudience,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let affected_zone = |set: &ObjectSet, wanted: &EventZone| {
+            matches!(
+                set,
+                ObjectSet::Zone {
+                    scope: ZoneScope::Players { zone, players: PlayerSet::One(PlayerRef::Affected) },
+                    filter: ObjectFilter::Any,
+                    ..
+                } if zone == wanted
+            )
+        };
+        let top = matches!(
+            objects,
+            ObjectSet::Take { objects, count: Expr::Constant(1), from: SequenceEnd::Top }
+                if affected_zone(objects, &EventZone::Library)
+        );
+        let everyone = matches!(audience, VisibilityAudience::Everyone);
+        if top {
+            let applies = self.player_test(players)?;
+            let rule = if everyone {
+                "PlayRule::LibraryTopRevealed"
+            } else {
+                "PlayRule::LooksAtLibraryTop"
+            };
+            self.plan_entry(
+                "a library's top card open to view",
+                "play_rules",
+                &format!("{rule}({applies})"),
+                parts,
+            );
+            return Ok(());
+        }
+        if everyone && affected_zone(objects, &EventZone::Hand) {
+            let applies = self.player_test(players)?;
+            self.plan_entry(
+                "a hand played revealed",
+                "play_rules",
+                &format!("PlayRule::HandRevealed({applies})"),
+                parts,
+            );
+            return Ok(());
+        }
+        if everyone {
+            return Err(gap(format!("player rule Visibility {}", form(objects))));
+        }
+        let (guard, member) = (self.guard()?, self.player_member(players)?);
+        let cards = self.objects(objects)?;
+        self.plan_entry(
+            "cards a player may look at",
+            "play_rules",
+            &format!("PlayRule::MayLookAt(|q, asker, player, card| {guard}{member} && ({cards}).contains(&card))"),
+            parts,
+        );
+        Ok(())
+    }
+    /// "You can't cast more than one spell each turn": the spells this player
+    /// has cast this turn, read from the history, whenever the board was.
+    fn cast_limit(
+        &mut self,
+        label: &str,
+        players: &PlayerSet,
+        filter: &ObjectFilter,
+        n: i64,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        fn past(filter: &ObjectFilter) -> Option<String> {
+            match filter {
+                ObjectFilter::Any => Some("true".to_string()),
+                ObjectFilter::CardType(t) => {
+                    Some(format!("c.is(CardType::{})", card_type(t).ok()?))
+                }
+                ObjectFilter::Not(inner) => Some(format!("!({})", past(inner)?)),
+                _ => None,
+            }
+        }
+        let Some(counted) = past(filter) else {
+            return Err(gap(format!("player rule LimitPerTurn {}", form(filter))));
+        };
+        let test = self.filter(filter, &super::players::cast_card())?;
+        let (guard, member) = (self.guard()?, self.player_member(players)?);
+        self.permission_entry(
+            None,
+            "spell_rules",
+            &format!("{label}_rule"),
+            ("q: &dyn Query, asker: &Asker, player: PlayerId, spell: ObjectId", "", "bool"),
+            &format!("!({guard}{member} && {test} && q.history().casts_by(player).filter(|c| c.spell != spell && {counted}).count() >= {n})"),
+            |function| function.to_string(),
+            parts,
+        );
+        Ok(())
+    }
+    /// "You may spend mana as though it were mana of any color to ..." (CR 609.4b).
+    fn spend_mana_as(
+        &mut self,
+        label: &str,
+        players: &PlayerSet,
+        spend_as: &SpendAs,
+        on: &ManaPayment,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let test = match on {
+            ManaPayment::Anything => "true".to_string(),
+            ManaPayment::Spells(filter) => format!(
+                "s.purpose == SpendingFor::Casting && s.source.is_some_and(|spell| {})",
+                self.filter(filter, &super::players::cast_card())?
+            ),
+            ManaPayment::Abilities(ObjectFilter::AbilityOf(objects)) => format!(
+                "s.purpose == SpendingFor::Activating && s.source.is_some_and(|id| {})",
+                self.filter(objects, &Candidate::of("id"))?
+            ),
+            other => return Err(gap(format!("player rule SpendManaAs {}", form(other)))),
+        };
+        let (guard, member) = (self.guard()?, self.player_member(players)?);
+        let body = format!("let player = s.player; {guard}{member} && {test}");
+        let (table, feature): (&'static str, _) = match spend_as {
+            SpendAs::AnyColor => ("spend_any_color", None),
+            SpendAs::AnyType => ("spend_any_type", Some("mana spent as though of any type")),
+            other => return Err(gap(format!("player rule SpendManaAs {}", form(other)))),
+        };
+        self.permission_entry(
+            feature,
+            table,
+            &format!("{label}_rule"),
+            ("q: &dyn Query, asker: &Asker, s: &Spending", "q, asker, s", "bool"),
+            &body,
+            |function| function.to_string(),
+            parts,
+        );
+        Ok(())
+    }
+    /// "You may activate ... as though it had haste", "any time you could cast an
+    /// instant", "twice each turn rather than only once" (CR 602.5).
+    fn activation_grant(
+        &mut self,
+        label: &str,
+        players: &PlayerSet,
+        abilities: &ObjectFilter,
+        grant: &ActivationGrant,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let function = format!("{label}_rule");
+        let (guard, member) = (self.guard()?, self.player_member(players)?);
+        let plain = |parts: &mut Parts, c: &mut Self, table, params, body: &str| {
+            c.permission_entry(
+                None,
+                table,
+                &function,
+                (params, "", "bool"),
+                body,
+                |f| f.to_string(),
+                parts,
+            );
+        };
+        const ASKED_ABILITY: &str = "let def = q.activated_ability(ability);";
+        match grant {
+            ActivationGrant::AsThoughHaste => {
+                let ObjectFilter::AbilityOf(objects) = abilities else {
+                    return Err(gap(format!("player rule ActivationGrant {}", form(abilities))));
+                };
+                if !matches!(players, PlayerSet::One(PlayerRef::AbilityController)) {
+                    return Err(gap("as though haste for other players"));
+                }
+                let test = self.filter(objects, &Candidate::of("creature"))?;
+                plain(
+                    parts,
+                    self,
+                    "activate_as_though_haste",
+                    "q: &dyn Query, asker: &Asker, creature: ObjectId",
+                    &format!("{guard}{test}"),
+                );
+            }
+            ActivationGrant::InstantSpeed
+            | ActivationGrant::InstantSpeedDuring(PlayerSet::All) => {
+                let test = self.ability_test(abilities)?;
+                plain(
+                    parts,
+                    self,
+                    "instant_activation",
+                    "q: &dyn Query, asker: &Asker, source: ObjectId, index: u8, player: PlayerId",
+                    &format!("let Some(ability) = q.chars(source).abilities().nth(index as usize) else {{ return false; }}; {ASKED_ABILITY} let permanent = source; {guard}{member} && {test}"),
+                );
+            }
+            ActivationGrant::AdditionalTimes(Expr::Constant(n))
+                if guard.is_empty()
+                    && matches!(players, PlayerSet::One(PlayerRef::AbilityController))
+                    && format!("{abilities:?}").contains("PowerUp")
+                    && u8::try_from(*n).is_ok() =>
+            {
+                parts.field("extra_power_up_activations", n.to_string());
+            }
+            ActivationGrant::AdditionalTimes(Expr::Constant(n)) => {
+                let test = self.ability_test(abilities)?;
+                self.plan_entry(
+                    "an ability activated more times each turn",
+                    "extra_activations",
+                    &format!("ExtraActivations {{ abilities: |q, asker, player, permanent, ability| {{ {ASKED_ABILITY} {guard}{member} && {test} }}, times: {n} }}"),
+                    parts,
+                );
+            }
+            ActivationGrant::AsThoughNotActivated => {
+                let test = self.ability_test(abilities)?;
+                self.plan_entry(
+                    "an ability activated as though it had not been",
+                    "activate_again",
+                    &format!("|q, asker, player, permanent, ability| {{ {ASKED_ABILITY} {guard}{member} && {test} }}"),
+                    parts,
+                );
+            }
+            other => return Err(gap(format!("player rule ActivationGrant {}", form(other)))),
+        }
+        Ok(())
+    }
+    /// The objects a layer callback reads the abilities of. Those exiled with the
+    /// source are its own to name, read as `Agatha's Soul Cauldron` reads them.
+    fn ids_in_layer(&self, objects: &ObjectSet) -> Result<String> {
+        if let ObjectSet::Zone {
+            scope: ZoneScope::Shared(EventZone::Exile),
+            filter,
+            ..
+        } = objects
+        {
+            let items = match filter {
+                ObjectFilter::All(items) => items.as_slice(),
+                other => std::slice::from_ref(other),
+            };
+            let exiled_with =
+                |f: &ObjectFilter| matches!(f, ObjectFilter::ExiledWith(ObjectRef::Source));
+            if items.iter().any(exiled_with) {
+                let tests = items
+                    .iter()
+                    .filter(|f| !exiled_with(f))
+                    .map(|f| self.filter(f, &Candidate::of("id")))
+                    .collect::<Result<Vec<_>>>()?;
+                let keep = if tests.is_empty() {
+                    "true".to_string()
+                } else {
+                    tests.join(" && ")
+                };
+                return Ok(format!("q.exiled_with(q.linked_to(source)).into_iter().filter(|&id| {keep}).collect::<Vec<ObjectId>>()"));
+            }
+        }
+        self.objects(objects)
+    }
+    /// "Has all activated abilities of ...", "as long as a card exiled with this has
+    /// flying, this has flying. The same is true for ..." (CR 613.1f, layer 6).
+    pub(super) fn gain_abilities_of(
+        &mut self,
+        change: &Change,
+    ) -> Result<statics::LayerChange> {
+        let failure = || gap("static change GainAbilitiesOf");
+        let Change::GainAbilitiesOf {
+            objects,
+            kinds,
+            once_each_turn: false,
+            spend_as: None,
+        } = change
+        else {
+            return Err(failure());
+        };
+        fn words(kinds: &Operand, out: &mut Vec<String>) -> bool {
+            match kinds {
+                Operand::List(items) => items.iter().all(|item| words(item, out)),
+                Operand::Term { form, operands, .. } if operands.is_empty() => {
+                    out.push(form.clone());
+                    true
+                }
+                _ => false,
+            }
+        }
+        let mut kinds_named = Vec::new();
+        if !words(kinds, &mut kinds_named) {
+            return Err(failure());
+        }
+        let ids = self.ids_in_layer(objects)?;
+        let on_battlefield = matches!(objects, ObjectSet::Battlefield(_));
+        let body = match kinds_named.iter().map(String::as_str).collect::<Vec<_>>().as_slice() {
+            ["ActivatedAbility"] if on_battlefield => format!(
+                "let ids = {ids}; {};",
+                planned::planned_value(
+                    "the activated abilities of other permanents",
+                    "()",
+                    "cantrip_mechanics::statics::grant_activated_abilities_of_permanents(q, &ids, chars)",
+                )
+            ),
+            ["ActivatedAbility"] => format!(
+                "let cards: Vec<CardId> = ({ids}).into_iter().map(|id: ObjectId| q.state().obj(id).card).collect(); cantrip_mechanics::statics::grant_activated_abilities_of(q, &cards, chars);"
+            ),
+            ["LoyaltyAbility"] => format!(
+                "let ids = {ids}; {};",
+                planned::planned_value(
+                    "the loyalty abilities of other permanents",
+                    "()",
+                    "cantrip_mechanics::statics::grant_loyalty_abilities_of(q, &ids, chars)",
+                )
+            ),
+            names if names.iter().any(|n| n.ends_with("Ability")) => return Err(failure()),
+            names => {
+                let list = names
+                    .iter()
+                    .map(|n| format!("Keyword::{n}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!(
+                    "let ids = {ids}; {};",
+                    planned::planned_value(
+                        "the keywords of other objects",
+                        "()",
+                        &format!("cantrip_mechanics::statics::grant_keywords_of(q, &ids, &[{list}], chars)"),
+                    )
+                )
+            }
+        };
+        Ok(statics::LayerChange::of("Ability", body))
     }
     /// "Until end of turn, target player can't cast spells": a rule about the
     /// player, not an ability of anything (CR 611.2c). False if this is no such rule.

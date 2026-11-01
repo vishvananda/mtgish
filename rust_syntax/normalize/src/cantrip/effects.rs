@@ -1916,7 +1916,7 @@ impl Compiler {
     }
     /// What a resolving effect's change is in the engine's vocabulary. Each
     /// value is read when the effect is made, as `EffectEvaluation::Snapshot` says.
-    fn effect_kinds(&mut self, change: &Change) -> Result<Vec<String>> {
+    pub(super) fn effect_kinds(&mut self, change: &Change) -> Result<Vec<String>> {
         if let Change::GrantKeyword(ward @ Keyword::Ward(_)) = change {
             let change = Change::GrantAbility(Box::new(Ability::Keyword(ward.clone())));
             return self.effect_kinds(&change);
@@ -1954,6 +1954,7 @@ impl Compiler {
                 grants.into_iter().map(|(kind, _)| kind).collect()
             }
             Change::ChosenColor { .. } | Change::ChosenType { .. } => self.chosen_effect(change)?,
+            Change::ChosenAbility => self.chosen_ability()?,
             Change::GrantKeyword(k) => {
                 vec![format!(
                     "EffectKind::AddKeywords(Keywords::of(&[{}]))",

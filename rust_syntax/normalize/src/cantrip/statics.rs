@@ -470,6 +470,7 @@ impl Compiler {
                 "chars.keywords = chars.keywords.with(Keyword::CantBeBlockedByMoreThanOne);".into(),
             ),
             Change::Rule(rule) => return self.layer_rule(rule),
+            Change::GainAbilitiesOf { .. } => return self.gain_abilities_of(change),
             Change::PlayerRule(rule) => {
                 return Err(gap(format!("static player rule {}", form(rule))))
             }

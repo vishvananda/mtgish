@@ -429,6 +429,10 @@ struct Compiler {
     entering_labels: Option<String>,
     /// The mana cost printed on the card.
     printed_mana: Option<Vec<ManaSymbol>>,
+    /// `CardDef::labels` of abilities to choose among as a body resolves.
+    choice_labels: Vec<String>,
+    /// The abilities the body's `ChooseValue` offered.
+    ability_choice: Vec<Ability>,
     granting: bool,
     functions: String,
     next: usize,
@@ -701,6 +705,8 @@ impl Compiler {
             made_block_rules: Vec::new(),
             entering_labels: None,
             printed_mana: None,
+            choice_labels: Vec::new(),
+            ability_choice: Vec::new(),
             granting: false,
             functions: String::new(),
             next: 0,

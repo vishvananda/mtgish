@@ -171,6 +171,7 @@ impl Compiler {
                     writeln!(out, "entering.chosen_card = Some({local});").unwrap();
                 }
             }
+            ValueKind::Ability => self.choose_ability(id, &player, options, out)?,
             other => return Err(gap(format!("a choice of {other:?}"))),
         }
         self.chosen.push((kind, local));
