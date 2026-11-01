@@ -2,6 +2,7 @@
 
     python3 rust_syntax/normalize/tools/card_lane/test_card_lane.py
 """
+import json
 import os
 import sys
 import tempfile
@@ -101,6 +102,75 @@ class Reporting(unittest.TestCase):
 
     def test_a_line_that_expects_nothing_is_refused(self):
         self.assertIn("no expectation", lane.expectation_problem({"scenario": "a-card", "line": 4}, "x"))
+
+
+class Batches(unittest.TestCase):
+    def setUp(self):
+        self.names_of = lane.names_of
+        lane.names_of = lambda name: (name.lower().replace(" ", "_"), name.lower().replace(" ", "-"), name.upper())
+        lane.BATCH[:] = ["Angel", "Angel of Mercy"]
+
+    def tearDown(self):
+        lane.names_of = self.names_of
+        lane.BATCH.clear()
+
+    def test_a_scenario_belongs_to_the_longest_card_its_name_starts_with(self):
+        self.assertEqual(lane.owner("angel-of-mercy-gains-three.cantrip"), "Angel of Mercy")
+        self.assertEqual(lane.owner("angel-flies.cantrip"), "Angel")
+
+    def test_a_scenario_of_no_card_in_the_batch_has_no_owner(self):
+        self.assertIsNone(lane.owner("angels-grace.cantrip"))
+
+
+class Keywords(unittest.TestCase):
+    def setUp(self):
+        self.tree = tempfile.TemporaryDirectory()
+        self.path = Path(self.tree.name) / "card.json"
+        self.content_file, self.core_keywords = lane.content_file, lane.core_keywords
+        lane.content_file = lambda name: self.path
+        lane.core_keywords = lambda: {"trample": "Trample", "banding": "Banding", "first strike": "FirstStrike"}
+
+    def tearDown(self):
+        lane.content_file, lane.core_keywords = self.content_file, self.core_keywords
+        self.tree.cleanup()
+
+    def repaired(self, card):
+        self.path.write_text(json.dumps(card), encoding="utf-8")
+        lane.repair_keywords("Card")
+        return json.loads(self.path.read_text(encoding="utf-8")).get("keywords")
+
+    def test_a_keyword_line_split_by_semicolons_keeps_its_keywords(self):
+        self.assertEqual(self.repaired({"oracleText": "Trample; banding (Bands are blocked as a group.)"}), ["Trample", "Banding"])
+
+    def test_a_keyword_already_there_is_not_added_twice(self):
+        self.assertEqual(self.repaired({"oracleText": "First strike; banding", "keywords": ["FirstStrike"]}), ["FirstStrike", "Banding"])
+
+    def test_a_sentence_with_a_semicolon_is_no_keyword_line(self):
+        self.assertIsNone(self.repaired({"oracleText": "Choose one; trample."}))
+
+    def test_a_keyword_it_cannot_play_is_left_out(self):
+        self.assertEqual(self.repaired({"oracleText": "Protection from red; banding"}), ["Banding"])
+
+    def test_each_keyword_is_a_change_that_takes_only_it_off(self):
+        self.path.write_text(json.dumps({"name": "Card", "keywords": ["Trample", "Banding"]}), encoding="utf-8")
+        missing = Path(self.tree.name) / "no-file.rs"
+        card_file, lane.card_file = lane.card_file, lambda name: missing
+        try:
+            changes, total = lane.changes_of("Card", None)
+        finally:
+            lane.card_file = card_file
+        self.assertEqual(total, 0)
+        self.assertEqual([c["key"] for c in changes], ["keyword Trample", "keyword Banding"])
+        self.assertEqual(json.loads(changes[0]["text"])["keywords"], ["Banding"])
+
+    def test_the_last_keyword_taken_off_leaves_no_list(self):
+        self.path.write_text(json.dumps({"name": "Card", "keywords": ["Trample"]}), encoding="utf-8")
+        card_file, lane.card_file = lane.card_file, lambda name: Path(self.tree.name) / "no-file.rs"
+        try:
+            changes, _ = lane.changes_of("Card", None)
+        finally:
+            lane.card_file = card_file
+        self.assertNotIn("keywords", json.loads(changes[0]["text"]))
 
 
 class Sharing(unittest.TestCase):

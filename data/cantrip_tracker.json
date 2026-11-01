@@ -2,8 +2,8 @@
  "cantrip": "af0a0be5ec",
  "totals": {
   "cards": 33529,
-  "ready": 27061,
-  "planned": 6420,
+  "ready": 27060,
+  "planned": 6421,
   "data": 48
  },
  "layouts": {
@@ -12,8 +12,8 @@
    "planned": 11
   },
   "Card": {
-   "ready": 26367,
-   "planned": 5819
+   "ready": 26366,
+   "planned": 5820
   },
   "Conspiracy": {
    "ready": 0,
@@ -82,8 +82,8 @@
  },
  "classes": {
   "engine": {
-   "requirements": 983,
-   "cards": 5055
+   "requirements": 984,
+   "cards": 5056
   },
   "mechanic": {
    "requirements": 244,
@@ -13609,6 +13609,18 @@
    "alone": 1,
    "examples": [
     "Elesh Norn, Mother of Machines"
+   ]
+  },
+  {
+   "id": "a-static-ability-that-makes-cards-outside-the-battlefield-lose-all-abilities",
+   "feature": "a static ability that makes cards outside the battlefield lose all abilities",
+   "class": "engine",
+   "needs": "`loses_all_abilities` is asserted to affect permanents, so \"cards in graveyards lose all abilities\" needs the engine to read abilities of cards in other zones through layers. Yixlid Jailer prints it.",
+   "family": "a static",
+   "cards": 1,
+   "alone": 1,
+   "examples": [
+    "Yixlid Jailer"
    ]
   },
   {
@@ -44453,6 +44465,9 @@
   ],
   "Yisan, the Wanderer Bard": [
    "counter-kind-verse"
+  ],
+  "Yixlid Jailer": [
+   "a-static-ability-that-makes-cards-outside-the-battlefield-lose-all-abilities"
   ],
   "Yosei, the Morning Star": [
    "engine-no-skipped-step-or-phase"

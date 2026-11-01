@@ -282,3 +282,49 @@ pub static EXTRA: &[&CardDef] = &[];
     assert!(file.contains("g.draw(item.controller, 1);"), "{file}");
     assert!(file.contains("g.lose_life(item.controller, 1);"), "{file}");
 }
+
+fn spell_card(body: &str) -> String {
+    format!(
+        r#"
+#[allow(unused_imports)] use cantrip_api::*;
+fn ability_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ {body} Ok(()) }}
+pub static CARD: CardDef = CardDef {{ name: "Sample", oracle: true, spell: spell(&[], ability_0), abilities: &[], ..CardDef::DEFAULT }};
+pub static EXTRA: &[&CardDef] = &[];
+"#
+    )
+}
+
+#[test]
+fn each_opponent_loses_life_together() {
+    let body = "let players_0 = { let q: &dyn Query = g; q.state().opponents(item.controller).collect::<Vec<PlayerId>>() };
+        for player in players_0 { g.lose_life(player, 2); }";
+    let file = render(&spell_card(body), "Sample", "Each opponent loses 2 life.", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(file.contains("g.each_opponent_loses_life(item.controller, 2);"), "{file}");
+    assert!(!file.contains("for player"), "{file}");
+}
+
+#[test]
+fn a_list_of_opponents_read_again_is_left_alone() {
+    let body = "let players_0 = { let q: &dyn Query = g; q.state().opponents(item.controller).collect::<Vec<PlayerId>>() };
+        for player in players_0 { g.lose_life(player, 2); }
+        for player in players_0 { g.draw(player, 1); }";
+    let file = render(&spell_card(body), "Sample", "Each opponent loses 2 life and draws a card.", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(!file.contains("each_opponent_loses_life"), "{file}");
+}
+
+#[test]
+fn what_a_spell_does_is_not_its_keyword_line() {
+    let body = "g.gain_life(item.controller, 3);";
+    for printed in [
+        "You gain 3 life.\nFlashback—{1}{G}, Pay 3 life. (You may cast this card from your graveyard for its flashback cost.)",
+        "You gain 3 life.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+        "Foretell {1}{R}{R} (During your turn, you may pay {2} and exile this card from your hand face down.)\nYou gain 3 life.",
+    ] {
+        let file = render(&spell_card(body), "Sample", printed, Characteristics::Oracle).unwrap();
+        println!("{file}");
+        assert!(file.contains("/// \"You gain 3 life.\""), "{file}");
+        assert!(file.contains("fn gain_3_life") || file.contains("fn you_gain_3_life"), "{file}");
+    }
+}

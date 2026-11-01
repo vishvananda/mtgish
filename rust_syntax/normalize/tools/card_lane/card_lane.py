@@ -404,6 +404,28 @@ def placeholders(card_name):
     return written
 
 
+def core_keywords():
+    """{"first strike": "FirstStrike", ...}: the core keywords, as new-card.py reads them from the oracle crate's list."""
+    source = (CANTRIP / "crates" / "cantrip-oracle" / "build.rs").read_text(encoding="utf-8")
+    names = re.findall(r'"([^"]+)"', re.search(r"const KEYWORDS[^=]*=\s*\[(.*?)\];", source, re.S)[1])
+    return {re.sub(r"(?<!^)(?=[A-Z])", " ", n).lower(): n for n in names}
+
+
+def repair_keywords(name):
+    """new-card.py reads a keyword line split by commas. Oracle splits it by semicolons where a keyword in it takes
+    something ("Trample; banding", CR 702.1), and those keywords were lost: the card played as a vanilla creature, and with no
+    code to break no gate could tell. A keyword line ends in no period."""
+    path = content_file(name)
+    card = json.loads(path.read_text(encoding="utf-8-sig"))
+    core, have = core_keywords(), list(card.get("keywords") or [])
+    found = [core[part.strip().lower()] for line in printed_lines(card.get("oracleText", "")) if ";" in line and not line.endswith(".")
+             for part in line.split(";") if part.strip().lower() in core]
+    missing = [k for k in dict.fromkeys(found) if k not in have]
+    if missing:
+        card["keywords"] = have + missing
+        path.write_text(json.dumps(card, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
+
+
 def recipe_of(source):
     """The shared call a card's file is built on, or None."""
     match = re.search(r"\b(effects::\w+|damage_target|destroy_target)\b", source)
@@ -447,6 +469,7 @@ def prepare(card, build=True):
     (packet / "reference.md").write_text(out, encoding="utf-8")
     if code != 0 or not content_file(name).exists():
         raise RuntimeError(f"new-card.py wrote no content file for {name}:\n{out[-1500:]}")
+    repair_keywords(name)
     shutil.copyfile(content_file(name), packet / "content.json")
     source = row["rust"] or ""
     if source:
@@ -903,19 +926,7 @@ def check(name, fast=False):
     dead, _ = scenario_liveness(name)
     gates.add("liveness", not dead, "\n".join(dead), started)
 
-    survivors = []
-    if source and not fast:
-        started = time.time()
-        _, listing = tool("card-mutate.py", name, "--list")
-        total = re.search(r"(\d+) changes", listing)
-        if total and int(total[1]):
-            code, out = tool("card-mutate.py", name, "--max", MUTATION_LIMIT)
-            (card_dir(name) / "mutate.txt").write_text(out, encoding="utf-8")
-            survivors = [(f"line {m[1]}: {m[2]}", f"{m[0].removeprefix('SURVIVED ')} {m[3].strip()} {m[4].strip()}")
-                         for m in re.finditer(r"^SURVIVED \S+?:(\d+): (.*)\n(\s+was: .*)\n(\s+now: .*)$", out, re.M)]
-            capped = int(total[1]) > MUTATION_LIMIT
-            gates.add("mutation", "restored" in out and not capped,
-                      (f"{total[1]} possible changes, only {MUTATION_LIMIT} tried\n" if capped else "") + ("" if "restored" in out else out[-800:]), started)
+    survivors = mutation_gates([name], {name: gates}).get(name, []) if not fast else []
     if "statics:" in source and not fast:
         started = time.time()
         code, out = shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases")
@@ -982,10 +993,16 @@ def early_gates(gates, name):
     return {"path": path, "source": source, "points": points, "looks": looks}
 
 
+def report_looks(name, context):
+    """What the report has to answer: lint's LOOKs, and any function repeated from another card."""
+    if "overlaps" not in context:
+        context["overlaps"] = overlaps(name, context["source"])
+    return context["looks"] + [(o.split(" repeats ")[1].split(":")[0], o) for o in context["overlaps"]]
+
+
 def report_gate(gates, name, context, survivors):
     started = time.time()
-    found = overlaps(name, context["source"])
-    problems = report_problems(name, context["points"], context["looks"] + [(o.split(" repeats ")[1].split(":")[0], o) for o in found], survivors)
+    problems = report_problems(name, context["points"], report_looks(name, context), survivors)
     report = report_of(name) or {}
     if report.get("decision") not in ("done", None):
         problems.insert(0, f"the worker reported {report.get('decision')}: {report.get('reason', '')}")
@@ -1624,33 +1641,52 @@ def corpus_exit(name):
         return 1
 
 
+def changes_of(name, mutate):
+    """What breaking a card tries: card-mutate.py's changes to its file, then each keyword out of its content, which
+    nothing else can test: `..oracle::X` is no line of code, and a card of keywords alone has no file. (changes, how many
+    there were before the limit)."""
+    out, total = [], 0
+    path = card_file(name)
+    if path.exists():
+        lines = path.read_text(encoding="utf-8").split("\n")
+        found = mutate.mutants(lines, set(range(1, len(lines) + 1)))
+        total = len(found)
+        out += [{"path": path, "key": f"line {n}: {what}", "text": "\n".join(lines[:n - 1] + [new] + lines[n:]),
+                 "detail": f"{path.name}:{n}: {what}, was: {lines[n - 1].strip()} now: {new.strip()}"} for n, what, new in found[:MUTATION_LIMIT]]
+    content = content_file(name)
+    card = json.loads(content.read_text(encoding="utf-8-sig"))
+    for keyword in card.get("keywords") or []:
+        rest = {k: v for k, v in card.items() if k != "keywords"}
+        kept = [k for k in card["keywords"] if k != keyword]
+        out.append({"path": content, "key": f"keyword {keyword}", "text": json.dumps(dict(rest, keywords=kept) if kept else rest, indent=2, ensure_ascii=False) + "\n",
+                    "detail": f"{keyword} taken off the card, and every scenario still passes: nothing shows the card has it"})
+    return out, total
+
+
 def mutation_gates(names, gates):
-    """`card-mutate.py` over the batch. A round breaks one line of every card still to go, so one build serves them all, and
-    each card's scenarios judge its own change: cards do not read each other, since no scenario holds another card of the
-    batch. A change that does not compile is set aside and the round built again, as card-mutate.py skips it. The number of
-    builds is the most changes any one card has, not the sum. {card: its survivors}."""
+    """Breaks each card one change at a time and plays its scenarios. A round breaks one thing of every card still to go, so
+    one build serves them all, and each card's scenarios judge its own change: cards do not read each other, since no
+    scenario holds another card of the batch. A change that does not compile is set aside and the round built again, as
+    card-mutate.py skips it. The number of builds is the most changes any one card has, not the sum. {card: its survivors}."""
     mutate = tool_module("card-mutate.py")
     plans, started = {}, time.time()
     for name in names:
-        path = card_file(name)
-        if path.exists():
-            original = path.read_text(encoding="utf-8")
-            lines = original.split("\n")
-            found = mutate.mutants(lines, set(range(1, len(lines) + 1)))
-            plans[name] = {"path": path, "original": original, "lines": lines, "found": found[:MUTATION_LIMIT], "total": len(found), "log": [], "survivors": [], "next": 0}
+        changes, total = changes_of(name, mutate)
+        originals = {path: path.read_bytes() for path in (card_file(name), content_file(name)) if path.exists()}
+        plans[name] = {"changes": changes, "total": total, "originals": originals, "log": [], "survivors": [], "next": 0}
     builds = 0
 
     def restore(plan):
-        plan["path"].write_text(plan["original"], encoding="utf-8", newline="\n")
+        for path, text in plan["originals"].items():
+            path.write_bytes(text)
     try:
         while True:
-            live = [n for n, p in plans.items() if p["next"] < len(p["found"])]
+            live = [n for n, p in plans.items() if p["next"] < len(p["changes"])]
             if not live:
                 break
             for name in live:
-                plan = plans[name]
-                n, _, new = plan["found"][plan["next"]]
-                plan["path"].write_text("\n".join(plan["lines"][:n - 1] + [new] + plan["lines"][n:]), encoding="utf-8", newline="\n")
+                change = plans[name]["changes"][plans[name]["next"]]
+                change["path"].write_text(change["text"], encoding="utf-8", newline="\n")
             while live:
                 builds += 1
                 code, out = build_corpus()
@@ -1658,8 +1694,7 @@ def mutation_gates(names, gates):
                     break
                 for name in [n for n in live if n in broken_cards(out)] or list(live):
                     plan = plans[name]
-                    n, what, _ = plan["found"][plan["next"]]
-                    plan["log"].append(f"{n} {what}: no build")
+                    plan["log"].append(f"{plan['changes'][plan['next']]['key']}: no build")
                     restore(plan)
                     plan["next"] += 1
                     live.remove(name)
@@ -1667,10 +1702,10 @@ def mutation_gates(names, gates):
                 verdicts = pool.map(corpus_exit, live)
             for name, code in zip(live, verdicts):
                 plan = plans[name]
-                n, what, new = plan["found"][plan["next"]]
-                plan["log"].append(f"{n} {what}: {'caught' if code else 'SURVIVED'}")
+                change = plan["changes"][plan["next"]]
+                plan["log"].append(f"{change['key']}: {'caught' if code else 'SURVIVED'}")
                 if code == 0:
-                    plan["survivors"].append((f"line {n}: {what}", f"{plan['path'].name}:{n}: {what}, was: {plan['lines'][n - 1].strip()} now: {new.strip()}"))
+                    plan["survivors"].append((change["key"], change["detail"]))
                 restore(plan)
                 plan["next"] += 1
     finally:
@@ -1681,7 +1716,7 @@ def mutation_gates(names, gates):
     spent = (time.time() - started) / max(1, len(plans))
     for name, plan in plans.items():
         (card_dir(name) / "mutate.txt").write_text("\n".join(plan["log"]) + "\n", encoding="utf-8")
-        if plan["found"]:
+        if plan["changes"]:
             capped = plan["total"] > MUTATION_LIMIT
             gates[name].add("mutation", not capped, f"{plan['total']} possible changes, only {MUTATION_LIMIT} tried" if capped else "")
             gates[name].results[-1]["seconds"] = round(spent, 1)
@@ -1702,9 +1737,11 @@ def batch_gates(names, fast=False):
     passing = [n for n in names if contexts[n] is not None and gates[n].ok]
     covered = coverage_gates(passing, gates, contexts)
     survivors = {}
-    if not fast and covered:
-        survivors = mutation_gates(covered, gates)
-        statics = [n for n in covered if "statics:" in contexts[n]["source"]]
+    # Breaking a card is the dearest gate, so only a card nothing else stops pays for it.
+    ready = [n for n in covered if not report_problems(n, contexts[n]["points"], report_looks(n, contexts[n]), [])]
+    if not fast and ready:
+        survivors = mutation_gates(ready, gates)
+        statics = [n for n in ready if "statics:" in contexts[n]["source"]]
         if statics:
             started = time.time()
             code, out = shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases")
@@ -1768,7 +1805,6 @@ def run_batch(cards, backend, args, queue):
         phases["prompt_chars"] = len(prompt)
         place = {"name": names[0], "dirs": [STATE]}
         deadline = started + args.timeout
-        drafting = args.way == "draft"
         while remaining:
             t = time.time()
             code, session, used = spawn(backend, place, prompt, session, max(1, deadline - time.time()), log)
@@ -1790,17 +1826,11 @@ def run_batch(cards, backend, args, queue):
             if not remaining:
                 break
             t = time.time()
-            gates = batch_gates([c["name"] for c in remaining], fast=drafting)
-            if drafting and all(g.ok for g in gates.values()):
-                drafting = False
-                gates = batch_gates([c["name"] for c in remaining])
-            elif drafting and rounds >= args.draft_rounds:
-                drafting = False
+            gates = batch_gates([c["name"] for c in remaining])
             phases["check"] = round(phases.get("check", 0) + time.time() - t, 1)
             print(f"   gates {time.time() - t:.0f}s: " + ", ".join(f"{n}: {'ok' if g.ok else '/'.join(r['gate'] for r in g.failures())}" for n, g in gates.items()), flush=True)
             for card in list(remaining):
-                result = gates[card["name"]]
-                if result.ok and not result.fast:
+                if gates[card["name"]].ok:
                     card["commit"] = commit_card(card)
                     card.update(rounds=rounds)
                     conclude(card, queue, "committed")
@@ -1984,7 +2014,6 @@ def main():
     p.add_argument("--only", nargs="*", default=[])
     p.add_argument("--only-file", help="a file of card names, one to a line, in order")
     p.add_argument("--way", choices=WAYS, default="work", help="`work` lets the worker run the tools; `draft` writes everything blind, then a driver sends back what failed")
-    p.add_argument("--draft-rounds", type=int, default=3, help="with draft: rounds on the fast gates before the whole of them")
     p.add_argument("--timeout", type=int, default=3600, help="seconds a batch may take")
     p.add_argument("--repairs", type=int, default=4, help="rounds a worker is sent back with failed gates")
     p.add_argument("--attempts", type=int, default=2)

@@ -1844,6 +1844,67 @@ fn tail_return(block: &mut Block) {
     }
 }
 
+/// "Each opponent loses 1 life" is one event for all of them (CR 119.3), which the game has a verb for: `let players =
+/// <the opponents>; for player in players { g.lose_life(player, n); }` says it one player at a time.
+struct LifeLostTogether;
+
+impl LifeLostTogether {
+    fn joined(list: &Stmt, each: &Stmt, later: &[Stmt]) -> Option<Stmt> {
+        let Stmt::Local(local) = list else { return None };
+        let Pat::Ident(name) = &local.pat else { return None };
+        let name = name.ident.to_string();
+        let init = local.init.as_ref()?;
+        let list_text: String = text_of(&init.expr).split_whitespace().collect();
+        if !list_text.ends_with("q.state().opponents(item.controller).collect::<Vec<PlayerId>>()}") {
+            return None;
+        }
+        let Stmt::Expr(Expr::ForLoop(each), _) = each else { return None };
+        let Pat::Ident(player) = &*each.pat else { return None };
+        if ident_of(&each.expr)? != name {
+            return None;
+        }
+        let [Stmt::Expr(Expr::MethodCall(call), _)] = each.body.stmts.as_slice() else {
+            return None;
+        };
+        if text_of(&call.receiver) != "g" || call.method != "lose_life" || call.args.len() != 2 {
+            return None;
+        }
+        let player = player.ident.to_string();
+        if text_of(&call.args[0]) != player {
+            return None;
+        }
+        let amount = &call.args[1];
+        let mut in_amount = Uses {
+            name: &player,
+            ..Uses::default()
+        };
+        in_amount.visit_expr(amount);
+        let mut after = Uses {
+            name: &name,
+            ..Uses::default()
+        };
+        later.iter().for_each(|stmt| after.visit_stmt(stmt));
+        if in_amount.any() || after.any() {
+            return None;
+        }
+        let text = format!("g.each_opponent_loses_life(item.controller, {})", text_of(amount));
+        Some(Stmt::Expr(syn::parse_str(&text).ok()?, Some(Default::default())))
+    }
+}
+
+impl VisitMut for LifeLostTogether {
+    fn visit_block_mut(&mut self, block: &mut Block) {
+        visit_mut::visit_block_mut(self, block);
+        let mut at = 0;
+        while at + 1 < block.stmts.len() {
+            if let Some(joined) = Self::joined(&block.stmts[at], &block.stmts[at + 1], &block.stmts[at + 2..]) {
+                block.stmts.splice(at..at + 2, [joined]);
+            }
+            at += 1;
+        }
+    }
+}
+
 fn simplify_function(function: &mut syn::ItemFn, reads_data: bool) {
     let item_asker = function
         .block
@@ -1865,6 +1926,7 @@ fn simplify_function(function: &mut syn::ItemFn, reads_data: bool) {
             break;
         }
     }
+    LifeLostTogether.visit_block_mut(&mut function.block);
     tail_return(&mut function.block);
     for input in &mut function.sig.inputs {
         if let syn::FnArg::Typed(typed) = input {
@@ -2577,10 +2639,28 @@ fn own_name(lifted: &str) -> &str {
     rest
 }
 
+/// A line that is a keyword and nothing a spell does: "Foretell {1}{R}{R}", or a cost in a sentence of its own,
+/// "Flashback—{1}{G}, Pay 3 life.". "Choose one —" opens what the spell does.
+fn is_keyword_line(line: &str) -> bool {
+    let plain = without_reminder(line);
+    let plain = plain.trim();
+    let sentence = plain.ends_with('.') || plain.ends_with('—') || plain.ends_with(':');
+    !sentence || plain.split_whitespace().next().is_some_and(|word| word.contains('—'))
+}
+
+/// What a spell does: its last unbroken run of lines that are not keywords, which can come after them as well as before.
+fn spell_text(printed: &str) -> String {
+    let lines: Vec<&str> = printed.lines().map(str::trim).filter(|line| !line.is_empty()).collect();
+    let Some(end) = lines.iter().rposition(|line| !is_keyword_line(line)) else {
+        return lines.last().copied().unwrap_or_default().to_string();
+    };
+    let start = lines[..end].iter().rposition(|line| is_keyword_line(line)).map_or(0, |at| at + 1);
+    lines[start..=end].join(" ")
+}
+
 fn function_names(file: &File, printed: &str) -> Names {
     let abilities = abilities_of(file);
-    // What a spell does is its last paragraph: keywords come first.
-    let spell_text = printed.lines().last().unwrap_or_default().trim().to_string();
+    let spell_text = spell_text(printed);
     let mut renamed = BTreeMap::new();
     let mut quotes = BTreeMap::new();
     let mut taken: BTreeSet<String> = BTreeSet::new();
