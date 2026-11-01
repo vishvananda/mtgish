@@ -385,7 +385,10 @@ impl Compiler {
                 CostPart::Energy(Expr::Constant(n)) if (0..=255).contains(n) => {
                     others.push(format!("Cost {{ energy: {n}, ..Cost::NONE }}"))
                 }
-                other => others.push(self.cost_part(other, label)?),
+                other => {
+                    let part = self.cost_part(other, label);
+                    others.push(part.or_else(|failed| self.stated_cost_part(other, label, failed))?)
+                }
             }
         }
         if life_total > 255 {
@@ -701,6 +704,8 @@ impl Compiler {
         let n = i16::try_from(amount).map_err(|_| gap("backup beyond i16"))?;
         let mut keywords = Vec::new();
         let mut granted = None;
+        let mut stated = Vec::new();
+        let mut feature = String::new();
         for (i, listed) in abilities.iter().enumerate() {
             match listed {
                 Ability::Keyword(k) => keywords.push(keyword(k)?),
@@ -715,12 +720,34 @@ impl Compiler {
                     self.delayed.push(def.clone());
                     granted = Some(index);
                 }
-                other => return Err(gap(format!("backup grants {}", form(other)))),
+                other => {
+                    feature = format!("backup grants {}", form(other));
+                    stated.extend(self.granted_refs(other)?);
+                }
             }
         }
         let ability = granted.map_or("None".to_string(), |i| format!("Some({i})"));
+        let mut call = format!(
+            "cantrip_mechanics::backup::resolve(g, item, {n}, &[{}], {ability})",
+            keywords.join(",")
+        );
+        if !stated.is_empty() {
+            call = planned::planned_value(
+                &feature,
+                &call,
+                &format!(
+                    "cantrip_mechanics::backup::resolve_granting(g, item, {n}, &[{}], {ability}, &[{}])",
+                    keywords.join(","),
+                    stated.join(", ")
+                ),
+            );
+        }
         let function = format!("{label}_backup");
-        writeln!(self.functions, "fn {function}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ cantrip_mechanics::backup::resolve(g, item, {n}, &[{}], {ability}) }}", keywords.join(",")).unwrap();
+        writeln!(
+            self.functions,
+            "fn {function}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ {call} }}"
+        )
+        .unwrap();
         parts.abilities.push(format!(
             "cantrip_mechanics::backup::trigger({}, {function})",
             quoted(&format!("Backup {n}"))
@@ -864,7 +891,7 @@ impl Compiler {
                     other => self.protection_beyond(other, parts)?,
                 },
                 Keyword::HexproofFrom(quality) => {
-                    parts.field("hexproof_from", lane_j::hexproof_quality(quality)?)
+                    parts.field("hexproof_from", self.hexproof_of(quality)?)
                 }
                 k => parts.keywords.push(keyword(k)?),
             },
@@ -874,12 +901,20 @@ impl Compiler {
                 cost,
                 paid,
                 unpaid,
-            } => self.cost_branch(keyword, cost, paid, unpaid, label, parts)?,
+            } => match self.cost_branch(keyword, cost, paid, unpaid, label, parts) {
+                Err(failed) if lane_o::branch_stated(&failed.feature) => {
+                    self.stated_branch(keyword, cost, paid, unpaid, label, failed, parts)?
+                }
+                other => other?,
+            },
             Ability::Scoped {
                 zones,
                 condition,
                 ability,
             } => {
+                if self.from_command_zone(zones, condition.as_ref(), ability, label, parts)? {
+                    return Ok(());
+                }
                 let scope = Scope {
                     zones,
                     condition: condition.as_ref(),
@@ -1057,14 +1092,20 @@ impl Compiler {
                 cost,
                 amount,
                 filter,
-            } => self.mechanic(
-                *mechanic,
-                cost.as_ref(),
-                amount.as_ref(),
-                filter.as_ref(),
-                label,
-                parts,
-            )?,
+            } => {
+                let compiled = self.mechanic(
+                    *mechanic,
+                    cost.as_ref(),
+                    amount.as_ref(),
+                    filter.as_ref(),
+                    label,
+                    parts,
+                );
+                compiled.or_else(|failed| {
+                    let (cost, amount, filter) = (cost.as_ref(), amount.as_ref(), filter.as_ref());
+                    self.stated_mechanic(*mechanic, cost, amount, filter, label, failed, parts)
+                })?
+            }
             Ability::Backup { amount, abilities } => {
                 self.backup(*amount, abilities, label, parts)?
             }

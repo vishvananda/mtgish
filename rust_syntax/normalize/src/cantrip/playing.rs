@@ -134,6 +134,22 @@ impl Compiler {
         optional: bool,
         out: &mut String,
     ) -> Result<()> {
+        let (mark, gaps) = (out.len(), self.gaps.len());
+        match self.play_plainly(operation, optional, out) {
+            Err(failed) if lane_o::play_stated(&failed.feature) => {
+                out.truncate(mark);
+                self.gaps.truncate(gaps);
+                self.stated_play(operation, optional, failed, out)
+            }
+            other => other,
+        }
+    }
+    fn play_plainly(
+        &mut self,
+        operation: &Operation,
+        optional: bool,
+        out: &mut String,
+    ) -> Result<()> {
         let plain = lane_i::plain_play(operation);
         let Operation::PlayCards {
             actor,

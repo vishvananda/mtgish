@@ -464,7 +464,7 @@ impl Compiler {
                     self.player(by)?
                 ),
             ),
-            other => return Err(gap(format!("object reference {}", form(other)))),
+            other => return self.object_stated(other),
         })
     }
     /// The rest of `objects`.
@@ -533,7 +533,7 @@ impl Compiler {
                     self.object(of)?
                 ),
             ),
-            other => return Err(gap(format!("object collection {}", form(other)))),
+            other => return self.objects_stated(other),
         })
     }
     /// The rest of `number`.

@@ -31,10 +31,7 @@ const CARDS: &[(&str, &str)] = &[
 /// Cards whose source lost a word, so code from it would say the opposite of the
 /// card: "if it isn't a mana ability" reaches the generator as "if it is". Each
 /// keeps its gap.
-const LOST: &[(&str, &str)] = &[(
-    "Harsh Mentor",
-    "event object this trigger does not bind",
-)];
+const LOST: &[(&str, &str)] = &[("Harsh Mentor", "event object this trigger does not bind")];
 
 fn modules(names: Vec<String>) -> Option<BTreeMap<String, String>> {
     let corpus = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/mtgish.lines.ron");
@@ -59,7 +56,9 @@ fn modules_say_what_their_cards_say() {
         .iter()
         .filter(|(name, says)| !modules.get(*name).is_some_and(|m| m.contains(says)))
         .map(|(name, says)| {
-            let start = modules.get(*name).map_or("no module", |m| &m[..m.len().min(200)]);
+            let start = modules
+                .get(*name)
+                .map_or("no module", |m| &m[..m.len().min(200)]);
             format!("{name} does not say {says}: {start}")
         })
         .collect();

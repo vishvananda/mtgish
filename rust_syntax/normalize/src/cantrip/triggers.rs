@@ -33,7 +33,10 @@ pub(super) struct Matched {
 /// (CR 120.2): all a source dealt, or all that was dealt to a recipient.
 fn sums_damage(damage: &DamageEvent) -> bool {
     // Excess is repeated on each source's record: it is not to be added up.
-    if matches!(damage.kind, DamageKind::Excess | DamageKind::ExcessNoncombat) {
+    if matches!(
+        damage.kind,
+        DamageKind::Excess | DamageKind::ExcessNoncombat
+    ) {
         return false;
     }
     match (&damage.grouping, damage.subject == DamageSubject::Source) {
@@ -807,7 +810,7 @@ impl Compiler {
                 let of = self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?;
                 format!("(def.is_some_and(|d| d.from == ZoneKind::Battlefield) && {of})")
             }
-            other => return Err(gap(format!("activated ability {}", form(other)))),
+            other => return self.activated_stated(other),
         })
     }
     /// `EventSpec::Attack`. `data` is the attacker's controller, then its
@@ -1147,12 +1150,8 @@ impl Compiler {
             DamageKind::Combat => tests.push("combat".to_string()),
             DamageKind::Noncombat => tests.push("!combat".to_string()),
             DamageKind::Prevented => {}
-            DamageKind::Excess => {
-                tests.push("amount > 0".to_string())
-            }
-            DamageKind::ExcessNoncombat => {
-                tests.push("amount > 0 && !combat".to_string())
-            }
+            DamageKind::Excess => tests.push("amount > 0".to_string()),
+            DamageKind::ExcessNoncombat => tests.push("amount > 0 && !combat".to_string()),
             other => return Err(gap(format!("damage kind {}", form(other)))),
         }
         tests.push(match source_kind {
@@ -1180,12 +1179,10 @@ impl Compiler {
                 c.filter(objects, &Candidate::of("o"))?,
                 c.player_in(players, "p")?
             )),
-            DamageRecipients::Target { slot, index } => {
-                c.named_recipient(&Recipients::Target {
-                    slot: slot.clone(),
-                    index: *index,
-                })
-            }
+            DamageRecipients::Target { slot, index } => c.named_recipient(&Recipients::Target {
+                slot: slot.clone(),
+                index: *index,
+            }),
             DamageRecipients::Targets(slot) => {
                 c.named_recipient(&Recipients::Targets(slot.clone()))
             }
@@ -1587,7 +1584,14 @@ impl Compiler {
         if let (EventSpec::Either(events), Err(failed)) = (event, &matched) {
             let whole = gate.is_none() && conditional.is_none() && limits.per_turn.is_none();
             if failed.feature == "alternative events with different rules" && whole {
-                return self.triggered_each(label, events, intervening_if, limits, announcement, body);
+                return self.triggered_each(
+                    label,
+                    events,
+                    intervening_if,
+                    limits,
+                    announcement,
+                    body,
+                );
             }
         }
         let matched = matched?;

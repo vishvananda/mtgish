@@ -60,7 +60,13 @@ impl Compiler {
         for (i, change) in changes.iter().enumerate() {
             compiled = match change {
                 Change::PlayerRule(rule) => {
-                    self.player_rule(&format!("{label}_{i}"), players, rule, parts)
+                    let label = format!("{label}_{i}");
+                    match self.player_rule(&label, players, rule, parts) {
+                        Err(failed) => {
+                            self.stated_player_rule(&label, players, rule, failed, parts)
+                        }
+                        compiled => compiled,
+                    }
                 }
                 other => Err(gap(format!("player static change {}", form(other)))),
             };
@@ -343,7 +349,7 @@ impl Compiler {
         Ok(match modifier {
             SpellCostModifier::Increase(cost) => {
                 let [CostPart::Mana(symbols)] = cost.parts.as_slice() else {
-                    return Err(gap("spell cost increase other than mana"));
+                    return self.clone().costlier(cost);
                 };
                 let [ManaSymbol::Generic(n)] = symbols.as_slice() else {
                     return Ok(planned::planned_value(

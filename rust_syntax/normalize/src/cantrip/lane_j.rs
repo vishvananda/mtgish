@@ -1818,8 +1818,9 @@ impl Compiler {
                 aggregation,
             } => {
                 let pick = match aggregation {
-                    Aggregation::Maximum => "max",
-                    Aggregation::Minimum => "min",
+                    Aggregation::Maximum => "max().unwrap_or(0)",
+                    Aggregation::Minimum => "min().unwrap_or(0)",
+                    Aggregation::Sum => "sum::<i64>()",
                     other => {
                         return Err(gap(format!(
                             "numeric expression AmongPlayers {}",
@@ -1828,7 +1829,7 @@ impl Compiler {
                     }
                 };
                 counted(format!(
-                    "({}).into_iter().map(|p: PlayerId| {}).{pick}().unwrap_or(0)",
+                    "({}).into_iter().map(|p: PlayerId| {}).{pick}",
                     self.players(players)?,
                     self.player_number("p", number)?
                 ))
@@ -1989,7 +1990,7 @@ impl Compiler {
                 players: one,
                 objects: Some((**objects).clone()),
             },
-            other => return Err(gap(format!("condition PlayerDid {}", form(other)))),
+            other => return self.did_stated(player, other, &scope),
         };
         let mut asked = self.clone();
         asked.history = Some(History {
@@ -2786,7 +2787,9 @@ pub(super) struct Picked {
 /// Does an instruction that failed with this gap want to be compiled around a
 /// player who may not be there, or who is still to be picked?
 pub(super) fn wants_a_player(feature: &str) -> bool {
-    feature.starts_with("possibly absent player") || feature == "player reference OneOf"
+    feature.starts_with("possibly absent player")
+        || feature == "player reference OneOf"
+        || feature == "player reference FirstWilling"
 }
 
 /// "Hexproof from [quality]" (CR 702.11d-g): `HexproofFrom` qualities.
@@ -2810,6 +2813,25 @@ pub(super) fn hexproof_quality(quality: &Protection) -> Result<String> {
             }
             Ok(all)
         }
+        // "Hexproof from monocolored" and "from multicolored" (CR 105.2).
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter:
+                ObjectFilter::Property {
+                    property: Property::ColorCount,
+                    comparison: Comparison::Equal,
+                    value: Expr::Constant(1),
+                },
+        } => Ok("HexproofFrom::MONOCOLORED".to_string()),
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter:
+                ObjectFilter::Property {
+                    property: Property::ColorCount,
+                    comparison: Comparison::Greater,
+                    value: Expr::Constant(1),
+                },
+        } => Ok("HexproofFrom::MULTICOLORED".to_string()),
         Protection::Objects { filter, .. } => {
             Err(gap(format!("keyword HexproofFrom {}", form(filter))))
         }
@@ -2957,7 +2979,7 @@ impl Compiler {
             Ability::OpeningHand { announcement, body } => {
                 self.opening_hand(announcement, body, label, parts)
             }
-            other => Err(gap(format!("ability {}", form(other)))),
+            other => self.stated_ability(other, label, parts),
         }
     }
     /// A keyword with what its plain form lacks: "Kicker {X}. X can't be 0" is
@@ -3697,6 +3719,8 @@ impl Compiler {
                 "ability.is_mana_ability()".into()
             }
             ActivationFilter::Is(StackTrait::Loyalty) => "ability.is_loyalty_ability()".into(),
+            ActivationFilter::Is(StackTrait::TapSymbolInCost) => "ability.cost.tap".into(),
+            ActivationFilter::Is(StackTrait::XInCost) => "ability.cost.mana.x > 0".into(),
             ActivationFilter::Not(inner) => format!("!({})", self.barred_activation(inner)?),
             ActivationFilter::All(parts) => parts
                 .iter()
@@ -4195,7 +4219,10 @@ impl Compiler {
         if let Some((_, local)) = self.picked.borrow().named.iter().find(|(k, _)| *k == key) {
             return Ok(local.clone());
         }
-        if self.present.borrow().is_none() || !self.stack_item {
+        if !self.stack_item || self.reader != Reader::Resolution {
+            return self.picked_elsewhere(players);
+        }
+        if self.present.borrow().is_none() {
             return Err(gap("player reference OneOf"));
         }
         let among = self.fetch(self.players(players)?);

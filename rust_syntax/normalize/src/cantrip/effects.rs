@@ -440,7 +440,9 @@ impl Compiler {
             if let Instruction::Effect { result, .. } = instruction {
                 self.failed.insert(result.0);
             }
-            self.plan_instruction(&feature, instruction, out);
+            if !self.stated_instruction(&feature, instruction, out) {
+                self.plan_instruction(&feature, instruction, out);
+            }
         }
         self.note_step(instruction);
     }
@@ -760,6 +762,16 @@ impl Compiler {
             {
                 self.copy_as_enters(decider, body, out)
             }
+            Instruction::Optional { decider, body }
+                if self.certain_player(decider).is_err() && self.player(decider).is_ok() =>
+            {
+                let id = self.fresh();
+                let decider = self.fetch(self.player(decider)?);
+                writeln!(out, "if let Some(decider_{id}) = {decider} {{ if cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{").unwrap();
+                self.block(body, out, true)?;
+                writeln!(out, "}} }}").unwrap();
+                Ok(())
+            }
             Instruction::Optional { decider, body } if lane_k::tap_or_untap_only(body) => {
                 self.certain_player(decider)?;
                 self.may_tap_or_untap = true;
@@ -923,10 +935,12 @@ impl Compiler {
                 players,
                 mana,
                 restriction,
-            } => {
-                let plan = mana_plan(mana)?;
-                self.emit_mana(&plan, players, restriction.as_ref(), None, out)?;
-            }
+            } => match mana_plan(mana) {
+                Ok(plan) => self.emit_mana(&plan, players, restriction.as_ref(), None, out)?,
+                Err(failed) => {
+                    self.stated_mana(players, mana, restriction.as_ref(), failed, out)?
+                }
+            },
             Operation::ChooseValue {
                 actor,
                 kind,
@@ -1006,7 +1020,7 @@ impl Compiler {
                 let number = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
                 if *random {
                     let PlayerSet::One(player) = players else {
-                        return Err(gap("random discard by several players"));
+                        return self.random_discards(id, players, number, result, out);
                     };
                     let amount = self.fetch(number);
                     let player = self.fetch(self.certain_player(player)?);
@@ -1055,7 +1069,8 @@ impl Compiler {
                     "surveil"
                 };
                 let amount = self.number(amount)?.amount(u32::MAX.into(), "usize")?;
-                let reported = method == "surveil" && lane_n::reads_graveyard_part(&self.after, result);
+                let reported =
+                    method == "surveil" && lane_n::reads_graveyard_part(&self.after, result);
                 let (method, bind) = match reported {
                     true => ("surveil_into_graveyard", format!("let moved_{id} = ")),
                     false => (method, String::new()),
@@ -1211,7 +1226,19 @@ impl Compiler {
                                 self.plan_code("rad counters", &code, out);
                                 continue;
                             }
-                            other => return Err(gap(format!("{} on a player", form(other)))),
+                            other => {
+                                let kind = counter_kind(other)?;
+                                let amount = self
+                                    .number(&placement.amount)?
+                                    .amount(i16::MAX.into(), "i16")?;
+                                let code = format!(
+                                    "let amount = {}; for player in {} {{ g.give_player_counters(player, {kind}, amount); }}",
+                                    self.fetch(amount),
+                                    self.fetch(self.players(players)?)
+                                );
+                                self.plan_code("counters on a player", &code, out);
+                                continue;
+                            }
                         };
                         let amount = self
                             .number(&placement.amount)?
@@ -1607,7 +1634,15 @@ impl Compiler {
                     return Ok(());
                 }
                 let [part] = cost.parts.as_slice() else {
-                    return Err(gap("resolution cost with several parts"));
+                    self.stated_payment(
+                        "resolution cost with several parts",
+                        id,
+                        player,
+                        cost,
+                        out,
+                    )?;
+                    self.performed.insert(result.0, format!("paid_{id}"));
+                    return Ok(());
                 };
                 if let CostPart::PlayerAction { .. } = part {
                     return self.player_action(id, player, part, false, result, out);
@@ -1867,7 +1902,16 @@ impl Compiler {
                 return Err(gap("token copy entering with counters"));
             }
             let PlayerSet::One(player) = players else {
-                return Err(gap("token copies for several players"));
+                return self.token_copy_for_each(
+                    id,
+                    object,
+                    adjustments,
+                    amount,
+                    players,
+                    entry,
+                    result,
+                    out,
+                );
             };
             let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
             if adjustments.iter().any(adjusts) || entry.tapped {
@@ -1914,7 +1958,7 @@ impl Compiler {
                 return Err(gap("adjusted token copy"));
             }
             let PlayerSet::One(player) = players else {
-                return Err(gap("token copies for several players"));
+                return self.token_copies_for_each(id, objects, players, result, out);
             };
             writeln!(out, "let originals_{id} = {}; let player_{id} = {}; let created_{id} = if let Some(player) = player_{id} {{ let copies: Vec<(Copiable, PlayerId)> = originals_{id}.iter().map(|&original| (g.copiable_values(original), player)).collect(); g.create_token_copies_together(&copies)? }} else {{ Vec::new() }};", self.fetch(self.objects(objects)?), self.fetch(self.player(player)?)).unwrap();
             self.creations.insert(result.0, format!("created_{id}"));
@@ -2055,9 +2099,11 @@ impl Compiler {
             Destination::Exile if self.links_exile && self.stack_item => {
                 format!("{{ let by = g.linked(item); g.exile_with(&objects_{id}, by, false) }}")
             }
-            Destination::Exile if self.links_exile => {
-                return Err(gap("exile outside a stack item that an ability reads as exiled with its source"))
-            }
+            Destination::Exile if self.links_exile => planned::planned_value(
+                "exile outside a stack item that an ability reads as exiled with its source",
+                &format!("g.exile_all(&objects_{id})"),
+                &format!("{{ let by = g.linked_to(asker.source); g.exile_with(&objects_{id}, by, false) }}"),
+            ),
             Destination::Exile => format!("g.exile_all(&objects_{id})"),
             // `put_into_graveyard` refuses permanents, so name each destination.
             Destination::OwnersGraveyard => format!("{{ let moves: Vec<(ObjectId, Zone)> = objects_{id}.iter().map(|&o| (o, Zone::graveyard(g.state().obj(o).owner))).collect(); g.move_together(&moves, MoveReason::Other) }}"),
@@ -2161,7 +2207,8 @@ impl Compiler {
                 return Err(gap("counters removed by a resolution choice"));
             }
             let Recipients::Objects(objects) = &removal.recipients else {
-                return Err(gap("counters removed from a player"));
+                self.removed_from_players(id, removal, out)?;
+                continue;
             };
             let objects = self.fetch(self.objects(objects)?);
             writeln!(out, "let objects_{id}_{i} = {objects};").unwrap();
@@ -2323,13 +2370,10 @@ impl Compiler {
                 _ => {}
             }
         }
-        let what = match changes {
-            [Change::Rule(rule)] => rule_name(rule),
-            _ => "several changes".to_string(),
+        let EffectSubjects::Objects(affected) = affected else {
+            return Err(gap("continuous effect on players"));
         };
-        Err(gap(format!(
-            "engine: no resolving rule on an open set: {what}"
-        )))
+        self.open_rule_stated(source, affected, changes, duration, out)
     }
     fn continuous(
         &mut self,
@@ -2416,7 +2460,10 @@ impl Compiler {
     /// What a resolving effect's change is in the engine's vocabulary. Each
     /// value is read when the effect is made, as `EffectEvaluation::Snapshot` says.
     pub(super) fn effect_kinds(&mut self, change: &Change) -> Result<Vec<String>> {
-        if let Change::GrantKeyword(ward @ (Keyword::Ward(_) | Keyword::Flanking)) = change {
+        if let Change::GrantKeyword(
+            ward @ (Keyword::Ward(_) | Keyword::Flanking | Keyword::Prowess),
+        ) = change
+        {
             let change = Change::GrantAbility(Box::new(Ability::Keyword(ward.clone())));
             return self.effect_kinds(&change);
         }
@@ -2426,11 +2473,7 @@ impl Compiler {
                     "EffectKind::AddKeywords(Keywords::of(&[{keyword}]))"
                 )]);
             }
-            let index = self.grant(ability)?;
-            return Ok(vec![format!(
-                "EffectKind::AddAbility(AbilityRef::delayed({}, {index}))",
-                self.source_card()
-            )]);
+            return self.grant_kinds(ability);
         }
         let i16_of = |n: &Expr| -> Result<String> {
             self.number(n)?.fit(i16::MIN.into(), i16::MAX.into(), "i16")
@@ -2462,7 +2505,7 @@ impl Compiler {
             Change::GrantKeyword(Keyword::HexproofFrom(quality)) => {
                 vec![format!(
                     "EffectKind::HexproofFrom({})",
-                    lane_j::hexproof_quality(quality)?
+                    self.hexproof_of(quality)?
                 )]
             }
             Change::GrantKeyword(k) => {
@@ -2473,10 +2516,12 @@ impl Compiler {
             }
             Change::RemoveAllAbilities => vec!["EffectKind::LoseAllAbilities".into()],
             Change::SwitchPowerToughness => vec!["EffectKind::SwitchPt".into()],
-            Change::LosesAbility(lost) => vec![format!(
-                "EffectKind::LoseKeywords(Keywords::of(&[Keyword::{}]))",
-                statics::lost_keyword(lost)?
-            )],
+            Change::LosesAbility(lost) => match statics::lost_keyword(lost) {
+                Ok(word) => vec![format!(
+                    "EffectKind::LoseKeywords(Keywords::of(&[Keyword::{word}]))"
+                )],
+                Err(failed) => return self.lost_kinds(lost, failed),
+            },
             Change::AddLandType(t) => vec![format!(
                 "EffectKind::AddSubtype({})",
                 lane_k::word_subtype(&name(t))
@@ -2600,7 +2645,7 @@ impl Compiler {
                 self.certain_player(player)?
             )],
             Change::Rule(rule) => return self.continuous_rule(rule),
-            other => return lane_m::continuous_more(other),
+            other => return self.more_kinds(other),
         })
     }
 }

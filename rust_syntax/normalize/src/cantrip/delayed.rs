@@ -97,11 +97,9 @@ impl Compiler {
                 .get(&slot.0)
                 .is_some_and(|(_, spec)| matches!(spec.kind, TargetKind::Object(_)));
             let single = matches!(recipients, Recipients::Target { .. })
-                || outer
-                    .compiler
-                    .slots
-                    .get(&slot.0)
-                    .is_some_and(|(_, spec)| matches!(spec.count, Count::Exactly(Expr::Constant(1))));
+                || outer.compiler.slots.get(&slot.0).is_some_and(|(_, spec)| {
+                    matches!(spec.count, Count::Exactly(Expr::Constant(1)))
+                });
             if !(of_an_object && single) {
                 return Err(gap("a made effect about a target that may be a player"));
             }
@@ -391,7 +389,9 @@ impl Compiler {
             DelayedStart::NextTurn if matches!(point, TurnPoint::UpkeepBegins) => {}
             DelayedStart::PlayersNextTurn(_) if matches!(point, TurnPoint::UpkeepBegins) => {}
             DelayedStart::ExtraTurn(_) => {
-                return Ok(format!("DelayedWhen::ExtraTurnStep {{ step: Step::{step}, turn }}"))
+                return Ok(format!(
+                    "DelayedWhen::ExtraTurnStep {{ step: Step::{step}, turn }}"
+                ))
             }
             DelayedStart::NextTurn => {
                 let turn = turn_of(self)?;
@@ -405,8 +405,12 @@ impl Compiler {
                 let player = self.fetch(self.certain_player(player)?);
                 return Ok(planned::planned_value(
                     &format!("delayed trigger starting {}", form(start)),
-                    &format!("DelayedWhen::Step {{ step: Step::{step}, on_turn_of: Some({player}) }}"),
-                    &format!("DelayedWhen::StepOfNextTurn {{ step: Step::{step}, of: Some({player}) }}"),
+                    &format!(
+                        "DelayedWhen::Step {{ step: Step::{step}, on_turn_of: Some({player}) }}"
+                    ),
+                    &format!(
+                        "DelayedWhen::StepOfNextTurn {{ step: Step::{step}, of: Some({player}) }}"
+                    ),
                 ));
             }
         }
@@ -618,10 +622,16 @@ impl Compiler {
             let target = match (subject, player.as_ref()) {
                 (None, None) => "Target::None".to_string(),
                 (Some(object), None) => {
-                    format!("{}.map_or(Target::None, Target::Object)", self.fetch(object))
+                    format!(
+                        "{}.map_or(Target::None, Target::Object)",
+                        self.fetch(object)
+                    )
                 }
                 (None, Some(player)) => {
-                    format!("{}.map_or(Target::None, Target::Player)", self.fetch(player))
+                    format!(
+                        "{}.map_or(Target::None, Target::Player)",
+                        self.fetch(player)
+                    )
                 }
                 _ => return Err(gap("reflexive ability about an object and a player")),
             };
@@ -633,7 +643,12 @@ impl Compiler {
         self.helpers.insert("about");
         let mut about = String::from("let mut about: Vec<ObjectId> = Vec::new(); ");
         for list in objects.iter() {
-            write!(about, "about.extend({}); about.push(ObjectId::NONE); ", self.fetch(list)).unwrap();
+            write!(
+                about,
+                "about.extend({}); about.push(ObjectId::NONE); ",
+                self.fetch(list)
+            )
+            .unwrap();
         }
         let code = match player.as_ref() {
             None => format!("if let Some(source) = {source} {{ {about} g.delayed_trigger_about({when}, source, {controller}, {ability}, &about); }}"),

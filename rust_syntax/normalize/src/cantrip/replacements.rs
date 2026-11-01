@@ -160,8 +160,10 @@ impl Compiler {
             } => {
                 let (mut arms, frame) = self.watched(event)?;
                 if arms.iter().any(|a| {
-                    !matches!(a.kind, "Damage" | "ManaProduction" | "LifeChange" | "DrawInstruction")
-                        && self.replacing.planned.is_none()
+                    !matches!(
+                        a.kind,
+                        "Damage" | "ManaProduction" | "LifeChange" | "DrawInstruction"
+                    ) && self.replacing.planned.is_none()
                 }) {
                     return Err(gap("measured replacement of an event without an amount"));
                 }
@@ -178,7 +180,12 @@ impl Compiler {
     }
     /// The change a static effect makes to a proposal, as statements with
     /// `binding` in scope; `reads` are computed before the proposal is borrowed.
-    pub(super) fn reshape(&mut self, kind: &str, change: &EventChange, frame: Frame) -> Result<String> {
+    pub(super) fn reshape(
+        &mut self,
+        kind: &str,
+        change: &EventChange,
+        frame: Frame,
+    ) -> Result<String> {
         let number = |c: &mut Self, n: &Expr| c.matching(frame, |c| c.number(n));
         let counter = |c: &mut Self, kind: &crate::counter::CounterKind, amount: &Expr| {
             let n = number(c, amount)?.amount(i16::MAX.into(), "i16")?;
@@ -228,9 +235,7 @@ impl Compiler {
                     Destination::OwnersLibraryTop
                     | Destination::OwnersLibraryBottom
                     | Destination::OwnersBattlefield
-                    | Destination::Battlefield(_) => {
-                        return self.reshape_rest(kind, change, frame)
-                    }
+                    | Destination::Battlefield(_) => return self.reshape_rest(kind, change, frame),
                     other => return Err(gap(format!("replacement destination {}", form(other)))),
                 }
             }
@@ -868,12 +873,18 @@ impl Compiler {
             format!("PreventionDef {{ hint: {hint}, applies: {applies}, amount: {amount}{more} }}");
         match (then, may) {
             (None, None) => parts.preventions.push(def),
-            (Some(_), _) => {
-                self.plan_entry("prevention with an effect besides", "preventions", &def, parts)
-            }
-            (None, Some(_)) => {
-                self.plan_entry("prevention a player may decline", "preventions", &def, parts)
-            }
+            (Some(_), _) => self.plan_entry(
+                "prevention with an effect besides",
+                "preventions",
+                &def,
+                parts,
+            ),
+            (None, Some(_)) => self.plan_entry(
+                "prevention a player may decline",
+                "preventions",
+                &def,
+                parts,
+            ),
         }
         Ok(())
     }

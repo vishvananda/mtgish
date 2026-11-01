@@ -618,10 +618,15 @@ impl Compiler {
         let owner = "q.state().obj(z.object).owner";
         Ok(match (kind, change) {
             ("ZoneChange", C::Cancel) => "z.replaced = true;".into(),
-            ("ZoneChange", C::SetDestination(Destination::Exile)) if self.links_exile => format!(
-                "z.to = Zone::exile({owner}); z.exiled_with = Some(q.linked_to(asker));"
-            ),
-            ("ZoneChange", C::SetDestination(end @ (Destination::OwnersLibraryTop | Destination::OwnersLibraryBottom))) => {
+            ("ZoneChange", C::SetDestination(Destination::Exile)) if self.links_exile => {
+                format!("z.to = Zone::exile({owner}); z.exiled_with = Some(q.linked_to(asker));")
+            }
+            (
+                "ZoneChange",
+                C::SetDestination(
+                    end @ (Destination::OwnersLibraryTop | Destination::OwnersLibraryBottom),
+                ),
+            ) => {
                 let end = match end {
                     Destination::OwnersLibraryTop => "Top",
                     _ => "Bottom",
@@ -683,7 +688,8 @@ impl Compiler {
                 format!("for kind in m.mana.0.iter_mut() {{ if *kind > 0 {{ let data = [*kind, u32::MAX]; *kind = {n}; }} }}")
             }
             ("ManaProduction", C::ReplaceColoredMana(ManaProduction::Amount { color, .. })) => {
-                let colored = "let colored: u32 = m.mana.0[..5].iter().sum(); m.mana.0[..5].fill(0);";
+                let colored =
+                    "let colored: u32 = m.mana.0[..5].iter().sum(); m.mana.0[..5].fill(0);";
                 format!("{colored} {}", mana_gained(color, "colored"))
             }
             ("ManaProduction", C::ReplaceMana(ManaProduction::Amount { color, .. })) => {
@@ -724,7 +730,9 @@ impl Compiler {
                 "{};",
                 planned::planned_value("event change damage as infect", "()", "e.as_infect = true")
             ),
-            (_, change) if self.replacing.planned.is_some() => self.planned_change(change, frame)?,
+            (_, change) if self.replacing.planned.is_some() => {
+                self.planned_change(change, frame)?
+            }
             (_, other) => return Err(gap(format!("event change {}", form(other)))),
         })
     }
@@ -740,7 +748,9 @@ impl Compiler {
                 effects,
             } if format!("{effects:?}").contains("NoCopyEffects") => {
                 let original = self.matching(frame, |c| c.objects(objects))?;
-                planned(format!("z.enters_as_copy_of = ({original}).first().copied()"))
+                planned(format!(
+                    "z.enters_as_copy_of = ({original}).first().copied()"
+                ))
             }
             EntryState::Changes(changes) => {
                 let mut change = "EntryChange::new()".to_string();
@@ -853,7 +863,8 @@ impl Compiler {
                 event: ReplacedObjectEvent::LeavesBattlefield,
                 objects,
             } => {
-                let test = self.matching(object_frame, |c| c.filter(objects, &Candidate::of("id")))?;
+                let test =
+                    self.matching(object_frame, |c| c.filter(objects, &Candidate::of("id")))?;
                 one(
                     zone(vec![
                         "z.from.is(ZoneKind::Battlefield)".into(),
@@ -867,12 +878,17 @@ impl Compiler {
                 event: ReplacedObjectEvent::Destroyed,
                 objects,
             } => {
-                let test = self.matching(object_frame, |c| c.filter(objects, &Candidate::of("id")))?;
+                let test =
+                    self.matching(object_frame, |c| c.filter(objects, &Candidate::of("id")))?;
                 one(zone(vec!["z.destruction()".into(), test]), object_frame)
             }
-            ReplacementEvent::Object { event: what, objects } => {
+            ReplacementEvent::Object {
+                event: what,
+                objects,
+            } => {
                 let (kind, feature) = (object_proposal(*what), format!("replacement of {what:?}"));
-                let test = self.matching(object_frame, |c| c.filter(objects, &Candidate::of("id")))?;
+                let test =
+                    self.matching(object_frame, |c| c.filter(objects, &Candidate::of("id")))?;
                 self.replacing.planned = Some(feature);
                 one(
                     Watched {
@@ -914,7 +930,9 @@ impl Compiler {
                         kind: "Draw",
                         variant: "Draw",
                         binding: "d",
-                        locals: "let subject = Target::Player(d.player); let data = [1u32, u32::MAX];".into(),
+                        locals:
+                            "let subject = Target::Player(d.player); let data = [1u32, u32::MAX];"
+                                .into(),
                         tests: vec![
                             "q.state().turn.step() == Step::Draw".into(),
                             "q.state().turn.active == d.player".into(),
@@ -943,7 +961,10 @@ impl Compiler {
                     amount_frame,
                 )
             }
-            ReplacementEvent::Player { event: what, players } => {
+            ReplacementEvent::Player {
+                event: what,
+                players,
+            } => {
                 let (kind, measured) = player_proposal(*what);
                 let feature = format!("replacement of {what:?}");
                 let test = self.matching(player_frame, |c| c.player_in(players, "p.player"))?;
@@ -1012,8 +1033,10 @@ impl Compiler {
             }
             ReplacementEvent::Countered { spells, by } => {
                 let feature = format!("replacement event {}", form(event));
-                let spell = self.matching(object_frame, |c| c.filter(spells, &Candidate::of("id")))?;
-                let cause = self.matching(object_frame, |c| c.filter(by, &Candidate::of("cause")))?;
+                let spell =
+                    self.matching(object_frame, |c| c.filter(spells, &Candidate::of("id")))?;
+                let cause =
+                    self.matching(object_frame, |c| c.filter(by, &Candidate::of("cause")))?;
                 one(
                     zone(vec![
                         "z.reason == ZoneReason::Counter".into(),
@@ -1054,8 +1077,9 @@ impl Compiler {
             ReplacementEvent::DrawCausedBy { players, abilities } => {
                 let feature = format!("replacement event {}", form(event));
                 let test = self.matching(player_frame, |c| c.player_in(players, "d.player"))?;
-                let cause =
-                    self.matching(player_frame, |c| c.filter(abilities, &Candidate::of("cause")))?;
+                let cause = self.matching(player_frame, |c| {
+                    c.filter(abilities, &Candidate::of("cause"))
+                })?;
                 one(
                     Watched {
                         kind: "DrawInstruction",
@@ -1081,8 +1105,7 @@ impl Compiler {
                     player: Some(Carried::Data(0)),
                     ..Frame::default()
                 };
-                let mut tests =
-                    vec![self.matching(frame, |c| c.player_in(players, "p.player"))?];
+                let mut tests = vec![self.matching(frame, |c| c.player_in(players, "p.player"))?];
                 tests.push(self.matching(frame, |c| c.filter(spells, &Candidate::of("id")))?);
                 self.replacing.planned = Some(feature);
                 one(
@@ -1107,14 +1130,18 @@ impl Compiler {
             ReplacementEvent::EachPoint(inner) => {
                 let feature = format!("replacement event {}", form(event));
                 let found = self.watched(inner)?;
-                self.replacing.suffix.push((feature, ".each_point()".into()));
+                self.replacing
+                    .suffix
+                    .push((feature, ".each_point()".into()));
                 Ok(Some(found))
             }
-            ReplacementEvent::Caused { cause, event: inner } => {
+            ReplacementEvent::Caused {
+                cause,
+                event: inner,
+            } => {
                 let feature = format!("replacement event {}", form(event));
                 let (mut arms, frame) = self.watched(inner)?;
-                let cause =
-                    self.matching(frame, |c| c.filter(cause, &Candidate::of("cause")))?;
+                let cause = self.matching(frame, |c| c.filter(cause, &Candidate::of("cause")))?;
                 for arm in &mut arms {
                     arm.tests.push(planned::planned_value(
                         &feature,
@@ -1165,7 +1192,11 @@ impl Compiler {
         if self.stack_item {
             ("item.object", "item.controller", "item.ability.card".into())
         } else {
-            ("asker.source", "asker.controller", self.fetch(self.source_card()))
+            (
+                "asker.source",
+                "asker.controller",
+                self.fetch(self.source_card()),
+            )
         }
     }
     /// `Operation::CreateDelayedTrigger` on an event: once, the next time it
@@ -1335,7 +1366,10 @@ impl Compiler {
             }
             let effect = effect
                 .replace("g.add_effect(", "g.add_effect_about(&carried, ")
-                .replace("g.add_player_effect(", "g.add_player_effect_about(&carried, ");
+                .replace(
+                    "g.add_player_effect(",
+                    "g.add_player_effect_about(&carried, ",
+                );
             self.plan_code(
                 KEPT,
                 &format!("{{ {bound} {carried} if let (Some(to), Some(about)) = (to, about) {{ {effect} }} }}"),
@@ -1344,11 +1378,17 @@ impl Compiler {
         } else if effect.contains("EffectKind::Redirect") {
             self.plan_code(
                 "replacement of damage to a named recipient",
-                &format!("{{ {bound} if let (Some(to), Some(about)) = (to, about) {{ {effect} }} }}"),
+                &format!(
+                    "{{ {bound} if let (Some(to), Some(about)) = (to, about) {{ {effect} }} }}"
+                ),
                 out,
             );
         } else {
-            writeln!(out, "{{ {bound} if let (Some(to), Some(about)) = (to, about) {{ {effect} }} }}").unwrap();
+            writeln!(
+                out,
+                "{{ {bound} if let (Some(to), Some(about)) = (to, about) {{ {effect} }} }}"
+            )
+            .unwrap();
         }
         Ok(())
     }
@@ -1370,7 +1410,9 @@ impl Compiler {
         let chosen = planned::planned_value(
             "a choice of Recipient",
             "Target::None",
-            &format!("cantrip_mechanics::choose::recipient(g, player_{id}, {source}, candidates_{id})?"),
+            &format!(
+                "cantrip_mechanics::choose::recipient(g, player_{id}, {source}, candidates_{id})?"
+            ),
         );
         writeln!(
             out,
@@ -1417,7 +1459,10 @@ impl Compiler {
     /// one with a hole of its own.
     pub(super) fn failed_anywhere(&self, result: &ResultId) -> bool {
         self.failed.contains(&result.0)
-            || self.outer.as_ref().is_some_and(|outer| outer.failed(result))
+            || self
+                .outer
+                .as_ref()
+                .is_some_and(|outer| outer.failed(result))
     }
     /// Whether the event at hand is a move a replacement changed, its steps
     /// coming after it (CR 614.6): the object it moved is a new one there.
@@ -1457,7 +1502,11 @@ impl Compiler {
                     .iter()
                     .map(|f| self.triggering_ability(Some(f)))
                     .collect::<Result<Vec<_>>>()?;
-                let joint = if matches!(filter, F::All(_)) { " && " } else { " || " };
+                let joint = if matches!(filter, F::All(_)) {
+                    " && "
+                } else {
+                    " || "
+                };
                 format!("({})", tests.join(joint))
             }
             F::OnStack(StackTrait::Triggered) => "true".into(),
@@ -1490,7 +1539,10 @@ impl Compiler {
     }
     /// A damage event's recipient a made effect keeps, as a test of `target`.
     pub(super) fn named_recipient(&self, recipients: &Recipients) -> Result<String> {
-        Ok(format!("({}).contains(target)", self.recipients(recipients)?))
+        Ok(format!(
+            "({}).contains(target)",
+            self.recipients(recipients)?
+        ))
     }
 }
 
@@ -1514,7 +1566,9 @@ pub(super) fn reads_graveyard_part(after: &[Instruction], result: &ResultId) -> 
     let r = result.0;
     let text = format!("{after:?}");
     text.contains(&format!("InResult(ResultId({r}))"))
-        || text.contains(&format!("what: PutInGraveyard, measure: Count, result: Some(ResultId({r}))"))
+        || text.contains(&format!(
+            "what: PutInGraveyard, measure: Count, result: Some(ResultId({r}))"
+        ))
 }
 
 /// Whether what comes later reads an instruction's result as objects.
@@ -1573,9 +1627,10 @@ fn mana_choices(production: &ManaProduction) -> Result<Vec<String>> {
     options
         .iter()
         .map(|option| match option {
-            ManaProduction::Amount { color, .. } => {
-                Ok(format!("Mana::{}", ["W", "U", "B", "R", "G", "C"][color_index(color)?]))
-            }
+            ManaProduction::Amount { color, .. } => Ok(format!(
+                "Mana::{}",
+                ["W", "U", "B", "R", "G", "C"][color_index(color)?]
+            )),
             other => Err(gap(format!("event change mana {}", form(other)))),
         })
         .collect()

@@ -634,9 +634,13 @@ impl Compiler {
     pub(super) fn player_more(&self, player: &PlayerRef) -> Result<String> {
         let feature = format!("player reference {}", form(player));
         Ok(match player {
-            PlayerRef::Acting | PlayerRef::Prior(PriorPlayer::That) => {
-                self.row_player().map_err(|_| gap(feature))?
-            }
+            PlayerRef::Acting | PlayerRef::Prior(PriorPlayer::That) => match self.row_player() {
+                Ok(row) => row,
+                Err(_) if matches!(player, PlayerRef::Acting) => {
+                    return self.player_stated(player);
+                }
+                Err(_) => return Err(gap(feature)),
+            },
             // "That player" of another ability of the object: nothing keeps it.
             PlayerRef::Prior(PriorPlayer::Remembered) => planned::planned_value(
                 "player reference Prior",
@@ -679,7 +683,7 @@ impl Compiler {
                     self.players(players)?
                 )
             }
-            other => return Err(gap(format!("player reference {}", form(other)))),
+            other => return self.player_stated(other),
         })
     }
     /// The rest of `object`.
@@ -983,7 +987,11 @@ impl Compiler {
                     None if self.failed.contains(&result.0) => {
                         planned::unreported("false", result)
                     }
-                    None => return Err(gap("condition PlayerTook")),
+                    None => planned::planned_value(
+                        "condition PlayerTook",
+                        "false",
+                        &format!("q.took_part(asker, {}, {})", self.player(player)?, result.0),
+                    ),
                 }
             }
             other => return self.condition_p(other),

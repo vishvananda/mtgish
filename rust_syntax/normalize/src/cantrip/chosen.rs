@@ -117,6 +117,9 @@ impl Compiler {
         options: &[Operand],
         out: &mut String,
     ) -> Result<()> {
+        if self.chosen_words(id, actor, kind, count, out)? {
+            return Ok(());
+        }
         if count != 1 {
             let players = self.fetch(self.players(actor)?);
             let code = format!(
@@ -126,7 +129,12 @@ impl Compiler {
             return Ok(());
         }
         let PlayerSet::One(player) = actor else {
-            return Err(gap("a value chosen by several players"));
+            let players = self.fetch(self.players(actor)?);
+            let code = format!(
+                "{M}::choose::each_chooses(g, {players}, asker.source, ChoiceKind::{kind:?})?"
+            );
+            self.value_to_come("a value chosen by several players", id, kind, &code, out);
+            return Ok(());
         };
         let entering = self.pending == Pending::Entering;
         let player = if entering {
@@ -219,7 +227,8 @@ impl Compiler {
         }
         // The engine keeps a permanent's choices as it entered, and no other.
         if !self.enters_choosing.contains(&kind) {
-            return lane_p::chosen_elsewhere(self.linked(), kind);
+            return lane_p::chosen_elsewhere(self.linked(), kind)
+                .or_else(|_| self.chosen_elsewhere(kind));
         }
         let read = match kind {
             ValueKind::Color => "chosen_color",
@@ -284,6 +293,13 @@ impl Compiler {
                 self.chosen_local(*kind)?
             )],
             Change::ChosenType {
+                kind: kind @ ValueKind::CreatureType,
+                mode: ChangeMode::Set,
+            } => vec![format!(
+                "EffectKind::SetCreatureType({})",
+                self.chosen_local(*kind)?
+            )],
+            Change::ChosenType {
                 kind: kind @ (ValueKind::BasicLandType | ValueKind::LandType),
                 mode: ChangeMode::Set,
             } => vec![lane_g::planned_kind(
@@ -333,7 +349,7 @@ impl Compiler {
                     self.chosen_value(*kind)?
                 ),
             ),
-            other => return Err(gap(format!("static change {}", super::form(other)))),
+            other => return self.chosen_more(other),
         })
     }
     /// A protection from what this body chose, or `None` for any other.

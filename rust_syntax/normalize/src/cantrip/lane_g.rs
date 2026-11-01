@@ -667,7 +667,7 @@ impl Compiler {
         }
         let (lasting, restriction) = mana_lasting(restriction);
         if lasting.is_some() {
-            return Err(gap(format!("mana production {}", form(mana))));
+            return Ok(None);
         }
         let rule = restriction.map(|r| self.mana_use(r)).transpose()?;
         let add = |color: &str| match &rule {
@@ -917,7 +917,10 @@ impl Compiler {
             {
                 self.tap_any_number(id, player, &selections[0].objects, result, out)?;
             }
-            other => return Err(gap(format!("resolution cost {}", form(other)))),
+            other => {
+                let feature = format!("resolution cost {}", form(other));
+                return self.stated_payment(&feature, id, player, cost, out);
+            }
         }
         Ok(())
     }
@@ -1580,7 +1583,7 @@ impl Compiler {
                     parts,
                 );
             }
-            (other, _) => return Err(gap(format!("casting rule {}", form(other)))),
+            (other, _) => return self.stated_casting(other, parts),
         }
         Ok(())
     }
