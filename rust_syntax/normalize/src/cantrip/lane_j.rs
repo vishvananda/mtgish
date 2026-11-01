@@ -2430,6 +2430,137 @@ pub(super) fn granted_keyword(ability: &Ability) -> Option<&'static str> {
     }
 }
 
+/// "Put N -1/-1 counters on a creature you control": what blight is (CR 701.68a).
+pub(super) fn blights(placements: &[CounterPlacement]) -> Option<u8> {
+    let [CounterPlacement {
+        recipients: Recipients::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters))),
+        kind: crate::counter::CounterKind::PowerToughness(-1, -1),
+        amount,
+        selection:
+            Some(SelectionChoice {
+                player,
+                count: Count::Exactly(Expr::Constant(1)),
+            }),
+    }] = placements
+    else {
+        return None;
+    };
+    let [ObjectFilter::CardType(CardType::Creature), ObjectFilter::ControlledBy(PlayerSet::One(owner))] =
+        filters.as_slice()
+    else {
+        return None;
+    };
+    (format!("{owner:?}") == format!("{player:?}"))
+        .then(|| constant_u8(amount))
+        .flatten()
+}
+/// "You may put a stun counter on it. If you do, ...": no cost Cantrip can pay, but
+/// the same thing as an optional instruction whose doing the next one reads.
+pub(super) fn counters_on_a_target(
+    player: &PlayerRef,
+    cost: &Cost,
+    result: &ResultId,
+) -> Option<CostPart> {
+    let [CostPart::PutCounters(placements)] = cost.parts.as_slice() else {
+        return None;
+    };
+    let on_a_target = placements.iter().all(|p| {
+        p.selection.is_none()
+            && matches!(
+                p.recipients,
+                Recipients::Objects(ObjectSet::One(ObjectRef::Target { .. }))
+            )
+    });
+    on_a_target.then(|| CostPart::PlayerAction {
+        player: player.clone(),
+        body: Program {
+            instructions: vec![Instruction::Effect {
+                result: result.clone(),
+                operation: Operation::PutCounters {
+                    placements: placements.clone(),
+                },
+            }],
+        },
+    })
+}
+/// Cumulative upkeep's "Put a +1/+1 counter on a creature an opponent controls".
+fn on_an_opposing_creature(placements: &[CounterPlacement]) -> bool {
+    let [CounterPlacement {
+        recipients: Recipients::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters))),
+        kind: crate::counter::CounterKind::PowerToughness(1, 1),
+        amount: Expr::Constant(1),
+        selection:
+            Some(SelectionChoice {
+                player: PlayerRef::AbilityController,
+                count: Count::Exactly(Expr::Constant(1)),
+            }),
+    }] = placements
+    else {
+        return false;
+    };
+    matches!(
+        filters.as_slice(),
+        [
+            ObjectFilter::CardType(CardType::Creature),
+            ObjectFilter::ControlledBy(PlayerSet::OpponentsOf(PlayerRef::AbilityController))
+        ]
+    )
+}
+/// Cumulative upkeep's "Put a -1/-1 counter on this creature".
+fn on_this(placements: &[CounterPlacement]) -> bool {
+    matches!(
+        placements,
+        [CounterPlacement {
+            recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)),
+            kind: crate::counter::CounterKind::PowerToughness(-1, -1),
+            amount: Expr::Constant(1),
+            selection: None,
+        }]
+    )
+}
+/// Cumulative upkeep's "An opponent gains N life".
+fn opponent_gains(body: &Program) -> Option<u8> {
+    let [Instruction::Effect {
+        operation:
+            Operation::GainLife {
+                players: PlayerSet::One(PlayerRef::OneOf(gainer)),
+                amount,
+            },
+        ..
+    }] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    matches!(**gainer, PlayerSet::OpponentsOf(PlayerRef::AbilityController))
+        .then(|| constant_u8(amount))
+        .flatten()
+}
+/// Cumulative upkeep's "Put two cards from a single graveyard on the bottom of their
+/// owner's library".
+fn two_to_the_bottom(part: &CostPart) -> bool {
+    let CostPart::Move {
+        selections,
+        destination: Destination::OwnersLibraryBottom,
+        ..
+    } = part
+    else {
+        return false;
+    };
+    matches!(
+        selections.as_slice(),
+        [CostObjectSelection {
+            objects: ObjectSet::Zone {
+                scope: ZoneScope::Players {
+                    zone: EventZone::Graveyard,
+                    players: PlayerSet::All,
+                },
+                filter: ObjectFilter::Any,
+                ..
+            },
+            choose: Some(Count::Exactly(Expr::Constant(2))),
+        }]
+    )
+}
 /// What a cost pays for: Cantrip's variable costs are a spell's or an ability's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Paying {
@@ -2530,7 +2661,8 @@ impl Compiler {
                 abilities,
                 rule,
             } => self.trigger_rule(cause.as_ref(), abilities.as_ref(), rule, label, parts),
-            Ability::Spree { modes } => self.spree(modes, label, parts),
+            Ability::Spree { modes } => self.spree(modes, "spree", label, parts),
+            Ability::Tiered { modes } => self.spree(modes, "tiered", label, parts),
             Ability::Gift {
                 gift,
                 promised,
@@ -2574,8 +2706,15 @@ impl Compiler {
             other => Err(gap(format!("ability {}", form(other)))),
         }
     }
-    /// Spree (CR 702.172): modes chosen by paying for them, at least one.
-    fn spree(&mut self, modes: &[SpreeMode], label: &str, parts: &mut Parts) -> Result<()> {
+    /// Spree (CR 702.172), modes chosen by paying for them, at least one; and
+    /// tiered (CR 702.183), exactly one of them.
+    fn spree(
+        &mut self,
+        modes: &[SpreeMode],
+        mechanic: &str,
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
         if parts.spell != "None" {
             return Err(gap("multiple spell bodies"));
         }
@@ -2599,7 +2738,7 @@ impl Compiler {
         let name = format!("{}_MODES", label.to_ascii_uppercase());
         writeln!(
             self.functions,
-            "static {name}: ModalDef = cantrip_mechanics::spree::modal(&[{}]);",
+            "static {name}: ModalDef = cantrip_mechanics::{mechanic}::modal(&[{}]);",
             defs.join(",")
         )
         .unwrap();
@@ -2950,6 +3089,218 @@ impl Compiler {
             }
             other => return Err(gap(format!("prohibited action Activate {}", form(other)))),
         })
+    }
+    /// Cumulative upkeep (CR 702.24a) paid other than in plain mana or life: one of
+    /// Cantrip's own payments, or the payment it will take.
+    pub(super) fn cumulative_upkeep(
+        &mut self,
+        cost: Option<&Cost>,
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        const FEATURE: &str = "cumulative upkeep paid other than in mana or life";
+        let cost = cost.ok_or_else(|| gap(FEATURE))?;
+        let plain = match cost.parts.as_slice() {
+            [CostPart::Sacrifice {
+                objects: ObjectSet::Battlefield(filter),
+                choose: Some(Count::Exactly(Expr::Constant(1))),
+            }] => Some(format!("Sacrifice({})", self.cost_filter(filter, label)?)),
+            [CostPart::PutCounters(placements)] if on_this(placements) => {
+                Some("PutMinusOneMinusOneCounterOnThis".to_string())
+            }
+            [CostPart::PutCounters(placements)] if on_an_opposing_creature(placements) => {
+                Some("PutPlusOnePlusOneCounterOnAnOpposingCreature".to_string())
+            }
+            [CostPart::PlayerAction { body, .. }] if opponent_gains(body).is_some() => {
+                Some(format!("OpponentGainsLife({})", opponent_gains(body).expect("just seen")))
+            }
+            [CostPart::SinglePlayersCards(part)] if two_to_the_bottom(part) => {
+                Some("TwoCardsFromAGraveyardOnTheBottom".to_string())
+            }
+            _ => None,
+        };
+        let whole = |payment: &str| {
+            format!("cantrip_mechanics::cumulative_upkeep!(cantrip_mechanics::cumulative_upkeep::Payment::{payment}, \"Cumulative upkeep\")")
+        };
+        if let Some(payment) = plain {
+            parts.abilities.push(whole(&payment));
+            return Ok(());
+        }
+        let payment = match cost.parts.as_slice() {
+            [CostPart::Choice(costs)] => {
+                let mut either = Vec::new();
+                for cost in costs {
+                    let [CostPart::Mana(symbols)] = cost.parts.as_slice() else {
+                        return Err(gap(FEATURE));
+                    };
+                    either.push(mana(symbols)?);
+                }
+                format!("EitherMana(&[{}])", either.join(", "))
+            }
+            [CostPart::Draw {
+                count: Expr::Constant(n),
+            }] => format!("Draw({n})"),
+            [CostPart::ObjectAction {
+                objects: ObjectSet::Battlefield(filter),
+                action: CostObjectAction::GainControl,
+            }] => format!("GainControl({})", self.cost_filter(filter, label)?),
+            [CostPart::PlayerAction { body, .. }] => {
+                format!("Instructions({})", self.effect(body, &format!("{label}_payment"))?)
+            }
+            _ => format!("Cost({})", self.cost(cost, label)?),
+        };
+        self.plan_entry(FEATURE, "abilities", &whole(&payment), parts);
+        Ok(())
+    }
+    /// Several objects put onto the battlefield at once, each as `entry` says
+    /// (CR 110.2a, 614.12): the call that does it.
+    pub(super) fn arriving_together(
+        &mut self,
+        id: usize,
+        entry: &EntrySpec,
+        controller: &str,
+    ) -> Result<String> {
+        const NOTHING: &str = "Vec::<ObjectId>::new()";
+        let mut counters = Vec::new();
+        for (kind, n) in &entry.counters {
+            let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+            counters.push(format!("({}, {})", counter_kind(kind)?, self.fetch(n)));
+        }
+        let counters = counters.join(", ");
+        let pairs = format!(
+            "let rows_{id}: Vec<(ObjectId, PlayerId)> = objects_{id}.iter().map(|&o| (o, {controller})).collect();"
+        );
+        match entry.states.as_slice() {
+            [EntryState::Changes(changes)] if !entry.tapped && self.stack_item => {
+                let (what, colored) = self.enters_as(changes)?;
+                let call = |what: &str| {
+                    format!("{{ {pairs} g.put_all_onto_battlefield_becoming(&rows_{id}, item, {what}, &[{counters}])? }}")
+                };
+                if colored {
+                    return Ok(planned::planned_value(
+                        "several objects entering with a color",
+                        NOTHING,
+                        &call(&format!("&{what}")),
+                    ));
+                }
+                let name = format!("ENTERS_AS_{}", self.fresh());
+                writeln!(self.functions, "static {name}: EntersAs = {what};").unwrap();
+                Ok(call(&format!("&{name}")))
+            }
+            [EntryState::AttachedTo(host)] if !entry.tapped && counters.is_empty() => {
+                let host = self.fetch(self.object(host)?);
+                Ok(planned::planned_value(
+                    "several objects arriving attached",
+                    NOTHING,
+                    &format!("{{ {pairs} g.put_all_onto_battlefield_attached(&rows_{id}, {host})? }}"),
+                ))
+            }
+            [EntryState::AttachedToChosen(hosts)] if !entry.tapped && counters.is_empty() => {
+                let hosts = self.filter(hosts, &Candidate::of("host"))?;
+                Ok(planned::planned_value(
+                    "several objects arriving attached",
+                    NOTHING,
+                    &format!("{{ {pairs} g.put_all_onto_battlefield_attached_to_chosen(&rows_{id}, |g, host| {hosts})? }}"),
+                ))
+            }
+            states if !states.is_empty() && !entry.tapped && counters.is_empty() => {
+                let mut tapped = Vec::new();
+                let mut plain = true;
+                for state in states {
+                    let EntryState::When { filter, entry } = state else {
+                        return Err(gap("several objects arriving in a state"));
+                    };
+                    if !entry.states.is_empty() {
+                        return Err(gap("several objects arriving in a state"));
+                    }
+                    plain &= entry.tapped && entry.counters.is_empty();
+                    tapped.push(self.filter(filter, &Candidate::of("o"))?);
+                }
+                if !plain {
+                    return Ok(planned::planned_value(
+                        "what enters having counters by what it is",
+                        NOTHING,
+                        &format!("{{ {pairs} g.put_all_onto_battlefield_with_counters_each(&rows_{id}, by_what_it_is)? }}"),
+                    ));
+                }
+                let tapped = tapped.join(" || ");
+                Ok(format!(
+                    "{{ let rows_{id}: Vec<(ObjectId, PlayerId, bool)> = objects_{id}.iter().map(|&o| (o, {controller}, {tapped})).collect(); g.put_all_onto_battlefield_as(&rows_{id})? }}"
+                ))
+            }
+            _ => Err(gap("several objects arriving in a state")),
+        }
+    }
+    /// An `EntersAs` of what a card says its objects are as they enter, and whether
+    /// it has a color, which `EntersAs` has no field for.
+    fn enters_as(&mut self, changes: &[Change]) -> Result<(String, bool)> {
+        let mut fields = Vec::new();
+        let (mut subtypes, mut adds, mut keywords, mut abilities) =
+            (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        let mut colored = false;
+        for change in changes {
+            match change {
+                Change::SetBasePowerToughness {
+                    power: Expr::Constant(p),
+                    toughness: Expr::Constant(t),
+                } => fields.push(format!("power_toughness: Some(({p}, {t}))")),
+                Change::CreatureTypes {
+                    mode: ChangeMode::Add,
+                    types: CreatureTypeSet::Listed(types),
+                } => {
+                    for t in types {
+                        let word = name(t);
+                        if !crate::cantrip_vocab::SUBTYPES.contains(&word.as_str()) {
+                            return Err(gap(format!("subtype {word}")));
+                        }
+                        subtypes.push(format!("Subtype::{word}"));
+                    }
+                }
+                Change::SetArtifactType(t) => {
+                    fields.push("loses_subtypes_of: &[CardType::Artifact]".to_string());
+                    subtypes.push(format!("Subtype::{}", name(t)));
+                }
+                Change::AddCardType(t) => adds.push(format!("CardType::{}", card_type(t)?)),
+                Change::SetCardTypes(types) => {
+                    let types = types
+                        .iter()
+                        .map(|t| card_type(t).map(|t| format!("CardType::{t}")))
+                        .collect::<Result<Vec<_>>>()?;
+                    fields.push(format!("types: Some(TypeSet::of(&[{}]))", types.join(", ")));
+                }
+                Change::GrantKeyword(k) => keywords.push(keyword(k)?),
+                Change::GrantAbility(ability) => abilities.push(self.grant(ability)?.to_string()),
+                Change::Colors {
+                    mode: ChangeMode::Add,
+                    colors,
+                } => {
+                    let colors = colors
+                        .iter()
+                        .map(|c| format!("Color::{c:?}"))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    colored = true;
+                    fields.push(format!("adds_colors: ColorSet::of(&[{colors}])"));
+                }
+                other => return Err(gap(format!("several objects arriving as {}", form(other)))),
+            }
+        }
+        if !subtypes.is_empty() {
+            fields.push(format!("subtypes: &[{}]", subtypes.join(", ")));
+        }
+        if !adds.is_empty() {
+            fields.push(format!("adds_types: TypeSet::of(&[{}])", adds.join(", ")));
+        }
+        if !keywords.is_empty() {
+            fields.push(format!("keywords: Keywords::of(&[{}])", keywords.join(", ")));
+        }
+        if !abilities.is_empty() {
+            fields.push(format!("abilities: &[{}]", abilities.join(", ")));
+        }
+        Ok((
+            format!("EntersAs {{ {}, ..EntersAs::NONE }}", fields.join(", ")),
+            colored,
+        ))
     }
     /// "Costs {1} less", "costs {W}{U} less", "costs {G} less for each green
     /// permanent you control" (CR 118.7): a `CostDelta`.

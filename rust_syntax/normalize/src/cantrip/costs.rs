@@ -201,6 +201,9 @@ impl Compiler {
             }
             // Put on the source by the activating player (Mazemind Tome's form).
             CostPart::PutCounters(placements) => {
+                if let Some(n) = lane_j::blights(placements) {
+                    return Ok(format!("cantrip_mechanics::blight::cost({n})"));
+                }
                 let [CounterPlacement {
                     recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)),
                     kind,

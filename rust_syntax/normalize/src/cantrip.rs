@@ -397,6 +397,8 @@ struct Compiler {
     hoisted: Option<Vec<String>>,
     /// Choices and searches that yield one object at most.
     single: BTreeSet<u32>,
+    /// Results that moved or found one object at most.
+    known_one: BTreeSet<u32>,
     /// Some ability of the card reads what was exiled with its source.
     links_exile: bool,
     /// The announcement slot whose filter is being compiled.
@@ -687,6 +689,7 @@ impl Compiler {
             dividing: None,
             hoisted: None,
             single: BTreeSet::new(),
+            known_one: BTreeSet::new(),
             links_exile: false,
             choosing: None,
             performed: BTreeMap::new(),

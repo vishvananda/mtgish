@@ -267,7 +267,7 @@ impl Compiler {
                         "Life({})",
                         costs::constant_u8(n).ok_or_else(|| gap("cumulative life not fixed"))?
                     ),
-                    _ => return Err(gap("cumulative upkeep paid other than in mana or life")),
+                    _ => return self.cumulative_upkeep(cost, label, parts),
                 };
                 ability(parts, format!("{M}::cumulative_upkeep!({M}::cumulative_upkeep::Payment::{payment}, \"Cumulative upkeep\")"));
             }

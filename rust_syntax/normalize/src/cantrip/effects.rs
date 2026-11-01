@@ -1047,6 +1047,9 @@ impl Compiler {
                 at_most: None,
             } => {
                 let owner = self.fetch(self.certain_player(library)?);
+                if matches!(count, Expr::Constant(1)) {
+                    self.known_one.insert(result.0);
+                }
                 let count = self.fetch(self.number(count)?.amount(u32::MAX.into(), "usize")?);
                 let filter = self.filter(filter, &Candidate::of("id"))?;
                 self.selections.insert(result.0, format!("objects_{id}"));
@@ -1310,6 +1313,14 @@ impl Compiler {
                 player,
                 cost,
                 optional: true,
+            } if lane_j::counters_on_a_target(player, cost, result).is_some() => {
+                let action = lane_j::counters_on_a_target(player, cost, result).expect("just seen");
+                return self.player_action(id, player, &action, true, result, out);
+            }
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
             } => {
                 let cost = self.cost(cost, "paid")?;
                 self.helpers.insert("pay_question");
@@ -1455,6 +1466,7 @@ impl Compiler {
     pub(super) fn reset_results(&mut self) {
         self.selections.clear();
         self.reveal_matches.clear();
+        self.known_one.clear();
         self.revealed = false;
         self.creations.clear();
         self.moved.clear();
@@ -1637,9 +1649,6 @@ impl Compiler {
         let library = |place: String| format!("g.put_into_library(&objects_{id}, {place})");
         let call = match destination {
             Destination::Battlefield(_) | Destination::OwnersBattlefield => {
-                if !entry.states.is_empty() && !alone {
-                    return Err(gap("several objects arriving in a state"));
-                }
                 let controller = match destination {
                     Destination::Battlefield(player) => {
                         let player = self.certain_player(player)?;
@@ -1649,7 +1658,9 @@ impl Compiler {
                     _ => "g.state().obj(o).owner".into(),
                 };
                 let rows = format!("let rows_{id}: Vec<(ObjectId, PlayerId, bool)> = objects_{id}.iter().map(|&o| (o, {controller}, {})).collect();", entry.tapped);
-                if !entry.states.is_empty() {
+                if !entry.states.is_empty() && !alone {
+                    self.arriving_together(id, entry, &controller)?
+                } else if !entry.states.is_empty() {
                     let each = self.arrival(entry)?;
                     format!("{{ let mut moved: Vec<ObjectId> = Vec::new(); for &o in &objects_{id} {{ let controller = {controller}; {each} }} moved }}")
                 } else if entry.counters.is_empty() {
@@ -1697,6 +1708,9 @@ impl Compiler {
         )
         .unwrap();
         self.moved.insert(result.0, format!("moved_{id}"));
+        if alone {
+            self.known_one.insert(result.0);
+        }
         self.left_behind(result, gone(&format!("objects_{id}")));
         Ok(())
     }
@@ -1742,6 +1756,11 @@ impl Compiler {
                 .is_some_and(|(_, spec)| one_at_most(&spec.count)),
             ObjectSet::InZone { objects, .. } => self.one_object(objects),
             ObjectSet::Selected(result) => self.single.contains(&result.0),
+            ObjectSet::Matching { objects, .. } => match &**objects {
+                ObjectSet::Observed(result) => self.known_one.contains(&result.0),
+                objects => self.one_object(objects),
+            },
+            ObjectSet::Transition { result, .. } => self.known_one.contains(&result.0),
             _ => false,
         }
     }
