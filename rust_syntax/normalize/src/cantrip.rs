@@ -903,6 +903,8 @@ impl Compiler {
             }
             ObjectKind::Card => format!("{} && !q.state().obj(id).token", zones(&domain.zones)?),
             ObjectKind::Spell if domain.zones == [EventZone::Stack] => zones(&domain.zones)?,
+            // "Target spell or permanent": whatever is in those zones.
+            ObjectKind::Any => zones(&domain.zones)?,
             _ => return Err(gap(format!("target object domain {:?}", domain.kind))),
         })
     }
@@ -992,7 +994,7 @@ impl Compiler {
                     ),
                 )
             ),
-            other => return Err(gap(format!("target cardinality {}", form(other)))),
+            other => return self.target_count_rest(other),
         })
     }
     fn announcement(&mut self, a: &Announcement, label: &str) -> Result<String> {
@@ -1034,13 +1036,16 @@ impl Compiler {
         self.announced_filters.clear();
         for (i, spec) in a.targets.iter().enumerate() {
             let at = format!("targets[{i}]");
+            let mut rule = lane_l::SlotRule::default();
             let together = match spec.constraints.as_slice() {
-                [] => "",
-                [SelectionConstraint::CommonProperty(property)] => {
-                    self.common_property(property).map_err(|e| e.at(&at))?
-                }
-                [constraint, ..] => {
-                    return Err(gap(format!("target constraint {}", form(constraint))).at(at))
+                [] => String::new(),
+                [SelectionConstraint::CommonProperty(property)] => self
+                    .common_property(property)
+                    .map(String::from)
+                    .map_err(|e| e.at(&at))?,
+                constraints => {
+                    rule = self.slot_rule(constraints, i).map_err(|e| e.at(&at))?;
+                    rule.together.clone()
                 }
             };
             if let Some(total) = &spec.distribute {
@@ -1062,22 +1067,26 @@ impl Compiler {
                 };
                 self.dividing = Some(format!("Divide {{ total: {total}, of_x: None }}"));
             }
-            if spec.chooser.is_some() {
-                return Err(gap("targets chosen by another player").at(at));
+            if let Some(chooser) = &spec.chooser {
+                self.chosen_by_another(chooser, &mut rule)
+                    .map_err(|e| e.at(&at))?;
             }
             let count = self.target_count(&spec.count).map_err(|e| e.at(&at))?;
             self.slots.insert(spec.slot.0, (i, spec.clone()));
             if spec.kind == TargetKind::DamageRecipient
                 && spec.players.is_none()
                 && matches!(spec.filter, ObjectFilter::Any)
+                && rule.test.is_none()
             {
-                targets.push(format!("cantrip_mechanics::targets::ANY{count}{together}"));
+                targets.push(rule.finish(format!(
+                    "cantrip_mechanics::targets::ANY{count}{together}"
+                )));
                 self.announced_filters
                     .push("cantrip_mechanics::targets::ANY.filter".into());
                 continue;
             }
             self.choosing = Some(i);
-            let test = self.target_test(spec).map_err(|e| e.at(&at));
+            let test = self.slot_test(spec, &rule).map_err(|e| e.at(&at));
             self.choosing = None;
             let test = lane_i::per_player_target(&spec.count, test?);
             let function = format!("{label}_target_{i}");
@@ -1086,7 +1095,7 @@ impl Compiler {
                 "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {test} }}"
             )
             .unwrap();
-            targets.push(format!("target({function}){count}{together}"));
+            targets.push(rule.finish(format!("target({function}){count}{together}")));
             self.announced_filters.push(function);
         }
         if targets.is_empty() {

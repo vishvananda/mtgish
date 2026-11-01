@@ -577,6 +577,7 @@ impl Compiler {
             ),
             ObjectSet::Selected(result)
             | ObjectSet::Observed(result)
+            | ObjectSet::Copies(result)
             | ObjectSet::Affected(result) => self.selected(result)?,
             ObjectSet::Unselected(result) if self.unchosen.contains_key(&result.0) => {
                 format!("{}.clone()", self.unchosen[&result.0])

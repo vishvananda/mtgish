@@ -1915,7 +1915,7 @@ impl Compiler {
             return Err(gap("engine: no perpetual effects"));
         }
         let (EffectSubject::Objects(objects), None) = (subject, until) else {
-            return Err(unsupported());
+            return self.effect_on_rest(subject, effects, until.as_ref(), out);
         };
         let [Operand::Term {
             family,
@@ -1923,7 +1923,7 @@ impl Compiler {
             operands,
         }] = effects.as_slice()
         else {
-            return Err(unsupported());
+            return self.effect_on_rest(subject, effects, until.as_ref(), out);
         };
         match (family.as_str(), form.as_str()) {
             ("ExiledCardEffect", "IsPlotted") => {
@@ -1949,7 +1949,7 @@ impl Compiler {
                     out,
                 );
             }
-            _ => return Err(unsupported()),
+            _ => return self.effect_on_rest(subject, effects, until.as_ref(), out),
         }
         Ok(())
     }
