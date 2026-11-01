@@ -7,7 +7,7 @@
 //! `InSet`, an open count bounded by the total divided) reduce to one form.
 use crate::ir::Card;
 use crate::ir_schema::{Fields, Schema, Ty, TypeDef};
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -130,6 +130,9 @@ impl Walker {
                         splice_groups(items);
                     } else if **inner == Ty::Named("Ability".into()) {
                         merge_statics(items);
+                        if !self.keep_order {
+                            merge_triggers(items);
+                        }
                     }
                 }
             }
@@ -344,6 +347,45 @@ fn merge_statics(items: &mut Vec<Value>) {
             }
         }
         merged.push(item);
+    }
+    *items = merged;
+}
+
+/// Whether two triggered abilities differ in nothing but what triggers them.
+fn same_but_event(a: &Value, b: &Value) -> bool {
+    a["kind"] == "Triggered"
+        && b["kind"] == "Triggered"
+        && ["intervening_if", "limits", "announcement", "body"]
+            .iter()
+            .all(|field| a["args"][*field] == b["args"][*field])
+}
+
+/// The events of a trigger, whether it has one or lists several.
+fn trigger_events(ability: &Value) -> Vec<Value> {
+    match ability["args"]["event"].get("Either") {
+        Some(Value::Array(cases)) => cases.clone(),
+        _ => vec![ability["args"]["event"].clone()],
+    }
+}
+
+/// `Whenever a or b, do c`, held as one ability with `Either` or as two sharing a
+/// body, means the same either way, so comparison sees one ability in event order.
+fn merge_triggers(items: &mut Vec<Value>) {
+    let mut merged: Vec<Value> = Vec::with_capacity(items.len());
+    for item in items.drain(..) {
+        match merged.last_mut() {
+            Some(last) if same_but_event(last, &item) => {
+                let mut events = trigger_events(last);
+                events.extend(trigger_events(&item));
+                last["args"]["event"] = json!({ "Either": events });
+            }
+            _ => merged.push(item),
+        }
+    }
+    for item in merged.iter_mut().filter(|item| item["kind"] == "Triggered") {
+        if let Some(Value::Array(events)) = item["args"]["event"].get_mut("Either") {
+            events.sort_by_key(|event| event.to_string());
+        }
     }
     *items = merged;
 }

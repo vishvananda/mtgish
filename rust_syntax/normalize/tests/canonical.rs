@@ -175,3 +175,17 @@ fn groups_and_adjacent_statics_flatten() {
     canonical::abilities(&mut flat).unwrap();
     assert_eq!(grouped, flat);
 }
+
+#[test]
+fn a_shared_body_merges_triggers_into_either() {
+    let trigger = |event: serde_json::Value| {
+        json!({"kind":"Triggered","args":{"event":event,"intervening_if":null,"limits":{"once_each_turn":false,"max_each_turn":null,"not_on_stack":false},
+               "announcement":{"targets":[],"modes":null},"body":{"instructions":[]}}})
+    };
+    let event = |name: &str| json!({"Object":{"event":name,"objects":{"kind":"SameObject","args":{"kind":"Source"}}}});
+    let mut split = json!([trigger(event("Attacks")), trigger(event("Blocks"))]);
+    let mut joined = json!([trigger(json!({"Either":[event("Blocks"), event("Attacks")]}))]);
+    canonical::abilities(&mut split).unwrap();
+    canonical::abilities(&mut joined).unwrap();
+    assert_eq!(split, joined);
+}
