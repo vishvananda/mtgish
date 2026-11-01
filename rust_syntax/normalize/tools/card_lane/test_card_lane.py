@@ -196,6 +196,132 @@ class Prompt(unittest.TestCase):
             self.assertEqual(lane.keyword_lines("Suspend 3", wanted=1), ["- Suspend: `Bot1.Hand.Lotus Bloom.Suspend`"])
 
 
+class RememberedMutants(unittest.TestCase):
+    def setUp(self):
+        self.change = {"key": "line 4: 1 to 2", "text": "mutated", "path": None, "detail": "d"}
+
+    def held(self, verdict, together="now", said="a", now="a", text="mutated"):
+        known = {"change": lane.digest(text), "verdict": verdict, "by": "s", "said": said, "together": "now"}
+        with mock.patch.object(lane, "scenario_digest", return_value=now):
+            return lane.verdict_of(self.change, known, together)
+
+    def test_nothing_known_is_played(self):
+        self.assertIsNone(lane.verdict_of(self.change, None, "now"))
+
+    def test_caught_holds_while_its_scenario_says_the_same(self):
+        self.assertEqual(self.held("caught"), "caught")
+
+    def test_an_edited_catcher_plays_it_again(self):
+        self.assertIsNone(self.held("caught", now="b"))
+
+    def test_a_deleted_catcher_plays_it_again(self):
+        self.assertIsNone(self.held("caught", now=None))
+
+    def test_a_crash_with_no_name_is_played_again(self):
+        known = {"change": lane.digest("mutated"), "verdict": "caught", "by": None, "said": None, "together": "now"}
+        self.assertIsNone(lane.verdict_of(self.change, known, "now"))
+
+    def test_a_survivor_waits_for_new_scenarios(self):
+        self.assertEqual(self.held("SURVIVED"), "SURVIVED")
+        self.assertIsNone(self.held("SURVIVED", together="new"))
+
+    def test_a_change_to_the_mutant_plays_it_again(self):
+        self.assertIsNone(self.held("caught", text="another"))
+
+    def test_what_does_not_compile_never_will(self):
+        self.assertEqual(self.held("no build", together="new"), "no build")
+
+    def run_gate(self, known):
+        """mutation_gates over one card with two changes, on a scratch tree, the build and the scenarios faked."""
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            source = root / "card.rs"
+            source.write_text("real", encoding="utf-8")
+            content = root / "card.json"
+            content.write_text("{}", encoding="utf-8")
+            (root / "state").mkdir()
+            (root / "state" / "mutants.json").write_text(json.dumps(known), encoding="utf-8")
+            changes = [{"key": k, "text": k, "path": source, "detail": f"{k} detail"} for k in ("one", "two")]
+            builds = []
+            gates = {"A": mock.Mock()}
+            gates["A"].results = [{}]
+            with mock.patch.multiple(lane, tool_module=mock.Mock(), changes_of=mock.Mock(return_value=(changes, 2)), card_file=mock.Mock(return_value=source),
+                                     content_file=mock.Mock(return_value=content), card_dir=mock.Mock(return_value=root / "state"),
+                                     scenarios_digest=mock.Mock(return_value="now"), scenario_digest=mock.Mock(return_value="said"),
+                                     build_corpus=mock.Mock(side_effect=lambda: builds.append(source.read_text(encoding="utf-8")) or (0, "")),
+                                     corpus_verdict=mock.Mock(return_value=(1, "s"))), mock.patch("builtins.print"):
+                survivors = lane.mutation_gates(["A"], gates)
+            return survivors, builds, source.read_text(encoding="utf-8"), json.loads((root / "state" / "mutants.json").read_text(encoding="utf-8"))
+
+    def test_only_what_is_unknown_is_built(self):
+        known = {"one": {"change": lane.digest("one"), "verdict": "caught", "by": "s", "said": "said", "together": "now"}}
+        survivors, builds, source, memo = self.run_gate(known)
+        self.assertEqual(survivors, {"A": []})
+        self.assertEqual(builds, ["two", "real"])  # the one left, then the card put back
+        self.assertEqual(source, "real")
+        self.assertEqual(memo["two"]["verdict"], "caught")
+
+    def test_a_kept_survivor_is_still_reported_and_nothing_is_built(self):
+        known = {k: {"change": lane.digest(k), "verdict": "SURVIVED", "by": None, "said": None, "together": "now"} for k in ("one", "two")}
+        survivors, builds, _, _ = self.run_gate(known)
+        self.assertEqual(survivors, {"A": [("one", "one detail"), ("two", "two detail")]})
+        self.assertEqual(builds, [])
+
+
+class Repairs(unittest.TestCase):
+    def failed(self):
+        card = mock.Mock(ok=False)
+        card.failures.return_value = [{"gate": "corpus", "detail": "line 3 failed"}]
+        return {"A": card}
+
+    def test_a_worker_is_told_to_keep_going_and_play_what_it_changes(self):
+        text = lane.batch_repair(self.failed(), "draft", 3)
+        for words in ("keep going", "Play a scenario after you change it", "Do not finish with a failure you know of", "batch-check --fast", "3 more rounds", "line 3 failed"):
+            self.assertIn(words, text)
+        self.assertNotIn("one action", text)
+
+    def test_the_last_round_says_so(self):
+        self.assertIn("after 1 more round a card", lane.batch_repair(self.failed(), "draft", 1).replace("\n", " "))
+
+    def test_a_card_that_named_nothing_failing_is_caught_all_the_same(self):
+        with mock.patch.object(lane, "shell", return_value=(1, "panic: boom")):
+            self.assertEqual(lane.corpus_verdict("A"), (1, None))
+
+    def test_the_first_failure_is_named(self):
+        with mock.patch.object(lane, "shell", return_value=(1, "  FAIL first-one\nx\n  FAIL second\n")):
+            self.assertEqual(lane.corpus_verdict("A"), (1, "first-one"))
+
+
+class Ways(unittest.TestCase):
+    def test_a_worker_with_the_tools_is_told_to_finish_the_job(self):
+        self.assertIn("keep going until `batch-check --fast` passes for every card", lane.WAYS["work"])
+
+    def test_no_way_rations_a_workers_actions(self):
+        for way in lane.WAYS.values():
+            self.assertNotIn("one action", way)
+
+
+class BlindStops(unittest.TestCase):
+    def cleared(self, reports):
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / "reports.json"
+            path.write_text(json.dumps(reports), encoding="utf-8")
+            lane.clear_blind_stops(path)
+            return json.loads(path.read_text(encoding="utf-8"))
+
+    def test_unproved_is_no_stop(self):
+        out = self.cleared({"A": {"decision": "needs_review", "reason": "needs validation"}, "B": {"decision": "engine_gap", "reason": "x"}})
+        self.assertEqual(out["A"], {"decision": "done", "notes": "needs validation"})
+        self.assertEqual(out["B"]["decision"], "done")
+
+    def test_a_generator_bug_found_by_reading_stands(self):
+        report = {"decision": "generator_bug", "reason": "the amount is 2, the text says 3"}
+        self.assertEqual(self.cleared({"A": report}), {"A": report})
+
+    def test_a_missing_or_broken_file_is_left(self):
+        lane.clear_blind_stops(Path("/nonexistent/reports.json"))
+
+
 class Sharing(unittest.TestCase):
     def test_a_function_that_is_a_shared_effect_over_again_is_named(self):
         with tempfile.TemporaryDirectory() as scratch:

@@ -94,6 +94,49 @@ Cost is token counts as the backend reports them, and for Codex that is the sess
 rather than restarts. Where a backend reports no price, `usd_api_equivalent` applies the list rates in
 `RATES`. That is an API-equivalent figure, not what a ChatGPT login is billed.
 
+## Running a batch
+
+`batch-run` gives one worker several cards in one session. The prompt holds what the worker needs, so it starts by writing,
+not reading: `handbook.md`, the Oracle text, each card's code and test points, and how scenarios say its keywords. A driver
+then plays everything at once and sends back what failed, for every card together. A card that passes is committed alone
+and leaves the batch.
+
+```sh
+python3 $L batch-run --size 10 --limit 20 --way draft --backend codex --model gpt-6-luna --effort max
+python3 $L batch-check --fast
+```
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `--size` | 10 | Cards in one session |
+| `--way` | `work` | `draft`: the worker writes everything blind, the driver plays it and reports, and each repair is run until green with the tools open. `work`: the worker has the tools from the start and runs until the fast check passes |
+| `--repairs` | 4 | Rounds a batch is sent back with failed gates |
+| `--timeout` | 3600 | Seconds a batch may take, every round together. At maximum effort ten cards can use all of it |
+| `--only-file` | | Cards to do, one name per line |
+
+Every step of a worker resends the session, so cost follows steps, not bytes read. `draft` exists for that: `work` spent
+most of its budget on searches of `scenarios/` and finished a third of its cards. One build serves the whole batch, every
+card's coverage comes from one instrumented run, and mutation runs only for a card with nothing else wrong.
+
+Mutation is the dearest gate, about one build per change, so verdicts are kept in the card's `mutants.json`. A change caught
+stays caught while the scenario that caught it is unchanged, a survivor is played again when any of the card's scenarios
+changes, and a change that does not compile is not tried again. The first round pays for all of them; later ones pay only for
+what an edit touched.
+
+A repair prompt must tell the worker to keep going until the cards pass. A worker told to fix what it can in one action does
+exactly that, whatever the failures, and a lower effort follows such wording more literally.
+
+Each batch appends a record to `$STATE/batches.jsonl`: cards, outcome by card, rounds, seconds by phase, tokens and price.
+
+Parallel runs each need a tree. Make them as copy-on-write snapshots of a warm base on the btrfs volume rather than as
+worktrees with a copied target: a snapshot takes about a second and about 300 MB after a rebuild. Point the lane at one with
+`CARD_LANE_CANTRIP`, `CARD_LANE_TARGET`, `CARD_LANE_STATE` and `CARD_LANE_BRANCH`.
+
+```sh
+COW_WORKTREE_CONFIG=/mnt/vizier/cow-cantrip.conf ~/.local/bin/cow-git -C /mnt/vizier/base/cantrip \
+    worktree add -q -b card-lane/NAME /mnt/vizier/card-lane/NAME card-lane/pioneer-pilot
+```
+
 ## The gates
 
 `check` runs Cantrip's own tools unmodified, with `CANTRIP_VERIFY=1`, cheapest first. `check --fast` leaves out `mutation`

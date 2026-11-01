@@ -31,6 +31,7 @@ Nothing here pushes or posts. Commits stay on the lane's local Cantrip branch. S
 import argparse
 import collections
 import datetime
+import hashlib
 import importlib.util
 import json
 import multiprocessing.pool
@@ -1567,14 +1568,20 @@ WAYS = {
     "work": """Tools, from the working directory:
 - `{lane} batch-check --fast`: plays every card's scenarios and judges each card and its report. Prints what failed.
 - `{lane} corpus --file PATH --brief`: one scenario. Add `--dump`, `--diff N` or `--next` to see what it can see.
+- `{lane} batch-check --card "NAME"`: the same, and it breaks that card one change at a time: minutes the first time, seconds after.
 - `{lane} tool find-cards.py ...`, `{lane} tool cr.py 603.6a`.
 
-Write all the cards, then run `batch-check --fast` once and fix what it names, rather than running each scenario as you write
-it. One command at a time, in the foreground. Stop when it passes.""",
+Build out the scenarios for every card: what each owes is every printed line, test point, ruling and keyword. Play them, fix them
+and keep going until `batch-check --fast` passes for every card, or a card has a stop. Do not finish with a failure you know of.
+Only then does a driver break each card and send back what no scenario caught. One command at a time, in the foreground.""",
     "draft": """Do not run anything now: no corpus, no check, no search. You have all you need above. Write every card's scenarios and the
-reports, and stop. Every step costs the whole of this prompt again, so make few of them: write all the files in one action. A
-driver plays them and sends back what failed, for every card at once, and you fix them then. When it does, it will say what
-tools you may use.""",
+reports, and stop. Put as many files as you like in an action. A driver plays them and sends back what failed, for every card at
+once, and you fix them then, with the tools it names.
+
+Do each card in full now. For each, list what it owes: every printed line, test point, ruling and keyword, and write an
+expectation for each. Most cards need several scenarios, and a card with one is sent straight back. Nothing has been played, so
+every card's decision is `done` unless reading its code shows a `generator_bug`. Unproved is the state of everything at this
+point; it is no reason to stop.""",
 }
 
 
@@ -1598,6 +1605,23 @@ def expected_line(scenario, text):
         return 0
     lines = [line.strip() for line in path.read_text(encoding="utf-8").splitlines()]
     return lines.index(text.strip()) + 1 if text.strip() in lines else 0
+
+
+def clear_blind_stops(path):
+    """A worker that has played nothing has seen no engine or tool fail, so an `engine_gap` or `needs_review` from a blind
+    pass says only that nothing is proved yet, which is what the gates are about to find out. A `generator_bug` stands:
+    reading is how that is found."""
+    try:
+        reports = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return
+    changed = False
+    for report in reports.values() if isinstance(reports, dict) else ():
+        if isinstance(report, dict) and report.get("decision") in ("engine_gap", "needs_review"):
+            report.update(decision="done", notes=str(report.pop("reason", "")))
+            changed = True
+    if changed:
+        path.write_text(json.dumps(reports, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 def expand_reports(names):
@@ -1669,12 +1693,43 @@ def coverage_gates(names, gates, contexts):
     return [n for n in names if gates[n].ok]
 
 
-def corpus_exit(name):
-    """Exit status of the card's scenarios on the built corpus. A change that makes the game run on is caught."""
+def corpus_verdict(name):
+    """The card's scenarios on the built corpus: (exit status, the first scenario that failed, or None). A change that makes
+    the game run on is caught, by nothing that can be named."""
     try:
-        return shell(TARGET / "cards" / "corpus", "--card", name, "--brief", timeout=300)[0]
+        code, out = shell(TARGET / "cards" / "corpus", "--card", name, "--brief", timeout=300)
     except subprocess.TimeoutExpired:
-        return 1
+        return 1, None
+    failed = re.search(r"^\s*FAIL (\S+)", out, re.M)
+    return code, failed.group(1) if failed else None
+
+
+def digest(data):
+    return hashlib.sha256(data if isinstance(data, bytes) else data.encode("utf-8")).hexdigest()
+
+
+def scenario_digest(stem):
+    """What a scenario said, or None if it is gone."""
+    path = CANTRIP / SCENARIOS_DIR / f"{stem}.cantrip"
+    return digest(path.read_bytes()) if path.is_file() else None
+
+
+def scenarios_digest(name):
+    """What all of a card's scenarios say together."""
+    return digest("".join(sorted(digest(path.read_bytes()) for path in card_scenarios(name))))
+
+
+def verdict_of(change, known, together):
+    """What an earlier round's verdict on this change still proves, or None if it has to be played. The card's code does not
+    move, so only scenarios can: a change caught stays caught while the scenario that caught it says the same, one that
+    survived stays alive until any of the card's scenarios changes, and one that does not compile never will."""
+    if not known or known.get("change") != digest(change["text"]):
+        return None
+    if known["verdict"] == "no build":
+        return "no build"
+    if known["verdict"] == "SURVIVED":
+        return "SURVIVED" if known.get("together") == together else None
+    return "caught" if known.get("by") and scenario_digest(known["by"]) == known.get("said") else None
 
 
 def changes_of(name, mutate):
@@ -1705,12 +1760,29 @@ def mutation_gates(names, gates):
     scenario holds another card of the batch. A change that does not compile is set aside and the round built again, as
     card-mutate.py skips it. The number of builds is the most changes any one card has, not the sum. {card: its survivors}."""
     mutate = tool_module("card-mutate.py")
-    plans, started = {}, time.time()
+    plans, started, kept = {}, time.time(), 0
     for name in names:
         changes, total = changes_of(name, mutate)
         originals = {path: path.read_bytes() for path in (card_file(name), content_file(name)) if path.exists()}
-        plans[name] = {"changes": changes, "total": total, "originals": originals, "log": [], "survivors": [], "next": 0}
+        memo = card_dir(name) / "mutants.json"
+        known = json.loads(memo.read_text(encoding="utf-8")) if memo.exists() else {}
+        plan = {"changes": [], "any": bool(changes), "total": total, "originals": originals, "log": [], "survivors": [], "next": 0,
+                "memo": memo, "known": known, "together": scenarios_digest(name)}
+        for change in changes:
+            verdict = verdict_of(change, known.get(change["key"]), plan["together"])
+            if verdict is None:
+                plan["changes"].append(change)
+                continue
+            kept += 1
+            plan["log"].append(f"{change['key']}: {verdict}, as before")
+            if verdict == "SURVIVED":
+                plan["survivors"].append((change["key"], change["detail"]))
+        plans[name] = plan
     builds = 0
+
+    def remember(plan, change, verdict, by=None):
+        plan["known"][change["key"]] = {"change": digest(change["text"]), "verdict": verdict, "by": by, "said": scenario_digest(by) if by else None,
+                                        "together": plan["together"]}
 
     def restore(plan):
         for path, text in plan["originals"].items():
@@ -1731,15 +1803,17 @@ def mutation_gates(names, gates):
                 for name in [n for n in live if n in broken_cards(out)] or list(live):
                     plan = plans[name]
                     plan["log"].append(f"{plan['changes'][plan['next']]['key']}: no build")
+                    remember(plan, plan["changes"][plan["next"]], "no build")
                     restore(plan)
                     plan["next"] += 1
                     live.remove(name)
             with multiprocessing.pool.ThreadPool(16) as pool:
-                verdicts = pool.map(corpus_exit, live)
-            for name, code in zip(live, verdicts):
+                verdicts = pool.map(corpus_verdict, live)
+            for name, (code, by) in zip(live, verdicts):
                 plan = plans[name]
                 change = plan["changes"][plan["next"]]
                 plan["log"].append(f"{change['key']}: {'caught' if code else 'SURVIVED'}")
+                remember(plan, change, "caught" if code else "SURVIVED", by)
                 if code == 0:
                     plan["survivors"].append((change["key"], change["detail"]))
                 restore(plan)
@@ -1747,12 +1821,14 @@ def mutation_gates(names, gates):
     finally:
         for plan in plans.values():
             restore(plan)
+            plan["memo"].write_text(json.dumps(plan["known"], ensure_ascii=False), encoding="utf-8")
     if builds:
         build_corpus()
+    print(f"   mutation: {sum(len(p['changes']) for p in plans.values())} played, {kept} kept from before, {builds} builds, {time.time() - started:.0f}s", flush=True)
     spent = (time.time() - started) / max(1, len(plans))
     for name, plan in plans.items():
         (card_dir(name) / "mutate.txt").write_text("\n".join(plan["log"]) + "\n", encoding="utf-8")
-        if plan["changes"]:
+        if plan["any"]:
             capped = plan["total"] > MUTATION_LIMIT
             gates[name].add("mutation", not capped, f"{plan['total']} possible changes, only {MUTATION_LIMIT} tried" if capped else "")
             gates[name].results[-1]["seconds"] = round(spent, 1)
@@ -1790,7 +1866,7 @@ def batch_gates(names, fast=False):
     return gates
 
 
-def batch_text(gates, limit=1400):
+def batch_text(gates, limit=3000):
     """What failed, card by card: the only thing a worker needs to read back."""
     out = []
     for name, card in gates.items():
@@ -1810,12 +1886,17 @@ def cmd_batch_check(args):
     return 0 if all(g.ok for g in gates.values()) else 1
 
 
-def batch_repair(gates, way):
-    tools = (f"Fix what you can from this report alone, in one action. Only for a scenario you cannot fix from it, use `python3 {Path(__file__).resolve()} corpus "
-             "--file PATH --brief` (with `--dump`, `--diff N`, `--next`). " if way == "draft" else "")
-    return (f"The gates failed as below. Fix what they name in your scenarios and `{BATCH_DIR / 'reports.json'}`, nothing else, and stop. {tools}"
-            "A scenario must not be weakened to pass, and a mutant is only declared equivalent if it truly changes nothing the rules can see. If they show "
-            "a card is wrong, its decision is `generator_bug`.\n\n" + batch_text({n: g for n, g in gates.items() if not g.ok}))
+def batch_repair(gates, way, left):
+    lane = f"python3 {Path(__file__).resolve()}"
+    tools = (f"You can use these now. `{lane} corpus --file PATH --brief` plays one scenario; add `--dump`, `--diff N` or `--next` to see what it can see. "
+             f"`{lane} batch-check --fast` plays every card still open and judges their reports. `{lane} batch-check --card \"NAME\"` also breaks that card one change "
+             "at a time: minutes the first time, seconds after, since only what your edits touched is played again. ") if way == "draft" else ""
+    return (f"The gates failed as below. {tools}\n\n"
+            "Work through every failure, card by card, and keep going until each card passes or has a stop. Play a scenario after you change it. "
+            "Before you finish, run the fast check and fix what it says. Do not finish with a failure you know of, with a change you have not played, or "
+            f"with a note that something remains: there is nobody to read it, and after {left} more round{'s' if left != 1 else ''} a card still failing is dropped.\n\n"
+            f"Change only your scenarios and `{BATCH_DIR / 'reports.json'}`. A scenario must not be weakened to pass, and a mutant is only declared equivalent if it "
+            "truly changes nothing the rules can see. If they show a card is wrong, its decision is `generator_bug`.\n\n" + batch_text({n: g for n, g in gates.items() if not g.ok}))
 
 
 def run_batch(cards, backend, args, queue):
@@ -1852,6 +1933,8 @@ def run_batch(cards, backend, args, queue):
                 for card in remaining:
                     card["failure"] = "timeout" if code is None else "the worker did not run"
                 break
+            if args.way == "draft" and rounds == 1:
+                clear_blind_stops(BATCH_DIR / "reports.json")
             expand_reports(BATCH)
             for card in list(remaining):
                 report = report_of(card["name"]) or {}
@@ -1880,7 +1963,9 @@ def run_batch(cards, backend, args, queue):
                     card["failed_gates"] = [r["gate"] for r in failures]
                     card["failure"] = "; ".join(f"{r['gate']}: {r['detail'][:160]}" for r in failures)[:600]
                 break
-            prompt = batch_repair(gates, args.way)
+            prompt = batch_repair(gates, args.way, args.repairs + 1 - rounds)
+            (BATCH_DIR / f"repair-{rounds}.md").write_text(prompt, encoding="utf-8")
+            (BATCH_DIR / "open.json").write_text(json.dumps([c["name"] for c in remaining], ensure_ascii=False), encoding="utf-8")
     except Exception as error:  # a batch's trouble is recorded on its cards, and the tree goes back clean
         for card in remaining:
             card["failure"] = f"{type(error).__name__}: {error}"[:600]
