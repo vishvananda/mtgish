@@ -3107,6 +3107,69 @@ impl Compiler {
         parts.field("companion", format!("Some({function})"));
         Ok(())
     }
+    /// "Create a Tarmogoyf token": a token that is that card (CR 111.3), which
+    /// Cantrip can't find by name.
+    pub(super) fn tokens_of_a_card(
+        &mut self,
+        id: usize,
+        players: &PlayerSet,
+        tokens: &[TokenSpec],
+        entry: &EntrySpec,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        if !entry.counters.is_empty() || !entry.states.is_empty() {
+            return Err(gap("tokens entering in a special state"));
+        }
+        let players = self.fetch(self.players(players)?);
+        let mut lines = Vec::new();
+        for token in tokens {
+            let TokenRecipe::Named(card) = &token.recipe else {
+                return Err(gap(format!("token recipe {}", form(&token.recipe))));
+            };
+            let n = self.number(&token.amount)?.amount(u32::MAX.into(), "u32")?;
+            lines.push(format!(
+                "for player in {players} {{ g.create_token_copies_tapped(Copiable::of(CardId::named({})), player, {}, {})?; }}",
+                quoted(card),
+                self.fetch(n),
+                entry.tapped
+            ));
+        }
+        writeln!(out, "let created_{id}: Vec<ObjectId> = Vec::new();").unwrap();
+        self.plan_code("a token that is a named card", &lines.join(" "), out);
+        self.creations.insert(result.0, format!("created_{id}"));
+        Ok(())
+    }
+    /// "Spells cast from your graveyard": the zone a spell is in while its cost
+    /// is worked out, or the one it was cast from once it is on the stack.
+    pub(super) fn being_cast_from(
+        &self,
+        by: Option<&PlayerSet>,
+        from: Option<&ZoneScope>,
+        c: &Candidate,
+    ) -> Result<String> {
+        const FEATURE: &str = "how a spell being cast is being cast";
+        let (None, Some(from)) = (by, from) else {
+            return Err(gap(FEATURE));
+        };
+        let id = &c.id;
+        let (zone, owner) = match from {
+            ZoneScope::Shared(zone) => (zone, None),
+            ZoneScope::Players { zone, players } => (zone, Some(players)),
+        };
+        let test = format!(
+            "cantrip_mechanics::zone_cast_from(q, {id}) == Some({})",
+            zone_kind(zone)?
+        );
+        let owned = format!("q.state().obj({id}).owner");
+        Ok(match owner {
+            None | Some(PlayerSet::All) => test,
+            Some(PlayerSet::One(PlayerRef::CasterOf(of))) if matches!(**of, ObjectRef::Candidate) => {
+                format!("({test} && {owned} == {})", c.controller)
+            }
+            Some(players) => format!("({test} && {}.contains(&{owned}))", self.players(players)?),
+        })
+    }
     /// Spree (CR 702.172), modes chosen by paying for them, at least one; and
     /// tiered (CR 702.183), exactly one of them.
     fn spree(

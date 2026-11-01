@@ -110,5 +110,6 @@
  {"match": "^base power$", "class": "engine", "needs": "reading an object's base power: what it is before counters and pumps, after layer 7b", "api": "Query::base_power(id)"},
  {"match": "^base toughness$", "class": "engine", "needs": "reading an object's base toughness: what it is before counters and pumps, after layer 7b", "api": "Query::base_toughness(id)"},
  {"match": "^intensity$", "class": "mechanic", "needs": "the intensity of a card (Alchemy, digital-only; CR 702.161): its starting intensity and what intensify added", "api": "Object::intensity"},
- {"match": "^a spell costing colored mana more$", "class": "engine", "needs": "a spell cost increase in colored mana, as 'White spells you cast cost {W} more to cast': CostDelta::more is generic mana alone (CR 601.2f)", "api": "CostDelta::more_mana(ManaCost)"}
+ {"match": "^a spell costing colored mana more$", "class": "engine", "needs": "a spell cost increase in colored mana, as 'White spells you cast cost {W} more to cast': CostDelta::more is generic mana alone (CR 601.2f)", "api": "CostDelta::more_mana(ManaCost)"},
+ {"match": "^a token that is a named card$", "class": "engine", "needs": "finding a card by its name for a token that is that card ('Create a Tarmogoyf token', CR 111.3), Vanguard, Alchemy and Un-set forms among them", "api": "CardId::named(name)"}
 ]

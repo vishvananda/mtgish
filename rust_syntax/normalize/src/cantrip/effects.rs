@@ -1487,6 +1487,12 @@ impl Compiler {
         result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
+        if tokens
+            .iter()
+            .all(|token| matches!(token.recipe, TokenRecipe::Named(_)))
+        {
+            return self.tokens_of_a_card(id, players, tokens, entry, result, out);
+        }
         let defined = tokens
             .iter()
             .all(|t| matches!(t.recipe, TokenRecipe::Defined(_)));
@@ -1804,6 +1810,12 @@ impl Compiler {
                         .ok_or_else(|| gap("removal of up to a changing number of counters"))?;
                     let player = self.fetch(self.certain_player(&removal.player)?);
                     writeln!(out, "let player_{id}_{i} = {player}; for object in objects_{id}_{i} {{ removed_{id} += i64::from(g.remove_counters_up_to(player_{id}_{i}, asker.source, object, {n})?); }}").unwrap();
+                }
+                // "Remove a counter from target permanent": the one who does chooses
+                // which of its kinds (CR 122.1, 608.2d).
+                (None, CounterAmount::Count(Count::Exactly(Expr::Constant(1)))) => {
+                    let player = self.fetch(self.certain_player(&removal.player)?);
+                    writeln!(out, "let player_{id}_{i} = {player}; for object in objects_{id}_{i} {{ if let Some(kind) = g.choose_counter_kind(player_{id}_{i}, asker.source, object)? {{ removed_{id} += i64::from(g.remove_counters(object, kind, 1)); }} }}").unwrap();
                 }
                 (None, _) => return Err(gap("counters of a kind chosen as the effect resolves")),
             }

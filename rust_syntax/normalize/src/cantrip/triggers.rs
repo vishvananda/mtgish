@@ -823,6 +823,16 @@ impl Compiler {
             } if count.is_none() && including.is_none() => {
                 self.counters_batch(change, kind.as_ref(), objects, by.as_ref(), per)?
             }
+            // "Blocks one or more creatures": one object's events, so its batch is the
+            // whole of them.
+            EventSpec::Pair {
+                objects: ObjectFilter::SameObject(_),
+                ..
+            } if count.is_none() && including.is_none() => {
+                let mut matched = self.event(event)?;
+                matched.batch = Some(false);
+                matched
+            }
             other => {
                 if count.is_some() || including.is_some() || *per != BatchPer::Whole {
                     return Err(gap(format!("batch of {}", form(other))));

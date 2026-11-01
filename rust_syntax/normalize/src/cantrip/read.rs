@@ -1425,7 +1425,7 @@ impl Compiler {
             ObjectFilter::Cast { by, from } if self.reader != Reader::Layer => {
                 // The history has it only once it became cast.
                 if c.announced.is_some() {
-                    return Err(gap("how a spell being cast is being cast"));
+                    return self.being_cast_from(by.as_ref(), from.as_ref(), c);
                 }
                 let mut tests = Vec::new();
                 if let Some(by) = by {
