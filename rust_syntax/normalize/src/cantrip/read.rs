@@ -187,7 +187,16 @@ pub(super) fn counter_kind(kind: &crate::counter::CounterKind) -> Result<String>
     let word = match kind {
         K::PowerToughness(1, 1) => "PlusOne".to_string(),
         K::PowerToughness(-1, -1) => "MinusOne".to_string(),
-        K::PowerToughness(..) => return Err(gap("power/toughness counter other than ±1/±1")),
+        K::PowerToughness(power, toughness) => {
+            let part = |n: &i32| {
+                format!("{}{}", if *n < 0 { "Minus" } else { "Plus" }, n.unsigned_abs())
+            };
+            return Ok(planned::planned_value(
+                "power/toughness counter other than ±1/±1",
+                "CounterKind::PlusOne",
+                &format!("CounterKind::{}{}", part(power), part(toughness)),
+            ));
+        }
         K::Named(counter) => name(counter),
     };
     let word = word.strip_suffix("Counter").unwrap_or(&word).to_string();
@@ -873,6 +882,7 @@ impl Compiler {
                 let scope = match window {
                     HistoryWindow::ThisTurn => "q.history().this_turn().iter()",
                     HistoryWindow::ThisGame => "q.history().all().iter()",
+                    HistoryWindow::ThisCombat => "cantrip_mechanics::history::this_combat(q).iter()",
                     HistoryWindow::LastTurn => {
                         "q.history().all().iter().filter(|r| r.turn + 1 == q.state().turn.number)"
                     }

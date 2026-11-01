@@ -1769,6 +1769,69 @@ impl Compiler {
             other => return Err(gap(format!("history window {}", form(other)))),
         })
     }
+    /// `Condition::PlayerDid`: the event it stands for, asked of the history.
+    fn player_did(
+        &self,
+        player: &PlayerRef,
+        event: &PlayerHistory,
+        window: &ObjectWindow,
+    ) -> Result<String> {
+        type H = PlayerHistory;
+        let scope = self.object_window(window)?;
+        let one = PlayerSet::One(player.clone());
+        let spec = match event {
+            H::AttackedWithTotalPower(comparison, value) => {
+                let value = self.number(value)?.code;
+                let by = self.player(player)?;
+                let total = format!(
+                    "{scope}.filter_map(|r: &Record| match r.event {{ Event::Attacks {{ attacker, .. }} if Some(q.controller(attacker)) == {by} => Some(i64::from(q.chars(attacker).power.unwrap_or(0))), _ => None }}).sum::<i64>()"
+                );
+                return Ok(compare(&total, comparison, &value));
+            }
+            H::CastSpell(spells) => EventSpec::Spell {
+                event: SpellEvent::Cast,
+                players: one,
+                spells: (**spells).clone(),
+            },
+            H::AttackedBy(attackers) => EventSpec::Attack {
+                attackers: (**attackers).clone(),
+                by: None,
+                defenders: AttackDefenders::Players(one),
+            },
+            H::AttackedPlayer(target) => EventSpec::Attack {
+                attackers: ObjectFilter::Any,
+                by: Some(one),
+                defenders: AttackDefenders::Players(PlayerSet::One(target.clone())),
+            },
+            H::AttackedWith(attackers) => EventSpec::Attack {
+                attackers: (**attackers).clone(),
+                by: Some(one),
+                defenders: AttackDefenders::Any,
+            },
+            H::PermanentEntered(objects) => EventSpec::Player {
+                event: PlayerEvent::EntersUnderControl,
+                players: one,
+                objects: Some((**objects).clone()),
+            },
+            other => return Err(gap(format!("condition PlayerDid {}", form(other)))),
+        };
+        let mut asked = self.clone();
+        asked.history = Some(History {
+            outer: None,
+            event_at: self.event_at,
+            frame: self.frame,
+        });
+        let matched = asked.event(&spec)?;
+        if let Some(feature) = matched.planned {
+            return Err(gap(feature));
+        }
+        let answer = format!("{scope}.filter_map({}).next().is_some()", matched.history_test());
+        Ok(if self.event_at == EventAt::Matcher {
+            format!("{{ let (outer_subject, outer_data) = (subject, data); {answer} }}")
+        } else {
+            answer
+        })
+    }
     /// `ObjectFilter::History`.
     fn object_history(
         &self,
@@ -2030,6 +2093,11 @@ impl Compiler {
         };
         Ok(match condition {
             Condition::Searched(_) => held("g.searched_library()"),
+            Condition::PlayerDid {
+                player,
+                event,
+                window,
+            } if self.reader != Reader::Layer => self.player_did(player, event, window)?,
             Condition::GiftPromised(true) if self.reader != Reader::Layer => {
                 "cantrip_mechanics::gift::paid(q, asker)".into()
             }
@@ -2252,6 +2320,31 @@ fn symbols_text(symbols: &[ManaSymbol]) -> Option<String> {
         }
     }
     Some(text)
+}
+
+/// "Hexproof from [quality]" (CR 702.11d-g): `HexproofFrom` qualities.
+pub(super) fn hexproof_quality(quality: &Protection) -> Result<String> {
+    match quality {
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter: ObjectFilter::Color(c),
+        } => Ok(format!("HexproofFrom::color(Color::{})", color(c)?)),
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter: ObjectFilter::CardType(t),
+        } => Ok(format!("HexproofFrom::card_type(CardType::{})", card_type(t)?)),
+        Protection::Each(qualities) => {
+            let mut all = "HexproofFrom::NONE".to_string();
+            for quality in qualities {
+                all = format!("{all}.and({})", hexproof_quality(quality)?);
+            }
+            Ok(all)
+        }
+        Protection::Objects { filter, .. } => {
+            Err(gap(format!("keyword HexproofFrom {}", form(filter))))
+        }
+        other => Err(gap(format!("keyword HexproofFrom {}", form(other)))),
+    }
 }
 
 /// What an event is always about: "whenever this creature attacks", "whenever

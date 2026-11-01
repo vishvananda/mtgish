@@ -288,6 +288,13 @@ impl Compiler {
             Change::GrantKeyword(ward @ Keyword::Ward(_)) => {
                 return self.layer_change(&Change::GrantAbility(Box::new(Ability::Keyword(ward.clone()))));
             }
+            Change::GrantKeyword(Keyword::HexproofFrom(quality)) => LayerChange::of(
+                "Ability",
+                format!(
+                    "chars.hexproof_from = chars.hexproof_from.and({});",
+                    lane_j::hexproof_quality(quality)?
+                ),
+            ),
             Change::GrantKeyword(k) => LayerChange::of(
                 "Ability",
                 format!("chars.keywords = chars.keywords.with({});", keyword(k)?),

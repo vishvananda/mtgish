@@ -229,7 +229,9 @@ enum Hoist {
 fn one_at_most(count: &Count) -> bool {
     matches!(
         count,
-        Count::Exactly(Expr::Constant(1)) | Count::UpTo(Expr::Constant(1))
+        Count::Exactly(Expr::Constant(1))
+            | Count::UpTo(Expr::Constant(1))
+            | Count::AsManyAsCan(Expr::Constant(1))
     )
 }
 
@@ -1708,6 +1710,14 @@ impl Compiler {
     fn one_object(&self, objects: &ObjectSet) -> bool {
         match objects {
             ObjectSet::One(_) => true,
+            ObjectSet::Take {
+                count: Expr::Constant(1),
+                ..
+            } => true,
+            ObjectSet::Targets(slot) => self
+                .slots
+                .get(&slot.0)
+                .is_some_and(|(_, spec)| one_at_most(&spec.count)),
             ObjectSet::InZone { objects, .. } => self.one_object(objects),
             ObjectSet::Selected(result) => self.single.contains(&result.0),
             _ => false,
@@ -1990,6 +2000,12 @@ impl Compiler {
                 grants.into_iter().map(|(kind, _)| kind).collect()
             }
             Change::ChosenColor { .. } | Change::ChosenType { .. } => self.chosen_effect(change)?,
+            Change::GrantKeyword(Keyword::HexproofFrom(quality)) => {
+                vec![format!(
+                    "EffectKind::HexproofFrom({})",
+                    lane_j::hexproof_quality(quality)?
+                )]
+            }
             Change::GrantKeyword(k) => {
                 vec![format!(
                     "EffectKind::AddKeywords(Keywords::of(&[{}]))",

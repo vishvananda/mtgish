@@ -965,6 +965,10 @@ impl Compiler {
         tests.push(match source_kind {
             ObjectKind::Any => "true".to_string(),
             ObjectKind::Permanent => "!q.state().obj(source).zone.is(ZoneKind::Stack)".to_string(),
+            // A spell deals its damage as it resolves, still on the stack.
+            ObjectKind::Spell if self.history.is_none() => {
+                "q.state().obj(source).zone.is(ZoneKind::Stack)".to_string()
+            }
             other => return Err(gap(format!("damage source kind {}", form(other)))),
         });
         tests.push(self.matching(frame, |c| c.filter(sources, &Candidate::of("source")))?);

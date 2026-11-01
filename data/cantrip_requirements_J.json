@@ -82,5 +82,6 @@
  {"match": "^a reveal from an opening hand$", "class": "mechanic", "needs": "revealing a card from an opening hand before the game to set up a later effect, as the Chancellors of New Phyrexia do (CR 103.6b)", "api": "cantrip_mechanics::opening_hand::reveal(effect, text)"},
  {"match": "^activated keyword Forecast$", "class": "mechanic", "needs": "forecast (CR 702.57): activated from the hand, revealed, during its owner's upkeep and once each turn", "api": "AbilityDef::forecast()"},
  {"match": "^ability Visit$", "class": "mechanic", "needs": "Attractions (CR 717), an Un-set mechanic for casual play: an attraction deck, visiting by die roll and prizes", "api": "cantrip_mechanics::attractions::visit(effect, text)"},
- {"match": "^ability DraftRule$", "class": "engine", "needs": "the draft: Conspiracy cards that act before or during it (CR 905), a casual format with no game of its own", "api": "cantrip_mechanics::draft::rule(effect, text)"}
+ {"match": "^ability DraftRule$", "class": "engine", "needs": "the draft: Conspiracy cards that act before or during it (CR 905), a casual format with no game of its own", "api": "cantrip_mechanics::draft::rule(effect, text)"},
+ {"match": "^power/toughness counter other than ±1/±1$", "class": "vocabulary", "needs": "counter kinds that change power and toughness by something other than ±1/±1, as older cards' +1/+0 and +2/+2 counters do (CR 122.1a), with the layer that applies them", "api": "CounterKind::Plus1Plus0, CounterKind::Plus2Plus2"}
 ]

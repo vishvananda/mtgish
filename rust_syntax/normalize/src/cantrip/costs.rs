@@ -430,7 +430,16 @@ impl Compiler {
             Expr::Constant(n) => u8::try_from(*n).ok(),
             _ => None,
         };
-        let (Some(min), Some(max)) = (bound(minimum), bound(maximum)) else {
+        // "Choose one. If you control a commander, you may choose both instead."
+        let (most, more) = match maximum {
+            Expr::Conditional {
+                condition,
+                then,
+                otherwise,
+            } if bound(then).is_some() => (&**otherwise, Some((condition, bound(then)))),
+            most => (most, None),
+        };
+        let (Some(min), Some(max)) = (bound(minimum), bound(most)) else {
             return Err(gap("mode count that is not a constant"));
         };
         let refused = [
@@ -462,6 +471,10 @@ impl Compiler {
             ));
         }
         let mut modal = format!("modes(&[{}]).choose({min}, {max})", defs.join(","));
+        if let Some((condition, Some(most))) = more {
+            let test = self.activation_condition(condition, &format!("{label}_more_modes"))?;
+            modal.push_str(&format!(".up_to_if({test}, {most})"));
+        }
         if *repeat {
             modal.push_str(".repeat()");
         }
@@ -788,6 +801,10 @@ impl Compiler {
                         }
                         other => return Err(gap(format!("protection {}", form(other)))),
                     },
+                    Keyword::HexproofFrom(quality) => parts.field(
+                        "hexproof_from",
+                        lane_j::hexproof_quality(quality)?,
+                    ),
                     k => parts.keywords.push(keyword(k)?),
                 }
             }
