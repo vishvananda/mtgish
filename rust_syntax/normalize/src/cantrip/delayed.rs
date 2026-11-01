@@ -217,6 +217,7 @@ impl Compiler {
             subject: subject_only.then(|| RefCell::new(None)),
         });
         let results = self.results();
+        let repeating = self.repeating.take();
         let scope = (
             self.event_at,
             self.frame,
@@ -229,6 +230,7 @@ impl Compiler {
         self.outer = Some(outer.clone());
         let compiled = compile(self);
         self.outer = None;
+        self.repeating = repeating;
         (
             self.event_at,
             self.frame,
@@ -318,6 +320,8 @@ impl Compiler {
             format!("!{}.is_empty()", self.selected(performed)?)
         } else if self.creations.contains_key(&performed.0) {
             format!("!{}.is_empty()", self.created(performed)?)
+        } else if self.failed.contains(&performed.0) {
+            planned::unreported("false", performed)
         } else {
             return Err(gap(
                 "reflexive trigger on what an instruction does not report",

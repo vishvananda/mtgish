@@ -41,12 +41,36 @@ pub(super) fn value_gaps(rust: &str) -> Vec<Diagnostic> {
     const MARK: &str = "planned_value!(\"";
     let mut found = BTreeSet::new();
     for (at, _) in rust.match_indices(MARK) {
-        let rest = &rust[at + MARK.len()..];
-        if let Some(end) = rest.find('"') {
-            found.insert(rest[..end].to_string());
+        let mut feature = String::new();
+        let mut chars = rust[at + MARK.len()..].chars();
+        while let Some(c) = chars.next() {
+            match c {
+                '"' => break,
+                '\\' => feature.extend(chars.next()),
+                c => feature.push(c),
+            }
         }
+        found.insert(feature);
     }
+    found.remove(FOLLOWS_GAP);
     found.into_iter().map(gap).collect()
+}
+/// `placeholder`, read where the result of an instruction with a gap would be:
+/// that instruction's own hole already says what the file waits on.
+pub(super) fn unreported(placeholder: &str, result: &ResultId) -> String {
+    planned_value(FOLLOWS_GAP, placeholder, &format!("result_{}", result.0))
+}
+/// What a structured instruction reads to know what to do: the code, or if it
+/// has none a stand-in, so the body it holds is still compiled.
+pub(super) fn planned_read(
+    read: Result<String>,
+    placeholder: &str,
+    value: &impl serde::Serialize,
+) -> String {
+    match read {
+        Ok(code) => code,
+        Err(gap) => planned_value(&gap.feature, placeholder, &source(value)),
+    }
 }
 
 /// The source of a value, for a hole to carry when no code can read it yet.
@@ -55,10 +79,43 @@ fn source(value: &impl serde::Serialize) -> String {
 }
 
 impl Compiler {
-    /// A part that stopped midway can leave a resolution half set up.
+    /// A part that stopped midway can leave anything scoped to it still set, and
+    /// `?` passes over the line that would have put it back: the next ability
+    /// starts as the first one did.
     pub(super) fn reset_after_gap(&mut self) {
         self.pending = Pending::Nothing;
         self.dividing = None;
+        self.asking = None;
+        self.repeating = None;
+        self.stack_item = true;
+        self.reader = Reader::Resolution;
+        self.event_at = EventAt::Nowhere;
+        self.frame = Frame::default();
+        self.grouped = false;
+        self.recipient_subject = false;
+        self.affected_in_scope = false;
+        self.affected_object = None;
+        self.static_guard = None;
+        self.history = None;
+        self.choosing = None;
+        self.costing_targets = false;
+        self.granting = false;
+        self.outer = None;
+        self.hoisted = None;
+        self.activation_cost = None;
+        self.slots.clear();
+        self.bound_objects.clear();
+        self.bound_players.clear();
+        self.candidates.borrow_mut().clear();
+        self.announced_filters.clear();
+        self.reset_results();
+    }
+    /// A structure the generator keeps, its body real, that has a part it can't
+    /// do yet: the hole says so beside the code.
+    pub(super) fn plan_structure(&mut self, feature: &str, form: &str, out: &mut String) {
+        let id = requirement(feature);
+        self.gaps.push(gap(feature));
+        writeln!(out, "planned!({id:?}, {form});").unwrap();
     }
     /// A printed characteristic Cantrip has no word for.
     pub(super) fn plan_trait(&mut self, path: &str, gap: Diagnostic, value: String) {

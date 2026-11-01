@@ -18,6 +18,7 @@ mod costs;
 mod delayed;
 mod effects;
 mod keywords;
+mod lane_i;
 mod mechanics;
 pub mod planned;
 mod players;
@@ -32,9 +33,11 @@ use effects::rule_name;
 use read::{counter_kind, zone_kind, Candidate, Carried, EventAt, Frame, History, Pending, Reader};
 pub use survey::survey;
 type Result<T> = std::result::Result<T, Diagnostic>;
-/// A reference to the result of an instruction that already reported a gap.
-/// It says nothing new, so it is dropped rather than counted against the card.
+/// The result of an instruction that already reported a gap, read where its
+/// value stands in. It says nothing new, so it is not counted against the card.
 const FOLLOWS_GAP: &str = "depends on an instruction with a gap";
+/// What a list of objects from a failed instruction reads as until it has code.
+const NO_OBJECTS: &str = "Vec::<ObjectId>::new()";
 fn gap(feature: impl Into<String>) -> Diagnostic {
     Diagnostic {
         path: String::new(),
@@ -421,6 +424,10 @@ struct Compiler {
     gaps: Vec<Diagnostic>,
     /// Results of instructions that have a gap.
     failed: BTreeSet<u32>,
+    /// The process a `RepeatProcess` here repeats: its `again_` flag's number.
+    repeating: Option<usize>,
+    /// The name of the card being compiled, for what is named after it.
+    card_name: String,
 }
 
 enum ManaPlan {
@@ -685,6 +692,8 @@ impl Compiler {
             next: 0,
             gaps: Vec::new(),
             failed: BTreeSet::new(),
+            repeating: None,
+            card_name: String::new(),
             holes: String::new(),
         }
     }
@@ -700,9 +709,7 @@ impl Compiler {
         let mut failure = None;
         if let Err(gap) = part(self) {
             failure = Some(gap.feature.clone());
-            if gap.feature != FOLLOWS_GAP {
-                self.gaps.push(gap);
-            }
+            self.gaps.push(gap);
         }
         for gap in &mut self.gaps[mark..] {
             *gap = gap.clone().at(&path);
@@ -712,21 +719,21 @@ impl Compiler {
     fn selected(&self, result: &ResultId) -> Result<String> {
         match self.selections.get(&result.0) {
             Some(local) => Ok(format!("{local}.clone()")),
-            None if self.failed.contains(&result.0) => Err(gap(FOLLOWS_GAP)),
+            None if self.failed.contains(&result.0) => Ok(planned::unreported(NO_OBJECTS, result)),
             None => Err(gap("selection result outside generated scope")),
         }
     }
     fn created(&self, result: &ResultId) -> Result<String> {
         match self.creations.get(&result.0) {
             Some(local) => Ok(format!("{local}.clone()")),
-            None if self.failed.contains(&result.0) => Err(gap(FOLLOWS_GAP)),
+            None if self.failed.contains(&result.0) => Ok(planned::unreported(NO_OBJECTS, result)),
             None => Err(gap("token result outside generated scope")),
         }
     }
     fn moved(&self, result: &ResultId) -> Result<String> {
         match self.moved.get(&result.0) {
             Some(local) => Ok(format!("{local}.clone()")),
-            None if self.failed.contains(&result.0) => Err(gap(FOLLOWS_GAP)),
+            None if self.failed.contains(&result.0) => Ok(planned::unreported(NO_OBJECTS, result)),
             None => Err(gap("transition this instruction does not report")),
         }
     }
@@ -1496,6 +1503,7 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     })?;
     let mut c = Compiler::new();
     let mut parts = Parts::default();
+    c.card_name = card.name.clone();
     c.links_exile = format!("{:?}", card.abilities).contains("ExiledWith(Source)");
     c.enters_choosing = chosen::enters_choosing(card);
     for (i, a) in card.abilities.iter().enumerate() {

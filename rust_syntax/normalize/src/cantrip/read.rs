@@ -981,7 +981,9 @@ impl Compiler {
             Expr::Performed(result) | Expr::CountersRemoved(result) => {
                 match self.performed.get(&result.0) {
                     Some(local) => count(format!("({local} as i64)")),
-                    None if self.failed.contains(&result.0) => return Err(gap(FOLLOWS_GAP)),
+                    None if self.failed.contains(&result.0) => {
+                        count(planned::unreported("0i64", result))
+                    }
                     None => return Err(gap("result this instruction does not report")),
                 }
             }
@@ -993,7 +995,12 @@ impl Compiler {
                         max: i64::MAX.into(),
                         dynamic: true,
                     },
-                    None if self.failed.contains(&result.0) => return Err(gap(FOLLOWS_GAP)),
+                    None if self.failed.contains(&result.0) => Number {
+                        code: planned::unreported("0i64", result),
+                        min: i64::MIN.into(),
+                        max: i64::MAX.into(),
+                        dynamic: true,
+                    },
                     None => return Err(gap("value outside generated scope")),
                 }
             }
@@ -1475,19 +1482,19 @@ impl Compiler {
             ),
             Condition::PaymentChosen(result) => match self.performed.get(&result.0) {
                 Some(local) => format!("(({local} as i64) != 0)"),
-                None if self.failed.contains(&result.0) => return Err(gap(FOLLOWS_GAP)),
+                None if self.failed.contains(&result.0) => planned::unreported("false", result),
                 None => return Err(gap("payment outside generated scope")),
             },
             Condition::CoinFlip { result, outcome } => {
-                let Some(local) = self.flips.get(&result.0) else {
-                    return Err(gap(if self.failed.contains(&result.0) {
-                        FOLLOWS_GAP
-                    } else {
-                        "coin flip outside generated scope"
-                    }));
+                let local = match self.flips.get(&result.0) {
+                    Some(local) => local.clone(),
+                    None if self.failed.contains(&result.0) => {
+                        planned::unreported("false", result)
+                    }
+                    None => return Err(gap("coin flip outside generated scope")),
                 };
                 match outcome {
-                    CoinOutcome::Won | CoinOutcome::Heads => local.clone(),
+                    CoinOutcome::Won | CoinOutcome::Heads => local,
                     CoinOutcome::Lost | CoinOutcome::Tails => format!("!{local}"),
                 }
             }
