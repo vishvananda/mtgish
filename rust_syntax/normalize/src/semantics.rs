@@ -3268,7 +3268,7 @@ fn casting_mode(name: &str, operands: &[Operand]) -> Option<Ability> {
         ("TheLegendsRuleDoesntApplyToPermanents", [Objects(objects)]) => {
             Some(legend(objects.clone()))
         }
-        ("TheLegendsRuleDoesntApply", []) => Some(legend(ObjectSet::One(ObjectRef::Source))),
+        ("TheLegendsRuleDoesntApply", []) => Some(legend(ObjectSet::Battlefield(ObjectFilter::Any))),
         _ => None,
     }
 }
