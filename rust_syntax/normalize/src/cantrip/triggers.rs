@@ -598,6 +598,7 @@ impl Compiler {
         let frame = Frame {
             player: Some(Carried::Subject),
             object: Some(Carried::Data(0)),
+            activated: Some(Carried::Data(1)),
             ..Frame::default()
         };
         let tests = vec![
@@ -609,7 +610,7 @@ impl Compiler {
             "ABILITY_ACTIVATED",
             Arm {
                 pattern: "Event::AbilityActivated { source, ability, player, .. }".into(),
-                locals: "let id = *source; let def = q.activated_ability(*ability); let subject = Target::Player(*player); let data = [id.0, 0];".into(),
+                locals: "let id = *source; let def = q.activated_ability(*ability); let subject = Target::Player(*player); let serial = match cantrip_mechanics::triggers::activated_ability_on_stack(q, event) { Some(Target::Ability(serial)) => serial, _ => 0 }; let data = [id.0, serial];".into(),
                 tests,
             },
             frame,

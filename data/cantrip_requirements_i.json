@@ -106,5 +106,11 @@
     "class": "engine",
     "needs": "one target slot for each player, or each player but you, and inside a mode: EACH_OPPONENT is only for a controller's opponents, and not valid in a mode.",
     "api": "TargetSpec::EACH_PLAYER, targets::controlled_by_slot_player(q, id)"
+  },
+  {
+    "match": "^choose new targets for an ability$",
+    "class": "engine",
+    "needs": "a player may choose new targets for an activated or triggered ability on the stack: choose_new_targets takes only a spell's object.",
+    "api": "Game::choose_new_targets_of(target, chooser)"
   }
 ]

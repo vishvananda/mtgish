@@ -787,6 +787,9 @@ impl Compiler {
     fn target_test(&self, spec: &TargetSpec) -> Result<String> {
         let id = Candidate::of("id");
         Ok(match &spec.kind {
+            TargetKind::Object(domain) if lane_i::on_the_stack(domain) => {
+                self.stack_target_test(&spec.filter)?
+            }
             TargetKind::Object(domain) => format!(
                 "matches!(t, Target::Object(id) if {} && ({}))",
                 Self::target_domain(domain)?,

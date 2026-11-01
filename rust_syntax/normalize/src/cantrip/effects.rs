@@ -655,6 +655,12 @@ impl Compiler {
                 };
                 self.play_cards(operation, true, out)
             }
+            // "You may choose new targets" (115.7d) already leaves any of them.
+            Instruction::Optional { body, .. } if lane_i::may_retarget(body).is_some() => {
+                let (player, object) = lane_i::may_retarget(body).expect("just matched");
+                let id = self.fresh();
+                self.retarget(id, player, object, &NewTargets::May, out)
+            }
             Instruction::Optional { decider, body } if asks_by_paying(decider, body) => {
                 let id = self.fresh();
                 writeln!(out, "'optional_{id}: {{").unwrap();
@@ -771,18 +777,6 @@ impl Compiler {
                 count,
                 options,
             } => self.choose_value(id, actor, *kind, *count, options, out)?,
-            Operation::CopyOnStack {
-                actor: PlayerSet::One(player),
-                object,
-                times: Expr::Constant(1),
-                targets: NewTargets::May,
-                effects,
-                card: None,
-            } if effects.is_empty() && !matches!(object, ObjectRef::EventStackObject) => {
-                let copier = self.fetch(self.certain_player(player)?);
-                let list = self.acted_on(&ObjectSet::One(object.clone()))?;
-                writeln!(out, "let copier_{id} = {copier}; if let Some(spell) = ({list}).first().copied() {{ g.copy_spell(spell, copier_{id}, true)?; }}").unwrap();
-            }
             Operation::Keyword {
                 actor,
                 action,
@@ -1127,6 +1121,10 @@ impl Compiler {
                 )
                 .unwrap();
             }
+            Operation::Counter {
+                objects,
+                destination: Destination::OwnersGraveyard,
+            } if self.stack_targets(objects).is_some() => self.counter_on_stack(id, objects, out),
             Operation::Counter {
                 objects,
                 destination,

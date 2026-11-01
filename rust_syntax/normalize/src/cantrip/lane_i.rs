@@ -47,6 +47,7 @@ fn walked(op: &Operation) -> bool {
             | Operation::ChoosePowerToughness { .. }
             | Operation::ChooseAction { .. }
             | Operation::BindValue { .. }
+            | Operation::CopyOnStack { .. }
             | Operation::CreateContinuousEffect { .. }
             | Operation::CreateEmblem { .. }
             | Operation::CreateDelayedTrigger { .. }
@@ -179,6 +180,30 @@ enum ViewKind {
     Performed,
     Value,
     Flip,
+}
+
+/// Whether `e`, an item on the stack, is what target `t` names.
+const STACK_ITEM: &str = "(match t { Target::Object(id) => e.kind == StackKind::Spell && e.object == id, Target::Ability(serial) => e.kind != StackKind::Spell && e.serial == serial, _ => false })";
+
+/// Who may choose new targets, and for what, if that is all `body` does.
+pub(super) fn may_retarget(body: &Program) -> Option<(&PlayerRef, &ObjectRef)> {
+    match body.instructions.as_slice() {
+        [Instruction::Effect {
+            operation:
+                Operation::Retarget {
+                    actor: PlayerSet::One(player),
+                    object,
+                    targets: NewTargets::Must,
+                },
+            ..
+        }] => Some((player, object)),
+        _ => None,
+    }
+}
+
+/// Whether a target of this domain may be an ability on the stack.
+pub(super) fn on_the_stack(domain: &ObjectDomain) -> bool {
+    domain.zones == [EventZone::Stack] && matches!(domain.kind, ObjectKind::Ability | ObjectKind::Any)
 }
 
 impl Compiler {
@@ -807,6 +832,187 @@ impl Compiler {
         Ok(())
     }
     /// What `operation` has no arm for of its own.
+    /// Whether targets of `slot` are items on the stack, abilities among them.
+    pub(super) fn stack_slot(&self, slot: &Slot) -> bool {
+        self.slots.get(&slot.0).is_some_and(
+            |(_, spec)| matches!(&spec.kind, TargetKind::Object(domain) if on_the_stack(domain)),
+        )
+    }
+    /// `Vec<Target>`: the legal targets `objects` names, if it names a slot of
+    /// items on the stack.
+    pub(super) fn stack_targets(&self, objects: &ObjectSet) -> Option<String> {
+        match objects {
+            ObjectSet::One(ObjectRef::Target { slot, index }) if self.stack_slot(slot) => {
+                let i = self.slot(slot).ok()?;
+                Some(format!("t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).into_iter().collect::<Vec<Target>>()"))
+            }
+            ObjectSet::Targets(slot) if self.stack_slot(slot) => {
+                let i = self.slot(slot).ok()?;
+                Some(format!("t_{i}.iter().copied().collect::<Vec<Target>>()"))
+            }
+            _ => None,
+        }
+    }
+    /// "Target activated or triggered ability", with or without spells: the
+    /// item on the stack that `t` names passes `filter`.
+    pub(super) fn stack_target_test(&self, filter: &ObjectFilter) -> Result<String> {
+        Ok(format!(
+            "q.state().stack.iter().any(|e| {STACK_ITEM} && ({}))",
+            self.stack_filter(filter)?
+        ))
+    }
+    /// Whether stack item `e` passes `filter`. A word about a card reads a
+    /// spell, and "from a [type] source" reads what an ability came from.
+    fn stack_filter(&self, filter: &ObjectFilter) -> Result<String> {
+        let join = |c: &Self, filters: &[ObjectFilter], with: &str| -> Result<String> {
+            let tests = filters
+                .iter()
+                .map(|f| c.stack_filter(f))
+                .collect::<Result<Vec<_>>>()?;
+            Ok(format!("({})", tests.join(with)))
+        };
+        let source = Candidate::of("e.object");
+        Ok(match filter {
+            ObjectFilter::Any => "true".into(),
+            ObjectFilter::All(filters) => join(self, filters, " && ")?,
+            ObjectFilter::Either(filters) => join(self, filters, " || ")?,
+            ObjectFilter::Not(inner) => format!("!({})", self.stack_filter(inner)?),
+            ObjectFilter::OnStack(StackTrait::Spell) => "e.kind == StackKind::Spell".into(),
+            ObjectFilter::OnStack(StackTrait::Activated) => {
+                "e.kind == StackKind::Activated".into()
+            }
+            ObjectFilter::OnStack(StackTrait::Triggered) => {
+                "e.kind == StackKind::Triggered".into()
+            }
+            ObjectFilter::OnStack(StackTrait::Loyalty) => {
+                "q.activated_ability(e.ability).is_some_and(|d| d.is_loyalty_ability())".into()
+            }
+            ObjectFilter::OnStack(StackTrait::SingleTarget) => "e.target_count == 1".into(),
+            ObjectFilter::ControlledBy(players) => self.player_in(players, "e.controller")?,
+            ObjectFilter::AbilityOf(inner) => format!(
+                "(e.kind != StackKind::Spell && {})",
+                self.filter(inner, &source)?
+            ),
+            ObjectFilter::TargetsAny(recipients) => format!(
+                "q.state().targets(e).iter().any(|t| {})",
+                self.targeted(recipients)?
+            ),
+            other => format!(
+                "(e.kind == StackKind::Spell && {})",
+                self.filter(other, &source)?
+            ),
+        })
+    }
+    /// "Counter target activated or triggered ability" (CR 701.6): with spells
+    /// among them, one instruction counters them all.
+    pub(super) fn counter_on_stack(&self, id: usize, objects: &ObjectSet, out: &mut String) {
+        let targets = self.stack_targets(objects).expect("a slot of the stack");
+        writeln!(out, "let items_{id}: Vec<(ObjectId, usize)> = {targets}.into_iter().filter_map(|t| {{ let stack = &g.state().stack; stack.iter().position(|e| {STACK_ITEM}).map(|at| (stack[at].object, at)) }}).collect(); g.counter_items(&items_{id});").unwrap();
+    }
+    /// "Change the target of", "choose new targets for" and "change a target
+    /// of target spell or ability to this creature" (115.7a, 115.7d, 115.7b).
+    pub(super) fn retarget(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        object: &ObjectRef,
+        targets: &NewTargets,
+        out: &mut String,
+    ) -> Result<()> {
+        let chooser = self.fetch(self.certain_player(player)?);
+        let (target, ability) = match object {
+            ObjectRef::Target { slot, index } => {
+                let i = self.slot(slot)?;
+                let target = format!("t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t))");
+                (target, self.stack_slot(slot))
+            }
+            other => (self.fetch(format!("{}.map(Target::Object)", self.object(other)?)), false),
+        };
+        writeln!(out, "let chooser_{id} = {chooser}; let retarget_{id}: Option<Target> = {target}; if let Some(t) = retarget_{id} {{").unwrap();
+        match targets {
+            NewTargets::May => {
+                writeln!(out, "if let Target::Object(spell) = t {{ g.choose_new_targets(spell, chooser_{id})?; }}").unwrap();
+                if ability {
+                    writeln!(out, "else {{").unwrap();
+                    self.plan_code(
+                        "choose new targets for an ability",
+                        &format!("g.choose_new_targets_of(t, chooser_{id})?"),
+                        out,
+                    );
+                    writeln!(out, "}}").unwrap();
+                }
+            }
+            NewTargets::Must => writeln!(out, "g.change_target(t, chooser_{id})?;").unwrap(),
+            _ => writeln!(out, "g.change_a_target_to(t, asker.source, chooser_{id})?;").unwrap(),
+        }
+        writeln!(out, "}}").unwrap();
+        Ok(())
+    }
+    /// "Copy it" (CR 707.10), a spell's copy with what it is excepted in
+    /// (CR 707.9). A copy of a spell with an X has that X, read from the spell
+    /// when a trigger of its own makes the copies.
+    #[allow(clippy::too_many_arguments)]
+    fn copy_on_stack(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        object: &ObjectRef,
+        times: &Expr,
+        new_targets: bool,
+        effects: &[Operand],
+        out: &mut String,
+    ) -> Result<()> {
+        let copier = self.fetch(self.certain_player(player)?);
+        let again = match times {
+            Expr::Constant(1) => None,
+            Expr::AnnouncedX if matches!(object, ObjectRef::Source) => {
+                Some(self.fetch("u32::try_from(i64::from(q.obj(asker.source).x)).unwrap_or(0)"))
+            }
+            times => {
+                let runs = self.number(times)?.amount(u32::MAX.into(), "u32")?;
+                Some(self.fetch(runs))
+            }
+        };
+        if let Some(runs) = &again {
+            writeln!(out, "let runs_{id}: u32 = {runs};").unwrap();
+        }
+        let (open, close) = match again {
+            Some(_) => (format!("for _ in 0..runs_{id} {{ "), " }"),
+            None => (String::new(), ""),
+        };
+        let copy_ability = format!("g.copy_ability(t, copier_{id}, {new_targets})?;");
+        let slot = match object {
+            ObjectRef::Target { slot, .. } if self.stack_slot(slot) => {
+                self.stack_targets(&ObjectSet::One(object.clone()))
+            }
+            _ => None,
+        };
+        let plain = format!("g.copy_spell(spell, copier_{id}, {new_targets})?;");
+        if let Some(listed) = slot {
+            if !effects.is_empty() {
+                return Err(gap("operation CopyOnStack"));
+            }
+            writeln!(out, "let copier_{id} = {copier}; if let Some(t) = ({listed}).first().copied() {{ {open}match t {{ Target::Object(spell) => {{ {plain} }} t => {{ {copy_ability} }} }}{close} }}").unwrap();
+            return Ok(());
+        }
+        if matches!(object, ObjectRef::EventStackObject) && self.frame.activated.is_some() {
+            if !effects.is_empty() {
+                return Err(gap("operation CopyOnStack"));
+            }
+            let ability = self.carried_ability()?;
+            writeln!(out, "let copier_{id} = {copier}; let t = {ability}; {open}{copy_ability}{close}").unwrap();
+            return Ok(());
+        }
+        let list = self.acted_on(&ObjectSet::One(object.clone()))?;
+        writeln!(out, "let copier_{id} = {copier}; let spell_{id}: Option<ObjectId> = ({list}).first().copied();").unwrap();
+        if effects.is_empty() {
+            writeln!(out, "if let Some(spell) = spell_{id} {{ {open}{plain}{close} }}").unwrap();
+        } else {
+            let values = self.copy_values(&format!("spell_{id}"), effects)?;
+            writeln!(out, "let values_{id} = {values}; if let (Some(spell), Some(values)) = (spell_{id}, values_{id}) {{ {open}g.copy_spell_as(spell, copier_{id}, {new_targets}, values)?;{close} }}").unwrap();
+        }
+        Ok(())
+    }
     pub(super) fn one_shot(
         &mut self,
         id: usize,
@@ -815,6 +1021,25 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         match op {
+            Operation::CopyOnStack {
+                actor: PlayerSet::One(player),
+                object,
+                times,
+                targets: targets @ (NewTargets::Same | NewTargets::May),
+                effects,
+                card: None,
+            } => {
+                let new_targets = matches!(targets, NewTargets::May);
+                self.copy_on_stack(id, player, object, times, new_targets, effects, out)?;
+            }
+            Operation::Retarget {
+                actor: PlayerSet::One(player),
+                object,
+                targets:
+                    targets @ (NewTargets::Must
+                    | NewTargets::May
+                    | NewTargets::To(ObjectSet::One(ObjectRef::Source))),
+            } => self.retarget(id, player, object, targets, out)?,
             Operation::RepeatProcess => {
                 let process = self
                     .repeating

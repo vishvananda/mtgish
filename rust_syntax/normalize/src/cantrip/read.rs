@@ -94,6 +94,8 @@ pub(super) struct Frame {
     pub damage_source: Option<Carried>,
     pub damage_recipient: Option<Carried>,
     pub stack_object: Option<Carried>,
+    /// The serial of the activated ability an event is about, on the stack.
+    pub activated: Option<Carried>,
     pub attacker: Option<Carried>,
     pub blocker: Option<Carried>,
 }
@@ -113,6 +115,7 @@ impl Frame {
             damage_source: same(self.damage_source, other.damage_source),
             damage_recipient: same(self.damage_recipient, other.damage_recipient),
             stack_object: same(self.stack_object, other.stack_object),
+            activated: same(self.activated, other.activated),
             attacker: same(self.attacker, other.attacker),
             blocker: same(self.blocker, other.blocker),
         }
@@ -226,6 +229,16 @@ impl Compiler {
             }
         })
     }
+    /// `Target`: the ability on the stack an activation event is about.
+    pub(super) fn carried_ability(&self) -> Result<String> {
+        let carried = self.frame.activated;
+        let carried = carried.ok_or_else(|| gap("event object this trigger does not bind"))?;
+        let (_, data) = self.carried(carried)?;
+        match carried {
+            Carried::Data(i) => Ok(format!("Target::Ability({data}[{i}])")),
+            Carried::Subject => Err(gap("event object this trigger does not bind")),
+        }
+    }
     fn carried_player(&self, carried: Option<Carried>) -> Result<String> {
         let carried = carried.ok_or_else(|| gap("event player this trigger does not bind"))?;
         let (subject, data) = self.carried(carried)?;
@@ -299,6 +312,9 @@ impl Compiler {
                 "{}.and_then(|o: ObjectId| q.state().obj(o).attached_to)",
                 self.object(host)?
             ),
+            ObjectRef::Target { slot, .. } if self.stack_slot(slot) => {
+                return Err(gap("a spell or ability on the stack read as an object"))
+            }
             ObjectRef::Target { slot, index } if self.choosing.is_some() => format!(
                 "{}.and_then(|t: Target| t.object())",
                 self.earlier_target(slot, *index)?.expect("choosing")
@@ -440,6 +456,11 @@ impl Compiler {
             return Ok(carried);
         }
         Ok(match objects {
+            ObjectSet::One(ObjectRef::Target { slot, .. }) | ObjectSet::Targets(slot)
+                if self.stack_slot(slot) =>
+            {
+                return Err(gap("a spell or ability on the stack read as an object"))
+            }
             ObjectSet::One(object @ ObjectRef::Target { .. }) if self.choosing.is_some() => {
                 format!("{}.into_iter().collect::<Vec<ObjectId>>()", self.object(object)?)
             }
@@ -1152,7 +1173,7 @@ impl Compiler {
         })
     }
     /// A boolean over `t: &Target`: whether a spell targeting it targets these.
-    fn targeted(&self, recipients: &Recipients) -> Result<String> {
+    pub(super) fn targeted(&self, recipients: &Recipients) -> Result<String> {
         Ok(match recipients {
             Recipients::Objects(objects) => format!(
                 "t.object().is_some_and(|o| ({}).contains(&o))",
