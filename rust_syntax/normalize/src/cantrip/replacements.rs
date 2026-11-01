@@ -474,31 +474,22 @@ impl Compiler {
             }
             _ => body,
         };
-        let split = program
-            .instructions
-            .iter()
-            .take_while(|i| {
-                matches!(
-                    i,
-                    Instruction::Effect {
-                        operation: Operation::ModifyEvent { .. },
-                        ..
-                    }
-                )
-            })
-            .count();
-        let (changes, rest) = program.instructions.split_at(split);
-        let changes = changes
-            .iter()
-            .filter_map(|i| match i {
+        // The changes are to the event and the rest happens with it, wherever in
+        // the program the words put them; what reads a step before it stays a gap.
+        let mut steps = Vec::new();
+        lane_m::flat_groups(&program.instructions, &mut steps);
+        let mut changes = Vec::new();
+        let mut rest = Vec::new();
+        for step in steps {
+            match step {
                 Instruction::Effect {
                     operation: Operation::ModifyEvent { change },
                     ..
-                } => Some(change.clone()),
-                _ => None,
-            })
-            .collect();
-        Ok((extra, changes, rest.to_vec()))
+                } => changes.push(change),
+                other => rest.push(other),
+            }
+        }
+        Ok((extra, changes, rest))
     }
     /// The callbacks of an effect that reshapes its event: `made` for one a
     /// spell or ability made, whose callbacks are told the object it is about.

@@ -411,7 +411,7 @@ impl Compiler {
             return None;
         }
         let words = format!("{operation:?}");
-        if !(words.contains("Acting") || words.contains("Prior(\n") || words.contains("Prior(That)")) {
+        if !(words.contains("Acting") || words.contains("Prior(That)")) {
             return None;
         }
         let mut value = serde_json::to_value(operation).ok()?;
@@ -634,6 +634,22 @@ impl Compiler {
             PlayerRef::Acting | PlayerRef::Prior(PriorPlayer::That) => {
                 self.row_player().map_err(|_| gap(feature))?
             }
+            // "That player" of another ability of the object: nothing keeps it.
+            PlayerRef::Prior(PriorPlayer::Remembered) => planned::planned_value(
+                "player reference Prior",
+                "None::<PlayerId>",
+                "q.remembered_player(asker)",
+            ),
+            PlayerRef::Prior(PriorPlayer::GrantedBy) => planned::planned_value(
+                "player reference Prior",
+                "None::<PlayerId>",
+                "q.granted_by(asker)",
+            ),
+            PlayerRef::Prior(PriorPlayer::WinningBidder) => planned::planned_value(
+                "player reference Prior",
+                "None::<PlayerId>",
+                "g.winning_bidder(item)",
+            ),
             // Turn order goes to the left (CR 101.4), so these are the seats
             // next to a player among those left in the game (CR 800.4a).
             PlayerRef::Seat { of, side } => {
@@ -963,7 +979,7 @@ impl Compiler {
             Condition::WasCastFrom {
                 object: ObjectRef::EventSubject,
                 zone,
-            } if self.event_at == EventAt::Matcher => format!(
+            } if self.event_at == EventAt::Matcher || self.history.is_some() => format!(
                 "matches!(event, Event::Cast(cast) if cast.from == {})",
                 read::zone_kind(zone)?
             ),
@@ -1120,6 +1136,16 @@ fn gives_flashback(changes: &[Change]) -> bool {
         return false;
     };
     matches!(cost.parts.as_slice(), [CostPart::ManaCostOf(ObjectRef::Source)])
+}
+
+/// These instructions, with a group's in its place.
+pub(super) fn flat_groups(instructions: &[Instruction], flat: &mut Vec<Instruction>) {
+    for instruction in instructions {
+        match instruction {
+            Instruction::Group(body) => flat_groups(&body.instructions, flat),
+            other => flat.push(other.clone()),
+        }
+    }
 }
 
 /// The words of "choose odd or even", odd first.

@@ -114,6 +114,18 @@
 "api": "Obj::marks.cast_for_madness"
 },
 {
+"match": "^player reference Prior$",
+"class": "engine",
+"needs": "an ability keeps the player another ability of its object named, the player a grant came from, and the winner of a bid",
+"api": "q.remembered_player(asker), q.granted_by(asker), g.winning_bidder(item)"
+},
+{
+"match": "^replacement destination OwnersLibrary(Top|Bottom)$",
+"class": "engine",
+"needs": "a zone change proposal says which end of the library it goes to: ZoneProposal has a zone and a shuffle only",
+"api": "ZoneProposal::library_end"
+},
+{
 "match": "^numeric expression Votes$",
 "class": "engine",
 "needs": "a vote keeps its count per option for the rest of the resolution",
