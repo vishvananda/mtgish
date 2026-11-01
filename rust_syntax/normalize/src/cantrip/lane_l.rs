@@ -447,6 +447,16 @@ impl Compiler {
     }
     /// "Target creature of an opponent's choice": someone else picks the slot.
     pub(super) fn chosen_by_another(&self, chooser: &PlayerRef, rule: &mut SlotRule) -> Result<()> {
+        if let PlayerRef::OneOf(players) = chooser {
+            rule.planned.push((
+                "targets chosen by another player".to_string(),
+                format!(
+                    ".chosen_by_one_of(|q: &dyn Query, asker: &Asker| {})",
+                    self.players(players)?
+                ),
+            ));
+            return Ok(());
+        }
         let player = self.certain_player(chooser)?;
         rule.planned.push((
             "targets chosen by another player".to_string(),

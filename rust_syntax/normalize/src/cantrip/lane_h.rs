@@ -81,7 +81,7 @@ pub(super) fn reveal_and_shuffle_instead(
 }
 
 /// A play permission that says nothing but where from.
-fn plain_terms() -> PlayTerms {
+pub(super) fn plain_terms() -> PlayTerms {
     PlayTerms {
         limit: None,
         during: None,
@@ -1114,7 +1114,7 @@ impl Compiler {
                 "EffectKind::AdditionalBlocks(u32::MAX)",
             ),
             R::GoadedBy(PlayerRef::AbilityController) => vec!["EffectKind::Goaded".into()],
-            other => return Err(gap(format!("continuous rule {}", rule_name(other)))),
+            other => return self.stated_rule_kind(other),
         })
     }
     /// "You may play it this turn": a permission on the cards themselves, each a
@@ -1978,7 +1978,7 @@ impl Compiler {
     }
     /// The objects a layer callback reads the abilities of. Those exiled with the
     /// source are its own to name, read as `Agatha's Soul Cauldron` reads them.
-    fn ids_in_layer(&self, objects: &ObjectSet) -> Result<String> {
+    pub(super) fn ids_in_layer(&self, objects: &ObjectSet) -> Result<String> {
         if let ObjectSet::Zone {
             scope: ZoneScope::Shared(EventZone::Exile),
             filter,
@@ -2169,7 +2169,7 @@ impl Compiler {
     /// What the rule asks of the ability being activated, `def` its definition
     /// (none for the core's own) and `permanent` its source. "Of a creature" means a
     /// permanent (109.2) unless the words name a zone or say "sources".
-    fn ability_test(&self, filter: &ObjectFilter) -> Result<String> {
+    pub(super) fn ability_test(&self, filter: &ObjectFilter) -> Result<String> {
         let def = |test: &str| format!("def.is_some_and(|d| {test})");
         Ok(match filter {
             ObjectFilter::Any => "true".into(),
@@ -3244,7 +3244,7 @@ impl Compiler {
         self.plan_entry(feature, table, function, parts);
         Ok(())
     }
-    fn object_test(&mut self, function: &str, affected: &ObjectSet) -> Result<()> {
+    pub(super) fn object_test(&mut self, function: &str, affected: &ObjectSet) -> Result<()> {
         let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
         writeln!(
             self.functions,
@@ -3270,7 +3270,7 @@ impl Compiler {
         Ok(())
     }
     /// Who is being attacked, as `Target` `defender` is asked about.
-    fn defended(&self, defenders: &AttackDefenders) -> Result<String> {
+    pub(super) fn defended(&self, defenders: &AttackDefenders) -> Result<String> {
         let players = |c: &Self, players: &PlayerSet, walkers: bool| -> Result<String> {
             let set = c.players(players)?;
             Ok(format!(
@@ -3314,7 +3314,7 @@ impl Compiler {
     }
     /// What a spell or ability is that can't target: the filter of
     /// `ObjectAction::BeTargeted`, over the `by` of a `TargetingForbid`.
-    fn targeting_source(&self, filter: &ObjectFilter) -> Result<String> {
+    pub(super) fn targeting_source(&self, filter: &ObjectFilter) -> Result<String> {
         let candidate = Candidate {
             id: "by.source".into(),
             chars: "(*by_source)".into(),
@@ -3612,7 +3612,7 @@ impl Compiler {
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, object: ObjectId, controller: PlayerId, kind: CounterKind) -> bool {{ {guard}{test} && {kinds} }}").unwrap();
                 parts.table("counter_bans", function.to_string());
             }
-            _ => return Ok(false),
+            other => return self.stated_rule(function, affected, other, parts),
         }
         Ok(true)
     }

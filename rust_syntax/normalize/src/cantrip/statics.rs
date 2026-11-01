@@ -26,6 +26,13 @@ impl LayerChange {
             land: false,
         }
     }
+    /// A change that sets land types.
+    pub(super) fn of_land(body: String) -> Self {
+        Self {
+            land: true,
+            ..Self::of("Type", body)
+        }
+    }
 }
 
 /// The `Supertypes` field of a supertype the engine has.
@@ -253,6 +260,11 @@ impl Compiler {
             ..part?
         })
     }
+    /// Whether the layers carry this rule, as `change_in_layer` has it.
+    pub(super) fn layered_rule(&mut self, rule: &RuleChange) -> bool {
+        self.layered(|c| c.change_in_layer(&Change::Rule(rule.clone())))
+            .is_ok()
+    }
     fn change_in_layer(&mut self, change: &Change) -> Result<LayerChange> {
         let i16_of = |c: &Self, n: &Expr| -> Result<String> {
             c.number(n)?.fit(i16::MIN.into(), i16::MAX.into(), "i16")
@@ -293,7 +305,9 @@ impl Compiler {
                 LayerChange::of("Ability", body)
             }
             // Ward is a triggered ability, given as any other is.
-            Change::GrantKeyword(ward @ (Keyword::Ward(_) | Keyword::Flanking)) => {
+            Change::GrantKeyword(
+                ward @ (Keyword::Ward(_) | Keyword::Flanking | Keyword::Prowess),
+            ) => {
                 return self.layer_change(&Change::GrantAbility(Box::new(Ability::Keyword(ward.clone()))));
             }
             Change::GrantKeyword(Keyword::HexproofFrom(quality)) => LayerChange::of(
@@ -389,13 +403,13 @@ impl Compiler {
                 "PtSwitch",
                 "std::mem::swap(&mut chars.power, &mut chars.toughness);".into(),
             ),
-            Change::LosesAbility(lost) => LayerChange::of(
-                "Ability",
-                format!(
-                    "chars.keywords = Keywords(chars.keywords.0 & !Keywords::of(&[Keyword::{}]).0);",
-                    lost_keyword(lost)?
+            Change::LosesAbility(lost) => match lost_keyword(lost) {
+                Ok(word) => LayerChange::of(
+                    "Ability",
+                    format!("chars.keywords = Keywords(chars.keywords.0 & !Keywords::of(&[Keyword::{word}]).0);"),
                 ),
-            ),
+                Err(failed) => return self.lost_layer(lost, failed),
+            },
             Change::CreatureTypes {
                 mode: ChangeMode::Add,
                 types: CreatureTypeSet::Listed(types),
@@ -472,11 +486,7 @@ impl Compiler {
                 if let Some(keyword) = self.granted_keyword(ability) {
                     return Ok(keyword);
                 }
-                let index = self.grant(ability)?;
-                LayerChange::of(
-                    "Ability",
-                    format!("let card = {}; if let Some(slot) = chars.abilities.iter().position(|a| a.is_none()) {{ chars.abilities[slot] = Some(AbilityRef::delayed(card, {index})); }}", self.source_card()),
-                )
+                return self.grant_in_layer(ability);
             }
             Change::Rule(RuleChange::CombatGroup {
                 role: CombatRole::BlockedAttacker,
@@ -489,7 +499,11 @@ impl Compiler {
                 "chars.keywords = chars.keywords.with(Keyword::CantBeBlockedByMoreThanOne);".into(),
             ),
             Change::Rule(rule) => return self.layer_rule(rule),
-            Change::GainAbilitiesOf { .. } => return self.gain_abilities_of(change),
+            Change::GainAbilitiesOf { .. } => {
+                return self
+                    .gain_abilities_of(change)
+                    .or_else(|failed| self.gained_layer(change, failed))
+            }
             Change::SetName(word) => LayerChange::of(
                 "Text",
                 format!("chars.name = {}; chars.name_set = true;", quoted(word)),
@@ -504,7 +518,7 @@ impl Compiler {
             Change::PlayerRule(rule) => {
                 return Err(gap(format!("static player rule {}", form(rule))))
             }
-            other => return Err(gap(format!("static change {}", form(other)))),
+            other => return self.more_layers(other),
         })
     }
     /// One `StaticDef` per layer, joined as one effect (CR 613.6).
@@ -533,7 +547,8 @@ impl Compiler {
             return Ok(());
         }
         let changes = &self.casting_tables(label, affected, changes, parts)?[..];
-        if changes.is_empty() {
+        let changes = &lane_o::in_one_effect(changes)[..];
+        if changes.is_empty() || self.copy_static(label, affected, changes, parts)? {
             return Ok(());
         }
         let defining = matches!(kind, StaticKind::CharacteristicDefining { .. });

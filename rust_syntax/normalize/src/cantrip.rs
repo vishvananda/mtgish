@@ -25,6 +25,7 @@ mod lane_i;
 mod lane_j;
 mod lane_l;
 mod lane_m;
+mod lane_o;
 mod mechanics;
 pub mod planned;
 mod players;
@@ -528,6 +529,16 @@ struct Compiler {
     /// The abilities the body's `ChooseValue` offered.
     ability_choice: Vec<Ability>,
     granting: bool,
+    /// What `plan_entry` holds for the granted ability being compiled.
+    holding: Option<Vec<(&'static str, String)>>,
+    /// How many `granted_rules` this card has.
+    granted_rules: usize,
+    /// Rules of granted abilities, once `plan_entry` lands them.
+    late: Vec<String>,
+    /// `CardDef::becomes_aura_enchant`.
+    aura: Option<String>,
+    /// `player` is the player a stated rule is asked of.
+    rule_player: bool,
     functions: String,
     next: usize,
     /// Every gap so far. Compilation continues past one so a survey sees them
@@ -834,6 +845,11 @@ impl Compiler {
             choice_labels: Vec::new(),
             ability_choice: Vec::new(),
             granting: false,
+            holding: None,
+            granted_rules: 0,
+            late: Vec::new(),
+            aura: None,
+            rule_player: false,
             functions: String::new(),
             next: 0,
             gaps: Vec::new(),
@@ -1836,6 +1852,17 @@ fn emit_face(
             c.reset_after_gap();
             c.plan_ability(&feature, a);
         }
+    }
+    parts
+        .tables
+        .entry("granted_rules")
+        .or_default()
+        .append(&mut c.late);
+    if parts.tables.get("granted_rules").is_some_and(Vec::is_empty) {
+        parts.tables.remove("granted_rules");
+    }
+    if let Some(aura) = c.aura.take() {
+        parts.field("becomes_aura_enchant", aura);
     }
     c.attempt("abilities".into(), |c| {
         let ways = parts.tables.get("ways").map_or(0, Vec::len);

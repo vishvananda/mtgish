@@ -415,7 +415,11 @@ impl Compiler {
             writeln!(out, "let first_{id} = {first}; if let Some(at) = players_{id}.iter().position(|&p| Some(p) == first_{id}) {{ players_{id}.rotate_left(at); }}").unwrap();
         }
         if each.in_chosen_direction {
-            self.plan_structure("per-player in a chosen direction", "ForEachPlayer", out);
+            self.plan_code(
+                "per-player in a chosen direction",
+                &format!("players_{id} = cantrip_mechanics::players::in_chosen_direction(g, players_{id}, asker)?;"),
+                out,
+            );
         }
         // Flat: a Group is one step's words, and what a "may" or an "if" holds
         // are steps under it.
@@ -470,10 +474,11 @@ impl Compiler {
                     );
                 }
                 Part::Unbatched(feature) => {
-                    self.plan_structure(&feature, "ForEachPlayer", out);
+                    self.plan_code(&feature, "g.begin_batch();", out);
                     self.walk(
                         id, &each, &program, &step, &guards, &mut asked, &mut views, None, out,
                     );
+                    self.plan_code(&feature, "g.end_batch();", out);
                 }
                 Part::Gather(gathered) => {
                     let gather = self.fresh();

@@ -675,7 +675,7 @@ impl Compiler {
                     self.players(players)?
                 )
             }
-            other => return Err(gap(format!("player reference {}", form(other)))),
+            other => return self.player_stated(other),
         })
     }
     /// The rest of `object`.

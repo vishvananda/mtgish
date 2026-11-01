@@ -914,7 +914,10 @@ impl Compiler {
             {
                 self.tap_any_number(id, player, &selections[0].objects, result, out)?;
             }
-            other => return Err(gap(format!("resolution cost {}", form(other)))),
+            other => {
+                let feature = format!("resolution cost {}", form(other));
+                return self.stated_payment(&feature, id, player, cost, out);
+            }
         }
         Ok(())
     }

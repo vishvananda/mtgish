@@ -2729,7 +2729,9 @@ pub(super) struct Picked {
 /// Does an instruction that failed with this gap want to be compiled around a
 /// player who may not be there, or who is still to be picked?
 pub(super) fn wants_a_player(feature: &str) -> bool {
-    feature.starts_with("possibly absent player") || feature == "player reference OneOf"
+    feature.starts_with("possibly absent player")
+        || feature == "player reference OneOf"
+        || feature == "player reference FirstWilling"
 }
 
 /// "Hexproof from [quality]" (CR 702.11d-g): `HexproofFrom` qualities.
@@ -2900,7 +2902,7 @@ impl Compiler {
             Ability::OpeningHand { announcement, body } => {
                 self.opening_hand(announcement, body, label, parts)
             }
-            other => Err(gap(format!("ability {}", form(other)))),
+            other => self.stated_ability(other, label, parts),
         }
     }
     /// A keyword with what its plain form lacks: "Kicker {X}. X can't be 0" is

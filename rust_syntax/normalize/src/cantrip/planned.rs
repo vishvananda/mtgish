@@ -162,6 +162,10 @@ impl Compiler {
             return;
         }
         self.gaps.push(gap(feature));
+        if let Some(held) = &mut self.holding {
+            held.push((list, code.to_string()));
+            return;
+        }
         writeln!(self.holes, "planned_item!({id:?} => {list}: {code});").unwrap();
     }
     /// One field of a failed instruction: its value read as the code it would

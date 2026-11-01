@@ -385,7 +385,10 @@ impl Compiler {
                 CostPart::Energy(Expr::Constant(n)) if (0..=255).contains(n) => {
                     others.push(format!("Cost {{ energy: {n}, ..Cost::NONE }}"))
                 }
-                other => others.push(self.cost_part(other, label)?),
+                other => {
+                    let part = self.cost_part(other, label);
+                    others.push(part.or_else(|failed| self.stated_cost_part(other, label, failed))?)
+                }
             }
         }
         if life_total > 255 {
@@ -852,6 +855,9 @@ impl Compiler {
                 condition,
                 ability,
             } => {
+                if self.from_command_zone(zones, condition.as_ref(), ability, label, parts)? {
+                    return Ok(());
+                }
                 let scope = Scope {
                     zones,
                     condition: condition.as_ref(),
@@ -1026,14 +1032,20 @@ impl Compiler {
                 cost,
                 amount,
                 filter,
-            } => self.mechanic(
-                *mechanic,
-                cost.as_ref(),
-                amount.as_ref(),
-                filter.as_ref(),
-                label,
-                parts,
-            )?,
+            } => {
+                let compiled = self.mechanic(
+                    *mechanic,
+                    cost.as_ref(),
+                    amount.as_ref(),
+                    filter.as_ref(),
+                    label,
+                    parts,
+                );
+                compiled.or_else(|failed| {
+                    let (cost, amount, filter) = (cost.as_ref(), amount.as_ref(), filter.as_ref());
+                    self.stated_mechanic(*mechanic, cost, amount, filter, label, failed, parts)
+                })?
+            }
             Ability::Backup { amount, abilities } => {
                 self.backup(*amount, abilities, label, parts)?
             }

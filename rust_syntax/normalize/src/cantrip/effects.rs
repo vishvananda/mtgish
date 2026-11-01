@@ -417,7 +417,9 @@ impl Compiler {
             if let Instruction::Effect { result, .. } = instruction {
                 self.failed.insert(result.0);
             }
-            self.plan_instruction(&feature, instruction, out);
+            if !self.stated_instruction(&feature, instruction, out) {
+                self.plan_instruction(&feature, instruction, out);
+            }
         }
         self.note_step(instruction);
     }
@@ -1507,7 +1509,9 @@ impl Compiler {
                     return Ok(());
                 }
                 let [part] = cost.parts.as_slice() else {
-                    return Err(gap("resolution cost with several parts"));
+                    self.stated_payment("resolution cost with several parts", id, player, cost, out)?;
+                    self.performed.insert(result.0, format!("paid_{id}"));
+                    return Ok(());
                 };
                 if let CostPart::PlayerAction { .. } = part {
                     return self.player_action(id, player, part, false, result, out);
@@ -2168,13 +2172,10 @@ impl Compiler {
                 _ => {}
             }
         }
-        let what = match changes {
-            [Change::Rule(rule)] => rule_name(rule),
-            _ => "several changes".to_string(),
+        let EffectSubjects::Objects(affected) = affected else {
+            return Err(gap("continuous effect on players"));
         };
-        Err(gap(format!(
-            "engine: no resolving rule on an open set: {what}"
-        )))
+        self.open_rule_stated(source, affected, changes, duration, out)
     }
     fn continuous(
         &mut self,
@@ -2261,7 +2262,10 @@ impl Compiler {
     /// What a resolving effect's change is in the engine's vocabulary. Each
     /// value is read when the effect is made, as `EffectEvaluation::Snapshot` says.
     pub(super) fn effect_kinds(&mut self, change: &Change) -> Result<Vec<String>> {
-        if let Change::GrantKeyword(ward @ (Keyword::Ward(_) | Keyword::Flanking)) = change {
+        if let Change::GrantKeyword(
+            ward @ (Keyword::Ward(_) | Keyword::Flanking | Keyword::Prowess),
+        ) = change
+        {
             let change = Change::GrantAbility(Box::new(Ability::Keyword(ward.clone())));
             return self.effect_kinds(&change);
         }
@@ -2271,11 +2275,7 @@ impl Compiler {
                     "EffectKind::AddKeywords(Keywords::of(&[{keyword}]))"
                 )]);
             }
-            let index = self.grant(ability)?;
-            return Ok(vec![format!(
-                "EffectKind::AddAbility(AbilityRef::delayed({}, {index}))",
-                self.source_card()
-            )]);
+            return self.grant_kinds(ability);
         }
         let i16_of = |n: &Expr| -> Result<String> {
             self.number(n)?.fit(i16::MIN.into(), i16::MAX.into(), "i16")
@@ -2318,10 +2318,12 @@ impl Compiler {
             }
             Change::RemoveAllAbilities => vec!["EffectKind::LoseAllAbilities".into()],
             Change::SwitchPowerToughness => vec!["EffectKind::SwitchPt".into()],
-            Change::LosesAbility(lost) => vec![format!(
-                "EffectKind::LoseKeywords(Keywords::of(&[Keyword::{}]))",
-                statics::lost_keyword(lost)?
-            )],
+            Change::LosesAbility(lost) => match statics::lost_keyword(lost) {
+                Ok(word) => vec![format!(
+                    "EffectKind::LoseKeywords(Keywords::of(&[Keyword::{word}]))"
+                )],
+                Err(failed) => return self.lost_kinds(lost, failed),
+            },
             Change::AddLandType(t) => vec![format!("EffectKind::AddSubtype(Subtype::{})", name(t))],
             // A land type set takes the land's rules text with it (CR 305.7),
             // which only `sets_land_subtypes`, a static ability, does.
@@ -2431,7 +2433,7 @@ impl Compiler {
                 self.certain_player(player)?
             )],
             Change::Rule(rule) => return self.continuous_rule(rule),
-            other => return lane_m::continuous_more(other),
+            other => return self.more_kinds(other),
         })
     }
 }
