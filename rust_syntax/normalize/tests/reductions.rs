@@ -382,3 +382,38 @@ fn continuous_effects_say_what_they_change() {
         )))
     ));
 }
+
+#[test]
+fn filters_read_what_they_ask_about() {
+    assert!(matches!(
+        semantics::reduce_filter(
+            "Permanents::IsPlaneswalkerTypeVariable".into(),
+            vec![Operand::Vocabulary {
+                family: "PlaneswalkerTypeVariable".into(),
+                form: "TheChosenPlaneswalkerType".into(),
+            }],
+        ),
+        ObjectFilter::Chosen(ValueKind::PlaneswalkerType)
+    ));
+    assert!(matches!(
+        semantics::reduce_filter(
+            "Permanents::IsTheSecondChosenPermanentFilter".into(),
+            vec![],
+        ),
+        ObjectFilter::NthChosen(1)
+    ));
+    assert!(matches!(
+        semantics::reduce_filter(
+            "Spells::PlayerRevealedACardAsCast".into(),
+            vec![
+                Operand::Player(PlayerRef::AbilityController),
+                Operand::Filter(ObjectFilter::Any),
+            ],
+        ),
+        ObjectFilter::Condition(_)
+    ));
+    assert!(matches!(
+        semantics::reduce_player_ref("Player::Trigger_ThatPlayer".into(), vec![]),
+        PlayerRef::Prior(PriorPlayer::That)
+    ));
+}

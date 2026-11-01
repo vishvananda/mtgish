@@ -678,6 +678,13 @@ fn earlier_reference(form: &str) -> Option<EarlierObjects> {
     use EarlierObjects as E;
     Some(match form {
         "ThePermanentThisSpellBecame" => E::SpellBecame,
+        "ThePermanentGainedControlOfThisWay" => E::GainedControl,
+        "TheCardsConjuredIntoHandThisWay" => E::Conjured,
+        "TheLastCardDrawnThisTurn" => E::LastDrawn,
+        "TheCardRevealedFromHandThisWay" => E::Revealed,
+        "TheLastGraveyardCardChosenThisWay" | "TheChosenCardsInHand" | "TheChosenPermanentForPlayer" => {
+            E::Selected
+        }
         "ThePermanentChosenThisWay" | "TheExiledCardChosenThisWay" | "TheChosenExiledCard"
         | "TheChosenPermanents" | "ThePermanentsChosenThisWay" | "TheGraveyardCardsChosenThisWay"
         | "TheSecretlyChosenPermanents" => E::Selected,
@@ -727,6 +734,28 @@ pub fn reduce_object(name: String, operands: Vec<Operand>) -> ObjectRef {
             ObjectRef::SourceOf(Box::new(ability.clone()))
         }
         ("ThisExiledPermanentCard", [], _) => ObjectRef::Source,
+        (
+            "Trigger_ThatPermanent" | "WouldDealDamage_ThatPermanent" | "ThatSpell"
+            | "Trigger_ThatSpellOrAbility" | "EachableExiled",
+            [],
+            _,
+        ) => ObjectRef::Scoped,
+        ("PlayersRingBearer", [Operand::Player(player)], _) => ObjectRef::RingBearer(player.clone()),
+        ("TheCreatureHauntedByExiledCard", [Operand::Object(object)], _) => {
+            ObjectRef::HauntedBy(Box::new(object.clone()))
+        }
+        ("TheFirstPermanentChosenByPlayerThisWay", [Operand::Player(player)], _) => {
+            ObjectRef::NthChosen {
+                index: 0,
+                by: Some(player.clone()),
+            }
+        }
+        ("TheSecondPermanentChosenByPlayerThisWay", [Operand::Player(player)], _) => {
+            ObjectRef::NthChosen {
+                index: 1,
+                by: Some(player.clone()),
+            }
+        }
         ("TheSpellThatGrantedThisAbility" | "ThePermanentThatCreatedThisEmblem", [], _) => {
             ObjectRef::Granter
         }
@@ -789,6 +818,41 @@ pub fn reduce_player_ref(name: String, operands: Vec<Operand>) -> PlayerRef {
         }
         ("ControllerOfLeavingPermanent", []) => {
             PlayerRef::ControllerOf(Box::new(ObjectRef::EventSubject))
+        }
+        (
+            "Trigger_ThatPlayer"
+            | "NumPlayers_ThatPlayer"
+            | "APlayerWouldMillAnyNumberOfCards_ThatPlayer"
+            | "MillCards_ThatPlayer"
+            | "LoseLifeForEach_ThatPlayer"
+            | "AsLoseUnspentMana_ThePlayerLosingMana"
+            | "EachablePlayer",
+            [],
+        ) => PlayerRef::Prior(PriorPlayer::That),
+        (
+            "WouldDealDamage_ControllerOfDamageSource"
+            | "Trigger_ControllerOfThoseCreatures"
+            | "ControllerOfDeadPermanent",
+            [],
+        ) => PlayerRef::ControllerOf(Box::new(ObjectRef::Scoped)),
+        ("OwnerOfTargetPermanent", []) => PlayerRef::OwnerOf(Box::new(ObjectRef::Scoped)),
+        ("AssociatedPlayerForPermanent", [Operand::Object(object)]) => {
+            PlayerRef::NotedFor(Box::new(object.clone()))
+        }
+        ("TheOtherChosenPlayer", [Operand::Player(player)]) => {
+            PlayerRef::OtherChosen(Box::new(player.clone()))
+        }
+        ("NearestPlayerInChosenDirection", [Operand::Players(players)]) => {
+            PlayerRef::InChosenDirection {
+                from: None,
+                among: Some(Box::new(players.clone())),
+            }
+        }
+        ("PlayerInTheChosenDirectionOf", [Operand::Player(player)]) => {
+            PlayerRef::InChosenDirection {
+                from: Some(Box::new(player.clone())),
+                among: None,
+            }
         }
         _ => PlayerRef::Primitive { name, operands },
     }

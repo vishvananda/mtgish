@@ -457,6 +457,10 @@ impl<'a> Scope<'a> {
 
     fn object(&self, object: &ObjectRef) -> Result {
         match object {
+            ObjectRef::Scoped => Ok(()),
+            ObjectRef::RingBearer(player) => self.player(player),
+            ObjectRef::HauntedBy(object) => self.object(object),
+            ObjectRef::NthChosen { by, .. } => by.iter().try_for_each(|player| self.player(player)),
             ObjectRef::Named { result, by } => {
                 if !self.results.contains_key(&result.0) {
                     return Err(format!("result {} has not run", result.0));
@@ -649,6 +653,12 @@ impl<'a> Scope<'a> {
 
     fn player(&self, player: &PlayerRef) -> Result {
         match player {
+            PlayerRef::NotedFor(object) => self.object(object),
+            PlayerRef::OtherChosen(player) => self.player(player),
+            PlayerRef::InChosenDirection { from, among } => {
+                from.iter().try_for_each(|player| self.player(player))?;
+                among.iter().try_for_each(|players| self.players(players))
+            }
             PlayerRef::Named { result, .. } if self.results.contains_key(&result.0) => Ok(()),
             PlayerRef::Named { result, .. } => Err(format!("result {} has not run", result.0)),
             PlayerRef::Prior(_) => Ok(()),
@@ -699,6 +709,7 @@ impl<'a> Scope<'a> {
 
     fn players(&self, players: &PlayerSet) -> Result {
         match players {
+            PlayerSet::Scoped => Ok(()),
             PlayerSet::Intersection(sets) => sets.iter().try_for_each(|s| self.players(s)),
             PlayerSet::Matching { binding, condition } => {
                 let mut child = self.clone();
@@ -729,6 +740,7 @@ impl<'a> Scope<'a> {
 
     fn objects(&self, objects: &ObjectSet) -> Result {
         match objects {
+            ObjectSet::Scoped => Ok(()),
             ObjectSet::Earlier { by, .. } => {
                 by.iter().try_for_each(|players| self.players(players))
             }
@@ -1112,6 +1124,18 @@ impl<'a> Scope<'a> {
     }
     fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
+            ObjectFilter::Noted(_) | ObjectFilter::NthChosen(_) => Ok(()),
+            ObjectFilter::ChosenBy { player, .. } => self.player(player),
+            ObjectFilter::ChosenOn { object, .. }
+            | ObjectFilter::AttackingSame(object)
+            | ObjectFilter::SharesTypeFrom { with: object, .. } => self.object(object),
+            ObjectFilter::DraftNoted(note) => self.player(&note.player),
+            ObjectFilter::InPile(object) | ObjectFilter::InSector(object) => {
+                object.iter().try_for_each(|object| self.object(object))
+            }
+            ObjectFilter::CastFromAmong(objects) | ObjectFilter::SharesMostCommonColor(objects) => {
+                self.objects(objects)
+            }
             ObjectFilter::ArrivedThisTurn { .. } | ObjectFilter::ChosenFilter => Ok(()),
             ObjectFilter::SharesColorWith(object)
             | ObjectFilter::ExiledWith(object)
@@ -1272,6 +1296,33 @@ impl<'a> Scope<'a> {
 
     fn condition(&self, condition: &Condition) -> Result {
         match condition {
+            Condition::AsCast { player, action } => {
+                self.player(player)?;
+                match action {
+                    AsCastAction::Revealed(filter) => self.filter(filter),
+                    AsCastAction::Controlled(objects) | AsCastAction::Chose(objects) => {
+                        self.objects(objects)
+                    }
+                }
+            }
+            Condition::PlayerIn { player, players } => {
+                self.player(player)?;
+                self.players(players)
+            }
+            Condition::ValueChosenIs(player) | Condition::ChoseExtreme { player, .. } => {
+                self.player(player)
+            }
+            Condition::HadExtreme { player, filter, .. } => {
+                self.player(player)?;
+                filter.iter().try_for_each(|filter| self.filter(filter))
+            }
+            Condition::VotedAs { player, other, .. } => {
+                self.player(player)?;
+                self.player(other)
+            }
+            Condition::CoinCameUp { player, .. } => {
+                player.iter().try_for_each(|player| self.player(player))
+            }
             Condition::Outcome(_) | Condition::AllVotedFor(_) => Ok(()),
             Condition::MostCommonColor { color, objects, .. } => {
                 self.operand(color)?;

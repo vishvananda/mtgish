@@ -15,14 +15,14 @@ The priorities, in order, are:
 
 ### Where things stand
 
-Unified, complete and blocker rows are current at schema 154. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
+Unified, complete and blocker rows are current at schema 155. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
 
 | Measure | Value |
 |---|---|
 | Records | 33,529 |
-| Unified, schema 154 | 33,529 (100%) |
+| Unified, schema 155 | 33,529 (100%) |
 | Complete | 33,529 (100.0%) |
-| Complete with no primitive | 32,600 (97.2%) |
+| Complete with no primitive | 32,717 (97.6%) |
 | Distinct forms blocking the rest | 0 |
 | Structurally preserved | 33,529 |
 | Source enums / declared variants | 346 / 8,668 |
@@ -224,6 +224,7 @@ Hand-written lowerers are the exception from step 1 on. A form gets hand-written
 | 152 | What happened reduces by shape, through `reduce_events.rs`: `Expr::Earlier` measures what an earlier instruction or cost acted on, as Forge's `Remembered$` and `Sacrificed$` counts; `Dice`, `CoinFlipsWon`, `Stickers`, `Noted`, `Game`, `Difference`; `Condition::Outcome`, `AllVotedFor`, `MostCommonColor`, `GraveyardPosition`; `EventSpec::Caused` wraps an event in the spell or ability that caused it, as Forge's `ValidCause`; `ZoneChangeFromElsewhere`, `NthCounter`; state triggers read as `EventSpec::State`. Three forms stay rows because their bodies read a group or subject a condition cannot bind. No primitive 32,426. |
 | 153 | References reduce by what they read, through `reduce_object`, `reduce_objects` and `reduce_player_ref`: an object or player named by a remembered instruction is `Named`, one left by earlier play is `ObjectRef::Earlier` or `ObjectSet::Earlier` (`Remembered$`, `TriggeredCard`), a bid or grant is `PlayerRef::Prior`. Forms are read at each construction site, so a row that names no reference stays primitive; 32,478 records depend on no primitive. |
 | 154 | Continuous effects reduce by what they change, through `reduce_effects.rs`: type, color and land-type changes, copies, and borrowed abilities (Forge's `AddType$`, `SetColor$`, `GainTextOf$`); `Duration` reads what ends it, including `While(Condition)` (Forge's `Duration$`, `ForgetOnMoved$`); `ManaProduction` reads colors off other objects (`Produced$ Special`); `ManaUse::WhenSpent` is `TriggersWhenSpent$`; spend limits read as cast-from filters. Card-specific forms stay reviewed rows: draft-chosen colors, Cryptic Spires, a plane staying face up, Ferris Wheel. 32,600 records depend on no primitive. |
+| 155 | Filters read what they ask about, through `reduce_filters.rs`: noted and draft-noted values, shared types and colors, piles and sectors, what a player showed as a spell was cast (`AsCast`, Forge's `Presented`), who a player vote or number choice singled out. "That" and "those" forms become one `Scoped` reference for objects, object sets, players and player sets, in place of a row name for each sentence. 32,717 records depend on no primitive. |
 
 Schema 80 and 81 do not shrink the vocabulary. `KeywordAction` has 25 forms and `Mechanic` 149, and they count as forms: the names moved into enums, so the 2,360 is typed parameters and an exhaustive match for consumers, not simplification. Keyword mechanics are still not expanded into reusable definitions, which is the reduction this plan asks for. The Cantrip backend still reports these as gaps until it maps them; the engine has direct events for most of schema 78 and 79. At 02210fe all 17,095 records the backend advertises compiled against the engine. That build needs `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_INCREMENTAL=0`: with debug info it runs out of disk quota writing the archive.
 

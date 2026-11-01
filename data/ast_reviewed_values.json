@@ -15,6 +15,7 @@
   "TheChosenGraveyardCard": "Lowers to the selection result.",
   "TheChosenGraveyardCards": "Lowers to the selection result.",
   "TheChosenPermanents": "Lowers to the selection result.",
+  "ThisAbility": "Lowers to the ability source in a made-by filter.",
   "ThisPlane": "Lowers to the ability source.",
   "XCantBeZero": "Lowers to a casting requirement that X is greater than zero.",
   "target:Keeper of the Beasts": "The target is a condition of activating; the effect reads nothing of it.",

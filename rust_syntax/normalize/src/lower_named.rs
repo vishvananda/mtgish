@@ -460,9 +460,7 @@ impl Context {
                     .unwrap_or(Duration::Primitive { name, operands }),
             ),
             "Cards" | "CardsInOracle" | "CardsInLibrary" | "CreatureTypeVariable"
-            | "CheckHasable" => {
-                Operand::Filter(ObjectFilter::Primitive { name, operands })
-            }
+            | "CheckHasable" => Operand::Filter(crate::semantics::reduce_filter(name, operands)),
             _ => return None,
         })
     }

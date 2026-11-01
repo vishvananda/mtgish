@@ -1993,6 +1993,7 @@ impl Inventory<'_> {
     fn objects(&mut self, r: &ObjectSet) {
         self.form("ObjectSet", r);
         match r {
+            ObjectSet::Scoped => {}
             ObjectSet::Named(_) => {}
             ObjectSet::Earlier { by, .. } => {
                 if let Some(by) = by {
@@ -2097,6 +2098,7 @@ impl Inventory<'_> {
     fn players(&mut self, r: &PlayerSet) {
         self.form("PlayerSet", r);
         match r {
+            PlayerSet::Scoped => {}
             PlayerSet::Intersection(sets) => {
                 for set in sets {
                     self.players(set);
@@ -2319,6 +2321,18 @@ impl Inventory<'_> {
     fn filter(&mut self, f: &ObjectFilter) {
         self.form("ObjectFilter", f);
         match f {
+            ObjectFilter::Noted(_)
+            | ObjectFilter::NthChosen(_)
+            | ObjectFilter::DraftNoted(_)
+            | ObjectFilter::InPile(_)
+            | ObjectFilter::InSector(_) => {}
+            ObjectFilter::ChosenBy { player, .. } => self.player(player),
+            ObjectFilter::ChosenOn { object, .. }
+            | ObjectFilter::AttackingSame(object)
+            | ObjectFilter::SharesTypeFrom { with: object, .. } => self.object(object),
+            ObjectFilter::CastFromAmong(objects) | ObjectFilter::SharesMostCommonColor(objects) => {
+                self.objects(objects)
+            }
             ObjectFilter::ArrivedThisTurn { .. } | ObjectFilter::ChosenFilter => {}
             ObjectFilter::SharesColorWith(object)
             | ObjectFilter::ExiledWith(object)
@@ -2485,6 +2499,37 @@ impl Inventory<'_> {
     fn condition(&mut self, c: &Condition) {
         self.form("Condition", c);
         match c {
+            Condition::AsCast { player, action } => {
+                self.player(player);
+                match action {
+                    AsCastAction::Revealed(filter) => self.filter(filter),
+                    AsCastAction::Controlled(objects) | AsCastAction::Chose(objects) => {
+                        self.objects(objects)
+                    }
+                }
+            }
+            Condition::PlayerIn { player, players } => {
+                self.player(player);
+                self.players(players);
+            }
+            Condition::ValueChosenIs(player) | Condition::ChoseExtreme { player, .. } => {
+                self.player(player)
+            }
+            Condition::HadExtreme { player, filter, .. } => {
+                self.player(player);
+                if let Some(filter) = filter {
+                    self.filter(filter);
+                }
+            }
+            Condition::VotedAs { player, other, .. } => {
+                self.player(player);
+                self.player(other);
+            }
+            Condition::CoinCameUp { player, .. } => {
+                if let Some(player) = player {
+                    self.player(player);
+                }
+            }
             Condition::Outcome(outcome) => self.form("PriorOutcome", outcome),
             Condition::AllVotedFor(_) => {}
             Condition::MostCommonColor { objects, .. } => self.objects(objects),

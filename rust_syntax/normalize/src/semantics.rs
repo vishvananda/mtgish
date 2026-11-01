@@ -1500,13 +1500,15 @@ pub fn makes_card(operation: &Operation) -> bool {
 
 /// The kind of value a variable form reads, when it is the one chosen.
 fn chosen_kind(operand: &Operand) -> Option<ValueKind> {
-    let Operand::Term { form, .. } = operand else {
-        return None;
+    let form = match operand {
+        Operand::Term { form, .. } | Operand::Vocabulary { form, .. } => form,
+        _ => return None,
     };
     match form.as_str() {
         "TheChosenCreatureType" | "TheChosenCreatureTypes" => Some(ValueKind::CreatureType),
         "TheChosenLandType" => Some(ValueKind::LandType),
         "TheChosenCardtype" => Some(ValueKind::CardType),
+        "TheChosenPlaneswalkerType" => Some(ValueKind::PlaneswalkerType),
         _ => None,
     }
 }
@@ -1537,6 +1539,10 @@ const KEYWORD_FAMILIES: &[(&str, KeywordFamily)] = &[
     ("LevelUp", KeywordFamily::LevelUp),
     ("AnyMadness", KeywordFamily::Madness),
     ("Disguise", KeywordFamily::Disguise),
+    ("DoctorsCompanion", KeywordFamily::DoctorsCompanion),
+    ("Phasing", KeywordFamily::Phasing),
+    ("ExhaustAbility", KeywordFamily::Exhaust),
+    ("StartYourEngines", KeywordFamily::StartYourEngines),
 ];
 
 pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
@@ -1753,6 +1759,7 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
         }
         _ => reduce_object_filter(form, &operands)
             .or_else(|| earlier_filter(form, &operands))
+            .or_else(|| reduce_object_trait(form, &operands))
             .unwrap_or(ObjectFilter::Primitive { name, operands }),
     }
 }
@@ -1764,6 +1771,7 @@ include!("reduce_rules.rs");
 include!("reduce_actions.rs");
 include!("reduce_events.rs");
 include!("reduce_effects.rs");
+include!("reduce_filters.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
@@ -5564,7 +5572,13 @@ impl Effects {
             ObjectRef::Query { objects, .. } => self.objects_library(objects),
             ObjectRef::Result { result, phase, .. } => self.result_library(result, phase),
             ObjectRef::ChosenBy { result, .. } => self.result_library(result, &ObjectPhase::After),
-            ObjectRef::Named { .. } | ObjectRef::Earlier { .. } | ObjectRef::SourceOf(_) => false,
+            ObjectRef::Named { .. }
+            | ObjectRef::Earlier { .. }
+            | ObjectRef::SourceOf(_)
+            | ObjectRef::Scoped
+            | ObjectRef::RingBearer(_)
+            | ObjectRef::HauntedBy(_)
+            | ObjectRef::NthChosen { .. } => false,
             ObjectRef::Source
             | ObjectRef::KeywordHost
             | ObjectRef::MadeHere
@@ -5601,6 +5615,7 @@ impl Effects {
             ObjectSet::Primitive { .. }
             | ObjectSet::Earlier { .. }
             | ObjectSet::Named(_)
+            | ObjectSet::Scoped
             | ObjectSet::AnyZone(_)
             | ObjectSet::OutsideTheGame(_) => false,
             ObjectSet::Observed(result) => self.result_library(result, &ObjectPhase::Before),

@@ -655,10 +655,7 @@ fn a_noted_type_is_not_a_chosen_one() {
     let body = lowered(
         "SpellActions(ActionList([DestroyEachPermanent(IsCreatureTypeVariable(TheNotedCreatureType))]))",
     );
-    assert!(
-        body.contains("Permanents::IsCreatureTypeVariable"),
-        "{body}"
-    );
+    assert!(body.contains("Noted(CreatureType)"), "{body}");
     assert!(!body.contains("Chosen(CreatureType)"), "{body}");
 }
 

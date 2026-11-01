@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 154;
+pub const SCHEMA_VERSION: u32 = 155;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1690,6 +1690,9 @@ pub enum EarlierObjects {
     CopiedSpell,
     Created,
     LastCast,
+    GainedControl,
+    Conjured,
+    LastDrawn,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ObjectMeasure {
@@ -1751,6 +1754,8 @@ pub enum PriorPlayer {
     WinningBidder,
     Remembered,
     GrantedBy,
+    /// "That" player: whichever the row around this one names.
+    That,
 }
 /// What a face-down permanent is, when not a plain 2/2.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2587,6 +2592,30 @@ pub struct DamagePart {
     pub amount: Expr,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum AsCastAction {
+    Revealed(ObjectFilter),
+    Controlled(ObjectSet),
+    Chose(ObjectSet),
+}
+/// What a player noted during the draft for a card in their pool.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct DraftNote {
+    pub kind: DraftNoteKind,
+    pub player: PlayerRef,
+    pub card: String,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DraftNoteKind {
+    Name,
+    CreatureType,
+    Color,
+    Exiled,
+    Number,
+    Player,
+    Removed,
+    Guessed,
+}
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum LandTypeScope {
     All,
@@ -3952,6 +3981,15 @@ pub enum ObjectRef {
     },
     /// The permanent an ability on the stack came from.
     SourceOf(Box<ObjectRef>),
+    /// "That" object: whatever the row around this one names.
+    Scoped,
+    RingBearer(PlayerRef),
+    HauntedBy(Box<ObjectRef>),
+    /// The nth object this player chose.
+    NthChosen {
+        index: u32,
+        by: Option<PlayerRef>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4097,6 +4135,8 @@ pub enum ObjectSet {
         what: EarlierObjects,
         by: Option<PlayerSet>,
     },
+    /// "Those" objects: whatever the row around this one names.
+    Scoped,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -4192,6 +4232,14 @@ pub enum PlayerRef {
         index: u16,
     },
     Prior(PriorPlayer),
+    /// The player noted for this object.
+    NotedFor(Box<ObjectRef>),
+    /// The other of two chosen players.
+    OtherChosen(Box<PlayerRef>),
+    InChosenDirection {
+        from: Option<Box<PlayerRef>>,
+        among: Option<Box<PlayerSet>>,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4214,6 +4262,8 @@ pub enum PlayerSet {
     Targets(Slot),
     /// Dealt damage by this earlier instruction of the same resolution.
     DamagedBy(ResultId),
+    /// "Those" players: whichever the row around this one names.
+    Scoped,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4415,6 +4465,31 @@ pub enum ObjectFilter {
         with: Option<ObjectRef>,
         this_turn: bool,
     },
+    /// Of the type this ability noted.
+    Noted(ValueKind),
+    ChosenBy {
+        kind: ValueKind,
+        player: PlayerRef,
+    },
+    /// Chosen as this object entered or resolved, for the object itself.
+    ChosenOn {
+        kind: ValueKind,
+        object: ObjectRef,
+    },
+    DraftNoted(DraftNote),
+    /// In a chosen pile, or the pile chosen for this object.
+    InPile(Option<ObjectRef>),
+    /// In the chosen sector, or this object's sector.
+    InSector(Option<ObjectRef>),
+    NthChosen(u32),
+    AttackingSame(ObjectRef),
+    CastFromAmong(Box<ObjectSet>),
+    /// Shares one of these card types with this object.
+    SharesTypeFrom {
+        types: Vec<CardType>,
+        with: ObjectRef,
+    },
+    SharesMostCommonColor(Box<ObjectSet>),
 }
 
 /// Something a player did or had done to them. See `Condition::PlayerDid`.
@@ -4527,6 +4602,10 @@ pub enum KeywordFamily {
     LevelUp,
     Madness,
     Disguise,
+    DoctorsCompanion,
+    Phasing,
+    Exhaust,
+    StartYourEngines,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4675,6 +4754,38 @@ pub enum Condition {
         above: ObjectFilter,
         comparison: Comparison,
         amount: Expr,
+    },
+    /// What a player showed as this spell was cast.
+    AsCast {
+        player: PlayerRef,
+        action: AsCastAction,
+    },
+    PlayerIn {
+        player: PlayerRef,
+        players: PlayerSet,
+    },
+    /// This player is the one chosen.
+    ValueChosenIs(PlayerRef),
+    ChoseExtreme {
+        player: PlayerRef,
+        highest: bool,
+    },
+    /// Among what each player did, this player's card had the extreme mana value.
+    HadExtreme {
+        player: PlayerRef,
+        what: EarlierObjects,
+        filter: Option<ObjectFilter>,
+        highest: bool,
+    },
+    VotedAs {
+        player: PlayerRef,
+        other: PlayerRef,
+        same: bool,
+    },
+    /// The coin for this player, or this object, came up so.
+    CoinCameUp {
+        player: Option<PlayerRef>,
+        outcome: CoinOutcome,
     },
 }
 
