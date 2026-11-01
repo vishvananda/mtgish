@@ -2517,9 +2517,8 @@ impl Compiler {
             ),
             _ => return Err(gap("play permission for another cost")),
         };
-        let mut fields = format!(
-            "text: \"Cast from your graveyard\", permission: {permission}, lands: {lands}, "
-        );
+        let text = quoted(&self.said(lane_k::Said::Sentence, "Cast from your graveyard".into()));
+        let mut fields = format!("text: {text}, permission: {permission}, lands: {lands}, ");
         if terms.flash {
             fields.push_str("instant_speed: true, ");
         }

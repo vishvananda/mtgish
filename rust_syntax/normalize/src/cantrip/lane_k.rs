@@ -335,6 +335,149 @@ impl Printed {
 
 /// Whether "you may" of this cost is its choice, up to one: the question is which
 /// object, and answering none is declining (Cantrip's `may_discard_a_card`).
+/// Whether a line says what the AST of it doesn't.
+pub(super) fn printed_otherwise(line: Option<&str>, words: &str) -> bool {
+    line.is_some_and(|line| line.contains(words))
+}
+/// What pays is chosen even if there's only one thing that can.
+pub(super) fn asks_even_of_one(out: &mut String, mark: usize) {
+    let picks = out.split_off(mark);
+    out.push_str(&picks.replace("if eligible.len() <= n as usize", "if eligible.len() < n as usize"));
+}
+/// The AST of "whenever an opponent draws a card except the first one they draw
+/// in each of their draw steps" says the draw is one in a draw step and not the
+/// first: the draw, when that's what an event's filter is.
+pub(super) fn except_the_first_draw<'a>(
+    event: &'a EventSpec,
+    condition: &Condition,
+) -> Option<&'a EventSpec> {
+    match (event, condition) {
+        (
+            EventSpec::NthEachTurn {
+                event,
+                comparison: Comparison::NotEqual,
+                value: Expr::Constant(1),
+            },
+            Condition::Window(TurnWindow::DrawStep),
+        ) => Some(event),
+        _ => None,
+    }
+}
+/// Target counts of a slot something is divided among: at least one.
+pub(super) fn divided_among_some(count: String, divided: bool) -> String {
+    match divided {
+        true => count.replace(".between(0,", ".between(1,"),
+        false => count,
+    }
+}
+/// Whether a line says what "dies" by a subtype alone: only a creature does.
+pub(super) fn dies_of_a_type(line: Option<&str>, objects: &ObjectFilter) -> bool {
+    let said = format!("{objects:?}");
+    printed_otherwise(line, " dies") && said.contains("Subtype") && !said.contains("CardType")
+}
+/// Whether what becomes a target is a permanent, for a filter that names no
+/// other place for it to be.
+pub(super) fn a_permanent_targeted(line: Option<&str>, objects: &ObjectFilter) -> bool {
+    let said = format!("{objects:?}");
+    !printed_otherwise(line, " spell you control becomes")
+        && !["InZone", "Spell", "Stack", "Source"]
+        .iter()
+        .any(|word| said.contains(word))
+}
+/// What a triggered mana ability adds, so what's offered to pay counts it.
+pub(super) fn triggered_mana(body: &Program) -> &'static str {
+    if lane_g::adds_what_was_produced(body) {
+        return ".mana_ability(TriggeredMana::OneOfProduced)";
+    }
+    let color = match body.instructions.as_slice() {
+        [Instruction::Effect {
+            operation:
+                Operation::AddMana {
+                    mana:
+                        ManaProduction::Amount {
+                            color,
+                            amount: Expr::Constant(1),
+                        },
+                    restriction: None,
+                    ..
+                },
+            ..
+        }] => Some(color),
+        _ => None,
+    };
+    match color {
+        Some(ManaColor::Chosen) => ".mana_ability(TriggeredMana::ChosenColor)",
+        Some(ManaColor::White) => ".mana_ability(TriggeredMana::One(Mana::W))",
+        Some(ManaColor::Blue) => ".mana_ability(TriggeredMana::One(Mana::U))",
+        Some(ManaColor::Black) => ".mana_ability(TriggeredMana::One(Mana::B))",
+        Some(ManaColor::Red) => ".mana_ability(TriggeredMana::One(Mana::R))",
+        Some(ManaColor::Green) => ".mana_ability(TriggeredMana::One(Mana::G))",
+        _ => ".mana_ability(TriggeredMana::Unstated)",
+    }
+}
+/// What the creatures that convoked it convoked, if that's all this set says.
+pub(super) fn convoked(objects: &ObjectSet) -> Option<&ObjectRef> {
+    match objects {
+        ObjectSet::Battlefield(ObjectFilter::History {
+            event: ObjectHistory::Convoked(object),
+            ..
+        }) => Some(object),
+        _ => None,
+    }
+}
+/// Whether what the card says is revealed is, in the AST, only chosen.
+pub(super) fn revealed_only_chosen(line: Option<&str>, cards: &ObjectSet) -> bool {
+    printed_otherwise(line, "revealed this way")
+        && format!("{cards:?}").contains("Earlier { what: Selected")
+}
+/// Whether a target the card says is from any graveyard is, in the AST, from yours.
+pub(super) fn only_your_graveyard(line: Option<&str>, filter: &ObjectFilter) -> bool {
+    printed_otherwise(line, "card from a graveyard")
+        && format!("{filter:?}")
+            .contains("InZone(Players { zone: Graveyard, players: One(AbilityController) })")
+}
+/// Who controlled what an instruction acted on doesn't depend on its having moved:
+/// "Destroy target land. That land's controller ..." is them all the same.
+pub(super) fn gone_or_not(read: String, object: &ObjectRef) -> String {
+    match object {
+        ObjectRef::Result {
+            phase: ObjectPhase::Before,
+            ..
+        } => read.replace(&effects::gone(""), ".clone()"),
+        _ => read,
+    }
+}
+/// A mana ability that chooses a color first of all names it as it's activated
+/// (a mana ability doesn't wait, and it's the activation that asks): the code
+/// reading the color it was given, if the code is such a one.
+pub(super) fn color_as_activated(out: &str) -> Option<String> {
+    let at = out.find("let Answer::Colors(colors_")?;
+    let (before, ask) = out.split_at(at);
+    let line = ask.lines().next()?;
+    if before.contains('\n')
+        || !before.contains("Some(asker.controller)")
+        || !line.contains("choices: ColorSet(31), count: 1,")
+    {
+        return None;
+    }
+    let (_, number) = line.rsplit_once("let chosen_")?;
+    let number = number.split(' ').next()?;
+    let rest = &ask[line.len()..];
+    Some(format!(
+        "{before}let Some(chosen_{number}) = chosen else {{ return Ok(()) }};{rest}"
+    ))
+}
+/// Whether an intervening "if" asks how an object was cast: as the object enters,
+/// the event that says which spell it was is not in the history yet.
+pub(super) fn asks_how_it_was_cast(condition: &Condition) -> bool {
+    matches!(
+        condition,
+        Condition::ObjectMatches {
+            filter: ObjectFilter::Cast { .. },
+            ..
+        }
+    )
+}
 /// A trigger keeps the new object's number only if something reads it: the game
 /// compares what a trigger carries to find a loop (732.4), and a number that grows
 /// round the loop would keep it from ever coming back to the same position.
@@ -404,6 +547,9 @@ pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
     }
 }
 pub(super) fn paid_by_a_choice(cost: &Cost) -> bool {
+    if lane_l::chooses_what_pays(cost) {
+        return true;
+    }
     match cost.parts.as_slice() {
         [CostPart::Sacrifice {
             choose: Some(Count::Exactly(Expr::Constant(1))),
@@ -454,8 +600,19 @@ pub(super) fn chooses_first(decider: &PlayerRef, body: &Program) -> bool {
                         choose:
                             Some(
                                 Count::Exactly(Expr::Constant(1))
-                                | Count::AsManyAsCan(Expr::Constant(1)),
+                                | Count::AsManyAsCan(Expr::Constant(1))
+                                | Count::AnyNumber,
                             ),
+                        ..
+                    },
+                ..
+            } => return format!("{player:?}") == format!("{decider:?}"),
+            // "You may attach an Equipment you control to it": which, or none.
+            Instruction::Effect {
+                operation:
+                    Operation::AttachChosen {
+                        actor: PlayerSet::One(player),
+                        count: Count::Exactly(Expr::Constant(1)),
                         ..
                     },
                 ..
@@ -481,7 +638,9 @@ pub(super) fn chooses_first(decider: &PlayerRef, body: &Program) -> bool {
                         player,
                         objects,
                         count:
-                            Count::Exactly(Expr::Constant(1)) | Count::AsManyAsCan(Expr::Constant(1)),
+                            Count::Exactly(Expr::Constant(1))
+                            | Count::AsManyAsCan(Expr::Constant(1))
+                            | Count::AnyNumber,
                         constraints,
                     },
                 ..
@@ -622,6 +781,14 @@ fn chars_test(filter: &ObjectFilter, id: usize, lets: &mut Vec<String>) -> Optio
         ObjectFilter::Not(inner) => format!("!{}", chars_test(inner, id, lets)?),
         ObjectFilter::CardType(card) => format!("c.is(CardType::{})", card_type(card).ok()?),
         ObjectFilter::HasKeyword(word) => format!("c.has({})", keyword(word).ok()?),
+        // A printed {X}, which `Chars` doesn't have.
+        ObjectFilter::State(ObjectState::HasX) => {
+            let cards = format!("with_x_{id}");
+            lets.push(format!(
+                "let {cards}: Vec<CardId> = {{ let q: &dyn Query = g; q.state().zone(Zone::library(asker.controller)).iter().filter(|&&o| q.mana_cost(o).x > 0).map(|&o| q.chars(o).card).collect() }};"
+            ));
+            format!("{cards}.contains(&c.card)")
+        }
         ObjectFilter::Subtype(subtype) => {
             let word = format!("word_{id}_{}", lets.len());
             lets.push(format!(
@@ -701,6 +868,15 @@ pub(super) fn rule_keyword(affected: &ObjectSet, rule: &RuleChange) -> Option<&'
     }
 }
 
+/// Several cards a player owns put on one end of a library together: that
+/// player orders them (401.4), and nobody is asked about one.
+pub(super) fn in_an_order_asked(id: usize, destination: &Destination) -> String {
+    let (end, place) = match destination {
+        Destination::OwnersLibraryTop => ("LibraryTop", "Top"),
+        _ => ("LibraryBottom", "Bottom"),
+    };
+    format!("{{ let order_{id} = match objects_{id}.iter().all(|&o| g.state().obj(o).owner == asker.controller) {{ true => cantrip_mechanics::library::ask_library_order(g, asker.controller, asker.source, &objects_{id}, DestinationKind::{end})?, false => objects_{id}.clone() }}; g.put_into_library(&order_{id}, LibraryPlace::{place}) }}")
+}
 /// What a choice puts on top of a library: one at a time as chosen, so the last
 /// chosen ends on top (Cantrip's `draw_then_put_two_back`).
 pub(super) fn on_top_in_turn(objects: String, chosen: bool, destination: &Destination) -> String {
@@ -794,6 +970,18 @@ pub(super) fn asked_if(decider: &PlayerRef, id: usize, body: &Program) -> String
                 },
             ..
         }) => "g.state().obj(asker.source).became.is_none() && ".to_string(),
+        Some(Instruction::Effect {
+            operation: Operation::RemoveCounters { removals },
+            ..
+        }) => match removals.as_slice() {
+            [CounterRemoval {
+                recipients: Recipients::Objects(ObjectSet::One(ObjectRef::Source)),
+                kind: None,
+                amount: CounterAmount::Count(Count::Exactly(Expr::Constant(1))),
+                ..
+            }] => "{ let o = g.state().obj(asker.source); o.became.is_none() && o.zone.is(ZoneKind::Battlefield) && CounterKind::ALL.into_iter().any(|k| o.counters(k) > 0) } && ".to_string(),
+            _ => String::new(),
+        },
         _ => String::new(),
     }
 }
@@ -985,6 +1173,11 @@ fn fit(ability: &Ability, line: &Line) -> Option<i32> {
             (ActivationOrigin::Ordinary, Said::Activated) => Some(12),
             (ActivationOrigin::Ordinary, Said::Word) => Some(3),
             (ActivationOrigin::Ordinary, _) => None,
+            (ActivationOrigin::Cycling { .. }, Said::Word | Said::Sentence)
+                if line.text.to_lowercase().contains("cycling") =>
+            {
+                Some(12)
+            }
             (_, Said::Activated) => Some(4),
             (origin, _) => by_word(&printed_word(origin)),
         },
@@ -1116,12 +1309,39 @@ impl Compiler {
     /// the start of a test: a cost that can't be paid isn't offered (118.3).
     pub(super) fn can_pay(&self, id: usize, cost: &Cost) -> String {
         match cost.parts.as_slice() {
+            [CostPart::Move { selections, .. }]
+                if matches!(
+                    selections.as_slice(),
+                    [CostObjectSelection {
+                        objects: ObjectSet::One(ObjectRef::Query { .. }),
+                        choose: None,
+                    }]
+                ) =>
+            {
+                let ObjectSet::One(object) = &selections[0].objects else {
+                    unreachable!("just matched");
+                };
+                match self.object(object) {
+                    Ok(read) => format!("({}).is_some() && ", self.fetch(read)),
+                    Err(_) => String::new(),
+                }
+            }
             [CostPart::Sacrifice {
                 objects: ObjectSet::One(object),
                 choose: None,
             }] => match self.object(object) {
                 Ok(read) => format!(
                     "({}).is_some_and(|o| g.can_sacrifice(payer_{id}, o)) && ",
+                    self.fetch(read)
+                ),
+                Err(_) => String::new(),
+            },
+            [CostPart::Sacrifice {
+                objects,
+                choose: Some(Count::Exactly(Expr::Constant(n))),
+            }] => match self.objects(objects) {
+                Ok(read) => format!(
+                    "({}).into_iter().filter(|&o| g.controller(o) == payer_{id} && g.can_sacrifice(payer_{id}, o)).count() >= {n} && ",
                     self.fetch(read)
                 ),
                 Err(_) => String::new(),
@@ -1596,6 +1816,137 @@ impl Compiler {
     pub(super) fn on_stage(&mut self, minimum: i64) {
         self.stage_lines = self.stages.get(&minimum).cloned().unwrap_or_default();
     }
+    /// The printed line being compiled.
+    pub(super) fn line_text(&self) -> Option<&str> {
+        self.line.as_ref().map(|line| line.text.as_str())
+    }
+    /// "You may exile that card from your graveyard" isn't asked of a card that's
+    /// left it.
+    pub(super) fn asked_if_there(&self, body: &Program) -> String {
+        let mut first = body;
+        while let [Instruction::Group(group), ..] = first.instructions.as_slice() {
+            first = group;
+        }
+        match first.instructions.first() {
+            Some(Instruction::Effect {
+                operation:
+                    Operation::Move {
+                        objects: ObjectSet::One(object @ ObjectRef::Query { objects, .. }),
+                        ..
+                    },
+                ..
+            }) if matches!(&**objects, ObjectSet::InZone { .. }) => match self.object(object) {
+                Ok(read) => format!("({}).is_some() && ", self.fetch(read)),
+                Err(_) => String::new(),
+            },
+            _ => String::new(),
+        }
+    }
+    /// Whether the card can be spliced onto a spell.
+    pub(super) fn spliced(&self) -> bool {
+        self.printed
+            .iter()
+            .flatten()
+            .any(|line| line.text.starts_with("Splice onto"))
+    }
+    /// The target numbers of a spell and of a permanent whose control is exchanged.
+    pub(super) fn exchanges_a_spell(&self, a: &ObjectRef, b: &ObjectRef) -> Option<(usize, usize)> {
+        let (
+            ObjectRef::Target { slot: first, .. },
+            ObjectRef::Target {
+                slot: second,
+                ..
+            },
+        ) = (a, b)
+        else {
+            return None;
+        };
+        let (spell, spec) = self.slots.get(&first.0)?;
+        let (permanent, _) = self.slots.get(&second.0)?;
+        match &spec.kind {
+            TargetKind::Object(domain) if domain.zones == [EventZone::Stack] => {
+                Some((*spell, *permanent))
+            }
+            _ => None,
+        }
+    }
+    /// The player just picked is asked for even with one to pick from.
+    pub(super) fn name_even_the_one(&self) {
+        for statement in &mut self.picked.borrow_mut().statements {
+            *statement = statement.replace("if among.len() > 1", "if !among.is_empty()");
+        }
+    }
+    /// "Each opponent discards two cards unless they discard a nonland card": each
+    /// player's one choice, in turn order, then the cards go together.
+    pub(super) fn each_discards_two(
+        &mut self,
+        players: &PlayerSet,
+        binding: &Binding,
+        steps: &Program,
+        out: &mut String,
+    ) -> bool {
+        let [Instruction::Effect {
+            result,
+            operation:
+                Operation::PayCost {
+                    player: PlayerRef::Bound(payer),
+                    cost,
+                    optional: true,
+                },
+        }, Instruction::If {
+            condition: Condition::Not(unpaid),
+            then,
+            otherwise,
+        }] = steps.instructions.as_slice()
+        else {
+            return false;
+        };
+        let [Instruction::Effect {
+            operation:
+                Operation::Discard {
+                    players: PlayerSet::One(PlayerRef::Bound(discarder)),
+                    amount: Expr::Constant(2),
+                    random: false,
+                },
+            ..
+        }] = then.instructions.as_slice()
+        else {
+            return false;
+        };
+        let answered = matches!(&**unpaid, Condition::PaymentChosen(paid) if paid.0 == result.0);
+        if !answered
+            || !otherwise.instructions.is_empty()
+            || !self.stack_item
+            || payer.0 != binding.0
+            || discarder.0 != binding.0
+        {
+            return false;
+        }
+        let id = self.fresh();
+        let mut lets = Vec::new();
+        let Some(filters) = discards_one(cost) else {
+            return false;
+        };
+        let tests: Option<Vec<String>> = filters
+            .iter()
+            .map(|filter| chars_test(filter, id, &mut lets).map(|test| format!("({test})")))
+            .collect();
+        let (Some(tests), Some(line), Ok(among)) = (tests, &self.line, self.players(players)) else {
+            return false;
+        };
+        let Some((_, words)) = line.text.split_once("unless they ") else {
+            return false;
+        };
+        if !lets.is_empty() {
+            return false;
+        }
+        let words = capitalized(words.split('.').next().unwrap_or(words));
+        let among = self.fetch(among);
+        let test = tests.join(" || ");
+        writeln!(out, "let among_{id}: Vec<PlayerId> = {among}; let order_{id}: Vec<PlayerId> = g.state().apnap().filter(|p| among_{id}.contains(p)).collect(); cantrip_mechanics::discard_two_unless_discarding(g, &order_{id}, asker.source, |c| {test})?;").unwrap();
+        self.wanted_labels = Some(format!("&[{}, \"Discard two cards\"]", quoted(&words)));
+        true
+    }
     /// A payment and what hangs on it, where they're one question of the card's
     /// `labels`: whether these instructions were that.
     pub(super) fn one_question(&mut self, rest: &[Instruction], out: &mut String) -> bool {
@@ -1674,7 +2025,8 @@ impl Compiler {
     }
     /// `count`, or up to it if this is the choice of a "you may".
     pub(super) fn offered_count(&mut self, count: &Count) -> Count {
-        match (std::mem::take(&mut self.may_choose), count) {
+        let up_to = printed_otherwise(self.line_text(), "Put up to one");
+        match (std::mem::take(&mut self.may_choose) || up_to, count) {
             (true, Count::Exactly(n) | Count::AsManyAsCan(n)) => Count::UpTo(n.clone()),
             _ => count.clone(),
         }
@@ -1693,15 +2045,16 @@ impl Compiler {
         chosen: String,
         out: &mut String,
     ) -> Result<()> {
-        self.may_choose = true;
-        self.chosen_guard = Some(chosen);
-        self.block(body, out, true)?;
-        self.may_choose = false;
-        self.chosen_guard = None;
-        if std::mem::take(&mut self.guard_opened) {
+        let opened = std::mem::take(&mut self.guard_opened);
+        let guard = self.chosen_guard.replace(chosen);
+        let may = std::mem::replace(&mut self.may_choose, true);
+        let done = self.block(body, out, true);
+        self.may_choose = may;
+        self.chosen_guard = guard;
+        if std::mem::replace(&mut self.guard_opened, opened) {
             writeln!(out, "}}").unwrap();
         }
-        Ok(())
+        done
     }
     /// Read a face's Oracle text, once, before its abilities are compiled.
     pub(super) fn read_printed(&mut self, abilities: &[Ability], oracle: Option<&str>) {

@@ -634,6 +634,7 @@ impl Compiler {
             } => {
                 let cards = self.fetch(self.objects(objects)?);
                 let separator = self.fetch(self.certain_player(separator)?);
+                self.name_even_the_one();
                 let chooser = self.fetch(self.certain_player(chooser)?);
                 writeln!(out, "let cards_{id} = {cards}; let separator_{id} = {separator}; let chooser_{id} = {chooser}; let (first_{id}, second_{id}) = {M}::choose::separate(g, Some(separator_{id}), asker.source, cards_{id})?; let (pile_{id}, other_{id}) = {M}::choose::pile(g, chooser_{id}, asker.source, first_{id}, second_{id})?;").unwrap();
                 self.selections.insert(result.0, format!("pile_{id}"));
@@ -717,8 +718,9 @@ impl Compiler {
                 hosts: ObjectSet::One(host),
             } => {
                 let player = self.one_actor(actor, "operation AttachChosen")?;
-                let count = self.fetch(self.select_count(count)?);
-                writeln!(out, "let player_{id} = {player}; let eligible_{id} = {}; let host_{id} = {}; let count_{id} = {count}; let chosen_{id} = {M}::choose::select(g, player_{id}, asker.source, Purpose::Attach, eligible_{id}, {M}::select::Selection::of(count_{id}, &[]))?; if let Some(host) = host_{id} {{ cantrip_api::instruction(g, |g| {{ for &attachment in &chosen_{id} {{ g.attach(attachment, host); }} }}); }}", self.acted_on(attachments)?, self.fetch(self.object(host)?)).unwrap();
+                let count = self.offered_count(count);
+                let count = self.fetch(self.select_count(&count)?);
+                writeln!(out, "let player_{id} = {player}; let eligible_{id} = {}; let host_{id} = {}; let eligible_{id} = if host_{id}.is_some() {{ eligible_{id} }} else {{ Vec::new() }}; let count_{id} = {count}; let chosen_{id} = {M}::choose::select(g, player_{id}, asker.source, Purpose::Attach, eligible_{id}, {M}::select::Selection::of(count_{id}, &[]))?; if let Some(host) = host_{id} {{ cantrip_api::instruction(g, |g| {{ for &attachment in &chosen_{id} {{ g.attach(attachment, host); }} }}); }}", self.acted_on(attachments)?, self.fetch(self.object(host)?)).unwrap();
                 self.selections.insert(result.0, format!("chosen_{id}"));
             }
             Operation::FightEach { fighters, others } => {
@@ -786,7 +788,7 @@ impl Compiler {
     ) -> Result<()> {
         let pay = match resource {
             // 107.14: paying energy is giving up that many counters.
-            PaidResource::Energy => format!("let most = u32::from(g.state().player(player).energy()); let paid = {M}::choose::number(g, player, asker.source, 0, most, \"Pay\")?; g.change_energy(player, -(paid as i32)); i64::from(paid)"),
+            PaidResource::Energy => format!("let mut paid = 0i64; while g.state().player(player).energy() > 0 && {M}::effects::ask_may(g, player, asker.source, Purpose::Optional)? {{ g.change_energy(player, -1); paid += 1; }} paid"),
             PaidResource::Mana => {
                 self.helpers.insert("pay_question");
                 "i64::from(g.may_pay_x(player, asker.source, asker.source, cost(\"{X}\"), &PAY_QUESTION)?.unwrap_or(0))".to_string()
@@ -1991,8 +1993,13 @@ impl Compiler {
             writeln!(out, "let player_{id} = {chooser}; let pool_{id} = {pool}; let mut picked_{id}: Vec<ObjectId> = Vec::new();").unwrap();
             for filter in filters {
                 let test = self.filter(filter, &Candidate::of("id"))?;
-                let open = self.fetch(format!("pool_{id}.iter().copied().filter(|id| !picked_{id}.contains(id)).filter(|&id| {test}).collect::<Vec<ObjectId>>()"));
-                writeln!(out, "{{ let open = {open}; let one = {M}::choose::cards(g, player_{id}, asker.source, Purpose::{purpose}, open, 1, {up_to})?; picked_{id}.extend(one); }}").unwrap();
+                let each_type = lane_k::printed_otherwise(self.line_text(), "of each permanent type");
+                let again = match each_type {
+                    true => String::new(),
+                    false => format!(".filter(|id| !picked_{id}.contains(id))"),
+                };
+                let open = self.fetch(format!("pool_{id}.iter().copied(){again}.filter(|&id| {test}).collect::<Vec<ObjectId>>()"));
+                writeln!(out, "{{ let open = {open}; let one = {M}::choose::cards(g, player_{id}, asker.source, Purpose::{purpose}, open, 1, {up_to})?; for o in one {{ if !picked_{id}.contains(&o) {{ picked_{id}.push(o); }} }} }}").unwrap();
             }
             self.selections.insert(result.0, format!("picked_{id}"));
             return Ok(());
@@ -2001,6 +2008,16 @@ impl Compiler {
             return Err(gap(format!("selection constraint {}", form(constraint))));
         };
         let count = self.fetch(self.select_count(count)?);
+        let pool = match constraint {
+            SelectionConstraint::TotalProperty {
+                property: Property::ManaValue,
+                comparison: Comparison::LessOrEqual,
+                amount: Expr::Constant(most),
+            } => format!(
+                "{pool}.into_iter().filter(|&c| i64::from(g.mana_value(c)) <= {most}).collect::<Vec<ObjectId>>()"
+            ),
+            _ => pool,
+        };
         writeln!(out, "let player_{id} = {chooser}; let pool_{id} = {pool}; let count_{id} = {count}; let picked_{id} = {M}::choose::select(g, player_{id}, asker.source, Purpose::{purpose}, pool_{id}, {M}::select::Selection::of(count_{id}, &[]).with({part}))?;").unwrap();
         self.selections.insert(result.0, format!("picked_{id}"));
         Ok(())
@@ -2370,6 +2387,12 @@ impl Compiler {
                 writeln!(out, "let (first_{id}, second_{id}) = ({}, {}); if let (Some(first), Some(second)) = (first_{id}, second_{id}) {{ let (a, b) = (g.state().player(first).life, g.state().player(second).life); cantrip_api::instruction(g, |g| {{ g.set_life_total(first, b); g.set_life_total(second, a); }}); }}", self.fetch(self.player(a)?), self.fetch(self.player(b)?)).unwrap();
             }
             // Control of two permanents, for good (701.12b).
+            (ExchangeKind::Control, Operand::Object(a), Operand::Object(b), None)
+                if self.exchanges_a_spell(a, b).is_some() =>
+            {
+                let (spell, permanent) = self.exchanges_a_spell(a, b).expect("just asked");
+                writeln!(out, "let (spell_{id}, permanent_{id}) = ({}, {}); if let (Some(spell), Some(permanent)) = (spell_{id}, permanent_{id}) {{ if g.target_legal(item, {spell}) && g.target_legal(item, {permanent}) {{ let by = g.state().stack.iter().find(|i| i.kind == StackKind::Spell && i.object == spell).map(|i| i.controller); let other = g.controller(permanent); if let Some(by) = by {{ if by != other {{ cantrip_api::instruction(g, |g| {{ g.change_controller(spell, other); g.add_effect(asker.source, permanent, EffectKind::Control(by), Duration::Indefinite); }}); }} }} }} }}", self.fetch(self.object(a)?), self.fetch(self.object(b)?)).unwrap();
+            }
             (ExchangeKind::Control, Operand::Object(a), Operand::Object(b), None) => {
                 writeln!(out, "let (first_{id}, second_{id}) = ({}, {}); if let (Some(first), Some(second)) = (first_{id}, second_{id}) {{ g.exchange_control(asker.source, first, second); }}", self.fetch(self.object(a)?), self.fetch(self.object(b)?)).unwrap();
             }

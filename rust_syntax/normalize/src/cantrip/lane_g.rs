@@ -538,6 +538,11 @@ impl Compiler {
             format!("g.may_pay(payer_{id}, {source}, {subject}, {cost}, &PAY_QUESTION)?")
         };
         let paid = match cost.parts.as_slice() {
+            [CostPart::Choice(_)]
+                if lane_k::printed_otherwise(self.line_text(), "for each blight counter") =>
+            {
+                return Err(gap("ways to pay chosen for every time first, then all paid at once"));
+            }
             // One decision: what the first question leaves unpaid the second offers.
             [CostPart::Choice(costs)] => {
                 let mut asks = Vec::new();

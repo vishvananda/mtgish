@@ -481,11 +481,11 @@ impl Compiler {
             }
             PlayerRef::ControllerOf(object) => format!(
                 "{}.map(|o: ObjectId| q.controller(o))",
-                self.object(object)?
+                lane_k::gone_or_not(self.object(object)?, object)
             ),
             PlayerRef::OwnerOf(object) => format!(
                 "{}.map(|o: ObjectId| q.state().obj(o).owner)",
-                self.object(object)?
+                lane_k::gone_or_not(self.object(object)?, object)
             ),
             PlayerRef::Target { slot, index } if self.choosing.is_some() => format!(
                 "{}.and_then(|t: Target| t.player())",
@@ -1107,6 +1107,10 @@ impl Compiler {
                     self.object(object)?
                 ))
             }
+            Expr::CountObjects(objects) if lane_k::convoked(objects).is_some() => count(format!(
+                "{}.map_or(0, |o: ObjectId| q.history().convoked(o).count() as i64)",
+                self.object(lane_k::convoked(objects).expect("just asked"))?
+            )),
             Expr::CountObjects(objects) => {
                 count(format!("({}).len() as i64", self.objects(objects)?))
             }
@@ -1681,7 +1685,10 @@ impl Compiler {
                 &self.number(value)?.code,
             ),
             ObjectFilter::InZone(ZoneScope::Shared(zone)) => {
-                format!("q.state().obj({id}).zone.kind() == {}", zone_kind(zone)?)
+                format!(
+                    "(q.state().obj({id}).became.is_none() && q.state().obj({id}).zone.kind() == {})",
+                    zone_kind(zone)?
+                )
             }
             ObjectFilter::InZone(ZoneScope::Players { zone, players }) => format!(
                 "(q.state().obj({id}).zone.kind() == {} && {})",

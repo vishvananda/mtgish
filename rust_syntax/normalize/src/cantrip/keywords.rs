@@ -82,6 +82,11 @@ impl Compiler {
     }
     /// A keyword action that only hands the engine a player.
     fn actor_action(&self, action: &Action, call: &str, out: &mut String) -> Result<()> {
+        if let PlayerSet::One(target @ PlayerRef::Target { .. }) = action.actor {
+            let player = self.fetch(self.player(target)?);
+            writeln!(out, "if let Some(player) = {player} {{ {call}; }}").unwrap();
+            return Ok(());
+        }
         let player = self.actor(action)?;
         writeln!(out, "{{ let player = {player}; {call}; }}").unwrap();
         Ok(())

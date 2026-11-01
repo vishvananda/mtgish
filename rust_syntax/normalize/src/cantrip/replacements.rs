@@ -594,13 +594,13 @@ impl Compiler {
             frame,
         );
         let mut out = String::new();
-        let compiled = self.program(
-            &Program {
-                instructions: rest.to_vec(),
-            },
-            &mut out,
-            false,
-        );
+        let steps = Program {
+            instructions: rest.to_vec(),
+        };
+        let compiled = match self.dig(&steps, &mut out) {
+            Ok(false) => self.program(&steps, &mut out, false),
+            done => done.map(drop),
+        };
         (
             self.reader,
             self.event_at,

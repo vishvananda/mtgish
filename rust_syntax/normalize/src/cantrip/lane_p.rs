@@ -345,13 +345,7 @@ impl Compiler {
                 {
                     return Err(gap(feature.as_str()));
                 }
-                let base = self.choice_labels.len();
-                let words = ["colorless", "white", "blue", "black", "red", "green"];
-                self.choice_labels.extend(words.map(String::from));
-                let end = self.choice_labels.len();
-                let labels: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
-                self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
-                writeln!(out, "let player_{id} = {player}; let {local}_at = {M}::choose::option(g, player_{id}, {source}, item.ability.card, {base}..{end})? - {base}; let {local} = [None, Some(Color::White), Some(Color::Blue), Some(Color::Black), Some(Color::Red), Some(Color::Green)][usize::from({local}_at)];").unwrap();
+                writeln!(out, "let player_{id} = {player}; let {local} = if {M}::effects::ask_may(g, player_{id}, {source}, Purpose::Optional)? {{ None }} else {{ Some({M}::choose_color(g, player_{id}, {source})?) }};").unwrap();
             }
             ValueKind::Direction => {
                 let code = format!("{M}::choose::direction(g, {player}, {source})?");
