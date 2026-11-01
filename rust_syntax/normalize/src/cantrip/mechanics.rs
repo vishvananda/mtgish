@@ -446,15 +446,11 @@ impl Compiler {
                     format!("{M}::escape::way({mana}, {exiled}, \"Escape\")"),
                 );
             }
-            // The engine has these, and nothing here says how a card lists them.
-            K::Storied | K::Hideaway => {
-                return Err(gap(format!("mechanic {mechanic:?} not mapped")))
-            }
-            other => return Err(gap(format!("engine: no {other:?}"))),
+            other => self.mechanic_beyond(other, cost, amount, filter, label, parts)?,
         }
         Ok(())
     }
-    fn mechanic_cost(
+    pub(super) fn mechanic_cost(
         &mut self,
         cost: Option<&Cost>,
         mechanic: Mechanic,

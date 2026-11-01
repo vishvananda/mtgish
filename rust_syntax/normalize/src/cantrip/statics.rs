@@ -84,10 +84,19 @@ impl Compiler {
     /// sits in `CardDef::delayed`, and `AbilityRef::delayed` names it through
     /// the card printing the grant, which a granted ability is not.
     pub(super) fn grant(&mut self, ability: &Ability) -> Result<usize> {
+        let label = format!("granted_{}", self.fresh());
+        let grown = self.grown_parts(ability, &label)?;
+        let [def] = grown.abilities.as_slice() else {
+            return Err(lane_g::grant_gap(ability));
+        };
+        self.delayed.push(def.clone());
+        Ok(self.delayed.len() - 1)
+    }
+    /// What an ability adds to a card, compiled on its own.
+    pub(super) fn grown_parts(&mut self, ability: &Ability, label: &str) -> Result<Parts> {
         if self.granting {
             return Err(gap("granted ability that grants another"));
         }
-        let label = format!("granted_{}", self.fresh());
         // The enclosing callback's reader belongs to it, not to this ability.
         let saved = (
             self.reader,
@@ -102,18 +111,14 @@ impl Compiler {
         let results = self.results();
         self.granting = true;
         let mut grown = Parts::default();
-        let compiled = self.ability(ability, &label, &mut grown, None);
+        let compiled = self.ability(ability, label, &mut grown, None);
         self.granting = false;
         self.restore_results(results);
         self.slots = slots;
         (self.reader, self.event_at, self.frame, self.static_guard) = saved;
         self.outer = outer;
         compiled?;
-        let [def] = grown.abilities.as_slice() else {
-            return Err(gap(format!("granted {}", form(ability))));
-        };
-        self.delayed.push(def.clone());
-        Ok(self.delayed.len() - 1)
+        Ok(grown)
     }
     /// Whether `id` is among the objects a rule is about, as a `Query` reads.
     fn rule_subject(&self, affected: &ObjectSet, id: &str) -> Result<String> {
@@ -280,7 +285,7 @@ impl Compiler {
             Change::ChosenColor { .. } | Change::ChosenType { .. } => self.chosen_layer(change)?,
             Change::GrantKeyword(Keyword::Protection(quality)) => {
                 let mut grants = Vec::new();
-                granted_protection(quality, &mut grants)?;
+                self.grant_protection(quality, &mut grants)?;
                 let body = grants.into_iter().map(|(_, statement)| statement).collect();
                 LayerChange::of("Ability", body)
             }
@@ -446,6 +451,13 @@ impl Compiler {
                 action: ObjectAction::Attack(AttackDefenders::Any),
                 amount: RequirementAmount::AtLeast(Expr::Constant(1)),
             }) => LayerChange::of("Ability", "chars.must_attack += 1;".into()),
+            Change::GrantAbility(ability) if self.grants_keyword(ability).is_some() => {
+                let keyword = self.grants_keyword(ability).expect("a keyword");
+                LayerChange::of(
+                    "Ability",
+                    format!("chars.keywords = chars.keywords.with({keyword});"),
+                )
+            }
             Change::GrantAbility(ability) => {
                 let index = self.grant(ability)?;
                 LayerChange::of(

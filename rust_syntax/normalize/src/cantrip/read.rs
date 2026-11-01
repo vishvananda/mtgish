@@ -604,7 +604,7 @@ impl Compiler {
                     return Ok("vec![item.object]".into());
                 }
                 if !chooses(&paid) || cost.parts.iter().filter(|p| chooses(p)).count() != 1 {
-                    return Err(gap(format!("cost objects of {}", form(&paid))));
+                    return Ok(lane_g::paid_objects(component));
                 }
                 Ok("q.cost_objects(item).to_vec()".into())
             }
@@ -619,10 +619,11 @@ impl Compiler {
                     ..
                 } = paid
                 else {
-                    return Err(gap(format!("cost objects of {}", form(&paid))));
+                    return Ok(lane_g::paid_objects(component));
                 };
                 Ok(format!("{{ let records = q.history().all(); let spell = q.history().original_spell(item.object); records.iter().rposition(|r| matches!(r.event, Event::Cast(c) if c.spell == spell)).map_or_else(Vec::new, |cast| records[..cast].iter().rev().filter_map(|r| match r.event {{ Event::ZoneChange {{ old, from, reason: ZoneReason::Sacrifice, .. }} if from.is(ZoneKind::Battlefield) => Some(old), _ => None }}).take({n}).collect::<Vec<ObjectId>>()) }}"))
             }
+            PaymentRef::Resolution(result) => self.paid_at_resolution(result),
             other => Err(gap(format!("cost objects of {}", form(other)))),
         }
     }
@@ -778,7 +779,9 @@ impl Compiler {
             }
             Expr::Constant(n) => Number::integer(*n),
             Expr::AnnouncedX
-                if self.reader == Reader::Resolution && self.stack_item && self.outer.is_none() =>
+                if self.reader == Reader::Resolution
+                    && self.stack_item
+                    && (self.outer.is_none() || self.counted.is_some()) =>
             {
                 Number {
                     code: "i64::from(item.x)".into(),
@@ -1010,6 +1013,12 @@ impl Compiler {
                 ),
                 min: i32::MIN.into(),
                 max: i32::MAX.into(),
+                dynamic: true,
+            },
+            Expr::Performed(result) if self.counted == Some(result.0) => Number {
+                code: "i64::from(item.x)".into(),
+                min: 0,
+                max: u16::MAX.into(),
                 dynamic: true,
             },
             Expr::Performed(result) | Expr::CountersRemoved(result) => {
@@ -1346,8 +1355,10 @@ impl Compiler {
             ObjectFilter::State(ObjectState::Kicked) => {
                 format!("q.state().obj({id}).kicked > 0")
             }
-            ObjectFilter::State(ObjectState::Commander) => {
-                return Err(gap("engine: no commander"))
+            ObjectFilter::State(ObjectState::Commander) => lane_g::commander(&id),
+            // An optional additional cost, or the waterbend kicker that stands for one.
+            ObjectFilter::State(ObjectState::CostPaid(CastCost::Additional)) => {
+                format!("(q.state().obj({id}).paid > 0 || q.state().obj({id}).kicked > 0)")
             }
             ObjectFilter::State(ObjectState::Saddled) => {
                 format!("q.state().obj({id}).marks.saddled_turn == q.state().turn.number")
@@ -1561,7 +1572,11 @@ impl Compiler {
                     TurnWindow::BeforeBlockersDeclared => {
                         format!("{step} < (Step::DeclareBlockers as u8)")
                     }
-                    TurnWindow::FirstCombat => return Err(gap("engine: no combat phase count")),
+                    TurnWindow::FirstCombat => planned::planned_value(
+                        "engine: no combat phase count",
+                        "false",
+                        "q.state().turn.combat_phase == 1",
+                    ),
                     TurnWindow::AfterBlockersDeclared => {
                         format!("{step} > (Step::DeclareBlockers as u8)")
                     }

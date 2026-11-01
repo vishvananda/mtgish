@@ -48,7 +48,7 @@ fn crew(price: &Cost, text: &str) -> Result<String> {
 
 /// The cards of a graveyard cost with every graveyard narrowed to the payer's
 /// spelled as that scope, which is what the engine's cost can pay.
-fn own_graveyard(objects: &ObjectSet) -> Option<ObjectSet> {
+pub(super) fn own_graveyard(objects: &ObjectSet) -> Option<ObjectSet> {
     let ObjectSet::Zone {
         scope:
             ZoneScope::Players {
@@ -113,7 +113,7 @@ fn waterbend_as_mana(price: &Cost) -> Option<Cost> {
 }
 
 /// Whether a filter keeps to permanents the ability's controller controls.
-fn yours(filter: &ObjectFilter) -> bool {
+pub(super) fn yours(filter: &ObjectFilter) -> bool {
     match filter {
         ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)) => true,
         ObjectFilter::All(filters) => filters.iter().any(yours),
@@ -140,7 +140,7 @@ fn cant_be_countered(zones: &[EventZone], affected: &EffectSubjects, changes: &[
 
 impl Compiler {
     /// A generated `ObjectFilter`: what a cost accepts of an object.
-    fn cost_filter(&mut self, filter: &ObjectFilter, label: &str) -> Result<String> {
+    pub(super) fn cost_filter(&mut self, filter: &ObjectFilter, label: &str) -> Result<String> {
         // A cost's filter is a plain function, with no event or stack item to read.
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
@@ -210,6 +210,9 @@ impl Compiler {
                 let n = u32::try_from(*n).map_err(|_| gap("counter cost without a fixed count"))?;
                 format!("put_counters({}, {n})", read::counter_kind(kind)?)
             }
+            CostPart::RemoveCounters { removals } if !lane_g::plain_removal(removals) => {
+                return self.counter_removal_beyond(removals, label)
+            }
             CostPart::RemoveCounters { removals } => {
                 let [CounterRemoval {
                     recipients: Recipients::Objects(objects),
@@ -256,14 +259,15 @@ impl Compiler {
                 entry,
                 face_down: false,
             } if entry.counters.is_empty() && entry.states.is_empty() && !entry.tapped => {
-                let [CostObjectSelection { objects, choose }] = selections.as_slice() else {
-                    return Err(gap("move cost shape"));
-                };
                 if self.links_exile && matches!(destination, Destination::Exile) {
                     return Err(gap("exile cost an ability reads as exiled with its source"));
                 }
-                let n = exactly_u8(choose.as_ref())
-                    .ok_or_else(|| gap("move cost without a fixed count"))?;
+                let [CostObjectSelection { objects, choose }] = selections.as_slice() else {
+                    return self.move_cost_beyond(selections, destination, label);
+                };
+                let Some(n) = exactly_u8(choose.as_ref()) else {
+                    return self.move_cost_beyond(selections, destination, label);
+                };
                 let yours = own_graveyard(objects);
                 let objects = yours.as_ref().unwrap_or(objects);
                 match (destination, objects) {
@@ -306,16 +310,10 @@ impl Compiler {
                             ..
                         },
                     ) => format!("exile_from_hand({n}, {})", self.cost_filter(filter, label)?),
-                    (destination, objects) => {
-                        return Err(gap(format!(
-                            "move cost {} from {}",
-                            form(destination),
-                            form(objects)
-                        )))
-                    }
+                    _ => return self.move_cost_beyond(selections, destination, label),
                 }
             }
-            other => return Err(gap(format!("cost part {}", form(other)))),
+            other => return self.cost_part_beyond(other, label),
         })
     }
     /// A `Cost`. Mana symbols combine into one part before bounds are checked.
@@ -519,9 +517,6 @@ impl Compiler {
         body: &Program,
         scope: Option<Scope>,
     ) -> Result<String> {
-        if limits.activators.is_some() {
-            return Err(gap("activation by other players"));
-        }
         let waterbent = waterbend_as_mana(price);
         let price = waterbent.as_ref().unwrap_or(price);
         let text = ability_text(body);
@@ -547,17 +542,33 @@ impl Compiler {
         } else if crate::semantics::activation_kind(price, announcement, body)
             == crate::semantics::ActivationKind::Mana
         {
-            let adds = self.mana_ability(body, &format!("{label}_mana"))?;
-            format!(
-                "mana_ability({}, {adds}, {}){}",
-                self.cost(price, label)?,
-                quoted(&text),
-                if chosen::makes_chosen_color(body) {
-                    ".colors_from(cantrip_mechanics::lands::chosen_color)"
-                } else {
-                    ""
+            if let Some(colors) = lane_g::filter_land(body) {
+                format!(
+                    "cantrip_mechanics::lands::filter_two::<{colors}>({}, {})",
+                    self.cost(price, label)?,
+                    quoted(&text)
+                )
+            } else {
+                let adds = self.mana_ability(body, &format!("{label}_mana"))?;
+                let colors = self.mana_colors.take();
+                let made = format!(
+                    "mana_ability({}, {adds}, {}){}",
+                    self.cost(price, label)?,
+                    quoted(&text),
+                    if chosen::makes_chosen_color(body) {
+                        ".colors_from(cantrip_mechanics::lands::chosen_color)"
+                    } else {
+                        ""
+                    }
+                );
+                match colors {
+                    Some((suffix, None)) => format!("{made}{suffix}"),
+                    Some((suffix, Some(feature))) => {
+                        planned::planned_value(feature, &made, &format!("{made}{suffix}"))
+                    }
+                    None => made,
                 }
-            )
+            }
         } else {
             let targets = self.announcement(announcement, label)?;
             let effect = self.effect(body, label)?;
@@ -592,15 +603,19 @@ impl Compiler {
                 ActivationRule::MaxPerTurn(Expr::Constant(n)) if *n >= 1 => {
                     allowed = Some(self.activations_each_turn(*n, index, label));
                 }
-                other => return Err(gap(format!("activation rule {}", form(other)))),
+                other => {
+                    def = self.activation_rule_beyond(def, other, label)?;
+                }
             }
         }
         match limits.keyword {
             Some(ActivatedKeyword::Exhaust) => def.push_str(".exhaust()"),
             Some(ActivatedKeyword::PowerUp) => def.push_str(".power_up()"),
-            Some(ActivatedKeyword::Boast | ActivatedKeyword::Forecast) => {
-                return Err(gap("activated keyword Boast or Forecast"));
+            Some(ActivatedKeyword::Boast) => {
+                let boast = self.boast(label);
+                def.push_str(&format!(".condition({boast}).once_each_turn()"));
             }
+            Some(ActivatedKeyword::Forecast) => {}
             None => {}
         }
         if limits.sorcery {
@@ -634,7 +649,10 @@ impl Compiler {
                 def.push_str(&format!(".from({})", read::zone_kind(zone)?));
             }
         }
-        Ok(def)
+        if matches!(limits.keyword, Some(ActivatedKeyword::Forecast)) {
+            def = lane_g::forecast(def);
+        }
+        self.activators(def, limits.activators.as_ref())
     }
     /// Backup N (702.165a). The listed abilities also stand on the card itself,
     /// so here they are only what the target gains: keywords, and the one other
@@ -705,9 +723,6 @@ impl Compiler {
             right: Expr::Constant(n),
         };
         for (i, stage) in stages.iter().enumerate() {
-            if stage.animates {
-                return Err(gap("counter stage that animates"));
-            }
             let least = compare(Comparison::GreaterOrEqual, stage.minimum);
             let condition = match stage.maximum {
                 Some(most) => Condition::All(vec![least, compare(Comparison::LessOrEqual, most)]),
@@ -725,7 +740,22 @@ impl Compiler {
                 })
                 .into_iter()
                 .collect();
-            then.extend(stage.abilities.iter().cloned());
+            if stage.animates {
+                then.push(Ability::Static {
+                    kind: StaticKind::Ordinary,
+                    affected: EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
+                    changes: vec![Change::AddCardType(crate::mtg_types::CardType::Creature)],
+                });
+            }
+            // "It has [abilities]" for as long as the stage lasts (CR 711.2a, 721.2a).
+            then.extend(stage.abilities.iter().map(|ability| match ability {
+                Ability::Activated { .. } | Ability::Triggered { .. } => Ability::Static {
+                    kind: StaticKind::Ordinary,
+                    affected: EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
+                    changes: vec![Change::GrantAbility(Box::new(ability.clone()))],
+                },
+                other => other.clone(),
+            }));
             let staged = Ability::Conditional {
                 condition,
                 then,
@@ -758,7 +788,7 @@ impl Compiler {
                             [ManaSymbol::Generic(n)] if u8::try_from(*n).is_ok() => {
                                 format!("cantrip_mechanics::triggers::ward::<{n}>(\"Ward {{{n}}}\")")
                             }
-                            _ => return Err(gap("ward with colored mana")),
+                            _ => self.ward_beyond(cost, label)?,
                         },
                         [CostPart::Life(Expr::Constant(n))] if u8::try_from(*n).is_ok() => {
                             format!("cantrip_mechanics::triggers::ward_life::<{n}>(\"Ward--Pay {n} life\")")
@@ -768,7 +798,12 @@ impl Compiler {
                             filter: ObjectFilter::Any,
                             random: false,
                         }] => "cantrip_mechanics::triggers::ward_discard(\"Ward--Discard a card\")".into(),
-                        other => return Err(gap(format!("ward cost {}", form(&other[0])))),
+                        [CostPart::Life(Expr::ObjectProperty {
+                            object: ObjectRef::KeywordHost,
+                            property: Property::Power,
+                            ..
+                        })] => "cantrip_mechanics::triggers::ward_life_equal_to_power(\"Ward--Pay life equal to this creature's power\")".into(),
+                        _ => self.ward_beyond(cost, label)?,
                     };
                         parts.abilities.push(ward);
                     }
@@ -780,10 +815,7 @@ impl Compiler {
                             color(c)?;
                             parts.protection |= 1 << color_index(c)?;
                         }
-                        Protection::Objects { filter, .. } => {
-                            return Err(gap(format!("protection from {}", form(filter))))
-                        }
-                        other => return Err(gap(format!("protection {}", form(other)))),
+                        other => self.protection_beyond(other, parts)?,
                     },
                     k => parts.keywords.push(keyword(k)?),
                 }
@@ -834,6 +866,7 @@ impl Compiler {
                     if let Some(divide) = self.dividing.take() {
                         parts.fields.insert("divide", format!("Some({divide})"));
                     }
+                    self.spell_keywords(parts);
                 }
             }
             Ability::Activated {

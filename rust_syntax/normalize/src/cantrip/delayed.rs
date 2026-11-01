@@ -340,7 +340,16 @@ impl Compiler {
             .transpose()?
             .unwrap_or_else(|| "true".into());
         let label = format!("reflexive_{}", self.fresh());
-        let (outer, targets) = self.closure(&label, true, Some(announcement), &None, body)?;
+        // "When you do" of a payment the payer sized: its ability is told how much.
+        let amount = self
+            .values
+            .get(&performed.0)
+            .filter(|value| value.starts_with("bound_"))
+            .cloned();
+        let counted = std::mem::replace(&mut self.counted, amount.as_ref().map(|_| performed.0));
+        let closed = self.closure(&label, true, Some(announcement), &None, body);
+        self.counted = counted;
+        let (outer, targets) = closed?;
         let mut def = format!("delayed_trigger({label}, {})", quoted(&ability_text(body)));
         if let Some(targets) = targets {
             write!(def, ".targets({targets})").unwrap();
@@ -361,7 +370,10 @@ impl Compiler {
             ),
             _ => return Err(gap("reflexive ability about an object and a player")),
         };
-        writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger(item.object, item.controller, AbilityRef::delayed(item.ability.card, {index}), {subject}); }}").unwrap();
+        match amount {
+            Some(amount) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger_counted(item.object, item.controller, AbilityRef::delayed(item.ability.card, {index}), {subject}, ({amount}).clamp(0, i64::from(u16::MAX)) as u16); }}").unwrap(),
+            None => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger(item.object, item.controller, AbilityRef::delayed(item.ability.card, {index}), {subject}); }}").unwrap(),
+        }
         Ok(())
     }
     /// `Operation::CreateDelayedTrigger`.

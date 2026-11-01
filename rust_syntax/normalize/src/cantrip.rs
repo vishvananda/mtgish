@@ -19,6 +19,7 @@ mod delayed;
 mod effects;
 mod keywords;
 mod lane_f;
+mod lane_g;
 mod lane_i;
 mod mechanics;
 pub mod planned;
@@ -212,6 +213,29 @@ fn granted_protection(quality: &Protection, grants: &mut Vec<(String, String)>) 
                 format!("chars.protection_types = chars.protection_types.with(CardType::{t});"),
             ));
         }
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter: ObjectFilter::Subtype(s),
+        } => {
+            let word = name(s);
+            if !crate::cantrip_vocab::SUBTYPES.contains(&word.as_str()) {
+                return Err(gap(format!("subtype {word}")));
+            }
+            grants.push((
+                lane_g::planned_kind(
+                    "engine: no effect gives protection from a subtype",
+                    format!("EffectKind::ProtectionFromSubtype(Subtype::{word})"),
+                ),
+                format!("chars.protection_subtypes = chars.protection_subtypes.with(q.words(asker.source).subtype(Subtype::{word}));"),
+            ));
+        }
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter: ObjectFilter::Any,
+        } => grants.push((
+            "EffectKind::ProtectionFromEverything".into(),
+            "chars.protection_everything = true;".into(),
+        )),
         Protection::Objects { filter, .. } => {
             return Err(gap(format!("protection from {}", form(filter))))
         }
@@ -257,6 +281,7 @@ fn mana(symbols: &[ManaSymbol]) -> Result<String> {
     let mut hybrid = Vec::new();
     let mut twobrid = [0u32; 5];
     let mut phyrexian = [0u32; 5];
+    let mut beyond = String::new();
     for symbol in symbols {
         match symbol {
             ManaSymbol::Generic(n) => {
@@ -279,7 +304,13 @@ fn mana(symbols: &[ManaSymbol]) -> Result<String> {
                 color(&v[0])?;
                 phyrexian[color_index(&v[0])?] += 1;
             }
-            _ => return Err(gap("mana symbol")),
+            ManaSymbol::Snow => beyond.push_str(".with_snow(1)"),
+            ManaSymbol::Phyrexian(v) => {
+                let colors = v.iter().map(color).collect::<Result<Vec<_>>>()?;
+                let colors = colors.iter().map(|c| format!("Color::{c}"));
+                let colors = colors.collect::<Vec<_>>().join(", ");
+                beyond.push_str(&format!(".with_phyrexian_hybrid(&[{colors}])"));
+            }
         }
     }
     if generic > 255
@@ -294,10 +325,18 @@ fn mana(symbols: &[ManaSymbol]) -> Result<String> {
         return Err(gap("mana cost exceeds Cantrip field bounds"));
     }
     hybrid.resize(6, "None".into());
-    Ok(format!(
+    let cost = format!(
         "ManaCost {{ generic: {generic}, x: {x}, symbols: {colors:?}, hybrid: [{}], twobrid: {twobrid:?}, phyrexian: {phyrexian:?} }}",
         hybrid.join(",")
-    ))
+    );
+    Ok(match beyond.is_empty() {
+        true => cost,
+        false => planned::planned_value(
+            "engine: no snow or hybrid Phyrexian mana symbol",
+            &cost,
+            &format!("{cost}{beyond}"),
+        ),
+    })
 }
 struct Number {
     code: String,
@@ -411,8 +450,16 @@ struct Compiler {
     only_way: bool,
     /// An instruction asks "tap or untap", which the card's `labels` word.
     tap_or_untap: bool,
+    /// A spell's body said "paradigm", which sets a field of the card.
+    paradigm: bool,
     /// Inside a spell's cost change, which has `targets` in reach.
     costing_targets: bool,
+    /// What the cost being compiled is paid for.
+    paying: lane_g::Paying,
+    /// The instruction a reflexive ability's body counts: it is the item's `x`.
+    counted: Option<u32>,
+    /// What a mana ability's definition ends with, and the requirement if any.
+    mana_colors: Option<(String, Option<&'static str>)>,
     /// Small generated functions that this module uses.
     helpers: BTreeSet<&'static str>,
     extras: Vec<String>,
@@ -699,8 +746,12 @@ impl Compiler {
             bound_objects: BTreeSet::new(),
             bound_players: BTreeSet::new(),
             costing_targets: false,
+            paying: lane_g::Paying::Ability,
+            counted: None,
+            mana_colors: None,
             only_way: false,
             tap_or_untap: false,
+            paradigm: false,
             helpers: BTreeSet::new(),
             extras: Vec::new(),
             delayed: Vec::new(),
@@ -1050,11 +1101,13 @@ impl Compiler {
     ) -> Result<()> {
         let id = self.next;
         self.next += 1;
-        let restriction = restriction.map(mana_restriction).transpose()?;
+        let (lasting, restriction) = lane_g::mana_lasting(restriction);
+        let restriction = restriction.map(|r| self.mana_use(r)).transpose()?;
         let add = |player: &str, color: &str, amount: &str| -> String {
-            match &restriction {
-                Some(r) => format!("g.add_restricted_mana({player}, {color}, {amount}, {r});"),
-                None => format!("g.add_mana({player}, {color}, {amount});"),
+            match (&restriction, lasting) {
+                (Some(r), _) => format!("g.add_restricted_mana({player}, {color}, {amount}, {r});"),
+                (None, Some(until)) => format!("g.add_mana_{until}({player}, {color}, {amount});"),
+                (None, None) => format!("g.add_mana({player}, {color}, {amount});"),
             }
         };
         writeln!(
@@ -1146,6 +1199,9 @@ impl Compiler {
         else {
             return Err(gap("compound mana ability callback"));
         };
+        if let Some(adds) = self.mana_beyond(mana, restriction.as_ref(), rest, label)? {
+            return Ok(adds);
+        }
         let plan = match mana_plan(mana)? {
             // One color the engine limits it to (`colors_from`) as it is offered.
             ManaPlan::Fixed(units) if matches!(units.as_slice(), [(ManaColor::Chosen, _)]) => {
@@ -1204,8 +1260,8 @@ impl Compiler {
                 }
             }
         }
-        if let Some(r) = restriction {
-            metadata.push_str(&format!(".only_for({})", mana_restriction(r)?));
+        if let (_, Some(r)) = lane_g::mana_lasting(restriction.as_ref()) {
+            metadata.push_str(&format!(".only_for({})", self.mana_use(r)?));
         }
         let mut out = String::new();
         self.stack_item = false;
@@ -1490,6 +1546,7 @@ impl Parts {
             "block_requirements" => self.block_requirements.push(entry),
             "attack_rules" => self.attack_rules.push(entry),
             "untap_bans" => self.untap_bans.push(entry),
+            "enters" => self.enters.push(entry),
             table => self.table(table, entry),
         }
     }
@@ -1498,6 +1555,36 @@ impl Parts {
     }
     fn field(&mut self, field: &'static str, value: String) {
         self.fields.insert(field, value);
+    }
+    /// Nothing but `abilities` was added.
+    fn only_abilities(&self) -> bool {
+        self.keywords.is_empty()
+            && self.statics.is_empty()
+            && self.replacements.is_empty()
+            && self.preventions.is_empty()
+            && self.enters.is_empty()
+            && self.block_rules.is_empty()
+            && self.block_requirements.is_empty()
+            && self.attack_rules.is_empty()
+            && self.untap_bans.is_empty()
+            && self.tables.is_empty()
+            && self.fields.is_empty()
+    }
+    /// A definition holding only what was added: `enters` is its compiled field.
+    fn card(&self, enters: &str) -> String {
+        format!(
+            "CardDef {{ keywords: Keywords::of(&[{}]), abilities: &[{}], statics: &[{}], replacements: &[{}], preventions: &[{}], block_rules: &[{}], block_requirements: &[{}], attack_rules: &[{}], untap_bans: &[{}], enters: {enters}, {}..CardDef::BLANK }}",
+            self.keywords.join(","),
+            self.abilities.join(","),
+            self.statics.join(","),
+            self.replacements.join(","),
+            self.preventions.join(","),
+            self.block_rules.join(","),
+            self.block_requirements.join(","),
+            self.attack_rules.join(","),
+            self.untap_bans.join(","),
+            self.rest()
+        )
     }
     /// The struct-literal fields for `tables` and `fields`.
     fn rest(&self) -> String {

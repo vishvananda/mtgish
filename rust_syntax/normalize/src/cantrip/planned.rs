@@ -27,7 +27,7 @@ pub fn requirement(feature: &str) -> String {
 /// Adding one here and regenerating is all a card waiting on it needs.
 const LANDED: &[&str] = &[];
 
-/// Whether `feature` has landed in Cantrip.
+/// Whether the requirement `feature` has landed in Cantrip.
 pub(super) fn landed(feature: &str) -> bool {
     LANDED.contains(&requirement(feature).as_str())
 }
