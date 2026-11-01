@@ -427,3 +427,455 @@ fn reduce_more_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
         _ => return None,
     })
 }
+
+fn when_state(condition: Condition) -> EventSpec {
+    EventSpec::State { condition }
+}
+
+/// What a card must be to count as this hand or card term.
+fn card_term(operand: &Operand) -> Option<ObjectFilter> {
+    match operand {
+        Operand::Filter(filter) => Some(filter.clone()),
+        Operand::Vocabulary { form, .. } if form == "ThisCardInHand" || form == "ThisCard" => {
+            Some(ObjectFilter::SameObject(ObjectRef::Source))
+        }
+        Operand::Term { form, operands, .. } if form == "SingleCardInHand" => {
+            card_term(operands.first()?)
+        }
+        Operand::Term { form, operands, .. } if form == "IsCreatureType" => {
+            Some(ObjectFilter::Subtype(vocabulary_value(operands.first()?)?))
+        }
+        other => hand_filter(other),
+    }
+}
+
+fn counters_filter(kind: &Operand, comparison: &Comparison, value: &Expr) -> Option<ObjectFilter> {
+    Some(ObjectFilter::Counters {
+        kind: Some(counter_kind(kind)?),
+        comparison: comparison.clone(),
+        value: value.clone(),
+    })
+}
+
+/// Triggers the first passes left, each by what the rules watch for.
+fn reduce_more_events(form: &str, operands: &[Operand]) -> Option<EventSpec> {
+    use AttackDefenders as D;
+    use EventZone as Z;
+    use Operand::{Comparison as Compare, Filter, Object, Objects, Players};
+    let all = |filters: Vec<ObjectFilter>| ObjectFilter::All(filters);
+    let bare = || -> Option<(Comparison, Expr)> { None };
+    let batch = |event: EventSpec, count, including| EventSpec::Batch {
+        event: Box::new(event),
+        per: BatchPer::Whole,
+        count,
+        including,
+    };
+    let attack = |attackers, by: Option<&PlayerSet>, defenders| EventSpec::Attack {
+        attackers,
+        by: by.cloned(),
+        defenders,
+    };
+    let spell = |players: &PlayerSet, spells| EventSpec::Spell {
+        event: SpellEvent::Cast,
+        players: players.clone(),
+        spells,
+    };
+    let player = |event, players: &PlayerSet, objects| EventSpec::Player {
+        event,
+        players: players.clone(),
+        objects,
+    };
+    let discard = |players: &PlayerSet, cards, kind, grouping| EventSpec::Discard {
+        players: players.clone(),
+        cards,
+        source_only: false,
+        kind,
+        grouping,
+    };
+    let amount_is = |event, comparison: &Comparison, value: &Expr| EventSpec::Filtered {
+        event: Box::new(event),
+        condition: Condition::Compare {
+            left: Expr::EventAmount,
+            comparison: comparison.clone(),
+            right: value.clone(),
+        },
+    };
+    let one = |object: &ObjectRef| ObjectFilter::SameObject(object.clone());
+    let others = |object: &ObjectRef, set: &ObjectSet| {
+        all(vec![
+            ObjectFilter::Not(Box::new(one(object))),
+            objects_filter(set),
+        ])
+    };
+    Some(match (form, operands) {
+        ("WhenACardBecomesPlotted", [cards]) => EventSpec::Object {
+            event: ObjectEvent::Plotted,
+            objects: card_term(cards)?,
+        },
+        (
+            "WhenACardIsPutIntoAGraveyardFromAnywhereOtherThanTheBattlefield",
+            [Filter(cards), Players(owners)],
+        ) => EventSpec::ZoneChangeFromElsewhere {
+            objects: all(vec![
+                cards.clone(),
+                ObjectFilter::OwnedBy(owners.clone()),
+            ]),
+            except: vec![Z::Battlefield],
+            to: Z::Graveyard,
+        },
+        ("WhenACreatureAttacksAPlayerAlone", [Objects(set), Players(players)]) => attack(
+            all(vec![
+                objects_filter(set),
+                ObjectFilter::State(ObjectState::AttackingAlone),
+            ]),
+            None,
+            D::Players(players.clone()),
+        ),
+        ("WhenACreatureAttacksAPlayerAndIsntBlocked", [Objects(set), Players(players)]) => {
+            EventSpec::AttackUnblocked {
+                attackers: objects_filter(set),
+                defenders: D::Players(players.clone()),
+                count: None,
+            }
+        }
+        (
+            "WhenANumberOfCreaturesAttacksAPlayerAndArentBlocked",
+            [Compare(comparison, value), Objects(set), Players(players)],
+        ) => EventSpec::AttackUnblocked {
+            attackers: objects_filter(set),
+            defenders: D::Players(players.clone()),
+            count: Some((comparison.clone(), value.clone())),
+        },
+        ("WhenACreatureBecomesBlockedByACreature", [Objects(set), Objects(blockers)]) => {
+            EventSpec::Pair {
+                event: PairEvent::BecomesBlockedBy,
+                objects: objects_filter(set),
+                others: objects_filter(blockers),
+            }
+        }
+        ("WhenAManaAbilityOfAPermanentResolves", [Objects(set)]) => {
+            EventSpec::Resolves(all(vec![
+                ObjectFilter::OnStack(StackTrait::Mana),
+                ObjectFilter::AbilityOf(Box::new(objects_filter(set))),
+            ]))
+        }
+        ("WhenASpellOrAbilityIsPutOntoTheStack", [cause]) => {
+            EventSpec::OntoStack(stack_filter(cause)?)
+        }
+        ("WhenAPermanentAttackingCausesItsAbilityToTrigger", [Objects(set)]) => {
+            EventSpec::CausesTrigger {
+                cause: Box::new(attack(objects_filter(set), None, D::Any)),
+                own_ability: true,
+            }
+        }
+        ("WhenAPermanentEnteringTheBattlefieldCausesAnAbilityToTrigger", [Objects(set)]) => {
+            EventSpec::CausesTrigger {
+                cause: Box::new(zone_change(objects_filter(set), None, Z::Battlefield)),
+                own_ability: false,
+            }
+        }
+        (
+            "WhenAPermanentEnteringTheBattlefieldUnderAPlayersControlCausesItsAbilityToTrigger",
+            [Objects(set), Players(players)],
+        ) => EventSpec::CausesTrigger {
+            cause: Box::new(zone_change(
+                all(vec![
+                    objects_filter(set),
+                    ObjectFilter::ControlledBy(players.clone()),
+                ]),
+                None,
+                Z::Battlefield,
+            )),
+            own_ability: true,
+        },
+        ("WhenAPermanentEntersTheBattlefieldFromExileOrWasCastFromExile", [Objects(set)]) => {
+            EventSpec::Either(vec![
+                zone_change(objects_filter(set), Some(Z::Exile), Z::Battlefield),
+                zone_change(
+                    all(vec![
+                        objects_filter(set),
+                        ObjectFilter::Cast {
+                            by: None,
+                            from: Some(ZoneScope::Shared(Z::Exile)),
+                        },
+                    ]),
+                    None,
+                    Z::Battlefield,
+                ),
+            ])
+        }
+        ("WhenAPermanentEntersTheBattlefieldTransformed", [Objects(set)]) => zone_change(
+            all(vec![
+                objects_filter(set),
+                ObjectFilter::State(ObjectState::Transformed),
+            ]),
+            None,
+            Z::Battlefield,
+        ),
+        ("WhenAPermanentExploresACardOfType", [Objects(set), Filter(cards)]) => {
+            EventSpec::ExploresCard {
+                objects: objects_filter(set),
+                cards: cards.clone(),
+            }
+        }
+        ("WhenAPermanentHasPower", [Objects(set), Compare(comparison, value)]) => {
+            EventSpec::ObjectBecomes(all(vec![
+                objects_filter(set),
+                ObjectFilter::Property {
+                    property: Property::Power,
+                    comparison: comparison.clone(),
+                    value: value.clone(),
+                },
+            ]))
+        }
+        ("WhenAPermanentHasAbility", [Objects(set), Operand::Term { form, .. }]) if form == "Flying" => {
+            EventSpec::ObjectBecomes(all(vec![
+                objects_filter(set),
+                ObjectFilter::HasKeyword(Keyword::Flying),
+            ]))
+        }
+        ("WhenAPermanentHasNumberCountersOfType", [Objects(set), Compare(comparison, value), kind]) => {
+            EventSpec::ObjectBecomes(all(vec![
+                objects_filter(set),
+                counters_filter(kind, comparison, value)?,
+            ]))
+        }
+        ("WhenAPlaneHasNumberCountersOfType", [_, Compare(comparison, value), kind]) => {
+            EventSpec::ObjectBecomes(all(vec![
+                one(&ObjectRef::Source),
+                counters_filter(kind, comparison, value)?,
+            ]))
+        }
+        ("WhenAnyNumberOfPermanentsAreOnTheBattlefield", [Objects(set)]) => {
+            EventSpec::ObjectBecomes(objects_filter(set))
+        }
+        ("WhenAPermanentEntersTheBattlefieldWithAnyCounters", [Objects(set)]) => zone_change(
+            all(vec![
+                objects_filter(set),
+                ObjectFilter::Counters {
+                    kind: None,
+                    comparison: Comparison::GreaterOrEqual,
+                    value: Expr::Constant(1),
+                },
+            ]),
+            None,
+            Z::Battlefield,
+        ),
+        ("WhenAPlayerSetsASchemeInMotion", [Players(players), Operand::Term { form, operands, .. }])
+            if form == "IsNonSupertype" =>
+        {
+            player(
+                PlayerEvent::SetsSchemeInMotion,
+                players,
+                Some(ObjectFilter::Not(Box::new(ObjectFilter::Supertype(
+                    vocabulary_value(operands.first()?)?,
+                )))),
+            )
+        }
+        ("WhenAPermanentIsTappedForManaOfColor", [Objects(set), mana]) => EventSpec::TappedForManaOf {
+            objects: objects_filter(set),
+            by: None,
+            mana: Box::new(mana.clone()),
+        },
+        ("WhenAPlayerTapsAPermanentForManaOfColor", [Players(players), Objects(set), mana]) => {
+            EventSpec::TappedForManaOf {
+                objects: objects_filter(set),
+                by: Some(players.clone()),
+                mana: Box::new(mana.clone()),
+            }
+        }
+        ("WhenAnAbilityCausesAPlayerToAddMana", [cause, Players(players), mana]) => {
+            EventSpec::ManaAdded {
+                abilities: stack_filter(cause)?,
+                players: players.clone(),
+                mana: Box::new(mana.clone()),
+            }
+        }
+        (
+            "WhenAPlayerAttacksWithASingleCreatureAndANumberOfOtherCreatures",
+            [Players(players), Objects(ObjectSet::One(object)), Compare(comparison, value), Objects(set)],
+        ) => EventSpec::AttacksWith {
+            object: object.clone(),
+            others: objects_filter(set),
+            count: (comparison.clone(), value.clone()),
+            by: Some(players.clone()),
+            different_defenders: false,
+        },
+        (
+            "WhenASingleCreatureAndANumberOfOtherCreaturesAttackDifferentPlayers",
+            [Object(object), Compare(comparison, value), Objects(set)],
+        ) => EventSpec::AttacksWith {
+            object: object.clone(),
+            others: objects_filter(set),
+            count: (comparison.clone(), value.clone()),
+            by: None,
+            different_defenders: true,
+        },
+        ("WhenASingleCreatureAttacksWithExactlyOneOtherCreature", [Object(object)]) => {
+            EventSpec::AttacksWith {
+                object: object.clone(),
+                others: ObjectFilter::Any,
+                count: (Comparison::Equal, Expr::Constant(1)),
+                by: None,
+                different_defenders: false,
+            }
+        }
+        ("WhenAPlayerAttacksWithAnyNumberOfGroupCreatures", [Players(players), Objects(set), group]) => {
+            EventSpec::AttacksAsGroup {
+                by: players.clone(),
+                attackers: objects_filter(set),
+                group: Box::new(group.clone()),
+            }
+        }
+        ("WhenAllCreaturesAttack", [Objects(set)]) => EventSpec::AllAttack(objects_filter(set)),
+        ("WhenAPlayerCastsASpellThatTargetsAnyNumberOfPermanents", [Players(players), Filter(spells), Objects(set)]) => {
+            EventSpec::SpellTargeting {
+                players: players.clone(),
+                spells: spells.clone(),
+                targets: Some(set.clone()),
+                count: None,
+            }
+        }
+        ("WhenAPlayerCastsASpellWithANumberOfTargets", [Players(players), Filter(spells), Compare(comparison, value)]) => {
+            EventSpec::SpellTargeting {
+                players: players.clone(),
+                spells: spells.clone(),
+                targets: None,
+                count: Some((comparison.clone(), value.clone())),
+            }
+        }
+        ("WhenAPlayerKicksASpell", [Players(players), Filter(spells)]) => spell(
+            players,
+            all(vec![
+                spells.clone(),
+                ObjectFilter::State(ObjectState::Kicked),
+            ]),
+        ),
+        ("WhenAPlayerCastsASpellOrActivatesAnAbility", [Players(players), Filter(spells), abilities]) => {
+            EventSpec::SpellOrActivation {
+                players: players.clone(),
+                spells: spells.clone(),
+                abilities: stack_filter(abilities)?,
+            }
+        }
+        ("WhenAPlayerPaysLifeToActivateAnAbility", [Players(players), abilities]) => {
+            EventSpec::PaysToActivate {
+                players: players.clone(),
+                abilities: stack_filter(abilities)?,
+                payment: ActivationPayment::Life,
+            }
+        }
+        ("WhenAPlayerSacrificesAnyNumberOfPermanentsToActivateAnAbility", [Players(players), abilities]) => {
+            EventSpec::PaysToActivate {
+                players: players.clone(),
+                abilities: stack_filter(abilities)?,
+                payment: ActivationPayment::Sacrifice,
+            }
+        }
+        ("WhenAPlayerChoosesTargetsForASpellOrAbility", [Players(players), abilities]) => {
+            EventSpec::TargetsChosen {
+                players: players.clone(),
+                objects: stack_filter(abilities)?,
+            }
+        }
+        ("WhenAPlayerGainsControlOfAPermanentFromAPlayer", [Players(to), Objects(set), Players(from)]) => {
+            EventSpec::ControlChanges {
+                objects: objects_filter(set),
+                to: to.clone(),
+                from: from.clone(),
+            }
+        }
+        ("WhenAPlayerPutsCountersOnAPlayer", [Players(by), Players(players)]) => {
+            EventSpec::CountersOnPlayer {
+                by: by.clone(),
+                players: players.clone(),
+            }
+        }
+        ("WhenAPlayerRemovesACounterOfTypeFromAnExiledCard", [Players(by), kind, Objects(set)]) => {
+            EventSpec::Counters {
+                change: CounterChange::Removed,
+                kind: Some(counter_kind(kind)?),
+                objects: objects_filter(set),
+                by: Some(by.clone()),
+            }
+        }
+        ("WhenAPlayerSacrificesAnyNumberOfPermanents", [Players(players)]) => {
+            batch(player(PlayerEvent::Sacrifices, players, None), bare(), None)
+        }
+        ("WhenAPlayerUntapsAnyNumberOfPermanentDuringTheirUntapStep", [Players(players), Objects(set)]) => {
+            player(
+                PlayerEvent::UntapsDuringUntapStep,
+                players,
+                Some(objects_filter(set)),
+            )
+        }
+        ("WhenASpecificCardIsPutIntoAPlayersHandFromTheirLibrary", [cards, Players(owners)]) => {
+            zone_change(
+                all(vec![
+                    card_term(cards)?,
+                    ObjectFilter::OwnedBy(owners.clone()),
+                ]),
+                Some(Z::Library),
+                Z::Hand,
+            )
+        }
+        ("WhenASpellBecomesTheTargetOfASpellOrAbility", [Filter(spells), cause]) => {
+            EventSpec::BecomesTarget {
+                objects: spells.clone(),
+                kind: TargetingKind::SpellOrAbility,
+                by: Box::new(cause.clone()),
+            }
+        }
+        (
+            "WhenAnyNumberOfPlayersAndOrPermanentsBecomeTheTargetOfASpellOrAbility",
+            [Players(players), Objects(set), cause],
+        ) => batch(
+            EventSpec::Either(vec![
+                player(PlayerEvent::BecomesTarget, players, None),
+                EventSpec::BecomesTarget {
+                    objects: objects_filter(set),
+                    kind: TargetingKind::SpellOrAbility,
+                    by: Box::new(cause.clone()),
+                },
+            ]),
+            bare(),
+            None,
+        ),
+        ("WhenASpellOrAbilityCausesAPlayerToDiscardACard", [cause, Players(players), cards]) => {
+            discard(
+                players,
+                card_term(cards)?,
+                DiscardKind::CausedBy(stack_filter(cause)?),
+                DiscardGrouping::Card,
+            )
+        }
+        ("WhenASpellOrAbilityCausesAPlayerToDiscardAnyNumberOfCards", [cause, Players(players)]) => {
+            discard(
+                players,
+                ObjectFilter::Any,
+                DiscardKind::CausedBy(stack_filter(cause)?),
+                DiscardGrouping::Player,
+            )
+        }
+        ("WhenAnyNumberOfPlayersDiscardAnyNumberOfCards", [Players(players), cards]) => batch(
+            discard(players, card_term(cards)?, DiscardKind::Any, DiscardGrouping::Player),
+            bare(),
+            None,
+        ),
+        (
+            "WhenASpellOrAbilityCausesAPlayerToLoseAnAmountOfLife",
+            [cause, Players(players), Compare(comparison, value)],
+        ) => caused(
+            stack_filter(cause)?,
+            amount_is(player(PlayerEvent::LosesLife, players, None), comparison, value),
+        ),
+        ("WhenAnyNumberOfPlayersEachLoseAnAmountOfLife", [Players(players), Compare(comparison, value)]) => {
+            batch(
+                amount_is(player(PlayerEvent::LosesLife, players, None), comparison, value),
+                bare(),
+                None,
+            )
+        }
+        _ => return None,
+    })
+}

@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 157;
+pub const SCHEMA_VERSION: u32 = 158;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2740,6 +2740,11 @@ pub enum CounterChoice {
     },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ActivationPayment {
+    Life,
+    Sacrifice,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum NoteKind {
     Number(Expr),
     Player(PlayerRef),
@@ -4643,6 +4648,8 @@ pub enum ObjectFilter {
         with: ObjectRef,
     },
     SharesMostCommonColor(Box<ObjectSet>),
+    /// A spell or ability with this many targets.
+    TargetCount(Comparison, Expr),
 }
 
 /// Something a player did or had done to them. See `Condition::PlayerDid`.
@@ -5424,6 +5431,85 @@ pub enum EventSpec {
         objects: ObjectFilter,
         nth: Expr,
     },
+    /// Attackers no creature blocked, as blocks are declared.
+    AttackUnblocked {
+        attackers: ObjectFilter,
+        defenders: AttackDefenders,
+        count: Option<(Comparison, Expr)>,
+    },
+    /// Every one of these attacks.
+    AllAttack(ObjectFilter),
+    /// Forge's `SpellAbilityCast` for what goes on the stack without casting.
+    OntoStack(ObjectFilter),
+    /// This spell or ability resolves.
+    Resolves(ObjectFilter),
+    /// `cause` makes an ability trigger: Panharmonicon's "causes". `own_ability`
+    /// means it is an ability of the object the event is about.
+    CausesTrigger {
+        cause: Box<EventSpec>,
+        own_ability: bool,
+    },
+    /// An object explored and revealed one of these.
+    ExploresCard {
+        objects: ObjectFilter,
+        cards: ObjectFilter,
+    },
+    TappedForManaOf {
+        objects: ObjectFilter,
+        by: Option<PlayerSet>,
+        mana: Box<Operand>,
+    },
+    ManaAdded {
+        abilities: ObjectFilter,
+        players: PlayerSet,
+        mana: Box<Operand>,
+    },
+    /// Forge's `BecomesTargetOnce` from the side of the one choosing.
+    TargetsChosen {
+        players: PlayerSet,
+        objects: ObjectFilter,
+    },
+    ControlChanges {
+        objects: ObjectFilter,
+        to: PlayerSet,
+        from: PlayerSet,
+    },
+    CountersOnPlayer {
+        by: PlayerSet,
+        players: PlayerSet,
+    },
+    /// Attacks along with others.
+    AttacksWith {
+        object: ObjectRef,
+        others: ObjectFilter,
+        count: (Comparison, Expr),
+        by: Option<PlayerSet>,
+        different_defenders: bool,
+    },
+    /// Attackers that together pass a group test.
+    AttacksAsGroup {
+        by: PlayerSet,
+        attackers: ObjectFilter,
+        group: Box<Operand>,
+    },
+    SpellTargeting {
+        players: PlayerSet,
+        spells: ObjectFilter,
+        targets: Option<ObjectSet>,
+        count: Option<(Comparison, Expr)>,
+    },
+    SpellOrActivation {
+        players: PlayerSet,
+        spells: ObjectFilter,
+        abilities: ObjectFilter,
+    },
+    PaysToActivate {
+        players: PlayerSet,
+        abilities: ObjectFilter,
+        payment: ActivationPayment,
+    },
+    /// State trigger on objects: one comes to match this (603.8).
+    ObjectBecomes(ObjectFilter),
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -5546,6 +5632,7 @@ pub enum ObjectEvent {
     FinalChapterResolves,
     FinalChapterTriggers,
     Countered,
+    Plotted,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -5810,6 +5897,7 @@ pub enum PlayerEvent {
     PlaneswalksAway,
     /// `objects` is what targeted the player.
     BecomesTarget,
+    UntapsDuringUntapStep,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum TurnPoint {

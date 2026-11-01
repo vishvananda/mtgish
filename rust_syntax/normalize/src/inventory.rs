@@ -2343,6 +2343,7 @@ impl Inventory<'_> {
     fn filter(&mut self, f: &ObjectFilter) {
         self.form("ObjectFilter", f);
         match f {
+            ObjectFilter::TargetCount(_, value) => self.expr(value),
             ObjectFilter::Noted(_)
             | ObjectFilter::NthChosen(_)
             | ObjectFilter::DraftNoted(_)
@@ -2812,6 +2813,23 @@ impl Inventory<'_> {
                 self.event(event);
             }
             EventSpec::ZoneChangeFromElsewhere { objects, .. } => self.filter(objects),
+            EventSpec::AttackUnblocked { attackers, .. } => self.filter(attackers),
+            EventSpec::AllAttack(objects)
+            | EventSpec::OntoStack(objects)
+            | EventSpec::Resolves(objects)
+            | EventSpec::ExploresCard { objects, .. }
+            | EventSpec::TappedForManaOf { objects, .. }
+            | EventSpec::TargetsChosen { objects, .. }
+            | EventSpec::ControlChanges { objects, .. } => self.filter(objects),
+            EventSpec::ManaAdded { abilities, .. } => self.filter(abilities),
+            EventSpec::CountersOnPlayer { players, .. } => self.players(players),
+            EventSpec::CausesTrigger { cause, .. } => self.event(cause),
+            EventSpec::AttacksWith { others, .. } => self.filter(others),
+            EventSpec::AttacksAsGroup { attackers, .. } => self.filter(attackers),
+            EventSpec::SpellTargeting { spells, .. }
+            | EventSpec::SpellOrActivation { spells, .. } => self.filter(spells),
+            EventSpec::PaysToActivate { abilities, .. } => self.filter(abilities),
+            EventSpec::ObjectBecomes(objects) => self.filter(objects),
             EventSpec::NthCounter { objects, nth, .. } => {
                 self.filter(objects);
                 self.expr(nth);

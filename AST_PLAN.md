@@ -15,14 +15,14 @@ The priorities, in order, are:
 
 ### Where things stand
 
-Unified, complete and blocker rows are current at schema 157. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
+Unified, complete and blocker rows are current at schema 158. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
 
 | Measure | Value |
 |---|---|
 | Records | 33,529 |
-| Unified, schema 157 | 33,529 (100%) |
+| Unified, schema 158 | 33,529 (100%) |
 | Complete | 33,529 (100.0%) |
-| Complete with no primitive | 32,906 (98.1%) |
+| Complete with no primitive | 32,970 (98.3%) |
 | Distinct forms blocking the rest | 0 |
 | Structurally preserved | 33,529 |
 | Source enums / declared variants | 346 / 8,668 |
@@ -227,6 +227,7 @@ Hand-written lowerers are the exception from step 1 on. A form gets hand-written
 | 155 | Filters read what they ask about, through `reduce_filters.rs`: noted and draft-noted values, shared types and colors, piles and sectors, what a player showed as a spell was cast (`AsCast`, Forge's `Presented`), who a player vote or number choice singled out. "That" and "those" forms become one `Scoped` reference for objects, object sets, players and player sets, in place of a row name for each sentence. 32,717 records depend on no primitive. |
 | 156 | Counters, entry states and would-be events reduce by shape: `DistributeCounters` is Forge's `DividedAsYouChoose$`, `PutCountersEach` reads its amount per object, `PutChosenCounters` covers chosen, random and per-ability keyword counters, `DuplicateCounters` takes a kind and new copy modes; `EntryState::CountersOfChoice`, `CountersOf`, copies of cards elsewhere; would-enter, discard, dice and planeswalk replacements read as `Enter`, `Discard` and `Player` events, the "next time" forms through the same table. 32,815 records depend on no primitive. |
 | 157 | Actions keep reducing by what they do: `Conjure` covers random, either-or, several and spellbook-filtered cards, `Meld`, `PutStickers`, `Piles` and `ChoosePile` (Forge's `TwoPiles` for any count), `Note`, `Bid`, `Guess`, `Seek`, `DrawThenDiscard`, `RedistributeLife`, `PickFromHand`; perpetual effects read library cards at random and `Incorporate`. | 32,906 |
+| 158 | Triggers reduce by what the rules watch: attackers unblocked or attacking together (Forge's `AttackersDeclared`, `AttackerUnblocked`), spells by target count and what they target, payments to activate, Panharmonicon's `CausesTrigger`, resolved and on-stack abilities, mana of a color, control changing hands, and `ObjectBecomes` for state triggers on objects. Each new variant keeps the bindings its row listed. Market Gnome's craft exile stays one reviewed row. | 32,970 |
 
 Schema 80 and 81 do not shrink the vocabulary. `KeywordAction` has 25 forms and `Mechanic` 149, and they count as forms: the names moved into enums, so the 2,360 is typed parameters and an exhaustive match for consumers, not simplification. Keyword mechanics are still not expanded into reusable definitions, which is the reduction this plan asks for. The Cantrip backend still reports these as gaps until it maps them; the engine has direct events for most of schema 78 and 79. At 02210fe all 17,095 records the backend advertises compiled against the engine. That build needs `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_INCREMENTAL=0`: with debug info it runs out of disk quota writing the archive.
 

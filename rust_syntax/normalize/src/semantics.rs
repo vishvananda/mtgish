@@ -3427,6 +3427,10 @@ pub fn row_bindings(name: &str) -> EventBindings {
 const PLAYER_EVENTS: &[(&str, PlayerEvent)] = &[
     ("Trigger::WhenAPlayerGainsLife", PlayerEvent::GainsLife),
     (
+        "Trigger::WhenAPlayerUntapsAnyNumberOfPermanentDuringTheirUntapStep",
+        PlayerEvent::UntapsDuringUntapStep,
+    ),
+    (
         "Trigger::WhenAPermanentEntersTheBattlefieldUnderAPlayersControl",
         PlayerEvent::EntersUnderControl,
     ),
@@ -3882,6 +3886,10 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
         ("HasTapSelfInCost", []) => is(T::TapSymbolInCost),
         ("DoesntHaveTapSelfInCost", []) => not(T::TapSymbolInCost),
         ("HasASingleTarget", []) => is(T::SingleTarget),
+        ("TargetsOnlySinglePermanent", [Operand::Object(object)]) => ObjectFilter::All(vec![
+            is(T::SingleTarget),
+            target(Recipients::Objects(ObjectSet::One(object.clone()))),
+        ]),
         ("BackupAbility", []) => keyword(AbilityKeyword::Backup),
         ("BoastAbility", []) => keyword(AbilityKeyword::Boast),
         ("EmbalmAbility", []) => keyword(AbilityKeyword::Embalm),
@@ -3892,6 +3900,15 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
         ("NinjutsuAbility", []) => keyword(AbilityKeyword::Ninjutsu),
         ("OutlastAbility", []) => keyword(AbilityKeyword::Outlast),
         ("PowerUpAbility", []) => keyword(AbilityKeyword::PowerUp),
+        ("AbilityOfACardInPlayersGraveyard", [Operand::Filter(cards), Operand::Player(player)]) => {
+            ObjectFilter::AbilityOf(Box::new(ObjectFilter::All(vec![
+                cards.clone(),
+                ObjectFilter::InZone(ZoneScope::Players {
+                    zone: EventZone::Graveyard,
+                    players: PlayerSet::One(player.clone()),
+                }),
+            ])))
+        }
         ("AbilityOfPermanent" | "AbilityOfAPermanent" | "AbilityOfASource", [source]) => {
             ObjectFilter::AbilityOf(Box::new(objects(source)?))
         }
@@ -4899,10 +4916,9 @@ pub fn body_replaces(event: &ReplacementEvent) -> bool {
 
 /// A row's event in generic form, or the row itself when it has none.
 pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
-    if let Some(event) = name
-        .strip_prefix("Trigger::")
-        .and_then(|form| reduce_event_form(form, &operands))
-    {
+    if let Some(event) = name.strip_prefix("Trigger::").and_then(|form| {
+        reduce_event_form(form, &operands).or_else(|| reduce_more_events(form, &operands))
+    }) {
         return event;
     }
     match (name.as_str(), operands.as_slice()) {
@@ -5237,6 +5253,77 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
         EventSpec::NthCounter { .. } => {
             row_bindings("Trigger::WhenTheNthCounterOfTypeIsPutOnAPermanent")
         }
+        EventSpec::AttackUnblocked { count: None, .. } => {
+            row_bindings("Trigger::WhenACreatureAttacksAPlayerAndIsntBlocked")
+        }
+        EventSpec::AttackUnblocked { .. } => {
+            row_bindings("Trigger::WhenANumberOfCreaturesAttacksAPlayerAndArentBlocked")
+        }
+        EventSpec::AllAttack(_) => row_bindings("Trigger::WhenAllCreaturesAttack"),
+        EventSpec::OntoStack(_) => row_bindings("Trigger::WhenASpellOrAbilityIsPutOntoTheStack"),
+        EventSpec::Resolves(_) => row_bindings("Trigger::WhenAManaAbilityOfAPermanentResolves"),
+        EventSpec::ExploresCard { .. } => row_bindings("Trigger::WhenAPermanentExploresACardOfType"),
+        EventSpec::TappedForManaOf { by: None, .. } => {
+            row_bindings("Trigger::WhenAPermanentIsTappedForManaOfColor")
+        }
+        EventSpec::TappedForManaOf { .. } => {
+            row_bindings("Trigger::WhenAPlayerTapsAPermanentForManaOfColor")
+        }
+        EventSpec::ManaAdded { .. } => row_bindings("Trigger::WhenAnAbilityCausesAPlayerToAddMana"),
+        EventSpec::TargetsChosen { .. } => {
+            row_bindings("Trigger::WhenAPlayerChoosesTargetsForASpellOrAbility")
+        }
+        EventSpec::ControlChanges { .. } => {
+            row_bindings("Trigger::WhenAPlayerGainsControlOfAPermanentFromAPlayer")
+        }
+        EventSpec::CountersOnPlayer { .. } => {
+            row_bindings("Trigger::WhenAPlayerPutsCountersOnAPlayer")
+        }
+        EventSpec::AttacksWith {
+            by: Some(_), ..
+        } => row_bindings("Trigger::WhenAPlayerAttacksWithASingleCreatureAndANumberOfOtherCreatures"),
+        EventSpec::AttacksWith {
+            different_defenders: true,
+            ..
+        } => row_bindings("Trigger::WhenASingleCreatureAndANumberOfOtherCreaturesAttackDifferentPlayers"),
+        EventSpec::AttacksWith { .. } => {
+            row_bindings("Trigger::WhenASingleCreatureAttacksWithExactlyOneOtherCreature")
+        }
+        EventSpec::AttacksAsGroup { .. } => {
+            row_bindings("Trigger::WhenAPlayerAttacksWithAnyNumberOfGroupCreatures")
+        }
+        EventSpec::SpellTargeting { targets: Some(_), .. } => {
+            row_bindings("Trigger::WhenAPlayerCastsASpellThatTargetsAnyNumberOfPermanents")
+        }
+        EventSpec::SpellTargeting { .. } => {
+            row_bindings("Trigger::WhenAPlayerCastsASpellWithANumberOfTargets")
+        }
+        EventSpec::SpellOrActivation { .. } => {
+            row_bindings("Trigger::WhenAPlayerCastsASpellOrActivatesAnAbility")
+        }
+        EventSpec::PaysToActivate {
+            payment: ActivationPayment::Life,
+            ..
+        } => row_bindings("Trigger::WhenAPlayerPaysLifeToActivateAnAbility"),
+        EventSpec::PaysToActivate { .. } => {
+            row_bindings("Trigger::WhenAPlayerSacrificesAnyNumberOfPermanentsToActivateAnAbility")
+        }
+        EventSpec::ObjectBecomes(_) => EventBindings {
+            group: true,
+            ..row_bindings("Trigger::WhenAPermanentHasPower")
+        },
+        EventSpec::CausesTrigger {
+            cause,
+            own_ability,
+        } => match (cause.as_ref(), own_ability) {
+            (EventSpec::Attack { .. }, _) => {
+                row_bindings("Trigger::WhenAPermanentAttackingCausesItsAbilityToTrigger")
+            }
+            (_, true) => row_bindings(
+                "Trigger::WhenAPermanentEnteringTheBattlefieldUnderAPlayersControlCausesItsAbilityToTrigger",
+            ),
+            _ => row_bindings("Trigger::WhenAPermanentEnteringTheBattlefieldCausesAnAbilityToTrigger"),
+        },
         EventSpec::Primitive { name, .. } => row_bindings(name),
         EventSpec::Player { event, .. } => PLAYER_EVENTS
             .iter()

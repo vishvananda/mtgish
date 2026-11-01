@@ -502,3 +502,53 @@ fn actions_keep_what_they_do() {
         Operation::Bid { start: Some(_), .. }
     ));
 }
+
+#[test]
+fn triggers_watch_by_shape() {
+    let creatures = || Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any));
+    assert!(matches!(
+        semantics::reduce_event(
+            "Trigger::WhenANumberOfCreaturesAttacksAPlayerAndArentBlocked".into(),
+            vec![
+                Operand::Comparison(Comparison::GreaterOrEqual, Expr::Constant(1)),
+                creatures(),
+                Operand::Players(PlayerSet::All),
+            ],
+        ),
+        EventSpec::AttackUnblocked { count: Some(_), .. }
+    ));
+    assert!(matches!(
+        semantics::reduce_event(
+            "Trigger::WhenAPlayerCastsASpellThatTargetsAnyNumberOfPermanents".into(),
+            vec![
+                Operand::Players(PlayerSet::All),
+                Operand::Filter(ObjectFilter::Any),
+                creatures(),
+            ],
+        ),
+        EventSpec::SpellTargeting {
+            targets: Some(_),
+            ..
+        }
+    ));
+    assert!(matches!(
+        semantics::reduce_event(
+            "Trigger::WhenAPermanentHasPower".into(),
+            vec![
+                creatures(),
+                Operand::Comparison(Comparison::GreaterOrEqual, Expr::Constant(7)),
+            ],
+        ),
+        EventSpec::ObjectBecomes(_)
+    ));
+    assert!(matches!(
+        semantics::reduce_event(
+            "Trigger::WhenAPermanentEnteringTheBattlefieldCausesAnAbilityToTrigger".into(),
+            vec![creatures()],
+        ),
+        EventSpec::CausesTrigger {
+            own_ability: false,
+            ..
+        }
+    ));
+}

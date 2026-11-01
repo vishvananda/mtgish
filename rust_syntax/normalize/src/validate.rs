@@ -319,6 +319,86 @@ impl<'a> Scope<'a> {
                 self.event(event)
             }
             EventSpec::ZoneChangeFromElsewhere { objects, .. } => self.filter(objects),
+            EventSpec::AttackUnblocked {
+                attackers, count, ..
+            } => {
+                self.filter(attackers)?;
+                count.iter().try_for_each(|(_, n)| self.expr(n))
+            }
+            EventSpec::AllAttack(objects)
+            | EventSpec::OntoStack(objects)
+            | EventSpec::Resolves(objects) => self.filter(objects),
+            EventSpec::CausesTrigger { cause, .. } => self.event(cause),
+            EventSpec::AttacksWith {
+                object,
+                others,
+                count,
+                by,
+                ..
+            } => {
+                self.object(object)?;
+                self.filter(others)?;
+                self.expr(&count.1)?;
+                by.iter().try_for_each(|p| self.players(p))
+            }
+            EventSpec::AttacksAsGroup { by, attackers, .. } => {
+                self.players(by)?;
+                self.filter(attackers)
+            }
+            EventSpec::SpellTargeting {
+                players,
+                spells,
+                targets,
+                count,
+            } => {
+                self.players(players)?;
+                self.filter(spells)?;
+                targets.iter().try_for_each(|t| self.objects(t))?;
+                count.iter().try_for_each(|(_, n)| self.expr(n))
+            }
+            EventSpec::SpellOrActivation {
+                players,
+                spells,
+                abilities,
+            } => {
+                self.players(players)?;
+                self.filter(spells)?;
+                self.filter(abilities)
+            }
+            EventSpec::PaysToActivate {
+                players, abilities, ..
+            } => {
+                self.players(players)?;
+                self.filter(abilities)
+            }
+            EventSpec::ObjectBecomes(objects) => self.filter(objects),
+            EventSpec::ExploresCard { objects, cards } => {
+                self.filter(objects)?;
+                self.filter(cards)
+            }
+            EventSpec::TappedForManaOf { objects, by, .. } => {
+                self.filter(objects)?;
+                by.iter().try_for_each(|p| self.players(p))
+            }
+            EventSpec::ManaAdded {
+                abilities, players, ..
+            } => {
+                self.filter(abilities)?;
+                self.players(players)
+            }
+            EventSpec::TargetsChosen { players, objects } => {
+                self.players(players)?;
+                self.filter(objects)
+            }
+            EventSpec::ControlChanges { objects, to, from } => {
+                self.filter(objects)?;
+                self.players(to)?;
+                self.players(from)
+            }
+            EventSpec::CountersOnPlayer { by, players } => {
+                self.players(by)?;
+                self.players(players)
+            }
             EventSpec::NthCounter {
                 kind, objects, nth, ..
             } => {
@@ -1143,6 +1223,7 @@ impl<'a> Scope<'a> {
     fn filter_inner(&self, filter: &ObjectFilter) -> Result {
         match filter {
             ObjectFilter::Noted(_) | ObjectFilter::NthChosen(_) => Ok(()),
+            ObjectFilter::TargetCount(_, value) => self.expr(value),
             ObjectFilter::ChosenBy { player, .. } => self.player(player),
             ObjectFilter::ChosenOn { object, .. }
             | ObjectFilter::AttackingSame(object)
