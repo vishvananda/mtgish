@@ -232,6 +232,47 @@ pub(super) fn remembered(rust: String) -> String {
     out
 }
 
+/// "Choose one. If this spell was kicked, choose any number instead.": the same
+/// modes, and how many of them if it is kicked.
+pub(super) fn kicked_choice(paid: &Announcement, unpaid: &Announcement) -> Option<(u8, u8)> {
+    let (paid, unpaid) = (paid.modes.as_ref()?, unpaid.modes.as_ref()?);
+    let (Expr::Constant(min), Expr::Constant(max)) = (&paid.minimum, &paid.maximum) else {
+        return None;
+    };
+    let same = format!("{:?}", paid.modes) == format!("{:?}", unpaid.modes);
+    (same && !paid.repeat && !unpaid.repeat).then_some(())?;
+    Some((u8::try_from(*min).ok()?, u8::try_from(*max).ok()?))
+}
+/// The result of a resolution's payment, where `objects` is what went as it was
+/// before: how many went needs nothing of what they were.
+pub(super) fn paid_by_moving(objects: &ObjectSet) -> Option<&ResultId> {
+    match objects {
+        ObjectSet::CostObjects {
+            payment: PaymentRef::Resolution(result),
+            phase: ObjectPhase::Before,
+            ..
+        } => Some(result),
+        _ => None,
+    }
+}
+/// Whether each of a walk's players moves only what they own, from a zone of
+/// their own (CR 400.3), or by what they own.
+pub(super) fn only_their_own(objects: &ObjectSet) -> bool {
+    fn theirs(filter: &ObjectFilter) -> bool {
+        let bound = |players: &PlayerSet| matches!(players, PlayerSet::One(PlayerRef::Bound(_)));
+        match filter {
+            ObjectFilter::All(filters) => filters.iter().any(theirs),
+            ObjectFilter::InZone(ZoneScope::Players { zone, players }) => {
+                matches!(zone, EventZone::Graveyard | EventZone::Hand | EventZone::Library)
+                    && bound(players)
+            }
+            ObjectFilter::OwnedBy(players) => bound(players),
+            _ => false,
+        }
+    }
+    matches!(objects, ObjectSet::Zone { filter, .. } | ObjectSet::Battlefield(filter) if theirs(filter))
+}
+
 impl Compiler {
     /// Leaves word for `remembered`, where a resolving ability made this choice.
     pub(super) fn remember_choice(&mut self, kind: ValueKind, local: &str, out: &mut String) {
@@ -258,6 +299,7 @@ impl Compiler {
             ValueKind::LandType | ValueKind::BasicLandType | ValueKind::CreatureType => {
                 ("chosen_subtype", "Subtype::Plains")
             }
+            ValueKind::Ability => ("chosen_ability", "Keyword::Flying"),
             _ => return Err(gap(feature.as_str())),
         };
         Ok(planned::planned_value(
@@ -600,6 +642,17 @@ impl Compiler {
         use lane_j::{counted, held_number};
         let feature = format!("numeric expression {}", form(n));
         Ok(match n {
+            // The share a delayed ability's target was given when its spell resolved.
+            Expr::DistributedShare(slot)
+                if self.reader == Reader::Resolution
+                    && self.stack_item
+                    && !self.slots.contains_key(&slot.0) =>
+            {
+                held_number(
+                    "target reference".into(),
+                    &format!("i64::from(item.remembered_share({}, object))", slot.0),
+                )
+            }
             Expr::DistributedShare(slot) if self.reader == Reader::Resolution && self.stack_item => {
                 counted(format!(
                     "i64::from(q.state().share(item, {}))",
@@ -768,7 +821,10 @@ impl Compiler {
         Ok(match f {
             ObjectFilter::ChosenFilter => {
                 let Some((local, filters)) = &self.notes.filters else {
-                    return Err(gap(feature.as_str()));
+                    return Ok(held(
+                        &feature,
+                        &format!("q.state().chosen_filter(asker.source).is_some_and(|f| f(q, asker, {id}))"),
+                    ));
                 };
                 let mut arms = Vec::new();
                 for (i, filter) in filters.iter().enumerate() {
@@ -1050,8 +1106,33 @@ impl Compiler {
                     self.filter(source, &Candidate::of("id"))?
                 ),
             ),
-            ObjectFilter::ChosenFilter => {
-                held(&feature, &format!("q.state().chosen_filter(asker.source).is_some_and(|f| f(q, asker, {id}))"))
+            // As a layer asks it: the spell on the stack, as it was cast.
+            ObjectFilter::Cast { by, from } => {
+                let mut tests = vec![format!("q.state().obj({id}).cast_from.is_some()")];
+                let caster = |who: String| {
+                    format!("q.state().stack.iter().any(|i| i.kind == StackKind::Spell && i.object == {id} && {who})")
+                };
+                if let Some(by) = by {
+                    tests.push(caster(self.player_in(by, "i.controller")?));
+                }
+                match from {
+                    None => {}
+                    Some(ZoneScope::Shared(zone)) => {
+                        tests.push(format!("q.state().obj({id}).cast_from == Some({})", zone_kind(zone)?));
+                    }
+                    Some(ZoneScope::Players { zone, players }) => {
+                        tests.push(format!("q.state().obj({id}).cast_from == Some({})", zone_kind(zone)?));
+                        tests.push(match players {
+                            PlayerSet::One(PlayerRef::CasterOf(of))
+                                if matches!(**of, ObjectRef::Candidate) =>
+                            {
+                                caster(format!("i.controller == q.state().obj({id}).owner"))
+                            }
+                            players => self.player_in(players, &format!("q.state().obj({id}).owner"))?,
+                        });
+                    }
+                }
+                format!("({})", tests.join(" && "))
             }
             other => return Err(gap(format!("object filter {}", form(other)))),
         })
@@ -1503,6 +1584,23 @@ impl Compiler {
                     self.fetch(self.number(amount)?.code)
                 )
             }
+            EntryState::RulesUntil { rules, until } => {
+                let rules = self.stated_operands(rules);
+                format!("ArrivalState::RulesUntil({rules}, {})", self.duration(until)?)
+            }
+            EntryState::ExiledFor(until) => {
+                format!("ArrivalState::ExiledFor({})", self.duration(until)?)
+            }
+            EntryState::ExiledForWith {
+                until,
+                objects,
+                body,
+            } => format!(
+                "ArrivalState::ExiledForWith({}, {}, {})",
+                self.duration(until)?,
+                self.fetch(self.objects(objects)?),
+                self.operand_code(body)
+            ),
             _ => return Err(gap(failed)),
         })
     }
@@ -1526,6 +1624,11 @@ impl Compiler {
         };
         let planned = failed.feature == "tokens entering in a special state"
             || failed.feature == "adjusted token copy"
+            || failed.feature == "token of the chosen color"
+            || failed.feature == "token of the chosen creature type"
+            || failed.feature == "token with the abilities of other objects"
+            || failed.feature == "token copy entering with counters"
+            || failed.feature == "dynamic defining token characteristics"
             || failed.feature == "several kinds of token entering with counters"
             || failed.feature.starts_with("token recipe ");
         if !planned {
@@ -1539,12 +1642,7 @@ impl Compiler {
                 list.join(", ")
             };
             let recipe = match &token.recipe {
-                TokenRecipe::Defined(definition) => {
-                    format!(
-                        "TokenRecipe::Defined(g.card_id(&{}))",
-                        self.token_definition(definition)?
-                    )
-                }
+                TokenRecipe::Defined(definition) => self.stated_definition(definition)?,
                 TokenRecipe::Named(name) => format!("TokenRecipe::Named({})", quoted(name)),
                 TokenRecipe::Copy {
                     object,
@@ -1669,7 +1767,7 @@ impl Compiler {
         else {
             return Err(failed);
         };
-        if failed.feature != "operation ChangeZone" {
+        if failed.feature != "operation ChangeZone" && failed.feature != "move to Hand" {
             return Err(failed);
         }
         let actor = self.fetch(self.players(actor)?);
@@ -1858,6 +1956,7 @@ pub(super) fn property_p(property: &Property, id: &str) -> Result<Number> {
         Property::ColorSymbolCount => held(format!("i64::from(q.mana_cost({id}).color_symbols())")),
         Property::CrewCount => held(format!("q.crewed_by({id}).len() as i64")),
         Property::ExiledCount => held(format!("q.exiled_with(q.linked_to(&Asker::of({id}))).len() as i64")),
+        Property::RegenerationsThisTurn => held(format!("i64::from(q.regenerations_this_turn({id}))")),
         other => return Err(gap(format!("numeric object property {}", form(other)))),
     })
 }
@@ -1918,7 +2017,7 @@ impl Compiler {
         let ObjectRef::Target { slot, index } = object else {
             return None;
         };
-        let gone = self.reader == Reader::Resolution && self.stack_item && !self.slots.contains_key(&slot.0);
+        let gone = self.stack_item && self.choosing.is_none() && !self.slots.contains_key(&slot.0);
         gone.then(|| {
             planned::planned_value(
                 "target reference",
@@ -1933,7 +2032,7 @@ impl Compiler {
                 .target_gone(object)
                 .map(|one| format!("{one}.into_iter().collect::<Vec<ObjectId>>()")),
             ObjectSet::Targets(slot) => {
-                let gone = self.reader == Reader::Resolution && self.stack_item && !self.slots.contains_key(&slot.0);
+                let gone = self.stack_item && self.choosing.is_none() && !self.slots.contains_key(&slot.0);
                 gone.then(|| {
                     planned::planned_value(
                         "target reference",
@@ -2071,6 +2170,11 @@ impl Compiler {
                 ("abilities", format!("{M}::equip::ability_onto({price}, {filter}, {word})"))
             }
             K::TrampleOverPlaneswalkers => ("keywords", "Keyword::TrampleOverPlaneswalkers".into()),
+            K::SpliceOnto => {
+                let filter = self.filter_fn(filter.ok_or_else(open)?)?;
+                let price = price(self)?;
+                ("splice", format!("Some({M}::splice::onto({filter}, {price}))"))
+            }
             K::BasicMayhem => ("ways", format!("{M}::mayhem::land_way({word})")),
             K::SpaceSculptor => ("abilities", format!("{M}::space_sculptor::ABILITY")),
             K::CasualtyX => (
@@ -2139,7 +2243,7 @@ impl Compiler {
                 ..
             } => match changes.as_slice() {
                 [Change::GrantAbility(granted)] => self.state_ability(feature, granted, label),
-                _ => None,
+                _ => self.stated_static(ability, label),
             },
             // "Creature spells you cast have sticker kicker {1}."
             Ability::Static {
@@ -2152,12 +2256,15 @@ impl Compiler {
                         return None;
                     };
                     let filter = self.filter_fn(filter).ok()?;
-                    let price = self.mechanic_cost(cost.as_ref(), *mechanic, label).ok()?;
                     let module = snake(&format!("{mechanic:?}"));
-                    Some(vec![(
-                        "statics",
-                        format!("{M}::{module}::spells_have({filter}, {price})"),
-                    )])
+                    let call = match cost {
+                        Some(_) => {
+                            let price = self.mechanic_cost(cost.as_ref(), *mechanic, label).ok()?;
+                            format!("{M}::{module}::spells_have({filter}, {price})")
+                        }
+                        None => format!("{M}::{module}::spells_have({filter})"),
+                    };
+                    Some(vec![("statics", call)])
                 }
                 _ => None,
             },
@@ -2171,7 +2278,7 @@ impl Compiler {
                     Some(condition) => format!("Some({})", self.condition_fn(condition).ok()?),
                     None => "None".to_string(),
                 };
-                let entries = self.entries_of(ability, label).ok()?;
+                let entries = self.state_or_entries(feature, ability, label)?;
                 let zones = zones.join(", ");
                 Some(
                     entries
@@ -2196,6 +2303,82 @@ impl Compiler {
                     }
                 }
                 Some(entries)
+            }
+            Ability::CostBranch {
+                keyword,
+                cost,
+                paid,
+                unpaid,
+            } => {
+                let price = self.cost(cost, &format!("{label}_price")).ok()?;
+                let paid = self.stated_branch(paid, &format!("{label}_paid")).ok()?;
+                let unpaid = self.stated_branch(unpaid, &format!("{label}_unpaid")).ok()?;
+                Some(vec![(
+                    "spell",
+                    format!("{M}::cost_branch::spell({}, {price}, {paid}, {unpaid})", quoted(keyword)),
+                )])
+            }
+            // "As long as you're at max speed, you may cast this card from your graveyard."
+            Ability::Static {
+                affected: EffectSubjects::Players(PlayerSet::One(PlayerRef::AbilityController)),
+                changes,
+                ..
+            } => {
+                let [Change::PlayerRule(PlayerRule::PlayPermission {
+                    cards: ObjectSet::One(ObjectRef::Source),
+                    from,
+                    action,
+                    filter,
+                })] = changes.as_slice()
+                else {
+                    return None;
+                };
+                let filter = self.filter_fn(filter).ok()?;
+                Some(vec![(
+                    "ways",
+                    format!("{M}::zones::may_play_from(EventZone::{from:?}, PlayAction::{action:?}, {filter})"),
+                )])
+            }
+            Ability::Static { .. } => self.stated_static(ability, label),
+            Ability::CountsAsNamed { name, for_spells } => Some(vec![(
+                "statics",
+                format!("{M}::zones::counts_as_named({}, {})", quoted(name), quoted(for_spells)),
+            )]),
+            Ability::Gift {
+                gift,
+                promised,
+                unpromised,
+            } => {
+                let mut gifts = Vec::new();
+                for (i, program) in gift.iter().enumerate() {
+                    gifts.push(self.apart(program, &format!("{label}_gift_{i}")).ok()?);
+                }
+                let mut sides = Vec::new();
+                for (side, ability) in [("promised", promised), ("unpromised", unpromised)] {
+                    sides.push(match ability {
+                        Some(ability) => {
+                            let branch =
+                                self.stated_branch(ability, &format!("{label}_{side}")).ok()?;
+                            format!("Some({branch})")
+                        }
+                        None => "None".to_string(),
+                    });
+                }
+                Some(vec![
+                    (
+                        "gift",
+                        format!("Some(GiftDef {{ kind: Gift::Custom, give: &[{}] }})", gifts.join(", ")),
+                    ),
+                    ("spell", format!("{M}::gift::spell({}, {})", sides[0], sides[1])),
+                ])
+            }
+            Ability::OpeningHand { announcement, body } => {
+                self.announcement(announcement, label).ok()?;
+                let effect = self.effect(body, label).ok()?;
+                Some(vec![(
+                    "opening_hand",
+                    format!("Some({M}::statics::opening_hand({effect}))"),
+                )])
             }
             Ability::Enchant {
                 hosts: EnchantHosts::GraveyardCards { filter, owners },
@@ -2261,6 +2444,24 @@ impl Compiler {
         feature: &str,
         instruction: &Instruction,
     ) -> Option<String> {
+        if let Instruction::ChooseOne {
+            decider,
+            options,
+            offered: Some(offered),
+        } = instruction
+        {
+            let decider = self.fetch(self.certain_player(decider).ok()?);
+            let offered = self.fetch(self.number(offered).ok()?.code);
+            let mut each = Vec::new();
+            for option in options {
+                let label = format!("offer_{}", self.fresh());
+                each.push(self.apart(option, &label).ok()?);
+            }
+            return Some(format!(
+                "{M}::choose::among_random(g, item, {decider}, {offered}, &[{}])?",
+                each.join(", ")
+            ));
+        }
         let Instruction::Effect { operation, .. } = instruction else {
             return None;
         };
@@ -2301,6 +2502,124 @@ impl Compiler {
                 let actors = self.stated_players(actor)?;
                 let heads = self.flips.get(&result.0).cloned().unwrap_or_else(|| format!("result_{}", result.0));
                 format!("for player in {actors} {{ for _ in 0..{heads}.iter().filter(|won| **won).count() {{ g.take_extra_turn(player); }} }}")
+            }
+            Operation::Conjure {
+                actor,
+                card,
+                count,
+                zone,
+                owner,
+                spot,
+                entry,
+            } => {
+                let actors = self.stated_players(actor)?;
+                let what = match card {
+                    ConjuredCard::Named(name) => format!("Conjured::Named({name:?})"),
+                    ConjuredCard::OneOf(names) => format!("Conjured::OneOf(&{names:?})"),
+                    ConjuredCard::Each(names) => format!("Conjured::Each(&{names:?})"),
+                    ConjuredCard::Spellbook { book, pick } => {
+                        format!("Conjured::FromSpellbook({book:?}, SpellbookPick::{pick:?})")
+                    }
+                    ConjuredCard::Duplicate(objects) => {
+                        format!("Conjured::DuplicateOf(&{})", self.fetch(self.objects(objects)?))
+                    }
+                    ConjuredCard::Random(cards) => {
+                        format!("Conjured::AtRandom({})", self.operand_code(cards))
+                    }
+                    ConjuredCard::SpellbookMatching { book, cards } => format!(
+                        "Conjured::FromSpellbookMatching({book:?}, {})",
+                        self.operand_code(cards)
+                    ),
+                };
+                let owner = match owner {
+                    Some(owner) => self.fetch(self.certain_player(owner)?),
+                    None => "player".to_string(),
+                };
+                let spot = match spot {
+                    None => "ConjureSpot::Random".to_string(),
+                    Some(ConjureSpot::Shuffled) => "ConjureSpot::Shuffled".to_string(),
+                    Some(ConjureSpot::Top) => "ConjureSpot::Top".to_string(),
+                    Some(ConjureSpot::AmongTop(n)) => {
+                        format!("ConjureSpot::AmongTop({})", self.fetch(self.number(n)?.code))
+                    }
+                    Some(ConjureSpot::FromTop(n)) => {
+                        format!("ConjureSpot::FromTop({})", self.fetch(self.number(n)?.code))
+                    }
+                };
+                let count = self.fetch(self.number(count)?.code);
+                let entry = self.stated_operands(entry);
+                format!("for player in {actors} {{ {M}::conjure::conjure(g, player, {owner}, {source}, {what}, {count}, ConjureTo::Entering(EventZone::{zone:?}, {spot}, {entry}))?; }}")
+            }
+            Operation::CreateContinuousEffect {
+                affected: EffectSubjects::Objects(objects),
+                changes,
+                duration,
+                ..
+            } => {
+                let objects = self.fetch(self.objects(objects)?);
+                let mut grants = Vec::new();
+                for change in changes {
+                    grants.push(match change {
+                        Change::ChosenAbility => "Grant::ChosenAbility".to_string(),
+                        Change::Pump { power, toughness } => format!(
+                            "Grant::Pump({}, {})",
+                            self.fetch(self.number(power)?.code),
+                            self.fetch(self.number(toughness)?.code)
+                        ),
+                        Change::GrantKeyword(keyword) => format!(
+                            "Grant::Keyword({})",
+                            self.stated_keyword(keyword).ok_or_else(refused)?
+                        ),
+                        _ => return Err(refused()),
+                    });
+                }
+                let duration = self.duration(duration)?;
+                format!("{M}::effects::grant(g, item, {objects}, &[{}], {duration})?", grants.join(", "))
+            }
+            Operation::Sacrifice {
+                players,
+                objects,
+                choose,
+            } => {
+                let players = self.stated_players(players)?;
+                let objects = self.fetch(self.objects(objects)?);
+                let choose = match choose {
+                    Some(count) => format!("Some({})", self.fetch(self.select_count(count)?)),
+                    None => "None".to_string(),
+                };
+                format!("{M}::effects::sacrifice_among(g, {source}, {players}, {objects}, {choose})?")
+            }
+            Operation::BeginOnBattlefield { actor, flags } => {
+                let actors = self.stated_players(actor)?;
+                format!("{M}::statics::begin_on_battlefield(g, {source}, {actors}, {})?", self.operand_code(flags))
+            }
+            Operation::PayCost {
+                player,
+                cost,
+                optional,
+            } => {
+                let [CostPart::Move {
+                    selections,
+                    destination,
+                    entry,
+                    face_down,
+                }] = cost.parts.as_slice()
+                else {
+                    return Err(refused());
+                };
+                let player = self.fetch(self.certain_player(player)?);
+                let mut each = Vec::new();
+                for selection in selections {
+                    let objects = self.fetch(self.objects(&selection.objects)?);
+                    let count = match &selection.choose {
+                        Some(count) => format!("Some({})", self.fetch(self.select_count(count)?)),
+                        None => "None".to_string(),
+                    };
+                    each.push(format!("({objects}, {count})"));
+                }
+                let destination = self.destination_code(destination)?;
+                let arrival = self.arrival_code(entry, feature)?;
+                format!("{M}::enter::pay_by_moving(g, asker, {player}, &[{}], {destination}, {arrival}, {face_down}, {optional})?", each.join(", "))
             }
             Operation::Intensify { cards, owner } => {
                 let test = match cards {
@@ -2417,6 +2736,14 @@ impl Compiler {
                 };
                 format!("let revealed = {M}::library::reveal_until_or(g, {library}, {source}, {filter}, {count}, {most})?")
             }
+            // What triggered it, spell or ability, whichever the event was.
+            Operation::SetX {
+                object: ObjectRef::EventStackObject,
+                value,
+            } => {
+                let value = self.fetch(self.number(value)?.code);
+                format!("g.set_x(item.triggered_by(), {value})")
+            }
             Operation::SetX { object, value } => {
                 let object = self.fetch(self.object(object)?);
                 let value = self.fetch(self.number(value)?.code);
@@ -2451,7 +2778,7 @@ impl Compiler {
                 };
                 let mut finds = Vec::new();
                 for choice in choices {
-                    let filter = self.filter_fn(&choice.filter)?;
+                    let filter = self.filter_now(&choice.filter)?;
                     let count = self.fetch(self.select_count(&choice.count)?);
                     let rules = self.stated_constraints(&choice.constraints)?;
                     finds.push(format!("Find {{ filter: {filter}, count: {count}, rules: {rules} }}"));
@@ -2551,12 +2878,235 @@ impl Compiler {
             D::WhileMatches { object, filter } => format!(
                 "Duration::WhileMatches({}, {})",
                 self.fetch(self.object(object)?),
-                self.filter_fn(filter)?
+                self.filter_now(filter)?
+            ),
+            D::DuringControllersNextUntapSteps(steps) => format!(
+                "Duration::ControllersNextUntapSteps({})",
+                self.fetch(self.number(steps)?.code)
             ),
             D::While(condition) => format!("Duration::While({})", self.condition_fn(condition)?),
             D::WhileItMatches(filter) => format!("Duration::WhileItMatches({})", self.filter_fn(filter)?),
             other => return lane_m::duration_more(other),
         };
         Ok(planned::planned_value(&feature, later, &code))
+    }
+    /// A filter of what this resolution knows, for a game that asks it later: the
+    /// values it reads go along with it.
+    fn filter_now(&mut self, filter: &ObjectFilter) -> Result<String> {
+        match self.filter_fn(filter) {
+            Ok(code) => Ok(code),
+            Err(_) => {
+                let code = self.filter(filter, &Candidate::of("id"))?;
+                Ok(format!("move |q: &dyn Query, id: ObjectId| -> bool {{ {code} }}"))
+            }
+        }
+    }
+    /// A filter as `players` states one.
+    pub(super) fn stated_filter(&self, filter: &ObjectFilter) -> Result<String> {
+        let mut c = self.clone();
+        c.filter_fn(filter)
+    }
+    /// A body with no part in what the rest of its ability reads.
+    fn apart(&mut self, body: &Program, label: &str) -> Result<String> {
+        let scope = self.results();
+        let effect = self.effect(body, label);
+        self.restore_results(scope);
+        effect
+    }
+    /// One side of a spell that a cost picks between, its targets and modes its own.
+    fn stated_branch(&mut self, ability: &Ability, label: &str) -> Result<String> {
+        let Ability::Spell { announcement, body } = ability else {
+            return Err(gap("cost branch of abilities that are not spells"));
+        };
+        if announcement.modes.is_some() {
+            let scope = self.results();
+            let modal = self.modal(announcement, label, None);
+            self.restore_results(scope);
+            let modal = modal?;
+            return Ok(format!("SpellBranch::Modal(&{modal})"));
+        }
+        let targets = self.announcement(announcement, &format!("{label}_targets"))?;
+        self.announced_filters.clear();
+        let divide = self.dividing.take();
+        let effect = self.effect(body, label)?;
+        Ok(match divide {
+            Some(divide) => format!("SpellBranch::Divided({targets}, {effect}, {divide})"),
+            None => format!("SpellBranch::Plain({targets}, {effect})"),
+        })
+    }
+    /// A keyword of a quality no word of Cantrip's names.
+    fn stated_keyword(&mut self, keyword: &Keyword) -> Option<String> {
+        match keyword {
+            Keyword::Landwalk(land) => match land.as_ref() {
+                ObjectFilter::SharesWithAny { property, with } => {
+                    let with = self.asked(|c| c.objects(with)).ok()?;
+                    Some(format!("Keyword::Landwalk(LandFilter::Sharing(Property::{property:?}, |q: &dyn Query, asker: &Asker| -> Vec<ObjectId> {{ {with} }}))"))
+                }
+                land => Some(format!("Keyword::Landwalk(LandFilter::Matching({}))", self.filter_now(land).ok()?)),
+            },
+            Keyword::Protection(quality) => match &**quality {
+                Protection::Objects {
+                    filter: ObjectFilter::ColorOutsideCommanderIdentity(player),
+                    ..
+                } => {
+                    let player = self.asked(|c| Ok(c.fetch(c.certain_player(player)?))).ok()?;
+                    Some(format!("Keyword::ProtectionFromColorsOutsideIdentityOf({player})"))
+                }
+                Protection::Objects { filter, .. } => {
+                    Some(format!("Keyword::ProtectionFrom({})", self.filter_now(filter).ok()?))
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+    /// A static ability with a grant that is only stated: the rest of it keeps its
+    /// own arms.
+    fn stated_static(&mut self, ability: &Ability, label: &str) -> Option<Vec<(&'static str, String)>> {
+        let Ability::Static {
+            kind,
+            affected: EffectSubjects::Objects(objects),
+            changes,
+        } = ability
+        else {
+            return None;
+        };
+        let mut grants = Vec::new();
+        let mut rest = Vec::new();
+        for change in changes {
+            let grant = match change {
+                Change::GrantKeyword(keyword) => self.stated_keyword(keyword),
+                Change::GrantAbility(granted) => match &**granted {
+                    Ability::Mechanic {
+                        mechanic,
+                        cost,
+                        amount,
+                        filter,
+                    } => self
+                        .mechanic_entry(*mechanic, cost.as_ref(), amount.as_ref(), filter.as_ref(), label)
+                        .ok()
+                        .map(|(_, entry)| entry),
+                    _ => None,
+                },
+                _ => None,
+            };
+            match grant {
+                Some(grant) => grants.push(grant),
+                None => rest.push(change.clone()),
+            }
+        }
+        if grants.is_empty() {
+            return None;
+        }
+        let list = self.asked(|c| c.objects(objects)).ok()?;
+        let mut entries = match rest.is_empty() {
+            true => Vec::new(),
+            false => {
+                let rest = Ability::Static {
+                    kind: kind.clone(),
+                    affected: EffectSubjects::Objects(objects.clone()),
+                    changes: rest,
+                };
+                self.entries_of(&rest, label).ok()?
+            }
+        };
+        for grant in grants {
+            entries.push((
+                "statics",
+                format!("{M}::statics::grant_to(|q: &dyn Query, asker: &Asker| -> Vec<ObjectId> {{ {list} }}, {grant})"),
+            ));
+        }
+        Some(entries)
+    }
+    /// A token of a definition with what only the game can fill in as it is made:
+    /// the rest of it is the definition's own.
+    fn stated_definition(&mut self, token: &TokenDefinition) -> Result<String> {
+        let dynamic = |n: &Expr| !matches!(n, Expr::Constant(_));
+        let sized = token
+            .power_toughness
+            .as_ref()
+            .is_some_and(|(p, t)| dynamic(p) || dynamic(t));
+        if !token.chosen_color && !token.chosen_creature_type && token.abilities_of.is_none() && !sized {
+            return Ok(format!(
+                "TokenRecipe::Defined(g.card_id(&{}))",
+                self.token_definition(token)?
+            ));
+        }
+        let mut plain = token.clone();
+        plain.chosen_color = false;
+        plain.chosen_creature_type = false;
+        plain.abilities_of = None;
+        let color = match token.chosen_color {
+            true => format!("Some({})", self.fetch(self.chosen_read(ValueKind::Color)?)),
+            false => "None".to_string(),
+        };
+        let kind = match token.chosen_creature_type {
+            true => format!("Some({})", self.fetch(self.chosen_read(ValueKind::CreatureType)?)),
+            false => "None".to_string(),
+        };
+        let size = match &token.power_toughness {
+            Some((p, t)) if sized => {
+                let size = format!(
+                    "Some(({}, {}))",
+                    self.fetch(self.number(p)?.code),
+                    self.fetch(self.number(t)?.code)
+                );
+                plain.power_toughness = None;
+                size
+            }
+            _ => "None".to_string(),
+        };
+        let abilities = match &token.abilities_of {
+            Some((objects, which)) => format!(
+                "Some(({}, {}))",
+                self.fetch(self.objects(objects)?),
+                self.operand_code(which)
+            ),
+            None => "None".to_string(),
+        };
+        let card = self.token_definition(&plain)?;
+        Ok(format!(
+            "TokenRecipe::Filled(g.card_id(&{card}), TokenFill {{ color: {color}, creature_type: {kind}, power_toughness: {size}, abilities_of: {abilities} }})"
+        ))
+    }
+    /// "As long as this is tapped, no more than one creature can attack you each
+    /// combat": a rule of the combat, asked of each thing that can be attacked.
+    pub(super) fn conditional_cap(
+        &mut self,
+        condition: &Condition,
+        defender: &Recipients,
+        amount: &Expr,
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let (Recipients::Players(PlayerSet::One(PlayerRef::AbilityController)), Expr::Constant(most)) =
+            (defender, amount)
+        else {
+            return Err(gap("conditional AttackCap"));
+        };
+        let test = self.asked(|c| c.condition(condition))?;
+        writeln!(
+            self.functions,
+            "#[allow(unused_variables)] fn {label}_limit(q: &dyn Query, asker: &Asker, attacked: Target) -> Option<u32> {{ (attacked == Target::Player(asker.controller) && {test}).then_some({most}) }}"
+        )
+        .unwrap();
+        parts.table("attack_limits", format!("{label}_limit"));
+        Ok(())
+    }
+    /// The roll a reflexive ability reads, told to it as a count (CR 603.12).
+    pub(super) fn told_roll(
+        &self,
+        performed: &ResultId,
+        announcement: &Announcement,
+        body: &Program,
+    ) -> Option<String> {
+        let read = format!("DieResult(ResultId({}))", performed.0);
+        let reads = format!("{body:?}").contains(&read) || format!("{announcement:?}").contains(&read);
+        let local = self.values.get(&performed.0)?;
+        reads.then(|| format!("({local} as i64)"))
+    }
+    /// A planeswalker's printed loyalty, for what is worked out as it enters.
+    pub(super) fn lane_p_loyalty(&mut self, loyalty: &Expr) -> Result<String> {
+        self.number_fn(loyalty)
     }
 }

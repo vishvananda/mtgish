@@ -14,6 +14,8 @@ pub(super) fn target_range(count: &Count) -> Result<(u32, u32)> {
         Count::Exactly(n) => constant(n).map(|n| (n, n)),
         Count::UpTo(n) => constant(n).map(|n| (0, n)),
         Count::Between { minimum, maximum } => constant(minimum).zip(constant(maximum)),
+        // `TargetSpec::ANY_NUMBER`.
+        Count::AnyNumber => Some((0, u32::MAX - 3)),
         _ => None,
     };
     range.ok_or_else(|| gap(format!("target count by branch {}", form(count))))
@@ -49,6 +51,23 @@ impl Compiler {
         let same_targets =
             format!("{:?}", paid_announced.targets) == format!("{:?}", unpaid_announced.targets);
         match keyword {
+            // "Choose one. If this spell was kicked, choose any number instead."
+            "Kicker"
+                if matches!(cost.parts.as_slice(), [CostPart::Mana(_)])
+                    && lane_p::kicked_choice(paid_announced, unpaid_announced).is_some() =>
+            {
+                let (min, max) =
+                    lane_p::kicked_choice(paid_announced, unpaid_announced).expect("just seen");
+                parts.field("kicker", self.kicker(cost, label)?);
+                let modal = self.modal(unpaid_announced, label, None)?;
+                writeln!(
+                    self.functions,
+                    "static {modal}_KICKED: ModalDef = {modal}.when_paid({min}, {max});"
+                )
+                .unwrap();
+                parts.spell = "Some(SpellDef::MODAL)".into();
+                parts.modal = format!("Some(&{modal}_KICKED)");
+            }
             "Kicker" => {
                 // Mana is a kicker's own; anything else is announced as an optional
                 // cost is, by its two labels.

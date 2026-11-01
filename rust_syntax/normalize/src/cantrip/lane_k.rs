@@ -1529,7 +1529,9 @@ impl Compiler {
     pub(super) fn damage_source(&self, source: &ObjectRef) -> Result<String> {
         let read = self.object(source)?;
         match source {
-            ObjectRef::Target { slot, index } if self.choosing.is_none() => {
+            ObjectRef::Target { slot, index }
+                if self.choosing.is_none() && self.slots.contains_key(&slot.0) =>
+            {
                 let i = self.slot(slot)?;
                 Ok(format!(
                     "t_{i}_raw.get({index}).copied().filter(|t| t_{i}.contains(t)).and_then(|t: Target| t.object())"

@@ -1,902 +1,152 @@
 [
- {
-  "match": "^engine: no perpetual effects$",
-  "class": "engine",
-  "needs": "Changes that stay with an object through every zone for the rest of the game (Alchemy \"perpetually\"), held on the card and not on the permanent. Alchemy only, so Cantrip has no reason to play it unless it plays digital cards.",
-  "api": "cantrip_mechanics::perpetual::apply(g, source, object, Perpetual::{Effect,Rules,Incorporate,SpendAsThoughAnyType})"
- },
- {
-  "match": "^engine: no commander$",
-  "class": "engine",
-  "needs": "The commander designation (CR 903.3): Cantrip games have none, so a casual-format form it has no reason to support unless it adds the variant.",
-  "api": "Query::is_commander(id)"
- },
- {
-  "match": "^engine: no Ring temptation$",
-  "class": "engine",
-  "needs": "The Ring emblem and Ring-bearer designation (CR 701.54).",
-  "api": "cantrip_mechanics::ring::tempt(g, player, source)"
- },
- {
-  "match": "^engine: venture into the dungeon reaches only Undercity$",
-  "class": "engine",
-  "needs": "Venture must offer the three dungeons (CR 701.49a): Game::venture only knows Undercity.",
-  "api": "Game::venture(player), with the three dungeons in CardDef::dungeon"
- },
- {
-  "match": "^engine: no untap event$",
-  "class": "engine",
-  "needs": "An event when a permanent becomes untapped.",
-  "api": "Event::Untapped { permanent }, EventMask::UNTAPPED"
- },
- {
-  "match": "^engine: no mutate event$",
-  "class": "engine",
-  "needs": "An event when a permanent mutates (CR 702.140).",
-  "api": "Event::Mutated { permanent }, EventMask::MUTATED"
- },
- {
-  "match": "^engine: no specialize event$",
-  "class": "engine",
-  "needs": "An event when a permanent specializes (Alchemy).",
-  "api": "Event::Specialized { permanent }, EventMask::SPECIALIZED"
- },
- {
-  "match": "^engine: no exploit event$",
-  "class": "engine",
-  "needs": "An event when a creature exploits another (CR 702.110).",
-  "api": "Event::Exploited { creature, sacrificed }, EventMask::EXPLOITED"
- },
- {
-  "match": "^engine: no crew event$",
-  "class": "engine",
-  "needs": "Event::Crewed is recorded in the history but not emitted: abilities that trigger on a creature crewing never see it (a question of who crewed already compiles).",
-  "api": "emit Event::Crewed, EventMask::CREWED"
- },
- {
-  "match": "^engine: no saddle event$",
-  "class": "engine",
-  "needs": "An event for a creature saddling a Mount (CR 702.171), in the history and to abilities.",
-  "api": "Event::Saddled { creature, mount }, EventMask::SADDLED"
- },
- {
-  "match": "^engine: no ability triggers on losing the game$",
-  "class": "engine",
-  "needs": "Event::GameLost is filed in the history only: it must reach triggers.",
-  "api": "emit Event::GameLost, EventMask::GAME_LOST"
- },
- {
-  "match": "^engine: no event for dice rolled together$",
-  "class": "engine",
-  "needs": "One event for all the dice a player rolled at once.",
-  "api": "Event::DiceRolled { player, .. }, EventMask::DICE_ROLLED"
- },
- {
-  "match": "^engine: no event for a counter being removed$",
-  "class": "engine",
-  "needs": "An event for counters leaving an object, with the kind and how many.",
-  "api": "Event::CountersRemoved { object, kind, amount, by, .. }, EventMask::COUNTERS_REMOVED"
- },
- {
-  "match": "^engine: no event for each counter put$",
-  "class": "engine",
-  "needs": "Abilities that trigger once for each counter put: CountersPut is one event for the put, however many counters.",
-  "api": "a per-counter firing of Event::CountersPut (TriggeredDef counted by amount)"
- },
- {
-  "match": "^engine: no discard cause in events$",
-  "class": "engine",
-  "needs": "What caused a discard, to a matcher: the record has a Cause but the event does not carry it.",
-  "api": "Event::Discarded { cause, .. }"
- },
- {
-  "match": "^engine: only a mana ability triggers on tapping for mana$",
-  "class": "engine",
-  "needs": "TappedForMana shown to ordinary triggered abilities, not only to mana abilities (CR 605.1b).",
-  "api": "Event::TappedForMana reaching any triggered ability"
- },
- {
-  "match": "^engine: no effect removes from combat$",
-  "class": "engine",
-  "needs": "An effect removing a creature from combat (CR 506.4).",
-  "api": "Game::remove_from_combat(object)"
- },
- {
-  "match": "^engine: no resolving effect sets land types$",
-  "class": "engine",
-  "needs": "A resolving effect that sets land types and takes the rules text with it (CR 305.7): today only a static does (sets_land_subtypes).",
-  "api": "EffectKind::SetLandType(subtype)"
- },
- {
-  "match": "^engine: no effect sets power or toughness alone$",
-  "class": "engine",
-  "needs": "A resolving effect setting base power or toughness without the other.",
-  "api": "EffectKind::SetPower(n), EffectKind::SetToughness(n)"
- },
- {
-  "match": "^engine: no effect changes supertypes$",
-  "class": "engine",
-  "needs": "A resolving effect adding or removing a supertype.",
-  "api": "EffectKind::AddSupertype(Supertype), EffectKind::LoseSupertype(Supertype)"
- },
- {
-  "match": "^engine: no effect removes a card type$",
-  "class": "engine",
-  "needs": "A resolving effect removing one card type.",
-  "api": "EffectKind::LoseType(CardType)"
- },
- {
-  "match": "^engine: no effect adds colors$",
-  "class": "engine",
-  "needs": "A resolving effect adding colors to the ones an object has.",
-  "api": "EffectKind::AddColors(ColorSet)"
- },
- {
-  "match": "^engine: no combat phase count$",
-  "class": "engine",
-  "needs": "Which combat phase of the turn this is (\"first combat phase\").",
-  "api": "TurnState::combat_phase"
- },
- {
-  "match": "^engine: mana spent by what it may pay for$",
-  "class": "engine",
-  "needs": "ManaRestriction variants beyond its fixed list: a test of the spell or source, a part of a cost, a rider on what it pays for.",
-  "api": "ManaRestriction::{SpellsMatching, AbilitiesMatching, AllOf, Not, Purpose, Lasts, Rider}"
- },
- {
-  "match": "^engine: splice onto other than Arcane$",
-  "class": "engine",
-  "needs": "Splice onto a kind of spell other than Arcane (CR 702.47): CardDef::splice is Arcane only.",
-  "api": "CardDef::splice with a filter"
- },
- {
-  "match": "^engine: no Bushido$",
-  "class": "mechanic",
-  "needs": "Bushido N (CR 702.45).",
-  "api": "cantrip_mechanics::bushido::trigger::<N>(\"Bushido\")"
- },
- {
-  "match": "^engine: no Soulshift$",
-  "class": "mechanic",
-  "needs": "Soulshift N (CR 702.46).",
-  "api": "cantrip_mechanics::soulshift::trigger::<N>(\"Soulshift\")"
- },
- {
-  "match": "^engine: no Rampage$",
-  "class": "mechanic",
-  "needs": "Rampage N (CR 702.23).",
-  "api": "cantrip_mechanics::rampage::trigger::<N>(\"Rampage\")"
- },
- {
-  "match": "^engine: no Afflict$",
-  "class": "mechanic",
-  "needs": "Afflict N (CR 702.130).",
-  "api": "cantrip_mechanics::afflict::trigger::<N>(\"Afflict\")"
- },
- {
-  "match": "^engine: no Renown$",
-  "class": "mechanic",
-  "needs": "Renown N and the renowned designation (CR 702.112).",
-  "api": "cantrip_mechanics::renown::trigger::<N>(\"Renown\")"
- },
- {
-  "match": "^engine: no Poisonous$",
-  "class": "mechanic",
-  "needs": "Poisonous N (CR 702.70).",
-  "api": "cantrip_mechanics::poisonous::trigger::<N>(\"Poisonous\")"
- },
- {
-  "match": "^engine: no Frenzy$",
-  "class": "mechanic",
-  "needs": "Frenzy N (CR 702.68).",
-  "api": "cantrip_mechanics::frenzy::trigger::<N>(\"Frenzy\")"
- },
- {
-  "match": "^engine: no Fabricate$",
-  "class": "mechanic",
-  "needs": "Fabricate N and its Servo (CR 702.123).",
-  "api": "cantrip_mechanics::fabricate::trigger::<N>(\"Fabricate\"), fabricate::SERVO"
- },
- {
-  "match": "^engine: no Afterlife$",
-  "class": "mechanic",
-  "needs": "Afterlife N and its Spirit (CR 702.135).",
-  "api": "cantrip_mechanics::afterlife::trigger::<N>(\"Afterlife\"), afterlife::SPIRIT"
- },
- {
-  "match": "^engine: no Exploit$",
-  "class": "mechanic",
-  "needs": "Exploit (CR 702.110): the sacrifice as it enters.",
-  "api": "cantrip_mechanics::exploit::TRIGGER"
- },
- {
-  "match": "^engine: no DoubleTeam$",
-  "class": "mechanic",
-  "needs": "Double team (CR 702.178).",
-  "api": "cantrip_mechanics::double_team::TRIGGER"
- },
- {
-  "match": "^engine: no Soulbond$",
-  "class": "mechanic",
-  "needs": "Soulbond and being paired (CR 702.95).",
-  "api": "cantrip_mechanics::soulbond::TRIGGER"
- },
- {
-  "match": "^engine: no Conspire$",
-  "class": "mechanic",
-  "needs": "Conspire (CR 702.78).",
-  "api": "cantrip_mechanics::conspire::TRIGGER"
- },
- {
-  "match": "^engine: no Haunt$",
-  "class": "mechanic",
-  "needs": "Haunt and the haunting relation (CR 702.55).",
-  "api": "cantrip_mechanics::haunt::TRIGGER"
- },
- {
-  "match": "^engine: no Gravestorm$",
-  "class": "mechanic",
-  "needs": "Gravestorm (CR 702.69).",
-  "api": "cantrip_mechanics::gravestorm::TRIGGER"
- },
- {
-  "match": "^engine: no Demonstrate$",
-  "class": "mechanic",
-  "needs": "Demonstrate (CR 702.144).",
-  "api": "cantrip_mechanics::demonstrate::TRIGGER"
- },
- {
-  "match": "^engine: no Absorb$",
-  "class": "mechanic",
-  "needs": "Absorb N (CR 702.64).",
-  "api": "cantrip_mechanics::absorb::prevention::<N>()"
- },
- {
-  "match": "^engine: no Devour$",
-  "class": "mechanic",
-  "needs": "Devour N (CR 702.82).",
-  "api": "cantrip_mechanics::devour::enters::<N>"
- },
- {
-  "match": "^engine: no Tribute$",
-  "class": "mechanic",
-  "needs": "Tribute N (CR 702.104).",
-  "api": "cantrip_mechanics::tribute::enters::<N>"
- },
- {
-  "match": "^engine: no Amplify$",
-  "class": "mechanic",
-  "needs": "Amplify N (CR 702.38).",
-  "api": "cantrip_mechanics::amplify::enters::<N>"
- },
- {
-  "match": "^engine: no Bloodthirst$",
-  "class": "mechanic",
-  "needs": "Bloodthirst N (CR 702.54).",
-  "api": "cantrip_mechanics::bloodthirst::enters::<N>"
- },
- {
-  "match": "^engine: no BloodthirstX$",
-  "class": "mechanic",
-  "needs": "Bloodthirst X (CR 702.54c).",
-  "api": "cantrip_mechanics::bloodthirst::enters_x"
- },
- {
-  "match": "^engine: no VanishingEnters$",
-  "class": "mechanic",
-  "needs": "Vanishing N entering with time counters (CR 702.63).",
-  "api": "cantrip_mechanics::vanishing::enters::<N>"
- },
- {
-  "match": "^engine: no Vanishing$",
-  "class": "mechanic",
-  "needs": "Vanishing: its upkeep and last-counter triggers (CR 702.63).",
-  "api": "cantrip_mechanics::vanishing::upkeep(\"Vanishing\"), vanishing::LAST_COUNTER"
- },
- {
-  "match": "^engine: no Graft$",
-  "class": "mechanic",
-  "needs": "Graft N (CR 702.58).",
-  "api": "cantrip_mechanics::graft::enters::<N>, graft::TRIGGER"
- },
- {
-  "match": "^engine: no Blitz$",
-  "class": "mechanic",
-  "needs": "Blitz (CR 702.152): the way, its haste, its draw and its sacrifice.",
-  "api": "cantrip_mechanics::blitz::way(cost, \"Blitz\")"
- },
- {
-  "match": "^engine: no Prowl$",
-  "class": "mechanic",
-  "needs": "Prowl (CR 702.76).",
-  "api": "cantrip_mechanics::prowl::way(cost, \"Prowl\")"
- },
- {
-  "match": "^engine: no Disturb$",
-  "class": "mechanic",
-  "needs": "Disturb (CR 702.146).",
-  "api": "cantrip_mechanics::disturb::way(cost, \"Disturb\")"
- },
- {
-  "match": "^engine: no Mutate$",
-  "class": "mechanic",
-  "needs": "Mutate and merged permanents (CR 702.140, 729).",
-  "api": "cantrip_mechanics::mutate::way(cost, \"Mutate\")"
- },
- {
-  "match": "^engine: no MoreThanMeetsTheEye$",
-  "class": "mechanic",
-  "needs": "More Than Meets the Eye (CR 702.162).",
-  "api": "cantrip_mechanics::more_than_meets_the_eye::way(cost, \"MoreThanMeetsTheEye\")"
- },
- {
-  "match": "^engine: no Encore$",
-  "class": "mechanic",
-  "needs": "Encore (CR 702.141).",
-  "api": "cantrip_mechanics::encore::ability(cost, \"Encore\")"
- },
- {
-  "match": "^engine: no Specialize$",
-  "class": "mechanic",
-  "needs": "Specialize, its choice and its faces (Alchemy; digital only).",
-  "api": "cantrip_mechanics::specialize::ability(cost, \"Specialize\")"
- },
- {
-  "match": "^engine: no SpecializeFromGraveyard$",
-  "class": "mechanic",
-  "needs": "Specialize from a graveyard (Alchemy; digital only).",
-  "api": "cantrip_mechanics::specialize_from_graveyard::ability(cost, ...)"
- },
- {
-  "match": "^engine: no Recover$",
-  "class": "mechanic",
-  "needs": "Recover (CR 702.59).",
-  "api": "cantrip_mechanics::recover::ability(cost, \"Recover\")"
- },
- {
-  "match": "^engine: no Fortify$",
-  "class": "mechanic",
-  "needs": "Fortify, Equip for lands (CR 702.67).",
-  "api": "cantrip_mechanics::fortify::ability(cost, \"Fortify\")"
- },
- {
-  "match": "^engine: no Reinforce$",
-  "class": "mechanic",
-  "needs": "Reinforce N (CR 702.77).",
-  "api": "cantrip_mechanics::reinforce::ability::<N>(cost, \"Reinforce\")"
- },
- {
-  "match": "^engine: no Champion$",
-  "class": "mechanic",
-  "needs": "Champion a [type] (CR 702.72).",
-  "api": "cantrip_mechanics::champion::enters(filter), champion::LEAVES"
- },
- {
-  "match": "^engine: no BandsWithOthers$",
-  "class": "mechanic",
-  "needs": "Bands with other [quality] (CR 702.22c).",
-  "api": "cantrip_mechanics::banding::with_others(filter)"
- },
- {
-  "match": "^engine: no UmbraArmor$",
-  "class": "mechanic",
-  "needs": "Umbra armor (CR 702.89).",
-  "api": "cantrip_mechanics::umbra_armor::REPLACEMENT"
- },
- {
-  "match": "^engine: no LivingMetal$",
-  "class": "mechanic",
-  "needs": "Living metal (CR 702.161).",
-  "api": "cantrip_mechanics::living_metal::ON_YOUR_TURN"
- },
- {
-  "match": "^engine: no StartingIntensity$",
-  "class": "mechanic",
-  "needs": "Intensity as a card starts (Alchemy; digital only).",
-  "api": "cantrip_mechanics::intensity::starting::<N>"
- },
- {
-  "match": "^engine: no JumpStart$",
-  "class": "mechanic",
-  "needs": "Jump-start (CR 702.133).",
-  "api": "cantrip_mechanics::jump_start::way(\"Jump-start\")"
- },
- {
-  "match": "^engine: no ReadAhead$",
-  "class": "mechanic",
-  "needs": "Read ahead (CR 702.155).",
-  "api": "cantrip_mechanics::read_ahead::enters"
- },
- {
-  "match": "^engine: no Undaunted$",
-  "class": "mechanic",
-  "needs": "Undaunted (CR 702.125).",
-  "api": "cantrip_mechanics::undaunted::cost"
- },
- {
-  "match": "^engine: no Compleated$",
-  "class": "mechanic",
-  "needs": "Compleated (CR 702.150).",
-  "api": "cantrip_mechanics::compleated::enters"
- },
- {
-  "match": "^engine: no HiddenAgenda$",
-  "class": "mechanic",
-  "needs": "Hidden agenda, a Conspiracy-draft form Cantrip has no reason to play (CR 702.106).",
-  "api": "cantrip_mechanics::hidden_agenda::OPENING_HAND"
- },
- {
-  "match": "^engine: no DoubleAgenda$",
-  "class": "mechanic",
-  "needs": "Double agenda, a Conspiracy-draft form Cantrip has no reason to play (CR 702.106).",
-  "api": "cantrip_mechanics::double_agenda::OPENING_HAND"
- },
- {
-  "match": "^engine: no cost sized by the game$",
-  "class": "engine",
-  "needs": "A cost whose size is read from the game when it is paid, for abilities: costs are constants of the card today.",
-  "api": "Cost::reading(|q, asker, targets| ...)"
- },
- {
-  "match": "^engine: pay X life outside a spell's additional cost$",
-  "class": "engine",
-  "needs": "Paying X life with a choice of X in an ability's cost: pay_x_life is real only as a spell's additional cost or at resolution.",
-  "api": "Cost { pay_x_life: true, .. } on an ability"
- },
- {
-  "match": "^engine: pay X energy$",
-  "class": "engine",
-  "needs": "Paying any number of energy, chosen as the cost is paid.",
-  "api": "VariableCost::PayEnergyX"
- },
- {
-  "match": "^engine: no mill cost$",
-  "class": "engine",
-  "needs": "Milling as part of a cost.",
-  "api": "Cost { mill: n, .. }"
- },
- {
-  "match": "^engine: no cost sacrifices what this is attached to$",
-  "class": "engine",
-  "needs": "A cost that sacrifices the permanent this is attached to.",
-  "api": "Cost { sacrifice_host: true, .. }"
- },
- {
-  "match": "^engine: no random discard cost$",
-  "class": "engine",
-  "needs": "Discarding at random as a cost.",
-  "api": "Cost { discard_at_random: n, .. }, VariableCost::DiscardXAtRandom"
- },
- {
-  "match": "^engine: no cost unattaches what gave the ability$",
-  "class": "engine",
-  "needs": "A granted ability whose cost unattaches the Equipment or Aura that gave it.",
-  "api": "Cost { unattach_granter: true, .. }"
- },
- {
-  "match": "^engine: blight X outside a spell's additional cost$",
-  "class": "engine",
-  "needs": "Blight X in an ability's cost: BlightX is real only as a spell's additional cost.",
-  "api": "VariableCost::BlightX on an ability"
- },
- {
-  "match": "^engine: behold outside the casting of a spell$",
-  "class": "engine",
-  "needs": "Beholding as a cost of an ability or at resolution: behold is paid only while a spell is cast.",
-  "api": "behold::cost_of on an ability"
- },
- {
-  "match": "^engine: no reveal cost$",
-  "class": "engine",
-  "needs": "Revealing cards as a cost: the card itself, cards from hand, the top of a library.",
-  "api": "Cost { reveal_self: true, .. }, Cost { reveal_cards: Some((n, filter)), .. }"
- },
- {
-  "match": "^engine: no untap symbol cost$",
-  "class": "engine",
-  "needs": "The untap symbol in a cost (CR 107.6).",
-  "api": "Cost { untap: true, .. }"
- },
- {
-  "match": "^engine: no cost untaps permanents$",
-  "class": "engine",
-  "needs": "A cost that untaps permanents you control.",
-  "api": "Cost { untap_permanents: Some((n, filter)), .. }"
- },
- {
-  "match": "^engine: no cost puts an exiled card into a graveyard$",
-  "class": "engine",
-  "needs": "A cost that puts a card you own from exile into its owner's graveyard.",
-  "api": "Cost { exiled_to_graveyard: Some(filter), .. }"
- },
- {
-  "match": "^engine: no cost copies a mana cost$",
-  "class": "engine",
-  "needs": "A cost equal to an object's mana cost, read when it is paid, for abilities.",
-  "api": "Cost { own_mana_cost: true, .. }, Cost { host_mana_cost: true, .. }"
- },
- {
-  "match": "^engine: waterbend as a required additional cost$",
-  "class": "engine",
-  "needs": "Waterbend as a mandatory additional cost: only the kicker form is in the card definition.",
-  "api": "Cost { waterbend: mana, .. }"
- },
- {
-  "match": "^engine: no choice between the costs of an ability$",
-  "class": "engine",
-  "needs": "A cost paid in one of several ways, chosen as it is paid.",
-  "api": "Cost::either(&[..])"
- },
- {
-  "match": "^engine: no set rule on what a cost chooses$",
-  "class": "engine",
-  "needs": "A rule across the objects a cost picks: all of one color, sharing a type, and so on.",
-  "api": "Cost::chosen_under(&[..])"
- },
- {
-  "match": "^engine: no cost removes counters this way$",
-  "class": "engine",
-  "needs": "Removing counters of no fixed kind, all counters, at least a number, or from several permanents as a cost.",
-  "api": "Cost { remove_any_counters: n, .. }, Cost { remove_all_counters: .. }, VariableCost::RemoveAtLeast, Cost { remove_counters_from: Some(CountersFrom { .. }), .. }"
- },
- {
-  "match": "^engine: no snow or hybrid Phyrexian mana symbol$",
-  "class": "engine",
-  "needs": "ManaCost has no snow symbol (CR 107.4h) and no Phyrexian symbol of two colors (CR 107.4f).",
-  "api": "ManaCost::with_snow(n), ManaCost::with_phyrexian_hybrid(..)"
- },
- {
-  "match": "^engine: no activation by other players$",
-  "class": "engine",
-  "needs": "A rule on who may activate an ability, read when it is offered: abilities are their controller's today.",
-  "api": "AbilityDef::activated_by(|q, asker, player| ..)"
- },
- {
-  "match": "^engine: no ability that can't be copied$",
-  "class": "engine",
-  "needs": "An activated ability that can't be copied.",
-  "api": "AbilityDef::cant_be_copied()"
- },
- {
-  "match": "^engine: no rule on an ability's X$",
-  "class": "engine",
-  "needs": "A rule on the value of an ability's X.",
-  "api": "AbilityDef::x_is(..), AbilityDef::x_at_most(..)"
- },
- {
-  "match": "^engine: no Forecast$",
-  "class": "mechanic",
-  "needs": "Forecast (CR 702.57): activate only during your upkeep, once each turn, from the hand with the card revealed.",
-  "api": "AbilityDef::forecast()"
- },
- {
-  "match": "^engine: no flash for an additional cost$",
-  "class": "engine",
-  "needs": "Cast as though it had flash if you pay more: a way of casting whose extra cost is paid only outside a sorcery timing.",
-  "api": "CardDef::flash_for"
- },
- {
-  "match": "^engine: no rule on the mana spent on a spell$",
-  "class": "engine",
-  "needs": "A rule that a portion of the mana spent on a spell must be of a kind.",
-  "api": "CardDef::mana_spent"
- },
- {
-  "match": "^engine: no cost reduced for each time a cost is paid$",
-  "class": "engine",
-  "needs": "A spell that costs less for each time an additional cost is paid.",
-  "api": "Cost::for_less(cost, less)"
- },
- {
-  "match": "^engine: no Awaken$",
-  "class": "mechanic",
-  "needs": "Awaken N (CR 702.113): the alternative cost, a land target, and a land that becomes a 0/0 Elemental.",
-  "api": "cantrip_mechanics::awaken::way(cost, targets, effect, \"Awaken\"), cantrip_mechanics::awaken::awaken(g, source, object, n)"
- },
- {
-  "match": "^engine: no protection from this quality$",
-  "class": "engine",
-  "needs": "Protection from a quality no fixed rule covers: a chosen color, a shared color, a player, every property test.",
-  "api": "protection::from_matching, protection::from_players"
- },
- {
-  "match": "^engine: no effect gives protection from a subtype$",
-  "class": "engine",
-  "needs": "A resolving effect giving protection from a creature type.",
-  "api": "EffectKind::ProtectionFromSubtype(subtype)"
- },
- {
-  "match": "^engine: no effect gives protection from everything$",
-  "class": "engine",
-  "needs": "A resolving effect giving protection from everything (CR 702.16j).",
-  "api": "EffectKind::ProtectionFromEverything"
- },
- {
-  "match": "^engine: no Attractions$",
-  "class": "mechanic",
-  "needs": "The Attraction deck, sticker sheets and visits (CR 701.51). An Un-set form that Cantrip has no reason to play.",
-  "api": "cantrip_mechanics::attractions::open, cantrip_mechanics::attractions::visit"
- },
- {
-  "match": "^engine: no tickets$",
-  "class": "engine",
-  "needs": "Ticket counters on players and stickers (Unfinity). An Un-set form that Cantrip has no reason to play.",
-  "api": "g.get_tickets(player, n)"
- },
- {
-  "match": "^engine: no Endure$",
-  "class": "mechanic",
-  "needs": "Endure N (CR 701.63).",
-  "api": "cantrip_mechanics::endure::endure(g, source, object, n)"
- },
- {
-  "match": "^engine: no Detain$",
-  "class": "mechanic",
-  "needs": "Detain (CR 701.35).",
-  "api": "cantrip_mechanics::detain::detain(g, source, object)"
- },
- {
-  "match": "^engine: no effect turns a permanent face down$",
-  "class": "engine",
-  "needs": "A resolving effect turning a permanent face down.",
-  "api": "g.turn_face_down(object)"
- },
- {
-  "match": "^engine: no effect makes a creature blocked$",
-  "class": "engine",
-  "needs": "A resolving effect making an attacker blocked with nothing blocking it.",
-  "api": "g.become_blocked(object)"
- },
- {
-  "match": "^engine: no effect phases a permanent in$",
-  "class": "engine",
-  "needs": "A resolving effect phasing a permanent in.",
-  "api": "g.phase_in(&[object])"
- },
- {
-  "match": "^engine: no flipping a permanent$",
-  "class": "engine",
-  "needs": "Flip cards (CR 709) and the flipped status.",
-  "api": "g.flip(object)"
- },
- {
-  "match": "^engine: no Time Travel$",
-  "class": "engine",
-  "needs": "Time travel (CR 701.56).",
-  "api": "cantrip_mechanics::time_travel::time_travel(g, player, source)"
- },
- {
-  "match": "^engine: no Forage$",
-  "class": "mechanic",
-  "needs": "Forage (CR 701.61), as an effect and as a cost.",
-  "api": "cantrip_mechanics::forage::forage(g, player, source), cantrip_mechanics::forage::COST"
- },
- {
-  "match": "^engine: no effect gives the city's blessing$",
-  "class": "engine",
-  "needs": "A resolving effect giving the city's blessing: only the Ascend keyword does.",
-  "api": "g.ascend(player)"
- },
- {
-  "match": "^engine: no Epic$",
-  "class": "mechanic",
-  "needs": "Epic (CR 702.50): the rest of the game's upkeep copies and no more spells.",
-  "api": "cantrip_mechanics::epic::epic(g, item)"
- },
- {
-  "match": "^engine: no Intensity$",
-  "class": "mechanic",
-  "needs": "Intensity and intensify (Alchemy; digital only).",
-  "api": "cantrip_mechanics::intensity::intensify(g, player, source, n)"
- },
- {
-  "match": "^engine: no Fateseal$",
-  "class": "mechanic",
-  "needs": "Fateseal N (CR 701.29).",
-  "api": "cantrip_mechanics::fateseal::fateseal(g, player, source, opponent, n)"
- },
- {
-  "match": "^engine: no skipped step or phase$",
-  "class": "engine",
-  "needs": "Skipping a step or phase of a coming turn.",
-  "api": "g.skip_next(player, Skipped::..)"
- },
- {
-  "match": "^engine: no additional phase but combat$",
-  "class": "engine",
-  "needs": "An additional beginning, main or end phase: only additional combats exist.",
-  "api": "g.add_phases(AddedPhases::..)"
- },
- {
-  "match": "^engine: no planar deck$",
-  "class": "engine",
-  "needs": "The planar deck and planeswalking (CR 901). A casual format Cantrip has no reason to play.",
-  "api": "g.planeswalk(player)"
- },
- {
-  "match": "^engine: no effect empties a mana pool$",
-  "class": "engine",
-  "needs": "An effect emptying or doubling a player's mana pool.",
-  "api": "g.empty_mana_pool(player), g.double_mana_pool(player)"
- },
- {
-  "match": "^engine: no cost moves these objects$",
-  "class": "engine",
-  "needs": "A cost that moves objects between zones with a count or from a zone Cost has no field for: X or any number of cards from a graveyard, a library top, the stack, a hand to the battlefield, a graveyard to a library.",
-  "api": "Cost { moves: Some(MovesObjects { from: CostZone::.., to: CostDestination::.., count: CostCount::.., filter }), .. }"
- },
- {
-  "match": "^engine: no record of what paid a cost$",
-  "class": "engine",
-  "needs": "A list of the cards a spell's or ability's cost discarded, exiled or revealed, as q.cost_objects gives the permanents it chose.",
-  "api": "q.paid_objects(item, component)"
- },
- {
-  "match": "^engine: no reading of what a permanent could produce$",
-  "class": "engine",
-  "needs": "A query for the mana types other permanents could produce (CR 106.7): the core has it privately for colors_from_sacrifice.",
-  "api": "q.mana_could_produce(&objects, colors_only)"
- },
- {
-  "match": "^engine: no cost paid rather than each mana$",
-  "class": "engine",
-  "needs": "A cost paid instead of each mana of an activation cost (Heirloom Epic).",
-  "api": "AbilityDef::instead_of_each_mana(cost)"
- },
- {
-  "match": "^engine: no limit on activations each turn$",
-  "class": "engine",
-  "needs": "A limit of activations each turn above one.",
-  "api": "AbilityDef::most_each_turn(..)"
- },
- {
-  "match": "^engine: no Harness$",
-  "class": "mechanic",
-  "needs": "Harness (Marvel Infinity Stones) and the harnessed state.",
-  "api": "cantrip_mechanics::harness::harness(g, object)"
- },
- {
-  "match": "^engine: no Assimilate$",
-  "class": "mechanic",
-  "needs": "Assimilate (Doctor Who Borg form).",
-  "api": "cantrip_mechanics::assimilate::assimilate(g, source, object)"
- },
- {
-  "match": "^engine: no effect picks a door$",
-  "class": "engine",
-  "needs": "A door chosen as an effect resolves, and locking one: Game::unlock_door names its door and nothing locks.",
-  "api": "g.unlock_a_door(object, player), g.lock_or_unlock_a_door(object, player)"
- },
- {
-  "match": "^engine: no reversed turn order$",
-  "class": "engine",
-  "needs": "Reversing the order of turns (Aeon Engine).",
-  "api": "g.reverse_turn_order()"
- },
- {
-  "match": "^engine: no effect ends combat$",
-  "class": "engine",
-  "needs": "Ending the combat phase at once (Mandate of Peace).",
-  "api": "g.end_combat()"
- },
- {
-  "match": "^engine: no effect draws the game$",
-  "class": "engine",
-  "needs": "An effect that makes the game a draw (CR 104.4a).",
-  "api": "g.draw_game()"
- },
- {
-  "match": "^engine: no order of a graveyard$",
-  "class": "engine",
-  "needs": "Reordering a graveyard, chosen or at random (CR 404.2).",
-  "api": "g.shuffle_graveyard(player), g.reorder_graveyard(player)"
- },
- {
-  "match": "^engine: no extra turn but the next$",
-  "class": "engine",
-  "needs": "An extra turn after the next one, or one that skips a step.",
-  "api": "g.add_extra_turn_after_next(player), g.add_extra_turn_skipping(player, step)"
- },
- {
-  "match": "^engine: no choice of how many to discard at random$",
-  "class": "engine",
-  "needs": "Choosing any number, then discarding that many at random.",
-  "api": "cantrip_mechanics::hand::discard_any_number_at_random(g, player, source)"
- },
- {
-  "match": "^engine: no subgame$",
-  "class": "engine",
-  "needs": "Subgames (Shahrazad, CR 725). Banned in every format, so a form Cantrip has little reason to play.",
-  "api": "cantrip_mechanics::subgame::play(g, source)"
- },
- {
-  "match": "^engine: no [A-Za-z]+ granted$",
-  "class": "engine",
-  "needs": "A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set.",
-  "api": "Keyword bits or grant for the named mechanic"
- },
- {
-  "match": "^engine: no Equip$",
-  "class": "mechanic",
-  "needs": "Equip written on a card with an odd shape: Luxior, a cost that reads the game.",
-  "api": "cantrip_mechanics::equip::ability"
- },
- {
-  "match": "^engine: no AuraSwamp$",
-  "class": "mechanic",
-  "needs": "Swampwalk with an Aura restriction on a granted form.",
-  "api": "cantrip_mechanics::landwalk"
- },
- {
-  "match": "^engine: no WarpX$",
-  "class": "mechanic",
-  "needs": "Warp with X in its cost.",
-  "api": "cantrip_mechanics::warp::way"
- },
- {
-  "match": "^engine: no EmergeFromArtifact$",
-  "class": "mechanic",
-  "needs": "Emerge from an artifact rather than a creature.",
-  "api": "cantrip_mechanics::emerge::way"
- },
- {
-  "match": "^engine: no SurgeX$",
-  "class": "mechanic",
-  "needs": "Surge with X in its cost.",
-  "api": "cantrip_mechanics::surge::way"
- },
- {
-  "match": "^engine: no FreerunningX$",
-  "class": "mechanic",
-  "needs": "Freerunning with X in its cost.",
-  "api": "cantrip_mechanics::freerunning::way"
- },
- {
-  "match": "^engine: no BestowX$",
-  "class": "mechanic",
-  "needs": "Bestow with X in its cost.",
-  "api": "cantrip_mechanics::bestow"
- },
- {
-  "match": "^engine: no CasualtyX$",
-  "class": "mechanic",
-  "needs": "Casualty X with X read from the game.",
-  "api": "cantrip_mechanics::casualty"
- },
- {
-  "match": "^engine: no BasicMayhem$",
-  "class": "mechanic",
-  "needs": "Mayhem on a land.",
-  "api": "cantrip_mechanics::mayhem::ability"
- },
- {
-  "match": "^engine: no SpaceSculptor$",
-  "class": "mechanic",
-  "needs": "Space sculptor, an Un-set sector rule Cantrip has no reason to play.",
-  "api": "cantrip_mechanics::space_sculptor::STATIC"
- },
- {
-  "match": "^engine: no ForetellX$",
-  "class": "mechanic",
-  "needs": "Foretell with X in its cost.",
-  "api": "cantrip_mechanics::foretell::way"
- },
- {
-  "match": "^engine: no TrampleOverPlaneswalkers$",
-  "class": "mechanic",
-  "needs": "Trample over planeswalkers (CR 702.19).",
-  "api": "cantrip_mechanics::Keyword::TrampleOverPlaneswalkers"
- },
- {
-  "match": "^engine: no AnnihilatorX$",
-  "class": "mechanic",
-  "needs": "Annihilator with X read from the game.",
-  "api": "cantrip_mechanics::annihilator"
- },
- {
-  "match": "^engine: no CommanderNinjutsu$",
-  "class": "mechanic",
-  "needs": "Commander ninjutsu (CR 702.49d): needs the commander.",
-  "api": "cantrip_mechanics::ninjutsu::commander"
- }
+{"match": "^engine: no perpetual effects$", "class": "engine", "needs": "Changes that stay with an object through every zone for the rest of the game (Alchemy \"perpetually\"), held on the card and not on the permanent. Alchemy only, so Cantrip has no reason to play it unless it plays digital cards.", "api": "cantrip_mechanics::perpetual::apply(g, source, object, Perpetual::{Effect,Rules,Incorporate,SpendAsThoughAnyType})"},
+{"match": "^engine: no commander$", "class": "engine", "needs": "The commander designation (CR 903.3): Cantrip games have none, so a casual-format form it has no reason to support unless it adds the variant.", "api": "Query::is_commander(id)"},
+{"match": "^engine: no Ring temptation$", "class": "engine", "needs": "The Ring emblem and Ring-bearer designation (CR 701.54).", "api": "cantrip_mechanics::ring::tempt(g, player, source)"},
+{"match": "^engine: venture into the dungeon reaches only Undercity$", "class": "engine", "needs": "Venture must offer the three dungeons (CR 701.49a): Game::venture only knows Undercity.", "api": "Game::venture(player), with the three dungeons in CardDef::dungeon"},
+{"match": "^engine: no untap event$", "class": "engine", "needs": "An event when a permanent becomes untapped.", "api": "Event::Untapped { permanent }, EventMask::UNTAPPED"},
+{"match": "^engine: no mutate event$", "class": "engine", "needs": "An event when a permanent mutates (CR 702.140).", "api": "Event::Mutated { permanent }, EventMask::MUTATED"},
+{"match": "^engine: no specialize event$", "class": "engine", "needs": "An event when a permanent specializes (Alchemy).", "api": "Event::Specialized { permanent }, EventMask::SPECIALIZED"},
+{"match": "^engine: no exploit event$", "class": "engine", "needs": "An event when a creature exploits another (CR 702.110).", "api": "Event::Exploited { creature, sacrificed }, EventMask::EXPLOITED"},
+{"match": "^engine: no crew event$", "class": "engine", "needs": "Event::Crewed is recorded in the history but not emitted: abilities that trigger on a creature crewing never see it (a question of who crewed already compiles).", "api": "emit Event::Crewed, EventMask::CREWED"},
+{"match": "^engine: no saddle event$", "class": "engine", "needs": "An event for a creature saddling a Mount (CR 702.171), in the history and to abilities.", "api": "Event::Saddled { creature, mount }, EventMask::SADDLED"},
+{"match": "^engine: no ability triggers on losing the game$", "class": "engine", "needs": "Event::GameLost is filed in the history only: it must reach triggers.", "api": "emit Event::GameLost, EventMask::GAME_LOST"},
+{"match": "^engine: no event for dice rolled together$", "class": "engine", "needs": "One event for all the dice a player rolled at once.", "api": "Event::DiceRolled { player, .. }, EventMask::DICE_ROLLED"},
+{"match": "^engine: no event for a counter being removed$", "class": "engine", "needs": "An event for counters leaving an object, with the kind and how many.", "api": "Event::CountersRemoved { object, kind, amount, by, .. }, EventMask::COUNTERS_REMOVED"},
+{"match": "^engine: no event for each counter put$", "class": "engine", "needs": "Abilities that trigger once for each counter put: CountersPut is one event for the put, however many counters.", "api": "a per-counter firing of Event::CountersPut (TriggeredDef counted by amount)"},
+{"match": "^engine: no discard cause in events$", "class": "engine", "needs": "What caused a discard, to a matcher: the record has a Cause but the event does not carry it.", "api": "Event::Discarded { cause, .. }"},
+{"match": "^engine: only a mana ability triggers on tapping for mana$", "class": "engine", "needs": "TappedForMana shown to ordinary triggered abilities, not only to mana abilities (CR 605.1b).", "api": "Event::TappedForMana reaching any triggered ability"},
+{"match": "^engine: no effect removes from combat$", "class": "engine", "needs": "An effect removing a creature from combat (CR 506.4).", "api": "Game::remove_from_combat(object)"},
+{"match": "^engine: no resolving effect sets land types$", "class": "engine", "needs": "A resolving effect that sets land types and takes the rules text with it (CR 305.7): today only a static does (sets_land_subtypes).", "api": "EffectKind::SetLandType(subtype)"},
+{"match": "^engine: no effect sets power or toughness alone$", "class": "engine", "needs": "A resolving effect setting base power or toughness without the other.", "api": "EffectKind::SetPower(n), EffectKind::SetToughness(n)"},
+{"match": "^engine: no effect changes supertypes$", "class": "engine", "needs": "A resolving effect adding or removing a supertype.", "api": "EffectKind::AddSupertype(Supertype), EffectKind::LoseSupertype(Supertype)"},
+{"match": "^engine: no effect removes a card type$", "class": "engine", "needs": "A resolving effect removing one card type.", "api": "EffectKind::LoseType(CardType)"},
+{"match": "^engine: no effect adds colors$", "class": "engine", "needs": "A resolving effect adding colors to the ones an object has.", "api": "EffectKind::AddColors(ColorSet)"},
+{"match": "^engine: no combat phase count$", "class": "engine", "needs": "Which combat phase of the turn this is (\"first combat phase\").", "api": "TurnState::combat_phase"},
+{"match": "^engine: mana spent by what it may pay for$", "class": "engine", "needs": "ManaRestriction variants beyond its fixed list: a test of the spell or source, a part of a cost, a rider on what it pays for.", "api": "ManaRestriction::{SpellsMatching, AbilitiesMatching, AllOf, Not, Purpose, Lasts, Rider}"},
+{"match": "^engine: splice onto other than Arcane$", "class": "engine", "needs": "Splice onto a kind of spell other than Arcane (CR 702.47): CardDef::splice is Arcane only.", "api": "CardDef::splice = Some(cantrip_mechanics::splice::onto(filter, price))"},
+{"match": "^engine: no Bushido$", "class": "mechanic", "needs": "Bushido N (CR 702.45).", "api": "cantrip_mechanics::triggers::bushido_by(|q, asker| n, text)"},
+{"match": "^engine: no Soulshift$", "class": "mechanic", "needs": "Soulshift N (CR 702.46).", "api": "cantrip_mechanics::triggers::soulshift_by(|q, asker| n, text)"},
+{"match": "^engine: no Rampage$", "class": "mechanic", "needs": "Rampage N (CR 702.23).", "api": "cantrip_mechanics::rampage::trigger::<N>(\"Rampage\")"},
+{"match": "^engine: no Afflict$", "class": "mechanic", "needs": "Afflict N (CR 702.130).", "api": "cantrip_mechanics::afflict::trigger::<N>(\"Afflict\")"},
+{"match": "^engine: no Renown$", "class": "mechanic", "needs": "Renown N and the renowned designation (CR 702.112).", "api": "cantrip_mechanics::renown::trigger::<N>(\"Renown\")"},
+{"match": "^engine: no Poisonous$", "class": "mechanic", "needs": "Poisonous N (CR 702.70).", "api": "cantrip_mechanics::poisonous::trigger::<N>(\"Poisonous\")"},
+{"match": "^engine: no Frenzy$", "class": "mechanic", "needs": "Frenzy N (CR 702.68).", "api": "cantrip_mechanics::frenzy::trigger::<N>(\"Frenzy\")"},
+{"match": "^engine: no Fabricate$", "class": "mechanic", "needs": "Fabricate N and its Servo (CR 702.123).", "api": "cantrip_mechanics::fabricate::trigger::<N>(\"Fabricate\"), fabricate::SERVO"},
+{"match": "^engine: no Afterlife$", "class": "mechanic", "needs": "Afterlife N and its Spirit (CR 702.135).", "api": "cantrip_mechanics::afterlife::trigger::<N>(\"Afterlife\"), afterlife::SPIRIT"},
+{"match": "^engine: no Exploit$", "class": "mechanic", "needs": "Exploit (CR 702.110): the sacrifice as it enters.", "api": "cantrip_mechanics::exploit::TRIGGER"},
+{"match": "^engine: no DoubleTeam$", "class": "mechanic", "needs": "Double team (CR 702.178).", "api": "cantrip_mechanics::double_team::TRIGGER"},
+{"match": "^engine: no Soulbond$", "class": "mechanic", "needs": "Soulbond and being paired (CR 702.95).", "api": "cantrip_mechanics::soulbond::TRIGGER"},
+{"match": "^engine: no Conspire$", "class": "mechanic", "needs": "Conspire (CR 702.78).", "api": "cantrip_mechanics::conspire::TRIGGER"},
+{"match": "^engine: no Haunt$", "class": "mechanic", "needs": "Haunt and the haunting relation (CR 702.55).", "api": "cantrip_mechanics::haunt::TRIGGER"},
+{"match": "^engine: no Gravestorm$", "class": "mechanic", "needs": "Gravestorm (CR 702.69).", "api": "cantrip_mechanics::gravestorm::TRIGGER"},
+{"match": "^engine: no Demonstrate$", "class": "mechanic", "needs": "Demonstrate (CR 702.144).", "api": "cantrip_mechanics::demonstrate::TRIGGER"},
+{"match": "^engine: no Absorb$", "class": "mechanic", "needs": "Absorb N (CR 702.64).", "api": "cantrip_mechanics::absorb::prevention::<N>()"},
+{"match": "^engine: no Devour$", "class": "mechanic", "needs": "Devour N (CR 702.82).", "api": "cantrip_mechanics::devour::enters_by(|devoured| n)"},
+{"match": "^engine: no Tribute$", "class": "mechanic", "needs": "Tribute N (CR 702.104).", "api": "cantrip_mechanics::tribute::enters::<N>"},
+{"match": "^engine: no Amplify$", "class": "mechanic", "needs": "Amplify N (CR 702.38).", "api": "cantrip_mechanics::amplify::enters::<N>"},
+{"match": "^engine: no Bloodthirst$", "class": "mechanic", "needs": "Bloodthirst N (CR 702.54).", "api": "cantrip_mechanics::bloodthirst::enters::<N>"},
+{"match": "^engine: no BloodthirstX$", "class": "mechanic", "needs": "Bloodthirst X (CR 702.54c).", "api": "cantrip_mechanics::bloodthirst::enters_x"},
+{"match": "^engine: no VanishingEnters$", "class": "mechanic", "needs": "Vanishing N entering with time counters (CR 702.63).", "api": "cantrip_mechanics::vanishing::enters::<N>"},
+{"match": "^engine: no Vanishing$", "class": "mechanic", "needs": "Vanishing: its upkeep and last-counter triggers (CR 702.63).", "api": "cantrip_mechanics::vanishing::upkeep(\"Vanishing\"), vanishing::LAST_COUNTER"},
+{"match": "^engine: no Graft$", "class": "mechanic", "needs": "Graft N (CR 702.58).", "api": "cantrip_mechanics::graft::enters::<N>, graft::TRIGGER"},
+{"match": "^engine: no Blitz$", "class": "mechanic", "needs": "Blitz (CR 702.152): the way, its haste, its draw and its sacrifice.", "api": "cantrip_mechanics::blitz::way(cost, \"Blitz\")"},
+{"match": "^engine: no Prowl$", "class": "mechanic", "needs": "Prowl (CR 702.76).", "api": "cantrip_mechanics::prowl::way(cost, \"Prowl\")"},
+{"match": "^engine: no Disturb$", "class": "mechanic", "needs": "Disturb (CR 702.146).", "api": "cantrip_mechanics::disturb::way(cost, \"Disturb\")"},
+{"match": "^engine: no Mutate$", "class": "mechanic", "needs": "Mutate and merged permanents (CR 702.140, 729).", "api": "cantrip_mechanics::mutate::way(cost, \"Mutate\")"},
+{"match": "^engine: no MoreThanMeetsTheEye$", "class": "mechanic", "needs": "More Than Meets the Eye (CR 702.162).", "api": "cantrip_mechanics::more_than_meets_the_eye::way(cost, \"MoreThanMeetsTheEye\")"},
+{"match": "^engine: no Encore$", "class": "mechanic", "needs": "Encore (CR 702.141).", "api": "cantrip_mechanics::encore::ability(cost, \"Encore\")"},
+{"match": "^engine: no Specialize$", "class": "mechanic", "needs": "Specialize, its choice and its faces (Alchemy; digital only).", "api": "cantrip_mechanics::specialize::ability(cost, \"Specialize\")"},
+{"match": "^engine: no SpecializeFromGraveyard$", "class": "mechanic", "needs": "Specialize from a graveyard (Alchemy; digital only).", "api": "cantrip_mechanics::specialize_from_graveyard::ability(cost, ...)"},
+{"match": "^engine: no Recover$", "class": "mechanic", "needs": "Recover (CR 702.59).", "api": "cantrip_mechanics::recover::ability(cost, \"Recover\")"},
+{"match": "^engine: no Fortify$", "class": "mechanic", "needs": "Fortify, Equip for lands (CR 702.67).", "api": "cantrip_mechanics::fortify::ability(cost, \"Fortify\")"},
+{"match": "^engine: no Reinforce$", "class": "mechanic", "needs": "Reinforce N (CR 702.77).", "api": "cantrip_mechanics::reinforce::ability_x(price, text)"},
+{"match": "^engine: no Champion$", "class": "mechanic", "needs": "Champion a [type] (CR 702.72).", "api": "cantrip_mechanics::champion::enters(filter), champion::LEAVES"},
+{"match": "^engine: no BandsWithOthers$", "class": "mechanic", "needs": "Bands with other [quality] (CR 702.22c).", "api": "cantrip_mechanics::banding::with_others(filter)"},
+{"match": "^engine: no UmbraArmor$", "class": "mechanic", "needs": "Umbra armor (CR 702.89).", "api": "cantrip_mechanics::umbra_armor::REPLACEMENT"},
+{"match": "^engine: no LivingMetal$", "class": "mechanic", "needs": "Living metal (CR 702.161).", "api": "cantrip_mechanics::living_metal::ON_YOUR_TURN"},
+{"match": "^engine: no StartingIntensity$", "class": "mechanic", "needs": "Intensity as a card starts (Alchemy; digital only).", "api": "cantrip_mechanics::intensity::starting::<N>"},
+{"match": "^engine: no JumpStart$", "class": "mechanic", "needs": "Jump-start (CR 702.133).", "api": "cantrip_mechanics::jump_start::way(\"Jump-start\")"},
+{"match": "^engine: no ReadAhead$", "class": "mechanic", "needs": "Read ahead (CR 702.155).", "api": "cantrip_mechanics::read_ahead::enters"},
+{"match": "^engine: no Undaunted$", "class": "mechanic", "needs": "Undaunted (CR 702.125).", "api": "cantrip_mechanics::undaunted::cost"},
+{"match": "^engine: no Compleated$", "class": "mechanic", "needs": "Compleated (CR 702.150).", "api": "cantrip_mechanics::compleated::enters"},
+{"match": "^engine: no HiddenAgenda$", "class": "mechanic", "needs": "Hidden agenda, a Conspiracy-draft form Cantrip has no reason to play (CR 702.106).", "api": "cantrip_mechanics::hidden_agenda::OPENING_HAND"},
+{"match": "^engine: no DoubleAgenda$", "class": "mechanic", "needs": "Double agenda, a Conspiracy-draft form Cantrip has no reason to play (CR 702.106).", "api": "cantrip_mechanics::double_agenda::OPENING_HAND"},
+{"match": "^engine: no cost sized by the game$", "class": "engine", "needs": "A cost whose size is read from the game when it is paid, for abilities: costs are constants of the card today.", "api": "Cost::reading(|q, asker, targets| ...)"},
+{"match": "^engine: pay X life outside a spell's additional cost$", "class": "engine", "needs": "Paying X life with a choice of X in an ability's cost: pay_x_life is real only as a spell's additional cost or at resolution.", "api": "Cost { pay_x_life: true, .. } on an ability"},
+{"match": "^engine: pay X energy$", "class": "engine", "needs": "Paying any number of energy, chosen as the cost is paid.", "api": "VariableCost::PayEnergyX"},
+{"match": "^engine: no mill cost$", "class": "engine", "needs": "Milling as part of a cost.", "api": "Cost { mill: n, .. }"},
+{"match": "^engine: no cost sacrifices what this is attached to$", "class": "engine", "needs": "A cost that sacrifices the permanent this is attached to.", "api": "Cost { sacrifice_host: true, .. }"},
+{"match": "^engine: no random discard cost$", "class": "engine", "needs": "Discarding at random as a cost.", "api": "Cost { discard_at_random: n, .. }, VariableCost::DiscardXAtRandom"},
+{"match": "^engine: no cost unattaches what gave the ability$", "class": "engine", "needs": "A granted ability whose cost unattaches the Equipment or Aura that gave it.", "api": "Cost { unattach_granter: true, .. }"},
+{"match": "^engine: blight X outside a spell's additional cost$", "class": "engine", "needs": "Blight X in an ability's cost: BlightX is real only as a spell's additional cost.", "api": "VariableCost::BlightX on an ability"},
+{"match": "^engine: behold outside the casting of a spell$", "class": "engine", "needs": "Beholding as a cost of an ability or at resolution: behold is paid only while a spell is cast.", "api": "behold::cost_of on an ability"},
+{"match": "^engine: no reveal cost$", "class": "engine", "needs": "Revealing cards as a cost: the card itself, cards from hand, the top of a library.", "api": "Cost { reveal_self: true, .. }, Cost { reveal_cards: Some((n, filter)), .. }"},
+{"match": "^engine: no untap symbol cost$", "class": "engine", "needs": "The untap symbol in a cost (CR 107.6).", "api": "Cost { untap: true, .. }"},
+{"match": "^engine: no cost untaps permanents$", "class": "engine", "needs": "A cost that untaps permanents you control.", "api": "Cost { untap_permanents: Some((n, filter)), .. }"},
+{"match": "^engine: no cost puts an exiled card into a graveyard$", "class": "engine", "needs": "A cost that puts a card you own from exile into its owner's graveyard.", "api": "Cost { exiled_to_graveyard: Some(filter), .. }"},
+{"match": "^engine: no cost copies a mana cost$", "class": "engine", "needs": "A cost equal to an object's mana cost, read when it is paid, for abilities.", "api": "Cost { own_mana_cost: true, .. }, Cost { host_mana_cost: true, .. }"},
+{"match": "^engine: waterbend as a required additional cost$", "class": "engine", "needs": "Waterbend as a mandatory additional cost: only the kicker form is in the card definition.", "api": "Cost { waterbend: mana, .. }"},
+{"match": "^engine: no choice between the costs of an ability$", "class": "engine", "needs": "A cost paid in one of several ways, chosen as it is paid.", "api": "Cost::either(&[..])"},
+{"match": "^engine: no set rule on what a cost chooses$", "class": "engine", "needs": "A rule across the objects a cost picks: all of one color, sharing a type, and so on.", "api": "Cost::chosen_under(&[..])"},
+{"match": "^engine: no cost removes counters this way$", "class": "engine", "needs": "Removing counters of no fixed kind, all counters, at least a number, or from several permanents as a cost.", "api": "Cost { remove_any_counters: n, .. }, Cost { remove_all_counters: .. }, VariableCost::RemoveAtLeast, Cost { remove_counters_from: Some(CountersFrom { .. }), .. }"},
+{"match": "^engine: no snow or hybrid Phyrexian mana symbol$", "class": "engine", "needs": "ManaCost has no snow symbol (CR 107.4h) and no Phyrexian symbol of two colors (CR 107.4f).", "api": "ManaCost::with_snow(n), ManaCost::with_phyrexian_hybrid(..)"},
+{"match": "^engine: no activation by other players$", "class": "engine", "needs": "A rule on who may activate an ability, read when it is offered: abilities are their controller's today.", "api": "AbilityDef::activated_by(|q, asker, player| ..)"},
+{"match": "^engine: no ability that can't be copied$", "class": "engine", "needs": "An activated ability that can't be copied.", "api": "AbilityDef::cant_be_copied()"},
+{"match": "^engine: no rule on an ability's X$", "class": "engine", "needs": "A rule on the value of an ability's X.", "api": "AbilityDef::x_is(..), AbilityDef::x_at_most(..)"},
+{"match": "^engine: no Forecast$", "class": "mechanic", "needs": "Forecast (CR 702.57): activate only during your upkeep, once each turn, from the hand with the card revealed.", "api": "AbilityDef::forecast()"},
+{"match": "^engine: no flash for an additional cost$", "class": "engine", "needs": "Cast as though it had flash if you pay more: a way of casting whose extra cost is paid only outside a sorcery timing.", "api": "CardDef::flash_for"},
+{"match": "^engine: no rule on the mana spent on a spell$", "class": "engine", "needs": "A rule that a portion of the mana spent on a spell must be of a kind.", "api": "CardDef::mana_spent"},
+{"match": "^engine: no cost reduced for each time a cost is paid$", "class": "engine", "needs": "A spell that costs less for each time an additional cost is paid.", "api": "Cost::for_less(cost, less)"},
+{"match": "^engine: no Awaken$", "class": "mechanic", "needs": "Awaken N (CR 702.113): the alternative cost, a land target, and a land that becomes a 0/0 Elemental.", "api": "cantrip_mechanics::awaken::way(cost, targets, effect, \"Awaken\"), cantrip_mechanics::awaken::awaken(g, source, object, n)"},
+{"match": "^engine: no protection from this quality$", "class": "engine", "needs": "Protection from a quality no fixed rule covers: a chosen color, a shared color, a player, every property test.", "api": "protection::from_matching, protection::from_players"},
+{"match": "^engine: no effect gives protection from a subtype$", "class": "engine", "needs": "A resolving effect giving protection from a creature type.", "api": "EffectKind::ProtectionFromSubtype(subtype)"},
+{"match": "^engine: no effect gives protection from everything$", "class": "engine", "needs": "A resolving effect giving protection from everything (CR 702.16j).", "api": "EffectKind::ProtectionFromEverything"},
+{"match": "^engine: no Attractions$", "class": "mechanic", "needs": "The Attraction deck, sticker sheets and visits (CR 701.51). An Un-set form that Cantrip has no reason to play.", "api": "cantrip_mechanics::attractions::open, cantrip_mechanics::attractions::visit"},
+{"match": "^engine: no tickets$", "class": "engine", "needs": "Ticket counters on players and stickers (Unfinity). An Un-set form that Cantrip has no reason to play.", "api": "g.get_tickets(player, n)"},
+{"match": "^engine: no Endure$", "class": "mechanic", "needs": "Endure N (CR 701.63).", "api": "cantrip_mechanics::endure::endure(g, source, object, n)"},
+{"match": "^engine: no Detain$", "class": "mechanic", "needs": "Detain (CR 701.35).", "api": "cantrip_mechanics::detain::detain(g, source, object)"},
+{"match": "^engine: no effect turns a permanent face down$", "class": "engine", "needs": "A resolving effect turning a permanent face down.", "api": "g.turn_face_down(object)"},
+{"match": "^engine: no effect makes a creature blocked$", "class": "engine", "needs": "A resolving effect making an attacker blocked with nothing blocking it.", "api": "g.become_blocked(object)"},
+{"match": "^engine: no effect phases a permanent in$", "class": "engine", "needs": "A resolving effect phasing a permanent in.", "api": "g.phase_in(&[object])"},
+{"match": "^engine: no flipping a permanent$", "class": "engine", "needs": "Flip cards (CR 709) and the flipped status.", "api": "g.flip(object)"},
+{"match": "^engine: no Time Travel$", "class": "engine", "needs": "Time travel (CR 701.56).", "api": "cantrip_mechanics::time_travel::time_travel(g, player, source)"},
+{"match": "^engine: no Forage$", "class": "mechanic", "needs": "Forage (CR 701.61), as an effect and as a cost.", "api": "cantrip_mechanics::forage::forage(g, player, source), cantrip_mechanics::forage::COST"},
+{"match": "^engine: no effect gives the city's blessing$", "class": "engine", "needs": "A resolving effect giving the city's blessing: only the Ascend keyword does.", "api": "g.ascend(player)"},
+{"match": "^engine: no Epic$", "class": "mechanic", "needs": "Epic (CR 702.50): the rest of the game's upkeep copies and no more spells.", "api": "cantrip_mechanics::epic::epic(g, item)"},
+{"match": "^engine: no Intensity$", "class": "mechanic", "needs": "Intensity and intensify (Alchemy; digital only).", "api": "cantrip_mechanics::intensity::intensify(g, player, source, n)"},
+{"match": "^engine: no Fateseal$", "class": "mechanic", "needs": "Fateseal N (CR 701.29).", "api": "cantrip_mechanics::fateseal::fateseal(g, player, source, opponent, n)"},
+{"match": "^engine: no skipped step or phase$", "class": "engine", "needs": "Skipping a step or phase of a coming turn.", "api": "g.skip_next(player, Skipped::..)"},
+{"match": "^engine: no additional phase but combat$", "class": "engine", "needs": "An additional beginning, main or end phase: only additional combats exist.", "api": "g.add_phases(AddedPhases::..)"},
+{"match": "^engine: no planar deck$", "class": "engine", "needs": "The planar deck and planeswalking (CR 901). A casual format Cantrip has no reason to play.", "api": "g.planeswalk(player)"},
+{"match": "^engine: no effect empties a mana pool$", "class": "engine", "needs": "An effect emptying or doubling a player's mana pool.", "api": "g.empty_mana_pool(player), g.double_mana_pool(player)"},
+{"match": "^engine: no cost moves these objects$", "class": "engine", "needs": "A cost that moves objects between zones with a count or from a zone Cost has no field for: X or any number of cards from a graveyard, a library top, the stack, a hand to the battlefield, a graveyard to a library.", "api": "Cost { moves: Some(MovesObjects { from: CostZone::.., to: CostDestination::.., count: CostCount::.., filter }), .. }"},
+{"match": "^engine: no record of what paid a cost$", "class": "engine", "needs": "A list of the cards a spell's or ability's cost discarded, exiled or revealed, as q.cost_objects gives the permanents it chose.", "api": "q.paid_objects(item, component)"},
+{"match": "^engine: no reading of what a permanent could produce$", "class": "engine", "needs": "A query for the mana types other permanents could produce (CR 106.7): the core has it privately for colors_from_sacrifice.", "api": "q.mana_could_produce(&objects, colors_only)"},
+{"match": "^engine: no cost paid rather than each mana$", "class": "engine", "needs": "A cost paid instead of each mana of an activation cost (Heirloom Epic).", "api": "AbilityDef::instead_of_each_mana(cost)"},
+{"match": "^engine: no limit on activations each turn$", "class": "engine", "needs": "A limit of activations each turn above one.", "api": "AbilityDef::most_each_turn(..)"},
+{"match": "^engine: no Harness$", "class": "mechanic", "needs": "Harness (Marvel Infinity Stones) and the harnessed state.", "api": "cantrip_mechanics::harness::harness(g, object)"},
+{"match": "^engine: no Assimilate$", "class": "mechanic", "needs": "Assimilate (Doctor Who Borg form).", "api": "cantrip_mechanics::assimilate::assimilate(g, source, object)"},
+{"match": "^engine: no effect picks a door$", "class": "engine", "needs": "A door chosen as an effect resolves, and locking one: Game::unlock_door names its door and nothing locks.", "api": "g.unlock_a_door(object, player), g.lock_or_unlock_a_door(object, player)"},
+{"match": "^engine: no reversed turn order$", "class": "engine", "needs": "Reversing the order of turns (Aeon Engine).", "api": "g.reverse_turn_order()"},
+{"match": "^engine: no effect ends combat$", "class": "engine", "needs": "Ending the combat phase at once (Mandate of Peace).", "api": "g.end_combat()"},
+{"match": "^engine: no effect draws the game$", "class": "engine", "needs": "An effect that makes the game a draw (CR 104.4a).", "api": "g.draw_game()"},
+{"match": "^engine: no order of a graveyard$", "class": "engine", "needs": "Reordering a graveyard, chosen or at random (CR 404.2).", "api": "g.shuffle_graveyard(player), g.reorder_graveyard(player)"},
+{"match": "^engine: no extra turn but the next$", "class": "engine", "needs": "An extra turn after the next one, or one that skips a step.", "api": "g.add_extra_turn_after_next(player), g.add_extra_turn_skipping(player, step)"},
+{"match": "^engine: no choice of how many to discard at random$", "class": "engine", "needs": "Choosing any number, then discarding that many at random.", "api": "cantrip_mechanics::hand::discard_any_number_at_random(g, player, source)"},
+{"match": "^engine: no subgame$", "class": "engine", "needs": "Subgames (Shahrazad, CR 725). Banned in every format, so a form Cantrip has little reason to play.", "api": "cantrip_mechanics::subgame::play(g, source)"},
+{"match": "^engine: no [A-Za-z]+ granted$", "class": "engine", "needs": "A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set.", "api": "cantrip_mechanics::<mechanic>::spells_have(filter, price), or spells_have(filter) for a mechanic with no cost"},
+{"match": "^engine: no Equip$", "class": "mechanic", "needs": "Equip written on a card with an odd shape: Luxior, a cost that reads the game.", "api": "cantrip_mechanics::equip::ability_onto(price, filter, text)"},
+{"match": "^engine: no AuraSwamp$", "class": "mechanic", "needs": "Swampwalk with an Aura restriction on a granted form.", "api": "cantrip_mechanics::aura_swap::ability(price, text)"},
+{"match": "^engine: no WarpX$", "class": "mechanic", "needs": "Warp with X in its cost.", "api": "cantrip_mechanics::warp::way_x(price, text)"},
+{"match": "^engine: no EmergeFromArtifact$", "class": "mechanic", "needs": "Emerge from an artifact rather than a creature.", "api": "cantrip_mechanics::emerge::from_artifact(price, text)"},
+{"match": "^engine: no SurgeX$", "class": "mechanic", "needs": "Surge with X in its cost.", "api": "cantrip_mechanics::surge::way_x(price, text)"},
+{"match": "^engine: no FreerunningX$", "class": "mechanic", "needs": "Freerunning with X in its cost.", "api": "cantrip_mechanics::freerunning::way_x(price, text)"},
+{"match": "^engine: no BestowX$", "class": "mechanic", "needs": "Bestow with X in its cost.", "api": "cantrip_mechanics::bestow::way_x(price, text)"},
+{"match": "^engine: no CasualtyX$", "class": "mechanic", "needs": "Casualty X with X read from the game.", "api": "cantrip_mechanics::casualty::optional_x()"},
+{"match": "^engine: no BasicMayhem$", "class": "mechanic", "needs": "Mayhem on a land.", "api": "cantrip_mechanics::mayhem::land_way(text)"},
+{"match": "^engine: no SpaceSculptor$", "class": "mechanic", "needs": "Space sculptor, an Un-set sector rule Cantrip has no reason to play.", "api": "cantrip_mechanics::space_sculptor::ABILITY"},
+{"match": "^engine: no ForetellX$", "class": "mechanic", "needs": "Foretell with X in its cost.", "api": "cantrip_mechanics::foretell::ability_x(price)"},
+{"match": "^engine: no TrampleOverPlaneswalkers$", "class": "mechanic", "needs": "Trample over planeswalkers (CR 702.19).", "api": "Keyword::TrampleOverPlaneswalkers"},
+{"match": "^engine: no AnnihilatorX$", "class": "mechanic", "needs": "Annihilator with X read from the game.", "api": "cantrip_mechanics::triggers::annihilator_by(|q, asker| n, text)"},
+{"match": "^engine: no CommanderNinjutsu$", "class": "mechanic", "needs": "Commander ninjutsu (CR 702.49d): needs the commander.", "api": "cantrip_mechanics::ninjutsu::commander_ability(price, text)"}
 ]

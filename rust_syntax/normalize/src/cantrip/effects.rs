@@ -836,7 +836,15 @@ impl Compiler {
                 self.number(n)?.amount(u32::MAX.into(), "u32")?
             ),
             Count::AtLeast(_) => return Err(gap("at-least resolution choice")),
-            Count::Between { .. } => return Err(gap("bounded resolution choice")),
+            Count::Between { minimum, maximum } => {
+                let most = self.fetch(self.number(maximum)?.code);
+                let least = self.fetch(self.number(minimum)?.code);
+                planned::planned_value(
+                    "bounded resolution choice",
+                    &format!("cantrip_mechanics::select::Count::UpTo(({most}).max(0) as u32)"),
+                    &format!("cantrip_mechanics::select::Count::Between(({least}).max(0) as u32, ({most}).max(0) as u32)"),
+                )
+            }
             Count::PerPlayer { .. } => return Err(gap("per-player resolution choice")),
         })
     }

@@ -84,6 +84,16 @@ fn source(value: &impl serde::Serialize) -> String {
 }
 
 impl Compiler {
+    /// "Loyalty X": what a planeswalker enters with, for a number worked out then.
+    pub(super) fn plan_loyalty(&mut self, loyalty: &Expr) {
+        let feature = "printed loyalty expression";
+        let id = requirement(feature);
+        self.gaps.push(gap(feature).at("characteristics.loyalty"));
+        match self.lane_p_loyalty(loyalty) {
+            Ok(code) => writeln!(self.holes, "planned_item!({id:?} => loyalty_by: {code});").unwrap(),
+            Err(_) => writeln!(self.holes, "planned_item!({id:?}, {});", source(loyalty)).unwrap(),
+        }
+    }
     /// A part that stopped midway can leave anything scoped to it still set, and
     /// `?` passes over the line that would have put it back: the next ability
     /// starts as the first one did.

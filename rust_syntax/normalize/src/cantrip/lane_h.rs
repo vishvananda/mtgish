@@ -633,6 +633,9 @@ impl Compiler {
                 (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
                 let test = self.lasting_test(duration);
                 (self.reader, self.event_at) = saved;
+                if test.is_err() && !matches!(duration, D::Either(_)) {
+                    return self.duration_p(duration);
+                }
                 let test = test.map_err(|failed| match failed.feature.as_str() {
                     feature if feature.starts_with("duration") => failed,
                     _ => gap(format!("duration {}", form(duration))),
