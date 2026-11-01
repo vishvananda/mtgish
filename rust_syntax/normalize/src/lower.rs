@@ -644,6 +644,9 @@ impl Context {
             | S::ThisSacrificedPermanent => {
                 return self.paid_object(crate::number_spec::PaymentAction::Sacrifice)
             }
+            S::ThePermanentUntappedThisWay => {
+                return self.paid_object(crate::number_spec::PaymentAction::Untap)
+            }
             S::ThePermanentTappedThisWay => {
                 return match &self.tapped {
                     Some(ObjectSet::One(object)) => Ok(object.clone()),
@@ -1720,6 +1723,14 @@ impl Context {
                 Expr::EventAmount
             }
             S::TheNumberChosenThisWay => Expr::ChosenNumber,
+            S::TheNumberOfDifferentNamesAmongFoundCards => Expr::CountDistinct {
+                objects: Box::new(
+                    self.found
+                        .clone()
+                        .ok_or_else(|| invalid("no search found cards in this scope"))?,
+                ),
+                property: DistinctProperty::Names,
+            },
             S::TheDiceResult => self.die_result()?,
             S::TheNumberOfCoinsThatCameUpHeads => Expr::HeadsFlipped(
                 self.flipped

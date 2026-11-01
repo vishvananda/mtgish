@@ -116700,7 +116700,7 @@ Card(
         ])),
       ]),
       ActionList([
-        AddMana(AnyManaTypePermanentCouldProduce(ThePermanentTappedThisWay)),
+        AddMana(AnyManaTypePermanentCouldProduce(ThePermanentUntappedThisWay)),
       ]),
     ),
   ],
@@ -1184251,14 +1184251,21 @@ Card(
   Rules: [
     SpellActions(ActionList([
       SearchLibrary([
-        FindNumberGroupCards(
+        FindNumberCardsOfType(
           Integer(3),
           IsCardtype(Creature),
-          DifferentNames,
         ),
         RevealFoundCards,
-        ChooseAFoundCardAtRandom,
-        PutChosenFoundCardIntoHand,
+        If(
+          ValueIs(
+            TheNumberOfDifferentNamesAmongFoundCards,
+            EqualTo(Integer(3)),
+          ),
+          [
+            ChooseAFoundCardAtRandom,
+            PutChosenFoundCardIntoHand,
+          ],
+        ),
         Shuffle,
       ]),
     ])),
@@ -1242608,8 +1242615,9 @@ Card(
               SpeedIs(GreaterThan(TheHighestSpeedAmongPlayers(Other(ControllerOfPermanent(Ref_TargetPermanent))))),
             ),
             [
-              ReducePlayersSpeed(
+              ReducePlayersSpeedToNoLessThan(
                 ControllerOfPermanent(Ref_TargetPermanent),
+                Integer(1),
                 Integer(1),
               ),
             ],
@@ -1280533,7 +1280541,11 @@ Card(
     SpellActions(ActionList([
       EachPlayerAction(
         AnyPlayer,
-        RevealACardFromHand,
+        SecretlyChooseACardInHand(AnyCard),
+      ),
+      EachPlayerAction(
+        AnyPlayer,
+        RevealTheSecretlyChosenCard,
       ),
       EachPlayerAction(
         OwnerOfACardWithTheLowestManaValueRevealedThisWay(IsCardtype(Creature)),
@@ -1360146,22 +1360158,27 @@ Card(
           1,
           5,
         ),
-        APlayerAction(
-          Opponent,
-          GuessWhichNumberWasSecretlyChosen,
-        ),
-        RevealTheSecretlyChosenNumber,
-        IfElse(
-          PlayerGuessedWrong,
+        If(
+          ANumberWasChosenThisWay,
           [
-            PlayerAction(
-              ThePlayerWhoGuessedThisWay,
-              LoseLife(TheNumberChosenThisWay),
+            APlayerAction(
+              Opponent,
+              GuessWhichNumberWasSecretlyChosen,
             ),
-            DrawACard,
-          ],
-          [
-            SacrificePermanent(ThisPermanent),
+            RevealTheSecretlyChosenNumber,
+            IfElse(
+              PlayerGuessedWrong,
+              [
+                PlayerAction(
+                  ThePlayerWhoGuessedThisWay,
+                  LoseLife(TheNumberGuessedThisWay),
+                ),
+                DrawACard,
+              ],
+              [
+                SacrificePermanent(ThisPermanent),
+              ],
+            ),
           ],
         ),
       ]),
@@ -1424525,7 +1424542,10 @@ Card(
             [],
           ),
           CopyExiledCards(TheCardsExiledThisWay),
-          MayAction(CastAnyNumberOfSpellsFromAmongCopiedCardsWithoutPaying(ManaValueIs(LessThanOrEqualTo(Integer(6))))),
+          MayAction(CastAnyNumberOfGroupSpellsFromAmongCopiedCardsWithoutPaying(
+            AnySpell,
+            TotalManaValueIs(LessThanOrEqualTo(Integer(6))),
+          )),
         ]),
       ),
     ),
@@ -1551416,7 +1551436,7 @@ Card(
             If(
               CastSpellPassesFilter(TargetsOnlyASinglePlayer(Opponent)),
               [
-                CopySpellForEachPlayerAndMustChooseThemAsNewTarget(
+                CopySpellForEachPlayerAndMustChooseThemOrAPermanentTheyControlAsNewTarget(
                   Trigger_ThatSpell,
                   And([
                     Opponent,
@@ -1551428,7 +1551448,7 @@ Card(
             If(
               CastSpellPassesFilter(TargetsOnlyASinglePermanent(ControlledByAPlayer(Opponent))),
               [
-                CopySpellForEachPlayerAndMustChooseNewTargetPermanentTheyControl(
+                CopySpellForEachPlayerAndMustChooseThemOrAPermanentTheyControlAsNewTarget(
                   Trigger_ThatSpell,
                   And([
                     Opponent,
@@ -1557519,11 +1557539,11 @@ Dungeon(
     DungeonLevel(
       "Reithwin Tollhouse",
       ActionList([
-        RollAD4,
+        RollNumberD4(Integer(2)),
         CreateTokens(
           [
             NumberTokens(
-              TheDiceResult,
+              TheTotalOfTheDiceResults,
               TreasureToken,
             ),
           ],

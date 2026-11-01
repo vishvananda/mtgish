@@ -281,7 +281,11 @@
   {
     "name": "Baldur's Gate Wilderness",
     "issues": [
-      3
+      3,
+      119
+    ],
+    "contains": [
+      "RollNumberD4(Integer(2)), CreateTokens([NumberTokens(TheTotalOfTheDiceResults, TreasureToken)], [])"
     ]
   },
   {
@@ -12419,10 +12423,11 @@
   {
     "name": "Spikeshell Harrier",
     "issues": [
-      109
+      109,
+      120
     ],
     "contains": [
-      "ReducePlayersSpeed(ControllerOfPermanent(Ref_TargetPermanent), Integer(1))"
+      "ReducePlayersSpeedToNoLessThan(ControllerOfPermanent(Ref_TargetPermanent), Integer(1), Integer(1))"
     ],
     "excludes": [
       "Trigger_ThatPermanent"
@@ -12462,6 +12467,74 @@
     ],
     "excludes": [
       "SacrificeEachPermanent(And([IsCardtype(Creature), DoesntShare"
+    ]
+  },
+  {
+    "name": "Benthic Explorers",
+    "issues": [
+      113
+    ],
+    "contains": [
+      "AnyManaTypePermanentCouldProduce(ThePermanentUntappedThisWay)"
+    ],
+    "excludes": [
+      "ThePermanentTappedThisWay"
+    ]
+  },
+  {
+    "name": "Signal the Clans",
+    "issues": [
+      114
+    ],
+    "contains": [
+      "FindNumberCardsOfType(Integer(3), IsCardtype(Creature))",
+      "If(ValueIs(TheNumberOfDifferentNamesAmongFoundCards, EqualTo(Integer(3))), [ChooseAFoundCardAtRandom, PutChosenFoundCardIntoHand])"
+    ],
+    "excludes": [
+      ", DifferentNames)"
+    ]
+  },
+  {
+    "name": "Stronghold Gambit",
+    "issues": [
+      115
+    ],
+    "contains": [
+      "EachPlayerAction(AnyPlayer, SecretlyChooseACardInHand(AnyCard)), EachPlayerAction(AnyPlayer, RevealTheSecretlyChosenCard)"
+    ],
+    "excludes": [
+      "RevealACardFromHand"
+    ]
+  },
+  {
+    "name": "The Toymaker's Trap",
+    "issues": [
+      116
+    ],
+    "contains": [
+      "If(ANumberWasChosenThisWay, [",
+      "LoseLife(TheNumberGuessedThisWay)"
+    ],
+    "excludes": [
+      "TheNumberChosenThisWay"
+    ]
+  },
+  {
+    "name": "Uldaros Theorix",
+    "issues": [
+      117
+    ],
+    "contains": [
+      "CastAnyNumberOfGroupSpellsFromAmongCopiedCardsWithoutPaying(AnySpell, TotalManaValueIs(LessThanOrEqualTo(Integer(6))))"
+    ]
+  },
+  {
+    "name": "Zevlor, Elturel Exile",
+    "issues": [
+      118
+    ],
+    "contains": [
+      "CopySpellForEachPlayerAndMustChooseThemOrAPermanentTheyControlAsNewTarget(Trigger_ThatSpell, And([Opponent, Other(SingleTargetPlayerOfSpell(Trigger_ThatSpell))]))"
     ]
   }
 ]

@@ -290,6 +290,7 @@ const KEYWORD_ACTIONS: &[(&str, KeywordAction)] = &[
     ("Action::RollAD6", KeywordAction::RollDie(6)),
     ("Action::RollNumberD6", KeywordAction::RollDie(6)),
     ("Action::RollAD4", KeywordAction::RollDie(4)),
+    ("Action::RollNumberD4", KeywordAction::RollDie(4)),
     ("Action::EmpowerJace", KeywordAction::EmpowerJace),
     ("Action::Incubate", KeywordAction::Incubate),
     ("Action::Adapt", KeywordAction::Adapt),

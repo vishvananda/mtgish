@@ -143,6 +143,14 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#110](https://github.com/i5jb/mtgish/issues/110): Springheart Nantuko makes no Insect unless it's attached.
 - [#111](https://github.com/i5jb/mtgish/issues/111): The Madcap Jester triggers on opponents' spells and abilities.
 - [#112](https://github.com/i5jb/mtgish/issues/112): Winnowing can sacrifice a chosen creature with no type.
+- [#113](https://github.com/i5jb/mtgish/issues/113): Benthic Explorers' mana reads the wrong permanent.
+- [#114](https://github.com/i5jb/mtgish/issues/114): Signal the Clans pays out with fewer than three names.
+- [#115](https://github.com/i5jb/mtgish/issues/115): Stronghold Gambit's choices aren't hidden.
+- [#116](https://github.com/i5jb/mtgish/issues/116): The Toymaker's Trap's life loss reads the secret number.
+- [#117](https://github.com/i5jb/mtgish/issues/117): Uldaros Theorix's limit is per spell, not a total.
+- [#118](https://github.com/i5jb/mtgish/issues/118): Zevlor's copies keep the original target's kind.
+- [#119](https://github.com/i5jb/mtgish/issues/119): Baldur's Gate Wilderness's Reithwin Tollhouse rolls one die.
+- [#120](https://github.com/i5jb/mtgish/issues/120): Spikeshell Harrier's speed can drop below 1.
 
 [#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
 

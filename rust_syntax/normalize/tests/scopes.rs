@@ -2080,3 +2080,28 @@ fn a_token_copy_row_applies_only_to_its_card() {
     assert!(custom(rule).is_err());
     assert!(on_card("Maelstrom Archangel Avatar", rule).is_ok());
 }
+
+#[test]
+fn mana_can_read_the_land_a_cost_untapped() {
+    let rule = |cost: &str| {
+        format!(
+            "Activated(And([TapPermanent(ThisPermanent),{cost}]),\
+             ActionList([AddMana(AnyManaTypePermanentCouldProduce(ThePermanentUntappedThisWay))]))"
+        )
+    };
+    assert!(custom(&rule("UntapAPermanent(And([IsTapped,IsCardtype(Land)]))")).is_ok());
+    assert!(custom(&rule("PayLife(Integer(1))")).is_err());
+}
+
+#[test]
+fn a_search_can_count_the_names_it_found() {
+    let read = "ValueIs(TheNumberOfDifferentNamesAmongFoundCards,EqualTo(Integer(3)))";
+    let card = custom(&format!(
+        "SpellActions(ActionList([SearchLibrary([\
+         FindNumberCardsOfType(Integer(3),IsCardtype(Creature)),RevealFoundCards,\
+         If({read},[ChooseAFoundCardAtRandom,PutChosenFoundCardIntoHand]),Shuffle])]))"
+    ))
+    .unwrap();
+    assert!(format!("{card:?}").contains("CountDistinct"));
+    assert!(custom(&format!("SpellActions(ActionList([If({read},[DrawACard])]))")).is_err());
+}
