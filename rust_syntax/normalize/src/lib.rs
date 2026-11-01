@@ -1,7 +1,9 @@
 //! Generic card semantics and compilation. Kept apart from the large parser
 //! schema so edits to lowering do not recompile its serialization derives.
 pub use rust_syntax::{corpus, inspect, mtg_types};
+pub mod canonical;
 pub mod ir;
+pub mod ir_schema;
 pub mod lower;
 pub mod report;
 pub mod validate;
