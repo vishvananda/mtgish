@@ -90,3 +90,82 @@ fn pairs_of_mana_count_whole_pairs() {
     );
     assert!(matches!(pairs, Expr::Divide { .. }));
 }
+
+#[test]
+fn rules_are_typed() {
+    let player = || Operand::Player(PlayerRef::AbilityController);
+    let creatures = || Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any));
+    for (name, operands) in [
+        ("PlayerEffect::ChoosesWhichCreaturesAttack", vec![]),
+        ("PlayerEffect::UnspentManaBecomesColorless", vec![]),
+        ("PlayerEffect::MustAttackWithEachCreature", vec![creatures()]),
+        (
+            "PlayerEffect::MayAttackOnlyPlayerOrPlaneswalkersControlledBy",
+            vec![player()],
+        ),
+    ] {
+        assert!(
+            !matches!(
+                semantics::reduce_player_rule(name.into(), operands),
+                PlayerRule::Primitive { .. }
+            ),
+            "{name}"
+        );
+    }
+    for (name, operands) in [
+        ("PermanentRule::CantBeEquipped", vec![]),
+        ("PermanentRule::CantBeTurnedFaceUp", vec![]),
+        ("PermanentRule::AttackingCausesOthersToAttack", vec![creatures()]),
+    ] {
+        assert!(
+            !matches!(
+                semantics::reduce_rule(name.into(), operands),
+                RuleChange::Primitive { .. }
+            ),
+            "{name}"
+        );
+    }
+    for name in ["Rule::DamageCantBePrevented", "Rule::YouAreTheStartingPlayer"] {
+        assert!(
+            !matches!(
+                semantics::reduce_ability(name.into(), vec![]),
+                Ability::Primitive { .. }
+            ),
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn x_keywords_keep_their_mana() {
+    let symbol = |form: &str| Operand::Term {
+        family: "ManaSymbolX".into(),
+        form: form.into(),
+        operands: vec![],
+    };
+    let Ability::Mechanic { mechanic, cost, .. } = semantics::reduce_ability(
+        "Rule::MiracleX".into(),
+        vec![symbol("ManaCostX"), symbol("ManaCostR")],
+    ) else {
+        panic!("miracle stays a primitive");
+    };
+    assert!(matches!(mechanic, Mechanic::Miracle));
+    let cost = cost.expect("a cost");
+    assert!(matches!(
+        cost.parts.as_slice(),
+        [CostPart::Mana(symbols)]
+            if matches!(symbols.as_slice(), [ManaSymbol::X, ManaSymbol::Color(ManaColor::Red)])
+    ));
+}
+
+#[test]
+fn an_unknown_rule_stays_with_its_row() {
+    assert!(matches!(
+        semantics::reduce_player_rule("PlayerEffect::NoSuchRule".into(), vec![]),
+        PlayerRule::Primitive { .. }
+    ));
+    assert!(matches!(
+        semantics::reduce_cost("Cost::NoSuchCost".into(), vec![]),
+        CostPart::Primitive { .. }
+    ));
+}

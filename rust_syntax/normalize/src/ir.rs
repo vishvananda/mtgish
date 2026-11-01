@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 148;
+pub const SCHEMA_VERSION: u32 = 149;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -297,6 +297,102 @@ pub enum Ability {
         from: Box<Operand>,
         keeps: ObjectSet,
     },
+    /// Damage can't be prevented: from these sources, or all, and combat only.
+    DamageCantBePrevented {
+        sources: Option<ObjectSet>,
+        combat_only: bool,
+    },
+    /// These cards can't enter, from this zone when one is named.
+    CantEnter {
+        cards: ObjectFilter,
+        from: Option<ZoneScope>,
+    },
+    /// No more than this many creatures can attack this defender each combat.
+    AttackCap {
+        defender: Recipients,
+        amount: Expr,
+    },
+    /// Done as this event happens, rather than as a trigger.
+    AsEvent {
+        object: ObjectRef,
+        event: AsEvent,
+        actions: Box<Operand>,
+    },
+    /// Done before the first turn of the game or as a scheme is set in motion.
+    BeforeGame {
+        when: BeforeGameMoment,
+        body: Box<Operand>,
+    },
+    /// A keyword or ability with a condition its plain form lacks.
+    Modified {
+        ability: Box<Ability>,
+        modifier: Box<Operand>,
+    },
+    /// Tiered (CR 702.183): choose one mode, adding its cost.
+    Tiered {
+        modes: Vec<SpreeMode>,
+    },
+    /// A player may pay `cost` to ignore these rules until `until`.
+    PayToIgnore {
+        subjects: EffectSubjects,
+        rules: Box<Operand>,
+        payer: Option<PlayerRef>,
+        cost: Cost,
+        until: Duration,
+    },
+    /// Is a card with this name for spells that name another.
+    CountsAsNamed {
+        name: String,
+        for_spells: String,
+    },
+    /// Functions only on top of its owner's library.
+    WhileOnTopOfLibrary(Vec<Ability>),
+    /// If kicked with this cost, the spell has this ability.
+    KickedHas {
+        cost: Cost,
+        ability: Box<Ability>,
+    },
+    StartingHandSize(Expr),
+    VillainousChoiceTwice(PlayerSet),
+    /// While these players search, found cards are exiled for this player to play.
+    ExilesSearchedCards {
+        searching: PlayerSet,
+        player: PlayerRef,
+    },
+    /// An ability one or two cards print, with nothing to parameterise.
+    Unique(UniqueAbility),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum AsEvent {
+    Transforms,
+    EntersOrTurnsFaceUp,
+    TurnsFaceUp,
+    Escapes,
+    BecomesAttachedTo(ObjectFilter),
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum BeforeGameMoment {
+    GameBegins,
+    OpeningHand,
+    SetInMotion,
+}
+/// The closed list of abilities specific to one or two cards.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum UniqueAbility {
+    /// Backup Plan.
+    AdditionalOpeningHand,
+    /// Power Play.
+    StartingPlayer,
+    /// Angel of Eternal Dawn.
+    NeverNight,
+    /// Everlasting Torment.
+    AllDamageWithers,
+    /// Undercity.
+    VentureOnlyByName,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -410,6 +506,11 @@ pub enum ManaPaymentFilter {
 pub enum EnchantHosts {
     Permanents(ObjectFilter),
     Players(PlayerSet),
+    /// Reanimating Auras: a card in one of these players' graveyards.
+    GraveyardCards {
+        filter: ObjectFilter,
+        owners: PlayerSet,
+    },
 }
 
 /// A keyword's identity remains observable to cost modifiers and triggers,
@@ -1557,6 +1658,12 @@ mechanics!(
     Surge,
     SurgeX,
     StartingIntensity,
+    Flashback,
+    Equip,
+    AuraSwamp,
+    BeamMeUp,
+    SpaceSculptor,
+    DoubleAgenda,
 );
 
 #[derive(
@@ -2295,6 +2402,201 @@ pub enum PlayerRule {
     },
     /// Damage that would bring the life total below this leaves it there.
     DamageLifeFloor(Expr),
+    /// An action the player may take while this applies, outside the stack.
+    /// `limit` counts uses; `during` names the turns it can be used in.
+    SpecialAction {
+        body: Box<Operand>,
+        cost: Option<Box<Operand>>,
+        limit: Option<PlayLimit>,
+        during: Option<PlayerSet>,
+        instant_speed: bool,
+    },
+    /// Loosens when or how often matching activated abilities can be used.
+    ActivationGrant {
+        abilities: ObjectFilter,
+        grant: ActivationGrant,
+    },
+    ActivationTiming(SpellTiming),
+    /// Changes what a keyword's cost is, as Forge's `ReduceCost` does with
+    /// `Type$`. `per` multiplies the change; `first_each_turn` limits it to
+    /// the first such cost paid each turn.
+    KeywordCost {
+        keyword: CostedKeyword,
+        cards: ObjectFilter,
+        change: KeywordCostChange,
+        per: Option<Expr>,
+        first_each_turn: bool,
+    },
+    /// A keyword's action becomes available to these cards from this zone.
+    KeywordAccess {
+        keyword: CostedKeyword,
+        cards: ObjectFilter,
+        from: EventZone,
+        during: Option<PlayerSet>,
+    },
+    /// This player makes a decision the rules give to someone else.
+    Decides(GameDecision),
+    /// Attacks if able. `count` is how many attackers, when not each one.
+    MustAttack {
+        attackers: ObjectFilter,
+        defenders: AttackDefenders,
+        count: Option<(Comparison, Expr)>,
+    },
+    AttackOnly(AttackDefenders),
+    AttackedOnlyBy(ObjectFilter),
+    AttackWithoutTapping {
+        attackers: ObjectFilter,
+        condition: Condition,
+    },
+    BlockerLimit(Expr),
+    AdditionalVote {
+        optional: bool,
+    },
+    /// Mana empties into this color, or colorless when none is named.
+    UnspentManaBecomes(Option<ManaColor>),
+    /// What mana of one color can be spent as.
+    SpendColorAs {
+        color: ManaColor,
+        as_color: Option<ManaColor>,
+        others_colorless: bool,
+        on: ManaPayment,
+    },
+    /// Cards they draw are revealed; `first_during` limits it to the first
+    /// each such turn, and `optional` makes revealing a choice.
+    RevealDraws {
+        first_during: Option<PlayerSet>,
+        optional: bool,
+    },
+    /// Spells and abilities matching `by` can't make the player do this.
+    CantBeCaused {
+        action: PlayerAction,
+        by: ObjectFilter,
+    },
+    TargetsMustInclude(ObjectFilter),
+    /// Targetable by these sources as though lacking this keyword.
+    TargetableDespite {
+        sources: ObjectFilter,
+        keyword: TargetingKeyword,
+    },
+    DrawsDuringDrawStepOf(PlayerSet),
+    UntapsDuringUntapStepOf {
+        permanents: ObjectFilter,
+        players: PlayerSet,
+    },
+    UntapOnlyOneOfTypes(Vec<Operand>),
+    /// Pays this much life rather than one of this mana symbol.
+    LifeForMana {
+        life: Expr,
+        symbol: Box<Operand>,
+    },
+    /// A mana ability: pay this much life for this mana.
+    LifeForManaAbility {
+        life: Expr,
+        mana: Box<Operand>,
+    },
+    /// May tap these for mana although others control them.
+    TapOthersForMana {
+        permanents: ObjectFilter,
+        modifier: Box<Operand>,
+    },
+    /// Pays to change dice they roll.
+    DiceChange {
+        cost: Box<Operand>,
+        limit: Option<PlayLimit>,
+        reroll: bool,
+    },
+    SurveilBonus(Expr),
+    DevotionBonus(Expr),
+    CascadePut {
+        filter: ObjectFilter,
+        flags: Box<Operand>,
+    },
+    AsManaEmpties {
+        mana: Box<Operand>,
+        then: Box<Operand>,
+    },
+    /// A rule one or two cards print, with nothing to parameterise.
+    Unique(UniquePlayerRule),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ActivationGrant {
+    AsThoughHaste,
+    InstantSpeed,
+    /// During these players' turns, and any time they could cast an instant.
+    InstantSpeedDuring(PlayerSet),
+    /// This many more activations each turn than the rules allow.
+    AdditionalTimes(Expr),
+    AsThoughNotActivated,
+}
+/// The keywords a cost change or a play permission names.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum CostedKeyword {
+    Adventure,
+    Bestow,
+    Blitz,
+    Boast,
+    Buyback,
+    Crew,
+    Cycling,
+    Dash,
+    Echo,
+    Equip,
+    Flashback,
+    Foretell,
+    Morph,
+    Mutate,
+    Ninjutsu,
+    Plot,
+    PowerUp,
+    Sneak,
+    Suspend,
+    TurnFaceUp,
+    Unearth,
+    Unlock,
+    Warp,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum KeywordCostChange {
+    Reduce(Box<Operand>),
+    Increase(Box<Operand>),
+    Alternate(Box<Operand>),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum GameDecision {
+    HowCreaturesBlock(ObjectFilter),
+    WhichCreaturesBlock,
+    WhichCreaturesAttack,
+    HowPlayersVote,
+    CombatDamageOf(ObjectFilter),
+    /// The player makes the choices of these players as they search.
+    SearchesOf(PlayerSet),
+}
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum TargetingKeyword {
+    Hexproof,
+    Shroud,
+}
+/// The closed list of player rules specific to one or two cards.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum UniquePlayerRule {
+    /// Edgar, King of Figaro.
+    FirstTwoCoinFlipsWin,
+    /// River Song.
+    DrawsFromBottomOfLibrary,
+    /// Strong, the Brutish Thespian.
+    RadiationGainsLife,
+    /// Circling Vultures.
+    DiscardThisAtInstantSpeed,
+    /// Dakkon Blackblade Avatar.
+    ColoredCardsAsRandomBasicLands,
+    /// Bell Borca, Spectral Sergeant.
+    NoteExiledManaValue,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ManaPayment {
@@ -2306,6 +2608,11 @@ pub enum ManaPayment {
 pub enum ActivationCostChange {
     Reduce(Box<Operand>),
     Increase(Box<Operand>),
+    /// Reduced by a symbol {X}, where X is `times`.
+    ReduceX {
+        amount: Box<Operand>,
+        times: Expr,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum PlayerAction {
@@ -2339,6 +2646,16 @@ pub enum PlayerAction {
         objects: ObjectFilter,
         paying: Option<ManaPayment>,
     },
+    /// Playing a matching card by any means.
+    PlayCard(ObjectFilter),
+    VentureIntoDungeon,
+    ExileObjects(ObjectFilter),
+    DiscardCards,
+    BeTargeted(ObjectFilter),
+    /// Casting a spell from anywhere but this zone.
+    CastOutside(EventZone),
+    /// Attacking these defenders.
+    AttackDefender(AttackDefenders),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum GameLossReason {
@@ -2365,6 +2682,32 @@ pub enum SpellCostModifier {
         cost: PlayCost,
         limit: Option<PlayLimit>,
     },
+    /// A cost the caster may pay to take this much off a spell's mana cost.
+    PayToReduce {
+        cost: Box<Operand>,
+        mana: Box<Operand>,
+    },
+    /// Changes the cost once for each of `per`.
+    Scaled {
+        change: ActivationCostChange,
+        per: CostScale,
+    },
+    /// Alternate cost under a limit, only during these players' turns.
+    AlternateDuring {
+        cost: PlayCost,
+        limit: Option<PlayLimit>,
+        during: PlayerSet,
+    },
+    /// An extra cost the caster may pay, for what the spell then gets.
+    OptionalAdditional {
+        cost: Box<Operand>,
+        effects: Box<Operand>,
+    },
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CostScale {
+    Times(Expr),
+    EachTarget,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum SpellTiming {
@@ -2404,7 +2747,12 @@ pub struct PlayTerms {
     pub into_exile: bool,
     pub condition: Option<Condition>,
     /// What a card played this way gets: spell effects, entry flags or a trigger.
+    /// A leading `Operand::Filter` narrows which cards get them.
     pub effects: Vec<Operand>,
+    /// As though these cards had flash.
+    pub flash: bool,
+    /// The player may also look at the cards.
+    pub may_look: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2412,6 +2760,13 @@ pub enum PlayLimit {
     /// This many cards while the permission lasts.
     Total(i64),
     EachTurn(i64),
+    /// One card of each of these card types.
+    OnePerCardType(TypeClass),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum TypeClass {
+    Nonland,
+    Permanent,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2420,12 +2775,16 @@ pub enum PlayCost {
     Free,
     Alternate(Operand),
     Additional(Operand),
+    /// By this keyword's cost and its other rules.
+    Using(CostedKeyword),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum SpendAs {
     AnyColor,
     AnyType,
+    ColorlessAsAnyColor,
+    SnowAsAnyColor,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2502,6 +2861,86 @@ pub enum RuleChange {
     DamageStaysMarked,
     /// Can't attack a player or their permanents while this holds of them.
     CantAttackDefenderIf(Condition),
+    /// Targetable by these sources as though lacking this keyword.
+    TargetableDespite {
+        sources: ObjectFilter,
+        keyword: TargetingKeyword,
+    },
+    /// This can be attached only to what matches.
+    AttachOnlyTo(ObjectFilter),
+    /// Can block only while this holds of the attacking player.
+    BlocksOnlyIf(Condition),
+    /// Can be blocked only by, or not by, a defending player among these.
+    BlockedByDefender {
+        players: PlayerSet,
+        unless: bool,
+    },
+    /// When this attacks, those attack too.
+    AttackDrags(ObjectFilter),
+    /// Attacks if able when one of these attacks.
+    AttacksWhenAttacking(ObjectFilter),
+    /// Can block attackers matching `attackers` despite this evasion keyword.
+    BlocksDespite {
+        attackers: ObjectFilter,
+        evasion: BlockEvasion,
+    },
+    /// Uses toughness rather than power for this tap cost.
+    TapCostUsesToughness(TapPowerCost),
+    CounterLimit {
+        kind: crate::counter::CounterKind,
+        max: Expr,
+    },
+    /// This many activations of matching abilities each turn.
+    ActivationsEachTurn {
+        abilities: ObjectFilter,
+        times: Expr,
+    },
+    /// Its own abilities cost differently, as `PlayerRule::ActivationCost`.
+    OwnActivationCost {
+        abilities: ObjectFilter,
+        change: ActivationCostChange,
+    },
+    /// May assign its combat damage among these rather than as the rules say.
+    AssignDamageTo {
+        players: Option<PlayerRef>,
+        permanents: ObjectFilter,
+    },
+    /// A rule one or two cards print, with nothing to parameterise.
+    Unique(UniqueObjectRule),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum BlockEvasion {
+    Flying,
+    Shadow,
+    Landwalk,
+}
+/// The closed list of object rules specific to one or two cards.
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
+)]
+pub enum UniqueObjectRule {
+    /// Ghostly Flame.
+    ColorlessSourceOfDamage,
+    /// Ood Sphere.
+    TapsOnlyToAttack,
+    /// Tromokratis.
+    BlockedOnlyByAll,
+    /// Nacatl War-Pride.
+    BlockedByExactlyOne,
+    /// Ogre Enforcer.
+    DestroyedOnlyBySingleSource,
+    /// Sanctum Lurker.
+    SurvivesZeroLoyalty,
+    /// Whippoorwill.
+    DamageToItUnpreventable,
+    /// Zilortha, Strength Incarnate.
+    LethalDamageUsesPower,
+    /// Loot, the Anomaly.
+    AssignsAsThoughPowerPositive,
+    /// Me, the Immortal.
+    CountersFollowBetweenZones,
+    /// Panglacial Wurm.
+    CastWhileSearched,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -2509,6 +2948,7 @@ pub enum RuleChange {
 pub enum TapPowerCost {
     Crew,
     Saddle,
+    Station,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ObjectAction {
@@ -2533,6 +2973,19 @@ pub enum ObjectAction {
     PhaseOut,
     Crew,
     Cast,
+    /// Being attached by what matches. `keep_existing` spares what already is.
+    BeAttachedBy {
+        attachments: ObjectFilter,
+        keep_existing: bool,
+    },
+    TurnFaceUp,
+    BecomeSuspected,
+    BeBeamedUp,
+    ChangeControl,
+    LoseCounters(crate::counter::CounterKind),
+    BeAttacked,
+    PhaseIn,
+    BePlayed,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum AttackDefenders {
@@ -2855,6 +3308,7 @@ pub enum CostKeyword {
     CollectEvidence,
     Blight,
     Forage,
+    Suspend,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ManifestSource {
@@ -3201,6 +3655,8 @@ pub enum ObjectSet {
     },
     /// What a preceding instruction named, whatever kind of result it holds.
     Named(ResultId),
+    /// Every matching card or object, whatever zone it is in.
+    AnyZone(ObjectFilter),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -3946,6 +4402,56 @@ pub enum CostPart {
     ExiledToGraveyard(ObjectSet),
     /// Beholds a card and exiles it, linked to this object.
     BeholdAndExile(Box<Operand>),
+    /// Life equal to the mana value of what this cost is paid for.
+    LifeEqualToOwnManaValue,
+    ManaAnyNumberOfTimes(Vec<ManaSymbol>),
+    /// A mana cost less a reduction: of this object, or of what is being cast.
+    ManaCostReduced {
+        object: Option<ObjectRef>,
+        reduction: Box<Operand>,
+    },
+    /// Reveals the choice a previous instruction kept hidden.
+    RevealChoice(ValueKind),
+    /// Mana with {X}, with X bounded by a value.
+    ManaXBounded {
+        mana: Vec<ManaSymbol>,
+        comparison: Comparison,
+        value: Expr,
+    },
+    UnattachFrom {
+        attachments: ObjectSet,
+        hosts: ObjectSet,
+    },
+    EnergyOneOrMore,
+    /// Each of these players performs this as part of the cost.
+    EachPlayerAction {
+        players: PlayerSet,
+        action: Box<Operand>,
+    },
+    /// Less this reduction for each of `per`.
+    ManaReducedForEach {
+        mana: Vec<ManaSymbol>,
+        reduction: Box<Operand>,
+        per: Expr,
+    },
+    /// A keyword or game action done to these objects as a cost.
+    ObjectAction {
+        objects: ObjectSet,
+        action: CostObjectAction,
+    },
+    ManaFromTreasure(Vec<ManaSymbol>),
+    ShuffleFromHand,
+    PlayFromTop(ObjectFilter),
+    /// The selected cards of `part` all belong to one player.
+    SinglePlayersCards(Box<CostPart>),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum CostObjectAction {
+    Suspect,
+    Ante,
+    GainControl,
+    AttachToPlayer(PlayerSet),
+    PayManaCost,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub struct CostObjectSelection {

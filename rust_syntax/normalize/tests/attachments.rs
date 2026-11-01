@@ -172,13 +172,13 @@ fn attachment_restrictions_are_preserved_and_special_equip_still_requires_loweri
             Change::Rule(RuleChange::Prohibit(ObjectAction::Block(ObjectFilter::Any)))
         ]))
     );
-    // Equip planeswalker stays a reviewed rule, not an ordinary qualifier.
+    // Equip planeswalker stays its own form, not an ordinary qualifier.
     let luxior = format!(
         "{:?}",
         lower::card(&source("Luxior, Giada's Gift")).unwrap()
     );
     assert!(
-        luxior.contains("Rule::Equip"),
+        luxior.contains("mechanic: Equip") && luxior.contains("CardType(Planeswalker)"),
         "special equip legality cannot silently become an ordinary qualifier"
     );
 }

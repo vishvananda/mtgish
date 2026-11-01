@@ -695,7 +695,7 @@ impl<'a> Scope<'a> {
         match objects {
             ObjectSet::Named(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectSet::Named(result) => Err(format!("result {} is unavailable", result.0)),
-            ObjectSet::DamageSources(filter) => self.filter(filter),
+            ObjectSet::DamageSources(filter) | ObjectSet::AnyZone(filter) => self.filter(filter),
             ObjectSet::LibraryTops(players) => self.players(players),
             ObjectSet::CostObjects {
                 payment,
@@ -1353,7 +1353,16 @@ impl<'a> Scope<'a> {
             ObjectAction::Block(f) | ObjectAction::BeBlocked(f) => self.filter(f),
             ObjectAction::Activate(f) => self.activation_filter(f),
             ObjectAction::BeTargeted(f) => self.filter(f),
-            ObjectAction::Untap
+            ObjectAction::BeAttachedBy { attachments, .. } => self.filter(attachments),
+            ObjectAction::PhaseIn
+            | ObjectAction::BePlayed
+            | ObjectAction::TurnFaceUp
+            | ObjectAction::BecomeSuspected
+            | ObjectAction::BeBeamedUp
+            | ObjectAction::ChangeControl
+            | ObjectAction::LoseCounters(_)
+            | ObjectAction::BeAttacked
+            | ObjectAction::Untap
             | ObjectAction::Cast
             | ObjectAction::Regenerate
             | ObjectAction::Sacrifice
@@ -1386,6 +1395,30 @@ impl<'a> Scope<'a> {
                 self.operand(ability)
             }
             RuleChange::DamageStaysMarked | RuleChange::LegendRuleExempt => Ok(()),
+            RuleChange::TargetableDespite { sources: f, .. }
+            | RuleChange::AttachOnlyTo(f)
+            | RuleChange::AttackDrags(f)
+            | RuleChange::AttacksWhenAttacking(f)
+            | RuleChange::BlocksDespite { attackers: f, .. } => self.filter(f),
+            RuleChange::BlocksOnlyIf(condition) => self.condition(condition),
+            RuleChange::BlockedByDefender { players, .. } => self.players(players),
+            RuleChange::TapCostUsesToughness(_) | RuleChange::Unique(_) => Ok(()),
+            RuleChange::CounterLimit { max, .. } => self.expr(max),
+            RuleChange::ActivationsEachTurn { abilities, times } => {
+                self.filter(abilities)?;
+                self.expr(times)
+            }
+            RuleChange::OwnActivationCost { abilities, change } => {
+                self.filter(abilities)?;
+                self.activation_cost_change(change)
+            }
+            RuleChange::AssignDamageTo {
+                players,
+                permanents,
+            } => {
+                players.iter().try_for_each(|p| self.player(p))?;
+                self.filter(permanents)
+            }
             RuleChange::RequireCombat { action, amount } => {
                 self.combat_action(action)?;
                 if let RequirementAmount::AtLeast(n) = amount {
@@ -1553,11 +1586,110 @@ impl<'a> Scope<'a> {
                 paying.iter().try_for_each(|p| self.mana_payment(p))
             }
             PlayerAction::Activate(filter) => self.activation_filter(filter),
+            PlayerAction::PlayCard(filter)
+            | PlayerAction::ExileObjects(filter)
+            | PlayerAction::BeTargeted(filter) => self.filter(filter),
+            PlayerAction::AttackDefender(defenders) => self.defenders(defenders),
             _ => Ok(()),
         }
     }
     fn player_rule(&self, rule: &PlayerRule) -> Result {
         match rule {
+            PlayerRule::SpecialAction {
+                body, cost, during, ..
+            } => {
+                self.operand(body)?;
+                cost.iter().try_for_each(|c| self.operand(c))?;
+                during.iter().try_for_each(|p| self.players(p))
+            }
+            PlayerRule::ActivationGrant { abilities, grant } => {
+                self.filter(abilities)?;
+                match grant {
+                    ActivationGrant::InstantSpeedDuring(players) => self.players(players),
+                    ActivationGrant::AdditionalTimes(times) => self.expr(times),
+                    _ => Ok(()),
+                }
+            }
+            PlayerRule::KeywordCost {
+                cards, change, per, ..
+            } => {
+                self.filter(cards)?;
+                per.iter().try_for_each(|n| self.expr(n))?;
+                self.keyword_cost_change(change)
+            }
+            PlayerRule::KeywordAccess { cards, during, .. } => {
+                self.filter(cards)?;
+                during.iter().try_for_each(|p| self.players(p))
+            }
+            PlayerRule::Decides(GameDecision::HowCreaturesBlock(filter))
+            | PlayerRule::Decides(GameDecision::CombatDamageOf(filter))
+            | PlayerRule::AttackedOnlyBy(filter)
+            | PlayerRule::TargetsMustInclude(filter)
+            | PlayerRule::TargetableDespite {
+                sources: filter, ..
+            } => self.filter(filter),
+            PlayerRule::Decides(GameDecision::SearchesOf(players))
+            | PlayerRule::DrawsDuringDrawStepOf(players) => self.players(players),
+            PlayerRule::MustAttack {
+                attackers,
+                defenders,
+                count,
+            } => {
+                self.filter(attackers)?;
+                self.defenders(defenders)?;
+                count.iter().try_for_each(|(_, n)| self.expr(n))
+            }
+            PlayerRule::AttackOnly(defenders) => self.defenders(defenders),
+            PlayerRule::AttackWithoutTapping {
+                attackers,
+                condition,
+            } => {
+                self.filter(attackers)?;
+                self.condition(condition)
+            }
+            PlayerRule::BlockerLimit(n)
+            | PlayerRule::SurveilBonus(n)
+            | PlayerRule::DevotionBonus(n) => self.expr(n),
+            PlayerRule::SpendColorAs { on, .. } => self.mana_payment(on),
+            PlayerRule::RevealDraws {
+                first_during: Some(players),
+                ..
+            } => self.players(players),
+            PlayerRule::CantBeCaused { action, by } => {
+                self.player_action(action)?;
+                self.filter(by)
+            }
+            PlayerRule::UntapsDuringUntapStepOf {
+                permanents,
+                players,
+            } => {
+                self.filter(permanents)?;
+                self.players(players)
+            }
+            PlayerRule::UntapOnlyOneOfTypes(types) => {
+                types.iter().try_for_each(|o| self.operand(o))
+            }
+            PlayerRule::LifeForMana { life, symbol: mana }
+            | PlayerRule::LifeForManaAbility { life, mana } => {
+                self.expr(life)?;
+                self.operand(mana)
+            }
+            PlayerRule::TapOthersForMana {
+                permanents,
+                modifier,
+            } => {
+                self.filter(permanents)?;
+                self.operand(modifier)
+            }
+            PlayerRule::DiceChange { cost, .. } => self.operand(cost),
+            PlayerRule::CascadePut { filter, flags } => {
+                self.filter(filter)?;
+                self.operand(flags)
+            }
+            PlayerRule::AsManaEmpties { mana, then } => {
+                self.operand(mana)?;
+                self.operand(then)
+            }
             PlayerRule::GrantKeyword(
                 PlayerKeyword::Protection(quality) | PlayerKeyword::HexproofFrom(quality),
             ) => self.protection(quality),
@@ -1617,10 +1749,7 @@ impl<'a> Scope<'a> {
                 abilities, change, ..
             } => {
                 self.filter(abilities)?;
-                match change {
-                    ActivationCostChange::Reduce(amount)
-                    | ActivationCostChange::Increase(amount) => self.operand(amount),
-                }
+                self.activation_cost_change(change)
             }
             PlayerRule::Prohibit(action) => self.player_action(action),
             PlayerRule::LimitPerTurn { action, amount } => {
@@ -1716,13 +1845,52 @@ impl<'a> Scope<'a> {
         }
         Ok(())
     }
+    fn play_cost(&self, cost: &PlayCost) -> Result {
+        match cost {
+            PlayCost::Alternate(paid) | PlayCost::Additional(paid) => self.operand(paid),
+            PlayCost::Normal | PlayCost::Free | PlayCost::Using(_) => Ok(()),
+        }
+    }
+    fn activation_cost_change(&self, change: &ActivationCostChange) -> Result {
+        match change {
+            ActivationCostChange::Reduce(amount) | ActivationCostChange::Increase(amount) => {
+                self.operand(amount)
+            }
+            ActivationCostChange::ReduceX { amount, times } => {
+                self.operand(amount)?;
+                self.expr(times)
+            }
+        }
+    }
+    fn keyword_cost_change(&self, change: &KeywordCostChange) -> Result {
+        match change {
+            KeywordCostChange::Reduce(amount)
+            | KeywordCostChange::Increase(amount)
+            | KeywordCostChange::Alternate(amount) => self.operand(amount),
+        }
+    }
     fn spell_cost_modifier(&self, modifier: &SpellCostModifier) -> Result {
         match modifier {
             SpellCostModifier::Increase(cost) => self.cost(cost),
-            SpellCostModifier::Alternate { cost, .. } => match cost {
-                PlayCost::Alternate(paid) | PlayCost::Additional(paid) => self.operand(paid),
-                PlayCost::Normal | PlayCost::Free => Ok(()),
-            },
+            SpellCostModifier::Alternate { cost, .. } => self.play_cost(cost),
+            SpellCostModifier::AlternateDuring { cost, during, .. } => {
+                self.players(during)?;
+                self.play_cost(cost)
+            }
+            SpellCostModifier::PayToReduce { cost, mana } => {
+                self.operand(cost)?;
+                self.operand(mana)
+            }
+            SpellCostModifier::OptionalAdditional { cost, effects } => {
+                self.operand(cost)?;
+                self.operand(effects)
+            }
+            SpellCostModifier::Scaled { change, per } => {
+                if let CostScale::Times(times) = per {
+                    self.expr(times)?;
+                }
+                self.activation_cost_change(change)
+            }
             SpellCostModifier::Minimum(n) => self.count(&Count::Exactly(n.clone())),
             SpellCostModifier::Reduce {
                 reductions,
@@ -1763,6 +1931,39 @@ impl<'a> Scope<'a> {
         for part in &cost.parts {
             match part {
                 CostPart::Primitive { name, operands } => self.primitive(name, operands)?,
+                CostPart::LifeEqualToOwnManaValue
+                | CostPart::ManaAnyNumberOfTimes(_)
+                | CostPart::RevealChoice(_)
+                | CostPart::EnergyOneOrMore
+                | CostPart::ManaFromTreasure(_)
+                | CostPart::ShuffleFromHand => {}
+                CostPart::ManaCostReduced { object, reduction } => {
+                    object.iter().try_for_each(|o| self.object(o))?;
+                    self.operand(reduction)?;
+                }
+                CostPart::ManaXBounded { value, .. } => self.expr(value)?,
+                CostPart::UnattachFrom { attachments, hosts } => {
+                    self.objects(attachments)?;
+                    self.objects(hosts)?;
+                }
+                CostPart::EachPlayerAction { players, action } => {
+                    self.players(players)?;
+                    self.operand(action)?;
+                }
+                CostPart::ManaReducedForEach { reduction, per, .. } => {
+                    self.operand(reduction)?;
+                    self.expr(per)?;
+                }
+                CostPart::PlayFromTop(filter) => self.filter(filter)?,
+                CostPart::ObjectAction { objects, action } => {
+                    self.objects(objects)?;
+                    if let CostObjectAction::AttachToPlayer(players) = action {
+                        self.players(players)?;
+                    }
+                }
+                CostPart::SinglePlayersCards(part) => self.cost(&Cost {
+                    parts: vec![part.as_ref().clone()],
+                })?,
                 CostPart::Constrained { part, constraints } => {
                     let selectable = match part.as_ref() {
                         CostPart::Sacrifice { .. } | CostPart::Discard { .. } => true,
@@ -3495,6 +3696,72 @@ fn validate_ability_in(
         Ability::DraftRule(effects) => {
             return effects.iter().try_for_each(|effect| scope.operand(effect))
         }
+        Ability::DamageCantBePrevented { sources, .. } => {
+            return sources.iter().try_for_each(|set| scope.objects(set))
+        }
+        Ability::CantEnter { cards, from } => {
+            from.iter().try_for_each(|zone| scope.zone_scope(zone))?;
+            return scope.filter(cards);
+        }
+        Ability::AttackCap { defender, amount } => {
+            scope.recipients(defender)?;
+            return scope.expr(amount);
+        }
+        Ability::AsEvent {
+            object,
+            event,
+            actions,
+        } => {
+            scope.object(object)?;
+            if let AsEvent::BecomesAttachedTo(hosts) = event {
+                scope.filter(hosts)?;
+            }
+            return scope.operand(actions);
+        }
+        Ability::BeforeGame { body, .. } => return scope.operand(body),
+        Ability::Modified { ability, modifier } => {
+            validate_ability_in(ability, zones, casting_costs)?;
+            return scope.operand(modifier);
+        }
+        Ability::Tiered { modes } => {
+            for mode in modes {
+                scope.cost(&mode.cost)?;
+                validate_ability_in(&mode.ability, zones, casting_costs)?;
+            }
+            return Ok(());
+        }
+        Ability::PayToIgnore {
+            subjects,
+            rules,
+            payer,
+            cost,
+            ..
+        } => {
+            match subjects {
+                EffectSubjects::Objects(objects) => scope.objects(objects)?,
+                EffectSubjects::Players(players) => scope.players(players)?,
+            }
+            payer.iter().try_for_each(|p| scope.player(p))?;
+            scope.cost(cost)?;
+            return scope.operand(rules);
+        }
+        Ability::CountsAsNamed { .. } | Ability::Unique(_) => return Ok(()),
+        Ability::WhileOnTopOfLibrary(abilities) => {
+            for ability in abilities {
+                validate_ability_in(ability, zones, casting_costs)?;
+            }
+            return Ok(());
+        }
+        Ability::KickedHas { cost, ability } => {
+            scope.cost(cost)?;
+            return validate_ability_in(ability, zones, casting_costs);
+        }
+        Ability::StartingHandSize(size) => return scope.expr(size),
+        Ability::VillainousChoiceTwice(players) => return scope.players(players),
+        Ability::ExilesSearchedCards { searching, player } => {
+            scope.players(searching)?;
+            return scope.player(player);
+        }
         Ability::Companion(rule) | Ability::CommanderDeckRule(rule) => return scope.operand(rule),
         Ability::Offering(filter) => return scope.filter(filter),
         Ability::FlashIf(condition) => return scope.condition(condition),
@@ -3677,6 +3944,10 @@ fn validate_ability_in(
             return match hosts {
                 EnchantHosts::Permanents(filter) => scope.filter(filter),
                 EnchantHosts::Players(players) => scope.players(players),
+                EnchantHosts::GraveyardCards { filter, owners } => {
+                    scope.filter(filter)?;
+                    scope.players(owners)
+                }
             }
         }
         Ability::Static {

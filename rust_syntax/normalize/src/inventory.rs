@@ -198,7 +198,54 @@ impl Inventory<'_> {
                 match hosts {
                     EnchantHosts::Permanents(f) => self.filter(f),
                     EnchantHosts::Players(p) => self.players(p),
+                    EnchantHosts::GraveyardCards { filter, owners } => {
+                        self.filter(filter);
+                        self.players(owners);
+                    }
                 }
+            }
+            Ability::DamageCantBePrevented { sources, .. } => {
+                if let Some(sources) = sources {
+                    self.objects(sources);
+                }
+            }
+            Ability::CantEnter { cards, from } => {
+                self.filter(cards);
+                if let Some(zone) = from {
+                    self.zone_scope(zone);
+                }
+            }
+            Ability::AttackCap { defender, amount } => {
+                self.recipients(defender);
+                self.expr(amount);
+            }
+            Ability::AsEvent { object, event, .. } => {
+                self.object(object);
+                self.form("AsEvent", event);
+            }
+            Ability::BeforeGame { when, .. } => self.form("BeforeGameMoment", when),
+            Ability::Modified { ability, .. } | Ability::KickedHas { ability, .. } => {
+                self.ability(ability)
+            }
+            Ability::Tiered { modes } => {
+                for mode in modes {
+                    self.cost(&mode.cost);
+                    self.ability(&mode.ability);
+                }
+            }
+            Ability::PayToIgnore { cost, .. } => self.cost(cost),
+            Ability::CountsAsNamed { .. } => {}
+            Ability::Unique(rule) => self.form("UniqueAbility", rule),
+            Ability::WhileOnTopOfLibrary(abilities) => {
+                for ability in abilities {
+                    self.ability(ability);
+                }
+            }
+            Ability::StartingHandSize(size) => self.expr(size),
+            Ability::VillainousChoiceTwice(players) => self.players(players),
+            Ability::ExilesSearchedCards { searching, player } => {
+                self.players(searching);
+                self.player(player);
             }
             Ability::Keyword(k) => self.keyword(k),
             Ability::Spell { announcement, body } | Ability::OpeningHand { announcement, body } => {
@@ -1141,7 +1188,15 @@ impl Inventory<'_> {
         self.form("SpellCostModifier", modifier);
         match modifier {
             SpellCostModifier::Increase(cost) => self.cost(cost),
-            SpellCostModifier::Alternate { .. } => {}
+            SpellCostModifier::Alternate { .. }
+            | SpellCostModifier::AlternateDuring { .. }
+            | SpellCostModifier::PayToReduce { .. }
+            | SpellCostModifier::OptionalAdditional { .. } => {}
+            SpellCostModifier::Scaled { per, .. } => {
+                if let CostScale::Times(times) = per {
+                    self.expr(times);
+                }
+            }
             SpellCostModifier::Minimum(n) => self.expr(n),
             SpellCostModifier::Reduce { reductions, .. } => {
                 for r in reductions {
@@ -1238,7 +1293,26 @@ impl Inventory<'_> {
                         }
                     }
                 }
-                CostPart::TapSymbol => {}
+                CostPart::TapSymbol
+                | CostPart::LifeEqualToOwnManaValue
+                | CostPart::ManaAnyNumberOfTimes(_)
+                | CostPart::RevealChoice(_)
+                | CostPart::EnergyOneOrMore
+                | CostPart::ManaFromTreasure(_)
+                | CostPart::ShuffleFromHand
+                | CostPart::ManaCostReduced { .. } => {}
+                CostPart::ManaXBounded { value, .. } => self.expr(value),
+                CostPart::UnattachFrom { attachments, hosts } => {
+                    self.objects(attachments);
+                    self.objects(hosts);
+                }
+                CostPart::EachPlayerAction { players, .. } => self.players(players),
+                CostPart::ManaReducedForEach { per, .. } => self.expr(per),
+                CostPart::PlayFromTop(filter) => self.filter(filter),
+                CostPart::ObjectAction { objects, .. } => self.objects(objects),
+                CostPart::SinglePlayersCards(part) => self.cost(&Cost {
+                    parts: vec![part.as_ref().clone()],
+                }),
                 CostPart::Life(n)
                 | CostPart::Energy(n)
                 | CostPart::Loyalty(n)
@@ -1416,7 +1490,16 @@ impl Inventory<'_> {
             ObjectAction::Block(f) | ObjectAction::BeBlocked(f) => self.filter(f),
             ObjectAction::Activate(f) => self.activation_filter(f),
             ObjectAction::BeTargeted(f) => self.filter(f),
-            ObjectAction::Untap
+            ObjectAction::BeAttachedBy { attachments, .. } => self.filter(attachments),
+            ObjectAction::PhaseIn
+            | ObjectAction::BePlayed
+            | ObjectAction::TurnFaceUp
+            | ObjectAction::BecomeSuspected
+            | ObjectAction::BeBeamedUp
+            | ObjectAction::ChangeControl
+            | ObjectAction::LoseCounters(_)
+            | ObjectAction::BeAttacked
+            | ObjectAction::Untap
             | ObjectAction::Cast
             | ObjectAction::Sacrifice
             | ObjectAction::Regenerate
@@ -1440,6 +1523,29 @@ impl Inventory<'_> {
             | RuleChange::BlockedAsThoughLacking(_)
             | RuleChange::CantGainAbility(_) => {}
             RuleChange::DamageStaysMarked | RuleChange::LegendRuleExempt => {}
+            RuleChange::TargetableDespite { sources: f, .. }
+            | RuleChange::AttachOnlyTo(f)
+            | RuleChange::AttackDrags(f)
+            | RuleChange::AttacksWhenAttacking(f)
+            | RuleChange::BlocksDespite { attackers: f, .. } => self.filter(f),
+            RuleChange::BlocksOnlyIf(condition) => self.condition(condition),
+            RuleChange::BlockedByDefender { players, .. } => self.players(players),
+            RuleChange::TapCostUsesToughness(_) | RuleChange::Unique(_) => {}
+            RuleChange::CounterLimit { max, .. } => self.expr(max),
+            RuleChange::ActivationsEachTurn { abilities, times } => {
+                self.filter(abilities);
+                self.expr(times);
+            }
+            RuleChange::OwnActivationCost { abilities, .. } => self.filter(abilities),
+            RuleChange::AssignDamageTo {
+                players,
+                permanents,
+            } => {
+                if let Some(player) = players {
+                    self.player(player);
+                }
+                self.filter(permanents);
+            }
             RuleChange::RequireCombat { action, amount } => {
                 self.object_action(action);
                 self.form("RequirementAmount", amount);
@@ -1734,7 +1840,7 @@ impl Inventory<'_> {
         match r {
             ObjectSet::Named(_) => {}
             ObjectSet::Primitive { name, .. } => self.primitive(name),
-            ObjectSet::DamageSources(filter) => self.filter(filter),
+            ObjectSet::DamageSources(filter) | ObjectSet::AnyZone(filter) => self.filter(filter),
             ObjectSet::LibraryTops(players) => self.players(players),
             ObjectSet::Affected(_) => {}
             ObjectSet::CostObjects {

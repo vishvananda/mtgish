@@ -15,14 +15,14 @@ The priorities, in order, are:
 
 ### Where things stand
 
-Unified, complete and blocker rows are current at schema 148. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
+Unified, complete and blocker rows are current at schema 149. The other rows, and the greedy curve below, were measured at schema 23, from the `ast pipeline-check` that set this plan:
 
 | Measure | Value |
 |---|---|
 | Records | 33,529 |
-| Unified, schema 148 | 33,529 (100%) |
+| Unified, schema 149 | 33,529 (100%) |
 | Complete | 33,529 (100.0%) |
-| Complete with no primitive | 31,563 (94.1%) |
+| Complete with no primitive | 31,906 (95.2%) |
 | Distinct forms blocking the rest | 0 |
 | Structurally preserved | 33,529 |
 | Source enums / declared variants | 346 / 8,668 |
@@ -218,6 +218,7 @@ Hand-written lowerers are the exception from step 1 on. A form gets hand-written
 | 146 | Forms for #113 to #120. `Permanent::ThePermanentUntappedThisWay` reads the object a cost untapped. `GameNumber::TheNumberOfDifferentNamesAmongFoundCards` lowers to `Expr::CountDistinct` over the search result, so Signal the Clans finds any three creatures and pays only on three names, as Forge's `Remembered$DifferentCardNames`. `SecretlyChooseACardInHand` then `RevealTheSecretlyChosenCard` keep Stronghold Gambit's choices hidden. `TheNumberGuessedThisWay` and `ANumberWasChosenThisWay` give The Toymaker's Trap its guess and its "If you do". The copied-card cast becomes a group form with `TotalManaValueIs`, as Forge's `WithTotalCMC`. One Zevlor copy form chooses the player or a permanent they control. `RollNumberD4` and `ReducePlayersSpeedToNoLessThan` fix Reithwin Tollhouse and Spikeshell Harrier. The superseded forms are removed, since each had one card. |
 | 147 | Object predicates reduce through `reduce_objects.rs`, one match over the row's form and operands, so a row only decodes the source. New shapes, each from Forge's `Valid$` properties: `ObjectFilter::History` (`ObjectHistory` in an `ObjectWindow`), `ManaSpent`, `InResult` for anything a preceding instruction named, `ExiledBy`, `AttachedCount`, `BlockingAny`, `BlockedByAny`, `PairedWith`, and `ObjectState::CostPaid(CastCost)` and `Sticker`, plus six `Property` counts. An unmatched form stays primitive, so a wrong pattern fails safe. 181 records become primitive-free. |
 | 148 | Numbers and player conditions reduce the same way, through `reduce_numbers.rs` and `reduce_players.rs`. `ObjectSet::Named` reads what a preceding instruction named, `Expr::AsOf` reads an earlier moment, `LargestSharedGroup`, `ManaSpentFrom`, `HistoryMeasure::Property` and `Distinct` cover totals over spells cast. `Condition::PlayerDid` holds `PlayerHistory` in an `ObjectWindow`, and `PlayerRef` gains seats, `Extreme`, `Holder` and the attacking and defending player. `for each {U}{U} spent` divides by the pair. An event amount stays a row where the event binds none. 203 records become primitive-free. |
+| 149 | Rules reduce by what they change, as Forge's static modes do, through `reduce_rules.rs`: `PlayerRule` gains permissions on activated abilities, keyword costs (`KeywordCost`, one shape for flashback, cycling, foretell and the rest), combat control and requirements, mana conversion, and `CantBeCaused`; `PlayTerms` gains `flash` and `may_look`; `RuleChange` gains attachment, blocking and tap-cost rules; `Ability` gains `DamageCantBePrevented`, `CantEnter`, `AttackCap`, `AsEvent`, `BeforeGame`, `Modified`, `Tiered` and `PayToIgnore`; X-cost keywords reduce to their plain mechanic with the mana decoded; `ObjectSet::AnyZone` carries whole-card effects; and `CostPart` gains the named costs. `UniquePlayerRule`, `UniqueObjectRule` and `UniqueAbility` are the closed list of rules one or two cards print. |
 
 Schema 80 and 81 do not shrink the vocabulary. `KeywordAction` has 25 forms and `Mechanic` 149, and they count as forms: the names moved into enums, so the 2,360 is typed parameters and an exhaustive match for consumers, not simplification. Keyword mechanics are still not expanded into reusable definitions, which is the reduction this plan asks for. The Cantrip backend still reports these as gaps until it maps them; the engine has direct events for most of schema 78 and 79. At 02210fe all 17,095 records the backend advertises compiled against the engine. That build needs `CARGO_PROFILE_DEV_DEBUG=0` and `CARGO_INCREMENTAL=0`: with debug info it runs out of disk quota writing the archive.
 

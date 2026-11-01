@@ -899,6 +899,7 @@ impl Compiler {
                     EnchantHosts::Players(players) => self
                         .player_in(players, "p")
                         .map(|p| format!("matches!(t, Target::Player(p) if {p})")),
+                    EnchantHosts::GraveyardCards { .. } => Err(gap("enchant graveyard card")),
                 };
                 self.reader = reader;
                 let function = format!("{label}_enchant");

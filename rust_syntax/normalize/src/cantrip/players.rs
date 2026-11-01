@@ -370,6 +370,12 @@ impl Compiler {
             SpellCostModifier::Alternate { .. } => {
                 return Err(gap("alternate spell cost rule"));
             }
+            SpellCostModifier::AlternateDuring { .. }
+            | SpellCostModifier::PayToReduce { .. }
+            | SpellCostModifier::Scaled { .. }
+            | SpellCostModifier::OptionalAdditional { .. } => {
+                return Err(gap("spell cost rule with terms"));
+            }
             SpellCostModifier::Minimum(amount) => {
                 let amount = self.number(amount)?.fit(0, 255, "u8")?;
                 format!("CostDelta::at_least({amount})")

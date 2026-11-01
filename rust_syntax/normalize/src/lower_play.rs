@@ -115,6 +115,8 @@ impl Context {
             into_exile: has("IntoExile"),
             condition: None,
             effects: vec![],
+            flash: false,
+            may_look: false,
         };
         let alternate = has("ForAlternateCastingCost")
             || has("ForAlternateCost")

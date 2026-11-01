@@ -1633,6 +1633,7 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
 include!("reduce_objects.rs");
 include!("reduce_numbers.rs");
 include!("reduce_players.rs");
+include!("reduce_rules.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
@@ -2197,7 +2198,10 @@ pub fn reduce_cost(name: String, operands: Vec<Operand>) -> CostPart {
         ("PayManaCostOfPermanent" | "PayManaCostOfSpell", [Operand::Object(object)]) => {
             CostPart::ManaCostOf(object.clone())
         }
-        _ => CostPart::Primitive { name, operands },
+        _ => match reduce_cost_part(bare, &operands) {
+            Some(part) => part,
+            None => CostPart::Primitive { name, operands },
+        },
     }
 }
 
@@ -2255,7 +2259,10 @@ pub fn reduce_rule(name: String, operands: Vec<Operand>) -> RuleChange {
             RuleChange::BlockedAsThoughLacking(Box::new(ability.clone()))
         }
         ("CantGainAbility", [ability]) => RuleChange::CantGainAbility(Box::new(ability.clone())),
-        _ => RuleChange::Primitive { name, operands },
+        _ => match reduce_object_static(bare, &operands) {
+            Some(rule) => rule,
+            None => RuleChange::Primitive { name, operands },
+        },
     }
 }
 
@@ -2277,6 +2284,8 @@ pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
                 into_exile,
                 condition: None,
                 effects: vec![],
+                flash: false,
+                may_look: false,
             },
         };
     let abilities = |spells: &ObjectFilter, from, nth_each_turn, abilities: &Operand| {
@@ -2405,6 +2414,17 @@ pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
         {
             cost(stack_filter(ability).unwrap(), reduce(amount), None)
         }
+        (
+            "ReduceManaCostOfActivatedAbilitiesNotLessThanOneX",
+            [ability, amount, Operand::Number(times)],
+        ) if stack_filter(ability).is_some() => cost(
+            stack_filter(ability).unwrap(),
+            ActivationCostChange::ReduceX {
+                amount: Box::new(amount.clone()),
+                times: times.clone(),
+            },
+            Some(1),
+        ),
         ("ReduceManaCostOfActivatedAbilitiesNotLessThanOne", [ability, amount])
             if stack_filter(ability).is_some() =>
         {
@@ -2466,7 +2486,10 @@ pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
             PlayCost::Normal,
             true,
         ),
-        _ => PlayerRule::Primitive { name, operands },
+        _ => match reduce_player_static(bare, &operands) {
+            Some(rule) => rule,
+            None => PlayerRule::Primitive { name, operands },
+        },
     }
 }
 
@@ -2940,11 +2963,7 @@ fn graveyard_changes(effects: &[Operand]) -> Option<Vec<Change>> {
                     .map(|ability| Change::GrantAbility(Box::new(ability))),
             ),
             ("LosesAllAbilities", []) => changes.push(Change::RemoveAllAbilities),
-            ("AddCreatureTypeVariable", [variable]) => changes.push(Change::ChosenType {
-                kind: chosen_kind(variable)?,
-                mode: ChangeMode::Add,
-            }),
-            _ => return None,
+            (form, operands) => changes.push(card_change(form, operands)?),
         }
     }
     Some(changes)
@@ -3052,6 +3071,9 @@ pub fn reduce_ability(name: String, operands: Vec<Operand>) -> Ability {
         return ability;
     }
     if let Some(ability) = reduce_rule_statics(&name, &operands) {
+        return ability;
+    }
+    if let Some(ability) = reduce_rule_ability(&name, &operands) {
         return ability;
     }
     match (name.as_str(), operands.as_slice()) {
@@ -3654,7 +3676,7 @@ fn stack_filter(operand: &Operand) -> Option<ObjectFilter> {
         Some(out)
     };
     let objects = |operand: &Operand| match operand {
-        Operand::Objects(objects) => event_filter(objects),
+        Operand::Objects(objects) => Some(objects_filter(objects)),
         Operand::Filter(filter) => Some(filter.clone()),
         Operand::Object(object) => Some(ObjectFilter::SameObject(object.clone())),
         _ => None,
@@ -5374,7 +5396,7 @@ impl Effects {
     fn objects_library(&self, objects: &ObjectSet) -> bool {
         match objects {
             ObjectSet::LibraryTops(_) => true,
-            ObjectSet::Primitive { .. } | ObjectSet::Named(_) => false,
+            ObjectSet::Primitive { .. } | ObjectSet::Named(_) | ObjectSet::AnyZone(_) => false,
             ObjectSet::Observed(result) => self.result_library(result, &ObjectPhase::Before),
             ObjectSet::Difference { objects, .. } | ObjectSet::Matching { objects, .. } => {
                 self.objects_library(objects)
@@ -5423,7 +5445,20 @@ impl Effects {
                 | CostPart::Unspecialize(_)
                 | CostPart::Behold { .. }
                 | CostPart::BeholdAndExile(_)
+                | CostPart::LifeEqualToOwnManaValue
+                | CostPart::ManaAnyNumberOfTimes(_)
+                | CostPart::ManaCostReduced { .. }
+                | CostPart::RevealChoice(_)
+                | CostPart::ManaXBounded { .. }
+                | CostPart::UnattachFrom { .. }
+                | CostPart::EnergyOneOrMore
+                | CostPart::EachPlayerAction { .. }
+                | CostPart::ManaReducedForEach { .. }
+                | CostPart::ObjectAction { .. }
+                | CostPart::ManaFromTreasure(_)
+                | CostPart::SinglePlayersCards(_)
                 | CostPart::PutCounters(_) => {}
+                CostPart::ShuffleFromHand | CostPart::PlayFromTop(_) => self.library = true,
                 CostPart::ExiledToGraveyard(_) => {}
                 CostPart::RevealTop(_) => self.library = true,
                 CostPart::Move {
