@@ -271,6 +271,8 @@ impl Compiler {
             if self.play_for_a_while(id, i, players, rule, duration, out)?
                 || self.prohibit_for_a_while(id, i, source, players, rule, duration, out)?
                 || self.look_for_a_while(id, i, players, rule, duration, out)?
+                || self.keyword_for_a_while(id, i, source, players, rule, duration, out)?
+                || self.cost_for_a_while(id, i, source, players, rule, duration, out)?
             {
                 continue;
             }

@@ -361,6 +361,13 @@ impl Compiler {
         body: &Program,
         parts: &mut Parts,
     ) -> Result<()> {
+        if lane_h::reveal_and_shuffle_instead(active, event, body) {
+            parts.replacements.push(
+                "cantrip_mechanics::replacements::REVEAL_AND_SHUFFLE_INTO_LIBRARY_INSTEAD_OF_GRAVEYARD"
+                    .into(),
+            );
+            return Ok(());
+        }
         if let ReplacementActive::SourceEntering = active {
             let ReplacementEvent::Enter {
                 objects: ObjectFilter::SameObject(ObjectRef::Source),

@@ -2027,9 +2027,10 @@ impl Compiler {
                 }
                 kinds
             }
+            // Being all of them leaves nothing for "set" to take away.
             Change::CreatureTypes {
-                mode: ChangeMode::Add,
                 types: CreatureTypeSet::All,
+                ..
             } => vec!["EffectKind::AddAllCreatureTypes".into()],
             Change::Rule(RuleChange::Prohibit(ObjectAction::Attack(AttackDefenders::Any))) => {
                 vec!["EffectKind::CantAttack".into()]

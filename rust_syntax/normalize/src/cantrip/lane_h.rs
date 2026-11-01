@@ -40,6 +40,46 @@ fn camel_words(word: &str) -> String {
     out
 }
 
+/// "If this would be put into a graveyard from anywhere, reveal it and shuffle
+/// it into its owner's library instead": the words Cantrip has a constant for.
+pub(super) fn reveal_and_shuffle_instead(
+    active: &ReplacementActive,
+    event: &ReplacementEvent,
+    body: &Program,
+) -> bool {
+    let instructions = match body.instructions.as_slice() {
+        [Instruction::Group(inner)] => inner.instructions.as_slice(),
+        other => other,
+    };
+    matches!(active, ReplacementActive::Everywhere)
+        && matches!(
+            event,
+            ReplacementEvent::ZoneChange {
+                objects: ObjectFilter::SameObject(ObjectRef::Source),
+                from: None,
+                to: EventZone::Graveyard,
+            }
+        )
+        && matches!(
+            instructions,
+            [
+                Instruction::Effect {
+                    operation: Operation::Reveal {
+                        objects: ObjectSet::One(ObjectRef::EventSubject),
+                        ..
+                    },
+                    ..
+                },
+                Instruction::Effect {
+                    operation: Operation::ModifyEvent {
+                        change: EventChange::SetDestination(Destination::OwnersLibraryShuffled),
+                    },
+                    ..
+                },
+            ]
+        )
+}
+
 /// A play permission that says nothing but where from.
 fn plain_terms() -> PlayTerms {
     PlayTerms {
@@ -1436,6 +1476,110 @@ impl Compiler {
         });
         self.static_ability(label, &StaticKind::Ordinary, &affected, &changes, parts)
     }
+    /// "You have hexproof until end of turn" (CR 702.11c, 702.16j): an effect each
+    /// player controls, about the player. False if this is no such rule.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn keyword_for_a_while(
+        &mut self,
+        id: usize,
+        i: usize,
+        source: &ObjectRef,
+        players: &PlayerSet,
+        rule: &PlayerRule,
+        duration: &crate::ir::Duration,
+        out: &mut String,
+    ) -> Result<bool> {
+        let (kind, feature) = match rule {
+            PlayerRule::GrantKeyword(PlayerKeyword::Hexproof) => ("EffectKind::PlayerHexproof", None),
+            PlayerRule::GrantKeyword(PlayerKeyword::Shroud) => (
+                "EffectKind::PlayerShroud",
+                Some("player rule for a while shroud"),
+            ),
+            PlayerRule::GrantKeyword(PlayerKeyword::Protection(quality))
+                if matches!(
+                    &**quality,
+                    Protection::Objects {
+                        filter: ObjectFilter::Any,
+                        ..
+                    }
+                ) =>
+            {
+                ("EffectKind::PlayerProtectionFromEverything", None)
+            }
+            _ => return Ok(false),
+        };
+        let players = self.fetch(self.players(players)?);
+        let source = self.fetch(self.object(source)?);
+        let duration = self.duration(duration)?;
+        let code = format!(
+            "let players_{id}_{i} = {players}; if let Some(source) = {source} {{ for &player in &players_{id}_{i} {{ g.add_player_effect(player, source, {kind}, {duration}); }} }}"
+        );
+        match feature {
+            Some(feature) => self.plan_code(feature, &code, out),
+            None => writeln!(out, "{code}").unwrap(),
+        }
+        Ok(true)
+    }
+    /// "Spells your opponents cast cost {2} more until your next turn" (CR 611.2c,
+    /// 601.2f): the nth of the card's `lasting_cost_changes`, whatever becomes of
+    /// its source. False if this is no such rule.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn cost_for_a_while(
+        &mut self,
+        id: usize,
+        i: usize,
+        source: &ObjectRef,
+        players: &PlayerSet,
+        rule: &PlayerRule,
+        duration: &crate::ir::Duration,
+        out: &mut String,
+    ) -> Result<bool> {
+        let PlayerRule::SpellCost { spells, modifier } = rule else {
+            return Ok(false);
+        };
+        let refused = || gap("player rule for a while SpellCost");
+        // The callback lasts past the body: it can name nothing the body made. The
+        // filter reader takes any state it does not know for "enchanted", so a state
+        // on a spell ("face-down spells") stays a gap.
+        let words = format!("{spells:?}");
+        let bound = ["Chosen", "Target", "Result", "Selected", "Earlier", "Transition", "AbilityController", "State("];
+        if !self.stack_item || bound.iter().any(|w| words.contains(w)) {
+            return Err(refused());
+        }
+        let saved = (self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+        let delta = self.cost_delta(modifier);
+        let test = self.filter(
+            spells,
+            &Candidate {
+                announced: Some("targets".into()),
+                ..super::players::cast_card()
+            },
+        );
+        (self.reader, self.event_at) = saved;
+        let (delta, test) = (delta?, test?);
+        // Its asker is the player it changes the spells of, not the controller.
+        if delta.contains("asker") || delta.contains("q.") || test.contains("asker") {
+            return Err(refused());
+        }
+        let function = format!("lasting_cost_{}", self.fresh());
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ let asker = &Asker::new(source, player); let Costed::Spell(spell) = costed else {{ return CostDelta::NONE; }}; if {test} {{ {delta} }} else {{ CostDelta::NONE }} }}").unwrap();
+        let text = if matches!(modifier, SpellCostModifier::Increase(_)) {
+            "These spells cost more to cast."
+        } else {
+            "These spells cost less to cast."
+        };
+        let index = self.made_cost_changes.len();
+        self.made_cost_changes.push(format!(
+            "LastingCostChange {{ text: {}, change: {function}, next: None }}",
+            quoted(text)
+        ));
+        let players = self.fetch(self.players(players)?);
+        let source = self.fetch(self.object(source)?);
+        let duration = self.duration(duration)?;
+        writeln!(out, "let players_{id}_{i} = {players}; if let Some(source) = {source} {{ for &player in &players_{id}_{i} {{ g.add_player_effect(asker.controller, source, EffectKind::SpellCostChange {{ card: item.ability.card, index: {index}, player }}, {duration}); }} }}").unwrap();
+        Ok(true)
+    }
     /// "You may look at that card for as long as it remains exiled": information a
     /// resolved effect opens (CR 400.2). False if this is no such rule.
     #[allow(clippy::too_many_arguments)]
@@ -1872,10 +2016,16 @@ impl Compiler {
         duration: &crate::ir::Duration,
         out: &mut String,
     ) -> Result<bool> {
-        let PlayerRule::Prohibit(action) = rule else {
-            return Ok(false);
+        let locked = PlayerAction::GainLife;
+        let (action, locked) = match rule {
+            PlayerRule::Prohibit(action) => (action, false),
+            PlayerRule::LifeTotalLocked => (&locked, true),
+            _ => return Ok(false),
         };
         let (kind, feature) = match action {
+            PlayerAction::GainLife if locked => {
+                ("EffectKind::LifeTotalCantChange(player)".to_string(), None)
+            }
             PlayerAction::GainLife => ("EffectKind::CantGainLife(player)".to_string(), None),
             PlayerAction::CastSpell {
                 from: None,

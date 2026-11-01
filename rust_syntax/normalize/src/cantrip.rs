@@ -429,6 +429,8 @@ struct Compiler {
     entering_labels: Option<String>,
     /// The mana cost printed on the card.
     printed_mana: Option<Vec<ManaSymbol>>,
+    /// `CardDef::lasting_cost_changes`.
+    made_cost_changes: Vec<String>,
     /// `CardDef::labels` of abilities to choose among as a body resolves.
     choice_labels: Vec<String>,
     /// The abilities the body's `ChooseValue` offered.
@@ -705,6 +707,7 @@ impl Compiler {
             made_block_rules: Vec::new(),
             entering_labels: None,
             printed_mana: None,
+            made_cost_changes: Vec::new(),
             choice_labels: Vec::new(),
             ability_choice: Vec::new(),
             granting: false,
@@ -1669,6 +1672,9 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     }
     for made in std::mem::take(&mut c.made_block_rules) {
         parts.table("lasting_block_rules", made);
+    }
+    for made in std::mem::take(&mut c.made_cost_changes) {
+        parts.table("lasting_cost_changes", made);
     }
     if let Some(labels) = c.entering_labels.take() {
         parts.field("labels", labels);
