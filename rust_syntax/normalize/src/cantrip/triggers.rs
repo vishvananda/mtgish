@@ -6,25 +6,27 @@ use super::*;
 
 /// One alternative of an event: an `if let` over the event, then `locals`, which
 /// must bind `subject` and `data`, then every test the event has to pass.
-struct Arm {
-    pattern: String,
-    locals: String,
-    tests: Vec<String>,
+pub(super) struct Arm {
+    pub pattern: String,
+    pub locals: String,
+    pub tests: Vec<String>,
 }
 
 pub(super) struct Matched {
     masks: Vec<&'static str>,
-    arms: Vec<Arm>,
+    pub arms: Vec<Arm>,
     pub frame: Frame,
     /// The trigger's zones, when it cannot trigger from the battlefield.
     functions: Option<String>,
     /// "One or more": a batch triggers it once, split by `data[1]` when keyed.
-    batch: Option<bool>,
+    pub batch: Option<bool>,
     /// A batch's events about one subject are one event of their total.
-    sums: bool,
+    pub sums: bool,
     /// Tapping for mana, which the engine shows only to mana abilities.
-    mana: bool,
+    pub mana: bool,
     pub phrase: String,
+    /// Cantrip can't fire this event yet: the requirement. See `lane_j`.
+    pub planned: Option<String>,
 }
 
 /// Whether simultaneous damage is one event of its total to this subject
@@ -36,12 +38,12 @@ fn sums_damage(damage: &DamageEvent) -> bool {
     }
 }
 
-fn object_fired(id: &str, destination: &str) -> String {
+pub(super) fn object_fired(id: &str, destination: &str) -> String {
     format!(
         "let id = {id}; let subject = Target::Object(id); let data = [{destination}, u32::MAX];"
     )
 }
-fn single(mask: &'static str, arm: Arm, frame: Frame, phrase: &str) -> Matched {
+pub(super) fn single(mask: &'static str, arm: Arm, frame: Frame, phrase: &str) -> Matched {
     Matched {
         masks: vec![mask],
         arms: vec![arm],
@@ -51,6 +53,7 @@ fn single(mask: &'static str, arm: Arm, frame: Frame, phrase: &str) -> Matched {
         sums: false,
         mana: false,
         phrase: phrase.into(),
+        planned: None,
     }
 }
 
@@ -68,6 +71,10 @@ impl Matched {
             )
             .unwrap();
         }
+        // A record says whose turn it was and what caused it, whatever is so now.
+        let body = body
+            .replace("q.state().turn.active", "r.active")
+            .replace("q.event_cause()", "r.cause");
         format!("|r: &Record| -> Option<Fired> {{ let event = &r.event; {body} None }}")
     }
 }
@@ -90,7 +97,7 @@ impl Compiler {
         (self.reader, self.event_at, self.frame) = saved;
         compiled
     }
-    fn zone_change(
+    pub(super) fn zone_change(
         &mut self,
         objects: &ObjectFilter,
         from: Option<&EventZone>,
@@ -276,7 +283,7 @@ impl Compiler {
             ObjectEvent::BecomesUntapped => return Err(gap("engine: no untap event")),
             ObjectEvent::Mutates => return Err(gap("engine: no mutate event")),
             ObjectEvent::Specializes => return Err(gap("engine: no specialize event")),
-            other => return Err(gap(format!("trigger event Object {}", form(other)))),
+            other => return self.object_event_rest(other, objects),
         };
         let mut tests: Vec<String> = extra.map(Into::into).into_iter().collect();
         tests.push(self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?);
@@ -431,7 +438,7 @@ impl Compiler {
             PlayerEvent::RollsDice => {
                 return Err(gap("engine: no event for dice rolled together"))
             }
-            other => return Err(gap(format!("trigger event Player {}", form(other)))),
+            other => return self.player_event_rest(other, players, objects),
         };
         let mut tests: Vec<String> = test.map(Into::into).into_iter().collect();
         tests.push(self.matching(frame, |c| c.player_in(players, who))?);
@@ -504,7 +511,7 @@ impl Compiler {
             PairEvent::Crews => return Err(gap("engine: no crew event")),
             PairEvent::Saddles => return Err(gap("engine: no saddle event")),
             PairEvent::Exploits => return Err(gap("engine: no exploit event")),
-            other => return Err(gap(format!("trigger event Pair {}", form(other)))),
+            other => return self.pair_event_rest(other, objects, others),
         };
         let tests = vec![
             self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?,
@@ -561,7 +568,7 @@ impl Compiler {
         Ok(single(
             "BECAME_TARGET",
             Arm {
-                pattern: "Event::BecameTarget { target: Target::Object(target), by, controller }".into(),
+                pattern: "Event::BecameTarget { target: Target::Object(target), by, controller, .. }".into(),
                 locals: "let id = *target; let by = *by; let controller = *controller; let subject = Target::Object(id); let data = [by.0, u32::from(controller.0)];".into(),
                 tests,
             },
@@ -570,7 +577,7 @@ impl Compiler {
         ))
     }
     /// Whether the `Target` `defender` is one of `defenders`.
-    fn attacked(&self, defenders: &AttackDefenders) -> Result<String> {
+    pub(super) fn attacked(&self, defenders: &AttackDefenders) -> Result<String> {
         Ok(match defenders {
             AttackDefenders::Any => "true".into(),
             AttackDefenders::Objects(filter) => format!(
@@ -618,7 +625,7 @@ impl Compiler {
     }
     /// What an activation trigger asks of the ability. "Of a creature" means a
     /// permanent (109.2), so cycling a creature card is no such ability.
-    fn activation_test(&mut self, filter: &ObjectFilter, frame: Frame) -> Result<String> {
+    pub(super) fn activation_test(&mut self, filter: &ObjectFilter, frame: Frame) -> Result<String> {
         let def = |test: &str| format!("def.is_some_and(|d| {test})");
         Ok(match filter {
             ObjectFilter::Any => "true".into(),
@@ -824,11 +831,21 @@ impl Compiler {
         value: &Expr,
         by_player: bool,
     ) -> Result<Matched> {
+        if let EventSpec::Player {
+            event: PlayerEvent::Expends,
+            players,
+            ..
+        } = event
+        {
+            return self.expends(players, comparison, value);
+        }
         if self.history.is_some() {
             return Err(gap("an ordinal event in a history question"));
         }
         let mut matched = self.event(event)?;
-        if matched.batch.is_some() || matched.sums {
+        // The first of a batch is the batch's: the rest see it in the history.
+        let first = matches!(comparison, Comparison::Equal) && matches!(value, Expr::Constant(1));
+        if (matched.batch.is_some() && !first) || matched.sums {
             return Err(gap("an ordinal of grouped events"));
         }
         let same = match (by_player, matched.frame.player) {
@@ -1083,13 +1100,14 @@ impl Compiler {
                     TurnPoint::DrawStepBegins => &["Draw"],
                     TurnPoint::MainPhaseBegins => &["PrecombatMain", "PostcombatMain"],
                     TurnPoint::FirstMainPhaseBegins => &["PrecombatMain"],
-                    TurnPoint::PostcombatMainPhaseBegins => &["PostcombatMain"],
+                    // A turn's only second main phase (CR 500.8, 505.1a).
+                    TurnPoint::PostcombatMainPhaseBegins
+                    | TurnPoint::SecondMainPhaseBegins => &["PostcombatMain"],
                     TurnPoint::CombatBegins => &["BeginCombat"],
                     TurnPoint::CombatEnds => &["EndOfCombat"],
                     TurnPoint::EndStepBegins => &["End"],
                     TurnPoint::CleanupStepBegins => &["Cleanup"],
                     TurnPoint::DeclareAttackersStepBegins => &["DeclareAttackers"],
-                    other => return Err(gap(format!("turn point {}", form(other)))),
                 };
                 let frame = Frame {
                     player: Some(Carried::Subject),
@@ -1136,6 +1154,7 @@ impl Compiler {
                                 return Err(gap("alternative events with different rules"));
                             }
                             all.frame = all.frame.meet(next.frame);
+                            all.planned = all.planned.or(next.planned);
                             for mask in next.masks {
                                 if !all.masks.contains(&mask) {
                                     all.masks.push(mask);
@@ -1194,7 +1213,7 @@ impl Compiler {
             EventSpec::Primitive { name, .. } => {
                 Err(gap(format!("primitive trigger event {name}")))
             }
-            other => Err(gap(format!("trigger event {}", form(other)))),
+            other => self.event_rest(other),
         }
     }
     /// The `Trigger`, with the matcher named `label`.
@@ -1212,7 +1231,11 @@ impl Compiler {
             )
             .unwrap();
         }
-        writeln!(self.functions,"#[allow(unused_variables)] fn {label}(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {{ {body} None }}").unwrap();
+        let matcher = format!("#[allow(unused_variables)] fn {label}(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {{ {body} None }}");
+        match &matched.planned {
+            Some(feature) => self.planned_trigger = Some((feature.clone(), matcher)),
+            None => writeln!(self.functions, "{matcher}").unwrap(),
+        }
         let mask = matched
             .masks
             .iter()

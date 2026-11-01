@@ -18,6 +18,7 @@ mod costs;
 mod delayed;
 mod effects;
 mod keywords;
+mod lane_j;
 mod mechanics;
 pub mod planned;
 mod players;
@@ -330,6 +331,9 @@ impl Number {
 struct Compiler {
     /// The file's holes for what has no place in its code: see `planned`.
     holes: String,
+    /// The requirement and matcher of the trigger just compiled, if Cantrip
+    /// can't fire its event yet: `trigger_entry` holds the ability for them.
+    planned_trigger: Option<(String, String)>,
     /// Compiling the event of `Expr::EventHistory`.
     history: Option<History>,
     /// A `StackItem` named `item` is in reach, with its targets and X.
@@ -686,6 +690,7 @@ impl Compiler {
             gaps: Vec::new(),
             failed: BTreeSet::new(),
             holes: String::new(),
+            planned_trigger: None,
         }
     }
     /// Compile one part, recording a gap rather than stopping at it, and prefix

@@ -821,6 +821,9 @@ impl Compiler {
                     outer: self.candidates.borrow().last().map(|c| c.id.clone()),
                 });
                 let matched = asked.event(event)?;
+                if let Some(feature) = matched.planned {
+                    return Err(gap(feature));
+                }
                 let hits = format!("{scope}.filter_map({})", matched.history_test());
                 count(match measure {
                     HistoryMeasure::Occurrences => format!("{hits}.count() as i64"),

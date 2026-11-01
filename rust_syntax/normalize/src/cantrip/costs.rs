@@ -860,21 +860,27 @@ impl Compiler {
                 announcement,
                 body,
             } => {
-                let mut def = self.triggered(
+                let def = self.triggered(
                     label,
                     event,
                     intervening_if.as_ref(),
                     limits,
                     announcement,
                     body,
-                )?;
-                if let Some(scope) = scope {
-                    if scope.condition.is_some() {
-                        return Err(gap("conditional scope on a triggered ability"));
+                );
+                let def = match scope {
+                    Some(scope) if scope.condition.is_some() => {
+                        Err(gap("conditional scope on a triggered ability"))
                     }
-                    def.push_str(&format!(".functions_in({})", zone_list(scope.zones)?));
+                    Some(scope) => {
+                        let zones = zone_list(scope.zones);
+                        def.and_then(|def| Ok(format!("{def}.functions_in({})", zones?)))
+                    }
+                    None => def,
+                };
+                if let Some(def) = self.trigger_entry(def, parts)? {
+                    parts.abilities.push(def);
                 }
-                parts.abilities.push(def);
             }
             Ability::Static {
                 kind,

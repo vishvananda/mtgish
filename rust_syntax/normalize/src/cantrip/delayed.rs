@@ -284,6 +284,9 @@ impl Compiler {
             c.reset_results();
             c.triggered(&label, &event, None, &limits, announcement, body)
         })?;
+        if let Some((feature, _)) = self.planned_trigger.take() {
+            return Err(gap(feature));
+        }
         if !outer.objects.borrow().is_empty() || outer.player.borrow().is_some() {
             return Err(gap("event trigger carrying values"));
         }
