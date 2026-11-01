@@ -238,7 +238,11 @@ impl Compiler {
                 let call = "g.skip_next_turns(asker.source, player, 1)";
                 self.actor_action(&action, call, out)?;
             }
-            K::RemoveFromCombat => return Err(gap("engine: no effect removes from combat")),
+            K::RemoveFromCombat => {
+                let mut code = String::new();
+                self.object_action(&action, "g.remove_from_combat(object)", &mut code)?;
+                self.plan_code("engine: no effect removes from combat", code.trim(), out);
+            }
             K::Amass => {
                 use crate::mtg_types::SubType as S;
                 let (word, subtype) = match action.subtype {
@@ -332,11 +336,17 @@ impl Compiler {
                 self.values.insert(result.0, format!("value_{id}"));
             }
             K::Venture => {
-                return Err(gap(
-                    "engine: venture into the dungeon reaches only Undercity",
-                ))
+                let mut code = String::new();
+                self.actor_action(&action, "g.venture(player)?", &mut code)?;
+                let feature = "engine: venture into the dungeon reaches only Undercity";
+                self.plan_code(feature, code.trim(), out);
             }
-            K::RingTempts => return Err(gap("engine: no Ring temptation")),
+            K::RingTempts => {
+                let mut code = String::new();
+                let call = format!("{M}::ring::tempt(g, player, asker.source)?");
+                self.actor_action(&action, &call, &mut code)?;
+                self.plan_code("engine: no Ring temptation", code.trim(), out);
+            }
             other => return Err(gap(format!("keyword action {other:?}"))),
         }
         Ok(())

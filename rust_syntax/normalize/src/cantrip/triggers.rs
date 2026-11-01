@@ -25,6 +25,8 @@ pub(super) struct Matched {
     /// Tapping for mana, which the engine shows only to mana abilities.
     mana: bool,
     pub phrase: String,
+    /// What Cantrip must add before this event triggers anything: see `lane_g`.
+    pub planned: Vec<String>,
 }
 
 /// Whether simultaneous damage is one event of its total to this subject
@@ -51,6 +53,7 @@ fn single(mask: &'static str, arm: Arm, frame: Frame, phrase: &str) -> Matched {
         sums: false,
         mana: false,
         phrase: phrase.into(),
+        planned: Vec::new(),
     }
 }
 
@@ -272,10 +275,33 @@ impl Compiler {
                 None,
                 "Whenever this is tapped for mana",
             ),
-            // The engine records no event for a permanent untapping.
-            ObjectEvent::BecomesUntapped => return Err(gap("engine: no untap event")),
-            ObjectEvent::Mutates => return Err(gap("engine: no mutate event")),
-            ObjectEvent::Specializes => return Err(gap("engine: no specialize event")),
+            ObjectEvent::BecomesUntapped => (
+                "UNTAPPED",
+                "Event::Untapped { permanent }",
+                "*permanent",
+                "u32::MAX",
+                plain,
+                None,
+                "Whenever this becomes untapped",
+            ),
+            ObjectEvent::Mutates => (
+                "MUTATED",
+                "Event::Mutated { permanent }",
+                "*permanent",
+                "u32::MAX",
+                plain,
+                None,
+                "Whenever this mutates",
+            ),
+            ObjectEvent::Specializes => (
+                "SPECIALIZED",
+                "Event::Specialized { permanent }",
+                "*permanent",
+                "u32::MAX",
+                plain,
+                None,
+                "Whenever this specializes",
+            ),
             other => return Err(gap(format!("trigger event Object {}", form(other)))),
         };
         let mut tests: Vec<String> = extra.map(Into::into).into_iter().collect();
@@ -291,6 +317,15 @@ impl Compiler {
             phrase,
         );
         matched.mana = matches!(event, ObjectEvent::TappedForMana);
+        let planned = match event {
+            ObjectEvent::BecomesUntapped => Some("engine: no untap event"),
+            ObjectEvent::Mutates => Some("engine: no mutate event"),
+            ObjectEvent::Specializes => Some("engine: no specialize event"),
+            _ => None,
+        };
+        if let Some(feature) = planned {
+            self.plan_event(&mut matched, feature, false)?;
+        }
         Ok(matched)
     }
     /// `EventSpec::Player`. The arms name the player `player`, by reference or
@@ -424,13 +459,25 @@ impl Compiler {
                 "Whenever a player taps a permanent for mana",
             ),
             // `Event::GameLost` is filed in the history only.
-            PlayerEvent::LosesGame => {
-                return Err(gap("engine: no ability triggers on losing the game"))
-            }
+            PlayerEvent::LosesGame => (
+                "GAME_LOST",
+                "Event::GameLost { player, .. }",
+                ONE,
+                "*player",
+                about,
+                None,
+                "Whenever a player loses the game",
+            ),
             // Each die is an event of its own, not "one or more dice" at once.
-            PlayerEvent::RollsDice => {
-                return Err(gap("engine: no event for dice rolled together"))
-            }
+            PlayerEvent::RollsDice => (
+                "DICE_ROLLED",
+                "Event::DiceRolled { player, .. }",
+                ONE,
+                "*player",
+                about,
+                None,
+                "Whenever a player rolls one or more dice",
+            ),
             other => return Err(gap(format!("trigger event Player {}", form(other)))),
         };
         let mut tests: Vec<String> = test.map(Into::into).into_iter().collect();
@@ -453,6 +500,17 @@ impl Compiler {
             phrase,
         );
         matched.mana = matches!(event, PlayerEvent::TapsForMana);
+        match event {
+            PlayerEvent::LosesGame => {
+                let feature = "engine: no ability triggers on losing the game";
+                self.plan_event(&mut matched, feature, true)?
+            }
+            PlayerEvent::RollsDice => {
+                let feature = "engine: no event for dice rolled together";
+                self.plan_event(&mut matched, feature, false)?
+            }
+            _ => {}
+        }
         Ok(matched)
     }
     /// `EventSpec::Pair`: `id` is the object the event is about, `other` the
@@ -501,16 +559,37 @@ impl Compiler {
                 about,
                 "Whenever this becomes attached",
             ),
-            PairEvent::Crews => return Err(gap("engine: no crew event")),
-            PairEvent::Saddles => return Err(gap("engine: no saddle event")),
-            PairEvent::Exploits => return Err(gap("engine: no exploit event")),
+            PairEvent::Crews => (
+                "CREWED",
+                "Event::Crewed { creature, vehicle }",
+                "*creature",
+                "*vehicle",
+                about,
+                "Whenever this crews a Vehicle",
+            ),
+            PairEvent::Saddles => (
+                "SADDLED",
+                "Event::Saddled { creature, mount }",
+                "*creature",
+                "*mount",
+                about,
+                "Whenever this saddles a Mount",
+            ),
+            PairEvent::Exploits => (
+                "EXPLOITED",
+                "Event::Exploited { creature, sacrificed }",
+                "*creature",
+                "*sacrificed",
+                about,
+                "Whenever this exploits a creature",
+            ),
             other => return Err(gap(format!("trigger event Pair {}", form(other)))),
         };
         let tests = vec![
             self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?,
             self.matching(frame, |c| c.filter(others, &Candidate::of("other")))?,
         ];
-        Ok(single(
+        let mut matched = single(
             mask,
             Arm {
                 pattern: pattern.into(),
@@ -519,7 +598,17 @@ impl Compiler {
             },
             frame,
             phrase,
-        ))
+        );
+        match event {
+            // The history has it, for what asks who crewed; no ability sees it.
+            PairEvent::Crews => self.plan_event(&mut matched, "engine: no crew event", true)?,
+            PairEvent::Saddles => self.plan_event(&mut matched, "engine: no saddle event", false)?,
+            PairEvent::Exploits => {
+                self.plan_event(&mut matched, "engine: no exploit event", false)?
+            }
+            _ => {}
+        }
+        Ok(matched)
     }
     /// `EventSpec::BecomesTarget`. The engine names the object on the stack by
     /// `by`, which for an ability is its source, so only a spell is that object.
@@ -746,9 +835,7 @@ impl Compiler {
         by: Option<&PlayerSet>,
         per: &BatchPer,
     ) -> Result<Matched> {
-        if *change != CounterChange::Put {
-            return Err(gap("engine: no event for a counter being removed"));
-        }
+        let removed = *change != CounterChange::Put;
         let frame = Frame {
             object: Some(Carried::Subject),
             amount: Some(Carried::Data(0)),
@@ -761,16 +848,29 @@ impl Compiler {
         if let Some(by) = by {
             tests.push(self.matching(frame, |c| c.player_in(by, "*by"))?);
         }
+        if *change == CounterChange::LastRemoved {
+            tests.push("q.state().obj(id).counters(*kind) == 0".into());
+        }
         let mut matched = single(
-            "COUNTERS",
+            if removed { "COUNTERS_REMOVED" } else { "COUNTERS" },
             Arm {
-                pattern: "Event::CountersPut { object, kind, amount, by, .. }".into(),
+                pattern: match removed {
+                    true => "Event::CountersRemoved { object, kind, amount, by, .. }".into(),
+                    false => "Event::CountersPut { object, kind, amount, by, .. }".into(),
+                },
                 locals: "let id = *object; let subject = Target::Object(id); let data = [*amount as u32, id.0];".into(),
                 tests,
             },
             frame,
-            "Whenever counters are put on a permanent",
+            match removed {
+                true => "Whenever counters are removed from a permanent",
+                false => "Whenever counters are put on a permanent",
+            },
         );
+        if removed {
+            let feature = "engine: no event for a counter being removed";
+            self.plan_event(&mut matched, feature, false)?;
+        }
         matched.batch = Some(match per {
             BatchPer::Whole => false,
             BatchPer::Subject => true,
@@ -987,7 +1087,20 @@ impl Compiler {
                     "Whenever a card is discarded",
                 )
             }
-            DiscardKind::CausedBy(_) => return Err(gap("engine: no discard cause in events")),
+            DiscardKind::CausedBy(filter) => {
+                tests.push("!*undefined".into());
+                let cause = self.matching(frame, |c| c.filter(filter, &Candidate::of("cause")))?;
+                tests.push(planned::planned_value(
+                    "engine: no discard cause in events",
+                    "false",
+                    &format!("cause.is_some_and(|cause| {cause})"),
+                ));
+                (
+                    "DISCARDED",
+                    "Event::Discarded { card, player, undefined }",
+                    "Whenever a card is discarded",
+                )
+            }
         };
         if source_only {
             tests.push("id == asker.source".to_string());
@@ -1142,6 +1255,7 @@ impl Compiler {
                                 }
                             }
                             all.arms.extend(next.arms);
+                            all.planned.extend(next.planned);
                             all
                         }
                     });
@@ -1189,7 +1303,19 @@ impl Compiler {
                 including,
             } => self.batch_event(event, per, count.as_ref(), including.as_ref()),
             // The engine's event is one put, and each counter is one of these.
-            EventSpec::Counters { .. } => Err(gap("engine: no event for each counter put")),
+            EventSpec::Counters {
+                change,
+                kind,
+                objects,
+                by,
+            } => {
+                let per = BatchPer::Subject;
+                let mut matched =
+                    self.counters_batch(change, kind.as_ref(), objects, by.as_ref(), &per)?;
+                matched.batch = None;
+                self.plan_event(&mut matched, "engine: no event for each counter put", false)?;
+                Ok(matched)
+            }
             EventSpec::Activated { players, abilities } => self.activated_event(players, abilities),
             EventSpec::Primitive { name, .. } => {
                 Err(gap(format!("primitive trigger event {name}")))
@@ -1212,14 +1338,19 @@ impl Compiler {
             )
             .unwrap();
         }
-        writeln!(self.functions,"#[allow(unused_variables)] fn {label}(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {{ {body} None }}").unwrap();
+        let matcher = format!("#[allow(unused_variables)] fn {label}(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {{ {body} None }}");
         let mask = matched
             .masks
             .iter()
             .map(|m| format!("EventMask::{m}.0"))
             .collect::<Vec<_>>()
             .join(" | ");
-        let trigger = format!("when_asked(EventMask({mask}), {label})");
+        let trigger = if matched.planned.iter().all(|f| planned::landed(f)) {
+            writeln!(self.functions, "{matcher}").unwrap();
+            format!("when_asked(EventMask({mask}), {label})")
+        } else {
+            self.planned_trigger(&matched.planned, label, &matcher, &mask)
+        };
         match &matched.functions {
             Some(zones) => format!("{trigger}.functions_in({zones})"),
             None => trigger,
@@ -1284,14 +1415,18 @@ impl Compiler {
                 }
             )
         };
+        let mut matched = matched;
         if matched.mana
             && (announcement.modes.is_some()
                 || !announcement.targets.is_empty()
                 || !body.instructions.iter().all(adds_mana))
         {
-            return Err(gap(
+            matched.mana = false;
+            self.plan_event(
+                &mut matched,
                 "engine: only a mana ability triggers on tapping for mana",
-            ));
+                false,
+            )?;
         }
         if announcement.modes.is_some() {
             return self.modal_triggered(

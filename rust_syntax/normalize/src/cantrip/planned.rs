@@ -27,6 +27,11 @@ pub fn requirement(feature: &str) -> String {
 /// Adding one here and regenerating is all a card waiting on it needs.
 const LANDED: &[&str] = &[];
 
+/// Whether the requirement `feature` has landed in Cantrip.
+pub(super) fn landed(feature: &str) -> bool {
+    LANDED.contains(&requirement(feature).as_str())
+}
+
 /// A value inside compiled code that Cantrip has no word for yet: `placeholder`
 /// keeps the file compiling, `code` is what it will say, and `feature` is found
 /// again by `value_gaps`, since a read has no way to record a gap of its own.

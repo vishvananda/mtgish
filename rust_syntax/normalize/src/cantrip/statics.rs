@@ -84,10 +84,19 @@ impl Compiler {
     /// sits in `CardDef::delayed`, and `AbilityRef::delayed` names it through
     /// the card printing the grant, which a granted ability is not.
     pub(super) fn grant(&mut self, ability: &Ability) -> Result<usize> {
+        let label = format!("granted_{}", self.fresh());
+        let grown = self.grown_parts(ability, &label)?;
+        let [def] = grown.abilities.as_slice() else {
+            return Err(gap(format!("granted {}", form(ability))));
+        };
+        self.delayed.push(def.clone());
+        Ok(self.delayed.len() - 1)
+    }
+    /// What an ability adds to a card, compiled on its own.
+    pub(super) fn grown_parts(&mut self, ability: &Ability, label: &str) -> Result<Parts> {
         if self.granting {
             return Err(gap("granted ability that grants another"));
         }
-        let label = format!("granted_{}", self.fresh());
         // The enclosing callback's reader belongs to it, not to this ability.
         let saved = (
             self.reader,
@@ -102,18 +111,14 @@ impl Compiler {
         let results = self.results();
         self.granting = true;
         let mut grown = Parts::default();
-        let compiled = self.ability(ability, &label, &mut grown, None);
+        let compiled = self.ability(ability, label, &mut grown, None);
         self.granting = false;
         self.restore_results(results);
         self.slots = slots;
         (self.reader, self.event_at, self.frame, self.static_guard) = saved;
         self.outer = outer;
         compiled?;
-        let [def] = grown.abilities.as_slice() else {
-            return Err(gap(format!("granted {}", form(ability))));
-        };
-        self.delayed.push(def.clone());
-        Ok(self.delayed.len() - 1)
+        Ok(grown)
     }
     /// Whether `id` is among the objects a rule is about, as a `Query` reads.
     fn rule_subject(&self, affected: &ObjectSet, id: &str) -> Result<String> {

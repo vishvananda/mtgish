@@ -140,7 +140,7 @@ fn cant_be_countered(zones: &[EventZone], affected: &EffectSubjects, changes: &[
 
 impl Compiler {
     /// A generated `ObjectFilter`: what a cost accepts of an object.
-    fn cost_filter(&mut self, filter: &ObjectFilter, label: &str) -> Result<String> {
+    pub(super) fn cost_filter(&mut self, filter: &ObjectFilter, label: &str) -> Result<String> {
         // A cost's filter is a plain function, with no event or stack item to read.
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
@@ -700,9 +700,6 @@ impl Compiler {
             right: Expr::Constant(n),
         };
         for (i, stage) in stages.iter().enumerate() {
-            if stage.animates {
-                return Err(gap("counter stage that animates"));
-            }
             let least = compare(Comparison::GreaterOrEqual, stage.minimum);
             let condition = match stage.maximum {
                 Some(most) => Condition::All(vec![least, compare(Comparison::LessOrEqual, most)]),
@@ -720,7 +717,22 @@ impl Compiler {
                 })
                 .into_iter()
                 .collect();
-            then.extend(stage.abilities.iter().cloned());
+            if stage.animates {
+                then.push(Ability::Static {
+                    kind: StaticKind::Ordinary,
+                    affected: EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
+                    changes: vec![Change::AddCardType(crate::mtg_types::CardType::Creature)],
+                });
+            }
+            // "It has [abilities]" for as long as the stage lasts (CR 711.2a, 721.2a).
+            then.extend(stage.abilities.iter().map(|ability| match ability {
+                Ability::Activated { .. } | Ability::Triggered { .. } => Ability::Static {
+                    kind: StaticKind::Ordinary,
+                    affected: EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
+                    changes: vec![Change::GrantAbility(Box::new(ability.clone()))],
+                },
+                other => other.clone(),
+            }));
             let staged = Ability::Conditional {
                 condition,
                 then,

@@ -233,7 +233,13 @@ impl Compiler {
                 let chosen = self.chosen_local(ValueKind::Color)?;
                 vec![format!("EffectKind::SetColors(ColorSet::of({chosen}))")]
             }
-            Change::ChosenColor { .. } => return Err(gap("engine: no effect adds colors")),
+            Change::ChosenColor { .. } => vec![lane_g::planned_kind(
+                "engine: no effect adds colors",
+                format!(
+                    "EffectKind::AddColors(ColorSet::of({}))",
+                    self.chosen_local(ValueKind::Color)?
+                ),
+            )],
             Change::ChosenType {
                 kind: kind @ ValueKind::CreatureType,
                 mode: ChangeMode::Add,
@@ -242,9 +248,12 @@ impl Compiler {
                 self.chosen_local(*kind)?
             )],
             Change::ChosenType {
-                kind: ValueKind::BasicLandType | ValueKind::LandType,
+                kind: kind @ (ValueKind::BasicLandType | ValueKind::LandType),
                 mode: ChangeMode::Set,
-            } => return Err(gap("engine: no resolving effect sets land types")),
+            } => vec![lane_g::planned_kind(
+                "engine: no resolving effect sets land types",
+                format!("EffectKind::SetLandType({})", self.chosen_local(*kind)?),
+            )],
             Change::ChosenType {
                 kind: kind @ (ValueKind::BasicLandType | ValueKind::LandType),
                 mode: ChangeMode::Add,

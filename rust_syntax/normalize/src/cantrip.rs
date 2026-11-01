@@ -18,6 +18,7 @@ mod costs;
 mod delayed;
 mod effects;
 mod keywords;
+mod lane_g;
 mod mechanics;
 pub mod planned;
 mod players;
@@ -977,11 +978,13 @@ impl Compiler {
     ) -> Result<()> {
         let id = self.next;
         self.next += 1;
-        let restriction = restriction.map(mana_restriction).transpose()?;
+        let (lasting, restriction) = lane_g::mana_lasting(restriction);
+        let restriction = restriction.map(|r| self.mana_use(r)).transpose()?;
         let add = |player: &str, color: &str, amount: &str| -> String {
-            match &restriction {
-                Some(r) => format!("g.add_restricted_mana({player}, {color}, {amount}, {r});"),
-                None => format!("g.add_mana({player}, {color}, {amount});"),
+            match (&restriction, lasting) {
+                (Some(r), _) => format!("g.add_restricted_mana({player}, {color}, {amount}, {r});"),
+                (None, Some(until)) => format!("g.add_mana_{until}({player}, {color}, {amount});"),
+                (None, None) => format!("g.add_mana({player}, {color}, {amount});"),
             }
         };
         writeln!(
@@ -1131,8 +1134,8 @@ impl Compiler {
                 }
             }
         }
-        if let Some(r) = restriction {
-            metadata.push_str(&format!(".only_for({})", mana_restriction(r)?));
+        if let (_, Some(r)) = lane_g::mana_lasting(restriction.as_ref()) {
+            metadata.push_str(&format!(".only_for({})", self.mana_use(r)?));
         }
         let mut out = String::new();
         self.stack_item = false;
@@ -1424,6 +1427,7 @@ impl Parts {
             "block_requirements" => self.block_requirements.push(entry),
             "attack_rules" => self.attack_rules.push(entry),
             "untap_bans" => self.untap_bans.push(entry),
+            "enters" => self.enters.push(entry),
             table => self.table(table, entry),
         }
     }
@@ -1432,6 +1436,36 @@ impl Parts {
     }
     fn field(&mut self, field: &'static str, value: String) {
         self.fields.insert(field, value);
+    }
+    /// Nothing but `abilities` was added.
+    fn only_abilities(&self) -> bool {
+        self.keywords.is_empty()
+            && self.statics.is_empty()
+            && self.replacements.is_empty()
+            && self.preventions.is_empty()
+            && self.enters.is_empty()
+            && self.block_rules.is_empty()
+            && self.block_requirements.is_empty()
+            && self.attack_rules.is_empty()
+            && self.untap_bans.is_empty()
+            && self.tables.is_empty()
+            && self.fields.is_empty()
+    }
+    /// A definition holding only what was added: `enters` is its compiled field.
+    fn card(&self, enters: &str) -> String {
+        format!(
+            "CardDef {{ keywords: Keywords::of(&[{}]), abilities: &[{}], statics: &[{}], replacements: &[{}], preventions: &[{}], block_rules: &[{}], block_requirements: &[{}], attack_rules: &[{}], untap_bans: &[{}], enters: {enters}, {}..CardDef::BLANK }}",
+            self.keywords.join(","),
+            self.abilities.join(","),
+            self.statics.join(","),
+            self.replacements.join(","),
+            self.preventions.join(","),
+            self.block_rules.join(","),
+            self.block_requirements.join(","),
+            self.attack_rules.join(","),
+            self.untap_bans.join(","),
+            self.rest()
+        )
     }
     /// The struct-literal fields for `tables` and `fields`.
     fn rest(&self) -> String {

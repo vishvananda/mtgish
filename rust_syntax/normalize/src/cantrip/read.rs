@@ -1304,9 +1304,7 @@ impl Compiler {
             ObjectFilter::State(ObjectState::Kicked) => {
                 format!("q.state().obj({id}).kicked > 0")
             }
-            ObjectFilter::State(ObjectState::Commander) => {
-                return Err(gap("engine: no commander"))
-            }
+            ObjectFilter::State(ObjectState::Commander) => lane_g::commander(&id),
             ObjectFilter::State(ObjectState::Saddled) => {
                 format!("q.state().obj({id}).marks.saddled_turn == q.state().turn.number")
             }
@@ -1514,7 +1512,11 @@ impl Compiler {
                     TurnWindow::BeforeBlockersDeclared => {
                         format!("{step} < (Step::DeclareBlockers as u8)")
                     }
-                    TurnWindow::FirstCombat => return Err(gap("engine: no combat phase count")),
+                    TurnWindow::FirstCombat => planned::planned_value(
+                        "engine: no combat phase count",
+                        "false",
+                        "q.state().turn.combat_phase == 1",
+                    ),
                     TurnWindow::AfterBlockersDeclared => {
                         format!("{step} > (Step::DeclareBlockers as u8)")
                     }

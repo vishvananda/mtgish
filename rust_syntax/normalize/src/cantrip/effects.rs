@@ -1003,8 +1003,8 @@ impl Compiler {
                 self.revealed = true;
                 writeln!(out, "let owner_{id} = {owner}; let count_{id} = {count}; let (found_{id}, rest_{id}) = cantrip_mechanics::library::reveal_until_n(g, owner_{id}, count_{id}, &|q: &dyn Query, id: ObjectId| {filter}); let shown_{id} = found_{id}.len() + rest_{id}.len(); let objects_{id}: Vec<ObjectId> = g.state().zone(Zone::library(owner_{id})).iter().copied().take(shown_{id}).collect();").unwrap();
             }
-            Operation::CreatePerpetualEffect { .. } => {
-                return Err(gap("engine: no perpetual effects"));
+            Operation::CreatePerpetualEffect { objects, changes } => {
+                self.perpetual_effect(objects, changes, out)?
             }
             // Each count is read before any counter goes on, and all go on as one
             // event (701.10e, 603.2c).
@@ -1911,7 +1911,7 @@ impl Compiler {
     }
     /// What a resolving effect's change is in the engine's vocabulary. Each
     /// value is read when the effect is made, as `EffectEvaluation::Snapshot` says.
-    fn effect_kinds(&mut self, change: &Change) -> Result<Vec<String>> {
+    pub(super) fn effect_kinds(&mut self, change: &Change) -> Result<Vec<String>> {
         if let Change::GrantKeyword(ward @ Keyword::Ward(_)) = change {
             let change = Change::GrantAbility(Box::new(Ability::Keyword(ward.clone())));
             return self.effect_kinds(&change);
@@ -1964,20 +1964,42 @@ impl Compiler {
             Change::AddLandType(t) => vec![format!("EffectKind::AddSubtype(Subtype::{})", name(t))],
             // A land type set takes the land's rules text with it (CR 305.7),
             // which only `sets_land_subtypes`, a static ability, does.
-            Change::SetLandType(_) => {
-                return Err(gap("engine: no resolving effect sets land types"))
+            Change::SetLandType(land) => {
+                let Operand::Vocabulary { form: word, .. } = &**land else {
+                    return Err(gap(format!("land type {}", form(&**land))));
+                };
+                vec![lane_g::planned_kind(
+                    "engine: no resolving effect sets land types",
+                    format!("EffectKind::SetLandType(Subtype::{word})"),
+                )]
             }
-            Change::SetPower(_) | Change::SetToughness(_) => {
-                return Err(gap("engine: no effect sets power or toughness alone"))
-            }
-            Change::AddSupertype(_) | Change::RemoveSupertype(_) => {
-                return Err(gap("engine: no effect changes supertypes"))
-            }
-            Change::RemoveCardType(_) => return Err(gap("engine: no effect removes a card type")),
+            Change::SetPower(n) => vec![lane_g::planned_kind(
+                "engine: no effect sets power or toughness alone",
+                format!("EffectKind::SetPower({})", i16_of(n)?),
+            )],
+            Change::SetToughness(n) => vec![lane_g::planned_kind(
+                "engine: no effect sets power or toughness alone",
+                format!("EffectKind::SetToughness({})", i16_of(n)?),
+            )],
+            Change::AddSupertype(t) => vec![lane_g::planned_kind(
+                "engine: no effect changes supertypes",
+                format!("EffectKind::AddSupertype(Supertype::{t:?})"),
+            )],
+            Change::RemoveSupertype(t) => vec![lane_g::planned_kind(
+                "engine: no effect changes supertypes",
+                format!("EffectKind::LoseSupertype(Supertype::{t:?})"),
+            )],
+            Change::RemoveCardType(t) => vec![lane_g::planned_kind(
+                "engine: no effect removes a card type",
+                format!("EffectKind::LoseType(CardType::{})", card_type(t)?),
+            )],
             Change::Colors {
                 mode: ChangeMode::Add,
-                ..
-            } => return Err(gap("engine: no effect adds colors")),
+                colors,
+            } => vec![lane_g::planned_kind(
+                "engine: no effect adds colors",
+                format!("EffectKind::AddColors(ColorSet({}))", color_mask(colors)?),
+            )],
             Change::AddCardType(t) => vec![format!(
                 "EffectKind::AddTypes(TypeSet::of(&[CardType::{}]))",
                 card_type(t)?
