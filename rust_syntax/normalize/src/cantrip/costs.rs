@@ -560,11 +560,7 @@ impl Compiler {
                 "mana_ability({}, {adds}, {}){}",
                 self.cost(price, label)?,
                 quoted(&text),
-                if chosen::makes_chosen_color(body) {
-                    ".colors_from(cantrip_mechanics::lands::chosen_color)"
-                } else {
-                    ""
-                }
+                self.colors_from(body, label)?
             )
         } else {
             let targets = self.announcement(announcement, label)?;

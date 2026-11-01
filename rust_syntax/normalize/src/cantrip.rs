@@ -30,6 +30,7 @@ mod survey;
 mod triggers;
 pub use crate::report::BackendDiagnostic as Diagnostic;
 use effects::rule_name;
+use lane_j::{Picked, Share};
 use read::{counter_kind, zone_kind, Candidate, Carried, EventAt, Frame, History, Pending, Reader};
 pub use survey::survey;
 type Result<T> = std::result::Result<T, Diagnostic>;
@@ -358,6 +359,11 @@ struct Compiler {
     /// While an instruction is compiled to happen only if its players exist:
     /// the local each stands for, and how to read it. See `lane_j`.
     present: std::rc::Rc<std::cell::RefCell<Option<Vec<(String, String)>>>>,
+    /// "An opponent chooses": who has been picked so far, and how to pick the
+    /// ones the instruction being compiled named first. See `lane_j`.
+    picked: std::rc::Rc<std::cell::RefCell<Picked>>,
+    /// What each player's part of a batch was, by the result it is part of.
+    shares: BTreeMap<u32, (String, Share)>,
     slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
     /// The cards that ended each reveal, by the result that names all it showed.
@@ -660,6 +666,8 @@ impl Compiler {
             trigger_gate: None,
             event_object: None,
             present: Default::default(),
+            picked: Default::default(),
+            shares: BTreeMap::new(),
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
             reveal_matches: BTreeMap::new(),
@@ -1018,6 +1026,12 @@ impl Compiler {
                 }
                 writeln!(out, "for player in mana_players_{id} {{").unwrap();
                 for (i, (color, _)) in units.iter().enumerate() {
+                    if matches!(color, ManaColor::Chosen) {
+                        let chosen = self.fetch(self.chosen_value(ValueKind::Color)?);
+                        let adds = add("player", "color.mana()", &format!("mana_{id}_{i}"));
+                        writeln!(out, "if let Some(color) = {chosen} {{ {adds} }}").unwrap();
+                        continue;
+                    }
                     out.push_str(&add(
                         "player",
                         &format!(
@@ -1087,9 +1101,25 @@ impl Compiler {
             ..
         }, rest @ ..] = body.instructions.as_slice()
         else {
-            return Err(gap("compound mana ability callback"));
+            return self.mana_program(body, label);
         };
         let plan = match mana_plan(mana)? {
+            // "{B} or one mana of the chosen color": `colors_from` limits it.
+            ManaPlan::SameColor { colors, amount } if colors.contains(&ManaColor::Chosen) => {
+                if !self.enters_choosing.contains(&ValueKind::Color) {
+                    return Err(gap("mana of a color not chosen as it entered"));
+                }
+                ManaPlan::SameColor {
+                    colors: vec![
+                        ManaColor::White,
+                        ManaColor::Blue,
+                        ManaColor::Black,
+                        ManaColor::Red,
+                        ManaColor::Green,
+                    ],
+                    amount,
+                }
+            }
             // One color the engine limits it to (`colors_from`) as it is offered.
             ManaPlan::Fixed(units) if matches!(units.as_slice(), [(ManaColor::Chosen, _)]) => {
                 if !self.enters_choosing.contains(&ValueKind::Color) {

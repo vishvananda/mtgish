@@ -465,6 +465,12 @@ impl Compiler {
             PlayerRef::EventSubject => self.frame.player.is_some(),
             PlayerRef::EventOtherPlayer => self.frame.other_player.is_some(),
             PlayerRef::ControllerOf(object) | PlayerRef::OwnerOf(object) => certain(self, object),
+            PlayerRef::PlayerOrControllerOf(recipients) => match &**recipients {
+                Recipients::Target { slot, index } => c_slot_is_fixed(self, slot, *index),
+                Recipients::Targets(slot) => c_slot_is_fixed(self, slot, 0),
+                _ => false,
+            },
+            PlayerRef::OneOf(players) => self.present.borrow().is_some() || self.is_picked(players),
             _ => false,
         };
         if is_certain {
@@ -1375,14 +1381,7 @@ impl Compiler {
                 }
             }
             ObjectFilter::Shares { property, with } => {
-                let test = match property {
-                    DistinctProperty::CardTypes => "a.types.iter().any(|t| b.types.has(t))",
-                    DistinctProperty::CreatureTypes => {
-                        "a.subtypes.iter().any(|s| SubtypeSet::CREATURE_TYPES.has(s) && b.subtypes.has(s))"
-                    }
-                    DistinctProperty::Colors => "a.colors.intersects(b.colors)",
-                    other => return Err(gap(format!("sharing {other:?}"))),
-                };
+                let test = lane_j::sharing(property)?;
                 format!(
                     "{}.is_some_and(|o: ObjectId| {{ let (a, b) = (&{chars}, &q.chars(o)); {test} }})",
                     self.object(with)?

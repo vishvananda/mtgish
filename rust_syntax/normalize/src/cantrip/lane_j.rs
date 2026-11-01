@@ -1609,11 +1609,22 @@ impl Compiler {
             PlayerRef::Holder(Designation::Initiative) => {
                 "q.state().seats().find(|&p| q.state().player(p).initiative)".into()
             }
+            PlayerRef::OneOf(players) => format!("Some({})", self.pick(players)?),
             PlayerRef::PlayerOrControllerOf(recipients) => match &**recipients {
                 Recipients::Target { slot, index } => format!(
                     "t_{}_raw.get({index}).copied().and_then(|t: Target| t.player().or(t.object().map(|o| q.controller(o))))",
                     self.slot(slot)?
                 ),
+                Recipients::Targets(slot)
+                    if self.slots.get(&slot.0).is_some_and(|(_, spec)| {
+                        matches!(spec.count, Count::Exactly(Expr::Constant(1)) | Count::UpTo(Expr::Constant(1)))
+                    }) =>
+                {
+                    format!(
+                        "t_{}_raw.first().copied().and_then(|t: Target| t.player().or(t.object().map(|o| q.controller(o))))",
+                        self.slot(slot)?
+                    )
+                }
                 other => {
                     return Err(gap(format!(
                         "player reference PlayerOrControllerOf {}",
@@ -1648,6 +1659,26 @@ impl Compiler {
                 ),
                 self.filter(filter, &Candidate::of("id"))?
             ),
+            ObjectSet::MovedBy {
+                result,
+                phase,
+                player,
+            } => {
+                let who = self.player(player)?;
+                let share = self
+                    .shares
+                    .get(&result.0)
+                    .filter(|(moved, _)| self.moved.get(&result.0) == Some(moved));
+                match (share, phase) {
+                    (Some((moved, Share::Owner)), ObjectPhase::After) => format!(
+                        "{moved}.iter().copied().filter(|&o| Some(q.state().obj(o).owner) == {who}).collect::<Vec<ObjectId>>()"
+                    ),
+                    (Some((_, Share::Picks(picks))), ObjectPhase::Before) => format!(
+                        "{picks}.iter().filter(|(who, o)| Some(*who) == {who} && q.state().obj(*o).became.is_some()).map(|(_, o)| *o).collect::<Vec<ObjectId>>()"
+                    ),
+                    _ => return Err(gap("object collection MovedBy")),
+                }
+            }
             other => return Err(gap(format!("object collection {}", form(other)))),
         })
     }
@@ -1963,6 +1994,11 @@ impl Compiler {
             ObjectFilter::SharesNameWithAnother(objects) if !layer => format!(
                 "({}).iter().any(|&o| o != {id} && cantrip_mechanics::same_name(q, {id}, o))",
                 self.objects(objects)?
+            ),
+            ObjectFilter::SharesWithAny { property, with } if !layer => format!(
+                "({}).iter().any(|&o| {{ let (a, b) = (&{chars}, &q.chars(o)); {} }})",
+                self.objects(with)?,
+                sharing(property)?
             ),
             ObjectFilter::SharesColorWith(object) => format!(
                 "{}.is_some_and(|o: ObjectId| q.chars(o).colors.intersects({chars}.colors))",
@@ -2320,6 +2356,39 @@ fn symbols_text(symbols: &[ManaSymbol]) -> Option<String> {
         }
     }
     Some(text)
+}
+
+/// How to tell which player of a batch did which part of it, for `ObjectSet::MovedBy`.
+#[derive(Clone, Debug)]
+pub(super) enum Share {
+    /// Only a card's owner has it in hand, so only they discard it.
+    Owner,
+    /// This local pairs each player with what they sacrifice.
+    Picks(String),
+}
+/// Whether objects whose characteristics are `a` and `b` have this property in common.
+pub(super) fn sharing(property: &DistinctProperty) -> Result<&'static str> {
+    Ok(match property {
+        DistinctProperty::CardTypes => "a.types.iter().any(|t| b.types.has(t))",
+        DistinctProperty::CreatureTypes => {
+            "a.subtypes.iter().any(|s| SubtypeSet::CREATURE_TYPES.has(s) && b.subtypes.has(s))"
+        }
+        DistinctProperty::Colors => "a.colors.intersects(b.colors)",
+        other => return Err(gap(format!("sharing {other:?}"))),
+    })
+}
+/// Those of a program's players a choice has named, for `Compiler::pick`.
+#[derive(Clone, Debug, Default)]
+pub(super) struct Picked {
+    /// The set chosen from, and the local holding who was picked.
+    pub named: Vec<(String, String)>,
+    /// What the instruction being compiled must run first.
+    pub statements: Vec<String>,
+}
+/// Does an instruction that failed with this gap want to be compiled around a
+/// player who may not be there, or who is still to be picked?
+pub(super) fn wants_a_player(feature: &str) -> bool {
+    feature.starts_with("possibly absent player") || feature == "player reference OneOf"
 }
 
 /// "Hexproof from [quality]" (CR 702.11d-g): `HexproofFrom` qualities.
@@ -2709,6 +2778,156 @@ impl Compiler {
         };
         format!("q.state().obj({source}).class_level >= {level}")
     }
+    /// A mana ability that does more than add mana first: "If you control a
+    /// creature with power 4 or greater, add {G}{G} instead", "Choose a color. Add
+    /// one mana of that color for each charge counter". What it adds is known only
+    /// as it resolves, as Gaea's Cradle's is, so nothing is listed.
+    pub(super) fn mana_program(&mut self, body: &Program, label: &str) -> Result<String> {
+        if !format!("{body:?}").contains("AddMana") {
+            return Err(gap("compound mana ability callback"));
+        }
+        let mut out = String::new();
+        self.stack_item = false;
+        let reader = std::mem::replace(&mut self.reader, Reader::Resolution);
+        self.reset_results();
+        let compiled = self.program(body, &mut out, false);
+        self.chosen.clear();
+        self.reader = reader;
+        self.stack_item = true;
+        compiled?;
+        writeln!(
+            self.functions,
+            "fn {label}(g: &mut dyn Game, asker: &Asker, chosen: Option<Color>) -> Result<(),Suspend> {{ {out} Ok(()) }}"
+        )
+        .unwrap();
+        Ok(format!("add_by({label})"))
+    }
+    /// What limits a mana ability's color to the one chosen as it entered, and
+    /// to the colors it can always make beside it.
+    pub(super) fn colors_from(&mut self, body: &Program, label: &str) -> Result<String> {
+        const CHOSEN: &str = "cantrip_mechanics::lands::chosen_color";
+        if chosen::makes_chosen_color(body) {
+            return Ok(format!(".colors_from({CHOSEN})"));
+        }
+        let Some(Instruction::Effect {
+            operation:
+                Operation::AddMana {
+                    mana: ManaProduction::ChooseOne(options),
+                    ..
+                },
+            ..
+        }) = body.instructions.first()
+        else {
+            return Ok(String::new());
+        };
+        let colors: Vec<&ManaColor> = options
+            .iter()
+            .filter_map(|option| match option {
+                ManaProduction::Amount { color, .. } => Some(color),
+                _ => None,
+            })
+            .collect();
+        if !colors.iter().any(|c| matches!(c, ManaColor::Chosen)) {
+            return Ok(String::new());
+        }
+        let mut set = format!("{CHOSEN}(q, asker)");
+        for c in colors.iter().filter(|c| !matches!(c, ManaColor::Chosen)) {
+            set.push_str(&format!(".with(Color::{})", color(c)?));
+        }
+        writeln!(
+            self.functions,
+            "fn {label}_colors(q: &dyn Query, asker: &Asker) -> ColorSet {{ {set} }}"
+        )
+        .unwrap();
+        Ok(format!(".colors_from({label}_colors)"))
+    }
+    /// "Put a +1/+1 counter on a creature you control": chosen as it resolves.
+    pub(super) fn counters_by_choice(
+        &mut self,
+        id: usize,
+        placement: &CounterPlacement,
+        selection: &SelectionChoice,
+        out: &mut String,
+    ) -> Result<()> {
+        let Recipients::Objects(objects) = &placement.recipients else {
+            return Err(gap("counters placed by a resolution choice"));
+        };
+        let count = self.fetch(self.select_count(&selection.count)?);
+        let amount = self.number(&placement.amount)?.amount(i16::MAX.into(), "i16")?;
+        let amount = self.fetch(amount);
+        let kind = counter_kind(&placement.kind)?;
+        let player = self.fetch(self.certain_player(&selection.player)?);
+        let candidates = self.fetch(self.objects(objects)?);
+        writeln!(
+            out,
+            "{{ let amount = {amount}; let player = {player}; let candidates = {candidates}; let count = {count}; let chosen = cantrip_mechanics::choose::select(g, player, asker.source, Purpose::PutCounters({kind}, amount.clamp(0, 255) as u8), candidates, cantrip_mechanics::select::Selection::of(count, &[]))?; for object in chosen {{ counters_{id}.push((object, {kind}, amount)); }} }}"
+        )
+        .unwrap();
+        Ok(())
+    }
+    /// What tokens already made do to take the state they enter in (CR 508.4).
+    pub(super) fn token_state(
+        &mut self,
+        id: usize,
+        entry: &EntrySpec,
+        out: &mut String,
+    ) -> Result<()> {
+        match entry.states.as_slice() {
+            [] => {}
+            [EntryState::Attacking {
+                player: None,
+                or_planeswalker: false,
+            }] => writeln!(
+                out,
+                "for &token in &created_{id} {{ let controller = g.controller(token); if let Some(defender) = cantrip_mechanics::combat::choose_attack_target(g, controller, asker.source)? {{ g.enter_attacking(&[token], defender); }} }}"
+            )
+            .unwrap(),
+            [EntryState::Attacking {
+                player: Some(player),
+                or_planeswalker: false,
+            }] => writeln!(
+                out,
+                "let defender_{id} = Target::Player({}); g.enter_attacking(&created_{id}, defender_{id});",
+                self.fetch(self.certain_player(player)?)
+            )
+            .unwrap(),
+            [EntryState::Blocking(attacker)] => {
+                let attacker = self.fetch(self.object(attacker)?);
+                let code = format!(
+                    "if let Some(attacker) = {attacker} {{ g.enter_blocking(&created_{id}, attacker); }}"
+                );
+                self.plan_code("a token entering blocking", &code, out);
+            }
+            _ => return Err(gap("tokens entering in a special state")),
+        }
+        Ok(())
+    }
+    /// Has this set already had its one player picked?
+    pub(super) fn is_picked(&self, players: &PlayerSet) -> bool {
+        let key = format!("{players:?}");
+        self.picked.borrow().named.iter().any(|(k, _)| *k == key)
+    }
+    /// "An opponent chooses one of them": the player the controller picks as the
+    /// instruction begins (CR 608.2d), asked only when there are several, and the
+    /// same player for the rest of the instructions around it.
+    fn pick(&self, players: &PlayerSet) -> Result<String> {
+        let key = format!("{players:?}");
+        if let Some((_, local)) = self.picked.borrow().named.iter().find(|(k, _)| *k == key) {
+            return Ok(local.clone());
+        }
+        if self.present.borrow().is_none() || !self.stack_item {
+            return Err(gap("player reference OneOf"));
+        }
+        let among = self.fetch(self.players(players)?);
+        let mut picked = self.picked.borrow_mut();
+        let local = format!("picked_{}", picked.named.len());
+        let statement = format!(
+            "let among: Vec<PlayerId> = {among};\nlet Some({local}) = (if among.len() > 1 {{ cantrip_mechanics::choose::player(g, asker.controller, asker.source, among, \"ChooseRevealedCard\", 0)? }} else {{ among.first().copied() }}) else {{ return Ok(()); }};\n"
+        );
+        picked.named.push((key, local.clone()));
+        picked.statements.push(statement);
+        Ok(local)
+    }
     /// An instruction about a player a reference may not name: it does nothing
     /// without them (CR 609.3). What it binds stays in that block.
     pub(super) fn if_present(
@@ -2720,10 +2939,16 @@ impl Compiler {
     ) -> Result<()> {
         *self.present.borrow_mut() = Some(Vec::new());
         let mut inner = String::new();
+        let named = self.picked.borrow().named.len();
         let compiled = self.instruction(body, index, instruction, &mut inner);
         let present = self.present.borrow_mut().take().unwrap_or_default();
+        let statements = std::mem::take(&mut self.picked.borrow_mut().statements);
+        if compiled.is_err() {
+            self.picked.borrow_mut().named.truncate(named);
+        }
         compiled?;
-        if let Instruction::Effect { result, .. } = instruction {
+        out.push_str(&statements.concat());
+        if let (Instruction::Effect { result, .. }, false) = (instruction, present.is_empty()) {
             let bound = [
                 self.selections.remove(&result.0).is_some(),
                 self.moved.remove(&result.0).is_some(),

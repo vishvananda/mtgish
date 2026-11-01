@@ -349,12 +349,13 @@ impl Compiler {
     ) -> Result<()> {
         // Each instruction here answers for its own players.
         let present = self.present.borrow_mut().take();
+        let picked = self.picked.borrow().named.len();
         for (i, instruction) in body.instructions.iter().enumerate() {
             let mark = out.len();
             let failure = self.attempt(format!("instructions[{i}]"), |c| {
                 let gaps = c.gaps.len();
                 let compiled = match c.instruction(body, i, instruction, out) {
-                    Err(failed) if failed.feature.starts_with("possibly absent player") => {
+                    Err(failed) if lane_j::wants_a_player(&failed.feature) => {
                         out.truncate(mark);
                         c.gaps.truncate(gaps);
                         c.if_present(body, i, instruction, out)
@@ -382,6 +383,7 @@ impl Compiler {
             }
         }
         *self.present.borrow_mut() = present;
+        self.picked.borrow_mut().named.truncate(picked);
         Ok(())
     }
     pub(super) fn results(&self) -> Results {
@@ -706,7 +708,7 @@ impl Compiler {
     }
     /// The count of a resolution choice. One that cannot be filled is filled as
     /// far as it can be, so "exactly" asks for as many as can be chosen.
-    fn select_count(&self, count: &Count) -> Result<String> {
+    pub(super) fn select_count(&self, count: &Count) -> Result<String> {
         Ok(match count {
             Count::AnyNumber => "cantrip_mechanics::select::Count::AnyNumber".into(),
             Count::UpTo(n) => format!(
@@ -846,6 +848,8 @@ impl Compiler {
                 } else {
                     writeln!(out,"let amount_{id} = {}; let players_{id} = {}; let mut cards_{id} = Vec::new(); for player in players_{id} {{ cards_{id}.extend(cantrip_mechanics::choose_from_hand(g, player, asker.source, amount_{id})?); }} let discarded_{id} = g.discard_together(&cards_{id});",self.fetch(number),self.fetch(self.players(players)?)).unwrap();
                     self.moved.insert(result.0, format!("discarded_{id}"));
+                    self.shares
+                        .insert(result.0, (format!("discarded_{id}"), Share::Owner));
                     self.left_behind(result, format!("discarded_{id}.clone()"));
                 }
             }
@@ -971,8 +975,9 @@ impl Compiler {
                 )
                 .unwrap();
                 for placement in placements {
-                    if placement.selection.is_some() {
-                        return Err(gap("counters placed by a resolution choice"));
+                    if let Some(selection) = &placement.selection {
+                        self.counters_by_choice(id, placement, selection, out)?;
+                        continue;
                     }
                     if let Recipients::Players(players) = &placement.recipients {
                         let method = match &placement.kind {
@@ -982,6 +987,20 @@ impl Compiler {
                             crate::counter::CounterKind::Named(
                                 crate::counter::CounterName::ExperienceCounter,
                             ) => "give_experience",
+                            crate::counter::CounterKind::Named(
+                                crate::counter::CounterName::RadCounter,
+                            ) => {
+                                let amount = self
+                                    .number(&placement.amount)?
+                                    .amount(u32::MAX.into(), "u32")?;
+                                let code = format!(
+                                    "let amount = {}; for player in {} {{ cantrip_mechanics::rad::give(g, player, amount); }}",
+                                    self.fetch(amount),
+                                    self.fetch(self.players(players)?)
+                                );
+                                self.plan_code("rad counters", &code, out);
+                                continue;
+                            }
                             other => return Err(gap(format!("{} on a player", form(other)))),
                         };
                         let amount = self
@@ -1457,7 +1476,14 @@ impl Compiler {
         let defined = tokens
             .iter()
             .all(|t| matches!(t.recipe, TokenRecipe::Defined(_)));
-        if !entry.states.is_empty() && (!defined || !entry.counters.is_empty()) {
+        let copy = matches!(
+            tokens,
+            [TokenSpec {
+                recipe: TokenRecipe::Copy { .. },
+                ..
+            }]
+        );
+        if !entry.states.is_empty() && (!(defined || copy) || !entry.counters.is_empty()) {
             return Err(gap("tokens entering in a special state"));
         }
         if self.sized_tokens(id, players, tokens, entry, result, out)? {
@@ -1494,10 +1520,12 @@ impl Compiler {
             if adjustments.iter().any(adjusts) || entry.tapped {
                 let values = self.copy_values(&format!("original_{id}"), adjustments)?;
                 writeln!(out, "let original_{id} = {}; let values_{id} = {values}; let count_{id} = {}; let player_{id} = {}; let created_{id} = match values_{id} {{ Some(values) => g.create_token_copies_tapped(values, player_{id}, count_{id}, {})?, None => Vec::new() }};", self.fetch(self.object(object)?), self.fetch(amount), self.fetch(self.certain_player(player)?), entry.tapped).unwrap();
+                self.token_state(id, entry, out)?;
                 self.creations.insert(result.0, format!("created_{id}"));
                 return Ok(());
             }
             writeln!(out, "let original_{id} = {}; let count_{id} = {}; let player_{id} = {}; let created_{id} = match original_{id} {{ Some(original) => g.create_token_copies(original, player_{id}, count_{id})?, None => Vec::new() }};", self.fetch(self.object(object)?), self.fetch(amount), self.fetch(self.certain_player(player)?)).unwrap();
+            self.token_state(id, entry, out)?;
             self.creations.insert(result.0, format!("created_{id}"));
             return Ok(());
         }
@@ -1586,7 +1614,10 @@ impl Compiler {
             }] => {
                 writeln!(out, "let mut chosen_{id}: Vec<Target> = Vec::new(); for &(_, player) in &tokens_{id} {{ chosen_{id}.push(cantrip_mechanics::combat::choose_attack_target(g, player, asker.source)?.unwrap_or(Target::None)); }} let mut created_{id}: Vec<ObjectId> = Vec::new(); let mut done_{id}: Vec<Target> = Vec::new(); for &target in &chosen_{id} {{ if done_{id}.contains(&target) {{ continue; }} done_{id}.push(target); let group: Vec<_> = tokens_{id}.iter().zip(&chosen_{id}).filter(|&(_, &t)| t == target).map(|(&token, _)| token).collect(); created_{id}.extend(g.create_tokens_worded(&group, {tapped}, Some(target), words_{id})?); }}").unwrap();
             }
-            _ => return Err(gap("tokens entering in a special state")),
+            _ => {
+                writeln!(out, "let created_{id} = {creation};").unwrap();
+                self.token_state(id, entry, out)?;
+            }
         }
         self.creations.insert(result.0, format!("created_{id}"));
         Ok(())
@@ -1636,15 +1667,6 @@ impl Compiler {
             // All players can still see the card as it moves (603.10a, 701.20a).
             Destination::OwnersHand if revealed => {
                 format!("g.return_to_hand_revealed(&objects_{id})")
-            }
-            Destination::OwnersLibraryTop
-            | Destination::OwnersLibraryBottom
-            | Destination::OwnersLibraryBottomRandom
-            | Destination::OwnersLibraryShuffled
-            | Destination::OwnersLibraryFromTop(_)
-                if revealed =>
-            {
-                return Err(gap("revealed card to a place in a library"))
             }
             Destination::OwnersHand => format!("g.return_to_hand(&objects_{id})"),
             Destination::Exile if self.links_exile && self.stack_item => {
@@ -1795,6 +1817,10 @@ impl Compiler {
         }
         writeln!(out, "let sacrificed_{id} = g.sacrifice_each(&picks_{id});").unwrap();
         self.moved.insert(result.0, format!("sacrificed_{id}"));
+        self.shares.insert(
+            result.0,
+            (format!("sacrificed_{id}"), Share::Picks(format!("picks_{id}"))),
+        );
         self.left_behind(result, gone(&format!("objects_{id}")));
         Ok(())
     }

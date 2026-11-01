@@ -263,6 +263,8 @@ impl Compiler {
                 "DelayedWhen::UntilNextTurnOf({})",
                 self.fetch(self.certain_player(player)?)
             ),
+            // "When you lose control of it", a one-time boon: the next such event.
+            (D::Indefinite, true) => "DelayedWhen::UntilEvent".to_string(),
             (other, _) => return Err(gap(format!("event trigger for {}", form(other)))),
         };
         let mut event = event.clone();
