@@ -22,6 +22,7 @@ mod lane_f;
 mod lane_g;
 mod lane_h;
 mod lane_i;
+mod lane_k;
 mod mechanics;
 pub mod planned;
 mod players;
@@ -113,6 +114,10 @@ fn generator_fingerprint() -> &'static str {
             (
                 "cantrip/lane_h.rs",
                 include_bytes!("cantrip/lane_h.rs").as_slice(),
+            ),
+            (
+                "cantrip/lane_k.rs",
+                include_bytes!("cantrip/lane_k.rs").as_slice(),
             ),
             (
                 "cantrip/card_file.rs",
@@ -383,6 +388,20 @@ impl Number {
 struct Compiler {
     /// The file's holes for what has no place in its code: see `planned`.
     holes: String,
+    /// Each ability's printed line, where its Oracle text is known.
+    printed: Vec<Option<lane_k::Line>>,
+    /// A Saga's chapters as printed, by number.
+    chapters: BTreeMap<i64, String>,
+    /// The printed line of the ability being compiled.
+    line: Option<lane_k::Line>,
+    /// What of that line's quotes a granted ability has already read.
+    quoted_used: BTreeSet<usize>,
+    /// The next choice is a "you may": choosing nothing is declining.
+    may_choose: bool,
+    /// What runs once that choice found something, the rest of the block with it.
+    chosen_guard: Option<String>,
+    /// That guard is open, and the block has to close it.
+    guard_opened: bool,
     /// Compiling the event of `Expr::EventHistory`.
     history: Option<History>,
     /// A `StackItem` named `item` is in reach, with its targets and X.
@@ -801,6 +820,13 @@ impl Compiler {
             cipher: false,
             ability_guard: None,
             holes: String::new(),
+            printed: Vec::new(),
+            chapters: BTreeMap::new(),
+            line: None,
+            quoted_used: BTreeSet::new(),
+            may_choose: false,
+            chosen_guard: None,
+            guard_opened: false,
         }
     }
     /// Compile one part, recording a gap rather than stopping at it, and prefix
@@ -1114,7 +1140,7 @@ impl Compiler {
         };
         let id = self.next;
         self.next += 1;
-        let child = emit_module(&card, Some(&token.name))?;
+        let child = emit_face(&card, Some(&token.name), self.quoted_text())?;
         self.gaps
             .extend(child.gaps.iter().map(|g| g.clone().at("token")));
         writeln!(self.functions, "pub mod token_{id} {{\n{}\n}}", child.rust).unwrap();
@@ -1294,7 +1320,13 @@ impl Compiler {
             }
         }
         if let (_, Some(r)) = lane_g::mana_lasting(restriction.as_ref()) {
-            metadata.push_str(&format!(".only_for({})", self.mana_use(r)?));
+            let code = self.mana_use(r)?;
+            // The engine reads a restriction's words as the mana is added only
+            // for mana it adds itself, so such mana is listed.
+            if let Some(listed) = lane_k::listed_mana(&plan, rest, restriction.as_ref()) {
+                return Ok(format!("{listed}.only_for({code})"));
+            }
+            metadata.push_str(&format!(".only_for({code})"));
         }
         let mut out = String::new();
         self.stack_item = false;
@@ -1693,6 +1725,7 @@ fn emit_face(
     let mut c = Compiler::new();
     let mut parts = Parts::default();
     c.card_name = card.name.clone();
+    c.read_printed(&card.abilities, place.printed.as_deref());
     c.links_exile =
         place.links_exile || format!("{:?}", card.abilities).contains("ExiledWith(Source)");
     c.own_face = place.own_face;
@@ -1726,6 +1759,7 @@ fn emit_face(
         _ => Err(gap("two mechanics that need the first delayed ability")),
     });
     for (i, a) in card.abilities.iter().enumerate() {
+        c.on_ability(i);
         let failure = c.attempt(format!("abilities[{i}]"), |c| {
             let compiled = c.ability(a, &format!("ability_{i}"), &mut parts, None);
             if let Some(divide) = c.dividing.take() {

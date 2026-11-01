@@ -643,7 +643,10 @@ impl Compiler {
             Instruction::Effect { operation, result } => self.operation(operation, result, out),
             // One instruction of the card's text: no sentence boundary inside,
             // and its results stay in reach of what follows it.
-            Instruction::Group(group) => self.program(group, out, false),
+            Instruction::Group(group) => match self.dig(group, out)? {
+                true => Ok(()),
+                false => self.program(group, out, false),
+            },
             Instruction::If {
                 condition,
                 then,
@@ -690,6 +693,12 @@ impl Compiler {
                 if self.pending == Pending::Entering && lane_h::asks_to_copy(body) =>
             {
                 self.copy_as_enters(decider, body, out)
+            }
+            Instruction::Optional { decider, body } if lane_k::chooses_first(decider, body) => {
+                writeln!(out, "{{").unwrap();
+                self.block_choosing_first(body, String::new(), out)?;
+                writeln!(out, "}}").unwrap();
+                Ok(())
             }
             Instruction::Optional { decider, body } => {
                 let player = self.certain_player(decider).map(|p| self.fetch(p));
@@ -771,9 +780,11 @@ impl Compiler {
         purpose: &str,
         out: &mut String,
     ) -> Result<()> {
-        let count = self.select_count(count)?;
+        let count = self.offered_count(count);
+        let count = self.select_count(&count)?;
         let local = format!("selected_{}", self.fresh());
         writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_count = {}; let {local} = cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of({local}_count, &[]))?;", self.fetch(self.certain_player(player)?), self.fetch(self.objects(objects)?), self.fetch(count)).unwrap();
+        self.open_guard(&local, out);
         self.selections.insert(result.0, local);
         Ok(())
     }
@@ -907,7 +918,11 @@ impl Compiler {
                         writeln!(out, "cantrip_mechanics::discard_at_random(g, player_{id}, amount_{id} as usize);").unwrap();
                     }
                 } else {
-                    writeln!(out,"let amount_{id} = {}; let players_{id} = {}; let mut cards_{id} = Vec::new(); for player in players_{id} {{ cards_{id}.extend(cantrip_mechanics::choose_from_hand(g, player, asker.source, amount_{id})?); }} let discarded_{id} = g.discard_together(&cards_{id});",self.fetch(number),self.fetch(self.players(players)?)).unwrap();
+                    let choice = match std::mem::take(&mut self.may_choose) {
+                        true => format!("{{ let hand = g.state().zone(Zone::hand(player)).to_vec(); cantrip_mechanics::choose::cards(g, player, asker.source, Purpose::Discard, hand, amount_{id}, true)? }}"),
+                        false => format!("cantrip_mechanics::choose_from_hand(g, player, asker.source, amount_{id})?"),
+                    };
+                    writeln!(out,"let amount_{id} = {}; let players_{id} = {}; let mut cards_{id} = Vec::new(); for player in players_{id} {{ cards_{id}.extend({choice}); }} let discarded_{id} = g.discard_together(&cards_{id});",self.fetch(number),self.fetch(self.players(players)?)).unwrap();
                     self.moved.insert(result.0, format!("discarded_{id}"));
                     self.left_behind(result, format!("discarded_{id}.clone()"));
                 }
@@ -1289,18 +1304,27 @@ impl Compiler {
                 cost,
                 optional: true,
             } if self.asking.is_none() && performed_by_itself(cost) => {
-                writeln!(
-                    out,
-                    "let payer_{id} = {}; let (paid_{id}, after_{id}, before_{id}, picked_{id}): (bool, Vec<ObjectId>, Vec<ObjectId>, Vec<ObjectId>) = if cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)? {{",
-                    self.fetch(self.certain_player(player)?)
-                )
-                .unwrap();
                 let mandatory = Operation::PayCost {
                     player: player.clone(),
                     cost: cost.clone(),
                     optional: false,
                 };
-                self.operation(&mandatory, result, out)?;
+                let mut paying = String::new();
+                let chooses = lane_k::paid_by_a_choice(cost);
+                self.may_choose = chooses;
+                self.operation(&mandatory, result, &mut paying)?;
+                // A choice that may come to nothing is asked once, not twice.
+                let asked = match chooses && !std::mem::take(&mut self.may_choose) {
+                    true => "true".to_string(),
+                    false => format!("cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?"),
+                };
+                writeln!(
+                    out,
+                    "let payer_{id} = {}; let (paid_{id}, after_{id}, before_{id}, picked_{id}): (bool, Vec<ObjectId>, Vec<ObjectId>, Vec<ObjectId>) = if {asked} {{",
+                    self.fetch(self.certain_player(player)?)
+                )
+                .unwrap();
+                out.push_str(&paying);
                 let inner = self.performed.insert(result.0, format!("paid_{id}"));
                 let none = "Vec::new()".to_string();
                 let after = self.moved.get(&result.0);
@@ -1546,6 +1570,13 @@ impl Compiler {
         let CostPart::PlayerAction { body, .. } = part else {
             unreachable!("a player action");
         };
+        if optional && lane_k::chooses_first(player, body) {
+            writeln!(out, "let mut paid_{id} = false; {{").unwrap();
+            self.block_choosing_first(body, format!("paid_{id} = true;"), out)?;
+            writeln!(out, "}}").unwrap();
+            self.performed.insert(result.0, format!("paid_{id}"));
+            return Ok(());
+        }
         let willing = if optional {
             writeln!(
                 out,
@@ -1942,7 +1973,8 @@ impl Compiler {
         match choose {
             None => writeln!(out, "for &object in &objects_{id} {{ let controller = g.controller(object); if players_{id}.contains(&controller) && g.can_sacrifice(controller, object) {{ picks_{id}.push((controller, object)); }} }}").unwrap(),
             Some(count) => {
-                let count = self.fetch(self.select_count(count)?);
+                let count = self.offered_count(count);
+                let count = self.fetch(self.select_count(&count)?);
                 writeln!(out, "let count_{id} = {count}; for player in players_{id} {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player && g.can_sacrifice(player, o)).collect(); for object in cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible, cantrip_mechanics::select::Selection::of(count_{id}.clone(), &[]))? {{ picks_{id}.push((player, object)); }} }}").unwrap();
             }
         }
@@ -2138,8 +2170,8 @@ impl Compiler {
             }
             Change::Pump { power, toughness } => vec![format!(
                 "EffectKind::Pump({}, {})",
-                i16_of(power)?,
-                i16_of(toughness)?
+                lane_k::not_negative(power, i16_of(power)?),
+                lane_k::not_negative(toughness, i16_of(toughness)?)
             )],
             Change::SetBasePowerToughness { power, toughness } => vec![format!(
                 "EffectKind::SetPt({}, {})",

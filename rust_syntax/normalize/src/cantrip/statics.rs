@@ -265,8 +265,8 @@ impl Compiler {
                 "PtModify",
                 format!(
                     "let (p, t) = ({}, {}); chars.power = chars.power.map(|v| v.saturating_add(p)); chars.toughness = chars.toughness.map(|v| v.saturating_add(t));",
-                    i16_of(self, power)?,
-                    i16_of(self, toughness)?
+                    lane_k::not_negative(power, i16_of(self, power)?),
+                    lane_k::not_negative(toughness, i16_of(self, toughness)?)
                 ),
             ),
             Change::SetBasePowerToughness { power, toughness } => LayerChange::of(
@@ -588,7 +588,8 @@ impl Compiler {
         let mut defs = Vec::new();
         let mut last = None;
         for (i, change, part) in layered {
-            let text = quoted(&format!("Static: {}.", form(change)));
+            let text = format!("Static: {}.", form(change));
+            let text = quoted(&self.said(lane_k::Said::Sentence, text));
             let def = match part.whole {
                 Some(builder) => format!("{builder}({affects}, {text})"),
                 None => {

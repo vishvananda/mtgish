@@ -460,7 +460,7 @@ impl Compiler {
             let effect = self.effect(&mode.body, &label)?;
             defs.push(format!(
                 "mode({effect}, {}).targets({targets})",
-                quoted(&ability_text(&mode.body))
+                quoted(&self.said_mode(i, modes.len(), ability_text(&mode.body)))
             ));
         }
         let mut modal = format!("modes(&[{}]).choose({min}, {max})", defs.join(","));
@@ -519,7 +519,7 @@ impl Compiler {
     ) -> Result<String> {
         let waterbent = waterbend_as_mana(price);
         let price = waterbent.as_ref().unwrap_or(price);
-        let text = ability_text(body);
+        let text = self.said(lane_k::Said::Activated, ability_text(body));
         let suffix = match origin {
             ActivationOrigin::Ordinary => "",
             ActivationOrigin::Equip => ".equip()",
@@ -572,8 +572,12 @@ impl Compiler {
         } else {
             let targets = self.announcement(announcement, label)?;
             let effect = self.effect(body, label)?;
+            let after_x = match self.targets_read_x(label) {
+                true => ".targets_after_x()",
+                false => "",
+            };
             format!(
-                "ability({}, {effect}, {}).targets({targets})",
+                "ability({}, {effect}, {}).targets({targets}){after_x}",
                 self.cost(price, label)?,
                 quoted(&text)
             )
@@ -610,7 +614,9 @@ impl Compiler {
         }
         match limits.keyword {
             Some(ActivatedKeyword::Exhaust) => def.push_str(".exhaust()"),
-            Some(ActivatedKeyword::PowerUp) => def.push_str(".power_up()"),
+            Some(ActivatedKeyword::PowerUp) => {
+                def.push_str(".cost_change(cantrip_mechanics::power_up::reduction).power_up()")
+            }
             Some(ActivatedKeyword::Boast) => {
                 let boast = self.boast(label);
                 def.push_str(&format!(".condition({boast}).once_each_turn()"));
@@ -863,6 +869,9 @@ impl Compiler {
                     let targets = self.announcement(announcement, label)?;
                     let effect = self.effect(body, label)?;
                     parts.spell = format!("spell({targets}, {effect})");
+                    if self.targets_read_x(label) {
+                        parts.field("late_targets", "true".into());
+                    }
                     if let Some(divide) = self.dividing.take() {
                         parts.fields.insert("divide", format!("Some({divide})"));
                     }
@@ -979,7 +988,7 @@ impl Compiler {
                     let effect = self.effect(body, &label)?;
                     parts.abilities.push(format!(
                         "chapter({n}, {effect}, {}).targets({targets})",
-                        quoted(&ability_text(body))
+                        quoted(&self.said_chapter(i64::from(*n), ability_text(body)))
                     ));
                 }
             }

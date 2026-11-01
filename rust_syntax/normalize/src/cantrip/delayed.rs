@@ -350,7 +350,8 @@ impl Compiler {
         let closed = self.closure(&label, true, Some(announcement), &None, body);
         self.counted = counted;
         let (outer, targets) = closed?;
-        let mut def = format!("delayed_trigger({label}, {})", quoted(&ability_text(body)));
+        let text = self.said(lane_k::Said::Triggered, ability_text(body));
+        let mut def = format!("delayed_trigger({label}, {})", quoted(&text));
         if let Some(targets) = targets {
             write!(def, ".targets({targets})").unwrap();
         }
@@ -392,10 +393,9 @@ impl Compiler {
         let when = self.delayed_when(event, start, expires)?;
         let label = format!("delayed_{}", self.fresh());
         let (outer, _) = self.closure(&label, false, None, intervening_if, body)?;
-        self.delayed.push(format!(
-            "delayed_trigger({label}, {})",
-            quoted(&ability_text(body))
-        ));
+        let text = self.said(lane_k::Said::Triggered, ability_text(body));
+        self.delayed
+            .push(format!("delayed_trigger({label}, {})", quoted(&text)));
         let index = self.delayed.len() - 1;
         let ability = format!("AbilityRef::delayed(item.ability.card, {index})");
         let objects = outer.objects.borrow();

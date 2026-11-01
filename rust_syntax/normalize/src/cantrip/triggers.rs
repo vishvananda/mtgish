@@ -1417,7 +1417,8 @@ impl Compiler {
             let mut def = {
                 self.targets_for(announcement, label, Frame::default())?;
                 let effect = self.effect(body, label)?;
-                format!("state_triggered({state}, {effect}, \"When this state holds\")")
+                let text = self.said(lane_k::Said::Triggered, "When this state holds".into());
+                format!("state_triggered({state}, {effect}, {})", quoted(&text))
             };
             if let Some(per_turn) = limits.per_turn {
                 def.push_str(&format!(".triggers_each_turn({per_turn})"));
@@ -1496,6 +1497,7 @@ impl Compiler {
         self.frame = Frame::default();
         let effect = effect?;
         let text = format!("{}, {}", matched.phrase, ability_text(body));
+        let text = self.said(lane_k::Said::Triggered, text);
         let mut def = format!(
             "triggered({trigger}, {effect}, {}).targets({targets})",
             quoted(&text)
@@ -1548,10 +1550,8 @@ impl Compiler {
         self.grouped = false;
         self.frame = Frame::default();
         let modal = modal?;
-        let mut def = format!(
-            "modal_triggered({trigger}, &{modal}, {})",
-            quoted(&matched.phrase)
-        );
+        let text = self.said(lane_k::Said::Triggered, matched.phrase.to_string());
+        let mut def = format!("modal_triggered({trigger}, &{modal}, {})", quoted(&text));
         if let Some(condition) = condition {
             def.push_str(&format!(".condition({condition})"));
         }

@@ -3633,10 +3633,11 @@ impl Compiler {
             None => None,
         };
         let effect = self.effect(body, label)?;
-        let text = quoted(&format!(
+        let text = format!(
             "You may exert this creature as it attacks. When you do, {}",
             ability_text(body)
-        ));
+        );
+        let text = quoted(&self.said(lane_k::Said::Sentence, text));
         let def = format!("cantrip_mechanics::exert::as_it_attacks({effect}, {text})");
         Ok(match targets {
             Some(targets) => format!("{def}.targets({targets})"),

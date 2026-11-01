@@ -1470,6 +1470,7 @@ impl Compiler {
             ) => {
                 sole(parts, "optional_cost")?;
                 let code = self.optional_cost(cost, label)?;
+                self.cost_labels(cost, parts);
                 match code {
                     Optional::Cost(code) => parts.field("optional_cost", code),
                     Optional::Kicker(code) => parts.field("kicker", code),
@@ -1684,6 +1685,9 @@ impl Compiler {
                     _ => self.optional_cost(cost, label),
                 };
                 self.paying = Paying::Ability;
+                // What it's paid with is announced before the targets (CR 601.2b-c).
+                parts.field("late_targets", "true".into());
+                self.cost_labels(cost, parts);
                 let was_paid = match optional? {
                     Optional::Cost(code) => {
                         parts.field("optional_cost", code);
@@ -2112,7 +2116,8 @@ impl Compiler {
                 let Some([CostPart::Mana(symbols)]) = cost.map(|c| c.parts.as_slice()) else {
                     return Err(gap("BeamMeUp cost other than mana"));
                 };
-                let way = format!("{M}::beam_me_up::way({}, \"Beam me up\")", mana(symbols)?);
+                let text = quoted(&self.said_word("Beam me up".into()));
+                let way = format!("{M}::beam_me_up::way({}, {text})", mana(symbols)?);
                 parts.table("ways", way);
                 return Ok(());
             }
@@ -2131,6 +2136,7 @@ impl Compiler {
             snake
         };
         let path = module(&word);
+        let word = self.said_word(word);
         let trigger = |n: u8| format!("{M}::{path}::trigger::<{n}>({word:?})");
         let plain = format!("{M}::{path}::TRIGGER");
         let mut entries: Vec<(&'static str, String)> = Vec::new();
