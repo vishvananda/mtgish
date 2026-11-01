@@ -385,8 +385,8 @@ impl Compiler {
                 "{}.and_then(|o: ObjectId| q.state().obj(o).attached_to)",
                 self.object(host)?
             ),
-            ObjectRef::Target { slot, .. } if self.stack_slot(slot) => {
-                return Err(gap("a spell or ability on the stack read as an object"))
+            ObjectRef::Target { slot, index } if self.stack_slot(slot) => {
+                return self.stack_object(slot, *index)
             }
             ObjectRef::Target { slot, index } if self.choosing.is_some() => format!(
                 "{}.and_then(|t: Target| t.object())",
@@ -555,7 +555,7 @@ impl Compiler {
             ObjectSet::One(ObjectRef::Target { slot, .. }) | ObjectSet::Targets(slot)
                 if self.stack_slot(slot) =>
             {
-                return Err(gap("a spell or ability on the stack read as an object"))
+                return self.stack_objects(slot)
             }
             ObjectSet::One(object @ ObjectRef::Target { .. }) if self.choosing.is_some() => {
                 format!("{}.into_iter().collect::<Vec<ObjectId>>()", self.object(object)?)
@@ -816,7 +816,7 @@ impl Compiler {
                     inner.condition(condition)?
                 )
             }
-            other => return Err(gap(format!("player collection {}", form(other)))),
+            other => return self.players_stated(other),
         })
     }
     /// Whether the player `who` names is in the set.
@@ -906,7 +906,7 @@ impl Compiler {
                     [c],
                 ) = (&**objects, colors.as_slice())
                 else {
-                    return Err(gap("mana symbols other than a devotion to one color"));
+                    return Ok(count(self.mana_symbols(objects, colors)?));
                 };
                 count(format!(
                     "{}.map_or(0i64, |p: PlayerId| i64::from(cantrip_mechanics::devotion::devotion(q, p, Color::{})))",
@@ -1004,7 +1004,14 @@ impl Compiler {
                 aggregation,
             } => {
                 if filter.snow {
-                    return Err(gap("snow mana spent"));
+                    return Ok(count(planned::planned_value(
+                        "snow mana spent",
+                        "0i64",
+                        &format!(
+                            "{}.map_or(0, |o: ObjectId| i64::from(q.obj(o).spent.snow))",
+                            self.object(object)?
+                        ),
+                    )));
                 }
                 let kinds = match &filter.colors {
                     None => "[Mana::W, Mana::U, Mana::B, Mana::R, Mana::G, Mana::C]".to_string(),
@@ -1124,7 +1131,7 @@ impl Compiler {
                     let read = match kind {
                         Some(CounterKind::Named(CounterName::PoisonCounter)) => "poison",
                         Some(CounterKind::Named(CounterName::ExperienceCounter)) => "experience",
-                        _ => return Err(gap("counters on a player")),
+                        _ => return Ok(count(self.counters_among(recipients, kind.as_ref())?)),
                     };
                     return Ok(count(format!(
                         "({}).into_iter().map(|p: PlayerId| i64::from(q.state().player(p).{read}())).sum::<i64>()",
@@ -1132,7 +1139,7 @@ impl Compiler {
                     )));
                 }
                 let Recipients::Objects(objects) = recipients.as_ref() else {
-                    return Err(gap("counters on a player"));
+                    return Ok(count(self.counters_among(recipients, kind.as_ref())?));
                 };
                 count(format!(
                     "({}).into_iter().map(|o: ObjectId| {}).sum::<i64>()",
@@ -1762,13 +1769,25 @@ impl Compiler {
             PlayerState::InTheirMainPhase => format!(
                 "{active} && matches!({step}, Step::PrecombatMain | Step::PostcombatMain)"
             ),
+            PlayerState::HasBoon => planned::planned_value(
+                "player state HasBoon",
+                "false",
+                "q.state().player(player).has_boon()",
+            ),
+            PlayerState::WholePoolInDeck => planned::planned_value(
+                "player state WholePoolInDeck",
+                "false",
+                "q.state().player(player).whole_pool_in_deck()",
+            ),
+            PlayerState::ShuffledThisWay => planned::planned_value(
+                "player state ShuffledThisWay",
+                "false",
+                "q.shuffled_this_way(asker, player)",
+            ),
             PlayerState::ReceivedAVote
-            | PlayerState::HasBoon
             | PlayerState::CouldMulligan
-            | PlayerState::WholePoolInDeck
             | PlayerState::PossibleDefender
             | PlayerState::RolledHighest
-            | PlayerState::ShuffledThisWay
             | PlayerState::CanDraw => return Err(gap(format!("player state {state:?}"))),
             PlayerState::CompletedDungeon => {
                 "q.history().any(EventQuery::kind(EventMask::DUNGEON_COMPLETED).player(player))"
@@ -1797,7 +1816,8 @@ impl Compiler {
             ),
             PlayerState::FullParty => format!("{} == 4", self.party("player")?),
             PlayerState::MaxSpeed => "q.state().player(player).speed == Some(4)".into(),
-            PlayerState::Poisoned => return Err(gap("poisoned player in a filter")),
+            // CR 122.1f's word: a player with a poison counter.
+            PlayerState::Poisoned => "q.state().player(player).poison() > 0".into(),
         })
     }
     /// `i64` the creatures of `player`'s party (CR 700.8): the most of Cleric,
@@ -1805,7 +1825,11 @@ impl Compiler {
     /// the deficiency form of Hall's theorem over the 16 sets of roles.
     pub(super) fn party(&self, player: &str) -> Result<String> {
         if self.reader == Reader::Layer {
-            return Err(gap("a party read in a layer"));
+            return Ok(planned::planned_value(
+                "a party read in a layer",
+                "0i64",
+                &format!("cantrip_mechanics::party::size_in_layer(q, {player})"),
+            ));
         }
         Ok(format!(
             "{{ let creatures: Vec<ObjectId> = q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == {player} && q.chars(id).is(CardType::Creature)).collect(); (0u8..16).map(|roles: u8| creatures.iter().filter(|&&id| [Subtype::Cleric, Subtype::Rogue, Subtype::Warrior, Subtype::Wizard].iter().enumerate().any(|(i, &role)| (roles >> i) & 1 == 1 && q.chars(id).has_subtype(role))).count() as i64 + 4 - i64::from(roles.count_ones())).min().unwrap_or(0) }}"
@@ -1818,7 +1842,7 @@ fn c_slot_is_fixed(c: &Compiler, slot: &Slot, index: u16) -> bool {
         matches!(&spec.count, Count::Exactly(Expr::Constant(n)) if *n > i64::from(index))
     })
 }
-fn counters_on(id: &str, kind: Option<&crate::counter::CounterKind>) -> Result<String> {
+pub(super) fn counters_on(id: &str, kind: Option<&crate::counter::CounterKind>) -> Result<String> {
     Ok(match kind {
         Some(kind) => format!(
             "i64::from(q.state().obj({id}).counters({}))",

@@ -870,8 +870,12 @@ impl Compiler {
                 mana,
                 restriction,
             } => {
-                let plan = mana_plan(mana)?;
-                self.emit_mana(&plan, players, restriction.as_ref(), None, out)?;
+                match mana_plan(mana) {
+                    Ok(plan) => self.emit_mana(&plan, players, restriction.as_ref(), None, out)?,
+                    Err(failed) => {
+                        self.stated_mana(players, mana, restriction.as_ref(), failed, out)?
+                    }
+                }
             }
             Operation::ChooseValue {
                 actor,
@@ -948,7 +952,7 @@ impl Compiler {
                 let number = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
                 if *random {
                     let PlayerSet::One(player) = players else {
-                        return Err(gap("random discard by several players"));
+                        return self.random_discards(id, players, number, result, out);
                     };
                     let amount = self.fetch(number);
                     let player = self.fetch(self.certain_player(player)?);
@@ -1746,7 +1750,7 @@ impl Compiler {
                 return Err(gap("token copy entering with counters"));
             }
             let PlayerSet::One(player) = players else {
-                return Err(gap("token copies for several players"));
+                return self.token_copy_for_each(id, object, adjustments, amount, players, entry, result, out);
             };
             let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
             if adjustments.iter().any(adjusts) || entry.tapped {
@@ -1793,7 +1797,7 @@ impl Compiler {
                 return Err(gap("adjusted token copy"));
             }
             let PlayerSet::One(player) = players else {
-                return Err(gap("token copies for several players"));
+                return self.token_copies_for_each(id, objects, players, result, out);
             };
             writeln!(out, "let originals_{id} = {}; let player_{id} = {}; let created_{id} = if let Some(player) = player_{id} {{ let copies: Vec<(Copiable, PlayerId)> = originals_{id}.iter().map(|&original| (g.copiable_values(original), player)).collect(); g.create_token_copies_together(&copies)? }} else {{ Vec::new() }};", self.fetch(self.objects(objects)?), self.fetch(self.player(player)?)).unwrap();
             self.creations.insert(result.0, format!("created_{id}"));
@@ -1908,9 +1912,11 @@ impl Compiler {
             Destination::Exile if self.links_exile && self.stack_item => {
                 format!("{{ let by = g.linked(item); g.exile_with(&objects_{id}, by, false) }}")
             }
-            Destination::Exile if self.links_exile => {
-                return Err(gap("exile outside a stack item that an ability reads as exiled with its source"))
-            }
+            Destination::Exile if self.links_exile => planned::planned_value(
+                "exile outside a stack item that an ability reads as exiled with its source",
+                &format!("g.exile_all(&objects_{id})"),
+                &format!("{{ let by = g.linked_to(asker.source); g.exile_with(&objects_{id}, by, false) }}"),
+            ),
             Destination::Exile => format!("g.exile_all(&objects_{id})"),
             // `put_into_graveyard` refuses permanents, so name each destination.
             Destination::OwnersGraveyard => format!("{{ let moves: Vec<(ObjectId, Zone)> = objects_{id}.iter().map(|&o| (o, Zone::graveyard(g.state().obj(o).owner))).collect(); g.move_together(&moves, MoveReason::Other) }}"),
@@ -2014,7 +2020,8 @@ impl Compiler {
                 return Err(gap("counters removed by a resolution choice"));
             }
             let Recipients::Objects(objects) = &removal.recipients else {
-                return Err(gap("counters removed from a player"));
+                self.removed_from_players(id, removal, out)?;
+                continue;
             };
             let objects = self.fetch(self.objects(objects)?);
             writeln!(out, "let objects_{id}_{i} = {objects};").unwrap();
@@ -2307,7 +2314,7 @@ impl Compiler {
             Change::GrantKeyword(Keyword::HexproofFrom(quality)) => {
                 vec![format!(
                     "EffectKind::HexproofFrom({})",
-                    lane_j::hexproof_quality(quality)?
+                    self.hexproof_of(quality)?
                 )]
             }
             Change::GrantKeyword(k) => {

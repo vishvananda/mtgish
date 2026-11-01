@@ -2,7 +2,7 @@
 use super::*;
 
 /// The `Vocabulary` words of `operands`.
-fn words(operands: &[Operand]) -> Result<Vec<&str>> {
+pub(super) fn words(operands: &[Operand]) -> Result<Vec<&str>> {
     operands
         .iter()
         .map(|operand| match operand {
@@ -35,7 +35,7 @@ impl Compiler {
                 [Operand::Integer(power), Operand::Integer(toughness)] => {
                     format!("{values}.sized({power}, {toughness})")
                 }
-                _ => return Err(gap("copy exception of a power and toughness not fixed")),
+                _ => return self.stated_size(values, operands),
             },
             ("RemoveSupertypes", list) if words(list)? == ["Legendary"] => {
                 format!("{values}.nonlegendary()")
@@ -51,7 +51,7 @@ impl Compiler {
                     });
                 format!("{values}.colored({set})")
             }
-            ("AddCardtypes", list) => words(list)?.iter().fold(values, |values, word| {
+            ("AddCardtypes" | "AddCardtype", list) => words(list)?.iter().fold(values, |values, word| {
                 format!("{values}.with_type(CardType::{word})")
             }),
             ("AddCreatureType" | "AddCreatureTypes" | "AddArtifactTypes" | "AddLandTypes", list) => {
@@ -83,7 +83,9 @@ impl Compiler {
                     format!("{values}.with_keyword({keyword})")
                 }
                 ability => {
-                    let index = self.grant(ability)?;
+                    let Ok(index) = self.grant(ability) else {
+                        return self.stated_exception(values, "AddAbility", operands);
+                    };
                     format!(
                         "{values}.with_ability(AbilityRef::delayed({}, {index}))",
                         self.source_card()
@@ -101,7 +103,7 @@ impl Compiler {
                 "{{ let plain = {values}; if cantrip_mechanics::targets::is_permanent_card(&q.chars(original)) {{ {} }} else {{ plain }} }}",
                 self.excepted("plain".into(), list)?
             ),
-            (other, _) => return Err(gap(format!("copy exception {other}"))),
+            (other, list) => return self.stated_exception(values, other, list),
         })
     }
     /// `Option<Copiable>`: `object`'s values with these exceptions, if it's there.

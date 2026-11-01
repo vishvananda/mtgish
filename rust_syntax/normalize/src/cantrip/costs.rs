@@ -682,6 +682,8 @@ impl Compiler {
         let n = i16::try_from(amount).map_err(|_| gap("backup beyond i16"))?;
         let mut keywords = Vec::new();
         let mut granted = None;
+        let mut stated = Vec::new();
+        let mut feature = String::new();
         for (i, listed) in abilities.iter().enumerate() {
             match listed {
                 Ability::Keyword(k) => keywords.push(keyword(k)?),
@@ -696,12 +698,30 @@ impl Compiler {
                     self.delayed.push(def.clone());
                     granted = Some(index);
                 }
-                other => return Err(gap(format!("backup grants {}", form(other)))),
+                other => {
+                    feature = format!("backup grants {}", form(other));
+                    stated.extend(self.granted_refs(other)?);
+                }
             }
         }
         let ability = granted.map_or("None".to_string(), |i| format!("Some({i})"));
+        let mut call = format!(
+            "cantrip_mechanics::backup::resolve(g, item, {n}, &[{}], {ability})",
+            keywords.join(",")
+        );
+        if !stated.is_empty() {
+            call = planned::planned_value(
+                &feature,
+                &call,
+                &format!(
+                    "cantrip_mechanics::backup::resolve_granting(g, item, {n}, &[{}], {ability}, &[{}])",
+                    keywords.join(","),
+                    stated.join(", ")
+                ),
+            );
+        }
         let function = format!("{label}_backup");
-        writeln!(self.functions, "fn {function}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ cantrip_mechanics::backup::resolve(g, item, {n}, &[{}], {ability}) }}", keywords.join(",")).unwrap();
+        writeln!(self.functions, "fn {function}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ {call} }}").unwrap();
         parts.abilities.push(format!(
             "cantrip_mechanics::backup::trigger({}, {function})",
             quoted(&format!("Backup {n}"))
@@ -839,7 +859,7 @@ impl Compiler {
                     other => self.protection_beyond(other, parts)?,
                 },
                 Keyword::HexproofFrom(quality) => {
-                    parts.field("hexproof_from", lane_j::hexproof_quality(quality)?)
+                    parts.field("hexproof_from", self.hexproof_of(quality)?)
                 }
                 k => parts.keywords.push(keyword(k)?),
             },

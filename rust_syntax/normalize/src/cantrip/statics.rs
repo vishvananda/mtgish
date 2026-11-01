@@ -101,7 +101,7 @@ impl Compiler {
     }
     /// What an ability adds to a card, compiled on its own.
     pub(super) fn grown_parts(&mut self, ability: &Ability, label: &str) -> Result<Parts> {
-        if self.granting {
+        if self.granting && self.holding.is_none() {
             return Err(gap("granted ability that grants another"));
         }
         // The enclosing callback's reader belongs to it, not to this ability.
@@ -314,7 +314,7 @@ impl Compiler {
                 "Ability",
                 format!(
                     "chars.hexproof_from = chars.hexproof_from.and({});",
-                    lane_j::hexproof_quality(quality)?
+                    self.hexproof_of(quality)?
                 ),
             ),
             Change::GrantKeyword(k) => LayerChange::of(
@@ -589,7 +589,7 @@ impl Compiler {
                 }
                 other => match c.outside_subject(other, &Candidate::affected())? {
                     Some(test) => (test, false),
-                    None => return Err(gap(format!("static subjects {}", form(other)))),
+                    None => (c.stated_subject(other, &Candidate::affected())?, false),
                 },
             })
         })?;

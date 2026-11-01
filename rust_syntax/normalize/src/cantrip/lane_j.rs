@@ -2755,6 +2755,25 @@ pub(super) fn hexproof_quality(quality: &Protection) -> Result<String> {
             }
             Ok(all)
         }
+        // "Hexproof from monocolored" and "from multicolored" (CR 105.2).
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter:
+                ObjectFilter::Property {
+                    property: Property::ColorCount,
+                    comparison: Comparison::Equal,
+                    value: Expr::Constant(1),
+                },
+        } => Ok("HexproofFrom::MONOCOLORED".to_string()),
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter:
+                ObjectFilter::Property {
+                    property: Property::ColorCount,
+                    comparison: Comparison::Greater,
+                    value: Expr::Constant(1),
+                },
+        } => Ok("HexproofFrom::MULTICOLORED".to_string()),
         Protection::Objects { filter, .. } => {
             Err(gap(format!("keyword HexproofFrom {}", form(filter))))
         }
@@ -3642,6 +3661,8 @@ impl Compiler {
                 "ability.is_mana_ability()".into()
             }
             ActivationFilter::Is(StackTrait::Loyalty) => "ability.is_loyalty_ability()".into(),
+            ActivationFilter::Is(StackTrait::TapSymbolInCost) => "ability.cost.tap".into(),
+            ActivationFilter::Is(StackTrait::XInCost) => "ability.cost.mana.x > 0".into(),
             ActivationFilter::Not(inner) => format!("!({})", self.barred_activation(inner)?),
             ActivationFilter::All(parts) => parts
                 .iter()
@@ -4140,7 +4161,10 @@ impl Compiler {
         if let Some((_, local)) = self.picked.borrow().named.iter().find(|(k, _)| *k == key) {
             return Ok(local.clone());
         }
-        if self.present.borrow().is_none() || !self.stack_item {
+        if !self.stack_item || self.reader != Reader::Resolution {
+            return self.picked_elsewhere(players);
+        }
+        if self.present.borrow().is_none() {
             return Err(gap("player reference OneOf"));
         }
         let among = self.fetch(self.players(players)?);

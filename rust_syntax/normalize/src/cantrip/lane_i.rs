@@ -1335,11 +1335,13 @@ impl Compiler {
                 face_down: true,
             } if effects::plain_entry(entry) => {
                 let by = match (self.links_exile, self.stack_item) {
-                    (true, true) => "Some(g.linked(item))",
-                    (true, false) => {
-                        return Err(gap("exile outside a stack item that an ability reads as exiled with its source"))
-                    }
-                    (false, _) => "None",
+                    (true, true) => "Some(g.linked(item))".to_string(),
+                    (true, false) => planned::planned_value(
+                        "exile outside a stack item that an ability reads as exiled with its source",
+                        "None",
+                        "Some(g.linked_to(asker.source))",
+                    ),
+                    (false, _) => "None".to_string(),
                 };
                 writeln!(out, "let objects_{id} = {}; let by_{id} = {by}; let moved_{id} = g.exile_face_down(&objects_{id}, by_{id});", self.fetch(self.objects(objects)?)).unwrap();
                 self.moved.insert(result.0, format!("moved_{id}"));
@@ -1515,6 +1517,14 @@ impl Compiler {
             (K::Goad, Some(until)) if controller && self.stack_item => {
                 let duration = self.duration(until)?;
                 writeln!(out, "let objects_{id} = {}; let duration_{id} = {duration}; for object in objects_{id} {{ {M}::goad::goad_for(g, item, object, duration_{id}); }}", self.acted_on(objects)?).unwrap();
+            }
+            (K::PhaseOut, Some(until)) => {
+                let duration = self.stated_until(until)?;
+                let code = format!(
+                    "let objects_{id} = {}; for object in objects_{id} {{ g.phase_out_until(object, {duration}); }}",
+                    self.acted_on(objects)?
+                );
+                self.plan_code("keyword action with a duration of its own", &code, out);
             }
             (_, Some(_)) => return Err(gap("keyword action with a duration of its own")),
             _ => {

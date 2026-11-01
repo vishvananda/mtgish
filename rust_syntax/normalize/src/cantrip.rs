@@ -1158,6 +1158,7 @@ impl Compiler {
         if token.abilities_of.is_some() {
             return Err(gap("token with the abilities of other objects"));
         }
+        let sized = self.token_sized(token)?;
         let pt = token
             .power_toughness
             .as_ref()
@@ -1167,7 +1168,7 @@ impl Compiler {
                         Expr::Constant(n) => {
                             i32::try_from(*n).map_err(|_| gap("token characteristic exceeds i32"))
                         }
-                        _ => Err(gap("dynamic defining token characteristics")),
+                        _ => Ok(0),
                     }
                 };
                 Ok((integer(p)?, integer(t)?))
@@ -1201,7 +1202,14 @@ impl Compiler {
         self.extras.push(path.clone());
         self.extras
             .extend(child.extras.into_iter().map(|p| format!("token_{id}::{p}")));
-        Ok(path)
+        Ok(match sized {
+            Some(size) => planned::planned_value(
+                "dynamic defining token characteristics",
+                &path,
+                &format!("{path}.sized_as_created({size})"),
+            ),
+            None => path,
+        })
     }
     fn emit_mana(
         &mut self,
@@ -1319,6 +1327,10 @@ impl Compiler {
         };
         if let Some(adds) = self.mana_beyond(mana, restriction.as_ref(), rest, label)? {
             return Ok(adds);
+        }
+        // What no plan names is said by the instruction, and that is the program.
+        if mana_plan(mana).is_err() {
+            return self.mana_program(body, label);
         }
         let plan = match mana_plan(mana)? {
             // "{B} or one mana of the chosen color": `colors_from` limits it.

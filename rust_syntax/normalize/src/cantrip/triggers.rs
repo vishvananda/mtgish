@@ -781,7 +781,7 @@ impl Compiler {
                 let of = self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?;
                 format!("(def.is_some_and(|d| d.from == ZoneKind::Battlefield) && {of})")
             }
-            other => return Err(gap(format!("activated ability {}", form(other)))),
+            other => return self.activated_stated(other),
         })
     }
     /// `EventSpec::Attack`. `data` is the attacker's controller, then its

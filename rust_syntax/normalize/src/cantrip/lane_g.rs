@@ -664,7 +664,7 @@ impl Compiler {
         }
         let (lasting, restriction) = mana_lasting(restriction);
         if lasting.is_some() {
-            return Err(gap(format!("mana production {}", form(mana))));
+            return Ok(None);
         }
         let rule = restriction.map(|r| self.mana_use(r)).transpose()?;
         let add = |color: &str| match &rule {

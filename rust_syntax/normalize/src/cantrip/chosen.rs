@@ -132,7 +132,10 @@ impl Compiler {
             return Err(gap("two choices of one kind of value"));
         }
         let PlayerSet::One(player) = actor else {
-            return Err(gap("a value chosen by several players"));
+            let players = self.fetch(self.players(actor)?);
+            let code = format!("{M}::choose::each_chooses(g, {players}, asker.source, ChoiceKind::{kind:?})?");
+            self.value_to_come("a value chosen by several players", id, kind, &code, out);
+            return Ok(());
         };
         let entering = self.pending == Pending::Entering;
         let player = if entering {
@@ -268,6 +271,13 @@ impl Compiler {
                 mode: ChangeMode::Add,
             } => vec![format!(
                 "EffectKind::AddSubtype({})",
+                self.chosen_local(*kind)?
+            )],
+            Change::ChosenType {
+                kind: kind @ ValueKind::CreatureType,
+                mode: ChangeMode::Set,
+            } => vec![format!(
+                "EffectKind::SetCreatureType({})",
                 self.chosen_local(*kind)?
             )],
             Change::ChosenType {

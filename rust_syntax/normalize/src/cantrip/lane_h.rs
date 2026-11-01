@@ -2792,7 +2792,12 @@ impl Compiler {
                 filter: ObjectFilter::Any,
             } = permission
             {
-                return self.own_cast(from, condition, terms, label, parts);
+                return match self.own_cast(from, condition, terms, label, parts) {
+                    Err(failed) if failed.feature == "cast the card itself on these terms" => {
+                        self.stated_own_cast(from, condition, terms, label, failed, parts)
+                    }
+                    other => other,
+                };
             }
         }
         match zones {

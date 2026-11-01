@@ -18,7 +18,7 @@ pub(super) struct Action<'a> {
 
 impl Compiler {
     /// The player doing this, for an action that hands them to the engine.
-    fn actor(&self, action: &Action) -> Result<String> {
+    pub(super) fn actor(&self, action: &Action) -> Result<String> {
         match action.actor {
             PlayerSet::One(player) => Ok(self.fetch(self.certain_player(player)?)),
             _ => Err(gap("keyword action by several players")),
@@ -35,7 +35,7 @@ impl Compiler {
         }
     }
     /// `Option<ObjectId>` of an object still there to act on.
-    fn acted_object(&self, object: Option<&ObjectRef>) -> Result<String> {
+    pub(super) fn acted_object(&self, object: Option<&ObjectRef>) -> Result<String> {
         let object = object.ok_or_else(|| gap("keyword action without its object"))?;
         let list = self.acted_on(&ObjectSet::One(object.clone()))?;
         Ok(format!("({list}).first().copied()"))
@@ -47,7 +47,7 @@ impl Compiler {
         let list = self.fetch(self.objects(&ObjectSet::One(object.clone()))?);
         Ok(format!("({list}).first().copied()"))
     }
-    fn action_amount(&mut self, action: &Action, max: i64, ty: &str) -> Result<String> {
+    pub(super) fn action_amount(&mut self, action: &Action, max: i64, ty: &str) -> Result<String> {
         let amount = action
             .amount
             .ok_or_else(|| gap("keyword action without its amount"))?;
@@ -55,7 +55,7 @@ impl Compiler {
         Ok(self.fetch(number))
     }
     /// How many times to repeat an action that may state a number of times.
-    fn times(&mut self, action: &Action) -> Result<String> {
+    pub(super) fn times(&mut self, action: &Action) -> Result<String> {
         match action.amount {
             Some(_) => self.action_amount(action, u8::MAX.into(), "u32"),
             None => Ok("1u32".into()),
@@ -130,10 +130,7 @@ impl Compiler {
             && matches!(action.action, K::Investigate | K::Proliferate))
             || lane_g::takes_amount(action.action);
         if action.amount.is_some() && !counted {
-            return Err(gap(format!(
-                "keyword action {:?} with an amount",
-                action.action
-            )));
+            return self.action_with_amount(id, action, result, out);
         }
         match action.action {
             K::Transform | K::Convert if self.stack_item => {
@@ -365,7 +362,7 @@ impl Compiler {
         Ok(())
     }
     /// What the rules define and `Game` does not have, as the call it will be.
-    fn plan_for_actor(
+    pub(super) fn plan_for_actor(
         &mut self,
         feature: &str,
         action: &Action,
@@ -642,7 +639,7 @@ impl Compiler {
                 "g.double_mana_pool(player)",
                 out,
             )?,
-            other => return Err(gap(format!("keyword action {other:?}"))),
+            other => return self.stated_action(other, action, out),
         }
         Ok(())
     }

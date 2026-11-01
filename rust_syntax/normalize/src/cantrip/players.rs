@@ -347,7 +347,7 @@ impl Compiler {
         Ok(match modifier {
             SpellCostModifier::Increase(cost) => {
                 let [CostPart::Mana(symbols)] = cost.parts.as_slice() else {
-                    return Err(gap("spell cost increase other than mana"));
+                    return self.clone().costlier(cost);
                 };
                 let [ManaSymbol::Generic(n)] = symbols.as_slice() else {
                     return Ok(planned::planned_value(

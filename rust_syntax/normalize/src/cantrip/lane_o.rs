@@ -154,10 +154,14 @@ impl Compiler {
                 cost,
             } => {
                 let label = format!("rule_cost_{}", self.fresh());
+                // None is whoever declares it (CR 508.1h, 509.1d).
+                let payer = match payer {
+                    PlayerRef::DeclaringPlayer => "None::<PlayerId>".to_string(),
+                    other => self.certain_player(other)?,
+                };
                 format!(
-                    "Rule::CostTo({}, {}, {})",
+                    "Rule::CostTo({}, {payer}, {})",
                     self.action_code(action)?,
-                    self.certain_player(payer)?,
                     self.cost(cost, &label)?
                 )
             }
@@ -378,6 +382,40 @@ impl Compiler {
                 self.condition(condition)?
             ),
             D::WhileItMatches(filter) => format!("Duration::WhileItMatches({})", self.over(filter, "id")?),
+            D::WhileMatches { object, filter } => format!(
+                "Duration::WhileObjectMatches({}, {})",
+                self.read(self.object(object)?),
+                self.over(filter, "id")?
+            ),
+            D::WhileExiled(object) => {
+                format!("Duration::WhileExiled({})", self.read(self.object(object)?))
+            }
+            D::WhileAnyExiled(objects) => {
+                format!("Duration::WhileAnyExiled({})", self.read(self.objects(objects)?))
+            }
+            D::UntilAnotherExiled { by, with } => format!(
+                "Duration::UntilAnotherExiled {{ by: {}, with: {} }}",
+                self.read(self.players(by)?),
+                self.read(self.object(with)?)
+            ),
+            D::UntilLibraryTopChanges(player) => format!(
+                "Duration::UntilLibraryTopChanges({})",
+                self.read(self.certain_player(player)?)
+            ),
+            D::ExtraTurn(result) => format!("Duration::ThroughExtraTurn({})", result.0),
+            D::ThroughNextTurn => "Duration::ThroughNextTurn".to_string(),
+            D::EndOfCombatOnNextTurn(player) => format!(
+                "Duration::EndOfCombatOnNextTurn({})",
+                self.read(self.certain_player(player)?)
+            ),
+            D::UntilNextTurn(player) => format!(
+                "Duration::UntilNextTurn({})",
+                self.read(self.certain_player(player)?)
+            ),
+            D::UntilEndOfNextTurn(player) => format!(
+                "Duration::UntilEndOfNextTurn({})",
+                self.read(self.certain_player(player)?)
+            ),
             D::Either(durations) => {
                 let mut all = Vec::new();
                 for each in durations {
@@ -777,6 +815,16 @@ impl Compiler {
             R::Primitive { name, .. } => return Err(gap(format!("primitive player rule {name}"))),
             R::PlayPermission { .. } | R::PlayPermissionWith { .. } => self.play_code(rule)?,
             R::Prohibit(action) => format!("PlayerRule::Cant({})", self.prohibition(action)?),
+            R::GrantKeyword(keyword) => match keyword {
+                PlayerKeyword::Protection(quality) => {
+                    format!("PlayerRule::Protection({})", self.quality_code(quality)?)
+                }
+                PlayerKeyword::HexproofFrom(quality) => {
+                    format!("PlayerRule::HexproofFrom({})", self.hexproof_of(quality)?)
+                }
+                PlayerKeyword::Hexproof => "PlayerRule::Keyword(Keyword::Hexproof)".to_string(),
+                PlayerKeyword::Shroud => "PlayerRule::Keyword(Keyword::Shroud)".to_string(),
+            },
             R::LimitPerTurn { action, amount } => format!(
                 "PlayerRule::LimitPerTurn({}, {})",
                 self.prohibition(action)?,
@@ -1340,11 +1388,22 @@ impl Compiler {
             [Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Subtype(land)))] => {
                 format!("Lost::{word}(Subtype::{})", name(land))
             }
+            [Operand::Vocabulary { family, form }] => format!("Lost::{word}({family}::{form})"),
             _ => return Err(gap(format!("losing ability {word}"))),
         })
     }
     /// A resolving effect that takes away what isn't a keyword of the engine's.
     pub(super) fn lost_kinds(&mut self, lost: &Operand, failed: Diagnostic) -> Result<Vec<String>> {
+        if let Operand::Ability(ability) = lost {
+            let mut kinds = Vec::new();
+            for each in self.granted_refs(ability).map_err(|_| failed.clone())? {
+                kinds.push(lane_g::planned_kind(
+                    &failed.feature,
+                    format!("EffectKind::LosesAbility(Lost::SameAs({each}))"),
+                ));
+            }
+            return Ok(kinds);
+        }
         let Operand::Term { form: word, .. } = lost else {
             return Err(failed);
         };
@@ -1352,7 +1411,7 @@ impl Compiler {
             // The enchant ability is the engine's to take.
             "Enchant" => Ok(vec![format!("EffectKind::LoseEnchant({})", self.source_card())]),
             // "Loses first strike or swampwalk": the keyword chosen.
-            "TheChosenAbility" => {
+            "TheChosenAbility" if self.chosen_local(ValueKind::Ability).is_ok() => {
                 let local = self.chosen_local(ValueKind::Ability).map_err(|_| failed.clone())?;
                 let options = self.ability_choice.clone();
                 let last = options.len().saturating_sub(1);
@@ -1453,6 +1512,30 @@ impl Compiler {
                     .map_err(|_| failed())?;
                 L::of_land(format!("if let Some(chosen) = {chosen} {{ chars.set_land_subtypes(SubtypeSet::NONE.with(chosen)); }}"))
             }
+            Change::ChosenType {
+                kind: ValueKind::LandType | ValueKind::BasicLandType,
+                mode: ChangeMode::Add,
+            } => {
+                let chosen = self
+                    .chosen_value(ValueKind::BasicLandType)
+                    .or_else(|_| self.chosen_value(ValueKind::LandType))
+                    .map_err(|_| failed())?;
+                L::of_land(format!("if let Some(chosen) = {chosen} {{ chars.subtypes = chars.subtypes.with(chosen); }}"))
+            }
+            Change::ChosenType {
+                kind: ValueKind::CardName,
+                mode: ChangeMode::Set,
+            } => L::of(
+                "Text",
+                format!(
+                    "{};",
+                    planned::planned_value(
+                        &failed().feature,
+                        "()",
+                        "if let Some(chosen) = q.chosen_name(q.linked_to(source)) { chars.set_name(chosen); }",
+                    )
+                ),
+            ),
             _ => return Err(failed()),
         })
     }
@@ -1535,6 +1618,28 @@ impl Compiler {
             } => L::of(
                 "Type",
                 "chars.subtypes = chars.subtypes.with(Subtype::Plains).with(Subtype::Island).with(Subtype::Swamp).with(Subtype::Mountain).with(Subtype::Forest);".into(),
+            ),
+            // "Every land type in addition to its other types".
+            Change::LandTypes {
+                scope: LandTypeScope::All,
+                mode: ChangeMode::Add,
+            } => L::of(
+                "Type",
+                "chars.subtypes = chars.subtypes.union(SubtypeSet::LAND_TYPES);".into(),
+            ),
+            Change::LandTypes {
+                scope: LandTypeScope::Nonbasic,
+                mode: ChangeMode::Add,
+            } => L::of(
+                "Type",
+                format!(
+                    "{};",
+                    planned::planned_value(
+                        &feature,
+                        "()",
+                        "chars.subtypes = chars.subtypes.union(SubtypeSet::NONBASIC_LAND_TYPES)",
+                    )
+                ),
             ),
             // Being all of them leaves nothing for "in addition" to add.
             Change::CreatureTypes {
@@ -1623,6 +1728,37 @@ impl Compiler {
         ))
     }
 
+    /// Whether a candidate is among objects no filter names.
+    pub(super) fn stated_subject(&self, set: &ObjectSet, c: &Candidate) -> Result<String> {
+        let id = &c.id;
+        Ok(match set {
+            ObjectSet::Union(sets) => {
+                let mut tests = Vec::new();
+                for each in sets {
+                    tests.push(match each {
+                        ObjectSet::Battlefield(filter) => self.filter(filter, c)?,
+                        other => match self.outside_subject(other, c)? {
+                            Some(test) => test,
+                            None => self.stated_subject(other, c)?,
+                        },
+                    });
+                }
+                format!("({})", tests.join(" || "))
+            }
+            ObjectSet::One(ObjectRef::Chosen) => planned::planned_value(
+                "static subjects One",
+                "false",
+                &format!("q.chosen_object(q.linked_to(source)) == Some({id})"),
+            ),
+            ObjectSet::Matching { .. } | ObjectSet::Take { .. } => planned::planned_value(
+                &format!("static subjects {}", form(set)),
+                "false",
+                &format!("({}).contains(&{id})", self.objects(set)?),
+            ),
+            other => return Err(gap(format!("static subjects {}", form(other)))),
+        })
+    }
+
     // --- Players with no read yet.
 
     /// A reference to a player nothing else reads.
@@ -1639,10 +1775,20 @@ impl Compiler {
             PlayerRef::Named { result, index } => {
                 format!("q.named_player(asker, {}, {index})", result.0)
             }
-            PlayerRef::InChosenDirection {
-                from: Some(from),
-                among: None,
-            } => format!("q.next_in_chosen_direction(asker, {})", self.player(from)?),
+            PlayerRef::InChosenDirection { from, among } => {
+                let from = match from {
+                    Some(from) => self.player(from)?,
+                    None if self.rule_player => "Some(player)".to_string(),
+                    None => "Some(asker.controller)".to_string(),
+                };
+                match among {
+                    Some(among) => format!(
+                        "q.nearest_in_chosen_direction(asker, {from}, {})",
+                        self.players(among)?
+                    ),
+                    None => format!("q.next_in_chosen_direction(asker, {from})"),
+                }
+            }
             PlayerRef::NotedFor(object) => {
                 format!("q.noted_for(asker, {})", self.object(object)?)
             }
@@ -1676,6 +1822,18 @@ impl Compiler {
         picked.statements.push(format!("let {local}: Option<PlayerId> = {value};\n"));
         picked.named.push((key, local.clone()));
         Ok(local)
+    }
+    /// "An opponent" where nothing is resolving to ask: the player picked as the
+    /// ability is announced or as the permanent enters (CR 601.2c, 614.12).
+    pub(super) fn picked_elsewhere(&self, players: &PlayerSet) -> Result<String> {
+        Ok(planned::planned_value(
+            "player reference OneOf",
+            "asker.controller",
+            &format!(
+                "q.player_picked_for(asker, {})",
+                self.players(players)?
+            ),
+        ))
     }
     /// A choice made by another ability of the source and read here (CR 607.2),
     /// which the engine keeps only as the source enters.
@@ -1882,6 +2040,21 @@ impl Compiler {
                 format!("Cost::removes_counters(&[{}])", read.join(", "))
             }
             P::Life(n) => format!("Cost::life(|q: &dyn Query, asker: &Asker| {})", self.asked(n)?),
+            P::Repeated { part, times } => {
+                let once = Cost {
+                    parts: vec![(**part).clone()],
+                };
+                format!(
+                    "Cost::repeated({}, |q: &dyn Query, asker: &Asker| {})",
+                    self.cost(&once, label)?,
+                    self.asked(times)?
+                )
+            }
+            P::WaterbendX { mana: symbols, x } => format!(
+                "Cost::waterbend_x({}, |q: &dyn Query, asker: &Asker| {})",
+                mana(symbols)?,
+                self.asked(x)?
+            ),
             P::Loyalty(n) => format!("Cost::loyalty(|q: &dyn Query, asker: &Asker| {})", self.asked(n)?),
             P::Energy(n) => format!("Cost::energy(|q: &dyn Query, asker: &Asker| {})", self.asked(n)?),
             P::Sacrifice { objects, choose } => format!(
@@ -2088,6 +2261,573 @@ impl Compiler {
             parts,
         );
         Ok(())
+    }
+
+    // --- Keyword actions Cantrip has no word for.
+
+    /// A keyword action done a number of times, or of a number of things.
+    pub(super) fn action_with_amount(
+        &mut self,
+        id: usize,
+        action: keywords::Action,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        use KeywordAction as K;
+        let feature = format!("keyword action {:?} with an amount", action.action);
+        match action.action {
+            // "Explores X times", "populate X times": the action, that many times.
+            K::Explore | K::Populate | K::OpenAttraction | K::TimeTravel => {
+                let times = self.times(&action)?;
+                writeln!(out, "for _ in 0..({times}) {{").unwrap();
+                let once = keywords::Action { amount: None, ..action };
+                self.keyword_action(id, once, result, out)?;
+                writeln!(out, "}}").unwrap();
+            }
+            K::ManifestDread => {
+                let times = self.times(&action)?;
+                let player = self.actor(&action)?;
+                writeln!(out, "let player_{id} = {player}; let mut entered_{id}: Vec<ObjectId> = Vec::new(); for _ in 0..({times}) {{ entered_{id}.extend({M}::manifest_dread::manifest_dread_object(g, player_{id}, asker.source)?); }}").unwrap();
+                self.moved.insert(result.0, format!("entered_{id}"));
+            }
+            K::Skip(SkippedPart::Turn) => {
+                let n = self.action_amount(&action, i16::MAX.into(), "u32")?;
+                let player = self.actor(&action)?;
+                writeln!(out, "let amount_{id} = {n}; let player_{id} = {player}; g.skip_next_turns(asker.source, player_{id}, amount_{id} as _);").unwrap();
+            }
+            K::RollDie(sides) => {
+                let n = self.action_amount(&action, u32::MAX.into(), "u32")?;
+                let player = self.actor(&action)?;
+                let total = planned::planned_value(
+                    &feature,
+                    "0i64",
+                    &format!("{M}::dice::roll_several(g, player_{id}, {sides}, amount_{id})?.total()"),
+                );
+                writeln!(out, "let amount_{id} = {n}; let player_{id} = {player}; let value_{id}: i64 = {total};").unwrap();
+                self.values.insert(result.0, format!("value_{id}"));
+            }
+            other => {
+                let n = self.action_amount(&action, u32::MAX.into(), "u32")?;
+                let call = match other {
+                    K::RollKeepHighest(sides) => {
+                        format!("{M}::dice::roll_keep_highest(g, player, {sides}, amount)?")
+                    }
+                    K::RollAndStoreD6 => {
+                        format!("{M}::dice::roll_and_store(g, player, 6, amount, asker.source)?")
+                    }
+                    K::SetStake => format!("{M}::stakes::set_stake(g, player, amount, asker.source)?"),
+                    K::PlanarDeckPickPlane => {
+                        format!("{M}::planechase::pick_from_top(g, player, amount)?")
+                    }
+                    K::PlanarDeckPlaneswalkToEach => {
+                        format!("{M}::planechase::planeswalk_to_each_of_top(g, player, amount)?")
+                    }
+                    K::PlanarDeckChaosEach => {
+                        format!("{M}::planechase::chaos_of_each_of_top(g, player, amount)?")
+                    }
+                    _ => return Err(gap(feature)),
+                };
+                let call = format!("let amount = {n}; {call}");
+                self.plan_for_actor(&feature, &action, &call, out)?;
+            }
+        }
+        Ok(())
+    }
+    /// A keyword action Cantrip has no word for, called what its rules text does.
+    pub(super) fn stated_action(
+        &mut self,
+        kind: KeywordAction,
+        action: &keywords::Action,
+        out: &mut String,
+    ) -> Result<()> {
+        use KeywordAction as K;
+        let feature = format!("keyword action {kind:?}");
+        let call = match kind {
+            K::ChaosEnsues => format!("{M}::planechase::chaos_ensues(g, player)?"),
+            K::PlanarDeckChaos => format!("{M}::planechase::chaos_of_top(g, player)?"),
+            K::PlanarDeckPlaneswalkWithoutLeaving => {
+                format!("{M}::planechase::planeswalk_without_leaving(g, player)?")
+            }
+            K::RevealTopOfPlanarDeck => format!("{M}::planechase::reveal_top(g, player)?"),
+            K::TopOfPlanarDeckToBottom => format!("{M}::planechase::top_to_bottom(g, player)?"),
+            K::RollTwoInOrder(sides) => {
+                format!("{M}::dice::roll_two_in_order(g, player, {sides}, asker.source)?")
+            }
+            K::RerollStoredDice => format!("{M}::dice::reroll_stored(g, player, asker.source)?"),
+            K::DoubleStake => format!("{M}::stakes::double_stake(g, player, asker.source)?"),
+            K::ShuffleIfSearched => {
+                format!("{M}::library::shuffle_if_searched(g, player, asker.source)?")
+            }
+            K::RemainingToBottomAtRandom => {
+                format!("{M}::library::rest_to_bottom_at_random(g, player, asker.source)?")
+            }
+            K::ChooseProtection => format!("{M}::choose::protection(g, player, asker.source)?"),
+            K::ChooseDamageNumber => format!("{M}::choose::damage_number(g, player, asker.source)?"),
+            K::ChooseCopy => format!("{M}::copy::choose_copy(g, player, asker.source)?"),
+            K::ChooseSector => format!("{M}::sectors::choose_sector(g, player, asker.source)?"),
+            K::ClaimPrize => format!("{M}::attractions::claim_prize(g, player, asker.source)?"),
+            K::TurnPileFaceUp => format!("{M}::piles::turn_pile_face_up(g, player, asker.source)?"),
+            K::ActivateManaAbility => {
+                let object = self.acted_object(action.object)?;
+                format!(
+                    "if let Some(object) = {object} {{ {M}::mana::activate_mana_ability(g, player, object)?; }}"
+                )
+            }
+            K::SetRepeatablePlayers => {
+                let players = self.fetch(self.players(action.actor)?);
+                let code = format!("{M}::players::set_repeatable(g, {players}, asker.source)?;");
+                self.plan_code(&feature, &code, out);
+                return Ok(());
+            }
+            _ => return Err(gap(feature)),
+        };
+        self.plan_for_actor(&feature, action, &call, out)
+    }
+
+    /// What a production makes, where the engine has no plan of it.
+    fn production(&mut self, mana: &ManaProduction) -> Result<String> {
+        use ManaProduction as P;
+        let many = |c: &mut Self, list: &[ManaProduction]| -> Result<String> {
+            let mut all = Vec::new();
+            for each in list {
+                all.push(c.production(each)?);
+            }
+            Ok(all.join(", "))
+        };
+        Ok(match mana {
+            P::Primitive { name, .. } => return Err(gap(format!("primitive mana production {name}"))),
+            P::Amount { color: of, amount } => format!(
+                "Production::Amount(ManaColor::{of:?}, {})",
+                self.read(self.number(amount)?.amount(u32::MAX.into(), "u32")?)
+            ),
+            P::All(list) => format!("Production::All(&[{}])", many(self, list)?),
+            P::ChooseOne(list) => format!("Production::ChooseOne(&[{}])", many(self, list)?),
+            P::Repeat {
+                amount,
+                production,
+                choice,
+            } => format!(
+                "Production::Repeat({}, &{}, ManaChoiceTiming::{choice:?})",
+                self.read(self.number(amount)?.amount(u32::MAX.into(), "u32")?),
+                self.production(production)?
+            ),
+            P::SameTypeAsProduced => "Production::SameTypeAsProduced".to_string(),
+            P::CouldProduce {
+                objects,
+                colors_only,
+            } => format!(
+                "Production::CouldProduce({}, {colors_only})",
+                self.read(self.objects(objects)?)
+            ),
+            P::CommanderIdentity => "Production::CommanderIdentity".to_string(),
+            P::ColorsAmong { objects, each } => format!(
+                "Production::ColorsAmong({}, {each})",
+                self.read(self.objects(objects)?)
+            ),
+            P::ManaCostOf(object) => {
+                format!("Production::ManaCostOf({})", self.read(self.object(object)?))
+            }
+            P::SymbolsOf(object) => {
+                format!("Production::SymbolsOf({})", self.read(self.object(object)?))
+            }
+            P::DifferentColors(n) => format!("Production::DifferentColors({n})"),
+            P::OtherColor => "Production::OtherColor".to_string(),
+            P::LostThisWay(result) => format!("Production::LostThisWay({})", result.0),
+            P::LastNoted { amount } => format!("Production::LastNoted {{ amount: {amount} }}"),
+            P::DraftNotedColor(note) => format!("Production::DraftNoted({})", quoted(&form(note))),
+        })
+    }
+    /// Adding mana no plan names.
+    pub(super) fn stated_mana(
+        &mut self,
+        players: &PlayerSet,
+        mana: &ManaProduction,
+        restriction: Option<&ManaUse>,
+        failed: Diagnostic,
+        out: &mut String,
+    ) -> Result<()> {
+        let production = self.production(mana).map_err(|_| failed.clone())?;
+        let (lasting, restriction) = lane_g::mana_lasting(restriction);
+        let rule = match restriction {
+            Some(rule) => format!("Some({})", self.mana_use(rule).map_err(|_| failed.clone())?),
+            None => "None".to_string(),
+        };
+        let lasting = match lasting {
+            Some(until) => format!("Some(ManaLasts::{until})"),
+            None => "None".to_string(),
+        };
+        let code = format!(
+            "for player in {} {{ {M}::mana::add_production(g, player, {production}, {rule}, {lasting})?; }}",
+            self.fetch(self.players(players).map_err(|_| failed.clone())?)
+        );
+        self.plan_code(&failed.feature, &code, out);
+        Ok(())
+    }
+    /// How big a token is as it is created, if its power and toughness aren't
+    /// fixed (CR 111.3, 111.4).
+    pub(super) fn token_sized(&mut self, token: &TokenDefinition) -> Result<Option<String>> {
+        let Some((power, toughness)) = &token.power_toughness else {
+            return Ok(None);
+        };
+        if matches!((power, toughness), (Expr::Constant(_), Expr::Constant(_))) {
+            return Ok(None);
+        }
+        let read = |c: &mut Self, n: &Expr| -> Result<String> {
+            Ok(c.number(n)?.code)
+        };
+        let failed = || gap("dynamic defining token characteristics");
+        let power = read(self, power).map_err(|_| failed())?;
+        let toughness = read(self, toughness).map_err(|_| failed())?;
+        Ok(Some(format!("|q: &dyn Query, asker: &Asker| ({power}, {toughness})")))
+    }
+    /// "You may cast this card from your graveyard" on terms of its own.
+    pub(super) fn stated_own_cast(
+        &mut self,
+        from: &EventZone,
+        condition: Option<&Condition>,
+        terms: Option<&PlayTerms>,
+        label: &str,
+        failed: Diagnostic,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let plain = lane_h::plain_terms();
+        let grant = self
+            .play_grant(&CardPlayAction::CastSpell, terms.unwrap_or(&plain))
+            .map_err(|_| failed.clone())?;
+        let zone = zone_kind(from).map_err(|_| failed.clone())?;
+        let condition = match condition {
+            Some(condition) => {
+                let test = self
+                    .activation_condition(condition, &format!("{label}_if"))
+                    .map_err(|_| failed.clone())?;
+                format!("Some({test})")
+            }
+            None => "None".to_string(),
+        };
+        self.plan_entry(
+            &failed.feature,
+            "own_casts",
+            &format!("OwnCast {{ zone: {zone}, condition: {condition}, grant: PlayGrant {{ {grant}..PlayGrant::PLAIN }} }}"),
+            parts,
+        );
+        Ok(())
+    }
+
+    // --- Reads with no word yet.
+
+    /// `i64`: the mana symbols of `colors` among the mana costs of `objects`.
+    pub(super) fn mana_symbols(&self, objects: &ObjectSet, colors: &[ManaColor]) -> Result<String> {
+        let colors = colors
+            .iter()
+            .map(|c| color(c).map(|c| format!("Color::{c}")))
+            .collect::<Result<Vec<_>>>()?
+            .join(", ");
+        Ok(planned::planned_value(
+            "mana symbols other than a devotion to one color",
+            "0i64",
+            &format!(
+                "{M}::devotion::symbols_among(q, {}, &[{colors}])",
+                self.objects(objects)?
+            ),
+        ))
+    }
+    /// `i64`: the counters among these players and objects.
+    pub(super) fn counters_among(
+        &self,
+        recipients: &Recipients,
+        kind: Option<&crate::counter::CounterKind>,
+    ) -> Result<String> {
+        Ok(match recipients {
+            Recipients::Objects(objects) => format!(
+                "({}).into_iter().map(|o: ObjectId| {}).sum::<i64>()",
+                self.objects(objects)?,
+                read::counters_on("o", kind)?
+            ),
+            Recipients::Players(players) => planned::planned_value(
+                "counters on a player",
+                "0i64",
+                &format!(
+                    "({}).into_iter().map(|p: PlayerId| i64::from(q.state().player(p).counters({}))).sum::<i64>()",
+                    self.players(players)?,
+                    self.counters_kind(kind)?
+                ),
+            ),
+            Recipients::Union(list) => {
+                let mut all = Vec::new();
+                for each in list {
+                    all.push(self.counters_among(each, kind)?);
+                }
+                format!("({})", all.join(" + "))
+            }
+            _ => return Err(gap("counters on a player")),
+        })
+    }
+    /// `Vec<PlayerId>`: a set nothing else reads.
+    pub(super) fn players_stated(&self, players: &PlayerSet) -> Result<String> {
+        let code = match players {
+            PlayerSet::DamagedBy(result) => format!("q.players_damaged_by(asker, {})", result.0),
+            PlayerSet::DamageRecipients => "q.recipients_of_event_damage(asker)".to_string(),
+            PlayerSet::Scoped => "q.players_in_scope(asker)".to_string(),
+            other => return Err(gap(format!("player collection {}", form(other)))),
+        };
+        Ok(planned::planned_value(
+            &format!("player collection {}", form(players)),
+            "Vec::<PlayerId>::new()",
+            &code,
+        ))
+    }
+    /// `Option<ObjectId>`: the spell or ability a slot targets, read as an object.
+    pub(super) fn stack_object(&self, slot: &Slot, index: impl std::fmt::Display) -> Result<String> {
+        let at = self.slot(slot)?;
+        Ok(planned::planned_value(
+            "a spell or ability on the stack read as an object",
+            "None::<ObjectId>",
+            &format!("q.stack_item_object(t_{at}_raw.get({index}).copied())"),
+        ))
+    }
+    /// As `stack_object`, of every target of the slot.
+    pub(super) fn stack_objects(&self, slot: &Slot) -> Result<String> {
+        let at = self.slot(slot)?;
+        Ok(planned::planned_value(
+            "a spell or ability on the stack read as an object",
+            "Vec::<ObjectId>::new()",
+            &format!(
+                "t_{at}_raw.iter().filter_map(|&t: &Target| q.stack_item_object(Some(t))).collect::<Vec<ObjectId>>()"
+            ),
+        ))
+    }
+    /// What a trigger on an activation asks that `activation_test` does not.
+    pub(super) fn activated_stated(&self, filter: &ObjectFilter) -> Result<String> {
+        let feature = format!("activated ability {}", form(filter));
+        let test = match filter {
+            ObjectFilter::OnStack(StackTrait::Keyword(word)) => {
+                format!("def.is_some_and(|d| d.keyword_of() == Some(AbilityKeyword::{word:?}))")
+            }
+            ObjectFilter::OnStack(other) => format!("q.activation_has(id, StackTrait::{other:?})"),
+            ObjectFilter::TargetsAny(targets) => format!(
+                "q.activation_targets_any(id, |t: &Target| {})",
+                self.targeted(targets)?
+            ),
+            _ => return Err(gap(feature)),
+        };
+        Ok(planned::planned_value(&feature, "false", &test))
+    }
+
+    // --- Instructions that walk several players.
+
+    /// "Each player discards a card at random": one instruction, one discard
+    /// together (CR 608.2c), with the cards each picked at random.
+    pub(super) fn random_discards(
+        &mut self,
+        id: usize,
+        players: &PlayerSet,
+        number: String,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        writeln!(out, "let amount_{id} = {}; let players_{id} = {}; let mut cards_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ let mut hand = g.state().zone(Zone::hand(player)).to_vec(); let mut taken = 0u32; while taken < amount_{id} && !hand.is_empty() {{ let at = g.choose_at_random(hand.len()); cards_{id}.push(hand.remove(at)); taken += 1; }} }} let discarded_{id} = g.discard_together(&cards_{id});", self.fetch(number), self.fetch(self.players(players)?)).unwrap();
+        self.moved.insert(result.0, format!("discarded_{id}"));
+        self.shares.insert(result.0, (format!("discarded_{id}"), Share::Owner));
+        self.left_behind(result, format!("discarded_{id}.clone()"));
+        Ok(())
+    }
+    /// "Each opponent creates a token that's a copy of it", all at once.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn token_copy_for_each(
+        &mut self,
+        id: usize,
+        object: &ObjectRef,
+        adjustments: &[Operand],
+        amount: &Expr,
+        players: &PlayerSet,
+        entry: &EntrySpec,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        if entry.tapped {
+            return Err(gap("token copies for several players"));
+        }
+        let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
+        let values = self.copy_values(&format!("original_{id}"), adjustments)?;
+        writeln!(out, "let original_{id} = {}; let values_{id} = {values}; let count_{id} = {}; let players_{id} = {}; let mut copies_{id}: Vec<(Copiable, PlayerId)> = Vec::new(); if let Some(values) = values_{id} {{ for &player in &players_{id} {{ for _ in 0..count_{id} {{ copies_{id}.push((values.clone(), player)); }} }} }} let created_{id} = g.create_token_copies_together(&copies_{id})?;", self.fetch(self.object(object)?), self.fetch(amount), self.fetch(self.players(players)?)).unwrap();
+        self.token_state(id, entry, out)?;
+        self.creations.insert(result.0, format!("created_{id}"));
+        Ok(())
+    }
+    /// "Each player creates a token that's a copy of each of them", all at once.
+    pub(super) fn token_copies_for_each(
+        &mut self,
+        id: usize,
+        objects: &ObjectSet,
+        players: &PlayerSet,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        writeln!(out, "let originals_{id} = {}; let players_{id} = {}; let mut copies_{id}: Vec<(Copiable, PlayerId)> = Vec::new(); for &original in &originals_{id} {{ for &player in &players_{id} {{ copies_{id}.push((g.copiable_values(original), player)); }} }} let created_{id} = g.create_token_copies_together(&copies_{id})?;", self.fetch(self.objects(objects)?), self.fetch(self.players(players)?)).unwrap();
+        self.creations.insert(result.0, format!("created_{id}"));
+        Ok(())
+    }
+    /// "Remove all counters from target player", and the like.
+    pub(super) fn removed_from_players(
+        &mut self,
+        id: usize,
+        removal: &CounterRemoval,
+        out: &mut String,
+    ) -> Result<()> {
+        const FEATURE: &str = "counters removed from a player";
+        let Recipients::Players(players) = &removal.recipients else {
+            return Err(gap(FEATURE));
+        };
+        let amount = match &removal.amount {
+            CounterAmount::All => "i16::MAX".to_string(),
+            CounterAmount::Count(Count::Exactly(n)) | CounterAmount::Count(Count::UpTo(n)) => {
+                self.fetch(self.number(n)?.amount(i16::MAX.into(), "i16")?)
+            }
+            other => return Err(gap(format!("counter removal {}", form(other)))),
+        };
+        let kind = self.counters_kind(removal.kind.as_ref())?;
+        let players = self.fetch(self.players(players)?);
+        let removed = planned::planned_value(
+            FEATURE,
+            "0i64",
+            &format!("i64::from(g.remove_player_counters(player, {kind}, {amount}))"),
+        );
+        writeln!(out, "for player in {players} {{ removed_{id} += {removed}; }}").unwrap();
+        Ok(())
+    }
+
+    // --- Qualities.
+
+    /// `HexproofFrom`, of whatever quality the card names.
+    pub(super) fn hexproof_of(&self, quality: &Protection) -> Result<String> {
+        let failed = match lane_j::hexproof_quality(quality) {
+            Ok(code) => return Ok(code),
+            Err(failed) => failed,
+        };
+        let code = match quality {
+            Protection::Objects { filter, .. } => {
+                format!("HexproofFrom::of({})", self.over(filter, "id")?)
+            }
+            Protection::Players(players) => format!(
+                "HexproofFrom::of_players(|q: &dyn Query, asker: &Asker| {})",
+                self.players(players)?
+            ),
+            Protection::Each(qualities) => {
+                let mut all = "HexproofFrom::NONE".to_string();
+                for each in qualities {
+                    all = format!("{all}.and({})", self.hexproof_of(each)?);
+                }
+                return Ok(all);
+            }
+        };
+        Ok(planned::planned_value(&failed.feature, "HexproofFrom::NONE", &code))
+    }
+    /// What a player's protection is from.
+    fn quality_code(&self, quality: &Protection) -> Result<String> {
+        Ok(match quality {
+            Protection::Objects { filter, .. } => {
+                format!("Protection::Objects({})", self.over(filter, "id")?)
+            }
+            Protection::Players(players) => format!(
+                "Protection::Players(|q: &dyn Query, asker: &Asker| {})",
+                self.read(self.players(players)?)
+            ),
+            Protection::Each(qualities) => {
+                let mut all = Vec::new();
+                for each in qualities {
+                    all.push(self.quality_code(each)?);
+                }
+                format!("Protection::Each(&[{}])", all.join(", "))
+            }
+        })
+    }
+
+    // --- Costs and copies.
+
+    /// A spell costing more of what mana is not.
+    pub(super) fn costlier(mut self, cost: &Cost) -> Result<String> {
+        let more = self.cost(cost, "more")?;
+        Ok(planned::planned_value(
+            "spell cost increase other than mana",
+            "CostDelta::NONE",
+            &format!("CostDelta::more_cost({more})"),
+        ))
+    }
+    /// A size in a copy that depends on the original.
+    pub(super) fn stated_size(&mut self, values: String, operands: &[Operand]) -> Result<String> {
+        const FEATURE: &str = "copy exception of a power and toughness not fixed";
+        let code = match operands {
+            [power, toughness] => {
+                format!("{values}.sized_by({}, {})", self.stated(power)?, self.stated(toughness)?)
+            }
+            _ => return Err(gap(FEATURE)),
+        };
+        Ok(planned::planned_value(FEATURE, &values, &code))
+    }
+    /// An exception `Copiable` has no word for.
+    pub(super) fn stated_exception(
+        &mut self,
+        values: String,
+        name: &str,
+        operands: &[Operand],
+    ) -> Result<String> {
+        let feature = format!("copy exception {name}");
+        let of = |prefix: &str, list: &[Operand]| -> Result<String> {
+            Ok(copies::words(list)?
+                .iter()
+                .map(|word| format!("{prefix}::{word}"))
+                .collect::<Vec<_>>()
+                .join(", "))
+        };
+        let code = match (name, operands) {
+            ("SetCardtypes", list) => format!(
+                "{values}.typed_as(TypeSet::of(&[{}]))",
+                of("CardType", list)?
+            ),
+            ("SetArtifactTypes", list) => format!(
+                "{values}.subtyped_as(CardType::Artifact, SubtypeSet::of(&[{}]))",
+                of("Subtype", list)?
+            ),
+            ("AddSupertypes", list) => format!(
+                "{values}.with_supertypes(&[{}])",
+                of("Supertype", list)?
+            ),
+            ("RemoveSupertypes", list) => format!(
+                "{values}.without_supertypes(&[{}])",
+                of("Supertype", list)?
+            ),
+            ("AddColor", [Operand::Term { operands, .. }]) => format!(
+                "{values}.with_colors(&[{}])",
+                of("Color", operands)?
+            ),
+            ("AddColor", list) => format!("{values}.with_colors(&[{}])", of("Color", list)?),
+            ("KeepPT", []) => format!("{values}.keeping_power_toughness()"),
+            ("KeepName", []) => format!("{values}.keeping_name()"),
+            ("KeepColor", []) => format!("{values}.keeping_colors()"),
+            ("RemoveThisAbility", []) => format!("{values}.without_ability(item.ability)"),
+            ("SetLoyalty", [loyalty]) => {
+                format!("{values}.with_loyalty({})", self.stated(loyalty)?)
+            }
+            ("AddAbility" | "AddAbilityIfItDoesntHaveAbility" | "LosesAbility", list) => {
+                let method = match name {
+                    "AddAbility" => "with_ability",
+                    "LosesAbility" => "without_ability",
+                    _ => "with_ability_if_absent",
+                };
+                let mut code = values.clone();
+                for operand in list {
+                    let Operand::Ability(ability) = operand else {
+                        return Err(gap(feature));
+                    };
+                    for each in self.granted_refs(ability)? {
+                        code = format!("{code}.{method}({each})");
+                    }
+                }
+                code
+            }
+            _ => return Err(gap(feature)),
+        };
+        Ok(planned::planned_value(&feature, &values, &code))
     }
 
     // --- Abilities with no arm elsewhere.
