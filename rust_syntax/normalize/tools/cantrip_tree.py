@@ -6,6 +6,7 @@
     cantrip_tree.py write ROWS CANTRIP [--sample N]   write crates/cantrip-generated and its sample list
     cantrip_tree.py check CANTRIP [--all]             cargo check the sample, or every card
     cantrip_tree.py tracker ROWS CANTRIP              write data/cantrip_tracker.json and CANTRIP_TRACKER.md
+    cantrip_tree.py swap ROWS CANTRIP                 put whole generated cards over hand-written ones, to run scenarios
 
 The crate is never a dependency of cantrip-cards, so nothing in it is a card the
 game plays. A card with a gap has `planned!` holes: each names its requirement in
@@ -343,6 +344,19 @@ def todo(args):
     print(f"{shown} requirements")
 
 
+def swap(args):
+    """Replace each hand-written plain card that has whole generated code, so Cantrip's own scenarios judge it."""
+    cards = Path(args.cantrip) / "crates/cantrip-cards/src/cards"
+    swapped = []
+    for card in read_rows(args.rows):
+        path = cards / f"{stem_of(card['name'])}.rs"
+        if status_of(card) == "ready" and card["layout"] == "Card" and path.exists():
+            path.write_text(header(card) + body(card), encoding="utf-8")
+            swapped.append(card["name"])
+    (Path(args.cantrip) / "swapped.txt").write_text("".join(n + "\n" for n in swapped))
+    print(f"{len(swapped)} hand-written cards replaced")
+
+
 def show(args):
     """A card's file and what it waits on."""
     for card in read_rows(args.rows):
@@ -381,6 +395,10 @@ def main():
     command.add_argument("--not", dest="exclude", help="no features matching this")
     command.add_argument("--all", action="store_true", help="include requirements already classed outside the generator")
     command.set_defaults(run=todo)
+    command = commands.add_parser("swap")
+    command.add_argument("rows")
+    command.add_argument("cantrip")
+    command.set_defaults(run=swap)
     command = commands.add_parser("show")
     command.add_argument("rows")
     command.add_argument("name")
