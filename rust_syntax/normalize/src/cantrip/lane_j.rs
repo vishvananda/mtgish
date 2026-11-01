@@ -2250,6 +2250,7 @@ impl Compiler {
             ),
             Condition::SameTeam { .. } => held("q.state().same_team(a, b)"),
             Condition::MostVotes { .. } => held("g.votes().most(option)"),
+            Condition::ChosenWord(word) => self.chosen_word(word)?,
             Condition::VotedFor { .. } | Condition::Voted(_) | Condition::AllVotedFor(_) => {
                 held("g.votes().voted(option)")
             }

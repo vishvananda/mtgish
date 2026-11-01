@@ -54,11 +54,11 @@ pub(super) fn mode_history(unchosen: &Option<ModeHistory>) -> String {
 }
 
 /// A rule that no two of a slot's targets share a key.
-fn distinct_rule(functions: &mut String, name: &str, key: &str, words: &str) -> String {
+fn distinct_rule(functions: &mut String, name: &str, kind: &str, key: &str, words: &str) -> String {
     if !functions.contains(&format!("fn {name}(")) {
-        writeln!(functions, "fn {name}_key(q: &dyn Query, id: ObjectId) -> PlayerId {{ {key} }}\nfn {name}(q: &dyn Query, choice: &Choice, _: u32) -> Verdict {{ let used: Vec<PlayerId> = choice.selected.iter().map(|&c| {name}_key(q, c)).collect(); let apart = used.iter().enumerate().all(|(i, k)| !used[..i].contains(k)); Verdict {{ complete: apart, addable: Bits::of(choice.candidates.len(), |i| !used.contains(&{name}_key(q, choice.candidates[i]))) }} }}\nfn largest_{name}(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> {{ cantrip_api::select::largest_distinct(choice, |c| {name}_key(q, c)) }}").unwrap();
+        writeln!(functions, "fn {name}_key(q: &dyn Query, id: ObjectId) -> {kind} {{ {key} }}\nfn {name}(q: &dyn Query, choice: &Choice, _: u32) -> Verdict {{ let used: Vec<{kind}> = choice.selected.iter().map(|&c| {name}_key(q, c)).collect(); let apart = used.iter().enumerate().all(|(i, k)| !used[..i].contains(k)); Verdict {{ complete: apart, addable: Bits::of(choice.candidates.len(), |i| !used.contains(&{name}_key(q, choice.candidates[i]))) }} }}\nfn largest_{name}(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> {{ cantrip_api::select::largest_distinct(choice, |c| {name}_key(q, c)) }}").unwrap();
     }
-    format!(".together(cantrip_api::select::set_part(&({name} as SelectFn), &(largest_{name} as cantrip_api::select::LargestFn), 0, {words:?}))")
+    format!("cantrip_api::select::set_part(&({name} as SelectFn), &(largest_{name} as cantrip_api::select::LargestFn), 0, {words:?})")
 }
 
 /// "With total power N or less": a rule of the set, each value read as it is.
@@ -66,7 +66,7 @@ fn total_rule(functions: &mut String, name: &str, read: &str, words: &str, most:
     if !functions.contains(&format!("fn {name}(")) {
         writeln!(functions, "fn {name}_of(q: &dyn Query, id: ObjectId) -> u64 {{ i64::from({read}).max(0) as u64 }}\nfn {name}(q: &dyn Query, choice: &Choice, most: u32) -> Verdict {{ let total: u64 = choice.selected.iter().map(|&c| {name}_of(q, c)).sum(); Verdict {{ complete: total <= u64::from(most), addable: Bits::of(choice.candidates.len(), |i| total + {name}_of(q, choice.candidates[i]) <= u64::from(most)) }} }}\nfn largest_{name}(q: &dyn Query, choice: &Choice, most: u32) -> Vec<ObjectId> {{ cantrip_api::select::largest_within(choice, |c| {name}_of(q, c), u64::from(most)) }}").unwrap();
     }
-    format!(".together(cantrip_api::select::set_part(&({name} as SelectFn), &(largest_{name} as cantrip_api::select::LargestFn), {most}, {words:?}))")
+    format!("cantrip_api::select::set_part(&({name} as SelectFn), &(largest_{name} as cantrip_api::select::LargestFn), {most}, {words:?})")
 }
 
 impl Compiler {
@@ -80,48 +80,6 @@ impl Compiler {
         for constraint in constraints {
             let feature = format!("target constraint {}", form(constraint));
             let together = match constraint {
-                SelectionConstraint::DifferentNames => {
-                    Some(format!(".together({M}::select::DIFFERENT_NAMES)"))
-                }
-                SelectionConstraint::DifferentProperty(Property::ManaValue) => {
-                    Some(format!(".together({M}::select::DIFFERENT_MANA_VALUES)"))
-                }
-                SelectionConstraint::DifferentControllers => Some(distinct_rule(
-                    &mut self.functions,
-                    "different_controllers",
-                    "q.controller(id)",
-                    "controlled by different players",
-                )),
-                SelectionConstraint::DifferentOwners => Some(distinct_rule(
-                    &mut self.functions,
-                    "different_owners",
-                    "q.state().obj(id).owner",
-                    "with different owners",
-                )),
-                SelectionConstraint::TotalProperty {
-                    property,
-                    comparison: Comparison::LessOrEqual,
-                    amount,
-                } => {
-                    let most = match amount {
-                        Expr::Constant(n) if *n >= 0 => n.to_string(),
-                        Expr::AnnouncedX => "TargetSpec::COUNTED".to_string(),
-                        _ => return Err(gap(feature)),
-                    };
-                    match property {
-                        Property::ManaValue => Some(format!(
-                            ".together({M}::select::total_mana_value_at_most({most}))"
-                        )),
-                        Property::Power => Some(total_rule(
-                            &mut self.functions,
-                            "total_power",
-                            "q.chars(id).power.unwrap_or(0)",
-                            "with total power {n} or less",
-                            &most,
-                        )),
-                        _ => return Err(gap(feature)),
-                    }
-                }
                 SelectionConstraint::DifferentFromTarget(earlier) => {
                     let chosen = self.chosen_in_slot(earlier, slot)?;
                     let test = format!("!{chosen}.contains(&t)");
@@ -149,7 +107,10 @@ impl Compiler {
                     ));
                     None
                 }
-                _ => return Err(gap(feature)),
+                other => match self.set_rule(other) {
+                    Some(part) => Some(format!(".together({part})")),
+                    None => return Err(gap(feature)),
+                },
             };
             if let Some(together) = together {
                 if !rule.together.is_empty() {
@@ -450,6 +411,25 @@ impl Compiler {
                 done?;
                 writeln!(out, "}}").unwrap();
             }
+            Operation::ChooseValueWith {
+                actor,
+                kind,
+                terms,
+            } => match terms {
+                ChoiceTerms {
+                    options,
+                    except,
+                    count: None,
+                    secret: false,
+                    unchosen: false,
+                    random: false,
+                    ordered: false,
+                    up_to: false,
+                } if except.is_empty() => {
+                    self.choose_value(id, actor, *kind, 1, options, out)?
+                }
+                terms => self.choose_value_terms(id, actor, *kind, terms, out)?,
+            },
             Operation::CopyCards {
                 actor,
                 objects,
@@ -1310,6 +1290,321 @@ impl Compiler {
             }
             other => quoted(&format!("{other:?}")),
         }
+    }
+    /// A rule of chosen cards together, as a `Part`, or nothing if `select` has
+    /// no such rule and none can be written here.
+    fn set_rule(&mut self, constraint: &SelectionConstraint) -> Option<String> {
+        Some(match constraint {
+            SelectionConstraint::DifferentNames => format!("{M}::select::DIFFERENT_NAMES"),
+            SelectionConstraint::DifferentProperty(Property::ManaValue) => {
+                format!("{M}::select::DIFFERENT_MANA_VALUES")
+            }
+            SelectionConstraint::DifferentProperty(Property::Power) => distinct_rule(
+                &mut self.functions,
+                "different_powers",
+                "i16",
+                "q.chars(id).power.unwrap_or(0)",
+                "with different powers",
+            ),
+            SelectionConstraint::CommonProperty(DistinctProperty::CardTypes) => {
+                format!("{M}::select::SHARE_A_CARD_TYPE")
+            }
+            SelectionConstraint::DifferentControllers => distinct_rule(
+                &mut self.functions,
+                "different_controllers",
+                "PlayerId",
+                "q.controller(id)",
+                "controlled by different players",
+            ),
+            SelectionConstraint::DifferentOwners => distinct_rule(
+                &mut self.functions,
+                "different_owners",
+                "PlayerId",
+                "q.state().obj(id).owner",
+                "with different owners",
+            ),
+            SelectionConstraint::TotalProperty {
+                property,
+                comparison: Comparison::LessOrEqual,
+                amount,
+            } => {
+                let most = match amount {
+                    Expr::Constant(n) if *n >= 0 => n.to_string(),
+                    Expr::AnnouncedX => "TargetSpec::COUNTED".to_string(),
+                    _ => return None,
+                };
+                match property {
+                    Property::ManaValue => {
+                        format!("{M}::select::total_mana_value_at_most({most})")
+                    }
+                    Property::Power => total_rule(
+                        &mut self.functions,
+                        "total_power",
+                        "q.chars(id).power.unwrap_or(0)",
+                        "with total power {n} or less",
+                        &most,
+                    ),
+                    _ => return None,
+                }
+            }
+            _ => return None,
+        })
+    }
+    /// `.with(part)` for each rule of a search.
+    pub(super) fn search_rules(&mut self, constraints: &[SelectionConstraint]) -> Result<String> {
+        let mut rules = String::new();
+        for constraint in constraints {
+            match self.set_rule(constraint) {
+                Some(part) => write!(rules, ".with({part})").unwrap(),
+                None => return Err(gap(format!("search constraint {}", form(constraint)))),
+            }
+        }
+        Ok(rules)
+    }
+    /// One search with several find clauses (CR 701.23h): the requirement is one
+    /// episode with one result, so what reads the result stays real.
+    pub(super) fn search_several(
+        &mut self,
+        player: &PlayerRef,
+        library: &PlayerRef,
+        choices: &[SearchChoice],
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let id = self.fresh();
+        let searcher = self.fetch(self.certain_player(player)?);
+        let owner = self.fetch(self.certain_player(library)?);
+        let mut clauses = Vec::new();
+        for choice in choices {
+            let test = self.filter(&choice.filter, &Candidate::of("id"))?;
+            let count = self.fetch(self.select_count(&choice.count)?);
+            let rules = self.search_rules(&choice.constraints)?;
+            clauses.push(format!("(Selection::of({count}, &[]){rules}, |q: &dyn Query, asker: &Asker, id: ObjectId| {test})"));
+        }
+        let found = planned::planned_value(
+            "search with several find clauses",
+            "Vec::<ObjectId>::new()",
+            &format!("{M}::library::search_clauses(g, searcher_{id}, owner_{id}, asker.source, &[{}])?", clauses.join(", ")),
+        );
+        writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = {owner}; let found_{id}: Vec<ObjectId> = {found};").unwrap();
+        self.selections.insert(result.0, format!("found_{id}"));
+        self.searched.insert(result.0, "true".into());
+        Ok(())
+    }
+    /// A choice among objects held to a rule of them together.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn choose_with_rule(
+        &mut self,
+        player: &PlayerRef,
+        objects: &ObjectSet,
+        count: &Count,
+        constraint: &SelectionConstraint,
+        result: &ResultId,
+        rest: &[Instruction],
+        out: &mut String,
+    ) -> Result<()> {
+        let purpose = effects::purpose(result, rest)
+            .or_else(|| plain_purpose(result, rest))
+            .unwrap_or("ChooseAsEnters");
+        let id = self.fresh();
+        let chooser = self.fetch(self.certain_player(player)?);
+        let pool = self.fetch(self.objects(objects)?);
+        if let SelectionConstraint::OneForEach(filters) = constraint {
+            let up_to = !matches!(count, Count::Exactly(_) | Count::AsManyAsCan(_));
+            writeln!(out, "let player_{id} = {chooser}; let pool_{id} = {pool}; let mut picked_{id}: Vec<ObjectId> = Vec::new();").unwrap();
+            for filter in filters {
+                let test = self.filter(filter, &Candidate::of("id"))?;
+                let open = self.fetch(format!("pool_{id}.iter().copied().filter(|id| !picked_{id}.contains(id)).filter(|&id| {test}).collect::<Vec<ObjectId>>()"));
+                writeln!(out, "{{ let open = {open}; let one = {M}::choose::cards(g, player_{id}, asker.source, Purpose::{purpose}, open, 1, {up_to})?; picked_{id}.extend(one); }}").unwrap();
+            }
+            self.selections.insert(result.0, format!("picked_{id}"));
+            return Ok(());
+        }
+        let Some(part) = self.set_rule(constraint) else {
+            return Err(gap(format!("selection constraint {}", form(constraint))));
+        };
+        let count = self.fetch(self.select_count(count)?);
+        writeln!(out, "let player_{id} = {chooser}; let pool_{id} = {pool}; let count_{id} = {count}; let picked_{id} = {M}::choose::select(g, player_{id}, asker.source, Purpose::{purpose}, pool_{id}, {M}::select::Selection::of(count_{id}, &[]).with({part}))?;").unwrap();
+        self.selections.insert(result.0, format!("picked_{id}"));
+        Ok(())
+    }
+    /// The bounds of a choice of a number: `Comparison`s each number must meet.
+    fn number_bounds(&self, options: &[Operand]) -> Result<(String, String)> {
+        let unsupported = || gap("a choice of Number");
+        let read = |n: &Expr| -> Result<String> {
+            Ok(self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?))
+        };
+        let (mut least, mut most) = ("0u32".to_string(), "i32::MAX as u32".to_string());
+        for option in options {
+            match option {
+                Operand::Comparison(Comparison::GreaterOrEqual, n) => least = read(n)?,
+                Operand::Comparison(Comparison::Greater, n) => least = format!("{} + 1", read(n)?),
+                Operand::Comparison(Comparison::LessOrEqual, n) => most = read(n)?,
+                Operand::Comparison(Comparison::Less, n) => most = format!("{}.saturating_sub(1)", read(n)?),
+                _ => return Err(unsupported()),
+            }
+        }
+        Ok((least, most))
+    }
+    /// What `choose_value` has no arm of its own for.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn choose_value_rest(
+        &mut self,
+        kind: ValueKind,
+        player: &str,
+        source: &str,
+        options: &[Operand],
+        local: &str,
+        id: usize,
+        out: &mut String,
+    ) -> Result<()> {
+        let entering = self.pending == Pending::Entering;
+        match kind {
+            // CR 607.2f: words with no rules meaning, as the card's `labels`.
+            ValueKind::Word => {
+                let words = options
+                    .iter()
+                    .map(|option| match option {
+                        Operand::Text(word) => Ok(word.clone()),
+                        _ => Err(gap("a choice of Word")),
+                    })
+                    .collect::<Result<Vec<String>>>()?;
+                if !self.word_options.is_empty() || self.entering_labels.is_some() {
+                    return Err(gap("two choices of labels as it enters"));
+                }
+                let count = words.len();
+                let labels: Vec<String> = words.iter().map(|w| quoted(w)).collect();
+                self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
+                self.word_options = words;
+                match entering {
+                    true => writeln!(out, "{M}::choose::option_as_enters(g, entering, &CARD, 0..{count})?; let {local}: u8 = entering.chosen_option.map_or(0, |chosen| chosen.index);").unwrap(),
+                    false => writeln!(out, "let player_{id} = {player}; let card_{id} = g.card_id(&CARD); let {local}: u8 = {M}::choose::option(g, player_{id}, {source}, card_{id}, 0..{count})?;").unwrap(),
+                }
+            }
+            ValueKind::Number => {
+                let (least, most) = self.number_bounds(options)?;
+                match entering {
+                    true => writeln!(out, "let least_{id} = {least}; let most_{id} = {most}; {M}::choose::number_as_enters(g, entering, least_{id}, most_{id}, \"Choose a number\")?; let {local}: u32 = entering.chosen_number.unwrap_or(0);").unwrap(),
+                    false => writeln!(out, "let player_{id} = {player}; let least_{id} = {least}; let most_{id} = {most}; let {local}: u32 = {M}::choose::number(g, player_{id}, {source}, least_{id}, most_{id}, \"Choose a number\")?;").unwrap(),
+                }
+            }
+            other => return Err(gap(format!("a choice of {other:?}"))),
+        }
+        Ok(())
+    }
+    /// `Condition::ChosenWord`: this body's choice, or what the permanent keeps.
+    pub(super) fn chosen_word(&self, word: &str) -> Result<String> {
+        let index = self
+            .word_options
+            .iter()
+            .position(|w| w == word)
+            .ok_or_else(|| gap("condition ChosenWord"))?;
+        if let Ok(local) = self.chosen_local(ValueKind::Word) {
+            return Ok(format!("{local} == {index}"));
+        }
+        if !self.enters_choosing.contains(&ValueKind::Word) {
+            return Err(gap("a choice of Word outside its body"));
+        }
+        Ok(format!("{M}::choose::chosen_option(q, asker, &CARD) == Some({index})"))
+    }
+    /// "A choice of" on terms past one plain value: secret, several, up to, not
+    /// what was chosen before. Later reads see the local it will be.
+    pub(super) fn choose_value_terms(
+        &mut self,
+        id: usize,
+        actor: &PlayerSet,
+        kind: ValueKind,
+        terms: &ChoiceTerms,
+        out: &mut String,
+    ) -> Result<()> {
+        let players = self.fetch(self.players(actor)?);
+        let options: Vec<String> = terms.options.iter().map(|o| self.operand_code(o)).collect();
+        let except: Vec<String> = terms.except.iter().map(|o| self.operand_code(o)).collect();
+        let count = match &terms.count {
+            Some(count) => format!("Some({})", self.fetch(self.number(count)?.amount(u32::MAX.into(), "u32")?)),
+            None => "None".to_string(),
+        };
+        let ChoiceTerms {
+            secret,
+            unchosen,
+            random,
+            ordered,
+            up_to,
+            ..
+        } = terms;
+        let code = format!("{M}::choose::value(g, {players}, asker.source, ChoiceKind::{kind:?}, ChoiceTerms {{ options: &[{}], except: &[{}], count: {count}, secret: {secret}, unchosen: {unchosen}, random: {random}, ordered: {ordered}, up_to: {up_to} }})?", options.join(", "), except.join(", "));
+        self.value_to_come("operation ChooseValueWith", id, kind, &code, out);
+        Ok(())
+    }
+    /// A chosen value Cantrip can't yet ask for: bound, where the kind has a
+    /// placeholder, so what reads it stays real.
+    pub(super) fn value_to_come(
+        &mut self,
+        feature: &str,
+        id: usize,
+        kind: ValueKind,
+        code: &str,
+        out: &mut String,
+    ) {
+        let placeholder = match kind {
+            ValueKind::Number => Some("0u32"),
+            ValueKind::Color => Some("Color::White"),
+            ValueKind::CreatureType | ValueKind::BasicLandType | ValueKind::LandType => {
+                Some("Subtype::Plains")
+            }
+            ValueKind::Player => Some("asker.controller"),
+            _ => None,
+        };
+        match placeholder {
+            Some(placeholder) if !self.chosen.iter().any(|(k, _)| *k == kind) => {
+                let local = format!("chosen_{id}");
+                let value = planned::planned_value(feature, placeholder, code);
+                writeln!(out, "let {local} = {value};").unwrap();
+                self.chosen.push((kind, local));
+            }
+            _ => self.plan_code(feature, code, out),
+        }
+    }
+    /// Objects exiled with counters: the counters come with them, as they arrive.
+    pub(super) fn exile_with_counters(&mut self, id: usize, entry: &EntrySpec) -> Result<String> {
+        let mut counters = Vec::new();
+        for (kind, n) in &entry.counters {
+            let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+            counters.push(format!("({}, {})", counter_kind(kind)?, self.fetch(n)));
+        }
+        Ok(format!("{{ let counters: Vec<(CounterKind, i16)> = vec![{}]; let exiled = g.exile_all(&objects_{id}); let puts: Vec<(ObjectId, CounterKind, i16)> = exiled.iter().flat_map(|&o| counters.iter().map(move |&(kind, n)| (o, kind, n))).collect(); g.add_counters_together(&puts); exiled }}", counters.join(", ")))
+    }
+    /// What `arrival_in_state` has no arm for: one object, for `moved`.
+    pub(super) fn arrival_rest(&mut self, entry: &EntrySpec, counters: &str) -> Result<String> {
+        let tapped = entry.tapped;
+        Ok(match entry.states.as_slice() {
+            [EntryState::AttachedTo(host)] if counters.is_empty() && !tapped => {
+                let host = self.fetch(self.object(host)?);
+                format!("if let Some(host) = {host} {{ moved.extend(g.put_onto_battlefield_attached(o, controller, host)?); }}")
+            }
+            [EntryState::Attacking {
+                player: Some(player),
+                or_planeswalker: false,
+            }] if !tapped => {
+                let defender = self.fetch(self.player(player)?);
+                format!("if let Some(defender) = {defender} {{ moved.push(g.put_onto_battlefield_attacking(o, controller, Target::Player(defender), &[{counters}])?); }}")
+            }
+            [EntryState::Attacking {
+                player: None,
+                or_planeswalker: true,
+            }] if !tapped => {
+                format!("if let Some(defender) = {M}::combat::choose_attack_target(g, controller, asker.source)? {{ moved.push(g.put_onto_battlefield_attacking(o, controller, defender, &[{counters}])?); }}")
+            }
+            states => {
+                let states = quoted(&format!("{states:?}"));
+                let call = planned::planned_value(
+                    "move arrival state",
+                    "None::<ObjectId>",
+                    &format!("{M}::enter::in_state(g, o, controller, item, {states}, &[{counters}], {tapped})?"),
+                );
+                format!("moved.extend({call});")
+            }
+        })
     }
     /// What `effect_on` has no arm for: effects on what is there, on spells as
     /// they are cast, or on players.

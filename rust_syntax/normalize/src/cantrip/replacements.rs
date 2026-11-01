@@ -685,6 +685,7 @@ impl Compiler {
                     (self.reader, self.affected_in_scope) = saved;
                     Some(amount?.amount(u16::MAX.into(), "u16")?)
                 }
+                ReplacementLimit::NextOccurrence => None,
                 other => return Err(gap(format!("prevention limited by {}", form(other)))),
             };
             let applies = format!("{label}_applies");
@@ -699,10 +700,17 @@ impl Compiler {
                 "GrantedPreventionDef {{ hint: {hint}, damage: \"damage\", of_it: None, applies: {applies} }}"
             ));
             let index = self.made_preventions.len() - 1;
+            let next_time = matches!(limit, ReplacementLimit::NextOccurrence);
             let shield_value = if shield.is_some() {
-                "Shield::Next(shield)"
+                "Shield::Next(shield)".to_string()
+            } else if next_time {
+                planned::planned_value(
+                    "prevention limited by NextOccurrence",
+                    "Shield::All",
+                    "Shield::NextTime",
+                )
             } else {
-                "Shield::All"
+                "Shield::All".to_string()
             };
             return Ok((shield, format!(
                 "g.add_effect(item.object, about, EffectKind::Prevention {{ card: item.ability.card, index: {index}, to, shield: {shield_value} }}, DURATION);"

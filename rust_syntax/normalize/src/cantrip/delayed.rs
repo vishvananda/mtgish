@@ -110,7 +110,14 @@ impl Compiler {
                     "{}.into_iter().collect::<Vec<ObjectId>>()",
                     self.outside_object(object)?.expect("carried")
                 ))),
-                _ => Err(gap("reflexive ability about a list of objects")),
+                _ => {
+                    let code = outer.compiler.objects(objects)?;
+                    Ok(Some(planned::planned_value(
+                        "reflexive ability about a list of objects",
+                        "Vec::<ObjectId>::new()",
+                        &format!("about(q, item, {code})"),
+                    )))
+                }
             };
         }
         let code = outer.compiler.objects(objects)?;

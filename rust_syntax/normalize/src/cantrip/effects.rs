@@ -542,7 +542,10 @@ impl Compiler {
                     )
                 });
                 if let Some(constraint) = constraint {
-                    return Err(gap(format!("selection constraint {}", form(constraint))));
+                    let rest = &body.instructions[i + 1..];
+                    return self.choose_with_rule(
+                        player, objects, count, constraint, result, rest, out,
+                    );
                 }
                 if one_at_most(count) {
                     self.single.insert(result.0);
@@ -582,11 +585,9 @@ impl Compiler {
                 result,
             } if also.is_empty() => {
                 let [choice] = choices.as_slice() else {
-                    return Err(gap("search with several find clauses"));
+                    return self.search_several(player, library, choices, result, out);
                 };
-                if let Some(constraint) = choice.constraints.first() {
-                    return Err(gap(format!("search constraint {}", form(constraint))));
-                }
+                let rules = self.search_rules(&choice.constraints)?;
                 if one_at_most(&choice.count) {
                     self.single.insert(result.0);
                 }
@@ -597,7 +598,7 @@ impl Compiler {
                 let searcher = self.fetch(self.certain_player(player)?);
                 let owner = self.fetch(self.certain_player(library)?);
                 let count = self.fetch(count);
-                writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = {owner}; let rule_count_{id} = {count}; let shown_{id} = cantrip_mechanics::library::searched_cards(g, owner_{id}); let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }}; let found_{id} = cantrip_mechanics::library::search(g, searcher_{id}, owner_{id}, asker.source, SearchDestination::{destination}, cantrip_mechanics::select::Selection::listed(rule_count_{id}, &shown_{id}, can_{id}))?;").unwrap();
+                writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = {owner}; let rule_count_{id} = {count}; let shown_{id} = cantrip_mechanics::library::searched_cards(g, owner_{id}); let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }}; let found_{id} = cantrip_mechanics::library::search(g, searcher_{id}, owner_{id}, asker.source, SearchDestination::{destination}, cantrip_mechanics::select::Selection::listed(rule_count_{id}, &shown_{id}, can_{id}){rules})?;").unwrap();
                 self.selections.insert(result.0, format!("found_{id}"));
                 self.searched.insert(result.0, "true".into());
                 Ok(())
@@ -1852,6 +1853,9 @@ impl Compiler {
                     }
                     format!("{{ {rows} let counters = [{}]; g.put_all_onto_battlefield_with_counters(&rows_{id}, &counters)? }}", counters.join(", "))
                 }
+            }
+            Destination::Exile if !entry.counters.is_empty() && entry.states.is_empty() => {
+                self.exile_with_counters(id, entry)?
             }
             _ if !plain_entry(entry) => return Err(gap("move arrival flags")),
             // All players can still see the card as it moves (603.10a, 701.20a).

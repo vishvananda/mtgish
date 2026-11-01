@@ -431,6 +431,8 @@ struct Compiler {
     revealed: bool,
     /// What was left over of a choice between piles, by the result of the choice.
     unchosen: BTreeMap<u32, String>,
+    /// The words of a choice of `ValueKind::Word`, the card's `labels`.
+    word_options: Vec<String>,
     creations: BTreeMap<u32, String>,
     moved: BTreeMap<u32, String>,
     /// The same transitions as `moved`, by the identities they left behind.
@@ -775,6 +777,7 @@ impl Compiler {
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
             unchosen: BTreeMap::new(),
+            word_options: Vec::new(),
             reveal_matches: BTreeMap::new(),
             revealed: false,
             creations: BTreeMap::new(),

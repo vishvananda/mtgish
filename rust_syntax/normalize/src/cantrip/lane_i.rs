@@ -1548,7 +1548,7 @@ impl Compiler {
                 );
                 format!("moved.extend({call});")
             }
-            _ => return Err(gap("move arrival state")),
+            _ => self.arrival_rest(entry, counters)?,
         })
     }
     /// Objects that enter together as `changes` says (CR 614.12): one static
