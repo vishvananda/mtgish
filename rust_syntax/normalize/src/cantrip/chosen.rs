@@ -60,7 +60,7 @@ fn name_kind(options: &[Operand]) -> Result<String> {
             "NameKind {{ non_types: {}, ..NameKind::ANY }}",
             types(operands)?
         ),
-        other => return Err(gap(format!("name choice {other}"))),
+        other => return lane_p::name_kind_p(other, operands),
     })
 }
 
@@ -124,9 +124,6 @@ impl Compiler {
             );
             self.value_to_come("a choice of several values", id, kind, &code, out);
             return Ok(());
-        }
-        if self.chosen.iter().any(|(k, _)| *k == kind) {
-            return Err(gap("two choices of one kind of value"));
         }
         let PlayerSet::One(player) = actor else {
             return Err(gap("a value chosen by several players"));
@@ -192,14 +189,22 @@ impl Compiler {
             }
             other => self.choose_value_rest(other, &player, source, options, &local, id, out)?,
         }
-        self.chosen.push((kind, local));
+        // Each read is of the latest choice: "choose an opponent" a second time.
+        self.remember_choice(kind, &local, out);
+        self.chosen.insert(0, (kind, local));
         Ok(())
     }
     /// The local that holds this choice, in the body that made it.
     pub(super) fn chosen_local(&self, kind: ValueKind) -> Result<String> {
+        // A land type is what "a basic land type" chose too.
+        let answers = |k: ValueKind| {
+            k == kind
+                || (kind == ValueKind::LandType
+                    && matches!(k, ValueKind::BasicLandType | ValueKind::NonbasicLandType))
+        };
         self.chosen
             .iter()
-            .find(|(k, _)| *k == kind)
+            .find(|(k, _)| answers(*k))
             .map(|(_, local)| local.clone())
             .ok_or_else(|| gap(format!("a choice of {kind:?} outside its body")))
     }
@@ -211,7 +216,7 @@ impl Compiler {
         }
         // The engine keeps a permanent's choices as it entered, and no other.
         if !self.enters_choosing.contains(&kind) {
-            return Err(gap(format!("a choice of {kind:?} outside its body")));
+            return lane_p::chosen_elsewhere(self.linked(), kind);
         }
         let read = match kind {
             ValueKind::Color => "chosen_color",
@@ -220,7 +225,7 @@ impl Compiler {
             }
             ValueKind::CardName => "chosen_card",
             ValueKind::Player => "chosen_player",
-            other => return Err(gap(format!("a choice of {other:?} kept on a permanent"))),
+            other => return lane_p::chosen_kept(self.linked(), other),
         };
         let linked = match self.reader {
             Reader::Layer => "q.linked_to(asker.source)",
@@ -240,6 +245,14 @@ impl Compiler {
             ValueKind::CardName if self.reader != Reader::Layer => {
                 format!("{M}::library::object_has_name(q, {id}, chosen)")
             }
+            ValueKind::CardType | ValueKind::PermanentType => format!("{chars}.is(chosen)"),
+            ValueKind::PlaneswalkerType | ValueKind::NonbasicLandType => {
+                format!("{chars}.has_subtype(chosen)")
+            }
+            // In a layer: the name of the chosen card, as it is written.
+            ValueKind::CardName => format!(
+                "!{chars}.name.is_empty() && q.cards().get(chosen).name == {chars}.name"
+            ),
             other => return Err(gap(format!("object filter Chosen {other:?}"))),
         };
         Ok(format!("{value}.is_some_and(|chosen| {test})"))
@@ -250,14 +263,14 @@ impl Compiler {
             Change::ChosenColor {
                 mode: ChangeMode::Set,
             } => {
-                let chosen = self.chosen_local(ValueKind::Color)?;
+                let chosen = self.chosen_read(ValueKind::Color)?;
                 vec![format!("EffectKind::SetColors(ColorSet::of({chosen}))")]
             }
             Change::ChosenColor { .. } => vec![lane_g::planned_kind(
                 "engine: no effect adds colors",
                 format!(
                     "EffectKind::AddColors(ColorSet::of({}))",
-                    self.chosen_local(ValueKind::Color)?
+                    self.chosen_read(ValueKind::Color)?
                 ),
             )],
             Change::ChosenType {
@@ -332,7 +345,27 @@ impl Compiler {
         else {
             return Ok(None);
         };
-        let chosen = self.chosen_local(*kind)?;
+        // "From colorless or from the color of your choice".
+        if let (ValueKind::Color, Ok(local)) =
+            (*kind, self.chosen_local(ValueKind::ColorOrColorless))
+        {
+            return Ok(Some((
+                format!("{local}.map_or(EffectKind::ProtectionFromColorless, |color| EffectKind::Protection(ColorSet::of(color)))"),
+                format!("if let Some(color) = {local} {{ chars.protection = chars.protection.with(color); }} else {{ chars.protection_colorless = true; }}"),
+            )));
+        }
+        // What it chose as it entered, to an ability that may have nothing to read.
+        if self.chosen_local(*kind).is_err() && self.enters_choosing.contains(kind) {
+            let value = self.chosen_value(*kind)?;
+            return match kind {
+                ValueKind::Color => Ok(Some((
+                    format!("EffectKind::Protection({value}.map_or(ColorSet::NONE, ColorSet::of))"),
+                    format!("if let Some(color) = {value} {{ chars.protection = chars.protection.with(color); }}"),
+                ))),
+                other => Err(gap(format!("protection from a chosen {other:?}"))),
+            };
+        }
+        let chosen = self.chosen_read(*kind)?;
         match kind {
             ValueKind::Color => Ok(Some((
                 format!("EffectKind::Protection(ColorSet::of({chosen}))"),

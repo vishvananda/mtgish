@@ -522,43 +522,43 @@
 "api": "Property by this name"
 },
 {
-"match": "^numeric object property (BushidoValue|CardTypeCount|ColorSymbolCount|CrewCount|ExiledCount|SupertypeCount)$",
+"match": "^numeric object property (CardTypeCount|SupertypeCount)$",
 "class": "vocabulary",
 "needs": "a number an object has that Query has no read for",
 "api": "Query read by this name"
 },
 {
-"match": "^object filter (DraftNoted|InStartingDeck|NameFirstPrintedIn|AbilityOf)$|^numeric expression DraftNoted$",
+"match": "^object filter (DraftNoted|AbilityOf)$|^numeric expression DraftNoted$",
 "class": "vocabulary",
 "needs": "a word about a card outside the game rules: drafting, starting decks and printings, kept for casual play",
 "api": "q.card(id) field by this name"
 },
 {
-"match": "^object filter (AttachedCount|AttackingSame|BandedWith|CanTargetOnly|CastFromAmong|Chosen\\ CardName|ChosenBy|ChosenFilter|ChosenOn|CouldEnchant|CouldProduce|CouldProduceManaOf|ExiledBy|History\\ AttackedDefender|History\\ CountersPutBy|History\\ CycledOrDiscarded|History\\ DealtCombatDamage|History\\ Enlisted|History\\ ExiledFromGraveyard|History\\ Exploited|History\\ TappedToPayFor|InPile|InSector|ManaCostIs|ManaCostPayableWith|ManaSpentFrom|ManaSymbolInCost|MostCommonCreatureTypeIn|Noted|NthCast|NthChosen|PairedWith|ProtectedBy|SharesColorWithMana|SharesMostCommonColor|SharesNameWithAny|TargetableBy|TargetedBy|WasAttachedTo|WouldDestroy)$",
+"match": "^object filter (AttachedCount|AttackingSame|Chosen\\ CardName|ChosenFilter|History\\ AttackedDefender|History\\ CountersPutBy|History\\ CycledOrDiscarded|History\\ DealtCombatDamage|History\\ Enlisted|History\\ ExiledFromGraveyard|History\\ Exploited|History\\ TappedToPayFor|ProtectedBy|SharesMostCommonColor|SharesNameWithAny|WasAttachedTo|WouldDestroy)$",
 "class": "vocabulary",
 "needs": "a word of filters with no read: Query has no way to ask it",
 "api": "Query read by this name"
 },
 {
-"match": "^numeric expression (AbilitiesAmong|ActivationCostSymbols|AdditionalCostPaid|AsOf|ChosenColorsOf|ChosenPowerToughness|ClampedDamage|CountersPaid|DamageBy|DieResultAt|DistributedShare|EventActivationX|HeadsFlipped|Noted|RepeatedCostsUnpaid|SharedValues|TimesActivatedThisTurn|TurnsSinceForetold)$",
+"match": "^numeric expression (AsOf|DieResultAt|DistributedShare|HeadsFlipped|Noted|SharedValues|TimesActivatedThisTurn)$",
 "class": "vocabulary",
 "needs": "a number with no read in Query or Game",
 "api": "Query read by this name"
 },
 {
-"match": "^condition (ChoseExtreme|ChoseNth|ChosenWord|CoinCameUp|CompletedDungeon|GraveyardPosition|HadExtreme|IsPrime|NotedForDraft|PlayerDid\\ ActivatedExhaust|PlayerDid\\ ActivatedGraveyardAbility|PlayerDid\\ AttackedDefender|PlayerDid\\ BentAllFour|PlayerDid\\ PaidOrLostEnergy|PlayerDid\\ PlayedFromExile|PlayerDid\\ PlayedLandNotFromHand|PlayerDid\\ RolledDie|PlayerDid\\ WasMonarch|PlayerTook|SubsetMeets|TargetsMatch|ValueChosen|ValueChosenIs|VotedAs|WasCastFrom|WonSubgame)$",
+"match": "^condition (ChoseNth|ChosenWord|IsPrime|PlayerDid\\ ActivatedExhaust|PlayerDid\\ ActivatedGraveyardAbility|PlayerDid\\ AttackedDefender|PlayerDid\\ BentAllFour|PlayerDid\\ PaidOrLostEnergy|PlayerDid\\ PlayedFromExile|PlayerDid\\ PlayedLandNotFromHand|PlayerDid\\ RolledDie|PlayerDid\\ WasMonarch|PlayerTook|ValueChosen|WasCastFrom|WonSubgame)$",
 "class": "vocabulary",
 "needs": "a condition with no read in Query or Game",
 "api": "Query read by this name"
 },
 {
-"match": "^object collection (AnyZone|EventGroup|FromHistory|MovedBy|Scoped|SplicedOnto|TargetsOf|Unselected)$",
+"match": "^object collection (AnyZone|FromHistory|MovedBy|Scoped|Unselected)$",
 "class": "vocabulary",
 "needs": "a set of objects with no read in Query or Game",
 "api": "Query read by this name"
 },
 {
-"match": "^object reference (AtEnd|ChosenBy|MadeHere|NthChosen|Scoped|SoleTargetOf|SourceOf)$",
+"match": "^object reference (AtEnd|Scoped)$",
 "class": "vocabulary",
 "needs": "an object named with no read in Query or Game",
 "api": "Query read by this name"

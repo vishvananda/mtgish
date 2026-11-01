@@ -1257,10 +1257,11 @@ impl Compiler {
                 );
             }
             Operation::Together(operations) => {
-                self.plan_structure(&feature, "Together", out);
+                self.plan_code(&feature, "g.begin_simultaneous()", out);
                 for operation in operations {
                     self.operation(operation, result, out)?;
                 }
+                self.plan_code(&feature, "g.end_simultaneous()", out);
             }
             Operation::GameEffect { until, effect } => {
                 let until = self.duration(until)?;
@@ -1763,7 +1764,7 @@ impl Compiler {
     }
     /// An operand, in planned code: what the generator can read, read, and the
     /// words of the rest. None of this runs until a requirement lands.
-    fn operand_code(&mut self, operand: &Operand) -> String {
+    pub(super) fn operand_code(&mut self, operand: &Operand) -> String {
         let read = |r: Result<String>, operand: &Operand| match r {
             Ok(code) => code,
             Err(_) => quoted(&format!("{operand:?}")),
@@ -1970,6 +1971,10 @@ impl Compiler {
         let read = |n: &Expr| -> Result<String> {
             Ok(self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?))
         };
+        // "A number between 0 and 7".
+        if let [Operand::Integer(least), Operand::Integer(most)] = options {
+            return Ok((format!("{least}u32"), format!("{most}u32")));
+        }
         let (mut least, mut most) = ("0u32".to_string(), "i32::MAX as u32".to_string());
         for option in options {
             match option {
@@ -2026,7 +2031,7 @@ impl Compiler {
                     false => writeln!(out, "let player_{id} = {player}; let least_{id} = {least}; let most_{id} = {most}; let {local}: u32 = {M}::choose::number(g, player_{id}, {source}, least_{id}, most_{id}, \"Choose a number\")?;").unwrap(),
                 }
             }
-            other => return Err(gap(format!("a choice of {other:?}"))),
+            other => return self.choose_value_p(other, player, source, options, local, id, out),
         }
         Ok(())
     }

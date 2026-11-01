@@ -2078,6 +2078,7 @@ fn emit_face(
         }
         None => rust,
     };
+    let rust = lane_p::remembered(rust);
     let mut gaps = c.gaps;
     gaps.extend(planned::value_gaps(&rust));
     Ok(EmittedModule {

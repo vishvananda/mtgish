@@ -588,7 +588,8 @@ impl Compiler {
                     .or_else(|| lane_l::plain_purpose(result, rest))
                     .or_else(|| lane_l::plain_purpose(result, &self.after))
                     .or_else(|| self.read_later(result).then_some("ChooseAsEnters"))
-                    .ok_or_else(|| gap("resolution choice prompt purpose"))?;
+                    // Nothing it says yet happens to them: the prompt's plain word.
+                    .unwrap_or("Choose");
                 self.choose(player, objects, count, result, purpose, out)
             }
             Instruction::Effect {
@@ -813,6 +814,9 @@ impl Compiler {
         purpose: &str,
         out: &mut String,
     ) -> Result<()> {
+        if self.from_outside(objects) {
+            self.notes.outside.insert(result.0);
+        }
         let count = self.select_count(count)?;
         let local = format!("selected_{}", self.fresh());
         writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_count = {}; let {local} = cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of({local}_count, &[]))?;", self.fetch(self.certain_player(player)?), self.fetch(self.objects(objects)?), self.fetch(count)).unwrap();
@@ -1861,6 +1865,7 @@ impl Compiler {
     ) -> Result<()> {
         let alone = self.one_object(objects);
         let revealed = self.revealed;
+        let outside = self.from_outside(objects);
         let objects = self.fetch(self.objects(objects)?);
         let library = |place: String| format!("g.put_into_library(&objects_{id}, {place})");
         let call = match destination {
@@ -1896,6 +1901,8 @@ impl Compiler {
                 self.exile_with_counters(id, entry)?
             }
             _ if !plain_entry(entry) => return Err(gap("move arrival flags")),
+            // Into the game: CR 400.11b.
+            Destination::OwnersHand if outside => lane_p::bring_into_hand(id, revealed),
             // All players can still see the card as it moves (603.10a, 701.20a).
             Destination::OwnersHand if revealed => {
                 format!("g.return_to_hand_revealed(&objects_{id})")

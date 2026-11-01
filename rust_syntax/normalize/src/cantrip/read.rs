@@ -900,6 +900,12 @@ impl Compiler {
                 max: u16::MAX.into(),
                 dynamic: true,
             },
+            Expr::CountManaSymbols { objects, colors }
+                if self.reader != Reader::Layer
+                    && matches!(colors.as_slice(), [ManaColor::Chosen]) =>
+            {
+                self.devotion_to_chosen(objects)?
+            }
             Expr::CountManaSymbols { objects, colors } if self.reader != Reader::Layer => {
                 let (
                     ObjectSet::Battlefield(ObjectFilter::ControlledBy(PlayerSet::One(player))),
@@ -1068,6 +1074,29 @@ impl Compiler {
                     DistinctProperty::ManaValues if self.reader != Reader::Layer => {
                         list("q.mana_value(id)")
                     }
+                    DistinctProperty::ManaValues => {
+                        list(&format!("{}.mana_value()", self.cost_of("id", "q.chars(id)")))
+                    }
+                    DistinctProperty::ManaCosts if self.reader != Reader::Layer => {
+                        list("q.mana_cost(id)")
+                    }
+                    DistinctProperty::PermanentTypes => gather(
+                        "TypeSet::NONE",
+                        "for kind in q.chars(id).types.iter().filter(|kind| matches!(kind, CardType::Artifact | CardType::Battle | CardType::Creature | CardType::Enchantment | CardType::Land | CardType::Planeswalker)) { seen = seen.with(kind); }",
+                    ),
+                    DistinctProperty::CounterTypes => format!(
+                        "{{ let mut seen = Vec::new(); for id in {objects} {{ for kind in CounterKind::ALL {{ if q.state().obj(id).counters(kind) > 0 && !seen.contains(&kind) {{ seen.push(kind); }} }} }} seen.len() as i64 }}"
+                    ),
+                    DistinctProperty::PlaneswalkerTypes => planned::planned_value(
+                        "distinct PlaneswalkerTypes",
+                        "0i64",
+                        &subtypes("kind.is_planeswalker_type()"),
+                    ),
+                    DistinctProperty::ColorPairs => planned::planned_value(
+                        "distinct ColorPairs",
+                        "0i64",
+                        &format!("cantrip_mechanics::domain::color_pairs(q, &{objects})"),
+                    ),
                     other => return Err(gap(format!("distinct {}", form(other)))),
                 })
             }
@@ -1351,6 +1380,9 @@ impl Compiler {
     }
     /// A boolean over `candidate`, the object `ObjectRef::Candidate` names.
     pub(super) fn filter(&self, f: &ObjectFilter, candidate: &Candidate) -> Result<String> {
+        if let Some(either) = lane_p::any_of_filter(f) {
+            return self.filter(&either, candidate);
+        }
         self.candidates.borrow_mut().push(candidate.clone());
         let compiled = self.predicate(f, candidate);
         self.candidates.borrow_mut().pop();

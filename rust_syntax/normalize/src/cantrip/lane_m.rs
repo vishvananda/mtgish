@@ -19,7 +19,7 @@ impl Compiler {
         }
     }
     /// `ManaCost` of the object, by either reader.
-    fn cost_of(&self, id: &str, chars: &str) -> String {
+    pub(super) fn cost_of(&self, id: &str, chars: &str) -> String {
         match self.reader {
             Reader::Layer => format!(
                 "cantrip_api::mana_cost_of(&|card| q.cards().get(card), q.state().obj({id}), &{chars})"
@@ -226,6 +226,10 @@ pub(super) struct Notes {
     pub walking: Option<(u32, String)>,
     /// Steps of a walk where each player moves only what they own.
     pub own: BTreeSet<u32>,
+    /// A choice among filters: the local holding its index, and the filters.
+    pub filters: Option<(String, Vec<ObjectFilter>)>,
+    /// Choices made among cards outside the game.
+    pub outside: BTreeSet<u32>,
 }
 
 /// The words `EarlierObjects` has for what an operation acts on.
@@ -690,7 +694,7 @@ impl Compiler {
                 what,
                 by: None | Some(PlayerRef::AbilityController),
             } => format!("({}).first().copied()", self.earlier_objects(what)?),
-            other => return Err(gap(format!("object reference {}", form(other)))),
+            other => return self.object_p(other),
         })
     }
     /// The rest of `objects`.
@@ -699,7 +703,7 @@ impl Compiler {
             ObjectSet::Earlier { what, by: None } => self.earlier_objects(what)?,
             ObjectSet::Copies(result) => self.named(result)?,
             ObjectSet::Unselected(result) => self.unselected(result)?,
-            other => return Err(gap(format!("object collection {}", form(other)))),
+            other => return self.objects_p(other),
         })
     }
     /// What a choice offered and didn't take, all the players' for a choice each
@@ -847,7 +851,7 @@ impl Compiler {
                 self.object(object)?,
                 self.filter(sources, &Candidate::of("source"))?
             )),
-            other => return Err(gap(format!("numeric expression {}", form(other)))),
+            other => return self.number_p(other),
         })
     }
     /// The rest of `predicate`.
@@ -899,7 +903,7 @@ impl Compiler {
                 "false",
                 &format!("q.draft_notes({id}, {})", one_line(f)),
             ),
-            other => return Err(gap(format!("object filter {}", form(other)))),
+            other => return self.predicate_p(other, c),
         })
     }
     /// The rest of `condition`.
@@ -982,7 +986,7 @@ impl Compiler {
                     None => return Err(gap("condition PlayerTook")),
                 }
             }
-            other => return Err(gap(format!("condition {}", form(other)))),
+            other => return self.condition_p(other),
         })
     }
 }
