@@ -94,6 +94,8 @@ pub(super) struct Frame {
     pub damage_source: Option<Carried>,
     pub damage_recipient: Option<Carried>,
     pub stack_object: Option<Carried>,
+    /// Who controls what `stack_object` names, spell or ability.
+    pub stack_controller: Option<Carried>,
     pub attacker: Option<Carried>,
     pub blocker: Option<Carried>,
 }
@@ -113,6 +115,7 @@ impl Frame {
             damage_source: same(self.damage_source, other.damage_source),
             damage_recipient: same(self.damage_recipient, other.damage_recipient),
             stack_object: same(self.stack_object, other.stack_object),
+            stack_controller: same(self.stack_controller, other.stack_controller),
             attacker: same(self.attacker, other.attacker),
             blocker: same(self.blocker, other.blocker),
         }
@@ -210,13 +213,18 @@ impl Compiler {
         };
         match carried {
             Carried::Subject => Ok((subject, data)),
-            Carried::Data(_) if data.is_empty() => {
-                Err(gap("event value in a target filter beyond its subject"))
-            }
+            Carried::Data(_) if data.is_empty() => Ok((
+                subject,
+                planned::planned_value(
+                    "event value in a target filter beyond its subject",
+                    "[u32::MAX; 2]",
+                    "q.event_data()",
+                ),
+            )),
             Carried::Data(_) => Ok((subject, data)),
         }
     }
-    fn carried_object(&self, carried: Option<Carried>) -> Result<String> {
+    pub(super) fn carried_object(&self, carried: Option<Carried>) -> Result<String> {
         let carried = carried.ok_or_else(|| gap("event object this trigger does not bind"))?;
         let (subject, data) = self.carried(carried)?;
         Ok(match carried {
@@ -355,7 +363,7 @@ impl Compiler {
                 };
                 format!("({list}).get({index} as usize).copied()")
             }
-            other => return Err(gap(format!("object reference {}", form(other)))),
+            other => return self.object_rest(other),
         })
     }
     /// `Option<PlayerId>`, for the same reason as `object`.
@@ -369,6 +377,12 @@ impl Compiler {
             }
             PlayerRef::AbilityController => "Some(asker.controller)".into(),
             PlayerRef::Active => "Some(q.state().turn.active)".into(),
+            PlayerRef::ControllerOf(object)
+                if matches!(**object, ObjectRef::EventStackObject)
+                    && self.frame.stack_controller.is_some() =>
+            {
+                self.carried_player(self.frame.stack_controller)?
+            }
             PlayerRef::ControllerOf(object) => format!(
                 "{}.map(|o: ObjectId| q.controller(o))",
                 self.object(object)?
@@ -400,7 +414,7 @@ impl Compiler {
                 "{}.and_then(|o: ObjectId| q.state().obj(o).attached_player)",
                 self.object(object)?
             ),
-            other => return Err(gap(format!("player reference {}", form(other)))),
+            other => return self.player_rest(other),
         })
     }
     /// One player, where a card's text leaves no way for there to be none.
@@ -409,6 +423,10 @@ impl Compiler {
             match object {
                 ObjectRef::Source | ObjectRef::Candidate | ObjectRef::Bound(_) => true,
                 ObjectRef::EventSubject => c.frame.object == Some(Carried::Subject),
+                // A spell or ability that made a target of something, and
+                // the source of damage, have a controller as they last existed.
+                ObjectRef::EventStackObject => c.frame.stack_controller.is_some(),
+                ObjectRef::Damage(DamageSubject::Source) => c.frame.damage_source.is_some(),
                 ObjectRef::Target { slot, index } => c.slots.get(&slot.0).is_some_and(|(_, spec)| {
                     matches!(&spec.count, Count::Exactly(Expr::Constant(n)) if *n > i64::from(*index))
                 }),
@@ -460,11 +478,26 @@ impl Compiler {
             | ObjectSet::Observed(result)
             | ObjectSet::Affected(result) => self.selected(result)?,
             ObjectSet::CostObjects {
+                payment: PaymentRef::Resolution(result),
+                phase,
+                ..
+            } => self.transition(result, phase)?,
+            ObjectSet::CostObjects {
                 payment,
                 component,
                 phase: ObjectPhase::Before,
                 ..
             } => self.cost_objects(payment, component)?,
+            // What paid, as what it became.
+            ObjectSet::CostObjects {
+                payment,
+                component,
+                phase: ObjectPhase::After,
+                ..
+            } => format!(
+                "({}).into_iter().filter_map(|o: ObjectId| q.state().obj(o).became).collect::<Vec<ObjectId>>()",
+                self.cost_objects(payment, component)?
+            ),
             ObjectSet::Created(result) => self.created(result)?,
             ObjectSet::Transition { result, phase } => self.transition(result, phase)?,
             ObjectSet::Matching { objects, filter } => format!(
@@ -529,7 +562,7 @@ impl Compiler {
             ObjectSet::EventGroup if self.event_at == EventAt::Item && self.grouped => {
                 "q.event_objects(item).to_vec()".into()
             }
-            other => return Err(gap(format!("object collection {}", form(other)))),
+            other => return self.objects_rest(other),
         })
     }
     /// `Vec<ObjectId>` of what paid part of a cost, as it was when it did. The
@@ -688,7 +721,7 @@ impl Compiler {
             other => format!("({}).contains(&{who})", self.players(other)?),
         })
     }
-    fn property(&self, id: &str, property: &Property) -> Result<Number> {
+    pub(super) fn property(&self, id: &str, property: &Property) -> Result<Number> {
         let pt = |field: &str| Number {
             code: format!("i64::from(q.chars({id}).{field}.unwrap_or(0))"),
             min: i16::MIN.into(),
@@ -1141,7 +1174,7 @@ impl Compiler {
                 max: i32::MAX.into(),
                 dynamic: true,
             },
-            other => return Err(gap(format!("numeric expression {}", form(other)))),
+            other => return self.number_rest(other),
         })
     }
     /// A boolean over `t: &Target`: whether a spell targeting it targets these.
@@ -1396,7 +1429,7 @@ impl Compiler {
                 format!("({}).contains(&{id})", self.objects(objects)?)
             }
             ObjectFilter::Condition(condition) => self.condition(condition)?,
-            other => return Err(gap(format!("object filter {}", form(other)))),
+            other => return self.predicate_rest(other, c),
         })
     }
     pub(super) fn condition(&self, condition: &Condition) -> Result<String> {
@@ -1529,7 +1562,7 @@ impl Compiler {
                 self.player(player)?,
                 self.player_state(state)?
             ),
-            other => return Err(gap(format!("condition {}", form(other)))),
+            other => return self.condition_rest(other),
         })
     }
     /// Whether `player` is in this state.

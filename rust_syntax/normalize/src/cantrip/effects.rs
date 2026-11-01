@@ -352,6 +352,11 @@ impl Compiler {
                 if compiled.is_err() {
                     if let Instruction::Effect { result, .. } = instruction {
                         c.failed.insert(result.0);
+                        // Nothing it would have bound was bound.
+                        c.selections.remove(&result.0);
+                        c.moved.remove(&result.0);
+                        c.creations.remove(&result.0);
+                        c.before.remove(&result.0);
                     }
                 }
                 compiled
@@ -731,9 +736,14 @@ impl Compiler {
             self.objects(objects)?
         )))
     }
-    fn operation(&mut self, op: &Operation, result: &ResultId, out: &mut String) -> Result<()> {
+    pub(super) fn operation(&mut self, op: &Operation, result: &ResultId, out: &mut String) -> Result<()> {
         let id = self.fresh();
         match op {
+            Operation::PayCost {
+                player: PlayerRef::FirstWilling(players),
+                cost,
+                optional,
+            } => self.first_willing(id, players, cost, *optional, result, out)?,
             Operation::AddMana {
                 players,
                 mana,
@@ -1181,7 +1191,7 @@ impl Compiler {
             } if self.asking.is_none() && performed_by_itself(cost) => {
                 writeln!(
                     out,
-                    "let payer_{id} = {}; let paid_{id} = if cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)? {{",
+                    "let mut kept_{id}: Vec<ObjectId> = Vec::new(); let mut was_{id}: Vec<ObjectId> = Vec::new(); let payer_{id} = {}; let paid_{id} = if cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)? {{",
                     self.fetch(self.certain_player(player)?)
                 )
                 .unwrap();
@@ -1192,15 +1202,23 @@ impl Compiler {
                 };
                 self.operation(&mandatory, result, out)?;
                 let inner = self.performed.insert(result.0, format!("paid_{id}"));
+                // What it moved is kept past that block, for "if you do, ... it".
+                let moved = self.moved.remove(&result.0);
+                let before = self.before.remove(&result.0);
+                if let Some(moved) = &moved {
+                    writeln!(out, "kept_{id} = {moved}.clone();").unwrap();
+                    self.moved.insert(result.0, format!("kept_{id}"));
+                }
+                if let Some(before) = &before {
+                    writeln!(out, "was_{id} = {};", self.fetch(before)).unwrap();
+                    self.before.insert(result.0, format!("was_{id}.clone()"));
+                }
                 writeln!(
                     out,
                     "{} }} else {{ false }};",
                     inner.expect("a paid result")
                 )
                 .unwrap();
-                // What it moved stays in that block.
-                self.moved.remove(&result.0);
-                self.before.remove(&result.0);
                 self.selections.remove(&result.0);
             }
             // "You may pay {X}": the payer says what X is as they pay (107.3f), and

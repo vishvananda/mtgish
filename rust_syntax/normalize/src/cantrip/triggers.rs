@@ -541,6 +541,7 @@ impl Compiler {
         let frame = Frame {
             object: Some(Carried::Subject),
             stack_object: matches!(kind, TargetingKind::Spell).then_some(Carried::Data(0)),
+            stack_controller: Some(Carried::Data(1)),
             ..Frame::default()
         };
         let mut tests = vec![self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?];

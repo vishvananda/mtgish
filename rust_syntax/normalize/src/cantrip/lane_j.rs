@@ -1189,6 +1189,7 @@ impl Compiler {
         };
         let frame = Frame {
             player: Some(Carried::Subject),
+            stack_controller: Some(Carried::Data(1)),
             ..Frame::default()
         };
         let tests = self.matching(frame, |c| {
@@ -1300,9 +1301,12 @@ impl Compiler {
             Some((Comparison::GreaterOrEqual, Expr::Constant(1))) => true,
             Some(_) => return Err(gap("trigger event AttackUnblocked of a count")),
         };
+        // "That player" is the one attacked, or with "one or more creatures an
+        // opponent controls attack you" the one attacking.
         let frame = Frame {
             object: (!grouped).then_some(Carried::Subject),
             other_player: Some(Carried::Data(0)),
+            player: Some(Carried::Data(usize::from(grouped))),
             ..Frame::default()
         };
         let tests = self.matching(frame, |c| {
@@ -1315,14 +1319,14 @@ impl Compiler {
             "UNBLOCKED",
             Arm {
                 pattern: "Event::Unblocked { attacker, defender }".into(),
-                locals: "let id = *attacker; let subject = Target::Object(id); let data = [q.defending_player(id).map_or(u32::MAX, |p| u32::from(p.0)), u32::MAX];".into(),
+                locals: "let id = *attacker; let subject = Target::Object(id); let data = [q.defending_player(id).map_or(u32::MAX, |p| u32::from(p.0)), u32::from(q.controller(id).0)];".into(),
                 tests,
             },
             frame,
             "Whenever this attacks and isn't blocked",
         );
         if grouped {
-            matched.batch = Some(false);
+            matched.batch = Some(true);
         }
         Ok(matched)
     }
@@ -1499,4 +1503,576 @@ fn held_arm(
     );
     matched.planned = Some(feature.into());
     matched
+}
+
+/// A count, as `number` makes one.
+fn counted(code: String) -> Number {
+    Number {
+        code,
+        min: 0,
+        max: u32::MAX.into(),
+        dynamic: true,
+    }
+}
+/// The number Cantrip has no way to read yet.
+fn held_number(feature: String, code: &str) -> Number {
+    counted(planned::planned_value(&feature, "0i64", code))
+}
+
+impl Compiler {
+    /// What the object Cantrip has chosen for this ability or as it entered is
+    /// linked by.
+    fn linked(&self) -> &'static str {
+        match self.reader {
+            Reader::Layer => "q.linked_to(asker.source)",
+            Reader::Resolution if self.stack_item => "q.linked(item)",
+            _ => "q.linked_to(asker)",
+        }
+    }
+    /// The rest of `object`.
+    pub(super) fn object_rest(&self, object: &ObjectRef) -> Result<String> {
+        let held = |code: &str| {
+            Ok(planned::planned_value(
+                &format!("object reference {}", form(object)),
+                "None::<ObjectId>",
+                code,
+            ))
+        };
+        Ok(match object {
+            ObjectRef::Chosen => format!("q.state().chosen_object({})", self.linked()),
+            ObjectRef::Named { result, .. } => {
+                format!("({}).first().copied()", self.named(result)?)
+            }
+            // The object the discard made is what the event names.
+            ObjectRef::Discarded if self.frame.object.is_some() => {
+                self.carried_object(self.frame.object)?
+            }
+            ObjectRef::Granter => return held("q.granted_by(asker.source)"),
+            ObjectRef::PairedWith(_) => {
+                return held(&format!(
+                    "{}.and_then(|o: ObjectId| q.state().obj(o).paired_with)",
+                    self.object(match object {
+                        ObjectRef::PairedWith(of) => of,
+                        _ => unreachable!(),
+                    })?
+                ))
+            }
+            ObjectRef::RingBearer(_) => return held("q.ring_bearer(player)"),
+            ObjectRef::HauntedBy(_) => return held("q.state().obj(o).haunted_by"),
+            other => return Err(gap(format!("object reference {}", form(other)))),
+        })
+    }
+    /// The rest of `player`.
+    pub(super) fn player_rest(&self, player: &PlayerRef) -> Result<String> {
+        Ok(match player {
+            PlayerRef::Chosen => match self.chosen_local(ValueKind::Player) {
+                Ok(local) => format!("Some({local})"),
+                Err(_) => format!("q.state().chosen_player({})", self.linked()),
+            },
+            PlayerRef::DefendingPlayerOf(object) => format!(
+                "{}.and_then(|o: ObjectId| q.state().attackers.iter().find(|a| a.id == o).map(|a| a.defending))",
+                self.object(object)?
+            ),
+            // The active player is the attacking player (CR 506.2).
+            PlayerRef::AttackingPlayer => "Some(q.state().turn.active)".into(),
+            PlayerRef::Holder(Designation::Monarch) => {
+                "q.state().seats().find(|&p| q.state().player(p).monarch)".into()
+            }
+            PlayerRef::Holder(Designation::Initiative) => {
+                "q.state().seats().find(|&p| q.state().player(p).initiative)".into()
+            }
+            PlayerRef::PlayerOrControllerOf(recipients) => match &**recipients {
+                Recipients::Target { slot, index } => format!(
+                    "t_{}_raw.get({index}).copied().and_then(|t: Target| t.player().or(t.object().map(|o| q.controller(o))))",
+                    self.slot(slot)?
+                ),
+                other => {
+                    return Err(gap(format!(
+                        "player reference PlayerOrControllerOf {}",
+                        form(other)
+                    )))
+                }
+            },
+            other => return Err(gap(format!("player reference {}", form(other)))),
+        })
+    }
+    /// What a preceding instruction named, by the list it keeps.
+    fn named(&self, result: &ResultId) -> Result<String> {
+        if self.selections.contains_key(&result.0) {
+            self.selected(result)
+        } else if self.creations.contains_key(&result.0) {
+            self.created(result)
+        } else {
+            self.transition(result, &ObjectPhase::After)
+        }
+    }
+    /// The rest of `objects`.
+    pub(super) fn objects_rest(&self, objects: &ObjectSet) -> Result<String> {
+        Ok(match objects {
+            ObjectSet::Named(result) => self.named(result)?,
+            // CR 609.7a: permanents, spells, what those name, and what waits to apply.
+            ObjectSet::DamageSources(filter) => format!(
+                "({}).into_iter().filter(|&id| {}).collect::<Vec<ObjectId>>()",
+                planned::planned_value(
+                    "object collection DamageSources",
+                    "Vec::<ObjectId>::new()",
+                    "cantrip_mechanics::damage_sources(q)"
+                ),
+                self.filter(filter, &Candidate::of("id"))?
+            ),
+            other => return Err(gap(format!("object collection {}", form(other)))),
+        })
+    }
+    /// One player's number, for `p`, a `PlayerId`.
+    fn player_number(&self, p: &str, number: &PlayerNumber) -> Result<String> {
+        let held = |code: String| {
+            planned::planned_value(
+                &format!("numeric expression PlayerNumber {}", form(number)),
+                "0i64",
+                &code,
+            )
+        };
+        Ok(match number {
+            PlayerNumber::Life => format!("i64::from(q.state().player({p}).life)"),
+            PlayerNumber::CardsInHand => format!("q.state().zone(Zone::hand({p})).len() as i64"),
+            PlayerNumber::Energy => format!("i64::from(q.state().player({p}).energy())"),
+            PlayerNumber::Speed => {
+                format!("i64::from(q.state().player({p}).speed.unwrap_or(0))")
+            }
+            PlayerNumber::Permanents(filter) => format!(
+                "q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == {p} && {}).count() as i64",
+                self.filter(filter, &Candidate::of("id"))?
+            ),
+            PlayerNumber::UnspentMana => format!(
+                "i64::from(q.state().player({p}).pool.total() + q.state().player({p}).lasting.total())"
+            ),
+            PlayerNumber::UnspentManaOf(of) => format!(
+                "i64::from(q.state().player({p}).pool.get(Mana::{m}) + q.state().player({p}).lasting.get(Mana::{m}))",
+                m = mana_letter(of)
+            ),
+            PlayerNumber::TurnsBegun => format!(
+                "q.history().all().iter().filter(|r| matches!(r.event, Event::TurnBegan {{ player, .. }} if player == {p})).count() as i64"
+            ),
+            PlayerNumber::CardsDrawnThisTurn if self.reader != Reader::Layer => {
+                format!("cantrip_mechanics::history::drawn_this_turn(q, {p}) as i64")
+            }
+            PlayerNumber::DungeonsCompleted => format!(
+                "q.history().all().iter().filter(|r| matches!(r.event, Event::DungeonCompleted {{ player }} if player == {p})).count() as i64"
+            ),
+            other => held(format!("q.player_number({p}, PlayerNumber::{})", form(other))),
+        })
+    }
+    /// The rest of `number`.
+    pub(super) fn number_rest(&self, n: &Expr) -> Result<Number> {
+        let resolving = self.reader == Reader::Resolution && self.stack_item;
+        let feature = format!("numeric expression {}", form(n));
+        Ok(match n {
+            Expr::PlayerNumber { player, number } => counted(format!(
+                "{}.map_or(0i64, |p: PlayerId| {})",
+                self.player(player)?,
+                self.player_number("p", number)?
+            )),
+            Expr::AmongPlayers {
+                players,
+                number,
+                aggregation,
+            } => {
+                let pick = match aggregation {
+                    Aggregation::Maximum => "max",
+                    Aggregation::Minimum => "min",
+                    other => {
+                        return Err(gap(format!(
+                            "numeric expression AmongPlayers {}",
+                            form(other)
+                        )))
+                    }
+                };
+                counted(format!(
+                    "({}).into_iter().map(|p: PlayerId| {}).{pick}().unwrap_or(0)",
+                    self.players(players)?,
+                    self.player_number("p", number)?
+                ))
+            }
+            Expr::TimesKicked(object) => counted(format!(
+                "{}.map_or(0i64, |o: ObjectId| i64::from(q.state().obj(o).kicked))",
+                self.object(object)?
+            )),
+            // The history has this one only once it's done (CR 608.2m).
+            Expr::TimesResolvedThisTurn if resolving => {
+                counted("q.history().resolutions(item.object, item.ability) as i64 + 1".into())
+            }
+            Expr::TimesActivatedThisTurn if resolving => counted(
+                "q.history().this_turn().iter().filter(|r| matches!(r.event, Event::AbilityActivated { source, ability, .. } if source == item.object && ability == item.ability)).count() as i64".into(),
+            ),
+            Expr::AnnouncedX => held_number(feature, "i64::from(q.announced_x().unwrap_or(0))"),
+            Expr::CountManaSymbols { colors, .. } => held_number(
+                feature,
+                &format!(
+                    "i64::from(cantrip_mechanics::devotion::symbols_among(q, &objects, {}))",
+                    colors.len()
+                ),
+            ),
+            Expr::PaidCountersRemoved { .. } => {
+                held_number(feature, "i64::from(q.counters_paid(item))")
+            }
+            Expr::ExcessDamage { .. } => held_number(feature, "i64::from(result.excess)"),
+            Expr::ChosenNumber => match self.chosen_local(ValueKind::Number) {
+                Ok(local) => counted(format!("i64::from({local})")),
+                Err(_) => counted(format!(
+                    "q.state().chosen_number({}).map_or(0i64, i64::from)",
+                    self.linked()
+                )),
+            },
+            other => return Err(gap(format!("numeric expression {}", form(other)))),
+        })
+    }
+    /// The records of a window.
+    fn object_window(&self, window: &ObjectWindow) -> Result<String> {
+        Ok(match window {
+            ObjectWindow::ThisTurn => "q.history().this_turn().iter()".into(),
+            ObjectWindow::ThisGame => "q.history().all().iter()".into(),
+            ObjectWindow::ThisCombat if self.reader != Reader::Layer => {
+                "cantrip_mechanics::history::this_combat(q).iter()".into()
+            }
+            ObjectWindow::LastTurnOf(player) => format!(
+                "{{ let of = {}; let turn = q.history().all().iter().rev().find(|r| Some(r.active) == of && r.turn < q.state().turn.number).map(|r| r.turn); q.history().all().iter().filter(move |r| Some(r.turn) == turn) }}",
+                self.player(player)?
+            ),
+            other => return Err(gap(format!("history window {}", form(other)))),
+        })
+    }
+    /// `ObjectFilter::History`.
+    fn object_history(
+        &self,
+        event: &ObjectHistory,
+        window: &ObjectWindow,
+        id: &str,
+    ) -> Result<String> {
+        type H = ObjectHistory;
+        let moved = |pattern: &str, test: &str| {
+            format!("Event::ZoneChange {{ {pattern}, .. }} if {test}")
+        };
+        let pattern = match event {
+            H::Attacked => format!("Event::Attacks {{ attacker, .. }} if attacker == {id}"),
+            H::Blocked => format!("Event::Blocks {{ blocker, .. }} if blocker == {id}"),
+            H::WasBlocked => format!("Event::Blocks {{ attacker, .. }} if attacker == {id}"),
+            H::AbilityActivated => {
+                format!("Event::AbilityActivated {{ source, .. }} if source == {id}")
+            }
+            H::Entered => moved("new, to", &format!("new == {id} && to.is(ZoneKind::Battlefield)")),
+            H::Drawn(None) => format!("Event::Drew {{ card, .. }} if card == {id}"),
+            H::Drawn(Some(players)) => format!(
+                "Event::Drew {{ card, player }} if card == {id} && {}",
+                self.player_in(players, "player")?
+            ),
+            H::Cycled => format!("Event::Cycled {{ card, .. }} if card == {id}"),
+            H::Discarded => format!("Event::Discarded {{ card, .. }} if card == {id}"),
+            H::Milled => moved("new, reason: ZoneReason::Mill", &format!("new == {id}")),
+            H::Sacrificed => moved("new, reason: ZoneReason::Sacrifice", &format!("new == {id}")),
+            H::Exiled => moved("new, to", &format!("new == {id} && to.is(ZoneKind::Exile)")),
+            H::PutIntoGraveyard => {
+                moved("new, to", &format!("new == {id} && to.is(ZoneKind::Graveyard)"))
+            }
+            H::PutIntoHand => moved("new, to", &format!("new == {id} && to.is(ZoneKind::Hand)")),
+            H::DiedOrPutFromBattlefield => moved(
+                "new, from, to",
+                &format!("new == {id} && from.is(ZoneKind::Battlefield) && to.is(ZoneKind::Graveyard)"),
+            ),
+            H::Convoked(object) => format!(
+                "Event::Convoked {{ creature, spell }} if creature == {id} && {} == Some(spell)",
+                self.object(object)?
+            ),
+            H::DamagedBy(object) => format!(
+                "Event::Damage {{ source, target: Target::Object(hit), .. }} if hit == {id} && {} == Some(source)",
+                self.object(object)?
+            ),
+            other => return Err(gap(format!("object filter History {}", form(other)))),
+        };
+        Ok(format!(
+            "{}.any(|r| matches!(r.event, {pattern}))",
+            self.object_window(window)?
+        ))
+    }
+    /// `HasKeywordFamily`: `Keyword`s, or an ability only the card's text has.
+    fn keyword_family(&self, family: &KeywordFamily, chars: &str, id: &str) -> String {
+        let any = |words: &[&str]| {
+            let tests = words
+                .iter()
+                .map(|w| format!("{chars}.keywords.has(Keyword::{w})"))
+                .collect::<Vec<_>>();
+            format!("({})", tests.join(" || "))
+        };
+        match family {
+            KeywordFamily::Hexproof => any(&["Hexproof"]),
+            KeywordFamily::Decayed => any(&["Decayed"]),
+            KeywordFamily::Morph => any(&["Morph"]),
+            KeywordFamily::Disguise => any(&["Disguise"]),
+            KeywordFamily::Phasing => any(&["Phasing"]),
+            KeywordFamily::Landwalk => any(&[
+                "Islandwalk",
+                "Plainswalk",
+                "Swampwalk",
+                "Mountainwalk",
+                "Forestwalk",
+                "NonbasicLandwalk",
+                "LegendaryLandwalk",
+            ]),
+            other => planned::planned_value(
+                "object filter HasKeywordFamily",
+                "false",
+                &format!("q.has_keyword_ability({id}, KeywordAbility::{})", form(other)),
+            ),
+        }
+    }
+    /// The rest of `predicate`.
+    pub(super) fn predicate_rest(&self, f: &ObjectFilter, c: &Candidate) -> Result<String> {
+        let (id, chars) = (c.id.as_str(), c.chars.as_str());
+        let layer = self.reader == Reader::Layer;
+        let on_stack = format!("q.state().stack.iter().find(|i| i.object == {id})");
+        let held = |code: String| {
+            planned::planned_value(&format!("object filter {}", form(f)), "false", &code)
+        };
+        Ok(match f {
+            ObjectFilter::HasKeywordFamily(family) => self.keyword_family(family, chars, id),
+            ObjectFilter::AttackingDefender(defenders) => format!(
+                "q.state().attackers.iter().any(|a| a.id == {id} && {{ let defender = &a.target; {} }})",
+                self.attacked(defenders)?
+            ),
+            ObjectFilter::OnStack(StackTrait::Spell) => {
+                format!("{on_stack}.is_some_and(|i| i.kind == StackKind::Spell)")
+            }
+            ObjectFilter::OnStack(StackTrait::SingleTarget) => match c.announced.as_deref() {
+                None => format!("{on_stack}.is_some_and(|i| q.state().targets(i).len() == 1)"),
+                Some("") => return Err(gap("targets of a spell as it is cast")),
+                Some(list) => format!("{list}.len() == 1"),
+            },
+            // What's on the stack is known by the object it came from, which an
+            // ability shares with others of the same source.
+            ObjectFilter::OnStack(other) => planned::planned_value(
+                "object filter OnStack",
+                "false",
+                &format!("q.stack_item({id}).is_some_and(|i| i.is(StackTrait::{}))", form(other)),
+            ),
+            ObjectFilter::History { event, window } => self.object_history(event, window, id)?,
+            ObjectFilter::DamagedBy(_) => held(format!(
+                "cantrip_mechanics::history::permanents_dealt_damage_by(q.history(), asker.source, since).contains(&{id})"
+            )),
+            ObjectFilter::DealtExcessBy(_) => held(format!("result.excess_to({id}) > 0")),
+            ObjectFilter::ArrivedThisTurn { from: None } if !layer => {
+                format!("cantrip_mechanics::history::arrived_this_turn(q, {id})")
+            }
+            ObjectFilter::ArrivedThisTurn { from: Some(zone) } if !layer => format!(
+                "q.history().this_turn().iter().any(|r| matches!(r.event, Event::ZoneChange {{ new, from, .. }} if new == {id} && from.is({})))",
+                zone_kind(zone)?
+            ),
+            ObjectFilter::SharesNameWithAny(objects) if !layer => format!(
+                "({}).iter().any(|&o| cantrip_mechanics::same_name(q, {id}, o))",
+                self.objects(objects)?
+            ),
+            ObjectFilter::SharesNameWithAnother(objects) if !layer => format!(
+                "({}).iter().any(|&o| o != {id} && cantrip_mechanics::same_name(q, {id}, o))",
+                self.objects(objects)?
+            ),
+            ObjectFilter::SharesColorWith(object) => format!(
+                "{}.is_some_and(|o: ObjectId| q.chars(o).colors.intersects({chars}.colors))",
+                self.object(object)?
+            ),
+            ObjectFilter::SharesColorWithAny(objects) if !layer => format!(
+                "({}).iter().any(|&o| q.chars(o).colors.intersects({chars}.colors))",
+                self.objects(objects)?
+            ),
+            ObjectFilter::NthCast {
+                ordinal,
+                spells,
+                by,
+                scope,
+            } if !layer => {
+                let records = match scope {
+                    CastScope::Turn => "q.history().this_turn()",
+                    CastScope::Game => "q.history().all()",
+                };
+                let earlier = self.filter(spells, &Candidate::of("cast.spell"))?;
+                let who = match by {
+                    Some(by) => self.player_in(by, "cast.player")?,
+                    None => "true".into(),
+                };
+                format!(
+                    "({} && {records}.iter().filter_map(|r| match r.event {{ Event::Cast(cast) => Some(cast), _ => None }}).take_while(|cast| cast.spell != {id}).filter(|cast| {who} && {earlier}).count() as i64 + 1 == {})",
+                    self.filter(spells, c)?,
+                    self.number(ordinal)?.code
+                )
+            }
+            ObjectFilter::ExiledWith(ObjectRef::Source) if layer => {
+                format!("q.exiled_with(q.linked_to(asker.source)).contains(&{id})")
+            }
+            ObjectFilter::ExiledWith(object) if !layer => format!(
+                "{}.is_some_and(|o: ObjectId| q.exiled_with(q.linked_to(&Asker::new(o, q.controller(o)))).contains(&{id}))",
+                self.object(object)?
+            ),
+            ObjectFilter::BlockedByObject(object) => format!(
+                "{{ let blocker = {}; q.state().blocks.iter().any(|b| b.attacker == {id} && Some(b.blocker) == blocker) }}",
+                self.object(object)?
+            ),
+            ObjectFilter::BlockingAny(attackers) => format!(
+                "q.state().blocks.iter().any(|b| b.blocker == {id} && {})",
+                self.filter(attackers, &Candidate::of("b.attacker"))?
+            ),
+            ObjectFilter::BlockedByAny(blockers) => format!(
+                "q.state().blocks.iter().any(|b| b.attacker == {id} && {})",
+                self.filter(blockers, &Candidate::of("b.blocker"))?
+            ),
+            ObjectFilter::AttachedToPlayer(player) => format!(
+                "q.state().obj({id}).attached_player.is_some() && q.state().obj({id}).attached_player == {}",
+                self.player(player)?
+            ),
+            ObjectFilter::HasAttached(attachments) if !layer => format!(
+                "q.state().battlefield().iter().any(|&a| q.state().obj(a).attached_to == Some({id}) && {})",
+                self.filter(attachments, &Candidate::of("a"))?
+            ),
+            ObjectFilter::AttachedCount {
+                attachments,
+                comparison,
+                value,
+            } if !layer => compare(
+                &format!(
+                    "q.state().battlefield().iter().filter(|&&a| q.state().obj(a).attached_to == Some({id}) && {}).count() as i64",
+                    self.filter(attachments, &Candidate::of("a"))?
+                ),
+                comparison,
+                &self.number(value)?.code,
+            ),
+            ObjectFilter::Modified => format!(
+                "(q.state().obj({id}).has_counters() || q.state().battlefield().iter().any(|&a| q.state().obj(a).attached_to == Some({id}) && {{ let chars = q.chars(a); chars.has_subtype(Subtype::Equipment) || chars.has_subtype(Subtype::Aura) && q.controller(a) == q.controller({id}) }}))"
+            ),
+            ObjectFilter::EnteredFrom(scope) if !layer => {
+                let (zone, owners) = match scope {
+                    ZoneScope::Shared(zone) => (zone, None),
+                    ZoneScope::Players { zone, players } => (zone, Some(players)),
+                };
+                let entered = format!(
+                    "q.history().all().iter().rev().find_map(|r| match r.event {{ Event::ZoneChange {{ new, from, to, .. }} if new == {id} && to.is(ZoneKind::Battlefield) => Some(from), _ => None }}).is_some_and(|from| from.is({}))",
+                    zone_kind(zone)?
+                );
+                match owners {
+                    Some(players) => format!(
+                        "({entered} && {})",
+                        self.player_in(players, &format!("q.state().obj({id}).owner"))?
+                    ),
+                    None => entered,
+                }
+            }
+            ObjectFilter::ManaSpentFrom(sources) if !layer && c.announced.is_none() => format!(
+                "cast_of(q, {id}).is_some_and(|cast| q.history().mana_spent_to_cast(cast.spell).any(|(source, _)| {}))",
+                self.filter(sources, &Candidate::of("source"))?
+            ),
+            ObjectFilter::Extreme {
+                among,
+                property,
+                highest,
+            } if !layer => {
+                let value = self.property("o", property)?.code;
+                let mine = self.property(id, property)?.code;
+                let pick = if *highest { "max" } else { "min" };
+                format!(
+                    "({}).into_iter().map(|o: ObjectId| {value}).{pick}().is_some_and(|best| {mine} == best)",
+                    self.objects(among)?
+                )
+            }
+            ObjectFilter::InResult(result) => {
+                format!("({}).contains(&{id})", self.named(result)?)
+            }
+            ObjectFilter::KickedWith(_) => held(format!("q.state().obj({id}).kicked_with(kicker)")),
+            ObjectFilter::AlternateCostPaid(_) => {
+                held(format!("q.state().obj({id}).alternate_cost_paid(cost)"))
+            }
+            ObjectFilter::MadeBy(object) => held(format!(
+                "q.state().obj({id}).made_by == {}",
+                self.object(object)?
+            )),
+            ObjectFilter::HasActivatedAbility(_) => {
+                held(format!("q.card_of({id}).activated.iter().any(|d| matches(d))"))
+            }
+            other => return Err(gap(format!("object filter {}", form(other)))),
+        })
+    }
+    /// The rest of `condition`.
+    pub(super) fn condition_rest(&self, condition: &Condition) -> Result<String> {
+        let held = |code: &str| {
+            planned::planned_value(&format!("condition {}", form(condition)), "false", code)
+        };
+        Ok(match condition {
+            Condition::Searched(_) => held("g.searched_library()"),
+            Condition::ItsNight => "q.state().turn.day_night == DayNight::Night".into(),
+            Condition::ItsNeitherDayNorNight => "q.state().turn.day_night == DayNight::Neither".into(),
+            Condition::PlayerIn { player, players } => {
+                format!(
+                    "{}.is_some_and(|p: PlayerId| {})",
+                    self.player(player)?,
+                    self.player_in(players, "p")?
+                )
+            }
+            Condition::PlayerAttacks { attacker, defender } => format!(
+                "{{ let (by, at) = ({}, {}); q.state().attackers.iter().any(|a| Some(q.controller(a.id)) == by && Some(a.defending) == at) }}",
+                self.player(attacker)?,
+                self.player(defender)?
+            ),
+            Condition::SameTeam { .. } => held("q.state().same_team(a, b)"),
+            Condition::MostVotes { .. } => held("g.votes().most(option)"),
+            Condition::VotedFor { .. } | Condition::Voted(_) | Condition::AllVotedFor(_) => {
+                held("g.votes().voted(option)")
+            }
+            other => return Err(gap(format!("condition {}", form(other)))),
+        })
+    }
+    /// "Any player may pay": each is asked in turn, and the first who does ends it.
+    pub(super) fn first_willing(
+        &mut self,
+        id: usize,
+        players: &PlayerSet,
+        cost: &Cost,
+        optional: bool,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        if !optional {
+            return Err(gap("possibly absent player FirstWilling"));
+        }
+        let asked = self.fetch(self.players(players)?);
+        let binding = Binding(self.fresh() as u32 + 1_000_000);
+        self.bound_players.insert(binding.0);
+        writeln!(
+            out,
+            "let mut paid_{id} = false; for bound_{} in {asked} {{",
+            binding.0
+        )
+        .unwrap();
+        let ask = Operation::PayCost {
+            player: PlayerRef::Bound(binding.clone()),
+            cost: cost.clone(),
+            optional: true,
+        };
+        let done = self.operation(&ask, result, out);
+        self.bound_players.remove(&binding.0);
+        done?;
+        let inner = self.performed.insert(result.0, format!("paid_{id}"));
+        let inner = inner.ok_or_else(|| gap("possibly absent player FirstWilling"))?;
+        writeln!(out, "if {inner} {{ paid_{id} = true; break; }} }}").unwrap();
+        self.moved.remove(&result.0);
+        self.before.remove(&result.0);
+        self.selections.remove(&result.0);
+        Ok(())
+    }
+}
+
+/// A color's mana letter.
+fn mana_letter(color: &ManaColor) -> String {
+    let word = form(color);
+    match word.as_str() {
+        "White" => "W".into(),
+        "Blue" => "U".into(),
+        "Black" => "B".into(),
+        "Red" => "R".into(),
+        "Green" => "G".into(),
+        _ => "C".into(),
+    }
 }
