@@ -406,6 +406,77 @@ impl Compiler {
                 self.actor_action(action, &format!("{M}::recruit::recruit(g, player, asker.source)?"), out)?;
             }
             K::Saddle => self.object_action(action, "g.become_saddled(object)", out)?,
+            K::RemoveAllDamage => self.object_action(action, "g.heal(object)", out)?,
+            K::Harness => self.plan_for_object(
+                "engine: no Harness",
+                action,
+                &format!("{M}::harness::harness(g, object)"),
+                out,
+            )?,
+            K::Assimilate => self.plan_for_object(
+                "engine: no Assimilate",
+                action,
+                &format!("{M}::assimilate::assimilate(g, asker.source, object)"),
+                out,
+            )?,
+            K::UnlockDoor => self.plan_for_object(
+                "engine: no effect picks a door",
+                action,
+                "g.unlock_a_door(object, asker.controller)?",
+                out,
+            )?,
+            K::LockOrUnlockDoor => self.plan_for_object(
+                "engine: no effect picks a door",
+                action,
+                "g.lock_or_unlock_a_door(object, asker.controller)?",
+                out,
+            )?,
+            K::ReverseTurnOrder => {
+                self.plan_code("engine: no reversed turn order", "g.reverse_turn_order();", out)
+            }
+            K::EndCombat => self.plan_code("engine: no effect ends combat", "g.end_combat()?;", out),
+            K::DrawGame => self.plan_code("engine: no effect draws the game", "g.draw_game();", out),
+            K::ShuffleGraveyard => self.plan_for_actor(
+                "engine: no order of a graveyard",
+                action,
+                "g.shuffle_graveyard(player)",
+                out,
+            )?,
+            K::ReorderGraveyard => self.plan_for_actor(
+                "engine: no order of a graveyard",
+                action,
+                "g.reorder_graveyard(player)?",
+                out,
+            )?,
+            K::TakeExtraTurnAfterNext => self.plan_for_actor(
+                "engine: no extra turn but the next",
+                action,
+                "g.add_extra_turn_after_next(player)",
+                out,
+            )?,
+            K::TakeExtraTurnSkippingUntap => self.plan_for_actor(
+                "engine: no extra turn but the next",
+                action,
+                "g.add_extra_turn_skipping(player, Step::Untap)",
+                out,
+            )?,
+            K::DiscardAnyNumberAtRandom => self.plan_for_actor(
+                "engine: no choice of how many to discard at random",
+                action,
+                &format!("{M}::hand::discard_any_number_at_random(g, player, asker.source)?"),
+                out,
+            )?,
+            K::RollPlanarDie => self.plan_for_actor(
+                "engine: no planar deck",
+                action,
+                "g.roll_planar_die(player)",
+                out,
+            )?,
+            K::PlaySubgame => self.plan_code(
+                "engine: no subgame",
+                &format!("{M}::subgame::play(g, asker.source)?;"),
+                out,
+            ),
             K::Paradigm => {
                 self.controlled_by_item(action)?;
                 self.paradigm = true;

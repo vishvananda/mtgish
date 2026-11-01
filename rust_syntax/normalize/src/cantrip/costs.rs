@@ -113,7 +113,7 @@ fn waterbend_as_mana(price: &Cost) -> Option<Cost> {
 }
 
 /// Whether a filter keeps to permanents the ability's controller controls.
-fn yours(filter: &ObjectFilter) -> bool {
+pub(super) fn yours(filter: &ObjectFilter) -> bool {
     match filter {
         ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController)) => true,
         ObjectFilter::All(filters) => filters.iter().any(yours),
@@ -259,14 +259,15 @@ impl Compiler {
                 entry,
                 face_down: false,
             } if entry.counters.is_empty() && entry.states.is_empty() && !entry.tapped => {
-                let [CostObjectSelection { objects, choose }] = selections.as_slice() else {
-                    return Err(gap("move cost shape"));
-                };
                 if self.links_exile && matches!(destination, Destination::Exile) {
                     return Err(gap("exile cost an ability reads as exiled with its source"));
                 }
-                let n = exactly_u8(choose.as_ref())
-                    .ok_or_else(|| gap("move cost without a fixed count"))?;
+                let [CostObjectSelection { objects, choose }] = selections.as_slice() else {
+                    return self.move_cost_beyond(selections, destination, label);
+                };
+                let Some(n) = exactly_u8(choose.as_ref()) else {
+                    return self.move_cost_beyond(selections, destination, label);
+                };
                 let yours = own_graveyard(objects);
                 let objects = yours.as_ref().unwrap_or(objects);
                 match (destination, objects) {
@@ -309,13 +310,7 @@ impl Compiler {
                             ..
                         },
                     ) => format!("exile_from_hand({n}, {})", self.cost_filter(filter, label)?),
-                    (destination, objects) => {
-                        return Err(gap(format!(
-                            "move cost {} from {}",
-                            form(destination),
-                            form(objects)
-                        )))
-                    }
+                    _ => return self.move_cost_beyond(selections, destination, label),
                 }
             }
             other => return self.cost_part_beyond(other, label),
@@ -542,17 +537,33 @@ impl Compiler {
         } else if crate::semantics::activation_kind(price, announcement, body)
             == crate::semantics::ActivationKind::Mana
         {
-            let adds = self.mana_ability(body, &format!("{label}_mana"))?;
-            format!(
-                "mana_ability({}, {adds}, {}){}",
-                self.cost(price, label)?,
-                quoted(&text),
-                if chosen::makes_chosen_color(body) {
-                    ".colors_from(cantrip_mechanics::lands::chosen_color)"
-                } else {
-                    ""
+            if let Some(colors) = lane_g::filter_land(body) {
+                format!(
+                    "cantrip_mechanics::lands::filter_two::<{colors}>({}, {})",
+                    self.cost(price, label)?,
+                    quoted(&text)
+                )
+            } else {
+                let adds = self.mana_ability(body, &format!("{label}_mana"))?;
+                let colors = self.mana_colors.take();
+                let made = format!(
+                    "mana_ability({}, {adds}, {}){}",
+                    self.cost(price, label)?,
+                    quoted(&text),
+                    if chosen::makes_chosen_color(body) {
+                        ".colors_from(cantrip_mechanics::lands::chosen_color)"
+                    } else {
+                        ""
+                    }
+                );
+                match colors {
+                    Some((suffix, None)) => format!("{made}{suffix}"),
+                    Some((suffix, Some(feature))) => {
+                        planned::planned_value(feature, &made, &format!("{made}{suffix}"))
+                    }
+                    None => made,
                 }
-            )
+            }
         } else {
             let targets = self.announcement(announcement, label)?;
             let effect = self.effect(body, label)?;

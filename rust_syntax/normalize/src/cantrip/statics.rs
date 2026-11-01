@@ -285,7 +285,7 @@ impl Compiler {
             Change::ChosenColor { .. } | Change::ChosenType { .. } => self.chosen_layer(change)?,
             Change::GrantKeyword(Keyword::Protection(quality)) => {
                 let mut grants = Vec::new();
-                granted_protection(quality, &mut grants)?;
+                self.grant_protection(quality, &mut grants)?;
                 let body = grants.into_iter().map(|(_, statement)| statement).collect();
                 LayerChange::of("Ability", body)
             }

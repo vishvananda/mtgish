@@ -52,6 +52,186 @@ pub(super) fn grant_gap(ability: &Ability) -> Diagnostic {
     }
 }
 
+/// What a tapped-for-mana event's matcher binds: the player, and a bit for each
+/// type of mana produced, as `add_one_mana_of_any_type_that_land_produced` reads.
+pub(super) const TAPPED_FOR_MANA: &str = "let id = *permanent; let subject = Target::Object(id); let data = [u32::from(player.0), Mana::ALL.iter().filter(|&&m| produced.get(m) > 0).fold(0u32, |types, &m| types | 1 << m as u32)];";
+
+/// Whether a triggered mana ability adds what the tap produced.
+pub(super) fn adds_what_was_produced(body: &Program) -> bool {
+    matches!(
+        body.instructions.as_slice(),
+        [Instruction::Effect {
+            operation: Operation::AddMana {
+                mana: ManaProduction::SameTypeAsProduced,
+                ..
+            },
+            ..
+        }]
+    )
+}
+
+/// "Add {U}{U}, {U}{R}, or {R}{R}": the two colors, as a mask.
+pub(super) fn filter_land(body: &Program) -> Option<u8> {
+    let [Instruction::Effect {
+        operation:
+            Operation::AddMana {
+                players: PlayerSet::One(PlayerRef::AbilityController),
+                mana: ManaProduction::ChooseOne(options),
+                restriction: None,
+            },
+        ..
+    }] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    let pair = |option: &ManaProduction| -> Option<(usize, usize)> {
+        let ManaProduction::All(parts) = option else {
+            return None;
+        };
+        let [ManaProduction::Amount {
+            color: a,
+            amount: Expr::Constant(1),
+        }, ManaProduction::Amount {
+            color: b,
+            amount: Expr::Constant(1),
+        }] = parts.as_slice()
+        else {
+            return None;
+        };
+        if matches!(a, ManaColor::Colorless) || matches!(b, ManaColor::Colorless) {
+            return None;
+        }
+        Some((color_index(a).ok()?, color_index(b).ok()?))
+    };
+    let [first, both, last] = options.as_slice() else {
+        return None;
+    };
+    let ((a, a2), (x, y), (b, b2)) = (pair(first)?, pair(both)?, pair(last)?);
+    (a == a2 && b == b2 && a != b && x == a && y == b).then_some((1u8 << a) | (1u8 << b))
+}
+
+/// A cost whose size the payer sets as they pay it at resolution.
+pub(super) fn payer_sets_the_size(part: &CostPart) -> bool {
+    matches!(
+        part,
+        CostPart::ManaWithX { x: None, .. } | CostPart::ManaAnyNumberOfTimes(_)
+    )
+}
+
+/// One fixed kind of counter, off one object other than the source.
+fn removes_from_another(removals: &[CounterRemoval]) -> bool {
+    matches!(
+        removals,
+        [CounterRemoval {
+            recipients: Recipients::Objects(ObjectSet::One(object)),
+            kind: Some(_),
+            amount: CounterAmount::Count(Count::Exactly(Expr::Constant(1..=255))),
+            selection: None,
+            ..
+        }] if !matches!(object, ObjectRef::Source)
+    )
+}
+
+/// Removing one counter of a fixed kind: done or not, with nothing to divide.
+fn removes_one_counter(removals: &[CounterRemoval]) -> bool {
+    matches!(
+        removals,
+        [CounterRemoval {
+            recipients: Recipients::Objects(ObjectSet::One(_)),
+            kind: Some(_),
+            amount: CounterAmount::Count(Count::Exactly(Expr::Constant(1))),
+            selection: None,
+            ..
+        }]
+    )
+}
+
+/// What the choice of a cost that moves objects is for.
+fn move_purpose(destination: &Destination) -> &'static str {
+    match destination {
+        Destination::OwnersHand => "PutIntoHand",
+        Destination::OwnersGraveyard => "PutIntoGraveyard",
+        Destination::Exile => "Exile",
+        Destination::OwnersLibraryTop => "PutOnTop",
+        Destination::OwnersLibraryBottom | Destination::OwnersLibraryBottomRandom => "PutOnBottom",
+        Destination::Battlefield(_) | Destination::OwnersBattlefield => "PutOntoBattlefield",
+        _ => "PutOnLibrary",
+    }
+}
+
+/// Where a cost finds the objects it moves, and what filters them.
+fn cost_zone(objects: &ObjectSet) -> Option<(String, ObjectFilter)> {
+    let whose = |players: &PlayerSet| match players {
+        PlayerSet::One(PlayerRef::AbilityController) => Some("Yours"),
+        PlayerSet::All => Some("Any"),
+        _ => None,
+    };
+    Some(match objects {
+        ObjectSet::Battlefield(filter) => ("CostZone::Battlefield".to_string(), filter.clone()),
+        ObjectSet::Zone {
+            scope: ZoneScope::Players { zone, players },
+            filter,
+            ..
+        } => (
+            format!("CostZone::{zone:?}(Whose::{})", whose(players)?),
+            filter.clone(),
+        ),
+        ObjectSet::Zone {
+            scope: ZoneScope::Shared(EventZone::Stack),
+            filter,
+            ..
+        } => ("CostZone::Stack".to_string(), filter.clone()),
+        ObjectSet::Take {
+            objects,
+            count,
+            from: SequenceEnd::Top,
+        } => match (&**objects, count) {
+            (
+                ObjectSet::Zone {
+                    scope:
+                        ZoneScope::Players {
+                            zone: EventZone::Library,
+                            players,
+                        },
+                    filter,
+                    ..
+                },
+                Expr::Constant(n),
+            ) => (
+                format!("CostZone::TopOfLibrary({n}, Whose::{})", whose(players)?),
+                filter.clone(),
+            ),
+            _ => return None,
+        },
+        ObjectSet::One(ObjectRef::Query { objects, index: 0 }) => match &**objects {
+            ObjectSet::Zone {
+                scope:
+                    ZoneScope::Players {
+                        zone: EventZone::Graveyard,
+                        players,
+                    },
+                filter,
+                ..
+            } => (
+                format!("CostZone::TopOfGraveyard(Whose::{})", whose(players)?),
+                filter.clone(),
+            ),
+            _ => return None,
+        },
+        _ => return None,
+    })
+}
+
+/// What paid a part of an activation's or a spell's cost, where the engine
+/// keeps no list of it: discarded and exiled cards, and revealed ones.
+pub(super) fn paid_objects(component: &[u32]) -> String {
+    planned::planned_value(
+        "engine: no record of what paid a cost",
+        "Vec::<ObjectId>::new()",
+        &format!("q.paid_objects(item, {component:?}).to_vec()"),
+    )
+}
+
 /// Whether a flash rider is the sacrifice as the next cleanup step begins.
 fn sacrificed_at_cleanup(rider: &Operand) -> bool {
     let words = format!("{rider:?}");
@@ -358,6 +538,23 @@ impl Compiler {
                     ask("o", "o", "SACRIFICE_THIS")
                 )
             }
+            [CostPart::RemoveCounters { removals }] if removes_from_another(removals) => {
+                let [CounterRemoval {
+                    recipients: Recipients::Objects(ObjectSet::One(object)),
+                    kind: Some(kind),
+                    amount: CounterAmount::Count(Count::Exactly(Expr::Constant(n))),
+                    ..
+                }] = removals.as_slice()
+                else {
+                    unreachable!("one kind of counter off one object");
+                };
+                let object = self.fetch(self.object(object)?);
+                let price = format!("remove_counters({}, {n})", read::counter_kind(kind)?);
+                format!(
+                    "match {object} {{ Some(o) => {}, None => false }}",
+                    ask("o", "o", &price)
+                )
+            }
             [CostPart::ManaCostOf(object)] => {
                 let object = self.fetch(self.object(object)?);
                 format!(
@@ -379,6 +576,342 @@ impl Compiler {
             }
         };
         Ok(format!("let payer_{id} = {payer}; let paid_{id} = {paid};"))
+    }
+    /// "Add one mana of any type that land produced": the trigger's data names
+    /// the player and the types, and with none produced nothing is added (106.12a).
+    pub(super) fn same_type_as_produced(&mut self, out: &mut String) {
+        writeln!(out, "if item.data[1] != 0 {{ {M}::mana::add_one_mana_of_any_type_that_land_produced(g, item)?; }}").unwrap();
+    }
+    /// A `ColorSet` of the colors among objects, read by a plain function.
+    fn colors_of(&self, objects: &ObjectSet) -> Result<String> {
+        let mut asked = self.clone();
+        (asked.reader, asked.event_at) = (Reader::Query, EventAt::Nowhere);
+        Ok(format!(
+            "({}).into_iter().fold(ColorSet::NONE, |all: ColorSet, o: ObjectId| ColorSet(all.0 | q.chars(o).colors.0))",
+            asked.objects(objects)?
+        ))
+    }
+    /// "Add one mana of any color among ..." outside a mana ability, and "for
+    /// each color among ..." anywhere.
+    pub(super) fn colors_among(
+        &mut self,
+        id: usize,
+        players: &PlayerSet,
+        objects: &ObjectSet,
+        each: bool,
+        out: &mut String,
+    ) -> Result<()> {
+        let colors = self.fetch(format!(
+            "({}).into_iter().fold(ColorSet::NONE, |all: ColorSet, o: ObjectId| ColorSet(all.0 | q.chars(o).colors.0))",
+            self.objects(objects)?
+        ));
+        let players = self.fetch(self.players(players)?);
+        writeln!(out, "let colors_{id} = {colors}; for player in {players} {{").unwrap();
+        if each {
+            writeln!(out, "for color in colors_{id}.iter() {{ g.add_mana(player, color.mana(), 1); }}").unwrap();
+        } else {
+            writeln!(out, "if !colors_{id}.is_empty() {{ let colors = {M}::choose_colors(g, player, asker.source, colors_{id}, 1)?; g.add_mana(player, colors[0].mana(), 1); }}").unwrap();
+        }
+        writeln!(out, "}}").unwrap();
+        Ok(())
+    }
+    /// The mana abilities whose colors the game decides as they are offered.
+    pub(super) fn mana_beyond(
+        &mut self,
+        mana: &ManaProduction,
+        restriction: Option<&ManaUse>,
+        rest: &[Instruction],
+        label: &str,
+    ) -> Result<Option<String>> {
+        let among = matches!(
+            mana,
+            ManaProduction::ColorsAmong { .. }
+                | ManaProduction::CouldProduce { .. }
+                | ManaProduction::CommanderIdentity
+        );
+        if !among {
+            return Ok(None);
+        }
+        if !rest.is_empty() {
+            return Err(gap("compound mana ability callback"));
+        }
+        let (lasting, restriction) = mana_lasting(restriction);
+        if lasting.is_some() {
+            return Err(gap(format!("mana production {}", form(mana))));
+        }
+        let rule = restriction.map(|r| self.mana_use(r)).transpose()?;
+        let add = |color: &str| match &rule {
+            Some(rule) => {
+                format!("g.add_restricted_mana(asker.controller, {color}, 1, {rule});")
+            }
+            None => format!("g.add_mana(asker.controller, {color}, 1);"),
+        };
+        let only = rule
+            .as_ref()
+            .map_or(String::new(), |rule| format!(".only_for({rule})"));
+        let chosen_mana = add("color.mana()");
+        let mut any_of = |c: &mut Self| {
+            writeln!(c.functions, "fn {label}(g: &mut dyn Game, asker: &Asker, chosen: Option<Color>) -> Result<(), Suspend> {{ if let Some(color) = chosen {{ {chosen_mana} }} Ok(()) }}").unwrap();
+            format!("add_by({label}).choose_color().yields_any(1){only}")
+        };
+        Ok(Some(match mana {
+            ManaProduction::ColorsAmong { objects, each: true } => {
+                let colors = self.colors_of(objects)?;
+                writeln!(self.functions, "fn {label}(g: &mut dyn Game, asker: &Asker, _: Option<Color>) -> Result<(), Suspend> {{ let colors = {{ let q: &dyn Query = g; {colors} }}; for color in colors.iter() {{ {chosen_mana} }} Ok(()) }}").unwrap();
+                format!("add_by({label}){only}")
+            }
+            ManaProduction::ColorsAmong { objects, each: false } => {
+                let colors = self.colors_of(objects)?;
+                writeln!(self.functions, "#[allow(unused_variables)] fn {label}_colors(q: &dyn Query, asker: &Asker) -> ColorSet {{ {colors} }}").unwrap();
+                self.mana_colors = Some((format!(".colors_from({label}_colors)"), None));
+                any_of(self)
+            }
+            // The engine reads what the cost's permanent could produce (106.7).
+            ManaProduction::CouldProduce { objects, colors_only: false }
+                if matches!(
+                    objects,
+                    ObjectSet::Earlier { .. } | ObjectSet::One(ObjectRef::Query { .. })
+                ) && rule.is_none() =>
+            {
+                self.mana_colors = Some((".colors_from_sacrifice()".to_string(), None));
+                "add_any_color(1)".to_string()
+            }
+            ManaProduction::CouldProduce { objects, colors_only } => {
+                let mut asked = self.clone();
+                (asked.reader, asked.event_at) = (Reader::Query, EventAt::Nowhere);
+                let list = asked.objects(objects)?;
+                self.mana_colors = Some((
+                    format!(".colors_from(|q, asker| q.mana_could_produce(&{list}, {colors_only}))"),
+                    Some("engine: no reading of what a permanent could produce"),
+                ));
+                any_of(self)
+            }
+            ManaProduction::CommanderIdentity => {
+                self.mana_colors = Some((
+                    ".colors_from(|q, asker| q.commander_identity(asker.controller))".to_string(),
+                    Some("engine: no commander"),
+                ));
+                any_of(self)
+            }
+            _ => unreachable!("a production listed above"),
+        }))
+    }
+    /// Protection given by a static or an effect: the qualities the engine has,
+    /// and otherwise the test it will have.
+    pub(super) fn grant_protection(
+        &mut self,
+        quality: &Protection,
+        grants: &mut Vec<(String, String)>,
+    ) -> Result<()> {
+        const FEATURE: &str = "engine: no protection from this quality";
+        if let Protection::Each(qualities) = quality {
+            for quality in qualities {
+                self.grant_protection(quality, grants)?;
+            }
+            return Ok(());
+        }
+        // "Protection from the chosen color" of a permanent that chose as it entered.
+        if let Protection::Objects {
+            kind: ObjectKind::Any,
+            filter: ObjectFilter::Chosen(ValueKind::Color),
+        } = quality
+        {
+            if self.reader == Reader::Layer && self.enters_choosing.contains(&ValueKind::Color) {
+                let chosen = self.chosen_value(ValueKind::Color)?;
+                grants.push((
+                    String::new(),
+                    format!("if let Some(chosen) = {chosen} {{ chars.protection = chars.protection.with(chosen); }}"),
+                ));
+                return Ok(());
+            }
+        }
+        let mut fixed = Vec::new();
+        let Err(hole) = granted_protection(quality, &mut fixed) else {
+            grants.extend(fixed);
+            return Ok(());
+        };
+        let code = match quality {
+            Protection::Objects { filter, .. } => match self.filter(filter, &Candidate::of("id")) {
+                Ok(test) => format!("ProtectionQuality::Matching(|q, asker, id| {test})"),
+                Err(_) => return Err(hole),
+            },
+            Protection::Players(players) => match self.players(players) {
+                Ok(list) => format!("ProtectionQuality::Players(|q, asker| {list})"),
+                Err(_) => return Err(hole),
+            },
+            _ => return Err(hole),
+        };
+        grants.push((
+            planned_kind(FEATURE, format!("EffectKind::ProtectionFrom({code})")),
+            format!(
+                "{};",
+                planned::planned_value(FEATURE, "()", &format!("chars.protection_from.push({code})"))
+            ),
+        ));
+        Ok(())
+    }
+    /// "You may pay [mana] any number of times": how many is the payer's as they
+    /// pay, and is what "that many" reads.
+    pub(super) fn pay_any_number_of_times(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        cost: &Cost,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let [CostPart::ManaAnyNumberOfTimes(symbols)] = cost.parts.as_slice() else {
+            return Err(gap("pay any number of times"));
+        };
+        self.helpers.insert("pay_question");
+        let payer = self.fetch(self.certain_player(player)?);
+        writeln!(out, "let payer_{id} = {payer}; let times_{id} = g.may_pay_times(payer_{id}, asker.source, asker.source, {}, cantrip_api::ANY_NUMBER_OF_TIMES, &PAY_QUESTION)?; let paid_{id} = times_{id} > 0; let bound_{id}: i64 = i64::from(times_{id});", mana(symbols)?).unwrap();
+        self.performed.insert(result.0, format!("paid_{id}"));
+        self.values.insert(result.0, format!("bound_{id}"));
+        Ok(())
+    }
+    /// The player picks the objects that pay, all of them or none: a cost is
+    /// paid whole (118.3).
+    pub(super) fn select_whole(
+        &mut self,
+        player: &PlayerRef,
+        objects: &ObjectSet,
+        n: &Expr,
+        destination: &Destination,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let local = format!("selected_{}", self.fresh());
+        let who = self.fetch(self.certain_player(player)?);
+        let candidates = self.fetch(self.objects(objects)?);
+        let owed = self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?);
+        let purpose = move_purpose(destination);
+        writeln!(out, "let {local}_player = {who}; let {local}_candidates = {candidates}; let {local}_count = {owed}; let {local} = if {local}_candidates.len() as u64 >= u64::from({local}_count) {{ cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of(cantrip_mechanics::select::Count::Exactly({local}_count), &[]))? }} else {{ Vec::new() }};").unwrap();
+        self.selections.insert(result.0, local);
+        Ok(())
+    }
+    /// The parts of a required instruction `Operation::PayCost` does not read.
+    pub(super) fn resolution_cost_beyond(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        cost: &Cost,
+        part: &CostPart,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        match part {
+            // "Pay {3}{U}{U}. If you don't, ...": whether is the payer's (118.12).
+            CostPart::Mana(_) => {
+                let asked = self.ask_to_pay(id, player, cost)?;
+                writeln!(out, "{asked}").unwrap();
+            }
+            CostPart::Discard {
+                count: count @ Expr::Constant(1),
+                filter,
+                random: false,
+            } => {
+                let hand = ObjectSet::Zone {
+                    scope: ZoneScope::Players {
+                        zone: EventZone::Hand,
+                        players: PlayerSet::One(player.clone()),
+                    },
+                    kind: ObjectKind::Card,
+                    filter: filter.clone(),
+                };
+                let one = Count::Exactly(count.clone());
+                self.choose(player, &hand, &one, result, "Discard", out)?;
+                let picked = self.selections[&result.0].clone();
+                writeln!(out, "let discarded_{id} = g.discard_together(&{picked}); let paid_{id} = !discarded_{id}.is_empty();").unwrap();
+                self.moved.insert(result.0, format!("discarded_{id}"));
+                self.left_behind(result, format!("discarded_{id}.clone()"));
+            }
+            // "Pay {E}{E}. If you can't, ...": whoever can pay does (Greenbelt Rampager).
+            CostPart::Energy(n) => {
+                let owed = self.fetch(self.number(n)?.amount(255, "u8")?);
+                let payer = self.fetch(self.certain_player(player)?);
+                writeln!(out, "let owed_{id}: u8 = {owed}; let payer_{id} = {payer}; let paid_{id} = g.state().player(payer_{id}).energy() >= owed_{id}; if paid_{id} {{ g.change_energy(payer_{id}, -i32::from(owed_{id})); }}").unwrap();
+            }
+            CostPart::RemoveCounters { removals } if removes_one_counter(removals) => {
+                self.remove_counters(id, removals, result, out)?;
+                writeln!(out, "let paid_{id} = removed_{id} > 0;").unwrap();
+            }
+            CostPart::ChangeTapState {
+                selections,
+                tapped: true,
+                symbol: false,
+            } if matches!(
+                selections.as_slice(),
+                [CostObjectSelection {
+                    objects: ObjectSet::One(_),
+                    choose: None
+                }]
+            ) =>
+            {
+                let objects = selections[0].objects.clone();
+                let tap = Operation::Tap {
+                    objects,
+                    tapped: true,
+                };
+                self.operation(&tap, result, out)?;
+                writeln!(out, "let paid_{id} = !{}.is_empty();", self.moved(result)?).unwrap();
+            }
+            other => return Err(gap(format!("resolution cost {}", form(other)))),
+        }
+        Ok(())
+    }
+    /// What paid an earlier instruction's cost, as it was when it paid.
+    pub(super) fn paid_at_resolution(&self, result: &ResultId) -> Result<String> {
+        if !self.before.contains_key(&result.0) {
+            return Err(gap("cost objects of Resolution"));
+        }
+        self.transition(result, &ObjectPhase::Before)
+    }
+    /// A cost that moves objects the engine has no field for.
+    pub(super) fn move_cost_beyond(
+        &mut self,
+        selections: &[CostObjectSelection],
+        destination: &Destination,
+        label: &str,
+    ) -> Result<String> {
+        const FEATURE: &str = "engine: no cost moves these objects";
+        let to = form(destination);
+        let mut costs = Vec::new();
+        for CostObjectSelection { objects, choose } in selections {
+            if matches!(objects, ObjectSet::One(ObjectRef::Source)) {
+                match destination {
+                    Destination::Exile => costs.push("EXILE_THIS".to_string()),
+                    Destination::OwnersHand => costs.push("RETURN_THIS".to_string()),
+                    _ => return Err(gap(format!("move cost {to} from {}", form(objects)))),
+                }
+                continue;
+            }
+            let yours = costs::own_graveyard(objects);
+            let objects = yours.as_ref().unwrap_or(objects);
+            let (from, filter) = cost_zone(objects)
+                .ok_or_else(|| gap(format!("move cost {to} from {}", form(objects))))?;
+            let filter = self.cost_filter(&filter, label)?;
+            let count = match choose {
+                None => "CostCount::All".to_string(),
+                Some(Count::Exactly(Expr::Constant(n))) => format!("CostCount::Exactly({n})"),
+                Some(Count::Exactly(Expr::AnnouncedX)) => "CostCount::Announced".to_string(),
+                Some(Count::AnyNumber) => "CostCount::AnyNumber".to_string(),
+                Some(Count::AtLeast(Expr::Constant(n))) => format!("CostCount::AtLeast({n})"),
+                Some(Count::Exactly(n)) => {
+                    format!("CostCount::Reading(|q, asker| {})", self.asked_number(n)?)
+                }
+                Some(other) => return Err(gap(format!("move cost counted {}", form(other)))),
+            };
+            costs.push(planned::planned_value(
+                FEATURE,
+                "Cost::NONE",
+                &format!("Cost {{ moves: Some(MovesObjects {{ from: {from}, to: CostDestination::{to}, count: {count}, filter: {filter} }}), ..Cost::NONE }}"),
+            ));
+        }
+        Ok(costs
+            .into_iter()
+            .reduce(|a, b| format!("{a}.and({b})"))
+            .unwrap_or_else(|| "Cost::NONE".to_string()))
     }
     /// The counters of a cost, beyond the fixed removals `cost_part` reads.
     pub(super) fn counter_removal_beyond(
@@ -408,6 +941,49 @@ impl Compiler {
             _ => None,
         };
         Ok(match (objects, amount) {
+            // "Remove X counters": the X announced is how many (107.3a).
+            (
+                ObjectSet::One(ObjectRef::Source),
+                CounterAmount::Count(Count::Exactly(Expr::AnnouncedX)),
+            ) if label != PAID && kind.is_some() => {
+                let kind = kind.ok_or_else(|| gap(SHAPE))?;
+                format!("Cost {{ variable: Some(VariableCost::RemoveAnyNumberOfCounters({kind})), ..Cost::NONE }}")
+            }
+            // How many is read as the cost is paid, while the effect resolves.
+            (
+                ObjectSet::One(ObjectRef::Source),
+                CounterAmount::Count(Count::Exactly(n)),
+            ) if label == PAID && kind.is_some() && exactly(&Count::Exactly(n.clone())).is_none() => {
+                let kind = kind.ok_or_else(|| gap(SHAPE))?;
+                let n = self.fetch(self.number(n)?.amount(255, "u8")?);
+                format!("Cost {{ remove_counters: Some(({kind}, {n})), ..Cost::NONE }}")
+            }
+            (
+                ObjectSet::Battlefield(filter),
+                CounterAmount::AmongThem(Count::Exactly(Expr::Constant(n))),
+            ) if costs::yours(filter) && (0..=255).contains(n) => {
+                let filter = self.cost_filter(filter, label)?;
+                match &kind {
+                    Some(kind) => format!("remove_kind_counters_among({kind}, {n}, {filter})"),
+                    None => format!("remove_counters_among({n}, {filter})"),
+                }
+            }
+            (ObjectSet::Battlefield(filter), CounterAmount::AmongThem(count)) => {
+                let filter = self.cost_filter(filter, label)?;
+                let size = match count {
+                    Count::Exactly(Expr::Constant(n)) => format!("CountersTaken::Exactly({n})"),
+                    Count::AnyNumber => "CountersTaken::AnyNumber".to_string(),
+                    Count::AtLeast(Expr::Constant(n)) => format!("CountersTaken::AtLeast({n})"),
+                    Count::Exactly(Expr::AnnouncedX) => "CountersTaken::Announced".to_string(),
+                    _ => return Err(gap(SHAPE)),
+                };
+                plan(format!(
+                    "Cost {{ remove_counters_from: Some(CountersFrom {{ filter: {filter}, kind: {of_kind}, size: {size} }}), ..Cost::NONE }}"
+                ))
+            }
+            (ObjectSet::One(ObjectRef::Granter), CounterAmount::All) => plan(format!(
+                "Cost {{ remove_all_counters_from_granter: Some({of_kind}), ..Cost::NONE }}"
+            )),
             (ObjectSet::One(ObjectRef::Source), CounterAmount::Count(Count::AnyNumber)) => {
                 let kind = kind.ok_or_else(|| gap(SHAPE))?;
                 format!("Cost {{ variable: Some(VariableCost::RemoveAnyNumberOfCounters({kind})), ..Cost::NONE }}")
@@ -760,7 +1336,7 @@ impl Compiler {
         &mut self,
         def: String,
         rule: &ActivationRule,
-        _label: &str,
+        label: &str,
     ) -> Result<String> {
         Ok(match rule {
             ActivationRule::OnlyBy(players) => self.activators(def, Some(players))?,
@@ -770,6 +1346,37 @@ impl Compiler {
                 &format!("{def}.cant_be_copied()"),
             ),
             ActivationRule::AnyTimeOfInstant => format!("{def}.only_as_an_instant()"),
+            ActivationRule::RestrictMana { portion, color: spent } => {
+                let rule = match spent {
+                    Some(spent) => format!("ManaSpendRule::Colors(&[Color::{}])", color(spent)?),
+                    None => "ManaSpendRule::ChosenColor".to_string(),
+                };
+                let portion = match portion {
+                    ManaCostPortion::All => "Spent::Whole",
+                    ManaCostPortion::X => "Spent::X",
+                };
+                planned::planned_value(
+                    "engine: no rule on the mana spent on a spell",
+                    &def,
+                    &format!("{def}.mana_spent({portion}, {rule})"),
+                )
+            }
+            ActivationRule::ManaInstead(cost) => {
+                let cost = self.cost(cost, label)?;
+                planned::planned_value(
+                    "engine: no cost paid rather than each mana",
+                    &def,
+                    &format!("{def}.instead_of_each_mana({cost})"),
+                )
+            }
+            ActivationRule::MaxPerTurn(n) => {
+                let most = self.asked_number(n)?;
+                planned::planned_value(
+                    "engine: no limit on activations each turn",
+                    &def,
+                    &format!("{def}.most_each_turn(|q, asker| {most})"),
+                )
+            }
             ActivationRule::XIs(n) | ActivationRule::XAtMost(n) => {
                 let exact = matches!(rule, ActivationRule::XIs(_));
                 let bound = self.asked_number(n)?;
@@ -1014,19 +1621,22 @@ impl Compiler {
             "AdditionalCost" | "Teamwork" => {
                 self.paying = Paying::Additional;
                 let optional = match cost.parts.as_slice() {
-                    [CostPart::Teamwork(n)] => Ok(format!("{M}::teamwork::optional({n})")),
-                    _ => self.optional_cost(cost, label).and_then(|code| match code {
-                        Optional::Cost(code) => Ok(code),
-                        Optional::Kicker(_) => Err(gap(format!("cost branch {keyword}"))),
-                    }),
+                    [CostPart::Teamwork(n)] => Ok(Optional::Cost(format!(
+                        "Some({M}::teamwork::optional({n}))"
+                    ))),
+                    _ => self.optional_cost(cost, label),
                 };
                 self.paying = Paying::Ability;
-                let optional = optional?;
-                let optional = match optional.starts_with(M) {
-                    true => format!("Some({optional})"),
-                    false => optional,
+                let was_paid = match optional? {
+                    Optional::Cost(code) => {
+                        parts.field("optional_cost", code);
+                        "item.paid > 0"
+                    }
+                    Optional::Kicker(code) => {
+                        parts.field("kicker", code);
+                        "item.kicked > 0"
+                    }
                 };
-                parts.field("optional_cost", optional);
                 if let (Some(paid_modes), Some(unpaid_modes)) =
                     (&paid_announced.modes, &unpaid_announced.modes)
                 {
@@ -1052,7 +1662,7 @@ impl Compiler {
                 }
                 let targets = self.announcement(unpaid_announced, &format!("{label}_unpaid"))?;
                 let effect = self.branch_effect(
-                    "item.paid > 0",
+                    was_paid,
                     paid_body,
                     paid_announced,
                     unpaid_body,
@@ -1236,7 +1846,16 @@ impl Compiler {
             Ok(codes.join(", "))
         };
         Ok(match value {
-            ManaUse::Either(uses) => format!("ManaRestriction::AnyOf(&[{}])", many(self, uses)?),
+            // The engine knows one union, and fails the build on any other.
+            ManaUse::Either(uses) => {
+                let codes = many(self, uses)?;
+                let code = format!("ManaRestriction::AnyOf(&[{codes}])");
+                if codes == "ManaRestriction::ARTIFACT_SPELLS, ManaRestriction::ABILITIES" {
+                    code
+                } else {
+                    planned(code)
+                }
+            }
             ManaUse::All(uses) => {
                 planned(format!("ManaRestriction::AllOf(&[{}])", many(self, uses)?))
             }

@@ -720,6 +720,96 @@
   "api": "g.empty_mana_pool(player), g.double_mana_pool(player)"
  },
  {
+  "match": "^engine: no cost moves these objects$",
+  "class": "engine",
+  "needs": "A cost that moves objects between zones with a count or from a zone Cost has no field for: X or any number of cards from a graveyard, a library top, the stack, a hand to the battlefield, a graveyard to a library.",
+  "api": "Cost { moves: Some(MovesObjects { from: CostZone::.., to: CostDestination::.., count: CostCount::.., filter }), .. }"
+ },
+ {
+  "match": "^engine: no record of what paid a cost$",
+  "class": "engine",
+  "needs": "A list of the cards a spell's or ability's cost discarded, exiled or revealed, as q.cost_objects gives the permanents it chose.",
+  "api": "q.paid_objects(item, component)"
+ },
+ {
+  "match": "^engine: no reading of what a permanent could produce$",
+  "class": "engine",
+  "needs": "A query for the mana types other permanents could produce (CR 106.7): the core has it privately for colors_from_sacrifice.",
+  "api": "q.mana_could_produce(&objects, colors_only)"
+ },
+ {
+  "match": "^engine: no cost paid rather than each mana$",
+  "class": "engine",
+  "needs": "A cost paid instead of each mana of an activation cost (Heirloom Epic).",
+  "api": "AbilityDef::instead_of_each_mana(cost)"
+ },
+ {
+  "match": "^engine: no limit on activations each turn$",
+  "class": "engine",
+  "needs": "A limit of activations each turn above one.",
+  "api": "AbilityDef::most_each_turn(..)"
+ },
+ {
+  "match": "^engine: no Harness$",
+  "class": "mechanic",
+  "needs": "Harness (Marvel Infinity Stones) and the harnessed state.",
+  "api": "cantrip_mechanics::harness::harness(g, object)"
+ },
+ {
+  "match": "^engine: no Assimilate$",
+  "class": "mechanic",
+  "needs": "Assimilate (Doctor Who Borg form).",
+  "api": "cantrip_mechanics::assimilate::assimilate(g, source, object)"
+ },
+ {
+  "match": "^engine: no effect picks a door$",
+  "class": "engine",
+  "needs": "A door chosen as an effect resolves, and locking one: Game::unlock_door names its door and nothing locks.",
+  "api": "g.unlock_a_door(object, player), g.lock_or_unlock_a_door(object, player)"
+ },
+ {
+  "match": "^engine: no reversed turn order$",
+  "class": "engine",
+  "needs": "Reversing the order of turns (Aeon Engine).",
+  "api": "g.reverse_turn_order()"
+ },
+ {
+  "match": "^engine: no effect ends combat$",
+  "class": "engine",
+  "needs": "Ending the combat phase at once (Mandate of Peace).",
+  "api": "g.end_combat()"
+ },
+ {
+  "match": "^engine: no effect draws the game$",
+  "class": "engine",
+  "needs": "An effect that makes the game a draw (CR 104.4a).",
+  "api": "g.draw_game()"
+ },
+ {
+  "match": "^engine: no order of a graveyard$",
+  "class": "engine",
+  "needs": "Reordering a graveyard, chosen or at random (CR 404.2).",
+  "api": "g.shuffle_graveyard(player), g.reorder_graveyard(player)"
+ },
+ {
+  "match": "^engine: no extra turn but the next$",
+  "class": "engine",
+  "needs": "An extra turn after the next one, or one that skips a step.",
+  "api": "g.add_extra_turn_after_next(player), g.add_extra_turn_skipping(player, step)"
+ },
+ {
+  "match": "^engine: no choice of how many to discard at random$",
+  "class": "engine",
+  "needs": "Choosing any number, then discarding that many at random.",
+  "api": "cantrip_mechanics::hand::discard_any_number_at_random(g, player, source)"
+ },
+ {
+  "match": "^engine: no subgame$",
+  "class": "engine",
+  "needs": "Subgames (Shahrazad, CR 725). Banned in every format, so a form Cantrip has little reason to play.",
+  "api": "cantrip_mechanics::subgame::play(g, source)"
+ },
+ {
   "match": "^engine: no [A-Za-z]+ granted$",
   "class": "engine",
   "needs": "A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set.",

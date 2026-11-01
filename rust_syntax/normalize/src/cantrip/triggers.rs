@@ -268,9 +268,9 @@ impl Compiler {
             ),
             ObjectEvent::TappedForMana => (
                 "TAPPED",
-                "Event::TappedForMana { permanent, .. }",
+                "Event::TappedForMana { permanent, player, produced }",
                 "*permanent",
-                "u32::MAX",
+                "u32::from(player.0)",
                 plain,
                 None,
                 "Whenever this is tapped for mana",
@@ -310,7 +310,11 @@ impl Compiler {
             mask,
             Arm {
                 pattern: pattern.into(),
-                locals: object_fired(id, data),
+                locals: if matches!(event, ObjectEvent::TappedForMana) {
+                    lane_g::TAPPED_FOR_MANA.to_string()
+                } else {
+                    object_fired(id, data)
+                },
                 tests,
             },
             frame,
@@ -451,8 +455,8 @@ impl Compiler {
             ),
             PlayerEvent::TapsForMana => (
                 "TAPPED",
-                "Event::TappedForMana { permanent, player, .. }",
-                "let id = *permanent; let subject = Target::Object(id); let data = [u32::from(player.0), 0];",
+                "Event::TappedForMana { permanent, player, produced }",
+                lane_g::TAPPED_FOR_MANA,
                 "*player",
                 acted,
                 None,
@@ -650,7 +654,7 @@ impl Compiler {
         Ok(single(
             "BECAME_TARGET",
             Arm {
-                pattern: "Event::BecameTarget { target: Target::Object(target), by, controller }".into(),
+                pattern: "Event::BecameTarget { target: Target::Object(target), by, controller, .. }".into(),
                 locals: "let id = *target; let by = *by; let controller = *controller; let subject = Target::Object(id); let data = [by.0, u32::from(controller.0)];".into(),
                 tests,
             },
@@ -1485,7 +1489,11 @@ impl Compiler {
             def.push_str(".sums_per_subject()");
         }
         if matched.mana {
-            def.push_str(".mana_ability(TriggeredMana::Unstated)");
+            def.push_str(if lane_g::adds_what_was_produced(body) {
+                ".mana_ability(TriggeredMana::OneOfProduced)"
+            } else {
+                ".mana_ability(TriggeredMana::Unstated)"
+            });
         }
         if let Some(per_turn) = limits.per_turn {
             def.push_str(&format!(".triggers_each_turn({per_turn})"));

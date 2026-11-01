@@ -98,6 +98,15 @@ fn reveals_one(count: &Count) -> bool {
 fn performed_by_itself(cost: &Cost) -> bool {
     match cost.parts.as_slice() {
         [CostPart::Draw { .. } | CostPart::Mill { .. }] => true,
+        [CostPart::Sacrifice {
+            choose: Some(Count::Exactly(Expr::Constant(1))),
+            ..
+        }] => true,
+        [CostPart::Discard {
+            count: Expr::Constant(1),
+            random: false,
+            ..
+        }] => true,
         [CostPart::Discard {
             filter: ObjectFilter::Any,
             random: true,
@@ -114,7 +123,10 @@ fn performed_by_itself(cost: &Cost) -> bool {
             ..
         }] => matches!(
             selections.as_slice(),
-            [CostObjectSelection { choose: None, .. }]
+            [CostObjectSelection {
+                choose: None | Some(Count::Exactly(_)),
+                ..
+            }]
         ),
         _ => false,
     }
@@ -138,7 +150,10 @@ fn asks_by_paying(decider: &PlayerRef, body: &Program) -> bool {
                 && cost
                     .parts
                     .iter()
-                    .all(|part| matches!(part, CostPart::Mana(_) | CostPart::Life(_)))
+                    .all(|part| {
+                        matches!(part, CostPart::Mana(_) | CostPart::Life(_))
+                            || lane_g::payer_sets_the_size(part)
+                    })
         }
         _ => false,
     }
@@ -709,7 +724,7 @@ impl Compiler {
             Count::PerPlayer { .. } => return Err(gap("per-player resolution choice")),
         })
     }
-    fn choose(
+    pub(super) fn choose(
         &mut self,
         player: &PlayerRef,
         objects: &ObjectSet,
@@ -736,9 +751,19 @@ impl Compiler {
             self.objects(objects)?
         )))
     }
-    fn operation(&mut self, op: &Operation, result: &ResultId, out: &mut String) -> Result<()> {
+    pub(super) fn operation(&mut self, op: &Operation, result: &ResultId, out: &mut String) -> Result<()> {
         let id = self.fresh();
         match op {
+            Operation::AddMana {
+                players: _,
+                mana: ManaProduction::SameTypeAsProduced,
+                restriction: None,
+            } if self.stack_item => self.same_type_as_produced(out),
+            Operation::AddMana {
+                players,
+                mana: ManaProduction::ColorsAmong { objects, each },
+                restriction: None,
+            } => self.colors_among(id, players, objects, *each, out)?,
             Operation::AddMana {
                 players,
                 mana,
@@ -1186,7 +1211,7 @@ impl Compiler {
             } if self.asking.is_none() && performed_by_itself(cost) => {
                 writeln!(
                     out,
-                    "let payer_{id} = {}; let paid_{id} = if cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)? {{",
+                    "let payer_{id} = {}; let (paid_{id}, after_{id}, before_{id}, picked_{id}): (bool, Vec<ObjectId>, Vec<ObjectId>, Vec<ObjectId>) = if cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)? {{",
                     self.fetch(self.certain_player(player)?)
                 )
                 .unwrap();
@@ -1197,16 +1222,39 @@ impl Compiler {
                 };
                 self.operation(&mandatory, result, out)?;
                 let inner = self.performed.insert(result.0, format!("paid_{id}"));
+                let none = "Vec::new()".to_string();
+                let after = self.moved.get(&result.0);
+                let before = self.before.get(&result.0);
+                let picked = self.selections.get(&result.0);
+                let kept = |list: Option<&String>| {
+                    list.map_or(none.clone(), |l| self.fetch(format!("({l}).clone()")))
+                };
                 writeln!(
                     out,
-                    "{} }} else {{ false }};",
-                    inner.expect("a paid result")
+                    "({}, {}, {}, {}) }} else {{ (false, Vec::new(), Vec::new(), Vec::new()) }};",
+                    inner.expect("a paid result"),
+                    kept(after),
+                    kept(before),
+                    kept(picked),
                 )
                 .unwrap();
-                // What it moved stays in that block.
-                self.moved.remove(&result.0);
-                self.before.remove(&result.0);
-                self.selections.remove(&result.0);
+                // What it moved is what paid, or nothing if it was not paid.
+                if self.moved.contains_key(&result.0) {
+                    self.moved.insert(result.0, format!("after_{id}"));
+                }
+                if self.before.contains_key(&result.0) {
+                    self.before.insert(result.0, format!("before_{id}.clone()"));
+                }
+                if self.selections.contains_key(&result.0) {
+                    self.selections.insert(result.0, format!("picked_{id}"));
+                }
+            }
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if matches!(cost.parts.as_slice(), [CostPart::ManaAnyNumberOfTimes(_)]) => {
+                self.pay_any_number_of_times(id, player, cost, result, out)?
             }
             // "You may pay {X}": the payer says what X is as they pay (107.3f), and
             // paying it, whatever X, is doing it.
@@ -1267,6 +1315,17 @@ impl Compiler {
                 optional: false,
             } => {
                 if let Some(scope) = self.asking.take() {
+                    if cost.parts.iter().any(lane_g::payer_sets_the_size) {
+                        let chosen = Operation::PayCost {
+                            player: player.clone(),
+                            cost: cost.clone(),
+                            optional: true,
+                        };
+                        self.operation(&chosen, result, out)?;
+                        let paid = self.performed[&result.0].clone();
+                        writeln!(out, "if !{paid} {{ break 'optional_{scope}; }}").unwrap();
+                        return Ok(());
+                    }
                     let asked = self.ask_to_pay(id, player, cost)?;
                     writeln!(out, "{asked} if !paid_{id} {{ break 'optional_{scope}; }}").unwrap();
                     self.performed.insert(result.0, format!("paid_{id}"));
@@ -1356,17 +1415,26 @@ impl Compiler {
                         entry,
                         face_down: false,
                     } => {
-                        let [CostObjectSelection {
-                            objects,
-                            choose: None,
-                        }] = selections.as_slice()
+                        let [CostObjectSelection { objects, choose }] = selections.as_slice()
                         else {
                             return Err(gap("resolution cost moving a choice of objects"));
                         };
-                        self.move_objects(id, objects, destination, entry, result, out)?;
+                        match choose {
+                            None => {
+                                self.move_objects(id, objects, destination, entry, result, out)?
+                            }
+                            Some(Count::Exactly(n)) => {
+                                self.select_whole(player, objects, n, destination, result, out)?;
+                                let chosen = ObjectSet::Selected(result.clone());
+                                self.move_objects(id, &chosen, destination, entry, result, out)?;
+                            }
+                            Some(_) => {
+                                return Err(gap("resolution cost moving a choice of objects"))
+                            }
+                        }
                         writeln!(out, "let paid_{id} = !objects_{id}.is_empty();").unwrap();
                     }
-                    other => return Err(gap(format!("resolution cost {}", form(other)))),
+                    other => self.resolution_cost_beyond(id, player, cost, other, result, out)?,
                 }
                 self.performed.insert(result.0, format!("paid_{id}"));
             }
@@ -1414,7 +1482,7 @@ impl Compiler {
         self.performed.insert(result.0, format!("paid_{id}"));
         Ok(())
     }
-    fn left_behind(&mut self, result: &ResultId, list: String) {
+    pub(super) fn left_behind(&mut self, result: &ResultId, list: String) {
         self.before.insert(result.0, list);
     }
     pub(super) fn reset_results(&mut self) {
@@ -1696,7 +1764,7 @@ impl Compiler {
             _ => false,
         }
     }
-    fn remove_counters(
+    pub(super) fn remove_counters(
         &mut self,
         id: usize,
         removals: &[CounterRemoval],
@@ -1972,7 +2040,7 @@ impl Compiler {
                     return Ok(vec![kind]);
                 }
                 let mut grants = Vec::new();
-                granted_protection(quality, &mut grants)?;
+                self.grant_protection(quality, &mut grants)?;
                 grants.into_iter().map(|(kind, _)| kind).collect()
             }
             Change::ChosenColor { .. } | Change::ChosenType { .. } => self.chosen_effect(change)?,

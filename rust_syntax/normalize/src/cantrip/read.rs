@@ -570,7 +570,7 @@ impl Compiler {
                     return Ok("vec![item.object]".into());
                 }
                 if !chooses(&paid) || cost.parts.iter().filter(|p| chooses(p)).count() != 1 {
-                    return Err(gap(format!("cost objects of {}", form(&paid))));
+                    return Ok(lane_g::paid_objects(component));
                 }
                 Ok("q.cost_objects(item).to_vec()".into())
             }
@@ -585,10 +585,11 @@ impl Compiler {
                     ..
                 } = paid
                 else {
-                    return Err(gap(format!("cost objects of {}", form(&paid))));
+                    return Ok(lane_g::paid_objects(component));
                 };
                 Ok(format!("{{ let records = q.history().all(); let spell = q.history().original_spell(item.object); records.iter().rposition(|r| matches!(r.event, Event::Cast(c) if c.spell == spell)).map_or_else(Vec::new, |cast| records[..cast].iter().rev().filter_map(|r| match r.event {{ Event::ZoneChange {{ old, from, reason: ZoneReason::Sacrifice, .. }} if from.is(ZoneKind::Battlefield) => Some(old), _ => None }}).take({n}).collect::<Vec<ObjectId>>()) }}"))
             }
+            PaymentRef::Resolution(result) => self.paid_at_resolution(result),
             other => Err(gap(format!("cost objects of {}", form(other)))),
         }
     }
@@ -744,7 +745,9 @@ impl Compiler {
             }
             Expr::Constant(n) => Number::integer(*n),
             Expr::AnnouncedX
-                if self.reader == Reader::Resolution && self.stack_item && self.outer.is_none() =>
+                if self.reader == Reader::Resolution
+                    && self.stack_item
+                    && (self.outer.is_none() || self.counted.is_some()) =>
             {
                 Number {
                     code: "i64::from(item.x)".into(),
@@ -976,6 +979,12 @@ impl Compiler {
                 ),
                 min: i32::MIN.into(),
                 max: i32::MAX.into(),
+                dynamic: true,
+            },
+            Expr::Performed(result) if self.counted == Some(result.0) => Number {
+                code: "i64::from(item.x)".into(),
+                min: 0,
+                max: u16::MAX.into(),
                 dynamic: true,
             },
             Expr::Performed(result) | Expr::CountersRemoved(result) => {

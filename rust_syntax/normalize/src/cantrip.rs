@@ -443,6 +443,10 @@ struct Compiler {
     costing_targets: bool,
     /// What the cost being compiled is paid for.
     paying: lane_g::Paying,
+    /// The instruction a reflexive ability's body counts: it is the item's `x`.
+    counted: Option<u32>,
+    /// What a mana ability's definition ends with, and the requirement if any.
+    mana_colors: Option<(String, Option<&'static str>)>,
     /// Small generated functions that this module uses.
     helpers: BTreeSet<&'static str>,
     extras: Vec<String>,
@@ -715,6 +719,8 @@ impl Compiler {
             bound_players: BTreeSet::new(),
             costing_targets: false,
             paying: lane_g::Paying::Ability,
+            counted: None,
+            mana_colors: None,
             only_way: false,
             tap_or_untap: false,
             paradigm: false,
@@ -1120,6 +1126,9 @@ impl Compiler {
         else {
             return Err(gap("compound mana ability callback"));
         };
+        if let Some(adds) = self.mana_beyond(mana, restriction.as_ref(), rest, label)? {
+            return Ok(adds);
+        }
         let plan = match mana_plan(mana)? {
             // One color the engine limits it to (`colors_from`) as it is offered.
             ManaPlan::Fixed(units) if matches!(units.as_slice(), [(ManaColor::Chosen, _)]) => {
