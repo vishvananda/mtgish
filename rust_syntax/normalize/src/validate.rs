@@ -616,6 +616,12 @@ impl<'a> Scope<'a> {
 
     fn player(&self, player: &PlayerRef) -> Result {
         match player {
+            PlayerRef::Seat { of, .. } => self.player(of),
+            PlayerRef::AttackingPlayer | PlayerRef::DefendingPlayer | PlayerRef::Holder(_) => {
+                Ok(())
+            }
+            PlayerRef::Extreme { players, .. } => self.players(players),
+            PlayerRef::SoleTargetOf(object) => self.object(object),
             PlayerRef::WardPayer if self.ward_payer => Ok(()),
             PlayerRef::WardPayer => Err("ward payer used outside a ward cost".into()),
             PlayerRef::Affected if self.affected_player => Ok(()),
@@ -687,6 +693,8 @@ impl<'a> Scope<'a> {
 
     fn objects(&self, objects: &ObjectSet) -> Result {
         match objects {
+            ObjectSet::Named(result) if self.results.contains_key(&result.0) => Ok(()),
+            ObjectSet::Named(result) => Err(format!("result {} is unavailable", result.0)),
             ObjectSet::DamageSources(filter) => self.filter(filter),
             ObjectSet::LibraryTops(players) => self.players(players),
             ObjectSet::CostObjects {
@@ -844,7 +852,17 @@ impl<'a> Scope<'a> {
 
     fn expr(&self, expression: &Expr) -> Result {
         match expression {
-            Expr::TimesActivatedThisTurn => Ok(()),
+            Expr::LargestSharedGroup { objects, .. } => self.objects(objects),
+            Expr::ManaSpentFrom { object, sources } => {
+                self.object(object)?;
+                self.filter(sources)
+            }
+            Expr::AsOf { value, .. } => self.expr(value),
+            Expr::Power(base, exponent) => {
+                self.expr(base)?;
+                self.expr(exponent)
+            }
+            Expr::TimesActivatedThisTurn | Expr::TurnNumber => Ok(()),
             Expr::Primitive { name, operands } => self.primitive(name, operands),
             Expr::ChosenParity | Expr::ChosenNumber | Expr::TimesResolvedThisTurn => Ok(()),
             Expr::PartySize(player) | Expr::StartingLife(player) => self.player(player),
@@ -1049,7 +1067,8 @@ impl<'a> Scope<'a> {
                 match window {
                     ObjectWindow::LastTurnOf(player)
                     | ObjectWindow::SinceLastUpkeepOf(player)
-                    | ObjectWindow::SinceLastTurnOf(player) => self.player(player),
+                    | ObjectWindow::SinceLastTurnOf(player)
+                    | ObjectWindow::LastCombatOf(player) => self.player(player),
                     _ => Ok(()),
                 }
             }
@@ -1180,6 +1199,38 @@ impl<'a> Scope<'a> {
 
     fn condition(&self, condition: &Condition) -> Result {
         match condition {
+            Condition::PlayerDid {
+                player,
+                event,
+                window,
+            } => {
+                self.player(player)?;
+                match event {
+                    PlayerHistory::AttackedWithTotalPower(_, value)
+                    | PlayerHistory::PaidOrLostEnergy(_, value)
+                    | PlayerHistory::RolledDie(_, value) => self.expr(value)?,
+                    PlayerHistory::AttackedBy(filter)
+                    | PlayerHistory::AttackedWith(filter)
+                    | PlayerHistory::AttackedDefender(filter)
+                    | PlayerHistory::CastSpell(filter)
+                    | PlayerHistory::PlayedFromExile(filter)
+                    | PlayerHistory::PermanentEntered(filter) => self.filter(filter)?,
+                    PlayerHistory::AttackedPlayer(other) => self.player(other)?,
+                    PlayerHistory::Cycled(_, value, filter) => {
+                        self.expr(value)?;
+                        self.filter(filter)?
+                    }
+                    _ => {}
+                }
+                match window {
+                    ObjectWindow::LastTurnOf(player)
+                    | ObjectWindow::SinceLastUpkeepOf(player)
+                    | ObjectWindow::SinceLastTurnOf(player)
+                    | ObjectWindow::LastCombatOf(player) => self.player(player),
+                    _ => Ok(()),
+                }
+            }
+            Condition::ValueChosen(_) => Ok(()),
             Condition::Primitive { name, operands } => self.primitive(name, operands),
             Condition::SubsetMeets {
                 objects,

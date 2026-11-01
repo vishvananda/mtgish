@@ -1512,6 +1512,7 @@ impl Compiler {
                     TurnWindow::AfterBlockersDeclared => {
                         format!("{step} > (Step::DeclareBlockers as u8)")
                     }
+                    other => return Err(gap(format!("turn window {other:?}"))),
                 }
             }
             Condition::PlayerState { player, state } => format!(
@@ -1536,6 +1537,9 @@ impl Compiler {
             PlayerState::InTheirMainPhase => format!(
                 "{active} && matches!({step}, Step::PrecombatMain | Step::PostcombatMain)"
             ),
+            PlayerState::ReceivedAVote | PlayerState::HasBoon => {
+                return Err(gap(format!("player state {state:?}")))
+            }
             PlayerState::CompletedDungeon => {
                 "q.history().any(EventQuery::kind(EventMask::DUNGEON_COMPLETED).player(player))"
                     .into()

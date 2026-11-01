@@ -41,3 +41,52 @@ fn an_unknown_row_stays_primitive() {
         ObjectFilter::Primitive { .. }
     ));
 }
+
+#[test]
+fn numbers_and_conditions_are_typed() {
+    let player = || Operand::Player(PlayerRef::AbilityController);
+    let filter = || Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any));
+    for (name, operands) in [
+        ("GameNumber::PlayersChosenNumber", vec![player()]),
+        (
+            "GameNumber::MaxPermanentsControlledByAPlayer",
+            vec![filter(), Operand::Players(PlayerSet::All)],
+        ),
+        ("GameNumber::NumColorsManaSpentToCastSelf", vec![]),
+    ] {
+        assert!(
+            !matches!(
+                semantics::reduce_number(name.into(), operands),
+                Expr::Primitive { .. }
+            ),
+            "{name}"
+        );
+    }
+    for (name, operands) in [
+        ("Condition::IsBeforeCombat", vec![]),
+        ("Players::HasMaxSpeed", vec![player()]),
+        ("Players::OwnsAPermanent", vec![player(), filter()]),
+    ] {
+        assert!(
+            !matches!(
+                semantics::reduce_condition(name.into(), operands),
+                Condition::Primitive { .. }
+            ),
+            "{name}"
+        );
+    }
+    assert!(semantics::reduce_player("PlayerToTheLeftOf", &[player()]).is_some());
+}
+
+#[test]
+fn pairs_of_mana_count_whole_pairs() {
+    let blue = || Operand::Vocabulary {
+        family: "ManaProduceSymbol".into(),
+        form: "ManaProduceU".into(),
+    };
+    let pairs = semantics::reduce_number(
+        "GameNumber::WhenAPermanentEntersTheBattlefield_AmountOfManaOfTypeSpentToCast".into(),
+        vec![blue(), blue()],
+    );
+    assert!(matches!(pairs, Expr::Divide { .. }));
+}

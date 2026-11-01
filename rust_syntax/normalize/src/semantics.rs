@@ -1631,6 +1631,8 @@ pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
 }
 
 include!("reduce_objects.rs");
+include!("reduce_numbers.rs");
+include!("reduce_players.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
@@ -2041,7 +2043,8 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
                 held
             }
         }
-        _ => Condition::Primitive { name, operands },
+        _ => reduce_player_condition(&name, &operands)
+            .unwrap_or(Condition::Primitive { name, operands }),
     }
 }
 
@@ -4445,7 +4448,10 @@ pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
         ("GameNumber::TheAmountOfEnergyPaidThisWay", [Operand::Result(result)]) => {
             Expr::Performed(result.clone())
         }
-        _ => Expr::Primitive { name, operands },
+        (name_, _) => {
+            let form = name_.split("::").nth(1).unwrap_or(name_);
+            reduce_game_number(form, &operands).unwrap_or(Expr::Primitive { name, operands })
+        }
     }
 }
 
@@ -5368,7 +5374,7 @@ impl Effects {
     fn objects_library(&self, objects: &ObjectSet) -> bool {
         match objects {
             ObjectSet::LibraryTops(_) => true,
-            ObjectSet::Primitive { .. } => false,
+            ObjectSet::Primitive { .. } | ObjectSet::Named(_) => false,
             ObjectSet::Observed(result) => self.result_library(result, &ObjectPhase::Before),
             ObjectSet::Difference { objects, .. } | ObjectSet::Matching { objects, .. } => {
                 self.objects_library(objects)

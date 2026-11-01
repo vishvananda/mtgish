@@ -1732,6 +1732,7 @@ impl Inventory<'_> {
     fn objects(&mut self, r: &ObjectSet) {
         self.form("ObjectSet", r);
         match r {
+            ObjectSet::Named(_) => {}
             ObjectSet::Primitive { name, .. } => self.primitive(name),
             ObjectSet::DamageSources(filter) => self.filter(filter),
             ObjectSet::LibraryTops(players) => self.players(players),
@@ -1865,7 +1866,17 @@ impl Inventory<'_> {
     fn expr(&mut self, e: &Expr) {
         self.form("Expr", e);
         match e {
-            Expr::TimesActivatedThisTurn | Expr::TimesResolvedThisTurn => {}
+            Expr::LargestSharedGroup { objects, .. } => self.objects(objects),
+            Expr::ManaSpentFrom { object, sources } => {
+                self.object(object);
+                self.filter(sources);
+            }
+            Expr::AsOf { value, .. } => self.expr(value),
+            Expr::Power(base, exponent) => {
+                self.expr(base);
+                self.expr(exponent);
+            }
+            Expr::TimesActivatedThisTurn | Expr::TimesResolvedThisTurn | Expr::TurnNumber => {}
             Expr::PartySize(player) | Expr::StartingLife(player) => self.player(player),
             Expr::Votes(option) => self.vote_option(option),
             Expr::PlayerNumber { player, number } => {
@@ -2031,7 +2042,8 @@ impl Inventory<'_> {
                 match window {
                     ObjectWindow::LastTurnOf(player)
                     | ObjectWindow::SinceLastUpkeepOf(player)
-                    | ObjectWindow::SinceLastTurnOf(player) => self.player(player),
+                    | ObjectWindow::SinceLastTurnOf(player)
+                    | ObjectWindow::LastCombatOf(player) => self.player(player),
                     _ => {}
                 }
             }
@@ -2173,6 +2185,38 @@ impl Inventory<'_> {
     fn condition(&mut self, c: &Condition) {
         self.form("Condition", c);
         match c {
+            Condition::PlayerDid {
+                player,
+                event,
+                window,
+            } => {
+                self.player(player);
+                match event {
+                    PlayerHistory::AttackedWithTotalPower(_, value)
+                    | PlayerHistory::PaidOrLostEnergy(_, value)
+                    | PlayerHistory::RolledDie(_, value) => self.expr(value),
+                    PlayerHistory::AttackedBy(filter)
+                    | PlayerHistory::AttackedWith(filter)
+                    | PlayerHistory::AttackedDefender(filter)
+                    | PlayerHistory::CastSpell(filter)
+                    | PlayerHistory::PlayedFromExile(filter)
+                    | PlayerHistory::PermanentEntered(filter) => self.filter(filter),
+                    PlayerHistory::AttackedPlayer(other) => self.player(other),
+                    PlayerHistory::Cycled(_, value, filter) => {
+                        self.expr(value);
+                        self.filter(filter);
+                    }
+                    _ => {}
+                }
+                match window {
+                    ObjectWindow::LastTurnOf(player)
+                    | ObjectWindow::SinceLastUpkeepOf(player)
+                    | ObjectWindow::SinceLastTurnOf(player)
+                    | ObjectWindow::LastCombatOf(player) => self.player(player),
+                    _ => {}
+                }
+            }
+            Condition::ValueChosen(_) => {}
             Condition::Primitive { name, .. } => self.primitive(name),
             Condition::SubsetMeets {
                 objects, amount, ..

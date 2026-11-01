@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 147;
+pub const SCHEMA_VERSION: u32 = 148;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -2694,6 +2694,24 @@ pub enum Expr {
         number: PlayerNumber,
         aggregation: Aggregation,
     },
+    /// The most objects that share one value of `property`.
+    LargestSharedGroup {
+        objects: Box<ObjectSet>,
+        property: DistinctProperty,
+    },
+    /// Mana from sources that match, spent on this object.
+    ManaSpentFrom {
+        object: ObjectRef,
+        sources: Box<ObjectFilter>,
+    },
+    /// `value` read at an earlier moment.
+    AsOf {
+        moment: Moment,
+        value: Box<Expr>,
+    },
+    Power(Box<Expr>, Box<Expr>),
+    /// Turns taken in the game, this one included.
+    TurnNumber,
     /// Count distinct values, rather than objects or subtype occurrences.
     CountDistinct {
         objects: Box<ObjectSet>,
@@ -2784,12 +2802,20 @@ pub enum HistoryWindow {
     ThisCombat,
     ThisGame,
 }
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Moment {
+    ThisSpellCast,
+    TurnBegan,
+}
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum HistoryMeasure {
     Occurrences,
     TotalAmount,
     /// How many different sources did it.
     DistinctSources,
+    /// A property of the objects that matched, as Forge's `Count$ValidStack`.
+    Property(Property, Aggregation),
+    Distinct(DistinctProperty),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum SpentManaAggregation {
@@ -2883,6 +2909,14 @@ pub enum PlayerNumber {
     UnspentMana,
     /// What the player secretly chose; players who chose none are left out.
     ChosenNumber,
+    TurnsBegun,
+    AttractionsVisitedThisTurn,
+    DescentsThisTurn,
+    CardsCycledOrDiscardedThisTurn,
+    DungeonsCompleted,
+    CommanderColorIdentity,
+    UnspentManaOf(ManaColor),
+    RingTemptations,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum DistinctProperty {
@@ -2903,6 +2937,8 @@ pub enum DistinctProperty {
     PlaneswalkerTypes,
     CounterTypes,
     PermanentTypes,
+    ManaCosts,
+    ColorPairs,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2932,6 +2968,12 @@ pub enum Property {
     ExiledCount,
     /// Creatures that crewed this Vehicle this turn.
     CrewCount,
+    SubtypeCount,
+    SupertypeCount,
+    ToxicValue,
+    BushidoValue,
+    RegenerationsThisTurn,
+    GenericManaInCost,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum BlockRole {
@@ -3157,6 +3199,8 @@ pub enum ObjectSet {
         name: String,
         operands: Vec<Operand>,
     },
+    /// What a preceding instruction named, whatever kind of result it holds.
+    Named(ResultId),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -3232,6 +3276,21 @@ pub enum PlayerRef {
     GiftedPlayer,
     /// The player doing this action, for one of several: "half their life".
     Acting,
+    /// A seat relative to a player.
+    Seat {
+        of: Box<PlayerRef>,
+        side: SeatSide,
+    },
+    AttackingPlayer,
+    DefendingPlayer,
+    Holder(Designation),
+    /// The player with the most of something. Ties are the row's to resolve.
+    Extreme {
+        players: Box<PlayerSet>,
+        number: PlayerNumber,
+        highest: bool,
+    },
+    SoleTargetOf(Box<ObjectRef>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3457,6 +3516,42 @@ pub enum ObjectFilter {
     },
 }
 
+/// Something a player did or had done to them. See `Condition::PlayerDid`.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PlayerHistory {
+    AttackedWithTotalPower(Comparison, Expr),
+    AttackedBy(Box<ObjectFilter>),
+    AttackedWith(Box<ObjectFilter>),
+    AttackedPlayer(PlayerRef),
+    AttackedDefender(Box<ObjectFilter>),
+    CastSpell(Box<ObjectFilter>),
+    PlayedLandNotFromHand,
+    PlayedFromExile(Box<ObjectFilter>),
+    PermanentEntered(Box<ObjectFilter>),
+    ActivatedGraveyardAbility,
+    ActivatedExhaust,
+    WasDealtCombatDamage,
+    PaidOrLostEnergy(Comparison, Expr),
+    Cycled(Comparison, Expr, Box<ObjectFilter>),
+    RolledDie(Comparison, Expr),
+    WasMonarch,
+    BentAllFour,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum SeatSide {
+    Left,
+    Right,
+    /// The next opponent in turn order.
+    Next,
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum Designation {
+    Monarch,
+    Initiative,
+}
+
 /// Something that happened to an object. See `ObjectFilter::History`.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ObjectHistory {
@@ -3489,6 +3584,7 @@ pub enum ObjectWindow {
     LastTurnOf(PlayerRef),
     SinceLastUpkeepOf(PlayerRef),
     SinceLastTurnOf(PlayerRef),
+    LastCombatOf(PlayerRef),
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3654,6 +3750,14 @@ pub enum Condition {
         amount: Expr,
         constraints: Vec<SelectionConstraint>,
     },
+    /// Whether this happened for the player in the window.
+    PlayerDid {
+        player: PlayerRef,
+        event: PlayerHistory,
+        window: ObjectWindow,
+    },
+    /// A choice of this kind has been made.
+    ValueChosen(ValueKind),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4277,6 +4381,18 @@ pub enum TurnWindow {
     BeforeBlockersDeclared,
     FirstCombat,
     AfterBlockersDeclared,
+    MainPhase,
+    BeforeCombat,
+    AfterCombat,
+    EndOfCombatStep,
+    BeforeEndOfCombatStep,
+    BeforeEndStep,
+    AfterUpkeep,
+    BeforeFirstCombat,
+    UntapStep,
+    DrawStep,
+    FirstEndStep,
+    ExtraTurn,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -4296,6 +4412,8 @@ pub enum PlayerState {
     BeingAttacked,
     EnduringStory,
     Poisoned,
+    ReceivedAVote,
+    HasBoon,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

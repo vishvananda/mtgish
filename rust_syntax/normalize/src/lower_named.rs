@@ -1061,7 +1061,13 @@ impl Context {
             ("Player::PlayerOrControllerOfPermanent", [Operand::Recipients(recipient)]) => {
                 PlayerRef::PlayerOrControllerOf(Box::new(recipient.clone()))
             }
-            _ => PlayerRef::Primitive { name, operands },
+            (name_, operands_) => {
+                let form = name_.split("::").nth(1).unwrap_or(name_);
+                match crate::semantics::reduce_player(form, operands_) {
+                    Some(player) => player,
+                    None => PlayerRef::Primitive { name, operands },
+                }
+            }
         })
     }
 
@@ -1077,7 +1083,11 @@ impl Context {
                 });
             }
         }
-        Some(crate::semantics::reduce_number(name, operands))
+        // A row may read an amount only where the event carries one.
+        match crate::semantics::reduce_number(name.clone(), operands.clone()) {
+            Expr::EventAmount if !self.event.amount => Some(Expr::Primitive { name, operands }),
+            reduced => Some(reduced),
+        }
     }
 
     fn primitive_change(&self, value: &source::LayerEffect) -> Option<Change> {
