@@ -31,6 +31,8 @@ pub struct EventBindings {
     pub damage_source: bool,
     pub damage_source_permanent: bool,
     pub damage_recipient: bool,
+    /// One player or object took the damage, whichever it was.
+    pub damage_any_recipient: bool,
     pub damage_objects: bool,
     pub damage_players: bool,
     pub damage_subject: Option<DamageSubject>,
@@ -64,6 +66,7 @@ impl EventBindings {
             damage_source: a.damage_source && b.damage_source,
             damage_source_permanent: a.damage_source_permanent && b.damage_source_permanent,
             damage_recipient: a.damage_recipient && b.damage_recipient,
+            damage_any_recipient: a.damage_any_recipient && b.damage_any_recipient,
             damage_objects: a.damage_objects && b.damage_objects,
             damage_players: a.damage_players && b.damage_players,
             damage_subject: if a.damage_subject == b.damage_subject {
@@ -129,6 +132,7 @@ pub fn replacement_bindings(event: &ReplacementEvent) -> EventBindings {
                     | ReplacedPlayerEvent::GetEnergy
                     | ReplacedPlayerEvent::Mill
                     | ReplacedPlayerEvent::Scry
+                    | ReplacedPlayerEvent::DrawCards
             ),
             ..Default::default()
         },
@@ -1634,6 +1638,7 @@ fn chosen_kind(operand: &Operand) -> Option<ValueKind> {
 /// Keywords a filter asks about as a family, whatever their cost or number.
 const KEYWORD_FAMILIES: &[(&str, KeywordFamily)] = &[
     ("AnyEmbalm", KeywordFamily::Embalm),
+    ("AnyEternalize", KeywordFamily::Eternalize),
     ("AnyFlashback", KeywordFamily::Flashback),
     ("AnySuspend", KeywordFamily::Suspend),
     ("AnyMorph", KeywordFamily::Morph),
@@ -1666,6 +1671,9 @@ const KEYWORD_FAMILIES: &[(&str, KeywordFamily)] = &[
 pub fn reduce_filter(name: String, operands: Vec<Operand>) -> ObjectFilter {
     let form = name.split("::").nth(1).unwrap_or(&name);
     if let Some(filter) = reduce_tail_filter(form, &operands) {
+        return filter;
+    }
+    if let Some(filter) = reduce_value_filter(form, &operands) {
         return filter;
     }
     if name.starts_with("CheckHasable::") && operands.is_empty() {
@@ -1895,6 +1903,7 @@ include!("reduce_effects.rs");
 include!("reduce_filters.rs");
 include!("reduce_more.rs");
 include!("reduce_tail.rs");
+include!("reduce_card_values.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
@@ -2095,6 +2104,9 @@ fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
 
 /// A row's condition in generic form, or the row itself when it has none.
 pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
+    if let Some(condition) = reduce_value_condition(&name, &operands) {
+        return condition;
+    }
     if let Some(condition) = name.strip_prefix("Condition::").and_then(|form| {
         reduce_event_condition(form, &operands)
             .or_else(|| reduce_more_conditions(form, &operands))
@@ -2320,6 +2332,12 @@ pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
 /// A row's change in generic form, or the row itself when it has none.
 pub fn reduce_change(name: String, operands: Vec<Operand>) -> Change {
     match (name.as_str(), operands.as_slice()) {
+        ("SettableColor::TheManaColorChosenThisWay", [Operand::Result(mana)]) => {
+            Change::ColorOfMana {
+                mode: ChangeMode::Set,
+                mana: mana.clone(),
+            }
+        }
         ("LayerEffect::SwitchPT", []) => Change::SwitchPowerToughness,
         (
             "LayerEffect::AddCreatureTypeVariable" | "LayerEffect::AddLandTypeVariable",
@@ -4644,6 +4662,7 @@ pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
         reduce_event_number(form, &operands)
             .or_else(|| reduce_more_numbers(form, &operands))
             .or_else(|| reduce_tail_number(form, &operands))
+            .or_else(|| reduce_value_number(form, &operands))
     }) {
         return number;
     }
@@ -5650,6 +5669,7 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
                 damage_source_permanent: source
                     && matches!(event.source_kind, ObjectKind::Permanent),
                 damage_recipient: recipient && objects,
+                damage_any_recipient: recipient,
                 block_pair: false,
                 group: false,
                 stack_object: false,
@@ -5935,6 +5955,8 @@ impl Effects {
             | ObjectRef::AttachedTo(_)
             | ObjectRef::PairedWith(_)
             | ObjectRef::SoleTargetOf(_)
+            | ObjectRef::TheOther { .. }
+            | ObjectRef::AtEnd { .. }
             | ObjectRef::Affected
             | ObjectRef::EventSubject
             | ObjectRef::EventStackObject
@@ -5992,6 +6014,9 @@ impl Effects {
             | ObjectSet::Created(_)
             | ObjectSet::Copies(_)
             | ObjectSet::Unpaid(_)
+            | ObjectSet::SplicedOnto(_)
+            | ObjectSet::TargetsOf(_)
+            | ObjectSet::FromHistory { .. }
             | ObjectSet::DamageSources(_) => false,
             ObjectSet::EventGroup
             | ObjectSet::Damage(_)

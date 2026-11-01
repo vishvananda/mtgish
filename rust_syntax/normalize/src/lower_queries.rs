@@ -212,6 +212,16 @@ impl Context {
             .or_else(|error| context.as_permanent_filter(value, error))
     }
     fn spell_filter_inner(&self, value: &source::Spells) -> Result<ObjectFilter> {
+        // "Other than the first": the ordinal is a predicate, not one object.
+        if let source::Spells::Other(spell) = value {
+            if matches!(**spell, source::Spell::TheNthSpellCastByPlayerThisTurn(..)) {
+                let (name, operands) = self
+                    .primitive("Spell", spell.as_ref())
+                    .ok_or_else(|| unsupported(value))?;
+                let nth = crate::semantics::reduce_filter(name, operands);
+                return Ok(ObjectFilter::Not(Box::new(nth)));
+            }
+        }
         if let Some(result)=self.pipeline_selector(crate::pipeline::selectors::SelectorRef::Spells(value)) {return result;}
         use source::Spells as S;
         Ok(match value {

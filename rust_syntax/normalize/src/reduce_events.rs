@@ -724,6 +724,9 @@ pub fn reduce_object(name: String, operands: Vec<Operand>) -> ObjectRef {
     if event_alias(form) {
         return ObjectRef::EventSubject;
     }
+    if let Some(object) = reduce_value_object(form, &operands) {
+        return object;
+    }
     match (form, operands.as_slice(), earlier_reference(form)) {
         (_, [], Some(what)) => ObjectRef::Earlier { what, by: None },
         (_, [Operand::Player(player)], Some(what)) => ObjectRef::Earlier {
@@ -771,6 +774,9 @@ pub fn reduce_objects(name: String, operands: Vec<Operand>) -> ObjectSet {
     if let Some(objects) = tail_objects(form, &operands) {
         return objects;
     }
+    if let Some(objects) = reduce_value_objects(form, &operands) {
+        return objects;
+    }
     match (operands.as_slice(), earlier_reference(form)) {
         ([], Some(what)) => ObjectSet::Earlier { what, by: None },
         ([Operand::Player(player)], Some(what)) => ObjectSet::Earlier {
@@ -805,6 +811,9 @@ fn earlier_filter(form: &str, operands: &[Operand]) -> Option<ObjectFilter> {
 /// A player read off the step that named them.
 pub fn reduce_player_ref(name: String, operands: Vec<Operand>) -> PlayerRef {
     let form = name.split_once("::").map_or("", |(_, form)| form);
+    if let Some(player) = reduce_value_player(form, &operands) {
+        return player;
+    }
     match (form, operands.as_slice()) {
         (_, [Operand::Result(result)]) => PlayerRef::Named {
             result: result.clone(),

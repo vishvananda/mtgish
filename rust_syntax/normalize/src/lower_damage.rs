@@ -276,10 +276,9 @@ impl Context {
                                 if matches!(spell.as_ref(), source::Spell::Trigger_ThatSpell)
                         ) =>
                     {
-                        ObjectFilter::Primitive {
-                            name: "Permanent::SingleTargetPermanentOfSpell".into(),
-                            operands: vec![],
-                        }
+                        ObjectFilter::SameObject(ObjectRef::SoleTargetOf(Box::new(
+                            ObjectRef::Damage(DamageSubject::Source),
+                        )))
                     }
                     _ => self.filter(p)?,
                 });

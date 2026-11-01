@@ -510,7 +510,14 @@ impl<'a> Scope<'a> {
                     DamageRecipients::Target { slot, .. } | DamageRecipients::Targets(slot) => {
                         self.recipients(&Recipients::Targets(slot.clone()))
                     }
-                    DamageRecipients::Objects(f) => self.filter(f),
+                    // A recipient can be named by the source that dealt the damage.
+                    DamageRecipients::Objects(f) => {
+                        let bound =
+                            crate::semantics::event_bindings(&EventSpec::Damage(event.clone()));
+                        let mut scoped = self.clone();
+                        scoped.event.damage_source |= bound.damage_source;
+                        scoped.filter(f)
+                    }
                     DamageRecipients::Players(p) => self.players(p),
                     DamageRecipients::ObjectsAndPlayers { objects, players } => {
                         self.filter(objects)?;
@@ -562,6 +569,11 @@ impl<'a> Scope<'a> {
             ObjectRef::Scoped => Ok(()),
             ObjectRef::RingBearer(player) => self.player(player),
             ObjectRef::HauntedBy(object) => self.object(object),
+            ObjectRef::TheOther { among, excluding } => {
+                self.objects(among)?;
+                self.objects(excluding)
+            }
+            ObjectRef::AtEnd { objects, .. } => self.objects(objects),
             ObjectRef::NthChosen { by, .. } => by.iter().try_for_each(|player| self.player(player)),
             ObjectRef::Named { result, by } => {
                 if !self.results.contains_key(&result.0) {
@@ -783,6 +795,12 @@ impl<'a> Scope<'a> {
         match player {
             PlayerRef::NotedFor(object) => self.object(object),
             PlayerRef::OtherChosen(player) => self.player(player),
+            PlayerRef::AsOf { moment, player } => {
+                if let Moment::LastEvent { event, .. } = moment.as_ref() {
+                    self.event(event)?;
+                }
+                self.player(player)
+            }
             PlayerRef::InChosenDirection { from, among } => {
                 from.iter().try_for_each(|player| self.player(player))?;
                 among.iter().try_for_each(|players| self.players(players))
@@ -878,6 +896,8 @@ impl<'a> Scope<'a> {
             | ObjectSet::AnyZone(filter)
             | ObjectSet::OutsideTheGame(filter) => self.filter(filter),
             ObjectSet::LibraryTops(players) => self.players(players),
+            ObjectSet::SplicedOnto(object) | ObjectSet::TargetsOf(object) => self.object(object),
+            ObjectSet::FromHistory { event, .. } => self.event(event),
             ObjectSet::Random { objects, count } => {
                 self.objects(objects)?;
                 self.expr(count)
@@ -1013,6 +1033,8 @@ impl<'a> Scope<'a> {
 
     fn recipients(&self, recipients: &Recipients) -> Result {
         match recipients {
+            Recipients::DamagedByEvent if self.event.damage_any_recipient => Ok(()),
+            Recipients::DamagedByEvent => Err("this event names no one damaged thing".into()),
             Recipients::Objects(objects) => self.objects(objects),
             Recipients::Players(players) => self.players(players),
             Recipients::Targets(slot) | Recipients::Target { slot, .. } => {
@@ -1100,6 +1122,24 @@ impl<'a> Scope<'a> {
             }
             Expr::TimesKicked(object) => self.object(object),
             Expr::TimesMutated(object) => self.object(object),
+            Expr::ManaOf { filter, .. } => {
+                if filter.colors.as_ref().is_some_and(Vec::is_empty) {
+                    return Err("spent-mana type filter cannot be empty".into());
+                }
+                Ok(())
+            }
+            Expr::CountersPaid { object, .. } => self.object(object),
+            Expr::SharedValues { object, with, .. } => {
+                self.object(object)?;
+                self.objects(with)
+            }
+            Expr::RepeatedCostsUnpaid { result, player } => {
+                if !self.results.contains_key(&result.0) {
+                    return Err(format!("result {} is unavailable", result.0));
+                }
+                self.player(player)
+            }
+            Expr::ManaCostsOf(objects) => self.objects(objects),
             Expr::EventHistory { event, .. } => self.event(event),
             Expr::CountPlayers(players) => self.players(players),
             Expr::ManaSpent { object, filter, .. } => {
@@ -1366,6 +1406,11 @@ impl<'a> Scope<'a> {
             ObjectFilter::AttachedToPlayer(player) => self.player(player),
             ObjectFilter::Extreme { among, .. } => self.objects(among),
             ObjectFilter::ManaSpentFrom(sources) => self.filter(sources),
+            ObjectFilter::TargetedBy(filter) => self.filter(filter),
+            ObjectFilter::ColorOutsideCommanderIdentity(player) => self.player(player),
+            ObjectFilter::SharesColorWithMana(_)
+            | ObjectFilter::ManaCostPayableWith(_)
+            | ObjectFilter::HasEachAbility => Ok(()),
             ObjectFilter::KickedWith(kicker) => {
                 kicker.iter().try_for_each(|operand| self.operand(operand))
             }
@@ -1780,6 +1825,8 @@ impl<'a> Scope<'a> {
                 self.expr(power)?;
                 self.expr(toughness)
             }
+            Change::ColorOfMana { mana, .. } if self.results.contains_key(&mana.0) => Ok(()),
+            Change::ColorOfMana { mana, .. } => Err(format!("result {} is unavailable", mana.0)),
             Change::GrantAbility(ability) | Change::OnlyAbility(ability) => {
                 if has_definition(ability) {
                     return Err(

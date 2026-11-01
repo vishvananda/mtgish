@@ -1824,7 +1824,9 @@ impl Inventory<'_> {
                     self.form("ManaColor", color);
                 }
             }
-            Change::ChosenColor { mode } => self.form("ChangeMode", mode),
+            Change::ChosenColor { mode } | Change::ColorOfMana { mode, .. } => {
+                self.form("ChangeMode", mode)
+            }
             Change::ChosenType { kind, mode } => {
                 self.form("ValueKind", kind);
                 self.form("ChangeMode", mode);
@@ -2042,6 +2044,14 @@ impl Inventory<'_> {
         if let ObjectRef::Result { phase, .. } = r {
             self.form("ObjectPhase", phase);
         }
+        if let ObjectRef::TheOther { among, excluding } = r {
+            self.objects(among);
+            self.objects(excluding);
+        }
+        if let ObjectRef::AtEnd { objects, end } = r {
+            self.objects(objects);
+            self.form("SequenceEnd", end);
+        }
     }
     fn objects(&mut self, r: &ObjectSet) {
         self.form("ObjectSet", r);
@@ -2058,6 +2068,11 @@ impl Inventory<'_> {
             | ObjectSet::AnyZone(filter)
             | ObjectSet::OutsideTheGame(filter) => self.filter(filter),
             ObjectSet::LibraryTops(players) => self.players(players),
+            ObjectSet::SplicedOnto(object) | ObjectSet::TargetsOf(object) => self.object(object),
+            ObjectSet::FromHistory { event, window } => {
+                self.event(event);
+                self.form("HistoryWindow", window);
+            }
             ObjectSet::Random { objects, count } => {
                 self.objects(objects);
                 self.expr(count);
@@ -2147,6 +2162,13 @@ impl Inventory<'_> {
         if let PlayerRef::PlayerOrControllerOf(recipient) = r {
             self.recipients(recipient);
         }
+        if let PlayerRef::AsOf { moment, player } = r {
+            if let Moment::LastEvent { event, window } = moment.as_ref() {
+                self.event(event);
+                self.form("HistoryWindow", window);
+            }
+            self.player(player);
+        }
     }
     fn players(&mut self, r: &PlayerSet) {
         self.form("PlayerSet", r);
@@ -2177,7 +2199,7 @@ impl Inventory<'_> {
         match r {
             Recipients::Objects(o) => self.objects(o),
             Recipients::Players(p) => self.players(p),
-            Recipients::Chosen => {}
+            Recipients::Chosen | Recipients::DamagedByEvent => {}
             Recipients::AttackedBy(attacker) => self.object(attacker),
             Recipients::Union(items) => {
                 for r in items {
@@ -2253,6 +2275,24 @@ impl Inventory<'_> {
             }
             Expr::TimesKicked(object) => self.object(object),
             Expr::TimesMutated(object) => self.object(object),
+            Expr::ManaOf { mana, filter } => {
+                self.form("ManaOccurrence", mana);
+                for color in filter.colors.iter().flatten() {
+                    self.form("ManaColor", color);
+                }
+            }
+            Expr::CountersPaid { object, .. } => self.object(object),
+            Expr::SharedValues {
+                object,
+                property,
+                with,
+            } => {
+                self.object(object);
+                self.form("DistinctProperty", property);
+                self.objects(with);
+            }
+            Expr::RepeatedCostsUnpaid { player, .. } => self.player(player),
+            Expr::ManaCostsOf(objects) => self.objects(objects),
             Expr::BoundValue(_)
             | Expr::ChosenParity
             | Expr::ChosenNumber
@@ -2471,6 +2511,12 @@ impl Inventory<'_> {
             ObjectFilter::BlockingObject(object) => self.object(object),
             ObjectFilter::Condition(condition) => self.condition(condition),
             ObjectFilter::ManaSpentFrom(sources) => self.filter(sources),
+            ObjectFilter::TargetedBy(filter) => self.filter(filter),
+            ObjectFilter::ColorOutsideCommanderIdentity(player) => self.player(player),
+            ObjectFilter::SharesColorWithMana(mana) | ObjectFilter::ManaCostPayableWith(mana) => {
+                self.form("ManaOccurrence", mana)
+            }
+            ObjectFilter::HasEachAbility => {}
             ObjectFilter::KickedWith(_) => {}
             ObjectFilter::HasAttached(filter) => self.filter(filter),
             ObjectFilter::AttachedToPlayer(player) => self.player(player),

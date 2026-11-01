@@ -154,6 +154,8 @@ struct Context {
     copied: Option<ResultId>,
     /// The objects the last tap named, so "it" means them even if already tapped.
     tapped: Option<ObjectSet>,
+    /// How many a filtered reflexive trigger counted, as its "that many".
+    reflexive_count: Option<Expr>,
     /// What a separation split and who split it, until a player picks a pile.
     pile: Option<(PlayerRef, ObjectSet)>,
     /// The picked pile; the other pile is what it left unselected.
@@ -1002,12 +1004,10 @@ impl Context {
             S::Trigger_ControllerOfThatSpell if self.event.spell => {
                 PlayerRef::ControllerOf(Box::new(ObjectRef::EventSubject))
             }
-            // A batch names no one source, so its controller stays a reviewed read.
+            // Creatures that deal combat damage to a player are attacking, and
+            // changing control takes one out of combat, so they are all this player's.
             S::Trigger_ControllerOfThoseCreatures if self.event.damage => {
-                let (name, operands) = self
-                    .primitive("Player", value)
-                    .ok_or_else(|| unsupported(value))?;
-                PlayerRef::Primitive { name, operands }
+                PlayerRef::AttackingPlayer
             }
             S::ThePlayerThatChoseAction if self.performer.is_some() => {
                 PlayerRef::Performer(self.performer.clone().unwrap())
@@ -1356,7 +1356,11 @@ impl Context {
                 let (name, operands) = self
                     .primitive("Comparison", value)
                     .ok_or_else(|| unsupported(value))?;
-                return Ok((Comparison::Equal, Expr::Primitive { name, operands }));
+                let value = crate::semantics::reduce_comparison_value(&name, &operands);
+                return Ok((
+                    Comparison::Equal,
+                    value.unwrap_or(Expr::Primitive { name, operands }),
+                ));
             }
         };
         Ok((comparison, self.number(number)?))
@@ -1703,6 +1707,9 @@ impl Context {
                 .clone()
                 .map(Expr::CastX)
                 .unwrap_or(Expr::AnnouncedX),
+            S::Trigger_ThatMuch if !self.event.amount && self.reflexive_count.is_some() => {
+                self.reflexive_count.clone().unwrap()
+            }
             S::Trigger_ThatMuch
             | S::Trigger_AmountOfDamageDealt
             | S::Trigger_AmountOfExcessDamage
@@ -2421,7 +2428,7 @@ impl Context {
                     S::SetColor(c @ source::SettableColor::TheManaColorChosenThisWay) => {
                         let (name, operands) =
                             self.primitive("SettableColor", c).ok_or_else(|| unsupported(c))?;
-                        vec![Change::Primitive { name, operands }]
+                        vec![crate::semantics::reduce_change(name, operands)]
                     }
                     S::SetColor(c) | S::AddColor(c) => vec![Change::Colors { mode:if matches!(value,S::SetColor(_)) {ChangeMode::Set} else {ChangeMode::Add},colors:self.fixed_colors(c)? }],
                     S::HasAllCreatureTypes => vec![Change::CreatureTypes {mode:ChangeMode::Set,types:CreatureTypeSet::All}],
@@ -2625,12 +2632,8 @@ impl Context {
             S::Trigger_ThatRecipient if self.event.damage_recipient => {
                 Recipients::Objects(ObjectSet::One(ObjectRef::Damage(DamageSubject::Recipient)))
             }
-            // Either a player or a permanent, so only a reviewed row can name it.
-            S::Trigger_ThatRecipient => {
-                let (name, operands) = self
-                    .primitive("DamageRecipient", value)
-                    .ok_or_else(|| unsupported(value))?;
-                Recipients::Objects(crate::semantics::reduce_objects(name, operands))
+            S::Trigger_ThatRecipient if self.event.damage_any_recipient => {
+                Recipients::DamagedByEvent
             }
             S::EachableTarget => Recipients::Objects(ObjectSet::One(ObjectRef::Bound(
                 self.iterated_object

@@ -1814,7 +1814,7 @@ fn spell_exceptions_read_the_spell_they_except() {
     let stitcher = lowered(
         "SpellActions(ActionList([DrawNumberCards(NumSpellsCastByPlayerThisTurn(Other(TheNthSpellCastByPlayerThisTurn(Integer(1), AnySpell, You)), You))]))",
     );
-    assert!(stitcher.contains("Not(SameObject(Primitive"), "{stitcher}");
+    assert!(stitcher.contains("Not(NthCast"), "{stitcher}");
 }
 
 #[test]
