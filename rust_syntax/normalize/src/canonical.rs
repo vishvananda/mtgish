@@ -46,6 +46,18 @@ impl Ids {
 struct Walker {
     schema: &'static Schema,
     scopes: Vec<Ids>,
+    /// The role each open ability's damage event calls its subject.
+    damage_subjects: Vec<Option<Value>>,
+    /// Keep ids and list order, for callers that read the text back out.
+    keep_order: bool,
+}
+
+/// The role a damage event's own subject plays, through a `Filtered` wrapper.
+fn damage_subject(event: &Value) -> Option<Value> {
+    match event.get("Filtered") {
+        Some(filtered) => damage_subject(&filtered["event"]),
+        None => event.get("Damage").map(|damage| damage["subject"].clone()),
+    }
 }
 
 fn id_kind(name: &str) -> Option<&'static str> {
@@ -60,6 +72,9 @@ fn id_kind(name: &str) -> Option<&'static str> {
 impl Walker {
     fn use_id(&self, kind: &'static str, value: &mut Value) {
         let Some(old) = value.as_u64() else { return };
+        if self.keep_order {
+            return;
+        }
         for scope in self.scopes.iter().rev() {
             if let Some(new) = scope.maps.get(kind).and_then(|m| m.get(&old)) {
                 *value = Value::from(*new);
@@ -97,7 +112,7 @@ impl Walker {
     fn named(&mut self, value: &mut Value, name: &str, defining: bool) {
         if let Some(kind) = id_kind(name) {
             if defining {
-                if let Some(scope) = self.scopes.last_mut() {
+                if let (Some(scope), false) = (self.scopes.last_mut(), self.keep_order) {
                     scope.define(kind, value);
                 }
             } else {
@@ -108,6 +123,9 @@ impl Walker {
         let scoped = name == "Ability";
         if scoped {
             self.scopes.push(Ids::default());
+            let outer = self.damage_subjects.last().cloned().flatten();
+            self.damage_subjects
+                .push(damage_subject(&value["args"]["event"]).or(outer));
         }
         let schema = self.schema;
         match schema.types.get(name) {
@@ -122,6 +140,7 @@ impl Walker {
         }
         if scoped {
             self.scopes.pop();
+            self.damage_subjects.pop();
         }
     }
 
@@ -152,7 +171,9 @@ impl Walker {
                     if variant == "All" {
                         drop_identity(items);
                     }
-                    items.sort_by_cached_key(Value::to_string);
+                    if !self.keep_order {
+                        items.sort_by_cached_key(Value::to_string);
+                    }
                 }
                 if let Some(only) = single(content) {
                     *value = only;
@@ -162,9 +183,39 @@ impl Walker {
             match (name, variant.as_str()) {
                 ("ObjectFilter", "InSet") => one_object_set(value),
                 ("ObjectSet", "Zone") => narrow_zone_scope(content_of(value)),
+                ("ObjectRef", "Damage") => {
+                    if self.damage_subjects.last().cloned().flatten().as_ref()
+                        == value.get("args")
+                    {
+                        *value = serde_json::json!({"kind": "EventSubject"});
+                    }
+                }
+                ("Recipients", "Union") => self.merge_permanent_groups(value),
                 _ => {}
             }
         }
+    }
+
+    /// Damage to two groups of permanents is damage to the permanents of either.
+    fn merge_permanent_groups(&self, value: &mut Value) {
+        let Some(items) = value["args"].as_array() else {
+            return;
+        };
+        let mut filters = Vec::with_capacity(items.len());
+        for item in items {
+            if item["kind"] != "Objects" || item["args"]["kind"] != "Battlefield" {
+                return;
+            }
+            filters.push(item["args"]["args"].clone());
+        }
+        flatten(&mut filters, "Either");
+        if !self.keep_order {
+            filters.sort_by_cached_key(Value::to_string);
+        }
+        *value = serde_json::json!({"kind": "Objects", "args": {
+            "kind": "Battlefield",
+            "args": {"kind": "Either", "args": filters},
+        }});
     }
 
     fn fields(&mut self, value: &mut Value, fields: &Fields, owner: &str) {
@@ -283,14 +334,26 @@ fn defines(owner: &str, field: &str) -> bool {
         || (owner == "Instruction::Effect" && field == "result")
 }
 
-/// The canonical form of serialized abilities, in place.
-pub fn abilities(value: &mut Value) -> Result<(), String> {
+fn normalize(value: &mut Value, keep_order: bool) -> Result<(), String> {
     let mut walker = Walker {
         schema: schema()?,
         scopes: Vec::new(),
+        damage_subjects: Vec::new(),
+        keep_order,
     };
     walker.walk(value, &Ty::Vec(Box::new(Ty::Named("Ability".into()))), false);
     Ok(())
+}
+
+/// The canonical form of serialized abilities, in place.
+pub fn abilities(value: &mut Value) -> Result<(), String> {
+    normalize(value, false)
+}
+
+/// The same reductions with ids and list order left as lowered: the order is
+/// what a printer reads the card's wording back from.
+pub fn reduced(value: &mut Value) -> Result<(), String> {
+    normalize(value, true)
 }
 
 pub fn card(card: &Card) -> Result<Card, String> {

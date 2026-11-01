@@ -78,3 +78,32 @@ fn divided_open_count_is_bounded_by_the_total() {
     canonical::abilities(&mut value).unwrap();
     assert_eq!(value[0]["args"]["announcement"]["targets"][0]["count"], json!({"UpTo":total}));
 }
+
+#[test]
+fn damage_role_of_the_subject_is_the_event_subject() {
+    let role = |subject: &str, named: &str| {
+        let mut value = json!([{"kind":"Triggered","args":{
+            "event":{"Damage":{"source_kind":"Any","sources":{"kind":"Any"},
+                "recipients":{"Players":{"kind":"All"}},"kind":"Any",
+                "grouping":"SourceRecipient","subject":subject}},
+            "announcement":{"targets":[],"modes":null},
+            "body":{"instructions":[effect(0, json!({"kind":"One","args":{"kind":"Damage","args":named}}))]}}}]);
+        canonical::abilities(&mut value).unwrap();
+        value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["objects"]["args"].clone()
+    };
+    assert_eq!(role("Source", "Source"), json!({"kind":"EventSubject"}));
+    assert_eq!(role("Source", "Recipient"), json!({"kind":"Damage","args":"Recipient"}));
+}
+
+#[test]
+fn reduced_form_keeps_ids_and_order() {
+    let filter = json!({"kind":"All","args":[{"kind":"Tapped"},{"kind":"Any"},{"kind":"CardType","args":"Creature"}]});
+    let mut value = json!([{"kind":"Spell","args":{
+        "announcement":{"targets":[],"modes":null},
+        "body":{"instructions":[effect(7, json!({"kind":"Battlefield","args":filter}))]}}}]);
+    canonical::reduced(&mut value).unwrap();
+    let instruction = &value[0]["args"]["body"]["instructions"][0]["args"];
+    assert_eq!(instruction["result"], 7);
+    let items = &instruction["operation"]["args"]["objects"]["args"]["args"];
+    assert_eq!(items, &json!([{"kind":"Tapped"},{"kind":"CardType","args":"Creature"}]));
+}
