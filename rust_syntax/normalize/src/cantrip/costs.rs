@@ -843,7 +843,9 @@ impl Compiler {
                     } if condition.is_none() && cant_be_countered(zones, affected, changes) => {
                         parts.keywords.push("Keyword::CantBeCountered".into());
                     }
-                    other => return Err(gap(format!("source-zone scope on {}", form(other)))),
+                    other => {
+                        return self.scoped_static(zones, condition.as_ref(), other, label, parts)
+                    }
                 }
             }
             Ability::Spell { announcement, body } => {

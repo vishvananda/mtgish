@@ -6,7 +6,7 @@ const PRELUDE: &str = "let asker = &Asker::new(source, q.controller(source));";
 
 /// The card a player would be casting, controlled by nobody yet: whoever casts
 /// it is its controller as far as a filter asks (CR 601.2).
-fn cast_card() -> Candidate {
+pub(super) fn cast_card() -> Candidate {
     Candidate {
         controller: "player".into(),
         announced: Some(String::new()),
@@ -17,7 +17,7 @@ fn cast_card() -> Candidate {
 impl Compiler {
     /// Whether `player` is one this static ability is about. Layers read this
     /// too, so the commonest sets avoid the state a `LayerQuery` does not show.
-    fn player_member(&self, players: &PlayerSet) -> Result<String> {
+    pub(super) fn player_member(&self, players: &PlayerSet) -> Result<String> {
         Ok(match players {
             PlayerSet::One(PlayerRef::AbilityController) => "player == asker.controller".into(),
             PlayerSet::All => "true".into(),
@@ -30,7 +30,7 @@ impl Compiler {
             other => format!("({}).contains(&player)", self.players(other)?),
         })
     }
-    fn guard(&self) -> Result<String> {
+    pub(super) fn guard(&self) -> Result<String> {
         Ok(match &self.static_guard {
             Some(condition) => format!("({}) && ", self.condition(condition)?),
             None => String::new(),
@@ -73,7 +73,7 @@ impl Compiler {
     }
     /// A `PlayRule` is its controller's, and has no callback to read a
     /// condition in, so `While` carries it.
-    fn play_rule(&mut self, label: &str, rule: String, parts: &mut Parts) -> Result<()> {
+    pub(super) fn play_rule(&mut self, label: &str, rule: String, parts: &mut Parts) -> Result<()> {
         let Some(condition) = self.static_guard.clone() else {
             parts.table("play_rules", rule);
             return Ok(());
@@ -87,7 +87,7 @@ impl Compiler {
         );
         Ok(())
     }
-    fn player_rule(
+    pub(super) fn player_rule(
         &mut self,
         label: &str,
         players: &PlayerSet,
@@ -234,7 +234,7 @@ impl Compiler {
                             parts,
                         )?;
                     }
-                    _ => return Err(gap(format!("play permission {}", form(rule)))),
+                    _ => return self.more_player_rule(label, players, rule, parts),
                 }
             }
             PlayerRule::Visibility {
@@ -248,7 +248,7 @@ impl Compiler {
             } if yours && affected_zone(objects, EventZone::Library, false) => {
                 self.play_rule(label, "PlayRule::LookAtLibraryTop".into(), parts)?;
             }
-            other => return Err(gap(format!("player rule {}", form(other)))),
+            other => return self.more_player_rule(label, players, other, parts),
         }
         Ok(())
     }
@@ -263,42 +263,20 @@ impl Compiler {
         duration: &crate::ir::Duration,
         out: &mut String,
     ) -> Result<()> {
-        use crate::ir::Duration as D;
         for (i, change) in changes.iter().enumerate() {
             let rule = match change {
                 Change::PlayerRule(rule) => rule,
                 other => return Err(gap(format!("continuous change on players {}", form(other)))),
             };
+            if self.play_for_a_while(id, i, players, rule, duration, out)?
+                || self.prohibit_for_a_while(id, i, source, players, rule, duration, out)?
+                || self.look_for_a_while(id, i, players, rule, duration, out)?
+                || self.keyword_for_a_while(id, i, source, players, rule, duration, out)?
+                || self.cost_for_a_while(id, i, source, players, rule, duration, out)?
+            {
+                continue;
+            }
             let kind = match rule {
-                PlayerRule::PlayPermission {
-                    cards,
-                    from,
-                    action,
-                    filter: ObjectFilter::Any,
-                } => {
-                    let expiry = match duration {
-                        D::EndOfTurn => "EndOfTurn",
-                        D::UntilEndOfNextTurn(PlayerRef::AbilityController) => "EndOfYourNextTurn",
-                        D::Indefinite | D::WhileExiled(_) => "Never",
-                        other => {
-                            return Err(gap(format!("play permission lasting {}", form(other))))
-                        }
-                    };
-                    let lands = match action {
-                        CardPlayAction::Either => true,
-                        CardPlayAction::CastSpell => false,
-                        other => return Err(gap(format!("play permission to {}", form(other)))),
-                    };
-                    writeln!(
-                        out,
-                        "let cards_{id}_{i} = {}; let players_{id}_{i} = {}; cantrip_api::instruction(g, |g| {{ for &card in &cards_{id}_{i} {{ if g.obj(card).zone.is({}) {{ for &player in &players_{id}_{i} {{ g.allow_play(card, player, PlayGrant {{ lands: {lands}, expiry: Expiry::{expiry}, ..PlayGrant::CAST }}); }} }} }} }});",
-                        self.fetch(self.objects(cards)?),
-                        self.fetch(self.players(players)?),
-                        zone_kind(from)?,
-                    )
-                    .unwrap();
-                    continue;
-                }
                 PlayerRule::AdditionalLandPlays(Count::Exactly(Expr::Constant(n)))
                     if u32::try_from(*n).is_ok() =>
                 {
@@ -382,7 +360,7 @@ impl Compiler {
             }
         })
     }
-    fn prohibit(
+    pub(super) fn prohibit(
         &mut self,
         function: &str,
         players: &PlayerSet,

@@ -6,12 +6,12 @@ use super::*;
 
 /// One alternative of the pending event, as `Arm` is for a trigger: `locals`
 /// bind `subject` and `data` from `binding`, a proposal's payload.
-struct Watched {
-    kind: &'static str,
-    variant: &'static str,
-    binding: &'static str,
-    locals: String,
-    tests: Vec<String>,
+pub(super) struct Watched {
+    pub kind: &'static str,
+    pub variant: &'static str,
+    pub binding: &'static str,
+    pub locals: String,
+    pub tests: Vec<String>,
 }
 
 /// Damage's values, as `damage_match` reads them, from a `DamageEvent` `e`.
@@ -64,6 +64,9 @@ fn names_target(recipients: &Recipients) -> bool {
 
 impl Compiler {
     fn watched(&mut self, event: &ReplacementEvent) -> Result<(Vec<Watched>, Frame)> {
+        if let Some(found) = self.more_watched(event)? {
+            return Ok(found);
+        }
         Ok(match event {
             ReplacementEvent::Primitive { name, .. } => {
                 return Err(gap(format!("primitive replacement event {name}")))
@@ -156,7 +159,10 @@ impl Compiler {
                 amount,
             } => {
                 let (mut arms, frame) = self.watched(event)?;
-                if arms.iter().any(|a| a.kind != "Damage") {
+                if arms
+                    .iter()
+                    .any(|a| !matches!(a.kind, "Damage" | "ManaProduction" | "LifeChange"))
+                {
                     return Err(gap("measured replacement of an event without an amount"));
                 }
                 let amount = self.matching(frame, |c| Ok(c.number(amount)?.code))?;
@@ -217,7 +223,7 @@ impl Compiler {
                     other => return Err(gap(format!("replacement destination {}", form(other)))),
                 }
             }
-            (_, other) => return Err(gap(format!("event change {}", form(other)))),
+            (kind, other) => return self.more_reshape(kind, other, frame),
         })
     }
     /// An `Enters` callback for the source's own arrival.
@@ -276,6 +282,20 @@ impl Compiler {
                     self.fetch(n)
                 )
                 .unwrap();
+            }
+            EventChange::Entry(state) => self.entry_state(state, out)?,
+            EventChange::SetDestination(Destination::OwnersGraveyard) => writeln!(
+                out,
+                "entering.instead = Some(Zone::graveyard(g.obj(entering.object).owner));"
+            )
+            .unwrap(),
+            EventChange::SetController(PlayerRef::OneOf(players)) => {
+                let players = self.fetch(self.players(players)?);
+                self.plan_code(
+                    "event change as it enters SetController",
+                    &format!("let players = {players}; entering.controller = cantrip_mechanics::choose::player(g, entering.controller, entering.object, &players)?;"),
+                    out,
+                );
             }
             other => return Err(gap(format!("event change as it enters {}", form(other)))),
         }
@@ -342,6 +362,13 @@ impl Compiler {
         parts: &mut Parts,
     ) -> Result<()> {
         let guard = self.ability_guard.take();
+        if guard.is_none() && lane_h::reveal_and_shuffle_instead(active, event, body) {
+            parts.replacements.push(
+                "cantrip_mechanics::replacements::REVEAL_AND_SHUFFLE_INTO_LIBRARY_INSTEAD_OF_GRAVEYARD"
+                    .into(),
+            );
+            return Ok(());
+        }
         if let ReplacementActive::SourceEntering = active {
             if guard.is_some() {
                 return Err(gap("conditional Replacement"));
@@ -353,12 +380,31 @@ impl Compiler {
                 return Err(gap("as-enters replacement of another event"));
             };
             let function = format!("{label}_enters");
-            self.entering(body, &function)?;
-            parts.enters.push(function);
+            match self.static_guard.clone() {
+                Some(condition) => self.entering(
+                    &Program {
+                        instructions: vec![Instruction::If {
+                            condition,
+                            then: body.clone(),
+                            otherwise: Program {
+                                instructions: Vec::new(),
+                            },
+                        }],
+                    },
+                    &function,
+                )?,
+                None => self.entering(body, &function)?,
+            }
+            if lane_h::enters_as_copy(body) {
+                parts.field("enters_as_copy", format!("Some({function})"));
+            } else {
+                parts.enters.push(function);
+            }
             return Ok(());
         }
         let (arms, frame) = self.watched(event)?;
         let (mut extra, changes, rest) = self.program_parts(body, frame)?;
+        let (changes, rest) = lane_h::life_amount(arms[0].kind, changes, rest);
         if let Some(guard) = &guard {
             extra.push(self.matching(frame, |c| c.condition(guard))?);
         }

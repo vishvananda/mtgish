@@ -1894,7 +1894,7 @@ impl Compiler {
     }
     /// A `ManaUse` as a `ManaRestriction`: the engine's own words, and otherwise
     /// the test its mana will carry.
-    pub(super) fn mana_use(&self, value: &ManaUse) -> Result<String> {
+    pub(super) fn mana_use_composed(&self, value: &ManaUse) -> Result<String> {
         const FEATURE: &str = "engine: mana spent by what it may pay for";
         let planned =
             |code: String| planned::planned_value(FEATURE, "ManaRestriction::ABILITIES", &code);
@@ -1904,7 +1904,7 @@ impl Compiler {
         let many = |c: &Self, uses: &[ManaUse]| -> Result<String> {
             let codes = uses
                 .iter()
-                .map(|u| c.mana_use(u))
+                .map(|u| c.mana_use_composed(u))
                 .collect::<Result<Vec<_>>>()?;
             Ok(codes.join(", "))
         };
@@ -1922,9 +1922,10 @@ impl Compiler {
             ManaUse::All(uses) => {
                 planned(format!("ManaRestriction::AllOf(&[{}])", many(self, uses)?))
             }
-            ManaUse::Not(inner) => {
-                planned(format!("ManaRestriction::Not(&{})", self.mana_use(inner)?))
-            }
+            ManaUse::Not(inner) => planned(format!(
+                "ManaRestriction::Not(&{})",
+                self.mana_use_composed(inner)?
+            )),
             ManaUse::CastSpell(filter) => match spell_words(
                 filter,
                 self.enters_choosing.contains(&ValueKind::CreatureType),

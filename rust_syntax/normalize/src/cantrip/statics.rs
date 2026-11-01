@@ -121,14 +121,17 @@ impl Compiler {
         Ok(grown)
     }
     /// Whether `id` is among the objects a rule is about, as a `Query` reads.
-    fn rule_subject(&self, affected: &ObjectSet, id: &str) -> Result<String> {
+    pub(super) fn rule_subject(&self, affected: &ObjectSet, id: &str) -> Result<String> {
         Ok(match affected {
             ObjectSet::One(ObjectRef::Source) => format!("{id} == asker.source"),
             ObjectSet::One(ObjectRef::AttachedTo(host)) if matches!(**host, ObjectRef::Source) => {
                 format!("q.state().obj(asker.source).attached_to == Some({id})")
             }
             ObjectSet::Battlefield(filter) => self.filter(filter, &Candidate::of(id))?,
-            other => return Err(gap(format!("static rule subjects {}", form(other)))),
+            other => match self.outside_subject(other, &Candidate::of(id))? {
+                Some(test) => test,
+                None => return Err(gap(format!("static rule subjects {}", form(other)))),
+            },
         })
     }
     /// A rule of the game a static ability changes, as one of `CardDef`'s tables.
@@ -232,7 +235,7 @@ impl Compiler {
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ {guard}{test} }}").unwrap();
                 parts.untap_bans.push(function);
             }
-            _ => return Ok(false),
+            other => return self.more_rules(&function, affected, other, parts),
         }
         Ok(true)
     }
@@ -459,6 +462,9 @@ impl Compiler {
                 )
             }
             Change::GrantAbility(ability) => {
+                if let Some(keyword) = self.granted_keyword(ability) {
+                    return Ok(keyword);
+                }
                 let index = self.grant(ability)?;
                 LayerChange::of(
                     "Ability",
@@ -475,7 +481,8 @@ impl Compiler {
                 "Ability",
                 "chars.keywords = chars.keywords.with(Keyword::CantBeBlockedByMoreThanOne);".into(),
             ),
-            Change::Rule(rule) => return Err(gap(format!("static rule {}", rule_name(rule)))),
+            Change::Rule(rule) => return self.layer_rule(rule),
+            Change::GainAbilitiesOf { .. } => return self.gain_abilities_of(change),
             Change::PlayerRule(rule) => {
                 return Err(gap(format!("static player rule {}", form(rule))))
             }
@@ -505,6 +512,10 @@ impl Compiler {
         } = kind
         {
             parts.keywords.push(keyword(printed)?);
+            return Ok(());
+        }
+        let changes = &self.casting_tables(label, affected, changes, parts)?[..];
+        if changes.is_empty() {
             return Ok(());
         }
         let defining = matches!(kind, StaticKind::CharacteristicDefining { .. });
@@ -543,7 +554,10 @@ impl Compiler {
                 ObjectSet::Battlefield(filter) => {
                     (c.filter(filter, &Candidate::affected())?, false)
                 }
-                other => return Err(gap(format!("static subjects {}", form(other)))),
+                other => match c.outside_subject(other, &Candidate::affected())? {
+                    Some(test) => (test, false),
+                    None => return Err(gap(format!("static subjects {}", form(other)))),
+                },
             })
         })?;
         let (affects, named) = affects;
@@ -619,6 +633,16 @@ impl Compiler {
             } else {
                 def
             });
+        }
+        if let ObjectSet::Zone { .. } | ObjectSet::AnyZone(_) = affected {
+            let own = matches!(
+                affected,
+                ObjectSet::AnyZone(ObjectFilter::SameObject(ObjectRef::Source))
+            );
+            let own = if own { ".own()" } else { "" };
+            for def in &mut defs {
+                write!(def, "{own}.everywhere()").unwrap();
+            }
         }
         parts.statics.extend(defs);
         Ok(())

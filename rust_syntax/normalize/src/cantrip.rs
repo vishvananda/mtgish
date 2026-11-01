@@ -20,6 +20,7 @@ mod effects;
 mod keywords;
 mod lane_f;
 mod lane_g;
+mod lane_h;
 mod lane_i;
 mod mechanics;
 pub mod planned;
@@ -109,6 +110,10 @@ fn generator_fingerprint() -> &'static str {
     HASH.get_or_init(|| {
         let inputs: BTreeMap<_, _> = [
             ("cantrip.rs", include_bytes!("cantrip.rs").as_slice()),
+            (
+                "cantrip/lane_h.rs",
+                include_bytes!("cantrip/lane_h.rs").as_slice(),
+            ),
             (
                 "cantrip/card_file.rs",
                 include_bytes!("cantrip/card_file.rs").as_slice(),
@@ -473,6 +478,23 @@ struct Compiler {
     /// `CardDef::granted_preventions` and `granted_replacements`.
     made_preventions: Vec<String>,
     made_replacements: Vec<String>,
+    /// The counter a replacement of counters is about, indexing `counts`:
+    /// `None` when it is about every kind.
+    replaced_counter: Option<String>,
+    /// `CardDef::lasting`: the conditions of "for as long as" durations.
+    lasting: Vec<String>,
+    /// `CardDef::lasting_block_rules`.
+    made_block_rules: Vec<String>,
+    /// `CardDef::labels`: the options of a choice as it enters.
+    entering_labels: Option<String>,
+    /// The mana cost printed on the card.
+    printed_mana: Option<Vec<ManaSymbol>>,
+    /// `CardDef::lasting_cost_changes`.
+    made_cost_changes: Vec<String>,
+    /// `CardDef::labels` of abilities to choose among as a body resolves.
+    choice_labels: Vec<String>,
+    /// The abilities the body's `ChooseValue` offered.
+    ability_choice: Vec<Ability>,
     granting: bool,
     functions: String,
     next: usize,
@@ -759,6 +781,14 @@ impl Compiler {
             outer: None,
             made_preventions: Vec::new(),
             made_replacements: Vec::new(),
+            replaced_counter: None,
+            lasting: Vec::new(),
+            made_block_rules: Vec::new(),
+            entering_labels: None,
+            printed_mana: None,
+            made_cost_changes: Vec::new(),
+            choice_labels: Vec::new(),
+            ability_choice: Vec::new(),
             granting: false,
             functions: String::new(),
             next: 0,
@@ -1667,6 +1697,7 @@ fn emit_face(
         place.links_exile || format!("{:?}", card.abilities).contains("ExiledWith(Source)");
     c.own_face = place.own_face;
     c.door = place.door;
+    c.printed_mana = card.characteristics.mana_cost.clone();
     c.enters_choosing = chosen::enters_choosing(card);
     for (i, a) in card.abilities.iter().enumerate() {
         if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
@@ -1825,6 +1856,18 @@ fn emit_face(
     }
     for made in std::mem::take(&mut c.made_replacements) {
         parts.table("granted_replacements", made);
+    }
+    for made in std::mem::take(&mut c.lasting) {
+        parts.table("lasting", made);
+    }
+    for made in std::mem::take(&mut c.made_block_rules) {
+        parts.table("lasting_block_rules", made);
+    }
+    for made in std::mem::take(&mut c.made_cost_changes) {
+        parts.table("lasting_cost_changes", made);
+    }
+    if let Some(labels) = c.entering_labels.take() {
+        parts.field("labels", labels);
     }
     let door_refused = parts.door_refused();
     let rest = parts.rest() + &place.fields;

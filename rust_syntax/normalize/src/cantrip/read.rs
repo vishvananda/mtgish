@@ -196,6 +196,28 @@ pub(super) fn counter_kind(kind: &crate::counter::CounterKind) -> Result<String>
     }
 }
 
+/// What the engine records about an object. A state it keeps no record of is a
+/// gap: reading anything else would look finished and mean something different.
+fn object_state(state: &ObjectState, id: &str) -> Result<String> {
+    use ObjectState as S;
+    Ok(match state {
+        S::FaceDown => format!("q.state().obj({id}).face_down"),
+        S::Monstrous => format!("q.state().obj({id}).marks.monstrous"),
+        S::Transformed => format!("q.state().obj({id}).transformed"),
+        S::Prepared => format!("q.state().obj({id}).prepared"),
+        S::Suspected => format!(
+            "q.state().effects.iter().any(|e| e.affected == {id} && e.kind == EffectKind::Suspected)"
+        ),
+        S::Blocked => format!("q.state().attackers.iter().any(|a| a.id == {id} && a.blocked)"),
+        S::Unblocked => format!("q.state().attackers.iter().any(|a| a.id == {id} && !a.blocked)"),
+        S::AttackingAlone => format!(
+            "(q.state().attackers.len() == 1 && q.state().attackers.iter().any(|a| a.id == {id}))"
+        ),
+        S::Damaged => format!("q.state().obj({id}).damage > 0"),
+        other => return Err(gap(format!("object state {}", form(other)))),
+    })
+}
+
 impl Compiler {
     /// `SOURCE_CARD`, or for a face an object's `card` doesn't name, that face: a
     /// transformed permanent's `card` is its front and a Room's is the whole Room,
@@ -1365,10 +1387,11 @@ impl Compiler {
             }
             // Attachments are read as a layer may: by the state, and by what
             // the layers before it have made the attachment.
-            ObjectFilter::State(state) => format!(
+            ObjectFilter::State(state @ (ObjectState::Enchanted | ObjectState::Equipped)) => format!(
                 "q.state().battlefield().iter().any(|&a| q.state().obj(a).attached_to == Some({id}) && q.chars(a).has_subtype(Subtype::{}))",
                 if *state == ObjectState::Equipped { "Equipment" } else { "Aura" }
             ),
+            ObjectFilter::State(state) => object_state(state, &id)?,
             // Layers read the host only by which object it is.
             ObjectFilter::AttachedTo(host)
                 if self.reader != Reader::Layer
