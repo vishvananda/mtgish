@@ -151,6 +151,9 @@ A third pass over the complete cards added since, reading each named row's Oracl
 - [#118](https://github.com/i5jb/mtgish/issues/118): Zevlor's copies keep the original target's kind.
 - [#119](https://github.com/i5jb/mtgish/issues/119): Baldur's Gate Wilderness's Reithwin Tollhouse rolls one die.
 - [#120](https://github.com/i5jb/mtgish/issues/120): Spikeshell Harrier's speed can drop below 1.
+- [#121](https://github.com/i5jb/mtgish/issues/121): Galea, Kindler of Hope needs Aura or Equipment.
+- [#122](https://github.com/i5jb/mtgish/issues/122): Alaundo the Seer casts the card with the ability.
+- [#123](https://github.com/i5jb/mtgish/issues/123): Deification keeps "you control". Its cancelled damage stays open.
 
 [#67](https://github.com/i5jb/mtgish/issues/67) was filed in error and closed: Shifting Loyalties keeps its restriction in the old encoding.
 

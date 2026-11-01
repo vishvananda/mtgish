@@ -707,3 +707,30 @@ fn entry_flags_and_routed_fallbacks_reduce() {
         ObjectFilter::SharesColorWith(ObjectRef::Source)
     ));
 }
+
+#[test]
+fn audited_forms_keep_every_clause() {
+    let you = || PlayerSet::One(PlayerRef::AbilityController);
+    let copy = semantics::reduce_action(
+        you(),
+        "Action::CopyEachSpellAndMayChooseNewTargets".into(),
+        vec![Operand::Filter(ObjectFilter::Any)],
+    );
+    assert!(format!("{copy:?}").contains("OnStack(Spell)"), "{copy:?}");
+    let drain = semantics::reduce_action(
+        you(),
+        "Action::ActivateAManaAbilityOfEachPermanentAndLoseUnspentMana".into(),
+        vec![Operand::Objects(ObjectSet::Battlefield(ObjectFilter::Any))],
+    );
+    assert!(
+        format!("{drain:?}").contains("LoseUnspentMana"),
+        "{drain:?}"
+    );
+    assert!(matches!(
+        semantics::reduce_number(
+            "GameNumber::TheClampedAmountOfDamageDealtThisWay".into(),
+            vec![Operand::Result(ResultId(0))],
+        ),
+        Expr::ClampedDamage(_)
+    ));
+}

@@ -311,12 +311,15 @@ fn reduce_tail_actions(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
             keyword(actor.clone(), KeywordAction::TurnPileFaceUp, None, None)
         }
         ("ActivateAManaAbilityOfEachPermanentAndLoseUnspentMana", [Objects(objects)]) => {
-            Operation::KeywordEach {
-                actor: actor.clone(),
-                action: KeywordAction::ActivateManaAbility,
-                objects: objects.clone(),
-                until: None,
-            }
+            Operation::Together(vec![
+                Operation::KeywordEach {
+                    actor: actor.clone(),
+                    action: KeywordAction::ActivateManaAbility,
+                    objects: objects.clone(),
+                    until: None,
+                },
+                keyword(actor.clone(), KeywordAction::LoseUnspentMana, None, None),
+            ])
         }
         ("ShuffleHandAndPermanentsIntoLibrary", []) => Operation::ChangeZone {
             actor: actor.clone(),

@@ -12536,5 +12536,32 @@
     "contains": [
       "CopySpellForEachPlayerAndMustChooseThemOrAPermanentTheyControlAsNewTarget(Trigger_ThatSpell, And([Opponent, Other(SingleTargetPlayerOfSpell(Trigger_ThatSpell))]))"
     ]
+  },
+  {
+    "name": "Galea, Kindler of Hope",
+    "issues": [
+      121
+    ],
+    "contains": [
+      "MayCastSpellsFromTopOfLibrary_SpellsWithTrigger(Or([IsEnchantmentType(Aura), IsArtifactType(Equipment)])"
+    ]
+  },
+  {
+    "name": "Alaundo the Seer",
+    "issues": [
+      122
+    ],
+    "contains": [
+      "CastSpellFromExileWithoutPayingAndFlagSpellsCastWithEffect(AnySpell, ThisExiledCard,"
+    ]
+  },
+  {
+    "name": "Deification",
+    "issues": [
+      123
+    ],
+    "contains": [
+      "EachPermanentLayerEffect(And([IsCardtype(Planeswalker), ControlledByAPlayer(SinglePlayer(You)), IsPlaneswalkerTypeVariable(TheChosenPlaneswalkerType)])"
+    ]
   }
 ]

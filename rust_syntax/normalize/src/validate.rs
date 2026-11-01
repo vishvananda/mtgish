@@ -1215,6 +1215,7 @@ impl<'a> Scope<'a> {
             }
             Expr::ExcessDamage { result, .. } => Err(format!("result {} is unavailable", result.0)),
             Expr::Performed(result)
+            | Expr::ClampedDamage(result)
             | Expr::ChosenPowerToughness { result, .. }
             | Expr::DieResultAt { result, .. }
                 if self.results.contains_key(&result.0) =>
@@ -1224,7 +1225,9 @@ impl<'a> Scope<'a> {
             Expr::ChosenPowerToughness { result, .. } | Expr::DieResultAt { result, .. } => {
                 Err(format!("result {} is unavailable", result.0))
             }
-            Expr::Performed(result) => Err(format!("result {} is unavailable", result.0)),
+            Expr::Performed(result) | Expr::ClampedDamage(result) => {
+                Err(format!("result {} is unavailable", result.0))
+            }
             Expr::PaidCountersRemoved { payment, component } => {
                 self.paid_component(payment, component).map(|_| ())
             }

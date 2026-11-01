@@ -348,8 +348,9 @@ fn reduce_game_number(form: &str, operands: &[Operand]) -> Option<Expr> {
         ("TheNumberOfCountersRemovedThisWay", [Run(result)]) => {
             Expr::CountersRemoved(result.clone())
         }
-        ("TheAmountOfManaLostThisWay" | "TheClampedAmountOfDamageDealtThisWay", [Run(result)]) => {
-            Expr::Performed(result.clone())
+        ("TheAmountOfManaLostThisWay", [Run(_)]) => Expr::Game(GameValue::ManaLostThisWay),
+        ("TheClampedAmountOfDamageDealtThisWay", [Run(result)]) => {
+            Expr::ClampedDamage(result.clone())
         }
         (
             "ManaValueOfTheCardFoundThisWay"

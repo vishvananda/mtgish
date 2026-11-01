@@ -1333,7 +1333,7 @@ fn reduce_stack_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> O
     Some(match (form, operands) {
         ("CopyEachSpellAndMayChooseNewTargets", [Filter(spells)]) => Operation::CopyEach {
             actor: actor.clone(),
-            objects: spells.clone(),
+            objects: ObjectFilter::All(vec![ObjectFilter::OnStack(StackTrait::Spell), spells.clone()]),
             targets: T::May,
         },
         ("CopyEachAbilityAndMayChooseNewTargets", [term]) => Operation::CopyEach {

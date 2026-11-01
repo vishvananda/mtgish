@@ -2360,6 +2360,7 @@ impl Inventory<'_> {
             | Expr::CountersRemoved(_)
             | Expr::PaidCountersRemoved { .. }
             | Expr::Performed(_)
+            | Expr::ClampedDamage(_)
             | Expr::ChosenPowerToughness { .. }
             | Expr::DieResultAt { .. }
             | Expr::DistributedShare(_)

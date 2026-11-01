@@ -27700,7 +27700,7 @@ Card(
                 ActionList([
                   MayAction(CastSpellFromExileWithoutPayingAndFlagSpellsCastWithEffect(
                     AnySpell,
-                    TheExiledCard,
+                    ThisExiledCard,
                     IsCardtype(Creature),
                     [
                       AddAbility([
@@ -312084,6 +312084,7 @@ Card(
     EachPermanentLayerEffect(
       And([
         IsCardtype(Planeswalker),
+        ControlledByAPlayer(SinglePlayer(You)),
         IsPlaneswalkerTypeVariable(TheChosenPlaneswalkerType),
       ]),
       [
@@ -312101,6 +312102,7 @@ Card(
         ReplaceWouldDealDamage(
           LethalLoyaltyDamageWouldBeDealtToAPlaneswalker(And([
             IsCardtype(Planeswalker),
+            ControlledByAPlayer(SinglePlayer(You)),
             IsPlaneswalkerTypeVariable(TheChosenPlaneswalkerType),
           ])),
           [
@@ -493686,7 +493688,7 @@ Card(
       You,
       [
         MayCastSpellsFromTopOfLibrary_SpellsWithTrigger(
-          And([
+          Or([
             IsEnchantmentType(Aura),
             IsArtifactType(Equipment),
           ]),

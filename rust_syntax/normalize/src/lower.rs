@@ -4083,6 +4083,13 @@ impl Context {
                 }
                 return create(self, &players);
             }
+            // What each player may pay for can depend on that player.
+            S::EachPlayerRepeatedMayCost(..) if self.iterated.is_none() => {
+                self.iterated = Some(PlayerRef::Acting);
+                let instruction = self.action(value, actor);
+                self.iterated = None;
+                return instruction;
+            }
             S::APlayerAction(players, action) => {
                 let chosen = PlayerRef::OneOf(Box::new(self.players(players)?));
                 let outer = self.iterated.replace(chosen.clone());

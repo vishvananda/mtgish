@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 163;
+pub const SCHEMA_VERSION: u32 = 164;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -4155,6 +4155,9 @@ pub enum Expr {
     /// Mana symbols of these colors in the activation cost being changed, counted
     /// as `CountManaSymbols` counts a mana cost.
     ActivationCostSymbols(Vec<ManaColor>),
+    /// The damage of this instruction, counted only up to each recipient's life,
+    /// loyalty or toughness before it was dealt.
+    ClampedDamage(ResultId),
 }
 
 /// Mana a number or filter reads that did not pay for a whole spell.

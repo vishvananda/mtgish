@@ -5601,7 +5601,7 @@
    "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
   },
   {
-   "id": "c5a1762d06131d3e85c87ef81e866cc0e927a6a2d4d07190f8ea2e82bd437325",
+   "id": "48c98903df1c99337f6b3351ccce44e611684ed717da2013c310197024ccaf40",
    "kind": "mined_token",
    "rule": "StaticEffect[TheChosenPlaneswalkerType]",
    "token": "NumberCountersOfTypeFromPermanent",
@@ -5612,7 +5612,7 @@
    "reason": "triaged 2026-10-30: reads correctly for its cards, or the pairing is a mining coincidence"
   },
   {
-   "id": "d96e9ea04869fe350420b1558bffe5206f507376b8fe7a36ec909f02ccc95993",
+   "id": "6afa412a4639796cd7562fe4e6970418543fd48ae5f5e6ead868f1def5e56114",
    "kind": "mined_token",
    "rule": "StaticEffect[TheChosenPlaneswalkerType]",
    "token": "WouldDealDamage_ThatPermanent",
