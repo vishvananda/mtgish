@@ -695,7 +695,9 @@ impl<'a> Scope<'a> {
         match objects {
             ObjectSet::Named(result) if self.results.contains_key(&result.0) => Ok(()),
             ObjectSet::Named(result) => Err(format!("result {} is unavailable", result.0)),
-            ObjectSet::DamageSources(filter) | ObjectSet::AnyZone(filter) => self.filter(filter),
+            ObjectSet::DamageSources(filter)
+            | ObjectSet::AnyZone(filter)
+            | ObjectSet::OutsideTheGame(filter) => self.filter(filter),
             ObjectSet::LibraryTops(players) => self.players(players),
             ObjectSet::CostObjects {
                 payment,
@@ -1847,7 +1849,9 @@ impl<'a> Scope<'a> {
     }
     fn play_cost(&self, cost: &PlayCost) -> Result {
         match cost {
-            PlayCost::Alternate(paid) | PlayCost::Additional(paid) => self.operand(paid),
+            PlayCost::Alternate(paid) | PlayCost::Additional(paid) | PlayCost::Reduced(paid) => {
+                self.operand(paid)
+            }
             PlayCost::Normal | PlayCost::Free | PlayCost::Using(_) => Ok(()),
         }
     }
@@ -2365,6 +2369,11 @@ impl<'a> Scope<'a> {
                 match subject {
                     EffectSubject::Objects(objects) => self.objects(objects)?,
                     EffectSubject::EachSpell(spells) => self.filter(spells)?,
+                    EffectSubject::NextSpell { spells, caster, .. } => {
+                        self.filter(spells)?;
+                        self.player(caster)?;
+                    }
+                    EffectSubject::Players(players) => self.players(players)?,
                 }
                 if let Some(until) = until {
                     self.duration(until)?;
@@ -2528,6 +2537,50 @@ impl<'a> Scope<'a> {
                 self.players(actor)?;
                 self.objects(cards)?;
                 self.count(count)
+            }
+            Operation::PlayWith {
+                actor,
+                cards,
+                count,
+                terms,
+                group,
+                ..
+            } => {
+                self.players(actor)?;
+                self.objects(cards)?;
+                self.count(count)?;
+                self.play_cost(&terms.cost)?;
+                if let Some(then) = &terms.then {
+                    self.destination(then)?;
+                }
+                terms.effects.iter().try_for_each(|o| self.operand(o))?;
+                group.iter().try_for_each(|o| self.operand(o))
+            }
+            Operation::ChangeZone {
+                actor,
+                cards,
+                count,
+                group,
+                destination,
+                entry,
+                face_down,
+                ..
+            } => {
+                self.players(actor)?;
+                self.objects(cards)?;
+                if let Some(count) = count {
+                    self.count(count)?;
+                }
+                self.destination(destination)?;
+                if let Some(face_down) = face_down {
+                    self.operand(&face_down.power_toughness)?;
+                    face_down
+                        .creature_type
+                        .iter()
+                        .try_for_each(|o| self.operand(o))?;
+                }
+                entry.iter().try_for_each(|o| self.operand(o))?;
+                group.iter().try_for_each(|o| self.operand(o))
             }
             Operation::CopyCards {
                 actor,

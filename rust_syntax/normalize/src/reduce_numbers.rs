@@ -58,7 +58,7 @@ fn symbol_color(symbol: &Operand) -> Option<ManaColor> {
 }
 
 /// Commanders named by a source filter, wherever a commander can be.
-fn commanders(term: &Operand) -> Option<ObjectSet> {
+fn commander_filter(term: &Operand) -> Option<ObjectFilter> {
     fn filter(term: &Operand) -> Option<ObjectFilter> {
         let Operand::Term { form, operands, .. } = term else {
             return None;
@@ -68,16 +68,24 @@ fn commanders(term: &Operand) -> Option<ObjectSet> {
             ("OwnedByAPlayer", [Operand::Players(players)]) => {
                 Some(ObjectFilter::OwnedBy(players.clone()))
             }
+            ("IsYourCommander", []) => Some(ObjectFilter::OwnedBy(PlayerSet::One(
+                PlayerRef::AbilityController,
+            ))),
+            ("IsCardtype", [kind]) => Some(ObjectFilter::CardType(vocabulary_value(kind)?)),
             ("And", items) => Some(ObjectFilter::All(
                 items.iter().map(filter).collect::<Option<_>>()?,
             )),
             _ => None,
         }
     }
-    let filter = ObjectFilter::All(vec![
+    Some(ObjectFilter::All(vec![
         ObjectFilter::State(ObjectState::Commander),
         filter(term)?,
-    ]);
+    ]))
+}
+
+fn commanders(term: &Operand) -> Option<ObjectSet> {
+    let filter = commander_filter(term)?;
     Some(ObjectSet::Union(vec![
         ObjectSet::Zone {
             scope: ZoneScope::Shared(EventZone::Command),

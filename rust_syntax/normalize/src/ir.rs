@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 149;
+pub const SCHEMA_VERSION: u32 = 150;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1489,6 +1489,35 @@ pub enum Operation {
         cost: Cost,
         at_most: Expr,
     },
+    /// Cards change zones, as Forge's `ChangeZone`. `count` is how many the
+    /// actor chooses, or which at `random`; none means all of `cards`. `group`
+    /// is a rule the chosen cards keep together.
+    ChangeZone {
+        actor: PlayerSet,
+        cards: ObjectSet,
+        count: Option<Count>,
+        random: bool,
+        group: Option<Box<Operand>>,
+        destination: Destination,
+        entry: Vec<Operand>,
+        face_down: Option<FaceDownAs>,
+    },
+    /// `PlayCards` on terms: how it is paid for and what the spell gets.
+    PlayWith {
+        actor: PlayerSet,
+        action: CardPlayAction,
+        cards: ObjectSet,
+        count: Count,
+        terms: PlayTerms,
+        group: Option<Box<Operand>>,
+    },
+}
+/// What a face-down permanent is, when not a plain 2/2.
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub struct FaceDownAs {
+    pub power_toughness: Box<Operand>,
+    pub creature_type: Option<Box<Operand>>,
+    pub artifact: bool,
 }
 /// Defines the keyword abilities with one table, so the enum and the rows that
 /// lower to it cannot disagree.
@@ -2123,6 +2152,8 @@ pub enum Destination {
     OwnersLibraryBottomRandom,
     /// Its owner's choice of the top or the bottom.
     OwnersLibraryTopOrBottom,
+    Hand(PlayerRef),
+    CommandZone,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2753,6 +2784,8 @@ pub struct PlayTerms {
     pub flash: bool,
     /// The player may also look at the cards.
     pub may_look: bool,
+    /// Where the card goes instead when it would leave the stack.
+    pub then: Option<Destination>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -2777,6 +2810,8 @@ pub enum PlayCost {
     Additional(Operand),
     /// By this keyword's cost and its other rules.
     Using(CostedKeyword),
+    /// For its mana cost less this.
+    Reduced(Operand),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3320,6 +3355,14 @@ pub enum EffectSubject {
     Objects(ObjectSet),
     /// Spells that match, including ones cast later.
     EachSpell(ObjectFilter),
+    /// The next matching spell this player casts.
+    NextSpell {
+        spells: ObjectFilter,
+        caster: PlayerRef,
+        this_turn: bool,
+        from: Option<EventZone>,
+    },
+    Players(PlayerSet),
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -3657,6 +3700,8 @@ pub enum ObjectSet {
     Named(ResultId),
     /// Every matching card or object, whatever zone it is in.
     AnyZone(ObjectFilter),
+    /// Cards a player owns outside the game (CR 400.11).
+    OutsideTheGame(ObjectFilter),
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum ZoneScope {
@@ -4030,6 +4075,8 @@ pub enum ObjectHistory {
     Convoked(ObjectRef),
     Exploited(ObjectRef),
     TappedToPayFor(ObjectRef),
+    DiedOrPutFromBattlefield,
+    CycledOrDiscarded,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]

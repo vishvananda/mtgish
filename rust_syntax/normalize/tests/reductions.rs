@@ -98,7 +98,10 @@ fn rules_are_typed() {
     for (name, operands) in [
         ("PlayerEffect::ChoosesWhichCreaturesAttack", vec![]),
         ("PlayerEffect::UnspentManaBecomesColorless", vec![]),
-        ("PlayerEffect::MustAttackWithEachCreature", vec![creatures()]),
+        (
+            "PlayerEffect::MustAttackWithEachCreature",
+            vec![creatures()],
+        ),
         (
             "PlayerEffect::MayAttackOnlyPlayerOrPlaneswalkersControlledBy",
             vec![player()],
@@ -115,7 +118,10 @@ fn rules_are_typed() {
     for (name, operands) in [
         ("PermanentRule::CantBeEquipped", vec![]),
         ("PermanentRule::CantBeTurnedFaceUp", vec![]),
-        ("PermanentRule::AttackingCausesOthersToAttack", vec![creatures()]),
+        (
+            "PermanentRule::AttackingCausesOthersToAttack",
+            vec![creatures()],
+        ),
     ] {
         assert!(
             !matches!(
@@ -125,7 +131,10 @@ fn rules_are_typed() {
             "{name}"
         );
     }
-    for name in ["Rule::DamageCantBePrevented", "Rule::YouAreTheStartingPlayer"] {
+    for name in [
+        "Rule::DamageCantBePrevented",
+        "Rule::YouAreTheStartingPlayer",
+    ] {
         assert!(
             !matches!(
                 semantics::reduce_ability(name.into(), vec![]),
@@ -167,5 +176,59 @@ fn an_unknown_rule_stays_with_its_row() {
     assert!(matches!(
         semantics::reduce_cost("Cost::NoSuchCost".into(), vec![]),
         CostPart::Primitive { .. }
+    ));
+}
+
+#[test]
+fn actions_read_as_zone_changes_and_plays() {
+    let you = || PlayerSet::One(PlayerRef::AbilityController);
+    let player = || Operand::Player(PlayerRef::AbilityController);
+    let cards = || Operand::Filter(ObjectFilter::Any);
+    let reduced = |name: &str, operands| semantics::reduce_action(you(), name.into(), operands);
+    match reduced(
+        "Action::ReturnACardFromGraveyardToHandAtRandom",
+        vec![cards()],
+    ) {
+        Operation::ChangeZone {
+            random: true,
+            destination: Destination::OwnersHand,
+            count: Some(Count::Exactly(_)),
+            ..
+        } => {}
+        other => panic!("{other:?}"),
+    }
+    match reduced(
+        "Action::CastASpellFromPlayersGraveyardWithoutPayingIntoExile",
+        vec![cards(), player()],
+    ) {
+        Operation::PlayWith { terms, .. } => {
+            assert!(terms.into_exile && matches!(terms.cost, PlayCost::Free));
+        }
+        other => panic!("{other:?}"),
+    }
+    assert!(matches!(
+        reduced(
+            "Action::CreateFutureSpellEffect",
+            vec![
+                Operand::Term {
+                    family: "FutureSpell".into(),
+                    form: "TheNextSpellPlayerCastsThisTurn".into(),
+                    operands: vec![cards(), player()],
+                },
+                Operand::List(vec![]),
+            ],
+        ),
+        Operation::EffectOn {
+            subject: EffectSubject::NextSpell {
+                this_turn: true,
+                ..
+            },
+            until: None,
+            ..
+        }
+    ));
+    assert!(matches!(
+        reduced("Action::NoSuchAction", vec![]),
+        Operation::Primitive { .. }
     ));
 }

@@ -202,6 +202,15 @@ pub fn singular_operation(operation: &Operation, single: impl Fn(&ResultId) -> b
 /// primitive with no ordinary movement to read the permanent from.
 /// What a reviewed action row leaves for a later "this way" to name.
 pub fn yields(operation: &Operation) -> Option<&'static str> {
+    if let Operation::ChangeZone { destination, .. } = operation {
+        return Some(match destination {
+            Destination::OwnersHand | Destination::Hand(_) => "hand",
+            Destination::OwnersGraveyard => "graveyard",
+            Destination::Exile => "exiled",
+            Destination::Battlefield(_) | Destination::OwnersBattlefield => "entered",
+            _ => "moved",
+        });
+    }
     let name = match operation {
         Operation::Primitive { name, .. } => name.as_str(),
         Operation::Keyword { action, .. } => {
@@ -580,6 +589,13 @@ pub fn reduce_action(actor: PlayerSet, name: String, operands: Vec<Operand>) -> 
         .or_else(|| reduce_conjure(&actor, &name, &operands))
         .or_else(|| reduce_stack_copy(&actor, &name, &operands))
     {
+        return operation;
+    }
+    if let Some(operation) = name.strip_prefix("Action::").and_then(|form| {
+        reduce_effect_on(form, &operands)
+            .or_else(|| reduce_change_zone(&actor, form, &operands))
+            .or_else(|| reduce_cast(&actor, form, &operands))
+    }) {
         return operation;
     }
     if let ("Action::CounterAbility", [Operand::Object(object)]) =
@@ -1634,6 +1650,7 @@ include!("reduce_objects.rs");
 include!("reduce_numbers.rs");
 include!("reduce_players.rs");
 include!("reduce_rules.rs");
+include!("reduce_actions.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
@@ -2286,6 +2303,7 @@ pub fn reduce_player_rule(name: String, operands: Vec<Operand>) -> PlayerRule {
                 effects: vec![],
                 flash: false,
                 may_look: false,
+                then: None,
             },
         };
     let abilities = |spells: &ObjectFilter, from, nth_each_turn, abilities: &Operand| {
@@ -5226,6 +5244,11 @@ impl Effects {
                         destination,
                         ..
                     }
+                    | Operation::ChangeZone {
+                        cards: objects,
+                        destination,
+                        ..
+                    }
                     | Operation::Counter {
                         objects,
                         destination,
@@ -5297,6 +5320,7 @@ impl Effects {
                     | Operation::MoveCounters { .. }
                     | Operation::DoubleCounters { .. }
                     | Operation::PlayCards { .. }
+                    | Operation::PlayWith { .. }
                     | Operation::CopyCards { .. }
                     | Operation::ChangeSpell { .. }
                     | Operation::KeywordEach { .. }
@@ -5354,7 +5378,9 @@ impl Effects {
             | Destination::OwnersGraveyard
             | Destination::Exile
             | Destination::Battlefield(_)
-            | Destination::OwnersBattlefield => false,
+            | Destination::OwnersBattlefield
+            | Destination::Hand(_)
+            | Destination::CommandZone => false,
         }
     }
     fn object_library(&self, object: &ObjectRef) -> bool {
@@ -5396,7 +5422,10 @@ impl Effects {
     fn objects_library(&self, objects: &ObjectSet) -> bool {
         match objects {
             ObjectSet::LibraryTops(_) => true,
-            ObjectSet::Primitive { .. } | ObjectSet::Named(_) | ObjectSet::AnyZone(_) => false,
+            ObjectSet::Primitive { .. }
+            | ObjectSet::Named(_)
+            | ObjectSet::AnyZone(_)
+            | ObjectSet::OutsideTheGame(_) => false,
             ObjectSet::Observed(result) => self.result_library(result, &ObjectPhase::Before),
             ObjectSet::Difference { objects, .. } | ObjectSet::Matching { objects, .. } => {
                 self.objects_library(objects)

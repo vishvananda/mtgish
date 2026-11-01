@@ -262,7 +262,8 @@ impl Done {
             Operation::Discard { .. } | Operation::DiscardObjects { .. } => Self::Discarded,
             Operation::Sacrifice { .. } => Self::Sacrificed,
             Operation::Move { destination, .. } => match destination {
-                Destination::OwnersHand => Self::Returned,
+                Destination::OwnersHand | Destination::Hand(_) => Self::Returned,
+                Destination::CommandZone => return None,
                 Destination::Exile => Self::Exiled,
                 Destination::OwnersGraveyard => Self::Graveyard,
                 Destination::Battlefield(_) | Destination::OwnersBattlefield => Self::Entered,

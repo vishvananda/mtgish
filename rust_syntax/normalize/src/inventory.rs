@@ -486,6 +486,11 @@ impl Inventory<'_> {
                 match subject {
                     EffectSubject::Objects(objects) => self.objects(objects),
                     EffectSubject::EachSpell(spells) => self.filter(spells),
+                    EffectSubject::NextSpell { spells, caster, .. } => {
+                        self.filter(spells);
+                        self.player(caster);
+                    }
+                    EffectSubject::Players(players) => self.players(players),
                 }
                 if let Some(until) = until {
                     self.duration(until);
@@ -646,6 +651,37 @@ impl Inventory<'_> {
                 self.objects(cards);
                 self.count(count);
                 self.form("PlayCost", cost);
+            }
+            Operation::PlayWith {
+                actor,
+                action,
+                cards,
+                count,
+                terms,
+                ..
+            } => {
+                self.players(actor);
+                self.form("CardPlayAction", action);
+                self.objects(cards);
+                self.count(count);
+                self.form("PlayCost", &terms.cost);
+                if let Some(then) = &terms.then {
+                    self.destination(then);
+                }
+            }
+            Operation::ChangeZone {
+                actor,
+                cards,
+                count,
+                destination,
+                ..
+            } => {
+                self.players(actor);
+                self.objects(cards);
+                if let Some(count) = count {
+                    self.count(count);
+                }
+                self.destination(destination);
             }
             Operation::CopyCards {
                 actor,
@@ -1840,7 +1876,9 @@ impl Inventory<'_> {
         match r {
             ObjectSet::Named(_) => {}
             ObjectSet::Primitive { name, .. } => self.primitive(name),
-            ObjectSet::DamageSources(filter) | ObjectSet::AnyZone(filter) => self.filter(filter),
+            ObjectSet::DamageSources(filter)
+            | ObjectSet::AnyZone(filter)
+            | ObjectSet::OutsideTheGame(filter) => self.filter(filter),
             ObjectSet::LibraryTops(players) => self.players(players),
             ObjectSet::Affected(_) => {}
             ObjectSet::CostObjects {

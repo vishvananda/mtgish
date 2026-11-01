@@ -117,6 +117,7 @@ impl Context {
             effects: vec![],
             flash: false,
             may_look: false,
+            then: None,
         };
         let alternate = has("ForAlternateCastingCost")
             || has("ForAlternateCost")

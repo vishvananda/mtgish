@@ -60,6 +60,7 @@ const THIS_WAY: &[(&[&str], &[&str])] = &[
     (&["Exploited"], &["Exploit"]),
     (&["CountersOfType"], &["Counters"]),
     (&["Discard"], &["Discard"]),
+    (&["Drawn"], &["Draw"]),
     (&["Exile"], &["Exile"]),
     (&["Milled"], &["Mill"]),
     (&["Surveil"], &["Surveil"]),
@@ -93,7 +94,9 @@ const THIS_WAY: &[(&[&str], &[&str])] = &[
 
 /// A row reporting what an earlier action did, which it must name.
 fn reads_last(name: &str) -> bool {
-    name.ends_with("ThisWay") && !name.contains("::Reflexive_") && !name.contains("_When")
+    (name.ends_with("ThisWay") || name.starts_with("Action::") && name.contains("ThisWay"))
+        && !name.contains("::Reflexive_")
+        && !name.contains("_When")
 }
 
 fn vocabulary(ty: &str, value: &serde_json::Value) -> Option<Operand> {

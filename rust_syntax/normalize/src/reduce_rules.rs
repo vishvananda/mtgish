@@ -47,6 +47,7 @@ fn play_terms() -> PlayTerms {
         effects: vec![],
         flash: false,
         may_look: false,
+        then: None,
     }
 }
 
