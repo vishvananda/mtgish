@@ -2123,6 +2123,25 @@ impl Inventory<'_> {
     fn expr(&mut self, e: &Expr) {
         self.form("Expr", e);
         match e {
+            Expr::Earlier { filter, by, .. } => {
+                if let Some(filter) = filter {
+                    self.filter(filter);
+                }
+                if let Some(by) = by {
+                    self.player(by);
+                }
+            }
+            Expr::Dice(_) | Expr::CoinFlipsWon(_) | Expr::Game(_) => {}
+            Expr::Stickers { objects, .. } => self.objects(objects),
+            Expr::Noted { object, .. } => {
+                if let Some(object) = object {
+                    self.object(object);
+                }
+            }
+            Expr::Difference(a, b) => {
+                self.expr(a);
+                self.expr(b);
+            }
             Expr::LargestSharedGroup { objects, .. } => self.objects(objects),
             Expr::ManaSpentFrom { object, sources } => {
                 self.object(object);
@@ -2442,6 +2461,21 @@ impl Inventory<'_> {
     fn condition(&mut self, c: &Condition) {
         self.form("Condition", c);
         match c {
+            Condition::Outcome(outcome) => self.form("PriorOutcome", outcome),
+            Condition::AllVotedFor(_) => {}
+            Condition::MostCommonColor { objects, .. } => self.objects(objects),
+            Condition::GraveyardPosition {
+                card,
+                player,
+                above,
+                amount,
+                ..
+            } => {
+                self.object(card);
+                self.player(player);
+                self.filter(above);
+                self.expr(amount);
+            }
             Condition::PlayerDid {
                 player,
                 event,
@@ -2670,6 +2704,15 @@ impl Inventory<'_> {
             EventSpec::FirstEachGame(event)
             | EventSpec::FirstEachTurn(event)
             | EventSpec::FirstForObjectEachTurn(event) => self.event(event),
+            EventSpec::Caused { cause, event } => {
+                self.filter(cause);
+                self.event(event);
+            }
+            EventSpec::ZoneChangeFromElsewhere { objects, .. } => self.filter(objects),
+            EventSpec::NthCounter { objects, nth, .. } => {
+                self.filter(objects);
+                self.expr(nth);
+            }
             EventSpec::Player {
                 event,
                 players,

@@ -286,3 +286,45 @@ fn set_and_stack_actions_are_typed() {
         }
     ));
 }
+
+#[test]
+fn numbers_and_conditions_read_what_happened() {
+    assert!(matches!(
+        semantics::reduce_number("GameNumber::PowerOfTheRevealedCard".into(), vec![]),
+        Expr::Earlier {
+            what: EarlierObjects::Revealed,
+            measure: ObjectMeasure::Of(Property::Power),
+            ..
+        }
+    ));
+    assert!(matches!(
+        semantics::reduce_number("GameNumber::TheTotalOfTheDiceResults".into(), vec![]),
+        Expr::Dice(DiceMeasure::Total)
+    ));
+    assert!(matches!(
+        semantics::reduce_condition("Condition::FreerunningCostWasPaid".into(), vec![]),
+        Condition::Outcome(PriorOutcome::FreerunningPaid)
+    ));
+    assert!(matches!(
+        semantics::reduce_event(
+            "Trigger::WhenACardIsPutIntoExile".into(),
+            vec![Operand::Filter(ObjectFilter::Any)],
+        ),
+        EventSpec::ZoneChange {
+            from: None,
+            to: EventZone::Exile,
+            ..
+        }
+    ));
+    assert!(matches!(
+        semantics::reduce_event(
+            "Trigger::WhenASpellOrAbilityCausesItsControllerToShuffleTheirLibrary".into(),
+            vec![Operand::Term {
+                family: "SpellsAndAbilities".into(),
+                form: "AnySpellOrAbility".into(),
+                operands: vec![],
+            }],
+        ),
+        EventSpec::Caused { .. }
+    ));
+}

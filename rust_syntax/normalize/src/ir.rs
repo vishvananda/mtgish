@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 151;
+pub const SCHEMA_VERSION: u32 = 152;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -1661,6 +1661,85 @@ pub enum CombatChange {
         during: Option<ResultId>,
     },
     OnlyBlockers(ObjectSet),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum EarlierObjects {
+    It,
+    Revealed,
+    Exiled,
+    Milled,
+    Found,
+    Devoured,
+    PutInGraveyard,
+    Sacrificed,
+    LeftGraveyard,
+    Unattached,
+    Selected,
+    Countered,
+    Discarded,
+    Webslung,
+    Manifested,
+    Targeted,
+    Returned,
+    Tapped,
+    Shuffled,
+    Entered,
+    Evidence,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum ObjectMeasure {
+    Count,
+    Of(Property),
+    Total(Property),
+    Greatest(Property),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum DiceMeasure {
+    Result,
+    Nth(u32),
+    Total,
+    Different,
+    MostEqual,
+    Matching(Comparison, Box<Expr>),
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum StickerMeasure {
+    Names,
+    NamesOfLength(Comparison, Box<Expr>),
+    NamesBeginningWith(Box<Operand>),
+    TotalPower,
+    TotalToughness,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum NotedMeasure {
+    Number,
+    Highest,
+    LifeTotal,
+    CreatureTypes,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum GameValue {
+    Stake,
+    WinningBid,
+    LifePaid,
+    LifeLostThisWay,
+    ManaPaidThisWay,
+    PlayersWhoLost,
+    ResolutionsThisTurn,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
+pub enum PriorOutcome {
+    CostPaid,
+    FreerunningPaid,
+    MayhemPaid,
+    NoLifePaid,
+    NoVotes,
+    NoSpellCast,
+    WonClash,
+    GuessedWrong,
+    RevealedPutInHand,
+    Unearthed,
+    ArtSticker,
 }
 /// What a face-down permanent is, when not a plain 2/2.
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -3461,6 +3540,29 @@ pub enum Expr {
     AnyOf(Vec<Expr>),
     /// How many of the coins a `FlipCoins` flipped came up heads.
     HeadsFlipped(ResultId),
+    /// A measure of what an earlier instruction or cost acted on, as Forge's
+    /// `Remembered$` and `Sacrificed$` counts.
+    Earlier {
+        what: EarlierObjects,
+        measure: ObjectMeasure,
+        result: Option<ResultId>,
+        filter: Option<Box<ObjectFilter>>,
+        by: Option<PlayerRef>,
+    },
+    Dice(DiceMeasure),
+    /// Coin flips won, or lost.
+    CoinFlipsWon(bool),
+    Stickers {
+        objects: Box<ObjectSet>,
+        measure: StickerMeasure,
+    },
+    /// A value noted earlier, on this object or not.
+    Noted {
+        object: Option<ObjectRef>,
+        measure: NotedMeasure,
+    },
+    Game(GameValue),
+    Difference(Box<Expr>, Box<Expr>),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4459,6 +4561,21 @@ pub enum Condition {
     },
     /// A choice of this kind has been made.
     ValueChosen(ValueKind),
+    Outcome(PriorOutcome),
+    AllVotedFor(VoteOption),
+    MostCommonColor {
+        color: Box<Operand>,
+        objects: ObjectSet,
+        tied: bool,
+    },
+    /// In this graveyard, with this many cards above it.
+    GraveyardPosition {
+        card: ObjectRef,
+        player: PlayerRef,
+        above: ObjectFilter,
+        comparison: Comparison,
+        amount: Expr,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
@@ -4906,6 +5023,22 @@ pub enum EventSpec {
     FirstForObjectEachTurn(Box<EventSpec>),
     /// The first such event of the game.
     FirstEachGame(Box<EventSpec>),
+    /// This event, when this spell or ability caused it.
+    Caused {
+        cause: ObjectFilter,
+        event: Box<EventSpec>,
+    },
+    ZoneChangeFromElsewhere {
+        objects: ObjectFilter,
+        except: Vec<EventZone>,
+        to: EventZone,
+    },
+    /// The counter that brings a permanent to `nth` of them.
+    NthCounter {
+        kind: Box<Operand>,
+        objects: ObjectFilter,
+        nth: Expr,
+    },
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -5027,6 +5160,7 @@ pub enum ObjectEvent {
     TappedForTeamwork,
     FinalChapterResolves,
     FinalChapterTriggers,
+    Countered,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,
@@ -5095,6 +5229,7 @@ pub enum ObjectState {
     SnowManaOfOwnColorSpent,
     CostPaid(CastCost),
     Sticker(StickerKind),
+    UnlockedDoor,
 }
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, bincode::Encode, bincode::Decode,

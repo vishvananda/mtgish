@@ -415,7 +415,7 @@ fn a_this_way_row_names_the_instruction_it_reads() {
     let body = lowered(
         "SpellActions(ActionList([Surveil(Integer(1)), DrawACard, If(ACardWasSurveiledIntoGraveyardThisWay(IsCardtype(Creature)), [Scry(Integer(1))])]))",
     );
-    assert!(body.contains("Result(ResultId(0))"), "{body}");
+    assert!(body.contains("result: Some(ResultId(0))"), "{body}");
 }
 
 #[test]

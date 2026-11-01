@@ -1761,6 +1761,7 @@ include!("reduce_numbers.rs");
 include!("reduce_players.rs");
 include!("reduce_rules.rs");
 include!("reduce_actions.rs");
+include!("reduce_events.rs");
 
 /// A color word's mana color.
 fn simple_color(operand: &Operand) -> Option<ManaColor> {
@@ -1961,6 +1962,12 @@ fn reduce_comparison(name: &str, operands: &[Operand]) -> Option<Condition> {
 
 /// A row's condition in generic form, or the row itself when it has none.
 pub fn reduce_condition(name: String, operands: Vec<Operand>) -> Condition {
+    if let Some(condition) = name
+        .strip_prefix("Condition::")
+        .and_then(|form| reduce_event_condition(form, &operands))
+    {
+        return condition;
+    }
     match name.as_str() {
         "Condition::TheGiftWasPromised" => return Condition::GiftPromised(true),
         "Condition::TheGiftWasntPromised" => return Condition::GiftPromised(false),
@@ -4411,6 +4418,12 @@ fn distinct(objects: &ObjectSet, property: DistinctProperty) -> Expr {
 
 /// A row's number in generic form, or the row itself when it has none.
 pub fn reduce_number(name: String, operands: Vec<Operand>) -> Expr {
+    if let Some(number) = name
+        .strip_prefix("GameNumber::")
+        .and_then(|form| reduce_event_number(form, &operands))
+    {
+        return number;
+    }
     match (name.as_str(), operands.as_slice()) {
         ("GameNumber::TheChosenNumber", []) => Expr::ChosenNumber,
         ("GameNumber::TheHighestNumberChosen", []) => among(
@@ -4834,6 +4847,12 @@ pub fn body_replaces(event: &ReplacementEvent) -> bool {
 
 /// A row's event in generic form, or the row itself when it has none.
 pub fn reduce_event(name: String, operands: Vec<Operand>) -> EventSpec {
+    if let Some(event) = name
+        .strip_prefix("Trigger::")
+        .and_then(|form| reduce_event_form(form, &operands))
+    {
+        return event;
+    }
     match (name.as_str(), operands.as_slice()) {
         ("Trigger::WhenAPlayerActivatesAnAbility", [Operand::Players(players), abilities]) => {
             if let Some(abilities) = stack_filter(abilities) {
@@ -5152,6 +5171,20 @@ pub fn event_bindings(event: &EventSpec) -> EventBindings {
         | EventSpec::FirstForObjectEachTurn(event)
         | EventSpec::FirstEachGame(event) => event_bindings(event),
         EventSpec::NthEachTurn { event, .. } => event_bindings(event),
+        EventSpec::Caused { event, .. } => EventBindings {
+            stack_object: true,
+            ..event_bindings(event)
+        },
+        EventSpec::ZoneChangeFromElsewhere { to, .. } => EventBindings {
+            object: true,
+            permanent: true,
+            moved: true,
+            moved_owner: matches!(to, EventZone::Graveyard | EventZone::Hand),
+            ..EventBindings::default()
+        },
+        EventSpec::NthCounter { .. } => {
+            row_bindings("Trigger::WhenTheNthCounterOfTypeIsPutOnAPermanent")
+        }
         EventSpec::Primitive { name, .. } => row_bindings(name),
         EventSpec::Player { event, .. } => PLAYER_EVENTS
             .iter()

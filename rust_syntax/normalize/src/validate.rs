@@ -305,6 +305,18 @@ impl<'a> Scope<'a> {
             EventSpec::FirstEachGame(event)
             | EventSpec::FirstEachTurn(event)
             | EventSpec::FirstForObjectEachTurn(event) => self.event(event),
+            EventSpec::Caused { cause, event } => {
+                self.filter(cause)?;
+                self.event(event)
+            }
+            EventSpec::ZoneChangeFromElsewhere { objects, .. } => self.filter(objects),
+            EventSpec::NthCounter {
+                kind, objects, nth, ..
+            } => {
+                self.operand(kind)?;
+                self.filter(objects)?;
+                self.expr(nth)
+            }
             EventSpec::Player {
                 players, objects, ..
             } => {
@@ -867,6 +879,25 @@ impl<'a> Scope<'a> {
 
     fn expr(&self, expression: &Expr) -> Result {
         match expression {
+            Expr::Earlier {
+                result, filter, by, ..
+            } => {
+                if let Some(result) = result {
+                    if !self.results.contains_key(&result.0) {
+                        return Err(format!("result {} has not run", result.0));
+                    }
+                }
+                filter.iter().try_for_each(|f| self.filter(f))?;
+                by.iter().try_for_each(|p| self.player(p))
+            }
+            Expr::Dice(DiceMeasure::Matching(_, value)) => self.expr(value),
+            Expr::Dice(_) | Expr::CoinFlipsWon(_) | Expr::Game(_) => Ok(()),
+            Expr::Stickers { objects, .. } => self.objects(objects),
+            Expr::Noted { object, .. } => object.iter().try_for_each(|o| self.object(o)),
+            Expr::Difference(a, b) => {
+                self.expr(a)?;
+                self.expr(b)
+            }
             Expr::LargestSharedGroup { objects, .. } => self.objects(objects),
             Expr::ManaSpentFrom { object, sources } => {
                 self.object(object)?;
@@ -1214,6 +1245,23 @@ impl<'a> Scope<'a> {
 
     fn condition(&self, condition: &Condition) -> Result {
         match condition {
+            Condition::Outcome(_) | Condition::AllVotedFor(_) => Ok(()),
+            Condition::MostCommonColor { color, objects, .. } => {
+                self.operand(color)?;
+                self.objects(objects)
+            }
+            Condition::GraveyardPosition {
+                card,
+                player,
+                above,
+                amount,
+                ..
+            } => {
+                self.object(card)?;
+                self.player(player)?;
+                self.filter(above)?;
+                self.expr(amount)
+            }
             Condition::PlayerDid {
                 player,
                 event,
