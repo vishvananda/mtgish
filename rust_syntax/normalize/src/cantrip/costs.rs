@@ -731,23 +731,27 @@ impl Compiler {
             right: Expr::Constant(n),
         };
         for (i, stage) in stages.iter().enumerate() {
-            if stage.animates {
-                return Err(gap("counter stage that animates"));
-            }
             let least = compare(Comparison::GreaterOrEqual, stage.minimum);
             let condition = match stage.maximum {
                 Some(most) => Condition::All(vec![least, compare(Comparison::LessOrEqual, most)]),
                 None => least,
             };
-            let mut then: Vec<Ability> = stage
-                .power_toughness
-                .map(|(power, toughness)| Ability::Static {
+            // A station stage makes it a creature in addition to its other types (CR 721.2b).
+            let mut changes = Vec::new();
+            if stage.animates {
+                changes.push(Change::AddCardType(crate::mtg_types::CardType::Creature));
+            }
+            if let Some((power, toughness)) = stage.power_toughness {
+                changes.push(Change::SetBasePowerToughness {
+                    power: Expr::Constant(power.into()),
+                    toughness: Expr::Constant(toughness.into()),
+                });
+            }
+            let mut then: Vec<Ability> = (!changes.is_empty())
+                .then(|| Ability::Static {
                     kind: StaticKind::Ordinary,
                     affected: EffectSubjects::Objects(ObjectSet::One(ObjectRef::Source)),
-                    changes: vec![Change::SetBasePowerToughness {
-                        power: Expr::Constant(power.into()),
-                        toughness: Expr::Constant(toughness.into()),
-                    }],
+                    changes,
                 })
                 .into_iter()
                 .collect();

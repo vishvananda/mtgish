@@ -2561,6 +2561,25 @@ fn two_to_the_bottom(part: &CostPart) -> bool {
         }]
     )
 }
+/// A number of an object Cantrip doesn't keep, in the form it will take.
+pub(super) fn property_rest(property: &Property, id: &str) -> Result<Number> {
+    let (feature, code, max) = match property {
+        Property::BasePower => ("base power", format!("q.base_power({id})"), i16::MAX),
+        Property::BaseToughness => ("base toughness", format!("q.base_toughness({id})"), i16::MAX),
+        Property::Intensity => (
+            "intensity",
+            format!("i64::from(q.state().obj({id}).intensity)"),
+            i16::MAX,
+        ),
+        other => return Err(gap(format!("numeric object property {}", form(other)))),
+    };
+    Ok(Number {
+        code: planned::planned_value(feature, "0i64", &code),
+        min: 0,
+        max: max.into(),
+        dynamic: true,
+    })
+}
 /// What a cost pays for: Cantrip's variable costs are a spell's or an ability's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Paying {
@@ -2661,6 +2680,27 @@ impl Compiler {
                 abilities,
                 rule,
             } => self.trigger_rule(cause.as_ref(), abilities.as_ref(), rule, label, parts),
+            Ability::Craft {
+                materials,
+                count,
+                cost,
+            } => self.craft(materials, count.as_ref(), cost, label, parts),
+            Ability::Companion(condition) => self.companion(condition, label, parts),
+            Ability::CommanderDeckRule(rule) => {
+                let Operand::Term { form: rule, .. } = &**rule else {
+                    return Err(gap("ability CommanderDeckRule"));
+                };
+                self.plan_entry(
+                    "a deck rule a commander sets",
+                    "deck_rules",
+                    &format!("DeckRule::{rule}"),
+                    parts,
+                );
+                Ok(())
+            }
+            Ability::Modified { ability, modifier } => {
+                self.modified(ability, modifier, label, parts)
+            }
             Ability::Spree { modes } => self.spree(modes, "spree", label, parts),
             Ability::Tiered { modes } => self.spree(modes, "tiered", label, parts),
             Ability::Gift {
@@ -2705,6 +2745,291 @@ impl Compiler {
             }
             other => Err(gap(format!("ability {}", form(other)))),
         }
+    }
+    /// A keyword with what its plain form lacks: "Kicker {X}. X can't be 0" is
+    /// Cantrip's (CR 107.3a); the others wait on it.
+    fn modified(
+        &mut self,
+        ability: &Ability,
+        modifier: &Operand,
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let Operand::Term { form: what, .. } = modifier else {
+            return Err(gap("ability Modified"));
+        };
+        let kicked = matches!(
+            ability,
+            Ability::Mechanic {
+                mechanic: Mechanic::Kicker,
+                ..
+            }
+        );
+        if what == "XCantBeZero" && kicked {
+            self.ability(ability, label, parts, None)?;
+            parts.field("x_cant_be_zero", "true".into());
+            return Ok(());
+        }
+        let mut grown = Parts::default();
+        let inner = match self.ability(ability, label, &mut grown, None) {
+            Ok(()) => {
+                let fields = grown.fields.iter().map(|(k, v)| format!("{k}({v})"));
+                grown.abilities.iter().cloned().chain(fields).collect::<Vec<_>>().join(", ")
+            }
+            Err(_) => form(ability),
+        };
+        self.plan_entry(
+            &format!("keyword modifier {what}"),
+            "abilities",
+            &format!("modified({inner}, Modifier::{what})"),
+            parts,
+        );
+        Ok(())
+    }
+    /// One kind of material of craft (CR 702.167a): what it tests of `id`, and what
+    /// the prompt calls it.
+    fn material(&mut self, term: &Operand) -> Result<(String, String)> {
+        const FEATURE: &str = "ability Craft";
+        let Operand::Term {
+            form: what,
+            operands,
+            ..
+        } = term
+        else {
+            return Err(gap(FEATURE));
+        };
+        let word = |operand: &Operand| match operand {
+            Operand::Vocabulary { form, .. } => Ok(form.clone()),
+            _ => Err(gap(FEATURE)),
+        };
+        Ok(match (what.as_str(), operands.as_slice()) {
+            ("AnyCard", []) => ("true".into(), String::new()),
+            ("IsCardtype", [kind]) => {
+                let kind = word(kind)?;
+                (format!("q.chars(id).is(CardType::{kind})"), kind.to_lowercase())
+            }
+            ("IsNonCardtype", [kind]) => {
+                let kind = word(kind)?;
+                (
+                    format!("!q.chars(id).is(CardType::{kind})"),
+                    format!("non{}", kind.to_lowercase()),
+                )
+            }
+            ("IsCreatureType" | "IsLandType", [kind]) => {
+                let kind = word(kind)?;
+                if !crate::cantrip_vocab::SUBTYPES.contains(&kind.as_str()) {
+                    return Err(gap(format!("subtype {kind}")));
+                }
+                (
+                    format!("q.chars(id).has_subtype(q.words(asker.source).subtype(Subtype::{kind}))"),
+                    kind,
+                )
+            }
+            ("IsColor", [hue]) => {
+                let hue = word(hue)?;
+                (
+                    format!("q.chars(id).colors.has(q.words(asker.source).color(Color::{hue}))"),
+                    hue.to_lowercase(),
+                )
+            }
+            ("HasAbility", [Operand::Term { form: ability, .. }]) if ability == "ActivatedAbility" => {
+                let test = self.filter(
+                    &ObjectFilter::HasActivatedAbility(ActivationFilter::Any),
+                    &Candidate::of("id"),
+                )?;
+                (test, "with an activated ability".into())
+            }
+            ("And" | "Or", parts) => {
+                let mut tests = Vec::new();
+                let mut words = Vec::new();
+                for part in parts {
+                    let (test, quality) = self.material(part)?;
+                    tests.push(format!("({test})"));
+                    words.push(quality);
+                }
+                let (join, word) = if what == "And" { (" && ", " ") } else { (" || ", " or ") };
+                (tests.join(join), words.join(word))
+            }
+            _ => return Err(gap(FEATURE)),
+        })
+    }
+    /// A material's test as Cantrip's `ObjectFilter`.
+    fn material_filter(&mut self, test: &str, label: &str) -> String {
+        let function = format!("{label}_{}", self.fresh());
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ {test} }}").unwrap();
+        function
+    }
+    /// Craft (CR 702.167): the mana, and what is exiled with this.
+    fn craft(
+        &mut self,
+        materials: &Operand,
+        count: Option<&(Comparison, Expr)>,
+        cost: &Operand,
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        const FEATURE: &str = "ability Craft";
+        let Operand::List(terms) = cost else {
+            return Err(gap(FEATURE));
+        };
+        let mut symbols = Vec::new();
+        for term in terms {
+            let Operand::Term {
+                form: symbol,
+                operands,
+                ..
+            } = term
+            else {
+                return Err(gap(FEATURE));
+            };
+            symbols.push(match (symbol.as_str(), operands.as_slice()) {
+                ("ManaCostGeneric", [Operand::Integer(n)]) => {
+                    ManaSymbol::Generic((*n).try_into().map_err(|_| gap(FEATURE))?)
+                }
+                ("ManaCostW", []) => ManaSymbol::Color(ManaColor::White),
+                ("ManaCostU", []) => ManaSymbol::Color(ManaColor::Blue),
+                ("ManaCostB", []) => ManaSymbol::Color(ManaColor::Black),
+                ("ManaCostR", []) => ManaSymbol::Color(ManaColor::Red),
+                ("ManaCostG", []) => ManaSymbol::Color(ManaColor::Green),
+                _ => return Err(gap(FEATURE)),
+            });
+        }
+        let price = symbols_text(&symbols).ok_or_else(|| gap(FEATURE))?;
+        let how_many = match count {
+            None => (1, false),
+            Some((Comparison::Equal, Expr::Constant(n))) => {
+                (u8::try_from(*n).map_err(|_| gap(FEATURE))?, false)
+            }
+            Some((Comparison::GreaterOrEqual, Expr::Constant(n))) => {
+                (u8::try_from(*n).map_err(|_| gap(FEATURE))?, true)
+            }
+            _ => return Err(gap(FEATURE)),
+        };
+        let table = format!("{}_MATERIALS", label.to_ascii_uppercase());
+        let (code, quality) = match materials {
+            Operand::List(terms)
+                if terms
+                    .iter()
+                    .all(|t| matches!(t, Operand::Term { family, .. } if family == "Craftable")) =>
+            {
+                let mut each = Vec::new();
+                let (mut tests, mut names) = (Vec::new(), Vec::new());
+                for term in terms {
+                    let (test, quality) = self.material(term)?;
+                    let filter = self.material_filter(&test, label);
+                    each.push(format!(
+                        "MaterialPart {{ filter: {filter}, quality: {} }}",
+                        quoted(&quality)
+                    ));
+                    tests.push(format!("({test})"));
+                    names.push(quality);
+                }
+                let any = self.material_filter(&tests.join(" || "), label);
+                let quality = names.join(", ");
+                (
+                    format!(
+                        "cantrip_mechanics::craft::materials_each(&[{}], {any}, {})",
+                        each.join(", "),
+                        quoted(&quality)
+                    ),
+                    quality,
+                )
+            }
+            Operand::List(terms) => {
+                let [term, Operand::Term { form: group, .. }] = terms.as_slice() else {
+                    return Err(gap(FEATURE));
+                };
+                let (test, quality) = self.material(term)?;
+                let filter = self.material_filter(&test, label);
+                let (n, more) = how_many;
+                self.plan_entry(
+                    "craft materials that must have something in common",
+                    "abilities",
+                    &format!("cantrip_mechanics::craft::ability({}, &cantrip_mechanics::craft::materials({n}, {more}, {filter}, {}).together(Group::{group}), {})", mana(&symbols)?, quoted(&quality), quoted(&format!("Craft {price}"))),
+                    parts,
+                );
+                return Ok(());
+            }
+            term => {
+                let (test, quality) = self.material(term)?;
+                let filter = self.material_filter(&test, label);
+                let (n, more) = how_many;
+                (
+                    format!(
+                        "cantrip_mechanics::craft::materials({n}, {more}, {filter}, {})",
+                        quoted(&quality)
+                    ),
+                    quality,
+                )
+            }
+        };
+        writeln!(self.functions, "static {table}: Materials = {code};").unwrap();
+        let text = format!("Craft with {quality} {price}");
+        parts.abilities.push(format!(
+            "cantrip_mechanics::craft::ability({}, &{table}, {})",
+            mana(&symbols)?,
+            quoted(&text)
+        ));
+        Ok(())
+    }
+    /// A filter of a starting deck's card `id`, which no resolution or event reads.
+    fn deck_card(&mut self, filter: &ObjectFilter) -> Result<String> {
+        let saved = (self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+        let test = self.filter(filter, &Candidate::of("id"));
+        (self.reader, self.event_at) = saved;
+        Ok(format!(
+            "{{ let asker = &Asker::new(id, deck.player); {} }}",
+            test?
+        ))
+    }
+    /// Companion (CR 702.139): what a starting deck has to be, read before the game.
+    fn companion(&mut self, condition: &Operand, label: &str, parts: &mut Parts) -> Result<()> {
+        const FEATURE: &str = "ability Companion";
+        let Operand::Term {
+            form: rule,
+            operands,
+            ..
+        } = condition
+        else {
+            return Err(gap(FEATURE));
+        };
+        let body = match (rule.as_str(), operands.as_slice()) {
+            ("AllCardsPassFilter", [Operand::Filter(test)]) => {
+                format!("deck.cards.iter().all(|&id| {})", self.deck_card(test)?)
+            }
+            (
+                "NoCardPassesFilter",
+                [Operand::Filter(ObjectFilter::State(ObjectState::RepeatedManaSymbol))],
+            ) => "deck.cards.iter().all(|&id| { let cost = q.mana_cost(id); cost.x < 2 && cost.symbols.iter().chain(cost.twobrid.iter()).chain(cost.phyrexian.iter()).all(|&n| n < 2) && cost.hybrid.iter().flatten().enumerate().all(|(i, h)| cost.hybrid.iter().flatten().take(i).all(|other| other != h)) })".to_string(),
+            ("EachCardPassesFilter", [Operand::Filter(subset), Operand::Filter(test)]) => format!(
+                "deck.cards.iter().all(|&id| !{} || {})",
+                self.deck_card(subset)?,
+                self.deck_card(test)?
+            ),
+            (
+                "EachCardPassesGroupFilter",
+                [Operand::Filter(subset), Operand::Term { form: group, .. }],
+            ) => {
+                let those = format!(
+                    "let those: Vec<ObjectId> = deck.cards.iter().copied().filter(|&id| {}).collect();",
+                    self.deck_card(subset)?
+                );
+                match group.as_str() {
+                    "DifferentNames" => format!("{those} those.iter().enumerate().all(|(i, &a)| those[..i].iter().all(|&b| !cantrip_mechanics::same_name(q, a, b)))"),
+                    "ShareACardType" => format!("{those} those.first().is_none_or(|&first| q.chars(first).types.iter().any(|t| those.iter().all(|&id| q.chars(id).is(t))))"),
+                    _ => return Err(gap(FEATURE)),
+                }
+            }
+            ("IncreaseStartingDeckSize", [Operand::Number(Expr::Constant(n))]) => {
+                format!("deck.cards.len() as u64 >= u64::from(deck.minimum_size) + {n}")
+            }
+            _ => return Err(gap(FEATURE)),
+        };
+        let function = format!("{label}_companion");
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, deck: &StartingDeck) -> bool {{ {body} }}").unwrap();
+        parts.field("companion", format!("Some({function})"));
+        Ok(())
     }
     /// Spree (CR 702.172), modes chosen by paying for them, at least one; and
     /// tiered (CR 702.183), exactly one of them.

@@ -800,7 +800,7 @@ impl Compiler {
                 max: 5,
                 dynamic: true,
             },
-            other => return Err(gap(format!("numeric object property {}", form(other)))),
+            other => return lane_j::property_rest(other, id),
         })
     }
     pub(super) fn number(&self, n: &Expr) -> Result<Number> {
