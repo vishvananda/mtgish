@@ -221,9 +221,9 @@ pub(super) fn counter_kind(kind: &crate::counter::CounterKind) -> Result<String>
 
 /// What the engine records about an object. A state it keeps no record of is a
 /// gap: reading anything else would look finished and mean something different.
-fn object_state(state: &ObjectState, id: &str) -> Result<String> {
+fn object_state(state: &ObjectState, id: &str) -> Option<String> {
     use ObjectState as S;
-    Ok(match state {
+    Some(match state {
         S::FaceDown => format!("q.state().obj({id}).face_down"),
         S::Monstrous => format!("q.state().obj({id}).marks.monstrous"),
         S::Transformed => format!("q.state().obj({id}).transformed"),
@@ -237,7 +237,7 @@ fn object_state(state: &ObjectState, id: &str) -> Result<String> {
             "(q.state().attackers.len() == 1 && q.state().attackers.iter().any(|a| a.id == {id}))"
         ),
         S::Damaged => format!("q.state().obj({id}).damage > 0"),
-        other => return Err(gap(format!("object state {}", form(other)))),
+        _ => return None,
     })
 }
 
@@ -310,7 +310,7 @@ impl Compiler {
             Carried::Subject => Err(gap("event object this trigger does not bind")),
         }
     }
-    fn carried_player(&self, carried: Option<Carried>) -> Result<String> {
+    pub(super) fn carried_player(&self, carried: Option<Carried>) -> Result<String> {
         let carried = carried.ok_or_else(|| gap("event player this trigger does not bind"))?;
         let (subject, data) = self.carried(carried)?;
         Ok(match carried {
@@ -1486,7 +1486,10 @@ impl Compiler {
                 "q.state().battlefield().iter().any(|&a| q.state().obj(a).attached_to == Some({id}) && q.chars(a).has_subtype(Subtype::{}))",
                 if *state == ObjectState::Equipped { "Equipment" } else { "Aura" }
             ),
-            ObjectFilter::State(state) => object_state(state, &id)?,
+            ObjectFilter::State(state) => match object_state(state, id) {
+                Some(read) => read,
+                None => self.state_rest(state, c)?,
+            },
             // Layers read the host only by which object it is.
             ObjectFilter::AttachedTo(host)
                 if self.reader != Reader::Layer

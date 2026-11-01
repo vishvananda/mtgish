@@ -408,6 +408,8 @@ impl Compiler {
         let read = self.players(each.players).map(|p| self.fetch(p));
         let players = planned::planned_read(read, "Vec::<PlayerId>::new()", each.players);
         writeln!(out, "let mut players_{id}: Vec<PlayerId> = {players};").unwrap();
+        let walking = (self.notes.walking)
+            .replace((each.binding.0, format!("players_{id}")));
         if let Some(first) = each.starting_with {
             let first = self.fetch(self.player(first)?);
             writeln!(out, "let first_{id} = {first}; if let Some(at) = players_{id}.iter().position(|&p| Some(p) == first_{id}) {{ players_{id}.rotate_left(at); }}").unwrap();
@@ -502,6 +504,7 @@ impl Compiler {
         }
         self.bound_players.remove(&each.binding.0);
         self.view_all(&views);
+        self.notes.walking = walking;
         Ok(())
     }
     fn flatten(
@@ -707,6 +710,19 @@ impl Compiler {
             };
             views.retain(|v| v.result != result || !same_kind(v.kind, kind));
             views.push(view);
+            let took = match kind {
+                ViewKind::Performed => Some(format!("(each_{k}[at] as i64) != 0")),
+                ViewKind::Moved | ViewKind::Selected | ViewKind::Created => {
+                    Some(format!("!each_{k}[at].is_empty()"))
+                }
+                _ => None,
+            };
+            if let Some(test) = took {
+                let performed = matches!(kind, ViewKind::Performed);
+                if performed || !self.notes.took.contains_key(&result) {
+                    self.notes.took.insert(result, (format!("players_{id}"), test));
+                }
+            }
         }
         // A value chosen in a turn is that turn's, and a local of it.
         self.chosen = before.chosen;

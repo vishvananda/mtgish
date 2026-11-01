@@ -234,6 +234,7 @@ pub(super) struct Results {
     pub(super) chosen: Vec<(ValueKind, String)>,
     pub(super) searched: BTreeMap<u32, String>,
     failed: BTreeSet<u32>,
+    pub(super) notes: lane_m::Notes,
 }
 
 /// Which of a block's results `Compiler::hoist` keeps.
@@ -412,6 +413,7 @@ impl Compiler {
             }
             self.plan_instruction(&feature, instruction, out);
         }
+        self.note_step(instruction);
     }
     pub(super) fn results(&self) -> Results {
         Results {
@@ -426,6 +428,7 @@ impl Compiler {
             chosen: self.chosen.clone(),
             searched: self.searched.clone(),
             failed: self.failed.clone(),
+            notes: self.notes.clone(),
         }
     }
     pub(super) fn restore_results(&mut self, results: Results) {
@@ -441,6 +444,7 @@ impl Compiler {
             chosen,
             searched,
             failed,
+            notes,
         } = results;
         self.selections = selections;
         self.reveal_matches = reveal_matches;
@@ -453,6 +457,7 @@ impl Compiler {
         self.chosen = chosen;
         self.searched = searched;
         self.failed = failed;
+        self.notes = notes;
     }
     /// A nested block: what it binds is out of Rust's scope once it closes. The
     /// objects it reports stay readable through a local of the whole effect;
@@ -468,6 +473,7 @@ impl Compiler {
         let inner = self.results();
         self.restore_results(scope);
         self.failed.extend(inner.failed.iter());
+        self.notes.earlier = inner.notes.earlier;
         self.hoist(&inner.moved, Hoist::Moved, out);
         self.hoist(&inner.selections, Hoist::Selected, out);
         self.hoist(&inner.creations, Hoist::Created, out);
@@ -511,6 +517,12 @@ impl Compiler {
         instruction: &Instruction,
         out: &mut String,
     ) -> Result<()> {
+        if let Some(each) = self.one_at_a_time(instruction) {
+            return self.instruction(body, i, &each, out);
+        }
+        if let Some(picked) = self.picked_first(instruction, body, i, out)? {
+            return self.instruction(body, i, &picked, out);
+        }
         match instruction {
             Instruction::Effect {
                 operation: operation @ Operation::PlayCards { .. },
@@ -1257,6 +1269,9 @@ impl Compiler {
                 duration,
                 evaluation,
             } => {
+                if self.flashback_until(id, affected, changes, duration, out)? {
+                    return Ok(());
+                }
                 if let EffectSubjects::Players(players) = affected {
                     return self.continuous_on_players(id, source, players, changes, duration, out);
                 }
@@ -1639,6 +1654,7 @@ impl Compiler {
         self.chosen.clear();
         self.searched.clear();
         self.failed.clear();
+        self.notes = Default::default();
     }
     pub(super) fn create_tokens(
         &mut self,

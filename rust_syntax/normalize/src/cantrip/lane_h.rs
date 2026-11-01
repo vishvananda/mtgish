@@ -2287,7 +2287,7 @@ impl Compiler {
     }
     /// An entry of a table, and the function it asks: a closure of the same words
     /// where the entry waits on `feature`, as uncompiled code must not reach `functions`.
-    fn permission_entry(
+    pub(super) fn permission_entry(
         &mut self,
         feature: Option<&str>,
         table: &'static str,
@@ -2456,7 +2456,7 @@ impl Compiler {
         }
     }
     /// Who, and which cards: a permission's tests that are the same in each table.
-    fn permission_tests(
+    pub(super) fn permission_tests(
         &self,
         players: &PlayerSet,
         within: &ObjectFilter,
@@ -3061,7 +3061,7 @@ impl Compiler {
         Ok(())
     }
     /// "As this enters, choose ...": one option of the labels of the card.
-    fn entry_option(
+    pub(super) fn entry_option(
         &mut self,
         labels: Vec<String>,
         arms: Vec<String>,

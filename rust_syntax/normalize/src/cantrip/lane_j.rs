@@ -1553,7 +1553,7 @@ fn held_arm(
 }
 
 /// A count, as `number` makes one.
-fn counted(code: String) -> Number {
+pub(super) fn counted(code: String) -> Number {
     Number {
         code,
         min: 0,
@@ -1562,14 +1562,14 @@ fn counted(code: String) -> Number {
     }
 }
 /// The number Cantrip has no way to read yet.
-fn held_number(feature: String, code: &str) -> Number {
+pub(super) fn held_number(feature: String, code: &str) -> Number {
     counted(planned::planned_value(&feature, "0i64", code))
 }
 
 impl Compiler {
     /// What the object Cantrip has chosen for this ability or as it entered is
     /// linked by.
-    fn linked(&self) -> &'static str {
+    pub(super) fn linked(&self) -> &'static str {
         match self.reader {
             Reader::Layer => "q.linked_to(asker.source)",
             Reader::Resolution if self.stack_item => "q.linked(item)",
@@ -1606,7 +1606,7 @@ impl Compiler {
             }
             ObjectRef::RingBearer(_) => return held("q.ring_bearer(player)"),
             ObjectRef::HauntedBy(_) => return held("q.state().obj(o).haunted_by"),
-            other => return Err(gap(format!("object reference {}", form(other)))),
+            other => return self.object_more(other),
         })
     }
     /// The rest of `player`.
@@ -1657,11 +1657,11 @@ impl Compiler {
                     )))
                 }
             },
-            other => return Err(gap(format!("player reference {}", form(other)))),
+            other => return self.player_more(other),
         })
     }
     /// What a preceding instruction named, by the list it keeps.
-    fn named(&self, result: &ResultId) -> Result<String> {
+    pub(super) fn named(&self, result: &ResultId) -> Result<String> {
         if self.selections.contains_key(&result.0) {
             self.selected(result)
         } else if self.creations.contains_key(&result.0) {
@@ -1704,11 +1704,11 @@ impl Compiler {
                     _ => return Err(gap("object collection MovedBy")),
                 }
             }
-            other => return Err(gap(format!("object collection {}", form(other)))),
+            other => return self.objects_more(other),
         })
     }
     /// One player's number, for `p`, a `PlayerId`.
-    fn player_number(&self, p: &str, number: &PlayerNumber) -> Result<String> {
+    pub(super) fn player_number(&self, p: &str, number: &PlayerNumber) -> Result<String> {
         let held = |code: String| {
             planned::planned_value(
                 &format!("numeric expression PlayerNumber {}", form(number)),
@@ -1871,7 +1871,7 @@ impl Compiler {
                     }
                 }
             }
-            other => return Err(gap(format!("numeric expression {}", form(other)))),
+            other => return self.number_more(other),
         })
     }
     /// The records of a window.
@@ -2213,7 +2213,7 @@ impl Compiler {
             ObjectFilter::HasActivatedAbility(_) => {
                 held(format!("q.card_of({id}).activated.iter().any(|d| matches(d))"))
             }
-            other => return Err(gap(format!("object filter {}", form(other)))),
+            other => return self.predicate_more(other, c),
         })
     }
     /// The rest of `condition`.
@@ -2253,7 +2253,7 @@ impl Compiler {
             Condition::VotedFor { .. } | Condition::Voted(_) | Condition::AllVotedFor(_) => {
                 held("g.votes().voted(option)")
             }
-            other => return Err(gap(format!("condition {}", form(other)))),
+            other => return self.condition_more(other),
         })
     }
     /// "Create an X/X": the token is that size as it's made (CR 111.4), never

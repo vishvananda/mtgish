@@ -1,0 +1,116 @@
+[
+{
+"match": "^object state (Renowned)$",
+"class": "mechanic",
+"needs": "renown marks the creature it makes renowned, for as long as it stays on the battlefield",
+"api": "Obj::marks.renowned"
+},
+{
+"match": "^object state (Paired)$",
+"class": "mechanic",
+"needs": "soulbond records the creature a permanent is paired with",
+"api": "Obj::paired_with"
+},
+{
+"match": "^object state (HauntedBySource)$",
+"class": "mechanic",
+"needs": "haunt records the card haunting an object",
+"api": "Obj::haunted_by"
+},
+{
+"match": "^object state (TributeNotPaid)$",
+"class": "mechanic",
+"needs": "tribute records on the creature whether its opponent declined to pay",
+"api": "Obj::marks.tribute_not_paid"
+},
+{
+"match": "^object state (Foretold)$",
+"class": "engine",
+"needs": "a foretold card in exile says it was foretold: today it is only a face-down exiled card with a play grant",
+"api": "cantrip_mechanics::foretell::foretold(state, id)"
+},
+{
+"match": "^object state (HasSticker|Sticker)$",
+"class": "mechanic",
+"needs": "stickers: a casual mechanic of Unfinity; an object records the stickers on it",
+"api": "cantrip_mechanics::stickers::has(state, id, StickerKind)"
+},
+{
+"match": "^object state (MostVotes|ReceivedAVote)$",
+"class": "engine",
+"needs": "a vote keeps its tally for the rest of the resolution, per object voted for",
+"api": "votes.most(id), votes.of(id)"
+},
+{
+"match": "^object state (PowerAboveBase|PowerDiffersFromBase)$",
+"class": "engine",
+"needs": "a query of the base power and toughness after layers 7a and 7b, before counters and modifiers",
+"api": "q.base_power_toughness(id)"
+},
+{
+"match": "^object state (RingBearer)$",
+"class": "mechanic",
+"needs": "the Ring tempts you: a player has a Ring-bearer",
+"api": "q.ring_bearer(player)"
+},
+{
+"match": "^object state (Unearthed)$",
+"class": "mechanic",
+"needs": "an object remembers it came back by unearth",
+"api": "Obj::marks.unearthed"
+},
+{
+"match": "^object state (Embalmed)$",
+"class": "mechanic",
+"needs": "a token remembers it was made by embalm",
+"api": "Obj::marks.embalmed"
+},
+{
+"match": "^object state (DevouredACreature)$",
+"class": "mechanic",
+"needs": "devour records how many creatures this creature devoured",
+"api": "Obj::marks.devoured"
+},
+{
+"match": "^object state (StartedTurnUntapped)$",
+"class": "engine",
+"needs": "the turn notes which permanents were untapped as it began",
+"api": "Obj::marks.untapped_as_turn_began"
+},
+{
+"match": "^object state (ControlledSinceBeforeCombat)$",
+"class": "engine",
+"needs": "a permanent records the step of the turn its controller got it, beside controlled_since",
+"api": "Obj::controlled_since_step"
+},
+{
+"match": "^object state (HadToAttack)$",
+"class": "engine",
+"needs": "an attack declaration records which attackers a requirement forced",
+"api": "Attacker::required"
+},
+{
+"match": "^object state (CouldntAttack)$",
+"class": "engine",
+"needs": "the declare attackers step records which creatures could not have attacked",
+"api": "q.could_have_attacked(id)"
+},
+{
+"match": "^object state (SnowManaOfOwnColorSpent)$",
+"class": "engine",
+"needs": "a spell records the colors of snow mana spent on it",
+"api": "Obj::snow_spent"
+},
+{
+"match": "^object state (CostPaid Prowl)$",
+"class": "mechanic",
+"needs": "prowl is a way to cast a card",
+"api": "WayKind::Prowl"
+},
+{
+"match": "^object state (CostPaid Madness)$",
+"class": "engine",
+"needs": "a spell cast for madness says so once on the stack",
+"api": "Obj::marks.cast_for_madness"
+}
+]

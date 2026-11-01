@@ -961,9 +961,10 @@ impl Compiler {
                 kind,
                 affected,
                 changes,
-            } => {
+            } if !self.flashback_way(label, affected, changes, parts)? => {
                 self.static_ability(label, kind, affected, changes, parts)?;
             }
+            Ability::Static { .. } => {}
             Ability::Enchant { hosts } => {
                 if parts.enchant != "None" {
                     return Err(gap("two enchant abilities"));

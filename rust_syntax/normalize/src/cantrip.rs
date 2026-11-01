@@ -23,6 +23,7 @@ mod lane_g;
 mod lane_h;
 mod lane_i;
 mod lane_j;
+mod lane_m;
 mod mechanics;
 pub mod planned;
 mod players;
@@ -421,6 +422,8 @@ struct Compiler {
     mana_x: bool,
     slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
+    /// What later reads ask of the instructions before them (`lane_m`).
+    notes: lane_m::Notes,
     /// The cards that ended each reveal, by the result that names all it showed.
     reveal_matches: BTreeMap<u32, String>,
     /// This resolution has revealed something. The AST does not always tie a
@@ -771,6 +774,7 @@ impl Compiler {
             mana_x: false,
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
+            notes: Default::default(),
             reveal_matches: BTreeMap::new(),
             revealed: false,
             creations: BTreeMap::new(),

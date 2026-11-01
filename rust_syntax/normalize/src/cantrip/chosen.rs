@@ -182,7 +182,7 @@ impl Compiler {
                 }
             }
             ValueKind::Ability => self.choose_ability(id, &player, options, out)?,
-            other => return Err(gap(format!("a choice of {other:?}"))),
+            other => self.choose_value_more(other, options, out)?,
         }
         self.chosen.push((kind, local));
         Ok(())

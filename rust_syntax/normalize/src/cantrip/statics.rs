@@ -490,6 +490,13 @@ impl Compiler {
             ),
             Change::Rule(rule) => return self.layer_rule(rule),
             Change::GainAbilitiesOf { .. } => return self.gain_abilities_of(change),
+            Change::RemoveCardType(t) => LayerChange::of(
+                "Type",
+                format!(
+                    "chars.types = TypeSet(chars.types.0 & !(1 << CardType::{} as u8));",
+                    card_type(t)?
+                ),
+            ),
             Change::PlayerRule(rule) => {
                 return Err(gap(format!("static player rule {}", form(rule))))
             }
