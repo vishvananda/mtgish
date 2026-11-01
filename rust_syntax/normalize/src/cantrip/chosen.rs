@@ -187,6 +187,9 @@ impl Compiler {
             ValueKind::Parity => {
                 self.choose_value_more(ValueKind::Parity, id, &player, options, out)?
             }
+            ValueKind::Recipient => {
+                self.choose_recipient(id, &player, source, options, &local, out)?
+            }
             other => self.choose_value_rest(other, &player, source, options, &local, id, out)?,
         }
         // Each read is of the latest choice: "choose an opponent" a second time.

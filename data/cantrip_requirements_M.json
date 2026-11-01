@@ -123,7 +123,7 @@
 "match": "^replacement destination OwnersLibrary(Top|Bottom)$",
 "class": "engine",
 "needs": "a zone change proposal says which end of the library it goes to: ZoneProposal has a zone and a shuffle only",
-"api": "ZoneProposal::library_end"
+"api": "ZoneChange::library_end: Option<LibraryEnd>"
 },
 {
 "match": "^numeric expression Votes$",
@@ -333,13 +333,13 @@
 "match": "^replacement of (Adapts|BeginDrawStep|BeginExtraTurn|BeginTurn|Connives|Destroyed|DrawInDrawStep|GainLifeByEffect|GetEnergy|LeavesBattlefield|Planeswalk|PlaneswalkByDie|ReduceLifeTotal|RollD6|RollDice|RollPlanarDie|SetSchemeInMotion|UntapsInUntapStep)$",
 "class": "engine",
 "needs": "a replacement of this event: ReplacementDef has no hook for it",
-"api": "ReplacementDef over this event"
+"api": "Proposal variant of this event, with replaced, count, times; Proposal::DieRoll with extra_dice, ignore, exchange: Option<DieExchangeOffer { decider, object, properties: &[DieExchange] }>"
 },
 {
 "match": "^replacement event ",
 "class": "engine",
 "needs": "a replacement matching on this: ReplacementDef has no test for it",
-"api": "ReplacementDef test by this name"
+"api": "ReplacementDef::first_each_turn(), ::each_point(), q.proposal_cause(); Proposal::SpellCopy { player, spell, count, new_targets_for_added }"
 },
 {
 "match": "^replacement limited by ",
@@ -405,7 +405,7 @@
 "match": "^trigger total limit$",
 "class": "engine",
 "needs": "an ability that triggers only so many times in all",
-"api": "AbilityDef::total_limit"
+"api": "TriggeredDef::triggers_total(n)"
 },
 {
 "match": "^snow mana spent$",

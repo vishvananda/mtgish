@@ -260,6 +260,9 @@ pub(super) fn one_at_most(count: &Count) -> bool {
 impl Compiler {
     /// `Vec<Target>`.
     pub(super) fn recipients(&self, recipients: &Recipients) -> Result<String> {
+        if let Some(carried) = self.outside_recipients(recipients)? {
+            return Ok(carried);
+        }
         Ok(match recipients {
             Recipients::Objects(objects) => format!(
                 "({}).into_iter().map(Target::Object).collect::<Vec<Target>>()",
@@ -287,7 +290,10 @@ impl Compiler {
                 code.push_str("all }");
                 code
             }
-            Recipients::Chosen => return Err(gap("chosen damage recipient")),
+            Recipients::Chosen => self
+                .chosen_local(ValueKind::Recipient)
+                .map(|chosen| format!("vec![{chosen}]"))
+                .map_err(|_| gap("chosen damage recipient"))?,
             Recipients::DamagedByEvent => return Err(gap("recipient of event damage")),
             Recipients::AttackedBy(object) => format!(
                 "{{ let attacker = {}; q.state().attackers.iter().find(|a| Some(a.id) == attacker).map(|a| a.target).filter(|t| *t != Target::None).into_iter().collect::<Vec<Target>>() }}",
@@ -296,6 +302,9 @@ impl Compiler {
         })
     }
     fn target_slot(&self, slot: &Slot) -> Result<usize> {
+        if self.reader != Reader::Resolution || !self.stack_item {
+            return Err(gap("target reference outside a resolving ability"));
+        }
         self.slots
             .get(&slot.0)
             .map(|(i, _)| *i)
@@ -883,6 +892,14 @@ impl Compiler {
                 cost,
                 optional,
             } => self.first_willing(id, players, cost, *optional, result, out)?,
+            // The ability an activation or an event put on the stack.
+            Operation::Counter {
+                objects: ObjectSet::One(ObjectRef::EventStackObject),
+                destination: Destination::OwnersGraveyard,
+            } if self.frame.activated.is_some() => {
+                let ability = self.carried_ability()?;
+                writeln!(out, "let items_{id}: Vec<(ObjectId, usize)> = {{ let t = {ability}; let stack = &g.state().stack; stack.iter().position(|e| Target::Ability(e.serial) == t && e.kind != StackKind::Spell).map(|at| (stack[at].object, at)).into_iter().collect() }}; g.counter_items(&items_{id});").unwrap();
+            }
             // What targeted this, spell or ability, and where it is on the stack.
             Operation::Counter {
                 objects: ObjectSet::One(ObjectRef::EventStackObject),
@@ -1038,7 +1055,15 @@ impl Compiler {
                     "surveil"
                 };
                 let amount = self.number(amount)?.amount(u32::MAX.into(), "usize")?;
-                writeln!(out, "let amount_{id} = {}; let player_{id} = {}; cantrip_mechanics::{method}(g, player_{id}, asker.source, amount_{id})?;", self.fetch(amount), self.fetch(self.certain_player(player)?)).unwrap();
+                let reported = method == "surveil" && lane_n::reads_graveyard_part(&self.after, result);
+                let (method, bind) = match reported {
+                    true => ("surveil_into_graveyard", format!("let moved_{id} = ")),
+                    false => (method, String::new()),
+                };
+                writeln!(out, "let amount_{id} = {}; let player_{id} = {}; {bind}cantrip_mechanics::{method}(g, player_{id}, asker.source, amount_{id})?;", self.fetch(amount), self.fetch(self.certain_player(player)?)).unwrap();
+                if reported {
+                    self.moved.insert(result.0, format!("moved_{id}"));
+                }
             }
             Operation::SetLifeTotal { players, amount } => {
                 let number = self.number(amount)?.amount(i32::MAX.into(), "i32")?;
@@ -1104,7 +1129,14 @@ impl Compiler {
                 preventable: true,
             } => {
                 let amount = self.number(amount)?.amount(u16::MAX.into(), "u16")?;
-                let (declare, deal) = if self.read_later(result) {
+                let (declare, deal) = if lane_n::read_as_objects(&self.after, result) {
+                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.moved.insert(result.0, format!("dealt_{id}"));
+                    (
+                        format!("let mut done_{id}: i64 = 0; let mut dealt_{id}: Vec<ObjectId> = Vec::new(); "),
+                        format!("let dealt = g.damage_together(&batch); done_{id} += dealt.iter().map(|&n| i64::from(n)).sum::<i64>(); dealt_{id}.extend(batch.iter().zip(&dealt).filter(|(_, n)| **n > 0).filter_map(|(d, _)| d.1.object()));"),
+                    )
+                } else if self.read_later(result) {
                     self.performed.insert(result.0, format!("done_{id}"));
                     (
                         format!("let mut done_{id}: i64 = 0; "),
@@ -1308,7 +1340,10 @@ impl Compiler {
             Operation::Counter {
                 objects,
                 destination: Destination::OwnersGraveyard,
-            } if self.stack_targets(objects).is_some() => self.counter_on_stack(id, objects, out),
+            } if self.stack_targets(objects).is_some() => match self.read_later(result) {
+                true => self.counter_reporting(id, objects, result, out),
+                false => self.counter_on_stack(id, objects, out),
+            },
             Operation::Counter {
                 objects,
                 destination,
@@ -1390,9 +1425,16 @@ impl Compiler {
                 announcement,
                 body,
                 once,
-                intervening_if: None,
-            } => self.create_trigger(event, duration, announcement, body, *once, out)?,
-            Operation::CreateTrigger { .. } => return Err(gap("conditional delayed trigger")),
+                intervening_if,
+            } => self.create_trigger(
+                event,
+                duration,
+                announcement,
+                body,
+                *once,
+                intervening_if,
+                out,
+            )?,
             Operation::CreateDelayedTrigger {
                 event,
                 start,
@@ -1800,16 +1842,17 @@ impl Compiler {
             return Ok(());
         }
         let first = &tokens[0].words;
-        if tokens
+        let mixed = tokens
             .iter()
-            .any(|t| std::mem::discriminant(&t.words) != std::mem::discriminant(first))
-        {
+            .any(|t| std::mem::discriminant(&t.words) != std::mem::discriminant(first));
+        if mixed && (!defined || !entry.counters.is_empty()) {
             return Err(gap("mixed token text origins in one creation batch"));
         }
-        let words = match first {
+        let words_of = |words: &TokenWords| match words {
             TokenWords::Rules => "Words::NONE",
             TokenWords::CreatingEffect => "g.words(asker.source)",
         };
+        let words = words_of(first);
         if let [TokenSpec {
             amount,
             recipe:
@@ -1905,6 +1948,25 @@ impl Compiler {
         writeln!(out, "}} let words_{id} = {words};").unwrap();
         let tapped = entry.tapped;
         let creation = format!("g.create_tokens_worded(&tokens_{id}, {tapped}, None, words_{id})?");
+        // Each definition's words are its own: a Treasure's are the rules', a
+        // named creature's the card's (CR 111.10, 612.2a).
+        let creation = if mixed {
+            let each: Vec<String> = tokens
+                .iter()
+                .enumerate()
+                .map(|(i, t)| format!("(def_{id}_{i}, {})", words_of(&t.words)))
+                .collect();
+            planned::planned_value(
+                "mixed token text origins in one creation batch",
+                &creation,
+                &format!(
+                    "g.create_tokens_each_worded(&tokens_{id}, {tapped}, None, &[{}])?",
+                    each.join(", ")
+                ),
+            )
+        } else {
+            creation
+        };
         match entry.states.as_slice() {
             [] => writeln!(out, "let created_{id} = {creation};").unwrap(),
             [EntryState::AttachedTo(host)] if !tapped => {
@@ -2113,6 +2175,9 @@ impl Compiler {
                         other => return Err(gap(format!("counter removal {}", form(other)))),
                     };
                     writeln!(out, "let amount_{id}_{i} = {amount}; cantrip_api::instruction(g, |g| {{ for object in objects_{id}_{i} {{ removed_{id} += i64::from(g.remove_counters(object, {}, amount_{id}_{i})); }} }});", counter_kind(kind)?).unwrap();
+                }
+                (None, CounterAmount::All) if self.read_later(result) => {
+                    writeln!(out, "cantrip_api::instruction(g, |g| {{ for object in objects_{id}_{i} {{ removed_{id} += CounterKind::ALL.iter().map(|k| i64::from(g.state().obj(object).counters(*k))).sum::<i64>(); cantrip_mechanics::effects::remove_all_counters(g, object); }} }});").unwrap();
                 }
                 (None, CounterAmount::All) => {
                     counted = false;

@@ -736,6 +736,15 @@ impl Compiler {
                 "Whenever this becomes unattached from a permanent",
                 false,
             ),
+            PairEvent::EntersAttachedTo => (
+                "ZONE_CHANGE",
+                "Event::ZoneChange { new, to, .. }",
+                "*new",
+                "q.state().obj(*new).attached_to.unwrap_or(*new)",
+                Some("to.is(ZoneKind::Battlefield) && q.state().obj(*new).attached_to.is_some()"),
+                "When this enters attached to a permanent",
+                false,
+            ),
             PairEvent::Enlists => (
                 "PAID_TO_ATTACK",
                 "Event::PaidToAttack { attacker, option: AttackOption::Enlist, tapped, .. }",
@@ -935,6 +944,29 @@ impl Compiler {
                 }
                 Ok(matched)
             }
+            EventSpec::SpellTargeting {
+                players,
+                spells,
+                targets: None,
+                count: Some((comparison, value)),
+            } => {
+                let spell = EventSpec::Spell {
+                    event: SpellEvent::Cast,
+                    players: players.clone(),
+                    spells: spells.clone(),
+                };
+                let mut matched = self.event(&spell)?;
+                let frame = matched.frame;
+                if frame.amount.is_some() || format!("{frame:?}").contains("Data(1)") {
+                    return Err(gap("trigger event spell targeting"));
+                }
+                let value = self.matching(frame, |c| Ok(c.number(value)?.code))?;
+                let arm = &mut matched.arms[0];
+                arm.locals.push_str(" let many = q.state().stack.iter().find(|i| i.kind == StackKind::Spell && i.object == id).map_or(0, |i| q.state().targets(i).len()) as i64; let data = [data[0], many as u32];");
+                arm.tests.push(read::compare("many", comparison, &value));
+                matched.frame.amount = Some(Carried::Data(1));
+                Ok(matched)
+            }
             EventSpec::SpellOrActivation {
                 players,
                 spells,
@@ -979,7 +1011,7 @@ impl Compiler {
                 payment,
             } => {
                 let frame = Frame {
-                    player: Some(Carried::Subject),
+                    activated: Some(Carried::Subject),
                     object: Some(Carried::Data(0)),
                     amount: Some(Carried::Data(1)),
                     ..Frame::default()
@@ -994,7 +1026,7 @@ impl Compiler {
                 Ok(held_arm(
                     "ABILITY_ACTIVATED",
                     "Event::AbilityActivated { source, ability, player, .. }",
-                    "let id = *source; let def = q.activated_ability(*ability); let paid = q.paid_to_activate(event); let subject = Target::Player(*player); let data = [id.0, paid.life];",
+                    "let id = *source; let def = q.activated_ability(*ability); let paid = q.paid_to_activate(event); let subject = cantrip_mechanics::triggers::activated_ability_on_stack(q, event).unwrap_or(Target::None); let data = [id.0, paid.life];",
                     tests,
                     frame,
                     "Whenever a player activates an ability",
@@ -1003,7 +1035,11 @@ impl Compiler {
             }
             EventSpec::Caused { cause, event } => self.caused(cause, event),
             EventSpec::CausesTrigger { cause, .. } => {
-                let frame = plain();
+                let frame = Frame {
+                    activated: Some(Carried::Data(0)),
+                    stack_controller: Some(Carried::Data(1)),
+                    ..plain()
+                };
                 let mut matched = self.event(cause)?;
                 let tests = std::mem::take(&mut matched.arms);
                 let cause_test = tests
@@ -1022,7 +1058,7 @@ impl Compiler {
                     "TRIGGERED",
                     Arm {
                         pattern: "Event::Triggered { source, ability, cause }".into(),
-                        locals: "let id = *source; let subject = Target::Object(id); let data = [u32::MAX; 2]; let cause = &*cause;".into(),
+                        locals: "let id = *source; let subject = Target::Object(id); let on_stack = cantrip_mechanics::triggers::triggered_ability_on_stack(q, event); let data = [on_stack.map_or(0, |i: StackItem| i.serial), on_stack.map_or(0, |i: StackItem| u32::from(i.controller.0))]; let cause = &*cause;".into(),
                         tests: vec![cause_test],
                     },
                     frame,
@@ -1504,8 +1540,15 @@ impl Compiler {
         let test = format!(
             "match q.event_cause() {{ Cause::Spell(causer) | Cause::Ability {{ source: causer, .. }} => {test}, _ => false }}"
         );
+        let free = !format!("{frame:?}").contains("Data(1)");
         for arm in &mut matched.arms {
             arm.tests.push(test.clone());
+            if free {
+                arm.locals.push_str(" let data = [data[0], match q.event_cause() { Cause::Spell(c) | Cause::Ability { source: c, .. } => u32::from(q.controller(c).0), _ => u32::MAX }];");
+            }
+        }
+        if free {
+            matched.frame.stack_controller = Some(Carried::Data(1));
         }
         if self.history.is_none() {
             if matched.planned.is_empty() {
@@ -1636,6 +1679,19 @@ impl Compiler {
             }
             PlayerRef::OneOf(players) => format!("Some({})", self.pick(players)?),
             PlayerRef::PlayerOrControllerOf(recipients) => match &**recipients {
+                // "That player or that planeswalker's controller", of a slot before.
+                Recipients::Target { slot, .. } | Recipients::Targets(slot)
+                    if self.choosing.is_some() =>
+                {
+                    let index = match &**recipients {
+                        Recipients::Target { index, .. } => *index,
+                        _ => 0,
+                    };
+                    format!(
+                        "{}.and_then(|t: Target| t.player().or(t.object().map(|o| q.controller(o))))",
+                        self.earlier_target(slot, index)?.expect("choosing")
+                    )
+                }
                 Recipients::Target { slot, index } => format!(
                     "t_{}_raw.get({index}).copied().and_then(|t: Target| t.player().or(t.object().map(|o| q.controller(o))))",
                     self.slot(slot)?
@@ -2200,7 +2256,8 @@ impl Compiler {
                 )
             }
             ObjectFilter::InResult(result) => {
-                format!("({}).contains(&{id})", self.named(result)?)
+                let list = self.objects(&ObjectSet::Named(result.clone()))?;
+                format!("({list}).contains(&{id})")
             }
             ObjectFilter::KickedWith(_) => held(format!("q.state().obj({id}).kicked_with(kicker)")),
             ObjectFilter::AlternateCostPaid(_) => {
@@ -4226,7 +4283,7 @@ impl Compiler {
     }
     /// "A triggered ability of a permanent you control": the permanent as it is,
     /// or as it last existed for an ability that looks back (CR 603.10).
-    fn triggering_ability(&self, abilities: Option<&ObjectFilter>) -> Result<String> {
+    pub(super) fn triggering_ability(&self, abilities: Option<&ObjectFilter>) -> Result<String> {
         match abilities {
             None => Ok("true".into()),
             Some(ObjectFilter::AbilityOf(objects)) => {
@@ -4239,7 +4296,7 @@ impl Compiler {
                     self.filter(objects, &source)?
                 ))
             }
-            Some(other) => Err(gap(format!("trigger rule over {}", form(other)))),
+            Some(other) => self.triggering_more(other),
         }
     }
     /// The event that does the triggering. Cantrip's helpers hold the rulings

@@ -26,6 +26,7 @@ mod lane_j;
 mod lane_k;
 mod lane_l;
 mod lane_m;
+mod lane_n;
 mod lane_p;
 mod mechanics;
 pub mod planned;
@@ -428,6 +429,10 @@ struct Compiler {
     may_tap_or_untap: bool,
     /// Payments of "unless you pay": those ask whether to, whatever paying is.
     unless_paid: BTreeSet<u32>,
+    /// The replacement program being compiled.
+    replacing: lane_n::Replacing,
+    /// The closure being opened is of an ability with a matcher to read it.
+    watching: bool,
     /// Compiling the event of `Expr::EventHistory`.
     history: Option<History>,
     /// A `StackItem` named `item` is in reach, with its targets and X.
@@ -528,6 +533,8 @@ struct Compiler {
     paradigm: bool,
     /// Inside a spell's cost change, which has `targets` in reach.
     costing_targets: bool,
+    /// An intervening "if" that reads the event, for each mode to ask again.
+    mode_guard: Option<Condition>,
     /// What the cost being compiled is paid for.
     paying: lane_g::Paying,
     /// The instruction a reflexive ability's body counts: it is the item's `x`.
@@ -850,6 +857,7 @@ impl Compiler {
             bound_objects: BTreeSet::new(),
             bound_players: BTreeSet::new(),
             costing_targets: false,
+            mode_guard: None,
             paying: lane_g::Paying::Ability,
             counted: None,
             sized_slot: None,
@@ -901,6 +909,8 @@ impl Compiler {
             do_once: None,
             may_tap_or_untap: false,
             unless_paid: BTreeSet::new(),
+            replacing: Default::default(),
+            watching: false,
         }
     }
     /// Compile one part, recording a gap rather than stopping at it, and prefix
@@ -925,21 +935,21 @@ impl Compiler {
     fn selected(&self, result: &ResultId) -> Result<String> {
         match self.selections.get(&result.0) {
             Some(local) => Ok(format!("{local}.clone()")),
-            None if self.failed.contains(&result.0) => Ok(planned::unreported(NO_OBJECTS, result)),
+            None if self.failed_anywhere(result) => Ok(planned::unreported(NO_OBJECTS, result)),
             None => Err(gap("selection result outside generated scope")),
         }
     }
     fn created(&self, result: &ResultId) -> Result<String> {
         match self.creations.get(&result.0) {
             Some(local) => Ok(format!("{local}.clone()")),
-            None if self.failed.contains(&result.0) => Ok(planned::unreported(NO_OBJECTS, result)),
+            None if self.failed_anywhere(result) => Ok(planned::unreported(NO_OBJECTS, result)),
             None => Err(gap("token result outside generated scope")),
         }
     }
     fn moved(&self, result: &ResultId) -> Result<String> {
         match self.moved.get(&result.0) {
             Some(local) => Ok(format!("{local}.clone()")),
-            None if self.failed.contains(&result.0) => Ok(planned::unreported(NO_OBJECTS, result)),
+            None if self.failed_anywhere(result) => Ok(planned::unreported(NO_OBJECTS, result)),
             None => Err(gap("transition this instruction does not report")),
         }
     }

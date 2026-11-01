@@ -44,7 +44,7 @@ fn verify_cantrip_snapshot(checkout: &std::path::Path) {
 fn a_made_redirect_cannot_read_the_target_of_the_ability_that_made_it() {
     let error = cantrip::module(&card("Glarecaster")).unwrap_err();
     assert!(
-        format!("{error:?}").contains("redirect to a target"),
+        format!("{error:?}").contains("target reference outside a resolving ability"),
         "{error:?}"
     );
 }

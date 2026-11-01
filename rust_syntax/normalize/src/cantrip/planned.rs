@@ -93,6 +93,7 @@ impl Compiler {
         self.do_once = None;
         self.chosen_guard = None;
         self.guard_opened = false;
+        self.replacing = Default::default();
         self.dividing = None;
         self.asking = None;
         self.repeating = None;

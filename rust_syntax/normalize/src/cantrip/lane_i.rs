@@ -185,7 +185,7 @@ enum ViewKind {
 }
 
 /// Whether `e`, an item on the stack, is what target `t` names.
-const STACK_ITEM: &str = "(match t { Target::Object(id) => e.kind == StackKind::Spell && e.object == id, Target::Ability(serial) => e.kind != StackKind::Spell && e.serial == serial, _ => false })";
+pub(super) const STACK_ITEM: &str = "(match t { Target::Object(id) => e.kind == StackKind::Spell && e.object == id, Target::Ability(serial) => e.kind != StackKind::Spell && e.serial == serial, _ => false })";
 
 /// `filter` with the one object it picks out named as the source, if it does:
 /// an event watching for "that creature" made by an ability whose matcher
@@ -706,6 +706,17 @@ impl Compiler {
                 .unwrap();
                 writeln!(tail, "each_{k}[index_{id}] = {local};").unwrap();
             }
+            // How much of something: all of them together is its sum. A reader
+            // one player at a time may mean their own or the total; the AST
+            // does not say which, so nothing is read for it.
+            let total = (matches!(kind, ViewKind::Performed)
+                && local.starts_with("done_")
+                && !lane_n::read_player_by_player(each.rest, &result))
+            .then(|| format!("done_total_{k}"));
+            if let Some(total) = &total {
+                writeln!(declared, "let mut {total}: i64 = 0;").unwrap();
+                writeln!(tail, "{total} += {local};").unwrap();
+            }
             let view = View {
                 kind,
                 result,
@@ -715,7 +726,7 @@ impl Compiler {
                 },
                 all: match kind {
                     ViewKind::Before => all.map(|a| format!("{a}.clone()")),
-                    _ => all,
+                    _ => all.or(total),
                 },
             };
             views.retain(|v| v.result != result || !same_kind(v.kind, kind));
@@ -1458,6 +1469,12 @@ impl Compiler {
         use KeywordAction as K;
         const M: &str = "cantrip_mechanics";
         let controller = matches!(actor, PlayerSet::One(PlayerRef::AbilityController));
+        if lane_n::read_as_objects(&self.after, result) {
+            let acted = self.acted_on(objects)?;
+            writeln!(out, "let acted_{id}: Vec<ObjectId> = {acted};").unwrap();
+            self.moved.insert(result.0, format!("acted_{id}"));
+            self.selections.insert(result.0, format!("acted_{id}"));
+        }
         // Actions with no call yet: what the card will say once there is one.
         let planned = match action {
             K::Detain => Some((

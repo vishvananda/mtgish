@@ -71,7 +71,7 @@ fn total_rule(functions: &mut String, name: &str, read: &str, words: &str, most:
 
 /// The instructions of one option of a choice between actions: a program, the
 /// programs of a list one after another, or a named action's.
-fn action_program(option: &Operand) -> Option<Program> {
+pub(super) fn action_program(option: &Operand) -> Option<Program> {
     match option {
         Operand::Program(program) => Some(program.clone()),
         Operand::List(items) => {
@@ -313,11 +313,15 @@ impl Compiler {
             self.failed.insert(result.0);
             return;
         }
+        if self.report_objects(op, result, out) {
+            return;
+        }
         let happened = match op {
             // Each of these is done whatever the state of the game.
             Operation::Scry { .. }
             | Operation::Surveil { .. }
             | Operation::Shuffle { .. }
+            | Operation::AddMana { .. }
             | Operation::ChooseAtRandom { .. } => "true".to_string(),
             // Countered, the card is a new object where the spell went.
             Operation::Counter { objects, .. } => {
@@ -1577,7 +1581,7 @@ impl Compiler {
                 let count = self.fetch(count);
                 match (phases, at_start) {
                     (AddedPhases::Combat, None) => {
-                        writeln!(out, "for _ in 0..{count} {{ g.add_combat_phase(); }}").unwrap()
+                        writeln!(out, "for _ in 0..({count}) {{ g.add_combat_phase(); }}").unwrap()
                     }
                     (phases, at_start) => {
                         let at_start = at_start.as_ref().map(|o| self.operand_code(o));

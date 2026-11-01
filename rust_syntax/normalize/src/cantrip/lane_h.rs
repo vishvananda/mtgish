@@ -210,8 +210,10 @@ fn all_copiable(changes: &[Change]) -> bool {
 }
 /// Whether "you may have it enter as a copy" is what this optional body says.
 pub(super) fn asks_to_copy(body: &Program) -> bool {
+    let mut flat = Vec::new();
+    lane_m::flat_groups(&body.instructions, &mut flat);
     matches!(
-        body.instructions.first(),
+        flat.first(),
         Some(Instruction::Effect {
             operation: Operation::ModifyEvent {
                 change: EventChange::Entry(EntryState::CopyOf { .. }),
@@ -775,7 +777,7 @@ impl Compiler {
                     variant: "DrawInstruction",
                     binding: "d",
                     locals:
-                        "let subject = Target::Player(d.player); let data = [d.count, u32::MAX];"
+                        "let amount = d.count; let subject = Target::Player(d.player); let data = [d.count, u32::MAX];"
                             .into(),
                     tests: vec![self.matching(player_frame, |c| c.player_in(players, "d.player"))?],
                 },
@@ -906,7 +908,7 @@ impl Compiler {
                     object_frame,
                 )
             }
-            _ => Ok(None),
+            _ => self.watched_rest(event),
         }
     }
     /// The changes those events take, as `reshape` writes the others'.
@@ -938,9 +940,6 @@ impl Compiler {
             ),
             ("TokenCreation", EventChange::ReplaceTokens { copies, tokens }) if tokens.is_empty() => {
                 format!("t.count = t.count.saturating_mul({copies});")
-            }
-            ("TokenCreation", EventChange::ReplaceTokens { .. }) => {
-                return Err(gap("replacement of token creation with other tokens"))
             }
             ("Counters", EventChange::SetAmount(n)) => {
                 let amount = self
@@ -988,7 +987,7 @@ impl Compiler {
                     .amount(u32::MAX.into(), "u32")?;
                 format!("for mana in m.mana.0.iter_mut() {{ *mana = mana.saturating_mul({times}); }}")
             }
-            (_, other) => return Err(gap(format!("event change {}", form(other)))),
+            _ => return self.reshape_rest(kind, change, frame),
         })
     }
     /// A rule a resolving spell or ability makes, as what `EffectKind` says of it
@@ -2968,6 +2967,8 @@ impl Compiler {
         body: &Program,
         out: &mut String,
     ) -> Result<()> {
+        let mut flat = Vec::new();
+        lane_m::flat_groups(&body.instructions, &mut flat);
         let [Instruction::Effect {
             result,
             operation:
@@ -2979,7 +2980,7 @@ impl Compiler {
                             until,
                         }),
                 },
-        }, rest @ ..] = body.instructions.as_slice()
+        }, rest @ ..] = flat.as_slice()
         else {
             return Err(gap("may enter as a copy"));
         };
@@ -3157,6 +3158,19 @@ impl Compiler {
                     return Err(gap("event change as it enters CountersOf"));
                 };
                 writeln!(out, "if let Some(&original) = {list}.first() {{ for kind in CounterKind::ALL {{ let count = g.obj(original).counters(kind); entering.counters[kind as usize] = entering.counters[kind as usize].saturating_add(count); }} }}").unwrap();
+            }
+            EntryState::AttachedToChosen(hosts) => {
+                let hosts = self.fetch(self.objects(&ObjectSet::Battlefield(hosts.clone()))?);
+                let could = planned::planned_value(
+                    "what a permanent could be attached to",
+                    "true",
+                    "q.could_be_attached(object, host)",
+                );
+                writeln!(
+                    out,
+                    "let object = entering.object; let hosts: Vec<ObjectId> = {hosts}.into_iter().filter(|&host| {{ let q: &dyn Query = g; {could} }}).collect(); cantrip_mechanics::choose::object_as_enters(g, entering, hosts, cantrip_mechanics::select::Selection::of(cantrip_mechanics::select::Count::UpTo(1), &[]))?; entering.attach = entering.chosen_object;"
+                )
+                .unwrap();
             }
             other => {
                 return Err(gap(format!(

@@ -455,7 +455,10 @@ impl Compiler {
                 Some(frame) => self.targets_for(&mode.announcement, &label, frame)?,
                 None => self.announcement(&mode.announcement, &label)?,
             };
-            let effect = self.effect(&mode.body, &label)?;
+            let effect = match self.mode_guard.clone() {
+                Some(guard) => self.guarded_effect(&guard, &mode.body, &label)?,
+                None => self.effect(&mode.body, &label)?,
+            };
             let def = format!(
                 "mode({effect}, {}).targets({targets})",
                 quoted(&self.said_mode(i, modes.len(), ability_text(&mode.body)))
