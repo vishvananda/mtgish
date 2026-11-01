@@ -87,7 +87,7 @@ impl Compiler {
         let label = format!("granted_{}", self.fresh());
         let grown = self.grown_parts(ability, &label)?;
         let [def] = grown.abilities.as_slice() else {
-            return Err(gap(format!("granted {}", form(ability))));
+            return Err(lane_g::grant_gap(ability));
         };
         self.delayed.push(def.clone());
         Ok(self.delayed.len() - 1)
@@ -451,6 +451,13 @@ impl Compiler {
                 action: ObjectAction::Attack(AttackDefenders::Any),
                 amount: RequirementAmount::AtLeast(Expr::Constant(1)),
             }) => LayerChange::of("Ability", "chars.must_attack += 1;".into()),
+            Change::GrantAbility(ability) if self.grants_keyword(ability).is_some() => {
+                let keyword = self.grants_keyword(ability).expect("a keyword");
+                LayerChange::of(
+                    "Ability",
+                    format!("chars.keywords = chars.keywords.with({keyword});"),
+                )
+            }
             Change::GrantAbility(ability) => {
                 let index = self.grant(ability)?;
                 LayerChange::of(

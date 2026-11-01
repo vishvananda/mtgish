@@ -65,8 +65,9 @@ fn backend_capabilities_do_not_change_ast_coverage_or_publish_partial_code() {
     };
     limits.activators = Some(PlayerSet::All);
     let error = cantrip::module(&kessig).unwrap_err();
-    assert!(error.path.contains("abilities[1]"), "{error:?}");
-    assert_eq!(error.feature, "activation by other players");
+    // Who may activate it is a requirement: the code keeps the planned form,
+    // and a card with a requirement is still not published.
+    assert_eq!(error.feature, "engine: no activation by other players");
     let root = std::env::temp_dir().join(format!("mtgish-backend-atomic-{}", std::process::id()));
     fs::create_dir_all(&root).unwrap();
     let (input, output) = (root.join("cards.ronl"), root.join("cards.rs"));

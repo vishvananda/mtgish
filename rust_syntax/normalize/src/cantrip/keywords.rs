@@ -127,7 +127,8 @@ impl Compiler {
                 | K::Adapt
                 | K::Bolster
         ) || (action.amount.is_some()
-            && matches!(action.action, K::Investigate | K::Proliferate));
+            && matches!(action.action, K::Investigate | K::Proliferate))
+            || lane_g::takes_amount(action.action);
         if action.amount.is_some() && !counted {
             return Err(gap(format!(
                 "keyword action {:?} with an amount",
@@ -135,10 +136,12 @@ impl Compiler {
             )));
         }
         match action.action {
-            K::Transform if self.stack_item => {
+            K::Transform | K::Convert if self.stack_item => {
                 self.object_action(&action, "g.transform_by(object, item)?", out)?
             }
-            K::Transform => self.object_action(&action, "g.transform(object)?", out)?,
+            K::Transform | K::Convert => {
+                self.object_action(&action, "g.transform(object)?", out)?
+            }
             K::Fight => {
                 let pair = self.pair_action(&action, id, out)?;
                 writeln!(
@@ -320,7 +323,11 @@ impl Compiler {
             K::BecomeMonarch => self.actor_action(&action, "g.become_monarch(player)", out)?,
             K::LoseGame => self.actor_action(&action, "g.lose_game(player)", out)?,
             K::WinGame => self.actor_action(&action, "g.win_game(player)", out)?,
-            K::TakeExtraTurn => self.actor_action(&action, "g.add_extra_turns(player, 1)", out)?,
+            K::TakeExtraTurn => {
+                let times = self.times(&action)?;
+                let call = format!("let times = {times}; g.add_extra_turns(player, times)");
+                self.actor_action(&action, &call, out)?;
+            }
             K::PhaseOut => self.object_action(&action, "g.phase_out(&[object])", out)?,
             K::Prepare => self.object_action(&action, "g.become_prepared(object)", out)?,
             K::TapOrUntap => {
@@ -347,6 +354,194 @@ impl Compiler {
                 self.actor_action(&action, &call, &mut code)?;
                 self.plan_code("engine: no Ring temptation", code.trim(), out);
             }
+            _ => self.keyword_action_beyond(id, &action, result, out)?,
+        }
+        Ok(())
+    }
+    /// What the rules define and `Game` does not have, as the call it will be.
+    fn plan_for_actor(
+        &mut self,
+        feature: &str,
+        action: &Action,
+        call: &str,
+        out: &mut String,
+    ) -> Result<()> {
+        let mut code = String::new();
+        self.actor_action(action, call, &mut code)?;
+        self.plan_code(feature, code.trim(), out);
+        Ok(())
+    }
+    fn plan_for_object(
+        &mut self,
+        feature: &str,
+        action: &Action,
+        call: &str,
+        out: &mut String,
+    ) -> Result<()> {
+        let mut code = String::new();
+        self.object_action(action, call, &mut code)?;
+        self.plan_code(feature, code.trim(), out);
+        Ok(())
+    }
+    fn keyword_action_beyond(
+        &mut self,
+        id: usize,
+        action: &Action,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        use KeywordAction as K;
+        match action.action {
+            K::Blight => {
+                let n = self.action_amount(action, u8::MAX.into(), "u8")?;
+                let player = self.actor(action)?;
+                writeln!(out, "let amount_{id}: u8 = {n}; let player_{id} = {player}; let blighted_{id}: Vec<ObjectId> = {M}::blight::in_effect(g, player_{id}, asker.source, amount_{id})?.into_iter().collect();").unwrap();
+                self.moved.insert(result.0, format!("blighted_{id}"));
+            }
+            K::Recruit => {
+                let token = format!("{M}::tokens::HUMAN_SOLDIER");
+                if !self.extras.contains(&token) {
+                    self.extras.push(token);
+                }
+                self.actor_action(action, &format!("{M}::recruit::recruit(g, player, asker.source)?"), out)?;
+            }
+            K::Saddle => self.object_action(action, "g.become_saddled(object)", out)?,
+            K::Paradigm => {
+                self.controlled_by_item(action)?;
+                self.paradigm = true;
+            }
+            K::CollectEvidence => {
+                let n = self.action_amount(action, u8::MAX.into(), "u8")?;
+                let player = self.actor(action)?;
+                self.helpers.insert("pay_question");
+                writeln!(out, "let amount_{id}: u8 = {n}; let payer_{id} = {player}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, Cost {{ collect_evidence: amount_{id}, ..Cost::NONE }}, &PAY_QUESTION)?;").unwrap();
+                self.performed.insert(result.0, format!("paid_{id}"));
+            }
+            K::OpenAttraction => self.plan_for_actor(
+                "engine: no Attractions",
+                action,
+                &format!("{M}::attractions::open(g, player)?"),
+                out,
+            )?,
+            K::VisitAttractions => self.plan_for_actor(
+                "engine: no Attractions",
+                action,
+                &format!("{M}::attractions::visit(g, player)?"),
+                out,
+            )?,
+            K::GetTickets => {
+                let n = self.action_amount(action, i32::MAX.into(), "i32")?;
+                let call = format!("let amount = {n}; g.change_tickets(player, amount)");
+                self.plan_for_actor("engine: no tickets", action, &call, out)?;
+            }
+            K::Awaken => {
+                let n = self.action_amount(action, i16::MAX.into(), "i16")?;
+                let call = format!("let amount = {n}; {M}::awaken::awaken(g, asker.source, object, amount)?");
+                self.plan_for_object("engine: no Awaken", action, &call, out)?;
+            }
+            K::Endure => {
+                let n = self.action_amount(action, i16::MAX.into(), "i16")?;
+                let call = format!("let amount = {n}; {M}::endure::endure(g, asker.controller, object, amount)?");
+                self.plan_for_object("engine: no Endure", action, &call, out)?;
+            }
+            K::Detain => self.plan_for_object(
+                "engine: no Detain",
+                action,
+                &format!("{M}::detain::detain(g, asker.source, object)"),
+                out,
+            )?,
+            K::TurnFaceDown => self.plan_for_object(
+                "engine: no effect turns a permanent face down",
+                action,
+                "g.turn_face_down(object)",
+                out,
+            )?,
+            K::BecomeBlocked => self.plan_for_object(
+                "engine: no effect makes a creature blocked",
+                action,
+                "g.become_blocked(object)",
+                out,
+            )?,
+            K::RemoveFromCombatUnblocking => self.plan_for_object(
+                "engine: no effect removes from combat",
+                action,
+                "g.remove_from_combat_and_unblock(object)",
+                out,
+            )?,
+            K::PhaseIn => self.plan_for_object(
+                "engine: no effect phases a permanent in",
+                action,
+                "g.phase_in(&[object])",
+                out,
+            )?,
+            K::Flip => self.plan_for_object(
+                "engine: no flipping a permanent",
+                action,
+                "g.flip(object)?",
+                out,
+            )?,
+            K::TimeTravel => self.plan_for_actor(
+                "engine: no Time Travel",
+                action,
+                &format!("{M}::time_travel::time_travel(g, player, asker.source)?"),
+                out,
+            )?,
+            K::Forage => self.plan_for_actor(
+                "engine: no Forage",
+                action,
+                &format!("{M}::forage::forage(g, player, asker.source)?"),
+                out,
+            )?,
+            K::Ascend => self.plan_for_actor(
+                "engine: no effect gives the city's blessing",
+                action,
+                "g.ascend(player)",
+                out,
+            )?,
+            K::Epic => {
+                self.controlled_by_item(action)?;
+                self.plan_code("engine: no Epic", &format!("{M}::epic::epic(g, item)?;"), out);
+            }
+            K::Intensify => {
+                let n = match action.amount {
+                    Some(_) => self.action_amount(action, i16::MAX.into(), "i16")?,
+                    None => "1".to_string(),
+                };
+                let call = format!("let amount = {n}; {M}::intensity::intensify(g, player, asker.source, amount)");
+                self.plan_for_actor("engine: no Intensity", action, &call, out)?;
+            }
+            K::Fateseal => {
+                let n = self.action_amount(action, u32::MAX.into(), "u32")?;
+                let object = action.object.map(|o| self.object(o)).transpose()?;
+                let call = format!("let amount = {n}; {M}::fateseal::fateseal(g, player, {}, amount)?", object.unwrap_or_else(|| "None".into()));
+                self.plan_for_actor("engine: no Fateseal", action, &call, out)?;
+            }
+            K::Skip(part) => {
+                let call = format!("g.skip_next(player, Skipped::{part:?})");
+                self.plan_for_actor("engine: no skipped step or phase", action, &call, out)?;
+            }
+            K::AdditionalPhase(phases) => {
+                let code = format!("g.add_phases(AddedPhases::{phases:?});");
+                self.plan_code("engine: no additional phase but combat", &code, out);
+            }
+            K::Planeswalk => self.plan_for_actor(
+                "engine: no planar deck",
+                action,
+                "g.planeswalk(player)",
+                out,
+            )?,
+            K::LoseUnspentMana => self.plan_for_actor(
+                "engine: no effect empties a mana pool",
+                action,
+                "g.empty_mana_pool(player)",
+                out,
+            )?,
+            K::DoubleUnspentMana => self.plan_for_actor(
+                "engine: no effect empties a mana pool",
+                action,
+                "g.double_mana_pool(player)",
+                out,
+            )?,
             other => return Err(gap(format!("keyword action {other:?}"))),
         }
         Ok(())

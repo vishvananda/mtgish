@@ -133,11 +133,11 @@ impl Compiler {
                 parts.spell = "Some(SpellDef::MODAL)".into();
                 parts.modal = format!("Some(&{modal}_ENTWINED)");
             }
-            other => return Err(gap(format!("cost branch {other}"))),
+            other => self.cost_branch_beyond(other, cost, paid, unpaid, label, parts)?,
         }
         Ok(())
     }
-    fn kicker(&mut self, cost: &Cost, label: &str) -> Result<String> {
+    pub(super) fn kicker(&mut self, cost: &Cost, label: &str) -> Result<String> {
         if let [CostPart::Mana(symbols)] = cost.parts.as_slice() {
             return Ok(format!("kicker({})", mana(symbols)?));
         }
@@ -148,7 +148,7 @@ impl Compiler {
     }
     /// One effect that runs the branch `test` picks as it resolves. The two
     /// bodies number their targets alike, so each reads the slots it announced.
-    fn branch_effect(
+    pub(super) fn branch_effect(
         &mut self,
         test: &str,
         paid: &Program,
@@ -229,6 +229,19 @@ impl Compiler {
     }
     /// `Ability::Casting`.
     pub(super) fn casting(
+        &mut self,
+        rule: &CastingRule,
+        label: &str,
+        parts: &mut Parts,
+        condition: Option<&Condition>,
+    ) -> Result<()> {
+        let saved = self.paying;
+        self.paying = lane_g::Paying::of_rule(rule);
+        let done = self.casting_rule(rule, label, parts, condition);
+        self.paying = saved;
+        done
+    }
+    fn casting_rule(
         &mut self,
         rule: &CastingRule,
         label: &str,
@@ -380,7 +393,7 @@ impl Compiler {
                 let test = self.activation_condition(required, &format!("{label}_if"))?;
                 one_field(parts, "cast_only_if", format!("Some({test})"))?;
             }
-            other => return Err(gap(format!("casting rule {}", form(other)))),
+            other => self.casting_beyond(other, label, parts, condition)?,
         }
         Ok(())
     }

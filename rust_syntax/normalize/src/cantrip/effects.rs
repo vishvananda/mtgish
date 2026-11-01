@@ -97,7 +97,12 @@ fn reveals_one(count: &Count) -> bool {
 /// revealing a card, or moving objects no one chooses among.
 fn performed_by_itself(cost: &Cost) -> bool {
     match cost.parts.as_slice() {
-        [CostPart::Draw { .. }] => true,
+        [CostPart::Draw { .. } | CostPart::Mill { .. }] => true,
+        [CostPart::Discard {
+            filter: ObjectFilter::Any,
+            random: true,
+            ..
+        }] => true,
         [CostPart::Reveal {
             count,
             random: false,
@@ -1252,9 +1257,8 @@ impl Compiler {
                 cost,
                 optional: true,
             } => {
-                let cost = self.cost(cost, "paid")?;
-                self.helpers.insert("pay_question");
-                writeln!(out, "let payer_{id} = {}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, {cost}, &PAY_QUESTION)?;", self.fetch(self.certain_player(player)?)).unwrap();
+                let asked = self.ask_to_pay(id, player, cost)?;
+                writeln!(out, "{asked}").unwrap();
                 self.performed.insert(result.0, format!("paid_{id}"));
             }
             Operation::PayCost {
@@ -1263,9 +1267,8 @@ impl Compiler {
                 optional: false,
             } => {
                 if let Some(scope) = self.asking.take() {
-                    let cost = self.cost(cost, "paid")?;
-                    self.helpers.insert("pay_question");
-                    writeln!(out, "let payer_{id} = {}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, {cost}, &PAY_QUESTION)?; if !paid_{id} {{ break 'optional_{scope}; }}", self.fetch(self.certain_player(player)?)).unwrap();
+                    let asked = self.ask_to_pay(id, player, cost)?;
+                    writeln!(out, "{asked} if !paid_{id} {{ break 'optional_{scope}; }}").unwrap();
                     self.performed.insert(result.0, format!("paid_{id}"));
                     return Ok(());
                 }
@@ -1280,6 +1283,16 @@ impl Compiler {
                     CostPart::Sacrifice { objects, choose } => {
                         self.sacrifice(id, &payer, objects, choose.as_ref(), result, out)?;
                         writeln!(out, "let paid_{id} = !picks_{id}.is_empty();").unwrap();
+                    }
+                    // Paid only with the cards to pay it (CR 118.3).
+                    CostPart::Discard {
+                        count,
+                        filter: ObjectFilter::Any,
+                        random: true,
+                    } => {
+                        let owed = self.fetch(self.number(count)?.amount(u32::MAX.into(), "u32")?);
+                        let who = self.fetch(self.certain_player(player)?);
+                        writeln!(out, "let owed_{id} = {owed} as usize; let player_{id} = {who}; let paid_{id} = g.state().zone(Zone::hand(player_{id})).len() >= owed_{id}; if paid_{id} {{ cantrip_mechanics::discard_at_random(g, player_{id}, owed_{id}); }}").unwrap();
                     }
                     CostPart::Discard {
                         count,
@@ -1318,6 +1331,17 @@ impl Compiler {
                     CostPart::Draw { count } => {
                         self.operation(
                             &Operation::Draw {
+                                players: payer,
+                                amount: count.clone(),
+                            },
+                            result,
+                            out,
+                        )?;
+                        writeln!(out, "let paid_{id} = true;").unwrap();
+                    }
+                    CostPart::Mill { count } => {
+                        self.operation(
+                            &Operation::Mill {
                                 players: payer,
                                 amount: count.clone(),
                             },
@@ -1917,6 +1941,9 @@ impl Compiler {
             return self.effect_kinds(&change);
         }
         if let Change::GrantAbility(ability) = change {
+            if let Some(keyword) = self.grants_keyword(ability) {
+                return Ok(vec![format!("EffectKind::AddKeywords(Keywords::of(&[{keyword}]))")]);
+            }
             let index = self.grant(ability)?;
             return Ok(vec![format!(
                 "EffectKind::AddAbility(AbilityRef::delayed({}, {index}))",

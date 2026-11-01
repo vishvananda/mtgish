@@ -1305,6 +1305,10 @@ impl Compiler {
                 format!("q.state().obj({id}).kicked > 0")
             }
             ObjectFilter::State(ObjectState::Commander) => lane_g::commander(&id),
+            // An optional additional cost, or the waterbend kicker that stands for one.
+            ObjectFilter::State(ObjectState::CostPaid(CastCost::Additional)) => {
+                format!("(q.state().obj({id}).paid > 0 || q.state().obj({id}).kicked > 0)")
+            }
             ObjectFilter::State(ObjectState::Saddled) => {
                 format!("q.state().obj({id}).marks.saddled_turn == q.state().turn.number")
             }

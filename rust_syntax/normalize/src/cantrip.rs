@@ -204,6 +204,29 @@ fn granted_protection(quality: &Protection, grants: &mut Vec<(String, String)>) 
                 format!("chars.protection_types = chars.protection_types.with(CardType::{t});"),
             ));
         }
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter: ObjectFilter::Subtype(s),
+        } => {
+            let word = name(s);
+            if !crate::cantrip_vocab::SUBTYPES.contains(&word.as_str()) {
+                return Err(gap(format!("subtype {word}")));
+            }
+            grants.push((
+                lane_g::planned_kind(
+                    "engine: no effect gives protection from a subtype",
+                    format!("EffectKind::ProtectionFromSubtype(Subtype::{word})"),
+                ),
+                format!("chars.protection_subtypes = chars.protection_subtypes.with(q.words(asker.source).subtype(Subtype::{word}));"),
+            ));
+        }
+        Protection::Objects {
+            kind: ObjectKind::Any,
+            filter: ObjectFilter::Any,
+        } => grants.push((
+            "EffectKind::ProtectionFromEverything".into(),
+            "chars.protection_everything = true;".into(),
+        )),
         Protection::Objects { filter, .. } => {
             return Err(gap(format!("protection from {}", form(filter))))
         }
@@ -249,6 +272,7 @@ fn mana(symbols: &[ManaSymbol]) -> Result<String> {
     let mut hybrid = Vec::new();
     let mut twobrid = [0u32; 5];
     let mut phyrexian = [0u32; 5];
+    let mut beyond = String::new();
     for symbol in symbols {
         match symbol {
             ManaSymbol::Generic(n) => {
@@ -271,7 +295,13 @@ fn mana(symbols: &[ManaSymbol]) -> Result<String> {
                 color(&v[0])?;
                 phyrexian[color_index(&v[0])?] += 1;
             }
-            _ => return Err(gap("mana symbol")),
+            ManaSymbol::Snow => beyond.push_str(".with_snow(1)"),
+            ManaSymbol::Phyrexian(v) => {
+                let colors = v.iter().map(color).collect::<Result<Vec<_>>>()?;
+                let colors = colors.iter().map(|c| format!("Color::{c}"));
+                let colors = colors.collect::<Vec<_>>().join(", ");
+                beyond.push_str(&format!(".with_phyrexian_hybrid(&[{colors}])"));
+            }
         }
     }
     if generic > 255
@@ -286,10 +316,18 @@ fn mana(symbols: &[ManaSymbol]) -> Result<String> {
         return Err(gap("mana cost exceeds Cantrip field bounds"));
     }
     hybrid.resize(6, "None".into());
-    Ok(format!(
+    let cost = format!(
         "ManaCost {{ generic: {generic}, x: {x}, symbols: {colors:?}, hybrid: [{}], twobrid: {twobrid:?}, phyrexian: {phyrexian:?} }}",
         hybrid.join(",")
-    ))
+    );
+    Ok(match beyond.is_empty() {
+        true => cost,
+        false => planned::planned_value(
+            "engine: no snow or hybrid Phyrexian mana symbol",
+            &cost,
+            &format!("{cost}{beyond}"),
+        ),
+    })
 }
 struct Number {
     code: String,
@@ -399,8 +437,12 @@ struct Compiler {
     only_way: bool,
     /// An instruction asks "tap or untap", which the card's `labels` word.
     tap_or_untap: bool,
+    /// A spell's body said "paradigm", which sets a field of the card.
+    paradigm: bool,
     /// Inside a spell's cost change, which has `targets` in reach.
     costing_targets: bool,
+    /// What the cost being compiled is paid for.
+    paying: lane_g::Paying,
     /// Small generated functions that this module uses.
     helpers: BTreeSet<&'static str>,
     extras: Vec<String>,
@@ -672,8 +714,10 @@ impl Compiler {
             bound_objects: BTreeSet::new(),
             bound_players: BTreeSet::new(),
             costing_targets: false,
+            paying: lane_g::Paying::Ability,
             only_way: false,
             tap_or_untap: false,
+            paradigm: false,
             helpers: BTreeSet::new(),
             extras: Vec::new(),
             delayed: Vec::new(),
