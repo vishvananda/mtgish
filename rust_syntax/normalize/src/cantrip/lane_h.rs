@@ -39,6 +39,75 @@ pub(super) fn life_amount(
     }
     (changes, rest)
 }
+/// What the client calls one choice of what a permanent enters as.
+fn entry_label(changes: &[Change]) -> String {
+    let mut words = Vec::new();
+    for change in changes {
+        let Change::Copiable(list) = change else {
+            continue;
+        };
+        for change in list {
+            match change {
+                Change::SetBasePowerToughness {
+                    power: Expr::Constant(power),
+                    toughness: Expr::Constant(toughness),
+                } => words.push(format!("{power}/{toughness}")),
+                Change::AddCardType(kind) => words.push(name(kind).to_lowercase()),
+                Change::GrantKeyword(word) => {
+                    words.push(format!("with {}", form(word).to_lowercase()))
+                }
+                Change::CreatureTypes {
+                    types: CreatureTypeSet::Listed(types),
+                    ..
+                } => words.extend(types.iter().map(name)),
+                _ => {}
+            }
+        }
+    }
+    words.join(" ")
+}
+/// Whether a program says what the permanent enters as: `CardDef::enters_as_copy`,
+/// chosen before every other replacement of how it enters (CR 616.1c).
+pub(super) fn enters_as_copy(program: &Program) -> bool {
+    fn states(state: &EntryState) -> bool {
+        match state {
+            EntryState::CopyOf { .. } => true,
+            EntryState::Changes(changes) => all_copiable(changes),
+            EntryState::ChooseChanges(options) => options.iter().all(|o| all_copiable(o)),
+            _ => false,
+        }
+    }
+    program.instructions.iter().any(|instruction| match instruction {
+        Instruction::Effect {
+            operation:
+                Operation::ModifyEvent {
+                    change: EventChange::Entry(state),
+                },
+            ..
+        } => states(state),
+        Instruction::Optional { body, .. } | Instruction::Group(body) => enters_as_copy(body),
+        Instruction::If {
+            then, otherwise, ..
+        } => enters_as_copy(then) || enters_as_copy(otherwise),
+        _ => false,
+    })
+}
+/// Whether an entry's changes are all copiable values (CR 707.2).
+fn all_copiable(changes: &[Change]) -> bool {
+    !changes.is_empty() && changes.iter().all(|c| matches!(c, Change::Copiable(_)))
+}
+/// Whether "you may have it enter as a copy" is what this optional body says.
+pub(super) fn asks_to_copy(body: &Program) -> bool {
+    matches!(
+        body.instructions.first(),
+        Some(Instruction::Effect {
+            operation: Operation::ModifyEvent {
+                change: EventChange::Entry(EntryState::CopyOf { .. }),
+            },
+            ..
+        })
+    )
+}
 /// Whether a filter names what only the resolving ability knows: a lasting
 /// rule's callback is told the object it is on and nothing else.
 fn names_the_effect(filter: &ObjectFilter) -> bool {
@@ -902,6 +971,628 @@ impl Compiler {
             R::GoadedBy(PlayerRef::AbilityController) => vec!["EffectKind::Goaded".into()],
             other => return Err(gap(format!("continuous rule {}", rule_name(other)))),
         })
+    }
+    /// "You may play it this turn": a permission on the cards themselves, each a
+    /// new object once it moves (CR 400.7), so it is theirs however long it lasts.
+    /// False if this rule is no such permission.
+    pub(super) fn play_for_a_while(
+        &mut self,
+        id: usize,
+        i: usize,
+        players: &PlayerSet,
+        rule: &PlayerRule,
+        duration: &crate::ir::Duration,
+        out: &mut String,
+    ) -> Result<bool> {
+        use crate::ir::Duration as D;
+        let plain = PlayTerms {
+            limit: None,
+            during: None,
+            cost: PlayCost::Normal,
+            spend_as: None,
+            into_exile: false,
+            condition: None,
+            effects: Vec::new(),
+            flash: false,
+            may_look: false,
+            then: None,
+            face_down: None,
+        };
+        let (permission, terms) = match rule {
+            PlayerRule::PlayPermissionWith { permission, terms } => (&**permission, terms),
+            other => (other, &plain),
+        };
+        let PlayerRule::PlayPermission {
+            cards,
+            from,
+            action,
+            filter,
+        } = permission
+        else {
+            return Ok(false);
+        };
+        let lands = match action {
+            CardPlayAction::Either => true,
+            CardPlayAction::CastSpell => false,
+            other => return Err(gap(format!("play permission to {}", form(other)))),
+        };
+        let expiry = match duration {
+            D::EndOfTurn => "Expiry::EndOfTurn".to_string(),
+            D::UntilEndOfNextTurn(PlayerRef::AbilityController) => {
+                "Expiry::EndOfYourNextTurn".to_string()
+            }
+            D::UntilNext {
+                point: TurnPoint::EndStepBegins,
+                players: PlayerSet::One(PlayerRef::AbilityController),
+            } => "Expiry::UntilYourNextEndStep".to_string(),
+            D::WhileControlled {
+                player: PlayerRef::AbilityController,
+                object: ObjectRef::Source,
+            } => "Expiry::WhileControls(asker.source)".to_string(),
+            D::Indefinite | D::WhileExiled(_) | D::WhileAnyExiled(_) => "Expiry::Never".to_string(),
+            other => return Err(gap(format!("play permission lasting {}", form(other)))),
+        };
+        if terms.during.is_some() || terms.flash || terms.may_look {
+            return Err(gap("play permission on other terms"));
+        }
+        if terms.then.is_some() || terms.face_down.is_some() {
+            return Err(gap("play permission on other terms"));
+        }
+        if !terms.effects.is_empty() {
+            return Err(gap("play permission with an effect on what is played"));
+        }
+        let mut grant = format!("lands: {lands}, expiry: {expiry}, ");
+        match &terms.cost {
+            PlayCost::Normal => {}
+            PlayCost::Free => grant.push_str("instead: Some(ManaCost::ZERO), "),
+            PlayCost::Using(CostedKeyword::Adventure) => grant.push_str("adventure_only: true, "),
+            PlayCost::Alternate(Operand::Cost(price)) => match price.parts.as_slice() {
+                [CostPart::Mana(symbols)] => {
+                    write!(grant, "instead: Some({}), ", mana(symbols)?).unwrap()
+                }
+                [CostPart::LifeEqualToOwnManaValue] => {
+                    grant.push_str("life_for_mana_value: true, ")
+                }
+                _ => return Err(gap("play permission for another cost")),
+            },
+            PlayCost::Additional(Operand::Cost(price)) => match price.parts.as_slice() {
+                [CostPart::Mana(symbols)] => match symbols.as_slice() {
+                    [ManaSymbol::Generic(n)] if u8::try_from(*n).is_ok() => {
+                        write!(grant, "more: {n}, ").unwrap()
+                    }
+                    _ => return Err(gap("play permission for another cost")),
+                },
+                _ => return Err(gap("play permission for another cost")),
+            },
+            _ => return Err(gap("play permission for another cost")),
+        }
+        if terms.into_exile {
+            grant.push_str("exile_instead: ExileInstead::Spell, ");
+        }
+        let mut planned_feature: Option<&str> = None;
+        match &terms.spend_as {
+            None => {}
+            Some(SpendAs::AnyType) => grant.push_str("any_type: true, "),
+            Some(SpendAs::AnyColor) => {
+                grant.push_str("any_color: true, ");
+                planned_feature = Some("play permission with mana as though any color");
+            }
+            Some(other) => {
+                write!(grant, "spend_as: SpendAs::{}, ", form(other)).unwrap();
+                planned_feature = Some("play permission with one mana as though any color");
+            }
+        }
+        match &terms.condition {
+            None => {}
+            Some(Condition::Controls {
+                player: PlayerRef::AbilityController,
+                filter: ObjectFilter::Subtype(subtype),
+                minimum: 1,
+            }) => write!(
+                grant,
+                "when: Some(PlayCondition::ControlsSubtype(Subtype::{})), ",
+                name(subtype)
+            )
+            .unwrap(),
+            Some(condition) => {
+                let label = format!("play_{id}_{i}_when");
+                let test = self.activation_condition(condition, &label)?;
+                write!(grant, "when: Some(PlayCondition::Rule({test})), ").unwrap();
+                planned_feature = Some("play permission on a condition");
+            }
+        }
+        let grant = format!("PlayGrant {{ {grant}..PlayGrant::CAST }}");
+        let players = self.fetch(self.players(players)?);
+        let exiled_with = matches!(filter, ObjectFilter::Any)
+            && matches!(
+                cards,
+                ObjectSet::Zone {
+                    scope: ZoneScope::Shared(EventZone::Exile),
+                    filter: ObjectFilter::ExiledWith(ObjectRef::Source),
+                    ..
+                }
+            );
+        let one = match terms.limit {
+            None => false,
+            Some(PlayLimit::Total(1)) if exiled_with => true,
+            Some(PlayLimit::Total(_)) if !self.stack_item || !exiled_with => {
+                let count = match terms.limit {
+                    Some(PlayLimit::Total(n)) => n,
+                    _ => 1,
+                };
+                let chosen = ObjectSet::Matching {
+                    objects: Box::new(cards.clone()),
+                    filter: filter.clone(),
+                };
+                let cards = self.fetch(self.objects(&chosen)?);
+                self.plan_code(
+                    "play permission for a number of cards",
+                    &format!("let cards = {cards}; let players = {players}; for &player in &players {{ g.allow_play_some(&cards, player, {grant}, {count}); }}"),
+                    out,
+                );
+                return Ok(true);
+            }
+            Some(_) => return Err(gap("play permission for a number of cards")),
+        };
+        if exiled_with && self.stack_item {
+            let code = format!("let players_{id}_{i} = {players}; let linked_{id}_{i} = g.linked(item); cantrip_api::instruction(g, |g| {{ for &player in &players_{id}_{i} {{ g.allow_play_exiled_with(linked_{id}_{i}, player, {grant}, {one}); }} }});");
+            match planned_feature {
+                Some(feature) => self.plan_code(feature, &code, out),
+                None => writeln!(out, "{code}").unwrap(),
+            }
+            return Ok(true);
+        }
+        if matches!(cards, ObjectSet::Zone { .. }) {
+            // Cards that come there later are named too: no list of them today has it.
+            return Err(gap("play permission on an open set of cards"));
+        }
+        let chosen = match filter {
+            ObjectFilter::Any => cards.clone(),
+            filter => ObjectSet::Matching {
+                objects: Box::new(cards.clone()),
+                filter: filter.clone(),
+            },
+        };
+        let code = format!(
+            "let cards_{id}_{i} = {}; let players_{id}_{i} = {players}; cantrip_api::instruction(g, |g| {{ for &card in &cards_{id}_{i} {{ if g.obj(card).zone.is({}) {{ for &player in &players_{id}_{i} {{ g.allow_play(card, player, {grant}); }} }} }} }});",
+            self.fetch(self.objects(&chosen)?),
+            zone_kind(from)?,
+        );
+        match planned_feature {
+            Some(feature) => self.plan_code(feature, &code, out),
+            None => writeln!(out, "{code}").unwrap(),
+        }
+        Ok(true)
+    }
+    /// A static ability that functions from a zone other than the battlefield
+    /// (CR 113.6): a permission to cast the card itself, a rule about the spell,
+    /// or an ability of a card in a graveyard.
+    pub(super) fn scoped_static(
+        &mut self,
+        zones: &[EventZone],
+        condition: Option<&Condition>,
+        ability: &Ability,
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let failure = || gap(format!("source-zone scope on {}", form(ability)));
+        let Ability::Static {
+            affected, changes, ..
+        } = ability
+        else {
+            return Err(failure());
+        };
+        if let (
+            EffectSubjects::Players(PlayerSet::One(PlayerRef::AbilityController)),
+            [Change::PlayerRule(rule)],
+        ) = (affected, changes.as_slice())
+        {
+            let (permission, terms) = match rule {
+                PlayerRule::PlayPermissionWith { permission, terms } => (&**permission, Some(terms)),
+                other => (other, None),
+            };
+            if let PlayerRule::PlayPermission {
+                cards: ObjectSet::One(ObjectRef::Source),
+                from,
+                action: CardPlayAction::CastSpell,
+                filter: ObjectFilter::Any,
+            } = permission
+            {
+                return self.own_cast(from, condition, terms, label, parts);
+            }
+        }
+        match zones {
+            [EventZone::Stack] => {
+                let [Change::Rule(RuleChange::Prohibit(action))] = changes.as_slice() else {
+                    return Err(failure());
+                };
+                let EffectSubjects::Objects(ObjectSet::Zone { filter, .. }) = affected else {
+                    return Err(failure());
+                };
+                if !matches!(filter, ObjectFilter::SameObject(ObjectRef::Source)) {
+                    return Err(failure());
+                }
+                let (word, text) = match action {
+                    ObjectAction::Counter => ("CantBeCountered", "This spell can't be countered."),
+                    ObjectAction::Copy => ("CantBeCopied", "This spell can't be copied."),
+                    _ => return Err(failure()),
+                };
+                let Some(condition) = condition else {
+                    parts.keywords.push(format!("Keyword::{word}"));
+                    return Ok(());
+                };
+                // What it says of itself holds wherever it is: only the spell is asked.
+                let saved = (self.reader, self.event_at);
+                (self.reader, self.event_at) = (Reader::Layer, EventAt::Nowhere);
+                let test = self.condition(condition);
+                (self.reader, self.event_at) = saved;
+                let function = format!("{label}_apply");
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn LayerQuery, source: ObjectId, chars: &mut Chars) {{ let asker = &Asker::new(source, q.controller(source)); if {} {{ chars.keywords = chars.keywords.with(Keyword::{word}); }} }}", test?).unwrap();
+                parts.statics.push(format!(
+                    "characteristic_defining(Layer::Ability, {function}, {})",
+                    quoted(text)
+                ));
+                Ok(())
+            }
+            [EventZone::Graveyard] => {
+                if self.static_guard.is_some() {
+                    return Err(failure());
+                }
+                let mut scoped = Parts::default();
+                self.static_guard = condition.cloned();
+                let compiled = self.ability(ability, label, &mut scoped, None);
+                self.static_guard = None;
+                compiled?;
+                let only_statics = scoped.keywords.is_empty()
+                    && scoped.abilities.is_empty()
+                    && scoped.replacements.is_empty()
+                    && scoped.preventions.is_empty()
+                    && scoped.enters.is_empty()
+                    && scoped.block_rules.is_empty()
+                    && scoped.block_requirements.is_empty()
+                    && scoped.attack_rules.is_empty()
+                    && scoped.untap_bans.is_empty()
+                    && scoped.tables.is_empty()
+                    && scoped.fields.is_empty();
+                if !only_statics {
+                    return Err(failure());
+                }
+                for made in scoped.statics {
+                    parts.statics.push(format!("{made}.from(ZoneKind::Graveyard)"));
+                }
+                Ok(())
+            }
+            _ => Err(failure()),
+        }
+    }
+    /// "You may cast this card from your graveyard" or "from exile": its own say-so,
+    /// which works where it is (CR 113.6b, 113.6e).
+    fn own_cast(
+        &mut self,
+        from: &EventZone,
+        condition: Option<&Condition>,
+        terms: Option<&PlayTerms>,
+        label: &str,
+        parts: &mut Parts,
+    ) -> Result<()> {
+        let refused = || gap("cast the card itself on these terms");
+        let (cost, exile) = match terms {
+            Some(terms) => {
+                if terms.limit.is_some()
+                    || terms.during.is_some()
+                    || terms.spend_as.is_some()
+                    || terms.condition.is_some()
+                    || !terms.effects.is_empty()
+                    || terms.flash
+                    || terms.may_look
+                    || terms.then.is_some()
+                    || terms.face_down.is_some()
+                {
+                    return Err(refused());
+                }
+                (&terms.cost, terms.into_exile)
+            }
+            None => (&PlayCost::Normal, false),
+        };
+        match from {
+            EventZone::Exile => {
+                if !matches!(cost, PlayCost::Normal) || exile {
+                    return Err(refused());
+                }
+                let test = match condition {
+                    Some(condition) => format!(
+                        " && {}(q, asker)",
+                        self.activation_condition(condition, &format!("{label}_if"))?
+                    ),
+                    None => String::new(),
+                };
+                let function = format!("{label}_allows");
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId) -> bool {{ card == asker.source && player == asker.controller{test} }}").unwrap();
+                parts.table(
+                    "exile_casts",
+                    format!("ExileCast {{ text: \"Cast from exile\", allows: {function}, additional: Cost::NONE, any_type: false, lands: false, life_for_mana_value: false }}"),
+                );
+                Ok(())
+            }
+            EventZone::Graveyard => {
+                let printed = |c: &Self| -> Result<CostPart> {
+                    let symbols = c.printed_mana.clone().ok_or_else(refused)?;
+                    Ok(CostPart::Mana(symbols))
+                };
+                let price = match cost {
+                    PlayCost::Normal if condition.is_none() && !exile => {
+                        parts.keywords.push("Keyword::CastFromYourGraveyard".into());
+                        return Ok(());
+                    }
+                    PlayCost::Using(CostedKeyword::Bestow) if condition.is_none() && !exile => {
+                        parts.field("bestow_from_graveyard", "true".into());
+                        return Ok(());
+                    }
+                    PlayCost::Normal => Cost {
+                        parts: vec![printed(self)?],
+                    },
+                    PlayCost::Alternate(Operand::Cost(price)) => price.clone(),
+                    PlayCost::Additional(Operand::Cost(price)) => {
+                        let mut all = vec![printed(self)?];
+                        all.extend(price.parts.iter().cloned());
+                        Cost { parts: all }
+                    }
+                    _ => return Err(refused()),
+                };
+                let price = self.cost(&price, label)?;
+                let mut way = format!(
+                    "way({price}, ZoneKind::Graveyard, \"Cast from your graveyard\").only_from()"
+                );
+                if exile {
+                    way.push_str(".exile_after()");
+                }
+                if let Some(condition) = condition {
+                    let test = self.activation_condition(condition, &format!("{label}_if"))?;
+                    write!(way, ".condition({test})").unwrap();
+                }
+                parts.table("ways", way);
+                Ok(())
+            }
+            _ => Err(refused()),
+        }
+    }
+    /// "You may have this enter as a copy of ...": the choice of what it copies
+    /// is one with the choice to copy (CR 707.2), and what the body says next is
+    /// what doing so does.
+    pub(super) fn copy_as_enters(
+        &mut self,
+        decider: &PlayerRef,
+        body: &Program,
+        out: &mut String,
+    ) -> Result<()> {
+        let [Instruction::Effect {
+            result,
+            operation:
+                Operation::ModifyEvent {
+                    change:
+                        EventChange::Entry(EntryState::CopyOf {
+                            objects,
+                            effects,
+                            until,
+                        }),
+                },
+        }, rest @ ..] = body.instructions.as_slice()
+        else {
+            return Err(gap("may enter as a copy"));
+        };
+        let PlayerRef::ControllerOf(entering) = decider else {
+            return Err(gap("may enter as a copy, asked of another player"));
+        };
+        if !matches!(**entering, ObjectRef::EventSubject) {
+            return Err(gap("may enter as a copy, asked of another player"));
+        }
+        let id = self.fresh();
+        writeln!(
+            out,
+            "const ASK_{id}: Question = Question::new(\"CopyAsEnters\", \"enter as a copy?\", \"You choose what it copies next. If you don't, it enters as itself\", \"Choose a copy\", \"Enter as itself\"); let candidates_{id}: Vec<ObjectId> = ({}).into_iter().filter(|&id| id != entering.object).collect(); if let Some(chosen_{id}) = cantrip_mechanics::copy::choose_copy_of_one_of(g, entering, &candidates_{id}, &ASK_{id})? {{",
+            self.fetch(self.objects(objects)?)
+        )
+        .unwrap();
+        let values = self.copy_values(&format!("Some(chosen_{id})"), std::slice::from_ref(&**effects))?;
+        writeln!(out, "entering.copy = {values}; let picked_{id} = vec![chosen_{id}];").unwrap();
+        self.selections.insert(result.0, format!("picked_{id}"));
+        if let Some(until) = until {
+            let until = self.duration(until)?;
+            self.plan_code(
+                "copy as it enters for a duration",
+                &format!("entering.copy_lasts = {until};"),
+                out,
+            );
+        }
+        self.block(
+            &Program {
+                instructions: rest.to_vec(),
+            },
+            out,
+            true,
+        )?;
+        writeln!(out, "}}").unwrap();
+        Ok(())
+    }
+    /// What it is as it enters, its own copiable values changed.
+    fn copiable_entry(&mut self, changes: &[Change], out: &mut String) -> Result<()> {
+        let mut values = "q.copiable_values(entering.object)".to_string();
+        for change in changes {
+            let Change::Copiable(list) = change else {
+                return Err(gap("event change as it enters Copiable mixed"));
+            };
+            for change in list {
+                match change {
+                    Change::SetBasePowerToughness {
+                        power: Expr::Constant(power),
+                        toughness: Expr::Constant(toughness),
+                    } => write!(values, ".sized({power}, {toughness})").unwrap(),
+                    Change::AddCardType(kind) => {
+                        write!(values, ".with_type(CardType::{})", name(kind)).unwrap()
+                    }
+                    Change::GrantKeyword(word) => {
+                        write!(values, ".with_keyword({})", keyword(word)?).unwrap()
+                    }
+                    Change::CreatureTypes {
+                        mode: ChangeMode::Add,
+                        types: CreatureTypeSet::Listed(types),
+                    } => {
+                        for kind in types {
+                            let word = name(kind);
+                            if !crate::cantrip_vocab::SUBTYPES.contains(&word.as_str()) {
+                                return Err(gap(format!("subtype {word}")));
+                            }
+                            write!(values, ".with_subtype(Subtype::{word})").unwrap();
+                        }
+                    }
+                    other => {
+                        return Err(gap(format!("event change as it enters Copiable {}", form(other))))
+                    }
+                }
+            }
+        }
+        writeln!(out, "entering.copy = Some({});", self.fetch(values)).unwrap();
+        Ok(())
+    }
+    /// "As this enters, choose ...": one option of the labels of the card.
+    fn entry_option(&mut self, labels: Vec<String>, arms: Vec<String>, out: &mut String) -> Result<()> {
+        if self.entering_labels.is_some() {
+            return Err(gap("two choices of labels as it enters"));
+        }
+        let count = labels.len();
+        let quoted_labels: Vec<String> = labels.iter().map(|l| quoted(l)).collect();
+        self.entering_labels = Some(format!("&[{}]", quoted_labels.join(", ")));
+        writeln!(
+            out,
+            "cantrip_mechanics::choose::option_as_enters(g, entering, &CARD, 0..{count})?; match entering.chosen_option.map(|chosen| chosen.index) {{"
+        )
+        .unwrap();
+        for (i, arm) in arms.iter().enumerate() {
+            writeln!(out, "Some({i}) => {{ {arm} }}").unwrap();
+        }
+        writeln!(out, "_ => {{}} }}").unwrap();
+        Ok(())
+    }
+    /// How `Entry` says the permanent enters, past tapped and counters.
+    pub(super) fn entry_state(&mut self, state: &EntryState, out: &mut String) -> Result<()> {
+        match state {
+            EntryState::Prepared => writeln!(out, "entering.prepared = true;").unwrap(),
+            EntryState::Changes(changes) if all_copiable(changes) => {
+                self.copiable_entry(changes, out)?
+            }
+            EntryState::ChooseChanges(options) => {
+                let mut labels = Vec::new();
+                let mut arms = Vec::new();
+                for option in options {
+                    let mut arm = String::new();
+                    self.copiable_entry(option, &mut arm)?;
+                    arms.push(arm);
+                    labels.push(entry_label(option));
+                }
+                self.entry_option(labels, arms, out)?;
+            }
+            EntryState::Changes(changes) => self.entering_becomes(changes, None, out)?,
+            EntryState::ChangesUntil { changes, duration } => {
+                self.entering_becomes(changes, Some(duration), out)?
+            }
+            EntryState::CountersOfChoice {
+                kinds,
+                amount: Expr::Constant(amount),
+                distinct,
+            } => {
+                let mut options = Vec::new();
+                match (*distinct, *amount) {
+                    (false, 1) => {
+                        for kind in kinds {
+                            options.push(vec![kind]);
+                        }
+                    }
+                    (true, 2) => {
+                        for (i, one) in kinds.iter().enumerate() {
+                            for other in &kinds[i + 1..] {
+                                options.push(vec![one, other]);
+                            }
+                        }
+                    }
+                    _ => return Err(gap("event change as it enters a number of chosen counters")),
+                }
+                let mut labels = Vec::new();
+                let mut arms = Vec::new();
+                for option in options {
+                    let mut arm = String::new();
+                    let mut label = Vec::new();
+                    for kind in option {
+                        let code = counter_kind(kind)?;
+                        write!(arm, "entering.counters[{code} as usize] = entering.counters[{code} as usize].saturating_add(1); ").unwrap();
+                        label.push(form(kind));
+                    }
+                    arms.push(arm);
+                    labels.push(label.join(" and "));
+                }
+                self.entry_option(labels, arms, out)?;
+            }
+            EntryState::CountersOf {
+                object: ObjectRef::Named { result, .. },
+                one_of_each: false,
+            } => {
+                let Some(list) = self.selections.get(&result.0).cloned() else {
+                    return Err(gap("event change as it enters CountersOf"));
+                };
+                writeln!(out, "if let Some(&original) = {list}.first() {{ for kind in CounterKind::ALL {{ let count = g.obj(original).counters(kind); entering.counters[kind as usize] = entering.counters[kind as usize].saturating_add(count); }} }}").unwrap();
+            }
+            other => return Err(gap(format!("event change as it enters Entry {}", form(other)))),
+        }
+        Ok(())
+    }
+    /// "It enters with flying": what the effect says it is, on it from the moment
+    /// it enters and for as long as it is that object (`Entering::becomes`).
+    fn entering_becomes(
+        &mut self,
+        changes: &[Change],
+        duration: Option<&Duration>,
+        out: &mut String,
+    ) -> Result<()> {
+        if let [Change::SetPower(power), Change::SetToughness(toughness)] = changes {
+            let power = self.number(power)?.fit(i16::MIN.into(), i16::MAX.into(), "i16")?;
+            let toughness = self.number(toughness)?.fit(i16::MIN.into(), i16::MAX.into(), "i16")?;
+            self.plan_code(
+                "event change as it enters a power and toughness read then",
+                &format!("entering.base_power_toughness = Some(({power}, {toughness}));"),
+                out,
+            );
+            return Ok(());
+        }
+        let mut keywords = Vec::new();
+        let mut abilities = Vec::new();
+        for change in changes {
+            match change {
+                Change::GrantKeyword(word) => keywords.push(keyword(word)?),
+                Change::GrantAbility(ability) => abilities.push(self.grant(ability)?.to_string()),
+                other => return Err(gap(format!("event change as it enters Change {}", form(other)))),
+            }
+        }
+        let what = format!(
+            "EntersAs {{ abilities: &[{}], keywords: Keywords::of(&[{}]), ..EntersAs::NONE }}",
+            abilities.join(", "),
+            keywords.join(", ")
+        );
+        if let Some(duration) = duration {
+            let duration = self.duration(duration)?;
+            self.plan_code(
+                "event change as it enters until a duration",
+                &format!("entering.becomes_until = Some(({what}, {duration}));"),
+                out,
+            );
+            return Ok(());
+        }
+        let id = self.fresh();
+        writeln!(
+            out,
+            "static WHAT_{id}: EntersAs = {what}; entering.becomes = Some(Becomes {{ what: &WHAT_{id}, card: {}, words: g.words(entering.object) }});",
+            self.fetch(read::SOURCE_CARD.to_string())
+        )
+        .unwrap();
+        Ok(())
     }
     /// A table of `CardDef` that asks of one object.
     fn object_table(

@@ -425,6 +425,10 @@ struct Compiler {
     lasting: Vec<String>,
     /// `CardDef::lasting_block_rules`.
     made_block_rules: Vec<String>,
+    /// `CardDef::labels`: the options of a choice as it enters.
+    entering_labels: Option<String>,
+    /// The mana cost printed on the card.
+    printed_mana: Option<Vec<ManaSymbol>>,
     granting: bool,
     functions: String,
     next: usize,
@@ -695,6 +699,8 @@ impl Compiler {
             replaced_counter: None,
             lasting: Vec::new(),
             made_block_rules: Vec::new(),
+            entering_labels: None,
+            printed_mana: None,
             granting: false,
             functions: String::new(),
             next: 0,
@@ -1512,6 +1518,7 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     let mut c = Compiler::new();
     let mut parts = Parts::default();
     c.links_exile = format!("{:?}", card.abilities).contains("ExiledWith(Source)");
+    c.printed_mana = card.characteristics.mana_cost.clone();
     c.enters_choosing = chosen::enters_choosing(card);
     for (i, a) in card.abilities.iter().enumerate() {
         if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
@@ -1656,6 +1663,9 @@ fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedMod
     }
     for made in std::mem::take(&mut c.made_block_rules) {
         parts.table("lasting_block_rules", made);
+    }
+    if let Some(labels) = c.entering_labels.take() {
+        parts.field("labels", labels);
     }
     let rest = parts.rest();
     let Parts {

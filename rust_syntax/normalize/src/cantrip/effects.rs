@@ -401,7 +401,7 @@ impl Compiler {
     /// A nested block: what it binds is out of Rust's scope once it closes. The
     /// objects it reports stay readable through a local of the whole effect;
     /// anything else reports a gap instead of generating a compile error.
-    fn block(&mut self, body: &Program, out: &mut String, boundaries: bool) -> Result<()> {
+    pub(super) fn block(&mut self, body: &Program, out: &mut String, boundaries: bool) -> Result<()> {
         let scope = self.results();
         self.program(body, out, boundaries)?;
         let inner = self.results();
@@ -625,6 +625,11 @@ impl Compiler {
                 self.block(body, out, true)?;
                 writeln!(out, "}}").unwrap();
                 Ok(())
+            }
+            Instruction::Optional { decider, body }
+                if self.pending == Pending::Entering && lane_h::asks_to_copy(body) =>
+            {
+                self.copy_as_enters(decider, body, out)
             }
             Instruction::Optional { decider, body } => {
                 let decider = self.fetch(self.certain_player(decider)?);

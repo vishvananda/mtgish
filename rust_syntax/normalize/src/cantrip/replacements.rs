@@ -283,6 +283,20 @@ impl Compiler {
                 )
                 .unwrap();
             }
+            EventChange::Entry(state) => self.entry_state(state, out)?,
+            EventChange::SetDestination(Destination::OwnersGraveyard) => writeln!(
+                out,
+                "entering.instead = Some(Zone::graveyard(g.obj(entering.object).owner));"
+            )
+            .unwrap(),
+            EventChange::SetController(PlayerRef::OneOf(players)) => {
+                let players = self.fetch(self.players(players)?);
+                self.plan_code(
+                    "event change as it enters SetController",
+                    &format!("let players = {players}; entering.controller = cantrip_mechanics::choose::player(g, entering.controller, entering.object, &players)?;"),
+                    out,
+                );
+            }
             other => return Err(gap(format!("event change as it enters {}", form(other)))),
         }
         Ok(())
@@ -370,7 +384,11 @@ impl Compiler {
                 )?,
                 None => self.entering(body, &function)?,
             }
-            parts.enters.push(function);
+            if lane_h::enters_as_copy(body) {
+                parts.field("enters_as_copy", format!("Some({function})"));
+            } else {
+                parts.enters.push(function);
+            }
             return Ok(());
         }
         let (arms, frame) = self.watched(event)?;

@@ -269,36 +269,10 @@ impl Compiler {
                 Change::PlayerRule(rule) => rule,
                 other => return Err(gap(format!("continuous change on players {}", form(other)))),
             };
+            if self.play_for_a_while(id, i, players, rule, duration, out)? {
+                continue;
+            }
             let kind = match rule {
-                PlayerRule::PlayPermission {
-                    cards,
-                    from,
-                    action,
-                    filter: ObjectFilter::Any,
-                } => {
-                    let expiry = match duration {
-                        D::EndOfTurn => "EndOfTurn",
-                        D::UntilEndOfNextTurn(PlayerRef::AbilityController) => "EndOfYourNextTurn",
-                        D::Indefinite | D::WhileExiled(_) => "Never",
-                        other => {
-                            return Err(gap(format!("play permission lasting {}", form(other))))
-                        }
-                    };
-                    let lands = match action {
-                        CardPlayAction::Either => true,
-                        CardPlayAction::CastSpell => false,
-                        other => return Err(gap(format!("play permission to {}", form(other)))),
-                    };
-                    writeln!(
-                        out,
-                        "let cards_{id}_{i} = {}; let players_{id}_{i} = {}; cantrip_api::instruction(g, |g| {{ for &card in &cards_{id}_{i} {{ if g.obj(card).zone.is({}) {{ for &player in &players_{id}_{i} {{ g.allow_play(card, player, PlayGrant {{ lands: {lands}, expiry: Expiry::{expiry}, ..PlayGrant::CAST }}); }} }} }} }});",
-                        self.fetch(self.objects(cards)?),
-                        self.fetch(self.players(players)?),
-                        zone_kind(from)?,
-                    )
-                    .unwrap();
-                    continue;
-                }
                 PlayerRule::AdditionalLandPlays(Count::Exactly(Expr::Constant(n)))
                     if u32::try_from(*n).is_ok() =>
                 {
