@@ -147,7 +147,7 @@ fn removes_one_counter(removals: &[CounterRemoval]) -> bool {
 }
 
 /// What the choice of a cost that moves objects is for.
-fn move_purpose(destination: &Destination) -> &'static str {
+pub(super) fn move_purpose(destination: &Destination) -> &'static str {
     match destination {
         Destination::OwnersHand => "PutIntoHand",
         Destination::OwnersGraveyard => "PutIntoGraveyard",
@@ -899,6 +899,20 @@ impl Compiler {
                 };
                 self.operation(&tap, result, out)?;
                 writeln!(out, "let paid_{id} = !{}.is_empty();", self.moved(result)?).unwrap();
+            }
+            CostPart::ChangeTapState {
+                selections,
+                tapped: true,
+                symbol: false,
+            } if matches!(
+                selections.as_slice(),
+                [CostObjectSelection {
+                    choose: Some(Count::AnyNumber),
+                    ..
+                }]
+            ) =>
+            {
+                self.tap_any_number(id, player, &selections[0].objects, result, out)?;
             }
             other => return Err(gap(format!("resolution cost {}", form(other)))),
         }

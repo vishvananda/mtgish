@@ -224,6 +224,7 @@ pub(super) fn plain_entry(entry: &EntrySpec) -> bool {
 /// The locals earlier instructions bound, keyed by the result that names them.
 pub(super) struct Results {
     pub(super) selections: BTreeMap<u32, String>,
+    pub(super) unchosen: BTreeMap<u32, String>,
     pub(super) reveal_matches: BTreeMap<u32, String>,
     pub(super) creations: BTreeMap<u32, String>,
     pub(super) moved: BTreeMap<u32, String>,
@@ -392,6 +393,7 @@ impl Compiler {
         let mut after = body.instructions[i + 1..].to_vec();
         after.extend_from_slice(&self.after);
         let around = std::mem::replace(&mut self.after, after);
+        let planned = self.gaps.len();
         let failure = self.attempt(format!("instructions[{i}]"), |c| {
             let gaps = c.gaps.len();
             match c.instruction(body, i, instruction, out) {
@@ -403,6 +405,10 @@ impl Compiler {
                 compiled => compiled,
             }
         });
+        if let (None, Instruction::Effect { result, operation }) = (&failure, instruction) {
+            let waits = self.gaps.len() > planned;
+            self.report(operation, result, waits, out);
+        }
         self.after = around;
         if let Some(feature) = failure {
             out.truncate(mark);
@@ -418,6 +424,7 @@ impl Compiler {
     pub(super) fn results(&self) -> Results {
         Results {
             selections: self.selections.clone(),
+            unchosen: self.unchosen.clone(),
             reveal_matches: self.reveal_matches.clone(),
             creations: self.creations.clone(),
             moved: self.moved.clone(),
@@ -434,6 +441,7 @@ impl Compiler {
     pub(super) fn restore_results(&mut self, results: Results) {
         let Results {
             selections,
+            unchosen,
             reveal_matches,
             creations,
             moved,
@@ -447,6 +455,7 @@ impl Compiler {
             notes,
         } = results;
         self.selections = selections;
+        self.unchosen = unchosen;
         self.reveal_matches = reveal_matches;
         self.creations = creations;
         self.moved = moved;
@@ -550,7 +559,9 @@ impl Compiler {
                     )
                 });
                 if let Some(constraint) = constraint {
-                    return Err(gap(format!("selection constraint {}", form(constraint))));
+                    let rest = &body.instructions[i + 1..];
+                    return self
+                        .choose_with_rule(player, objects, count, constraint, result, rest, out);
                 }
                 if one_at_most(count) {
                     self.single.insert(result.0);
@@ -567,10 +578,16 @@ impl Compiler {
                     return Ok(());
                 }
                 let rest = &body.instructions[i + 1..];
+                if self.object_as_it_enters(objects, count, rest, result, out)? {
+                    return Ok(());
+                }
                 let purpose = purpose(result, rest)
                     .or_else(|| purpose(result, &self.after))
                     .or_else(|| referred_to(result, rest).then_some("ChooseAsEnters"))
                     .or_else(|| referred_to(result, &self.after).then_some("ChooseAsEnters"))
+                    .or_else(|| lane_l::plain_purpose(result, rest))
+                    .or_else(|| lane_l::plain_purpose(result, &self.after))
+                    .or_else(|| self.read_later(result).then_some("ChooseAsEnters"))
                     .ok_or_else(|| gap("resolution choice prompt purpose"))?;
                 self.choose(player, objects, count, result, purpose, out)
             }
@@ -588,11 +605,9 @@ impl Compiler {
                 result,
             } if also.is_empty() => {
                 let [choice] = choices.as_slice() else {
-                    return Err(gap("search with several find clauses"));
+                    return self.search_several(player, library, choices, result, out);
                 };
-                if let Some(constraint) = choice.constraints.first() {
-                    return Err(gap(format!("search constraint {}", form(constraint))));
-                }
+                let rules = self.search_rules(&choice.constraints)?;
                 if one_at_most(&choice.count) {
                     self.single.insert(result.0);
                 }
@@ -603,7 +618,7 @@ impl Compiler {
                 let searcher = self.fetch(self.certain_player(player)?);
                 let owner = self.fetch(self.certain_player(library)?);
                 let count = self.fetch(count);
-                writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = {owner}; let rule_count_{id} = {count}; let shown_{id} = cantrip_mechanics::library::searched_cards(g, owner_{id}); let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }}; let found_{id} = cantrip_mechanics::library::search(g, searcher_{id}, owner_{id}, asker.source, SearchDestination::{destination}, cantrip_mechanics::select::Selection::listed(rule_count_{id}, &shown_{id}, can_{id}))?;").unwrap();
+                writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = {owner}; let rule_count_{id} = {count}; let shown_{id} = cantrip_mechanics::library::searched_cards(g, owner_{id}); let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }}; let found_{id} = cantrip_mechanics::library::search(g, searcher_{id}, owner_{id}, asker.source, SearchDestination::{destination}, cantrip_mechanics::select::Selection::listed(rule_count_{id}, &shown_{id}, can_{id}){rules})?;").unwrap();
                 self.selections.insert(result.0, format!("found_{id}"));
                 self.searched.insert(result.0, "true".into());
                 Ok(())
@@ -1014,6 +1029,8 @@ impl Compiler {
                 )
                 .unwrap();
                 self.moved.insert(result.0, format!("turned_{id}"));
+                // "Those creatures": all of them, whatever state each was in.
+                self.selections.insert(result.0, format!("objects_{id}"));
                 self.left_behind(result, format!("turned_{id}.clone()"));
             }
             Operation::Sacrifice {
@@ -1354,7 +1371,10 @@ impl Compiler {
                 player,
                 cost,
                 optional: true,
-            } if self.asking.is_none() && performed_by_itself(cost) => {
+            } if self.asking.is_none()
+                && (performed_by_itself(cost)
+                    || (lane_l::chooses_what_pays(cost) && self.read_later(result))) =>
+            {
                 writeln!(
                     out,
                     "let payer_{id} = {}; let (paid_{id}, after_{id}, before_{id}, picked_{id}): (bool, Vec<ObjectId>, Vec<ObjectId>, Vec<ObjectId>) = if cantrip_mechanics::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)? {{",
@@ -1462,6 +1482,7 @@ impl Compiler {
                 let asked = self.ask_to_pay(id, player, cost)?;
                 writeln!(out, "{asked}").unwrap();
                 self.performed.insert(result.0, format!("paid_{id}"));
+                self.objects_that_paid(id, result, out);
             }
             Operation::PayCost {
                 player,
@@ -1505,7 +1526,9 @@ impl Compiler {
                     } => {
                         let owed = self.fetch(self.number(count)?.amount(u32::MAX.into(), "u32")?);
                         let who = self.fetch(self.certain_player(player)?);
-                        writeln!(out, "let owed_{id} = {owed} as usize; let player_{id} = {who}; let paid_{id} = g.state().zone(Zone::hand(player_{id})).len() >= owed_{id}; if paid_{id} {{ cantrip_mechanics::discard_at_random(g, player_{id}, owed_{id}); }}").unwrap();
+                        writeln!(out, "let owed_{id} = {owed} as usize; let player_{id} = {who}; let paid_{id} = g.state().zone(Zone::hand(player_{id})).len() >= owed_{id}; let hand_{id} = g.state().zone(Zone::hand(player_{id})).to_vec(); if paid_{id} {{ cantrip_mechanics::discard_at_random(g, player_{id}, owed_{id}); }} let discarded_{id}: Vec<ObjectId> = hand_{id}.iter().filter_map(|&o| g.state().obj(o).became).collect();").unwrap();
+                        self.moved.insert(result.0, format!("discarded_{id}"));
+                        self.left_behind(result, format!("discarded_{id}.clone()"));
                     }
                     CostPart::Discard {
                         count,
@@ -1528,7 +1551,7 @@ impl Compiler {
                         count,
                         filter,
                         random: false,
-                    } if reveals_one(count) => {
+                    } if reveals_one(count) || matches!(count, Count::AnyNumber) => {
                         let hand = ObjectSet::Zone {
                             scope: ZoneScope::Players {
                                 zone: EventZone::Hand,
@@ -1579,6 +1602,12 @@ impl Compiler {
                             }
                             Some(Count::Exactly(n)) => {
                                 self.select_whole(player, objects, n, destination, result, out)?;
+                                let chosen = ObjectSet::Selected(result.clone());
+                                self.move_objects(id, &chosen, destination, entry, result, out)?;
+                            }
+                            Some(count @ Count::AnyNumber) => {
+                                let purpose = lane_g::move_purpose(destination);
+                                self.choose(player, objects, count, result, purpose, out)?;
                                 let chosen = ObjectSet::Selected(result.clone());
                                 self.move_objects(id, &chosen, destination, entry, result, out)?;
                             }
@@ -1642,6 +1671,7 @@ impl Compiler {
     }
     pub(super) fn reset_results(&mut self) {
         self.selections.clear();
+        self.unchosen.clear();
         self.reveal_matches.clear();
         self.known_one.clear();
         self.revealed = false;
@@ -1861,6 +1891,9 @@ impl Compiler {
                     }
                     format!("{{ {rows} let counters = [{}]; g.put_all_onto_battlefield_with_counters(&rows_{id}, &counters)? }}", counters.join(", "))
                 }
+            }
+            Destination::Exile if !entry.counters.is_empty() && entry.states.is_empty() => {
+                self.exile_with_counters(id, entry)?
             }
             _ if !plain_entry(entry) => return Err(gap("move arrival flags")),
             // All players can still see the card as it moves (603.10a, 701.20a).

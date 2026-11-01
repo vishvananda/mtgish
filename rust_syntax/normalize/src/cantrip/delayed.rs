@@ -110,7 +110,14 @@ impl Compiler {
                     "{}.into_iter().collect::<Vec<ObjectId>>()",
                     self.outside_object(object)?.expect("carried")
                 ))),
-                _ => Err(gap("reflexive ability about a list of objects")),
+                _ => {
+                    let code = outer.compiler.objects(objects)?;
+                    Ok(Some(planned::planned_value(
+                        "reflexive ability about a list of objects",
+                        "Vec::<ObjectId>::new()",
+                        &format!("about(q, item, {code})"),
+                    )))
+                }
             };
         }
         let code = outer.compiler.objects(objects)?;
@@ -347,11 +354,16 @@ impl Compiler {
             .values
             .get(&performed.0)
             .filter(|value| value.starts_with("bound_"))
-            .cloned();
+            .cloned()
+            .or_else(|| self.told_amount(performed, body));
+        let slot = self.counted_slot(announcement);
+        let amount = amount.or_else(|| slot.as_ref().map(|(_, code)| code.clone()));
         let counted = std::mem::replace(&mut self.counted, amount.as_ref().map(|_| performed.0));
+        let sized = std::mem::replace(&mut self.sized_slot, slot.map(|(count, _)| count));
         let closed = self.closure(&label, true, Some(announcement), &None, body);
         self.counted = counted;
-        let (outer, targets) = closed?;
+        self.sized_slot = sized;
+        let (outer, targets) = closed.map_err(lane_l::reads_as_a_target)?;
         let mut def = format!("delayed_trigger({label}, {})", quoted(&ability_text(body)));
         if let Some(targets) = targets {
             write!(def, ".targets({targets})").unwrap();

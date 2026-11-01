@@ -426,14 +426,10 @@ impl Compiler {
             maximum,
             repeat,
             modes,
-            implied,
             unchosen,
             surcharge,
-            distinct_targets,
-            chooser,
-            random,
-            budget,
             may_decline,
+            ..
         } = selection;
         let bound = |n: &Expr| match n {
             Expr::Constant(n) => u8::try_from(*n).ok(),
@@ -451,17 +447,8 @@ impl Compiler {
         let (Some(min), Some(max)) = (bound(minimum), bound(most)) else {
             return Err(gap("mode count that is not a constant"));
         };
-        let refused = [
-            (*implied, "modes implied by the target chosen"),
-            (unchosen.is_some(), "modes limited by earlier choices"),
-            (*distinct_targets, "modes with distinct targets"),
-            (chooser.is_some(), "modes chosen by another player"),
-            (*random, "modes chosen at random"),
-            (budget.is_some(), "modes with a budget"),
-            (*may_decline, "modes that may all be declined"),
-        ];
-        if let Some((_, feature)) = refused.iter().find(|(applies, _)| *applies) {
-            return Err(gap(*feature));
+        if *may_decline {
+            return Err(gap("modes that may all be declined"));
         }
         let mut defs = Vec::new();
         for (i, mode) in modes.iter().enumerate() {
@@ -491,10 +478,12 @@ impl Compiler {
         if *repeat {
             modal.push_str(".repeat()");
         }
+        modal.push_str(&lane_l::mode_history(unchosen));
         if let Some(surcharge) = surcharge {
             let cost = self.cost(surcharge, label)?;
             modal.push_str(&format!(".escalate({cost})"));
         }
+        let modal = self.modes_to_come(selection, modal)?;
         let name = format!("{}_MODES", label.to_ascii_uppercase());
         writeln!(self.functions, "static {name}: ModalDef = {modal};").unwrap();
         Ok(name)

@@ -118,7 +118,12 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         if count != 1 {
-            return Err(gap("a choice of several values"));
+            let players = self.fetch(self.players(actor)?);
+            let code = format!(
+                "{M}::choose::values(g, {players}, asker.source, ChoiceKind::{kind:?}, {count})?"
+            );
+            self.value_to_come("a choice of several values", id, kind, &code, out);
+            return Ok(());
         }
         if self.chosen.iter().any(|(k, _)| *k == kind) {
             return Err(gap("two choices of one kind of value"));
@@ -182,7 +187,10 @@ impl Compiler {
                 }
             }
             ValueKind::Ability => self.choose_ability(id, &player, options, out)?,
-            other => self.choose_value_more(other, id, &player, options, out)?,
+            ValueKind::Parity => {
+                self.choose_value_more(ValueKind::Parity, id, &player, options, out)?
+            }
+            other => self.choose_value_rest(other, &player, source, options, &local, id, out)?,
         }
         self.chosen.push((kind, local));
         Ok(())

@@ -408,8 +408,7 @@ impl Compiler {
         let read = self.players(each.players).map(|p| self.fetch(p));
         let players = planned::planned_read(read, "Vec::<PlayerId>::new()", each.players);
         writeln!(out, "let mut players_{id}: Vec<PlayerId> = {players};").unwrap();
-        let walking = (self.notes.walking)
-            .replace((each.binding.0, format!("players_{id}")));
+        let walking = (self.notes.walking).replace((each.binding.0, format!("players_{id}")));
         self.note_own(&each.body);
         if let Some(first) = each.starting_with {
             let first = self.fetch(self.player(first)?);
@@ -722,7 +721,9 @@ impl Compiler {
             if let Some(test) = took {
                 let performed = matches!(kind, ViewKind::Performed);
                 if performed || !self.notes.took.contains_key(&result) {
-                    self.notes.took.insert(result, (format!("players_{id}"), test));
+                    self.notes
+                        .took
+                        .insert(result, (format!("players_{id}"), test));
                 }
             }
         }
@@ -1360,7 +1361,7 @@ impl Compiler {
             Operation::Manifest { .. } => self.manifest(id, op, result, out)?,
             Operation::MoveTopCard { .. } => self.move_top_card(id, op, result, out)?,
             Operation::EffectOn { .. } => self.effect_on(id, op, out)?,
-            other => return Err(gap(format!("operation {}", form(other)))),
+            other => self.resolving(id, other, result, out)?,
         }
         Ok(())
     }
@@ -1566,7 +1567,7 @@ impl Compiler {
                 );
                 format!("moved.extend({call});")
             }
-            _ => return Err(gap("move arrival state")),
+            _ => self.arrival_rest(entry, counters)?,
         })
     }
     /// Objects that enter together as `changes` says (CR 614.12): one static
@@ -1933,7 +1934,7 @@ impl Compiler {
             return Err(gap("engine: no perpetual effects"));
         }
         let (EffectSubject::Objects(objects), None) = (subject, until) else {
-            return Err(unsupported());
+            return self.effect_on_rest(subject, effects, until.as_ref(), out);
         };
         let [Operand::Term {
             family,
@@ -1941,7 +1942,7 @@ impl Compiler {
             operands,
         }] = effects.as_slice()
         else {
-            return Err(unsupported());
+            return self.effect_on_rest(subject, effects, until.as_ref(), out);
         };
         match (family.as_str(), form.as_str()) {
             ("ExiledCardEffect", "IsPlotted") => {
@@ -1967,7 +1968,7 @@ impl Compiler {
                     out,
                 );
             }
-            _ => return Err(unsupported()),
+            _ => return self.effect_on_rest(subject, effects, until.as_ref(), out),
         }
         Ok(())
     }

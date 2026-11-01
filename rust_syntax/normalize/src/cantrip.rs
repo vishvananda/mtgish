@@ -23,6 +23,7 @@ mod lane_g;
 mod lane_h;
 mod lane_i;
 mod lane_j;
+mod lane_l;
 mod lane_m;
 mod mechanics;
 pub mod planned;
@@ -431,6 +432,10 @@ struct Compiler {
     /// names the top card twice), and an unmarked move of a card all players saw
     /// is refused, so every later move into a hand or library is marked.
     revealed: bool,
+    /// What was left over of a choice between piles, by the result of the choice.
+    unchosen: BTreeMap<u32, String>,
+    /// The words of a choice of `ValueKind::Word`, the card's `labels`.
+    word_options: Vec<String>,
     creations: BTreeMap<u32, String>,
     moved: BTreeMap<u32, String>,
     /// The same transitions as `moved`, by the identities they left behind.
@@ -488,6 +493,8 @@ struct Compiler {
     paying: lane_g::Paying,
     /// The instruction a reflexive ability's body counts: it is the item's `x`.
     counted: Option<u32>,
+    /// The count of a reflexive ability's slot, which the ability is told.
+    sized_slot: Option<String>,
     /// What a mana ability's definition ends with, and the requirement if any.
     mana_colors: Option<(String, Option<&'static str>)>,
     /// Small generated functions that this module uses.
@@ -775,6 +782,8 @@ impl Compiler {
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
             notes: Default::default(),
+            unchosen: BTreeMap::new(),
+            word_options: Vec::new(),
             reveal_matches: BTreeMap::new(),
             revealed: false,
             creations: BTreeMap::new(),
@@ -804,6 +813,7 @@ impl Compiler {
             costing_targets: false,
             paying: lane_g::Paying::Ability,
             counted: None,
+            sized_slot: None,
             mana_colors: None,
             only_way: false,
             tap_or_untap: false,
@@ -884,6 +894,13 @@ impl Compiler {
             (ObjectPhase::Before, None) if self.moved.contains_key(&result.0) => {
                 Err(gap("object as it was before an instruction moved it"))
             }
+            // Chosen or made and not moved: nothing happened to them since.
+            _ if self.selections.contains_key(&result.0) && !self.moved.contains_key(&result.0) => {
+                self.selected(result)
+            }
+            _ if self.creations.contains_key(&result.0) && !self.moved.contains_key(&result.0) => {
+                self.created(result)
+            }
             _ => self.moved(result),
         }
     }
@@ -903,6 +920,8 @@ impl Compiler {
             }
             ObjectKind::Card => format!("{} && !q.state().obj(id).token", zones(&domain.zones)?),
             ObjectKind::Spell if domain.zones == [EventZone::Stack] => zones(&domain.zones)?,
+            // "Target spell or permanent": whatever is in those zones.
+            ObjectKind::Any => zones(&domain.zones)?,
             _ => return Err(gap(format!("target object domain {:?}", domain.kind))),
         })
     }
@@ -945,6 +964,10 @@ impl Compiler {
         Ok(match count {
             Count::Exactly(n) if constant(n) == Some(1) => String::new(),
             Count::Exactly(Expr::AnnouncedX) => ".counted()".into(),
+            Count::Exactly(n) if lane_l::sizes_slot(&self.sized_slot, n) => ".counted()".into(),
+            Count::UpTo(n) if lane_l::sizes_slot(&self.sized_slot, n) => {
+                ".between(0, TargetSpec::COUNTED)".into()
+            }
             Count::Exactly(n) if constant(n).is_some() => {
                 let n = constant(n).unwrap();
                 format!(".between({n}, {n})")
@@ -992,7 +1015,7 @@ impl Compiler {
                     ),
                 )
             ),
-            other => return Err(gap(format!("target cardinality {}", form(other)))),
+            other => return self.target_count_rest(other),
         })
     }
     fn announcement(&mut self, a: &Announcement, label: &str) -> Result<String> {
@@ -1034,13 +1057,16 @@ impl Compiler {
         self.announced_filters.clear();
         for (i, spec) in a.targets.iter().enumerate() {
             let at = format!("targets[{i}]");
+            let mut rule = lane_l::SlotRule::default();
             let together = match spec.constraints.as_slice() {
-                [] => "",
-                [SelectionConstraint::CommonProperty(property)] => {
-                    self.common_property(property).map_err(|e| e.at(&at))?
-                }
-                [constraint, ..] => {
-                    return Err(gap(format!("target constraint {}", form(constraint))).at(at))
+                [] => String::new(),
+                [SelectionConstraint::CommonProperty(property)] => self
+                    .common_property(property)
+                    .map(String::from)
+                    .map_err(|e| e.at(&at))?,
+                constraints => {
+                    rule = self.slot_rule(constraints, i).map_err(|e| e.at(&at))?;
+                    rule.together.clone()
                 }
             };
             if let Some(total) = &spec.distribute {
@@ -1062,22 +1088,25 @@ impl Compiler {
                 };
                 self.dividing = Some(format!("Divide {{ total: {total}, of_x: None }}"));
             }
-            if spec.chooser.is_some() {
-                return Err(gap("targets chosen by another player").at(at));
+            if let Some(chooser) = &spec.chooser {
+                self.chosen_by_another(chooser, &mut rule)
+                    .map_err(|e| e.at(&at))?;
             }
             let count = self.target_count(&spec.count).map_err(|e| e.at(&at))?;
             self.slots.insert(spec.slot.0, (i, spec.clone()));
             if spec.kind == TargetKind::DamageRecipient
                 && spec.players.is_none()
                 && matches!(spec.filter, ObjectFilter::Any)
+                && rule.test.is_none()
             {
-                targets.push(format!("cantrip_mechanics::targets::ANY{count}{together}"));
+                targets
+                    .push(rule.finish(format!("cantrip_mechanics::targets::ANY{count}{together}")));
                 self.announced_filters
                     .push("cantrip_mechanics::targets::ANY.filter".into());
                 continue;
             }
             self.choosing = Some(i);
-            let test = self.target_test(spec).map_err(|e| e.at(&at));
+            let test = self.slot_test(spec, &rule).map_err(|e| e.at(&at));
             self.choosing = None;
             let test = lane_i::per_player_target(&spec.count, test?);
             let function = format!("{label}_target_{i}");
@@ -1086,7 +1115,7 @@ impl Compiler {
                 "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {test} }}"
             )
             .unwrap();
-            targets.push(format!("target({function}){count}{together}"));
+            targets.push(rule.finish(format!("target({function}){count}{together}")));
             self.announced_filters.push(function);
         }
         if targets.is_empty() {

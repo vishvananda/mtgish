@@ -244,7 +244,9 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         Operation::Move { destination, .. } => match destination {
             Destination::Exile => &["Exiled", "LastExiled"],
             Destination::OwnersGraveyard => &["PutInGraveyard"],
-            Destination::Battlefield(_) | Destination::OwnersBattlefield => &["Returned", "Entered"],
+            Destination::Battlefield(_) | Destination::OwnersBattlefield => {
+                &["Returned", "Entered"]
+            }
             Destination::OwnersHand | Destination::Hand(_) => &["Returned"],
             _ => &[],
         },
@@ -266,7 +268,9 @@ impl Compiler {
         }
         if let Operation::ChooseObjects { objects, .. } = operation {
             let walking = self.notes.walking.clone();
-            self.notes.offered.insert(result.0, (objects.clone(), walking));
+            self.notes
+                .offered
+                .insert(result.0, (objects.clone(), walking));
         }
     }
     /// The steps of a walk where a player can only move what they own: nothing in
@@ -312,9 +316,12 @@ impl Compiler {
         for instruction in &body.instructions {
             match instruction {
                 Instruction::Effect { .. } => self.note_step(instruction),
-                Instruction::Group(body)
-                | Instruction::Optional { body, .. } => self.note_walked(body),
-                Instruction::If { then, otherwise, .. } => {
+                Instruction::Group(body) | Instruction::Optional { body, .. } => {
+                    self.note_walked(body)
+                }
+                Instruction::If {
+                    then, otherwise, ..
+                } => {
                     self.note_walked(then);
                     self.note_walked(otherwise);
                 }
@@ -331,8 +338,7 @@ impl Compiler {
         let Some((_, result)) = step.filter(|_| self.reader == Reader::Resolution) else {
             return self.earlier_paid(what);
         };
-        if let (EarlierObjects::Revealed, Some(found)) =
-            (what, self.reveal_matches.get(&result.0))
+        if let (EarlierObjects::Revealed, Some(found)) = (what, self.reveal_matches.get(&result.0))
         {
             return Ok(format!("{found}.clone()"));
         }
@@ -482,7 +488,12 @@ impl Compiler {
             Pick::Random(objects, count) => {
                 let pool = self.objects(&objects)?;
                 let count = self.number(&count)?.code;
-                writeln!(out, "let mut pool_{id}: Vec<ObjectId> = {};", self.fetch(pool)).unwrap();
+                writeln!(
+                    out,
+                    "let mut pool_{id}: Vec<ObjectId> = {};",
+                    self.fetch(pool)
+                )
+                .unwrap();
                 writeln!(out, "let count_{id} = {};", self.fetch(count)).unwrap();
                 writeln!(
                     out,
@@ -515,7 +526,7 @@ impl Compiler {
         kind: ValueKind,
         id: usize,
         player: &str,
-        options: &[Operand],
+        _options: &[Operand],
         out: &mut String,
     ) -> Result<()> {
         match kind {
@@ -526,7 +537,8 @@ impl Compiler {
             ),
             ValueKind::Parity if self.stack_item => {
                 let base = self.choice_labels.len();
-                self.choice_labels.extend(PARITY.iter().map(|word| word.to_string()));
+                self.choice_labels
+                    .extend(PARITY.iter().map(|word| word.to_string()));
                 let end = self.choice_labels.len();
                 let words: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
                 self.entering_labels = Some(format!("&[{}]", words.join(", ")));
@@ -536,19 +548,6 @@ impl Compiler {
                 )
                 .unwrap();
                 Ok(())
-            }
-            // The words have no rules meaning, so nothing depends on them as it
-            // enters: the abilities they head read them (CR 607.2f).
-            ValueKind::Word if self.pending == Pending::Entering => {
-                let mut labels = Vec::new();
-                for option in options {
-                    let Operand::Text(word) = option else {
-                        return Err(gap("a choice of Word"));
-                    };
-                    labels.push(word.clone());
-                }
-                let arms = vec![String::new(); labels.len()];
-                self.entry_option(labels, arms, out)
             }
             other => Err(gap(format!("a choice of {other:?}"))),
         }
@@ -657,9 +656,9 @@ impl Compiler {
                 let read = match side {
                     SeatSide::Left => format!("{order}.next()"),
                     SeatSide::Right => format!("{order}.last()"),
-                    SeatSide::Next => format!(
-                        "{order}.find(|&next| q.state().opponents(p).any(|o| o == next))"
-                    ),
+                    SeatSide::Next => {
+                        format!("{order}.find(|&next| q.state().opponents(p).any(|o| o == next))")
+                    }
                 };
                 format!("{}.and_then(|p: PlayerId| {read})", self.player(of)?)
             }
@@ -957,24 +956,6 @@ impl Compiler {
                     self.number(amount)?.code
                 )
             }
-            // "• Khans — ...": the word its controller chose as it entered, read
-            // only by the text that chose it (CR 607.2f).
-            Condition::ChosenWord(word) => {
-                let labels = self.entering_labels.as_ref();
-                let labels = labels.ok_or_else(|| gap("condition ChosenWord"))?;
-                let wanted = quoted(word);
-                let list = labels.trim_start_matches("&[").trim_end_matches(']');
-                let at = list.split(", ").position(|label| label == wanted);
-                let at = at.ok_or_else(|| gap("condition ChosenWord"))?;
-                match self.reader {
-                    Reader::Layer => format!(
-                        "q.state().chosen_option(q.linked_to(asker.source)).filter(|c| std::ptr::eq(q.cards().get(c.card), &CARD)).map(|c| c.index) == Some({at})"
-                    ),
-                    _ => format!(
-                        "cantrip_mechanics::choose::chosen_option(q, asker, &CARD) == Some({at})"
-                    ),
-                }
-            }
             // The event's own cast: it is in the history only once it is over.
             Condition::WasCastFrom {
                 object: ObjectRef::EventSubject,
@@ -1135,7 +1116,10 @@ fn gives_flashback(changes: &[Change]) -> bool {
     else {
         return false;
     };
-    matches!(cost.parts.as_slice(), [CostPart::ManaCostOf(ObjectRef::Source)])
+    matches!(
+        cost.parts.as_slice(),
+        [CostPart::ManaCostOf(ObjectRef::Source)]
+    )
 }
 
 /// These instructions, with a group's in its place.
@@ -1153,7 +1137,10 @@ const PARITY: [&str; 2] = ["odd", "even"];
 
 /// A form of the AST on one line, to name it in a planned call.
 fn one_line(value: &impl std::fmt::Debug) -> String {
-    format!("{value:?}").split_whitespace().collect::<Vec<_>>().join(" ")
+    format!("{value:?}")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// What an instruction leaves to be picked.
@@ -1189,7 +1176,9 @@ fn take_pick(value: &mut serde_json::Value, picked: &ResultId) -> Option<Pick> {
                 *value = json!({ "kind": "Selected", "args": picked.0 });
                 return pick;
             }
-            fields.values_mut().find_map(|inner| take_pick(inner, picked))
+            fields
+                .values_mut()
+                .find_map(|inner| take_pick(inner, picked))
         }
         Value::Array(items) => items.iter_mut().find_map(|inner| take_pick(inner, picked)),
         _ => None,
