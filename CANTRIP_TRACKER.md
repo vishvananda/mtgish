@@ -10,7 +10,7 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | class | requirements | cards |
 |---|---|---|
 | engine | 43 | 1167 |
-| generator | 1219 | 9637 |
+| generator | 1216 | 9637 |
 | mechanic | 72 | 984 |
 | vocabulary | 250 | 489 |
 
@@ -50,7 +50,7 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `condition-searched` | generator | 61 | 0 | a generator arm, or a Cantrip feature if none exists | Aether Searcher, Agency Outfitter, Ajani's Aid |
 | `static-rule-untap-step` | generator | 61 | 12 | a generator arm, or a Cantrip feature if none exists | Amber Prison, Ashnod's Battle Gear, Bender's Waterskin |
 | `operation-play-with` | generator | 60 | 35 | a generator arm, or a Cantrip feature if none exists | Aether Searcher, Aetherworks Marvel, Amped Raptor |
-| `instruction-choose-one` | generator | 57 | 37 | a generator arm, or a Cantrip feature if none exists | Agonizing Remorse, Ant-Man's Army, Anthropede |
+| `instruction-choose-one` | generator | 58 | 37 | a generator arm, or a Cantrip feature if none exists | Agonizing Remorse, Ant-Man's Army, Anthropede |
 | `object-filter-has-keyword-family` | generator | 56 | 44 | a generator arm, or a Cantrip feature if none exists | Akroma, Vision of Ixidor, An Unearthly Child, Arcbound Overseer |
 | `source-zone-scope-on-static` | generator | 55 | 36 | a generator arm, or a Cantrip feature if none exists | Alien Symbiosis, Anger, Banefire |
 | `transition-this-instruction-does-not-report` | generator | 54 | 32 | a generator arm, or a Cantrip feature if none exists | Aether Rift, Argentum Masticore, Ascent of the Worthy |
@@ -314,6 +314,7 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `operation-reveal-choices` | generator | 14 | 0 | a generator arm, or a Cantrip feature if none exists | Call to the Void, Círdan the Shipwright, Elrond of the White Council |
 | `protection-from-property` | generator | 14 | 11 | a generator arm, or a Cantrip feature if none exists | Argentum Masticore, Basri's Lieutenant, Enemy of the Guildpact |
 | `static-rule-goaded-by` | generator | 14 | 11 | a generator arm, or a Cantrip feature if none exists | Acquired Mutation, Baeloth Barrityl, Entertainer, Bloodthirsty Blade |
+| `trigger-event-caused` | generator | 14 | 8 | a generator arm, or a Cantrip feature if none exists | Baral, Chief of Compliance, Cobra Trap, Firesong and Sunspeaker |
 | `a-choice-of-several-values` | generator | 13 | 0 | a generator arm, or a Cantrip feature if none exists | Bitter Feud, Dream Coat, Govern the Guildless |
 | `casting-rule-reduce-for-each-paid` | generator | 13 | 9 | a generator arm, or a Cantrip feature if none exists | Bite Down on Crime, Dargo, the Shipwrecker, Explosive Singularity |
 | `color-chosen` | generator | 13 | 12 | a generator arm, or a Cantrip feature if none exists | Black Dragon Gate, Citadel Gate, Cliffgate |
@@ -338,7 +339,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `possibly-absent-player-defending-player-of` | generator | 13 | 11 | a generator arm, or a Cantrip feature if none exists | Bane of Bala Ged, Cloak of Confusion, Corrupt Official |
 | `prohibited-action-activate` | generator | 13 | 9 | a generator arm, or a Cantrip feature if none exists | Disruptor Flute, Grand Abolisher, Hand to Hand |
 | `search-with-several-find-clauses` | generator | 13 | 10 | a generator arm, or a Cantrip feature if none exists | Aang's Journey, Alpine Houndmaster, Axgard Armory |
-| `trigger-event-caused` | generator | 13 | 8 | a generator arm, or a Cantrip feature if none exists | Baral, Chief of Compliance, Cobra Trap, Firesong and Sunspeaker |
 | `a-choice-of-card-type` | generator | 12 | 0 | a generator arm, or a Cantrip feature if none exists | Hakka, Whispering Raven // Alrund, God of the Cosmos, Archon of Valor's Reach, Blood Oath |
 | `as-enters-replacement-of-another-event` | generator | 12 | 11 | a generator arm, or a Cantrip feature if none exists | Chainweb Aracnir, Charred Graverobber, Loathsome Chimera |
 | `card-type-phenomenon` | generator | 12 | 0 | a generator arm, or a Cantrip feature if none exists | Caught in a Parallel Universe, Chaotic Aether, Fixed Point in Time |
@@ -1385,10 +1385,6 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `possibly-absent-player-event-subject` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Ezio Auditore da Firenze |
 | `possibly-absent-player-performer` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Allure of the Unknown |
 | `possibly-absent-player-prior` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Illicit Auction |
-| `primitive-numeric-expression-game-number-the-number-of-spells-or-abilities-that-caused-any-number-of-players-to-guess-or-to-group-cards-or-permanents-into-a-pile-this-turn` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | The Celestial Toymaker |
-| `primitive-operation-action-accept-a-random-condition` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Davriel, Soul Broker |
-| `primitive-operation-action-accept-a-random-offer` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Davriel, Soul Broker |
-| `primitive-trigger-event-trigger-when-a-permanent-is-exiled-from-the-battlefield-while-a-player-is-activating-a-craft-ability` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Market Gnome |
 | `printed-loyalty-expression` | generator | 1 | 0 | a generator arm, or a Cantrip feature if none exists | Nissa, Steward of Elements |
 | `prohibited-action-block-with` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Void Winnower |
 | `prohibited-action-cast-outside` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Drannith Magistrate |
@@ -1589,6 +1585,7 @@ A card with holes has its file all the same. Each `planned!` in it names a requi
 | `trigger-event-player-untaps-during-untap-step` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | The Millennium Calendar |
 | `trigger-event-resolves` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Tyvar the Bellicose |
 | `trigger-event-targets-chosen` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Psychic Battle |
+| `trigger-event-while-activating` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Market Gnome |
 | `turn-window-after-upkeep` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Reset |
 | `turn-window-before-end-of-combat-step` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Dwarven Sea Clan |
 | `turn-window-end-of-combat-step` | generator | 1 | 1 | a generator arm, or a Cantrip feature if none exists | Desert |

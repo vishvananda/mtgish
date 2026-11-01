@@ -82,7 +82,7 @@
  },
  "classes": {
   "generator": {
-   "requirements": 1219,
+   "requirements": 1216,
    "cards": 9637
   },
   "engine": {
@@ -649,7 +649,7 @@
    "class": "generator",
    "needs": "a generator arm, or a Cantrip feature if none exists",
    "family": "instruction ChooseOne",
-   "cards": 57,
+   "cards": 58,
    "alone": 37,
    "examples": [
     "Agonizing Remorse",
@@ -4868,6 +4868,22 @@
    ]
   },
   {
+   "id": "trigger-event-caused",
+   "feature": "trigger event Caused",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "trigger event",
+   "cards": 14,
+   "alone": 8,
+   "examples": [
+    "Baral, Chief of Compliance",
+    "Cobra Trap",
+    "Firesong and Sunspeaker",
+    "Hero of Bretagard",
+    "Karmic Justice"
+   ]
+  },
+  {
    "id": "a-choice-of-several-values",
    "feature": "a choice of several values",
    "class": "generator",
@@ -5249,22 +5265,6 @@
     "Axgard Armory",
     "Conflux",
     "Corpse Harvester"
-   ]
-  },
-  {
-   "id": "trigger-event-caused",
-   "feature": "trigger event Caused",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "trigger event",
-   "cards": 13,
-   "alone": 8,
-   "examples": [
-    "Baral, Chief of Compliance",
-    "Cobra Trap",
-    "Firesong and Sunspeaker",
-    "Hero of Bretagard",
-    "Karmic Justice"
    ]
   },
   {
@@ -19739,54 +19739,6 @@
    ]
   },
   {
-   "id": "primitive-numeric-expression-game-number-the-number-of-spells-or-abilities-that-caused-any-number-of-players-to-guess-or-to-group-cards-or-permanents-into-a-pile-this-turn",
-   "feature": "primitive numeric expression GameNumber::TheNumberOfSpellsOrAbilitiesThatCausedAnyNumberOfPlayersToGuessOrToGroupCardsOrPermanentsIntoAPileThisTurn",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "primitive numeric",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "The Celestial Toymaker"
-   ]
-  },
-  {
-   "id": "primitive-operation-action-accept-a-random-condition",
-   "feature": "primitive operation Action::AcceptARandomCondition",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "primitive operation",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Davriel, Soul Broker"
-   ]
-  },
-  {
-   "id": "primitive-operation-action-accept-a-random-offer",
-   "feature": "primitive operation Action::AcceptARandomOffer",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "primitive operation",
-   "cards": 1,
-   "alone": 0,
-   "examples": [
-    "Davriel, Soul Broker"
-   ]
-  },
-  {
-   "id": "primitive-trigger-event-trigger-when-a-permanent-is-exiled-from-the-battlefield-while-a-player-is-activating-a-craft-ability",
-   "feature": "primitive trigger event Trigger::WhenAPermanentIsExiledFromTheBattlefieldWhileAPlayerIsActivatingACraftAbility",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "primitive trigger",
-   "cards": 1,
-   "alone": 1,
-   "examples": [
-    "Market Gnome"
-   ]
-  },
-  {
    "id": "printed-loyalty-expression",
    "feature": "printed loyalty expression",
    "class": "generator",
@@ -22184,6 +22136,18 @@
    "alone": 1,
    "examples": [
     "Psychic Battle"
+   ]
+  },
+  {
+   "id": "trigger-event-while-activating",
+   "feature": "trigger event WhileActivating",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "trigger event",
+   "cards": 1,
+   "alone": 1,
+   "examples": [
+    "Market Gnome"
    ]
   },
   {
@@ -29191,8 +29155,7 @@
   ],
   "Davriel, Soul Broker": [
    "engine-no-perpetual-effects",
-   "primitive-operation-action-accept-a-random-condition",
-   "primitive-operation-action-accept-a-random-offer"
+   "instruction-choose-one"
   ],
   "Davros, Dalek Creator": [
    "per-player-instruction-with-several-steps"
@@ -41279,7 +41242,7 @@
    "mana-spending-predicate"
   ],
   "Market Gnome": [
-   "primitive-trigger-event-trigger-when-a-permanent-is-exiled-from-the-battlefield-while-a-player-is-activating-a-craft-ability"
+   "trigger-event-while-activating"
   ],
   "Maro Avatar": [
    "card-type-vanguard",
@@ -53946,7 +53909,7 @@
   "The Celestial Toymaker": [
    "operation-change-zone",
    "operation-choose-pile",
-   "primitive-numeric-expression-game-number-the-number-of-spells-or-abilities-that-caused-any-number-of-players-to-guess-or-to-group-cards-or-permanents-into-a-pile-this-turn"
+   "trigger-event-caused"
   ],
   "The Celestus": [
    "condition-its-neither-day-nor-night",
