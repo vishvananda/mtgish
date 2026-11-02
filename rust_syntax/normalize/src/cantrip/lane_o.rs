@@ -1101,14 +1101,61 @@ impl Compiler {
         let grant = self.play_grant(action, terms)?;
         // The permission's own end where it has one (`play_expiry`), else as
         // long as the duration the effect is for.
-        let expiry = match lane_h::play_expiry(duration) {
-            Ok(expiry) => expiry,
-            Err(_) => format!("Expiry::Lasting({})", self.stated_until(duration)?),
+        // "Until you exile another card with this" is the holder's and this
+        // object's, as `WhileControls` is: two Copy values the permission keeps.
+        let expiry = match (lane_h::play_expiry(duration), duration) {
+            (Ok(expiry), _) => expiry,
+            (
+                Err(_),
+                crate::ir::Duration::UntilAnotherExiled {
+                    by: PlayerSet::One(PlayerRef::AbilityController),
+                    with: ObjectRef::Source,
+                },
+            ) => "Expiry::UntilAnotherExiledWith(asker.source)".to_string(),
+            (Err(_), _) => format!("Expiry::Lasting({})", self.stated_until(duration)?),
         };
         let grant = grant.replacen("PlayGrant { ", &format!("PlayGrant {{ expiry: {expiry}, "), 1);
         Ok(Some(format!(
             "let cards = {cards}; let players = {players}; cantrip_api::instruction(g, |g| {{ for &card in &cards {{ if g.obj(card).zone.is({zone}) {{ for &player in &players {{ g.allow_play(card, player, {grant}); }} }} }} }});"
         )))
+    }
+    /// The cards a rule shows, of the player the rule is for: their hand, or the
+    /// top of their library, whichever cards those are as they change (CR
+    /// 400.2), as data a player's effect keeps; other cards as they were read.
+    fn visible_cards(&mut self, objects: &ObjectSet) -> Result<String> {
+        let mut theirs = |c: &mut Self, set: &ObjectSet| match set {
+            ObjectSet::Zone {
+                scope:
+                    ZoneScope::Players {
+                        zone,
+                        players: PlayerSet::One(PlayerRef::Affected),
+                    },
+                filter,
+                ..
+            } => {
+                let gaps = c.gaps.len();
+                let test = c.filter(filter, &Candidate::of("id"));
+                c.gaps.truncate(gaps);
+                let any = test.is_ok_and(|t| !t.contains("q.") && !t.contains("id"));
+                any.then(|| zone.clone())
+            }
+            _ => None,
+        };
+        Ok(match objects {
+            ObjectSet::Take {
+                objects,
+                count: Expr::Constant(n),
+                from: SequenceEnd::Top,
+            } if matches!(theirs(self, objects), Some(EventZone::Library)) => {
+                format!("VisibleCards::LibraryTop({n})")
+            }
+            set if matches!(theirs(self, set), Some(EventZone::Hand)) => "VisibleCards::Hand".into(),
+            // One card it names as it resolves: the card, a Copy value.
+            ObjectSet::One(object) => {
+                format!("VisibleCards::Card({})", self.fetch(self.object(object)?))
+            }
+            set => format!("VisibleCards::These({})", self.fetch(self.objects(set)?)),
+        })
     }
     /// The `play_terms` entries written since the last hole are `feature`'s.
     fn own_play_terms(&mut self, feature: &str) {
@@ -1194,7 +1241,7 @@ impl Compiler {
                 limit: most,
                 during,
             } => format!(
-                "CostModifier::Alternate {{ cost: {}, limit: {}, during: |q: &dyn Query, asker: &Asker, player: PlayerId| {} }}",
+                "CostModifier::AlternateDuring {{ cost: {}, limit: {}, during: |q: &dyn Query, asker: &Asker, player: PlayerId| {} }}",
                 self.play_cost(cost)?,
                 limit(most),
                 self.player_member(during)?
@@ -1328,8 +1375,8 @@ impl Compiler {
             ),
             R::Skip(section) => format!("PlayerRule::Skip(TurnSection::{section:?})"),
             R::Visibility { objects, audience } => format!(
-                "PlayerRule::Visibility {{ objects: {}, audience: Audience::{audience:?} }}",
-                self.fetch(self.objects(objects)?)
+                "PlayerRule::Visibility {{ cards: {}, audience: Audience::{audience:?} }}",
+                self.visible_cards(objects)?
             ),
             R::RetainMana { colors: None } => "PlayerRule::RetainMana(ManaColors::ALL)".into(),
             R::RetainMana {
@@ -3222,8 +3269,13 @@ impl Compiler {
                 objects,
                 colors_only,
             } => format!(
+                // "A land you control could produce": a test of each permanent as
+                // the mana is made, as the lands then are.
                 "Production::CouldProduce({}, {colors_only})",
-                self.read(self.objects(objects)?)
+                match objects {
+                    ObjectSet::Battlefield(filter) => self.over(filter, "id")?,
+                    other => self.read(self.objects(other)?),
+                }
             ),
             P::CommanderIdentity => "Production::CommanderIdentity".to_string(),
             P::ColorsAmong { objects, each } => format!(
@@ -3895,9 +3947,20 @@ impl Compiler {
                     Ok(code) => {
                         format!("Protection::Players(move |q: &dyn Query, asker: &Asker| {code})")
                     }
+                    // "Protection from that player": the one player it names as
+                    // it resolves, a Copy value the rule keeps.
                     Err(_) => {
                         self.gaps.truncate(gaps);
-                        format!("Protection::These({})", self.read(self.players(players)?))
+                        match players {
+                            PlayerSet::One(player) => format!(
+                                "Protection::FromPlayer({})",
+                                self.read(self.player(player)?)
+                            ),
+                            _ => format!(
+                                "Protection::These({})",
+                                self.read(self.players(players)?)
+                            ),
+                        }
                     }
                 }
             }
