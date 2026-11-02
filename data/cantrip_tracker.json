@@ -6,6 +6,7 @@
   "planned": 5142,
   "excluded": 0,
   "written": 117,
+  "ready_written": 3455,
   "new_tokens": 198,
   "cards_with_new_tokens": 1003,
   "counter_lines": 169,
@@ -1353,7 +1354,7 @@
    ]
   },
   {
-   "needs": "A resolving effect that puts a rule on every matching object, those to come included",
+   "needs": "A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c)",
    "class": "engine",
    "forms": [
     "engine-no-resolving-rule-on-an-open-set-require-combat-block-beyond-lasting-rules",
@@ -2226,7 +2227,7 @@
    ]
   },
   {
-   "needs": "A resolving effect that puts this rule on objects for a duration",
+   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
    "class": "engine",
    "forms": [
     "continuous-rule-prohibit-attack",
@@ -16916,7 +16917,7 @@
    "id": "engine-no-resolving-rule-on-an-open-set-require-combat-block-beyond-lasting-rules",
    "feature": "engine: no resolving rule on an open set: RequireCombat Block beyond lasting rules",
    "class": "engine",
-   "needs": "A resolving effect that puts a rule on every matching object, those to come included",
+   "needs": "A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c)",
    "family": "engine: no",
    "cards": 9,
    "written": 0,
@@ -17600,7 +17601,7 @@
    "id": "continuous-rule-prohibit-attack",
    "feature": "continuous rule Prohibit Attack",
    "class": "engine",
-   "needs": "A resolving effect that puts this rule on objects for a duration",
+   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
    "family": "continuous rule",
    "cards": 7,
    "written": 0,
@@ -18759,7 +18760,7 @@
    "id": "continuous-rule-combat-cost",
    "feature": "continuous rule CombatCost",
    "class": "engine",
-   "needs": "A resolving effect that puts this rule on objects for a duration",
+   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
    "family": "continuous rule",
    "cards": 5,
    "written": 0,
@@ -18778,7 +18779,7 @@
    "id": "continuous-rule-require-combat-attack",
    "feature": "continuous rule RequireCombat Attack",
    "class": "engine",
-   "needs": "A resolving effect that puts this rule on objects for a duration",
+   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
    "family": "continuous rule",
    "cards": 5,
    "written": 0,
@@ -19025,7 +19026,7 @@
    "id": "engine-no-resolving-rule-on-an-open-set-combat-cost",
    "feature": "engine: no resolving rule on an open set: CombatCost",
    "class": "engine",
-   "needs": "A resolving effect that puts a rule on every matching object, those to come included",
+   "needs": "A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c)",
    "family": "engine: no",
    "cards": 5,
    "written": 0,
@@ -20064,7 +20065,7 @@
    "id": "engine-no-resolving-rule-on-an-open-set-prohibit-attack-beyond-lasting-rules",
    "feature": "engine: no resolving rule on an open set: Prohibit Attack beyond lasting rules",
    "class": "engine",
-   "needs": "A resolving effect that puts a rule on every matching object, those to come included",
+   "needs": "A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c)",
    "family": "engine: no",
    "cards": 4,
    "written": 0,
@@ -20082,7 +20083,7 @@
    "id": "engine-no-resolving-rule-on-an-open-set-require-combat-attack-beyond-lasting-rules",
    "feature": "engine: no resolving rule on an open set: RequireCombat Attack beyond lasting rules",
    "class": "engine",
-   "needs": "A resolving effect that puts a rule on every matching object, those to come included",
+   "needs": "A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c)",
    "family": "engine: no",
    "cards": 4,
    "written": 0,
@@ -21423,7 +21424,7 @@
    "id": "engine-no-resolving-rule-on-an-open-set-prohibit-be-blocked-beyond-lasting-rules",
    "feature": "engine: no resolving rule on an open set: Prohibit BeBlocked beyond lasting rules",
    "class": "engine",
-   "needs": "A resolving effect that puts a rule on every matching object, those to come included",
+   "needs": "A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c)",
    "family": "engine: no",
    "cards": 3,
    "written": 0,
@@ -22743,7 +22744,7 @@
    "id": "continuous-rule-prohibit-phase-out",
    "feature": "continuous rule Prohibit PhaseOut",
    "class": "engine",
-   "needs": "A resolving effect that puts this rule on objects for a duration",
+   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
    "family": "continuous rule",
    "cards": 2,
    "written": 0,
@@ -26705,7 +26706,7 @@
    "id": "engine-no-resolving-rule-on-an-open-set-prohibit-block-beyond-lasting-rules",
    "feature": "engine: no resolving rule on an open set: Prohibit Block beyond lasting rules",
    "class": "engine",
-   "needs": "A resolving effect that puts a rule on every matching object, those to come included",
+   "needs": "A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c)",
    "family": "engine: no",
    "cards": 1,
    "written": 0,
@@ -50393,6 +50394,609 @@
    "ability-dungeon-room",
    "ability-unique",
    "layout-dungeon"
+  ]
+ },
+ "proposals": {
+  "cards": 5142,
+  "compile": 2769,
+  "compile_but_for_stubs": 2298,
+  "fail": 75,
+  "classes": [
+   {
+    "class": "a local the hole names isn't in scope",
+    "cards": 22,
+    "errors": 32,
+    "members": [
+     {
+      "card": "apple_of_eden_isu_relic",
+      "line": 25,
+      "message": "cannot find value `t_0_raw` in this scope"
+     },
+     {
+      "card": "ashiok_dream_render",
+      "line": 18,
+      "message": "cannot find value `player` in this scope"
+     },
+     {
+      "card": "back_from_the_brink",
+      "line": 13,
+      "message": "cannot find value `item` in this scope"
+     },
+     {
+      "card": "chorus_of_the_conclave",
+      "line": 13,
+      "message": "cannot find value `q` in this scope"
+     },
+     {
+      "card": "commanders_plate",
+      "line": 26,
+      "message": "cannot find value `asker` in this scope"
+     },
+     {
+      "card": "demonfire",
+      "line": 24,
+      "message": "cannot find value `result_0` in this scope"
+     },
+     {
+      "card": "fabrication_foundry",
+      "line": 19,
+      "message": "cannot find value `q` in this scope"
+     },
+     {
+      "card": "hama_the_bloodbender",
+      "line": 23,
+      "message": "cannot find value `card` in this scope"
+     },
+     {
+      "card": "havengul_lich",
+      "line": 17,
+      "message": "cannot find value `t_0_raw` in this scope"
+     },
+     {
+      "card": "hostile_negotiations",
+      "line": 20,
+      "message": "cannot find value `result_4` in this scope"
+     },
+     {
+      "card": "huatli_warrior_poet",
+      "line": 33,
+      "message": "cannot find value `since` in this scope"
+     },
+     {
+      "card": "indomitable_creativity",
+      "line": 26,
+      "message": "cannot find value `result_2` in this scope"
+     },
+     {
+      "card": "ogre_geargrabber",
+      "line": 26,
+      "message": "cannot find value `item` in this scope"
+     },
+     {
+      "card": "pledge_of_loyalty",
+      "line": 10,
+      "message": "cannot find value `q` in this scope"
+     },
+     {
+      "card": "redeem",
+      "line": 8,
+      "message": "cannot find value `item` in this scope"
+     },
+     {
+      "card": "reflecting_mirror",
+      "line": 17,
+      "message": "cannot find value `targets` in this scope"
+     },
+     {
+      "card": "share_the_spoils",
+      "line": 19,
+      "message": "cannot find value `item` in this scope"
+     },
+     {
+      "card": "the_dominion_bracelet",
+      "line": 27,
+      "message": "cannot find value `item` in this scope"
+     },
+     {
+      "card": "the_fourth_doctor",
+      "line": 24,
+      "message": "cannot find value `item` in this scope"
+     },
+     {
+      "card": "the_grand_goatnapper",
+      "line": 21,
+      "message": "cannot find value `q` in this scope"
+     },
+     {
+      "card": "the_ruinous_powers",
+      "line": 16,
+      "message": "cannot find value `moved_2` in this scope"
+     },
+     {
+      "card": "yurlok_of_scorch_thrash",
+      "line": 21,
+      "message": "cannot find value `item` in this scope"
+     }
+    ]
+   },
+   {
+    "class": "E0308: mismatched types",
+    "cards": 12,
+    "errors": 14,
+    "members": [
+     {
+      "card": "alhammarret_high_arbiter",
+      "line": 14,
+      "message": "mismatched types"
+     },
+     {
+      "card": "all_will_be_one",
+      "line": 23,
+      "message": "mismatched types"
+     },
+     {
+      "card": "archival_whorl",
+      "line": 39,
+      "message": "mismatched types"
+     },
+     {
+      "card": "azor_the_lawbringer",
+      "line": 12,
+      "message": "mismatched types"
+     },
+     {
+      "card": "cherished_hatchling",
+      "line": 16,
+      "message": "mismatched types"
+     },
+     {
+      "card": "damping_sphere",
+      "line": 11,
+      "message": "mismatched types"
+     },
+     {
+      "card": "delay",
+      "line": 10,
+      "message": "mismatched types"
+     },
+     {
+      "card": "galea_kindler_of_hope",
+      "line": 10,
+      "message": "mismatched types"
+     },
+     {
+      "card": "master_of_the_wild_hunt_avatar",
+      "line": 46,
+      "message": "mismatched types"
+     },
+     {
+      "card": "mikey_don_party_planners",
+      "line": 9,
+      "message": "mismatched types"
+     },
+     {
+      "card": "stronghold_gambit",
+      "line": 13,
+      "message": "mismatched types"
+     },
+     {
+      "card": "the_pit",
+      "line": 13,
+      "message": "mismatched types"
+     }
+    ]
+   },
+   {
+    "class": "inside EffectKind but without what it derives (AddAbilitiesOf)",
+    "cards": 9,
+    "errors": 10,
+    "members": [
+     {
+      "card": "bleeding_effect",
+      "line": 10,
+      "message": "the trait bound `AbilitiesFrom<&[CheckHasable; 11], Vec<ObjectId>, Option<_>>: Copy` is not satisfied (the trait `std::marker::Copy` is not implemented for `AbilitiesFrom<&[CheckHasable; 11], Vec<ObjectId>, Option<_>>`)"
+     },
+     {
+      "card": "concerted_effort",
+      "line": 10,
+      "message": "the trait bound `AbilitiesFrom<&[CheckHasable; 8], Vec<ObjectId>, Option<_>>: Copy` is not satisfied (the trait `std::marker::Copy` is not implemented for `AbilitiesFrom<&[CheckHasable; 8], Vec<ObjectId>, Option<_>>`)"
+     },
+     {
+      "card": "grell_philosopher",
+      "line": 14,
+      "message": "the trait bound `AbilitiesFrom<&[CheckHasable; 1], Vec<ObjectId>, Option<...>>: Copy` is not satisfied (the trait `std::marker::Copy` is not implemented for `AbilitiesFrom<&[CheckHasable; 1], Vec<ObjectId>, Option<SpendAs>>`)"
+     },
+     {
+      "card": "majestic_myriarch",
+      "line": 12,
+      "message": "the trait bound `AbilitiesFrom<&[CheckHasable; 12], Vec<ObjectId>, Option<_>>: Copy` is not satisfied (the trait `std::marker::Copy` is not implemented for `AbilitiesFrom<&[CheckHasable; 12], Vec<ObjectId>, Option<_>>`)"
+     },
+     {
+      "card": "mutable_pupa",
+      "line": 12,
+      "message": "the trait bound `AbilitiesFrom<&[CheckHasable; 12], Vec<ObjectId>, Option<_>>: Copy` is not satisfied (the trait `std::marker::Copy` is not implemented for `AbilitiesFrom<&[CheckHasable; 12], Vec<ObjectId>, Option<_>>`)"
+     },
+     {
+      "card": "odric_lunarch_marshal",
+      "line": 10,
+      "message": "the trait bound `AbilitiesFrom<&[CheckHasable; 13], Vec<ObjectId>, Option<_>>: Copy` is not satisfied (the trait `std::marker::Copy` is not implemented for `AbilitiesFrom<&[CheckHasable; 13], Vec<ObjectId>, Option<_>>`)"
+     },
+     {
+      "card": "quicksilver_elemental",
+      "line": 13,
+      "message": "the trait bound `AbilitiesFrom<&[CheckHasable; 1], Vec<ObjectId>, Option<_>>: Copy` is not satisfied (the trait `std::marker::Copy` is not implemented for `AbilitiesFrom<&[CheckHasable; 1], Vec<ObjectId>, Option<_>>`)"
+     },
+     {
+      "card": "sproutwatch_dryad",
+      "line": 10,
+      "message": "the trait bound `AbilitiesFrom<&[CheckHasable; 12], Vec<ObjectId>, Option<_>>: Copy` is not satisfied (the trait `std::marker::Copy` is not implemented for `AbilitiesFrom<&[CheckHasable; 12], Vec<ObjectId>, Option<_>>`)"
+     },
+     {
+      "card": "symbiote_spider_man",
+      "line": 22,
+      "message": "the trait bound `AbilitiesFrom<&[CheckHasable; 1], Vec<ObjectId>, Option<_>>: Copy` is not satisfied (the trait `std::marker::Copy` is not implemented for `AbilitiesFrom<&[CheckHasable; 1], Vec<ObjectId>, Option<_>>`)"
+     }
+    ]
+   },
+   {
+    "class": "E0373: closure may outlive the current function, but it borrows `_`, which is owned by the curren",
+    "cards": 5,
+    "errors": 5,
+    "members": [
+     {
+      "card": "cheering_fanatic",
+      "line": 11,
+      "message": "closure may outlive the current function, but it borrows `chosen_0`, which is owned by the current function"
+     },
+     {
+      "card": "firestorm_phoenix",
+      "line": 12,
+      "message": "closure may outlive the current function, but it borrows `subject`, which is owned by the current function"
+     },
+     {
+      "card": "spinerock_tyrant",
+      "line": 21,
+      "message": "closure may outlive the current function, but it borrows `hoisted_2`, which is owned by the current function"
+     },
+     {
+      "card": "tariff",
+      "line": 10,
+      "message": "closure may outlive the current function, but it borrows `bound_0`, which is owned by the current function"
+     },
+     {
+      "card": "torment_of_venom",
+      "line": 14,
+      "message": "closure may outlive the current function, but it borrows `t_0_raw`, which is owned by the current function"
+     }
+    ]
+   },
+   {
+    "class": "E0599: no method named `_` found for type `_` in the current scope",
+    "cards": 3,
+    "errors": 3,
+    "members": [
+     {
+      "card": "mysterious_limousine",
+      "line": 19,
+      "message": "no method named `get` found for type `bool` in the current scope"
+     },
+     {
+      "card": "ogre_battlecaster",
+      "line": 21,
+      "message": "no method named `get` found for type `bool` in the current scope"
+     },
+     {
+      "card": "shadrix_silverquill",
+      "line": 52,
+      "message": "no method named `distinct_targets` found for type `bool` in the current scope"
+     }
+    ]
+   },
+   {
+    "class": "E0521: borrowed data escapes outside of function",
+    "cards": 2,
+    "errors": 2,
+    "members": [
+     {
+      "card": "mari_the_killing_quill",
+      "line": 31,
+      "message": "borrowed data escapes outside of function"
+     },
+     {
+      "card": "spinerock_tyrant",
+      "line": 21,
+      "message": "borrowed data escapes outside of function"
+     }
+    ]
+   },
+   {
+    "class": "passed through dyn but not data (Proposed_LayerQuery::can_target_only)",
+    "cards": 1,
+    "errors": 2,
+    "members": [
+     {
+      "card": "wall_of_shadows",
+      "line": 11,
+      "message": "the trait bound `{closure@wall_of_shadows.rs:11:282}: Data` is not satisfied (the trait `Debug` is not implemented for closure `{closure@wall_of_shadows.rs:11:282}`)"
+     }
+    ]
+   },
+   {
+    "class": "in a CardDef table but not Copy + Sync + 'static (TransformAction::BecomeACopyOfAnExiledCard)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "olag_ludevics_hubris_ludevic_necrogenius",
+      "line": 26,
+      "message": "the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)"
+     }
+    ]
+   },
+   {
+    "class": "E0605: non-primitive cast: `_` as `_`",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "mister_negative",
+      "line": 16,
+      "message": "non-primitive cast: `()` as `u32`"
+     }
+    ]
+   },
+   {
+    "class": "E0618: expected function, found `_`",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "damping_engine",
+      "line": 7,
+      "message": "expected function, found `proposals::PlayerEffect`"
+     }
+    ]
+   },
+   {
+    "class": "in a CardDef table but not Copy + Sync + 'static (TransformAction::AttachPermanentToAPlayer)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "leeching_lurker_curse_of_leeches",
+      "line": 13,
+      "message": "the trait bound `Vec<cantrip_api::PlayerId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::PlayerId>`)"
+     }
+    ]
+   },
+   {
+    "class": "in a CardDef table but not Copy + Sync + 'static (FaceUpAction::AttachPermanentToAPermanent)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "gift_of_doom",
+      "line": 14,
+      "message": "the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)"
+     }
+    ]
+   },
+   {
+    "class": "in a CardDef table but not Copy + Sync + 'static (ArrivalState::ExiledForWith)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "lagrella_the_magpie",
+      "line": 16,
+      "message": "the trait bound `&mut Vec<cantrip_api::ObjectId>: std::marker::Copy` is not satisfied in `{closure@lagrella_the_magpie.rs:16:529}` (within `{closure@lagrella_the_magpie.rs:16:529}`, the trait `std::marker::Copy` is not implemented for `&mut Vec<cantrip_api::ObjectId>`)"
+     }
+    ]
+   },
+   {
+    "class": "passed through dyn but not data (Proposed_Query::had_extreme)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "stronghold_gambit",
+      "line": 24,
+      "message": "the trait bound `{closure@stronghold_gambit.rs:24:261}: Data` is not satisfied (the trait `Debug` is not implemented for closure `{closure@stronghold_gambit.rs:24:261}`)"
+     }
+    ]
+   },
+   {
+    "class": "trait bound not met",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "drought",
+      "line": 29,
+      "message": "a value of type `Vec<cantrip_api::ObjectId>` cannot be built from an iterator over elements of type `fn(&[TargetSpec], fn(&mut dyn Game, &StackItem) -> ...) -> ... {spell}`"
+     }
+    ]
+   },
+   {
+    "class": "in a CardDef table but not Copy + Sync + 'static (Protection::Players)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "noble_heritage",
+      "line": 23,
+      "message": "the trait bound `Vec<cantrip_api::PlayerId>: std::marker::Copy` is not satisfied in `{closure@noble_heritage.rs:23:352}` (within `{closure@noble_heritage.rs:23:352}`, the trait `std::marker::Copy` is not implemented for `Vec<cantrip_api::PlayerId>`)"
+     }
+    ]
+   },
+   {
+    "class": "in a CardDef table but not Copy + Sync + 'static (Prohibition::AttackInto)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "call_for_aid",
+      "line": 21,
+      "message": "the trait bound `Vec<cantrip_api::Target>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::Target>`)"
+     }
+    ]
+   },
+   {
+    "class": "passed through dyn but not data (Proposed_ModeDef::then_modes)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "typhoid_mary_fractured",
+      "line": 90,
+      "message": "the trait bound `&cantrip_api::ModalDef: Data` is not satisfied (the trait `Debug` is not implemented for `cantrip_api::ModalDef`)"
+     }
+    ]
+   },
+   {
+    "class": "in a CardDef table but not Copy + Sync + 'static (SetInMotionAction::ChooseAPlayer)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "bow_to_my_command",
+      "line": 16,
+      "message": "the trait bound `Vec<cantrip_api::PlayerId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::PlayerId>`)"
+     }
+    ]
+   },
+   {
+    "class": "passed through dyn but not data (Proposed_Chars::add_names_of)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "spy_kit",
+      "line": 7,
+      "message": "the trait bound `{closure@spy_kit.rs:7:229}: Data` is not satisfied (the trait `Debug` is not implemented for closure `{closure@spy_kit.rs:7:229}`)"
+     }
+    ]
+   },
+   {
+    "class": "passed through dyn but not data (Proposed_Query::would_destroy)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "equinox",
+      "line": 12,
+      "message": "the trait bound `{closure@equinox.rs:12:201}: Data` is not satisfied (the trait `Debug` is not implemented for closure `{closure@equinox.rs:12:201}`)"
+     }
+    ]
+   },
+   {
+    "class": "inside Duration but without what it derives (WhileMatches)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "eriette_the_beguiler",
+      "line": 10,
+      "message": "the trait bound `{closure@eriette_the_beguiler.rs:10:472}: Derives_Duration` is not satisfied (the trait `Debug` is not implemented for closure `{closure@eriette_the_beguiler.rs:10:472}`)"
+     }
+    ]
+   },
+   {
+    "class": "inside ManaRestriction but without what it derives (SpellsMatching)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "klauth_unrivaled_ancient",
+      "line": 14,
+      "message": "the trait bound `{closure@klauth_unrivaled_ancient.rs:14:351}: Derives_ManaRestriction` is not satisfied (the trait `Debug` is not implemented for closure `{closure@klauth_unrivaled_ancient.rs:14:351}`)"
+     }
+    ]
+   },
+   {
+    "class": "in a CardDef table but not Copy + Sync + 'static (AttachAction::ChooseAnExiledCardToCopy)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "dinosaur_headdress_paleontologists_pick_axe",
+      "line": 47,
+      "message": "the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)"
+     }
+    ]
+   },
+   {
+    "class": "inside Keyword but without what it derives (on::Keyword::ProtectionFrom)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "eowyn_fearless_knight",
+      "line": 15,
+      "message": "the trait bound `{closure@eowyn_fearless_knight.rs:15:474}: Derives_Keyword` is not satisfied (the trait `Debug` is not implemented for closure `{closure@eowyn_fearless_knight.rs:15:474}`)"
+     }
+    ]
+   },
+   {
+    "class": "in a CardDef table but not Copy + Sync + 'static (EnterOrFaceUpAction::EnterAsACopyOfAPermanentUntil)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "vesuvan_shapeshifter",
+      "line": 19,
+      "message": "the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)"
+     }
+    ]
+   },
+   {
+    "class": "in a CardDef table but not Copy + Sync + 'static (TransformAction::ChooseAPlayer)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "shinryu_transcendent_rival_zenos_yae_galvus",
+      "line": 29,
+      "message": "the trait bound `Vec<cantrip_api::PlayerId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::PlayerId>`)"
+     }
+    ]
+   },
+   {
+    "class": "passed through dyn but not data (Proposed_ModeDef::divide)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "abzan_charm",
+      "line": 31,
+      "message": "the trait bound `cantrip_api::Divide: Data` is not satisfied (the trait `Debug` is not implemented for `cantrip_api::Divide`)"
+     }
+    ]
+   },
+   {
+    "class": "in a CardDef table but not Copy + Sync + 'static (SpellEffect::AsResolves)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "feather_the_redeemed",
+      "line": 16,
+      "message": "the trait bound `&mut Vec<cantrip_api::ObjectId>: std::marker::Copy` is not satisfied in `{closure@feather_the_redeemed.rs:16:217}` (within `{closure@feather_the_redeemed.rs:16:217}`, the trait `std::marker::Copy` is not implemented for `&mut Vec<cantrip_api::ObjectId>`)"
+     }
+    ]
+   },
+   {
+    "class": "passed through dyn but not data (Proposed_Game::restart_game)",
+    "cards": 1,
+    "errors": 1,
+    "members": [
+     {
+      "card": "karn_liberated",
+      "line": 24,
+      "message": "the trait bound `{closure@karn_liberated.rs:24:654}: Data` is not satisfied (the trait `Debug` is not implemented for closure `{closure@karn_liberated.rs:24:654}`)"
+     }
+    ]
+   }
   ]
  }
 }

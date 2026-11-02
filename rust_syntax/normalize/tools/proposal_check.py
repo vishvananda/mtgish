@@ -1550,8 +1550,10 @@ def report(diags, stems, spec, texts, cards):
     classes = []
     for (cls, fault), items in sorted(by_class.items(), key=lambda kv: -len(kv[1])):
         cards_of = sorted({i["card"] for i in items})
+        # A proposal's fault names every card it is on, for the tracker to list; a stub's needs only examples.
         classes.append({"class": cls, "stub_fault": fault, "errors": len(items), "cards": len(cards_of),
-                        "examples": [next(i for i in items if i["card"] == c) for c in cards_of[:3]]})
+                        "examples": [next(i for i in items if i["card"] == c) for c in cards_of[:3]],
+                        **({} if fault else {"members": [next(i for i in items if i["card"] == c) for c in cards_of]})})
     return {"cards": len(stems), "compile": len(clean), "compile_but_for_stubs": len(stub_only),
             "fail": len(stems) - len(clean) - len(stub_only), "classes": classes,
             "defaulted_returns": spec.rets, "unknown_returns": sorted(spec.unknown_rets),
