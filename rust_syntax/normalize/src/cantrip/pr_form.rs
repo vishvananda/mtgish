@@ -27,9 +27,161 @@ pub enum Characteristics {
 
 /// `raw`, a generated module, as a card file. `printed` is the card's Oracle text.
 pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteristics) -> Option<String> {
-    let Ok(mut file) = syn::parse_str::<File>(raw) else {
+    let Ok(file) = syn::parse_str::<File>(raw) else {
         return Some(raw.to_string());
     };
+    rendered(file, raw, name, printed, characteristics).map(written)
+}
+
+/// A card of two faces as one file, `raw` holding the second in `module`: its `CARD` is
+/// named as the card reads it (`BACK`, or its own name), and the two share one namespace.
+/// `faces` are each face's name and Oracle text. None where the faces' names collide.
+pub fn render_two_faces(raw: &str, module: &str, faces: [(&str, &str); 2]) -> Option<String> {
+    let mut file = syn::parse_str::<File>(raw).ok()?;
+    let at = file
+        .items
+        .iter()
+        .position(|item| matches!(item, Item::Mod(m) if m.ident == module))?;
+    let Item::Mod(taken) = file.items.remove(at) else {
+        return None;
+    };
+    let (_, items) = taken.content?;
+    let printed_name = |file: &File| {
+        file.items.iter().find_map(|item| match item {
+            Item::Static(s) if s.ident == "CARD" => match &*s.expr {
+                Expr::Struct(card) => card.fields.iter().find_map(|f| match &f.expr {
+                    Expr::Lit(lit) if text_of(&f.member) == "name" => match &lit.lit {
+                        Lit::Str(name) => Some(name.value()),
+                        _ => None,
+                    },
+                    _ => None,
+                }),
+                _ => None,
+            },
+            _ => None,
+        })
+    };
+    let front_name = printed_name(&file)?;
+    let [one, two] = faces;
+    let (front, second) = if one.0 == front_name { (one, two) } else { (two, one) };
+    if front.0 != front_name {
+        return None;
+    }
+    let constant = match module {
+        "back" => "BACK".to_string(),
+        _ => super::card_file::oracle_constant(second.0),
+    };
+    let unparsed = prettyplease::unparse(&file).replace(&format!("{module}::CARD"), &constant);
+    let inner = File {
+        shebang: None,
+        attrs: Vec::new(),
+        items: items.into_iter().filter(|item| !matches!(item, Item::Use(_))).collect(),
+    };
+    let inner = format!("use cantrip_api::*;\n{}", prettyplease::unparse(&inner));
+    let oracle = Characteristics::Oracle;
+    let front_file = rendered(syn::parse_str(&unparsed).ok()?, &unparsed, front.0, front.1, oracle)?;
+    let second_file = match rendered(syn::parse_str(&inner).ok()?, &inner, second.0, second.1, oracle) {
+        Some(file) => file,
+        None => {
+            let base: syn::Path = syn::parse_str(&format!("oracle::{}", oracle_constant(second.0))).ok()?;
+            parse_quote!(pub static CARD: CardDef = CardDef { ..#base };)
+        }
+    };
+    merged_faces(front_file, second_file, &constant).map(written)
+}
+
+/// The second face's items before the first's, under one set of imports.
+fn merged_faces(front: File, second: File, constant: &str) -> Option<File> {
+    let name_of = |item: &Item| match item {
+        Item::Fn(f) => Some(f.sig.ident.to_string()),
+        Item::Static(s) => Some(s.ident.to_string()),
+        Item::Const(c) => Some(c.ident.to_string()),
+        _ => None,
+    };
+    let (mut uses, mut mechanics, mut own, mut extra): (Vec<Item>, BTreeSet<String>, Vec<Item>, Vec<Expr>) =
+        (Vec::new(), BTreeSet::new(), Vec::new(), Vec::new());
+    let mut named: BTreeMap<String, String> = BTreeMap::new();
+    let mut rest: Vec<Item> = Vec::new();
+    for (i, face) in [second, front].into_iter().enumerate() {
+        for mut item in face.items {
+            if let Item::Use(_) = item {
+                let line = text_of(&item).replace(' ', "");
+                match line.strip_prefix("usecantrip_mechanics::") {
+                    Some(leaves) => {
+                        let leaves = leaves.trim_end_matches(';');
+                        let leaves = leaves.strip_prefix('{').and_then(|l| l.strip_suffix('}')).unwrap_or(leaves);
+                        mechanics.extend(leaves.split(',').filter(|l| !l.is_empty()).map(str::to_string));
+                    }
+                    None if uses.iter().any(|u| text_of(u).replace(' ', "") == line) => {}
+                    None => uses.push(item),
+                }
+                continue;
+            }
+            if let Item::Static(s) = &mut item {
+                if s.ident == "EXTRA" {
+                    if let Expr::Reference(list) = &*s.expr {
+                        if let Expr::Array(list) = &*list.expr {
+                            for entry in &list.elems {
+                                if !extra.iter().any(|e| text_of(e) == text_of(entry)) {
+                                    extra.push(entry.clone());
+                                }
+                            }
+                        }
+                    }
+                    continue;
+                }
+                if i == 0 && s.ident == "CARD" {
+                    s.ident = syn::Ident::new(constant, s.ident.span());
+                }
+            }
+            if let Some(name) = name_of(&item) {
+                let body = text_of(&item);
+                match named.get(&name) {
+                    Some(seen) if *seen == body => continue,
+                    Some(_) => return None,
+                    None => {
+                        named.insert(name, body);
+                    }
+                }
+            }
+            if i == 0 {
+                own.push(item);
+            } else {
+                rest.push(item);
+            }
+        }
+    }
+    let mut items: Vec<Item> = Vec::new();
+    let oracle = uses.iter().position(|u| text_of(u).contains("cantrip_oracle"));
+    let leaves = mechanics.into_iter().collect::<Vec<_>>();
+    let line = match leaves.as_slice() {
+        [] => None,
+        [one] => Some(format!("use cantrip_mechanics::{one};")),
+        many => Some(format!("use cantrip_mechanics::{{{}}};", many.join(", "))),
+    };
+    let mut before = uses;
+    if let Some(line) = line {
+        let item: Item = syn::parse_str(&line).ok()?;
+        before.insert(oracle.unwrap_or(before.len()), item);
+    }
+    items.extend(before);
+    items.extend(own);
+    items.extend(rest);
+    if !extra.is_empty() {
+        let list: syn::punctuated::Punctuated<Expr, syn::Token![,]> = extra.into_iter().collect();
+        items.push(parse_quote!(pub static EXTRA: &[&CardDef] = &[#list];));
+    }
+    Some(File { shebang: None, attrs: Vec::new(), items })
+}
+
+/// A card's module as the file it will be, not yet written out.
+fn rendered(
+    mut file: File,
+    raw: &str,
+    name: &str,
+    printed: &str,
+    characteristics: Characteristics,
+) -> Option<File> {
     let printed = &printed_as_cantrip(printed);
     let reads_data = raw.contains("item.data")
         || raw.contains("batch_by_data")
@@ -87,9 +239,14 @@ pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteris
         head.iter()
             .map(|line| syn::parse_str::<Item>(line).expect("an import")),
     );
+    Some(file)
+}
+
+/// A rendered card as its text.
+fn written(mut file: File) -> String {
     strip_literal_types(&mut file);
     let text = fields_on_their_own_lines(prettyplease::unparse(&file));
-    Some(spaced(let_else_on_one_line(&event_patterns_on_one_line(&text))))
+    spaced(let_else_on_one_line(&event_patterns_on_one_line(&text)))
 }
 
 /// The event functions whose abilities never read what they carry: `Fired::data` belongs to the ability it fires, not to the

@@ -291,6 +291,18 @@ pub struct TrackedCard {
 
 /// Every card's code, a JSON object a line. A record that can't be emitted
 /// stops the run: nothing is left for the tracker to miss.
+/// The module a layout's second face is written in, where that face is one `CardDef`
+/// of its own beside the card's. A Split or Room card joins its two in a third, and a
+/// prepared spell is no card with a content file.
+fn second_face_module(layout: &str) -> Option<&'static str> {
+    match layout {
+        "Transforming" | "ModalDFC" => Some("back"),
+        "Adventurer" => Some("adventure"),
+        "Ominous" => Some("omen"),
+        _ => None,
+    }
+}
+
 pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usize> {
     let oracle = oracle_texts(oracle)?;
     let mut artifact = corpus::Artifact::create(output)?;
@@ -314,7 +326,24 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
                 })
                 .collect();
             let file = match faces.as_slice() {
-                [one] if one.gaps.is_empty() && lowered.card.layout == "Card" => {
+                [one, two]
+                    if one.gaps.is_empty()
+                        && two.gaps.is_empty()
+                        && second_face_module(&lowered.card.layout).is_some() =>
+                {
+                    match (&whole.rust, one.oracle.as_deref(), two.oracle.as_deref()) {
+                        (Some(raw), Some(first), Some(second)) => super::pr_form::render_two_faces(
+                            raw,
+                            second_face_module(&lowered.card.layout).expect("just seen"),
+                            [(&one.name, first), (&two.name, second)],
+                        ),
+                        _ => None,
+                    }
+                }
+                [one]
+                    if one.gaps.is_empty()
+                        && matches!(lowered.card.layout.as_str(), "Card" | "MeldPiece") =>
+                {
                     one.oracle.as_deref().and_then(|text| {
                         match card_file::card_file(&lowered.card.faces[0], text) {
                             Ok(file) => file,

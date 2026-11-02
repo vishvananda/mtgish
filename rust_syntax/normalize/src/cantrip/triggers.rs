@@ -1682,12 +1682,6 @@ impl Compiler {
         } else {
             self.planned_trigger(&matched.planned, label, &matcher, &mask)
         };
-        // The event is the sacrifice, not the dying it causes (701.21a).
-        let sacrificed = matched.arms.iter().any(|a| a.pattern.contains("ZoneReason::Sacrifice,"));
-        let trigger = match sacrificed {
-            true => format!("{trigger}.on_sacrifice()"),
-            false => trigger,
-        };
         match &matched.functions {
             Some(zones) => format!("{trigger}.functions_in({zones})"),
             None => trigger,
@@ -1966,6 +1960,10 @@ impl Compiler {
         }
         if matched.sums {
             def.push_str(".sums_per_subject()");
+        }
+        // The event is the sacrifice, not the dying it causes (701.21a).
+        if matched.arms.iter().any(|a| a.pattern.contains("ZoneReason::Sacrifice,")) {
+            def.push_str(".on_sacrifice()");
         }
         if let Some(members) = members {
             def.push_str(&format!(".members_of({members})"));
