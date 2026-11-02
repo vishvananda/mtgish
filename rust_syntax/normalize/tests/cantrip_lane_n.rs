@@ -60,7 +60,7 @@ const CARDS: &[(&str, &str)] = &[
     // A spell as a source of damage is an object on the stack.
     ("Suffocation", "q.state().obj(source).zone.is(ZoneKind::Stack)"),
     ("Primeval Spawn", "as-enters replacement of another event"),
-    ("Quarum Trench Gnomes", "replacement event ProduceColor"),
+    ("Quarum Trench Gnomes", "ReplacementKind::ManaProduction"),
     // A granted exalted is the word its grant prints.
     ("First Sliver's Chosen", "subject_gets_plus_one, \"Exalted\")"),
 ];
