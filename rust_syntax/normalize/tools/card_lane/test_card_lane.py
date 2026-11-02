@@ -1179,5 +1179,18 @@ class Levels(unittest.TestCase):
         self.assertTrue(self.problems("LEVEL 1-4: Flying"))
 
 
+class RandomNote(unittest.TestCase):
+    """A card that flips, rolls or chooses at random is told how a scenario forces the result (The Gold Saucer's stop)."""
+
+    def test_random_words(self):
+        for text in ("Flip a coin. If you win the flip, create a Treasure token.", "Roll a d20.", "Roll two dice.",
+                     "Target player discards a card at random."):
+            self.assertTrue(card_lane.RANDOM.search(text), text)
+
+    def test_other_words(self):
+        for text in ("Draw a card.", "Transform this creature.", "Turn it face up.", "Each player chooses a creature."):
+            self.assertFalse(card_lane.RANDOM.search(text), text)
+
+
 if __name__ == "__main__":
     unittest.main()

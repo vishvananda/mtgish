@@ -478,6 +478,13 @@ def shared_code(source):
     return "\n".join(out)
 
 
+RANDOM = re.compile(r"\bflips? (a|two|\w+) coins?\b|\broll(s|ed)? (a|one|two|\w+) (d\d+|di(c)?e)\b|\bat random\b", re.I)
+RANDOM_NOTE = ("A coin flip, a die roll or a choice at random is never left to chance: a scenario's `[Dice]` section lists the "
+               "faces in the order they come up (`6; 1; 3`). A coin is a two-sided die, so face 1 wins the flip and face 2 "
+               "loses it, and one of N things at random is a die of N sides (`scenarios/README.md`, \"Dice\"). Play each "
+               "result the card cares about. Never sweep RNG seeds.")
+
+
 def brief(card, driven=False):
     """What a worker needs to know that the skill cannot: which card, and where its things are."""
     name = card["name"]
@@ -495,8 +502,11 @@ def brief(card, driven=False):
              f"- Content file: `{CONTENT_DIR}/{slug}.json`, from Scryfall, read-only",
              f"- Placeholder scenarios: `{SCENARIOS_DIR}/{stem.replace('_', '-')}-*.cantrip`"]
     if content_file(name).exists():
-        played = faces_section(card, json.loads(content_file(name).read_text(encoding="utf-8-sig")))
+        content = json.loads(content_file(name).read_text(encoding="utf-8-sig"))
+        played = faces_section(card, content)
         lines += ["", played] if played else []
+        if RANDOM.search(" ".join(text for _, text in content_faces(content))):
+            lines += ["", RANDOM_NOTE]
     if driven:
         lines += ["", "A driver runs the gates and makes the commit. Stop after writing `report.json`; do not run `commit` or `abandon`."]
     return "\n".join(lines) + "\n"
