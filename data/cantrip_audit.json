@@ -5327,6 +5327,13 @@
 "partial": "Ochre Jelly: counters on a copy as it enters: placed after, so \"enters with\" triggers differ. Caller of the Untamed, Gut cycle: draft and specialize, unplayable. Esix: replacement of token creation: Proposal TokenCreation.copy can be set (replace.rs:181).",
 "verdict": "exists"
 },
+"each-player-s-return-read-as-yours-in-the-data": {
+"evidence": [],
+"how": "Data: All Hallow's Eve's \"each player returns all creature cards from their graveyard\" is PutEachCardFromEachPlayersGraveyardOntoTheBattlefield(.., AnyPlayer, [EntersNormally]) done by you, so you would control them all; Balthor and Orzhova say EachPlayerAction(AnyPlayer, ReturnEachCardFromPlayersGraveyardToBattlefield(.., ActionPlayer, ..)). Filed #173.",
+"note": "",
+"partial": "",
+"verdict": "data"
+},
 "earlier-objects-conjured": {
 "evidence": [
 "crates/cantrip-cards/src/cards/bringer_of_the_last_gift.rs:32",

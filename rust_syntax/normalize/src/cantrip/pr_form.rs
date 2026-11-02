@@ -2249,6 +2249,10 @@ fn guard_at_the_end(block: &mut Block) {
         return;
     }
     let (pat, value) = (&binding.pat, &binding.expr);
+    // `let .. = { .. } else` is no Rust: an initializer of a `let .. else` can't end in a brace.
+    if text_of(value).ends_with('}') {
+        return;
+    }
     let guard: Stmt = parse_quote!(let #pat = #value else { return Ok(()) };);
     let mut body = branch.then_branch.stmts.clone();
     if let Some(Stmt::Expr(_, semi @ None)) = body.last_mut() {

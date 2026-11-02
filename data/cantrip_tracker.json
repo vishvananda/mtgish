@@ -2,8 +2,8 @@
  "cantrip": "01aba4b159",
  "totals": {
   "cards": 33529,
-  "ready": 28317,
-  "planned": 5164,
+  "ready": 28316,
+  "planned": 5165,
   "data": 48,
   "written": 172,
   "new_tokens": 198,
@@ -17,8 +17,8 @@
    "planned": 7
   },
   "Card": {
-   "ready": 27573,
-   "planned": 4613
+   "ready": 27572,
+   "planned": 4614
   },
   "Conspiracy": {
    "ready": 0,
@@ -99,15 +99,15 @@
    "cards": 332
   },
   "generator": {
-   "requirements": 39,
-   "cards": 71
+   "requirements": 40,
+   "cards": 72
   }
  },
  "fixes": {
   "Cantrip": 2976,
   "not played": 1081,
   "mechanics module": 661,
-  "mtgish data": 7,
+  "mtgish data": 8,
   "generator": 178,
   "unsure": 89
  },
@@ -520,24 +520,6 @@
    ]
   },
   {
-   "needs": "A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes.",
-   "class": "engine",
-   "forms": [
-    "operation-change-spell"
-   ],
-   "cards": 72,
-   "written": 7,
-   "fixes": [
-    "Cantrip"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Alter Reality",
-    "Arcane Archery",
-    "Archway of Innovation"
-   ]
-  },
-  {
    "needs": "a generator arm, or a Cantrip feature if none exists",
    "class": "generator",
    "forms": [
@@ -566,6 +548,7 @@
     "damage-to-each-permanent-a-card-type-lost-in-the-data",
     "destroyed-together-some-that-can-t-be-regenerated",
     "discard-of-up-to-a-number-read-as-exactly-that-number",
+    "each-player-s-return-read-as-yours-in-the-data",
     "may-enter-face-down",
     "put-onto-the-battlefield-blocking",
     "put-onto-the-battlefield-face-down-as-a-land",
@@ -581,7 +564,7 @@
     "cards-found-in-two-zones-put-on-top-of-a-library",
     "spells-of-two-subtypes-read-as-spells-of-both"
    ],
-   "cards": 71,
+   "cards": 72,
    "written": 13,
    "fixes": [
     "Cantrip",
@@ -594,6 +577,24 @@
     "A Killer Among Us",
     "Acidic Dagger",
     "Aetherplasm"
+   ]
+  },
+  {
+   "needs": "A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes.",
+   "class": "engine",
+   "forms": [
+    "operation-change-spell"
+   ],
+   "cards": 72,
+   "written": 7,
+   "fixes": [
+    "Cantrip"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Alter Reality",
+    "Arcane Archery",
+    "Archway of Innovation"
    ]
   },
   {
@@ -28888,6 +28889,21 @@
    "how": ""
   },
   {
+   "id": "each-player-s-return-read-as-yours-in-the-data",
+   "feature": "each player's return read as yours in the data",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "each player's",
+   "cards": 1,
+   "written": 0,
+   "alone": 1,
+   "examples": [
+    "All Hallow's Eve"
+   ],
+   "fix": "mtgish data",
+   "how": "Data: All Hallow's Eve's \"each player returns all creature cards from their graveyard\" is PutEachCardFromEachPlayersGraveyardOntoTheBattlefield(.., AnyPlayer, [EntersNormally]) done by you, so you would control them all; Balthor and Orzhova say EachPlayerAction(AnyPlayer, ReturnEachCardFromPlayersGraveyardToBattlefield(.., ActionPlayer, ..)). Filed #173."
+  },
+  {
    "id": "earlier-objects-conjured",
    "feature": "earlier objects Conjured",
    "class": "engine",
@@ -36711,6 +36727,9 @@
   ],
   "Alien Symbiosis": [
    "engine-a-card-s-own-terms-to-cast-it-from-its-graveyard"
+  ],
+  "All Hallow's Eve": [
+   "each-player-s-return-read-as-yours-in-the-data"
   ],
   "All Shall Smolder in My Wake": [
    "card-type-scheme",
