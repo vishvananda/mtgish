@@ -474,7 +474,14 @@ impl Compiler {
         })
     }
     /// "Target creature of an opponent's choice": someone else picks the slot.
-    pub(super) fn chosen_by_another(&self, chooser: &PlayerRef, rule: &mut SlotRule) -> Result<()> {
+    pub(super) fn chosen_by_another(
+        &mut self,
+        chooser: &PlayerRef,
+        rule: &mut SlotRule,
+    ) -> Result<()> {
+        if self.every_slot_chosen && self.chosen_by_subject(chooser) {
+            return Ok(());
+        }
         if let PlayerRef::OneOf(players) = chooser {
             rule.planned.push((
                 "targets chosen by another player".to_string(),

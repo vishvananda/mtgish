@@ -17,7 +17,169 @@ pub(super) enum SlotCounts {
     Delayed,
 }
 
+/// The modes of `announcement`, if each is what a kind of target implies and the
+/// ability is one target slot and what that target turns out to be.
+fn implied_modes(announcement: &Announcement) -> Option<&[Mode]> {
+    let selection = announcement.modes.as_ref()?;
+    let one = |n: &Expr| matches!(n, Expr::Constant(1));
+    let plain = selection.implied
+        && announcement.targets.is_empty()
+        && one(&selection.minimum)
+        && one(&selection.maximum)
+        && !selection.repeat
+        && selection.unchosen.is_none()
+        && selection.surcharge.is_none()
+        && selection.chooser.is_none()
+        && !selection.random;
+    let modes = selection.modes.as_slice();
+    let each = |mode: &Mode| mode.requires.is_none() && mode.announcement.modes.is_none();
+    (plain && modes.len() > 1 && modes.iter().all(each)).then_some(modes)
+}
+
+/// The line of `functions` that starts with `start`, without its name.
+fn line_of(functions: &str, start: &str, name: &str) -> Option<String> {
+    let line = functions.lines().rev().find(|line| line.contains(start))?;
+    Some(line.replace(name, ""))
+}
+
 impl Compiler {
+    /// "Target spell or permanent": the source reads one mode for each kind of
+    /// target, and no mode is announced (CR 601.2c): one slot with a filter of
+    /// either, and an effect that goes by what was chosen. `None` if it isn't that.
+    pub(super) fn implied_slots(
+        &mut self,
+        announcement: &Announcement,
+        label: &str,
+        frame: Option<Frame>,
+    ) -> Result<Option<String>> {
+        let Some(modes) = implied_modes(announcement) else {
+            return Ok(None);
+        };
+        let before = self.clone();
+        match self.union_of_modes(modes, label, frame)? {
+            Some(targets) => Ok(Some(targets)),
+            None => {
+                *self = before;
+                Ok(None)
+            }
+        }
+    }
+    fn union_of_modes(
+        &mut self,
+        modes: &[Mode],
+        label: &str,
+        frame: Option<Frame>,
+    ) -> Result<Option<String>> {
+        let mut filters: Vec<Vec<String>> = Vec::new();
+        let mut arrays = Vec::new();
+        for (i, mode) in modes.iter().enumerate() {
+            let label = format!("{label}_mode_{i}");
+            let announced = lane_p::without_modes(&mode.announcement);
+            let name = match frame {
+                Some(frame) => self.targets_for(&announced, &label, frame)?,
+                None => self.announcement(&announced, &label)?,
+            };
+            if self.dividing.is_some() {
+                return Ok(None);
+            }
+            let Some(array) = line_of(&self.functions, &format!("static {name}:"), &name) else {
+                return Ok(None);
+            };
+            filters.push(self.announced_filters.clone());
+            arrays.push(array);
+        }
+        let first = filters[0].clone();
+        let mut same = arrays[0].clone();
+        for (names, array) in filters.iter().zip(&arrays) {
+            if names.len() != first.len() {
+                return Ok(None);
+            }
+            let array = names
+                .iter()
+                .zip(&first)
+                .fold(array.clone(), |array, (name, first)| array.replace(name, first));
+            if array != same {
+                return Ok(None);
+            }
+        }
+        let mut branch = None;
+        for (slot, name) in first.iter().enumerate() {
+            let tests: Vec<String> = filters.iter().map(|names| names[slot].clone()).collect();
+            let bodies: Option<Vec<String>> = tests
+                .iter()
+                .map(|test| line_of(&self.functions, &format!("fn {test}("), test))
+                .collect();
+            let Some(bodies) = bodies else {
+                return Ok(None);
+            };
+            if bodies.iter().all(|body| *body == bodies[0]) {
+                continue;
+            }
+            let union = format!("{label}_target_{slot}");
+            let either: Vec<String> = tests.iter().map(|t| format!("{t}(q, asker, t)")).collect();
+            writeln!(
+                self.functions,
+                "#[allow(unused_variables)] fn {union}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {} }}",
+                either.join(" || ")
+            )
+            .unwrap();
+            same = same.replace(&format!("target({name})"), &format!("target({union})"));
+            let needs_the_slot = ["chosen_targets", "announced_x", "event_subject", "i64::from(x)"];
+            if needs_the_slot.iter().any(|read| bodies.iter().any(|b| b.contains(read))) {
+                return Ok(None);
+            }
+            branch = branch.or(Some((slot, tests)));
+        }
+        let Some(branch) = branch else {
+            return Ok(None);
+        };
+        self.implied_branch = Some(branch);
+        let name = format!("{}_TARGETS", label.to_ascii_uppercase());
+        writeln!(self.functions, "{}", same.replacen("static ", &format!("static {name}"), 1)).unwrap();
+        Ok(Some(name))
+    }
+    /// The effect of an ability `implied_slots` wrote: each mode's, by the target.
+    pub(super) fn implied_effect(
+        &mut self,
+        announcement: &Announcement,
+        label: &str,
+    ) -> Result<String> {
+        let modes = implied_modes(announcement).expect("implied modes");
+        let (slot, tests) = self.implied_branch.take().expect("a slot that tells the modes");
+        let mut effects = Vec::new();
+        for (i, mode) in modes.iter().enumerate() {
+            effects.push(self.effect(&mode.body, &format!("{label}_mode_{i}"))?);
+        }
+        let function = format!("{label}_implied");
+        let mut arms = String::new();
+        for (test, effect) in tests.iter().zip(&effects) {
+            writeln!(arms, "if {test}(g, asker, chosen) {{ return {effect}(g, item); }}").unwrap();
+        }
+        let last = effects.last().expect("modes");
+        writeln!(
+            self.functions,
+            "fn {function}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ let asker = &Asker::new(item.object, item.controller); let chosen = (0..g.state().targets(item).len()).filter(|&i| g.state().spec(item, i) == {slot}).map(|i| g.state().target(item, i)).next().unwrap_or(Target::None);\n{arms}{last}(g, item) }}"
+        )
+        .unwrap();
+        Ok(function)
+    }
+    /// Whether every slot of a triggered ability is chosen by `chooser`, a player
+    /// its subject can be: the engine asks the subject for all of them (CR 603.3d).
+    pub(super) fn chosen_by_subject(&mut self, chooser: &PlayerRef) -> bool {
+        let SlotCounts::Trigger { .. } = self.slot_counts else {
+            return false;
+        };
+        let subject = match chooser {
+            PlayerRef::EventSubject => true,
+            PlayerRef::ControllerOf(object) => {
+                self.controller_subject && matches!(**object, ObjectRef::EventSubject)
+            }
+            _ => false,
+        };
+        let chosen = subject && self.frame.player == Some(Carried::Subject);
+        self.subject_chooses |= chosen;
+        chosen
+    }
     /// `event` is this object entering the battlefield.
     pub(super) fn counts_of_trigger(event: &EventSpec) -> SlotCounts {
         let enters_itself = matches!(event, EventSpec::ZoneChange { .. })

@@ -613,7 +613,18 @@ impl Compiler {
             #[allow(unreachable_patterns)]
             other => return Err(gap(format!("activation origin {}", form(other)))),
         };
-        let mut def = if announcement.modes.is_some() {
+        let implied = match body.instructions.is_empty() {
+            true => self.implied_slots(announcement, label, None)?,
+            false => None,
+        };
+        let mut def = if let Some(targets) = implied {
+            let effect = self.implied_effect(announcement, label)?;
+            format!(
+                "ability({}, {effect}, {}).targets({targets})",
+                self.cost(price, label)?,
+                quoted(&text)
+            )
+        } else if announcement.modes.is_some() {
             let modal = self.modal(announcement, label, None)?;
             format!(
                 "modal_ability({}, &{modal}, {})",
@@ -986,7 +997,14 @@ impl Compiler {
                 if parts.spell != "None" {
                     return self.later_spell(announcement, body, label, parts);
                 }
-                if announcement.modes.is_some() {
+                let implied = match body.instructions.is_empty() {
+                    true => self.implied_slots(announcement, label, None)?,
+                    false => None,
+                };
+                if let Some(targets) = implied {
+                    let effect = self.implied_effect(announcement, label)?;
+                    parts.spell = format!("spell({targets}, {effect})");
+                } else if announcement.modes.is_some() {
                     if !body.instructions.is_empty() {
                         return Err(gap("modal spell with instructions besides its modes"));
                     }

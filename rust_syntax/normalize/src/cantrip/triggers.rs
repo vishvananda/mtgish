@@ -153,12 +153,15 @@ impl Compiler {
         from: Option<&EventZone>,
         to: &EventZone,
     ) -> Result<Matched> {
+        let entering = *to == EventZone::Battlefield;
+        // "That creature's controller chooses": the engine asks the subject.
+        let controller = self.controller_subject && entering;
         let frame = Frame {
-            object: Some(Carried::Subject),
+            object: Some(if controller { Carried::Data(0) } else { Carried::Subject }),
+            player: controller.then_some(Carried::Subject),
             destination: Some(Carried::Data(0)),
             ..Frame::default()
         };
-        let entering = *to == EventZone::Battlefield;
         // CR 603.10: a departure is judged as the object last was, an arrival
         // as it now is, and a card moved between hidden or public zones as it
         // was where it left from.
@@ -191,7 +194,12 @@ impl Compiler {
             "ZONE_CHANGE",
             Arm {
                 pattern: "Event::ZoneChange { old, new, from, to, .. }".into(),
-                locals: object_fired(id, "new.0"),
+                locals: match controller {
+                    false => object_fired(id, "new.0"),
+                    true => format!(
+                        "let id = {id}; let subject = Target::Player(q.controller(id)); let data = [new.0, u32::MAX];"
+                    ),
+                },
                 tests,
             },
             frame,
@@ -1642,11 +1650,23 @@ impl Compiler {
             _ => Compiler::counts_of_trigger(event),
         };
         let outer = (self.slot_counts, self.count_read.take());
+        let chosen = (self.every_slot_chosen, self.subject_chooses);
         self.slot_counts = counts;
+        self.every_slot_chosen = announcement.modes.is_none()
+            && !announcement.targets.is_empty()
+            && announcement.targets.iter().all(|slot| format!("{:?}", slot.chooser) == format!("{:?}", announcement.targets[0].chooser))
+            && announcement.targets[0].chooser.is_some();
+        self.subject_chooses = false;
         let def = self.triggered_def(label, event, intervening_if, limits, announcement, body);
         let read = self.count_read.take().map(|(_, call)| call);
+        let by_subject = self.subject_chooses;
         (self.slot_counts, self.count_read) = outer;
-        Ok(def? + read.as_deref().unwrap_or(""))
+        (self.every_slot_chosen, self.subject_chooses) = chosen;
+        let mut def = def? + read.as_deref().unwrap_or("");
+        if by_subject {
+            def.push_str(".subject_chooses_targets()");
+        }
+        Ok(def)
     }
     fn triggered_def(
         &mut self,
@@ -1710,11 +1730,15 @@ impl Compiler {
         for mode in announcement.modes.iter().flat_map(|modes| &modes.modes) {
             write!(read, "{:?}", mode.announcement.targets).unwrap();
         }
-        self.recipient_subject = ["One(EventSubject)", "One(EventOtherPlayer)", "EventStackObject"]
-            .iter()
-            .any(|player| read.contains(player));
+        self.recipient_subject =
+            ["One(EventSubject)", "One(EventOtherPlayer)", "EventStackObject", "chooser: Some(EventSubject)"]
+                .iter()
+                .any(|player| read.contains(player));
+        self.controller_subject = read.contains("chooser: Some(ControllerOf(EventSubject))")
+            && !read.contains("EventDestination");
         let matched = self.event(event);
         self.recipient_subject = false;
+        let controller_subject = std::mem::take(&mut self.controller_subject);
         if let (EventSpec::Either(events), Err(failed)) = (event, &matched) {
             let whole = gate.is_none() && conditional.is_none() && limits.per_turn.is_none();
             if failed.feature == "alternative events with different rules" && whole {
@@ -1751,7 +1775,12 @@ impl Compiler {
                 false,
             )?;
         }
-        if announcement.modes.is_some() {
+        let implied = match body.instructions.is_empty() {
+            true => self.implied_slots(announcement, label, Some(matched.frame))?,
+            false => None,
+        };
+        let implied_by_target = implied.is_some();
+        if announcement.modes.is_some() && !implied_by_target {
             return self.modal_triggered(
                 label,
                 &matched,
@@ -1761,7 +1790,13 @@ impl Compiler {
                 body,
             );
         }
-        let targets = self.targets_for(announcement, label, matched.frame)?;
+        self.controller_subject = controller_subject;
+        let targets = match implied {
+            Some(targets) => Ok(targets),
+            None => self.targets_for(announcement, label, matched.frame),
+        };
+        self.controller_subject = false;
+        let targets = targets?;
         self.frame = matched.frame;
         // CR 603.4 asks an intervening "if" twice. The engine's `condition` has
         // no event to read, so one that reads the event is asked by the matcher
@@ -1810,7 +1845,9 @@ impl Compiler {
         let trigger = self.trigger(&matched, &format!("{label}_event"), &extra);
         self.grouped = matched.batch.is_some();
         let effect = match guard {
+            Some(_) if implied_by_target => Err(gap("a condition on modes a target implies")),
             Some(condition) => self.guarded_effect(condition, body, label),
+            None if implied_by_target => self.implied_effect(announcement, label),
             None => self.effect(body, label),
         };
         self.grouped = false;

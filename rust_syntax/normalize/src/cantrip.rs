@@ -643,6 +643,15 @@ struct Compiler {
     /// The one number a triggered ability's `COUNTED` reads: its code and the
     /// builder call that says so.
     count_read: Option<(String, String)>,
+    /// The slot whose target says which of its implied modes an ability has,
+    /// and each mode's test of it.
+    implied_branch: Option<(usize, Vec<String>)>,
+    /// Every slot of the trigger being written names who chooses it.
+    every_slot_chosen: bool,
+    /// The trigger being written says that its subject chooses its targets.
+    subject_chooses: bool,
+    /// Its slots leave that to the subject, and that is who the event binds.
+    controller_subject: bool,
     /// `CardDef::lasting_cost_changes`.
     made_cost_changes: Vec<String>,
     /// `CardDef::labels` of abilities to choose among as a body resolves.
@@ -970,6 +979,10 @@ impl Compiler {
             printed_mana: None,
             slot_counts: Default::default(),
             count_read: None,
+            implied_branch: None,
+            every_slot_chosen: false,
+            subject_chooses: false,
+            controller_subject: false,
             made_cost_changes: Vec::new(),
             choice_labels: Vec::new(),
             option_labels: false,
