@@ -3592,6 +3592,9 @@ impl Compiler {
                     self.ability(trigger, &format!("{label}_{i}"), parts, None)?;
                 }
             }
+            Ability::FlashIf(condition) if format!("{condition:?}").contains("AnnouncedX") => {
+                return Err(gap("a limit on the X announced"));
+            }
             Ability::FlashIf(condition) => {
                 let function = format!("{label}_flash");
                 let test = self.queried(|c| c.activation_condition(condition, &function))?;

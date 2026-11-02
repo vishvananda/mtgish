@@ -2750,6 +2750,15 @@ impl Compiler {
                     Expr::Constant(n) if *n >= 0 => n.to_string(),
                     Expr::AnnouncedX => "TargetSpec::COUNTED".to_string(),
                     other if self.counts_own_x(other) => "TargetSpec::COUNTED".to_string(),
+                    // "When you do, ... with total mana value X or less, where X is
+                    // the result": the number a reflexive ability was given, which
+                    // its `COUNTED` reads (CR 603.12; Fire Lord Sozin).
+                    Expr::Performed(result) | Expr::CountersRemoved(result) | Expr::DieResult(result)
+                        if self.counted == Some(result.0)
+                            && self.slot_counts == target_counts::SlotCounts::Delayed =>
+                    {
+                        "TargetSpec::COUNTED".to_string()
+                    }
                     _ => return None,
                 };
                 match property {

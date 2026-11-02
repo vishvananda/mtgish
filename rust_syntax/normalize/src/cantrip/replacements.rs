@@ -4,6 +4,11 @@
 //! ability about the source's own arrival is a part of `CardDef::enters`.
 use super::*;
 
+/// The X a number read with no stack item holds as a hole.
+const ANNOUNCED_X_HELD: &str = "planned_value!(\"numeric expression AnnouncedX\",";
+/// The same X in an effect a resolving ability made: the effect has no number of its own.
+const MADE_EFFECT_X: &str = "planned_value!(\"the X of the ability that made a replacement effect\",";
+
 /// One alternative of the pending event, as `Arm` is for a trigger: `locals`
 /// bind `subject` and `data` from `binding`, a proposal's payload.
 pub(super) struct Watched {
@@ -767,6 +772,7 @@ impl Compiler {
         let about = about.first().map(|o| self.object(o)).transpose()?;
         let hint = quoted(&self.said(lane_k::Said::Sentence, ability_text(body)));
         let label = format!("made_{}", self.fresh());
+        let functions_from = self.functions.len();
         let results = self.results();
         let scope = self.affected_in_scope;
         self.reset_results();
@@ -829,6 +835,14 @@ impl Compiler {
         self.affected_in_scope = scope;
         self.restore_results(results);
         let kind = compiled?;
+        // "{X}, {T}: ... this turn, it deals that much damage plus X instead" (Taii
+        // Wakeen), "the next time you would draw a card this turn, instead look at
+        // the top X cards" (Aladdin's Lamp): the effect is asked with no stack item,
+        // and `EffectKind::ReplacementRule` keeps no number of the ability that made it.
+        if self.functions.get(functions_from..).is_some_and(|made| made.contains(ANNOUNCED_X_HELD)) {
+            let made = self.functions.split_off(functions_from);
+            self.functions.push_str(&made.replace(ANNOUNCED_X_HELD, MADE_EFFECT_X));
+        }
         let to = to.map_or_else(
             || "Some(Target::None)".to_string(),
             |to| self.fetch(format!("({to}).first().copied()")),

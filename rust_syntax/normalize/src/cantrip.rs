@@ -1307,17 +1307,17 @@ impl Compiler {
                 }
             }
             // How many is read as the slot is chosen, and a slot's size is a constant.
-            Count::UpTo(n) => format!(
-                ".between(0, {})",
-                planned::planned_value(
-                    "target cardinality UpTo",
-                    "1u32",
-                    &format!(
-                        "TargetSpec::read_as_chosen(|q: &dyn Query, asker: &Asker| {})",
-                        self.number(n)?.amount(u32::MAX.into(), "u32")?
-                    ),
+            Count::UpTo(n) => {
+                let read = self.number(n)?.amount(u32::MAX.into(), "u32")?;
+                format!(
+                    ".between(0, {})",
+                    planned::planned_value(
+                        target_counts::up_to_feature(self.slot_counts, self.activation_cost.is_some(), &read),
+                        "1u32",
+                        &format!("TargetSpec::read_as_chosen(|q: &dyn Query, asker: &Asker| {read})"),
+                    )
                 )
-            ),
+            }
             other => return self.target_count_rest(other),
         })
     }
@@ -1419,6 +1419,8 @@ impl Compiler {
             let spec = oracle.as_ref().unwrap_or(spec);
             let each_player = target_counts::each_player_slot(spec);
             let spec = each_player.as_ref().unwrap_or(spec);
+            let told = self.told_mana_value_slot(spec);
+            let spec = told.as_ref().unwrap_or(spec);
             let doubled;
             let spec = if self.second_of_two.is_some() {
                 doubled = TargetSpec {
@@ -1455,7 +1457,18 @@ impl Compiler {
                     &format!("Divide::of_slot({i}, {total})"),
                 ));
             } else if let Some(total) = &spec.distribute {
+                // "X plus 1 damage divided as you choose" (Meteor Shower): the X
+                // announced, through a function of it (`Divide::of_x`, as
+                // Shatterskull Smashing's "twice X").
+                let of_x = match total {
+                    Expr::Constant(_) | Expr::AnnouncedX => None,
+                    other if i == 0 && self.slot_counts == Default::default() => {
+                        self.total_of_x(other, label)
+                    }
+                    _ => None,
+                };
                 let total = match total {
+                    _ if of_x.is_some() => "TargetSpec::COUNTED".to_string(),
                     Expr::Constant(n) if i == 0 && *n >= 0 => n.to_string(),
                     Expr::AnnouncedX
                         if i == 0 && self.slot_counts == Default::default() =>
@@ -1469,6 +1482,15 @@ impl Compiler {
                         if i == 0
                             && self.slot_counts == target_counts::SlotCounts::Delayed
                             && self.counted.is_some() =>
+                    {
+                        "TargetSpec::COUNTED".to_string()
+                    }
+                    // "When you do, distribute that many": the number the
+                    // reflexive ability was given (CR 603.12).
+                    Expr::Performed(r) | Expr::CountersRemoved(r) | Expr::DieResult(r)
+                        if i == 0
+                            && self.slot_counts == target_counts::SlotCounts::Delayed
+                            && self.counted == Some(r.0) =>
                     {
                         "TargetSpec::COUNTED".to_string()
                     }
@@ -1489,14 +1511,36 @@ impl Compiler {
                     }
                     _ => return Err(gap("target with a divided amount").at(at)),
                 };
-                self.dividing = Some(format!("Divide {{ total: {total}, of_x: None }}"));
+                let of_x = of_x.map_or_else(|| "None".to_string(), |f| format!("Some({f})"));
+                self.dividing = Some(format!("Divide {{ total: {total}, of_x: {of_x} }}"));
             }
             self.choosing = Some(i);
             let chosen_by = match &spec.chooser {
                 Some(chooser) => self.chosen_by_another(chooser, &mut rule),
                 None => Ok(()),
             };
-            let read = self.slot_up_to_read(spec, i, label).filter(|_| together.is_empty());
+            // "X damage divided as you choose among any number of targets": each target
+            // is given at least one of the total (CR 601.2d), so the total holds the
+            // slot to it, and the slot itself is of any number (`ask_divided`).
+            // A triggered ability's `counted_by` reads such a number itself, where it can.
+            let divided_any = matches!(
+                (&spec.distribute, &spec.count),
+                (Some(total), Count::UpTo(n))
+                    if !matches!(n, Expr::Constant(_) | Expr::AnnouncedX)
+                        && format!("{total:?}") == format!("{n:?}")
+            );
+            const ANY: &str = ".between(0, cantrip_api::TargetSpec::ANY_NUMBER)";
+            let read = match divided_any {
+                true if self.slot_counts == Default::default() => Some(ANY.to_string()),
+                true => Some(match self.counted_read(&spec.count, &format!("{label}_{i}")) {
+                    Some(count) => count,
+                    None => match self.target_count(&spec.count) {
+                        Ok(count) if !count.contains("planned_value!") => count,
+                        _ => ANY.to_string(),
+                    },
+                }),
+                false => self.slot_up_to_read(spec, i, label).filter(|_| together.is_empty()),
+            };
             let count = match read {
                 Some(count) => Ok(count),
                 None => self.slot_count(&spec.count, &format!("{label}_{i}")),
@@ -2570,6 +2614,15 @@ fn emit_face(
         });
         parts.field("labels", labels);
     }
+    // "Loyalty X" (Nissa, Steward of Elements): it enters with the X its spell was cast
+    // with in loyalty counters, and with none put onto the battlefield uncast (CR
+    // 306.5b, 107.3m), as an artifact enters with X charge counters (Chalice of the Void).
+    let loyalty_x = matches!(ch.loyalty, Some(Expr::AnnouncedX))
+        && ch.mana_cost.iter().flatten().any(|s| matches!(s, ManaSymbol::X));
+    if loyalty_x {
+        writeln!(c.functions, "fn enters_with_x_loyalty(_: &mut dyn Game, entering: &mut Entering) -> Result<(), Suspend> {{ entering.counters[CounterKind::Loyalty as usize] += entering.x as i16; Ok(()) }}").unwrap();
+        parts.enters.push("enters_with_x_loyalty".into());
+    }
     let door_refused = parts.door_refused();
     let rest = parts.rest() + &place.fields;
     let Parts {
@@ -2593,6 +2646,7 @@ fn emit_face(
     let pt = ch.power_toughness;
     let loyalty = match &ch.loyalty {
         Some(Expr::Constant(n)) => Some(*n),
+        Some(_) if loyalty_x => None,
         Some(other) => {
             c.plan_loyalty(other);
             None

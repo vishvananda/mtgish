@@ -4562,9 +4562,7 @@ impl Compiler {
             (PaidFor::Ability, false) => Ok(format!(
                 "Cost {{ variable: Some(VariableCost::{variable}), ..Cost::NONE }}"
             )),
-            (PaidFor::Mana, _) => {
-                Self::planned_cost("removing X counters to activate a mana ability", variable)
-            }
+            (PaidFor::Mana, _) => Self::planned_cost(lane_g::MANA_COUNTERS_X, variable),
             (PaidFor::Ability, true) => Self::planned_cost(
                 "removing X counters where mana pays the same X",
                 format!("RemoveXCounters({kind})"),
