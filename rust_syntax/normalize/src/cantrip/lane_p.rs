@@ -2320,6 +2320,40 @@ impl Compiler {
                 return Ok(());
             }
         }
+        // "Look at the top three cards of your library. Exile one of them face down
+        // with a hatching counter on it": exiled face down, the counters put on it
+        // there (as suspend's are), and the player who looked at it may go on
+        // looking at it (CR 406.3).
+        if let (true, Destination::Exile, false, [], false) = (
+            face_down,
+            destination,
+            entry.tapped,
+            entry.states.as_slice(),
+            self.links_exile,
+        ) {
+            let pool = self.fetch(self.objects(objects)?);
+            let mut counters = String::new();
+            for (kind, n) in &entry.counters {
+                let n = self.fetch(self.number(n)?.code);
+                write!(counters, "g.add_counters(o, {}, ({n}) as i16); ", counter_kind(kind)?).unwrap();
+            }
+            // The last player this resolution had look at cards, who chose among them.
+            let looked = out
+                .rfind("g.look_at(")
+                .map(|at| &out[at + "g.look_at(".len()..])
+                .and_then(|rest| rest.split_once(','))
+                .map(|(player, _)| player.trim().to_string())
+                .filter(|player| {
+                    player.starts_with("player_") && player[7..].chars().all(|c| c.is_ascii_digit())
+                });
+            let look = looked.map_or(String::new(), |player| {
+                format!(" g.look_at({player}, &moved_{id});")
+            });
+            writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_face_down(&objects_{id}, None); for &o in &moved_{id} {{ if g.obj(o).zone.is(ZoneKind::Exile) {{ {counters}}} }}{look}").unwrap();
+            self.moved.insert(result.0, format!("moved_{id}"));
+            self.left_behind(result, effects::gone(&format!("objects_{id}")));
+            return Ok(());
+        }
         let failed = match face_down {
             true => gap("operation Move"),
             false => match self.move_objects(id, objects, destination, entry, result, &mut code) {
