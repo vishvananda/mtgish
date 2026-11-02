@@ -527,8 +527,8 @@ struct Compiler {
     wanted_labels: Option<String>,
     /// What each counter stage of the face prints.
     stages: BTreeMap<i64, Vec<lane_k::Line>>,
-    /// What's left of the printed lines of the stage being compiled.
-    stage_lines: Vec<lane_k::Line>,
+    /// What's left of the printed lines of the stage being compiled, while one is.
+    stage_lines: Option<Vec<lane_k::Line>>,
     /// The next "may" is done once each turn, under this key.
     do_once: Option<u8>,
     /// The abilities of one sentence are being written ("whenever this or that"):
@@ -1283,7 +1283,7 @@ impl Compiler {
             entering_as: Default::default(),
             wanted_labels: None,
             stages: BTreeMap::new(),
-            stage_lines: Vec::new(),
+            stage_lines: None,
             do_once: None,
             once_shared: None,
             first_again: None,

@@ -763,7 +763,8 @@ impl Compiler {
         let mut last = None;
         for (i, change, part) in parts_of_effect {
             let text = format!("Static: {}.", form(change));
-            let text = quoted(&self.said(lane_k::Said::Sentence, text));
+            let stats = matches!(change, Change::SetBasePowerToughness { .. });
+            let text = quoted(&self.said_of(lane_k::Said::Sentence, stats, text));
             let def = match part.whole {
                 Some(builder) => format!("{builder}({affects}, {text})"),
                 None => {

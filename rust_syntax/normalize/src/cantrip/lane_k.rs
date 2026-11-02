@@ -31,6 +31,12 @@ pub(super) struct Line {
     modes: Vec<String>,
     /// What it quotes: the text of an ability it grants or a token has.
     quotes: Vec<(Said, String)>,
+    /// A counter stage's power and toughness, "LEVEL 1-4: 2/2".
+    stats: bool,
+    /// Where a counter stage's line starts past its stage, "LEVEL 1-4: ".
+    staged: usize,
+    /// A counter stage's line some ability of the stage has said.
+    said: bool,
 }
 
 /// A face's printed text, in the order it reads.
@@ -212,6 +218,9 @@ fn line_of(kind: Said, text: String, raw: &str) -> Line {
         head: text.clone(),
         text,
         modes: Vec::new(),
+        stats: false,
+        staged: 0,
+        said: false,
     }
 }
 
@@ -256,6 +265,9 @@ impl Printed {
     pub(super) fn read(oracle: &str) -> Self {
         let mut printed = Printed::default();
         let mut stage = None;
+        // Cantrip quotes a stage's line with its stage, as Hexdrinker's "LEVEL
+        // 3-7: 4/4" and Adagia's "12+ | {3}{W}, {T}: ...".
+        let mut stage_said = String::new();
         for raw in oracle.lines() {
             let line = loyalty_printed(&without_reminder(raw));
             // "12+ | {1}{R}, {T}: ..." prints the stage and its line as one.
@@ -268,14 +280,19 @@ impl Printed {
             let opened = stage_marker(&marker);
             if marker == line && opened.is_some() {
                 stage = opened;
+                stage_said = format!("{marker}: ");
             } else if let Some(minimum) = opened.or(stage) {
+                if opened.is_some() {
+                    stage_said = format!("{marker} | ");
+                }
                 stage = Some(minimum);
                 // Beside what it says, a stage prints a power and toughness.
-                let numbers = line.chars().all(|c| c.is_ascii_digit() || "/*".contains(c));
-                if !numbers {
-                    let line = line_of(kind_of(&line), line, raw);
-                    printed.stages.entry(minimum).or_default().push(line);
-                }
+                let stats = line.chars().all(|c| c.is_ascii_digit() || "/*".contains(c));
+                let mut said = line_of(kind_of(&line), format!("{stage_said}{line}"), raw);
+                said.head = said.text.clone();
+                said.stats = stats;
+                said.staged = stage_said.len();
+                printed.stages.entry(minimum).or_default().push(said);
             } else if line.is_empty() {
                 // A basic land type's ability is printed as a reminder (CR 305.6).
                 let inner = raw.trim().trim_matches(['(', ')']);
@@ -2003,7 +2020,7 @@ impl Compiler {
     }
     /// Reads the printed lines of the counter stage starting at `minimum`.
     pub(super) fn on_stage(&mut self, minimum: i64) {
-        self.stage_lines = self.stages.get(&minimum).cloned().unwrap_or_default();
+        self.stage_lines = Some(self.stages.get(&minimum).cloned().unwrap_or_default());
     }
     /// The words of an effect that waits to apply, as `GrantedReplacementDef::text`
     /// and `GrantedPreventionDef::text` want them: from the sentence of its line that
@@ -2502,8 +2519,45 @@ impl Compiler {
     /// The printed line of what's being compiled, as `kind`; a granted ability
     /// reads what the line quotes.
     pub(super) fn said(&mut self, kind: Said, fallback: String) -> String {
-        if let Some(at) = self.stage_lines.iter().position(|line| line.kind == kind) {
-            return self.stage_lines.remove(at).text;
+        self.said_of(kind, false, fallback)
+    }
+    /// As `said`, a counter stage's power and toughness when `stats`: on a stage,
+    /// its own lines, never the line that holds the stages (Caravan Escort's
+    /// "Level up {2}").
+    pub(super) fn said_of(&mut self, kind: Said, stats: bool, fallback: String) -> String {
+        if let Some(lines) = &mut self.stage_lines {
+            // The next line of the kind; once each is said, the last again, as
+            // "LEVEL 4+: Flying, vigilance" is the words of both its keywords; with
+            // none of the kind, the stage's first, as Class F Shuttlecraft's "6+ |
+            // Flying, vigilance" is also the words of its becoming a creature.
+            let fits = |line: &Line| line.stats == stats && (stats || line.kind == kind);
+            let next = lines.iter().position(|line| fits(line) && !line.said);
+            // What a stage's line quotes, for what it grants: Joraga Treespeaker's
+            // "LEVEL 5+: Elves you control have "{T}: Add {G}{G}."".
+            if next.is_none() && self.granting {
+                let quoted = lines.iter().flat_map(|line| &line.quotes).find(|(said, _)| *said == kind);
+                if let Some((_, quote)) = quoted {
+                    return quote.clone();
+                }
+            }
+            let Some(at) = next
+                .or_else(|| lines.iter().rposition(fits))
+                .or_else(|| lines.iter().position(|line| !line.stats))
+                .or((!lines.is_empty()).then_some(0))
+            else {
+                return fallback;
+            };
+            let line = &mut lines[at];
+            // A stage has its activated and triggered abilities by a static that
+            // grants them (CR 711.2a, 721.2a). The ability is said without its
+            // stage, and the static that grants it with it (Adagia's "12+ | {3}{W},
+            // {T}: ..."), whichever is compiled first.
+            if matches!(line.kind, Said::Activated | Said::Triggered) && !line.said {
+                line.kind = Said::Sentence;
+                return line.text[line.staged..].to_string();
+            }
+            line.said = true;
+            return line.text.clone();
         }
         let Some(line) = &self.line else {
             return fallback;
@@ -2533,7 +2587,7 @@ impl Compiler {
             }
             return vec![line.text.clone()];
         }
-        let staged = self.stage_lines.iter().map(|line| line.text.clone());
+        let staged = self.stage_lines.iter().flatten().filter(|line| !line.said).map(|line| line.text.clone());
         let chapters = self.chapters.values().cloned();
         staged.chain(chapters).collect()
     }

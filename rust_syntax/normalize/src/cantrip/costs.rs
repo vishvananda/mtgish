@@ -1098,7 +1098,7 @@ impl Compiler {
             };
             self.on_stage(stage.minimum.into());
             let staged = self.ability(&staged, &format!("{label}_stage_{i}"), parts, None);
-            self.stage_lines.clear();
+            self.stage_lines = None;
             staged?;
         }
         Ok(())

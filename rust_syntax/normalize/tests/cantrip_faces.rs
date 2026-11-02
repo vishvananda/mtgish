@@ -14,6 +14,7 @@ const NAMES: &[&str] = &[
     "Black Panther, Hope Enduring",
     "Brigid, Clachan's Heart",
     "Call to the Kindred",
+    "Caravan Escort",
     "Cease",
     "Delver of Secrets",
     "Eiganjo Dynastorian",
@@ -22,7 +23,10 @@ const NAMES: &[&str] = &[
     "Grove's Bounty",
     "Hada Spy Patrol",
     "Hearth Elemental",
+    "Hexdrinker",
     "Jade Seedstones",
+    "Joraga Treespeaker",
+    "Lord of Shatterskull Pass",
     "Revitalize",
     "Selective Adaptation",
     "Sink into Stupor",
@@ -265,4 +269,35 @@ fn a_face_named_as_another_card_is_quoted_as_its_own_card_prints_it() {
 #[test]
 fn gaining_life_cites_the_rule_of_gaining_life() {
     says("Revitalize", &["(CR 608.2, 121.1, 119.3)."]);
+}
+
+#[test]
+fn a_level_s_lines_are_quoted_with_their_level() {
+    // As Cantrip's own Hexdrinker: each static of a level says its level, and its power and toughness its numbers.
+    says(
+        "Caravan Escort",
+        &["\"LEVEL 1-4: 2/2\"", "\"LEVEL 5+: 5/5\"", "\"LEVEL 5+: First strike\""],
+    );
+    says(
+        "Hexdrinker",
+        &[
+            "\"LEVEL 3-7: 4/4\"",
+            "\"LEVEL 3-7: Protection from instants\"",
+            "\"LEVEL 8+: 6/6\"",
+            "\"LEVEL 8+: Protection from everything\"",
+        ],
+    );
+    let Some(file) = file("Caravan Escort") else { return };
+    assert!(!file.contains("\"LEVEL 1-4\"") && !file.contains("Level up {2} ("), "{file}");
+}
+
+#[test]
+fn a_level_s_granted_ability_is_said_without_its_level_and_granted_with_it() {
+    // As Adagia's "12+ | {3}{W}, {T}: ..." static and its ability.
+    let line = "Whenever this creature attacks, it deals 6 damage to each creature defending player controls.";
+    says("Lord of Shatterskull Pass", &[&format!("\"LEVEL 6+: {line}\""), &format!("\"{line}\"")]);
+    // What a level's line quotes is the text of what it grants.
+    let Some(file) = file("Joraga Treespeaker") else { return };
+    assert_eq!(file.matches("            \"{T}: Add {G}{G}.\",").count(), 2, "{file}");
+    assert_eq!(file.matches("            \"LEVEL 5+: 1/4\",").count(), 1, "{file}");
 }
