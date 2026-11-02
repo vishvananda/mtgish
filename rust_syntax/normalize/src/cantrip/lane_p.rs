@@ -1515,6 +1515,9 @@ impl Compiler {
         let HistoryWindow::SinceLastTurnOf(player) = window else {
             return Err(gap(feature.as_str()));
         };
+        if let Some(window) = self.since_their_last_turn(player)? {
+            return Ok(window);
+        }
         Ok(planned::planned_value(
             &feature,
             "q.history().this_turn().iter()",
@@ -1523,6 +1526,23 @@ impl Compiler {
                 self.player(player)?
             ),
         ))
+    }
+    /// The records since a player's last turn: the last one that isn't this one,
+    /// from where it began or where it ended as the card's words say, which the
+    /// AST doesn't. With none yet, the whole game.
+    fn since_their_last_turn(&self, player: &PlayerRef) -> Result<Option<String>> {
+        let Some(line) = self.line_text() else {
+            return Ok(None);
+        };
+        let player = self.player(player)?;
+        let theirs = format!("Some(r.active) == {player} && r.turn != history.turn");
+        Ok(if line.contains("beginning of your last turn") {
+            Some(format!("{{ let history = q.history(); let last = history.all().iter().rev().find(|r| {theirs}).map(|r| r.turn); history.all()[history.all().iter().position(|r| Some(r.turn) == last).unwrap_or(0)..].iter() }}"))
+        } else if line.contains("your last turn") {
+            Some(format!("{{ let history = q.history(); history.all()[history.all().iter().rposition(|r| {theirs}).map_or(0, |at| at + 1)..].iter() }}"))
+        } else {
+            None
+        })
     }
 }
 
@@ -2250,6 +2270,9 @@ impl Compiler {
         let feature = format!("history window {}", form(window));
         let code = match window {
             ObjectWindow::SinceLastTurnOf(player) => {
+                if let Some(window) = self.since_their_last_turn(player)? {
+                    return Ok(window);
+                }
                 format!(
                     "cantrip_mechanics::history::since_last_turn_of(q, {}).iter()",
                     self.player(player)?
@@ -2261,11 +2284,11 @@ impl Compiler {
                     self.player(player)?
                 )
             }
+            // In their upkeep, "your last upkeep" is the one before it, and with none
+            // yet the whole game. An upkeep has no combat, so two in a turn read alike.
             ObjectWindow::SinceLastUpkeepOf(player) => {
-                format!(
-                    "cantrip_mechanics::history::since_last_upkeep_of(q, {}).iter()",
-                    self.player(player)?
-                )
+                let player = self.player(player)?;
+                return Ok(format!("{{ let history = q.history(); let upkeeping = q.state().turn.step() == Step::Upkeep; history.all()[history.select(EventQuery::kind(EventMask::STEP_BEGAN).step(Step::Upkeep)).rev().find(|r| Some(r.active) == {player} && !(upkeeping && r.turn == history.turn)).map_or(0, |r| r.serial as usize + 1)..].iter() }}"));
             }
             other => return Err(gap(format!("history window {}", form(other)))),
         };

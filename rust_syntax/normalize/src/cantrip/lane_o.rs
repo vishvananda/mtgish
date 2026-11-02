@@ -373,6 +373,25 @@ impl Compiler {
             parts.block_rules.push(format!("{function}_block"));
             return Ok(true);
         }
+        // "Can't be blocked as long as defending player controls ...": of each block,
+        // whoever is defending against that attacker (CR 506.2).
+        if let RuleChange::BlockedByDefender { players, unless } = rule {
+            let member = self.player_member(players).map_err(|_| gap(&feature))?;
+            let allowed = if *unless { member } else { format!("!({member})") };
+            let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}_block(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool {{ let asker = &Asker::new(source, q.controller(source)); !{function}(q, asker, attacker) || q.defending_player(attacker).is_none_or(|player| {allowed}) }}").unwrap();
+            parts.block_rules.push(format!("{function}_block"));
+            return Ok(true);
+        }
+        // "Can't be turned face up" (CR 708.7) is the source's effect, no ability of
+        // the permanent, and stops every way of turning it up.
+        if matches!(rule, RuleChange::Prohibit(ObjectAction::TurnFaceUp)) {
+            let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
+            parts.table("face_up_bans", function.to_string());
+            return Ok(true);
+        }
         let code = self.rule_code(rule).map_err(|_| gap(&feature))?;
         let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
@@ -614,6 +633,20 @@ impl Compiler {
             ManaPayment::Abilities(filter) => {
                 format!("Payment::Abilities({})", self.ability_filter(filter)?)
             }
+        })
+    }
+    /// `bool`: whether a cost, told only what it pays for as `costing`, is one of
+    /// those `on` names. Which spell or ability it pays for a `CostBan` isn't told.
+    pub(super) fn cost_paid_for(&self, on: &ManaPayment) -> Result<String> {
+        const NOT_MANA: &str = "!(def.is_some_and(|d| d.is_mana_ability()))";
+        Ok(match on {
+            ManaPayment::Anything => "true".to_string(),
+            ManaPayment::Spells(ObjectFilter::Any) => "matches!(costing, CostFor::Spell)".to_string(),
+            ManaPayment::Abilities(ObjectFilter::Any) => "!matches!(costing, CostFor::Spell)".to_string(),
+            ManaPayment::Abilities(filter) if self.ability_test(filter)? == NOT_MANA => {
+                "matches!(costing, CostFor::Ability)".to_string()
+            }
+            _ => return Err(gap("a cost ban on some spells or abilities")),
         })
     }
     fn prohibition(&self, action: &PlayerAction) -> Result<String> {

@@ -832,9 +832,11 @@ impl Compiler {
             // How much of something: all of them together is its sum. A reader
             // one player at a time may mean their own or the total; the AST
             // does not say which, so nothing is read for it.
+            let by_player = lane_n::read_player_by_player(each.rest, &result)
+                && !self.line_text().is_some_and(|line| line.contains("the total amount"));
             let total = (matches!(kind, ViewKind::Performed)
                 && local.starts_with("done_")
-                && !lane_n::read_player_by_player(each.rest, &result))
+                && !by_player)
             .then(|| format!("done_total_{k}"));
             if let Some(total) = &total {
                 writeln!(declared, "let mut {total}: i64 = 0;").unwrap();
@@ -858,7 +860,7 @@ impl Compiler {
                 let bound = format!("bound_{}", each.binding.0);
                 let rest = each.rest;
                 self.tally_share(result, &local, &bound, rest, &mut declared, &mut tail);
-                if lane_n::read_player_by_player(rest, &result) {
+                if by_player {
                     self.notes.read_as_own.insert(result);
                 }
             }

@@ -545,6 +545,24 @@ impl Compiler {
                 );
                 self.table_entry(parts, table, &function, code);
             }
+            // "Players can't pay life ... to cast spells or activate abilities" (CR 118.3):
+            // what a cost is paid for is all a ban is told of what it pays for.
+            PlayerAction::PayLife(on) => {
+                let paying = self.cost_paid_for(on)?;
+                self.table_entry(parts, "cost_bans", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, costing: CostFor, payment: CostPayment) -> bool {{ {banned} && {paying} && matches!(payment, CostPayment::Life) }}"
+                ));
+            }
+            PlayerAction::Sacrifice {
+                objects,
+                paying: Some(on),
+            } => {
+                let paying = self.cost_paid_for(on)?;
+                let test = self.filter(objects, &Candidate::of("permanent"))?;
+                self.table_entry(parts, "cost_bans", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, costing: CostFor, payment: CostPayment) -> bool {{ {banned} && {paying} && matches!(payment, CostPayment::Sacrifice(permanent) if {test}) }}"
+                ));
+            }
             other => return Err(gap(format!("prohibited action {}", form(other)))),
         }
         Ok(())

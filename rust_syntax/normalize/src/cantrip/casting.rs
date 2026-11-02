@@ -445,6 +445,18 @@ impl Compiler {
                 comparison: Comparison::NotEqual,
                 right: Expr::Constant(0),
             }) if condition.is_none() => parts.field("x_cant_be_zero", "true".into()),
+            // Blight X's own limit: `VariableCost::BlightX` announces X up to it.
+            CastingRule::Require(Condition::Compare {
+                left: Expr::AnnouncedX,
+                comparison: Comparison::LessOrEqual,
+                right,
+            }) if condition.is_none()
+                && parts
+                    .fields
+                    .get("additional_cost")
+                    .is_some_and(|cost| cost.contains("VariableCost::BlightX"))
+                && format!("{right:?}").contains("Toughness")
+                && format!("{right:?}").contains("Maximum") => {}
             // A test of what may be cast has no X to read: none is announced yet.
             CastingRule::Require(required)
                 if condition.is_none() && format!("{required:?}").contains("AnnouncedX") =>
