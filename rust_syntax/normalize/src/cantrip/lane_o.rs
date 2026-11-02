@@ -593,7 +593,7 @@ impl Compiler {
     }
     /// `test` with what it reads of the resolution - one target, a player or an
     /// object - read from `about` instead, and the code of that `about`.
-    fn named_as_resolved(&self, test: &str) -> Result<(String, String)> {
+    pub(super) fn named_as_resolved(&self, test: &str) -> Result<(String, String)> {
         let mut test = test.to_string();
         let mut about: Option<String> = None;
         for slot in 0..8 {

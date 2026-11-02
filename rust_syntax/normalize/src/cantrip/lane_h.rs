@@ -2343,6 +2343,47 @@ impl Compiler {
         };
         Ok(statics::LayerChange::of("Ability", body))
     }
+    /// "Creature spells can't be cast this turn" (Moonhold, Cease Fire): which
+    /// spells a resolving effect forbids, asked of each spell as it would be cast
+    /// (CR 611.2c), is a rule of the card's `lasting_spell_rules`, as
+    /// `lasting_rules` hold one of permanents; the effect names its index, and
+    /// what the words named as it resolved (a target) is its `about`: what else
+    /// the resolution chose (a name) is a gap of its own, as for `lasting_rules`.
+    fn lasting_spell_rule(&mut self, feature: &str, filter: &ObjectFilter) -> Result<String> {
+        let saved = (self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+        let asked = self.filter(filter, &super::players::cast_card());
+        (self.reader, self.event_at) = saved;
+        // What the resolution names is read as it has it, then handed over.
+        let test = match asked {
+            Ok(test) => test,
+            Err(_) => self.filter(filter, &super::players::cast_card())?,
+        };
+        // "That spell" of a trigger (Living Breakthrough): its subject.
+        const SUBJECT: &str = "item.subject";
+        let (test, subject) = match test.contains(SUBJECT) {
+            true => (test.replace(SUBJECT, "about"), true),
+            false => (test, false),
+        };
+        // A rule reading what the resolution chose but a target can't keep it.
+        let (test, about) = self.named_as_resolved(&test)?;
+        let about = match (subject, about.as_str()) {
+            (false, _) => about,
+            (true, "Target::None") => SUBJECT.to_string(),
+            (true, _) => return Err(gap("a lasting rule reading two things its ability chose")),
+        };
+        let index = self.holes.matches("=> lasting_spell_rules:").count();
+        let function = format!("lasting_spell_rule_{index}");
+        let params = "q: &dyn Query, asker: &Asker, about: Target, player: PlayerId, spell: ObjectId";
+        let body = format!("let source = asker.source; {test}");
+        let item = planned::planned_fn(feature, &function, params, "bool", &body);
+        writeln!(self.functions, "{item}").unwrap();
+        let id = planned::requirement(feature);
+        writeln!(self.holes, "planned_item!({id:?} => lasting_spell_rules: {function});").unwrap();
+        Ok(format!(
+            "EffectKind::CantCast {{ player, card: item.ability.card, index: {index}, about: {about} }}"
+        ))
+    }
     /// "Until end of turn, target player can't cast spells": a rule about the
     /// player, not an ability of anything (CR 611.2c). False if this is no such rule.
     #[allow(clippy::too_many_arguments)]
@@ -2398,11 +2439,8 @@ impl Compiler {
                 None,
             ),
             PlayerAction::CastSpell { from: None, filter } => {
-                let test = self.filter(filter, &super::players::cast_card())?;
-                (
-                    format!("EffectKind::CantCast {{ player, spells: SpellSet::matching(move |q, spell| {test}) }}"),
-                    Some("player rule for a while can't cast some spells"),
-                )
+                const FEATURE: &str = "player rule for a while can't cast some spells";
+                (self.lasting_spell_rule(FEATURE, filter)?, Some(FEATURE))
             }
             PlayerAction::PlayLand {
                 from: None,
