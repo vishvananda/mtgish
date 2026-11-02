@@ -15,6 +15,7 @@ sys.dont_write_bytecode = True
 os.environ.setdefault("CARD_LANE", tempfile.mkdtemp(prefix="card-lane-test-"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import card_lane as lane  # noqa: E402
+import cantrip_tree as tree  # noqa: E402
 
 class Source(unittest.TestCase):
     def test_reminder_text_is_not_a_line_to_validate(self):
@@ -593,6 +594,22 @@ counter_kinds! {
 
 pub struct After;
 '''
+
+
+class Rewrites(unittest.TestCase):
+    def test_a_rule_the_source_adds_is_reported_until_it_has_a_verdict(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "grammars").mkdir()
+            (root / "data").mkdir()
+            (root / "grammars/find_replace.json5").write_text(
+                '[\n  // old "find": "not a rule"\n  {"reason": "x", "cards": ["A"], "find": "a \\"b\\" c", "replace": "d"},\n'
+                '  {"reason": "y", "cards": ["B"], "find": "new", "replace": "e"},\n]\n')
+            (root / "data/cantrip_rewrites.json").write_text(
+                json.dumps([{"find": 'a "b" c', "cards": ["A"], "verdict": "same"}, {"find": "gone", "cards": ["C"], "verdict": "same"}]))
+            rewrites, unread = tree.rewrites_of(root)
+        self.assertEqual([row["find"] for row in rewrites], ['a "b" c'])
+        self.assertEqual(unread, ["new"])
 
 
 class Counters(unittest.TestCase):

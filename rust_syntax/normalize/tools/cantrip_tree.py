@@ -292,6 +292,17 @@ def load_rules(root):
     return [rule for path in paths for rule in json.loads(path.read_text())]
 
 
+def rewrites_of(root):
+    """What the source rewrites in card text before parsing, read from its rules, and our verdict on each.
+
+    Cantrip plays Oracle text, so a rule with no verdict may be a card played as no one printed it."""
+    source = re.sub(r"^\s*//.*$", "", (root / "grammars/find_replace.json5").read_text(), flags=re.M)
+    finds = [json.loads(f'"{found}"') for found in re.findall(r'"find":\s*"((?:[^"\\]|\\.)*)"', source)]
+    verdicts = json.loads((root / "data/cantrip_rewrites.json").read_text())
+    known = {row["find"] for row in verdicts}
+    return [row for row in verdicts if row["find"] in finds], [find for find in finds if find not in known]
+
+
 def rule_for(feature, rules):
     for rule in rules:
         if re.search(rule["match"], feature):
@@ -442,6 +453,14 @@ def tracker(args):
               "the card's file uses the kind, and a commit just before the card adds the line to `counter_kinds!`.", "",
               "| counter | cards | examples |", "|---|---|---|"]
     lines += [f"| {counter_name(word)} | {len(names)} | {', '.join(sorted(names)[:3])} |" for word, names in sorted(counters.items(), key=lambda kv: (-len(kv[1]), kv[0]))]
+    rewrites, unread = rewrites_of(root)
+    lines += ["", "## Text the source rewrites", "",
+              f"The source changes {len(rewrites) + len(unread)} passages of card text on purpose before parsing (`grammars/find_replace.json5`), "
+              "and Cantrip plays Oracle text, so each has a verdict in `data/cantrip_rewrites.json`. "
+              f"{len(unread)} have none yet. Those that change nothing or sit on cards not played are not listed.", ""]
+    lines += [f"- not read yet: `{find}`" for find in unread]
+    lines += ["| cards | verdict | note |", "|---|---|---|"]
+    lines += [f"| {', '.join(row['cards'])} | {row['verdict']} | {row.get('note', '')} |" for row in rewrites if row["verdict"] not in ("same", "not played")]
     lines += ["", "## Every requirement", "", "| requirement | class | fix | cards | written | alone | needs | examples |", "|---|---|---|---|---|---|---|---|"]
     for row in rows:
         if row["cards"]:
