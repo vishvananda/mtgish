@@ -57,7 +57,17 @@ pub(super) fn planned_value(feature: &str, placeholder: &str, code: &str) -> Str
     if landed(feature) {
         return code.to_string();
     }
+    let code = inside_a_hole(code);
     format!("planned_value!({feature:?}, {placeholder} => {code})")
+}
+/// What a hole's own code hands each object it acts on: "the affected object"
+/// inside a duration that lasts while something holds of it, a spell's effect as
+/// it resolves, each Aura put onto the battlefield attached, a perpetual effect
+/// on each object. The outer hole's call supplies it, so the read follows that
+/// hole instead of naming one of its own.
+fn inside_a_hole(code: &str) -> String {
+    const AFFECTED: &str = "planned_value!(\"object reference Affected\"";
+    code.replace(AFFECTED, &format!("planned_value!({FOLLOWS_GAP:?}"))
 }
 /// Every `planned_value` in a file's code.
 pub(super) fn value_gaps(rust: &str) -> Vec<Diagnostic> {
@@ -192,6 +202,7 @@ impl Compiler {
             return;
         }
         self.gaps.push(gap(feature));
+        let code = inside_a_hole(code);
         writeln!(out, "planned!({id:?} => {code});").unwrap();
     }
     /// The entry `list` of the card definition will hold once `feature` exists:
@@ -242,6 +253,7 @@ impl Compiler {
     ) {
         let id = requirement(feature);
         if let Some(code) = self.state_instruction(feature, instruction) {
+            let code = inside_a_hole(&code);
             writeln!(out, "planned!({id:?} => {code});").unwrap();
             return;
         }
