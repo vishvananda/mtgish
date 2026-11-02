@@ -134,6 +134,14 @@ impl Compiler {
     fn asked(&self, n: &Expr) -> Result<String> {
         self.number(n).map(|n| n.code)
     }
+    /// How many of a `Count`, which counts in `u32` (Cantrip's `Count::Exactly`):
+    /// a printed number is that constant.
+    fn counted(&self, n: &Expr) -> Result<String> {
+        match n {
+            Expr::Constant(c) if *c >= 0 => Ok(c.to_string()),
+            _ => self.asked(n),
+        }
+    }
     /// A filter of abilities, over `ability` and the `object` it is on.
     fn activation_bar(&self, filter: &ActivationFilter) -> Result<String> {
         Ok(format!(
@@ -1992,7 +2000,8 @@ impl Compiler {
             Some(spending) => format!("Some({})", spend_as(spending)?),
             None => "None".into(),
         };
-        Ok(format!("AbilitiesOf {{ objects: {ids}, kinds: {kinds}, once_each_turn: {once_each_turn}, spend_as: {spending} }}"))
+        // Not `AbilitiesOf`, Cantrip's word for which sources a set of abilities is of.
+        Ok(format!("AbilitiesFrom {{ objects: {ids}, kinds: {kinds}, once_each_turn: {once_each_turn}, spend_as: {spending} }}"))
     }
     /// A static ability "has all abilities of ..." that `gain_abilities_of` can't
     /// read: `failed` stays the requirement.
@@ -2502,13 +2511,13 @@ impl Compiler {
     fn count_code(&self, count: &Count) -> Result<String> {
         Ok(match count {
             Count::Exactly(n) | Count::UpTo(n) | Count::AtLeast(n) | Count::AsManyAsCan(n) => {
-                format!("Count::{}({})", form(count), self.asked(n)?)
+                format!("Count::{}({})", form(count), self.counted(n)?)
             }
             Count::AnyNumber => "Count::AnyNumber".into(),
             Count::Between { minimum, maximum } => format!(
                 "Count::Between({}, {})",
-                self.asked(minimum)?,
-                self.asked(maximum)?
+                self.counted(minimum)?,
+                self.counted(maximum)?
             ),
             other => return Err(gap(format!("count {}", form(other)))),
         })
@@ -2531,7 +2540,7 @@ impl Compiler {
             None => "Count::Each".to_string(),
         };
         Ok(format!(
-            "Selection {{ objects: {}, count: {count} }}",
+            "CostPick {{ objects: {}, count: {count} }}",
             self.pick_from(&selection.objects)?
         ))
     }
