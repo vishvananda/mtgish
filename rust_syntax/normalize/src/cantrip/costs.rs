@@ -1106,6 +1106,17 @@ impl Compiler {
                             property: Property::Power,
                             ..
                         })] => "cantrip_mechanics::triggers::ward_life_equal_to_power(\"Ward\u{2014}Pay life equal to this creature's power.\")".into(),
+                        // "Ward—Get N poison counters" (The Serpent Society).
+                        [CostPart::PutCounters(placements)] if poison_ward(placements).is_some() => {
+                            let n = poison_ward(placements).unwrap_or(1);
+                            const WORDS: [&str; 10] = ["a", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+                            let counters = match WORDS.get(usize::from(n) - 1) {
+                                Some(&"a") => "a poison counter".to_string(),
+                                Some(word) => format!("{word} poison counters"),
+                                None => format!("{n} poison counters"),
+                            };
+                            format!("cantrip_mechanics::triggers::ward_poison::<{n}>(\"Ward\u{2014}Get {counters}.\")")
+                        }
                         _ => self.ward_beyond(cost, label)?,
                     };
                     parts.abilities.push(ward);
@@ -1453,4 +1464,20 @@ impl Compiler {
         }
         Ok(())
     }
+}
+
+/// "Ward—Get N poison counters": the N, where the ward cost puts that many
+/// poison counters on the player who targeted (CR 702.21a, 122.1f).
+fn poison_ward(placements: &[CounterPlacement]) -> Option<u8> {
+    let [CounterPlacement {
+        recipients: Recipients::Players(PlayerSet::One(PlayerRef::AbilityController)),
+        kind,
+        amount: Expr::Constant(n),
+        selection: None,
+    }] = placements
+    else {
+        return None;
+    };
+    let poison = matches!(kind, crate::counter::CounterKind::Named(name) if format!("{name:?}").contains("Poison"));
+    u8::try_from(*n).ok().filter(|&n| poison && n > 0)
 }
