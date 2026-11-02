@@ -1500,7 +1500,10 @@ impl Compiler {
                 Some(Count::AnyNumber) => "CostCount::AnyNumber".to_string(),
                 Some(Count::AtLeast(Expr::Constant(n))) => format!("CostCount::AtLeast({n})"),
                 Some(Count::Exactly(n)) => {
-                    format!("CostCount::Reading(|q, asker| {})", self.asked_number(n)?)
+                    let n = self.asked_number(n)?;
+                    let params = "q: &dyn Query, asker: &Asker";
+                    let count = self.rule_fn(FEATURE, &format!("{label}_moved_count"), params, "i64", &n);
+                    format!("CostCount::Reading({count})")
                 }
                 Some(other) => return Err(gap(format!("move cost counted {}", form(other)))),
             };

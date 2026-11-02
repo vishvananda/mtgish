@@ -1976,12 +1976,11 @@ impl Compiler {
         }
         let (guard, member) = (self.guard()?, self.player_member(players)?);
         let cards = self.objects(objects)?;
-        self.plan_entry(
-            "cards a player may look at",
-            "play_rules",
-            &format!("PlayRule::MayLookAt(|q, asker, player, card| {guard}{member} && ({cards}).contains(&card))"),
-            parts,
-        );
+        const FEATURE: &str = "cards a player may look at";
+        let params = "q: &dyn Query, asker: &Asker, player: PlayerId, card: ObjectId";
+        let body = format!("{guard}{member} && ({cards}).contains(&card)");
+        let applies = self.rule_fn(FEATURE, "may_look_at", params, "bool", &body);
+        self.plan_entry(FEATURE, "play_rules", &format!("PlayRule::MayLookAt({applies})"), parts);
         Ok(())
     }
     /// "You can't cast more than one spell each turn": the spells this player
@@ -4210,10 +4209,11 @@ impl Compiler {
             [Change::Rule(RuleChange::Prohibit(ObjectAction::Counter))],
         ) = (affected, changes)
         {
+            // Every spell and ability: a flag, not a rule asked of each.
             self.plan_entry(
                 "static rule Prohibit Counter of abilities",
-                "cant_be_countered",
-                "|_, _, _| true",
+                "abilities_cant_be_countered",
+                "true",
                 parts,
             );
             return Ok(Vec::new());
