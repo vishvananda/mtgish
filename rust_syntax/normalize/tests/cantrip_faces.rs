@@ -14,12 +14,16 @@ const NAMES: &[&str] = &[
     "Brigid, Clachan's Heart",
     "Cease",
     "Delver of Secrets",
+    "Great Fierce Bee",
     "Grove's Bounty",
+    "Hada Spy Patrol",
     "Jade Seedstones",
     "Sink into Stupor",
+    "Stature, Size Shifter",
     "Temple of Power",
     "Unlicensed Hearse",
     "Valakut Awakening",
+    "Vengeful Townsfolk",
     "Watertight Gondola",
     "Wedding Announcement",
 ];
@@ -153,6 +157,12 @@ fn cant_be_blocked_as_long_as_is_the_keyword_while_it_holds() {
         "Watertight Gondola",
         &["chars.keywords = chars.keywords.with(Keyword::CantBeBlocked);"],
     );
+    // Power is of a later layer than the keyword's, and a level's lines are its stage's: both stay rules.
+    for name in ["Stature, Size Shifter", "Hada Spy Patrol"] {
+        let Some(file) = file(name) else { return };
+        assert!(file.contains("block_rules: &["), "{name}:\n{file}");
+        assert!(!file.contains("Keyword::CantBeBlocked);"), "{name}:\n{file}");
+    }
 }
 
 #[test]
@@ -160,6 +170,8 @@ fn the_data_s_wrong_reads_are_planned_holes() {
     let Some(rows) = rows() else { return };
     for (name, feature) in [
         ("Ajani, Nacatl Pariah", "one or more that die read as each in the data"),
+        ("Great Fierce Bee", "one or more that die read as each in the data"),
+        ("Vengeful Townsfolk", "one or more that die read as each in the data"),
         ("Sink into Stupor", "an opponent's permanent read as anyone's in the data"),
     ] {
         let (_, gaps) = &rows[name];

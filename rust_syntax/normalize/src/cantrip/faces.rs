@@ -250,15 +250,22 @@ impl Compiler {
         let Some(condition) = self.static_guard.clone() else {
             return Ok(false);
         };
-        if !matches!(word, "CantBeBlocked" | "CantBlock") {
+        // A level's lines are the stage's, said as the rule they were.
+        if !matches!(word, "CantBeBlocked" | "CantBlock") || !self.stages.is_empty() {
             return Ok(false);
         }
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Layer, EventAt::Nowhere);
         let test = self.condition(&condition);
         (self.reader, self.event_at) = saved;
+        let test = test?;
+        // Power and toughness are of layer 7, after the keyword's layer 6: a rule
+        // of them stays the combat rule it is (Stature, Size Shifter; Technodrome).
+        if test.contains(".power") || test.contains(".toughness") {
+            return Ok(false);
+        }
         let function = format!("{label}_keyword");
-        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn LayerQuery, source: ObjectId, chars: &mut Chars) {{ let asker = &Asker::new(source, q.controller(source)); if {} {{ chars.keywords = chars.keywords.with(Keyword::{word}); }} }}", test?).unwrap();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn LayerQuery, source: ObjectId, chars: &mut Chars) {{ let asker = &Asker::new(source, q.controller(source)); if {test} {{ chars.keywords = chars.keywords.with(Keyword::{word}); }} }}").unwrap();
         let text = quoted(&self.said(lane_k::Said::Sentence, format!("Static: {word}.")));
         parts.statics.push(format!(
             "static_ability(Layer::Ability, cantrip_mechanics::statics::itself, {function}, {text})"

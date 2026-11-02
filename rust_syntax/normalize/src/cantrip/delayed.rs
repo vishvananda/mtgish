@@ -941,7 +941,9 @@ impl Compiler {
                 "reflexive trigger on what an instruction does not report",
             ));
         };
-        let intervening = condition;
+        // Asked again as the reflexive resolves only when it reads the game, not what
+        // the instruction did, which is gone by then.
+        let intervening = condition.as_ref().filter(|c| !format!("{c:?}").contains("ResultId("));
         let condition = condition
             .as_ref()
             .map(|c| Ok::<_, Diagnostic>(self.fetch(self.condition(c)?)))

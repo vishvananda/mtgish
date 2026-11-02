@@ -11386,8 +11386,8 @@
 "evidence": [
 "data/mtgish.lines.ron"
 ],
-"how": "The data's trigger is WhenAPermanentDies(And([Other(ThisPermanent), And([IsCreatureType(Cat), ControlledByAPlayer(SinglePlayer(You))])])) where Oracle says 'Whenever one or more other Cats you control die': a batch that triggers once (CR 603.2c), as WhenAnyNumberOfCreaturesOrPlaneswalkersDie(..) reads it. Read as each, two Cats dying together trigger twice.",
-"note": "Ajani, Nacatl Pariah.",
+"how": "The data's trigger is WhenAPermanentDies(And([Other(ThisPermanent), And([IsCreatureType(Cat), ControlledByAPlayer(SinglePlayer(You))])])) where Oracle says 'Whenever one or more other Cats you control die' (Ajani; the Bee's and Townsfolk's are other creatures): a batch that triggers once (CR 603.2c), as WhenAnyNumberOfCreaturesOrPlaneswalkersDie(..) reads it. Read as each, two Cats dying together trigger twice.",
+"note": "Ajani, Nacatl Pariah; Great Fierce Bee; Vengeful Townsfolk.",
 "partial": "With the data right, the -4 still needs one permanent choosable for several types (cantrip_mechanics::each_opponent_keeps_one_of_each_type), and the trigger asks to exile Ajani when he is gone.",
 "verdict": "data"
 },
