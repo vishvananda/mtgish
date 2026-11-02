@@ -2521,6 +2521,21 @@ impl Compiler {
             }
             Condition::MostVotes { .. } => held("g.votes().most(option)"),
             Condition::ChosenWord(word) => self.chosen_word(word)?,
+            Condition::VotedFor {
+                player,
+                option: VoteOption::Word(word),
+            } if self.player_words.is_some() => {
+                let index = self
+                    .word_options
+                    .iter()
+                    .position(|w| w == word)
+                    .ok_or_else(|| gap("condition VotedFor"))?;
+                format!(
+                    "{}.iter().any(|&(p, word)| Some(p) == {} && word == {index})",
+                    self.player_words.as_deref().unwrap_or_default(),
+                    self.player(player)?
+                )
+            }
             Condition::VotedFor { .. } | Condition::Voted(_) | Condition::AllVotedFor(_) => {
                 held("g.votes().voted(option)")
             }

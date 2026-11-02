@@ -566,6 +566,8 @@ struct Compiler {
     unchosen: BTreeMap<u32, String>,
     /// The words of a choice of `ValueKind::Word`, the card's `labels`.
     word_options: Vec<String>,
+    /// `Vec<(PlayerId, u8)>`: the word chosen for each player.
+    player_words: Option<String>,
     creations: BTreeMap<u32, String>,
     moved: BTreeMap<u32, String>,
     /// The same transitions as `moved`, by the identities they left behind.
@@ -967,6 +969,7 @@ impl Compiler {
             face_piles: None,
             unchosen: BTreeMap::new(),
             word_options: Vec::new(),
+            player_words: None,
             reveal_matches: BTreeMap::new(),
             revealed: false,
             creations: BTreeMap::new(),

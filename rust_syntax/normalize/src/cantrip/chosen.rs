@@ -139,6 +139,15 @@ impl Compiler {
             self.value_to_come("a choice of several values", id, kind, &code, out);
             return Ok(());
         }
+        // "For each player, choose friend or foe": one player's choice of many
+        // words, whatever the data says of who makes it.
+        if kind == ValueKind::Word
+            && matches!(actor, PlayerSet::All)
+            && self.stack_item
+            && self.line_text().is_some_and(|t| t.contains("For each player, choose"))
+        {
+            return self.word_for_each_player(id, actor, options, out);
+        }
         let PlayerSet::One(player) = actor else {
             let players = self.fetch(self.players(actor)?);
             let code = format!(

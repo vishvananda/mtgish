@@ -2958,16 +2958,13 @@ impl Compiler {
     pub(super) fn mana_symbols(&self, objects: &ObjectSet, colors: &[ManaColor]) -> Result<String> {
         let colors = colors
             .iter()
-            .map(|c| color(c).map(|c| format!("Color::{c}")))
+            .map(|c| color(c).map(|c| format!("Color::{c}.mana()")))
             .collect::<Result<Vec<_>>>()?
             .join(", ");
-        Ok(planned::planned_value(
-            "mana symbols other than a devotion to one color",
-            "0i64",
-            &format!(
-                "{M}::devotion::symbols_among(q, {}, &[{colors}])",
-                self.objects(objects)?
-            ),
+        // A hybrid symbol of two of the colors is one symbol (CR 700.5, 107.4e).
+        Ok(format!(
+            "({}).into_iter().map(|id: ObjectId| {{ let cost = q.mana_cost(id); let colors = [{colors}]; colors.iter().map(|&m| i64::from(cost.symbols[m as usize]) + i64::from(cost.phyrexian[m as usize]) + i64::from(cost.twobrid[m as usize])).sum::<i64>() + cost.hybrid.iter().flatten().filter(|(a, b)| colors.contains(a) || colors.contains(b)).count() as i64 }}).sum::<i64>()",
+            self.objects(objects)?
         ))
     }
     /// `i64`: the counters among these players and objects.

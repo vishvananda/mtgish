@@ -744,7 +744,19 @@ impl Compiler {
                         } => Some(objects),
                         _ => None,
                     });
-                if format!("{next:?}") != format!("{:?}", Some(excluding)) {
+                // Or the next instructions take them out of the order at once.
+                let them = format!("{excluding:?}");
+                let moved = match body.instructions.get(i + 1) {
+                    Some(Instruction::If { then, otherwise, .. }) => [then, otherwise]
+                        .iter()
+                        .all(|branch| format!("{branch:?}").contains(&them)),
+                    Some(Instruction::Effect {
+                        operation: Operation::Move { objects, .. },
+                        ..
+                    }) => format!("{objects:?}") == them,
+                    _ => false,
+                };
+                if format!("{next:?}") != format!("{:?}", Some(excluding)) && !moved {
                     return Err(gap("shuffle around cards that stay where they are"));
                 }
                 writeln!(

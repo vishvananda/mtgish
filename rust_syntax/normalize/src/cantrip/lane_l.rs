@@ -2483,6 +2483,34 @@ impl Compiler {
         }
         Ok(())
     }
+    /// The controller's choice of one of the words for each of `players`.
+    pub(super) fn word_for_each_player(
+        &mut self,
+        id: usize,
+        players: &PlayerSet,
+        options: &[Operand],
+        out: &mut String,
+    ) -> Result<()> {
+        let words = options
+            .iter()
+            .map(|option| match option {
+                Operand::Text(word) => Ok(word.clone()),
+                _ => Err(gap("a choice of Word")),
+            })
+            .collect::<Result<Vec<String>>>()?;
+        if !self.word_options.is_empty() || self.entering_labels.is_some() {
+            return Err(gap("two choices of labels as it enters"));
+        }
+        let count = words.len();
+        let labels: Vec<String> = words.iter().map(|w| quoted(w)).collect();
+        self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
+        self.word_options = words;
+        let players = self.fetch(self.players(players)?);
+        let local = format!("words_{id}");
+        writeln!(out, "let card_{id} = g.card_id(&CARD); let mut {local}: Vec<(PlayerId, u8)> = Vec::new(); for player in {players} {{ let word = {M}::choose::option(g, asker.controller, asker.source, card_{id}, 0..{count})?; {local}.push((player, word)); }}").unwrap();
+        self.player_words = Some(local);
+        Ok(())
+    }
     /// `Condition::ChosenWord`: this body's choice, or what the permanent keeps.
     pub(super) fn chosen_word(&self, word: &str) -> Result<String> {
         let index = self
