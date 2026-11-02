@@ -2167,10 +2167,14 @@ impl Compiler {
                 "{}.and_then(|p: PlayerId| q.other_chosen_player(asker, p))",
                 self.player(of)?
             ),
-            PlayerRef::SoleTargetOf(of) => format!(
-                "{}.and_then(|o: ObjectId| q.sole_target_player(o))",
-                self.object(of)?
-            ),
+            // Every target the spell has, as announced, the one player (601.2c),
+            // as `ObjectRef::SoleTargetOf` reads the one object.
+            PlayerRef::SoleTargetOf(of) => {
+                return Ok(format!(
+                    "{}.and_then(|spell: ObjectId| {{ let state = q.state(); let item = state.stack.iter().find(|i| i.kind == StackKind::Spell && i.object == spell).or_else(|| state.left_stack(spell))?; let mut chosen = state.targets(item).iter(); let Target::Player(first) = *chosen.next()? else {{ return None }}; match chosen.any(|t| *t != Target::Player(first)) {{ true => None, false => Some(first) }} }})",
+                    self.object(of)?
+                ))
+            }
             other => return Err(gap(format!("player reference {}", form(other)))),
         };
         Ok(planned::planned_value(
