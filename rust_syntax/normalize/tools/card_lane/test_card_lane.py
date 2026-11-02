@@ -148,6 +148,15 @@ class Keywords(unittest.TestCase):
     def test_a_keyword_already_there_is_not_added_twice(self):
         self.assertEqual(self.repaired({"oracleText": "First strike; banding", "keywords": ["FirstStrike"]}), ["FirstStrike", "Banding"])
 
+    def test_a_level_s_keyword_is_not_the_card_s(self):
+        escort = "Level up {2} ({2}: Put a level counter on this. Level up only as a sorcery.)\nLEVEL 1-4\n2/2\nLEVEL 5+\n5/5\nFirst strike"
+        self.assertIsNone(self.repaired({"oracleText": escort, "keywords": ["FirstStrike"]}))
+        self.assertIsNone(self.repaired({"oracleText": "Station\n8+ | Trample", "keywords": ["Trample"]}))
+
+    def test_a_keyword_printed_outside_every_stage_stays(self):
+        self.assertEqual(self.repaired({"oracleText": "Trample\nLEVEL 2+\n3/3\nTrample, first strike", "keywords": ["Trample", "FirstStrike"]}),
+                         ["Trample"])
+
     def test_a_sentence_with_a_semicolon_is_no_keyword_line(self):
         self.assertIsNone(self.repaired({"oracleText": "Choose one; trample."}))
 
@@ -361,6 +370,20 @@ class ShadowTree(unittest.TestCase):
                 "None": (0, "14108 scenarios: 0 pass, 0 fail, 0 known bugs, 0 need cards the engine does not have.")}
         with mock.patch.object(lane.Shadow, "build", return_value=(0, "")), mock.patch.object(lane, "shell", side_effect=lambda *a, **k: said[a[2]]):
             self.assertEqual(bench.ready(list(said)), ["Good"])
+
+    def test_a_broken_card_may_take_ten_times_its_own_scenarios(self):
+        bench = lane.Shadow.__new__(lane.Shadow)
+        bench.target, bench.tree = Path("/t"), Path("/t")
+        clock = iter([0.0, 12.0, 100.0, 101.0])
+        passed = (0, "3 scenarios: 3 pass, 0 fail, 0 known bugs, 0 need cards the engine does not have.")
+        with mock.patch.object(lane.Shadow, "build", return_value=(0, "")), mock.patch.object(lane, "shell", return_value=passed), \
+                mock.patch.object(lane.time, "time", side_effect=lambda: next(clock)), \
+                mock.patch.object(lane.multiprocessing.pool, "ThreadPool", lambda n: mock.MagicMock(__enter__=lambda s: mock.Mock(map=map))):
+            bench.ready(["Slow", "Quick"])
+        self.assertEqual(bench.limits, {"Slow": 120.0, "Quick": 30})
+        with mock.patch.object(lane, "corpus_verdict") as verdict:
+            bench.play("Slow")
+        self.assertEqual(verdict.call_args.args[3], 120.0)
 
 
 class DeckNames(unittest.TestCase):
@@ -1036,6 +1059,124 @@ class Counters(unittest.TestCase):
             with mock.patch.object(lane, "CANTRIP", root), mock.patch.object(lane, "shell", shell):
                 (root / lane.COUNTER_TABLE).write_text(TABLE.replace("pub struct After;", "pub struct Before;"), encoding="utf-8")
                 self.assertFalse(lane.only_counter_lines())
+
+
+SPLIT = {"name": "Claim // Fame", "oracleText": "", "halves": [
+    {"name": "Claim", "manaCost": "{B}", "type": "Sorcery", "oracleText": "Return target creature card with mana value 2 or less from your graveyard to the battlefield."},
+    {"name": "Fame", "manaCost": "{1}{R}", "type": "Sorcery", "oracleText": "Aftermath (Cast this spell only from your graveyard. Then exile it.)\nTarget creature gets +2/+0 and gains haste until end of turn.", "aftermath": True}]}
+DFC = {"name": "Delver of Secrets", "manaCost": "{U}", "type": "Creature — Human Wizard", "oracleText": "At the beginning of your upkeep, look at the top card of your library.",
+       "backFace": {"name": "Insectile Aberration", "colorIndicator": ["Blue"], "type": "Creature — Human Insect", "oracleText": "Flying", "keywords": ["Flying"]}}
+
+
+class SeveralFaces(unittest.TestCase):
+    """A card of several faces as the lane names, queues, reads and drafts it."""
+
+    def test_cantrip_names_a_split_card_by_both_halves_and_another_by_its_front(self):
+        self.assertEqual(lane.lane_name({"name": "Claim // Fame", "layout": "Split", "faces": ["Claim", "Fame"]}), "Claim // Fame")
+        self.assertEqual(lane.lane_name({"name": "A // B", "layout": "Room", "faces": ["A", "B"]}), "A // B")
+        self.assertEqual(lane.lane_name({"name": "Rona, Herald of Invasion // Rona, Tolarian Obliterator", "layout": "Transforming",
+                                         "faces": ["Rona, Herald of Invasion", "Rona, Tolarian Obliterator"]}), "Rona, Herald of Invasion")
+        self.assertEqual(lane.lane_name({"name": "The Gold Saucer", "layout": "Card", "faces": ["The Gold Saucer"]}), "The Gold Saucer")
+        self.assertEqual(lane.lane_name({"name": "Old Row"}), "Old Row")  # a row of before `faces`
+
+    def test_a_list_finds_a_card_by_its_name_the_generators_or_a_face(self):
+        stomp = {"name": "Stomp", "layout": "Card", "faces": ["Stomp"]}
+        giant = {"name": "Bonecrusher Giant // Stomp", "layout": "Adventurer", "faces": ["Bonecrusher Giant", "Stomp"]}
+        claim = {"name": "Claim // Fame", "layout": "Split", "faces": ["Claim", "Fame"]}
+        index = lane.name_index([giant, stomp, claim])
+        self.assertIs(index["Bonecrusher Giant"], giant)
+        self.assertIs(index["Bonecrusher Giant // Stomp"], giant)
+        self.assertIs(index["Stomp"], stomp)  # a card's own name before another's face
+        self.assertIs(index["Claim // Fame"], claim)
+        self.assertIs(index["Fame"], claim)
+
+    def test_each_face_is_compared_with_scryfall(self):
+        found = {"layout": "split", "faces": {"Claim": "Return it.", "Fame": "Target creature gets +2/+0."}}
+        oracle = {"Claim": {"text": "Return it."}, "Fame": {"text": "Target creature gets +3/+0."}}
+        reason, differs = lane.scryfall_problem(found, ["Claim", "Fame"], oracle, lane.LAYOUTS)
+        self.assertEqual(reason, "Oracle text differs from mtgish's oracle.json")
+        self.assertEqual([d["name"] for d in differs], ["Fame"])
+        oracle["Fame"]["text"] = "Target creature gets +2/+0."
+        self.assertEqual(lane.scryfall_problem(found, ["Claim", "Fame"], oracle, lane.LAYOUTS), (None, []))
+        self.assertEqual(lane.scryfall_problem(found, ["Claim"], oracle, lane.LAYOUTS)[0], "faces differ from Scryfall's")
+        self.assertEqual(lane.scryfall_problem(dict(found, layout="flip"), ["Claim", "Fame"], oracle, lane.LAYOUTS)[0], "layout flip")
+        self.assertEqual(lane.scryfall_problem(None, ["Claim"], oracle, lane.LAYOUTS)[0], "not on Scryfall")
+
+    def test_every_face_s_text_is_the_card_s(self):
+        self.assertEqual(lane.content_faces(SPLIT), [("Claim", SPLIT["halves"][0]["oracleText"]), ("Fame", SPLIT["halves"][1]["oracleText"])])
+        self.assertEqual([f for f, _ in lane.content_faces(DFC)], ["Delver of Secrets", "Insectile Aberration"])
+        self.assertEqual(lane.content_faces({"name": "Bear", "oracleText": ""}), [("Bear", "")])
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / "card.json"
+            path.write_text(json.dumps(SPLIT), encoding="utf-8")
+            with mock.patch.object(lane, "content_file", lambda name: path):
+                self.assertEqual(lane.printed_lines(lane.card_text("Claim // Fame")),
+                                 [SPLIT["halves"][0]["oracleText"], "Aftermath", "Target creature gets +2/+0 and gains haste until end of turn."])
+                self.assertTrue(lane.costs_mana("Claim // Fame"))  # its halves' costs, the whole card having none
+
+    def test_a_back_face_s_keywords_are_repaired_too(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / "card.json"
+            path.write_text(json.dumps(dict(DFC, backFace=dict(DFC["backFace"], oracleText="Trample; banding", keywords=[]))), encoding="utf-8")
+            with mock.patch.multiple(lane, content_file=lambda name: path, core_keywords=lambda: {"trample": "Trample", "banding": "Banding"}):
+                lane.repair_keywords("Delver of Secrets")
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["backFace"]["keywords"], ["Trample", "Banding"])
+
+    def test_facts_leave_out_every_face_s_text(self):
+        facts = lane.facts_of(SPLIT)
+        self.assertEqual([sorted(h) for h in facts["halves"]], [["manaCost", "name", "type"], ["aftermath", "manaCost", "name", "type"]])
+        self.assertNotIn("oracleText", lane.facts_of(DFC)["backFace"])
+        single = {"name": "Bear", "manaCost": "{1}{G}", "oracleText": "x", "power": 2}
+        self.assertEqual(lane.facts_of(single), {"manaCost": "{1}{G}", "power": 2})
+
+    def test_how_each_layout_s_other_face_is_reached(self):
+        with mock.patch.dict(lane.FACE_ART, {kind: "" for kind in lane.FACE_PLAY}):
+            self.assertIn("`Bot1.Graveyard.Claim // Fame.Cast(Ability: Fame)`", lane.faces_section({"layout": "split"}, SPLIT))
+            self.assertIn("`? Bot1.Battlefield.Insectile Aberration.Transformed = true`", lane.faces_section({"layout": "transform"}, DFC))
+            self.assertIn("`Bot1.Hand.Delver of Secrets.Cast(Ability: back face)`", lane.faces_section({"layout": "modal_dfc"}, DFC))
+            room = {"name": "A // B", "halves": [{"name": "A", "type": "Enchantment — Room", "oracleText": "x"}, {"name": "B", "type": "Enchantment — Room", "oracleText": "y"}]}
+            self.assertIn("`Bot1.Battlefield.A.Activate(Ability: right door)`", lane.faces_section({}, room))
+            for key, words in (("adventure", "Cast(Ability: Adventure)"), ("omen", "Cast(Ability: Omen)"), ("prepare", "`Bot1.Exile.Spell.Cast`")):
+                card = {"name": "Card", "oracleText": "x", key: {"name": "Spell", "oracleText": "y"}}
+                self.assertIn(words, lane.faces_section({}, card))
+            self.assertIn("no scenario melds it", lane.faces_section({"layout": "meld"}, {"name": "Garrison", "oracleText": "x"}))
+            self.assertEqual(lane.faces_section({"layout": "normal"}, {"name": "Bear", "oracleText": "x"}), "")
+
+    def test_a_split_prepare_or_meld_card_is_drafted_as_cantrip_has_one(self):
+        def face(f):
+            return {"name": f["name"], "manaCost": f["mana_cost"], "type": f["type_line"], "oracleText": f["oracle_text"], "keywords": ["Haste"]}
+        claim = {"name": "Claim // Fame", "layout": "split", "faces": [
+            {"name": "Claim", "mana_cost": "{B}", "type_line": "Sorcery", "oracle_text": "Return it."},
+            {"name": "Fame", "mana_cost": "{1}{R}", "type_line": "Sorcery", "oracle_text": "Aftermath (Cast this spell only from your graveyard.)\nHaste."}]}
+        drafted = lane.drafted_content(claim, face)
+        self.assertEqual(drafted["name"], "Claim // Fame")
+        self.assertEqual(drafted["oracleText"], "")
+        self.assertEqual([sorted(h) for h in drafted["halves"]], [["manaCost", "name", "oracleText", "type"], ["aftermath", "manaCost", "name", "oracleText", "type"]])
+        prepare = {"name": "Abigale // Heroic Stanza", "layout": "prepare", "faces": [
+            {"name": "Abigale", "mana_cost": "{1}{W}{B}", "type_line": "Creature", "oracle_text": "Flying"},
+            {"name": "Heroic Stanza", "mana_cost": "{1}{W/B}", "type_line": "Sorcery", "oracle_text": "Put a counter."}]}
+        drafted = lane.drafted_content(prepare, face)
+        self.assertEqual((drafted["name"], sorted(drafted["prepare"])), ("Abigale", ["manaCost", "name", "oracleText", "type"]))
+        meld = {"name": "Garrison", "layout": "meld", "faces": [{"name": "Garrison", "mana_cost": "{2}{R}", "type_line": "Creature", "oracle_text": "x"}]}
+        self.assertEqual(lane.drafted_content(meld, face)["name"], "Garrison")
+        self.assertIsNone(lane.drafted_content(dict(claim, layout="transform"), face))  # new-card.py writes those
+
+
+class Levels(unittest.TestCase):
+    ESCORT = "Level up {2} ({2}: Put a level counter on this. Level up only as a sorcery.)\nLEVEL 1-4\n2/2\nLEVEL 5+\n5/5\nFirst strike"
+
+    def problems(self, said):
+        source = f'/// "{said}" (CR 711.2a).\nstatic_ability(Layer::PtSet, itself, base_pt::<2, 2>, "{said}")\n'
+        with mock.patch.object(lane, "card_text", lambda name: self.ESCORT):
+            return [p for p in lane.style_problems("Caravan Escort", source) if "ability text" in p]
+
+    def test_a_level_s_line_is_said_with_its_level(self):
+        self.assertEqual(self.problems("LEVEL 1-4: 2/2"), [])
+        self.assertEqual(self.problems("LEVEL 5+: First strike"), [])
+
+    def test_a_level_is_not_said_with_words_it_does_not_print(self):
+        self.assertTrue(self.problems("LEVEL 6+: First strike"))
+        self.assertTrue(self.problems("LEVEL 1-4: Flying"))
 
 
 if __name__ == "__main__":

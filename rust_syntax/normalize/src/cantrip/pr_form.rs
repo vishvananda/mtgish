@@ -3271,7 +3271,7 @@ fn printed_of(call: &syn::ExprCall) -> Option<String> {
     if !matches!(
         name.as_str(),
         "triggered" | "ability" | "mana_ability" | "static_ability" | "activated" | "loyalty_ability"
-            | "replacement" | "prevention"
+            | "replacement" | "prevention" | "chapter"
     ) {
         return None;
     }
@@ -3377,10 +3377,25 @@ fn without_reminder(text: &str) -> String {
     out
 }
 
+/// A counter stage's line past its stage, "12+ | " or "LEVEL 2-6: ", which
+/// Cantrip quotes with it and names nothing by.
+fn past_stage(line: &str) -> &str {
+    let (marker, rest) = match (line.split_once(" | "), line.split_once(": ")) {
+        (Some(inline), _) => inline,
+        (None, Some(own)) if own.0.starts_with("LEVEL ") => own,
+        _ => return line,
+    };
+    let bare = marker.strip_prefix("LEVEL ").unwrap_or(marker);
+    let digits = bare.trim_start_matches(|c: char| c.is_ascii_digit());
+    let staged = digits.len() < bare.len()
+        && (digits == "+" || digits.strip_prefix('-').is_some_and(|d| !d.is_empty() && d.chars().all(|c| c.is_ascii_digit())));
+    if staged { rest } else { line }
+}
+
 /// What an ability does: the words after its cost or trigger condition.
 fn effect_clause(printed: &str) -> String {
     let plain = without_reminder(printed);
-    let first = plain.lines().next().unwrap_or_default().trim();
+    let first = past_stage(plain.lines().next().unwrap_or_default().trim());
     if let Some((_, after)) = first.split_once(": ") {
         return after.to_string();
     }
@@ -3400,7 +3415,7 @@ fn trigger_quote(printed: &str) -> String {
 /// A trigger's condition, as printed.
 fn trigger_clause(printed: &str) -> String {
     let plain = without_reminder(printed);
-    let first = plain.lines().next().unwrap_or_default().trim();
+    let first = past_stage(plain.lines().next().unwrap_or_default().trim());
     first.split(", ").next().unwrap_or(first).to_string()
 }
 
@@ -3585,7 +3600,7 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         ("exile", "406.3"),
         ("sacrifice", "701.21a"),
         ("discard", "701.9a"),
-        ("gain_life", "119.1"),
+        ("gain_life", "119.3"),
         ("lose_life", "119.3"),
         ("create_token", "111.1"),
         ("add_counters", "122.1"),
@@ -4386,6 +4401,13 @@ fn say_printed_text(file: &mut File, printed: &str) {
     }
     impl Say<'_> {
         fn is_printed(&self, text: &str) -> bool {
+            // "LEVEL 1-4: 2/2", a stage's line said with its stage, which prints
+            // on a line of its own (Hexdrinker).
+            let line = past_stage(text);
+            if line.len() < text.len() {
+                let stage = text[..text.len() - line.len()].trim_end_matches([':', '|', ' ']);
+                return self.oracle.contains(&loose(stage)) && self.is_printed(line);
+            }
             let text = loose(text);
             let text = text.trim_end_matches(['.', ',', ';']);
             // "Equip {2} or {B}" is two abilities, each with its own price.

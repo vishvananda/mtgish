@@ -534,8 +534,8 @@ struct Compiler {
     wanted_labels: Option<String>,
     /// What each counter stage of the face prints.
     stages: BTreeMap<i64, Vec<lane_k::Line>>,
-    /// What's left of the printed lines of the stage being compiled.
-    stage_lines: Vec<lane_k::Line>,
+    /// What's left of the printed lines of the stage being compiled, while one is.
+    stage_lines: Option<Vec<lane_k::Line>>,
     /// The next "may" is done once each turn, under this key.
     do_once: Option<u8>,
     /// The abilities of one sentence are being written ("whenever this or that"):
@@ -1289,7 +1289,7 @@ impl Compiler {
             entering_as: Default::default(),
             wanted_labels: None,
             stages: BTreeMap::new(),
-            stage_lines: Vec::new(),
+            stage_lines: None,
             do_once: None,
             once_shared: None,
             cast_test: false,
@@ -2143,87 +2143,52 @@ fn ability_text(body: &Program) -> String {
         .join(" ")
 }
 
-/// What `card_files` found for one record.
-#[derive(serde::Serialize)]
-pub struct CardFileRow {
-    pub line: usize,
-    pub name: String,
-    /// The file, when the card has one; `None` with no gap needs only content.
-    pub rust: Option<String>,
-    pub gap: Option<String>,
-}
-
 /// Each face's printed text, by name.
+///
+/// A face of a card of several faces is kept by its card's faces too (`face_key`):
+/// its name can be another card's, and the text another's. Eiganjo Dynastorian's
+/// prepare spell is Replenish, without the reminder text Replenish the card has. A
+/// name alone is the card of one face's, when one has it.
 fn oracle_texts(oracle: &Path) -> corpus::Result<BTreeMap<String, String>> {
     // Read whole first: through a reader serde_json takes a byte at a time, most of a second here.
     let printed: serde_json::Value = serde_json::from_slice(&std::fs::read(oracle)?)?;
-    Ok(printed
+    let cards: Vec<Vec<(&str, &str)>> = printed
         .as_array()
         .ok_or("oracle data is not a list")?
         .iter()
-        .flat_map(|card| card["cards"].as_array().into_iter().flatten())
-        .filter_map(|face| {
-            let text = face["text"].as_str().unwrap_or_default();
-            Some((face["name"].as_str()?.to_string(), text.to_string()))
+        .map(|card| {
+            let faces = card["cards"].as_array().into_iter().flatten();
+            faces
+                .filter_map(|face| Some((face["name"].as_str()?, face["text"].as_str().unwrap_or_default())))
+                .collect()
         })
-        .collect())
+        .collect();
+    let mut texts = BTreeMap::new();
+    for faces in cards.iter().filter(|faces| faces.len() > 1).chain(cards.iter().filter(|faces| faces.len() == 1)) {
+        for &(name, text) in faces {
+            if faces.len() > 1 {
+                texts.insert(face_key(faces.iter().map(|face| face.0), name), text.to_string());
+            }
+            texts.insert(name.to_string(), text.to_string());
+        }
+    }
+    Ok(texts)
 }
 
-/// Every single-faced, complete, primitive-free record the recipes of
-/// `card_file` cover, or the gap that stops it, as one JSON object a line.
-pub fn card_files(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usize> {
-    let oracle = oracle_texts(oracle)?;
-    let mut artifact = corpus::Artifact::create(output)?;
-    let mut count = 0;
-    corpus::map_cards(
-        input,
-        |line, source| -> corpus::Result<Option<CardFileRow>> {
-            let identity = corpus::Identity::of(&source)?;
-            let lowered = crate::unified::lower(&source);
-            let forms = crate::unified::forms(&lowered.card);
-            if !(lowered.diagnostics.is_empty() && forms.named.is_empty())
-                || !forms.primitives.is_empty()
-                || lowered.card.layout != "Card"
-                || lowered.card.faces.len() != 1
-            {
-                return Ok(None);
-            }
-            let name = identity.names.join(" // ");
-            let face = &lowered.card.faces[0];
-            if !gaps(face).is_empty() {
-                return Ok(None);
-            }
-            let Some(text) = oracle.get(&name) else {
-                return Ok(None);
-            };
-            let (rust, gap) = match card_file::card_file(face, text) {
-                Ok(rust) => (rust, None),
-                Err(recipe) => match lane_f::whole_printed(&source, &lowered.card, Some(&oracle)) {
-                    Ok(whole) if whole.faces.iter().all(|f| f.gaps.is_empty()) => {
-                        let module: String = whole.faces.iter().map(|f| f.rust.as_str()).collect();
-                        let characteristics = pr_form::Characteristics::Oracle;
-                        (pr_form::render(&module, &name, text, characteristics), None)
-                    }
-                    _ => (None, Some(recipe.feature)),
-                },
-            };
-            Ok(Some(CardFileRow {
-                line,
-                name,
-                rust,
-                gap,
-            }))
-        },
-        |_, row| {
-            if let Some(row) = row {
-                writeln!(artifact, "{}", serde_json::to_string(&row)?)?;
-                count += 1;
-            }
-            Ok(())
-        },
-    )?;
-    artifact.commit()?;
-    Ok(count)
+/// The key `oracle_texts` keeps a face of a card of several faces under, whatever
+/// order the faces come in.
+fn face_key<'a>(faces: impl IntoIterator<Item = &'a str>, face: &str) -> String {
+    let mut names: Vec<&str> = faces.into_iter().collect();
+    names.sort_unstable();
+    format!("{}\u{0}{face}", names.join("\u{0}"))
+}
+
+/// The printed text of `face`, one of the card's `faces`, from `oracle_texts`.
+pub(crate) fn printed_face<'a>(oracle: &'a BTreeMap<String, String>, faces: &[&str], face: &str) -> Option<&'a String> {
+    match faces.len() > 1 {
+        true => oracle.get(&face_key(faces.iter().copied(), face)).or_else(|| oracle.get(face)),
+        false => oracle.get(face),
+    }
 }
 
 /// The module of each named card in a source corpus, for reading what the

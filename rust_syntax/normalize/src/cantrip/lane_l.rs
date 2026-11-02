@@ -3409,13 +3409,20 @@ impl Compiler {
         if let SelectionConstraint::OneForEach(filters) = constraint {
             let up_to = !matches!(count, Count::Exactly(_) | Count::AsManyAsCan(_));
             writeln!(out, "let player_{id} = {chooser}; let pool_{id} = {pool}; let mut picked_{id}: Vec<ObjectId> = Vec::new();").unwrap();
+            // One object may be picked for each of its types: an artifact creature
+            // is the artifact and the creature (the rulings of Cataclysm, Tragic
+            // Arrogance and Ajani, Nacatl Avenger), a dual land two basic land types
+            // (Global Ruin, Sundering Titan). A party's members are distinct (CR
+            // 700.8), and so is a card picked for one keyword among several
+            // (Selective Adaptation) or for one color.
+            let distinct = ["party", "a card with ", "color"]
+                .iter()
+                .any(|words| lane_k::printed_otherwise(self.line_text(), words));
             for filter in filters {
                 let test = self.filter(filter, &Candidate::of("id"))?;
-                let each_type =
-                    lane_k::printed_otherwise(self.line_text(), "of each permanent type");
-                let again = match each_type {
-                    true => String::new(),
-                    false => format!(".filter(|id| !picked_{id}.contains(id))"),
+                let again = match distinct {
+                    false => String::new(),
+                    true => format!(".filter(|id| !picked_{id}.contains(id))"),
                 };
                 let open = self.fetch(format!("pool_{id}.iter().copied(){again}.filter(|&id| {test}).collect::<Vec<ObjectId>>()"));
                 writeln!(out, "{{ let open = {open}; let one = {M}::choose::cards(g, player_{id}, asker.source, Purpose::{purpose}, open, 1, {up_to})?; for o in one {{ if !picked_{id}.contains(&o) {{ picked_{id}.push(o); }} }} }}").unwrap();

@@ -299,7 +299,8 @@ impl Joining<'_> {
     }
     /// The Oracle text of the face `at`.
     fn printed(&self, at: usize) -> Option<String> {
-        self.oracle?.get(&self.card.faces[at].name).cloned()
+        let names: Vec<&str> = self.card.faces.iter().map(|face| face.name.as_str()).collect();
+        crate::cantrip::printed_face(self.oracle?, &names, names[at]).cloned()
     }
     fn record(&mut self, at: usize, rust: String, gaps: Vec<Diagnostic>) {
         self.faces[at] = Some(WholeFace {

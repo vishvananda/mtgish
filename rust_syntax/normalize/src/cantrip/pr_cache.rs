@@ -128,6 +128,7 @@ impl Cached {
 }
 
 /// A render to keep for the next run.
+#[derive(Clone)]
 pub struct Kept {
     key: String,
     cached: Cached,

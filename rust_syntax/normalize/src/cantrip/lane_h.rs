@@ -2691,9 +2691,12 @@ impl Compiler {
             ActivationCostChange::ReduceX { amount, times }
                 if format!("{amount:?}").contains("CostReduceX") =>
             {
-                // `less` counts in 32 bits, `less_to_one` in 8.
-                let (max, kind) = if floor.is_none() { (u32::MAX.into(), "u32") } else { (255, "u8") };
-                less(&self.number(times)?.fit(0, max, kind)?)?
+                // A cost's generic mana is 32 bits; `less_to_one` keeps a byte.
+                let times = self.number(times)?;
+                less(&match floor {
+                    None => times.amount(u32::MAX.into(), "u32")?,
+                    _ => times.fit(0, 255, "u8")?,
+                })?
             }
             ActivationCostChange::ReduceX { .. } => {
                 return Err(gap("activation cost reduction of colored mana"))

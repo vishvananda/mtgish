@@ -8,16 +8,27 @@ use std::sync::OnceLock;
 
 const NAMES: &[&str] = &[
     "Ajani, Nacatl Pariah",
+    "Anaconda",
     "Arc of Fortune",
     "Barracks of the Thousand",
     "Black Panther, Hope Enduring",
     "Brigid, Clachan's Heart",
+    "Call to the Kindred",
+    "Caravan Escort",
     "Cease",
     "Delver of Secrets",
+    "Eiganjo Dynastorian",
+    "Fable of the Mirror-Breaker",
     "Great Fierce Bee",
     "Grove's Bounty",
     "Hada Spy Patrol",
+    "Hearth Elemental",
+    "Hexdrinker",
     "Jade Seedstones",
+    "Joraga Treespeaker",
+    "Lord of Shatterskull Pass",
+    "Revitalize",
+    "Selective Adaptation",
     "Sink into Stupor",
     "Stature, Size Shifter",
     "Temple of Power",
@@ -28,25 +39,36 @@ const NAMES: &[&str] = &[
     "Wedding Announcement",
 ];
 
+/// The records of `NAMES` and the Oracle file. None without the data.
+fn subset() -> Option<&'static (PathBuf, PathBuf)> {
+    static SUBSET: OnceLock<Option<(PathBuf, PathBuf)>> = OnceLock::new();
+    SUBSET
+        .get_or_init(|| {
+            let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+            let (corpus, oracle) = (data.join("mtgish.lines.ron"), data.join("oracle.json"));
+            if !corpus.exists() || !oracle.exists() {
+                return None;
+            }
+            let subset = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("faces.ron");
+            let lines: Vec<String> = std::fs::read_to_string(&corpus)
+                .unwrap()
+                .lines()
+                .filter(|line| NAMES.iter().any(|name| line.contains(&format!("Name: \"{name}\""))))
+                .map(str::to_string)
+                .collect();
+            std::fs::write(&subset, lines.join("\n") + "\n").unwrap();
+            Some((subset, oracle))
+        })
+        .as_ref()
+}
+
 /// Each card's row, by every name it has: its file and its gaps' features. None without the data.
 fn rows() -> Option<&'static BTreeMap<String, (String, Vec<String>)>> {
     static ROWS: OnceLock<Option<BTreeMap<String, (String, Vec<String>)>>> = OnceLock::new();
     ROWS.get_or_init(|| {
-        let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-        let (corpus, oracle) = (data.join("mtgish.lines.ron"), data.join("oracle.json"));
-        if !corpus.exists() || !oracle.exists() {
-            return None;
-        }
-        let tmp = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
-        let (subset, out) = (tmp.join("faces.ron"), tmp.join("faces.jsonl"));
-        let lines: Vec<String> = std::fs::read_to_string(&corpus)
-            .unwrap()
-            .lines()
-            .filter(|line| NAMES.iter().any(|name| line.contains(&format!("Name: \"{name}\""))))
-            .map(str::to_string)
-            .collect();
-        std::fs::write(&subset, lines.join("\n") + "\n").unwrap();
-        planned::tracked(&subset, &oracle, &out).unwrap();
+        let (subset, oracle) = subset()?;
+        let out = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("faces.jsonl");
+        planned::tracked(subset, oracle, &out).unwrap();
         let mut rows = BTreeMap::new();
         for line in std::fs::read_to_string(&out).unwrap().lines() {
             let row: serde_json::Value = serde_json::from_str(line).unwrap();
@@ -174,4 +196,108 @@ fn the_data_s_repaired_reads_are_written_whole() {
     // "Target spell or nonland permanent an opponent controls" (#178): the permanent is an opponent's too.
     let Some(file) = file("Sink into Stupor") else { return };
     assert_eq!(file.matches("opponents(asker.controller)").count(), 2, "{file}");
+}
+
+#[test]
+fn the_lane_s_rows_are_the_tracker_s_files_of_every_layout() {
+    let (Some((subset, oracle)), Some(rows)) = (subset(), rows()) else { return };
+    let out = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("faces-lane.jsonl");
+    planned::lane_rows(subset, oracle, &out, None).unwrap();
+    let mut seen = BTreeMap::new();
+    for line in std::fs::read_to_string(&out).unwrap().lines() {
+        let row: serde_json::Value = serde_json::from_str(line).unwrap();
+        let name = row["name"].as_str().unwrap().to_string();
+        let faces: Vec<&str> = row["faces"].as_array().unwrap().iter().map(|f| f.as_str().unwrap()).collect();
+        // The faces in the name's order, the front face first.
+        assert_eq!(faces.join(" // "), name, "{row}");
+        let (file, _) = &rows[faces[0]];
+        assert_eq!(row["rust"].as_str().unwrap_or(""), file, "{name}");
+        seen.insert(name, (row["layout"].as_str().unwrap().to_string(), row["rust"].is_string(), row["gap"].clone()));
+    }
+    // A card of several faces is written whole, its layout named.
+    let fable = &seen["Fable of the Mirror-Breaker // Reflection of Kiki-Jiki"];
+    assert_eq!((fable.0.as_str(), fable.1, fable.2.is_null()), ("Transforming", true, true));
+    // A card whose content is all of it has neither a file nor a gap.
+    let anaconda = &seen["Anaconda"];
+    assert_eq!((anaconda.0.as_str(), anaconda.1, anaconda.2.is_null()), ("Card", false, true));
+}
+
+#[test]
+fn one_permanent_may_be_chosen_for_each_of_its_types() {
+    // Ajani's -4, like Cataclysm: a permanent of two types may be the choice for both, as their rulings say.
+    let Some(file) = file("Ajani, Nacatl Pariah") else { return };
+    assert!(file.contains("picked_") && !file.contains(".filter(|id| !picked_"), "{file}");
+    // A card of each color, or a party, is of distinct cards: one already chosen is out (CR 700.8).
+    says("Selective Adaptation", &[".filter(|id| !picked_"]);
+}
+
+#[test]
+fn a_may_of_up_to_some_cards_is_asked_as_the_choice_of_none() {
+    // Fable's chapter II asks once: choosing no card is declining.
+    let Some(file) = file("Fable of the Mirror-Breaker") else { return };
+    let ii = file.split("fn ii_discard_up_two_cards(").nth(1).unwrap().split("\n}\n").next().unwrap();
+    assert!(ii.contains("select::Count::UpTo(2)") && !ii.contains("ask_may"), "{ii}");
+    // Having looked first, the may stays: choosing none would still have looked.
+    says("Call to the Kindred", &["effects::ask_may(g, item.controller, item.object, Purpose::Optional)?"]);
+}
+
+#[test]
+fn a_chapter_is_named_and_quoted_as_printed() {
+    says(
+        "Fable of the Mirror-Breaker",
+        &[
+            "/// \"II — You may discard up to two cards. If you do, draw that many cards.\"",
+            "fn ii_discard_up_two_cards(",
+            "fn iii_exile_saga_return_battlefield(",
+        ],
+    );
+}
+
+#[test]
+fn a_cost_reduction_is_counted_in_u32() {
+    says("Hearth Elemental", &["CostDelta::less(", ".len() as i64) as u32,"]);
+}
+
+#[test]
+fn a_face_named_as_another_card_is_quoted_as_its_own_card_prints_it() {
+    // Eiganjo Dynastorian's prepare spell is Replenish, whose card of its own has reminder text the spell does not.
+    let Some(file) = file("Eiganjo Dynastorian") else { return };
+    assert!(file.contains("/// \"Return all enchantment cards from your graveyard to the battlefield.\" (CR"), "{file}");
+    assert!(!file.contains("Auras with nothing to enchant"), "{file}");
+}
+
+#[test]
+fn gaining_life_cites_the_rule_of_gaining_life() {
+    says("Revitalize", &["(CR 608.2, 121.1, 119.3)."]);
+}
+
+#[test]
+fn a_level_s_lines_are_quoted_with_their_level() {
+    // As Cantrip's own Hexdrinker: each static of a level says its level, and its power and toughness its numbers.
+    says(
+        "Caravan Escort",
+        &["\"LEVEL 1-4: 2/2\"", "\"LEVEL 5+: 5/5\"", "\"LEVEL 5+: First strike\""],
+    );
+    says(
+        "Hexdrinker",
+        &[
+            "\"LEVEL 3-7: 4/4\"",
+            "\"LEVEL 3-7: Protection from instants\"",
+            "\"LEVEL 8+: 6/6\"",
+            "\"LEVEL 8+: Protection from everything\"",
+        ],
+    );
+    let Some(file) = file("Caravan Escort") else { return };
+    assert!(!file.contains("\"LEVEL 1-4\"") && !file.contains("Level up {2} ("), "{file}");
+}
+
+#[test]
+fn a_level_s_granted_ability_is_said_without_its_level_and_granted_with_it() {
+    // As Adagia's "12+ | {3}{W}, {T}: ..." static and its ability.
+    let line = "Whenever this creature attacks, it deals 6 damage to each creature defending player controls.";
+    says("Lord of Shatterskull Pass", &[&format!("\"LEVEL 6+: {line}\""), &format!("\"{line}\"")]);
+    // What a level's line quotes is the text of what it grants.
+    let Some(file) = file("Joraga Treespeaker") else { return };
+    assert_eq!(file.matches("            \"{T}: Add {G}{G}.\",").count(), 2, "{file}");
+    assert_eq!(file.matches("            \"LEVEL 5+: 1/4\",").count(), 1, "{file}");
 }
