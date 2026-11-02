@@ -433,6 +433,10 @@ impl Compiler {
                 format!("EffectKind::Protection(ColorSet::of({chosen}))"),
                 format!("chars.protection = chars.protection.with({chosen});"),
             ))),
+            ValueKind::CardType => Ok(Some((
+                format!("EffectKind::ProtectionFromTypes(TypeSet::of(&[{chosen}]))"),
+                format!("chars.protection_types = TypeSet(chars.protection_types.0 | TypeSet::of(&[{chosen}]).0);"),
+            ))),
             other => Err(gap(format!("protection from a chosen {other:?}"))),
         }
     }

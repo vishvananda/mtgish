@@ -974,18 +974,13 @@ impl Compiler {
                 self.tap_any_number(id, player, &selections[0].objects, result, out)?;
             }
             CostPart::Reveal {
-                count,
+                count: Count::Exactly(count) | Count::AsManyAsCan(count),
                 filter: ObjectFilter::Any,
                 random: true,
             } if self.read_later(result) => {
-                let [count] = [self.select_count(count)?];
+                let count = self.fetch(self.number(count)?.code);
                 let who = self.fetch(self.certain_player(player)?);
-                let revealed = planned::planned_value(
-                    "resolution cost Reveal",
-                    "Vec::<ObjectId>::new()",
-                    &format!("cantrip_mechanics::reveal_at_random(g, payer_{id}, asker.source, {count})?"),
-                );
-                writeln!(out, "let payer_{id} = {who}; let revealed_{id}: Vec<ObjectId> = {revealed}; let paid_{id} = !revealed_{id}.is_empty();").unwrap();
+                writeln!(out, "let payer_{id} = {who}; let wanted_{id} = ({count}).max(0) as usize; let mut revealed_{id}: Vec<ObjectId> = g.state().zone(Zone::hand(payer_{id})).to_vec(); for i in (1..revealed_{id}.len()).rev() {{ let j = g.random(i as u32 + 1) as usize; revealed_{id}.swap(i, j); }} revealed_{id}.truncate(wanted_{id}); g.reveal(payer_{id}, &revealed_{id}); let paid_{id} = !revealed_{id}.is_empty();").unwrap();
                 self.selections.insert(result.0, format!("revealed_{id}"));
                 self.before
                     .insert(result.0, format!("revealed_{id}.clone()"));
@@ -1199,10 +1194,11 @@ impl Compiler {
             CostPart::Sacrifice {
                 objects: ObjectSet::One(ObjectRef::AttachedTo(host)),
                 choose: None,
-            } if !resolving && matches!(**host, ObjectRef::Source) => plan(
-                "engine: no cost sacrifices what this is attached to",
-                "sacrifice_host: true",
-            ),
+            } if !resolving && matches!(**host, ObjectRef::Source) => {
+                let function = format!("{label}_host");
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ q.state().obj(asker.source).attached_to == Some(id) }}").unwrap();
+                format!("Cost::sacrifice(1, {function})")
+            }
             CostPart::Discard {
                 count: Expr::Constant(n),
                 filter: ObjectFilter::Any,
@@ -1522,13 +1518,21 @@ impl Compiler {
                     &format!("{def}.instead_of_each_mana({cost})"),
                 )
             }
+            // "Activate no more times each turn than ...": this ability of this object,
+            // told from the others by its words.
             ActivationRule::MaxPerTurn(n) => {
                 let most = self.asked_number(n)?;
-                planned::planned_value(
-                    "engine: no limit on activations each turn",
-                    &def,
-                    &format!("{def}.most_each_turn(|q, asker| {most})"),
-                )
+                let Some(line) = self.line_text() else {
+                    return Ok(planned::planned_value(
+                        "engine: no limit on activations each turn",
+                        &def,
+                        &def,
+                    ));
+                };
+                let function = format!("{label}_more_this_turn");
+                let text = quoted(line);
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> bool {{ let made = q.history().select(EventQuery::kind(EventMask::ABILITY_ACTIVATED).this_turn()).filter(|r| matches!(r.event, Event::AbilityActivated {{ source, ability, .. }} if source == asker.source && q.activated_ability(ability).is_some_and(|def| def.text == {text}))).count() as i64; made < i64::from({most}) }}").unwrap();
+                format!("{def}.condition({function})")
             }
             ActivationRule::XIs(n) | ActivationRule::XAtMost(n) => {
                 let exact = matches!(rule, ActivationRule::XIs(_));

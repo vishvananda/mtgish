@@ -1287,7 +1287,13 @@ impl Compiler {
                     EnchantHosts::Players(players) => self
                         .player_in(players, "p")
                         .map(|p| format!("matches!(t, Target::Player(p) if {p})")),
-                    EnchantHosts::GraveyardCards { .. } => Err(gap("enchant graveyard card")),
+                    EnchantHosts::GraveyardCards { filter, owners } => {
+                        let test = self.filter(filter, &Candidate::of("id"));
+                        let owner = self.player_in(owners, "owner");
+                        test.and_then(|test| Ok((test, owner?))).map(|(test, owner)| {
+                            format!("matches!(t, Target::Object(id) if q.state().obj(id).zone.is(ZoneKind::Graveyard) && q.state().obj(id).became.is_none() && {{ let owner = q.state().obj(id).owner; {owner} }} && ({test}))")
+                        })
+                    }
                 };
                 self.reader = reader;
                 let function = format!("{label}_enchant");

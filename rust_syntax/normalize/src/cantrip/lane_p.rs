@@ -2409,14 +2409,6 @@ impl Compiler {
                 "abilities",
                 format!("{M}::reinforce::ability_x({}, {word})", price(self)?),
             ),
-            K::BestowX | K::FreerunningX | K::SurgeX | K::WarpX => (
-                "ways",
-                format!("{M}::{module}::way_x({}, {word})", price(self)?),
-            ),
-            K::ForetellX => (
-                "abilities",
-                format!("{M}::foretell::ability_x({})", price(self)?),
-            ),
             K::CommanderNinjutsu => (
                 "abilities",
                 format!("{M}::ninjutsu::commander_ability({}, {word})", price(self)?),

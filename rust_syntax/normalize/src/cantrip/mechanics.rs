@@ -9,7 +9,7 @@ pub(super) fn first_delayed(mechanic: Mechanic) -> Option<String> {
     let path = match mechanic {
         Mechanic::Unearth => "unearth::EXILE",
         Mechanic::Dash => "dash::RETURN",
-        Mechanic::Warp => "warp::EXILE",
+        Mechanic::Warp | Mechanic::WarpX => "warp::EXILE",
         Mechanic::Myriad => "myriad::EXILE",
         Mechanic::Mobilize => "mobilize::SACRIFICE",
         _ => return None,
@@ -19,7 +19,10 @@ pub(super) fn first_delayed(mechanic: Mechanic) -> Option<String> {
 
 /// A mechanic that asks `cast_way` for the first way, so it must be the only one.
 fn only_way(mechanic: Mechanic) -> bool {
-    matches!(mechanic, Mechanic::Evoke | Mechanic::Dash | Mechanic::Warp)
+    matches!(
+        mechanic,
+        Mechanic::Evoke | Mechanic::Dash | Mechanic::Warp | Mechanic::WarpX
+    )
 }
 
 /// Escape's cost: mana, and exiling this many other cards from your graveyard.
@@ -165,19 +168,20 @@ impl Compiler {
         // "Way" mechanics are all one shape, but for the module that holds them.
         let way_module = match mechanic {
             K::Spectacle => Some("spectacle"),
-            K::Surge => Some("surge"),
-            K::Freerunning => Some("freerunning"),
+            K::Surge | K::SurgeX => Some("surge"),
+            K::Freerunning | K::FreerunningX => Some("freerunning"),
             K::Harmonize => Some("harmonize"),
             K::Sneak => Some("sneak"),
             K::WebSlinging => Some("web_slinging"),
             K::Mayhem => Some("mayhem"),
             K::Dash => Some("dash"),
-            K::Warp => Some("warp"),
+            K::Warp | K::WarpX => Some("warp"),
             _ => None,
         };
         if let Some(module) = way_module {
             let cost = mana_alone(cost, mechanic)?;
-            let text = quoted(&self.said_word(format!("{mechanic:?}")));
+            let name = format!("{mechanic:?}");
+            let text = quoted(&self.said_word(name.trim_end_matches('X').to_string()));
             parts.table("ways", format!("{M}::{module}::way({cost}, {text})"));
         }
         let face_down = match mechanic {
@@ -197,7 +201,9 @@ impl Compiler {
         match mechanic {
             K::Spectacle
             | K::Surge
+            | K::SurgeX
             | K::Freerunning
+            | K::FreerunningX
             | K::Harmonize
             | K::Sneak
             | K::WebSlinging
@@ -209,7 +215,7 @@ impl Compiler {
                 parts.field("end_step_riders", format!("{M}::dash::RIDERS"));
                 parts.statics.push(format!("{M}::dash::HASTE"));
             }
-            K::Warp => parts.field("end_step_riders", format!("{M}::warp::RIDERS")),
+            K::Warp | K::WarpX => parts.field("end_step_riders", format!("{M}::warp::RIDERS")),
             K::Evoke => {
                 let cost = self.mechanic_cost(cost, mechanic, label)?;
                 let text = quoted(&self.said_word("Evoke".into()));
@@ -313,7 +319,7 @@ impl Compiler {
             }
             K::Madness => parts.field("madness", format!("Some({})", mana_alone(cost, mechanic)?)),
             K::Miracle => parts.field("miracle", format!("Some({})", mana_alone(cost, mechanic)?)),
-            K::Foretell => {
+            K::Foretell | K::ForetellX => {
                 parts.field("foretell", format!("Some({})", mana_alone(cost, mechanic)?));
                 constant(parts, "foretell::ABILITY");
             }
@@ -558,7 +564,7 @@ impl Compiler {
                 writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ if costed != Costed::Spell(source) {{ return CostDelta::NONE; }} let asker = &Asker::new(source, player); let count = q.permanents_of(player).into_iter().filter(|&id| {test}).count(); CostDelta::less(count.min(255) as u8) }}").unwrap();
                 parts.table("own_cost_changes", function);
             }
-            K::Bestow => {
+            K::Bestow | K::BestowX => {
                 let cost = mana_alone(cost, mechanic)?;
                 self.bestow = Some(cost);
             }
