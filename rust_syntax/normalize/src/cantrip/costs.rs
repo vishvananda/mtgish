@@ -961,6 +961,19 @@ impl Compiler {
                 condition,
                 ability,
             } => {
+                // "Max speed — ..." on a card in a graveyard: its scope, conditioned.
+                if let (None, Ability::Conditional { condition: held, then, otherwise }) =
+                    (condition, &**ability)
+                {
+                    if let ([only], true) = (then.as_slice(), otherwise.is_empty()) {
+                        let scoped = Ability::Scoped {
+                            zones: zones.clone(),
+                            condition: Some(held.clone()),
+                            ability: Box::new(only.clone()),
+                        };
+                        return self.ability(&scoped, label, parts, None);
+                    }
+                }
                 if self.from_command_zone(zones, condition.as_ref(), ability, label, parts)? {
                     return Ok(());
                 }

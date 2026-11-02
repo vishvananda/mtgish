@@ -1144,6 +1144,13 @@ fn fit(ability: &Ability, line: &Line) -> Option<i32> {
     let kind = line.kind;
     match ability {
         Ability::Scoped { ability, .. } => fit(ability, line),
+        // "Max speed — {3}, Exile this card ...: ..." is the ability's own line.
+        Ability::Conditional { then, otherwise, .. }
+            if otherwise.is_empty()
+                && matches!(then.as_slice(), [Ability::Activated { .. } | Ability::Triggered { .. }]) =>
+        {
+            fit(&then[0], line)
+        }
         Ability::Keyword(keyword) => by_word(&printed_word(keyword)),
         Ability::Mechanic { mechanic, .. } => by_word(&printed_word(mechanic)),
         Ability::Enchant { .. } => by_word("enchant"),

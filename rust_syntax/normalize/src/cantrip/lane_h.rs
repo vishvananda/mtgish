@@ -2969,7 +2969,15 @@ impl Compiler {
                     let test = self.activation_condition(condition, &format!("{label}_if"))?;
                     write!(way, ".condition({test})").unwrap();
                 }
-                parts.table("ways", way);
+                // A way is an alternative cost (CR 118.9): one that pays the mana
+                // cost shuts out Fist of Suns or Dream Halls, which the permission
+                // leaves open. Only the printed keyword is a permission of its own.
+                if matches!(cost, PlayCost::Normal | PlayCost::Additional(_)) {
+                    let feature = "engine: a card's own terms to cast it from its graveyard";
+                    self.plan_entry(feature, "ways", &way, parts);
+                } else {
+                    parts.table("ways", way);
+                }
                 Ok(())
             }
             _ => Err(refused()),
