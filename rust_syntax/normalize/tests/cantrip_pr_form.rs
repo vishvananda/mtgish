@@ -628,3 +628,113 @@ fn an_amount_that_cannot_be_negative_has_no_floor() {
     assert!(abomination.contains("let amount = i64::from(item.data[0]) as i16;"), "{abomination}");
     assert!(!abomination.contains("i16::MAX"), "{abomination}");
 }
+
+/// "When this artifact enters and when you sacrifice it": two zone changes, one `let .. else` binding what both read. An
+/// `if let Event::ZoneChange` of the first would fail only on an event the matcher is never asked about, which leaves its
+/// closing brace a line no game runs; what the second asks of its reason is a guard of its own, after the first's test.
+#[test]
+fn two_zone_changes_bind_the_event_once() {
+    let raw = trigger_card(
+        "fn when_it_happens(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {
+            if let Event::ZoneChange { new, to, .. } = event {
+                let id = *new;
+                if to.is(ZoneKind::Battlefield) && asker.source == id { return Fired::about(Target::Object(id)); }
+            }
+            if let Event::ZoneChange { old, from, reason: ZoneReason::Sacrifice, .. } = event {
+                let id = *old;
+                if from.is(ZoneKind::Battlefield) && asker.source == id { return Fired::about(Target::Object(id)); }
+            }
+            None
+        }",
+    );
+    let file = render(&raw, "Sample", "Whenever a spell is cast, draw a card.", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(file.contains("let Event::ZoneChange { new, to, old, from, reason, .. } = event else { return None };"), "{file}");
+    assert!(file.contains("let ZoneReason::Sacrifice = reason else { return None };"), "{file}");
+    assert!(!file.contains("if let Event::"), "{file}");
+    assert_eq!(file.matches("Fired::about").count(), 2, "{file}");
+}
+
+/// Where the first event's code names a value as the second binds a field ("deals combat damage to a player or
+/// planeswalker": `let (source, combat) = (*source, ..)`), the first stays in a block of its own, so the second reads
+/// the field.
+#[test]
+fn two_events_of_one_kind_keep_their_own_names() {
+    let raw = trigger_card(
+        "fn when_it_happens(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> {
+            if let Event::Damage { source, target, kind, .. } = event {
+                let (source, combat) = (*source, kind.is_combat());
+                if combat && asker.source == source && matches!(*target, Target::Player(_)) { return Fired::about(Target::Object(source)); }
+            }
+            if let Event::Damage { source, target, kind, .. } = event {
+                let (source, combat) = (*source, kind.is_combat());
+                if combat && asker.source == source && matches!(*target, Target::Object(_)) { return Fired::about(Target::Object(source)); }
+            }
+            None
+        }",
+    );
+    let file = render(&raw, "Sample", "Whenever a spell is cast, draw a card.", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    let first = file.find("let (source, combat)").unwrap();
+    assert!(file[..first].trim_end().ends_with('{'), "{file}");
+    assert_eq!(file.matches("Fired::about").count(), 2, "{file}");
+}
+
+fn replacement_card(applies: &str, apply: &str) -> String {
+    format!(
+        "{applies}
+        {apply}
+        pub static CARD: CardDef = CardDef {{
+            replacements: &[ReplacementDef {{ kind: ReplacementKind::ZoneChange, applies, apply, text: \"If a card would be put into a graveyard, exile it instead.\" }}],
+            ..BLANK
+        }};"
+    )
+}
+
+/// A replacement registered for one kind of proposal is shown only that kind: its test of the kind is a `let .. else` on
+/// one line, whatever the function's end is (`false`, nothing), so no line stands for the kind that never comes.
+#[test]
+fn a_proposals_kind_is_a_guard_on_one_line() {
+    let raw = replacement_card(
+        "fn applies(q: &dyn Query, asker: &Asker, proposal: &Proposal) -> bool {
+            if let Proposal::ZoneChange(z) = proposal { if z.to.is(ZoneKind::Graveyard) { return true; } }
+            false
+        }",
+        "fn apply(q: &dyn Query, asker: &Asker, proposal: &mut Proposal) {
+            if let Proposal::ZoneChange(z) = proposal { z.to = Zone::exile(q.state().obj(z.object).owner); }
+        }",
+    );
+    let file = render(&raw, "Sample", "If a card would be put into a graveyard, exile it instead.", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(!file.contains("if let Proposal::"), "{file}");
+    assert!(file.contains("let Proposal::ZoneChange(z) = proposal else { return false };"), "{file}");
+    assert!(file.contains("let Proposal::ZoneChange(z) = proposal else { return };"), "{file}");
+}
+
+/// `Some(x)` matched against `Some(item.object)` always matches: the part goes, and the tuple with it, so the code under it
+/// is not a block whose end stands for a `None` no game has.
+#[test]
+fn a_value_that_is_always_some_is_not_tested() {
+    let body = "let values_1 = g.state().obj(item.object).spent.first().copied();
+        if let (Some(source), Some(values)) = (Some(item.object), values_1) { g.gain_life(item.controller, values); g.tap(source); }";
+    let file = render(&spell_card(body), "Sample", "You gain 1 life.", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(!file.contains("Some(source)"), "{file}");
+    assert!(!file.contains("Some(item.object)"), "{file}");
+    assert!(file.contains("g.tap(item.object)"), "{file}");
+    assert!(file.contains("let Some(values) = values_1 else { return Ok(()) };"), "{file}");
+}
+
+/// A `let .. else` whose `else { return .. }` the formatter puts on a line of its own is joined to it where the two fit: the
+/// line would count as run only when the guard fails. A loop's `break` is written the same way.
+#[test]
+fn a_guard_broken_by_the_margin_is_one_line() {
+    let body = "let Some(the_permanent_that_was_chosen_first) = g.state().battlefield().first().copied().filter(|&o| o != item.object) else { return Ok(()); };
+        g.tap(the_permanent_that_was_chosen_first);
+        loop { let Some(next_card_in_the_library) = g.state().zone(Zone::library(item.controller)).first().copied() else { break; }; g.tap(next_card_in_the_library); }";
+    let file = render(&spell_card(body), "Sample", "Tap a permanent.", Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(!file.lines().any(|line| line.trim().starts_with("else {")), "{file}");
+    assert!(!file.lines().any(|line| line.trim() == "break;"), "{file}");
+    assert!(file.contains("else { break };"), "{file}");
+}

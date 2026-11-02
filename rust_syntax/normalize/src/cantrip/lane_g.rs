@@ -937,7 +937,7 @@ impl Compiler {
         self.helpers.insert("pay_question");
         let payer = self.fetch(self.certain_player(player)?);
         let bound = self.fetch(self.number(bound)?.code);
-        writeln!(out, "let payer_{id} = {payer}; let most_{id} = ({bound}).clamp(0, 255) as u32; let x_{id} = {M}::choose::number(g, payer_{id}, asker.source, 0, most_{id}, \"Choose X\")?; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, Cost::mana(ManaCost {{ generic: x_{id} as u8, ..ManaCost::ZERO }}), &PAY_QUESTION)?; let bound_{id}: i64 = i64::from(x_{id});").unwrap();
+        writeln!(out, "let payer_{id} = {payer}; let most_{id} = ({bound}).clamp(0, 255) as u32; let x_{id} = {M}::choose::number(g, payer_{id}, asker.source, 0, most_{id}, \"Choose X\")?; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, Cost::mana(ManaCost {{ generic: x_{id}, ..ManaCost::ZERO }}), &PAY_QUESTION)?; let bound_{id}: i64 = i64::from(x_{id});").unwrap();
         self.performed.insert(result.0, format!("paid_{id}"));
         self.notes.paid_x = Some(format!("bound_{id}"));
         Ok(())
@@ -1879,9 +1879,9 @@ impl Compiler {
                 mana: symbols,
                 x: Some(x),
             } if resolving => {
-                let owed = self.fetch(self.number(x)?.amount(255, "u8")?);
+                let owed = self.fetch(self.number(x)?.amount(u32::MAX.into(), "u32")?);
                 format!(
-                    "{{ let base = {}; let owed: u8 = {owed}; Cost::mana(ManaCost {{ generic: base.generic.saturating_add(owed.saturating_mul(base.x)), x: 0, ..base }}) }}",
+                    "{{ let base = {}; let owed: u32 = {owed}; Cost::mana(ManaCost {{ generic: base.generic.saturating_add(owed.saturating_mul(u32::from(base.x))), x: 0, ..base }}) }}",
                     mana(symbols)?
                 )
             }

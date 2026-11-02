@@ -268,11 +268,35 @@ impl Compiler {
         }
         writeln!(out, "while left_{id} > 0 {{").unwrap();
         writeln!(out, "let mut open_{id}: Vec<ObjectId> = Vec::new(); for &c in &pool_{id} {{ let ways = g.cast_ways_during_resolution_by(c, caster_{id}); if ways.iter().any(|w| {test}){land_open} {{ open_{id}.push(c); }} }}").unwrap();
-        writeln!(out, "let picked_{id} = if open_{id}.is_empty() {{ None }} else if open_{id}.len() > 1 || ({among} && (!{copies} || pool_{id}.len() > 1)) {{ cantrip_mechanics::choose::cards_from(g, caster_{id}, asker.source, Purpose::{purpose}, pool_{id}.clone(), open_{id}.clone(), 1, {may})?.first().copied() }} else if !{may} || cantrip_mechanics::effects::ask_may(g, caster_{id}, open_{id}[0], Purpose::{purpose})? {{ Some(open_{id}[0]) }} else {{ None }};").unwrap();
+        // What can be known as the code is written is written as it is, not tested: a branch no game takes is a line no
+        // scenario runs. A pool of one object (one target) never has more than one card open, so "which" is not asked of it.
+        let which = match among.as_str() {
+            "false" => String::new(),
+            among => format!(" else if open_{id}.len() > 1 || ({among} && (!{copies} || pool_{id}.len() > 1)) {{ cantrip_mechanics::choose::cards_from(g, caster_{id}, asker.source, Purpose::{purpose}, pool_{id}.clone(), open_{id}.clone(), 1, {may})?.first().copied() }}"),
+        };
+        let whether = match may {
+            true => format!(" else if cantrip_mechanics::effects::ask_may(g, caster_{id}, open_{id}[0], Purpose::{purpose})? {{ Some(open_{id}[0]) }} else {{ None }}"),
+            false => format!(" else {{ Some(open_{id}[0]) }}"),
+        };
+        writeln!(out, "let picked_{id} = if open_{id}.is_empty() {{ None }}{which}{whether};").unwrap();
         writeln!(out, "let Some(card_{id}) = picked_{id} else {{ break; }};").unwrap();
         writeln!(out, "let ways_{id}: Vec<CastWay> = g.cast_ways_during_resolution_by(card_{id}, caster_{id}).into_iter().filter(|w| {test}).collect();").unwrap();
-        writeln!(out, "let done_{id} = if ways_{id}.is_empty() {{ g.play_land_during_resolution(card_{id})?.is_some() }} else {{ let way = cantrip_mechanics::choose::cast_way(g, caster_{id}, card_{id}, ways_{id})?.map(|w| w.way); g.cast_during_resolution_as(card_{id}, CastTerms {{ instead: {instead}, way, caster: Some(caster_{id}), exile_instead: ExileInstead::{exile}, ..CastTerms::default() }})? }};").unwrap();
-        writeln!(out, "if done_{id} {{ left_{id} -= 1; played_{id}.push(g.state().obj(card_{id}).became.unwrap_or(card_{id})); }} else if {single} {{ break; }} if done_{id} || !({may} && {among}) {{ pool_{id}.retain(|&c| c != card_{id}); }}").unwrap();
+        let cast = format!("{{ let way = cantrip_mechanics::choose::cast_way(g, caster_{id}, card_{id}, ways_{id})?.map(|w| w.way); g.cast_during_resolution_as(card_{id}, CastTerms {{ instead: {instead}, way, caster: Some(caster_{id}), exile_instead: ExileInstead::{exile}, ..CastTerms::default() }})? }}");
+        // Only a land is open with no way to cast it: of spells alone, the card picked has the ways it was open by.
+        match lands {
+            true => writeln!(out, "let done_{id} = if ways_{id}.is_empty() {{ g.play_land_during_resolution(card_{id})?.is_some() }} else {cast};").unwrap(),
+            false => writeln!(out, "let done_{id} = {cast};").unwrap(),
+        }
+        let stop = match single {
+            true => " else { break; }",
+            false => "",
+        };
+        let retain = format!("pool_{id}.retain(|&c| c != card_{id});");
+        let retain = match may && among != "false" {
+            true => format!("if done_{id} || !{among} {{ {retain} }}"),
+            false => retain,
+        };
+        writeln!(out, "if done_{id} {{ left_{id} -= 1; played_{id}.push(g.state().obj(card_{id}).became.unwrap_or(card_{id})); }}{stop} {retain}").unwrap();
         writeln!(out, "}}").unwrap();
         self.played = Some(format!("played_{id}"));
         Ok(())

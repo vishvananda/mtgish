@@ -408,6 +408,17 @@ fn only_changes(program: &Program) -> Option<Vec<EventChange>> {
         .collect()
 }
 
+/// What `about_each_damaged` and `end_each_damaged` wrote around an effect made for each object dealt damage, as one
+/// instruction: "exile it instead" of each creature dealt damage this way is one effect beginning for all of them, which
+/// the state triggers judge once it is all done (CR 603.8, 611.2c), not one creature at a time. Code that can suspend or
+/// return stays as it is: a closure of `instruction` can do neither.
+pub(super) fn one_instruction_for_each(each: Option<u32>, code: String) -> String {
+    if each.is_none() || code.contains('?') || code.contains("return") || !code.starts_with("for bound_") {
+        return code;
+    }
+    format!("cantrip_api::instruction(g, |g| {{ {code} }});\n")
+}
+
 impl Compiler {
     /// Where the callbacks of the replacement being compiled are written.
     pub(super) fn callbacks(&mut self) -> &mut String {

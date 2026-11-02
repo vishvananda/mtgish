@@ -232,7 +232,8 @@ impl Compiler {
         }
         let function = format!("{label}_implied");
         let mut arms = String::new();
-        for (test, effect) in tests.iter().zip(&effects) {
+        // The last mode is what is left when no earlier one is chosen: its own test could only say yes.
+        for (test, effect) in tests.iter().zip(&effects).take(effects.len() - 1) {
             writeln!(arms, "if {test}(g, asker, chosen) {{ return {effect}(g, item); }}").unwrap();
         }
         let last = effects.last().expect("modes");

@@ -1384,15 +1384,9 @@ impl Compiler {
             "{scope}.filter_map({}){same}.count() == 0",
             past.history_test()
         );
-        let intervening = self
-            .line_text()
-            .is_some_and(|line| line.contains("if it's the first time"));
-        if by_subject && intervening {
-            self.first_again = Some(format!(
-                "{scope}.filter_map({}).filter(|f: &Fired| f.subject == item.subject).count() <= 1",
-                past.history_test()
-            ));
-        }
+        // "If it's the first time" (Botanical Brawler) is an intervening "if" asked again as the ability resolves (CR
+        // 603.4), of the event it triggered on: whether that event had any before it, which nothing after changes. So
+        // the matcher's test is all; a count at resolution would take a later event for an earlier one.
         // Summed events are one happening: the rest of it is no earlier one.
         let test = match matched.sums {
             true => planned::planned_value(
@@ -2772,8 +2766,17 @@ impl Compiler {
                     ZoneScope::Shared(zone) => (zone, None),
                     ZoneScope::Players { zone, players } => (zone, Some(players)),
                 };
+                // A matcher is asked of the zone change before the history holds it: "whenever a creature enters, if it
+                // entered from your graveyard" (Prized Amalgam) reads where the event it is shown came from.
+                let shown = match self.event_at {
+                    EventAt::Matcher => format!(
+                        "match event {{ Event::ZoneChange {{ new, from, to, .. }} if *new == {id} && to.is(ZoneKind::Battlefield) => Some(*from), _ => None }}.or_else(|| "
+                    ),
+                    _ => String::new(),
+                };
+                let close = if shown.is_empty() { "" } else { ")" };
                 let entered = format!(
-                    "q.history().all().iter().rev().find_map(|r| match r.event {{ Event::ZoneChange {{ new, from, to, .. }} if new == {id} && to.is(ZoneKind::Battlefield) => Some(from), _ => None }}).is_some_and(|from| from.is({}))",
+                    "{shown}q.history().all().iter().rev().find_map(|r| match r.event {{ Event::ZoneChange {{ new, from, to, .. }} if new == {id} && to.is(ZoneKind::Battlefield) => Some(from), _ => None }}){close}.is_some_and(|from| from.is({}))",
                     zone_kind(zone)?
                 );
                 match owners {
@@ -4780,12 +4783,12 @@ impl Compiler {
         {
             return Ok(format!(
                 "CostDelta::less({})",
-                self.number(amount)?.fit(0, 255, "u8")?
+                self.number(amount)?.fit(0, u32::MAX.into(), "u32")?
             ));
         }
         let mut lines = Vec::new();
         for ManaReduction { color: of, amount } in reductions {
-            let n = self.number(amount)?.fit(0, 255, "u8")?;
+            let n = self.number(amount)?.fit(0, u32::MAX.into(), "u32")?;
             lines.push(match of {
                 Some(c) => format!("less.symbols[{}] += {n};", color_index(c)?),
                 None => format!("less.generic += {n};"),

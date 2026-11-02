@@ -496,6 +496,18 @@ impl Context {
         if crate::semantics::singular_operation(&operation, |r| self.singular.contains(&r.0)) {
             self.singular.insert(self.result);
         }
+        // The top of a library revealed and then moved (Sorin the Mirthless: "reveal that card and put it into your hand.
+        // If you do, you lose life equal to its mana value"): "that card" is what the move took, as it was, not the top
+        // read again, which is another card by then.
+        if let Operation::Move { objects, .. } = &operation {
+            let same = |revealed: &ObjectSet| format!("{revealed:?}") == format!("{objects:?}");
+            if matches!(objects, ObjectSet::Take { .. }) && self.revealed.as_ref().is_some_and(same) {
+                self.revealed = Some(ObjectSet::Transition {
+                    result: ResultId(self.result),
+                    phase: ObjectPhase::Before,
+                });
+            }
+        }
         if let Operation::Search { library, .. } = &operation {
             self.open_searches.push(library.clone());
         }

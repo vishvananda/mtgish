@@ -94,7 +94,7 @@ impl Compiler {
         let guard = self.guard()?;
         let function = format!("{label}_affinity");
         self.table_entry(parts, "cost_changes", &function, format!(
-            "fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ {PRELUDE} let Costed::Spell(spell) = costed else {{ return CostDelta::NONE; }}; if {guard}player == asker.controller && {test} {{ let count = q.permanents_of(player).into_iter().filter(|&id| {counted}).count(); CostDelta::less(count.min(255) as u8) }} else {{ CostDelta::NONE }} }}"
+            "fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ {PRELUDE} let Costed::Spell(spell) = costed else {{ return CostDelta::NONE; }}; if {guard}player == asker.controller && {test} {{ let count = q.permanents_of(player).into_iter().filter(|&id| {counted}).count(); CostDelta::less(count as u32) }} else {{ CostDelta::NONE }} }}"
         ));
         Ok(true)
     }
@@ -440,6 +440,30 @@ impl Compiler {
     /// `Operation::CreateContinuousEffect` on players: rules a resolving
     /// ability changes for a while (CR 611.2).
     pub(super) fn continuous_on_players(
+        &mut self,
+        id: usize,
+        source: &ObjectRef,
+        players: &PlayerSet,
+        changes: &[Change],
+        duration: &crate::ir::Duration,
+        out: &mut String,
+    ) -> Result<()> {
+        // "Your life total can't change and you gain protection from everything", and a rule for each opponent, are one
+        // instruction: effects that begin with no event between, which the state triggers judge once all have begun
+        // (CR 603.8, 608.2c, 611.2c).
+        let mut each = String::new();
+        self.continuous_on_players_apart(id, source, players, changes, duration, &mut each)?;
+        if changes.len() < 2 && !each.contains("for ") {
+            out.push_str(&each);
+            return Ok(());
+        }
+        match each.contains('?') || each.contains("return") {
+            false => writeln!(out, "cantrip_api::instruction(g, |g| {{ {each} }});").unwrap(),
+            true => writeln!(out, "g.one_instruction(&mut |g| {{ {each} Ok(()) }})?;").unwrap(),
+        }
+        Ok(())
+    }
+    fn continuous_on_players_apart(
         &mut self,
         id: usize,
         source: &ObjectRef,

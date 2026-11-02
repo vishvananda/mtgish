@@ -504,6 +504,18 @@ pub(super) fn asks_how_it_was_cast(condition: &Condition) -> bool {
         }
     )
 }
+/// An intervening "if" of how an object was cast by the ability's controller (or by anyone): what the game recorded when
+/// it was cast, which nothing changes, so asked again as the ability resolves (CR 603.4) it answers as it did when the
+/// event happened (Light-Paws, Emperor's Voice: "if you cast it"). The matcher asking it is all.
+pub(super) fn cast_history_is_fixed(condition: &Condition) -> bool {
+    matches!(
+        condition,
+        Condition::ObjectMatches {
+            filter: ObjectFilter::Cast { by: None | Some(PlayerSet::One(PlayerRef::AbilityController)), .. },
+            ..
+        }
+    )
+}
 /// A trigger keeps the new object's number only if something reads it: the game
 /// compares what a trigger carries to find a loop (732.4), and a number that grows
 /// round the loop would keep it from ever coming back to the same position.

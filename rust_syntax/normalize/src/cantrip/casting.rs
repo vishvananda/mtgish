@@ -22,6 +22,24 @@ pub(super) fn target_range(count: &Count) -> Result<(u32, u32)> {
 }
 
 impl Compiler {
+    /// A test of the card's own types, "an instant or sorcery card" of a flashback card's permission, keeps only the types the
+    /// card prints: its own types don't change in the graveyard, so a type it doesn't print is a test no game can make true,
+    /// and the half of `a || b` naming it is a line that never runs. A card that prints none of them keeps the whole test.
+    pub(super) fn printed_types_of_source(&self, require: &ObjectFilter) -> ObjectFilter {
+        let ObjectFilter::Either(parts) = require else { return require.clone() };
+        let printed: Vec<&ObjectFilter> = parts
+            .iter()
+            .filter(|part| matches!(part, ObjectFilter::CardType(t) if self.printed_types.iter().any(|printed| std::mem::discriminant(printed) == std::mem::discriminant(t))))
+            .collect();
+        if printed.is_empty() || !parts.iter().all(|part| matches!(part, ObjectFilter::CardType(_))) {
+            return require.clone();
+        }
+        match printed.as_slice() {
+            [one] => (*one).clone(),
+            many => ObjectFilter::Either(many.iter().map(|part| (*part).clone()).collect()),
+        }
+    }
+
     /// `Ability::CostBranch`.
     pub(super) fn cost_branch(
         &mut self,
@@ -402,6 +420,7 @@ impl Compiler {
                     def.push_str(".exile_after()");
                 }
                 if !matches!(require, ObjectFilter::Any) {
+                    let require = &self.printed_types_of_source(require);
                     let saved = std::mem::replace(&mut self.reader, Reader::Query);
                     let test = self.filter(require, &Candidate::of("asker.source"));
                     self.reader = saved;

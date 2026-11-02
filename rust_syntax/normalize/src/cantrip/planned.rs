@@ -381,7 +381,6 @@ impl Compiler {
         self.pending = Pending::Nothing;
         self.may_choose = false;
         self.do_once = None;
-        self.first_again = None;
         self.chosen_guard = None;
         self.guard_opened = 0;
         self.replacing = Default::default();
