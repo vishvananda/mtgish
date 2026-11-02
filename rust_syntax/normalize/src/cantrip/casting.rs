@@ -129,7 +129,14 @@ impl Compiler {
                 if !same_targets {
                     return Err(gap("cleave that changes its targets"));
                 }
-                let [CostPart::Mana(symbols)] = cost.parts.as_slice() else {
+                // "Cleave {X}{R}{W}": an {X} in the alternative cost is announced as
+                // the spell is cast (CR 107.3a, 601.2b), as any way's is.
+                let ([CostPart::Mana(symbols)]
+                | [CostPart::ManaWithX {
+                    mana: symbols,
+                    x: None,
+                }]) = cost.parts.as_slice()
+                else {
                     return Err(gap("cleave cost other than mana"));
                 };
                 let text = quoted(&self.said_word("Cleave".into()));

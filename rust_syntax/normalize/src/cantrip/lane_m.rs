@@ -1489,6 +1489,47 @@ impl Compiler {
                 "false",
                 &format!("q.outcome(asker, Outcome::{outcome:?})"),
             ),
+            // "If you ... controlled a Dragon as you cast this spell" (CR 601.2i):
+            // the board as the spell became cast, kept in its cast record
+            // (`CardDef::cast_fact`, as Faerie Fencing keeps it), so a copy, which
+            // was not cast (CR 707.10), never did.
+            // The permanent the spell became reads its spell's cast record: the
+            // record names the spell, whose row says what it became (CR 400.7).
+            Condition::AsCast {
+                player,
+                action: AsCastAction::Controlled(set),
+            } if matches!(
+                format!("{player:?}").as_str(),
+                "AbilityController" | "ControllerOf(EventSubject)" | "ControllerOf(Source)"
+            ) =>
+            {
+                // Asked as the spell becomes cast: "you" is its caster.
+                let mut asked = self.clone();
+                asked.reader = Reader::Query;
+                asked.stack_item = false;
+                let objects = asked.objects(set)?;
+                let code = format!(
+                    "i64::from(({objects}).into_iter().any(|o: ObjectId| q.controller(o) == asker.controller))"
+                );
+                let mut fact = self.cast_fact.borrow_mut();
+                if fact.as_ref().is_some_and(|other| *other != code) {
+                    return Err(gap("two facts kept as a spell is cast"));
+                }
+                *fact = Some(code);
+                // The spell itself, or the permanent it became; a copy, which was
+                // not cast (CR 707.10), has no record.
+                "q.history().casts().any(|c| (c.spell == asker.source || q.state().obj(c.spell).became == Some(asker.source)) && c.fact != 0)".into()
+            }
+            // "If you revealed a Dragon card as you cast this spell": what the
+            // optional reveal cost showed, which waits on that cost.
+            Condition::AsCast {
+                action: AsCastAction::Revealed(_) | AsCastAction::Chose(_),
+                ..
+            } => planned::planned_value(
+                "engine: no reveal cost",
+                "false",
+                &format!("q.as_cast(asker, {})", one_line(condition)),
+            ),
             Condition::AsCast { .. } => planned::planned_value(
                 "condition AsCast",
                 "false",
