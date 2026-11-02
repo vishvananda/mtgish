@@ -2153,24 +2153,64 @@ impl Compiler {
     }
     /// "Has all activated abilities of ...", "as long as a card exiled with this has
     /// flying, this has flying. The same is true for ..." (CR 613.1f, layer 6).
-    pub(super) fn gain_abilities_of(&mut self, change: &Change) -> Result<statics::LayerChange> {
+    pub(super) fn gain_abilities_of(
+        &mut self,
+        change: &Change,
+        spend_handled: bool,
+    ) -> Result<statics::LayerChange> {
         let failure = || gap("static change GainAbilitiesOf");
         // The activated abilities a permanent has are its characteristics as the
         // layers leave them (CR 613.1f), not its card's printed list, which is all
         // `grant_activated_abilities_of` reads (Drana and Linvala, Scheming Fence,
-        // Sharkey). "You may spend mana as though it were mana of any color to
-        // activate those abilities" rides on the same grant.
-        if let Change::GainAbilitiesOf { objects, kinds, .. } = change {
+        // Sharkey, Experiment Kraj, Marvin, Robaran Mercenaries, Manascape
+        // Refractor): read each through the view, which in layer 6 is the object
+        // as the layer's effects applied so far leave it (CR 613.8, `LayerQuery::chars`).
+        // "You may spend mana as though it were mana of any color to activate those
+        // abilities" is a spending rule the caller writes (`spend_handled`).
+        if let Change::GainAbilitiesOf { objects, kinds, once_each_turn, spend_as } = change {
             let on_battlefield = matches!(objects, ObjectSet::Battlefield(_));
             let asked = format!("{kinds:?}");
             let permanents = on_battlefield || asked.contains("AbilityOfPermanent");
             let activated = asked.contains("ActivatedAbility") || asked.contains("AbilityOfPermanent");
-            // The plain grant below holds on this same requirement.
-            let plain = on_battlefield
-                && matches!(change, Change::GainAbilitiesOf { spend_as: None, once_each_turn: false, .. })
-                && matches!(&**kinds, Operand::List(items) if matches!(items.as_slice(), [Operand::Term { form, operands, .. }] if form == "ActivatedAbility" && operands.is_empty()));
-            if permanents && activated && !plain {
-                return Err(gap("the activated abilities of other permanents"));
+            if permanents && activated {
+                if *once_each_turn || (spend_as.is_some() && !spend_handled) {
+                    return Err(gap("the activated abilities of other permanents"));
+                }
+                fn kept(kinds: &Operand) -> Option<String> {
+                    match kinds {
+                        Operand::List(items) => items
+                            .iter()
+                            .map(kept)
+                            .collect::<Option<Vec<_>>>()
+                            .map(|tests| format!("({})", tests.join(" || "))),
+                        Operand::Term { form, operands, .. } => match (form.as_str(), operands.as_slice()) {
+                            ("ActivatedAbility", []) | ("AbilityOfPermanent", [_]) => Some("true".into()),
+                            ("NonManaAbility", []) => Some("!d.is_mana_ability()".into()),
+                            ("NonLoyaltyAbility", []) => Some("!d.is_loyalty_ability()".into()),
+                            ("And", parts) => parts
+                                .iter()
+                                .map(kept)
+                                .collect::<Option<Vec<_>>>()
+                                .map(|tests| format!("({})", tests.join(" && "))),
+                            _ => None,
+                        },
+                        _ => None,
+                    }
+                }
+                let Some(keep) = kept(kinds) else {
+                    return Err(gap("the activated abilities of other permanents"));
+                };
+                let ids = self.ids_in_layer(objects)?;
+                // Each ability is the object's own as written, so it is the
+                // ability's source and "this" means it (CR 113.7, 602.1); a special
+                // action is no ability (CR 116.2). A permanent doesn't gain its own,
+                // and what has left the battlefield has none to give.
+                return Ok(statics::LayerChange::of(
+                    "Ability",
+                    format!(
+                        "let ids: Vec<ObjectId> = {ids}; for id in ids {{ if id == source || !q.state().obj(id).zone.is(ZoneKind::Battlefield) {{ continue; }} let other = q.chars(id); for r in other.abilities() {{ if matches!(q.cards().ability(r), AbilityDef::Activated(d) if !d.special_action && {keep}) {{ if let Some(slot) = chars.abilities.iter().position(|a| a.is_none()) {{ chars.abilities[slot] = Some(r); }} }} }} }}"
+                    ),
+                ));
             }
         }
         let Change::GainAbilitiesOf {
@@ -2197,16 +2237,7 @@ impl Compiler {
             return Err(failure());
         }
         let ids = self.ids_in_layer(objects)?;
-        let on_battlefield = matches!(objects, ObjectSet::Battlefield(_));
         let body = match kinds_named.iter().map(String::as_str).collect::<Vec<_>>().as_slice() {
-            ["ActivatedAbility"] if on_battlefield => format!(
-                "let ids = {ids}; {};",
-                planned::planned_value(
-                    "the activated abilities of other permanents",
-                    "()",
-                    "cantrip_mechanics::statics::grant_activated_abilities_of_permanents(q, &ids, chars)",
-                )
-            ),
             ["ActivatedAbility"] if *once_each_turn => {
                 // "You may activate each of those abilities only once each turn"
                 // (CR 602.5b): one limited instance for each of the cards that

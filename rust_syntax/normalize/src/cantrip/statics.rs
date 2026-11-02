@@ -561,7 +561,7 @@ impl Compiler {
             Change::Rule(rule) => return self.layer_rule(rule),
             Change::GainAbilitiesOf { .. } => {
                 return self
-                    .gain_abilities_of(change)
+                    .gain_abilities_of(change, false)
                     .or_else(|failed| self.gained_layer(change, failed))
             }
             Change::SetName(word) => LayerChange::of(
@@ -696,6 +696,23 @@ impl Compiler {
             // with a +1/+1 counter if its controller, the grantor's, chooses;
             // and what it gives unleash can't block while it has one.
             if self.granted_way(&format!("{label}_{i}"), change, affected, parts)? {
+                continue;
+            }
+            // "This has all activated abilities of ... . You may spend mana as
+            // though it were mana of any color to activate those abilities"
+            // (Drana and Linvala, Scheming Fence; CR 609.4b): a spending rule for
+            // the activation costs of this permanent's abilities, beside the grant.
+            if let (
+                Change::GainAbilitiesOf { spend_as: Some(SpendAs::AnyColor), .. },
+                ObjectSet::One(ObjectRef::Source),
+                None,
+            ) = (change, affected, &condition)
+            {
+                let part = self.layered(|c| c.gain_abilities_of(change, true))?;
+                let function = format!("{label}_{i}_spend");
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, s: &Spending) -> bool {{ s.player == asker.controller && s.purpose == SpendingFor::Activating && s.source == Some(asker.source) }}").unwrap();
+                parts.table("spend_any_color", function);
+                layered.push((i, change, part));
                 continue;
             }
             if let (
