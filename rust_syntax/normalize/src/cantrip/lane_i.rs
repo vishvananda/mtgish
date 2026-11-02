@@ -3139,6 +3139,16 @@ impl Compiler {
             return Ok(());
         }
         if matches!(op, Operation::Search { outside: true, .. }) {
+            // Turtles Forever: "shuffle the rest into your library", where the rest
+            // may be cards from outside the game, is a plain shuffle in the data.
+            if self
+                .line_text()
+                .is_some_and(|line| line.contains("shuffle the rest into your library"))
+            {
+                return Err(gap(
+                    "the rest of a search outside the game shuffled into the library, read as a shuffle in the data",
+                ));
+            }
             return Err(gap("search with cards from outside the game"));
         }
         let Operation::Search {

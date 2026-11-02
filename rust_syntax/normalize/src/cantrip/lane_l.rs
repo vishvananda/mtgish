@@ -859,7 +859,18 @@ impl Compiler {
                 format!(".between({n}, cantrip_mechanics::ANY_NUMBER)")
             }
             Count::Exactly(n) => {
-                let n = planned::planned_value("target cardinality Exactly", "1u32", &read(n)?);
+                // A spell's slot counts only `TargetSpec::COUNTED`: its X, or else the
+                // times it was kicked (CR 601.2c). Comet Storm's "another target for
+                // each time this spell was kicked" beside its X, and Primitive Justice's
+                // counts of each additional cost paid, are no such count.
+                let code = read(n)?;
+                if code.contains(".kicked") {
+                    return Err(gap("a spell's target count of times kicked, beside an X or added to"));
+                }
+                if code.contains("additional_cost_paid") {
+                    return Err(gap("a spell's target count of an additional cost paid any number of times"));
+                }
+                let n = planned::planned_value("target cardinality Exactly", "1u32", &code);
                 format!(".between({n}, {n})")
             }
             Count::AtLeast(n) => {
