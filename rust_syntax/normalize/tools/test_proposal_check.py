@@ -94,6 +94,9 @@ class Text(unittest.TestCase):
         text = "g.note(a); let x = g.ask(b) + 1;"
         self.assertTrue(pc.statement_after(text, text.index("note") + 4))
         self.assertFalse(pc.statement_after(text, text.index("ask") + 3))
+        # The last call of a closure's body is what the closure returns.
+        tail = "h(g, |g| { let x = 1; g.resolve(x) })"
+        self.assertFalse(pc.statement_after(tail, tail.index("resolve") + 7))
 
     def test_constant_proposed_variants_would_be_promoted(self):
         spec = pc.Spec(MODEL)
@@ -307,6 +310,13 @@ class Stubs(unittest.TestCase):
                        "villainous"))
         self.assertIn("pub mod villainous {", spec.write())
         self.assertEqual(pc.rewrite(text, MODEL, spec), "crate::proposals::mechanics::villainous::choose(g, p)")
+
+    def test_a_private_name_of_a_mechanics_module_is_stubbed_as_its_new_item(self):
+        text = "cantrip_mechanics::tokens::spell(a, b)"
+        spec = learnt(("E0603", "function `spell` is private", text, "spell"))
+        self.assertEqual(pc.rewrite(text, MODEL, spec), "crate::proposals::mechanics::tokens::spell(a, b)")
+        # Private elsewhere is not the module's to say.
+        self.assertEqual(learnt(("E0603", "function `spell` is private", "x::spell(a)", "spell")).write(), pc.Spec(MODEL).write())
 
     def test_a_method_on_a_type_cantrip_api_does_not_re_export_is_stubbed_on_its_path(self):
         stubs = learnt(method("counters", "p.counters(k)", on="cantrip_state::object::TriggerDef")).write()

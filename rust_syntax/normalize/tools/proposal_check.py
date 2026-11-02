@@ -208,12 +208,14 @@ def called_as(key, before):
 
 
 def statement_after(text, at):
-    """Whether the call whose name ends at `at` is a whole statement: nothing reads its value."""
+    """Whether the call whose name ends at `at` is a whole statement: nothing reads its value. A call before a `}`
+    is its block's value, which a closure or function body returns (`|g| { ..; f(g) }`): it can be a statement only
+    where the block's own value is `()`, which the call alone doesn't say."""
     use = re.compile(r"\s*(?:::<[^(]*>)?\s*\(").match(text, at)
     if not use:
         return False
     end = balanced(text, use.end() - 1)
-    return bool(re.compile(r"\s*(;|\}|$)").match(text, end))
+    return bool(re.compile(r"\s*(;|$)").match(text, end))
 
 
 def camel(name):
@@ -466,6 +468,11 @@ class Spec:
             return
         m = re.match(r"(?:failed to resolve: )?(?:could not find|cannot find) (?:[\w ,]+ )?`(\w+)` in (?:module )?`([\w:]+)`", msg)
         if code in ("E0433", "E0425", "E0412", "E0422", "E0423", "E0531", "E0532") and m:
+            self.use_path(text, start, end)
+            return
+        # A mechanics module's private name (its `use cantrip_api::*` brings in `spell`) is no item the module has.
+        if code == "E0603" and re.match(r"(?:function|struct|enum|constant|static) `\w+` is private", msg) and \
+                re.search(r"\bcantrip_mechanics::(?:\w+::)+$", text[max(0, start - 200) : start]):
             self.use_path(text, start, end)
             return
         m = re.match(r"struct `([^`]+)` has no field named `(\w+)`", msg)
