@@ -1342,10 +1342,14 @@ impl Compiler {
                 "{}.is_some_and(|p: PlayerId| {{ let kinds: Vec<SubtypeSet> = q.state().zone(Zone::library(p)).iter().map(|&card| q.chars(card).subtypes).collect(); let count = |kind: Subtype| kinds.iter().filter(|set| set.has(kind)).count(); let most = SubtypeSet::CREATURE_TYPES.iter().map(count).max().unwrap_or(0); most > 0 && SubtypeSet::CREATURE_TYPES.iter().any(|kind| {chars}.has_subtype(kind) && count(kind) == most) }})",
                 self.player(player)?
             ),
-            ObjectFilter::NameFirstPrintedIn(set) => held(
-                &feature,
-                &format!("{chars}.first_printing == Printing::{}", form(set)),
-            ),
+            // Cantrip keeps no printings: the names the set first printed, each.
+            ObjectFilter::NameFirstPrintedIn(set) => {
+                let names: Vec<String> = super::first_printed::names(set)
+                    .iter()
+                    .map(|name| format!("{name:?}"))
+                    .collect();
+                format!("matches!({chars}.name, {})", names.join(" | "))
+            }
             ObjectFilter::Noted(kind) => held(
                 &feature,
                 &format!("q.noted(asker, ChoiceKind::{kind:?}).matches({id})"),
@@ -2414,6 +2418,7 @@ impl Compiler {
             || failed.feature == "search with cards from outside the game"
             || failed.feature == "cards found in two zones put on top of a library"
             || failed.feature == "search with several find clauses"
+            || failed.feature.starts_with("the chosen cards of a search of more than the library")
             || failed.feature.starts_with("search constraint ");
         if !planned {
             return Err(failed);

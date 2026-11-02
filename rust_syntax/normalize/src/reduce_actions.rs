@@ -1075,7 +1075,10 @@ fn reduce_set_action(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Opt
             true,
         ),
         ("SacrificeAPermanentOfAPlayersChoice", [Objects(set), Players(players)]) => {
-            sacrifice(chosen(players, set, one()), None)
+            // Only a permanent the player controls can be sacrificed (CR 701.21a):
+            // the choice is among those.
+            let own = matching(set, &ObjectFilter::ControlledBy(actor.clone()));
+            sacrifice(chosen(players, &own, one()), None)
         }
         ("SacrificeHalfOfThePermanentsRoundedUp", [Objects(set)]) => sacrifice(
             set.clone(),

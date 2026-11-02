@@ -1174,9 +1174,16 @@ impl Compiler {
                     true => self.implied_slots(announcement, label, None)?,
                     false => None,
                 };
+                let told = match implied.is_none() && body.instructions.is_empty() {
+                    true => self.spell_told_as_cast(announcement, label)?,
+                    false => None,
+                };
                 if let Some(targets) = implied {
                     let effect = self.implied_effect(announcement, label)?;
                     parts.spell = format!("spell({targets}, {effect})");
+                } else if let Some(spell) = told {
+                    parts.spell = spell;
+                    self.spell_keywords(parts);
                 } else if announcement.modes.is_some() {
                     if !body.instructions.is_empty() {
                         return Err(gap("modal spell with instructions besides its modes"));

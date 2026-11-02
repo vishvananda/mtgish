@@ -36,6 +36,35 @@ fn implied_modes(announcement: &Announcement) -> Option<&[Mode]> {
     (plain && modes.len() > 1 && modes.iter().all(each)).then_some(modes)
 }
 
+/// "Deals X damage to target creature. If you controlled a modified creature as
+/// you cast this spell, it deals X plus 2 damage instead": two modes of one slot
+/// that a condition and its negation tell apart, read as the spell is cast. The
+/// condition, the two modes in its order, if it is that.
+pub(super) fn modes_told_as_cast(announcement: &Announcement) -> Option<(&Condition, &Mode, &Mode)> {
+    let selection = announcement.modes.as_ref()?;
+    let one = |n: &Expr| matches!(n, Expr::Constant(1));
+    let plain = selection.implied
+        && announcement.targets.is_empty()
+        && one(&selection.minimum)
+        && one(&selection.maximum)
+        && !selection.repeat
+        && selection.unchosen.is_none()
+        && selection.surcharge.is_none()
+        && selection.chooser.is_none()
+        && selection.budget.is_none()
+        && !selection.random;
+    let [first, second] = selection.modes.as_slice() else {
+        return None;
+    };
+    let (Some(condition), Some(otherwise)) = (&first.requires, &second.requires) else {
+        return None;
+    };
+    let negated = format!("{:?}", Condition::Not(Box::new(condition.clone())));
+    let same_slots = format!("{:?}", first.announcement) == format!("{:?}", second.announcement);
+    (plain && same_slots && first.announcement.modes.is_none() && negated == format!("{otherwise:?}"))
+        .then_some((condition, first, second))
+}
+
 /// The line of `functions` that starts with `start`, without its name.
 fn line_of(functions: &str, start: &str, name: &str) -> Option<String> {
     let line = functions.lines().rev().find(|line| line.contains(start))?;
@@ -149,6 +178,34 @@ impl Compiler {
         self.functions = kept.join("\n") + "\n";
         writeln!(self.functions, "{}", same.replacen("static ", &format!("static {name}"), 1)).unwrap();
         Ok(Some(name))
+    }
+    /// A spell of `modes_told_as_cast`: one slot, and the mode its condition picks,
+    /// kept as the spell became cast (`CardDef::cast_fact`, CR 601.2i) as Faerie
+    /// Fencing keeps it, so a copy, which was not cast (CR 707.10), has the other.
+    /// The spell's `spell(..)`, if it is that.
+    pub(super) fn spell_told_as_cast(
+        &mut self,
+        announcement: &Announcement,
+        label: &str,
+    ) -> Result<Option<String>> {
+        let Some((condition, first, second)) = modes_told_as_cast(announcement) else {
+            return Ok(None);
+        };
+        if self.cast_fact.borrow().is_some() {
+            return Err(gap("two facts kept as a spell is cast"));
+        }
+        let targets = self.announcement(&first.announcement, label)?;
+        let then = self.effect(&first.body, &format!("{label}_mode_0"))?;
+        let otherwise = self.effect(&second.body, &format!("{label}_mode_1"))?;
+        let test = self.activation_condition(condition, &format!("{label}_as_cast"))?;
+        *self.cast_fact.borrow_mut() = Some(format!("i64::from({test}(q, asker))"));
+        let function = format!("{label}_told_as_cast");
+        writeln!(
+            self.functions,
+            "fn {function}(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ if g.history().fact_as_cast(item.object) != 0 {{ {then}(g, item) }} else {{ {otherwise}(g, item) }} }}"
+        )
+        .unwrap();
+        Ok(Some(format!("spell({targets}, {function})")))
     }
     /// The effect of an ability `implied_slots` wrote: each mode's, by the target.
     pub(super) fn implied_effect(

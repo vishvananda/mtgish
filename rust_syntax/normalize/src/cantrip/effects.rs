@@ -799,6 +799,25 @@ impl Compiler {
                         out,
                     );
                 };
+                // "A land card of each basic land type": one card for each, a card
+                // counted for one type alone (Gaea's Balance), the clauses of one
+                // search told apart as several find clauses are.
+                if let (
+                    [SelectionConstraint::OneForEach(each)],
+                    Count::AnyNumber | Count::UpTo(_),
+                ) = (choice.constraints.as_slice(), &choice.count)
+                {
+                    let clauses: Vec<SearchChoice> = each
+                        .iter()
+                        .map(|filter| SearchChoice {
+                            filter: ObjectFilter::All(vec![choice.filter.clone(), filter.clone()]),
+                            count: Count::UpTo(Expr::Constant(1)),
+                            constraints: Vec::new(),
+                        })
+                        .collect();
+                    let destination = search_destination(result, &body.instructions[i + 1..]);
+                    return self.search_several(player, library, &clauses, result, destination, out);
+                }
                 let rules = self.search_rules(&choice.constraints)?;
                 if one_at_most(&choice.count) {
                     self.single.insert(result.0);

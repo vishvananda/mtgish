@@ -645,6 +645,15 @@ impl Compiler {
                 return Ok(());
             }
             if let Some((variant, binding, frame)) = self.replacing.event {
+                // "Prevent all combat damage that would be dealt by that creature
+                // this turn unless its controller pays {2}{R}" (Heroism): a payment
+                // asked as the damage would be dealt, which decides the prevention.
+                let feature = match (variant, change) {
+                    ("Damage", EventChange::PreventDamage | EventChange::PreventSomeDamage(_)) => {
+                        "damage prevented by what the effect asks as it would be dealt"
+                    }
+                    _ => "event change in the program of another event",
+                };
                 let edit = match change {
                     EventChange::PreventDamage => format!("{binding}.prevent(None);"),
                     EventChange::PreventSomeDamage(n) => {
@@ -656,7 +665,7 @@ impl Compiler {
                     other => self.reshape(lane_n::shape_of(variant, variant), other, frame)?,
                 };
                 self.plan_code(
-                    "event change in the program of another event",
+                    feature,
                     &format!(
                         "g.change_event(|q, proposal| {{ if let Proposal::{variant}({binding}) = proposal {{ {edit} }} }});"
                     ),
@@ -693,12 +702,28 @@ impl Compiler {
             Some(Carried::Subject) => alone,
             _ => (alone.1, alone.0),
         };
-        if (!subject_alone && out.contains("subject")) || (!second_alone && out.contains("data[1]"))
-        {
-            return Err(gap("the rest of a prevention read for each of its parts"));
-        }
         let pass = if about.is_empty() { "" } else { "affected, " };
         writeln!(self.functions, "#[allow(unused_variables, unused_mut)] fn {then}_steps(g: &mut dyn Game, asker: &Asker, {about}subject: Target, data: [u32; 2], done_prevented: u16) -> Result<(), Suspend> {{ {out} Ok(()) }}").unwrap();
+        // Words that read "that source" or "that creature" where the parts have
+        // several are about each one (Comeuppance: each creature is dealt the
+        // damage prevented from it): the rest runs once for each, with its total.
+        let (by_subject, by_second) = (
+            !subject_alone && out.contains("subject"),
+            !second_alone && out.contains("data[1]"),
+        );
+        if by_subject || by_second {
+            let subject_is_source = matches!(frame.damage_source, Some(Carried::Subject));
+            let mut keys = Vec::new();
+            if (by_subject && subject_is_source) || (by_second && !subject_is_source) {
+                keys.push("k.source == p.source");
+            }
+            if (by_subject && !subject_is_source) || (by_second && subject_is_source) {
+                keys.push("k.target == p.target");
+            }
+            let keys = keys.join(" && ");
+            writeln!(self.functions, "#[allow(unused_variables, dead_code)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}parts: &[Prevented]) {{ let mut each: Vec<Prevented> = Vec::new(); for p in parts {{ match each.iter_mut().find(|k| {keys}) {{ Some(k) => k.amount = k.amount.saturating_add(p.amount), None => each.push(*p) }} }} for e in &each {{ let prevented = e.amount; let q: &dyn Query = g; {locals} if {then}_steps(g, asker, {pass}subject, data, prevented).is_err() {{ return; }} }} }}").unwrap();
+            return Ok(Some(then));
+        }
         writeln!(self.functions, "#[allow(unused_variables, dead_code)] fn {then}(g: &mut dyn Game, asker: &Asker, {about}parts: &[Prevented]) {{ let Some(first) = parts.first() else {{ return }}; let prevented = Prevented::total(parts).min(u16::MAX.into()) as u16; let e = &Prevented {{ amount: prevented, ..*first }}; let q: &dyn Query = g; {locals} let _ = {then}_steps(g, asker, {pass}subject, data, prevented); }}").unwrap();
         Ok(Some(then))
     }

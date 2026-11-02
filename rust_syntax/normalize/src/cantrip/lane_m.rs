@@ -815,8 +815,19 @@ impl Compiler {
                 self.selections.insert(picked.0, format!("random_{id}"));
             }
             Pick::Chosen(chooser, objects, count) => {
-                let PlayerSet::One(player) = chooser else {
-                    return Err(gap("object collection Chosen"));
+                let player = match chooser {
+                    PlayerSet::One(player) => player,
+                    // "Of an opponent's choice": the effect names no opponent, so the
+                    // controller says which one chooses (CR 608.2d), asked only when
+                    // there is more than one (`choose::opponent_chooses`).
+                    PlayerSet::OpponentsOf(_) => {
+                        let binding = ACTING + 100 + id as u32;
+                        let players = self.fetch(self.players(&chooser)?);
+                        writeln!(out, "let choosers_{id}: Vec<PlayerId> = {players}; let bound_{binding}: PlayerId = match choosers_{id}.len() {{ 0 => asker.controller, 1 => choosers_{id}[0], _ => cantrip_mechanics::choose::player(g, asker.controller, asker.source, choosers_{id}.clone(), \"Choose\", 0)?.unwrap_or(choosers_{id}[0]) }};").unwrap();
+                        self.bound_players.insert(binding);
+                        PlayerRef::Bound(Binding(binding))
+                    }
+                    _ => return Err(gap("object collection Chosen")),
                 };
                 let choice = Instruction::Effect {
                     result: picked,

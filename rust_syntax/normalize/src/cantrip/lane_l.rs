@@ -2815,7 +2815,7 @@ impl Compiler {
     /// One rule over the cards of a search for several things: the most it can
     /// take, and a judge that tells them off among the clauses, each with its own
     /// quality and number. `None` where a clause is more than that.
-    fn clauses_judge(
+    pub(super) fn clauses_judge(
         &self,
         id: usize,
         choices: &[SearchChoice],

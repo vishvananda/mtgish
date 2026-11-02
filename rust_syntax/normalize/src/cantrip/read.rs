@@ -1205,6 +1205,21 @@ impl Compiler {
             {
                 count(self.told_event_amount(n)?)
             }
+            // "The number of opponents dealt damage this way" (Hordewing Skaab,
+            // Malcolm): a "one or more" ability's batch keeps its sources as
+            // members, and not the players they dealt damage to.
+            Expr::EventAmount
+                if self.frame.amount.is_none()
+                    && self.event_at == EventAt::Item
+                    && self.frame.damage_source == Some(Carried::Subject)
+                    && self.frame.player == Some(Carried::Data(1)) =>
+            {
+                count(planned::planned_value(
+                    "the players a one-or-more damage trigger's batch dealt damage to",
+                    "0i64",
+                    "q.event_players(item).len() as i64",
+                ))
+            }
             // "That many" of an event the engine reports without the number, or of
             // several events the ability is one answer to.
             Expr::EventAmount if self.frame.amount.is_none() && self.event_at == EventAt::Item => {

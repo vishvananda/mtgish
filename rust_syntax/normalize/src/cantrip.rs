@@ -18,6 +18,7 @@ mod costs;
 mod delayed;
 mod effects;
 mod faces;
+mod first_printed;
 mod keywords;
 mod lane_f;
 mod lane_g;

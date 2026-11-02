@@ -1190,6 +1190,25 @@ impl Compiler {
         let bound = format!("bound_{}", each.binding.0);
         let id = self.fresh();
         match gathered {
+            // "Each foe chooses one untapped creature they control, then taps the
+            // rest": the player whose turn it is chooses as the walk reaches them.
+            Gathered::Objects {
+                objects: ObjectSet::Difference { objects, excluding },
+                ..
+            } if matches!(&**excluding, ObjectSet::Chosen {
+                    chooser: PlayerSet::One(PlayerRef::Bound(b)),
+                    objects: among,
+                    ..
+                } if b.0 == each.binding.0 && format!("{among:?}") == format!("{objects:?}")) =>
+            {
+                let ObjectSet::Chosen { count, .. } = &**excluding else {
+                    unreachable!()
+                };
+                let all = self.fetch(self.objects(objects)?);
+                let count = self.fetch(self.select_count(count)?);
+                const M: &str = "cantrip_mechanics";
+                writeln!(out, "let all_{id}: Vec<ObjectId> = {all}; let kept_{id} = {M}::choose::select(g, {bound}, asker.source, Purpose::Keep, all_{id}.clone(), {M}::select::Selection::of({count}, &[]))?; gathered_{local}.extend(all_{id}.iter().copied().filter(|o| !kept_{id}.contains(o)));").unwrap();
+            }
             Gathered::Objects { objects, .. } => {
                 writeln!(
                     out,
@@ -3129,6 +3148,71 @@ impl Compiler {
         else {
             return Err(gap("operation Search"));
         };
+        // "Search your library and graveyard for a basic land card and a card named
+        // Jiang Yanggu": one choice over the cards of every zone searched, each
+        // card told off among the clauses, as Doomsday searches both zones.
+        // Ecological Appreciation: "Shuffle the chosen cards into your library",
+        // where cards may have been found in the graveyard, is a plain shuffle of
+        // the library in the data, which leaves those cards where they are.
+        if !also.is_empty()
+            && self
+                .line_text()
+                .is_some_and(|line| line.contains("Shuffle the chosen cards into your library"))
+        {
+            return Err(gap(
+                "the chosen cards of a search of more than the library shuffled into it, read as a shuffle in the data",
+            ));
+        }
+        let constrained = matches!(choices.as_slice(), [choice] if !choice.constraints.is_empty());
+        if (choices.len() > 1 || constrained) && !*either && !also.is_empty() {
+            let zones: Vec<&str> = also
+                .iter()
+                .map(|zone| match zone {
+                    EventZone::Graveyard => Ok("Zone::graveyard"),
+                    EventZone::Hand => Ok("Zone::hand"),
+                    _ => Err(gap("operation Search")),
+                })
+                .collect::<Result<_>>()?;
+            if format!("{player:?}") != format!("{library:?}") {
+                return Err(gap("operation Search"));
+            }
+            const M: &str = "cantrip_mechanics";
+            // What may be taken: the clauses told apart, or the one clause's
+            // quality with its rules ("with different names").
+            let selection = match constrained {
+                false => {
+                    let Some((total, judge)) = self.clauses_judge(id, choices)? else {
+                        return Err(gap("search with several find clauses"));
+                    };
+                    self.helpers.insert("clauses");
+                    writeln!(self.functions, "{judge}").unwrap();
+                    format!("{M}::select::Selection::new({M}::select::up_to({total})).with(cantrip_api::select::part(&(clauses_{id} as SelectFn), 0, \"one for each thing searched for\"))")
+                }
+                true => {
+                    let choice = &choices[0];
+                    let test = self.filter(&choice.filter, &Candidate::of("id"))?;
+                    let rules = self.search_rules(&choice.constraints)?;
+                    let count = self.fetch(self.select_count(&choice.count)?);
+                    format!("{M}::select::Selection::listed({count}, &shown_{id}, {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {test}).collect::<Vec<ObjectId>>() }}){rules}")
+                }
+            };
+            let purpose = match effects::search_destination(result, &self.after) {
+                "Battlefield" | "BattlefieldTapped" => "PutOntoBattlefield",
+                "Graveyard" => "PutIntoGraveyard",
+                "Exile" => "Exile",
+                "TopOfLibrary" => "PutOnTop",
+                _ => "PutIntoHand",
+            };
+            let searcher = self.fetch(self.certain_player(player)?);
+            let others: String = zones
+                .iter()
+                .map(|zone| format!("shown_{id}.extend(g.state().zone({zone}(searcher_{id})).iter().copied());"))
+                .collect();
+            writeln!(out, "let searcher_{id} = {searcher}; let searches_{id} = g.may_search(searcher_{id}, searcher_{id}); let mut shown_{id}: Vec<ObjectId> = match searches_{id} {{ true => {M}::library::searched_cards(g, searcher_{id}), false => Vec::new() }}; {others} if searches_{id} {{ g.searched(searcher_{id}, searcher_{id}); }} let rule_{id} = {selection}; let found_{id}: Vec<ObjectId> = match shown_{id}.is_empty() {{ true => Vec::new(), false => {M}::choose::select(g, searcher_{id}, asker.source, Purpose::{purpose}, shown_{id}.clone(), rule_{id})? }};").unwrap();
+            self.selections.insert(result.0, format!("found_{id}"));
+            self.searched.insert(result.0, "true".into());
+            return Ok(());
+        }
         let [choice] = choices.as_slice() else {
             return Err(gap("search with several find clauses"));
         };
