@@ -2554,6 +2554,22 @@ impl Compiler {
                 "q.history().mana_spent_to_cast({id}).any(|(source, _)| {})",
                 self.filter(sources, &Candidate::of("source"))?
             ),
+            // "If another player spent mana to cast it" (Yume, assist): who paid
+            // is each Event::ManaSpent's player (CR 702.132a, 601.2h).
+            ObjectFilter::ManaSpent {
+                color: None,
+                sources: None,
+                payers: Some(payers),
+                comparison,
+                value,
+            } if !layer && c.announced.is_none() => compare(
+                &format!(
+                    "cast_of(q, {id}).map_or(0i64, |cast| q.history().this_turn().iter().filter_map(|r| match r.event {{ Event::ManaSpent {{ player: payer, on, cast: true, mana, .. }} if on == cast.spell && {} => Some(i64::from(mana.total())), _ => None }}).sum::<i64>())",
+                    self.player_in(payers, "payer")?
+                ),
+                comparison,
+                &self.number(value)?.code,
+            ),
             ObjectFilter::ManaSpent {
                 color,
                 sources,

@@ -2233,6 +2233,22 @@ impl Compiler {
                 ),
                 None,
             ),
+            // "Can't cast spells from their graveyards" (Shaman's Trance): from
+            // that zone of any player, CR 601.3.
+            PlayerAction::CastSpell {
+                from:
+                    Some(ZoneScope::Players {
+                        zone,
+                        players: PlayerSet::All,
+                    }),
+                filter: ObjectFilter::Any,
+            } => (
+                format!(
+                    "EffectKind::CantCastSpellsFrom(player, ZoneKinds::of(&[{}]))",
+                    zone_kind(zone)?
+                ),
+                None,
+            ),
             PlayerAction::CastSpell { from: None, filter } => {
                 let test = self.filter(filter, &super::players::cast_card())?;
                 (

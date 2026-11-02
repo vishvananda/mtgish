@@ -210,16 +210,20 @@ pub(super) fn asks_by_paying(decider: &PlayerRef, body: &Program) -> bool {
 }
 
 /// Whether the next thing after a move is to send it back when the source goes.
-fn returns_with_source(result: &ResultId, rest: &[Instruction]) -> bool {
+/// "Until it leaves the battlefield" names the source when the trigger's event
+/// is about the source itself (Lumbering Battlement's "when this enters").
+fn returns_with_source(result: &ResultId, rest: &[Instruction], subject_is_source: bool) -> bool {
     matches!(
         rest.first(),
         Some(Instruction::Effect {
             operation: Operation::ReturnAfter {
                 objects: ObjectSet::Transition { result: moved, phase: ObjectPhase::After },
-                duration: crate::ir::Duration::WhileOnBattlefield(ObjectRef::Source),
+                duration: crate::ir::Duration::WhileOnBattlefield(holder),
             },
             ..
         }) if moved.0 == result.0
+            && (matches!(holder, ObjectRef::Source)
+                || (subject_is_source && matches!(holder, ObjectRef::EventSubject)))
     )
 }
 
@@ -871,7 +875,7 @@ impl Compiler {
                 result,
             } if plain_entry(entry)
                 && self.stack_item
-                && returns_with_source(result, &body.instructions[i + 1..]) =>
+                && returns_with_source(result, &body.instructions[i + 1..], matches!(self.event_object, Some(ObjectRef::Source))) =>
             {
                 let id = self.fresh();
                 writeln!(out, "let objects_{id} = {}; let by_{id} = g.linked(item); let moved_{id} = g.exile_with(&objects_{id}, by_{id}, true);", self.fetch(self.objects(objects)?)).unwrap();
