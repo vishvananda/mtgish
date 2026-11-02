@@ -697,6 +697,18 @@ impl Compiler {
                 "{}.and_then(|spell: ObjectId| {{ let state = q.state(); let item = state.stack.iter().find(|i| i.kind == StackKind::Spell && i.object == spell).or_else(|| state.left_stack(spell))?; let mut chosen = state.targets(item).iter(); let first = chosen.next()?.object()?; match chosen.any(|t| t.object() != Some(first)) {{ true => None, false => Some(first) }} }})",
                 self.object(of)?
             ),
+            // "Counter target activated ability ... That permanent's activated
+            // abilities can't be activated" (Interdict, Ouphe Vandals): the
+            // ability's source (CR 113.7, 602.1), read from its stack item, which
+            // a countered activated ability leaves among `left_stack` (CR 608.2h).
+            ObjectRef::SourceOf(of)
+                if matches!(&**of, ObjectRef::Target { slot, .. } if self.stack_slot(slot))
+                    && self.line_text().is_some_and(|line| line.contains("activated ability") && !line.contains("triggered")) =>
+            {
+                let ObjectRef::Target { slot, index } = &**of else { unreachable!("just matched") };
+                let at = self.slot(slot)?;
+                format!("t_{at}_raw.get({index}).copied().and_then(|t: Target| match t {{ Target::Ability(serial) => {{ let s = q.state(); s.stack.iter().find(|e| e.kind == StackKind::Activated && e.serial == serial).or_else(|| s.left_ability(serial)).map(|e| e.object) }} _ => None }})")
+            }
             ObjectRef::SourceOf(of) => held_object(
                 &feature,
                 &format!("{}.and_then(|o: ObjectId| q.ability_source(o))", self.object(of)?),
