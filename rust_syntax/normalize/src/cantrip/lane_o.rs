@@ -2992,7 +2992,11 @@ impl Compiler {
     ) -> Result<()> {
         let read = |c: &mut Self| -> Result<String> {
             // The branch that failed may have left its own items under `label`.
-            let cost = c.cost(cost, &format!("{label}_branch_cost"))?;
+            // A spell's cost as it is cast (CR 601.2b), which may behold.
+            let paying = std::mem::replace(&mut c.paying, lane_g::Paying::Additional);
+            let cost = c.cost(cost, &format!("{label}_branch_cost"));
+            c.paying = paying;
+            let cost = cost?;
             let paid = c.resolved_body(paid, &format!("{label}_branch_paid"))?;
             let unpaid = c.resolved_body(unpaid, &format!("{label}_branch_unpaid"))?;
             Ok(format!(
