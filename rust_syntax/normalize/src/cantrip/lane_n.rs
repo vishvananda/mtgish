@@ -1450,7 +1450,11 @@ impl Compiler {
             Some(other) => return Err(gap(format!("delayed trigger until {}", form(other)))),
         };
         let when = when.as_str();
-        let (watched, source) = self.watching_source(event, body)?;
+        let (watched, source, each) = self.watching_source(event, body)?;
+        if each.is_some() {
+            return Err(gap("delayed trigger on an event"));
+        }
+        self.watching_for_another(&source, body)?;
         let saved = self.clone();
         let mark = out.len();
         // Only what waits for one event keeps a subject (settle's `is_event`).

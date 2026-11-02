@@ -625,6 +625,7 @@ struct Compiler {
     reflexing: bool,
     /// The next closure is the body of a delayed ability asked of another object.
     source_moved: bool,
+    watching_object: Option<ObjectRef>,
     bound_players: BTreeSet<u32>,
     /// A mechanic asks for the first way, so no other way may come before it.
     only_way: bool,
@@ -998,6 +999,7 @@ impl Compiler {
             bound_objects: BTreeSet::new(),
             reflexing: false,
             source_moved: false,
+            watching_object: None,
             bound_players: BTreeSet::new(),
             costing_targets: false,
             mode_guard: None,

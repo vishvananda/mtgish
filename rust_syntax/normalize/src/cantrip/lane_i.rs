@@ -196,6 +196,17 @@ fn watched_filter(filter: &mut ObjectFilter) -> Option<ObjectRef> {
             Some(std::mem::replace(object, ObjectRef::Source))
         }
         ObjectFilter::All(filters) => filters.iter_mut().find_map(watched_filter),
+        // "A creature dealt damage by that creature".
+        ObjectFilter::Condition(condition) => match &mut **condition {
+            Condition::Compare { left, .. } => match left {
+                Expr::EventHistory { event, .. } => match &mut **event {
+                    EventSpec::Damage(damage) => watched_filter(&mut damage.sources),
+                    _ => None,
+                },
+                _ => None,
+            },
+            _ => None,
+        },
         _ => None,
     }
 }
@@ -229,6 +240,39 @@ pub(super) fn watched(event: &mut EventSpec) -> Option<ObjectRef> {
         }
         _ => None,
     }
+}
+
+/// The targets of a slot `event` is about each of, moved to the watcher's source:
+/// what they each do is an event of their own, so each has its own watcher.
+pub(super) fn watched_each(event: &mut EventSpec) -> Option<ObjectSet> {
+    // "When a creature dealt damage this way dies this turn".
+    fn dealt(filter: &mut ObjectFilter) -> Option<ObjectSet> {
+        match filter {
+            ObjectFilter::DamagedBy(result) => {
+                let list = ObjectSet::Named(result.clone());
+                *filter = ObjectFilter::SameObject(ObjectRef::Source);
+                Some(list)
+            }
+            ObjectFilter::All(filters) => filters.iter_mut().find_map(dealt),
+            _ => None,
+        }
+    }
+    let damage = match event {
+        EventSpec::Damage(damage) => damage,
+        EventSpec::ZoneChange { objects, .. } | EventSpec::Object { objects, .. } => {
+            return dealt(objects)
+        }
+        _ => return None,
+    };
+    let ObjectFilter::InSet(set) = &damage.sources else {
+        return None;
+    };
+    if !matches!(**set, ObjectSet::Targets(_)) {
+        return None;
+    }
+    let list = (**set).clone();
+    damage.sources = ObjectFilter::SameObject(ObjectRef::Source);
+    Some(list)
 }
 
 /// Who may choose new targets, and for what, if that is all `body` does.

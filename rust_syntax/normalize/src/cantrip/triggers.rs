@@ -1312,6 +1312,11 @@ impl Compiler {
         });
         tests.push(self.matching(frame, |c| c.filter(sources, &Candidate::of("source")))?);
         tests.push(self.matching(frame, |c| match recipients {
+            DamageRecipients::Any
+                if c.line_text().is_some_and(|t| t.contains("deals combat damage to a player")) =>
+            {
+                Err(gap("combat damage to a player, the player lost in the data"))
+            }
             DamageRecipients::Any => Ok("true".to_string()),
             DamageRecipients::Players(players) => Ok(format!(
                 "matches!(*target, Target::Player(p) if {})",
