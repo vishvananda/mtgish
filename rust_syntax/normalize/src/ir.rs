@@ -6,7 +6,7 @@
 use crate::mtg_types::{CardType, CreatureType, SubType, SuperType};
 use serde::{Deserialize, Serialize};
 
-pub const SCHEMA_VERSION: u32 = 166;
+pub const SCHEMA_VERSION: u32 = 167;
 
 /// One record of any layout. Layout is data around ordinary faces, so Transforming,
 /// Split, Planar and the rest share `Card`. `data` keeps layout fields that belong
@@ -364,6 +364,15 @@ pub enum Ability {
     /// One printed ability with an event and an effect for each: each `Triggered`
     /// reads its own event, which `EventSpec::Either` can't let a shared body do.
     Triggers(Vec<Ability>),
+    /// Textual presentation, independent of reference scope and game meaning.
+    /// Labels are ability/flavor words before an em dash. Reminder wording is
+    /// supplied by grammar templates, never stored as an opaque text fragment.
+    /// Absence of this wrapper means no label and no reminder.
+    WithPresentation {
+        label: Option<String>,
+        reminder: bool,
+        ability: Box<Ability>,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, bincode::Encode, bincode::Decode)]
 pub enum AsEvent {
@@ -812,6 +821,12 @@ pub enum Keyword {
     Horsemanship,
     Shadow,
     Skulk,
+    /// Whether this keyword instance prints its reminder template. This also
+    /// works inside grants; unrelated instances keep their own flag.
+    WithReminder {
+        keyword: Box<Keyword>,
+        reminder: bool,
+    },
 }
 
 /// Protection/qualified hexproof quality, rather than a permanent-only filter.

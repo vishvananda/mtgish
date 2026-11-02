@@ -2198,6 +2198,12 @@ impl<'a> Scope<'a> {
     }
     fn keyword(&self, keyword: &Keyword) -> Result {
         match keyword {
+            Keyword::WithReminder { keyword, .. } => {
+                if matches!(keyword.as_ref(), Keyword::WithReminder { .. }) {
+                    return Err("keyword presentation must not be nested".into());
+                }
+                self.keyword(keyword)
+            }
             Keyword::Protection(quality) | Keyword::HexproofFrom(quality) => {
                 self.protection(quality)
             }
@@ -4556,7 +4562,9 @@ fn has_definition(ability: &Ability) -> bool {
             kind: StaticKind::CharacteristicDefining { .. },
             ..
         } => true,
-        Ability::Scoped { ability, .. } => has_definition(ability),
+        Ability::Scoped { ability, .. } | Ability::WithPresentation { ability, .. } => {
+            has_definition(ability)
+        }
         Ability::Conditional {
             then, otherwise, ..
         } => then.iter().chain(otherwise).any(has_definition),
@@ -4571,6 +4579,32 @@ fn validate_ability_in(
 ) -> Result {
     let mut scope = Scope::default();
     let (announcement, body) = match ability {
+        Ability::WithPresentation {
+            label,
+            reminder,
+            ability,
+        } => {
+            crate::presentation::validate_label(label.as_deref())?;
+            if matches!(ability.as_ref(), Ability::WithPresentation { .. }) {
+                return Err("ability presentation must not be nested".into());
+            }
+            if *reminder
+                && matches!(
+                    ability.as_ref(),
+                    Ability::Keyword(_)
+                        | Ability::Static {
+                            kind: StaticKind::CharacteristicDefining {
+                                keyword: Some(_),
+                                ..
+                            },
+                            ..
+                        }
+                )
+            {
+                return Err("keyword reminder belongs to its keyword instance".into());
+            }
+            return validate_ability_in(ability, zones, casting_costs);
+        }
         Ability::Named(named) => return scope.named(named),
         Ability::Primitive { name, operands } => return scope.primitive(name, operands),
         Ability::CounterStages {
@@ -4887,7 +4921,8 @@ fn validate_ability_in(
                     return Err("characteristic definition may define only color, subtypes, power, or toughness".into());
                 }
                 if let Some(keyword) = keyword {
-                    let valid = match keyword {
+                    scope.keyword(keyword)?;
+                    let valid = match crate::presentation::keyword(keyword) {
                         Keyword::Devoid => {
                             matches!(changes.as_slice(),[Change::Colors {mode:ChangeMode::Set,colors}] if colors.is_empty())
                         }

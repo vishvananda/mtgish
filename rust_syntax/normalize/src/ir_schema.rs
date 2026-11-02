@@ -2,6 +2,9 @@
 use std::collections::HashMap;
 use syn::{Fields as SynFields, GenericArgument, Item, PathArguments, Type};
 
+#[cfg(test)]
+mod contract;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
     Named(String),

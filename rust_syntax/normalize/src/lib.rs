@@ -5,6 +5,7 @@ pub mod canonical;
 pub mod ir;
 pub mod ir_schema;
 pub mod lower;
+pub mod presentation;
 pub mod report;
 pub mod validate;
 

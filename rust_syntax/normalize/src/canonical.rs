@@ -7,11 +7,11 @@
 //! `InSet`, an open count bounded by the total divided) reduce to one form.
 use crate::ir::Card;
 use crate::ir_schema::{Fields, Schema, Ty, TypeDef};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
-fn schema() -> Result<&'static Schema, String> {
+pub(crate) fn schema() -> Result<&'static Schema, String> {
     static SCHEMA: OnceLock<Result<Schema, String>> = OnceLock::new();
     SCHEMA
         .get_or_init(Schema::of_ir)
@@ -174,6 +174,16 @@ impl Walker {
     }
 
     fn named(&mut self, value: &mut Value, name: &str, defining: bool) {
+        // Presentation wraps the same ability/keyword, without adding an id,
+        // event-subject or ability-holder scope of its own.
+        let empty = crate::presentation::empty(value, name);
+        if let Some(inner) = crate::presentation::content(value, name) {
+            self.named(inner, name, defining);
+            if empty {
+                *value = inner.take();
+            }
+            return;
+        }
         if let Some(kind) = id_kind(name) {
             if defining {
                 if let (Some(scope), false) = (self.scopes.last_mut(), self.keep_order) {
@@ -221,7 +231,10 @@ impl Walker {
     fn variant(&mut self, value: &mut Value, name: &str, adjacent: bool) {
         let schema = self.schema;
         let variant = if adjacent {
-            value.get("kind").and_then(Value::as_str).map(str::to_string)
+            value
+                .get("kind")
+                .and_then(Value::as_str)
+                .map(str::to_string)
         } else {
             match &*value {
                 Value::Object(object) if object.len() == 1 => object.keys().next().cloned(),
@@ -269,8 +282,7 @@ impl Walker {
                     }
                 }
                 ("ObjectRef", "Damage") => {
-                    if self.damage_subjects.last().cloned().flatten().as_ref()
-                        == value.get("args")
+                    if self.damage_subjects.last().cloned().flatten().as_ref() == value.get("args")
                     {
                         *value = serde_json::json!({"kind": "EventSubject"});
                     }
@@ -368,7 +380,10 @@ fn merge_statics(items: &mut Vec<Value>) {
                 && item["args"]["kind"] == last["args"]["kind"]
                 && item["args"]["affected"] == last["args"]["affected"];
             if same {
-                let more = item["args"]["changes"].as_array().cloned().unwrap_or_default();
+                let more = item["args"]["changes"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default();
                 if let Some(changes) = last["args"]["changes"].as_array_mut() {
                     changes.extend(more);
                 }
@@ -476,13 +491,20 @@ fn drop_permanent_types(filter: &mut Value) {
         };
         item["kind"] == "Either"
             && cases.len() == 6
-            && ["Artifact", "Battle", "Creature", "Enchantment", "Land", "Planeswalker"]
-                .iter()
-                .all(|name| {
-                    cases
-                        .iter()
-                        .any(|case| case["kind"] == "CardType" && case["args"] == *name)
-                })
+            && [
+                "Artifact",
+                "Battle",
+                "Creature",
+                "Enchantment",
+                "Land",
+                "Planeswalker",
+            ]
+            .iter()
+            .all(|name| {
+                cases
+                    .iter()
+                    .any(|case| case["kind"] == "CardType" && case["args"] == *name)
+            })
     };
     if names_all(filter) {
         *filter = serde_json::json!({"kind": "Any"});
@@ -577,6 +599,13 @@ fn normalize(value: &mut Value, keep_order: bool) -> Result<(), String> {
 /// The canonical form of serialized abilities, in place.
 pub fn abilities(value: &mut Value) -> Result<(), String> {
     normalize(value, false)
+}
+
+/// Meaning comparison explicitly removes presentation before canonicalizing.
+/// Ordinary `abilities` and `reduced` preserve it for exact round trips.
+pub fn semantic_abilities(value: &mut Value) -> Result<(), String> {
+    crate::presentation::erase_abilities(value)?;
+    abilities(value)
 }
 
 /// The same reductions with ids and list order left as lowered: the order is
