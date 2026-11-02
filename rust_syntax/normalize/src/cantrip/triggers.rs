@@ -1972,6 +1972,10 @@ impl Compiler {
             def.push_str(lane_k::triggered_mana(body));
         }
         if let Some(per_turn) = limits.per_turn.filter(|_| done_once.is_none()) {
+            // Declining doesn't spend it, so the ability still triggers (603.2h).
+            if self.line_text().is_some_and(|line| line.contains("Do this only once each turn")) {
+                return Err(gap("a once each turn that isn't a limit on triggering"));
+            }
             def.push_str(&format!(".triggers_each_turn({per_turn})"));
         }
         if let Some(divide) = self.dividing.take() {

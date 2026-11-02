@@ -1888,11 +1888,19 @@ impl Compiler {
                     zone_kind(zone)?
                 )
             }
-            ObjectFilter::InZone(ZoneScope::Players { zone, players }) => format!(
-                "(q.state().obj({id}).became.is_none() && q.state().obj({id}).zone.kind() == {} && {})",
-                zone_kind(zone)?,
-                self.player_in(players, &format!("q.state().obj({id}).owner"))?
-            ),
+            ObjectFilter::InZone(ZoneScope::Players { zone, players }) => {
+                // An event's object is judged where it was (603.10); one named by
+                // the ability, as it is: a card gone from there isn't there (400.7).
+                let there = match id == "id" {
+                    true => String::new(),
+                    false => format!("q.state().obj({id}).became.is_none() && "),
+                };
+                format!(
+                    "({there}q.state().obj({id}).zone.kind() == {} && {})",
+                    zone_kind(zone)?,
+                    self.player_in(players, &format!("q.state().obj({id}).owner"))?
+                )
+            }
             ObjectFilter::InSet(objects) => {
                 format!("({}).contains(&{id})", self.objects(objects)?)
             }
