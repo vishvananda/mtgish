@@ -640,6 +640,47 @@ impl Compiler {
             ValueKind::Filter => {
                 return self.choose_filter(player, source, options, local, id, out)
             }
+            // "As this enters, choose white Citizen, blue Camarid, ...": the pairs
+            // are the card's options, and the one chosen is its chosen color and
+            // its chosen creature type (Sarpadian Empires, Vol. VII).
+            ValueKind::ColorAndCreatureType if entering => {
+                if !self.choice_labels.is_empty() || self.entering_labels.is_some() {
+                    return Err(gap(feature.as_str()));
+                }
+                let pairs: Option<Vec<(String, String)>> = options
+                    .iter()
+                    .map(|option| match option {
+                        Operand::Term { family, operands, .. } if family == "ColorAndCreatureType" => {
+                            match operands.as_slice() {
+                                [Operand::Vocabulary { family: c, form: color }, Operand::Vocabulary { family: t, form: kind }]
+                                    if c == "Color" && t == "CreatureType" =>
+                                {
+                                    Some((color.clone(), kind.clone()))
+                                }
+                                _ => None,
+                            }
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                let pairs = pairs.filter(|pairs| !pairs.is_empty()).ok_or_else(|| gap(feature.as_str()))?;
+                self.choice_labels.extend(
+                    pairs.iter().map(|(color, kind)| format!("{} {kind}", color.to_lowercase())),
+                );
+                let labels: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
+                self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
+                let table: Vec<String> = pairs
+                    .iter()
+                    .map(|(color, kind)| format!("(Color::{color}, Subtype::{kind})"))
+                    .collect();
+                writeln!(
+                    out,
+                    "{M}::choose::option_as_enters(g, entering, &CARD, 0..{})?; let {local}: (Color, Subtype) = [{}][usize::from(entering.chosen_option.map_or(0, |chosen| chosen.index))]; entering.chosen_color = Some({local}.0); entering.chosen_subtype = Some({local}.1);",
+                    pairs.len(),
+                    table.join(", ")
+                )
+                .unwrap();
+            }
             other => return Err(gap(format!("a choice of {other:?}"))),
         }
         Ok(())
@@ -2227,6 +2268,9 @@ impl Compiler {
         if !planned {
             return Err(failed);
         }
+        if let Some(made) = self.chosen_kind_tokens(id, players, tokens, entry, result, out)? {
+            return Ok(made);
+        }
         let mut orders = Vec::new();
         for token in tokens {
             let amount = self.fetch(self.number(&token.amount)?.amount(u32::MAX.into(), "u32")?);
@@ -2282,6 +2326,59 @@ impl Compiler {
         writeln!(out, "let created_{id}: Vec<ObjectId> = {created};").unwrap();
         self.creations.insert(result.0, format!("created_{id}"));
         Ok(())
+    }
+    /// "Create a 2/2 creature token of the chosen color and type" (Volrath's
+    /// Laboratory): the token's copiable values are its definition's with the
+    /// chosen color and creature type (CR 111.4, 707.9b), and it is named for
+    /// that type, which Cantrip's token names are.
+    fn chosen_kind_tokens(
+        &mut self,
+        id: usize,
+        players: &PlayerSet,
+        tokens: &[TokenSpec],
+        entry: &EntrySpec,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<Option<()>> {
+        let [token] = tokens else { return Ok(None) };
+        let TokenRecipe::Defined(definition) = &token.recipe else {
+            return Ok(None);
+        };
+        let plain_entry = !entry.tapped && entry.counters.is_empty() && entry.states.is_empty();
+        if !(definition.chosen_color || definition.chosen_creature_type)
+            || definition.abilities_of.is_some()
+            || !plain_entry
+        {
+            return Ok(None);
+        }
+        let mut plain = definition.clone();
+        plain.chosen_color = false;
+        plain.chosen_creature_type = false;
+        let mut values = String::new();
+        if let Some((p, t)) = &definition.power_toughness {
+            if !matches!((p, t), (Expr::Constant(_), Expr::Constant(_))) {
+                let (p, t) = (self.fetch(self.number(p)?.code), self.fetch(self.number(t)?.code));
+                values.push_str(&format!(".sized(({p}).clamp(0, i64::from(i16::MAX)) as i16, ({t}).clamp(0, i64::from(i16::MAX)) as i16)"));
+                plain.power_toughness = None;
+            }
+        }
+        if definition.chosen_color {
+            let color = self.fetch(self.chosen_read(ValueKind::Color)?);
+            values.push_str(&format!(".colored(ColorSet::of({color}))"));
+        }
+        if definition.chosen_creature_type {
+            let kind = self.fetch(self.chosen_read(ValueKind::CreatureType)?);
+            values.push_str(&format!(
+                ".with_subtype(kind_{id}).named(kind_{id}.name())"
+            ));
+            writeln!(out, "let kind_{id}: Subtype = {kind};").unwrap();
+        }
+        let path = self.token_definition(&plain)?;
+        let amount = self.fetch(self.number(&token.amount)?.amount(u32::MAX.into(), "u32")?);
+        let players = self.fetch(self.players(players)?);
+        writeln!(out, "let values_{id} = Copiable::of(g.card_id(&{path})){values}; let mut created_{id}: Vec<ObjectId> = Vec::new(); let count_{id} = {amount}; for player in {players} {{ created_{id}.extend(g.create_token_copies_of(values_{id}, player, count_{id})?); }}").unwrap();
+        self.creations.insert(result.0, format!("created_{id}"));
+        Ok(Some(()))
     }
     /// `move_objects`, or the call it will be for an arrival Cantrip can't make yet.
     #[allow(clippy::too_many_arguments)]

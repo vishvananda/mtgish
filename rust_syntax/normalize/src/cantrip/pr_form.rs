@@ -3720,9 +3720,9 @@ fn flatten_tokens(file: &mut File, taken: &mut BTreeSet<String>) -> BTreeMap<Str
             syn::parse_str(&format!("cantrip_mechanics::tokens::{shared}")).expect("a path")
         } else {
             let wanted = match words.as_deref() {
-                Some(words) => words.to_uppercase().replace(' ', "_"),
-                None if emblem => "EMBLEM".to_string(),
-                None => card.as_ref().and_then(constant_of_name).unwrap_or_else(|| prefix.to_uppercase()),
+                Some(words) if !words.is_empty() => words.to_uppercase().replace(' ', "_"),
+                _ if emblem => "EMBLEM".to_string(),
+                _ => card.as_ref().and_then(constant_of_name).unwrap_or_else(|| prefix.to_uppercase()),
             };
             let mut unique = wanted.clone();
             let mut n = 2;

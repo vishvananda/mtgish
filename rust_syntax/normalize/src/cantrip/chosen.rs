@@ -142,6 +142,10 @@ pub(super) fn enters_choosing(card: &Card) -> Vec<ValueKind> {
             } = instruction
             {
                 kinds.push(*kind);
+                // One of printed pairs: both are chosen.
+                if *kind == ValueKind::ColorAndCreatureType {
+                    kinds.extend([ValueKind::Color, ValueKind::CreatureType]);
+                }
             }
         }
     }
