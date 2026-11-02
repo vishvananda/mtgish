@@ -553,6 +553,8 @@ struct Compiler {
     /// What this triggered ability's event is always about, as "this creature"
     /// is: read where no event reaches, as "another creature" in a cost.
     event_object: Option<ObjectRef>,
+    /// The triggered ability's event is this object entering the battlefield.
+    source_entered: bool,
     /// While an instruction is compiled to happen only if its players exist:
     /// the local each stands for, and how to read it. See `lane_j`.
     present: std::rc::Rc<std::cell::RefCell<Option<Vec<(String, String)>>>>,
@@ -1059,6 +1061,7 @@ impl Compiler {
             static_guard: None,
             trigger_gate: None,
             event_object: None,
+            source_entered: false,
             present: Default::default(),
             picked: Default::default(),
             shares: BTreeMap::new(),
