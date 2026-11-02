@@ -1638,13 +1638,18 @@ impl Compiler {
                     )
                 ),
             ),
-            // Among the cards discarded this way, ties included.
+            // Among the cards discarded, revealed or exiled this way, ties included: "the
+            // player who reveals the card with the greatest mana value" (Psychic
+            // Battle, Stronghold Gambit).
             Condition::HadExtreme {
                 player,
-                what: what @ EarlierObjects::Discarded,
+                what: what @ (EarlierObjects::Discarded | EarlierObjects::Revealed | EarlierObjects::Exiled),
                 filter: None,
                 highest,
-            } if self.earlier_objects(what).is_ok() => {
+            } if self
+                .earlier_objects(what)
+                .is_ok_and(|those| !those.contains("planned")) =>
+            {
                 let those = self.earlier_objects(what)?;
                 let extreme = if *highest { "max" } else { "min" };
                 format!(
@@ -1662,6 +1667,11 @@ impl Compiler {
                     Some(filter) => self.filter(filter, &Candidate::of("id"))?,
                     None => "true".to_string(),
                 };
+                // What the cards were is itself a hole (Stronghold Gambit's cards
+                // chosen in secret and revealed): this follows it.
+                let follows = matches!(what, EarlierObjects::Discarded | EarlierObjects::Revealed | EarlierObjects::Exiled)
+                    && self.earlier_objects(what).is_ok_and(|those| those.contains("planned"));
+                let feature = if follows { FOLLOWS_GAP.to_string() } else { feature };
                 held(
                     &feature,
                     &format!(
