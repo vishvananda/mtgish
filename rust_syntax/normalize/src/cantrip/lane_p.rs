@@ -2779,8 +2779,9 @@ impl Compiler {
             None => "None".to_string(),
         };
         let destination = self.destination_code(destination)?;
+        // Not `ZoneChange`, Cantrip's replacement of one move.
         let call = format!(
-            "{M}::enter::change_zone(g, asker, ZoneChange {{ actor: {actor}, cards: {cards}, count: {count}, random: {random}, group: {group}, destination: {destination}, entry: &[{}], face_down: {face_down} }})?",
+            "{M}::enter::change_zone(g, asker, ZoneMove {{ actor: {actor}, cards: {cards}, count: {count}, random: {random}, group: {group}, destination: {destination}, entry: &[{}], face_down: {face_down} }})?",
             entry.join(", ")
         );
         let moved = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);

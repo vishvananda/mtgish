@@ -1122,7 +1122,7 @@ impl Compiler {
         };
         Ok(match modifier {
             S::Alternate { cost, limit: most } => format!(
-                "CostModifier::Alternate {{ cost: {}, limit: {} }}",
+                "CostModifier::Alternate {{ cost: {}, limit: {}, during: None }}",
                 self.play_cost(cost)?,
                 limit(most)
             ),
@@ -1131,7 +1131,8 @@ impl Compiler {
                 limit: most,
                 during,
             } => format!(
-                "CostModifier::Alternate {{ cost: {}, limit: {}, during: |q: &dyn Query, asker: &Asker, player: PlayerId| {} }}",
+                // One variant, its `during` none where no time is named.
+                "CostModifier::Alternate {{ cost: {}, limit: {}, during: Some(|q: &dyn Query, asker: &Asker, player: PlayerId| {}) }}",
                 self.play_cost(cost)?,
                 limit(most),
                 self.player_member(during)?
@@ -3309,15 +3310,16 @@ impl Compiler {
         let feature = format!("casting rule {}", form(rule));
         let code = match rule {
             CastingRule::ProhibitTargets { filter, .. } => {
-                format!("CastRule::ProhibitTargets({})", self.over(filter, "id")?)
+                format!("CastingTerm::ProhibitTargets({})", self.over(filter, "id")?)
             }
             CastingRule::TaxPaidAsLife(amount) => format!(
-                "CastRule::TaxPaidAsLife(|q: &dyn Query, asker: &Asker| {})",
+                "CastingTerm::TaxPaidAsLife(|q: &dyn Query, asker: &Asker| {})",
                 self.asked(amount)?
             ),
             _ => return Err(gap(feature)),
         };
-        self.plan_entry(&feature, "cast_rules", &code, parts);
+        // Not `cast_rules`, which holds Cantrip's `CastRule`, a function.
+        self.plan_entry(&feature, "casting_terms", &code, parts);
         Ok(())
     }
     /// "If this spell was kicked, do this instead": a cost, and the spell it makes.

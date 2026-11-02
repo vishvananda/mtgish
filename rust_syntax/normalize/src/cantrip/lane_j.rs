@@ -317,7 +317,7 @@ impl Compiler {
             .planned(),
             E::BecomesSaddled => ObjectRow::new(
                 "SADDLED",
-                "Event::Saddled { permanent }",
+                "Event::Saddled { mount: permanent, .. }",
                 "*permanent",
                 "Whenever this becomes saddled",
             )
