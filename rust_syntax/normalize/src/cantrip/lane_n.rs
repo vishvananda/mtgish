@@ -837,25 +837,18 @@ impl Compiler {
             ("ZoneChange", C::SetDestination(Destination::Exile)) if self.links_exile => {
                 format!("z.to = Zone::exile({owner}); z.exiled_with = Some(q.linked_to(asker));")
             }
-            (
-                "ZoneChange",
-                C::SetDestination(
-                    end @ (Destination::OwnersLibraryTop | Destination::OwnersLibraryBottom),
-                ),
-            ) => {
-                let end = match end {
-                    Destination::OwnersLibraryTop => "Top",
-                    _ => "Bottom",
-                };
-                format!(
-                    "z.to = Zone::library({owner}); {};",
-                    planned::planned_value(
-                        &format!("replacement destination OwnersLibrary{end}"),
-                        "()",
-                        &format!("z.library_end = Some(LibraryEnd::{end})"),
-                    )
-                )
+            // A card arriving in a library goes on top unless shuffled in (Cantrip's move inserts it at index 0, the top).
+            ("ZoneChange", C::SetDestination(Destination::OwnersLibraryTop)) => {
+                format!("z.to = Zone::library({owner}); z.shuffle = false;")
             }
+            ("ZoneChange", C::SetDestination(Destination::OwnersLibraryBottom)) => format!(
+                "z.to = Zone::library({owner}); {};",
+                planned::planned_value(
+                    "replacement destination OwnersLibraryBottom",
+                    "()",
+                    "z.library_end = Some(LibraryEnd::Bottom)",
+                )
+            ),
             ("ZoneChange", C::SetDestination(Destination::OwnersBattlefield)) => {
                 format!("z.to = Zone::BATTLEFIELD; z.controller = {owner};")
             }
