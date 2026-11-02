@@ -765,6 +765,13 @@ struct Compiler {
     /// (`EffectKind::ObjectRule`) or a set (`LastingRuleKind::ObjectRule`), each
     /// with what it waits on.
     made_object_rules: Vec<(String, String)>,
+    /// `CardDef::lasting_about`: "for as long as" conditions about something
+    /// the effect's ability named as it resolved (`Duration::AsLongAsAbout`),
+    /// each with what it waits on.
+    made_lasting_about: Vec<(String, String)>,
+    /// `CardDef::lasting_until`: the events "until" durations end on
+    /// (`Duration::UntilEvent`), each with what it waits on.
+    made_lasting_until: Vec<(String, String)>,
     /// `CardDef::lasting_rules`: rules on open sets (CR 611.2c), each with
     /// what it waits on where Cantrip has none and whether it is a rule beyond
     /// those #897 has.
@@ -1166,6 +1173,8 @@ impl Compiler {
             lasting: Vec::new(),
             made_block_rules: Vec::new(),
             made_object_rules: Vec::new(),
+            made_lasting_about: Vec::new(),
+            made_lasting_until: Vec::new(),
             made_lasting_rules: Vec::new(),
             prevented: BTreeSet::new(),
             rule_on_event_object: false,
@@ -2688,6 +2697,19 @@ fn emit_face(
             false => writeln!(
                 c.holes,
                 "planned_item!({:?} => lasting_object_rules: {made});",
+                planned::requirement(&feature)
+            )
+            .unwrap(),
+        }
+    }
+    let lasting_about = std::mem::take(&mut c.made_lasting_about).into_iter().map(|made| ("lasting_about", made));
+    let lasting_until = std::mem::take(&mut c.made_lasting_until).into_iter().map(|made| ("lasting_until", made));
+    for (table, (feature, made)) in lasting_about.chain(lasting_until).collect::<Vec<_>>() {
+        match planned::landed(&feature) {
+            true => parts.table(table, made),
+            false => writeln!(
+                c.holes,
+                "planned_item!({:?} => {table}: {made});",
                 planned::requirement(&feature)
             )
             .unwrap(),

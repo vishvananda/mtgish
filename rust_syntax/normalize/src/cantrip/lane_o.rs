@@ -728,7 +728,7 @@ impl Compiler {
     }
     /// `test` with what it reads of the resolution - one target, a player or an
     /// object - read from `about` instead, and the code of that `about`.
-    fn named_as_resolved(&self, test: &str) -> Result<(String, String)> {
+    pub(super) fn named_as_resolved(&self, test: &str) -> Result<(String, String)> {
         let mut test = test.to_string();
         let mut about: Option<String> = None;
         for slot in 0..8 {
@@ -832,6 +832,14 @@ impl Compiler {
             _ => code.as_ref().to_string(),
         }
     }
+    /// One player as `Option<PlayerId>`, data a duration can hold; other sets
+    /// as the list they are.
+    fn one_or_all(&self, players: &PlayerSet) -> Result<String> {
+        match players {
+            PlayerSet::One(player) => self.player(player),
+            players => self.players(players),
+        }
+    }
     /// A duration, in the word it will have if it has none yet.
     pub(super) fn stated_until(&mut self, duration: &crate::ir::Duration) -> Result<String> {
         use crate::ir::Duration as D;
@@ -847,9 +855,10 @@ impl Compiler {
                 "Duration::DuringNextUntapStepOf({})",
                 self.read(self.certain_player(player)?)
             ),
+            // One player, as data the game can keep: who it is, if anyone.
             D::UntilNext { point, players } => format!(
                 "Duration::UntilNext(TurnPoint::{point:?}, {})",
-                self.read(self.players(players)?)
+                self.read(self.one_or_all(players)?)
             ),
             D::While(condition) => format!(
                 "Duration::While(|q: &dyn Query, asker: &Asker| {})",
@@ -874,7 +883,7 @@ impl Compiler {
             }
             D::UntilAnotherExiled { by, with } => format!(
                 "Duration::UntilAnotherExiled {{ by: {}, with: {} }}",
-                self.read(self.players(by)?),
+                self.read(self.one_or_all(by)?),
                 self.read(self.object(with)?)
             ),
             D::UntilLibraryTopChanges(player) => format!(
@@ -4600,7 +4609,7 @@ fn single_controller(filter: &ObjectFilter) -> Option<&PlayerRef> {
 
 /// Whether code still reads a local of the resolution: `g`, `item`, or a
 /// numbered one such as `t_0_raw` or `chosen_0`.
-fn reads_the_resolution(code: &str) -> bool {
+pub(super) fn reads_the_resolution(code: &str) -> bool {
     code.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
         .any(|word| {
             matches!(word, "g" | "item")

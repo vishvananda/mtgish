@@ -4089,10 +4089,14 @@ impl Compiler {
                     .unwrap_or_else(|| format!("result_{}", result.0));
                 format!("Duration::ExtraTurn({turn})")
             }
+            // One player, as data the game can keep: who it is, if anyone.
             D::UntilNext { point, players } => format!(
                 "Duration::UntilNext(TurnPoint::{}, {})",
                 form(point),
-                self.fetch(self.players(players)?)
+                self.fetch(match players {
+                    PlayerSet::One(player) => self.player(player)?,
+                    players => self.players(players)?,
+                })
             ),
             D::ThroughNextTurn => "Duration::ThroughNextTurn".to_string(),
             D::WhileControlled { player, object } => format!(
@@ -4121,6 +4125,45 @@ impl Compiler {
             D::While(condition) => format!("Duration::While({})", self.condition_fn(condition)?),
             D::WhileItMatches(filter) => {
                 format!("Duration::WhileItMatches({})", self.filter_fn(filter)?)
+            }
+            // The player or object as the game keeps it, data read as the
+            // effect begins: "during target player's next turn", "for as long
+            // as that creature remains on the battlefield".
+            D::DuringNextTurn(player) => match self.player(player) {
+                Ok(player) => format!("Duration::DuringNextTurnOf({})", self.fetch(player)),
+                Err(_) => return lane_m::duration_more(duration),
+            },
+            D::WhileOnBattlefield(object) => match self.object(object) {
+                Ok(object) => format!("Duration::WhileOnBattlefield({})", self.fetch(object)),
+                Err(_) => return lane_m::duration_more(duration),
+            },
+            // "Until a player planeswalks away": an event the game watches for
+            // as it would a trigger's, the card's `lasting_until` matcher, of
+            // what the effect's source and controller can read.
+            D::UntilEvent(event) => {
+                let saved = self.clone();
+                let index = self.made_lasting_until.len();
+                let label = format!("lasting_until_{index}");
+                let made = self.event(event).map(|matched| {
+                    let phrase = matched.phrase.clone();
+                    (phrase, self.trigger(&matched, &label, &[]))
+                });
+                let Ok((phrase, ends)) = made else {
+                    *self = saved;
+                    return lane_m::duration_more(duration);
+                };
+                // The card's words after "until", else the trigger's.
+                let said = self.line_text().and_then(|line| {
+                    let at = line.find("until ")? + "until ".len();
+                    let rest = &line[at..];
+                    Some(rest[..rest.find([',', '.']).unwrap_or(rest.len())].to_string())
+                });
+                let phrase = said.unwrap_or(phrase);
+                self.made_lasting_until.push((
+                    feature.clone(),
+                    format!("LastingUntil {{ text: {}, ends: {ends} }}", quoted(&phrase)),
+                ));
+                self.fetch(format!("Duration::UntilEvent({}, {index})", self.source_card()))
             }
             other => return lane_m::duration_more(other),
         };
