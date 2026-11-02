@@ -2188,9 +2188,18 @@ impl Compiler {
         let plays = optional && playing::may_only_play(player, body);
         let binding = if plays { "let mut" } else { "let" };
         writeln!(out, "{binding} paid_{id} = {willing}; if paid_{id} {{").unwrap();
-        self.block(body, out, true)?;
-        if let (true, Some(played)) = (plays, &self.played) {
-            writeln!(out, "paid_{id} = !{played}.is_empty();").unwrap();
+        let mut only = body;
+        while let [Instruction::Group(group)] = only.instructions.as_slice() {
+            only = group;
+        }
+        match only.instructions.as_slice() {
+            [Instruction::Effect { operation, result: played }] if plays => {
+                self.play_cards(operation, false, out)?;
+                let list = self.played.clone().expect("just played");
+                writeln!(out, "paid_{id} = !{list}.is_empty();").unwrap();
+                self.report_played(played);
+            }
+            _ => self.block(body, out, true)?,
         }
         writeln!(out, "}}").unwrap();
         self.performed.insert(result.0, format!("paid_{id}"));

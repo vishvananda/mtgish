@@ -109,6 +109,10 @@ impl Compiler {
                 let [CostPart::Mana(symbols)] = cost.parts.as_slice() else {
                     return Err(gap("overload cost other than mana"));
                 };
+                // Each searches once, for as many as they lost (701.23), and not per creature.
+                if self.card_prints("exiled this way, its controller searches") {
+                    return Err(gap("an overloaded search once for each player"));
+                }
                 parts.field("overload", format!("Some({})", mana(symbols)?));
                 let targets = self.announcement(unpaid_announced, &format!("{label}_unpaid"))?;
                 let effect = self.branch_effect(

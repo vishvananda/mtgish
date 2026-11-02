@@ -659,9 +659,21 @@ impl Compiler {
         layered.sort_by_key(|(_, change, part)| {
             (layer_rank(part.layer), matches!(change, Change::CreatureTypes { .. }))
         });
+        // One effect in one layer is one application: its reach is judged once (613.6, 613.8).
+        let mut parts_of_effect: Vec<(usize, &Change, LayerChange)> = Vec::new();
+        for (i, change, part) in layered {
+            let plain = |p: &LayerChange| p.whole.is_none() && !p.each && !p.land;
+            match parts_of_effect.last_mut() {
+                Some((_, _, before)) if before.layer == part.layer && plain(before) && plain(&part) => {
+                    before.body.push('\n');
+                    before.body.push_str(&part.body);
+                }
+                _ => parts_of_effect.push((i, change, part)),
+            }
+        }
         let mut defs = Vec::new();
         let mut last = None;
-        for (i, change, part) in layered {
+        for (i, change, part) in parts_of_effect {
             let text = format!("Static: {}.", form(change));
             let text = quoted(&self.said(lane_k::Said::Sentence, text));
             let def = match part.whole {

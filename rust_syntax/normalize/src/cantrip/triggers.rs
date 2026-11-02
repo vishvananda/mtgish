@@ -1682,6 +1682,12 @@ impl Compiler {
         } else {
             self.planned_trigger(&matched.planned, label, &matcher, &mask)
         };
+        // The event is the sacrifice, not the dying it causes (701.21a).
+        let sacrificed = matched.arms.iter().any(|a| a.pattern.contains("ZoneReason::Sacrifice,"));
+        let trigger = match sacrificed {
+            true => format!("{trigger}.on_sacrifice()"),
+            false => trigger,
+        };
         match &matched.functions {
             Some(zones) => format!("{trigger}.functions_in({zones})"),
             None => trigger,
