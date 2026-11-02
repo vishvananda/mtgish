@@ -637,6 +637,28 @@ impl Compiler {
                     "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, costing: CostFor, payment: CostPayment) -> bool {{ {banned} && {paying} && matches!(payment, CostPayment::Sacrifice(permanent) if {test}) }}"
                 ));
             }
+            // "Can't cast spells from anywhere other than their hands" (CR 601.3):
+            // the zone is all a rule of casting is told (Drannith Magistrate).
+            PlayerAction::CastOutside(zone) => {
+                let zone = zone_kind(zone)?;
+                self.table_entry(parts, "cast_rules", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, from: ZoneKind) -> bool {{ !({banned} && from != {zone}) }}"
+                ));
+            }
+            // "Players can't get counters", "you can't get poison counters" (CR
+            // 122.1): a player's counters are poison, energy and experience.
+            PlayerAction::ReceiveCounters(kind) => {
+                use crate::counter::{CounterKind as K, CounterName as N};
+                let kind = match kind {
+                    None => "true",
+                    Some(K::Named(N::PoisonCounter)) => "matches!(kind, PlayerCounter::Poison)",
+                    Some(K::Named(N::ExperienceCounter)) => "matches!(kind, PlayerCounter::Experience)",
+                    Some(other) => return Err(gap(format!("prohibited action ReceiveCounters {other:?}"))),
+                };
+                self.table_entry(parts, "player_counter_bans", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, kind: PlayerCounter) -> bool {{ {banned} && {kind} }}"
+                ));
+            }
             other => return Err(gap(format!("prohibited action {}", form(other)))),
         }
         Ok(())

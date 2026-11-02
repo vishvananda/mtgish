@@ -4159,6 +4159,9 @@ impl Compiler {
                 bonus: Expr::Constant(2),
             } => keyword("SaddlesAsThoughPowerTwoGreater"),
             R::Prohibit(ObjectAction::Counter) => keyword("CantBeCountered"),
+            // "Can't be attacked" (CR 508.1c): the keyword the attack rules read,
+            // as The Aetherspark grants it to itself.
+            R::Prohibit(ObjectAction::BeAttacked) => keyword("CantBeAttacked"),
             other => return Err(gap(format!("static rule {}", rule_name(other)))),
         })
     }
