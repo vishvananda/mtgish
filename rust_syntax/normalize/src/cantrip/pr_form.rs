@@ -31,7 +31,10 @@ pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteris
         return Some(raw.to_string());
     };
     let printed = &printed_as_cantrip(printed);
-    let reads_data = raw.contains("item.data") || raw.contains("batch_by_data") || raw.contains(".data[");
+    let reads_data = raw.contains("item.data")
+        || raw.contains("batch_by_data")
+        || raw.contains("counted_by_amount")
+        || raw.contains(".data[");
     let reads_subject = raw.contains("event_subject") || raw.contains("event_objects") || raw.contains("item.subject");
     flatten_tokens(&mut file, &mut BTreeSet::new());
     use_shared_tokens(&mut file);

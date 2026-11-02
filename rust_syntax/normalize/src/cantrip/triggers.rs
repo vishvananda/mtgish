@@ -700,6 +700,15 @@ impl Compiler {
             stack_controller: Some(Carried::Data(1)),
             ..Frame::default()
         };
+        // "Target permanent that player controls": the subject is who did it.
+        let frame = match self.recipient_subject {
+            false => frame,
+            true => Frame {
+                object: None,
+                stack_controller: Some(Carried::Subject),
+                ..frame
+            },
+        };
         let mut tests = vec![self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?];
         if lane_k::a_permanent_targeted(objects) {
             tests.push("q.is_on_battlefield(id)".into());
@@ -739,7 +748,10 @@ impl Compiler {
             "BECAME_TARGET",
             Arm {
                 pattern: "Event::BecameTarget { target: Target::Object(target), by, controller, .. }".into(),
-                locals: "let id = *target; let by = *by; let controller = *controller; let subject = Target::Object(id); let data = [by.0, u32::from(controller.0) | (q.state().stack.len().saturating_sub(1) as u32) << 8];".into(),
+                locals: format!(
+                    "let id = *target; let by = *by; let controller = *controller; let subject = {}; let data = [by.0, u32::from(controller.0) | (q.state().stack.len().saturating_sub(1) as u32) << 8];",
+                    if self.recipient_subject { "Target::Player(controller)" } else { "Target::Object(id)" },
+                ),
                 tests,
             },
             frame,
@@ -849,6 +861,22 @@ impl Compiler {
             other_player: (by.is_some() && named).then_some(Carried::Data(1)),
             ..Frame::default()
         };
+        // "Target creature that player controls": all a target filter can read
+        // of the event is its subject, so the defending player is it, and the
+        // batch keeps its key in `data`.
+        let attacked = self.recipient_subject && named;
+        let frame = match attacked {
+            false => frame,
+            true => Frame {
+                object: None,
+                player: frame.player.map(|held| match held {
+                    Carried::Data(1) => Carried::Subject,
+                    held => held,
+                }),
+                other_player: frame.other_player.map(|_| Carried::Subject),
+                ..frame
+            },
+        };
         let tests = self.matching(frame, |c| {
             let mut tests = vec![c.filter(attackers, &Candidate::of("id"))?];
             if let Some(by) = by {
@@ -859,7 +887,10 @@ impl Compiler {
         })?;
         let arm = Arm {
             pattern: "Event::Attacks { attacker, defender, defending, .. }".into(),
-            locals: "let id = *attacker; let subject = Target::Object(id); let data = [u32::from(q.controller(id).0), u32::from(defending.0)];".into(),
+            locals: format!(
+                "let id = *attacker; let subject = {}; let data = [u32::from(q.controller(id).0), u32::from(defending.0)];",
+                if attacked { "Target::Player(*defending)" } else { "Target::Object(id)" },
+            ),
             tests: tests.clone(),
         };
         Ok((
@@ -1380,6 +1411,7 @@ impl Compiler {
                     object: Some(Carried::Subject),
                     player: Some(Carried::Data(0)),
                     stack_object: Some(Carried::Subject),
+                    subject_controller: Some(Carried::Data(0)),
                     ..Frame::default()
                 };
                 let test = self.matching(frame, |c| {
@@ -1605,6 +1637,26 @@ impl Compiler {
         announcement: &Announcement,
         body: &Program,
     ) -> Result<String> {
+        let counts = match self.slot_counts {
+            target_counts::SlotCounts::Delayed => target_counts::SlotCounts::Delayed,
+            _ => Compiler::counts_of_trigger(event),
+        };
+        let outer = (self.slot_counts, self.count_read.take());
+        self.slot_counts = counts;
+        let def = self.triggered_def(label, event, intervening_if, limits, announcement, body);
+        let read = self.count_read.take().map(|(_, call)| call);
+        (self.slot_counts, self.count_read) = outer;
+        Ok(def? + read.as_deref().unwrap_or(""))
+    }
+    fn triggered_def(
+        &mut self,
+        label: &str,
+        event: &EventSpec,
+        intervening_if: Option<&Condition>,
+        limits: &TriggerLimits,
+        announcement: &Announcement,
+        body: &Program,
+    ) -> Result<String> {
         if let Some(total) = limits.total {
             let free = TriggerLimits {
                 per_turn: limits.per_turn,
@@ -1654,8 +1706,13 @@ impl Compiler {
                 );
             }
         }
-        self.recipient_subject =
-            format!("{:?}", announcement.targets).contains("ControlledBy(One(EventSubject))");
+        let mut read = format!("{:?}", announcement.targets);
+        for mode in announcement.modes.iter().flat_map(|modes| &modes.modes) {
+            write!(read, "{:?}", mode.announcement.targets).unwrap();
+        }
+        self.recipient_subject = ["One(EventSubject)", "One(EventOtherPlayer)", "EventStackObject"]
+            .iter()
+            .any(|player| read.contains(player));
         let matched = self.event(event);
         self.recipient_subject = false;
         if let (EventSpec::Either(events), Err(failed)) = (event, &matched) {

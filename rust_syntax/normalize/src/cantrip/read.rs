@@ -113,6 +113,9 @@ pub(super) struct Frame {
     pub blocker: Option<Carried>,
     /// "That many" of a "one or more" ability is how many objects its batch has.
     pub members: bool,
+    /// What holds the controller of the object that is the subject, which a
+    /// target filter finds from the subject alone.
+    pub subject_controller: Option<Carried>,
 }
 impl Frame {
     /// What every branch of an alternative event binds the same way.
@@ -137,6 +140,7 @@ impl Frame {
             attacker: same(self.attacker, other.attacker),
             blocker: same(self.blocker, other.blocker),
             members: self.members && other.members,
+            subject_controller: same(self.subject_controller, other.subject_controller),
         }
     }
 }
@@ -332,6 +336,11 @@ impl Compiler {
     }
     pub(super) fn carried_player(&self, carried: Option<Carried>) -> Result<String> {
         let carried = carried.ok_or_else(|| gap("event player this trigger does not bind"))?;
+        if self.event_at == EventAt::TargetFilter
+            && self.frame.subject_controller == Some(carried)
+        {
+            return Ok("q.event_subject().object().map(|o: ObjectId| q.controller(o))".into());
+        }
         let (subject, data) = self.carried(carried)?;
         Ok(match carried {
             Carried::Subject => format!("{subject}.player()"),
@@ -1638,6 +1647,17 @@ impl Compiler {
                 ..
             } if self.history.is_none() => {
                 return Err(gap("filter comparing its candidate with itself"));
+            }
+            // "Another target card": what the event moved, each card of a merged
+            // permanent (CR 730.3c), found from the subject a target filter reads.
+            ObjectFilter::SameObject(object)
+                if self.event_at == EventAt::TargetFilter
+                    && self.frame.destination.is_some()
+                    && lane_k::what_the_event_moved(object) =>
+            {
+                format!(
+                    "q.event_subject().object().is_some_and(|o: ObjectId| o == {id} || q.found_all_after_move(o).contains(&{id}))"
+                )
             }
             ObjectFilter::SameObject(object) => {
                 format!("{} == Some({id})", self.object(object)?)

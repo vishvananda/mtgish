@@ -32,6 +32,7 @@ mod lane_p;
 mod lane_q;
 mod mechanics;
 mod option_words;
+mod target_counts;
 pub mod planned;
 mod players;
 mod playing;
@@ -637,6 +638,11 @@ struct Compiler {
     entering_labels: Option<String>,
     /// The mana cost printed on the card.
     printed_mana: Option<Vec<ManaSymbol>>,
+    /// What `COUNTED` reads in the slots being written.
+    slot_counts: target_counts::SlotCounts,
+    /// The one number a triggered ability's `COUNTED` reads: its code and the
+    /// builder call that says so.
+    count_read: Option<(String, String)>,
     /// `CardDef::lasting_cost_changes`.
     made_cost_changes: Vec<String>,
     /// `CardDef::labels` of abilities to choose among as a body resolves.
@@ -962,6 +968,8 @@ impl Compiler {
             rule_on_event_object: false,
             entering_labels: None,
             printed_mana: None,
+            slot_counts: Default::default(),
+            count_read: None,
             made_cost_changes: Vec::new(),
             choice_labels: Vec::new(),
             option_labels: false,
@@ -1228,6 +1236,8 @@ impl Compiler {
                 self.slots.insert(spec.slot.0, (i, spec.clone()));
                 continue;
             }
+            let each_player = target_counts::each_player_slot(spec);
+            let spec = each_player.as_ref().unwrap_or(spec);
             let doubled;
             let spec = if self.second_of_two.is_some() {
                 doubled = TargetSpec {
@@ -1266,7 +1276,18 @@ impl Compiler {
             } else if let Some(total) = &spec.distribute {
                 let total = match total {
                     Expr::Constant(n) if i == 0 && *n >= 0 => n.to_string(),
-                    Expr::AnnouncedX if i == 0 => "TargetSpec::COUNTED".to_string(),
+                    Expr::AnnouncedX
+                        if i == 0 && self.slot_counts == Default::default() =>
+                    {
+                        "TargetSpec::COUNTED".to_string()
+                    }
+                    other if i == 0 && self.counts_own_x(other) => {
+                        "TargetSpec::COUNTED".to_string()
+                    }
+                    Expr::AnnouncedX => {
+                        return Err(gap("target with a divided amount of an X it can't read")
+                            .at(at))
+                    }
                     other if i == 0 => {
                         let total = self
                             .number(other)
@@ -1287,7 +1308,7 @@ impl Compiler {
                 Some(chooser) => self.chosen_by_another(chooser, &mut rule),
                 None => Ok(()),
             };
-            let count = self.target_count(&spec.count);
+            let count = self.slot_count(&spec.count, &format!("{label}_{i}"));
             self.choosing = None;
             chosen_by.map_err(|e| e.at(&at))?;
             let count = count.map_err(|e| e.at(&at))?;

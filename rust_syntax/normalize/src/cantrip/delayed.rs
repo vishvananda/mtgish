@@ -480,9 +480,11 @@ impl Compiler {
         self.closing(subject_only, |c| {
             // A target filter is a function of its own: no local reaches it.
             c.reset_results();
+            let counts = std::mem::replace(&mut c.slot_counts, target_counts::SlotCounts::Delayed);
             let targets = announcement
                 .map(|a| c.targets_for(a, label, Frame::default()))
                 .transpose();
+            c.slot_counts = counts;
             match intervening_if {
                 Some(condition) => c.guarded_effect(condition, body, label),
                 None => c.effect(body, label),
@@ -606,14 +608,17 @@ impl Compiler {
         let (outer, def) = self.closing_for_matcher(false, |c| {
             // Its matcher is a function of its own: no local reaches it.
             c.reset_results();
-            c.triggered(
+            let counts = std::mem::replace(&mut c.slot_counts, target_counts::SlotCounts::Delayed);
+            let def = c.triggered(
                 &label,
                 &event,
                 intervening_if.as_ref(),
                 &limits,
                 announcement,
                 body,
-            )
+            );
+            c.slot_counts = counts;
+            def
         })?;
         self.delayed.push(def);
         let index = self.delayed.len() - 1;
@@ -768,7 +773,10 @@ impl Compiler {
         let dividing = self.dividing.take();
         let closed = self.closing(true, |c| {
             c.reset_results();
-            let targets = c.targets_for(&announced, &label, Frame::default())?;
+            let counts = std::mem::replace(&mut c.slot_counts, target_counts::SlotCounts::Delayed);
+            let targets = c.targets_for(&announced, &label, Frame::default());
+            c.slot_counts = counts;
+            let targets = targets?;
             let modal = c.reflexive_modes(announcement, &label);
             c.effect(body, &label)?;
             Ok((Some(targets), modal))
