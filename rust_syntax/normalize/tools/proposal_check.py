@@ -287,6 +287,10 @@ class Model:
     def known(self, name):
         return name in self.kinds
 
+    def in_card_def(self, name):
+        """Whether a field of `CardDef` holds `name` (`abilities: &'static [AbilityDef]`)."""
+        return any(re.search(rf"\b{name}\b", ty) for ty in self.fields.get("CardDef", {}).values())
+
     def storage(self, name):
         """What a value inside `name` must have: its derives, or a table's `Copy + Sync + 'static` if it isn't `Hash`."""
         derives = [d for d in self.derives.get(name, []) if d in DERIVABLE]
@@ -631,6 +635,10 @@ class Spec:
                 query = any(k == "dyn" and t != "Game" for k, t in entry["bases"])
                 stores = self.method_stores(name, ty)
                 bound = "Stored" if stores else "Data"
+                # A method of a value a CardDef field holds (`ability(..).divide(..)`) builds that table entry: what
+                # it is given is held in the table, as a field of it would be.
+                if kind != "dyn" and self.model.in_card_def(ty):
+                    bound = self.payload(ty, out, seen)[len(ROOT) + 2 :]
                 receiver = "&mut self" if ty == "Game" and not query else "&self"
                 arity = entry["arity"].most_common(1)[0][0]
                 ret, generic = self.ret(f"m::{name}", entry.get("tried"))

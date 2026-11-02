@@ -136,6 +136,12 @@ class Stubs(unittest.TestCase):
         self.assertIn("fn votes<A0: crate::proposals::Data, R>(&self, a0: A0) -> R", stubs)
         self.assertIn("impl Proposed_Query for dyn Query + '_ {}", stubs)
 
+    def test_a_method_of_what_a_cardef_field_holds_keeps_what_it_is_given_in_the_table(self):
+        text = "static T: &[TriggerDef] = &[TRIGGER.divide_activated(d)];"
+        stubs = learnt(("E0599", "no method named `divide_activated` found for struct `TriggerDef` in the current "
+                        "scope", text, "divide_activated")).write()
+        self.assertIn("fn divide_activated<A0: crate::proposals::TableEntry", stubs)
+
     def test_cantrip_keeps_state_as_copy_eq_hash_data(self):
         self.assertIn("pub trait Stored: Copy + Eq + std::hash::Hash {}", pc.PRELUDE)
         self.assertIn("pub trait TableEntry: Copy + Sync + 'static {}", pc.PRELUDE)
