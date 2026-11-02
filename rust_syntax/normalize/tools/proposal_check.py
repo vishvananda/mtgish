@@ -1189,6 +1189,24 @@ def given_to_stub(text, at, spec):
     return bracket == "{" and (name in spec.types or name in spec.new_fields)
 
 
+def read_from_untyped_field(text, at, name, spec):
+    """Whether `let name = *field` at `text[at]` reads a field a pattern of a new struct variant bound, which the
+    variant's shim holds generically: no other variant of the enum types a field of that name, so nothing but
+    Cantrip's own variant could say what it is."""
+    if not text or not re.fullmatch(r"\w+", name or ""):
+        return False
+    m = re.compile(rf"{re.escape(name)}\s*=\s*\*?(\w+)\s*;").match(text, at)
+    if not m:
+        return False
+    field = m.group(1)
+    before = text[max(0, at - 3000) : at]
+    for p in re.finditer(rf"{re.escape(ROOT)}::on::(\w+)::(\w+)\s*\{{([^}}]*)\}}\s*=\s*{re.escape(ROOT)}::on::\1::\2::of\(",
+                         before):
+        if re.search(rf"\b{re.escape(field)}\b", p.group(3)) and not spec.model.field_type(p.group(1), field):
+            return True
+    return False
+
+
 def classify(d, text, spec):
     """(class, stub_fault) for one error."""
     code = (d.get("code") or {}).get("code")
@@ -1212,6 +1230,8 @@ def classify(d, text, spec):
             return "stub layer: a closure's parameter types, which a stub's generic argument doesn't give", True
         if snippet == "None" and "declared on the enum `Option`" in rendered and given_to_stub(text, span["byte_start"], spec):
             return "stub layer: a bare None given to a stub's generic argument or a proposed struct's field", True
+        if read_from_untyped_field(text, span["byte_start"], snippet, spec):
+            return "stub layer: a field of a new variant no other variant of its enum types", True
         return "type annotations needed", False
     if "`!`" in msg:
         return "stub layer: a stub's value its call doesn't type", True
