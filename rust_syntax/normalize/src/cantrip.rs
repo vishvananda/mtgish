@@ -579,6 +579,9 @@ struct Compiler {
     /// The `PlayersPayRepeatedly` whose unpaid payments a walk keeps, one
     /// entry of its payer for each.
     unpaid_rows: BTreeSet<u32>,
+    /// What each player of a walk turned face up, as said for the walked player:
+    /// "among them" of a later walk of the same players (Pyxis of Pandemonium).
+    turned_up: Option<(u32, ObjectSet)>,
     /// The cards that ended each reveal, by the result that names all it showed.
     reveal_matches: BTreeMap<u32, String>,
     /// This resolution has revealed something. The AST does not always tie a
@@ -1030,6 +1033,7 @@ impl Compiler {
             piles_walk: None,
             pile_shape: (0, false),
             unpaid_rows: BTreeSet::new(),
+            turned_up: None,
             unchosen: BTreeMap::new(),
             word_options: Vec::new(),
             player_words: None,

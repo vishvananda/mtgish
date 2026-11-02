@@ -347,6 +347,23 @@ impl Compiler {
         }
         // The engine keeps a permanent's choices as it entered, and no other.
         if !self.enters_choosing.contains(&kind) {
+            // "Choose a color. Whenever this becomes blocked by a creature of that
+            // color this turn" (Zombie Boa): the ability that chose it creates the
+            // one that reads it, and Cantrip keeps no resolution's choice for it.
+            // "{2}, {T}, Choose flying, first strike, trample, or shadow: target
+            // creature with the chosen ability" (Phyrexian Splicer): chosen as
+            // its cost, before its targets, and Cantrip announces no such choice.
+            let cost = format!("{:?}", self.activation_cost);
+            if cost.contains("ChooseValue") && cost.contains(&format!("kind: {kind:?},")) {
+                return Err(gap("a value chosen as an activation cost, read by its targets"));
+            }
+            if self.stack_item
+                && self.line_text().is_some_and(|line| {
+                    line.contains("hoose a ") && line.contains("henever")
+                })
+            {
+                return Err(gap("a resolution's choice read by the trigger it creates"));
+            }
             return lane_p::chosen_elsewhere(self.linked(), kind)
                 .or_else(|_| self.chosen_elsewhere(kind));
         }

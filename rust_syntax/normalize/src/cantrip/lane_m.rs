@@ -698,6 +698,15 @@ impl Compiler {
                 }
                 _ => {}
             }
+            // "Each player turns face up all cards they own exiled with this, then
+            // puts all permanent cards among them onto the battlefield" (Pyxis of
+            // Pandemonium): each player's own cards of an earlier walk, which no
+            // walk keeps for one that turns cards face up.
+            if let (EarlierObjects::It, Some((walked, turned))) = (what, &self.turned_up) {
+                if self.bound_players.contains(walked) {
+                    return self.objects(&turned.clone());
+                }
+            }
             // Cantrip keeps no record of this for a read to find.
             return Ok(planned::planned_value(
                 &format!("earlier objects {word}"),

@@ -101,7 +101,22 @@ fn punished_in_turn(flat: &[Instruction], binding: &Binding) -> bool {
             _ => None,
         })
         .collect();
+    // Something done for that player first, by another: "you mill a card". A
+    // walk of "each opponent sacrifices unless they pay" is all the choices,
+    // then all that happens (CR 101.4), as its steps are.
+    let done_for = flat.iter().any(|step| match step {
+        Instruction::Effect {
+            operation: Operation::Mill { players, .. },
+            ..
+        } => !names(binding, players),
+        Instruction::Effect {
+            operation: Operation::Reveal { objects },
+            ..
+        } => !names(binding, objects),
+        _ => false,
+    });
     flat.len() <= 3
+        && done_for
         && paid.len() == 1
         && flat.iter().any(|step| {
             matches!(step, Instruction::If { condition, .. }
@@ -390,6 +405,11 @@ impl Compiler {
         if self.moved_their_own(objects, binding) {
             return true;
         }
+        if self.turned_up.as_ref().is_some_and(|(walked, _)| *walked == binding.0)
+            && format!("{objects:?}").contains("Earlier { what: It")
+        {
+            return true;
+        }
         let theirs = |scope: &ZoneScope| {
             matches!(
                 scope,
@@ -550,7 +570,8 @@ impl Compiler {
                     entry: entry.clone(),
                     face_down,
                 };
-                if names(binding, objects) {
+                let among_turned = self.turned_up.as_ref().is_some_and(|(walked, _)| *walked == binding.0) && format!("{objects:?}").contains("Earlier { what: It");
+                if names(binding, objects) || among_turned {
                     return Part::Gather(Gathered::Objects {
                         objects: objects.clone(),
                         then: Box::new(then),
@@ -571,6 +592,14 @@ impl Compiler {
                 otherwise,
                 ..
             } if walked.0 == binding.0 && otherwise.is_empty() => Part::Walk,
+            // "Each player turns face up all cards they own exiled with this":
+            // nothing sees a card turned face up in exile one at a time.
+            Operation::KeywordEach {
+                actor: PlayerSet::One(PlayerRef::Bound(actor)),
+                action: KeywordAction::TurnFaceUp,
+                until: None,
+                ..
+            } if actor.0 == binding.0 => Part::Walk,
             // "Each player shuffles all cards from their hand and all permanents
             // they own into their library": every card moves at once (CR 101.4),
             // each to its owner's zone, so the players' cards go together.
@@ -849,6 +878,23 @@ impl Compiler {
             writeln!(out, "{{ let order: Vec<PlayerId> = g.state().apnap().collect(); players_{id}.sort_by_key(|p| order.iter().position(|o| o == p)); }}").unwrap();
         }
         let walking = (self.notes.walking).replace((each.binding.0, format!("players_{id}")));
+        for step in &each.body.instructions {
+            if let Instruction::Effect {
+                operation:
+                    Operation::KeywordEach {
+                        actor: PlayerSet::One(PlayerRef::Bound(actor)),
+                        action: KeywordAction::TurnFaceUp,
+                        objects,
+                        until: None,
+                    },
+                ..
+            } = step
+            {
+                if actor.0 == each.binding.0 {
+                    self.turned_up = Some((actor.0, objects.clone()));
+                }
+            }
+        }
         self.note_own(&each.body);
         if let Some(first) = each.starting_with {
             let first = self.fetch(self.player(first)?);
