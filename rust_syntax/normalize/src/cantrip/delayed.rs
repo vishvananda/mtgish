@@ -24,13 +24,19 @@ pub(super) struct Outer {
     /// Asked of what it watches, so what made it is not its source: the object
     /// `Source` says is carried.
     source_moved: bool,
+    /// What it watches, which is its source and so needs no carrying.
+    watches: Option<ObjectRef>,
     /// A reflexive ability, which is told one number as well as its subject.
-    reflexive: bool,
+    pub(super) reflexive: bool,
     /// `i64` code of the number it is told, worked out as it triggers.
     count: RefCell<Option<String>>,
 }
 
 impl Outer {
+    /// Whether a spell made this, not an activation or an effect at resolution.
+    pub(super) fn made_by_a_spell(&self) -> bool {
+        self.made.is_none() && self.compiler.activation_cost.is_none()
+    }
     pub(super) fn knows(&self, result: &ResultId) -> bool {
         let c = &self.compiler;
         c.selections.contains_key(&result.0)
@@ -43,13 +49,44 @@ impl Outer {
     }
 }
 
+/// `delayed_trigger_about` keeps its list to the moment of a step: what an event
+/// triggers is put on the stack with none, so `about` would read nothing.
+const KEEPS_NO_LIST: &str = "engine: a delayed ability on an event keeps no list";
+
 /// The lists a delayed ability carries are one list to the engine, so each ends
 /// with an object nothing can be.
 pub(super) const ABOUT: &str = "fn about(q: &dyn Query, item: &StackItem, part: usize) -> Vec<ObjectId> { q.event_objects(item).split(|&id| id == ObjectId::NONE).nth(part).map_or_else(Vec::new, <[ObjectId]>::to_vec) }\n";
 
 impl Compiler {
+    /// Whether `object` of the maker is the object this ability is asked of.
+    fn watched_by(outer: &Outer, object: &ObjectRef) -> bool {
+        outer
+            .watches
+            .as_ref()
+            .is_some_and(|w| format!("{w:?}") == format!("{object:?}"))
+    }
+    /// Whether the list `objects` of the maker is only that object.
+    fn watched_list(outer: &Outer, objects: &ObjectSet) -> bool {
+        match objects {
+            ObjectSet::One(object) => Self::watched_by(outer, object),
+            ObjectSet::Targets(slot) => {
+                let single = outer.compiler.slots.get(&slot.0).is_some_and(|(_, spec)| {
+                    matches!(spec.count, Count::Exactly(Expr::Constant(1)))
+                });
+                single
+                    && Self::watched_by(
+                        outer,
+                        &ObjectRef::Target {
+                            slot: slot.clone(),
+                            index: 0,
+                        },
+                    )
+            }
+            _ => false,
+        }
+    }
     /// Whether this body's stack item can read carried values.
-    fn carrying(&self) -> Option<&Outer> {
+    pub(super) fn carrying(&self) -> Option<&Outer> {
         let readable = self.reader == Reader::Resolution && self.stack_item;
         self.outer.as_deref().filter(|outer| {
             readable
@@ -228,6 +265,20 @@ impl Compiler {
         *carried = Some(code);
         Ok(Some("i64::from(item.x)".into()))
     }
+    /// The number of the event around a reflexive ability, told to it.
+    pub(super) fn told_event_amount(&self, n: &Expr) -> Result<String> {
+        let outer = self
+            .carrying()
+            .ok_or_else(|| gap("amount of an event its trigger does not carry"))?;
+        let inner = &outer.compiler;
+        let code = format!("({} as i64)", inner.fetch(inner.number(n)?.code));
+        let mut carried = outer.count.borrow_mut();
+        if carried.as_ref().is_some_and(|c| *c != code) {
+            return Err(gap("reflexive ability told two numbers"));
+        }
+        *carried = Some(code);
+        Ok("i64::from(item.x)".into())
+    }
     /// An `Option<ObjectId>` this body cannot read for itself, if `object` is.
     pub(super) fn outside_object(&self, object: &ObjectRef) -> Result<Option<String>> {
         let Some(outer) = self.carrying() else {
@@ -235,6 +286,9 @@ impl Compiler {
         };
         if self.reads_itself(object) {
             return Ok(None);
+        }
+        if Self::watched_by(outer, object) {
+            return Ok(Some("Some(asker.source)".into()));
         }
         if let Some(subject) = &outer.subject {
             let code = outer.compiler.object(object)?;
@@ -342,6 +396,11 @@ impl Compiler {
         if local {
             return Ok(None);
         }
+        if Self::watched_list(outer, objects) {
+            return Ok(Some(
+                "Some(asker.source).into_iter().collect::<Vec<ObjectId>>()".into(),
+            ));
+        }
         if let Some(read) = self.read_by_matcher(outer, || outer.compiler.objects(objects))? {
             return Ok(Some(planned::planned_value(
                 "event trigger carrying values",
@@ -415,6 +474,11 @@ impl Compiler {
             },
             PlayerRef::EventSubject => self.frame.player.is_some(),
             PlayerRef::EventOtherPlayer => self.frame.other_player.is_some(),
+            // A player chosen in the body around this ability goes with it.
+            PlayerRef::Chosen => {
+                self.chosen_local(ValueKind::Player).is_ok()
+                    || outer.compiler.chosen_local(ValueKind::Player).is_err()
+            }
             _ => true,
         };
         if local {
@@ -610,6 +674,7 @@ impl Compiler {
             matcher: self.watching,
             parts: RefCell::new(Vec::new()),
             source_moved: std::mem::take(&mut self.source_moved),
+            watches: self.watching_object.take(),
             reflexive: std::mem::take(&mut self.reflexing),
             count: RefCell::new(None),
         });
@@ -686,18 +751,15 @@ impl Compiler {
                 )
             }
         };
-        let (event, source) = self.watching_source(event, body)?;
+        // The source sees two sentences as one where the second is about the first's
+        // object: a body of its own would wait on the first to happen.
+        if format!("{body:?}").contains("CreateTrigger") {
+            return Err(gap("a delayed ability made by a delayed ability"));
+        }
+        let (event, source, each) = self.watching_source(event, body)?;
         let label = format!("watch_{}", self.fresh());
         let limits = TriggerLimits::default();
-        let (maker, _, _) = self.maker();
-        let says = format!("{body:?}");
-        if source != format!("Some({maker})") && says.contains("Source") {
-            // What is linked to the maker can't be read through a list (CR 607).
-            if says.contains("ExiledWith") {
-                return Err(gap("event trigger carrying values"));
-            }
-            self.source_moved = true;
-        }
+        self.watching_for_another(&source, body)?;
         let (outer, def) = self.closing_for_matcher(false, |c| {
             // Its matcher is a function of its own: no local reaches it.
             c.reset_results();
@@ -715,15 +777,38 @@ impl Compiler {
         })?;
         self.delayed.push(def);
         let index = self.delayed.len() - 1;
-        self.make_watching(&outer, &when, &source, index, out)
+        let Some(each) = each else {
+            return self.make_watching(&outer, &when, &source, index, out);
+        };
+        // One ability on each of them: "whenever either of those creatures ...".
+        writeln!(out, "for each in {each} {{").unwrap();
+        self.make_watching(&outer, &when, &source, index, out)?;
+        writeln!(out, "}}").unwrap();
+        Ok(())
+    }
+    /// A delayed ability whose source is what it watches still acts as its maker
+    /// did: `body` reads the maker through the list the ability carries. Only an
+    /// effect's own source reads it no differently: Okoye's "it gains" is the
+    /// creature's, as the card is written by hand.
+    pub(super) fn watching_for_another(&mut self, source: &str, body: &Program) -> Result<()> {
+        let (maker, _, _) = self.maker();
+        let says = format!("{body:?}").replace("CreateContinuousEffect { source: Source,", "");
+        if source != format!("Some({maker})") && says.contains("Source") {
+            // What is linked to the maker can't be read through a list (CR 607).
+            if says.contains("ExiledWith") {
+                return Err(gap("event trigger carrying values"));
+            }
+            self.source_moved = true;
+        }
+        Ok(())
     }
     /// What a delayed ability on an event is asked of, and the event as that
     /// object watches it.
     pub(super) fn watching_source(
-        &self,
+        &mut self,
         event: &EventSpec,
         body: &Program,
-    ) -> Result<(EventSpec, String)> {
+    ) -> Result<(EventSpec, String, Option<String>)> {
         let mut event = event.clone();
         let (maker, _, _) = self.maker();
         let mut source = format!("Some({maker})");
@@ -733,16 +818,19 @@ impl Compiler {
             if let ObjectFilter::SameObject(object) = objects {
                 if !matches!(object, ObjectRef::Source) {
                     source = self.fetch(self.object(object)?);
+                    self.watching_object = Some(object.clone());
                     *objects = ObjectFilter::SameObject(ObjectRef::Source);
                 }
             }
         }
-        if !format!("{body:?}").contains("Source") {
-            if let Some(object) = lane_i::watched(&mut event) {
-                source = self.fetch(self.object(&object)?);
-            }
+        if let Some(object) = lane_i::watched(&mut event) {
+            source = self.fetch(self.object(&object)?);
+            self.watching_object = Some(object);
+        } else if let Some(list) = lane_i::watched_each(&mut event) {
+            source = "Some(each)".to_string();
+            return Ok((event, source, Some(self.fetch(self.objects(&list)?))));
         }
-        Ok((event, source))
+        Ok((event, source, None))
     }
     /// Make a delayed ability on an event. Cantrip keeps one subject for what
     /// waits for one event, and no list: what carries a list waits on that.
@@ -793,7 +881,11 @@ impl Compiler {
         }
         match player.as_ref() {
             // Its body reads the list; what its matcher reads is held where it is read.
-            None => writeln!(out, "if let Some(source) = {source} {{ {about} g.delayed_trigger_about({when}, source, {controller}, {ability}, &about); }}").unwrap(),
+            None => self.plan_code(
+                KEEPS_NO_LIST,
+                &format!("if let Some(source) = {source} {{ {about} g.delayed_trigger_about({when}, source, {controller}, {ability}, &about); }}"),
+                out,
+            ),
             Some(player) => {
                 let code = format!("if let Some(source) = {source} {{ {about} let player = {}.map_or(Target::None, Target::Player); g.delayed_trigger_with({when}, source, {controller}, {ability}, player, &about); }}", self.fetch(player));
                 self.plan_code("event trigger carrying values", &code, out);
@@ -994,7 +1086,16 @@ impl Compiler {
                     false => "",
                 };
                 match player {
-                    None => writeln!(out, "{open}{{ {about} {any}{{ g.delayed_trigger_about({when}, {source}, {controller}, {ability}, &about); }} }}{close}").unwrap(),
+                    None => {
+                        let make = format!("{open}{{ {about} {any}{{ g.delayed_trigger_about({when}, {source}, {controller}, {ability}, &about); }} }}{close}");
+                        match ["DelayedWhen::Step", "DelayedWhen::EachStep", "DelayedWhen::ExtraTurnStep"]
+                            .iter()
+                            .any(|at| when.starts_with(at))
+                        {
+                            true => writeln!(out, "{make}").unwrap(),
+                            false => self.plan_code(KEEPS_NO_LIST, &make, out),
+                        }
+                    }
                     Some(player) => self.plan_code(
                         "delayed ability about objects and a player",
                         &format!("{open}{{ {about} let player = {}.map_or(Target::None, Target::Player); g.delayed_trigger_with({when}, {source}, {controller}, {ability}, player, &about); }}{close}", self.fetch(player)),

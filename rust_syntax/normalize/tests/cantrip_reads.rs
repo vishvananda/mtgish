@@ -26,7 +26,54 @@ const CARDS: &[(&str, &str)] = &[
     ("Time Beetle", "fn time_travel_for"),
     // A replacement's `then` has no stack item to be linked by.
     ("Asmodeus the Archfiend", "g.text_linked(asker.source)"),
+    // As it enters, the object is the permanent it will be.
+    ("Sutured Ghoul", "g.text_linked(asker.source)"),
+    // The rest of a prevention, once for each event of damage it stopped.
+    ("Deflecting Palm", "then: Some("),
+    // A basic landwalk is the keyword anything reading or removing it asks after.
+    ("Bog Wraith", "Keyword::Swampwalk"),
+    // Landwalk no word says is a rule of the block, by whoever is defending.
+    ("Rime Dryad", "q.defending_player(attacker)"),
+    // "Your last upkeep", in your upkeep, is the one before it.
+    ("Wiitigo", "!(upkeeping && r.turn == history.turn)"),
+    // One window in the AST for two sentences, "ended" and "the beginning of": without
+    // the printed line nothing says which, and no window is written.
+    ("Premature Burial", "history window SinceLastTurnOf"),
+    ("Concert Kaboomist", "history window SinceLastTurnOf"),
+    // A source as it was when it dealt the damage, not as it is now.
+    ("Inferno Trap", "dealt.chars(q)"),
+    // "Abilities that aren't mana abilities" is all a ban is told.
+    ("Karn's Sylex", "matches!(costing, CostFor::Ability)"),
+    // Their own or the total: only the printed line says.
+    ("Minds Aglow", "an amount read by each player as their own"),
+    // "Your choice", which the data says of no one.
+    ("Hinder", "counter into OwnersLibraryTopOrBottom"),
+    ("Ilharg, the Raze-Boar", "may_put_onto_battlefield_attacking"),
+    // The spell that reads a name counts what says it counts as that name.
+    ("Muscle Burst", "\"Diligent Farmhand\""),
+    ("Diligent Farmhand", "statics: &[]"),
+    // Each basic land type, read from the layer before abilities.
+    ("Magnigoth Treefolk", "Keyword::landwalk(kind)"),
+    // An X in an alternative cost is announced like the mana cost's.
+    ("Fall of the Titans", "surge::way(ManaCost { generic: 0, x: 1"),
+    ("Pippin, Guard of the Citadel", "EffectKind::ProtectionFromTypes"),
+    // "Corrupted": the way's one condition holds the requirement too.
+    ("Viral Spawning", ".exile_after().condition("),
+    // Sizes known as the payer is asked, and a payer's own permanents.
+    ("Archfiend of Spite", "Cost::sacrifice(("),
+    ("Reservoir Kraken", "tap_untapped(1, "),
+    ("Escape Detection", "freerunning::assassin_dealt_combat_damage"),
     // Holes that stay, each for what the form can't say.
+    // Its own ability is told from the others by its printed words.
+    ("Withering Wisps", "engine: no limit on activations each turn"),
+    (
+        "Korvold, Gleeful Glutton",
+        "a sacrifice history with its player lost in the data",
+    ),
+    // Losing keywords wouldn't reach a landwalk that's a rule of the block.
+    ("Hammerheim", "losing ability AnyLandwalk"),
+    // An event-fired delayed ability keeps no list: this read would be empty.
+    ("Searing Blood", "engine: a delayed ability on an event keeps no list"),
     (
         "Necromancy",
         "an Aura that enchants what it put onto the battlefield",

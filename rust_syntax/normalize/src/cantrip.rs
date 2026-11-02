@@ -545,6 +545,10 @@ struct Compiler {
     mana_x: bool,
     slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
+    /// "A source of your choice": each choice's local and the quality it asks.
+    damage_sources: BTreeMap<String, ObjectFilter>,
+    /// The quality of the source of your choice the made effect at hand is about.
+    choosing_source: Option<ObjectFilter>,
     /// What later reads ask of the instructions before them (`lane_m`).
     notes: lane_m::Notes,
     /// By slot: who controlled the items an earlier step countered.
@@ -562,6 +566,8 @@ struct Compiler {
     unchosen: BTreeMap<u32, String>,
     /// The words of a choice of `ValueKind::Word`, the card's `labels`.
     word_options: Vec<String>,
+    /// `Vec<(PlayerId, u8)>`: the word chosen for each player.
+    player_words: Option<String>,
     creations: BTreeMap<u32, String>,
     moved: BTreeMap<u32, String>,
     /// The same transitions as `moved`, by the identities they left behind.
@@ -573,6 +579,12 @@ struct Compiler {
     activation_cost: Option<Cost>,
     /// Each additional cost this card declares, by its ability's index.
     casting_costs: BTreeMap<u32, Cost>,
+    /// What a mechanic's cost of this card's own spell took, by earlier objects' word.
+    cast_pays: Vec<&'static str>,
+    /// "As this enters, sacrifice any number": how many is what it keeps.
+    enters_sacrifices: bool,
+    /// An instant or sorcery whose one instruction that deals damage is all it deals.
+    damages_once: bool,
     /// Moves that already said when they end, in one call with the move.
     returning: BTreeSet<u32>,
     /// The `Divide` of the announcement just compiled, until a definition that
@@ -581,6 +593,13 @@ struct Compiler {
     /// Locals an effect declares up front to outlive its nested blocks. `None`
     /// in code that isn't an effect's own body.
     hoisted: Option<Vec<String>>,
+    /// Values kept past the block or turn that chose them, and the lines that keep
+    /// them, which go if nothing read them.
+    unread: Vec<(String, Vec<String>)>,
+    /// Locals that hold a value each player chose, by kind.
+    chosen_lists: Vec<(ValueKind, String)>,
+    /// The bound player whose own choice in a walk a filter reads.
+    own_choice: std::cell::RefCell<Option<String>>,
     /// The local of the spells the last cast of cards made.
     played: Option<String>,
     /// Choices and searches that yield one object at most.
@@ -602,6 +621,10 @@ struct Compiler {
     hurt_players: BTreeMap<u32, String>,
     /// The flips a coin-flipping instruction won and lost.
     coins: Option<(String, String)>,
+    /// The players who each flipped a coin, and how each came up.
+    coin_turns: Option<(String, String)>,
+    /// A coin flipped for each object: `(object, flip)`.
+    coin_objects: Option<String>,
     /// A damage instruction's excess (CR 120.10): the list of what each recipient
     /// took past lethal, its recipients' local, and the one object it aimed at.
     excess: BTreeMap<u32, (String, String, Option<String>)>,
@@ -616,11 +639,24 @@ struct Compiler {
     chosen: Vec<(ValueKind, String)>,
     /// Values the card chooses as it enters, which its permanent keeps.
     enters_choosing: Vec<ValueKind>,
+    /// The body of a mana ability is being written.
+    mana_body: bool,
+    /// The place on its card of the mana ability being written.
+    activated_mana: Option<usize>,
+    /// The color a definition made once for each color is written for.
+    each_color: Option<String>,
+    /// It chooses two of this kind as it enters: the second in its chosen number.
+    enters_two: Option<ValueKind>,
+    /// A rule on the cost of `spell` is being written.
+    costed_spell: bool,
+    /// The card types it offers, if it chooses one as it enters.
+    entering_card_type: Option<Vec<String>>,
     bound_objects: BTreeSet<u32>,
     /// The next closure is a reflexive ability's.
     reflexing: bool,
     /// The next closure is the body of a delayed ability asked of another object.
     source_moved: bool,
+    watching_object: Option<ObjectRef>,
     bound_players: BTreeSet<u32>,
     /// A mechanic asks for the first way, so no other way may come before it.
     only_way: bool,
@@ -648,6 +684,9 @@ struct Compiler {
     delayed: Vec<String>,
     /// The filter of each slot the last announcement compiled.
     announced_filters: Vec<String>,
+    /// For a slot for each player, the slot of the controller's own that goes with
+    /// it (`lane_i::own_slot`), by their places among the slots.
+    own_slots: BTreeMap<usize, usize>,
     /// Compiling a delayed ability's body: what it carries from its maker.
     outer: Option<Rc<delayed::Outer>>,
     /// `CardDef::granted_preventions` and `granted_replacements`.
@@ -682,6 +721,8 @@ struct Compiler {
     subject_chooses: bool,
     /// Its slots leave that to the subject, and that is who the event binds.
     controller_subject: bool,
+    /// A batch of counters is read only as how many they were.
+    counters_total: bool,
     /// `CardDef::lasting_cost_changes`.
     made_cost_changes: Vec<String>,
     /// `CardDef::labels` of abilities to choose among as a body resolves.
@@ -955,11 +996,14 @@ impl Compiler {
             mana_x: false,
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
+            damage_sources: BTreeMap::new(),
+            choosing_source: None,
             notes: Default::default(),
             countered: BTreeMap::new(),
             face_piles: None,
             unchosen: BTreeMap::new(),
             word_options: Vec::new(),
+            player_words: None,
             reveal_matches: BTreeMap::new(),
             revealed: false,
             creations: BTreeMap::new(),
@@ -968,9 +1012,15 @@ impl Compiler {
             asking: None,
             activation_cost: None,
             casting_costs: BTreeMap::new(),
+            cast_pays: Vec::new(),
+            enters_sacrifices: false,
+            damages_once: false,
             returning: BTreeSet::new(),
             dividing: None,
             hoisted: None,
+            unread: Vec::new(),
+            chosen_lists: Vec::new(),
+            own_choice: std::cell::RefCell::new(None),
             played: None,
             single: BTreeSet::new(),
             known_one: BTreeSet::new(),
@@ -982,6 +1032,8 @@ impl Compiler {
             unpaid: BTreeSet::new(),
             hurt_players: BTreeMap::new(),
             coins: None,
+            coin_turns: None,
+            coin_objects: None,
             excess: BTreeMap::new(),
             values: BTreeMap::new(),
             flips: BTreeMap::new(),
@@ -989,9 +1041,16 @@ impl Compiler {
             bestow: None,
             chosen: Vec::new(),
             enters_choosing: Vec::new(),
+            mana_body: false,
+            activated_mana: None,
+            each_color: None,
+            enters_two: None,
+            costed_spell: false,
+            entering_card_type: None,
             bound_objects: BTreeSet::new(),
             reflexing: false,
             source_moved: false,
+            watching_object: None,
             bound_players: BTreeSet::new(),
             costing_targets: false,
             mode_guard: None,
@@ -1006,6 +1065,7 @@ impl Compiler {
             extras: Vec::new(),
             delayed: Vec::new(),
             announced_filters: Vec::new(),
+            own_slots: BTreeMap::new(),
             outer: None,
             made_preventions: Vec::new(),
             made_replacements: Vec::new(),
@@ -1022,6 +1082,7 @@ impl Compiler {
             every_slot_chosen: false,
             subject_chooses: false,
             controller_subject: false,
+            counters_total: false,
             made_cost_changes: Vec::new(),
             choice_labels: Vec::new(),
             option_labels: false,
@@ -1212,10 +1273,7 @@ impl Compiler {
             }
             // One slot for each opponent, "that player" being whose it is.
             Count::PerPlayer { players, each } if constant_one(each) => {
-                if matches!(
-                    players,
-                    PlayerSet::OpponentsOf(PlayerRef::AbilityController)
-                ) {
+                if lane_i::seats_have_slots(players) {
                     ".between(0, TargetSpec::EACH_OPPONENT)".into()
                 } else {
                     format!(
@@ -1272,6 +1330,10 @@ impl Compiler {
                 &["common_creature_type"],
                 ".together(cantrip_api::select::set_part(&(common_creature_type as SelectFn), &(largest_common_creature_type as cantrip_api::select::LargestFn), 0, \"that share a creature type\"))",
             ),
+            DistinctProperty::Toughness => (
+                &["common_toughness"],
+                ".together(cantrip_api::select::set_part(&(common_toughness as SelectFn), &(largest_common_toughness as cantrip_api::select::LargestFn), 0, \"with equal toughness\"))",
+            ),
             other => return Err(gap(format!("target constraint CommonProperty {other:?}"))),
         };
         self.helpers.extend(helpers);
@@ -1279,7 +1341,9 @@ impl Compiler {
     }
     fn announced_targets(&mut self, a: &Announcement, label: &str) -> Result<String> {
         let mut targets = Vec::new();
+        let mut own_tests = Vec::new();
         self.announced_filters.clear();
+        self.own_slots.clear();
         self.second_of_two = self.two_targets(a);
         for (i, spec) in a.targets.iter().enumerate() {
             let at = format!("targets[{i}]");
@@ -1287,6 +1351,10 @@ impl Compiler {
                 return Err(gap("a target from a graveyard, where the card says any").at(at));
             }
             let mut rule = lane_l::SlotRule::default();
+            if Self::limit_shared(a) == Some(i) {
+                self.slots.insert(spec.slot.0, (0, spec.clone()));
+                continue;
+            }
             // The second of "two target creatures" is the same slot's.
             if self.second_of_two == Some(i) {
                 self.slots.insert(spec.slot.0, (i, spec.clone()));
@@ -1342,6 +1410,13 @@ impl Compiler {
                     other if i == 0 && self.counts_own_x(other) => {
                         "TargetSpec::COUNTED".to_string()
                     }
+                    Expr::AnnouncedX
+                        if i == 0
+                            && self.slot_counts == target_counts::SlotCounts::Delayed
+                            && self.counted.is_some() =>
+                    {
+                        "TargetSpec::COUNTED".to_string()
+                    }
                     Expr::AnnouncedX => {
                         return Err(gap("target with a divided amount of an X it can't read")
                             .at(at))
@@ -1366,7 +1441,11 @@ impl Compiler {
                 Some(chooser) => self.chosen_by_another(chooser, &mut rule),
                 None => Ok(()),
             };
-            let count = self.slot_count(&spec.count, &format!("{label}_{i}"));
+            let read = self.slot_up_to_read(spec, i, label).filter(|_| together.is_empty());
+            let count = match read {
+                Some(count) => Ok(count),
+                None => self.slot_count(&spec.count, &format!("{label}_{i}")),
+            };
             self.choosing = None;
             chosen_by.map_err(|e| e.at(&at))?;
             let count = count.map_err(|e| e.at(&at))?;
@@ -1389,8 +1468,20 @@ impl Compiler {
             }
             self.choosing = Some(i);
             let test = self.slot_test(spec, &rule).map_err(|e| e.at(&at));
+            let test = match Self::limit_shared(a) {
+                Some(other) => test.and_then(|test| {
+                    let more = lane_l::SlotRule::default();
+                    let other = self.slot_test(&a.targets[other], &more)?;
+                    Ok(format!("({test}) || ({other})"))
+                }),
+                None => test,
+            };
             self.choosing = None;
-            let test = lane_i::per_player_target(&spec.count, test?);
+            let test = test?;
+            if let Some(own) = lane_i::own_slot(&spec.count, &test) {
+                own_tests.push((i, own));
+            }
+            let test = lane_i::per_player_target(&spec.count, test);
             let function = format!("{label}_target_{i}");
             writeln!(
                 self.functions,
@@ -1399,6 +1490,16 @@ impl Compiler {
             .unwrap();
             targets.push(rule.finish(format!("target({function}){count}{together}")));
             self.announced_filters.push(function);
+        }
+        for (i, test) in own_tests {
+            let function = format!("{label}_own_target_{i}");
+            writeln!(
+                self.functions,
+                "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ {test} }}"
+            )
+            .unwrap();
+            self.own_slots.insert(i, targets.len());
+            targets.push(format!("target({function}).between(0, 1)"));
         }
         if targets.is_empty() {
             return Ok("&[]".into());
@@ -1579,6 +1680,9 @@ impl Compiler {
         Ok(())
     }
     fn mana_ability(&mut self, body: &Program, label: &str) -> Result<String> {
+        if let Some(adds) = self.mana_of_a_color_among(body, label)? {
+            return Ok(adds);
+        }
         let [Instruction::Effect {
             operation:
                 Operation::AddMana {
@@ -2103,6 +2207,8 @@ const MODIFIED: &str = "fn modified(q: &dyn Query, id: ObjectId) -> bool { q.sta
 const COMMON_BY: &str = "fn common_by(q: &dyn Query, choice: &Choice, key: fn(&dyn Query, ObjectId) -> PlayerId) -> Verdict { let first = choice.selected.first().map(|&c| key(q, c)); Verdict { complete: choice.selected.iter().all(|&c| Some(key(q, c)) == first), addable: Bits::of(choice.candidates.len(), |i| first.map_or(true, |k| key(q, choice.candidates[i]) == k)) } }\nfn largest_by(q: &dyn Query, choice: &Choice, key: fn(&dyn Query, ObjectId) -> PlayerId) -> Vec<ObjectId> { choice.candidates.iter().map(|&a| choice.candidates.iter().copied().filter(|&b| key(q, b) == key(q, a)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
 const COMMON_OWNER: &str = "fn owner_of(q: &dyn Query, id: ObjectId) -> PlayerId { q.state().obj(id).owner }\nfn common_owner(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { common_by(q, choice, owner_of) }\nfn largest_common_owner(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { largest_by(q, choice, owner_of) }\n";
 const COMMON_CONTROLLER: &str = "fn controller_of(q: &dyn Query, id: ObjectId) -> PlayerId { q.controller(id) }\nfn common_controller(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { common_by(q, choice, controller_of) }\nfn largest_common_controller(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { largest_by(q, choice, controller_of) }\n";
+const COMMON_TOUGHNESS: &str = "fn toughness_of(q: &dyn Query, id: ObjectId) -> i16 { q.chars(id).toughness.unwrap_or(0) }\nfn common_toughness(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let first = choice.selected.first().map(|&c| toughness_of(q, c)); Verdict { complete: choice.selected.iter().all(|&c| Some(toughness_of(q, c)) == first), addable: Bits::of(choice.candidates.len(), |i| first.map_or(true, |k| toughness_of(q, choice.candidates[i]) == k)) } }\nfn largest_common_toughness(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { choice.candidates.iter().map(|&a| choice.candidates.iter().copied().filter(|&b| toughness_of(q, b) == toughness_of(q, a)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
+const NO_COMMON_CREATURE_TYPE: &str = "fn creature_types_of(q: &dyn Query, id: ObjectId) -> SubtypeSet { SubtypeSet::CREATURE_TYPES.minus(SubtypeSet::CREATURE_TYPES.minus(q.chars(id).subtypes)) }\nfn apart_in_type(q: &dyn Query, a: ObjectId, b: ObjectId) -> bool { !creature_types_of(q, a).intersects(creature_types_of(q, b)) }\nfn no_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let selected = choice.selected; Verdict { complete: selected.iter().enumerate().all(|(i, &a)| selected[..i].iter().all(|&b| apart_in_type(q, a, b))), addable: Bits::of(choice.candidates.len(), |i| selected.iter().all(|&b| apart_in_type(q, choice.candidates[i], b))) } }\nfn grow_apart_in_type(q: &dyn Query, left: &[ObjectId], have: &mut Vec<ObjectId>, best: &mut Vec<ObjectId>) { if have.len() > best.len() { *best = have.clone(); } if have.len() + left.len() <= best.len() { return; } for (i, &c) in left.iter().enumerate() { if have.iter().all(|&o| apart_in_type(q, o, c)) { have.push(c); grow_apart_in_type(q, &left[i + 1..], have, best); have.pop(); } } }\nfn largest_no_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { let mut best = Vec::new(); grow_apart_in_type(q, choice.candidates, &mut Vec::new(), &mut best); best }\n";
 const COMMON_CREATURE_TYPE: &str = "fn common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Verdict { let common = choice.selected.iter().fold(SubtypeSet::CREATURE_TYPES, |common, &c| common.minus(common.minus(q.chars(c).subtypes))); Verdict { complete: choice.selected.is_empty() || !common.is_empty(), addable: Bits::of(choice.candidates.len(), |i| common.intersects(q.chars(choice.candidates[i]).subtypes)) } }\nfn largest_common_creature_type(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> { SubtypeSet::CREATURE_TYPES.iter().map(|t| choice.candidates.iter().copied().filter(|&c| q.chars(c).subtypes.has(t)).collect::<Vec<_>>()).max_by_key(Vec::len).unwrap_or_default() }\n";
 
 fn emit_module(card: &Card, token_name: Option<&TokenName>) -> Result<EmittedModule> {
@@ -2140,6 +2246,11 @@ fn emit_face(
     c.sorcery = (card.characteristics.card_types.iter())
         .any(|t| matches!(t, crate::mtg_types::CardType::Sorcery));
     c.enters_choosing = chosen::enters_choosing(card);
+    c.enters_two = chosen::enters_two(card);
+    c.entering_card_type = lane_p::entering_card_type(card);
+    c.cast_pays = lane_p::cast_pays(card);
+    c.enters_sacrifices = lane_p::enters_sacrifices(card);
+    c.damages_once = lane_p::damages_once(card);
     for (i, a) in card.abilities.iter().enumerate() {
         if let Ability::Casting(CastingRule::AdditionalCost { cost, .. }) = a {
             c.casting_costs.insert(i as u32, cost.clone());
@@ -2317,6 +2428,9 @@ fn emit_face(
     if c.functions.contains("about(q, ") {
         c.helpers.insert("about");
     }
+    if c.functions.contains("granted_by(q, asker)") {
+        c.helpers.insert("granted_by");
+    }
     if c.functions.contains("granter(q, item)") {
         c.helpers.insert("granter");
     }
@@ -2334,11 +2448,16 @@ fn emit_face(
             "common_owner" => COMMON_OWNER,
             "common_controller" => COMMON_CONTROLLER,
             "common_creature_type" => COMMON_CREATURE_TYPE,
+            "common_toughness" => COMMON_TOUGHNESS,
+            "no_common_creature_type" => NO_COMMON_CREATURE_TYPE,
             "announced" => ANNOUNCED,
+            "slot_held" => target_counts::SLOT_HELD,
             "pay_question" => PAY_QUESTION,
+            "most_assigned" => lane_l::MOST_ASSIGNED,
             "about" => delayed::ABOUT,
             "clauses" => lane_l::CLAUSES,
             "granter" => lane_j::GRANTER,
+            "granted_by" => lane_j::GRANTED_BY,
             "could_enchant" => lane_j::COULD_ENCHANT,
             "time_travel" => lane_j::TIME_TRAVEL,
             other => unreachable!("no helper {other}"),

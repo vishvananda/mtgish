@@ -248,8 +248,9 @@ impl Compiler {
                 writeln!(out, "g.add_combat_phase();").unwrap()
             }
             K::Skip(SkippedPart::Turn) => {
-                let call = "g.skip_next_turns(asker.source, player, 1)";
-                self.actor_action(&action, call, out)?;
+                let times = self.times(&action)?;
+                let call = format!("let times = {times}; g.skip_next_turns(asker.source, player, times)");
+                self.actor_action(&action, &call, out)?;
             }
             K::RemoveFromCombat => {
                 let mut code = String::new();

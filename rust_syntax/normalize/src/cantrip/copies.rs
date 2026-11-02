@@ -100,6 +100,9 @@ impl Compiler {
             }
             ("SetName", [Operand::Text(text)]) => format!("{values}.named({})", quoted(text)),
             ("SetLoyalty", [Operand::Integer(n)]) => format!("{values}.with_loyalty({n})"),
+            ("SetLoyalty", [Operand::Number(Expr::Constant(n))]) if i16::try_from(*n).is_ok() => {
+                format!("{values}.with_loyalty({n})")
+            }
             ("HasNoManaCost", []) => format!("{values}.costless()"),
             // A spell's copy, read while `original` names that spell.
             ("IfPermanentSpell", list) => format!(

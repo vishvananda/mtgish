@@ -186,7 +186,10 @@ impl Compiler {
                 );
             }
             PlayerRule::SpellCost { spells, modifier } => {
-                let delta = self.cost_delta(modifier)?;
+                self.costed_spell = true;
+                let delta = self.cost_delta(modifier);
+                self.costed_spell = false;
+                let delta = delta?;
                 let test = self.filter(
                     spells,
                     &Candidate {
@@ -197,6 +200,26 @@ impl Compiler {
                 let (guard, member) = (self.guard()?, self.player_member(players)?);
                 self.table_entry(parts, "cost_changes", &function, format!(
                     "fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ {PRELUDE} let Costed::Spell(spell) = costed else {{ return CostDelta::NONE; }}; if {guard}{member} && {test} {{ {delta} }} else {{ CostDelta::NONE }} }}"
+                ));
+            }
+            // "Spells and abilities your opponents control can't cause you to ...":
+            // of the player who would do it, and whose spell or ability would make them.
+            PlayerRule::CantBeCaused {
+                action:
+                    action @ (PlayerAction::DiscardCards
+                    | PlayerAction::Sacrifice {
+                        objects: ObjectFilter::Any,
+                        paying: None,
+                    }),
+                by: ObjectFilter::ControlledBy(PlayerSet::OpponentsOf(PlayerRef::AbilityController)),
+            } if yours => {
+                let cause = match action {
+                    PlayerAction::DiscardCards => "CauseKind::Discard",
+                    _ => "CauseKind::Sacrifice",
+                };
+                let guard = self.guard()?;
+                self.table_entry(parts, "cause_rules", &function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, causer: PlayerId, player: PlayerId, kind: CauseKind) -> bool {{ !({guard}kind == {cause} && player == asker.controller && causer != asker.controller) }}"
                 ));
             }
             PlayerRule::Prohibit(action) => self.prohibit(&function, players, action, parts)?,
@@ -248,6 +271,17 @@ impl Compiler {
                 let (guard, member) = (self.guard()?, self.player_member(players)?);
                 self.table_entry(parts, "flash_rules", &function, format!(
                     "fn {function}(q: &dyn Query, asker: &Asker, spell: ObjectId, player: PlayerId) -> bool {{ {guard}{member} && {test} }}"
+                ));
+            }
+            // "Can cast spells only any time they could cast a sorcery" (307.1), asked
+            // before the spell is on the stack, which it being there would make it not.
+            PlayerRule::SpellTiming {
+                spells: ObjectFilter::Any,
+                timing: SpellTiming::SorceryOnly,
+            } => {
+                let (guard, member) = (self.guard()?, self.player_member(players)?);
+                self.table_entry(parts, "cast_rules", &function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, from: ZoneKind) -> bool {{ let s = q.state(); !({guard}{member}) || (player == s.turn.active && s.turn.step().is_main() && s.stack.is_empty()) }}"
                 ));
             }
             PlayerRule::SpellTiming {
@@ -361,6 +395,19 @@ impl Compiler {
             {
                 continue;
             }
+            // "You may play X additional lands this turn": asked as it resolves.
+            if let (
+                PlayerRule::AdditionalLandPlays(Count::Exactly(n)),
+                PlayerSet::One(PlayerRef::AbilityController),
+                crate::ir::Duration::EndOfTurn,
+                true,
+                false,
+            ) = (rule, players, duration, self.stack_item, matches!(rule, PlayerRule::AdditionalLandPlays(Count::Exactly(Expr::Constant(_)))))
+            {
+                let n = self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?);
+                writeln!(out, "g.additional_land_plays(item, {n});").unwrap();
+                continue;
+            }
             let kind = match rule {
                 PlayerRule::AdditionalLandPlays(Count::Exactly(Expr::Constant(n)))
                     if u32::try_from(*n).is_ok() =>
@@ -446,6 +493,19 @@ impl Compiler {
             }
         })
     }
+    /// `bool`: whether `card` is in the zones `scope` names, each its owner's.
+    pub(super) fn in_scope(&self, scope: &ZoneScope, card: &str) -> Result<String> {
+        Ok(match scope {
+            ZoneScope::Shared(zone) | ZoneScope::Players { zone, players: PlayerSet::All } => {
+                format!("q.obj({card}).zone.is({})", zone_kind(zone)?)
+            }
+            ZoneScope::Players { zone, players } => format!(
+                "(q.obj({card}).zone.is({}) && {{ let player = q.obj({card}).owner; {} }})",
+                zone_kind(zone)?,
+                self.player_member(players)?
+            ),
+        })
+    }
     pub(super) fn prohibit(
         &mut self,
         function: &str,
@@ -473,15 +533,59 @@ impl Compiler {
                 ));
             }
             PlayerAction::CastSpell { from: None, filter } => {
-                let test = self.filter(filter, &cast_card())?;
+                // "With mana value greater than the number of lands that player controls".
+                let outer = std::mem::replace(&mut self.rule_player, true);
+                let test = self.filter(filter, &cast_card());
+                self.rule_player = outer;
+                let test = test?;
                 self.table_entry(parts, "spell_rules", function, format!(
                     "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, spell: ObjectId) -> bool {{ !({banned} && {test}) }}"
+                ));
+            }
+            // "Players can't cast spells from graveyards" (CR 601.3): the zone is all
+            // a rule of casting is told of the spell.
+            PlayerAction::CastSpell {
+                from:
+                    Some(
+                        ZoneScope::Shared(zone)
+                        | ZoneScope::Players {
+                            zone,
+                            players: PlayerSet::All,
+                        },
+                    ),
+                filter: ObjectFilter::Any,
+            } => {
+                let zone = zone_kind(zone)?;
+                self.table_entry(parts, "cast_rules", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, from: ZoneKind) -> bool {{ !({banned} && from == {zone}) }}"
+                ));
+            }
+            // What of the spell a rule reads, it reads of the card where it is as it's
+            // asked first; the spell it's asked of again is on the stack, and passes.
+            PlayerAction::CastSpell {
+                from: Some(scope),
+                filter,
+            } => {
+                let test = self.filter(filter, &cast_card())?;
+                let from = self.in_scope(scope, "spell")?;
+                self.table_entry(parts, "spell_rules", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, spell: ObjectId) -> bool {{ !({banned} && {from} && {test}) }}"
                 ));
             }
             PlayerAction::PlayLand { from: None, filter } => {
                 let test = self.filter(filter, &Candidate { controller: "player".into(), ..Candidate::of("land") })?;
                 self.table_entry(parts, "land_play_rules", function, format!(
                     "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, land: ObjectId, face: CardId) -> bool {{ !({banned} && {test}) }}"
+                ));
+            }
+            PlayerAction::PlayLand {
+                from: Some(scope),
+                filter,
+            } => {
+                let test = self.filter(filter, &Candidate { controller: "player".into(), ..Candidate::of("land") })?;
+                let from = self.in_scope(scope, "land")?;
+                self.table_entry(parts, "land_play_rules", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, land: ObjectId, face: CardId) -> bool {{ !({banned} && {from} && {test}) }}"
                 ));
             }
             PlayerAction::Activate(filter) => {
@@ -491,6 +595,33 @@ impl Compiler {
                     "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, object: ObjectId, ability: &ActivatedDef) -> bool {{ let player = q.controller(object); !({banned} && {test}) }}"
                 );
                 self.table_entry(parts, table, &function, code);
+            }
+            // Only a spell or ability can have a player search (CR 701.23): each asks.
+            PlayerAction::SearchLibraries => self.table_entry(parts, "cause_rules", function, format!(
+                "fn {function}(q: &dyn Query, asker: &Asker, causer: PlayerId, player: PlayerId, kind: CauseKind) -> bool {{ !({banned} && matches!(kind, CauseKind::Search {{ .. }})) }}"
+            )),
+            PlayerAction::BlockWith(filter) => {
+                let test = self.filter(filter, &Candidate::of("blocker"))?;
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, blocker: ObjectId, attacker: ObjectId) -> bool {{ let asker = &Asker::new(source, q.controller(source)); let player = q.controller(blocker); !({banned} && {test}) }}").unwrap();
+                parts.block_rules.push(function.to_string());
+            }
+            // "Players can't pay life ... to cast spells or activate abilities" (CR 118.3):
+            // what a cost is paid for is all a ban is told of what it pays for.
+            PlayerAction::PayLife(on) => {
+                let paying = self.cost_paid_for(on)?;
+                self.table_entry(parts, "cost_bans", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, costing: CostFor, payment: CostPayment) -> bool {{ {banned} && {paying} && matches!(payment, CostPayment::Life) }}"
+                ));
+            }
+            PlayerAction::Sacrifice {
+                objects,
+                paying: Some(on),
+            } => {
+                let paying = self.cost_paid_for(on)?;
+                let test = self.filter(objects, &Candidate::of("permanent"))?;
+                self.table_entry(parts, "cost_bans", function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, costing: CostFor, payment: CostPayment) -> bool {{ {banned} && {paying} && matches!(payment, CostPayment::Sacrifice(permanent) if {test}) }}"
+                ));
             }
             other => return Err(gap(format!("prohibited action {}", form(other)))),
         }

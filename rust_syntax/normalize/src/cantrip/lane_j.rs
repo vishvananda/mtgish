@@ -1706,6 +1706,12 @@ impl Compiler {
             ObjectRef::Granter if self.reader == Reader::Resolution && self.stack_item => {
                 "granter(q, item)".to_string()
             }
+            // A token's ability naming the permanent that made it: the ability that
+            // created it, while that permanent is still that object. A copy of the
+            // token was made by something else (CR 400.7).
+            ObjectRef::Granter if self.reader == Reader::Layer => {
+                "q.history().all().iter().find_map(|r| match (r.event, r.cause) { (Event::Entered { permanent, .. }, Cause::Ability { source, .. }) if permanent == asker.source => Some(source), _ => None }).filter(|&o| q.state().obj(o).became.is_none())".to_string()
+            }
             ObjectRef::Granter => return held("q.granted_by(asker.source)"),
             ObjectRef::PairedWith(_) => {
                 return held(&format!(
@@ -1802,11 +1808,7 @@ impl Compiler {
             // CR 609.7a: permanents, spells, what those name, and what waits to apply.
             ObjectSet::DamageSources(filter) => format!(
                 "({}).into_iter().filter(|&id| {}).collect::<Vec<ObjectId>>()",
-                planned::planned_value(
-                    "object collection DamageSources",
-                    "Vec::<ObjectId>::new()",
-                    "cantrip_mechanics::damage_sources(q)"
-                ),
+                "cantrip_mechanics::prevention::damage_sources(q)",
                 self.filter(filter, &Candidate::of("id"))?
             ),
             ObjectSet::MovedBy {
@@ -1822,6 +1824,9 @@ impl Compiler {
                 match (share, phase) {
                     (Some((moved, Share::Owner)), ObjectPhase::After) => format!(
                         "{moved}.iter().copied().filter(|&o| Some(q.state().obj(o).owner) == {who}).collect::<Vec<ObjectId>>()"
+                    ),
+                    (Some((_, Share::Picks(picks))), ObjectPhase::After) => format!(
+                        "{picks}.iter().filter(|(who, _)| Some(*who) == {who}).filter_map(|(_, o)| q.state().obj(*o).became).collect::<Vec<ObjectId>>()"
                     ),
                     (Some((_, Share::Picks(picks))), ObjectPhase::Before) => format!(
                         "{picks}.iter().filter(|(who, o)| Some(*who) == {who} && q.state().obj(*o).became.is_some()).map(|(_, o)| *o).collect::<Vec<ObjectId>>()"
@@ -1867,6 +1872,14 @@ impl Compiler {
             }
             PlayerNumber::DungeonsCompleted => format!(
                 "q.history().all().iter().filter(|r| matches!(r.event, Event::DungeonCompleted {{ player }} if player == {p})).count() as i64"
+            ),
+            // CR 700.11: a permanent card put into the graveyard from anywhere.
+            PlayerNumber::DescentsThisTurn => format!(
+                "q.history().select(EventQuery::kind(EventMask::ZONE_CHANGE).to(ZoneKind::Graveyard).this_turn()).filter(|r| matches!(r.event, Event::ZoneChange {{ new, to, .. }} if to == Zone::graveyard({p}) && !q.obj(new).token && cantrip_mechanics::targets::is_permanent_card(&q.chars(new)))).count() as i64"
+            ),
+            // Cycling discards (CR 702.29a), so each cycled card is in the count once.
+            PlayerNumber::CardsCycledOrDiscardedThisTurn => format!(
+                "q.history().this_turn().iter().filter(|r| matches!(r.event, Event::Discarded {{ player, .. }} if player == {p})).count() as i64"
             ),
             other => held(format!("q.player_number({p}, PlayerNumber::{})", form(other))),
         })
@@ -2012,6 +2025,26 @@ impl Compiler {
                     None => String::new(),
                 };
                 counted(format!("({list}).into_iter().filter(|&id: &ObjectId| q.state().obj(id).owner == bound_{}){keep}.count() as i64", binding.0))
+            }
+            // "For each card they revealed this way": that player's own share of an
+            // earlier walk, and any choice in it theirs too.
+            Expr::Earlier {
+                what,
+                measure: ObjectMeasure::Count,
+                result: None,
+                filter,
+                by: Some(PlayerRef::Bound(binding)),
+            } if self.earlier_by(what, binding.0).is_some() => {
+                let list = self.earlier_by(what, binding.0).expect("just asked");
+                *self.own_choice.borrow_mut() = Some(format!("Some(bound_{})", binding.0));
+                let keep = match filter {
+                    Some(filter) => self
+                        .filter(filter, &Candidate::of("id"))
+                        .map(|test| format!(".filter(|&id| {test})")),
+                    None => Ok(String::new()),
+                };
+                *self.own_choice.borrow_mut() = None;
+                counted(format!("({list}).into_iter(){}.count() as i64", keep?))
             }
             // What an instruction named did: the AST says which. One whose
             // `result` is empty leaves the instruction to be found, so stays a gap.
@@ -2295,6 +2328,9 @@ impl Compiler {
             },
             // What's on the stack is known by the object it came from, which an
             // ability shares with others of the same source.
+            ObjectFilter::OnStack(StackTrait::XInCost) if c.announced.is_none() => {
+                format!("q.mana_cost({id}).x > 0")
+            }
             ObjectFilter::OnStack(other) => planned::planned_value(
                 "object filter OnStack",
                 "false",
@@ -2304,9 +2340,19 @@ impl Compiler {
             ObjectFilter::DamagedBy(result) if self.moved.contains_key(&result.0) => {
                 format!("{}.contains(&{id})", self.moved[&result.0])
             }
+            // An instant or sorcery that deals damage once: what it dealt damage to
+            // is what it dealt damage to that way, read from the events (CR 120.3).
+            ObjectFilter::DamagedBy(_) if self.damages_once => format!(
+                "cantrip_mechanics::history::permanents_dealt_damage_by(q.history(), asker.source, 0).contains(&{id})"
+            ),
             ObjectFilter::DamagedBy(_) => held(format!(
                 "cantrip_mechanics::history::permanents_dealt_damage_by(q.history(), asker.source, since).contains(&{id})"
             )),
+            // Read from the damage events of the instruction (CR 120.10).
+            ObjectFilter::DealtExcessBy(result) if self.excess.contains_key(&result.0) => {
+                let excess = &self.excess[&result.0].0;
+                format!("{excess}.iter().any(|&(t, n)| t == Target::Object({id}) && n > 0)")
+            }
             ObjectFilter::DealtExcessBy(_) => held(format!("result.excess_to({id}) > 0")),
             ObjectFilter::ArrivedThisTurn { from: None } if !layer => {
                 format!("cantrip_mechanics::history::arrived_this_turn(q, {id})")
@@ -2363,6 +2409,32 @@ impl Compiler {
                 format!(
                     "({} && {records}.iter().filter_map(|r| match r.event {{ Event::Cast(cast) => Some(cast), _ => None }}).take_while(|cast| cast.spell != {id}).filter(|cast| {who} && {earlier}).count() as i64 + 1 == {})",
                     self.filter(spells, c)?,
+                    self.number(ordinal)?.code
+                )
+            }
+            // As a static ability asks of a spell on the stack: its cast is recorded
+            // before anything reads what it has. What was on the stack earlier may
+            // have changed, so nothing about the earlier spells' characteristics.
+            ObjectFilter::NthCast {
+                ordinal,
+                spells,
+                by,
+                scope,
+            } if layer && c.announced.is_none() => {
+                let records = match scope {
+                    CastScope::Turn => "q.history().this_turn()",
+                    CastScope::Game => "q.history().all()",
+                };
+                let earlier = self.filter(spells, &Candidate::of("cast.spell"))?;
+                if earlier.contains("q.chars(cast.spell)") {
+                    return Err(gap("object filter NthCast"));
+                }
+                let who = match by {
+                    Some(by) => self.player_in(by, "cast.player")?,
+                    None => "true".into(),
+                };
+                format!(
+                    "{records}.iter().filter_map(|r| match r.event {{ Event::Cast(cast) => Some(cast), _ => None }}).filter(|cast| {who} && {earlier}).nth((({}) - 1) as usize).is_some_and(|cast| cast.spell == {id})",
                     self.number(ordinal)?.code
                 )
             }
@@ -2429,6 +2501,35 @@ impl Compiler {
                 "cast_of(q, {id}).is_some_and(|cast| q.history().mana_spent_to_cast(cast.spell).any(|(source, _)| {}))",
                 self.filter(sources, &Candidate::of("source"))?
             ),
+            // A spell on the stack, as a static ability asks of it.
+            ObjectFilter::ManaSpentFrom(sources) if layer && c.announced.is_none() => format!(
+                "q.history().mana_spent_to_cast({id}).any(|(source, _)| {})",
+                self.filter(sources, &Candidate::of("source"))?
+            ),
+            ObjectFilter::ManaSpent {
+                color,
+                sources,
+                payers: None,
+                comparison,
+                value,
+            } if !layer && c.announced.is_none() => {
+                let amount = match color {
+                    Some(color) => format!(
+                        "i64::from(spent.get({}))",
+                        lane_p::colors_code(std::slice::from_ref(color))?
+                    ),
+                    None => "i64::from(spent.total())".to_string(),
+                };
+                let from = match sources {
+                    Some(sources) => self.filter(sources, &Candidate::of("source"))?,
+                    None => "true".to_string(),
+                };
+                compare(
+                    &format!("cast_of(q, {id}).map_or(0i64, |cast| q.history().mana_spent_to_cast(cast.spell).filter(|&(source, _)| {from}).map(|(_, spent)| {amount}).sum::<i64>())"),
+                    comparison,
+                    &self.number(value)?.code,
+                )
+            }
             ObjectFilter::Extreme {
                 among,
                 property,
@@ -2525,6 +2626,21 @@ impl Compiler {
             }
             Condition::MostVotes { .. } => held("g.votes().most(option)"),
             Condition::ChosenWord(word) => self.chosen_word(word)?,
+            Condition::VotedFor {
+                player,
+                option: VoteOption::Word(word),
+            } if self.player_words.is_some() => {
+                let index = self
+                    .word_options
+                    .iter()
+                    .position(|w| w == word)
+                    .ok_or_else(|| gap("condition VotedFor"))?;
+                format!(
+                    "{}.iter().any(|&(p, word)| Some(p) == {} && word == {index})",
+                    self.player_words.as_deref().unwrap_or_default(),
+                    self.player(player)?
+                )
+            }
             Condition::VotedFor { .. } | Condition::Voted(_) | Condition::AllVotedFor(_) => {
                 held("g.votes().voted(option)")
             }
@@ -2553,10 +2669,16 @@ impl Compiler {
         let Some((power, toughness)) = &definition.power_toughness else {
             return Ok(false);
         };
+        let attacking = matches!(
+            entry.states.as_slice(),
+            [EntryState::Attacking {
+                or_planeswalker: false,
+                ..
+            }]
+        );
         if matches!((power, toughness), (Expr::Constant(_), Expr::Constant(_)))
-            || !entry.states.is_empty()
+            || !(entry.states.is_empty() || attacking)
             || !entry.counters.is_empty()
-            || entry.tapped
         {
             return Ok(false);
         }
@@ -2573,13 +2695,15 @@ impl Compiler {
         };
         writeln!(
             out,
-            "let count_{id} = {}; let power_{id} = {}; let toughness_{id} = {}; let players_{id} = {}; let mut values_{id} = Copiable::of(g.card_id(&{definition})).sized(power_{id}, toughness_{id}); values_{id}.words = {words}; let mut created_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ created_{id}.extend(g.create_token_copies_of(values_{id}, player, count_{id})?); }}",
+            "let count_{id} = {}; let power_{id} = {}; let toughness_{id} = {}; let players_{id} = {}; let mut values_{id} = Copiable::of(g.card_id(&{definition})).sized(power_{id}, toughness_{id}); values_{id}.words = {words}; let mut created_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ created_{id}.extend(g.create_token_copies_tapped(values_{id}, player, count_{id}, {})?); }}",
             self.fetch(count),
             self.fetch(power),
             self.fetch(toughness),
             self.fetch(self.players(players)?),
+            entry.tapped,
         )
         .unwrap();
+        self.token_state(id, entry, out)?;
         self.creations.insert(result.0, format!("created_{id}"));
         Ok(true)
     }
@@ -2605,10 +2729,11 @@ impl Compiler {
         self.picked.borrow_mut().named.push((key.clone(), asking));
         writeln!(
             out,
-            "let mut paid_{id} = false; for bound_{} in {asked} {{",
+            "let mut paid_{id} = false; let mut who_{id}: Option<PlayerId> = None; for bound_{} in {asked} {{",
             binding.0
         )
         .unwrap();
+        self.notes.performers.insert(result.0, format!("who_{id}"));
         let ask = Operation::PayCost {
             player: PlayerRef::Bound(binding.clone()),
             cost: cost.clone(),
@@ -2620,7 +2745,7 @@ impl Compiler {
         done?;
         let inner = self.performed.insert(result.0, format!("paid_{id}"));
         let inner = inner.ok_or_else(|| gap("possibly absent player FirstWilling"))?;
-        writeln!(out, "if {inner} {{ paid_{id} = true; break; }} }}").unwrap();
+        writeln!(out, "if {inner} {{ paid_{id} = true; who_{id} = Some(bound_{}); break; }} }}", binding.0).unwrap();
         self.moved.remove(&result.0);
         self.before.remove(&result.0);
         self.selections.remove(&result.0);
@@ -2992,6 +3117,10 @@ pub(super) enum PaidFor {
 /// source's timestamp, so two copies of one Equipment are two givers; a resolved
 /// effect is named by its own.
 pub(super) const GRANTER: &str = "fn granter(q: &dyn Query, item: &StackItem) -> Option<ObjectId> { if item.acquired.by != AcquiredBy::Grant { return None; } let stamp = item.acquired.stamp; let card = item.ability.card; if let Some(e) = q.state().effects.iter().find(|e| e.timestamp == stamp && matches!(e.kind, EffectKind::AddAbility(_))) { return Some(e.source); } if let Some(id) = q.state().battlefield().iter().copied().find(|&id| q.state().obj(id).timestamp == stamp && q.chars(id).card == card) { return Some(id); } q.history().all().iter().rev().find_map(|r| match r.event { Event::ZoneChange { old, from, .. } if from.is(ZoneKind::Battlefield) && q.state().obj(old).timestamp == stamp && q.state().obj(old).card == card => Some(old), _ => None }) }\n";
+
+/// The controller of the effect that gave `asker`'s ability (CR 113.2c, 609.4 of who
+/// cast the spell that made it), named by the ability's stamp.
+pub(super) const GRANTED_BY: &str = "fn granted_by(q: &dyn Query, asker: &Asker) -> Option<PlayerId> { let by = asker.by?; if by.acquired.by != AcquiredBy::Grant { return None; } q.state().effects.iter().find(|e| e.timestamp == by.acquired.stamp && matches!(e.kind, EffectKind::AddAbility(_))).map(|e| e.controller) }\n";
 
 /// Time travel (CR 701.56a): of each suspended card `player` owns (CR 702.62b, read
 /// as the upkeep reads it) and each permanent they control with a time counter on
@@ -4018,7 +4147,7 @@ impl Compiler {
             ActivationFilter::Of(sources) => {
                 let test = self.filter(sources, &Candidate::of("object"))?;
                 match **sources {
-                    ObjectFilter::Chosen(..) => test,
+                    ObjectFilter::Chosen(..) | ObjectFilter::InZone(..) => test,
                     _ => format!("q.is_on_battlefield(object) && {test}"),
                 }
             }
@@ -4310,6 +4439,14 @@ impl Compiler {
     ) -> Result<String> {
         let spell = self.paid_for == PaidFor::Spell;
         let variable = match choose {
+            // Asked of a payer as it resolves, the size is known by then.
+            Some(Count::Exactly(n))
+                if label == lane_g::PAID && !matches!(n, Expr::AnnouncedX) =>
+            {
+                let n = self.fetch(self.number(n)?.code);
+                let filter = self.cost_filter(filter, label)?;
+                return Ok(format!("Cost::sacrifice(({n}).max(0) as u32, {filter})"));
+            }
             Some(Count::Exactly(Expr::AnnouncedX)) if spell => "SacrificeX",
             Some(Count::Exactly(Expr::AnnouncedX)) => {
                 let filter = self.cost_filter(filter, label)?;
@@ -4485,6 +4622,10 @@ impl Compiler {
                 );
                 self.plan_code("a token entering blocking", &code, out);
             }
+            // `create_token_attached` takes a definition: attached after it
+            // enters, a copy is seen unattached, and an Aura that can't enchant
+            // the host is made and dies where it should not be made (CR 303.4i).
+            [EntryState::AttachedTo(_)] => return Err(gap("a token copy attached as it enters")),
             _ => return Err(gap("tokens entering in a special state")),
         }
         Ok(())
@@ -4615,6 +4756,7 @@ impl Compiler {
                 "a rule on triggering, where the card says whose abilities",
             ));
         }
+        let guard = self.ability_guard.take();
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let abilities = self.triggering_ability(abilities);
@@ -4622,12 +4764,17 @@ impl Compiler {
             Some(cause) => self.trigger_cause(cause),
             None => Ok("true".to_string()),
         };
+        // "As long as ...": asked as the ability triggers.
+        let guard = match &guard {
+            Some(guard) => self.condition(guard),
+            None => Ok("true".to_string()),
+        };
         (self.reader, self.event_at) = saved;
-        let (abilities, cause) = (abilities?, cause?);
+        let (abilities, cause, guard) = (abilities?, cause?, guard?);
         let function = format!("{label}_trigger_rule");
         writeln!(
             self.functions,
-            "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, event: &Event, triggering: &Triggering) -> bool {{ {abilities} && {cause} }}"
+            "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, event: &Event, triggering: &Triggering) -> bool {{ {guard} && {abilities} && {cause} }}"
         )
         .unwrap();
         parts.table(table, function);

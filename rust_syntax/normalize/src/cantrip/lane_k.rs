@@ -1421,6 +1421,24 @@ impl Compiler {
             .is_some_and(|line| line.text.contains("two target"));
         (same && printed).then_some(1)
     }
+    /// "Up to three other target creatures from the battlefield and/or creature
+    /// cards from graveyards": one count over two kinds of target is one slot, and
+    /// the second is what's read of it.
+    pub(super) fn limit_shared(announcement: &Announcement) -> Option<usize> {
+        let [first, second] = announcement.targets.as_slice() else {
+            return None;
+        };
+        let shared = matches!(second.constraints.as_slice(),
+            [SelectionConstraint::SharesLimitWith(slot)] if slot.0 == first.slot.0);
+        (shared
+            && first.constraints.is_empty()
+            && format!("{:?}", first.count) == format!("{:?}", second.count)
+            && first.distribute.is_none()
+            && second.distribute.is_none()
+            && first.chooser.is_none()
+            && second.chooser.is_none())
+        .then_some(1)
+    }
     /// What a block rule that lasts says, from the line that makes it: "can't be
     /// blocked except by creatures with haste", as the object has it for the turn.
     pub(super) fn block_rule_words(&self) -> Option<String> {
@@ -1851,14 +1869,30 @@ impl Compiler {
         if let Some(mode) = line.modes.iter().find(|mode| makes(mode)) {
             return mode.clone();
         }
+        // An activation's cost is no word of the effect: "Sacrifice this creature".
+        let words = match line.text.split_once(": ") {
+            Some((cost, words)) if !cost.contains(['"', '.']) => words,
+            _ => line.text.as_str(),
+        };
         let mut at = 0;
-        for sentence in line.text.split_inclusive(". ") {
+        for sentence in words.split_inclusive(". ") {
             if makes(sentence) {
-                return line.text[at..].to_string();
+                return words[at..].to_string();
             }
             at += sentence.len();
         }
-        line.text.clone()
+        words.to_string()
+    }
+    /// A flip whose line speaks of heads or tails has no winner (CR 705.2), and
+    /// the rest are won or lost. The AST says the same words either way.
+    pub(super) fn flip_call(&self) -> Result<&'static str> {
+        let line = self
+            .line_text()
+            .ok_or_else(|| gap("a coin flip with no printed line"))?;
+        let called = line
+            .split(|c: char| !c.is_alphabetic())
+            .any(|word| word.eq_ignore_ascii_case("heads") || word.eq_ignore_ascii_case("tails"));
+        Ok(if called { "flip_coin_for_heads" } else { "flip_coin" })
     }
     /// The printed line being compiled.
     pub(super) fn line_text(&self) -> Option<&str> {
