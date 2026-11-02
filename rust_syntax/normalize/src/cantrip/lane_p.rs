@@ -2715,10 +2715,19 @@ impl Compiler {
                 if let Some(window) = self.since_their_last_turn(player)? {
                     return Ok(window);
                 }
-                return Ok(format!(
+                let ended = format!(
                     "{{ let of = {}; let all = q.history().all(); all[all.iter().rposition(|r| matches!(r.event, Event::TurnEnded {{ player }} if Some(player) == of)).map_or(0, |at| at + 1)..].iter() }}",
                     self.player(player)?
-                ));
+                );
+                // The AST has one window for "since their last turn ended" and "since
+                // the beginning of their last turn": only the printed words say which.
+                if self
+                    .line_text()
+                    .is_some_and(|line| line.contains("last turn ended"))
+                {
+                    return Ok(ended);
+                }
+                ended
             }
             ObjectWindow::LastCombatOf(player) => {
                 format!(

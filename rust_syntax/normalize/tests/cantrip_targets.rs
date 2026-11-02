@@ -43,7 +43,7 @@ const CARDS: &[(&str, &str)] = &[
     // The copy keeps the original's target if it can't take this one.
     ("Ivy, Gleeful Spellthief", "g.change_a_target_to(Target::Object(copy)"),
     // No card can ask what a spell could target.
-    ("Precursor Golem", "operation-copy-on-stack"),
+    ("Precursor Golem", "a-copy-of-a-spell-for-each-object-it-could-target"),
     // "The discarded card": the last discard of the payment, after its mana.
     ("Wolf of Devil's Breach", ".rev()"),
     ("Wolf of Devil's Breach", "Event::Discarded { card, .. } => Some(card)"),
