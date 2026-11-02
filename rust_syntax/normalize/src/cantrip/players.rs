@@ -190,13 +190,18 @@ impl Compiler {
                 let delta = self.cost_delta(modifier);
                 self.costed_spell = false;
                 let delta = delta?;
+                // "The first noncreature spell each opponent casts each turn": the
+                // player the rule is about is the one casting, `player` here.
+                let outer = std::mem::replace(&mut self.rule_player, true);
                 let test = self.filter(
                     spells,
                     &Candidate {
                         announced: Some("targets".into()),
                         ..cast_card()
                     },
-                )?;
+                );
+                self.rule_player = outer;
+                let test = test?;
                 let (guard, member) = (self.guard()?, self.player_member(players)?);
                 self.table_entry(parts, "cost_changes", &function, format!(
                     "fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ {PRELUDE} let Costed::Spell(spell) = costed else {{ return CostDelta::NONE; }}; if {guard}{member} && {test} {{ {delta} }} else {{ CostDelta::NONE }} }}"
