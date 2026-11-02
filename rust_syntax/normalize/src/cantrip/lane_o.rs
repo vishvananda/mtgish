@@ -1864,6 +1864,15 @@ impl Compiler {
                     format!("EffectKind::AddAbilitiesOf({abilities})"),
                 )]
             }
+            // "Add one mana of any color. This creature becomes that color" (Foraging
+            // Wickermaw): the color named as the mana ability was activated, the
+            // mana's, and exactly that color (CR 105.3, 605.1a, 613.1e).
+            Change::ColorOfMana {
+                mode: ChangeMode::Set,
+                ..
+            } if self.mana_body => vec![
+                "EffectKind::SetColors(ColorSet::of(chosen.expect(\"mana activation selected a color\")))".to_string(),
+            ],
             // The instruction before it added the mana; nothing else is read.
             Change::ColorOfMana { mode, .. } => vec![lane_g::planned_kind(
                 "continuous change ColorOfMana",
