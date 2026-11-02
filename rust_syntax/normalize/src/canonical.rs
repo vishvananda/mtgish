@@ -86,12 +86,7 @@ fn subject_of(ability: &Value) -> Subject {
     if args["active"] == "SourceEntering" {
         return Subject::Entering;
     }
-    let source = serde_json::json!({"kind": "SameObject", "args": {"kind": "Source"}});
-    if event_objects(&args["event"]) == Some(&source) {
-        Subject::Source
-    } else {
-        Subject::Other
-    }
+    events::subject(&args["event"])
 }
 
 struct Walker {
@@ -371,6 +366,7 @@ impl Walker {
                 }
             }
             Fields::Named(types) => {
+                let created = events::created(owner, value);
                 let old_reductions = self.reference_reductions;
                 if matches!(
                     owner,
@@ -397,13 +393,38 @@ impl Walker {
                         if field == "event" {
                             self.event_header = true;
                         }
-                        self.walk(item, ty, defines(owner, field));
+                        if let Some(frame) = created.as_ref().filter(|_| {
+                            matches!(field.as_str(), "body" | "announcement" | "intervening_if")
+                        }) {
+                            self.walk_created(item, ty, frame);
+                        } else {
+                            self.walk(item, ty, defines(owner, field));
+                        }
                         self.event_header = old_header;
                     }
                 }
                 self.reference_reductions = old_reductions;
             }
         }
+    }
+
+    /// Created trigger bodies have their own matched event. Their matcher and
+    /// duration still capture the creator's context; result ids keep the
+    /// surrounding lexical allocation namespace.
+    fn walk_created(&mut self, value: &mut Value, ty: &Ty, frame: &events::Frame) {
+        let old_header = self.event_header;
+        let old_reductions = self.reference_reductions;
+        self.subjects.push(frame.subject);
+        self.damage_subjects.push(frame.damage.clone());
+        self.destinations.push(frame.destination.clone());
+        self.event_header = false;
+        self.reference_reductions = true;
+        self.walk(value, ty, false);
+        self.subjects.pop();
+        self.damage_subjects.pop();
+        self.destinations.pop();
+        self.event_header = old_header;
+        self.reference_reductions = old_reductions;
     }
 }
 

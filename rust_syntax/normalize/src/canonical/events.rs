@@ -1,6 +1,29 @@
 //! Only a known destination of this event can be identified with its subject.
 use serde_json::{json, Value};
 
+pub(super) struct Frame {
+    pub subject: super::Subject,
+    pub damage: Option<Value>,
+    pub destination: Option<Value>,
+}
+
+pub(super) fn subject(event: &Value) -> super::Subject {
+    let source = json!({"kind":"SameObject","args":{"kind":"Source"}});
+    if super::event_objects(event) == Some(&source) {
+        super::Subject::Source
+    } else {
+        super::Subject::Other
+    }
+}
+
+pub(super) fn created(owner: &str, args: &Value) -> Option<Frame> {
+    (owner == "Operation::CreateTrigger").then(|| Frame {
+        subject: subject(&args["event"]),
+        damage: super::damage_subject(&args["event"]),
+        destination: zone(&args["event"]),
+    })
+}
+
 pub(super) fn destination(ability: &Value) -> Option<Value> {
     if ability["args"]["active"] == "SourceEntering" {
         return Some(json!("Battlefield"));
