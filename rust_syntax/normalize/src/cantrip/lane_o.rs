@@ -1981,11 +1981,11 @@ impl Compiler {
                 }
                 format!("({})", tests.join(" || "))
             }
-            ObjectSet::One(ObjectRef::Chosen) => planned::planned_value(
-                "static subjects One",
-                "false",
-                &format!("q.chosen_object(q.linked_to(source)) == Some({id})"),
-            ),
+            // The object chosen as the source entered, linked to this ability
+            // (CR 607.2a): one that left and came back is a new object (CR 400.7).
+            ObjectSet::One(ObjectRef::Chosen) => {
+                format!("q.state().chosen_object({}) == Some({id})", self.linked())
+            }
             ObjectSet::Matching { .. } | ObjectSet::Take { .. } => planned::planned_value(
                 &format!("static subjects {}", form(set)),
                 "false",

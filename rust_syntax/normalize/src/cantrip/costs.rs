@@ -657,8 +657,19 @@ impl Compiler {
             true => Some(0),
             false => bound(minimum),
         };
+        // "Choose up to X, where X is ...": a triggered ability's own count,
+        // read from the game as it is put on the stack (CR 603.3c, 700.2).
+        let counted = match self.slot_counts {
+            target_counts::SlotCounts::Trigger { enters_itself }
+                if fewest == Some(0) && bound(most).is_none() && !label.contains("_mode_") =>
+            {
+                self.count_of_trigger(most, enters_itself, label).is_some()
+            }
+            _ => false,
+        };
         let mut modal = match (fewest, bound(most)) {
             (Some(min), Some(max)) => format!("{listed}.choose({min}, {max})"),
+            _ if counted => format!("{listed}.up_to_that_many()"),
             _ => self.mode_count_to_come(&listed, minimum, most)?,
         };
         if *may_decline {

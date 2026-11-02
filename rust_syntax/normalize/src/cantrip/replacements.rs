@@ -441,7 +441,9 @@ impl Compiler {
                 self.escapes_with(body, label, parts)?;
                 return Ok(());
             }
-            if guard.is_some() {
+            // "If [condition], this enters with ...": the condition is asked as
+            // it would enter (CR 614.1c, 614.12), as a static one's is.
+            if guard.is_some() && self.static_guard.is_some() {
                 return Err(gap("conditional Replacement"));
             }
             let narrowed = lane_n::entering_if(event, body);
@@ -459,7 +461,7 @@ impl Compiler {
                 return Err(gap("as-enters replacement of another event"));
             }
             let function = format!("{label}_enters");
-            match self.static_guard.clone() {
+            match guard.or_else(|| self.static_guard.clone()) {
                 Some(condition) => self.entering(
                     &Program {
                         instructions: vec![Instruction::If {
@@ -711,6 +713,14 @@ impl Compiler {
         }
         if self.divided_shields(event, limit, duration, body, out)? {
             return Ok(());
+        }
+        // Redeem: "prevent all damage that would be dealt this turn to up to two
+        // target creatures" has the targets as the damage's sources in the data.
+        let by_targets = matches!(event, ReplacementEvent::Damage(damage)
+            if matches!(damage.recipients, DamageRecipients::Any)
+                && matches!(&damage.sources, ObjectFilter::InSet(set) if matches!(**set, ObjectSet::Targets(_))));
+        if by_targets && self.line_text().is_some_and(|line| line.contains("would be dealt this turn to")) {
+            return Err(gap("damage prevented to its targets, read in the data as by them"));
         }
         let saved = self.clone();
         let mark = out.len();

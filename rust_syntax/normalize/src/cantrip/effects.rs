@@ -2476,6 +2476,7 @@ impl Compiler {
         // "You may cast it. If you don't": willing isn't cast, as a card that can't be.
         let plays = optional && playing::may_only_play(player, body);
         let binding = if plays { "let mut" } else { "let" };
+        let mark = out.len();
         writeln!(out, "{binding} paid_{id} = {willing}; if paid_{id} {{").unwrap();
         let mut only = body;
         while let [Instruction::Group(group)] = only.instructions.as_slice() {
@@ -2491,6 +2492,19 @@ impl Compiler {
             _ => self.block(body, out, true)?,
         }
         writeln!(out, "}}").unwrap();
+        // "Choose an opponent at random that ... If you can't choose an opponent
+        // this way": a choice at random among no one is a cost not paid, and the
+        // rest of the ability still happens (Territorial Hellkite).
+        let none_left = ".is_empty() { return Ok(()); } let chosen_";
+        let head = format!("let paid_{id} = true; if paid_{id} {{");
+        if !optional && out[mark..].starts_with(&head) && out[mark..].matches(none_left).count() == 1 {
+            let tail = out.split_off(mark);
+            let tail = tail
+                .replacen(&head, &format!("let mut paid_{id} = false; 'paid_{id}: {{"), 1)
+                .replacen(none_left, &format!(".is_empty() {{ break 'paid_{id}; }} let chosen_"), 1);
+            let tail = tail.strip_suffix("}\n").expect("the block just closed");
+            write!(out, "{tail}paid_{id} = true;\n}}\n").unwrap();
+        }
         self.performed.insert(result.0, format!("paid_{id}"));
         self.action_paid(body, result);
         Ok(())

@@ -327,6 +327,14 @@ impl Compiler {
         if let (ValueKind::Color, Some(color)) = (kind, &self.each_color) {
             return Ok(format!("Some({color})"));
         }
+        // Karona, False God: "creatures of the creature type of your choice" is a
+        // chosen card type in the data, where the body chose a creature type.
+        if kind == ValueKind::CardType
+            && self.chosen_local(kind).is_err()
+            && self.chosen_local(ValueKind::CreatureType).is_ok()
+        {
+            return Err(gap("a chosen card type where its body chose a creature type, in the data"));
+        }
         if let Ok(local) = self.chosen_local(kind) {
             return Ok(match local.strip_suffix(KEPT) {
                 Some(kept) => kept.to_string(),

@@ -236,7 +236,7 @@ impl Compiler {
     }
     /// `.counted_by` or `.counted_by_amount` for a triggered ability's slot. An
     /// ability has one number, so a second that differs is refused.
-    fn count_of_trigger(&mut self, n: &Expr, enters_itself: bool, label: &str) -> Option<()> {
+    pub(super) fn count_of_trigger(&mut self, n: &Expr, enters_itself: bool, label: &str) -> Option<()> {
         let number = self.number(n).ok()?;
         let amount = number.code == format!("i64::from({AMOUNT_READ}[0])");
         let code = number.amount(u16::MAX.into(), "u16").ok()?;

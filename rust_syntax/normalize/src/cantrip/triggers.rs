@@ -1351,16 +1351,10 @@ impl Compiler {
                 "q.state().obj(source).zone.is(ZoneKind::Battlefield)".to_string()
             }
             ObjectKind::Permanent => "!q.state().obj(source).zone.is(ZoneKind::Stack)".to_string(),
-            // A spell deals its damage as it resolves, still on the stack.
-            ObjectKind::Spell if self.history.is_none() => {
-                "q.state().obj(source).zone.is(ZoneKind::Stack)".to_string()
-            }
-            // Asked afterwards, when a spell has left the stack.
-            ObjectKind::Spell => planned::planned_value(
-                "damage source kind Spell",
-                "false",
-                "q.history().dealt_by_spell(source)",
-            ),
+            // A spell deals its damage as it resolves, still on the stack. Asked
+            // afterwards, the object it was keeps the zone it left from, and what it
+            // became on leaving is another object (CR 400.7).
+            ObjectKind::Spell => "q.state().obj(source).zone.is(ZoneKind::Stack)".to_string(),
             ObjectKind::Card => "!q.state().obj(source).token".to_string(),
             other => return Err(gap(format!("damage source kind {}", form(other)))),
         });

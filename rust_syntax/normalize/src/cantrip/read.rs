@@ -1405,10 +1405,11 @@ impl Compiler {
                         "0i64",
                         &subtypes("kind.is_planeswalker_type()"),
                     ),
-                    DistinctProperty::ColorPairs => planned::planned_value(
-                        "distinct ColorPairs",
-                        "0i64",
-                        &format!("cantrip_mechanics::domain::color_pairs(q, &{objects})"),
+                    // "Different color pairs among permanents ... that are exactly
+                    // two colors": a pair is the two colors of one such permanent
+                    // (Niv-Mizzet, Guildpact's ruling), so one of more colors has none.
+                    DistinctProperty::ColorPairs => format!(
+                        "{{ let mut seen = Vec::new(); for id in {objects} {{ let value = q.chars(id).colors; if value.iter().count() == 2 && !seen.contains(&value) {{ seen.push(value); }} }} seen.len() as i64 }}"
                     ),
                     DistinctProperty::UnlockedDoorNames => planned::planned_value(
                         "distinct UnlockedDoorNames",

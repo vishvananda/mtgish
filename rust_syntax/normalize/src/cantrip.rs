@@ -534,6 +534,9 @@ struct Compiler {
     candidates: std::cell::RefCell<Vec<Candidate>>,
     /// What this spell keeps of the board as it is cast: `CardDef::cast_fact`.
     cast_fact: std::rc::Rc<std::cell::RefCell<Option<String>>>,
+    /// How many instances of an ability a static ability gave with "only once
+    /// each turn": `CardDef::granted_once_each_turn`, the fn's body.
+    granted_once: std::rc::Rc<std::cell::RefCell<Option<String>>>,
     affected_in_scope: bool,
     /// The condition of the enclosing `Ability::Conditional`, asked as layers run.
     static_guard: Option<Condition>,
@@ -995,6 +998,7 @@ impl Compiler {
             recipient_subject: false,
             candidates: Default::default(),
             cast_fact: Default::default(),
+            granted_once: Default::default(),
             affected_in_scope: false,
             static_guard: None,
             trigger_gate: None,
@@ -2344,6 +2348,10 @@ fn emit_face(
     if let Some(fact) = c.cast_fact.borrow_mut().take() {
         writeln!(c.functions, "#[allow(unused_variables)] fn kept_as_cast(q: &dyn Query, asker: &Asker) -> u32 {{ ({fact}).max(0) as u32 }}").unwrap();
         parts.field("cast_fact", "Some(kept_as_cast)".into());
+    }
+    if let Some(body) = c.granted_once.borrow_mut().take() {
+        writeln!(c.functions, "#[allow(unused_variables)] fn granted_once(q: &dyn Query, source: ObjectId, ability: AbilityRef) -> usize {{ {body} }}").unwrap();
+        parts.field("granted_once_each_turn", "Some(granted_once)".into());
     }
     // A cast announces one number, a kicker's when there is one: {X} stays unannounced.
     if let (Some(kicker), Some(cost)) = (parts.fields.get("kicker"), &c.printed_mana) {

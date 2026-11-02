@@ -242,6 +242,10 @@ fn names_the_effect(filter: &ObjectFilter) -> bool {
 fn lasting_text(duration: &crate::ir::Duration) -> String {
     use crate::ir::Duration as D;
     match duration {
+        D::WhileControlled {
+            player: PlayerRef::ControllerOf(_),
+            ..
+        } => "they control it".to_string(),
         D::WhileControlled { .. } => "you control {source}".to_string(),
         D::WhileOnBattlefield(_) => "{source} remains on the battlefield".to_string(),
         D::WhileMatches {
@@ -278,6 +282,15 @@ pub(super) fn duration_on(
         D::WhileMatches { object, filter } if same(object) => D::WhileMatches {
             object: ObjectRef::Affected,
             filter: filter.clone(),
+        },
+        // "For as long as they control it", they being whoever controls it
+        // as the effect begins: Vislor Turlough.
+        D::WhileControlled {
+            player: PlayerRef::ControllerOf(of),
+            object,
+        } if same(object) && form(&**of) == form(object) => D::WhileControlled {
+            player: PlayerRef::ControllerOf(Box::new(ObjectRef::Affected)),
+            object: ObjectRef::Affected,
         },
         D::Either(all) => D::Either(all.iter().map(|d| duration_on(affected, d)).collect()),
         other => other.clone(),
@@ -658,7 +671,10 @@ impl Compiler {
                 object: ObjectRef::Affected,
                 filter: ObjectFilter::Tapped,
             } => "Duration::WhileTapped".into(),
-            D::WhileMatches { .. } | D::WhileControlled { .. } | D::Either(_) => {
+            D::WhileMatches { .. }
+            | D::WhileItMatches(_)
+            | D::WhileControlled { .. }
+            | D::Either(_) => {
                 let saved = (self.reader, self.event_at);
                 (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
                 let test = self.lasting_test(duration);
@@ -741,6 +757,17 @@ impl Compiler {
             D::WhileOnBattlefield(ObjectRef::Source) => {
                 "is_live(q, e.source) && q.is_on_battlefield(e.source)".to_string()
             }
+            // The controller it had as the effect began is the player of the
+            // latest control effect on it then (CR 613.1b, a control effect
+            // ending or a later one is a change, CR 611.2b); with none, the
+            // effect's controller's.
+            D::WhileControlled {
+                player: PlayerRef::ControllerOf(of),
+                object: ObjectRef::Affected,
+            } if matches!(**of, ObjectRef::Affected) => "is_live(q, e.affected) && q.is_on_battlefield(e.affected) && Some(q.controller(e.affected)) == Some(q.state().effects.iter().filter(|f| f.affected == e.affected && f.timestamp <= e.timestamp).filter_map(|f| match f.kind { EffectKind::Control(p) => Some((f.timestamp, p)), _ => None }).max_by_key(|&(t, _)| t).map_or(e.controller, |(_, p)| p))".to_string(),
+            // "For as long as that creature is enchanted": it, the affected
+            // object (Rootwater Matriarch).
+            D::WhileItMatches(filter) => self.lasting_filter("", filter, "e.affected")?,
             D::Either(all) => all
                 .iter()
                 .map(|d| Ok(format!("({})", self.lasting_test(d)?)))
@@ -2081,7 +2108,7 @@ impl Compiler {
         let Change::GainAbilitiesOf {
             objects,
             kinds,
-            once_each_turn: false,
+            once_each_turn,
             spend_as: None,
         } = change
         else {
@@ -2112,6 +2139,26 @@ impl Compiler {
                     "cantrip_mechanics::statics::grant_activated_abilities_of_permanents(q, &ids, chars)",
                 )
             ),
+            ["ActivatedAbility"] if *once_each_turn => {
+                // "You may activate each of those abilities only once each turn"
+                // (CR 602.5b): one limited instance for each of the cards that
+                // prints the ability, as they are when it would be activated.
+                let saved = (self.reader, self.event_at);
+                (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+                let asked = self.ids_in_layer(objects);
+                (self.reader, self.event_at) = saved;
+                let asked = asked?;
+                if self.granted_once.borrow().is_some() {
+                    return Err(failure());
+                }
+                *self.granted_once.borrow_mut() = Some(format!(
+                    "let asker = &Asker::new(source, q.controller(source)); let ids: Vec<ObjectId> = {asked}; ids.into_iter().filter(|&id| q.state().obj(id).card == ability.card).count()"
+                ));
+                format!(
+                    "let cards: Vec<CardId> = ({ids}).into_iter().map(|id: ObjectId| q.state().obj(id).card).collect(); cantrip_mechanics::statics::grant_activated_abilities_of(q, &cards, chars);"
+                )
+            }
+            _ if *once_each_turn => return Err(failure()),
             ["ActivatedAbility"] => format!(
                 "let cards: Vec<CardId> = ({ids}).into_iter().map(|id: ObjectId| q.state().obj(id).card).collect(); cantrip_mechanics::statics::grant_activated_abilities_of(q, &cards, chars);"
             ),
@@ -4073,6 +4120,9 @@ impl Compiler {
         let body = match mechanic {
             Mechanic::SplitSecond => "chars.keywords = chars.keywords.with(Keyword::SplitSecond);",
             Mechanic::Retrace => "chars.keywords = chars.keywords.with(Keyword::Retrace);",
+            // A core keyword the rules read as the Saga would be on the
+            // battlefield, given ones included (CR 702.155a, 614.12).
+            Mechanic::ReadAhead => "chars.keywords = chars.keywords.with(Keyword::ReadAhead);",
             _ => return None,
         };
         Some(statics::LayerChange::of("Ability", body.to_string()))

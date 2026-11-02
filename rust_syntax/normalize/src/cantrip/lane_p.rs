@@ -1996,6 +1996,11 @@ impl Compiler {
         least: &Expr,
         most: &Expr,
     ) -> Result<String> {
+        // Only a triggered ability has a count of modes to read (`ModalDef::COUNTED`):
+        // Doomsday Confluence's "Choose X" is a spell's.
+        if !matches!(self.slot_counts, target_counts::SlotCounts::Trigger { .. }) {
+            return Err(gap("a count of modes a spell or an activated ability reads"));
+        }
         let told = |code: String| code.replace("i64::from(item.x)", "q.told_amount(asker)");
         let (least, most) = (
             told(self.number(least)?.code),
@@ -2729,11 +2734,13 @@ impl Compiler {
                 }
                 ended
             }
+            // "During your last combat": the records of the last combat phase of
+            // that player's turns, from its beginning of combat step to the end of
+            // combat step (CR 506.1); in one of those steps of theirs, the one
+            // before, this one not being over. With none, nothing.
             ObjectWindow::LastCombatOf(player) => {
-                format!(
-                    "cantrip_mechanics::history::last_combat_of(q, {}).iter()",
-                    self.player(player)?
-                )
+                let player = self.player(player)?;
+                return Ok(format!("{{ let of = {player}; let history = q.history(); let all = history.all(); let combat = |s: Step| matches!(s, Step::BeginCombat | Step::DeclareAttackers | Step::DeclareBlockers | Step::CombatDamage | Step::EndOfCombat); let fighting = Some(q.state().turn.active) == of && combat(q.state().turn.step()); let mut begins = history.select(EventQuery::kind(EventMask::STEP_BEGAN).step(Step::BeginCombat)).filter(|r| Some(r.active) == of).map(|r| r.serial as usize); let mut last = begins.next_back(); if fighting {{ last = begins.next_back(); }} match last {{ Some(at) => {{ let end = all[at + 1..].iter().position(|r| !combat(r.step) || matches!(r.event, Event::StepBegan {{ step: Step::BeginCombat }})).map_or(all.len(), |n| at + 1 + n); all[at..end].iter() }} None => all[..0].iter() }} }}"));
             }
             // In their upkeep, "your last upkeep" is the one before it, and with none
             // yet the whole game. An upkeep has no combat, so two in a turn read alike.
