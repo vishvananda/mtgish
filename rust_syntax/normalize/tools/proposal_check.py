@@ -376,6 +376,7 @@ class Spec:
         self.variant_fields = collections.defaultdict(set)  # (enum, variant) -> fields a pattern binds it doesn't have
         self.missing_modules, self.module_items = set(), set()
         self.rets = {}  # stub key -> the return type chosen where no call site says it
+        self.paths = {}  # Cantrip type -> the path rustc names it by, for one cantrip_api doesn't re-export
         self.unknown_rets = set()
 
     # Learning from rustc
@@ -415,6 +416,9 @@ class Spec:
                 entry = self.methods.setdefault(m.group(1), {"bases": set(), "arity": collections.Counter(),
                                                              "stores": False, "tried": collections.Counter()})
                 entry["bases"].add(base)
+                full = re.sub(r"^(&(mut )?)+", "", m.group(2).strip())
+                if base[0] == "type" and re.match(r"cantrip_\w+::(\w+::)*\w+$", full):
+                    self.paths[base[1]] = full
                 entry["arity"][len(args)] += 1
                 entry["tried"][use[0] == "call" and use[2]] += 1
                 entry["stores"] |= any(re.search(r"\b(Duration|EffectKind)::", a) for a in args)
@@ -728,7 +732,9 @@ class Spec:
             module = self.types[ty]["module"]
             return f"{ROOT}::{module + '::' if module else ''}{ty}{self.generics(ty, bare=True)}"
         lifetimes = self.model.lifetimes.get(ty, 0)
-        return f"{ty}<{', '.join(["'_"] * lifetimes)}>" if lifetimes else ty
+        # By its own crate's path: `cantrip_state::object::Player` is no name `cantrip_api::*` brings in.
+        path = self.paths.get(ty, ty)
+        return f"{path}<{', '.join(["'_"] * lifetimes)}>" if lifetimes else path
 
     def generics(self, ty, bare=False):
         use = self.types.get(ty)
@@ -1354,7 +1360,8 @@ def classify(d, text, spec):
                 any(re.search(rf"\b{re.escape(n)}\s*\(", snippet) for n in generic_returns(spec)):
             return "stub layer: a stub's return or argument type the call doesn't settle", True
         return "type annotations needed", False
-    if "`!`" in msg:
+    if "`!`" in msg or (code == "E0277" and re.search(r"<!>|`!`", msg)):
+        # Only a stub's `panic!` body gives a value the type `!`: no card code does.
         return "stub layer: a stub's value its call doesn't type", True
     if code == "E0107":
         return "stub layer: generic arguments given to a stub (a turbofish or a proposed struct named bare)", True

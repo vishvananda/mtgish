@@ -273,6 +273,10 @@ class Stubs(unittest.TestCase):
         self.assertIn("pub mod villainous {", spec.write())
         self.assertEqual(pc.rewrite(text, MODEL, spec), "crate::proposals::mechanics::villainous::choose(g, p)")
 
+    def test_a_method_on_a_type_cantrip_api_does_not_re_export_is_stubbed_on_its_path(self):
+        stubs = learnt(method("counters", "p.counters(k)", on="cantrip_state::object::TriggerDef")).write()
+        self.assertIn("impl Proposed_TriggerDef for cantrip_state::object::TriggerDef {}", stubs)
+
     def test_the_stubs_converge(self):
         spec = learnt(method("add_open_effect", "g.add_open_effect(a, b);"))
         before = spec.fingerprint()
@@ -329,6 +333,7 @@ class Classify(unittest.TestCase):
 
     def test_what_rust_cannot_stub_is_the_stubs_fault(self):
         spec = pc.Spec(MODEL)
+        self.assertTrue(pc.classify(self.error("E0277", "the trait bound `i64: From<!>` is not satisfied"), "", spec)[1])
         self.assertTrue(pc.classify(self.error("E0080", f"evaluation panicked: {pc.PANIC}"), "", spec)[1])
         self.assertTrue(pc.classify(self.error("E0107", "missing generics for struct `LastingRule`"), "", spec)[1])
         self.assertTrue(pc.classify(self.error("E0308", "mismatched types", file="/w/stubs.rs"), "", spec)[1])
