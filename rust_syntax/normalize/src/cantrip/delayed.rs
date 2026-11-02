@@ -189,13 +189,20 @@ impl Compiler {
         }
         format!("about(q, item, {part})")
     }
+    /// Whether `result` is what the ability making this body did: known to it, or
+    /// its instruction's hole there, whose result it carries in as it would a known one.
+    fn outside_result(&self, result: &ResultId) -> bool {
+        self.bound_outside(result)
+            || (!self.failed.contains(&result.0)
+                && self.outer.as_ref().is_some_and(|outer| outer.compiler.failed.contains(&result.0)))
+    }
     fn reads_itself(&self, object: &ObjectRef) -> bool {
         match object {
             ObjectRef::Result { result, .. } | ObjectRef::Named { result, .. } => {
                 self.selections.contains_key(&result.0)
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)
-                    || !self.bound_outside(result)
+                    || !self.outside_result(result)
             }
             ObjectRef::Target { slot, .. } => self.slots.contains_key(&slot.0),
             // A body watching for an event of its own reads that event.
@@ -243,7 +250,7 @@ impl Compiler {
                 self.selections.contains_key(&result.0)
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)
-                    || !self.bound_outside(result)
+                    || !self.outside_result(result)
             }
             ObjectSet::Targets(slot) => self.slots.contains_key(&slot.0),
             ObjectSet::CostObjects {
@@ -393,7 +400,7 @@ impl Compiler {
                 self.selections.contains_key(&result.0)
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)
-                    || !self.bound_outside(result)
+                    || !self.outside_result(result)
             }
             ObjectSet::Targets(slot) => self.slots.contains_key(&slot.0),
             ObjectSet::CostObjects {

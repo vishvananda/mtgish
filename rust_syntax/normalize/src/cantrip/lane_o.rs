@@ -1623,7 +1623,13 @@ impl Compiler {
                 self.card_costed = true;
                 let change = self.cost_modifier(modifier);
                 self.card_costed = false;
-                format!("PlayerRule::SpellCost {{ spells: {spells}, change: {} }}", change?)
+                // "Where X is ...": counted once, as the effect starts (CR 608.2h).
+                let change = change?;
+                let change = match change.contains("q.") {
+                    true => self.fetch(change),
+                    false => change,
+                };
+                format!("PlayerRule::SpellCost {{ spells: {spells}, change: {change} }}")
             }
             R::SpellTiming { spells, timing } => format!(
                 "PlayerRule::SpellTiming {{ spells: {}, timing: SpellTiming::{timing:?} }}",

@@ -310,13 +310,14 @@ pub(super) fn bind_hole_result(out: &mut String, from: usize, result: &ResultId)
     let Some(arrow) = inner.find("\" => ").map(|a| a + 5) else {
         return;
     };
-    // A bracket another instruction's gap left (`begin_simultaneous`) is not it.
-    if inner[1..arrow - 5] == requirement(FOLLOWS_GAP) {
-        return;
-    }
     let Some(made) = made_by(&inner[arrow..]) else {
         return;
     };
+    // A bracket another instruction's gap left (`begin_simultaneous`) is not it.
+    let bracket = made.starts_with("g.begin_") || made.starts_with("g.end_");
+    if inner[1..arrow - 5] == requirement(FOLLOWS_GAP) && bracket {
+        return;
+    }
     let bound = format!("let result_{} = {made};", result.0);
     let start = open + 1 + arrow;
     out.replace_range(start..close - 1, &bound);
