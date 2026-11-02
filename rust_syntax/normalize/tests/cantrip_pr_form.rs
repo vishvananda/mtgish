@@ -537,10 +537,15 @@ fn two_faces_are_one_file_with_one_namespace() {
 }
 
 #[test]
-fn faces_whose_names_collide_stay_two_modules() {
+fn a_name_the_faces_mean_differently_is_numbered() {
     let inner = "static PAY_QUESTION: Question = Question::new(\"Pay\", \"pay {cost}?\", \"\", \"Pay {cost}\", \"Decline\");\npub static CARD: CardDef = CardDef { name: \"Back Face\"";
     let other = inner.replace("\"Pay\", \"pay", "\"Other\", \"pay");
     let raw = TWO_FACES.replace(inner, &other);
     let faces = [("Front Face", "Draw a card."), ("Back Face", "You gain 2 life.")];
-    assert_eq!(render_two_faces(&raw, "back", faces), None);
+    let file = render_two_faces(&raw, "back", faces).unwrap();
+    println!("{file}");
+    assert!(file.contains("static PAY_QUESTION:"), "{file}");
+    assert!(file.contains("static PAY_QUESTION_2:"), "{file}");
+    assert!(file.contains("&PAY_QUESTION_2"), "{file}");
+    syn::parse_file(&file).unwrap();
 }

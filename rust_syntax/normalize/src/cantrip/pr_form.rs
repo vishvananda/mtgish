@@ -80,7 +80,12 @@ pub fn render_two_faces(raw: &str, module: &str, faces: [(&str, &str); 2]) -> Op
     let inner = format!("use cantrip_api::*;\n{}", prettyplease::unparse(&inner));
     let oracle = Characteristics::Oracle;
     let front_file = rendered(syn::parse_str(&unparsed).ok()?, &unparsed, front.0, front.1, oracle)?;
-    let second_file = match rendered(syn::parse_str(&inner).ok()?, &inner, second.0, second.1, oracle) {
+    // A prepare spell is no card and has no content file (722.3c).
+    let characteristics = match module {
+        "prepared" => Characteristics::Inline,
+        _ => oracle,
+    };
+    let second_file = match rendered(syn::parse_str(&inner).ok()?, &inner, second.0, second.1, characteristics) {
         Some(file) => file,
         None => {
             let base: syn::Path = syn::parse_str(&format!("oracle::{}", oracle_constant(second.0))).ok()?;
@@ -91,13 +96,42 @@ pub fn render_two_faces(raw: &str, module: &str, faces: [(&str, &str); 2]) -> Op
 }
 
 /// The second face's items before the first's, under one set of imports.
-fn merged_faces(front: File, second: File, constant: &str) -> Option<File> {
+fn merged_faces(front: File, mut second: File, constant: &str) -> Option<File> {
     let name_of = |item: &Item| match item {
         Item::Fn(f) => Some(f.sig.ident.to_string()),
         Item::Static(s) => Some(s.ident.to_string()),
         Item::Const(c) => Some(c.ident.to_string()),
         _ => None,
     };
+    // What a face's documentation says of a shared helper doesn't make it another one.
+    let undocumented = |item: &Item| {
+        let mut item = item.clone();
+        match &mut item {
+            Item::Fn(f) => f.attrs.clear(),
+            Item::Static(s) => s.attrs.clear(),
+            Item::Const(c) => c.attrs.clear(),
+            _ => {}
+        }
+        text_of(&item)
+    };
+    // The same name for something else: the second face's takes a number.
+    let renamed: BTreeMap<String, String> = second
+        .items
+        .iter()
+        .filter_map(|item| name_of(item).map(|name| (name, undocumented(item))))
+        .filter(|(name, body)| {
+            !matches!(name.as_str(), "CARD" | "EXTRA")
+                && front
+                    .items
+                    .iter()
+                    .any(|item| name_of(item).as_ref() == Some(name) && undocumented(item) != *body)
+        })
+        .map(|(name, _)| {
+            let new = format!("{name}_2");
+            (name, new)
+        })
+        .collect();
+    rename(&mut second, &renamed);
     let (mut uses, mut mechanics, mut own, mut extra): (Vec<Item>, BTreeSet<String>, Vec<Item>, Vec<Expr>) =
         (Vec::new(), BTreeSet::new(), Vec::new(), Vec::new());
     let mut named: BTreeMap<String, String> = BTreeMap::new();
@@ -135,7 +169,7 @@ fn merged_faces(front: File, second: File, constant: &str) -> Option<File> {
                 }
             }
             if let Some(name) = name_of(&item) {
-                let body = text_of(&item);
+                let body = undocumented(&item);
                 match named.get(&name) {
                     Some(seen) if *seen == body => continue,
                     Some(_) => return None,

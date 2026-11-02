@@ -292,13 +292,13 @@ pub struct TrackedCard {
 /// Every card's code, a JSON object a line. A record that can't be emitted
 /// stops the run: nothing is left for the tracker to miss.
 /// The module a layout's second face is written in, where that face is one `CardDef`
-/// of its own beside the card's. A Split or Room card joins its two in a third, and a
-/// prepared spell is no card with a content file.
+/// of its own beside the card's. A Split or Room card joins its two in a third.
 fn second_face_module(layout: &str) -> Option<&'static str> {
     match layout {
         "Transforming" | "ModalDFC" => Some("back"),
         "Adventurer" => Some("adventure"),
         "Ominous" => Some("omen"),
+        "Preparer" => Some("prepared"),
         _ => None,
     }
 }
