@@ -34,6 +34,9 @@ const CARDS: &[(&str, &str)] = &[
     ("Prized Amalgam", "match event { Event::ZoneChange { new, from, to, .. } if *new == candidate && to.is(ZoneKind::Battlefield) => Some(*from)"),
     // "If it's a creature" is the copy as it enters (CR 707.2).
     ("Spark Double", "entering.copy.as_ref().is_some_and(|c| c.extra_types.has(CardType::Creature) || !c.types_stated() && q.card(c.card).is(CardType::Creature))"),
+    // A slot that takes only abilities reads no spell (Repudiate, Stifle).
+    ("Repudiate", "stack.iter().position(|e| matches!(t, Target::Ability(serial) if e.kind != StackKind::Spell && e.serial == serial))"),
+    ("Stifle", "q.state().stack.iter().any(|e| matches!(t, Target::Ability(serial) if e.kind != StackKind::Spell && e.serial == serial) && "),
     // "Up to one": always asked.
     ("Enigmatic Incarnation", "let taken = cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible,"),
 ];
@@ -55,6 +58,7 @@ const GONE: &[(&str, &str)] = &[
     ("Emergent Ultimatum", "play_land_during_resolution"),
     // "Up to" never takes all without asking.
     ("Enigmatic Incarnation", "AsManyAsCan(n) if"),
+    ("Repudiate", "Target::Object(id) => e.kind == StackKind::Spell"),
     // A replacement is told a proposal, not an event: "entered from" is the history's.
     ("Don't Blink", "match event { Event::ZoneChange { new, from, to, .. }"),
 ];

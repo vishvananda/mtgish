@@ -252,6 +252,7 @@ fn rendered(
         }
     }
     use_shared_targets(&mut file);
+    subject_always_an_object(&mut file);
     for item in &mut file.items {
         if let Item::Fn(function) = item {
             let reads_data = reads_data(function);
@@ -2761,9 +2762,143 @@ fn simplify_function(function: &mut syn::ItemFn, reads_data: bool) {
     }
 }
 
-/// `static ..._TARGETS` by the function that reads them, and whether each is one exact target.
+/// The resolving function of each triggered ability, by its matcher: `triggered(when_asked(.., matcher), resolve, ..)`.
+fn triggered_pairs(file: &File) -> Vec<(String, String)> {
+    struct Pairs(Vec<(String, String)>);
+    impl<'ast> Visit<'ast> for Pairs {
+        fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+            let last = |expr: &Expr| match expr {
+                Expr::Path(path) => path.path.segments.last().map(|s| s.ident.to_string()),
+                _ => None,
+            };
+            if last(&call.func).as_deref() == Some("triggered") {
+                let args: Vec<&Expr> = call.args.iter().collect();
+                if let [Expr::Call(when), resolve, ..] = args.as_slice() {
+                    let when_args: Vec<&Expr> = when.args.iter().collect();
+                    if last(&when.func).as_deref() == Some("when_asked") {
+                        if let ([_, matcher], Some(resolve)) = (when_args.as_slice(), ident_of(resolve)) {
+                            if let Some(matcher) = ident_of(matcher) {
+                                self.0.push((matcher, resolve));
+                            }
+                        }
+                    }
+                }
+            }
+            visit::visit_expr_call(self, call);
+        }
+    }
+    let mut pairs = Pairs(Vec::new());
+    pairs.visit_file(file);
+    pairs.0
+}
+
+/// "Whenever this creature mutates, it deals 4 damage" (Snapdax): a matcher that fires only about an object, as
+/// `Fired::about(Target::Object(..))`, leaves its ability's subject an object, so `item.subject.object()` is always
+/// something and the `else` of `if let Some(source) = item.subject.object()` is a line no game runs. The test is a
+/// guard on one line instead, and what it guarded runs on with the rest.
+fn subject_always_an_object(file: &mut File) {
+    let only_objects: BTreeSet<String> = file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Fn(function) => {
+                let text = text_of(&function.block);
+                let fired = text.matches("Fired :: about (").count();
+                let subjects = text.matches("let subject =").count();
+                let only = fired > 0
+                    && fired == text.matches("Fired :: about (subject)").count()
+                    && subjects > 0
+                    && subjects == text.matches("let subject = Target :: Object (").count()
+                    && !text.contains("Fired {")
+                    && !text.contains("Fired :: PLAIN");
+                only.then(|| function.sig.ident.to_string())
+            }
+            _ => None,
+        })
+        .collect();
+    let resolvers: BTreeSet<String> = triggered_pairs(file)
+        .into_iter()
+        .filter(|(matcher, _)| only_objects.contains(matcher))
+        .map(|(_, resolve)| resolve)
+        .collect();
+    // A resolving function two abilities share is guarded only if both fire about objects.
+    let shared: BTreeSet<String> = triggered_pairs(file)
+        .into_iter()
+        .filter(|(matcher, _)| !only_objects.contains(matcher))
+        .map(|(_, resolve)| resolve)
+        .collect();
+    for item in &mut file.items {
+        let Item::Fn(function) = item else { continue };
+        let name = function.sig.ident.to_string();
+        if !resolvers.contains(&name) || shared.contains(&name) || !text_of(&function.sig.output).contains("Result") {
+            continue;
+        }
+        let block = &mut function.block;
+        let mut subject_names: Vec<String> = Vec::new();
+        let mut at = 0;
+        while at < block.stmts.len() {
+            if let Stmt::Local(local) = &block.stmts[at] {
+                if let (Some(name), Some(init)) = (plain_binding(local), &local.init) {
+                    if text_of(&init.expr) == "item . subject . object ()" {
+                        subject_names.push(name);
+                    }
+                }
+            }
+            let Stmt::Expr(Expr::If(branch), _) = &block.stmts[at] else {
+                at += 1;
+                continue;
+            };
+            let Expr::Let(binding) = &*branch.cond else {
+                at += 1;
+                continue;
+            };
+            let value = text_of(&binding.expr);
+            let is_subject = value == "item . subject . object ()" || subject_names.iter().any(|n| *n == value);
+            let some = matches!(&*binding.pat, Pat::TupleStruct(p) if text_of(&p.path) == "Some" && p.elems.len() == 1);
+            if branch.else_branch.is_some() || !is_subject || !some {
+                at += 1;
+                continue;
+            }
+            let (pat, expr) = (&binding.pat, &binding.expr);
+            let guard: Stmt = parse_quote!(let #pat = #expr else { return Ok(()); };);
+            let after = block.stmts[at + 1..].to_vec();
+            let mut body = spliced(branch.then_branch.clone(), &after);
+            if !after.is_empty() {
+                if let Some(Stmt::Expr(last, semi @ None)) = body.last_mut() {
+                    if !matches!(last, Expr::If(_) | Expr::ForLoop(_) | Expr::Block(_) | Expr::Match(_) | Expr::While(_) | Expr::Loop(_)) {
+                        *semi = Some(Default::default());
+                    }
+                }
+            }
+            let n = body.len();
+            body.insert(0, guard);
+            block.stmts.splice(at..at + 1, body);
+            at += n + 1;
+        }
+    }
+}
+
+/// `static ..._TARGETS` by the function that reads them, and whether each is one exact target; and the targets a
+/// `spell(&[..], resolve)` or a `triggered(.., resolve, ..).targets(&[..])` lists where it stands.
 fn single_targets(file: &File) -> BTreeMap<String, Vec<bool>> {
-    let mut found = BTreeMap::new();
+    struct Inline(BTreeMap<String, Vec<bool>>);
+    impl<'ast> Visit<'ast> for Inline {
+        fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+            let args: Vec<&Expr> = call.args.iter().collect();
+            if matches!(&*call.func, Expr::Path(path) if path.path.is_ident("spell")) {
+                if let [Expr::Reference(list), resolve] = args.as_slice() {
+                    if let (Expr::Array(specs), Some(resolve)) = (&*list.expr, ident_of(resolve)) {
+                        let single = specs.elems.iter().map(|spec| !matches!(spec, Expr::MethodCall(_))).collect();
+                        self.0.insert(resolve, single);
+                    }
+                }
+            }
+            visit::visit_expr_call(self, call);
+        }
+    }
+    let mut inline = Inline(BTreeMap::new());
+    inline.visit_file(file);
+    let mut found = inline.0;
     for item in &file.items {
         if let Item::Static(item) = item {
             let name = item.ident.to_string();
@@ -2833,6 +2968,9 @@ fn one_target_reads(block: &mut Block, singles: &[bool], lone: bool) {
             };
             let Some(init) = &local.init else { continue };
             let read = text_of(&init.expr);
+            if lone && one_target_matched(block, i, &name, &read, &announced, spec) {
+                continue;
+            }
             let Some(kind) = one_target_kind(&read, &announced) else {
                 continue;
             };
@@ -2903,6 +3041,76 @@ fn one_target_reads(block: &mut Block, singles: &[bool], lone: bool) {
             }
         }
     }
+}
+
+/// "Create a token that's a copy of target creature you control" (Replicate): the one target of an item with one target
+/// slot, read as an `Option` and matched, `match original { Some(original) => .., None => Vec::new() }`. An item whose
+/// only target is illegal doesn't resolve (CR 608.2b), so the `None` arm is a line no game runs: the target is a guard,
+/// `let Some(original) = targets::object(g, item, 0) else { return Ok(()); };`, and the `Some` arm is what happens.
+fn one_target_matched(block: &mut Block, i: usize, name: &str, read: &str, announced: &str, spec: usize) -> bool {
+    let read = read
+        .strip_prefix("{ let q : & dyn Query = g ; ")
+        .and_then(|read| read.strip_suffix(" }"))
+        .unwrap_or(read);
+    if read.strip_prefix(announced) != Some(" . and_then (| t : Target | t . object ())") {
+        return false;
+    }
+    let undisturbed = block.stmts[..i].iter().all(|stmt| match stmt {
+        Stmt::Local(local) => local.init.as_ref().is_some_and(|init| is_pure(&init.expr)),
+        _ => false,
+    });
+    if !undisturbed {
+        return false;
+    }
+    // The one statement after it that reads it, matching it, and only pure bindings between.
+    let later: Vec<usize> = (i + 1..block.stmts.len()).filter(|&at| mentions(&block.stmts[at], name)).collect();
+    let [at] = later.as_slice() else { return false };
+    let at = *at;
+    if !block.stmts[i + 1..at].iter().all(|stmt| match stmt {
+        Stmt::Local(local) => local.init.as_ref().is_some_and(|init| is_pure(&init.expr)),
+        _ => false,
+    }) {
+        return false;
+    }
+    let scrutinee = |expr: &Expr| -> Option<(syn::Ident, Expr)> {
+        let Expr::Match(matched) = expr else { return None };
+        if ident_of(&matched.expr).as_deref() != Some(name) || matched.arms.len() != 2 {
+            return None;
+        }
+        let (some, none) = (&matched.arms[0], &matched.arms[1]);
+        if some.guard.is_some() || none.guard.is_some() || text_of(&none.pat) != "None" {
+            return None;
+        }
+        let Pat::TupleStruct(pat) = &some.pat else { return None };
+        let [Pat::Ident(bound)] = pat.elems.iter().collect::<Vec<_>>().as_slice() else { return None };
+        (text_of(&pat.path) == "Some" && bound.subpat.is_none() && bound.by_ref.is_none())
+            .then(|| (bound.ident.clone(), (*some.body).clone()))
+    };
+    let (bound, rebuilt): (syn::Ident, Stmt) = match &block.stmts[at] {
+        Stmt::Expr(expr, semi) => {
+            let Some((bound, body)) = scrutinee(expr) else { return false };
+            (bound, Stmt::Expr(body, Some(semi.unwrap_or_default())))
+        }
+        Stmt::Local(local) => {
+            let Some(init) = &local.init else { return false };
+            if init.diverge.is_some() {
+                return false;
+            }
+            let Some((bound, body)) = scrutinee(&init.expr) else { return false };
+            let mut local = local.clone();
+            local.init.as_mut().expect("an init").expr = Box::new(body);
+            (bound, Stmt::Local(local))
+        }
+        _ => return false,
+    };
+    // The bound name must not be another binding's in what follows.
+    if block.stmts[..i].iter().chain(&block.stmts[i + 1..at]).any(|stmt| mentions(stmt, &bound.to_string())) {
+        return false;
+    }
+    let slot = proc_macro2::Literal::usize_unsuffixed(spec);
+    block.stmts[i] = parse_quote!(let Some(#bound) = cantrip_mechanics::targets::object(g, item, #slot) else { return Ok(()); };);
+    block.stmts[at] = rebuilt;
+    true
 }
 
 /// `&name` as an argument, the list a verb takes.

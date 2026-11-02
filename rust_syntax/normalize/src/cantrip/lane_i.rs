@@ -423,6 +423,45 @@ pub(super) fn may_retarget(body: &Program) -> Option<(&PlayerRef, &ObjectRef)> {
 }
 
 /// Whether a target of this domain may be an ability on the stack.
+/// `STACK_ITEM` for a slot that takes only abilities, or only spells: an item of the other kind is never its target, so
+/// no arm reads one (Repudiate, Stifle; Counterspell).
+const ABILITY_ITEM: &str = "matches!(t, Target::Ability(serial) if e.kind != StackKind::Spell && e.serial == serial)";
+const SPELL_ITEM: &str = "matches!(t, Target::Object(id) if e.kind == StackKind::Spell && e.object == id)";
+
+/// Whether a stack item that passes `filter` can be a spell, and whether it can be an ability.
+fn stack_kinds(filter: &ObjectFilter) -> (bool, bool) {
+    match filter {
+        ObjectFilter::OnStack(StackTrait::Spell) => (true, false),
+        ObjectFilter::OnStack(StackTrait::Activated | StackTrait::Triggered | StackTrait::Loyalty)
+        | ObjectFilter::AbilityOf(_) => (false, true),
+        ObjectFilter::All(filters) => filters
+            .iter()
+            .map(stack_kinds)
+            .fold((true, true), |(s, a), (fs, fa)| (s && fs, a && fa)),
+        ObjectFilter::Either(filters) => filters
+            .iter()
+            .map(stack_kinds)
+            .fold((false, false), |(s, a), (fs, fa)| (s || fs, a || fa)),
+        ObjectFilter::Any
+        | ObjectFilter::Not(_)
+        | ObjectFilter::OnStack(StackTrait::SingleTarget)
+        | ObjectFilter::ControlledBy(_)
+        | ObjectFilter::TargetsAny(_) => (true, true),
+        // A word about a card reads a spell (`stack_filter`).
+        _ => (true, false),
+    }
+}
+
+/// The test of whether stack item `e` is target `t`, for a slot of `domain` whose targets pass `filter`.
+pub(super) fn stack_item(domain: &ObjectDomain, filter: &ObjectFilter) -> &'static str {
+    let (spells, abilities) = stack_kinds(filter);
+    match (spells && !matches!(domain.kind, ObjectKind::Ability), abilities) {
+        (false, true) => ABILITY_ITEM,
+        (true, false) => SPELL_ITEM,
+        _ => STACK_ITEM,
+    }
+}
+
 pub(super) fn on_the_stack(domain: &ObjectDomain) -> bool {
     domain.zones == [EventZone::Stack]
         && matches!(domain.kind, ObjectKind::Ability | ObjectKind::Any)
@@ -2143,11 +2182,29 @@ impl Compiler {
     }
     /// "Target activated or triggered ability", with or without spells: the
     /// item on the stack that `t` names passes `filter`.
-    pub(super) fn stack_target_test(&self, filter: &ObjectFilter) -> Result<String> {
+    pub(super) fn stack_target_test(&self, domain: &ObjectDomain, filter: &ObjectFilter) -> Result<String> {
         Ok(format!(
-            "q.state().stack.iter().any(|e| {STACK_ITEM} && ({}))",
+            "q.state().stack.iter().any(|e| {} && ({}))",
+            stack_item(domain, filter),
             self.stack_filter(filter)?
         ))
+    }
+    /// `slot_item` for the slot `objects` names.
+    pub(super) fn objects_item(&self, objects: &ObjectSet) -> &'static str {
+        match objects {
+            ObjectSet::One(ObjectRef::Target { slot, .. }) | ObjectSet::Targets(slot) => self.slot_item(slot),
+            _ => STACK_ITEM,
+        }
+    }
+    /// `stack_item` for the slot `slot`, or `STACK_ITEM` when it is not known.
+    pub(super) fn slot_item(&self, slot: &Slot) -> &'static str {
+        match self.slots.get(&slot.0) {
+            Some((_, spec)) => match &spec.kind {
+                TargetKind::Object(domain) => stack_item(domain, &spec.filter),
+                _ => STACK_ITEM,
+            },
+            None => STACK_ITEM,
+        }
     }
     /// Whether stack item `e` passes `filter`. A word about a card reads a
     /// spell, and "from a [type] source" reads what an ability came from.
@@ -2219,7 +2276,8 @@ impl Compiler {
             return;
         }
         let local = format!("countered_{}", self.fresh());
-        writeln!(out, "let {local}: Vec<Option<PlayerId>> = t_{at}_raw.iter().map(|&t: &Target| g.state().stack.iter().find(|e| {STACK_ITEM}).map(|e| e.controller)).collect();").unwrap();
+        let item = self.slot_item(slot);
+        writeln!(out, "let {local}: Vec<Option<PlayerId>> = t_{at}_raw.iter().map(|&t: &Target| g.state().stack.iter().find(|e| {item}).map(|e| e.controller)).collect();").unwrap();
         self.countered.insert(slot.0, local);
     }
     /// `Option<PlayerId>`: who controls the spell or ability a slot targets: an
@@ -2233,13 +2291,15 @@ impl Compiler {
             return Ok(format!("{kept}.get({index}).copied().flatten()"));
         }
         let at = self.slot(slot)?;
-        Ok(format!("t_{at}_raw.get({index}).copied().and_then(|t: Target| q.state().stack.iter().find(|e| {STACK_ITEM}).map(|e| e.controller))"))
+        let item = self.slot_item(slot);
+        Ok(format!("t_{at}_raw.get({index}).copied().and_then(|t: Target| q.state().stack.iter().find(|e| {item}).map(|e| e.controller))"))
     }
     /// "Counter target activated or triggered ability" (CR 701.6): with spells
     /// among them, one instruction counters them all.
     pub(super) fn counter_on_stack(&self, id: usize, objects: &ObjectSet, out: &mut String) {
         let targets = self.stack_targets(objects).expect("a slot of the stack");
-        writeln!(out, "let items_{id}: Vec<(ObjectId, usize)> = {targets}.into_iter().filter_map(|t| {{ let stack = &g.state().stack; stack.iter().position(|e| {STACK_ITEM}).map(|at| (stack[at].object, at)) }}).collect(); g.counter_items(&items_{id});").unwrap();
+        let item = self.objects_item(objects);
+        writeln!(out, "let items_{id}: Vec<(ObjectId, usize)> = {targets}.into_iter().filter_map(|t| {{ let stack = &g.state().stack; stack.iter().position(|e| {item}).map(|at| (stack[at].object, at)) }}).collect(); g.counter_items(&items_{id});").unwrap();
     }
     /// "Change the target of", "choose new targets for" and "change a target
     /// of target spell or ability to this creature" (115.7a, 115.7d, 115.7b).

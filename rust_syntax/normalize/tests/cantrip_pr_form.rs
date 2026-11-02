@@ -738,3 +738,53 @@ fn a_guard_broken_by_the_margin_is_one_line() {
     assert!(!file.lines().any(|line| line.trim() == "break;"), "{file}");
     assert!(file.contains("else { break };"), "{file}");
 }
+
+const LONE_TARGET_MATCHED: &str = r#"
+#[allow(unused_imports)] use cantrip_api::*;
+fn ability_0_target_0(q: &dyn Query, asker: &Asker, t: Target) -> bool { matches!(t, Target::Object(id) if q.chars(id).is(CardType::Creature)) }
+fn ability_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> { let asker = &Asker::new(item.object, item.controller);
+let t_0_raw = announced(g, item, 0, false); let t_0 = announced(g, item, 0, true);
+let original_0 = { let q: &dyn Query = g; t_0_raw.get(0).copied().filter(|t| t_0.contains(t)).and_then(|t: Target| t.object()) }; let count_0 = { let q: &dyn Query = g; (1i64).max(0) as u32 }; let player_0 = { let q: &dyn Query = g; Some(asker.controller).expect("a reference that always names a player") }; let created_0 = match original_0 { Some(original) => g.create_token_copies(original, player_0, count_0)?, None => Vec::new() };
+ Ok(()) }
+fn announced(g: &dyn Game, item: &StackItem, spec: u8, legal: bool) -> Vec<Target> { (0..g.state().targets(item).len()).filter(|&i| g.state().spec(item, i) == spec && (!legal || g.target_legal(item, i))).map(|i| g.state().target(item, i)).collect() }
+pub static CARD: CardDef = CardDef { name: "Sample", oracle: true, spell: spell(&[target(ability_0_target_0)], ability_0), abilities: &[], ..CardDef::BLANK };
+pub static EXTRA: &[&CardDef] = &[];
+"#;
+
+#[test]
+fn a_lone_target_matched_is_a_guard() {
+    // Replicate: a spell whose only target is illegal doesn't resolve (CR 608.2b), so the `None` arm is never run.
+    let printed = "Create a token that's a copy of target creature you control.";
+    let file = render(LONE_TARGET_MATCHED, "Sample", printed, Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(file.contains("let Some(original) = targets::object(g, item, 0) else { return Ok(()) };"), "{file}");
+    assert!(file.contains("g.create_token_copies(original, item.controller, 1)?;"), "{file}");
+    assert!(!file.contains("None =>"), "{file}");
+}
+
+const SUBJECT_AN_OBJECT: &str = r#"
+#[allow(unused_imports)] use cantrip_api::*;
+fn ability_0_event(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> { if let Event::Mutated { permanent, .. } = event { let id = *permanent; let subject = Target::Object(id); if asker.source == id { return Fired::about(subject); } } None }
+fn ability_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> { let source_0 = item.subject.object(); if let Some(source) = source_0 { g.damage_together(&[(source, Target::Player(item.controller), 4u16)]); } g.end_sentence(); g.gain_life(item.controller, 4); Ok(()) }
+pub static CARD: CardDef = CardDef { name: "Sample", oracle: true, abilities: &[triggered(Trigger::when_asked(EventMask::MUTATED, ability_0_event), ability_0, "Whenever this creature mutates, it deals 4 damage to you and you gain 4 life.")], ..CardDef::BLANK };
+pub static EXTRA: &[&CardDef] = &[];
+"#;
+
+#[test]
+fn a_subject_that_is_always_an_object_is_a_guard() {
+    // Snapdax: the matcher fires only about an object, so the ability's subject is one.
+    let printed = "Whenever this creature mutates, it deals 4 damage to you and you gain 4 life.";
+    let file = render(SUBJECT_AN_OBJECT, "Sample", printed, Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(!file.contains("if let Some(source)"), "{file}");
+    assert!(
+        file.contains("let Some(source) = item.subject.object() else { return Ok(()) };")
+            || file.contains("let Some(source) = source_0 else { return Ok(()) };"),
+        "{file}"
+    );
+    assert!(file.contains("g.gain_life(item.controller, 4);"), "{file}");
+    // A matcher that can fire about a player leaves the test as it is.
+    let player = SUBJECT_AN_OBJECT.replace("let subject = Target::Object(id);", "let subject = Target::Player(asker.controller);");
+    let file = render(&player, "Sample", printed, Characteristics::Oracle).unwrap();
+    assert!(file.contains("if let Some(source)"), "{file}");
+}

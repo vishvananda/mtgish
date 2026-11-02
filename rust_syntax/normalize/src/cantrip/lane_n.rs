@@ -2176,7 +2176,7 @@ impl Compiler {
         out: &mut String,
     ) {
         let targets = self.stack_targets(objects).expect("a slot of the stack");
-        let test = lane_i::STACK_ITEM;
+        let test = self.objects_item(objects);
         writeln!(out, "let items_{id}: Vec<(ObjectId, usize)> = {targets}.into_iter().filter_map(|t| {{ let stack = &g.state().stack; stack.iter().position(|e| {test}).map(|at| (stack[at].object, at)) }}).collect(); let abilities_{id}: Vec<ObjectId> = items_{id}.iter().filter(|&&(_, at)| g.state().stack[at].kind != StackKind::Spell).map(|&(o, _)| o).filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)).collect(); let spells_{id}: Vec<ObjectId> = items_{id}.iter().filter(|&&(_, at)| g.state().stack[at].kind == StackKind::Spell).map(|&(o, _)| o).collect(); let countered_{id} = g.counter_items(&items_{id}); let mut moved_{id}: Vec<ObjectId> = if countered_{id} > 0 {{ abilities_{id} }} else {{ Vec::new() }}; moved_{id}.extend(spells_{id}.into_iter().filter_map(|o| g.state().obj(o).became));").unwrap();
         self.moved.insert(result.0, format!("moved_{id}"));
         // That spell, countered or not: a spell that can't be countered still is one.
