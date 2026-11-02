@@ -498,6 +498,15 @@ impl Compiler {
                 writeln!(out, "for player in {from} {{ let (poison, energy, experience) = {{ let counters = g.state().player(player); (u32::from(counters.poison()), u32::from(counters.energy()), u32::from(counters.experience())) }}; let n = poison; if n > 0 {{ g.give_poison(player, {more}); }} let n = energy; if n > 0 {{ g.change_energy(player, {energy}); }} let n = experience; if n > 0 {{ g.give_experience(player, {more}); }} }}").unwrap();
                 return Ok(());
             }
+            // "Choose a counter on target player. Give that player another counter
+            // of that kind" (Animation Module): the kind is one of the three a
+            // player can have, asked of this ability's controller among those
+            // the player has, as a permanent's kind is asked.
+            if let (C::One, true, None, None) = (copies, from == to, kind, &self.wanted_labels) {
+                self.wanted_labels = Some("&[\"Poison counter\", \"Energy counter\", \"Experience counter\"]".into());
+                writeln!(out, "for player in {from} {{ let have = {{ let counters = g.state().player(player); [counters.poison() > 0, counters.energy() > 0, counters.experience() > 0] }}; let offered: Vec<u8> = (0..3u8).filter(|&i| have[usize::from(i)]).collect(); if !offered.is_empty() {{ let card = g.card_id(&CARD); let pick = offered[{M}::choose::one_of(g, asker.controller, asker.source, offered.iter().map(|&i| Label::Card(card, i)).collect())? as usize]; match pick {{ 0 => g.give_poison(player, 1), 1 => g.change_energy(player, 1), _ => g.give_experience(player, 1) }} }} }}").unwrap();
+                return Ok(());
+            }
             let call = format!("let from: Vec<PlayerId> = {from}; let to: Vec<PlayerId> = {to}; {M}::counters::duplicate_on_players(g, asker, &from, &to, {})?;", quoted(&format!("{copies:?}")));
             self.plan_code("counters a player has, by kind", &call, out);
             return Ok(());
@@ -2727,6 +2736,14 @@ impl Compiler {
                 self.helpers.insert("no_common_creature_type");
                 "cantrip_api::select::set_part(&(no_common_creature_type as SelectFn), &(largest_no_common_creature_type as cantrip_api::select::LargestFn), 0, \"that share no creature types\")".to_string()
             }
+            // "For each color pair, choose a card that's exactly those colors": each
+            // card two colors, no two the same two.
+            SelectionConstraint::NoCommonProperty(DistinctProperty::ColorPairs) => {
+                if !self.functions.contains("fn one_of_each_color_pair(") {
+                    writeln!(self.functions, "fn color_pair_of(q: &dyn Query, id: ObjectId) -> Option<ColorSet> {{ let colors = q.chars(id).colors; (colors.iter().count() == 2).then_some(colors) }}\nfn one_of_each_color_pair(q: &dyn Query, choice: &Choice, _: u32) -> Verdict {{ let used: Vec<Option<ColorSet>> = choice.selected.iter().map(|&c| color_pair_of(q, c)).collect(); let complete = used.iter().enumerate().all(|(i, k)| k.is_some() && !used[..i].contains(k)); Verdict {{ complete, addable: Bits::of(choice.candidates.len(), |i| {{ let k = color_pair_of(q, choice.candidates[i]); k.is_some() && !used.contains(&k) }}) }} }}").unwrap();
+                }
+                "cantrip_api::select::part(&(one_of_each_color_pair as SelectFn), 0, \"one for each color pair\")".to_string()
+            }
             SelectionConstraint::DifferentControllers => distinct_rule(
                 &mut self.functions,
                 "different_controllers",
@@ -2923,8 +2940,41 @@ impl Compiler {
             self.selections.insert(result.0, format!("picked_{id}"));
             return Ok(());
         }
-        let Some(part) = self.set_rule(constraint) else {
+        // "Each opponent chooses a different card": not one an earlier turn of the
+        // walk picked, which the walk keeps (`unpicked_{walk}`).
+        if let (SelectionConstraint::Unpicked, Some((_, players))) =
+            (constraint, self.notes.walking.as_ref())
+        {
+            let walk = players.trim_start_matches("players_").to_string();
+            let count = self.fetch(self.select_count(count)?);
+            writeln!(out, "let player_{id} = {chooser}; let pool_{id}: Vec<ObjectId> = {pool}.into_iter().filter(|o| !unpicked_{walk}.contains(o)).collect(); let count_{id} = {count}; let picked_{id} = {M}::choose::select(g, player_{id}, asker.source, Purpose::{purpose}, pool_{id}, {M}::select::Selection::of(count_{id}, &[]))?; unpicked_{walk}.extend(picked_{id}.iter().copied());").unwrap();
+            self.selections.insert(result.0, format!("picked_{id}"));
+            return Ok(());
+        }
+        // "With total mana value less than or equal to the sacrificed artifact's":
+        // the bound is read as the effect resolves, before the choice.
+        let dynamic = match constraint {
+            SelectionConstraint::TotalProperty {
+                property: Property::ManaValue,
+                comparison: Comparison::LessOrEqual,
+                amount,
+            } if !matches!(amount, Expr::Constant(_) | Expr::AnnouncedX)
+                && self.reader == Reader::Resolution =>
+            {
+                let most = self.fetch(self.number(amount)?.amount(u32::MAX.into(), "u32")?);
+                writeln!(out, "let most_{id}: u32 = {most};").unwrap();
+                Some(format!("{M}::select::total_mana_value_at_most(most_{id})"))
+            }
+            _ => None,
+        };
+        let Some(part) = dynamic.or_else(|| self.set_rule(constraint)) else {
             return Err(gap(format!("selection constraint {}", form(constraint))));
+        };
+        // A card for each color pair there is one of: as many as can be, of the ten.
+        let pairs = Count::AsManyAsCan(Expr::Constant(10));
+        let count = match (constraint, count) {
+            (SelectionConstraint::NoCommonProperty(DistinctProperty::ColorPairs), Count::AnyNumber) => &pairs,
+            _ => count,
         };
         let count = self.fetch(self.select_count(count)?);
         let pool = match constraint {

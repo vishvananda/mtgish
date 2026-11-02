@@ -2217,6 +2217,24 @@ impl Compiler {
                 };
                 self.may_pay_bounded_x(id, player, value, result, out)?
             }
+            // "You may unattach an Equipment from a creature you control. If you
+            // do, tap that creature": the payer picks one attached to such a host,
+            // or none, and it is unattached (CR 701.3d); "that creature" is the host.
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if matches!(cost.parts.as_slice(), [CostPart::UnattachFrom { .. }]) => {
+                let [CostPart::UnattachFrom { attachments, hosts }] = cost.parts.as_slice() else {
+                    unreachable!("an unattach");
+                };
+                let payer = self.fetch(self.certain_player(player)?);
+                let attachments = self.fetch(self.objects(attachments)?);
+                let hosts = self.fetch(self.objects(hosts)?);
+                writeln!(out, "let payer_{id} = {payer}; let hosts_{id}: Vec<ObjectId> = {hosts}; let offered_{id}: Vec<ObjectId> = {attachments}.into_iter().filter(|&e| g.state().obj(e).attached_to.is_some_and(|h| hosts_{id}.contains(&h))).collect(); let picked_{id} = cantrip_mechanics::choose::cards(g, payer_{id}, asker.source, Purpose::Optional, offered_{id}, 1, true)?; let mut unattached_{id}: Vec<ObjectId> = Vec::new(); for e in picked_{id} {{ if let Some(h) = g.state().obj(e).attached_to {{ g.unattach(e); unattached_{id}.push(h); }} }} let paid_{id} = !unattached_{id}.is_empty();").unwrap();
+                self.selections.insert(result.0, format!("unattached_{id}"));
+                self.performed.insert(result.0, format!("paid_{id}"));
+            }
             Operation::PayCost {
                 player,
                 cost,
@@ -2261,6 +2279,13 @@ impl Compiler {
                     }
                     let asked = self.ask_to_pay(id, player, cost)?;
                     writeln!(out, "{asked} if !paid_{id} {{ break 'optional_{scope}; }}").unwrap();
+                    self.performed.insert(result.0, format!("paid_{id}"));
+                    return Ok(());
+                }
+                // A cost of nothing (Tectonic Giant's "choose one of them", which
+                // the data words as a cost and the choice before it pays) is paid.
+                if cost.parts.is_empty() {
+                    writeln!(out, "let paid_{id} = true;").unwrap();
                     self.performed.insert(result.0, format!("paid_{id}"));
                     return Ok(());
                 }

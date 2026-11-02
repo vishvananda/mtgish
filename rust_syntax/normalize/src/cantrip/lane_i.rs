@@ -1156,6 +1156,11 @@ impl Compiler {
             self.chosen_lists.push((kind, list));
         }
         self.chosen = before.chosen;
+        // What the walk's turns have picked, for a choice of "a different" one.
+        let unpicked = format!("unpicked_{id}");
+        if body.contains(&unpicked) && !out.contains(&format!("let mut {unpicked}:")) {
+            writeln!(declared, "let mut {unpicked}: Vec<ObjectId> = Vec::new();").unwrap();
+        }
         out.push_str(&declared);
         let binding = each.binding.0;
         let quiet = matches!(

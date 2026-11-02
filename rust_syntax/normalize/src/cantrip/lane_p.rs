@@ -1559,7 +1559,7 @@ impl Compiler {
                     self.object(card)?,
                     compare(
                         &format!(
-                            "cards[..at].iter().copied().filter(|&id| {}).count() as i64",
+                            "cards[at + 1..].iter().copied().filter(|&id| {}).count() as i64",
                             self.filter(above, &Candidate::of("id"))?
                         ),
                         comparison,

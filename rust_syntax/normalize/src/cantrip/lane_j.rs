@@ -4284,6 +4284,18 @@ impl Compiler {
                     &format!("{{ {pairs} g.put_all_onto_battlefield_attached_to_chosen(&rows_{id}, |g, host| {hosts})? }}"),
                 ))
             }
+            // "Return it to the battlefield tapped and attacking": all enter together
+            // (CR 110.2a), then each attacks what its controller chooses (508.4).
+            [EntryState::Attacking {
+                player,
+                or_planeswalker,
+            }] => {
+                let defender = self.entering_defender(player.as_ref(), *or_planeswalker)?;
+                Ok(format!(
+                    "{{ let rows_{id}: Vec<(ObjectId, PlayerId, bool)> = objects_{id}.iter().map(|&o| (o, {controller}, {})).collect(); let entered_{id} = g.put_all_onto_battlefield_with_counters(&rows_{id}, &[{counters}])?; for &entered in &entered_{id} {{ if g.is_on_battlefield(entered) {{ let controller = g.controller(entered); let defender = {defender}; g.enter_attacking(&[entered], defender); }} }} entered_{id} }}",
+                    entry.tapped
+                ))
+            }
             states if !states.is_empty() && !entry.tapped && counters.is_empty() => {
                 let mut tapped = Vec::new();
                 let mut plain = true;
@@ -4296,6 +4308,25 @@ impl Compiler {
                     }
                     plain &= entry.tapped && entry.counters.is_empty();
                     tapped.push(self.filter(filter, &Candidate::of("o"))?);
+                }
+                // "Each of them enters with an additional +1/+1 counter on it if it's a
+                // creature": a replacement on each (614.12), judged as it would exist
+                // on the battlefield, as for one object; then all enter together.
+                let counted = states.iter().all(|state| {
+                    matches!(state, EntryState::When { entry, .. } if !entry.tapped && entry.states.is_empty() && !entry.counters.is_empty())
+                });
+                if !plain && counted && self.stack_item && !self.granting {
+                    let mut grants = String::new();
+                    for state in states {
+                        let EntryState::When { filter, entry } = state else {
+                            unreachable!("checked above");
+                        };
+                        let index = self.arrival_counters(filter, &entry.counters)?;
+                        write!(grants, "g.add_effect(item.object, o, EffectKind::Replacement {{ card: item.ability.card, index: {index} }}, Duration::EndOfTurn); ").unwrap();
+                    }
+                    return Ok(format!(
+                        "{{ for &o in &objects_{id} {{ {grants}}} let rows_{id}: Vec<(ObjectId, PlayerId, bool)> = objects_{id}.iter().map(|&o| (o, {controller}, false)).collect(); g.put_all_onto_battlefield_as(&rows_{id})? }}"
+                    ));
                 }
                 if !plain {
                     return Ok(planned::planned_value(

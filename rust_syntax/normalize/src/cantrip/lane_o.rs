@@ -3344,7 +3344,8 @@ impl Compiler {
                     .and_then(|o| o.rsplit_once("| Some("))
                     .and_then(|(_, chosen)| chosen.strip_suffix(')'))
                 {
-                    Some(chosen) => format!("HexproofFrom::color({chosen})"),
+                    // As Mondo Gecko grants it: the qualities add to any it has.
+                    Some(chosen) => return Ok(format!("HexproofFrom::color({chosen})")),
                     None => format!("HexproofFrom::of({over})"),
                 }
             }
