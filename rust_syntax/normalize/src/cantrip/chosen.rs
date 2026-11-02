@@ -350,6 +350,26 @@ impl Compiler {
             .map(|(_, local)| local.clone())
             .ok_or_else(|| gap(format!("a choice of {kind:?} outside its body")))
     }
+    /// A choice read outside the body that made it, where what makes it is
+    /// itself a hole of this card: a commander's color chosen before the game
+    /// begins ("a deck rule a commander sets"), a color chosen as protection is
+    /// given ("keyword action ChooseProtection"), or a color chosen as an
+    /// Equipment becomes attached (`AttachAction::ChooseAColor`, "ability
+    /// AsEvent"). That hole already says what the file waits on, so the read
+    /// follows it instead of naming a hole of its own.
+    pub(super) fn follows_choice(&self, kind: ValueKind, read: String) -> String {
+        let made_by_a_hole = kind == ValueKind::Color
+            && (self.gaps.iter().any(|g| {
+                g.feature == "a deck rule a commander sets"
+                    || g.feature == "keyword action ChooseProtection"
+            }) || self.functions.contains("AttachAction::ChooseAColor")
+                || self.gaps.iter().any(|g| g.feature == "ability AsEvent"));
+        if !made_by_a_hole {
+            return read;
+        }
+        let feature = format!("planned_value!({:?}", format!("a choice of {kind:?} outside its body"));
+        read.replace(&feature, &format!("planned_value!({FOLLOWS_GAP:?}"))
+    }
     /// `Option` of the choice: this body's, or what was chosen as the source
     /// entered, to the ability reading it.
     pub(super) fn chosen_value(&self, kind: ValueKind) -> Result<String> {
@@ -389,8 +409,9 @@ impl Compiler {
             {
                 return Err(gap("a resolution's choice read by the trigger it creates"));
             }
-            return lane_p::chosen_elsewhere(self.linked(), kind)
-                .or_else(|_| self.chosen_elsewhere(kind));
+            let read = lane_p::chosen_elsewhere(self.linked(), kind)
+                .or_else(|_| self.chosen_elsewhere(kind))?;
+            return Ok(self.follows_choice(kind, read));
         }
         let read = match kind {
             ValueKind::Color => "chosen_color",
