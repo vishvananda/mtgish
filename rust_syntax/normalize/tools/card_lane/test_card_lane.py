@@ -270,7 +270,7 @@ class RememberedMutants(unittest.TestCase):
     def test_a_kept_survivor_is_still_reported_and_nothing_is_built(self):
         known = {lane.digest(k): {"change": lane.digest(k), "verdict": "SURVIVED", "by": None, "said": None, "together": "now"} for k in ("one", "two")}
         survivors, builds, _, _ = self.run_gate(known)
-        self.assertEqual(survivors, {"A": [("one", "one detail"), ("two", "two detail")]})
+        self.assertEqual(survivors, {"A": [{"key": "one", "detail": "one detail"}, {"key": "two", "detail": "two detail"}]})
         self.assertEqual(builds, [])
 
 
@@ -651,6 +651,262 @@ class Usage(unittest.TestCase):
         line = '{"type":"result","session_id":"s1","num_turns":3,"total_cost_usd":0.5,"usage":{"input_tokens":5,"cache_read_input_tokens":7,"output_tokens":2}}'
         self.assertEqual(backend.read(line, usage), "s1")
         self.assertEqual((usage.input, usage.cached, usage.turns, usage.reported_cost), (12, 7, 3, 0.5))
+
+
+HARLEQUIN = '''use cantrip_api::*;
+use cantrip_mechanics::{freerunning, triggers};
+use cantrip_oracle as oracle;
+
+/// "When this creature enters, you draw a card and you lose 1 life." (CR 608.2, 121.1, 119.3).
+fn draw_card_lose_1_life(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+    g.draw(item.controller, 1);
+    g.end_sentence();
+    g.lose_life(item.controller, 1);
+    Ok(())
+}
+
+pub static CARD: CardDef = CardDef {
+    abilities: &[
+        triggered(
+            triggers::THIS_ENTERS,
+            draw_card_lose_1_life,
+            "When this creature enters, you draw a card and you lose 1 life.",
+        ),
+    ],
+    ways: &[freerunning::way(mana("{1}{B}"), "Freerunning {1}{B}")],
+    ..oracle::MERCILESS_HARLEQUIN
+};
+'''
+HARLEQUIN_TEXT = "Freerunning {1}{B} (You may cast this spell for its freerunning cost.)\nWhen this creature enters, you draw a card and you lose 1 life."
+HARLEQUIN_POINTS = ["[1] Freerunning {1}{B}: shown at least once", "[1] the cost '{1}{B}': paid exactly", "[2] the amount 1: an expectation that a value one off would fail"]
+
+
+def survived(source, number, what, now):
+    lines = source.split("\n")
+    return lane.survivor({"key": f"line {number}: {what}", "line": number, "what": what, "was": lines[number - 1], "now": now,
+                          "detail": f"card.rs:{number}: {what}, was: {lines[number - 1].strip()} now: {now.strip()}", "text": "x", "path": None})
+
+
+class NoiseMutants(unittest.TestCase):
+    """What no scenario can catch costs a worker nothing: an empty range is no change, a sentence's end left out is named by the lane."""
+
+    def test_a_range_made_empty_is_no_change(self):
+        self.assertTrue(lane.invalid_range("    .choose(2, 2);", "    .choose(2, 1);"))
+        self.assertTrue(lane.invalid_range(".targets(&[t.between(1, 1)])", ".targets(&[t.between(1, 0)])"))
+        self.assertTrue(lane.invalid_range("TargetSpec { min: 1, max: 1, filter: f }", "TargetSpec { min: 2, max: 1, filter: f }"))
+        for now in ("    .choose(1, 2);", "    .choose(2, 3);"):
+            self.assertFalse(lane.invalid_range("    .choose(2, 2);", now))
+        self.assertFalse(lane.invalid_range("g.draw(p, 2);", "g.draw(p, 1);"))
+
+    def test_the_empty_range_is_never_played_and_the_other_change_of_its_key_is(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            source, content = Path(scratch) / "card.rs", Path(scratch) / "card.json"
+            source.write_text("static MODES: ModalDef = modes(&[])\n    .choose(2, 2);\n", encoding="utf-8")
+            content.write_text("{}", encoding="utf-8")
+            mutate = mock.Mock()
+            mutate.mutants.return_value = [(2, "2 to 1", "    .choose(1, 2);"), (2, "2 to 3", "    .choose(2, 3);"), (2, "2 to 1", "    .choose(2, 1);")]
+            with mock.patch.multiple(lane, card_file=lambda name: source, content_file=lambda name: content, core_keywords=lambda: {}):
+                changes, total = lane.changes_of("Card", mutate)
+        self.assertEqual(total, 2)
+        self.assertEqual([c["now"].strip() for c in changes], [".choose(1, 2);", ".choose(2, 3);"])
+        self.assertEqual((changes[0]["line"], changes[0]["what"], changes[0]["was"]), (2, "2 to 1", "    .choose(2, 2);"))
+
+    def test_a_sentence_end_left_out_is_named_by_the_lane_with_the_rule(self):
+        why = lane.known_equivalent(survived(HARLEQUIN, 8, "statement left out", "    // (left out by card-mutate)"))
+        self.assertIn("CR 603.8", why)
+        self.assertIn("Means the same", why)
+        self.assertIsNone(lane.known_equivalent(survived(HARLEQUIN, 9, "statement left out", "    // (left out by card-mutate)")))
+        self.assertIsNone(lane.known_equivalent(survived(HARLEQUIN, 7, "1 to 2", "    g.draw(item.controller, 2);")))
+        self.assertIsNone(lane.known_equivalent({"key": "keyword Trample", "detail": "d"}))
+
+
+class SurvivorReport(unittest.TestCase):
+    def setUp(self):
+        self.scratch = tempfile.TemporaryDirectory()
+        self.addCleanup(self.scratch.cleanup)
+        root = Path(self.scratch.name)
+        (root / "card.rs").write_text(HARLEQUIN, encoding="utf-8")
+        (root / "card.json").write_text(json.dumps({"oracleText": HARLEQUIN_TEXT}), encoding="utf-8")
+        self.report = root / "report.json"
+        self.validation = [{"line": line, "code": "it", "agrees": True} for line in lane.printed_lines(HARLEQUIN_TEXT)]
+        self.report.write_text(json.dumps({"decision": "done", "validation": self.validation, "test_points": [], "rulings": [], "look_answers": [], "equivalent_mutants": []}), encoding="utf-8")
+        patcher = mock.patch.multiple(lane, card_file=lambda name: root / "card.rs", content_file=lambda name: root / "card.json", card_dir=lambda name: root)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.noise = survived(HARLEQUIN, 8, "statement left out", "    // (left out by card-mutate)")
+        self.real = survived(HARLEQUIN, 9, "1 to 2", "    g.lose_life(item.controller, 2);")
+
+    def gate(self, survivors):
+        gates = lane.Gates("Merciless Harlequin", False)
+        lane.report_gate(gates, "Merciless Harlequin", {"points": [], "looks": [], "source": HARLEQUIN, "overlaps": [],
+                                                      "ran": {"harlequin-enters.cantrip": {7, 8, 9}, "harlequin-freerunning.cantrip": {7}}}, survivors)
+        return gates.results[-1], json.loads(self.report.read_text(encoding="utf-8"))
+
+    def test_a_sentence_end_left_out_costs_no_submit_and_stays_in_the_report(self):
+        result, report = self.gate([self.noise])
+        self.assertTrue(result["ok"], result["detail"])
+        self.assertEqual([(e["mutant"], e["by"]) for e in report["equivalent_mutants"]], [("line 8: statement left out", "lane")])
+        self.assertIn("CR 603.8", report["equivalent_mutants"][0]["why"])
+        self.gate([self.noise])
+        self.assertEqual(len(json.loads(self.report.read_text(encoding="utf-8"))["equivalent_mutants"]), 1, "named once, however many submits")
+
+    def test_a_key_the_worker_named_is_left_to_it(self):
+        self.report.write_text(json.dumps({"decision": "done", "validation": self.validation, "equivalent_mutants": [{"mutant": "line 8: statement left out", "why": "mine"}]}), encoding="utf-8")
+        result, report = self.gate([self.noise])
+        self.assertTrue(result["ok"])
+        self.assertEqual(report["equivalent_mutants"], [{"mutant": "line 8: statement left out", "why": "mine"}])
+
+    def test_a_real_survivor_still_fails_and_says_where_it_is(self):
+        result, _ = self.gate([self.noise, self.real])
+        self.assertFalse(result["ok"])
+        detail = result["detail"]
+        self.assertNotIn("line 8", detail)
+        self.assertIn("line 9: g.lose_life(item.controller, 1);", detail)
+        self.assertIn("printed line 2: When this creature enters, you draw a card and you lose 1 life.", detail)
+        self.assertIn("ran in: harlequin-enters\n", detail)
+        self.assertIn("`line 9: 1 to 2`, now: g.lose_life(item.controller, 2);", detail)
+        self.assertTrue(detail.startswith("Each change below leaves every scenario passing."), "the code comes first, not the escape hatch")
+        self.assertTrue(detail.rstrip().endswith("to build the game that tells)."))
+        self.assertEqual(detail.count("equivalent"), 1)
+
+    def test_changes_of_one_line_are_one_entry(self):
+        other = survived(HARLEQUIN, 9, "1 to 0", "    g.lose_life(item.controller, 0);")
+        text = lane.survivor_text(HARLEQUIN, [self.real, other], lane.printed_lines(HARLEQUIN_TEXT), HARLEQUIN_POINTS)
+        self.assertEqual(text.count("line 9: g.lose_life"), 1)
+        self.assertIn("printed line 2: When this creature enters, you draw a card and you lose 1 life. (test points 3)", text)
+        self.assertIn("`line 9: 1 to 0`", text)
+        self.assertNotIn("ran in", text)
+        draw = survived(HARLEQUIN, 7, "1 to 2", "    g.draw(item.controller, 2);")
+        text = lane.survivor_text(HARLEQUIN, [draw, self.real], lane.printed_lines(HARLEQUIN_TEXT), HARLEQUIN_POINTS)
+        self.assertEqual(text.count("you lose 1 life. (test points 3)"), 1)
+        self.assertIn("line 9: g.lose_life(item.controller, 1);\n  printed line 2, as above", text)
+
+    def test_a_keyword_taken_off_says_so(self):
+        text = lane.survivor_text("", [{"key": "keyword Trample", "detail": "Trample taken off the card"}], ["Trample"], [])
+        self.assertIn("`keyword Trample`: Trample taken off the card", text)
+
+
+class PrintedLineOfCode(unittest.TestCase):
+    PRINTED = ["Freerunning {1}{B}", "When this creature enters, you draw a card and you lose 1 life."]
+
+    def test_a_function_is_the_line_its_doc_comment_quotes(self):
+        self.assertEqual(lane.printed_line_of(HARLEQUIN.split("\n"), 9, self.PRINTED), 2)
+
+    def test_a_line_of_the_card_is_the_text_of_the_call_it_is_in(self):
+        lines = HARLEQUIN.split("\n")
+        self.assertEqual(lane.printed_line_of(lines, lines.index("    ways: &[freerunning::way(mana(\"{1}{B}\"), \"Freerunning {1}{B}\")],") + 1, self.PRINTED), 1)
+
+    def test_a_quote_of_the_whole_card_names_no_line(self):
+        source = '/// "Choose two — • Draw a card. • Gain 3 life." (CR 700.2).\nfn mode_0(g: G) {\n    g.draw(p, 1);\n}\n'
+        self.assertIsNone(lane.printed_line_of(source.split("\n"), 3, ["Choose two —", "• Draw a card.", "• Gain 3 life."]))
+
+    def test_code_before_any_item_names_none(self):
+        self.assertIsNone(lane.printed_line_of(HARLEQUIN.split("\n"), 1, self.PRINTED))
+
+
+WEAVERS = '''fn kinship(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {
+    if effects::ask_may(g, item.controller, item.object, Purpose::Optional)? {
+        let paid_2 = {
+            let mut revealed = false;
+            if let Some(card) = {
+                let q: &dyn Query = g;
+                q.state().zone(Zone::library(item.controller)).first().copied()
+            } {
+                if {
+                    let q: &dyn Query = g;
+                    Some(item.object).is_some_and(|o| shares(q, card, o))
+                }
+                    && effects::ask_may(
+                        g,
+                        item.controller,
+                        "a } in a string",
+                    )?
+                {
+                    g.reveal(item.controller, &[card]);
+                    revealed = true;
+                }
+            }
+            revealed
+        };
+        if paid_2 {
+            g.draw(item.controller, 1);
+        } else {
+            g.mill(item.controller, 1);
+        }
+    }
+    Ok(())
+}'''
+
+
+class CoverageLines(unittest.TestCase):
+    def test_a_closing_brace_names_the_block_it_closes(self):
+        lines = WEAVERS.split("\n")
+        self.assertEqual(lane.never_ran(lines, 22), "line 22 never ran: } (the block of line 5: if let Some(card) = {)")
+
+    def test_a_block_opened_after_a_long_condition_names_the_condition(self):
+        lines = WEAVERS.split("\n")
+        self.assertEqual(lines[20].strip(), "}")
+        self.assertEqual(lane.block_opener(lines, 21), 9)
+
+    def test_an_else_names_its_if(self):
+        lines = WEAVERS.split("\n")
+        number = lines.index("        } else {") + 1
+        self.assertEqual(lane.never_ran(lines, number), f"line {number} never ran: }} else {{ (the block of line {number - 2}: if paid_2 {{)")
+
+    def test_a_line_of_code_says_only_itself(self):
+        lines = WEAVERS.split("\n")
+        self.assertEqual(lane.never_ran(lines, 19), "line 19 never ran: g.reveal(item.controller, &[card]);")
+
+    def test_braces_that_do_not_match_name_nothing(self):
+        self.assertEqual(lane.never_ran(["    }"], 1), "line 1 never ran: }")
+
+
+class FindingCards(unittest.TestCase):
+    CARDS = [{"name": "Hulk, Bruce Banner", "type": "Legendary Creature — Gamma Berserker Hero", "power": 7, "toughness": 4, "keywords": ["Trample"], "oracleText": "Trample"},
+             {"name": "Red Hulk", "type": "Legendary Creature — Gamma Berserker Villain", "power": 6, "toughness": 7, "keywords": ["Reach", "Trample"],
+              "oracleText": "Reach, trample\nWhenever Red Hulk is dealt damage, put a +1/+1 counter on him."},
+             {"name": "Serra Angel", "type": "Creature — Angel", "power": 4, "toughness": 4, "keywords": ["Flying", "Vigilance"], "oracleText": "Flying, vigilance"},
+             {"name": "Keeneye Aven", "type": "Creature — Bird Soldier", "keywords": ["Flying", "Cycling"], "oracleText": "Flying\nCycling {2} ({2}, Discard this card: Draw a card.)"},
+             {"name": "Gamma Ray", "type": "Instant", "oracleText": "Gamma Ray deals 3 damage to any target."}]
+
+    def names(self, **wanted):
+        return [c["name"] for c in self.CARDS if lane.finds(c, **wanted)]
+
+    def test_a_subtype_is_a_word_after_the_dash(self):
+        self.assertEqual(self.names(subtypes=["gamma"]), ["Hulk, Bruce Banner", "Red Hulk"])
+        self.assertEqual(self.names(subtypes=["Gamma"], without=["Villain"]), ["Hulk, Bruce Banner"])
+
+    def test_a_type_is_any_word_of_the_type_line(self):
+        self.assertEqual(self.names(types=["legendary", "creature"]), ["Hulk, Bruce Banner", "Red Hulk"])
+
+    def test_keywords_and_text(self):
+        self.assertEqual(self.names(keywords=["flying"]), ["Serra Angel", "Keeneye Aven"])
+        self.assertEqual(self.names(keywords=["first strike"]), [])
+        self.assertEqual(self.names(texts=["+1/+1 counter"]), ["Red Hulk"])
+        self.assertEqual(self.names(texts=["draw a card"]), [], "reminder text is no rule")
+
+    def test_the_command_lists_the_plainest_first_and_leaves_out_the_batch(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch)
+            (root / "content" / "mtg" / "cards").mkdir(parents=True)
+            for i, card in enumerate(self.CARDS):
+                (root / "content" / "mtg" / "cards" / f"{i}.json").write_text(json.dumps(card), encoding="utf-8")
+            (root / "batch").mkdir()
+            (root / "batch" / "open.json").write_text(json.dumps(["Serra Angel"]), encoding="utf-8")
+            args = mock.Mock(cantrip=str(root), type=["creature"], subtype=[], keyword=[], text=[], without=[], n=2)
+            with mock.patch.object(lane, "BATCH_DIR", root / "batch"), mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+                lane.cmd_find(args)
+        lines = out.getvalue().splitlines()
+        self.assertTrue(lines[0].startswith("Hulk, Bruce Banner  "), lines)
+        self.assertIn("7/4", lines[0])
+        self.assertEqual(lines[-1], "3 found, 1 more (-n)")
+        self.assertNotIn("Serra Angel", out.getvalue())
+
+    def test_the_stream_and_the_skill_say_to_look_before_calling_a_change_unreachable(self):
+        self.assertIn("find --subtype", lane.WAYS["stream"])
+        skill = (lane.SKILL / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("card_lane.py find", skill)
+        self.assertIn("`find`", skill)
 
 
 TABLE = '''macro_rules! counter_kinds {
