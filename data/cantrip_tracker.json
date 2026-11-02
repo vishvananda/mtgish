@@ -88,8 +88,8 @@
  },
  "classes": {
   "engine": {
-   "requirements": 723,
-   "cards": 3868
+   "requirements": 722,
+   "cards": 3865
   },
   "mechanic": {
    "requirements": 221,
@@ -101,15 +101,15 @@
   },
   "generator": {
    "requirements": 71,
-   "cards": 134
+   "cards": 138
   }
  },
  "fixes": {
-  "Cantrip": 3139,
+  "Cantrip": 3132,
   "not played": 1130,
   "mechanics module": 655,
+  "unaudited": 26,
   "unsure": 71,
-  "unaudited": 19,
   "generator": 4,
   "mtgish data": 7
  },
@@ -186,14 +186,14 @@
     "continuous-rule-untap-step",
     "duration-during-controllers-next-untap-step",
     "engine-no-resolving-rule-on-an-open-set-prohibit-block",
-    "engine-no-resolving-rule-on-an-open-set-untap-step",
     "engine-no-resolving-rule-on-an-open-set-require-combat-attack",
+    "engine-no-resolving-rule-on-an-open-set-untap-step",
     "engine-no-resolving-rule-on-an-open-set-prohibit-be-blocked",
     "duration-during-next-untap-step",
     "engine-no-resolving-rule-on-an-open-set-prohibit-attack",
     "engine-no-resolving-rule-on-an-open-set-require-combat-block"
    ],
-   "cards": 203,
+   "cards": 205,
    "written": 0,
    "fixes": [
     "Cantrip"
@@ -247,7 +247,7 @@
     "engine-no-resolving-rule-on-an-open-set-require-combat-be-blocked",
     "engine-no-resolving-rule-on-an-open-set-targetable-despite"
    ],
-   "cards": 158,
+   "cards": 162,
    "written": 1,
    "fixes": [
     "Cantrip"
@@ -409,8 +409,8 @@
     "a-value-chosen-in-secret",
     "a-cost-s-filter-reading-the-x-announced",
     "a-copy-of-a-spell-for-each-object-it-could-target",
-    "put-onto-the-battlefield-face-down-as-a-stated-creature",
     "a-lasting-rule-reading-what-its-ability-chose",
+    "put-onto-the-battlefield-face-down-as-a-stated-creature",
     "tapped-token-copies-of-several-objects-at-once",
     "a-limit-on-the-x-announced",
     "a-card-exiled-to-pay-a-permanent-spell-s-cost-read-as-exiled-with-the-permanent",
@@ -478,7 +478,7 @@
     "the-life-you-lose-read-as-the-revealing-player-s-in-the-data",
     "the-rest-of-a-search-outside-the-game-shuffled-into-the-library-read-as-a-shuffle-in-the-data"
    ],
-   "cards": 134,
+   "cards": 138,
    "written": 12,
    "fixes": [
     "Cantrip",
@@ -490,8 +490,8 @@
    "fix": "Cantrip",
    "examples": [
     "A Killer Among Us",
-    "Aetherplasm",
-    "Agility Bobblehead"
+    "Academic Probation",
+    "Aetherplasm"
    ]
   },
   {
@@ -893,38 +893,6 @@
    ]
   },
   {
-   "needs": "an effect lasts until this: Duration has no such end",
-   "class": "engine",
-   "forms": [
-    "duration-during-next-turn",
-    "duration-until-event",
-    "duration-while-on-battlefield",
-    "duration-while-matches",
-    "duration-extra-turn",
-    "duration-until-next",
-    "duration-until-another-exiled",
-    "duration-end-of-turn",
-    "duration-through-next-turn",
-    "duration-during-controllers-next-untap-steps",
-    "duration-end-of-combat-on-next-turn",
-    "duration-extra-combat",
-    "duration-until-library-top-changes",
-    "duration-while-player-has-counter"
-   ],
-   "cards": 44,
-   "written": 3,
-   "fixes": [
-    "Cantrip",
-    "unsure"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Agyrem",
-    "Alchemist's Gambit",
-    "All in Good Time"
-   ]
-  },
-  {
    "needs": "ManaCost has no snow symbol (CR 107.4h) and no Phyrexian symbol of two colors (CR 107.4f).",
    "class": "engine",
    "forms": [
@@ -1006,6 +974,36 @@
     "Advanced Floral Invocations",
     "Annie Flash, the Veteran",
     "Brazen Cannonade"
+   ]
+  },
+  {
+   "needs": "an effect lasts until this: Duration has no such end",
+   "class": "engine",
+   "forms": [
+    "duration-during-next-turn",
+    "duration-until-event",
+    "duration-while-on-battlefield",
+    "duration-while-matches",
+    "duration-extra-turn",
+    "duration-until-next",
+    "duration-end-of-turn",
+    "duration-through-next-turn",
+    "duration-during-controllers-next-untap-steps",
+    "duration-end-of-combat-on-next-turn",
+    "duration-until-library-top-changes",
+    "duration-while-player-has-counter"
+   ],
+   "cards": 40,
+   "written": 3,
+   "fixes": [
+    "Cantrip",
+    "unsure"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Agyrem",
+    "Alchemist's Gambit",
+    "All in Good Time"
    ]
   },
   {
@@ -1318,12 +1316,36 @@
    ]
   },
   {
+   "needs": "A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c)",
+   "class": "engine",
+   "forms": [
+    "engine-no-resolving-rule-on-an-open-set-require-combat-block-beyond-lasting-rules",
+    "engine-no-resolving-rule-on-an-open-set-combat-cost",
+    "engine-no-resolving-rule-on-an-open-set-prohibit-attack-beyond-lasting-rules",
+    "engine-no-resolving-rule-on-an-open-set-require-combat-attack-beyond-lasting-rules",
+    "engine-no-resolving-rule-on-an-open-set-prohibit-be-blocked-beyond-lasting-rules",
+    "engine-no-resolving-rule-on-an-open-set-prohibit-block-beyond-lasting-rules"
+   ],
+   "cards": 27,
+   "written": 0,
+   "fixes": [
+    "Cantrip",
+    "unaudited"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Agyrem",
+    "Alluring Scent",
+    "Armed // Dangerous"
+   ]
+  },
+  {
    "needs": "Protection from a quality no fixed rule covers: a chosen color, a shared color, a player, every property test.",
    "class": "engine",
    "forms": [
     "engine-no-protection-from-this-quality"
    ],
-   "cards": 28,
+   "cards": 27,
    "written": 0,
    "fixes": [
     "Cantrip"
@@ -1351,30 +1373,6 @@
     "Body of Jukai",
     "Burr Grafter",
     "Crawling Filth"
-   ]
-  },
-  {
-   "needs": "A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c)",
-   "class": "engine",
-   "forms": [
-    "engine-no-resolving-rule-on-an-open-set-require-combat-block-beyond-lasting-rules",
-    "engine-no-resolving-rule-on-an-open-set-combat-cost",
-    "engine-no-resolving-rule-on-an-open-set-prohibit-attack-beyond-lasting-rules",
-    "engine-no-resolving-rule-on-an-open-set-require-combat-attack-beyond-lasting-rules",
-    "engine-no-resolving-rule-on-an-open-set-prohibit-be-blocked-beyond-lasting-rules",
-    "engine-no-resolving-rule-on-an-open-set-prohibit-block-beyond-lasting-rules"
-   ],
-   "cards": 26,
-   "written": 0,
-   "fixes": [
-    "Cantrip",
-    "unaudited"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Agyrem",
-    "Alluring Scent",
-    "Armed // Dangerous"
    ]
   },
   {
@@ -2227,27 +2225,6 @@
    ]
   },
   {
-   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
-   "class": "engine",
-   "forms": [
-    "continuous-rule-prohibit-attack",
-    "continuous-rule-combat-cost",
-    "continuous-rule-require-combat-attack",
-    "continuous-rule-prohibit-phase-out"
-   ],
-   "cards": 19,
-   "written": 0,
-   "fixes": [
-    "Cantrip"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Agyrem",
-    "Chaos Dragon",
-    "Chronomantic Escape"
-   ]
-  },
-  {
    "needs": "A rule that a player plays with the top card of a library revealed, or may look at it, beyond its controller's own (CR 400.2, 401.5).",
    "class": "engine",
    "forms": [
@@ -2555,24 +2532,6 @@
    ]
   },
   {
-   "needs": "A resolved ban on casting spells that match, for a duration (CR 101.2, 611.2c), since EffectKind::CantCastSpellsFrom knows only zones.",
-   "class": "engine",
-   "forms": [
-    "player-rule-for-a-while-can-t-cast-some-spells"
-   ],
-   "cards": 16,
-   "written": 0,
-   "fixes": [
-    "Cantrip"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Abeyance",
-    "Academic Probation",
-    "Aurelia's Fury"
-   ]
-  },
-  {
    "needs": "A resolving effect adding colors to the ones an object has.",
    "class": "engine",
    "forms": [
@@ -2806,6 +2765,27 @@
     "Daughter of Autumn",
     "Eladamri",
     "Hazduhr the Abbot"
+   ]
+  },
+  {
+   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
+   "class": "engine",
+   "forms": [
+    "continuous-rule-combat-cost",
+    "continuous-rule-prohibit-attack",
+    "continuous-rule-require-combat-attack",
+    "continuous-rule-prohibit-phase-out"
+   ],
+   "cards": 15,
+   "written": 0,
+   "fixes": [
+    "Cantrip"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Agyrem",
+    "Chronomantic Escape",
+    "Ertai's Familiar"
    ]
   },
   {
@@ -3123,6 +3103,24 @@
     "Akroma, Angel of Wrath Avatar",
     "Cryptic Spires",
     "Desert Cenote"
+   ]
+  },
+  {
+   "needs": "A resolved ban on casting spells that match, for a duration (CR 101.2, 611.2c), since EffectKind::CantCastSpellsFrom knows only zones.",
+   "class": "engine",
+   "forms": [
+    "player-rule-for-a-while-can-t-cast-some-spells"
+   ],
+   "cards": 13,
+   "written": 0,
+   "fixes": [
+    "Cantrip"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Abeyance",
+    "Aurelia's Fury",
+    "Calamity's Wake"
    ]
   },
   {
@@ -3953,6 +3951,24 @@
    ]
   },
   {
+   "needs": "a roll of several dice is kept for the rest of the resolution, each die with its result",
+   "class": "engine",
+   "forms": [
+    "numeric-expression-dice"
+   ],
+   "cards": 10,
+   "written": 0,
+   "fixes": [
+    "mechanics module"
+   ],
+   "fix": "mechanics module",
+   "examples": [
+    "Attempted Murder",
+    "Celebr-8000",
+    "Centaur of Attention"
+   ]
+  },
+  {
    "needs": "a villainous choice: the next opponent chooses too (CR 701.55)",
    "class": "mechanic",
    "forms": [
@@ -4380,24 +4396,6 @@
     "Baral, Chief of Compliance",
     "Firesong and Sunspeaker",
     "Hero of Bretagard"
-   ]
-  },
-  {
-   "needs": "a roll of several dice is kept for the rest of the resolution, each die with its result",
-   "class": "engine",
-   "forms": [
-    "numeric-expression-dice"
-   ],
-   "cards": 9,
-   "written": 0,
-   "fixes": [
-    "mechanics module"
-   ],
-   "fix": "mechanics module",
-   "examples": [
-    "Attempted Murder",
-    "Celebr-8000",
-    "Centaur of Attention"
    ]
   },
   {
@@ -5544,6 +5542,27 @@
    ]
   },
   {
+   "needs": "the Attraction mechanics of the Un-sets (a casual form) with their events",
+   "class": "mechanic",
+   "forms": [
+    "trigger-event-player-visits-attraction",
+    "trigger-event-player-rolls-to-visit",
+    "trigger-event-player-claims-prize",
+    "trigger-event-player-opens-attraction"
+   ],
+   "cards": 6,
+   "written": 0,
+   "fixes": [
+    "Cantrip"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "\"Lifetime\" Pass Holder",
+    "Ferris Wheel",
+    "Motion Sickness"
+   ]
+  },
+  {
    "needs": "the sticker mechanics of the Un-sets (a casual form) with their event",
    "class": "mechanic",
    "forms": [
@@ -5909,27 +5928,6 @@
     "Barbarian Guides",
     "Giant Slug",
     "Illusionary Presence"
-   ]
-  },
-  {
-   "needs": "the Attraction mechanics of the Un-sets (a casual form) with their events",
-   "class": "mechanic",
-   "forms": [
-    "trigger-event-player-visits-attraction",
-    "trigger-event-player-claims-prize",
-    "trigger-event-player-opens-attraction",
-    "trigger-event-player-rolls-to-visit"
-   ],
-   "cards": 5,
-   "written": 0,
-   "fixes": [
-    "Cantrip"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "\"Lifetime\" Pass Holder",
-    "Motion Sickness",
-    "Myra the Magnificent"
    ]
   },
   {
@@ -6367,24 +6365,6 @@
     "Hylda of the Icy Crown",
     "Icewrought Sentry",
     "Sharae of Numbing Depths"
-   ]
-  },
-  {
-   "needs": "Reading the players a rule on many of them is being asked about",
-   "class": "engine",
-   "forms": [
-    "player-collection-scoped"
-   ],
-   "cards": 4,
-   "written": 0,
-   "fixes": [
-    "unsure"
-   ],
-   "fix": "unsure",
-   "examples": [
-    "Chaos Dragon",
-    "Raging River",
-    "Timesifter"
    ]
   },
   {
@@ -7010,6 +6990,24 @@
     "Chthonian Nightmare",
     "HELIOS One",
     "Sphinx of the Revelation"
+   ]
+  },
+  {
+   "needs": "Reading the players a rule on many of them is being asked about",
+   "class": "engine",
+   "forms": [
+    "player-collection-scoped"
+   ],
+   "cards": 3,
+   "written": 0,
+   "fixes": [
+    "unsure"
+   ],
+   "fix": "unsure",
+   "examples": [
+    "Raging River",
+    "Timesifter",
+    "Zurzoth, Chaos Rider"
    ]
   },
   {
@@ -8564,6 +8562,22 @@
    "fix": "mtgish data",
    "examples": [
     "Spirit of Resilience"
+   ]
+  },
+  {
+   "needs": "A `LastingObjectRule` holds plain functions in the card's table, so it can't read the player or value a resolving ability chose; it needs that value carried with the effect, as a lasting rule's `about`.",
+   "class": "engine",
+   "forms": [
+    "a-lasting-object-rule-reading-what-its-ability-chose"
+   ],
+   "cards": 1,
+   "written": 0,
+   "fixes": [
+    "unaudited"
+   ],
+   "fix": "unaudited",
+   "examples": [
+    "Chaos Dragon"
    ]
   },
   {
@@ -13665,6 +13679,25 @@
    "how": ""
   },
   {
+   "id": "engine-a-delayed-ability-on-an-event-keeps-no-list",
+   "feature": "engine: a delayed ability on an event keeps no list",
+   "class": "engine",
+   "needs": "support in Cantrip's core",
+   "family": "engine: a",
+   "cards": 42,
+   "written": 0,
+   "alone": 15,
+   "examples": [
+    "Acidic Dagger",
+    "Delif's Cube",
+    "Gaze of the Gorgon",
+    "Giant Oyster",
+    "Glyph of Doom"
+   ],
+   "fix": "Cantrip",
+   "how": "Confirmed: where a delayed ability waiting for an event triggers, settle.rs:1438 makes its PendingTrigger with `members: Span::default()`, so `event_objects` reads nothing of the list `delayed_trigger_about` kept (`Delayed::members`). The step path at settle.rs:1646 passes `members: d.members`. One-line Cantrip fix: `members: d.members` at :1438."
+  },
+  {
    "id": "engine-no-specialize-event",
    "feature": "engine: no specialize event",
    "class": "engine",
@@ -13682,25 +13715,6 @@
    ],
    "fix": "not played",
    "how": ""
-  },
-  {
-   "id": "engine-a-delayed-ability-on-an-event-keeps-no-list",
-   "feature": "engine: a delayed ability on an event keeps no list",
-   "class": "engine",
-   "needs": "support in Cantrip's core",
-   "family": "engine: a",
-   "cards": 38,
-   "written": 0,
-   "alone": 15,
-   "examples": [
-    "Acidic Dagger",
-    "Delif's Cube",
-    "Gaze of the Gorgon",
-    "Giant Oyster",
-    "Glyph of Doom"
-   ],
-   "fix": "Cantrip",
-   "how": "Confirmed: where a delayed ability waiting for an event triggers, settle.rs:1438 makes its PendingTrigger with `members: Span::default()`, so `event_objects` reads nothing of the list `delayed_trigger_about` kept (`Delayed::members`). The step path at settle.rs:1646 passes `members: d.members`. One-line Cantrip fix: `members: d.members` at :1438."
   },
   {
    "id": "engine-no-cost-moves-these-objects",
@@ -14026,25 +14040,6 @@
    "how": ""
   },
   {
-   "id": "engine-no-protection-from-this-quality",
-   "feature": "engine: no protection from this quality",
-   "class": "engine",
-   "needs": "Protection from a quality no fixed rule covers: a chosen color, a shared color, a player, every property test.",
-   "family": "engine: no",
-   "cards": 28,
-   "written": 0,
-   "alone": 21,
-   "examples": [
-    "Argentum Masticore",
-    "Basri's Lieutenant",
-    "Council Guardian",
-    "Crypsis",
-    "Devoted Caretaker"
-   ],
-   "fix": "Cantrip",
-   "how": "Multicolored and monocolored protection, and Devoted Caretaker's card types, can't be said exactly. Riders of Rohan/Sigrid subtypes not exact. Mirror Golem holds. Eowyn reads colors of a moved card, not last-known."
-  },
-  {
    "id": "engine-no-soulshift",
    "feature": "engine: no Soulshift",
    "class": "mechanic",
@@ -14062,6 +14057,25 @@
    ],
    "fix": "mechanics module",
    "how": "`triggered(THIS_DIES, |g, item| { if let Some(c) = item.target_object(0) { g.return_to_hand(&[c]); } Ok(()) }, \"Soulshift 8\").targets(&[up_to_one(spirit_mv_at_most_8)])`, the filter a plain fn over `q.chars(id).has_subtype(Subtype::Spirit)` and `q.mana_value(id) <= N`, zone graveyard, owner `asker.controller`."
+  },
+  {
+   "id": "engine-no-protection-from-this-quality",
+   "feature": "engine: no protection from this quality",
+   "class": "engine",
+   "needs": "Protection from a quality no fixed rule covers: a chosen color, a shared color, a player, every property test.",
+   "family": "engine: no",
+   "cards": 27,
+   "written": 0,
+   "alone": 20,
+   "examples": [
+    "Argentum Masticore",
+    "Basri's Lieutenant",
+    "Council Guardian",
+    "Crypsis",
+    "Devoted Caretaker"
+   ],
+   "fix": "Cantrip",
+   "how": "Multicolored and monocolored protection, and Devoted Caretaker's card types, can't be said exactly. Riders of Rohan/Sigrid subtypes not exact. Mirror Golem holds. Eowyn reads colors of a moved card, not last-known."
   },
   {
    "id": "operation-put-sticker",
@@ -15318,25 +15332,6 @@
    "how": "Secret choices need Cantrip to hide an answer from other players until revealed; nothing does. Every card also holds on vote or chosen-number holes; Ominous Lockbox's 'secretly choose a number' holds as 'a value chosen in secret', and Nyota Uhura's public number_as_enters would be a rules deviation for it."
   },
   {
-   "id": "player-rule-for-a-while-can-t-cast-some-spells",
-   "feature": "player rule for a while can't cast some spells",
-   "class": "engine",
-   "needs": "A resolved ban on casting spells that match, for a duration (CR 101.2, 611.2c), since EffectKind::CantCastSpellsFrom knows only zones.",
-   "family": "player rule",
-   "cards": 16,
-   "written": 0,
-   "alone": 11,
-   "examples": [
-    "Abeyance",
-    "Academic Probation",
-    "Aurelia's Fury",
-    "Calamity's Wake",
-    "Cease-Fire"
-   ],
-   "fix": "Cantrip",
-   "how": ""
-  },
-  {
    "id": "static-rule-combat-damage-as-unblocked",
    "feature": "static rule CombatDamage AsUnblocked",
    "class": "engine",
@@ -15907,6 +15902,25 @@
    "how": ""
   },
   {
+   "id": "player-rule-for-a-while-can-t-cast-some-spells",
+   "feature": "player rule for a while can't cast some spells",
+   "class": "engine",
+   "needs": "A resolved ban on casting spells that match, for a duration (CR 101.2, 611.2c), since EffectKind::CantCastSpellsFrom knows only zones.",
+   "family": "player rule",
+   "cards": 13,
+   "written": 0,
+   "alone": 9,
+   "examples": [
+    "Abeyance",
+    "Aurelia's Fury",
+    "Calamity's Wake",
+    "Cease-Fire",
+    "Hope of Ghirapur"
+   ],
+   "fix": "Cantrip",
+   "how": ""
+  },
+  {
    "id": "play-permission-to-play-land",
    "feature": "play permission to PlayLand",
    "class": "engine",
@@ -16078,6 +16092,25 @@
    "how": ""
   },
   {
+   "id": "engine-no-resolving-rule-on-an-open-set-require-combat-attack",
+   "feature": "engine: no resolving rule on an open set: RequireCombat Attack",
+   "class": "engine",
+   "needs": "Cantrip's lasting rules (cantrip-rs/cantrip-rs#897): a can't attack, can't block, can't be blocked, attacks or blocks if able, or doesn't untap rule a resolving spell or ability gives an open set of objects (CR 611.2c), as a LastingRule of the card, and a permanent that doesn't untap during its controller's or a player's next untap step (CR 502.3), weaker than CantBecomeUntapped and following a change of control, which exerting doesn't.",
+   "family": "engine: no",
+   "cards": 12,
+   "written": 0,
+   "alone": 8,
+   "examples": [
+    "Bident of Thassa",
+    "Chemister's Trick",
+    "Goblin Diplomats",
+    "Grisly Anglerfish // Grizzled Angler",
+    "Imaginary Threats"
+   ],
+   "fix": "Cantrip",
+   "how": "Same as the block form: open set under CR 611.2c, audit's per-object form is wrong for creatures that arrive later."
+  },
+  {
    "id": "engine-no-resolving-rule-on-an-open-set-untap-step",
    "feature": "engine: no resolving rule on an open set: UntapStep",
    "class": "engine",
@@ -16142,7 +16175,7 @@
    "family": "reflexive ability",
    "cards": 12,
    "written": 0,
-   "alone": 6,
+   "alone": 5,
    "examples": [
     "Dáin Ironfoot",
     "Espers to Magicite",
@@ -16534,23 +16567,23 @@
    "how": ""
   },
   {
-   "id": "engine-no-resolving-rule-on-an-open-set-require-combat-attack",
-   "feature": "engine: no resolving rule on an open set: RequireCombat Attack",
+   "id": "numeric-expression-dice",
+   "feature": "numeric expression Dice",
    "class": "engine",
-   "needs": "Cantrip's lasting rules (cantrip-rs/cantrip-rs#897): a can't attack, can't block, can't be blocked, attacks or blocks if able, or doesn't untap rule a resolving spell or ability gives an open set of objects (CR 611.2c), as a LastingRule of the card, and a permanent that doesn't untap during its controller's or a player's next untap step (CR 502.3), weaker than CantBecomeUntapped and following a change of control, which exerting doesn't.",
-   "family": "engine: no",
+   "needs": "a roll of several dice is kept for the rest of the resolution, each die with its result",
+   "family": "numeric expression",
    "cards": 10,
    "written": 0,
-   "alone": 8,
+   "alone": 0,
    "examples": [
-    "Bident of Thassa",
-    "Chemister's Trick",
-    "Goblin Diplomats",
-    "Grisly Anglerfish // Grizzled Angler",
-    "Imaginary Threats"
+    "Attempted Murder",
+    "Celebr-8000",
+    "Centaur of Attention",
+    "Circuits Act",
+    "Clay Golem"
    ],
-   "fix": "Cantrip",
-   "how": "Same as the block form: open set under CR 611.2c, audit's per-object form is wrong for creatures that arrive later."
+   "fix": "mechanics module",
+   "how": "The dice read are the result of a roll whose keyword action is a mechanics module on every card (keyword-action-roll-die-6-with-an-amount, roll-and-store); g.roll_die returns one Roll (game.rs:881), so the sum of several needs a new function in cantrip-mechanics for the roll first. Clay Golem/Farideh/Vedalken Squirrel-Whacker are held by Cantrip gaps besides."
   },
   {
    "id": "sacrificing-x-permanents-to-activate-an-ability",
@@ -16626,6 +16659,25 @@
     "Gavony Dawnguard"
    ],
    "fix": "Cantrip",
+   "how": ""
+  },
+  {
+   "id": "trigger-event-player-planeswalks-away",
+   "feature": "trigger event Player PlaneswalksAway",
+   "class": "engine",
+   "needs": "a game mode Cantrip does not play: Planechase, Archenemy and Vanguard, with their events",
+   "family": "trigger event",
+   "cards": 10,
+   "written": 0,
+   "alone": 0,
+   "examples": [
+    "Agyrem",
+    "Celestine Reef",
+    "Chaotic Aether",
+    "Eloren Wilds",
+    "Inys Haen"
+   ],
+   "fix": "not played",
    "how": ""
   },
   {
@@ -16760,6 +16812,25 @@
    ],
    "fix": "Cantrip",
    "how": "No public query of what a stack item's target slot could target: `item_target_candidates` (actions.rs:1731) and `slot_spec` (resolve.rs:85) are crate-private, and `can_target` is only hexproof and protection. Copying first and then `change_a_target_to` leaves a copy on its old target where the new one is illegal, and that call only takes a permanent. Needs `Query::target_candidates(item, slot)` (or `copy_spell_targeting(spell, copier, to)`)."
+  },
+  {
+   "id": "a-lasting-rule-reading-what-its-ability-chose",
+   "feature": "a lasting rule reading what its ability chose",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "a lasting",
+   "cards": 9,
+   "written": 0,
+   "alone": 7,
+   "examples": [
+    "Academic Probation",
+    "Conjurer's Ban",
+    "Eunuchs' Intrigues",
+    "Failure // Comply",
+    "Goblin War Cry"
+   ],
+   "fix": "unaudited",
+   "how": ""
   },
   {
    "id": "a-limit-on-what-untaps-in-an-untap-step",
@@ -16969,25 +17040,6 @@
    ],
    "fix": "Cantrip",
    "how": ""
-  },
-  {
-   "id": "numeric-expression-dice",
-   "feature": "numeric expression Dice",
-   "class": "engine",
-   "needs": "a roll of several dice is kept for the rest of the resolution, each die with its result",
-   "family": "numeric expression",
-   "cards": 9,
-   "written": 0,
-   "alone": 0,
-   "examples": [
-    "Attempted Murder",
-    "Celebr-8000",
-    "Centaur of Attention",
-    "Circuits Act",
-    "Clay Golem"
-   ],
-   "fix": "mechanics module",
-   "how": "The dice read are the result of a roll whose keyword action is a mechanics module on every card (keyword-action-roll-die-6-with-an-amount, roll-and-store); g.roll_die returns one Roll (game.rs:881), so the sum of several needs a new function in cantrip-mechanics for the roll first. Clay Golem/Farideh/Vedalken Squirrel-Whacker are held by Cantrip gaps besides."
   },
   {
    "id": "object-filter-draft-noted",
@@ -17596,25 +17648,6 @@
    ],
    "fix": "Cantrip",
    "how": "Archangel of Strife: what each player chose as it entered (war or peace) has no place on a permanent. A permanent keeps one chosen value, not one for each player."
-  },
-  {
-   "id": "continuous-rule-prohibit-attack",
-   "feature": "continuous rule Prohibit Attack",
-   "class": "engine",
-   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
-   "family": "continuous rule",
-   "cards": 7,
-   "written": 0,
-   "alone": 2,
-   "examples": [
-    "Agyrem",
-    "Chaos Dragon",
-    "Chronomantic Escape",
-    "Immortal Obligation",
-    "Jace, Multiverse Architect"
-   ],
-   "fix": "Cantrip",
-   "how": ""
   },
   {
    "id": "counters-removed-from-a-player",
@@ -18719,25 +18752,6 @@
    "how": ""
   },
   {
-   "id": "a-lasting-rule-reading-what-its-ability-chose",
-   "feature": "a lasting rule reading what its ability chose",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "a lasting",
-   "cards": 5,
-   "written": 0,
-   "alone": 4,
-   "examples": [
-    "Eunuchs' Intrigues",
-    "Goblin War Cry",
-    "Rumbling Ruin",
-    "Twins of Discord",
-    "Walking Desecration"
-   ],
-   "fix": "unaudited",
-   "how": ""
-  },
-  {
    "id": "cleave-that-changes-its-targets",
    "feature": "cleave that changes its targets",
    "class": "mechanic",
@@ -18771,25 +18785,6 @@
     "Summon: Yojimbo",
     "War Cadence",
     "War Tax"
-   ],
-   "fix": "Cantrip",
-   "how": ""
-  },
-  {
-   "id": "continuous-rule-require-combat-attack",
-   "feature": "continuous rule RequireCombat Attack",
-   "class": "engine",
-   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
-   "family": "continuous rule",
-   "cards": 5,
-   "written": 0,
-   "alone": 1,
-   "examples": [
-    "Kardur, Doomscourge",
-    "Gideon, Battle-Forged // Kytheon, Hero of Akros",
-    "Maximum Carnage",
-    "Nahiri, the Unforgiving",
-    "The Brothers' War"
    ],
    "fix": "Cantrip",
    "how": ""
@@ -19039,6 +19034,25 @@
     "War Tax"
    ],
    "fix": "Cantrip",
+   "how": ""
+  },
+  {
+   "id": "engine-no-resolving-rule-on-an-open-set-prohibit-attack-beyond-lasting-rules",
+   "feature": "engine: no resolving rule on an open set: Prohibit Attack beyond lasting rules",
+   "class": "engine",
+   "needs": "A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c)",
+   "family": "engine: no",
+   "cards": 5,
+   "written": 0,
+   "alone": 2,
+   "examples": [
+    "Agyrem",
+    "Chronomantic Escape",
+    "Illusionist's Gambit",
+    "Jace, Multiverse Architect",
+    "Orzhov Advokist"
+   ],
+   "fix": "unaudited",
    "how": ""
   },
   {
@@ -19574,25 +19588,6 @@
    "how": ""
   },
   {
-   "id": "trigger-event-player-planeswalks-away",
-   "feature": "trigger event Player PlaneswalksAway",
-   "class": "engine",
-   "needs": "a game mode Cantrip does not play: Planechase, Archenemy and Vanguard, with their events",
-   "family": "trigger event",
-   "cards": 5,
-   "written": 0,
-   "alone": 0,
-   "examples": [
-    "Inys Haen",
-    "Mount Keralia",
-    "Norn's Dominion",
-    "Orzhova",
-    "Sanctum of Serra"
-   ],
-   "fix": "not played",
-   "how": ""
-  },
-  {
    "id": "trigger-event-player-reveals-first-card-drawn",
    "feature": "trigger event Player RevealsFirstCardDrawn",
    "class": "mechanic",
@@ -19900,6 +19895,24 @@
    "how": "Reads numbers chosen in secret (a-value-chosen-in-secret, operation-reveal-choices: Cantrip gaps); Game has no secret choice."
   },
   {
+   "id": "continuous-rule-prohibit-attack",
+   "feature": "continuous rule Prohibit Attack",
+   "class": "engine",
+   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
+   "family": "continuous rule",
+   "cards": 4,
+   "written": 0,
+   "alone": 2,
+   "examples": [
+    "Agyrem",
+    "Chronomantic Escape",
+    "Immortal Obligation",
+    "Promise of Loyalty"
+   ],
+   "fix": "Cantrip",
+   "how": ""
+  },
+  {
    "id": "continuous-rule-prohibit-be-targeted",
    "feature": "continuous rule Prohibit BeTargeted",
    "class": "engine",
@@ -19913,6 +19926,24 @@
     "Display of Dominance",
     "Peace Talks",
     "Vines of Vastwood"
+   ],
+   "fix": "Cantrip",
+   "how": ""
+  },
+  {
+   "id": "continuous-rule-require-combat-attack",
+   "feature": "continuous rule RequireCombat Attack",
+   "class": "engine",
+   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
+   "family": "continuous rule",
+   "cards": 4,
+   "written": 0,
+   "alone": 1,
+   "examples": [
+    "Kardur, Doomscourge",
+    "Gideon, Battle-Forged // Kytheon, Hero of Akros",
+    "Maximum Carnage",
+    "Nahiri, the Unforgiving"
    ],
    "fix": "Cantrip",
    "how": ""
@@ -20062,24 +20093,6 @@
    "how": "Gap: \"You may cast this spell as though it had flash if you pay {2} more to cast it\" is an additional cost only for a cast at instant speed; cast_as_though_flash and flash_if give the permission free, and a WayDef is an alternative cost (it won't combine with another, and Omniscience would waive the {2}). Harbinger of the Tides, Mystical Tether, Quantum Reduction, Moonlit Ambusher."
   },
   {
-   "id": "engine-no-resolving-rule-on-an-open-set-prohibit-attack-beyond-lasting-rules",
-   "feature": "engine: no resolving rule on an open set: Prohibit Attack beyond lasting rules",
-   "class": "engine",
-   "needs": "A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c)",
-   "family": "engine: no",
-   "cards": 4,
-   "written": 0,
-   "alone": 0,
-   "examples": [
-    "Agyrem",
-    "Chronomantic Escape",
-    "Jace, Multiverse Architect",
-    "Orzhov Advokist"
-   ],
-   "fix": "unaudited",
-   "how": ""
-  },
-  {
    "id": "engine-no-resolving-rule-on-an-open-set-require-combat-attack-beyond-lasting-rules",
    "feature": "engine: no resolving rule on an open set: RequireCombat Attack beyond lasting rules",
    "class": "engine",
@@ -20087,7 +20100,7 @@
    "family": "engine: no",
    "cards": 4,
    "written": 0,
-   "alone": 0,
+   "alone": 1,
    "examples": [
     "Kardur, Doomscourge",
     "Maximum Carnage",
@@ -20275,24 +20288,6 @@
     "Into the Pit"
    ],
    "fix": "Cantrip",
-   "how": ""
-  },
-  {
-   "id": "player-collection-scoped",
-   "feature": "player collection Scoped",
-   "class": "engine",
-   "needs": "Reading the players a rule on many of them is being asked about",
-   "family": "player collection",
-   "cards": 4,
-   "written": 0,
-   "alone": 1,
-   "examples": [
-    "Chaos Dragon",
-    "Raging River",
-    "Timesifter",
-    "Zurzoth, Chaos Rider"
-   ],
-   "fix": "unsure",
    "how": ""
   },
   {
@@ -21217,23 +21212,6 @@
    "how": "Cantrip has to give a once-per-batch trigger every event in its batch, with the kind and amount of each, and let the ability read them when it resolves. Then 'put that many of each of those kinds of counters' becomes a read of the batch."
   },
   {
-   "id": "duration-until-another-exiled",
-   "feature": "duration UntilAnotherExiled",
-   "class": "engine",
-   "needs": "an effect lasts until this: Duration has no such end",
-   "family": "duration UntilAnotherExiled",
-   "cards": 3,
-   "written": 0,
-   "alone": 0,
-   "examples": [
-    "Furious Rise",
-    "Superior Foes of Spider-Man",
-    "Unstable Amulet"
-   ],
-   "fix": "Cantrip",
-   "how": "Add an Expiry that ends when another card is exiled with the same link (Expiry::UntilAnotherExiledWith(Linked)), or a way to take a PlayGrant back, so 'you may play that card until you exile another card with this' outlives the permanent as CR 611.2a has it. Expiry is closed (Never, EndOfTurn, EndOfYourNextTurn, UntilYourNextEndStep, WhileControls), PlayCondition is closed, allow_play cannot be revoked, and an ExileCast functions only while the permanent is on the battlefield."
-  },
-  {
    "id": "earlier-objects-revealed",
    "feature": "earlier objects Revealed",
    "class": "engine",
@@ -21853,7 +21831,7 @@
    "family": "play permission",
    "cards": 3,
    "written": 0,
-   "alone": 0,
+   "alone": 3,
    "examples": [
     "Furious Rise",
     "Superior Foes of Spider-Man",
@@ -21861,6 +21839,23 @@
    ],
    "fix": "Cantrip",
    "how": "Add an Expiry that ends when another card is exiled with the same link (Expiry::UntilAnotherExiledWith(Linked)), or a way to take a PlayGrant back, so 'you may play that card until you exile another card with this' outlives the permanent as CR 611.2a has it. Expiry is closed (Never, EndOfTurn, EndOfYourNextTurn, UntilYourNextEndStep, WhileControls), PlayCondition is closed, allow_play cannot be revoked, and an ExileCast functions only while the permanent is on the battlefield."
+  },
+  {
+   "id": "player-collection-scoped",
+   "feature": "player collection Scoped",
+   "class": "engine",
+   "needs": "Reading the players a rule on many of them is being asked about",
+   "family": "player collection",
+   "cards": 3,
+   "written": 0,
+   "alone": 1,
+   "examples": [
+    "Raging River",
+    "Timesifter",
+    "Zurzoth, Chaos Rider"
+   ],
+   "fix": "unsure",
+   "how": ""
   },
   {
    "id": "player-rule-decides",
@@ -24661,6 +24656,22 @@
    "how": ""
   },
   {
+   "id": "trigger-event-player-rolls-to-visit",
+   "feature": "trigger event Player RollsToVisit",
+   "class": "mechanic",
+   "needs": "the Attraction mechanics of the Un-sets (a casual form) with their events",
+   "family": "trigger event",
+   "cards": 2,
+   "written": 0,
+   "alone": 0,
+   "examples": [
+    "\"Lifetime\" Pass Holder",
+    "Ferris Wheel"
+   ],
+   "fix": "Cantrip",
+   "how": ""
+  },
+  {
    "id": "trigger-event-player-seeks",
    "feature": "trigger event Player Seeks",
    "class": "mechanic",
@@ -25036,6 +25047,21 @@
    ],
    "fix": "Cantrip",
    "how": "Illusionary Terrain chooses two land types in order (a-choice-of-several-values, a Cantrip gap); the second is that choice's."
+  },
+  {
+   "id": "a-lasting-object-rule-reading-what-its-ability-chose",
+   "feature": "a lasting object rule reading what its ability chose",
+   "class": "engine",
+   "needs": "A `LastingObjectRule` holds plain functions in the card's table, so it can't read the player or value a resolving ability chose; it needs that value carried with the effect, as a lasting rule's `about`.",
+   "family": "a lasting",
+   "cards": 1,
+   "written": 0,
+   "alone": 0,
+   "examples": [
+    "Chaos Dragon"
+   ],
+   "fix": "unaudited",
+   "how": ""
   },
   {
    "id": "a-lasting-permission-to-cast-from-the-top-of-a-graveyard",
@@ -25981,21 +26007,6 @@
    ],
    "fix": "Cantrip",
    "how": ""
-  },
-  {
-   "id": "duration-extra-combat",
-   "feature": "duration ExtraCombat",
-   "class": "engine",
-   "needs": "an effect lasts until this: Duration has no such end",
-   "family": "duration ExtraCombat",
-   "cards": 1,
-   "written": 0,
-   "alone": 0,
-   "examples": [
-    "Illusionist's Gambit"
-   ],
-   "fix": "Cantrip",
-   "how": "Illusionist's Gambit's extra combat needs removing attackers from combat (engine-no-effect-removes-from-combat, a Cantrip gap); Duration has EndOfCombat for the current one only."
   },
   {
    "id": "duration-until-library-top-changes",
@@ -31863,21 +31874,6 @@
    "how": ""
   },
   {
-   "id": "trigger-event-player-rolls-to-visit",
-   "feature": "trigger event Player RollsToVisit",
-   "class": "mechanic",
-   "needs": "the Attraction mechanics of the Un-sets (a casual form) with their events",
-   "family": "trigger event",
-   "cards": 1,
-   "written": 0,
-   "alone": 0,
-   "examples": [
-    "\"Lifetime\" Pass Holder"
-   ],
-   "fix": "Cantrip",
-   "how": ""
-  },
-  {
    "id": "trigger-event-player-sacrifices-for-emerge",
    "feature": "trigger event Player SacrificesForEmerge",
    "class": "mechanic",
@@ -32482,7 +32478,7 @@
    "target-with-a-divided-amount"
   ],
   "Academic Probation": [
-   "player-rule-for-a-while-can-t-cast-some-spells"
+   "a-lasting-rule-reading-what-its-ability-chose"
   ],
   "Academy Manufactor": [
    "replacement-of-token-creation-with-other-tokens"
@@ -32656,7 +32652,8 @@
    "engine-no-resolving-rule-on-an-open-set-prohibit-attack-beyond-lasting-rules",
    "layout-planar",
    "subtype-ravnica",
-   "trigger-event-player-chaos-ensues"
+   "trigger-event-player-chaos-ensues",
+   "trigger-event-player-planeswalks-away"
   ],
   "Ainok Strike Leader": [
    "engine-no-commander"
@@ -34425,7 +34422,8 @@
    "player-rule-for-a-while-can-t-lose-the-game",
    "player-rule-for-a-while-can-t-win-the-game",
    "subtype-luvion",
-   "trigger-event-player-chaos-ensues"
+   "trigger-event-player-chaos-ensues",
+   "trigger-event-player-planeswalks-away"
   ],
   "Celestus Sanctifier": [
    "trigger-event-player-day-night-changes"
@@ -34506,8 +34504,7 @@
    "modes-with-distinct-targets"
   ],
   "Chaos Dragon": [
-   "continuous-rule-prohibit-attack",
-   "player-collection-scoped",
+   "a-lasting-object-rule-reading-what-its-ability-chose",
    "player-state-rolled-highest"
   ],
   "Chaos Is My Plaything": [
@@ -34532,7 +34529,8 @@
    "duration-until-event",
    "layout-planar",
    "operation-game-effect",
-   "trigger-event-player-encounters-phenomenon"
+   "trigger-event-player-encounters-phenomenon",
+   "trigger-event-player-planeswalks-away"
   ],
   "Chapel Shieldgeist // Chaplain of Alms": [
    "engine-no-disturb"
@@ -34973,8 +34971,8 @@
    "event-value-in-a-target-filter-beyond-its-subject"
   ],
   "Conjurer's Ban": [
-   "player-rule-for-a-while-prohibit-play-land",
-   "player-rule-for-a-while-can-t-cast-some-spells"
+   "a-lasting-rule-reading-what-its-ability-chose",
+   "player-rule-for-a-while-prohibit-play-land"
   ],
   "Consecrate Land": [
    "static-rule-prohibit-be-attached-by"
@@ -36367,7 +36365,8 @@
    "duration-until-event",
    "layout-planar",
    "subtype-shandalar",
-   "trigger-event-player-chaos-ensues"
+   "trigger-event-player-chaos-ensues",
+   "trigger-event-player-planeswalks-away"
   ],
   "Elrond of the White Council": [
    "condition-voted-for",
@@ -36853,7 +36852,7 @@
    "a-deck-rule-a-commander-sets"
   ],
   "Failure // Comply": [
-   "player-rule-for-a-while-can-t-cast-some-spells"
+   "a-lasting-rule-reading-what-its-ability-chose"
   ],
   "Sinner's Judgment // Faithbound Judge": [
    "engine-no-disturb"
@@ -37067,7 +37066,9 @@
   "Ferris Wheel": [
    "ability-visit",
    "duration-until-event",
-   "keyword-action-with-a-duration-of-its-own"
+   "keyword-action-with-a-duration-of-its-own",
+   "numeric-expression-dice",
+   "trigger-event-player-rolls-to-visit"
   ],
   "Festival": [
    "engine-no-resolving-rule-on-an-open-set-prohibit-attack"
@@ -37581,7 +37582,6 @@
    "operation-conjure"
   ],
   "Furious Rise": [
-   "duration-until-another-exiled",
    "play-permission-lasting-until-another-exiled"
   ],
   "Furnace Brood": [
@@ -39203,8 +39203,8 @@
    "a-land-type-chosen-second"
   ],
   "Illusionist's Gambit": [
-   "duration-extra-combat",
-   "engine-no-effect-removes-from-combat"
+   "engine-no-effect-removes-from-combat",
+   "engine-no-resolving-rule-on-an-open-set-prohibit-attack-beyond-lasting-rules"
   ],
   "Imaginary Threats": [
    "duration-during-next-untap-step",
@@ -39660,7 +39660,6 @@
    "engine-no-resolving-rule-on-an-open-set-prohibit-be-blocked"
   ],
   "Jace, Multiverse Architect": [
-   "continuous-rule-prohibit-attack",
    "engine-no-resolving-rule-on-an-open-set-prohibit-attack-beyond-lasting-rules"
   ],
   "Jace, the Perfected Mind": [
@@ -39946,6 +39945,7 @@
   ],
   "Kardur, Doomscourge": [
    "continuous-rule-require-combat-attack",
+   "engine-no-resolving-rule-on-an-open-set-require-combat-attack",
    "engine-no-resolving-rule-on-an-open-set-require-combat-attack-beyond-lasting-rules"
   ],
   "Karfell Harbinger": [
@@ -40372,6 +40372,7 @@
    "engine-no-recover"
   ],
   "Krovikan Vampire": [
+   "engine-a-delayed-ability-on-an-event-keeps-no-list",
    "reflexive-ability-about-a-list-of-objects",
    "trigger-event-player-loses-control"
   ],
@@ -41357,6 +41358,7 @@
   ],
   "Maximum Carnage": [
    "continuous-rule-require-combat-attack",
+   "engine-no-resolving-rule-on-an-open-set-require-combat-attack",
    "engine-no-resolving-rule-on-an-open-set-require-combat-attack-beyond-lasting-rules"
   ],
   "May Civilization Collapse": [
@@ -42075,6 +42077,7 @@
    "copy-exception-set-cardtypes"
   ],
   "Mysterio, Master of Illusion": [
+   "engine-a-delayed-ability-on-an-event-keeps-no-list",
    "reflexive-ability-about-a-list-of-objects"
   ],
   "Mysterious Limousine": [
@@ -42882,7 +42885,6 @@
    "engine-no-discard-cause-in-events"
   ],
   "Orzhov Advokist": [
-   "continuous-rule-prohibit-attack",
    "engine-no-resolving-rule-on-an-open-set-prohibit-attack-beyond-lasting-rules"
   ],
   "Orzhov Enforcer": [
@@ -46710,7 +46712,6 @@
    "operation-conjure"
   ],
   "Superior Foes of Spider-Man": [
-   "duration-until-another-exiled",
    "play-permission-lasting-until-another-exiled"
   ],
   "Support Skyforge": [
@@ -47029,6 +47030,7 @@
    "operation-effect-on"
   ],
   "Tawnos's Coffin": [
+   "engine-a-delayed-ability-on-an-event-keeps-no-list",
    "engine-no-untap-event",
    "move-arrival-state",
    "operation-note",
@@ -47253,7 +47255,6 @@
    "earthbend-beyond-one-target-and-a-number"
   ],
   "The Brothers' War": [
-   "continuous-rule-require-combat-attack",
    "engine-no-resolving-rule-on-an-open-set-require-combat-attack-beyond-lasting-rules"
   ],
   "The Caldaia": [
@@ -47332,6 +47333,7 @@
   ],
   "The Doctor's Childhood Barn": [
    "card-type-plane",
+   "engine-a-delayed-ability-on-an-event-keeps-no-list",
    "engine-no-effect-phases-a-permanent-in",
    "layout-planar",
    "operation-game-effect",
@@ -48541,7 +48543,6 @@
    "engine-no-stickers"
   ],
   "Unstable Amulet": [
-   "duration-until-another-exiled",
    "play-permission-lasting-until-another-exiled"
   ],
   "Unstable Footing": [
@@ -48572,7 +48573,8 @@
    "layout-planar",
    "subtype-zhalfir",
    "trigger-event-player-chaos-ensues",
-   "trigger-event-player-planeswalks"
+   "trigger-event-player-planeswalks",
+   "trigger-event-player-planeswalks-away"
   ],
   "Upwelling": [
    "player-rule-retain-mana"
@@ -50000,7 +50002,7 @@
    "stickers"
   ],
   "Éowyn, Fearless Knight": [
-   "engine-no-protection-from-this-quality"
+   "a-lasting-rule-reading-what-its-ability-chose"
   ],
   "Baldur's Gate Wilderness": [
    "ability-dungeon-room",
