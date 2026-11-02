@@ -610,7 +610,15 @@ impl Compiler {
                     "|g: &mut dyn Game, asker: &Asker| -> Result<(), Suspend> {{ {body} Ok(()) }}"
                 )
             }
+            // "It gains haste until end of turn" (Thundermane Dragon): a keyword
+            // is a word of `Keywords` (`EffectKind::AddKeywords`), not an ability
+            // of the card's to point at.
             Operand::Ability(ability) => {
+                if let Ability::Keyword(k) = &**ability {
+                    if let Ok(word) = keyword(k) {
+                        return Ok(format!("Keywords::of(&[{word}])"));
+                    }
+                }
                 let refs = self.granted_refs(ability)?;
                 match refs.as_slice() {
                     [one] => one.clone(),
