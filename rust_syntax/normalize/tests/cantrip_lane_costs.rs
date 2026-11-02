@@ -29,7 +29,28 @@ const CARDS: &[(&str, &str)] = &[
     ("Archmage's Newt", "flashback: true"),
     // A rule of the combat.
     ("Crawlspace", "attack_limits"),
+    // A cost only in that "if you do" reads it, paid as it resolves.
+    ("Moonring Mirror", "g.exile_face_down(&cards_"),
+    ("Lat-Nam's Legacy", "LibraryPlace::ShuffledIn"),
+    // "You may sacrifice one or more creatures. When you do, copy this spell for each."
+    ("Plumb the Forbidden", "VariableCost::SacrificeOneOrMore"),
+    // Who a payment or a choice ended up with, and who was asked to pay.
+    ("Sin Prodder", "who_"),
+    ("Seizures", "Some(payer_"),
+    // The player who cast the spell that gave this ability.
+    ("Hellish Rebuke", "granted_by(q, asker)"),
+    // "Any time they could cast a sorcery", asked before the spell is on the stack.
+    ("Teferi, Time Raveler", "cast_rules: &["),
+    // Who a resolving effect may not make discard or sacrifice.
+    ("Sigarda, Host of Herons", "cause_rules: &["),
+    // "An opponent does this": the doer is "you" in what they do.
+    ("Ingenious Mastery", "&Asker::new(asker.source, doer_"),
+    // What a copy keeps of the object that copied.
+    ("Vesuvan Doppelganger", "own.colors.unwrap_or("),
+    ("Hulking Metamorph", "own.power.unwrap_or(0)"),
     // These hold, as what they want the engine has no way to say.
+    ("Ominous Lockbox", "a value chosen in secret"),
+    ("Doomsday", "cards found in two zones put on top of a library"),
     (
         "Alien Symbiosis",
         "engine: a card's own terms to cast it from its graveyard",
@@ -49,6 +70,16 @@ const CARDS: &[(&str, &str)] = &[
     ),
 ];
 
+/// As `CARDS`, of forms decided by the card's printed line.
+const PRINTED: &[(&str, &str)] = &[
+    // A spell leaves the stack without being countered.
+    ("Spell Queller", "g.remove_spell(spell, CounterTo::Exile)"),
+    // One card is asked of, and more are picked from to the last (CR 101.4c).
+    ("Spell Queller", "let among_"),
+    // "If it dies this way": destroyed and sent elsewhere it didn't die.
+    ("Saw in Half", "to.is(ZoneKind::Graveyard)"),
+];
+
 #[test]
 fn modules_say_what_their_cards_say() {
     let corpus = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/mtgish.lines.ron");
@@ -61,6 +92,29 @@ fn modules_say_what_their_cards_say() {
         .into_iter()
         .collect();
     for (name, says) in CARDS {
+        let module = modules
+            .get(*name)
+            .unwrap_or_else(|| panic!("no module for {name}"));
+        assert!(
+            module.contains(says),
+            "{name} should have {says}:\n{module}"
+        );
+    }
+}
+
+#[test]
+fn printed_lines_say_what_their_cards_say() {
+    let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let (corpus, oracle) = (data.join("mtgish.lines.ron"), data.join("oracle.json"));
+    if !corpus.exists() || !oracle.exists() {
+        return;
+    }
+    let names: Vec<String> = PRINTED.iter().map(|(name, _)| name.to_string()).collect();
+    let modules: BTreeMap<String, String> = cantrip::modules_printed(&corpus, &oracle, &names)
+        .unwrap()
+        .into_iter()
+        .collect();
+    for (name, says) in PRINTED {
         let module = modules
             .get(*name)
             .unwrap_or_else(|| panic!("no module for {name}"));

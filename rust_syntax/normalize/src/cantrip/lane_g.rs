@@ -567,6 +567,36 @@ fn priced(
     }
 }
 
+/// What "as an additional cost, you may sacrifice any number of these, and when you
+/// do, copy this spell for each" sacrifices, if `cost` is that.
+fn sacrifices_to_copy(cost: &Cost) -> Option<ObjectFilter> {
+    let [CostPart::PlayerAction { player: PlayerRef::AbilityController, body }] = cost.parts.as_slice() else {
+        return None;
+    };
+    let mut steps = Vec::new();
+    lane_m::flat_groups(&body.instructions, &mut steps);
+    let [Instruction::Effect {
+        operation: Operation::Sacrifice {
+            objects: ObjectSet::Battlefield(filter),
+            choose: Some(Count::AnyNumber),
+            ..
+        },
+        ..
+    }, Instruction::Effect {
+        operation: Operation::ReflexiveTrigger { condition: None, body, .. },
+        ..
+    }] = steps.as_slice()
+    else {
+        return None;
+    };
+    let creatures = matches!(filter, ObjectFilter::CardType(t) if form(t) == "Creature");
+    let copies = matches!(body.instructions.as_slice(), [Instruction::Effect {
+        operation: Operation::CopyOnStack { object: ObjectRef::Source, effects, card: None, .. },
+        ..
+    }] if effects.is_empty());
+    (creatures && copies).then(|| filter.clone())
+}
+
 impl Compiler {
     /// An event Cantrip does not show to abilities. `in_history` says its record
     /// is already there, so a question of what happened can ask it now.
@@ -639,6 +669,7 @@ impl Compiler {
     ) -> Result<String> {
         self.helpers.insert("pay_question");
         let payer = self.fetch(self.certain_player(player)?);
+        self.notes.acting = Some(format!("Some(payer_{id})"));
         let ask = |source: &str, subject: &str, cost: &str| {
             format!("g.may_pay(payer_{id}, {source}, {subject}, {cost}, &PAY_QUESTION)?")
         };
@@ -1167,6 +1198,24 @@ impl Compiler {
                 writeln!(out, "let discarded_{id} = g.discard_together(&{picked}); let paid_{id} = !discarded_{id}.is_empty();").unwrap();
                 self.moved.insert(result.0, format!("discarded_{id}"));
                 self.left_behind(result, format!("discarded_{id}.clone()"));
+            }
+            // "Shuffle a card from your hand into your library. If you do": a card
+            // shuffled in, of a hand that had one.
+            CostPart::ShuffleFromHand => {
+                let hand = ObjectSet::Zone {
+                    scope: ZoneScope::Players {
+                        zone: EventZone::Hand,
+                        players: PlayerSet::One(player.clone()),
+                    },
+                    kind: ObjectKind::Card,
+                    filter: ObjectFilter::Any,
+                };
+                let one = Count::Exactly(Expr::Constant(1));
+                self.choose(player, &hand, &one, result, "PutOnLibrary", out)?;
+                let picked = self.selections[&result.0].clone();
+                writeln!(out, "let shuffled_{id} = g.put_into_library(&{picked}, LibraryPlace::ShuffledIn); let paid_{id} = !shuffled_{id}.is_empty();").unwrap();
+                self.moved.insert(result.0, format!("shuffled_{id}"));
+                self.left_behind(result, format!("{picked}.clone()"));
             }
             // "Pay {E}{E}. If you can't, ...": whoever can pay does (Greenbelt Rampager).
             CostPart::Energy(n) => {
@@ -1808,6 +1857,16 @@ impl Compiler {
                 None,
             ) => {
                 sole(parts, "optional_cost")?;
+                // "You may sacrifice one or more creatures. When you do, copy this spell
+                // for each creature sacrificed this way": the number the spell paid.
+                if let Some(filter) = sacrifices_to_copy(cost) {
+                    let filter = self.cost_filter(&filter, label)?;
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {label}_sacrificed(q: &dyn Query, asker: &Asker) -> bool {{ q.obj(asker.source).paid > 0 }}\nfn {label}_copies(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ for _ in 0..g.obj(item.object).paid {{ g.copy_spell(item.object, item.controller, false)?; }} Ok(()) }}").unwrap();
+                    parts.field("optional_cost", format!("Some(OptionalCost::new(Cost {{ variable: Some(VariableCost::SacrificeOneOrMore({filter})), ..Cost::NONE }}))"));
+                    parts.field("labels", "&[\"Cast without sacrificing\", \"Sacrifice one or more creatures\"]".to_string());
+                    parts.table("abilities", format!("triggered(cantrip_mechanics::triggers::CAST_THIS_SPELL, {label}_copies, \"When you do, copy this spell for each creature sacrificed this way.\").condition({label}_sacrificed)"));
+                    return Ok(());
+                }
                 let code = self.optional_cost(cost, label)?;
                 self.cost_labels(cost, parts);
                 match code {

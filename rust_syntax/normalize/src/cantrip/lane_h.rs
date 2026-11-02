@@ -1849,6 +1849,10 @@ impl Compiler {
                     Some(format!("c.is(CardType::{})", card_type(t).ok()?))
                 }
                 ObjectFilter::Not(inner) => Some(format!("!({})", past(inner)?)),
+                ObjectFilter::Subtype(kind) => Some(format!(
+                    "c.chars(q).has_subtype(q.words(asker.source).subtype(Subtype::{}))",
+                    name(kind)
+                )),
                 _ => None,
             }
         }
@@ -2580,9 +2584,13 @@ impl Compiler {
         if terms.into_exile {
             return Err(gap("static play permission on other terms"));
         }
-        let mut tests = self.permission_tests(players, within, filter, "card")?;
-        let (more, mut feature) =
-            self.play_tests(action, &EventZone::Exile, terms, "card", "player")?;
+        // "The cards they don't own exiled with this": of the player asked.
+        let outer = std::mem::replace(&mut self.rule_player, true);
+        let tests = self.permission_tests(players, within, filter, "card");
+        let played = self.play_tests(action, &EventZone::Exile, terms, "card", "player");
+        self.rule_player = outer;
+        let mut tests = tests?;
+        let (more, mut feature) = played?;
         tests.extend(more);
         let lands = match action {
             CardPlayAction::Either => true,
@@ -2618,16 +2626,25 @@ impl Compiler {
                 write!(extra, ", spend_as: SpendAs::{}", form(other)).unwrap();
             }
         }
-        if terms.flash {
-            feature = Some("play permission from exile as though with flash");
-            extra.push_str(", flash: true");
-        }
         let text = if lands {
             "Play from exile"
         } else {
             "Cast from exile"
         };
         let body = tests.join(" && ");
+        // "And you may cast them as though they had flash": what may be cast this way
+        // may be cast then (`FlashRule`, asked of the card in the zone it's cast from).
+        if terms.flash {
+            self.permission_entry(
+                None,
+                "flash_rules",
+                &format!("{label}_flash"),
+                ("q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId", "q, asker, card, player", "bool"),
+                &body,
+                |rule| rule.to_string(),
+                parts,
+            );
+        }
         self.permission_entry(
             feature,
             "exile_casts",
@@ -2657,8 +2674,11 @@ impl Compiler {
         {
             return Err(gap("static play permission on other terms"));
         }
-        if matches!(terms.limit, Some(PlayLimit::EachTurn(_))) && terms.during.is_none() {
-            // Both cards that say it print "once during each of your turns".
+        // The data has the once and not whose turns it's during, which the line says.
+        let own_turns = matches!(terms.limit, Some(PlayLimit::EachTurn(_))) && terms.during.is_none();
+        if own_turns
+            && !self.line_text().is_some_and(|line| line.contains("during each of your turns"))
+        {
             return Err(gap("play permission from a hand once each turn"));
         }
         let (cost, text) = match &terms.cost {
@@ -2682,10 +2702,18 @@ impl Compiler {
             },
             _ => return Err(gap("play permission for another cost")),
         };
+        // Told apart from another card's by what it says.
+        let text = match own_turns {
+            true => self.said(lane_k::Said::Sentence, text),
+            false => text,
+        };
         let mut tests = self.permission_tests(players, within, filter, "spell")?;
         let (more, feature) =
             self.play_tests(action, &EventZone::Hand, terms, "spell", "player")?;
         tests.extend(more);
+        if own_turns {
+            tests.push("q.state().turn.active == player".to_string());
+        }
         // An alternative cost applies wherever the spell may be cast from, unless
         // the card says where.
         if self.says_from_hand() {

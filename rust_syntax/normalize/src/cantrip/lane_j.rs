@@ -2613,10 +2613,11 @@ impl Compiler {
         self.picked.borrow_mut().named.push((key.clone(), asking));
         writeln!(
             out,
-            "let mut paid_{id} = false; for bound_{} in {asked} {{",
+            "let mut paid_{id} = false; let mut who_{id}: Option<PlayerId> = None; for bound_{} in {asked} {{",
             binding.0
         )
         .unwrap();
+        self.notes.performers.insert(result.0, format!("who_{id}"));
         let ask = Operation::PayCost {
             player: PlayerRef::Bound(binding.clone()),
             cost: cost.clone(),
@@ -2628,7 +2629,7 @@ impl Compiler {
         done?;
         let inner = self.performed.insert(result.0, format!("paid_{id}"));
         let inner = inner.ok_or_else(|| gap("possibly absent player FirstWilling"))?;
-        writeln!(out, "if {inner} {{ paid_{id} = true; break; }} }}").unwrap();
+        writeln!(out, "if {inner} {{ paid_{id} = true; who_{id} = Some(bound_{}); break; }} }}", binding.0).unwrap();
         self.moved.remove(&result.0);
         self.before.remove(&result.0);
         self.selections.remove(&result.0);
@@ -3000,6 +3001,10 @@ pub(super) enum PaidFor {
 /// source's timestamp, so two copies of one Equipment are two givers; a resolved
 /// effect is named by its own.
 pub(super) const GRANTER: &str = "fn granter(q: &dyn Query, item: &StackItem) -> Option<ObjectId> { if item.acquired.by != AcquiredBy::Grant { return None; } let stamp = item.acquired.stamp; let card = item.ability.card; if let Some(e) = q.state().effects.iter().find(|e| e.timestamp == stamp && matches!(e.kind, EffectKind::AddAbility(_))) { return Some(e.source); } if let Some(id) = q.state().battlefield().iter().copied().find(|&id| q.state().obj(id).timestamp == stamp && q.chars(id).card == card) { return Some(id); } q.history().all().iter().rev().find_map(|r| match r.event { Event::ZoneChange { old, from, .. } if from.is(ZoneKind::Battlefield) && q.state().obj(old).timestamp == stamp && q.state().obj(old).card == card => Some(old), _ => None }) }\n";
+
+/// The controller of the effect that gave `asker`'s ability (CR 113.2c, 609.4 of who
+/// cast the spell that made it), named by the ability's stamp.
+pub(super) const GRANTED_BY: &str = "fn granted_by(q: &dyn Query, asker: &Asker) -> Option<PlayerId> { let by = asker.by?; if by.acquired.by != AcquiredBy::Grant { return None; } q.state().effects.iter().find(|e| e.timestamp == by.acquired.stamp && matches!(e.kind, EffectKind::AddAbility(_))).map(|e| e.controller) }\n";
 
 /// Time travel (CR 701.56a): of each suspended card `player` owns (CR 702.62b, read
 /// as the upkeep reads it) and each permanent they control with a time counter on

@@ -199,6 +199,26 @@ impl Compiler {
                     "fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ {PRELUDE} let Costed::Spell(spell) = costed else {{ return CostDelta::NONE; }}; if {guard}{member} && {test} {{ {delta} }} else {{ CostDelta::NONE }} }}"
                 ));
             }
+            // "Spells and abilities your opponents control can't cause you to ...":
+            // of the player who would do it, and whose spell or ability would make them.
+            PlayerRule::CantBeCaused {
+                action:
+                    action @ (PlayerAction::DiscardCards
+                    | PlayerAction::Sacrifice {
+                        objects: ObjectFilter::Any,
+                        paying: None,
+                    }),
+                by: ObjectFilter::ControlledBy(PlayerSet::OpponentsOf(PlayerRef::AbilityController)),
+            } if yours => {
+                let cause = match action {
+                    PlayerAction::DiscardCards => "CauseKind::Discard",
+                    _ => "CauseKind::Sacrifice",
+                };
+                let guard = self.guard()?;
+                self.table_entry(parts, "cause_rules", &function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, causer: PlayerId, player: PlayerId, kind: CauseKind) -> bool {{ !({guard}kind == {cause} && player == asker.controller && causer != asker.controller) }}"
+                ));
+            }
             PlayerRule::Prohibit(action) => self.prohibit(&function, players, action, parts)?,
             PlayerRule::LimitPerTurn {
                 action:
@@ -248,6 +268,17 @@ impl Compiler {
                 let (guard, member) = (self.guard()?, self.player_member(players)?);
                 self.table_entry(parts, "flash_rules", &function, format!(
                     "fn {function}(q: &dyn Query, asker: &Asker, spell: ObjectId, player: PlayerId) -> bool {{ {guard}{member} && {test} }}"
+                ));
+            }
+            // "Can cast spells only any time they could cast a sorcery" (307.1), asked
+            // before the spell is on the stack, which it being there would make it not.
+            PlayerRule::SpellTiming {
+                spells: ObjectFilter::Any,
+                timing: SpellTiming::SorceryOnly,
+            } => {
+                let (guard, member) = (self.guard()?, self.player_member(players)?);
+                self.table_entry(parts, "cast_rules", &function, format!(
+                    "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, from: ZoneKind) -> bool {{ let s = q.state(); !({guard}{member}) || (player == s.turn.active && s.turn.step().is_main() && s.stack.is_empty()) }}"
                 ));
             }
             PlayerRule::SpellTiming {
@@ -359,6 +390,19 @@ impl Compiler {
                 || self.keyword_for_a_while(id, i, source, players, rule, duration, out)?
                 || self.cost_for_a_while(id, i, source, players, rule, duration, out)?
             {
+                continue;
+            }
+            // "You may play X additional lands this turn": asked as it resolves.
+            if let (
+                PlayerRule::AdditionalLandPlays(Count::Exactly(n)),
+                PlayerSet::One(PlayerRef::AbilityController),
+                crate::ir::Duration::EndOfTurn,
+                true,
+                false,
+            ) = (rule, players, duration, self.stack_item, matches!(rule, PlayerRule::AdditionalLandPlays(Count::Exactly(Expr::Constant(_)))))
+            {
+                let n = self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?);
+                writeln!(out, "g.additional_land_plays(item, {n});").unwrap();
                 continue;
             }
             let kind = match rule {
@@ -473,7 +517,11 @@ impl Compiler {
                 ));
             }
             PlayerAction::CastSpell { from: None, filter } => {
-                let test = self.filter(filter, &cast_card())?;
+                // "With mana value greater than the number of lands that player controls".
+                let outer = std::mem::replace(&mut self.rule_player, true);
+                let test = self.filter(filter, &cast_card());
+                self.rule_player = outer;
+                let test = test?;
                 self.table_entry(parts, "spell_rules", function, format!(
                     "fn {function}(q: &dyn Query, asker: &Asker, player: PlayerId, spell: ObjectId) -> bool {{ !({banned} && {test}) }}"
                 ));

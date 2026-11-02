@@ -1041,6 +1041,9 @@ impl Compiler {
         };
         writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_count = {}; let {local} = {lone}{{ cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of({local}_count, &[]){rule})? }};", self.fetch(self.certain_player(player)?), self.fetch(self.objects(objects)?), self.fetch(count)).unwrap();
         self.open_guard(&local, out);
+        if matches!(player, PlayerRef::OneOf(_)) {
+            self.notes.performers.insert(result.0, format!("Some({local}_player)"));
+        }
         self.selections.insert(result.0, local);
         Ok(())
     }
@@ -1285,7 +1288,14 @@ impl Compiler {
                 )
                 .unwrap();
                 self.moved.insert(result.0, format!("destroyed_{id}"));
-                self.left_behind(result, gone(&format!("objects_{id}")));
+                // "If it dies this way": destroyed and sent elsewhere it didn't die (700.4).
+                let died = self.line_text().is_some_and(|line| {
+                    line.contains("dies this way") || line.contains("die this way")
+                });
+                self.left_behind(result, match died {
+                    true => format!("objects_{id}.iter().copied().filter(|&o| q.history().all().iter().any(|r| matches!(r.event, Event::ZoneChange {{ old, to, .. }} if old == o && to.is(ZoneKind::Graveyard)))).collect::<Vec<ObjectId>>()"),
+                    false => gone(&format!("objects_{id}")),
+                });
             }
             Operation::Move {
                 objects,
@@ -1825,6 +1835,7 @@ impl Compiler {
                     self.fetch(self.certain_player(player)?)
                 )
                 .unwrap();
+                self.notes.acting = Some(format!("Some(payer_{id})"));
                 out.push_str(&paying);
                 let inner = self.performed.insert(result.0, format!("paid_{id}"));
                 let none = "Vec::new()".to_string();
@@ -2557,6 +2568,14 @@ impl Compiler {
                 format!("g.return_to_hand_revealed(&objects_{id})")
             }
             Destination::OwnersHand => format!("g.return_to_hand(&objects_{id})"),
+            // "Exile target spell": not countered, so one that can't be goes too (701.6a).
+            Destination::Exile
+                if self.links_exile
+                    && self.stack_item
+                    && self.line_text().is_some_and(|line| line.contains("exile target spell")) =>
+            {
+                format!("{{ let by = g.linked(item); let mut moved: Vec<ObjectId> = Vec::new(); for &spell in &objects_{id} {{ g.remove_spell(spell, CounterTo::Exile); if let Some(exiled) = g.obj(spell).became {{ g.link_exiled(&[exiled], by); moved.push(exiled); }} }} moved }}")
+            }
             Destination::Exile if self.links_exile && self.stack_item => {
                 format!("{{ let by = g.linked(item); g.exile_with(&objects_{id}, by, false) }}")
             }

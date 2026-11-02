@@ -64,6 +64,9 @@ fn walked(op: &Operation) -> bool {
             | Operation::PayAnyAmount { .. }
             | Operation::PayCost { .. }
             | Operation::PayRepeatedly { .. }
+            // One spell after another, the next player's on top (101.4c).
+            | Operation::PlayCards { .. }
+            | Operation::PlayWith { .. }
             | Operation::Reveal { .. }
             | Operation::RevealFromHand { .. }
             | Operation::RevealUntil { .. }
@@ -315,13 +318,24 @@ impl Compiler {
         if self.moved_their_own(objects, binding) {
             return true;
         }
-        match objects {
-            ObjectSet::Zone { scope, .. } => matches!(
+        let theirs = |scope: &ZoneScope| {
+            matches!(
                 scope,
                 ZoneScope::Players { players, zone }
                     if one_bound(players, binding)
                         && matches!(zone, EventZone::Hand | EventZone::Library | EventZone::Graveyard)
-            ),
+            )
+        };
+        match objects {
+            // "All cards in their graveyard", said of the set of all graveyards.
+            ObjectSet::Zone { scope, filter, .. } => {
+                let parts = match filter {
+                    ObjectFilter::All(parts) => parts.as_slice(),
+                    one => std::slice::from_ref(one),
+                };
+                theirs(scope)
+                    || parts.iter().any(|part| matches!(part, ObjectFilter::InZone(zone) if theirs(zone)))
+            }
             ObjectSet::Matching { objects, .. } | ObjectSet::Take { objects, .. } => {
                 self.own_cards(objects, binding, earlier)
             }
@@ -3062,7 +3076,23 @@ fn lane_i_option_labels(options: &[Program]) -> Option<Vec<String>> {
     for option in options {
         let mut steps = Vec::new();
         lane_m::flat_groups(&option.instructions, &mut steps);
-        let label = match steps.first()? {
+        // What a replacement does to the event says nothing of the option.
+        let first = steps.iter().find(|step| {
+            !matches!(step, Instruction::Effect { operation: Operation::ModifyEvent { .. }, .. })
+        })?;
+        let land = |filter: &ObjectFilter| {
+            matches!(filter, ObjectFilter::CardType(t) if form(t) == "Land")
+        };
+        let label = match first {
+            // "Choose land or nonland and reveal cards until you reveal one".
+            Instruction::Effect {
+                operation: Operation::RevealUntil { filter, .. },
+                ..
+            } if land(filter) => "Land",
+            Instruction::Effect {
+                operation: Operation::RevealUntil { filter: ObjectFilter::Not(filter), .. },
+                ..
+            } if land(filter) => "Nonland",
             Instruction::Effect {
                 operation: Operation::Move {
                     objects, destination, ..

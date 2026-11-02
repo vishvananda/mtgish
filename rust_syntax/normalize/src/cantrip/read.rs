@@ -1998,6 +1998,27 @@ impl Compiler {
                 self.object(object)?,
                 self.filter(filter, &Candidate::of("candidate"))?
             ),
+            // "Activate only if defending player controls ...", with no creature to
+            // say which: the one of them the controller would choose (CR 508.5a).
+            Condition::Not(inner)
+                if matches!(**inner, Condition::Controls { player: PlayerRef::DefendingPlayer, .. }) =>
+            {
+                let Condition::Controls { filter, minimum, .. } = &**inner else {
+                    unreachable!("a condition just matched");
+                };
+                format!(
+                    "q.state().opponents(q.state().turn.active).into_iter().any(|defending: PlayerId| q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == defending && {}).count() < {minimum})",
+                    self.filter(filter, &Candidate::of("id"))?
+                )
+            }
+            Condition::Controls {
+                player: PlayerRef::DefendingPlayer,
+                filter,
+                minimum,
+            } => format!(
+                "q.state().opponents(q.state().turn.active).into_iter().any(|defending: PlayerId| q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == defending && {}).count() >= {minimum})",
+                self.filter(filter, &Candidate::of("id"))?
+            ),
             Condition::Controls {
                 player,
                 filter,

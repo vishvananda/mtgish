@@ -125,12 +125,70 @@ pub(super) fn paid_for_each(body: &Program) -> Option<(ResultId, Instruction)> {
     }
 }
 
+/// "Have target player reveal their hand. If you do, choose a card from it and ...":
+/// the hand is theirs, and the choice stays yours.
+fn had_to_show_hand(player: &PlayerRef, program: &Program) -> Option<Program> {
+    let [Instruction::Group(group)] = program.instructions.as_slice() else {
+        return None;
+    };
+    let [first, second, rest @ ..] = group.instructions.as_slice() else {
+        return None;
+    };
+    let their_hand = |objects: &ObjectSet| -> Option<ObjectSet> {
+        let ObjectSet::Zone {
+            scope: ZoneScope::Players { zone: EventZone::Hand, players: PlayerSet::One(PlayerRef::AbilityController) },
+            kind,
+            filter,
+        } = objects
+        else {
+            return None;
+        };
+        Some(ObjectSet::Zone {
+            scope: ZoneScope::Players { zone: EventZone::Hand, players: PlayerSet::One(player.clone()) },
+            kind: kind.clone(),
+            filter: filter.clone(),
+        })
+    };
+    let Instruction::Effect { result: shown, operation: Operation::Reveal { objects } } = first else {
+        return None;
+    };
+    let Instruction::Effect {
+        result: picked,
+        operation: Operation::ChooseObjects { player: PlayerRef::AbilityController, objects: pool, count, constraints },
+    } = second
+    else {
+        return None;
+    };
+    let mut steps = vec![
+        Instruction::Effect {
+            result: shown.clone(),
+            operation: Operation::Reveal { objects: their_hand(objects)? },
+        },
+        Instruction::Effect {
+            result: picked.clone(),
+            operation: Operation::ChooseObjects {
+                player: PlayerRef::AbilityController,
+                objects: their_hand(pool)?,
+                count: count.clone(),
+                constraints: constraints.clone(),
+            },
+        },
+    ];
+    steps.extend(rest.iter().cloned());
+    let mut program = program.clone();
+    program.instructions = steps;
+    Some(program)
+}
+
 /// The one instruction `player` is had to do, said of them. The reduction leaves
 /// the doer as "you" in `body`, which only these forms read back without doubt.
 fn had_to_do(player: &PlayerRef, body: &[Operand]) -> Option<Program> {
     let [Operand::Program(program)] = body else {
         return None;
     };
+    if let Some(shown) = had_to_show_hand(player, program) {
+        return Some(shown);
+    }
     let [Instruction::Effect { result, operation }] = program.instructions.as_slice() else {
         return None;
     };
@@ -1806,6 +1864,28 @@ impl Compiler {
                 }];
                 self.block(&offered, out, true)?;
             }
+            // "An opponent creates two Treasure tokens and they scry 2": you choose
+            // which (its ruling), and in `body` the doer is "you".
+            Operation::PlayersDo {
+                players,
+                any_one: true,
+                optional: false,
+                once_each_turn: false,
+                body,
+                otherwise,
+            } if otherwise.is_empty()
+                && body.iter().all(|step| matches!(step, Operand::Program(_))) =>
+            {
+                let among = self.fetch(self.players(players)?);
+                writeln!(out, "let among_{id}: Vec<PlayerId> = {among}; let Some(doer_{id}) = (if among_{id}.len() > 1 {{ {M}::choose::player(g, asker.controller, asker.source, among_{id}, \"Choose\", 0)? }} else {{ among_{id}.first().copied() }}) else {{ return Ok(()); }}; {{ let asker = &Asker::new(asker.source, doer_{id});").unwrap();
+                for step in body {
+                    let Operand::Program(program) = step else {
+                        unreachable!("just matched");
+                    };
+                    self.block(program, out, true)?;
+                }
+                writeln!(out, "}}").unwrap();
+            }
             Operation::PlayersDo {
                 players,
                 any_one,
@@ -3079,8 +3159,14 @@ impl Compiler {
                 return Ok(());
             }
         }
+        // Cantrip's choices are all in the open, and a secret one stays hidden until
+        // what reveals it: nothing keeps it from the other players.
+        let feature = match terms.secret {
+            true => "a value chosen in secret",
+            false => "operation ChooseValueWith",
+        };
         let code = format!("{M}::choose::value(g, {players}, asker.source, ChoiceKind::{kind:?}, ChoiceTerms {{ options: &[{}], except: &[{}], count: {count}, secret: {secret}, unchosen: {unchosen}, random: {random}, ordered: {ordered}, up_to: {up_to} }})?", options.join(", "), except.join(", "));
-        self.value_to_come("operation ChooseValueWith", id, kind, &code, out);
+        self.value_to_come(feature, id, kind, &code, out);
         Ok(())
     }
     /// A chosen value Cantrip can't yet ask for: bound, where the kind has a

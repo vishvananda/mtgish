@@ -2317,6 +2317,9 @@ fn emit_face(
     if c.functions.contains("about(q, ") {
         c.helpers.insert("about");
     }
+    if c.functions.contains("granted_by(q, asker)") {
+        c.helpers.insert("granted_by");
+    }
     if c.functions.contains("granter(q, item)") {
         c.helpers.insert("granter");
     }
@@ -2340,6 +2343,7 @@ fn emit_face(
             "about" => delayed::ABOUT,
             "clauses" => lane_l::CLAUSES,
             "granter" => lane_j::GRANTER,
+            "granted_by" => lane_j::GRANTED_BY,
             "could_enchant" => lane_j::COULD_ENCHANT,
             "time_travel" => lane_j::TIME_TRAVEL,
             other => unreachable!("no helper {other}"),

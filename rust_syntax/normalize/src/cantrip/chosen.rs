@@ -197,6 +197,7 @@ impl Compiler {
                     return Err(gap("a choice of Player"));
                 };
                 let candidates = self.fetch(self.players(candidates)?);
+                self.notes.named_players.push(format!("Some({local})"));
                 writeln!(out, "let player_{id} = {player}; let candidates_{id} = {candidates}; let Some({local}) = {M}::choose::player(g, player_{id}, {source}, candidates_{id}, \"Choose\", 0)? else {{ return Ok(()) }};").unwrap();
                 if entering {
                     writeln!(out, "entering.chosen_player = Some({local});").unwrap();

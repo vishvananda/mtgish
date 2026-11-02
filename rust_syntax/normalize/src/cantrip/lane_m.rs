@@ -227,6 +227,14 @@ impl Compiler {
 /// What later reads ask of the instructions before them.
 #[derive(Clone, Debug, Default)]
 pub(super) struct Notes {
+    /// The players this body chose, in order: "the second player".
+    pub named_players: Vec<String>,
+    /// Who each of these results ended up with: "the player who did", "that opponent".
+    pub performers: std::collections::HashMap<u32, String>,
+    /// The player last asked to pay: "if they don't, they ...".
+    pub acting: Option<String>,
+    /// Whose cards an offer to play is of, past what its pool reads.
+    pub play_owner: Option<String>,
     /// Counters go on this per-player batch, by this player, and only on what that
     /// player controls if so, rather than on at once.
     pub gathering_counters: Option<(usize, String, bool)>,
@@ -712,9 +720,20 @@ impl Compiler {
             {
                 self.carried_player(self.frame.player)?
             }
+            PlayerRef::Named { index, .. }
+                if self.notes.named_players.get(*index as usize).is_some() =>
+            {
+                self.notes.named_players[*index as usize].clone()
+            }
+            PlayerRef::Performer(result) if self.notes.performers.contains_key(&result.0) => {
+                self.notes.performers[&result.0].clone()
+            }
             PlayerRef::Acting | PlayerRef::Prior(PriorPlayer::That) => match self.row_player() {
                 Ok(row) => row,
                 Err(_) if matches!(player, PlayerRef::Acting) => {
+                    if let Some(payer) = &self.notes.acting {
+                        return Ok(payer.clone());
+                    }
                     return self.player_stated(player);
                 }
                 Err(_) => return Err(gap(feature)),
@@ -725,6 +744,11 @@ impl Compiler {
                 "None::<PlayerId>",
                 "q.remembered_player(asker)",
             ),
+            // "The player who cast Hellish Rebuke": the effect that gave the ability
+            // has that player for its controller, and is named by the ability's stamp.
+            PlayerRef::Prior(PriorPlayer::GrantedBy) if !self.rule_player => {
+                "granted_by(q, asker)".to_string()
+            }
             PlayerRef::Prior(PriorPlayer::GrantedBy) => planned::planned_value(
                 "player reference Prior",
                 "None::<PlayerId>",
