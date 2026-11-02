@@ -142,6 +142,10 @@ impl Compiler {
         let mut branch = None;
         for (slot, name) in first.iter().enumerate() {
             let tests: Vec<String> = filters.iter().map(|names| names[slot].clone()).collect();
+            // A slot every mode fills alike ("any target"), by the same filter.
+            if tests.iter().all(|test| *test == tests[0]) {
+                continue;
+            }
             let bodies: Option<Vec<String>> = tests
                 .iter()
                 .map(|test| line_of(&self.functions, &format!("fn {test}("), test))
@@ -163,7 +167,14 @@ impl Compiler {
             .unwrap();
             same = same.replace(&format!("target({name})"), &format!("target({union})"));
             let needs_the_slot = ["chosen_targets", "announced_x", "event_subject", "i64::from(x)"];
-            if needs_the_slot.iter().any(|read| bodies.iter().any(|b| b.contains(read))) {
+            // "Other than it", read of the trigger's subject, only narrows a mode:
+            // told apart at resolution without it, a target still goes to the one
+            // mode whose kind it is.
+            let other = "!(q.event_subject().object() == Some(id))";
+            if needs_the_slot
+                .iter()
+                .any(|read| bodies.iter().any(|b| b.replace(other, "").contains(read)))
+            {
                 return Ok(None);
             }
             branch = branch.or(Some((slot, tests)));

@@ -1039,10 +1039,11 @@ pub(super) fn asked_if(decider: &PlayerRef, id: usize, body: &Program) -> String
             format!("!cant_draw(g, decider_{id}, {n}) && ")
         }
         // A search that can't be caused isn't offered (Ashiok, Dream Render's ruling).
+        // A search of other zones too still searches them (Agency Outfitter).
         Some(Instruction::Effect {
-            operation: Operation::Search { player, library, .. },
+            operation: Operation::Search { player, library, also, .. },
             ..
-        }) if same(player) && same(library) => {
+        }) if same(player) && same(library) && also.is_empty() => {
             format!("g.may_search(decider_{id}, decider_{id}) && ")
         }
         // Moving the source: it's a new object once it has moved (400.7).

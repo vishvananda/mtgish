@@ -678,6 +678,17 @@ impl Compiler {
         if let Some(paid) = self.paid_as_cast(what) {
             return Ok(paid);
         }
+        // "{T}, Unattach Shuriken": an ability Shuriken gave the creature it
+        // equips, so what Shuriken was unattached from is that ability's source
+        // (Shuriken, "unless it was unattached from a Ninja").
+        let unattaches_granter = self.activation_cost.as_ref().is_some_and(|cost| {
+            cost.parts
+                .iter()
+                .any(|part| matches!(part, CostPart::Unattach(ObjectRef::Granter)))
+        });
+        if matches!(what, EarlierObjects::Unattached) && unattaches_granter {
+            return Ok("vec![asker.source]".into());
+        }
         let Some((payment, at)) = by_activation.or(by_casting) else {
             if exiled {
                 return Ok(format!("q.exiled_with({})", self.linked()));

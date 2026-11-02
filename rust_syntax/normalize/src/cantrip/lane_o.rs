@@ -2556,6 +2556,14 @@ impl Compiler {
                 self.players(players)?,
                 self.stated(action)?
             ),
+            // Cantrip has no ante zone (Jeweled Bird), and `Game::attach` takes an
+            // object for the host: nothing attaches an Aura to a player (Lynde).
+            P::ObjectAction { action: CostObjectAction::Ante, .. } => {
+                return Err(gap("move to ante"))
+            }
+            P::ObjectAction { action: CostObjectAction::AttachToPlayer(_), .. } => {
+                return Err(gap("an Aura attached to a player by an effect"))
+            }
             P::ObjectAction { objects, action } => {
                 let action = match action {
                     CostObjectAction::AttachToPlayer(players) => format!(
@@ -2607,9 +2615,11 @@ impl Compiler {
         label: &str,
         failed: Diagnostic,
     ) -> Result<String> {
+        // What a part does that Cantrip has no place for is its own requirement.
+        let own = ["move to ante", "an Aura attached to a player by an effect"];
         let code = self
             .cost_part_code(part, label)
-            .map_err(|_| failed.clone())?;
+            .map_err(|e| if own.contains(&e.feature.as_str()) { e } else { failed.clone() })?;
         Ok(planned::planned_value(&failed.feature, "Cost::NONE", &code))
     }
     /// Paying a whole cost as an effect, which `Game` has a way to only for parts.

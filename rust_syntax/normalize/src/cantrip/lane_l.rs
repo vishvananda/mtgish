@@ -881,7 +881,12 @@ impl Compiler {
     /// What `ModalDef` has no word for yet.
     pub(super) fn modes_to_come(&self, selection: &ModeSelection, modal: String) -> Result<String> {
         let mut planned: Vec<(&str, String)> = Vec::new();
-        if selection.implied {
+        // Modes each open only under a requirement are told apart by it
+        // (`ModalDef::allowed`), not by a target.
+        let flat = lane_p::flat_modes(selection);
+        let told_by_requirements =
+            flat.as_ref().unwrap_or(&selection.modes).iter().all(|mode| mode.requires.is_some());
+        if selection.implied && !told_by_requirements {
             planned.push((
                 "modes implied by the target chosen",
                 ".implied_by_target()".to_string(),

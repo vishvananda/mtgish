@@ -1229,6 +1229,12 @@ impl Compiler {
                 matched
             }
         };
+        // "Whenever a player attacks you with one or more creatures, ... that
+        // many": a batch kept apart by its defender (`batch_by_data`) holds the
+        // creatures attacking that one, and how many is its members' count.
+        if *per == BatchPer::Defender && matches!(event, EventSpec::Attack { .. }) {
+            matched.frame.members = matched.frame.object == Some(Carried::Subject);
+        }
         // No one of a whole batch is the event's, however the form binds it.
         if *per == BatchPer::Whole {
             matched.frame.members = matched.frame.object == Some(Carried::Subject)
@@ -1818,7 +1824,9 @@ impl Compiler {
             && announcement.targets.iter().all(|slot| format!("{:?}", slot.chooser) == format!("{:?}", announcement.targets[0].chooser))
             && announcement.targets[0].chooser.is_some();
         self.subject_chooses = false;
+        let planned = std::mem::replace(&mut self.event_planned, false);
         let def = self.triggered_def(label, event, intervening_if, limits, announcement, body);
+        self.event_planned = planned;
         let read = self.count_read.take().map(|(_, call)| call);
         let by_subject = self.subject_chooses;
         (self.slot_counts, self.count_read) = outer;
@@ -1968,6 +1976,7 @@ impl Compiler {
                 false,
             )?;
         }
+        self.event_planned = !matched.planned.iter().all(|f| planned::landed(f));
         let implied = match body.instructions.is_empty() {
             true => self.implied_slots(announcement, label, Some(matched.frame))?,
             false => None,
@@ -2047,6 +2056,10 @@ impl Compiler {
         let trigger = self.trigger(&matched, &format!("{label}_event"), &extra);
         let members = self.members_targeted(event, label, matched.frame, body)?;
         self.grouped = matched.batch.is_some() || members.is_some();
+        // "That many" of what it targeted is how many members it keeps.
+        if members.is_some() && matched.frame.amount.is_none() {
+            self.frame.members = true;
+        }
         let effect = match guard {
             Some(_) if implied_by_target => Err(gap("a condition on modes a target implies")),
             Some(condition) => self.guarded_effect(condition, body, label),
@@ -2116,20 +2129,35 @@ impl Compiler {
     ) -> Result<Option<String>> {
         let EventSpec::SpellTargeting {
             targets: Some(targets),
+            players,
             ..
         } = event
         else {
             return Ok(None);
         };
-        if !format!("{body:?}").contains("EventGroup") {
+        // "Those creatures", or "that many" of them (Arcee, Acrobatic Coupe).
+        let body = format!("{body:?}");
+        if !body.contains("EventGroup") && !body.contains("EventAmount") {
             return Ok(None);
         }
         let wanted = self.matching(frame, |c| c.objects(targets))?;
+        // "Whenever you cast a spell that targets one or more creatures you
+        // control": the ability's controller is the spell's.
+        let yours = matches!(players, PlayerSet::One(PlayerRef::AbilityController));
+        let wanted = match yours {
+            true => wanted.replace("asker.controller", "q.controller(spell)"),
+            false => wanted,
+        };
+        // `TriggerMembers` is told the event's subject alone, so a filter that
+        // reads its source (the words a text change gives it) can't be one.
+        if wanted.contains("asker") && !body.contains("EventGroup") {
+            return Err(gap("the members a trigger keeps, read through its source"));
+        }
         if wanted.contains("asker") || wanted.contains("event") {
             return Ok(None);
         }
         let function = format!("{label}_members");
-        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, subject: Target) -> Vec<ObjectId> {{ let wanted: Vec<ObjectId> = {wanted}; subject.object().map(|spell| cantrip_mechanics::targets::permanents_targeted_as_cast(q, spell).into_iter().filter(|o| wanted.contains(o)).collect()).unwrap_or_default() }}").unwrap();
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, subject: Target) -> Vec<ObjectId> {{ subject.object().map(|spell| {{ let wanted: Vec<ObjectId> = {wanted}; cantrip_mechanics::targets::permanents_targeted_as_cast(q, spell).into_iter().filter(|o| wanted.contains(o)).collect() }}).unwrap_or_default() }}").unwrap();
         Ok(Some(function))
     }
     fn modal_triggered(

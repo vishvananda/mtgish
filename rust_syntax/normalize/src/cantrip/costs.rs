@@ -609,6 +609,7 @@ impl Compiler {
             most => (most, None),
         };
         let mut defs = Vec::new();
+        let mut opens: Vec<(usize, String)> = Vec::new();
         for (i, mode) in modes.iter().enumerate() {
             // A slot in a mode reads a `max` above 1 as a range.
             if format!("{:?}", mode.announcement.targets).contains("PerPlayer {") {
@@ -650,17 +651,17 @@ impl Compiler {
                 ),
                 None => def,
             };
-            defs.push(match &mode.requires {
-                Some(condition) => {
-                    let test = self.activation_condition(condition, &format!("{label}_open"))?;
-                    planned::planned_value(
-                        "mode with a requirement",
-                        &def,
-                        &format!("{def}.open_if({test})"),
-                    )
-                }
-                None => def,
-            });
+            // "Choose one ... if you discarded a card this turn, you choose one
+            // instead": a mode is open only while its requirement holds as the
+            // modes are chosen (CR 700.2), `ModalDef::allowed`.
+            if let Some(condition) = &mode.requires {
+                let around = self.frame;
+                self.frame = frame.unwrap_or(around);
+                let test = self.activation_condition(condition, &format!("{label}_open"));
+                self.frame = around;
+                opens.push((i, test?));
+            }
+            defs.push(def);
         }
         let listed = format!("modes(&[{}])", defs.join(","));
         // "When this enters, choose up to one \u{2014}": the source reads it as one.
@@ -707,6 +708,18 @@ impl Compiler {
             modal.push_str(".repeat()");
         }
         modal.push_str(&lane_l::mode_history(unchosen));
+        if !opens.is_empty() {
+            if unchosen.is_some() {
+                return Err(gap("mode with a requirement"));
+            }
+            let function = format!("{label}_allowed");
+            let arms: String = opens
+                .iter()
+                .map(|(i, test)| format!("{i} => {test}(q, asker), "))
+                .collect();
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, mode: u8) -> bool {{ match mode {{ {arms}_ => true }} }}").unwrap();
+            modal.push_str(&format!(".allowed({function})"));
+        }
         if let Some(surcharge) = surcharge {
             let cost = self.cost(surcharge, label)?;
             modal.push_str(&format!(".escalate({cost})"));
