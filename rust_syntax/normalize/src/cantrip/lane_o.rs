@@ -3304,8 +3304,17 @@ impl Compiler {
             Err(failed) => failed,
         };
         let code = match quality {
+            // "Hexproof from that color": the color this ability just chose.
             Protection::Objects { filter, .. } => {
-                format!("HexproofFrom::of({})", self.over(filter, "id")?)
+                let over = self.over(filter, "id")?;
+                match over
+                    .strip_suffix(".is_some_and(|chosen| q.chars(id).colors.has(chosen))")
+                    .and_then(|o| o.rsplit_once("| Some("))
+                    .and_then(|(_, chosen)| chosen.strip_suffix(')'))
+                {
+                    Some(chosen) => format!("HexproofFrom::color({chosen})"),
+                    None => format!("HexproofFrom::of({over})"),
+                }
             }
             Protection::Players(players) => format!(
                 "HexproofFrom::of_players(|q: &dyn Query, asker: &Asker| {})",

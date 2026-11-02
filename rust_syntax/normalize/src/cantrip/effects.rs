@@ -133,6 +133,41 @@ fn performed_by_itself(cost: &Cost) -> bool {
 }
 
 /// The one permanent a cost taps, named: "you may tap it".
+/// What a card must be for `cost` to be "put a card like this from your hand onto
+/// the battlefield tapped and attacking", paid by the player whose hand it is.
+fn arrives_attacking_from_hand<'a>(player: &PlayerRef, cost: &'a Cost) -> Option<&'a ObjectFilter> {
+    let [CostPart::Move {
+        selections,
+        destination,
+        entry,
+        face_down: false,
+    }] = cost.parts.as_slice()
+    else {
+        return None;
+    };
+    let [CostObjectSelection {
+        objects:
+            ObjectSet::Zone {
+                scope:
+                    ZoneScope::Players {
+                        zone: EventZone::Hand,
+                        players: PlayerSet::One(owner),
+                    },
+                kind: ObjectKind::Card,
+                filter,
+            },
+        choose: Some(Count::Exactly(Expr::Constant(1))),
+    }] = selections.as_slice()
+    else {
+        return None;
+    };
+    let same = format!("{owner:?}") == format!("{player:?}")
+        && format!("{destination:?}") == format!("Battlefield({player:?})");
+    let attacking = format!("{entry:?}")
+        == "EntrySpec { tapped: true, counters: [], states: [Attacking { player: None, or_planeswalker: false }] }";
+    (same && attacking).then_some(filter)
+}
+
 fn taps_one_object(cost: &Cost) -> Option<&ObjectRef> {
     match cost.parts.as_slice() {
         [CostPart::ChangeTapState {
@@ -1783,6 +1818,20 @@ impl Compiler {
             } if matches!(cost.parts.as_slice(), [CostPart::PlayerAction { .. }]) => {
                 self.player_action(id, player, &cost.parts[0], true, result, out)?
             }
+            // "You may put a creature card from your hand onto the battlefield tapped
+            // and attacking" (CR 508.4): it's asked after the card what it attacks.
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if self.asking.is_none() && arrives_attacking_from_hand(player, cost).is_some() => {
+                let filter = arrives_attacking_from_hand(player, cost).expect("just seen");
+                let payer = self.fetch(self.certain_player(player)?);
+                let test = self.filter(filter, &Candidate::of("id"))?;
+                writeln!(out, "let payer_{id} = {payer}; let put_{id}: Vec<ObjectId> = cantrip_mechanics::hand::may_put_onto_battlefield_attacking(g, payer_{id}, asker.source, |g, id| {{ let q: &dyn Query = g; {test} }})?.into_iter().collect(); let paid_{id} = !put_{id}.is_empty();").unwrap();
+                self.performed.insert(result.0, format!("paid_{id}"));
+                self.moved.insert(result.0, format!("put_{id}"));
+            }
             // "You may tap it": what can't be tapped can't be paid (CR 118.3), and
             // "if you don't" holds of that too.
             Operation::PayCost {
@@ -2482,11 +2531,8 @@ impl Compiler {
             Destination::Exile if self.links_exile && self.pending != Pending::Entering => {
                 format!("{{ let by = g.text_linked(asker.source); g.exile_with(&objects_{id}, by, false) }}")
             }
-            Destination::Exile if self.links_exile => planned::planned_value(
-                "exile outside a stack item that an ability reads as exiled with its source",
-                &format!("g.exile_all(&objects_{id})"),
-                &format!("{{ let by = g.linked_to(asker.source); g.exile_with(&objects_{id}, by, false) }}"),
-            ),
+            // As it enters: `Entering::object` is the permanent it will be.
+            Destination::Exile if self.links_exile => format!("{{ let by = g.text_linked(asker.source); g.exile_with(&objects_{id}, by, false) }}"),
             Destination::Exile => format!("g.exile_all(&objects_{id})"),
             // `put_into_graveyard` refuses permanents, so name each destination.
             Destination::OwnersGraveyard => format!("{{ let moves: Vec<(ObjectId, Zone)> = objects_{id}.iter().map(|&o| (o, Zone::graveyard(g.state().obj(o).owner))).collect(); let moved = g.move_together(&moves, MoveReason::Other); moved.into_iter().filter(|&o| g.state().obj(o).zone.kind() == ZoneKind::Graveyard).collect::<Vec<ObjectId>>() }}"),
