@@ -3348,6 +3348,16 @@ impl Compiler {
             Ok(code) => return Ok(code),
             Err(failed) => failed,
         };
+        // "Hexproof from activated and triggered abilities" (Volatile Stormdrake,
+        // CR 702.11e): `HexproofFrom` holds colors and card types of sources, and a
+        // targeting rule's `Forbid` is no hexproof that "as though it didn't have
+        // hexproof" lifts.
+        if let Protection::Objects { filter, .. } = quality {
+            let asked = format!("{filter:?}");
+            if asked.contains("OnStack(Activated)") || asked.contains("OnStack(Triggered)") {
+                return Err(gap("hexproof from a kind of ability"));
+            }
+        }
         let code = match quality {
             // "Hexproof from that color": the color this ability just chose.
             Protection::Objects { filter, .. } => {
