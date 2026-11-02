@@ -2229,6 +2229,13 @@ impl Compiler {
                 "({}).iter().any(|&o| o != {id} && cantrip_mechanics::same_name(q, {id}, o))",
                 self.objects(objects)?
             ),
+            ObjectFilter::SharesWithAny {
+                property: DistinctProperty::ManaValues,
+                with,
+            } if !layer => format!(
+                "({}).iter().any(|&o| q.mana_value({id}) == q.mana_value(o))",
+                self.objects(with)?
+            ),
             ObjectFilter::SharesWithAny { property, with } if !layer => format!(
                 "({}).iter().any(|&o| {{ let (a, b) = (&{chars}, &q.chars(o)); {} }})",
                 self.objects(with)?,

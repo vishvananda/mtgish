@@ -1701,6 +1701,15 @@ impl Compiler {
                     test
                 }
             }
+            // A mana value is the object's, not its characteristics': a spell's holds its X
+            // (CR 202.3e).
+            ObjectFilter::Shares {
+                property: DistinctProperty::ManaValues,
+                with,
+            } => format!(
+                "{}.is_some_and(|o: ObjectId| q.mana_value({id}) == q.mana_value(o))",
+                self.object(with)?
+            ),
             ObjectFilter::Shares { property, with } => {
                 let test = lane_j::sharing(property)?;
                 format!(
