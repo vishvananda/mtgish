@@ -6066,18 +6066,6 @@
     ]
   },
   {
-    "name": "Tom, Bert, and William",
-    "issues": [
-      25
-    ],
-    "contains": [
-      "d(Trigger_ThatGraveyardCard, [EntersUnderOwnersControl, EntersWithLaye"
-    ],
-    "excludes": [
-      "d(Trigger_ThatGraveyardCard, [EntersUnderPlayersControl(You), EntersWithLaye"
-    ]
-  },
-  {
     "name": "Towering Titan",
     "issues": [
       23

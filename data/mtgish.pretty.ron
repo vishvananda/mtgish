@@ -1390846,7 +1390846,7 @@ Card(
         PutGraveyardCardOntoBattlefield(
           Trigger_ThatGraveyardCard,
           [
-            EntersUnderOwnersControl,
+            EntersUnderPlayersControl(You),
             EntersWithLayerEffect([
               SetCardtype(Artifact),
             ]),

@@ -401,7 +401,7 @@ def tracker(args):
         status = status_of(card)
         for word in counters_wanted(whole(card), table):
             counters.setdefault(word, []).append(card["name"])
-        for token in tokens_wanted(whole(card), token_table):
+        for token in tokens_wanted(card.get("file") or "", token_table):  # the PR form names shared tokens, the module does not
             tokens.setdefault(token, []).append(card["name"])
         totals["cards"] += 1
         totals[status] += 1

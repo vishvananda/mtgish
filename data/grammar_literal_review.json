@@ -9619,6 +9619,38 @@
    "template": "When {{ThisPermanent}} enters, you lose all but {{Digits}} life.\nWhen {{ThisPermanent}} leaves the battlefield, you gain life equal to the life you lost when it entered",
    "result": "TriggerA(WhenAPermanentEntersTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([LoseLife(Minus(LifeTotalOfPlayer(You), {{Digits[0]}}))])), TriggerA(WhenAPermanentLeavesTheBattlefield(SinglePermanent(ThisPermanent)), ActionList([GainLife(LifeLostThisWay)]))",
    "reason": "triaged 2026-10-31: the phrase means the life lost, so the mined word is absent from correct English"
+  },
+  {
+   "id": "00ffe4be835bbd382c6b156f813753867accd9b0f2ac50923dc4cb71e678ab9a",
+   "kind": "mined_token",
+   "rule": "TriggerActions[WhenACreatureOrPlaneswalkerDies]",
+   "token": "EntersUnderPlayersControl",
+   "word": "control",
+   "support": "215/216",
+   "template": "return them to the battlefield. They're an artifact",
+   "result": "ActionList([PutGraveyardCardOntoBattlefield(Trigger_ThatGraveyardCard, [EntersUnderPlayersControl(You), EntersWithLayerEffect([SetCardtype(Artifact)])])])",
+   "reason": "reviewed 2026-11-02: no control is printed, so the player who puts them onto the battlefield, the ability's controller, controls them (CR 110.2a)"
+  },
+  {
+   "id": "83444da456f4c112961b4ce5c5fa3895602842a9e1df934c11ac84cc20c717e7",
+   "kind": "mined_token",
+   "rule": "TriggerActions[WhenACreatureOrPlaneswalkerDies]",
+   "token": "EntersUnderPlayersControl",
+   "word": "under",
+   "support": "215/216",
+   "template": "return them to the battlefield. They're an artifact",
+   "result": "ActionList([PutGraveyardCardOntoBattlefield(Trigger_ThatGraveyardCard, [EntersUnderPlayersControl(You), EntersWithLayerEffect([SetCardtype(Artifact)])])])",
+   "reason": "reviewed 2026-11-02: no control is printed, so the player who puts them onto the battlefield, the ability's controller, controls them (CR 110.2a)"
+  },
+  {
+   "id": "a596b3f89920051844f20dcec1320fc98c94ae6bd11aa25e8ea16ebaacd242f0",
+   "kind": "token_rule",
+   "rule": "TriggerActions[WhenACreatureOrPlaneswalkerDies]",
+   "token": "EntersUnderPlayersControl\\(You\\)",
+   "word": "(?i)under your control|gain control",
+   "template": "return them to the battlefield. They're an artifact",
+   "result": "ActionList([PutGraveyardCardOntoBattlefield(Trigger_ThatGraveyardCard, [EntersUnderPlayersControl(You), EntersWithLayerEffect([SetCardtype(Artifact)])])])",
+   "reason": "reviewed 2026-11-02: no control is printed, so the player who puts them onto the battlefield, the ability's controller, controls them (CR 110.2a)"
   }
 ]
 }
