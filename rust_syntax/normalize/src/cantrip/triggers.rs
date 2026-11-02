@@ -1799,6 +1799,13 @@ impl Compiler {
         announcement: &Announcement,
         body: &Program,
     ) -> Result<String> {
+        // Expedited Inheritance: "its controller may exile that many cards", which
+        // its data has them do with no choice.
+        if lane_k::printed_otherwise(self.line_text(), "its controller may exile that many")
+            && !format!("{body:?}").contains("Optional")
+        {
+            return Err(gap("a may the card prints read as a must, in the data"));
+        }
         let counts = match self.slot_counts {
             target_counts::SlotCounts::Delayed => target_counts::SlotCounts::Delayed,
             _ => Compiler::counts_of_trigger(event),

@@ -1226,7 +1226,17 @@ impl Compiler {
             {
                 "Expiry::UntilYourNextEndStep".to_string()
             }
-            _ => play_expiry(duration)?,
+            // "For as long as it remains exiled" read as until it is cast: a
+            // permission for that card, which ends as it leaves exile (CR 400.7).
+            crate::ir::Duration::UntilCast(_) => "Expiry::Never".to_string(),
+            // "They may play those cards until the end of their next turn": the
+            // next turn of the player the permission is for.
+            crate::ir::Duration::UntilEndOfNextTurn(whose)
+                if matches!(players, PlayerSet::One(p) if form(p) == form(whose)) =>
+            {
+                "Expiry::EndOfYourNextTurn".to_string()
+            }
+            other => play_expiry(other)?,
         };
         if terms.during.is_some() || terms.flash || terms.may_look {
             return Err(gap("play permission on other terms"));
@@ -1308,6 +1318,11 @@ impl Compiler {
                     ..
                 }
             );
+        if matches!(duration, crate::ir::Duration::UntilCast(_))
+            && (exiled_with || terms.limit.is_some())
+        {
+            return Err(gap("play permission lasting UntilCast"));
+        }
         let one = match terms.limit {
             None => false,
             Some(PlayLimit::Total(1)) if exiled_with => true,
@@ -1341,6 +1356,18 @@ impl Compiler {
         if matches!(cards, ObjectSet::Zone { .. }) {
             // Cards that come there later are named too: no list of them today has it.
             return Err(gap("play permission on an open set of cards"));
+        }
+        // "Until end of turn, you may cast instant and sorcery spells from the top of
+        // your graveyard" (Bösium Strip): whatever card is on top as it is cast. A
+        // permission is for one object (`allow_play`), and the one lasting rule for a
+        // graveyard (`EffectKind::PlayFromGraveyard`) takes every card in it.
+        if let ObjectSet::Take { objects, .. } = cards {
+            if matches!(
+                &**objects,
+                ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Graveyard, players: PlayerSet::One(PlayerRef::Affected) }, .. }
+            ) {
+                return Err(gap("a lasting permission to cast from the top of a graveyard"));
+            }
         }
         let chosen = match filter {
             ObjectFilter::Any => cards.clone(),

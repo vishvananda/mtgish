@@ -800,12 +800,10 @@ impl Compiler {
         let Some((object, price)) = exile_beside_a_price(cost) else {
             return Err(gap("cost part Move"));
         };
-        // The link is to the exiling ability's object, not to the token that was
-        // given the ability that reads it.
+        // An ability given later to a token reads the card as linked to it: the
+        // grant links it (`exiled_for_grant`).
         let later = format!("{:?}", self.after);
-        if later.contains("GrantAbility") && later.contains("Earlier { what: Exiled") {
-            return Err(gap("an exiled card read by an ability given to a token"));
-        }
+        let for_grant = later.contains("GrantAbility") && later.contains("Earlier { what: Exiled");
         let evidence = price
             .parts
             .iter()
@@ -820,6 +818,9 @@ impl Compiler {
         self.moved.insert(result.0, format!("moved_{id}"));
         self.left_behind(result, format!("moved_{id}.clone()"));
         self.notes.exiled_source = Some(format!("moved_{id}.clone()"));
+        if for_grant {
+            self.notes.exiled_for_grant = Some(format!("moved_{id}.clone()"));
+        }
         Ok(())
     }
     /// "You may discard your hand and draw two cards. If you do": one decision.

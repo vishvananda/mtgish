@@ -262,6 +262,9 @@ pub(super) struct Notes {
     /// What a cost paid as this resolved exiled: "return this card" after "you may
     /// exile it", where the source has since left the object it was.
     pub exiled_source: Option<String>,
+    /// What a cost paid as this resolved exiled, for an ability given later in
+    /// it to read as "the exiled card" (Timothar, Baron of Bats).
+    pub exiled_for_grant: Option<String>,
     /// What each instruction acted on, by the word `EarlierObjects` has for it:
     /// the last of these is what "that card" or "those" was.
     pub earlier: Vec<(&'static str, ResultId)>,

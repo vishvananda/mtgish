@@ -50,6 +50,14 @@ fn held_object(feature: &str, code: &str) -> String {
     planned::planned_value(feature, "None::<ObjectId>", code)
 }
 
+impl Compiler {
+    /// "If a player would draw a card, that player exiles that card ... instead"
+    /// (Uba Mask): each card it exiles is the exiling player's own.
+    fn exiles_own_draw(&self) -> bool {
+        self.card_prints("would draw a card, that player exiles that card")
+    }
+}
+
 /// A list of mana colors, as code: `Color::White, Color::Red`.
 pub(super) fn colors_code(colors: &[ManaColor]) -> Result<String> {
     let colors = colors
@@ -1203,12 +1211,26 @@ impl Compiler {
             // every graveyard offered isn't what the card says.
             ObjectFilter::ChosenBy { kind, player }
                 if self.chosen_lists.iter().any(|(k, _)| k == kind)
-                    && !lane_k::printed_otherwise(self.line_text(), "their graveyard") =>
+                    && (self.one_graveyard
+                        || !lane_k::printed_otherwise(self.line_text(), "their graveyard")) =>
             {
                 *self.own_choice.borrow_mut() = Some(self.player(player)?);
                 let test = self.chosen_filter(*kind, chars, id);
                 *self.own_choice.borrow_mut() = None;
                 test?
+            }
+            // Grave Sifter: its data takes the cards from every graveyard, where the
+            // card says each player's own.
+            ObjectFilter::ChosenBy { kind, player }
+                if self.chosen_lists.iter().any(|(k, _)| k == kind) =>
+            {
+                held(
+                    "every graveyard where the card says their graveyard, in the data",
+                    &format!(
+                        "{}.is_some_and(|p: PlayerId| q.chosen_by(asker, p, ChoiceKind::{kind:?}).matches({id}))",
+                        self.player(player)?
+                    ),
+                )
             }
             ObjectFilter::ChosenBy { kind, player } => held(
                 &feature,
@@ -1251,6 +1273,30 @@ impl Compiler {
                     self.object(object)?
                 ),
             ),
+            // "Cards they exiled with this artifact this turn" (Uba Mask), where what
+            // exiles them is the drawing player exiling the card they would draw:
+            // linked to this ability's text (CR 607.2a), and their own card.
+            ObjectFilter::ExiledBy {
+                player: player @ PlayerRef::Affected,
+                with: Some(ObjectRef::Source),
+                this_turn,
+            } if self.exiles_own_draw() => {
+                let turn = if *this_turn {
+                    format!(" && q.history().this_turn().iter().any(|r| matches!(r.event, Event::ZoneChange {{ new, to, .. }} if new == {id} && to.is(ZoneKind::Exile)))")
+                } else {
+                    String::new()
+                };
+                format!(
+                    "(q.exiled_with(q.linked_to(asker)).contains(&{id}) && {}.is_some_and(|p: PlayerId| q.obj({id}).owner == p){turn})",
+                    self.player(player)?
+                )
+            }
+            // Shared Fate: the card is another player's, and nothing keeps who exiled it.
+            ObjectFilter::ExiledBy {
+                player: PlayerRef::Affected,
+                with: Some(ObjectRef::Source),
+                ..
+            } => return Err(gap("the player who exiled a card another player owns")),
             ObjectFilter::ExiledBy {
                 player,
                 with,
@@ -2324,6 +2370,40 @@ impl Compiler {
                 self.left_behind(result, effects::gone(&format!("objects_{id}")));
                 return Ok(());
             }
+        }
+        // "Look at the top three cards of your library. Exile one of them face down
+        // with a hatching counter on it": exiled face down, the counters put on it
+        // there (as suspend's are), and the player who looked at it may go on
+        // looking at it (CR 406.3).
+        if let (true, Destination::Exile, false, [], false) = (
+            face_down,
+            destination,
+            entry.tapped,
+            entry.states.as_slice(),
+            self.links_exile,
+        ) {
+            let pool = self.fetch(self.objects(objects)?);
+            let mut counters = String::new();
+            for (kind, n) in &entry.counters {
+                let n = self.fetch(self.number(n)?.code);
+                write!(counters, "g.add_counters(o, {}, ({n}) as i16); ", counter_kind(kind)?).unwrap();
+            }
+            // The last player this resolution had look at cards, who chose among them.
+            let looked = out
+                .rfind("g.look_at(")
+                .map(|at| &out[at + "g.look_at(".len()..])
+                .and_then(|rest| rest.split_once(','))
+                .map(|(player, _)| player.trim().to_string())
+                .filter(|player| {
+                    player.starts_with("player_") && player[7..].chars().all(|c| c.is_ascii_digit())
+                });
+            let look = looked.map_or(String::new(), |player| {
+                format!(" g.look_at({player}, &moved_{id});")
+            });
+            writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_face_down(&objects_{id}, None); for &o in &moved_{id} {{ if g.obj(o).zone.is(ZoneKind::Exile) {{ {counters}}} }}{look}").unwrap();
+            self.moved.insert(result.0, format!("moved_{id}"));
+            self.left_behind(result, effects::gone(&format!("objects_{id}")));
+            return Ok(());
         }
         let failed = match face_down {
             true => gap("operation Move"),

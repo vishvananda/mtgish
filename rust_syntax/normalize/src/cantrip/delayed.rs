@@ -55,6 +55,10 @@ const KEEPS_NO_LIST: &str = "engine: a delayed ability on an event keeps no list
 
 /// The lists a delayed ability carries are one list to the engine, so each ends
 /// with an object nothing can be.
+/// The object a triggered ability's source became as it moved, carried in its data:
+/// "this card" of "when this creature dies".
+const DIED_AS: &str = "Some(ObjectId(item.data[0])).filter(|o| *o != ObjectId::NONE).into_iter().collect::<Vec<ObjectId>>()";
+
 pub(super) const ABOUT: &str = "fn about(q: &dyn Query, item: &StackItem, part: usize) -> Vec<ObjectId> { q.event_objects(item).split(|&id| id == ObjectId::NONE).nth(part).map_or_else(Vec::new, <[ObjectId]>::to_vec) }\n";
 
 impl Compiler {
@@ -729,6 +733,17 @@ impl Compiler {
         if self.reader != Reader::Resolution {
             return Err(gap("event trigger outside a resolving ability"));
         }
+        // "For as long as any of those cards remain exiled, at the beginning of each
+        // player's upkeep" (Dimensional Breach), "at the beginning of each of that
+        // player's upkeeps, if that card is exiled" (Ertai's Meddling): Cantrip's
+        // ability at each step (`DelayedWhen::EachStep`) is never used up and is put
+        // on the stack with no check, so it would go on triggering once the cards
+        // have left exile.
+        if let (EventSpec::Turn { .. }, D::WhileExiled(_) | D::WhileAnyExiled(_), false) =
+            (event, duration, once)
+        {
+            return Err(gap("a delayed ability at each step for as long as cards remain exiled"));
+        }
         let when = match (duration, once) {
             (D::EndOfTurn, false) => "DelayedWhen::ThisTurn".to_string(),
             (D::EndOfTurn, true) => "DelayedWhen::NextThisTurn".to_string(),
@@ -1107,6 +1122,35 @@ impl Compiler {
                             true => writeln!(out, "{make}").unwrap(),
                             false => self.plan_code(KEEPS_NO_LIST, &make, out),
                         }
+                    }
+                    // "When this creature dies, choose target opponent. That player
+                    // puts this card ... onto the battlefield ... at the beginning of
+                    // the next end step" (Endless Whispers): the card is what the
+                    // ability's source became as it died, which the delayed ability
+                    // finds from its own source, so its subject can be the player.
+                    Some(player)
+                        if source == "item.object"
+                            && lists.len() == 1
+                            && lists[0].trim() == DIED_AS
+                            && lane_k::printed_otherwise(self.line_text(), "When this creature dies")
+                            && self.functions.contains(&format!("fn {label}(")) =>
+                    {
+                        let start = self.functions.find(&format!("fn {label}(")).unwrap_or(0);
+                        let end = self.functions[start..].find("\nfn ").map_or(self.functions.len(), |n| start + n);
+                        let function = self.functions[start..end].replace(
+                            "about(q, item, 0)",
+                            "q.state().obj(item.object).became.into_iter().collect::<Vec<ObjectId>>()",
+                        );
+                        self.functions.replace_range(start..end, &function);
+                        if !self.functions.contains("about(q, item,") {
+                            self.helpers.remove("about");
+                        }
+                        writeln!(
+                            out,
+                            "{open}if let Some(player) = {} {{ g.delayed_trigger({when}, {source}, {controller}, {ability}, Target::Player(player)); }}{close}",
+                            self.fetch(player)
+                        )
+                        .unwrap();
                     }
                     Some(player) => self.plan_code(
                         "delayed ability about objects and a player",
