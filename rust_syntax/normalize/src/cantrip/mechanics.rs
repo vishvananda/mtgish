@@ -349,6 +349,21 @@ impl Compiler {
                     .replacements
                     .push(format!("{M}::replacements::BUYBACK"));
             }
+            // "Kicker—Pay 3 life" (CR 702.33a): announced as an optional cost is,
+            // and paying it kicks the spell once.
+            K::Kicker
+                if mana_alone(cost, mechanic).is_err()
+                    && !parts.fields.contains_key("kicker")
+                    && !parts.fields.contains_key("optional_cost") =>
+            {
+                let price = cost.as_ref().ok_or_else(|| gap("Kicker with no cost"))?;
+                let code = self.mechanic_cost(cost, mechanic, label)?;
+                parts.field(
+                    "optional_cost",
+                    format!("Some({M}::kicker::non_mana({code}))"),
+                );
+                self.cost_labels(price, parts);
+            }
             K::Kicker | K::Multikicker | K::Replicate | K::Buyback | K::Squad | K::Offspring => {
                 let mana = mana_alone(cost, mechanic)?;
                 let field = match mechanic {

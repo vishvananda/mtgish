@@ -3506,6 +3506,25 @@ impl Compiler {
                     parts,
                 );
             }
+            // "No more than two creatures can attack you each combat" (CR 508.1c),
+            // of what has the ability: a rule of the combat, asked of what is attacked.
+            Ability::AttackCap {
+                defender:
+                    defender @ (Recipients::Players(PlayerSet::One(PlayerRef::AbilityController))
+                    | Recipients::Objects(ObjectSet::One(ObjectRef::Source))),
+                amount: Expr::Constant(most),
+            } => {
+                let attacked = match defender {
+                    Recipients::Players(_) => "Target::Player(asker.controller)",
+                    _ => "Target::Object(asker.source)",
+                };
+                writeln!(
+                    self.functions,
+                    "#[allow(unused_variables)] fn {label}_limit(q: &dyn Query, asker: &Asker, attacked: Target) -> Option<u32> {{ (attacked == {attacked}).then_some({most}) }}"
+                )
+                .unwrap();
+                parts.table("attack_limits", format!("{label}_limit"));
+            }
             Ability::AttackCap { defender, amount } => {
                 let (at, amount) = self
                     .queried(|c| Ok((c.attack_target(defender, "defender")?, c.asked(amount)?)))?;
