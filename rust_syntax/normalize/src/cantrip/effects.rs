@@ -1545,6 +1545,19 @@ impl Compiler {
                         format!("let mut done_{id}: i64 = 0; let mut dealt_{id}: Vec<ObjectId> = Vec::new(); "),
                         format!("let dealt = g.damage_together(&batch); done_{id} += dealt.iter().map(|&n| i64::from(n)).sum::<i64>(); dealt_{id}.extend(batch.iter().zip(&dealt).filter(|(_, n)| **n > 0).filter_map(|(d, _)| d.1.object()));"),
                     )
+                } else if self.read_later(result)
+                    && self.after.iter().any(|i| format!("{i:?}").contains(&format!("ClampedDamage(ResultId({}))", result.0)))
+                {
+                    // "But not more life than the player's life total before the
+                    // damage was dealt, the planeswalker's loyalty before the damage
+                    // was dealt, or the creature's toughness" (Drain Life): each
+                    // recipient's damage, no more than that.
+                    self.performed.insert(result.0, format!("done_{id}"));
+                    let clamped = format!("clamped_damage_{}", result.0);
+                    (
+                        format!("let mut done_{id}: i64 = 0; let mut {clamped}: i64 = 0; "),
+                        format!("let caps: Vec<i64> = batch.iter().map(|&(_, t, _)| match t {{ Target::Player(p) => i64::from(g.state().player(p).life).max(0), Target::Object(o) if g.chars(o).is(CardType::Planeswalker) => i64::from(g.state().obj(o).counters(CounterKind::Loyalty)).max(0), Target::Object(o) => i64::from(g.chars(o).toughness.unwrap_or(0)).max(0), _ => 0 }}).collect(); let dealt = g.damage_together(&batch); done_{id} += dealt.iter().map(|&n| i64::from(n)).sum::<i64>(); {clamped} += dealt.iter().zip(&caps).map(|(&n, &cap)| i64::from(n).min(cap)).sum::<i64>();"),
+                    )
                 } else if self.read_later(result) {
                     self.performed.insert(result.0, format!("done_{id}"));
                     (

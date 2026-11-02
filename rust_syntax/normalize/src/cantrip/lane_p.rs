@@ -1034,6 +1034,9 @@ impl Compiler {
                 let part = u8::from(*toughness);
                 held_number(feature, &format!("i64::from(chosen_pt_{}.{part})", result.0))
             }
+            Expr::ClampedDamage(result) if self.performed.contains_key(&result.0) => {
+                counted(format!("clamped_damage_{}", result.0))
+            }
             Expr::ClampedDamage(result) => {
                 held_number(feature, &format!("clamped_damage_{}", result.0))
             }
