@@ -1261,7 +1261,7 @@ impl Compiler {
             // several events the ability is one answer to.
             Expr::EventAmount if self.frame.amount.is_none() && self.event_at == EventAt::Item => {
                 count(planned::planned_value(
-                    "amount of an event its trigger does not carry",
+                    self.event_amount_feature(),
                     "0i64",
                     "q.event_total(item)",
                 ))
@@ -1272,11 +1272,15 @@ impl Compiler {
                     && self.frame != Frame::default()
                     && matches!(self.event_at, EventAt::Matcher | EventAt::TargetFilter) =>
             {
-                count(planned::planned_value(
-                    "amount of an event its trigger does not carry",
-                    "0i64",
-                    "q.event_total_at(asker)",
-                ))
+                // As targets are chosen, a filter, a count or a divided total reads
+                // the event's subject alone (`Query::event_subject`).
+                let feature = match self.event_at {
+                    EventAt::TargetFilter if !self.event_planned => {
+                        "event value in a target filter beyond its subject"
+                    }
+                    _ => self.event_amount_feature(),
+                };
+                count(planned::planned_value(feature, "0i64", "q.event_total_at(asker)"))
             }
             Expr::EventAmount => {
                 let (_, data) = self.carried(
@@ -2410,6 +2414,15 @@ impl Compiler {
         Ok(format!(
             "{{ let creatures: Vec<ObjectId> = q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == {player} && q.chars(id).is(CardType::Creature)).collect(); (0u8..16).map(|roles: u8| creatures.iter().filter(|&&id| [Subtype::Cleric, Subtype::Rogue, Subtype::Warrior, Subtype::Wizard].iter().enumerate().any(|(i, &role)| (roles >> i) & 1 == 1 && q.chars(id).has_subtype(role))).count() as i64 + 4 - i64::from(roles.count_ones())).min().unwrap_or(0) }}"
         ))
+    }
+    /// What "that many" of an event waits on: the event itself where Cantrip has
+    /// none yet ("whenever you roll to visit your Attractions, if you roll a 6"),
+    /// since the number is what that event will say; else the number alone.
+    fn event_amount_feature(&self) -> &'static str {
+        match self.event_planned {
+            true => FOLLOWS_GAP,
+            false => "amount of an event its trigger does not carry",
+        }
     }
 }
 

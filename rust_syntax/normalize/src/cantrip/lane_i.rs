@@ -3063,12 +3063,23 @@ impl Compiler {
         else {
             return Ok(false);
         };
-        let [choice] = choices.as_slice() else {
-            return Ok(false);
-        };
-        if !choice.constraints.is_empty() || format!("{player:?}") != format!("{library:?}") {
+        if format!("{player:?}") != format!("{library:?}") {
             return Ok(false);
         }
+        // "A card named Magnifying Glass and/or a card named Thinking Cap" from
+        // "your graveyard, hand and/or library" (Agency Outfitter): one choice
+        // over the zones searched, each card told off among the clauses.
+        let clauses = match choices.as_slice() {
+            [choice] if choice.constraints.is_empty() => None,
+            [_, _, ..] if *either && top.is_none() && also.len() == 2 => {
+                match self.clauses_judge(id, choices)? {
+                    Some(clauses) => Some(clauses),
+                    None => return Ok(false),
+                }
+            }
+            _ => return Ok(false),
+        };
+        let choice = &choices[0];
         let zone_of = |zone: &EventZone, owner: &str| match zone {
             EventZone::Graveyard => Ok(format!("Zone::graveyard({owner})")),
             EventZone::Hand => Ok(format!("Zone::hand({owner})")),
@@ -3095,10 +3106,9 @@ impl Compiler {
             }
             _ => return Ok(false),
         };
-        if effects::one_at_most(&choice.count) {
+        if clauses.is_none() && effects::one_at_most(&choice.count) {
             self.single.insert(result.0);
         }
-        let filter = self.filter(&choice.filter, &Candidate::of("id"))?;
         let destination = effects::search_destination(result, &self.after);
         let purpose = match destination {
             "Battlefield" | "BattlefieldTapped" => "PutOntoBattlefield",
@@ -3108,16 +3118,32 @@ impl Compiler {
             _ => "PutIntoHand",
         };
         let searcher = self.fetch(self.certain_player(player)?);
-        let count = self.fetch(self.select_count(&choice.count)?);
-        writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = searcher_{id}; let may_{id} = g.may_search(searcher_{id}, owner_{id}); let rule_count_{id} = {count}; let shown_{id}: Vec<ObjectId> = {shown}; let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }};").unwrap();
-        let whole = format!("{{ let rule = {SELECTION}::listed(rule_count_{id}, &shown_{id}, can_{id}.clone()); let found = if shown_{id}.is_empty() {{ Vec::new() }} else {{ match g.ask(searcher_{id}, RequestKind::SearchLibrary {{ source: asker.source, library: shown_{id}.clone(), rule: Box::new(rule), destination: SearchDestination::{destination} }})? {{ Answer::Cards(cards) => cards, _ => Vec::new() }} }}; if may_{id} {{ g.searched(searcher_{id}, owner_{id}); }} found }}");
+        let (rule_whole, rule_zones) = match clauses {
+            Some((total, judge)) => {
+                self.helpers.insert("clauses");
+                writeln!(self.functions, "{judge}").unwrap();
+                writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = searcher_{id}; let may_{id} = g.may_search(searcher_{id}, owner_{id}); let shown_{id}: Vec<ObjectId> = {shown};").unwrap();
+                let rule = format!("{SELECTION}::new(cantrip_mechanics::select::up_to({total})).with(cantrip_api::select::part(&(clauses_{id} as SelectFn), 0, \"one for each thing searched for\"))");
+                (rule.clone(), rule)
+            }
+            None => {
+                let filter = self.filter(&choice.filter, &Candidate::of("id"))?;
+                let count = self.fetch(self.select_count(&choice.count)?);
+                writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = searcher_{id}; let may_{id} = g.may_search(searcher_{id}, owner_{id}); let rule_count_{id} = {count}; let shown_{id}: Vec<ObjectId> = {shown}; let can_{id}: Vec<ObjectId> = {{ let q: &dyn Query = g; shown_{id}.iter().copied().filter(|&id| {filter}).collect() }};").unwrap();
+                (
+                    format!("{SELECTION}::listed(rule_count_{id}, &shown_{id}, can_{id}.clone())"),
+                    format!("{{ let in_zones: Vec<ObjectId> = can_{id}.iter().copied().filter(|o| zones_{id}.contains(o)).collect(); {SELECTION}::listed(rule_count_{id}, &zones_{id}, in_zones) }}"),
+                )
+            }
+        };
+        let whole = format!("{{ let rule = {rule_whole}; let found = if shown_{id}.is_empty() {{ Vec::new() }} else {{ match g.ask(searcher_{id}, RequestKind::SearchLibrary {{ source: asker.source, library: shown_{id}.clone(), rule: Box::new(rule), destination: SearchDestination::{destination} }})? {{ Answer::Cards(cards) => cards, _ => Vec::new() }} }}; if may_{id} {{ g.searched(searcher_{id}, owner_{id}); }} found }}");
         if *either {
             let [first, second] = also.as_slice() else {
                 return Ok(false);
             };
             let (first, second) = (zone_of(first, &owner)?, zone_of(second, &owner)?);
             writeln!(self.functions, "static ASK_{id}: Question = Question::new(\"SearchLibrary\", \"search your library as well?\", \"Then shuffle. If you don't, you search only the other zones\", \"Search it too\", \"Not the library\");").unwrap();
-            writeln!(out, "let zones_{id}: Vec<ObjectId> = g.state().zone({first}).iter().chain(g.state().zone({second}).iter()).copied().collect(); let searched_{id} = {LIBRARY}::ask_may_search(g, searcher_{id}, asker.source, &ASK_{id})?; let found_{id}: Vec<ObjectId> = if searched_{id} {{ {whole} }} else {{ let in_zones: Vec<ObjectId> = can_{id}.iter().copied().filter(|o| zones_{id}.contains(o)).collect(); let rule = {SELECTION}::listed(rule_count_{id}, &zones_{id}, in_zones); let any = cantrip_api::select::first_answer(&*g, &rule, searcher_{id}, asker.source, &zones_{id}, true).is_some_and(|taken| !taken.is_empty()); if any {{ cantrip_mechanics::choose::select(g, searcher_{id}, asker.source, Purpose::{purpose}, zones_{id}.clone(), rule)? }} else {{ Vec::new() }} }};").unwrap();
+            writeln!(out, "let zones_{id}: Vec<ObjectId> = g.state().zone({first}).iter().chain(g.state().zone({second}).iter()).copied().collect(); let searched_{id} = {LIBRARY}::ask_may_search(g, searcher_{id}, asker.source, &ASK_{id})?; let found_{id}: Vec<ObjectId> = if searched_{id} {{ {whole} }} else {{ let rule = {rule_zones}; let any = cantrip_api::select::first_answer(&*g, &rule, searcher_{id}, asker.source, &zones_{id}, true).is_some_and(|taken| !taken.is_empty()); if any {{ cantrip_mechanics::choose::select(g, searcher_{id}, asker.source, Purpose::{purpose}, zones_{id}.clone(), rule)? }} else {{ Vec::new() }} }};").unwrap();
             self.searched.insert(result.0, format!("searched_{id}"));
         } else {
             writeln!(out, "let found_{id}: Vec<ObjectId> = {whole};").unwrap();

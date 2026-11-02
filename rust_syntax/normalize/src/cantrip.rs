@@ -531,6 +531,9 @@ struct Compiler {
     frame: Frame,
     /// A batch trigger's members are in reach: `Query::event_objects`.
     grouped: bool,
+    /// The trigger being written waits on an event Cantrip doesn't have yet, so
+    /// what that event would say ("that many") comes with it.
+    event_planned: bool,
     /// A trigger on damage to a player fires with that player as its subject.
     recipient_subject: bool,
     candidates: std::cell::RefCell<Vec<Candidate>>,
@@ -1003,6 +1006,7 @@ impl Compiler {
             event_at: EventAt::Nowhere,
             frame: Frame::default(),
             grouped: false,
+            event_planned: false,
             recipient_subject: false,
             candidates: Default::default(),
             cast_fact: Default::default(),

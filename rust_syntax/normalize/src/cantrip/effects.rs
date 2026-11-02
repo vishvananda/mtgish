@@ -2393,6 +2393,27 @@ impl Compiler {
                 self.selections.insert(result.0, format!("unattached_{id}"));
                 self.performed.insert(result.0, format!("paid_{id}"));
             }
+            // "You may suspect one of the other creatures. If you do" (Frantic
+            // Scapegoat): the payer picks one or none, and it becomes suspected
+            // (CR 701.60a).
+            Operation::PayCost {
+                player,
+                cost,
+                optional: true,
+            } if matches!(
+                cost.parts.as_slice(),
+                [CostPart::ObjectAction { action: CostObjectAction::Suspect, .. }]
+            ) =>
+            {
+                let [CostPart::ObjectAction { objects, .. }] = cost.parts.as_slice() else {
+                    unreachable!("a suspect");
+                };
+                let payer = self.fetch(self.certain_player(player)?);
+                let objects = self.fetch(self.objects(objects)?);
+                writeln!(out, "let payer_{id} = {payer}; let offered_{id}: Vec<ObjectId> = {objects}.into_iter().filter(|&o| g.state().obj(o).zone.kind() == ZoneKind::Battlefield).collect(); let suspected_{id} = cantrip_mechanics::choose::cards(g, payer_{id}, asker.source, Purpose::Optional, offered_{id}, 1, true)?; for &o in &suspected_{id} {{ g.suspect(o); }} let paid_{id} = !suspected_{id}.is_empty();").unwrap();
+                self.selections.insert(result.0, format!("suspected_{id}"));
+                self.performed.insert(result.0, format!("paid_{id}"));
+            }
             Operation::PayCost {
                 player,
                 cost,
