@@ -958,6 +958,7 @@ impl Compiler {
         players: &PlayerSet,
         objects: &ObjectSet,
         each: bool,
+        times: Option<String>,
         out: &mut String,
     ) -> Result<()> {
         let colors = self.fetch(format!(
@@ -977,7 +978,8 @@ impl Compiler {
             )
             .unwrap();
         } else {
-            writeln!(out, "if !colors_{id}.is_empty() {{ let colors = {M}::choose_colors(g, player, asker.source, colors_{id}, 1)?; g.add_mana(player, colors[0].mana(), 1); }}").unwrap();
+            let times = times.unwrap_or_else(|| "1i64".into());
+            writeln!(out, "if !colors_{id}.is_empty() {{ for _ in 0..({times}).max(0) {{ let colors = {M}::choose_colors(g, player, asker.source, colors_{id}, 1)?; g.add_mana(player, colors[0].mana(), 1); }} }}").unwrap();
         }
         writeln!(out, "}}").unwrap();
         Ok(())

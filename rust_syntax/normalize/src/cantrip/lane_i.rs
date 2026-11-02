@@ -1896,6 +1896,41 @@ impl Compiler {
         let player = self.certain_player(decider).map(|p| self.fetch(p));
         let decider_code = planned::planned_read(player, "asker.controller", decider);
         writeln!(out, "let decider_{id} = {decider_code};").unwrap();
+        // Winter's Chill: "its controller may pay {1} or {2}. If that player
+        // doesn't, ...": each payment is a may of its own (CR 118.12), asked in
+        // turn, and the last option is what happens when none is paid.
+        if let Some((last, paying)) = options.split_last() {
+            let pays = |option: &Program| match option.instructions.first() {
+                Some(Instruction::Effect {
+                    operation: operation @ Operation::PayCost { optional: false, .. },
+                    result,
+                }) => Some((operation.clone(), result.clone())),
+                _ => None,
+            };
+            if paying.len() >= 2
+                && paying.iter().all(|option| pays(option).is_some())
+                && pays(last).is_none()
+            {
+                let mut close = String::new();
+                for option in paying {
+                    let (operation, result) = pays(option).expect("checked");
+                    let Operation::PayCost { player, cost, .. } = operation else {
+                        unreachable!("a payment");
+                    };
+                    let asked = Operation::PayCost { player, cost, optional: true };
+                    self.operation(&asked, &result, out)?;
+                    let paid = self.performed[&result.0].clone();
+                    writeln!(out, "if {paid} {{").unwrap();
+                    let rest = Program { instructions: option.instructions[1..].to_vec() };
+                    self.block(&rest, out, true)?;
+                    writeln!(out, "}} else {{").unwrap();
+                    close.push('}');
+                }
+                self.block(last, out, true)?;
+                writeln!(out, "{close}").unwrap();
+                return Ok(());
+            }
+        }
         let Some(base) = self.option_labels_of(options) else {
             // Cloak and Dagger: "until Cloak and Dagger leave the battlefield" is
             // gone from the data's exile, and its two exiles are one choice there.
@@ -2343,6 +2378,7 @@ impl Compiler {
         times: &Expr,
         new_targets: bool,
         effects: &[Operand],
+        result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
         let copier = self.fetch(self.certain_player(player)?);
@@ -2408,16 +2444,30 @@ impl Compiler {
                 "",
             );
         }
-        writeln!(out, "let copier_{id} = {copier}; let spell_{id}: Option<ObjectId> = ({list}).first().copied();").unwrap();
+        // The copies, for "those spells" (Spinerock Tyrant) after.
+        let kept = lane_n::read_as_objects(&self.after, result) || format!("{:?}", self.after).contains("what: CopiedSpell");
+        let copies = match kept {
+            true => format!(" let mut copies_{id}: Vec<ObjectId> = Vec::new();"),
+            false => String::new(),
+        };
+        let keep = |call: String| match kept {
+            true => format!("copies_{id}.extend({call});"),
+            false => format!("{call};"),
+        };
+        writeln!(out, "let copier_{id} = {copier}; let spell_{id}: Option<ObjectId> = ({list}).first().copied();{copies}").unwrap();
         if effects.is_empty() {
             writeln!(
                 out,
-                "if let Some(spell) = spell_{id} {{ {open}{plain}{close} }}"
+                "if let Some(spell) = spell_{id} {{ {open}{}{close} }}",
+                keep(format!("g.copy_spell(spell, copier_{id}, {new_targets})?"))
             )
             .unwrap();
         } else {
             let values = self.copy_values(&format!("spell_{id}"), effects)?;
-            writeln!(out, "let values_{id} = {values}; if let (Some(spell), Some(values)) = (spell_{id}, values_{id}) {{ {open}g.copy_spell_as(spell, copier_{id}, {new_targets}, values)?;{close} }}").unwrap();
+            writeln!(out, "let values_{id} = {values}; if let (Some(spell), Some(values)) = (spell_{id}, values_{id}) {{ {open}{}{close} }}", keep(format!("g.copy_spell_as(spell, copier_{id}, {new_targets}, values)?"))).unwrap();
+        }
+        if kept {
+            self.moved.insert(result.0, format!("copies_{id}"));
         }
         Ok(())
     }
@@ -2458,7 +2508,7 @@ impl Compiler {
                 card: None,
             } => {
                 let new_targets = matches!(targets, NewTargets::May);
-                self.copy_on_stack(id, player, object, times, new_targets, effects, out)?;
+                self.copy_on_stack(id, player, object, times, new_targets, effects, result, out)?;
             }
             Operation::Retarget {
                 actor: PlayerSet::One(player),

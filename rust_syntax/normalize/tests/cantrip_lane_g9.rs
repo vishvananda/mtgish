@@ -57,7 +57,7 @@ const CARDS: &[(&str, &str, bool)] = &[
         "an-exile-until-this-leaves-the-battlefield-dropped-from-a-choice-in-the-data",
         false,
     ),
-    ("Winter's Chill", "a-choice-among-costs-to-pay-each-one-asked-again-as-a-may", false),
+    ("Winter's Chill", "a-limit-on-the-x-announced", false),
     (
         "Jhoira, Weatherlight Corsair",
         "the-life-you-lose-read-as-the-revealing-player-s-in-the-data",

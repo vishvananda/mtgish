@@ -1518,7 +1518,25 @@ impl Compiler {
                 players,
                 mana: ManaProduction::ColorsAmong { objects, each },
                 restriction: None,
-            } => self.colors_among(id, players, objects, *each, out)?,
+            } => self.colors_among(id, players, objects, *each, None, out)?,
+            // "Add three mana in any combination of its colors" (Omnath, Locus of
+            // All): each a color among them, chosen one at a time (CR 106.1a).
+            Operation::AddMana {
+                players,
+                mana:
+                    ManaProduction::Repeat {
+                        amount,
+                        production,
+                        choice: ManaChoiceTiming::EachUnit,
+                    },
+                restriction: None,
+            } if matches!(**production, ManaProduction::ColorsAmong { each: false, .. }) => {
+                let ManaProduction::ColorsAmong { objects, .. } = &**production else {
+                    unreachable!()
+                };
+                let times = self.fetch(self.number(amount)?.code);
+                self.colors_among(id, players, objects, false, Some(times), out)?
+            }
             Operation::AddMana {
                 players,
                 mana,
@@ -2561,6 +2579,16 @@ impl Compiler {
                 self.performed.insert(result.0, format!("paid_{id}"));
                 match discard {
                     Some(n) => self.discards_paid(id, n, result, out),
+                    // "You may reveal that card ... add three mana in any combination
+                    // of its colors" (Omnath, Locus of All): what was revealed is the
+                    // card still on top.
+                    None if matches!(cost.parts.as_slice(), [CostPart::RevealTop(_)])
+                        && lane_n::read_as_objects(&self.after, result) =>
+                    {
+                        writeln!(out, "let revealed_{id}: Vec<ObjectId> = match paid_{id} {{ true => g.state().zone(Zone::library(payer_{id})).first().copied().into_iter().collect(), false => Vec::new() }};").unwrap();
+                        self.moved.insert(result.0, format!("revealed_{id}"));
+                        self.before.insert(result.0, format!("revealed_{id}.clone()"));
+                    }
                     None => self.objects_that_paid(id, result, out),
                 }
             }

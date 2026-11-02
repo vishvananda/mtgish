@@ -496,7 +496,23 @@ impl Compiler {
             }
             let narrowed = lane_n::entering_if(event, body);
             let body = narrowed.as_ref().unwrap_or(body);
-            if narrowed.is_some() {
+            // "If this creature would enter and it wasn't cast or no mana was spent
+            // to cast it" (Primeval Spawn): as it would enter it is still the spell
+            // on the stack (`Entering::object`, CR 614.12), whose cast record the
+            // read finds; a card that wasn't cast has none.
+            let about_its_cast = |event: &ReplacementEvent| {
+                fn cast_only(f: &ObjectFilter) -> bool {
+                    match f {
+                        ObjectFilter::Cast { .. } | ObjectFilter::ManaSpent { .. } => true,
+                        ObjectFilter::Not(f) => cast_only(f),
+                        ObjectFilter::All(fs) | ObjectFilter::Either(fs) => fs.iter().all(cast_only),
+                        _ => false,
+                    }
+                }
+                matches!(event, ReplacementEvent::Enter { objects: ObjectFilter::All(fs) } if fs[1..].iter().all(cast_only))
+            };
+            if narrowed.is_some() && about_its_cast(event) {
+            } else if narrowed.is_some() {
                 // What it was cast as is the spell's, and it is leaving the stack.
                 self.gaps
                     .push(gap("as-enters replacement of another event"));
@@ -868,15 +884,22 @@ impl Compiler {
         // An effect is made with no value of its own: "sources of the color of your
         // choice" is a definition for each color, and the choice says which is made.
         let by_color = results.chosen.iter().find(|(k, _)| *k == ValueKind::Color);
+        // "Lands tapped for mana produce mana of the chosen color instead" (Hall
+        // of Gemstone) is one for each color too.
+        let of_mana = format!("{body:?}").contains("ReplaceColoredMana(Amount { color: Chosen");
         let by_color = by_color.map(|(_, local)| local.clone()).filter(|local| {
             !local.starts_with("colors_")
-                && matches!(plain, ReplacementEvent::Damage(_))
-                && format!("{plain:?}").contains("Chosen(Color)")
-                && format!("{body:?}").contains("PreventDamage")
+                && (of_mana
+                    || (matches!(plain, ReplacementEvent::Damage(_))
+                        && format!("{plain:?}").contains("Chosen(Color)")
+                        && format!("{body:?}").contains("PreventDamage")))
         });
         let compiled = match by_color {
             Some(local) => {
-                let first = self.made_preventions.len();
+                let first = match of_mana {
+                    true => self.made_replacements.len(),
+                    false => self.made_preventions.len(),
+                };
                 let mut made = Ok((None, String::new()));
                 for color in lane_p::COLORS {
                     self.each_color = Some(format!("Color::{color}"));
@@ -902,8 +925,9 @@ impl Compiler {
                     .collect();
                 let last = first + lane_p::COLORS.len() - 1;
                 made.map(|(shield, kind)| {
-                    let index = format!("index: match {local} {{ {} }},", arms.join(", "));
-                    (shield, kind.replace(&format!("index: {last},"), &index))
+                    let index = format!("index: match {local} {{ {} }}", arms.join(", "));
+                    let kind = kind.replace(&format!("index: {last},"), &format!("{index},"));
+                    (shield, kind.replace(&format!("index: {last} }}"), &format!("{index} }}")))
                 })
             }
             None => self.made_effect(
