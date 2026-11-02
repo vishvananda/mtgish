@@ -3613,7 +3613,14 @@ fn say_printed_text(file: &mut File, printed: &str) {
     }
     impl Say<'_> {
         fn is_printed(&self, text: &str) -> bool {
-            self.oracle.contains(loose(text).trim_end_matches(['.', ',', ';']))
+            let text = loose(text);
+            let text = text.trim_end_matches(['.', ',', ';']);
+            // "Equip {2} or {B}" is two abilities, each with its own price.
+            self.oracle.contains(text)
+                || self.lines.iter().filter_map(|line| super::costs::worded_apart(line)).any(|(one, two)| {
+                    loose(&one).trim_end_matches(['.', ',', ';']) == text
+                        || loose(&two).trim_end_matches(['.', ',', ';']) == text
+                })
         }
     }
     impl VisitMut for Say<'_> {

@@ -1395,13 +1395,30 @@ impl Compiler {
             }
         }
         let mut about = Vec::new();
+        let mut each = Vec::new();
         if one {
             replacements::capture(&mut plain, &mut about);
             if about.len() > 1 {
                 return Err(gap("replacement made about several objects"));
             }
+            // Redeem's source has it dealt by them, not to them.
+            let misread = self
+                .line_text()
+                .is_some_and(|line| line.contains("would be dealt this turn to"));
+            if about.is_empty() && !misread {
+                replacements::capture_slot(&mut plain, &mut each);
+                if each.len() > 1 {
+                    return Err(gap("replacement made about several objects"));
+                }
+            }
         }
         let about = about.first().map(|o| self.object(o)).transpose()?;
+        let each = each
+            .first()
+            .map(|slot| self.objects(&ObjectSet::Targets(slot.clone())))
+            .transpose()?
+            .map(|list| self.fetch(list));
+        let about = about.or(each.as_ref().map(|_| "Some(each)".to_string()));
         let hint = quoted(&ability_text(body));
         let label = format!("made_{}", self.fresh());
         let scope = self.affected_in_scope;
@@ -1447,6 +1464,9 @@ impl Compiler {
         let effect = effect.replace("DURATION", &duration);
         let parts = outer.parts.borrow();
         let bound = format!("{shield} let to = {to}; let about = {about};");
+        if each.is_some() && (!parts.is_empty() || effect.contains("EffectKind::Redirect")) {
+            return Err(gap(KEPT));
+        }
         if !parts.is_empty() {
             let mut carried = String::from("let mut carried: Vec<Target> = Vec::new(); ");
             for part in parts.iter() {
@@ -1476,6 +1496,12 @@ impl Compiler {
                 ),
                 out,
             );
+        } else if let Some(list) = each {
+            writeln!(
+                out,
+                "for each in {list} {{ {bound} if let (Some(to), Some(about)) = (to, about) {{ {effect} }} }}"
+            )
+            .unwrap();
         } else {
             writeln!(
                 out,

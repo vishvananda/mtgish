@@ -2465,6 +2465,10 @@ impl Compiler {
         let asked = self.fetch(self.players(players)?);
         let binding = Binding(self.fresh() as u32 + 1_000_000);
         self.bound_players.insert(binding.0);
+        // "Half their life": the cost reads whoever is being asked.
+        let key = format!("willing {players:?}");
+        let asking = format!("Some(bound_{})", binding.0);
+        self.picked.borrow_mut().named.push((key.clone(), asking));
         writeln!(
             out,
             "let mut paid_{id} = false; for bound_{} in {asked} {{",
@@ -2477,6 +2481,7 @@ impl Compiler {
             optional: true,
         };
         let done = self.operation(&ask, result, out);
+        self.picked.borrow_mut().named.retain(|(name, _)| *name != key);
         self.bound_players.remove(&binding.0);
         done?;
         let inner = self.performed.insert(result.0, format!("paid_{id}"));

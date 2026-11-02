@@ -469,6 +469,8 @@ struct Compiler {
     quoted_used: BTreeSet<usize>,
     /// The next choice is a "you may": choosing nothing is declining.
     may_choose: bool,
+    /// `.with(part)` the next resolution choice takes: a rule of the set it picks.
+    choice_rule: String,
     /// What runs once that choice found something, the rest of the block with it.
     chosen_guard: Option<String>,
     /// That guard is open, and the block has to close it.
@@ -534,6 +536,8 @@ struct Compiler {
     selections: BTreeMap<u32, String>,
     /// What later reads ask of the instructions before them (`lane_m`).
     notes: lane_m::Notes,
+    /// By slot: who controlled the items an earlier step countered.
+    countered: BTreeMap<u16, String>,
     /// The cards that ended each reveal, by the result that names all it showed.
     reveal_matches: BTreeMap<u32, String>,
     /// This resolution has revealed something. The AST does not always tie a
@@ -925,6 +929,7 @@ impl Compiler {
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
             notes: Default::default(),
+            countered: BTreeMap::new(),
             unchosen: BTreeMap::new(),
             word_options: Vec::new(),
             reveal_matches: BTreeMap::new(),
@@ -1009,6 +1014,7 @@ impl Compiler {
             line: None,
             quoted_used: BTreeSet::new(),
             may_choose: false,
+            choice_rule: String::new(),
             chosen_guard: None,
             guard_opened: 0,
             second_of_two: None,

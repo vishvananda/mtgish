@@ -793,12 +793,16 @@ impl Compiler {
         if let Some(divide) = divided {
             write!(def, ".divide({divide})").unwrap();
         }
+        // The modes are the ability: a modal item runs nothing else (700.2).
         if let Some(modal) = modal? {
-            def = planned::planned_value(
-                "modal announcement",
-                &def,
-                &format!("{def}.modes(&{modal})"),
-            );
+            def = match body.instructions.is_empty() {
+                true => format!("{def}.modal(&{modal})"),
+                false => planned::planned_value(
+                    "modal announcement",
+                    &def,
+                    &format!("{def}.modal(&{modal})"),
+                ),
+            };
         }
         self.delayed.push(def);
         let index = self.delayed.len() - 1;

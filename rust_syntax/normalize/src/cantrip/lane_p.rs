@@ -275,6 +275,20 @@ pub(super) fn only_their_own(objects: &ObjectSet) -> bool {
     matches!(objects, ObjectSet::Zone { filter, .. } | ObjectSet::Battlefield(filter) if theirs(filter))
 }
 
+/// "(Artifact, battle, creature, enchantment, instant, kindred, land, planeswalker,
+/// and sorcery are card types.)"
+const CARD_TYPES: [&str; 9] = [
+    "Artifact",
+    "Battle",
+    "Creature",
+    "Enchantment",
+    "Instant",
+    "Kindred",
+    "Land",
+    "Planeswalker",
+    "Sorcery",
+];
+
 impl Compiler {
     /// Leaves word for `remembered`, where a resolving ability made this choice.
     pub(super) fn remember_choice(&mut self, kind: ValueKind, local: &str, out: &mut String) {
@@ -379,6 +393,27 @@ impl Compiler {
                     true => writeln!(out, "let Some({local}) = {M}::chosen_type::choose_type_among(g, entering, {choices})? else {{ return Ok(()) }};").unwrap(),
                     false => writeln!(out, "let player_{id} = {player}; let choices_{id} = {choices}; let Answer::Subtype({local}) = g.ask(player_{id}, RequestKind::ChooseSubtype {{ source: {source}, choices: choices_{id}, purpose: WordUse::Chosen }})? else {{ return Ok(()) }};").unwrap(),
                 }
+            }
+            // The word itself, as Arachne's: `labels` of the card, in the order they
+            // are printed, each standing for its type.
+            ValueKind::CardType if self.stack_item && !entering => {
+                let words = listed("CardType")?;
+                let words: Vec<String> = match words.is_empty() {
+                    true => CARD_TYPES.iter().map(|word| format!("CardType::{word}")).collect(),
+                    false => words,
+                };
+                let base = self.choice_labels.len();
+                self.choice_labels
+                    .extend(words.iter().map(|word| word.replacen("CardType::", "", 1)));
+                let end = self.choice_labels.len();
+                let labels: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
+                self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
+                writeln!(
+                    out,
+                    "let player_{id} = {player}; let {local}: CardType = [{}][usize::from({M}::choose::option(g, player_{id}, asker.source, item.ability.card, {base}..{end})? - {base})];",
+                    words.join(", ")
+                )
+                .unwrap();
             }
             ValueKind::CardType | ValueKind::PermanentType => {
                 let words = listed("CardType")?;
@@ -1463,6 +1498,31 @@ impl Compiler {
         let label = format!("{label}_then");
         let targets = self.announcement(&without_modes(announcement), &label)?;
         let effect = self.effect(body, &label)?;
+        // With nothing announced of its own, it is the rest of the one spell.
+        if targets == "&[]" && announcement.modes.is_none() {
+            if let Some((targets, first)) = parts
+                .spell
+                .strip_prefix("spell(")
+                .and_then(|spell| spell.strip_suffix(')'))
+                .and_then(|spell| spell.rsplit_once(", "))
+            {
+                writeln!(self.functions, "fn {label}_all(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ {first}(g, item)?; g.end_sentence(); {effect}(g, item) }}").unwrap();
+                parts.spell = format!("spell({targets}, {label}_all)");
+                return Ok(());
+            }
+            let modal = parts
+                .modal
+                .strip_prefix("Some(&")
+                .and_then(|modal| modal.strip_suffix(')'))
+                .map(|modal| format!("static {modal}: ModalDef = "));
+            if let Some(line) = modal.filter(|_| parts.spell == "Some(SpellDef::MODAL)") {
+                if let Some(at) = self.functions.find(&line) {
+                    let end = at + self.functions[at..].find(";\n").unwrap_or(0);
+                    self.functions.insert_str(end, &format!(".shared({effect})"));
+                    return Ok(());
+                }
+            }
+        }
         let mut code = format!("spell({effect}).targets({targets})");
         if announcement.modes.is_some() {
             let modal = self.modal(announcement, &label, None)?;

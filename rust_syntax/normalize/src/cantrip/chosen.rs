@@ -120,6 +120,17 @@ impl Compiler {
         if self.chosen_words(id, actor, kind, count, out)? {
             return Ok(());
         }
+        // "The color or colors of your choice": every color asked for, a repeat
+        // being no color more, is any of them or all (106.1b's question).
+        if let (ValueKind::Color, 0, PlayerSet::One(player)) = (kind, count, actor) {
+            if !self.chosen.iter().any(|(k, _)| *k == kind) {
+                let player = self.fetch(self.certain_player(player)?);
+                let local = format!("colors_{id}");
+                writeln!(out, "let player_{id} = {player}; let Answer::Colors(picked_{id}) = g.ask(player_{id}, RequestKind::ChooseColors {{ source: asker.source, choices: ColorSet(0b11111), count: 5, purpose: ColorUse::Any }})? else {{ unreachable!(\"the core answers a color choice with colors\") }}; let {local} = picked_{id}.into_iter().fold(ColorSet::NONE, |set, color| set.with(color));").unwrap();
+                self.chosen.push((kind, local));
+                return Ok(());
+            }
+        }
         if count != 1 {
             let players = self.fetch(self.players(actor)?);
             let code = format!(
@@ -276,7 +287,10 @@ impl Compiler {
                 mode: ChangeMode::Set,
             } => {
                 let chosen = self.chosen_read(ValueKind::Color)?;
-                vec![format!("EffectKind::SetColors(ColorSet::of({chosen}))")]
+                match chosen.starts_with("colors_") {
+                    true => vec![format!("EffectKind::SetColors({chosen})")],
+                    false => vec![format!("EffectKind::SetColors(ColorSet::of({chosen}))")],
+                }
             }
             Change::ChosenColor { .. } => vec![lane_g::planned_kind(
                 "engine: no effect adds colors",
@@ -285,11 +299,20 @@ impl Compiler {
                     self.chosen_read(ValueKind::Color)?
                 ),
             )],
+            // The source reads every "becomes that type" as adding; only "in addition
+            // to its other types" keeps them (205.1a).
+            Change::ChosenType {
+                kind: kind @ ValueKind::CreatureType,
+                mode: ChangeMode::Add,
+            } if self.printed_in_addition() => vec![format!(
+                "EffectKind::AddSubtype({})",
+                self.chosen_local(*kind)?
+            )],
             Change::ChosenType {
                 kind: kind @ ValueKind::CreatureType,
                 mode: ChangeMode::Add,
             } => vec![format!(
-                "EffectKind::AddSubtype({})",
+                "EffectKind::SetCreatureType({})",
                 self.chosen_local(*kind)?
             )],
             Change::ChosenType {
@@ -298,6 +321,13 @@ impl Compiler {
             } => vec![format!(
                 "EffectKind::SetCreatureType({})",
                 self.chosen_local(*kind)?
+            )],
+            Change::ChosenType {
+                kind: kind @ (ValueKind::BasicLandType | ValueKind::LandType),
+                mode: ChangeMode::Add,
+            } if !self.printed_in_addition() => vec![lane_g::planned_kind(
+                "engine: no resolving effect sets land types",
+                format!("EffectKind::SetLandType({})", self.chosen_local(*kind)?),
             )],
             Change::ChosenType {
                 kind: kind @ (ValueKind::BasicLandType | ValueKind::LandType),
@@ -315,6 +345,10 @@ impl Compiler {
             )],
             other => return Err(gap(format!("continuous change {}", super::form(other)))),
         })
+    }
+    /// Whether the printed line keeps what the object was. Without a line, as read.
+    fn printed_in_addition(&self) -> bool {
+        self.line_text().is_none_or(|line| line.contains("in addition"))
     }
     /// The body of a layer's change by a value chosen as the source entered.
     pub(super) fn chosen_layer(&self, change: &Change) -> Result<statics::LayerChange> {

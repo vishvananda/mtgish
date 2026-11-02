@@ -144,6 +144,63 @@ fn cant_be_countered(zones: &[EventZone], affected: &EffectSubjects, changes: &[
         )
 }
 
+/// "{3}, {T} or {U}, {T}: Draw a card." as two abilities' words, and "Equip {2}
+/// or {B}", whose keyword is said once.
+pub(super) fn worded_apart(printed: &str) -> Option<(String, String)> {
+    let (price, rest) = match printed.split_once(": ") {
+        Some((price, rest)) => (price, format!(": {rest}")),
+        None => (printed, String::new()),
+    };
+    let (one, two) = price.split_once(" or ")?;
+    if two.contains(" or ") {
+        return None;
+    }
+    let keyword = ["Equip\u{2014}", "Equip "].iter().find(|word| one.starts_with(**word));
+    let two = match keyword {
+        Some(word) => {
+            let mut letters = two.chars();
+            let first = letters.next()?.to_uppercase().collect::<String>();
+            format!("{word}{first}{}", letters.as_str())
+        }
+        None => two.to_string(),
+    };
+    Some((format!("{one}{rest}"), format!("{two}{rest}")))
+}
+
+/// "{3}, {T} or {U}, {T}": an activated ability whose cost is one of several,
+/// which is one ability at each price, if nothing tells the abilities apart: a
+/// limit on activations counts one ability, and its body can't read the price.
+/// The first price and the others.
+fn alternative_prices(
+    cost: &Cost,
+    limits: &ActivationLimits,
+    body: &Program,
+) -> Option<(Cost, Vec<Cost>)> {
+    let free = !limits.once
+        && !limits.once_each_turn
+        && limits.keyword.is_none()
+        && limits.modifiers.is_empty();
+    if !free || format!("{body:?}").contains("Paid") {
+        return None;
+    }
+    let mut choices = cost.parts.iter().enumerate().filter_map(|(at, part)| match part {
+        CostPart::Choice(options) => Some((at, options)),
+        _ => None,
+    });
+    let (at, options) = choices.next()?;
+    if choices.next().is_some() {
+        return None;
+    }
+    let mut prices = options.iter().map(|option| {
+        let mut parts = cost.parts[..at].to_vec();
+        parts.extend(option.parts.iter().cloned());
+        parts.extend(cost.parts[at + 1..].iter().cloned());
+        Cost { parts }
+    });
+    let first = prices.next()?;
+    Some((first, prices.collect()))
+}
+
 impl Compiler {
     /// A generated `ObjectFilter`: what a cost accepts of an object.
     pub(super) fn cost_filter(&mut self, filter: &ObjectFilter, label: &str) -> Result<String> {
@@ -520,7 +577,13 @@ impl Compiler {
             });
         }
         let listed = format!("modes(&[{}])", defs.join(","));
-        let fewest = match lane_k::printed_otherwise(self.line_text(), "Choose up to") {
+        // "When this enters, choose up to one \u{2014}": the source reads it as one.
+        let up_to = ["one", "two", "three"].iter().any(|n| {
+            self.line_text().is_some_and(|line| {
+                line.contains(&format!("choose up to {n} \u{2014}"))
+            })
+        });
+        let fewest = match up_to || lane_k::printed_otherwise(self.line_text(), "Choose up to") {
             true => Some(0),
             false => bound(minimum),
         };
@@ -1031,6 +1094,12 @@ impl Compiler {
                 announcement,
                 body,
             } => {
+                let either = alternative_prices(cost, limits, body);
+                let (cost, others) = match &either {
+                    Some((first, others)) => (first, others.as_slice()),
+                    None => (cost, &[][..]),
+                };
+                let before = self.clone();
                 self.activation_cost = Some(cost.clone());
                 let index = parts.abilities.len();
                 let def = self.activated(
@@ -1047,7 +1116,31 @@ impl Compiler {
                 if matches!(limits.keyword, Some(ActivatedKeyword::Forecast)) {
                     self.plan_entry("activated keyword Forecast", "abilities", &def?, parts);
                 } else {
-                    parts.abilities.push(def?);
+                    let mut def = def?;
+                    // As Transmogrant's Crown's two equips: the same ability at
+                    // the other price, each worded with its own.
+                    if let [other] = others {
+                        let printed = before.clone().said(lane_k::Said::Activated, ability_text(body));
+                        let first = before.clone().cost(cost, label)?;
+                        let unlike = gap("engine: no choice between the costs of an ability");
+                        let Some((one, two)) = worded_apart(&printed) else {
+                            return Err(unlike);
+                        };
+                        if !def.contains(&first) || !def.contains(&quoted(&printed)) {
+                            return Err(unlike);
+                        }
+                        let code = self.cost(other, &format!("{label}_or_1"))?;
+                        let second = def
+                            .replacen(&first, &code, 1)
+                            .replacen(&quoted(&printed), &quoted(&two), 1);
+                        def = def.replacen(&quoted(&printed), &quoted(&one), 1);
+                        parts.abilities.push(def);
+                        parts.abilities.push(second);
+                    } else if others.is_empty() {
+                        parts.abilities.push(def);
+                    } else {
+                        return Err(gap("engine: no choice between the costs of an ability"));
+                    }
                 }
             }
             Ability::Triggered {
@@ -1155,10 +1248,13 @@ impl Compiler {
                         None => def,
                     };
                     parts.abilities.push(match modal {
+                        Some(modal) if body.instructions.is_empty() => {
+                            format!("{def}.modal(&{modal})")
+                        }
                         Some(modal) => planned::planned_value(
                             "modal announcement",
                             &def,
-                            &format!("{def}.modes(&{modal})"),
+                            &format!("{def}.modal(&{modal})"),
                         ),
                         None => def,
                     });

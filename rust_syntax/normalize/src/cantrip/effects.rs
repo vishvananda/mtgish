@@ -596,6 +596,7 @@ impl Compiler {
         if let Some(picked) = self.picked_first(instruction, body, i, out)? {
             return self.instruction(body, i, &picked, out);
         }
+        self.keep_countered(body, i, instruction, out);
         match instruction {
             Instruction::Effect {
                 operation: operation @ Operation::PlayCards { .. },
@@ -949,7 +950,11 @@ impl Compiler {
         purpose: &str,
         out: &mut String,
     ) -> Result<()> {
+        let rule = std::mem::take(&mut self.choice_rule);
         if let Count::PerPlayer { players, each } = count {
+            if !rule.is_empty() {
+                return Err(gap("operation ChangeZone"));
+            }
             return self.choose_from_each(player, objects, players, each, result, purpose, out);
         }
         if self.from_outside(objects) {
@@ -969,7 +974,7 @@ impl Compiler {
             true => format!("if {local}_candidates.len() <= 1 {{ {local}_candidates }} else "),
             false => String::new(),
         };
-        writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_count = {}; let {local} = {lone}{{ cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of({local}_count, &[]))? }};", self.fetch(self.certain_player(player)?), self.fetch(self.objects(objects)?), self.fetch(count)).unwrap();
+        writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_count = {}; let {local} = {lone}{{ cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of({local}_count, &[]){rule})? }};", self.fetch(self.certain_player(player)?), self.fetch(self.objects(objects)?), self.fetch(count)).unwrap();
         self.open_guard(&local, out);
         self.selections.insert(result.0, local);
         Ok(())
@@ -1980,6 +1985,7 @@ impl Compiler {
         self.before.insert(result.0, list);
     }
     pub(super) fn reset_results(&mut self) {
+        self.countered.clear();
         self.selections.clear();
         self.unchosen.clear();
         self.reveal_matches.clear();
@@ -2017,7 +2023,7 @@ impl Compiler {
         let copy = matches!(
             tokens,
             [TokenSpec {
-                recipe: TokenRecipe::Copy { .. },
+                recipe: TokenRecipe::Copy { .. } | TokenRecipe::CopyOne { .. },
                 ..
             }]
         );
@@ -2034,11 +2040,52 @@ impl Compiler {
         if mixed && (!defined || !entry.counters.is_empty()) {
             return Err(gap("mixed token text origins in one creation batch"));
         }
+        // A text change reaches a token's colors and creature types (612.2a), and
+        // a Treasure has none: it takes the card's words, unchanged, beside the
+        // tokens the card's own text makes.
+        let unworded = mixed
+            && tokens.iter().all(|t| {
+                matches!(t.words, TokenWords::CreatingEffect)
+                    || matches!(&t.recipe, TokenRecipe::Defined(definition)
+                        if definition.colors.is_empty()
+                            && !definition.chosen_color
+                            && !definition.chosen_creature_type
+                            && !definition.card_types.iter().any(|t| matches!(t, crate::mtg_types::CardType::Creature)))
+            });
         let words_of = |words: &TokenWords| match words {
             TokenWords::Rules => "Words::NONE",
             TokenWords::CreatingEffect => "g.words(asker.source)",
         };
-        let words = words_of(first);
+        let words = match unworded {
+            true => words_of(&TokenWords::CreatingEffect),
+            false => words_of(first),
+        };
+        // "A copy of a nonlegendary enchantment you control": the one is chosen
+        // as this resolves (608.2d).
+        if let (
+            [TokenSpec {
+                amount,
+                recipe:
+                    TokenRecipe::CopyOne {
+                        objects,
+                        adjustments,
+                    },
+                ..
+            }],
+            PlayerSet::One(player),
+        ) = (tokens, players)
+        {
+            if !entry.counters.is_empty() {
+                return Err(gap("token copy entering with counters"));
+            }
+            let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
+            writeln!(out, "let player_{id} = {}; let among_{id} = {}; let chosen_{id} = cantrip_mechanics::choose::select(g, player_{id}, asker.source, Purpose::CopyWhich, among_{id}, cantrip_mechanics::select::cards(cantrip_mechanics::select::exactly(1)))?.first().copied();", self.fetch(self.certain_player(player)?), self.fetch(self.objects(objects)?)).unwrap();
+            let values = self.copy_values(&format!("chosen_{id}"), adjustments)?;
+            writeln!(out, "let values_{id} = {values}; let count_{id} = {}; let created_{id} = match values_{id} {{ Some(values) => g.create_token_copies_tapped(values, player_{id}, count_{id}, {})?, None => Vec::new() }};", self.fetch(amount), entry.tapped).unwrap();
+            self.token_state(id, entry, out)?;
+            self.creations.insert(result.0, format!("created_{id}"));
+            return Ok(());
+        }
         if let [TokenSpec {
             amount,
             recipe:
@@ -2105,13 +2152,17 @@ impl Compiler {
             ..
         }] = tokens
         {
-            if adjustments.iter().any(adjusts) || !entry.counters.is_empty() || entry.tapped {
+            if !entry.counters.is_empty() || entry.tapped || !entry.states.is_empty() {
                 return Err(gap("adjusted token copy"));
             }
             let PlayerSet::One(player) = players else {
+                if adjustments.iter().any(adjusts) {
+                    return Err(gap("adjusted token copy"));
+                }
                 return self.token_copies_for_each(id, objects, players, result, out);
             };
-            writeln!(out, "let originals_{id} = {}; let player_{id} = {}; let created_{id} = if let Some(player) = player_{id} {{ let copies: Vec<(Copiable, PlayerId)> = originals_{id}.iter().map(|&original| (g.copiable_values(original), player)).collect(); g.create_token_copies_together(&copies)? }} else {{ Vec::new() }};", self.fetch(self.objects(objects)?), self.fetch(self.player(player)?)).unwrap();
+            let values = self.copy_values("Some(original)", adjustments)?;
+            writeln!(out, "let originals_{id} = {}; let player_{id} = {}; let mut copies_{id}: Vec<(Copiable, PlayerId)> = Vec::new(); if let Some(player) = player_{id} {{ for &original in &originals_{id} {{ if let Some(values) = {values} {{ copies_{id}.push((values, player)); }} }} }} let created_{id} = g.create_token_copies_together(&copies_{id})?;", self.fetch(self.objects(objects)?), self.fetch(self.player(player)?)).unwrap();
             self.creations.insert(result.0, format!("created_{id}"));
             return Ok(());
         }
@@ -2145,7 +2196,7 @@ impl Compiler {
         let creation = format!("g.create_tokens_worded(&tokens_{id}, {tapped}, None, words_{id})?");
         // Each definition's words are its own: a Treasure's are the rules', a
         // named creature's the card's (CR 111.10, 612.2a).
-        let creation = if mixed {
+        let creation = if mixed && !unworded {
             let each: Vec<String> = tokens
                 .iter()
                 .enumerate()
@@ -2564,6 +2615,45 @@ impl Compiler {
         };
         self.open_rule_stated(source, affected, changes, duration, out)
     }
+    /// "Becomes a Kithkin Scout" replaces its creature types (205.1a), whatever
+    /// the source says, unless the card says it keeps them: the types added, as
+    /// one set of them where the first was.
+    fn becoming_replaces(&self, changes: &[Change]) -> Option<Vec<Change>> {
+        let says = |line: &String| {
+            line.contains(" becomes a")
+                && !line.contains("in addition to")
+                && !line.contains("still")
+        };
+        if !self.lines_said().iter().any(says) {
+            return None;
+        }
+        let mut merged: Vec<Change> = Vec::new();
+        let mut at = None;
+        for change in changes {
+            let Change::CreatureTypes {
+                mode: ChangeMode::Add,
+                types: CreatureTypeSet::Listed(types),
+            } = change
+            else {
+                merged.push(change.clone());
+                continue;
+            };
+            let first = *at.get_or_insert(merged.len());
+            if first == merged.len() {
+                merged.push(Change::CreatureTypes {
+                    mode: ChangeMode::Set,
+                    types: CreatureTypeSet::Listed(types.clone()),
+                });
+            } else if let Change::CreatureTypes {
+                types: CreatureTypeSet::Listed(all),
+                ..
+            } = &mut merged[first]
+            {
+                all.extend(types.iter().cloned());
+            }
+        }
+        at.map(|_| merged)
+    }
     fn continuous(
         &mut self,
         id: usize,
@@ -2576,6 +2666,8 @@ impl Compiler {
         let EffectSubjects::Objects(affected) = affected else {
             return Err(gap("continuous effect on players"));
         };
+        let becoming = self.becoming_replaces(changes);
+        let changes = becoming.as_deref().unwrap_or(changes);
         // Exerting is exactly this (CR 701.43a), and no event tells them apart.
         if let (
             [Change::Rule(RuleChange::UntapStep {
@@ -2632,7 +2724,17 @@ impl Compiler {
             return Ok(());
         }
         let mut kinds = Vec::new();
+        let mut each_player = String::new();
         for change in changes {
+            // Protection from each of these players, as many as they are (702.16i).
+            if let Change::GrantKeyword(Keyword::Protection(quality)) = change {
+                if let Protection::Players(players) = &**quality {
+                    let local = format!("players_{id}_{}", kinds.len());
+                    writeln!(out, "let {local} = {};", self.fetch(self.players(players)?)).unwrap();
+                    write!(each_player, "for &player in &{local} {{ g.add_effect(source, object, EffectKind::ProtectionFromPlayer(player), duration_{id}); }} ").unwrap();
+                    continue;
+                }
+            }
             for (i, kind) in self.effect_kinds(change)?.into_iter().enumerate() {
                 let local = format!("kind_{id}_{}_{i}", kinds.len());
                 writeln!(out, "let {local} = {};", self.fetch(kind)).unwrap();
@@ -2643,7 +2745,7 @@ impl Compiler {
             .iter()
             .map(|k| format!("g.add_effect(source, object, {k}, duration_{id}); "))
             .collect();
-        writeln!(out, "if let Some(source) = source_{id} {{ cantrip_api::instruction(g, |g| {{ for &object in &objects_{id} {{ {adds} }} }}); }}").unwrap();
+        writeln!(out, "if let Some(source) = source_{id} {{ cantrip_api::instruction(g, |g| {{ for &object in &objects_{id} {{ {adds}{each_player} }} }}); }}").unwrap();
         Ok(())
     }
     /// What a resolving effect's change is in the engine's vocabulary. Each

@@ -2028,6 +2028,7 @@ impl Compiler {
     /// can't stand in a function of its own.
     pub(super) fn reads_a_local(&self, code: &str) -> bool {
         code.contains("willing_")
+            || code.contains("bound_")
             || self
                 .chosen
                 .iter()

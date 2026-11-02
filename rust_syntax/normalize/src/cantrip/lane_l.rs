@@ -53,6 +53,31 @@ pub(super) fn mode_history(unchosen: &Option<ModeHistory>) -> String {
     }
 }
 
+/// How `Operation::AttachEach` pairs what is attached with what it goes on.
+#[derive(Clone, Copy)]
+enum AttachShape {
+    /// All of them, on the one chosen before.
+    AllToTheChosen,
+    /// "For each of those tokens, you may attach an Equipment you control to it."
+    OneToEach,
+    /// "For each Aura and Equipment you control, you may attach it to a creature."
+    EachToOne,
+}
+
+/// `Game::attach`, which leaves in place what can't go there (CR 701.3b). What
+/// goes where is the actor's as the instruction is followed, one at a time.
+fn attach_each(id: usize, player: &str, attachments: &str, hosts: &str, shape: AttachShape, out: &mut String) {
+    let one = format!("{M}::select::Selection::of({M}::select::up_to(1), &[])");
+    let ask = |cards: &str| format!("{M}::choose::select(g, player_{id}, asker.source, Purpose::Attach, {cards}, {one})?");
+    write!(out, "let player_{id} = {player}; let attachments_{id} = {attachments}; let hosts_{id} = {hosts}; ").unwrap();
+    match shape {
+        AttachShape::AllToTheChosen => writeln!(out, "let _ = player_{id}; if let Some(&host) = hosts_{id}.first() {{ cantrip_api::instruction(g, |g| {{ for &attachment in &attachments_{id} {{ g.attach(attachment, host); }} }}); }}"),
+        AttachShape::OneToEach => writeln!(out, "for &host in &hosts_{id} {{ let chosen = {}; if let Some(&attachment) = chosen.first() {{ g.attach(attachment, host); }} }}", ask(&format!("attachments_{id}.clone()"))),
+        AttachShape::EachToOne => writeln!(out, "for &attachment in &attachments_{id} {{ let chosen = {}; if let Some(&host) = chosen.first() {{ g.attach(attachment, host); }} }}", ask(&format!("hosts_{id}.clone()"))),
+    }
+    .unwrap();
+}
+
 /// A rule that no two of a slot's targets share a key.
 fn distinct_rule(functions: &mut String, name: &str, kind: &str, key: &str, words: &str) -> String {
     if !functions.contains(&format!("fn {name}(")) {
@@ -682,7 +707,7 @@ impl Compiler {
                 keep,
             } => {
                 let keep = self.number(keep)?.amount(u32::MAX.into(), "u32")?;
-                writeln!(out, "let objects_{id} = {}; let keep_{id} = {}; let mut picks_{id}: Vec<(PlayerId, ObjectId)> = Vec::new(); for player in {} {{ let own: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player).collect(); let kept = {M}::choose::select(g, player, asker.source, Purpose::Keep, own.clone(), {M}::select::Selection::of({M}::select::Count::AsManyAsCan(keep_{id}), &[]))?; for o in own {{ if !kept.contains(&o) && g.can_sacrifice(player, o) {{ picks_{id}.push((player, o)); }} }} }} let sacrificed_{id} = g.sacrifice_each(&picks_{id});", self.fetch(self.objects(objects)?), self.fetch(keep), self.fetch(self.players(players)?)).unwrap();
+                writeln!(out, "let objects_{id} = {}; let keep_{id} = {}; let mut picks_{id}: Vec<(PlayerId, ObjectId)> = Vec::new(); for player in {} {{ let own: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player).collect(); if own.len() as u32 <= keep_{id} {{ continue; }} let kept = if keep_{id} == 0 {{ Vec::new() }} else {{ {M}::choose::select(g, player, asker.source, Purpose::Keep, own.clone(), {M}::select::Selection::of({M}::select::Count::AsManyAsCan(keep_{id}), &[]))? }}; for o in own {{ if !kept.contains(&o) && g.can_sacrifice(player, o) {{ picks_{id}.push((player, o)); }} }} }} let sacrificed_{id} = g.sacrifice_each(&picks_{id});", self.fetch(self.objects(objects)?), self.fetch(keep), self.fetch(self.players(players)?)).unwrap();
                 self.moved.insert(result.0, format!("sacrificed_{id}"));
                 self.left_behind(result, effects::gone(&format!("objects_{id}")));
             }
@@ -1148,9 +1173,11 @@ impl Compiler {
                         .replace("{id}", &id.to_string());
                         writeln!(out, "let source_{id} = {source}; let targets_{id} = {targets}; let amount_{id}: u16 = {amount}; if let Some(source) = source_{id} {{ let shares = (targets_{id}.len() as u16).max(1); let share = {share}; let batch: Vec<(ObjectId, Target, u16)> = targets_{id}.iter().map(|&t| (source, t, share)).collect(); g.damage_together(&batch); }}").unwrap();
                     }
+                    // What isn't lethal (120.10) goes to the player at the same
+                    // time: the creature is never dealt the excess.
                     DamageRider::ExcessTo(player) => {
                         let player = self.fetch(self.certain_player(player)?);
-                        self.plan_code(&feature, &format!("if let Some(source) = {source} {{ {M}::damage::excess_to(g, source, &{targets}, {amount}, {player}); }}"), out);
+                        writeln!(out, "let source_{id} = {source}; let targets_{id} = {targets}; let amount_{id}: u16 = {amount}; let player_{id} = {player}; if let (Some(source), Some(&target)) = (source_{id}, targets_{id}.first()) {{ let lethal_{id} = {{ let q: &dyn Query = g; target.object().map_or(amount_{id}, |o: ObjectId| {{ let chars = q.chars(o); let left = u16::try_from(chars.toughness.unwrap_or(0).max(0)).unwrap_or(0).saturating_sub(q.state().obj(o).damage); match q.chars(source).has(Keyword::Deathtouch) {{ true => left.min(1), false => left }} }}) }}; let dealt_{id} = amount_{id}.min(lethal_{id}); g.damage_together(&[(source, target, dealt_{id}), (source, Target::Player(player_{id}), amount_{id} - dealt_{id})]); }}").unwrap();
                     }
                     DamageRider::Prevented(prevented) => {
                         let prevented =
@@ -1712,6 +1739,22 @@ impl Compiler {
                 each_host,
             } => {
                 let player = self.one_actor(actor, &feature)?;
+                if let Recipients::Objects(on) = hosts {
+                    let shape = (count, *each_host, matches!(on, ObjectSet::Selected(_)));
+                    let one = |n: &Expr| matches!(n, Expr::Constant(1));
+                    let mine = match shape {
+                        (None, false, true) => Some(AttachShape::AllToTheChosen),
+                        (Some(Count::UpTo(n)), true, _) if one(n) => Some(AttachShape::OneToEach),
+                        (Some(Count::AnyNumber), false, false) => Some(AttachShape::EachToOne),
+                        _ => None,
+                    };
+                    if let Some(shape) = mine {
+                        let attachments = self.fetch(self.objects(attachments)?);
+                        let on = self.fetch(self.objects(on)?);
+                        attach_each(id, &player, &attachments, &on, shape, out);
+                        return Ok(());
+                    }
+                }
                 let attachments = self.fetch(self.objects(attachments)?);
                 let hosts = self.fetch(self.recipients(hosts)?);
                 let count = match count {
@@ -1986,6 +2029,38 @@ impl Compiler {
             _ => return None,
         })
     }
+    /// `.with(part)` for the rule a move keeps its chosen `cards` to, if `select`
+    /// has it. The source's "from your graveyard" has to be what `cards` reads.
+    pub(super) fn group_rule(&mut self, group: &Operand, cards: &ObjectSet) -> Option<String> {
+        let from_graveyard = self.line_text().is_some_and(|line| line.contains("from your graveyard"));
+        if from_graveyard && !self.objects(cards).ok()?.contains("Zone::graveyard") {
+            return None;
+        }
+        let (form, operands): (&str, &[Operand]) = match group {
+            Operand::Vocabulary { family, form } if family == "GroupFilter" => (form, &[]),
+            Operand::Term { family, form, operands } if family == "GroupFilter" => (form, operands),
+            Operand::Form(named) if named.source_type == "GroupFilter" => {
+                (&named.form, &named.operands)
+            }
+            _ => return None,
+        };
+        let constraint = match (form, operands) {
+            ("DifferentNames", []) => SelectionConstraint::DifferentNames,
+            ("DifferentManaValues", []) => {
+                SelectionConstraint::DifferentProperty(Property::ManaValue)
+            }
+            ("DifferentPowers", []) => SelectionConstraint::DifferentProperty(Property::Power),
+            ("TotalManaValueIs", [Operand::Comparison(comparison, amount @ Expr::Constant(_))]) => {
+                SelectionConstraint::TotalProperty {
+                    property: Property::ManaValue,
+                    comparison: comparison.clone(),
+                    amount: amount.clone(),
+                }
+            }
+            _ => return None,
+        };
+        Some(format!(".with({})", self.set_rule(&constraint)?))
+    }
     /// `.with(part)` for each rule of a search.
     pub(super) fn search_rules(&mut self, constraints: &[SelectionConstraint]) -> Result<String> {
         let mut rules = String::new();
@@ -2201,6 +2276,29 @@ impl Compiler {
             up_to,
             ..
         } = terms;
+        if let (ValueKind::CreatureType, PlayerSet::One(player), [_, ..]) =
+            (kind, actor, except.as_slice())
+        {
+            let plain = terms.options.is_empty()
+                && terms.count.is_none()
+                && !(*secret || *unchosen || *random || *ordered || *up_to)
+                && except.iter().all(|word| word.starts_with("CreatureType::"))
+                && !self.chosen.iter().any(|(k, _)| *k == kind);
+            if plain {
+                let player = self.fetch(self.certain_player(player)?);
+                let except: Vec<String> = except
+                    .iter()
+                    .map(|word| {
+                        let word = word.replacen("CreatureType::", "Subtype::", 1);
+                        format!("g.words(asker.source).subtype({word})")
+                    })
+                    .collect();
+                let local = format!("chosen_{id}");
+                writeln!(out, "let player_{id} = {player}; let except_{id} = [{}]; let ask_{id} = RequestKind::ChooseSubtype {{ source: asker.source, choices: Subtype::CREATURE_TYPES.iter().copied().filter(|t| !except_{id}.contains(t)).collect(), purpose: WordUse::Chosen }}; let Answer::Subtype({local}) = g.ask(player_{id}, ask_{id})? else {{ unreachable!(\"the core answers a subtype choice with a subtype\") }};", except.join(", ")).unwrap();
+                self.chosen.push((kind, local));
+                return Ok(());
+            }
+        }
         let code = format!("{M}::choose::value(g, {players}, asker.source, ChoiceKind::{kind:?}, ChoiceTerms {{ options: &[{}], except: &[{}], count: {count}, secret: {secret}, unchosen: {unchosen}, random: {random}, ordered: {ordered}, up_to: {up_to} }})?", options.join(", "), except.join(", "));
         self.value_to_come("operation ChooseValueWith", id, kind, &code, out);
         Ok(())
