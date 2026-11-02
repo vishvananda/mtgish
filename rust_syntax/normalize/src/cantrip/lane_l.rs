@@ -5,6 +5,57 @@ use super::*;
 
 const M: &str = "cantrip_mechanics";
 
+/// The player and what they sacrifice one of each, of "sacrifices an artifact and a
+/// land of their choice".
+pub(super) fn sacrifice_slots(operations: &[Operation]) -> Option<(&PlayerRef, Vec<ObjectSet>)> {
+    let mut player: Option<&PlayerRef> = None;
+    let mut slots = Vec::new();
+    for operation in operations {
+        let Operation::Sacrifice {
+            players: PlayerSet::One(one),
+            objects,
+            choose: Some(Count::Exactly(Expr::Constant(1))),
+        } = operation
+        else {
+            return None;
+        };
+        if player.is_some_and(|player| format!("{player:?}") != format!("{one:?}")) {
+            return None;
+        }
+        player = Some(one);
+        slots.push(objects.clone());
+    }
+    Some((player?, slots))
+}
+/// How many of `slots` can each have a permanent of its own, none of `taken`: what
+/// "as many as they can" is, and so which choice of one still allows it (Release's
+/// ruling: an artifact creature must go as the artifact if a creature can go too).
+pub(super) const MOST_ASSIGNED: &str = "fn most_assigned(slots: &[Vec<ObjectId>], taken: &mut Vec<ObjectId>) -> usize {\n    let Some((first, rest)) = slots.split_first() else { return 0 };\n    let mut best = most_assigned(rest, taken);\n    for &object in first {\n        if !taken.contains(&object) {\n            taken.push(object);\n            best = best.max(1 + most_assigned(rest, taken));\n            taken.pop();\n        }\n    }\n    best\n}\n";
+/// The N of a price of only `{N}`.
+fn generic_mana(mana: &[Operand]) -> Option<i64> {
+    match mana {
+        [Operand::Term { form, operands, .. }] if form == "ManaCostGeneric" => {
+            match operands.as_slice() {
+                [Operand::Integer(n)] => Some(*n),
+                _ => None,
+            }
+        }
+        _ => None,
+    }
+}
+
+/// The N of "cards with total mana value N or greater".
+fn total_mana_value_at_least(constraints: &[SelectionConstraint]) -> Option<i64> {
+    match constraints {
+        [SelectionConstraint::TotalProperty {
+            property: Property::ManaValue,
+            comparison: Comparison::GreaterOrEqual,
+            amount: Expr::Constant(n),
+        }] => Some(*n),
+        _ => None,
+    }
+}
+
 /// What "do this only once each turn" offers, under a "may" that already asks it.
 pub(super) fn once_offered(body: &Program) -> Option<&Program> {
     match body.instructions.as_slice() {
@@ -74,12 +125,70 @@ pub(super) fn paid_for_each(body: &Program) -> Option<(ResultId, Instruction)> {
     }
 }
 
+/// "Have target player reveal their hand. If you do, choose a card from it and ...":
+/// the hand is theirs, and the choice stays yours.
+fn had_to_show_hand(player: &PlayerRef, program: &Program) -> Option<Program> {
+    let [Instruction::Group(group)] = program.instructions.as_slice() else {
+        return None;
+    };
+    let [first, second, rest @ ..] = group.instructions.as_slice() else {
+        return None;
+    };
+    let their_hand = |objects: &ObjectSet| -> Option<ObjectSet> {
+        let ObjectSet::Zone {
+            scope: ZoneScope::Players { zone: EventZone::Hand, players: PlayerSet::One(PlayerRef::AbilityController) },
+            kind,
+            filter,
+        } = objects
+        else {
+            return None;
+        };
+        Some(ObjectSet::Zone {
+            scope: ZoneScope::Players { zone: EventZone::Hand, players: PlayerSet::One(player.clone()) },
+            kind: kind.clone(),
+            filter: filter.clone(),
+        })
+    };
+    let Instruction::Effect { result: shown, operation: Operation::Reveal { objects } } = first else {
+        return None;
+    };
+    let Instruction::Effect {
+        result: picked,
+        operation: Operation::ChooseObjects { player: PlayerRef::AbilityController, objects: pool, count, constraints },
+    } = second
+    else {
+        return None;
+    };
+    let mut steps = vec![
+        Instruction::Effect {
+            result: shown.clone(),
+            operation: Operation::Reveal { objects: their_hand(objects)? },
+        },
+        Instruction::Effect {
+            result: picked.clone(),
+            operation: Operation::ChooseObjects {
+                player: PlayerRef::AbilityController,
+                objects: their_hand(pool)?,
+                count: count.clone(),
+                constraints: constraints.clone(),
+            },
+        },
+    ];
+    steps.extend(rest.iter().cloned());
+    let mut program = program.clone();
+    program.instructions = steps;
+    Some(program)
+}
+
 /// The one instruction `player` is had to do, said of them. The reduction leaves
 /// the doer as "you" in `body`, which only these forms read back without doubt.
 fn had_to_do(player: &PlayerRef, body: &[Operand]) -> Option<Program> {
     let [Operand::Program(program)] = body else {
         return None;
     };
+    if let Some(shown) = had_to_show_hand(player, program) {
+        return Some(shown);
+    }
     let [Instruction::Effect { result, operation }] = program.instructions.as_slice() else {
         return None;
     };
@@ -194,6 +303,45 @@ fn total_rule(functions: &mut String, name: &str, read: &str, words: &str, most:
         writeln!(functions, "fn {name}_of(q: &dyn Query, id: ObjectId) -> u64 {{ i64::from({read}).max(0) as u64 }}\nfn {name}(q: &dyn Query, choice: &Choice, most: u32) -> Verdict {{ let total: u64 = choice.selected.iter().map(|&c| {name}_of(q, c)).sum(); Verdict {{ complete: total <= u64::from(most), addable: Bits::of(choice.candidates.len(), |i| total + {name}_of(q, choice.candidates[i]) <= u64::from(most)) }} }}\nfn largest_{name}(q: &dyn Query, choice: &Choice, most: u32) -> Vec<ObjectId> {{ cantrip_api::select::largest_within(choice, |c| {name}_of(q, c), u64::from(most)) }}").unwrap();
     }
     format!("cantrip_api::select::set_part(&({name} as SelectFn), &(largest_{name} as cantrip_api::select::LargestFn), {most}, {words:?})")
+}
+
+/// A cost asked again and again as a spell resolves.
+fn pays_by_the_time(cost: &Cost) -> bool {
+    matches!(
+        cost.parts.as_slice(),
+        [CostPart::Mana(_) | CostPart::Life(_) | CostPart::Discard { .. } | CostPart::Sacrifice { .. }]
+    )
+}
+
+/// What `in_state` would have to do that Cantrip has no call for.
+fn arrival_hole(states: &[EntryState]) -> &'static str {
+    match states {
+        [EntryState::Transformed, EntryState::AttachedTo(_) | EntryState::AttachedToPlayer(_)] => {
+            "returns transformed and attached"
+        }
+        [EntryState::Blocking(_)] => "put onto the battlefield blocking",
+        [EntryState::Flipped] => "returns flipped",
+        [EntryState::May(_)] => "may enter face down",
+        [EntryState::FaceDownAs(_)] => "put onto the battlefield face down as a stated creature",
+        [EntryState::FaceDownWith { .. }] => "put onto the battlefield face down with abilities",
+        [EntryState::FaceDownLand(_)] => "put onto the battlefield face down as a land",
+        [EntryState::Perpetual(_)] => "a perpetual change as it enters",
+        _ => "move arrival state",
+    }
+}
+
+/// A rule of at most `most` total power or mana value, `most` being code.
+pub(super) fn total_at_most_part(functions: &mut String, form: &str, most: &str) -> String {
+    if form == "TotalPowerIs" {
+        return total_rule(
+            functions,
+            "total_power",
+            "q.chars(id).power.unwrap_or(0)",
+            "with total power {n} or less",
+            most,
+        );
+    }
+    format!("{M}::select::total_mana_value_at_most({most})")
 }
 
 /// The instructions of one option of a choice between actions: a program, the
@@ -926,6 +1074,20 @@ impl Compiler {
                 self.selections.insert(result.0, format!("chosen_{id}"));
                 self.open_guard(&format!("chosen_{id}"), out);
             }
+            // "Attach an Equipment to it", of a token that may be more than one.
+            Operation::AttachChosen {
+                actor,
+                attachments,
+                count,
+                hosts: hosts @ ObjectSet::Created(_),
+            } => {
+                let player = self.one_actor(actor, "operation AttachChosen")?;
+                let count = self.offered_count(count);
+                let count = self.fetch(self.select_count(&count)?);
+                writeln!(out, "let player_{id} = {player}; let hosts_{id}: Vec<ObjectId> = {}; let eligible_{id} = if hosts_{id}.is_empty() {{ Vec::new() }} else {{ {} }}; let count_{id} = {count}; let chosen_{id} = {M}::choose::select(g, player_{id}, asker.source, Purpose::Attach, eligible_{id}, {M}::select::Selection::of(count_{id}, &[]))?; let host_{id} = match (chosen_{id}.is_empty(), hosts_{id}.as_slice()) {{ (true, _) | (_, []) => None, (_, [one]) => Some(*one), _ => {M}::choose::card(g, player_{id}, asker.source, Purpose::Attach, hosts_{id}.clone())? }}; if let Some(host) = host_{id} {{ cantrip_api::instruction(g, |g| {{ for &attachment in &chosen_{id} {{ g.attach(attachment, host); }} }}); }}", self.fetch(self.objects(hosts)?), self.acted_on(attachments)?).unwrap();
+                self.selections.insert(result.0, format!("chosen_{id}"));
+                self.open_guard(&format!("chosen_{id}"), out);
+            }
             Operation::FightEach { fighters, others } => {
                 writeln!(out, "let fighters_{id} = {}; let others_{id} = {}; for &first in &fighters_{id} {{ for &second in &others_{id} {{ g.fight(first, second); }} }}", self.fetch(self.objects(fighters)?), self.fetch(self.objects(others)?)).unwrap();
             }
@@ -1220,17 +1382,39 @@ impl Compiler {
                 effects: _,
                 card: None,
             } => {
+                let feature = match targets {
+                    NewTargets::Each(_) | NewTargets::EachLegal => {
+                        "a copy of a spell for each object it could target".to_string()
+                    }
+                    NewTargets::Random(_) => "new targets chosen at random".to_string(),
+                    _ => feature,
+                };
                 let copier = self.one_actor(actor, &feature)?;
                 let object = self.fetch(self.object(object)?);
                 let times = self.fetch(self.number(times)?.amount(u32::MAX.into(), "u32")?);
                 let targets = self.new_targets(targets)?;
                 self.plan_code(&feature, &format!("if let Some(spell) = {object} {{ {M}::copy::on_stack(g, {copier}, spell, {times}, {targets})?; }}"), out);
             }
+            // The change of control comes first, so that "you" in the spell is its
+            // new controller as the targets are chosen again.
+            Operation::TakeSpell {
+                actor,
+                object,
+                targets: NewTargets::May,
+            } => {
+                let player = self.one_actor(actor, &feature)?;
+                let object = self.fetch(self.object(object)?);
+                writeln!(out, "let player_{id} = {player}; if let Some(spell) = {object} {{ g.change_controller(spell, player_{id}); g.choose_new_targets(spell, player_{id})?; }}").unwrap();
+            }
             Operation::TakeSpell {
                 actor,
                 object,
                 targets,
             } => {
+                let feature = match targets {
+                    NewTargets::Random(_) => "new targets chosen at random".to_string(),
+                    _ => feature,
+                };
                 let player = self.one_actor(actor, &feature)?;
                 let object = self.fetch(self.object(object)?);
                 let targets = self.new_targets(targets)?;
@@ -1241,10 +1425,48 @@ impl Compiler {
                 object,
                 targets,
             } => {
+                let feature = match targets {
+                    NewTargets::ToPlayers(_) => "a spell's target changed to a player".to_string(),
+                    NewTargets::Random(_) => "new targets chosen at random".to_string(),
+                    NewTargets::To(_) => {
+                        "a spell's target changed to a permanent of no stated kind".to_string()
+                    }
+                    _ => feature,
+                };
                 let player = self.one_actor(actor, &feature)?;
                 let object = self.fetch(self.object(object)?);
                 let targets = self.new_targets(targets)?;
                 self.plan_code(&feature, &format!("if let Some(spell) = {object} {{ {M}::copy::retarget(g, {player}, spell, {targets})?; }}"), out);
+            }
+            // The second of "copy each of those spells twice": the first put them all
+            // on the stack.
+            Operation::CopyEach { .. } if self.notes.copied_twice => {
+                self.notes.copied_twice = false;
+            }
+            // "In any order" (Display of Power's ruling): the copier says which next,
+            // and each copy goes on the stack as it is made. Twice over is one pool,
+            // since the two copies of a spell need not be stacked apart.
+            Operation::CopyEach {
+                actor,
+                objects,
+                targets: targets @ (NewTargets::May | NewTargets::Same),
+            } => {
+                let player = self.one_actor(actor, &feature)?;
+                let test = self.filter(objects, &Candidate::of("id"))?;
+                let spells = self.fetch(format!("q.state().stack.iter().filter(|i| i.kind == StackKind::Spell).map(|i| i.object).filter(|&id| {test}).collect::<Vec<ObjectId>>()"));
+                let new_targets = matches!(targets, NewTargets::May);
+                let twice = matches!(
+                    self.after.first(),
+                    Some(Instruction::Effect { operation, .. })
+                        if format!("{operation:?}") == format!("{op:?}")
+                );
+                self.notes.copied_twice = twice;
+                let doubled = if twice {
+                    format!("open_{id}.extend(open_{id}.clone()); ")
+                } else {
+                    String::new()
+                };
+                writeln!(out, "let player_{id} = {player}; let mut open_{id}: Vec<ObjectId> = {spells}; {doubled}while let Some(&first) = open_{id}.first() {{ let spell = if open_{id}.iter().all(|&o| o == first) {{ Some(first) }} else {{ let mut distinct = open_{id}.clone(); distinct.sort(); distinct.dedup(); {M}::choose::card(g, player_{id}, asker.source, Purpose::CopyWhich, distinct)? }}; let Some(spell) = spell else {{ break; }}; if let Some(at) = open_{id}.iter().position(|&o| o == spell) {{ open_{id}.remove(at); }} g.copy_spell(spell, player_{id}, {new_targets})?; }}").unwrap();
             }
             Operation::CopyEach {
                 actor,
@@ -1457,13 +1679,12 @@ impl Compiler {
                 let count = self.fetch(self.select_count(count)?);
                 self.plan_code(&feature, &format!("{M}::hand::pick_from_hand(g, {actor}, {player}, asker.source, |q: &dyn Query, asker: &Asker, id: ObjectId| {test}, {count}, HandPick::{then:?})?"), out);
             }
+            // Each of those players gets one life total back: a player left out
+            // gets their own, so every total is handed to someone, and the
+            // changes are one instruction (CR 119.5).
             Operation::RedistributeLife(players) => {
                 let players = self.fetch(self.players(players)?);
-                self.plan_code(
-                    &feature,
-                    &format!("{M}::exchange::redistribute_life(g, asker.source, {players})?"),
-                    out,
-                );
+                writeln!(out, "let players_{id}: Vec<PlayerId> = {players}; let totals_{id}: Vec<i32> = players_{id}.iter().map(|&p| g.state().player(p).life).collect(); let mut open_{id} = players_{id}.clone(); let mut sets_{id}: Vec<(PlayerId, i32)> = Vec::new(); for &total in &totals_{id} {{ let who = match open_{id}.as_slice() {{ [one] => Some(*one), _ => {M}::choose::player(g, asker.controller, asker.source, open_{id}.clone(), \"GetLifeTotal\", total.clamp(0, 65535) as u16)? }}; if let Some(who) = who {{ open_{id}.retain(|&p| p != who); sets_{id}.push((who, total)); }} }} cantrip_api::instruction(g, |g| {{ for &(who, total) in &sets_{id} {{ g.set_life_total(who, total); }} }});").unwrap();
             }
             Operation::ReduceSpeed {
                 player,
@@ -1533,6 +1754,68 @@ impl Compiler {
                 for operation in operations {
                     self.operation(operation, result, out)?;
                 }
+            }
+            // "Sacrifices an artifact and a land of their choice": a permanent for
+            // each, all together.
+            Operation::Together(operations) if sacrifice_slots(operations).is_some() => {
+                let (player, slots) = sacrifice_slots(operations).expect("just seen");
+                let player = self.fetch(self.certain_player(player)?);
+                self.sacrifice_slots(id, &player, &slots, out)?;
+                writeln!(out, "let sacrificed_{id} = g.sacrifice(player_{id}, &chosen_{id});").unwrap();
+                self.moved.insert(result.0, format!("sacrificed_{id}"));
+                self.left_behind(result, effects::gone(&format!("chosen_{id}")));
+            }
+            // "Simultaneously untap all tapped creatures and tap all untapped
+            // creatures": who is which is read first, and it is one instruction.
+            Operation::Together(operations)
+                if operations
+                    .iter()
+                    .all(|operation| matches!(operation, Operation::Tap { .. })) =>
+            {
+                let (mut tapping, mut untapping) = (Vec::new(), Vec::new());
+                for (at, operation) in operations.iter().enumerate() {
+                    let Operation::Tap { objects, tapped } = operation else {
+                        return Err(gap(feature));
+                    };
+                    writeln!(out, "let turned_{id}_{at}: Vec<ObjectId> = ({}).into_iter().filter(|&o| g.state().obj(o).tapped != {tapped}).collect();", self.acted_on(objects)?).unwrap();
+                    let group = if *tapped { &mut tapping } else { &mut untapping };
+                    group.push(format!("turned_{id}_{at}"));
+                }
+                let mut turn = String::new();
+                for list in tapping {
+                    write!(turn, "g.tap_together(&{list}); ").unwrap();
+                }
+                for list in untapping {
+                    write!(turn, "for &object in &{list} {{ g.untap(object); }} ").unwrap();
+                }
+                writeln!(out, "cantrip_api::instruction(g, |g| {{ {turn}}});").unwrap();
+            }
+            // "That player simultaneously sacrifices the artifact and returns the
+            // artifact card", with both targets still legal.
+            Operation::Together(operations) if self.welds(operations) => {
+                let [Operation::Sacrifice {
+                    players: PlayerSet::One(player),
+                    objects: ObjectSet::One(ObjectRef::Target { slot: gone, index: gone_at }),
+                    ..
+                }, Operation::ChangeZone {
+                    cards: ObjectSet::One(ObjectRef::Target { slot: back, index: back_at }),
+                    ..
+                }] = operations.as_slice()
+                else {
+                    return Err(gap(feature));
+                };
+                let (gone, back) = (self.slot(gone)?, self.slot(back)?);
+                let player = self.fetch(self.certain_player(player)?);
+                writeln!(out, "let player_{id} = {player}; let gone_{id} = t_{gone}_raw.get({gone_at}).copied().filter(|t| t_{gone}.contains(t)).and_then(|t: Target| t.object()); let back_{id} = t_{back}_raw.get({back_at}).copied().filter(|t| t_{back}.contains(t)).and_then(|t: Target| t.object()); if let (Some(gone), Some(back)) = (gone_{id}, back_{id}) {{ g.sacrifice_and_return(player_{id}, &[gone], &[(back, player_{id})])?; }}").unwrap();
+            }
+            // Two calls are two batches of what dies, and no call takes both.
+            Operation::Together(operations)
+                if matches!(
+                    operations.as_slice(),
+                    [Operation::Destroy { regeneration: false, .. }, Operation::Destroy { regeneration: true, .. }]
+                ) =>
+            {
+                return Err(gap("destroyed together, some that can't be regenerated"));
             }
             Operation::Together(operations) => {
                 self.plan_code(&feature, "g.begin_simultaneous()", out);
@@ -1624,6 +1907,28 @@ impl Compiler {
                     body: then,
                 }];
                 self.block(&offered, out, true)?;
+            }
+            // "An opponent creates two Treasure tokens and they scry 2": you choose
+            // which (its ruling), and in `body` the doer is "you".
+            Operation::PlayersDo {
+                players,
+                any_one: true,
+                optional: false,
+                once_each_turn: false,
+                body,
+                otherwise,
+            } if otherwise.is_empty()
+                && body.iter().all(|step| matches!(step, Operand::Program(_))) =>
+            {
+                let among = self.fetch(self.players(players)?);
+                writeln!(out, "let among_{id}: Vec<PlayerId> = {among}; let Some(doer_{id}) = (if among_{id}.len() > 1 {{ {M}::choose::player(g, asker.controller, asker.source, among_{id}, \"Choose\", 0)? }} else {{ among_{id}.first().copied() }}) else {{ return Ok(()); }}; {{ let asker = &Asker::new(asker.source, doer_{id});").unwrap();
+                for step in body {
+                    let Operand::Program(program) = step else {
+                        unreachable!("just matched");
+                    };
+                    self.block(program, out, true)?;
+                }
+                writeln!(out, "}}").unwrap();
             }
             Operation::PlayersDo {
                 players,
@@ -1832,6 +2137,33 @@ impl Compiler {
                     out,
                 );
             }
+            // "Unless any player pays {3}": each is offered it in turn, and the
+            // first who pays ends the offer.
+            Operation::AnyPlayerMayPay {
+                players,
+                mana,
+                unpaid,
+                paid,
+            } if generic_mana(mana).is_some()
+                && matches!(
+                    (unpaid.as_slice(), paid.as_slice()),
+                    ([Operand::Program(_)], [Operand::Program(_)])
+                ) =>
+            {
+                let price = generic_mana(mana).unwrap_or_default();
+                let ([Operand::Program(unpaid)], [Operand::Program(paid)]) =
+                    (unpaid.as_slice(), paid.as_slice())
+                else {
+                    return Err(gap(feature));
+                };
+                self.helpers.insert("pay_question");
+                let players = self.fetch(self.players(players)?);
+                writeln!(out, "let mut paid_{id} = false; for player in {players} {{ if g.may_pay(player, asker.source, asker.source, cost(\"{{{price}}}\"), &PAY_QUESTION)? {{ paid_{id} = true; break; }} }} if paid_{id} {{").unwrap();
+                self.block(paid, out, true)?;
+                writeln!(out, "}} else {{").unwrap();
+                self.block(unpaid, out, true)?;
+                writeln!(out, "}}").unwrap();
+            }
             Operation::AnyPlayerMayPay {
                 players,
                 mana,
@@ -1848,6 +2180,28 @@ impl Compiler {
                 let (mana, unpaid, paid) =
                     (parts(self, mana), parts(self, unpaid), parts(self, paid));
                 self.plan_code(&feature, &format!("{M}::players::any_may_pay(g, asker, {players}, &[{mana}], &[{unpaid}], &[{paid}])?"), out);
+            }
+            // "You may pay {1} up to three times", "for each, lose 1 life unless you
+            // pay {1}{W}": one payment, its number the payer's. A cost that isn't mana
+            // goes one at a time, until they stop: which times they stopped at is
+            // nothing the rest can tell.
+            Operation::PayRepeatedly {
+                player,
+                cost,
+                at_most,
+            } if pays_by_the_time(cost) => {
+                let most = self.fetch(self.number(at_most)?.amount(u16::MAX.into(), "u16")?);
+                if let [CostPart::Mana(symbols)] = cost.parts.as_slice() {
+                    self.helpers.insert("pay_question");
+                    let payer = self.fetch(self.certain_player(player)?);
+                    let mana = mana(symbols)?;
+                    writeln!(out, "let payer_{id} = {payer}; let most_{id}: u16 = {most}; let bound_{id}: i64 = if most_{id} == 0 {{ 0 }} else {{ i64::from(g.may_pay_times(payer_{id}, asker.source, asker.source, {mana}, most_{id}, &PAY_QUESTION)?) }}; let done_{id}: i64 = bound_{id};").unwrap();
+                } else {
+                    let ask = self.ask_to_pay(id, player, cost)?;
+                    writeln!(out, "let most_{id}: u16 = {most}; let mut bound_{id}: i64 = 0; for _ in 0..most_{id} {{ {ask} if paid_{id} {{ bound_{id} += 1; }} else {{ break; }} }} let done_{id}: i64 = bound_{id};").unwrap();
+                }
+                self.performed.insert(result.0, format!("done_{id}"));
+                self.values.insert(result.0, format!("bound_{id}"));
             }
             Operation::PayRepeatedly {
                 player,
@@ -1910,6 +2264,37 @@ impl Compiler {
                 self.selections.insert(result.0, format!("chosen_{id}"));
                 self.moved.insert(result.0, format!("chosen_{id}"));
             }
+            // The kinds are read once, as this resolves. "Choose none" of the one
+            // object is the other option: the question names the kind.
+            Operation::EachCounterKind {
+                actor,
+                among,
+                options,
+                optional,
+            } if matches!(
+                (options.as_slice(), optional),
+                ([CounterStep::PutThatKind(_), CounterStep::RemoveThatKind(_)], false)
+                    | ([CounterStep::Put(..), CounterStep::PutThatKind(_)], true)
+            ) =>
+            {
+                let player = self.one_actor(actor, &feature)?;
+                let among = self.fetch(self.objects(among)?);
+                let offer = |kind: &str| format!("{M}::choose::cards(g, player_{id}, asker.source, Purpose::PutCounters({kind}, 1), Vec::from([object]), 1, true)?");
+                let (object, step) = match options.as_slice() {
+                    [CounterStep::PutThatKind(object), CounterStep::RemoveThatKind(_)] => {
+                        let put = offer("kind");
+                        (object, format!("if {put}.is_empty() {{ g.remove_counters(object, kind, 1); }} else {{ g.add_counters(object, kind, 1); }}"))
+                    }
+                    [CounterStep::Put(other, _), CounterStep::PutThatKind(object)] => {
+                        let other = counter_kind(other)?;
+                        let (put, plain) = (offer("kind"), offer(&other));
+                        (object, format!("if kind != {other} && !{put}.is_empty() {{ g.add_counters(object, kind, 1); continue; }} if !{plain}.is_empty() {{ g.add_counters(object, {other}, 1); }}"))
+                    }
+                    _ => return Err(gap(feature)),
+                };
+                let object = self.fetch(self.object(object)?);
+                writeln!(out, "let player_{id} = {player}; let among_{id}: Vec<ObjectId> = {among}; let kinds_{id}: Vec<CounterKind> = CounterKind::ALL.into_iter().filter(|&kind| among_{id}.iter().any(|&o| g.state().obj(o).counters(kind) > 0)).collect(); if let Some(object) = {object} {{ for kind in kinds_{id} {{ {step} }} }}").unwrap();
+            }
             Operation::EachCounterKind {
                 actor,
                 among,
@@ -1921,6 +2306,63 @@ impl Compiler {
                 let options = quoted(&format!("{options:?}"));
                 self.plan_code(&feature, &format!("{M}::counters::each_kind(g, {player}, asker.source, {among}, {options}, {optional})?"), out);
             }
+            // "Put up to three lore counters on it": how many is asked of each.
+            Operation::PutCountersEach {
+                amount,
+                kind,
+                objects,
+                up_to: true,
+            } => {
+                let kind = counter_kind(kind)?;
+                let amount = self.fetch(self.number(amount)?.amount(i16::MAX.into(), "i16")?);
+                writeln!(out, "let objects_{id} = {}; let most_{id} = {amount}; for &object in &objects_{id} {{ let many = {M}::choose::number(g, asker.controller, asker.source, 0, most_{id}.max(0) as u32, \"Put how many counters\")?; g.add_counters(object, {kind}, many as i16); }}", self.fetch(self.objects(objects)?)).unwrap();
+                self.selections.insert(result.0, format!("objects_{id}"));
+            }
+            // "Move any number of counters": from what, of what kind, onto what and
+            // how many, until the player stops or there is nothing left to move.
+            Operation::MoveCounters {
+                actor: PlayerSet::One(player),
+                from,
+                to,
+                kind,
+                amount: MovedCounters::AnyNumber,
+            } => {
+                let player = self.fetch(self.certain_player(player)?);
+                let from = self.fetch(self.objects(from)?);
+                let to = self.fetch(self.objects(to)?);
+                let (holds, read_kind) = match kind {
+                    Some(kind) => {
+                        let kind = counter_kind(kind)?;
+                        (format!("g.state().obj(o).counters({kind}) > 0"), format!("Some({kind})"))
+                    }
+                    None => (
+                        "CounterKind::ALL.into_iter().any(|kind| g.state().obj(o).counters(kind) > 0)".to_string(),
+                        format!("g.choose_counter_kind(player_{id}, asker.source, holder)?"),
+                    ),
+                };
+                writeln!(out, "let player_{id} = {player}; let from_{id}: Vec<ObjectId> = {from}; let to_{id}: Vec<ObjectId> = {to}; let mut moved_{id}: i64 = 0; loop {{ let holders: Vec<ObjectId> = from_{id}.iter().copied().filter(|&o| to_{id}.iter().any(|&t| t != o) && {holds}).collect(); let holder = match holders.as_slice() {{ [] => None, [one] => Some(*one), _ => {M}::choose::cards(g, player_{id}, asker.source, Purpose::Choose, holders.clone(), 1, true)?.first().copied() }}; let Some(holder) = holder else {{ break; }}; let Some(kind) = {read_kind} else {{ break; }}; let hosts: Vec<ObjectId> = to_{id}.iter().copied().filter(|&t| t != holder).collect(); let host = match hosts.as_slice() {{ [one] => Some(*one), _ => {M}::choose::cards(g, player_{id}, asker.source, Purpose::PutCounters(kind, 1), hosts.clone(), 1, true)?.first().copied() }}; let Some(host) = host else {{ break; }}; let most = g.state().obj(holder).counters(kind).max(0) as u32; let many = {M}::choose::number(g, player_{id}, asker.source, 0, most, \"Move how many counters\")?; if many == 0 {{ break; }} let done = g.move_counters(holder, host, kind, many as i16); moved_{id} += i64::from(done); if done == 0 {{ break; }} }}").unwrap();
+                self.performed.insert(result.0, format!("moved_{id}"));
+            }
+            // "Exiles cards from the top until they have exiled cards with total
+            // mana value 5 or greater": one at a time, and a card a replacement
+            // sends elsewhere is not counted. The move after it is done by then.
+            Operation::RevealUntilGroup {
+                library,
+                constraints,
+            } if self.exiled_as_it_goes(result) && total_mana_value_at_least(constraints).is_some() => {
+                let least = total_mana_value_at_least(constraints).unwrap_or_default();
+                let owner = self.fetch(self.certain_player(library)?);
+                writeln!(out, "let owner_{id} = {owner}; let mut total_{id}: i64 = 0; let mut objects_{id}: Vec<ObjectId> = Vec::new(); while total_{id} < {least} {{ let Some(&top) = g.state().zone(Zone::library(owner_{id})).first() else {{ break; }}; let card = g.exile(top); if g.obj(card).zone.is(ZoneKind::Exile) {{ total_{id} += i64::from(g.mana_value(card)); objects_{id}.push(card); }} }}").unwrap();
+                self.selections.insert(result.0, format!("objects_{id}"));
+                self.notes.exiled_going.insert(result.0);
+            }
+            // The data has the revealing opponent sacrifice this artifact, which
+            // they don't control, where the card has "you" sacrifice it.
+            Operation::RevealUntil {
+                at_most: Some(_), ..
+            } => return Err(gap("a reveal whose sacrifice the data gives to another player")),
+            Operation::PutChosenCounters { objects, choice }
+                if self.chosen_counters(id, objects, choice, result, out)? => {}
             Operation::PutChosenCounters { objects, choice } => {
                 let objects = self.fetch(self.objects(objects)?);
                 let choice = quoted(&format!("{choice:?}"));
@@ -1965,6 +2407,17 @@ impl Compiler {
                 };
                 let entry: Vec<String> = entry.iter().map(|o| self.operand_code(o)).collect();
                 self.plan_code(&feature, &format!("if let Some(spell) = {spell} {{ {M}::counter::to(g, spell, {test}, Destination::{}, &[{}]); }}", form(destination), entry.join(", ")), out);
+            }
+            // "An opponent gains control": the controller picks one, unasked if
+            // there is only one. The new controller keeps it (CR 611.2).
+            Operation::GiveControl {
+                players,
+                objects,
+                until: None,
+            } if matches!(players, PlayerSet::One(_) | PlayerSet::OpponentsOf(_)) => {
+                let players = self.fetch(self.players(players)?);
+                let objects = self.fetch(self.objects(objects)?);
+                writeln!(out, "let players_{id}: Vec<PlayerId> = {players}; let objects_{id} = {objects}; let who_{id} = match players_{id}.as_slice() {{ [one] => Some(*one), _ => {M}::choose::player(g, asker.controller, asker.source, players_{id}.clone(), \"GainControl\", 0)? }}; if let Some(who) = who_{id} {{ cantrip_api::instruction(g, |g| {{ for &object in &objects_{id} {{ g.gain_control(asker.source, object, who, Duration::Indefinite); }} }}); }}").unwrap();
             }
             Operation::GiveControl {
                 players,
@@ -2477,6 +2930,158 @@ impl Compiler {
         self.selections.insert(result.0, format!("picked_{id}"));
         Ok(())
     }
+    /// Whether these are "sacrifices that target and returns that target card".
+    fn welds(&self, operations: &[Operation]) -> bool {
+        matches!(
+            operations,
+            [Operation::Sacrifice {
+                players: PlayerSet::One(_),
+                objects: ObjectSet::One(ObjectRef::Target { .. }),
+                choose: None,
+            }, Operation::ChangeZone {
+                cards: ObjectSet::One(ObjectRef::Target { .. }),
+                count: None,
+                random: false,
+                group: None,
+                destination: Destination::OwnersBattlefield,
+                face_down: None,
+                ..
+            }]
+        )
+    }
+    /// `chosen_{id}`: a permanent `player_{id}` controls for each of `slots`, the
+    /// chooser's own but always as many as there can be.
+    pub(super) fn sacrifice_slots(
+        &mut self,
+        id: usize,
+        player: &str,
+        slots: &[ObjectSet],
+        out: &mut String,
+    ) -> Result<()> {
+        self.helpers.insert("most_assigned");
+        writeln!(out, "let player_{id}: PlayerId = {player}; let mut slots_{id}: Vec<Vec<ObjectId>> = Vec::new();").unwrap();
+        for slot in slots {
+            let list = self.fetch(self.objects(slot)?);
+            writeln!(out, "let slot: Vec<ObjectId> = {list}; slots_{id}.push(slot.into_iter().filter(|&o| g.controller(o) == player_{id} && g.can_sacrifice(player_{id}, o)).collect());").unwrap();
+        }
+        writeln!(out, "let mut chosen_{id}: Vec<ObjectId> = Vec::new(); for at in 0..slots_{id}.len() {{ let goal = most_assigned(&slots_{id}[at..], &mut chosen_{id}.clone()); let keeps: Vec<ObjectId> = slots_{id}[at].iter().copied().filter(|o| !chosen_{id}.contains(o)).filter(|&o| {{ let mut taken = chosen_{id}.clone(); taken.push(o); 1 + most_assigned(&slots_{id}[at + 1..], &mut taken) == goal }}).collect(); let picked = match keeps.as_slice() {{ [] => None, [one] => Some(*one), _ => {M}::choose::card(g, player_{id}, asker.source, Purpose::Sacrifice, keeps.clone())? }}; if let Some(o) = picked {{ chosen_{id}.push(o); }} }}").unwrap();
+        Ok(())
+    }
+    /// Whether the next instruction exiles what `result` reveals, and nothing else.
+    fn exiled_as_it_goes(&self, result: &ResultId) -> bool {
+        matches!(
+            self.after.first(),
+            Some(Instruction::Effect {
+                operation: Operation::Move {
+                    objects: ObjectSet::Observed(seen),
+                    destination: Destination::Exile,
+                    entry,
+                    face_down: false,
+                },
+                ..
+            }) if seen.0 == result.0 && !entry.tapped && entry.counters.is_empty() && entry.states.is_empty()
+        )
+    }
+    /// "Your choice of a reach, vigilance or trample counter", "a counter of a
+    /// kind it doesn't have, at random", "for each color", "for each such ability".
+    /// Whether it wrote the code; each kind is judged in turn (CR 608.2c).
+    fn chosen_counters(
+        &mut self,
+        id: usize,
+        objects: &ObjectSet,
+        choice: &CounterChoice,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<bool> {
+        let objects = self.fetch(self.objects(objects)?);
+        let list = |kinds: &[crate::counter::CounterKind]| -> Result<String> {
+            let kinds = kinds.iter().map(counter_kind).collect::<Result<Vec<String>>>()?;
+            Ok(format!("[{}]", kinds.join(", ")))
+        };
+        match choice {
+            CounterChoice::RandomMissing(kinds) => {
+                let kinds = list(kinds)?;
+                writeln!(out, "let objects_{id} = {objects}; for object in objects_{id} {{ let missing: Vec<CounterKind> = {kinds}.into_iter().filter(|&kind| g.state().obj(object).counters(kind) == 0).collect(); if !missing.is_empty() {{ let at = g.choose_at_random(missing.len()); g.add_counters(object, missing[at], 1); }} }}").unwrap();
+            }
+            CounterChoice::OneOf(kinds) if self.stack_item => {
+                let words: Vec<String> = kinds
+                    .iter()
+                    .map(|kind| {
+                        let code = counter_kind(kind)?;
+                        let word = code.trim_start_matches("CounterKind::").to_ascii_lowercase();
+                        Ok(format!("{word} counter"))
+                    })
+                    .collect::<Result<_>>()?;
+                let base = self.choice_labels.len();
+                let end = base + words.len();
+                self.choice_labels.extend(words);
+                let labels: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
+                self.entering_labels = Some(format!("&[{}]", labels.join(", ")));
+                let kinds = list(kinds)?;
+                writeln!(out, "let objects_{id} = {objects}; let mut rows_{id}: Vec<(ObjectId, CounterKind, i16)> = Vec::new(); for object in objects_{id} {{ let picked = {M}::choose::option(g, asker.controller, asker.source, item.ability.card, {base}..{end})? - {base}; rows_{id}.push((object, {kinds}[picked as usize], 1)); }} g.add_counters_together(&rows_{id});").unwrap();
+            }
+            CounterChoice::OneOf(_) => return Ok(false),
+            CounterChoice::OnePerColor(kind) => {
+                let kind = counter_kind(kind)?;
+                writeln!(out, "let objects_{id} = {objects}; let mut rows_{id}: Vec<(ObjectId, CounterKind, i16)> = Vec::new(); for color in Color::ALL {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.chars(o).colors.has(color)).collect(); if let Some(object) = {M}::choose::card(g, asker.controller, asker.source, Purpose::PutCounters({kind}, 1), eligible)? {{ rows_{id}.push((object, {kind}, 1)); }} }} let mut before_{id}: Vec<(ObjectId, i16)> = rows_{id}.iter().map(|row| (row.0, g.state().obj(row.0).counters({kind}))).collect(); before_{id}.sort(); before_{id}.dedup(); g.add_counters_together(&rows_{id}); let placed_{id}: Vec<ObjectId> = before_{id}.iter().filter(|row| g.state().obj(row.0).counters({kind}) > row.1).map(|row| row.0).collect();").unwrap();
+                self.selections.insert(result.0, format!("placed_{id}"));
+            }
+            CounterChoice::PerAbility {
+                of,
+                kinds,
+                missing_only,
+            } => {
+                let [Operand::List(abilities), about] = kinds.as_slice() else {
+                    return Ok(false);
+                };
+                let mut pairs = Vec::new();
+                for ability in abilities {
+                    let Operand::Term { form, .. } = ability else {
+                        return Ok(false);
+                    };
+                    let word = form.strip_prefix("Any").unwrap_or(form);
+                    pairs.push(format!("(Keyword::{word}, CounterKind::{word})"));
+                }
+                let pairs = format!("[{}]", pairs.join(", "));
+                // A "hexproof from [quality]" ability is a hexproof ability (CR 702.11d).
+                let has = "(c.keywords.has(keyword) || (keyword == Keyword::Hexproof && c.hexproof_from != HexproofFrom::NONE))";
+                match (about, of, missing_only) {
+                    // "If that creature has it and this one doesn't, put a counter on this."
+                    (Operand::Object(other), Some(this), true) => {
+                        let other = self.fetch(self.object(other)?);
+                        let this = self.fetch(self.object(this)?);
+                        writeln!(out, "let objects_{id} = {objects}; if let (Some(other), Some(this)) = ({other}, {this}) {{ for (keyword, kind) in {pairs} {{ let (c, o) = (g.chars(other), g.chars(this)); let lacks = !o.keywords.has(keyword); if {has} && lacks {{ for &object in &objects_{id} {{ g.add_counters(object, kind, 1); }} }} }} }}").unwrap();
+                    }
+                    // "Put a flying counter on any creature you control if a card
+                    // in your graveyard has flying. Repeat this for ..."
+                    (Operand::Filter(ObjectFilter::All(parts)), None, false) => {
+                        let scope = parts.iter().find_map(|part| match part {
+                            ObjectFilter::InZone(scope) => Some(scope.clone()),
+                            _ => None,
+                        });
+                        let Some(scope) = scope else {
+                            return Ok(false);
+                        };
+                        let rest: Vec<ObjectFilter> = parts
+                            .iter()
+                            .filter(|part| !matches!(part, ObjectFilter::InZone(_)))
+                            .cloned()
+                            .collect();
+                        let pool = ObjectSet::Zone {
+                            scope,
+                            kind: ObjectKind::Any,
+                            filter: ObjectFilter::All(rest),
+                        };
+                        let pool = self.fetch(self.objects(&pool)?);
+                        writeln!(out, "let pool_{id} = {pool}; let mut done_{id}: i64 = 0; for (keyword, kind) in {pairs} {{ if pool_{id}.iter().any(|&card| {{ let c = g.chars(card); {has} }}) {{ let among = {objects}; if let Some(object) = {M}::choose::card(g, asker.controller, asker.source, Purpose::PutCounters(kind, 1), among)? {{ let before = g.state().obj(object).counters(kind); g.add_counters(object, kind, 1); done_{id} += i64::from(g.state().obj(object).counters(kind) - before).max(0); }} }} }}").unwrap();
+                        self.performed.insert(result.0, format!("done_{id}"));
+                    }
+                    _ => return Ok(false),
+                }
+            }
+        }
+        Ok(true)
+    }
     /// The bounds of a choice of a number: `Comparison`s each number must meet.
     fn number_bounds(&self, options: &[Operand]) -> Result<(String, String)> {
         let unsupported = || gap("a choice of Number");
@@ -2618,8 +3223,14 @@ impl Compiler {
                 return Ok(());
             }
         }
+        // Cantrip's choices are all in the open, and a secret one stays hidden until
+        // what reveals it: nothing keeps it from the other players.
+        let feature = match terms.secret {
+            true => "a value chosen in secret",
+            false => "operation ChooseValueWith",
+        };
         let code = format!("{M}::choose::value(g, {players}, asker.source, ChoiceKind::{kind:?}, ChoiceTerms {{ options: &[{}], except: &[{}], count: {count}, secret: {secret}, unchosen: {unchosen}, random: {random}, ordered: {ordered}, up_to: {up_to} }})?", options.join(", "), except.join(", "));
-        self.value_to_come("operation ChooseValueWith", id, kind, &code, out);
+        self.value_to_come(feature, id, kind, &code, out);
         Ok(())
     }
     /// A chosen value Cantrip can't yet ask for: bound, where the kind has a
@@ -2669,9 +3280,10 @@ impl Compiler {
                 format!("if let Some(host) = {host} {{ moved.extend(g.put_onto_battlefield_attached(o, controller, host)?); }}")
             }
             states => {
+                let feature = arrival_hole(states);
                 let states = quoted(&format!("{states:?}"));
                 let call = planned::planned_value(
-                    "move arrival state",
+                    feature,
                     "None::<ObjectId>",
                     &format!("{M}::enter::in_state(g, o, controller, item, {states}, &[{counters}], {tapped})?"),
                 );

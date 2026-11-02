@@ -174,12 +174,41 @@ impl Compiler {
             PlayCost::Normal => "None",
             other => return Err(gap(format!("play cost {}", form(other)))),
         };
+        // "You may cast a spell from each opponent's graveyard": one offer for each,
+        // of the cards of that graveyard.
+        if let (Count::PerPlayer { players, each }, ObjectSet::Zone { scope: ZoneScope::Players { players: owners, .. }, .. }) = (count, cards) {
+            if format!("{players:?}") != format!("{owners:?}") {
+                return Err(gap("play count PerPlayer"));
+            }
+            let id = self.fresh();
+            let players = self.fetch(self.players(players)?);
+            let one = Operation::PlayCards {
+                actor: PlayerSet::One(actor.clone()),
+                action: action.clone(),
+                cards: cards.clone(),
+                count: (**each).clone(),
+                cost: cost.clone(),
+                into_exile: *into_exile,
+            };
+            writeln!(out, "for owner_{id} in {players} {{").unwrap();
+            self.notes.play_owner = Some(format!("owner_{id}"));
+            let done = self.play_plainly(&one, true, out);
+            self.notes.play_owner = None;
+            done?;
+            writeln!(out, "}}").unwrap();
+            self.played = None;
+            return Ok(());
+        }
         let (most, may) = match count {
-            Count::Exactly(Expr::Constant(n)) if *n > 0 => (*n, optional),
-            Count::UpTo(Expr::Constant(n)) if *n > 0 => (*n, true),
-            Count::AnyNumber => (i64::from(u32::MAX), true),
+            Count::Exactly(Expr::Constant(n)) if *n > 0 => (n.to_string(), optional),
+            Count::UpTo(Expr::Constant(n)) if *n > 0 => (n.to_string(), true),
+            Count::AnyNumber => (u32::MAX.to_string(), true),
+            Count::Exactly(n) => {
+                (self.fetch(self.number(n)?.amount(u32::MAX.into(), "u32")?), optional)
+            }
             other => return Err(gap(format!("play count {}", form(other)))),
         };
+        let single = most == "1";
         let lands = !matches!(action, CardPlayAction::CastSpell);
         // The engine plays a land for the resolving effect's controller only.
         if lands && !matches!(actor, PlayerRef::AbilityController) {
@@ -187,12 +216,19 @@ impl Compiler {
         }
         let (set, spell) = peel(cards);
         // Among several cards the question is which, not whether.
+        // "That card", however many it comes to: of one, whether; of more, which, to the last.
+        let each = matches!(count, Count::Exactly(n) if !matches!(n, Expr::Constant(_)));
         let among = !self.one_object(&set);
         let copies = matches!(cards, ObjectSet::Copies(_) | ObjectSet::Named(_));
         if lands && !spell.is_empty() {
             return Err(gap("a land played by what it is as a spell"));
         }
         let id = self.fresh();
+        let among = if each {
+            format!("among_{id}")
+        } else {
+            among.to_string()
+        };
         let mut numbers = Vec::new();
         let test = self.spell_test(&all_of(spell), id, &mut numbers)?;
         let caster = self.fetch(self.certain_player(actor)?);
@@ -209,6 +245,12 @@ impl Compiler {
             ""
         };
         writeln!(out, "let caster_{id} = {caster}; let mut pool_{id}: Vec<ObjectId> = {pool}; let mut left_{id}: u32 = {most}; let mut played_{id}: Vec<ObjectId> = Vec::new();").unwrap();
+        if let Some(owner) = &self.notes.play_owner {
+            writeln!(out, "pool_{id}.retain(|&c| g.state().obj(c).owner == {owner});").unwrap();
+        }
+        if each {
+            writeln!(out, "let among_{id} = pool_{id}.len() > 1;").unwrap();
+        }
         for (i, number) in numbers.iter().enumerate() {
             writeln!(out, "let limit_{id}_{i}: i64 = i64::from({number});").unwrap();
         }
@@ -218,7 +260,7 @@ impl Compiler {
         writeln!(out, "let Some(card_{id}) = picked_{id} else {{ break; }};").unwrap();
         writeln!(out, "let ways_{id}: Vec<CastWay> = g.cast_ways_during_resolution_by(card_{id}, caster_{id}).into_iter().filter(|w| {test}).collect();").unwrap();
         writeln!(out, "let done_{id} = if ways_{id}.is_empty() {{ g.play_land_during_resolution(card_{id})?.is_some() }} else {{ let way = cantrip_mechanics::choose::cast_way(g, caster_{id}, card_{id}, ways_{id})?.map(|w| w.way); g.cast_during_resolution_as(card_{id}, CastTerms {{ instead: {instead}, way, caster: Some(caster_{id}), exile_instead: ExileInstead::{exile}, ..CastTerms::default() }})? }};").unwrap();
-        writeln!(out, "if done_{id} {{ left_{id} -= 1; played_{id}.push(g.state().obj(card_{id}).became.unwrap_or(card_{id})); }} else if {most}i64 == 1 {{ break; }} if done_{id} || !({may} && {among}) {{ pool_{id}.retain(|&c| c != card_{id}); }}").unwrap();
+        writeln!(out, "if done_{id} {{ left_{id} -= 1; played_{id}.push(g.state().obj(card_{id}).became.unwrap_or(card_{id})); }} else if {single} {{ break; }} if done_{id} || !({may} && {among}) {{ pool_{id}.retain(|&c| c != card_{id}); }}").unwrap();
         writeln!(out, "}}").unwrap();
         self.played = Some(format!("played_{id}"));
         Ok(())

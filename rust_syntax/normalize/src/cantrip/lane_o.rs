@@ -1457,7 +1457,7 @@ impl Compiler {
             .map(|reference| format!("EffectKind::AddAbility({reference})"))
             .collect())
     }
-    fn aura_enchant(&mut self, hosts: &EnchantHosts) -> Result<Vec<String>> {
+    pub(super) fn aura_enchant(&mut self, hosts: &EnchantHosts) -> Result<Vec<String>> {
         let EnchantHosts::Permanents(filter) = hosts else {
             return Err(gap("granted Enchant"));
         };
@@ -3363,6 +3363,14 @@ impl Compiler {
     /// A size in a copy that depends on the original.
     pub(super) fn stated_size(&mut self, values: String, operands: &[Operand]) -> Result<String> {
         const FEATURE: &str = "copy exception of a power and toughness not fixed";
+        // "Except its power is half that creature's power": a number as it's made,
+        // and from then on what the copy is (CR 707.9b).
+        if let [Operand::Number(power), Operand::Number(toughness)] = operands {
+            let size = |c: &Self, n: &Expr| -> Result<String> {
+                Ok(format!("({}).clamp(i16::MIN.into(), i16::MAX.into()) as i16", c.number(n)?.code))
+            };
+            return Ok(format!("{values}.sized({}, {})", size(self, power)?, size(self, toughness)?));
+        }
         let code = match operands {
             [power, toughness] => {
                 format!(
@@ -3409,9 +3417,17 @@ impl Compiler {
                 return Ok(added_colors(&values, &of("Color", operands)?))
             }
             ("AddColor", list) => return Ok(added_colors(&values, &of("Color", list)?)),
-            ("KeepPT", []) => format!("{values}.keeping_power_toughness()"),
+            // "Equal to this creature's": printed on the face it is, cast prototyped or
+            // not (Hulking Metamorph's ruling), and from then on what the copy is.
+            ("KeepPT", []) => {
+                return Ok(format!("{{ let own = q.card(q.chars(asker.source).card); {values}.sized(own.power.unwrap_or(0), own.toughness.unwrap_or(0)) }}"))
+            }
             ("KeepName", []) => format!("{values}.keeping_name()"),
-            ("KeepColor", []) => format!("{values}.keeping_colors()"),
+            // "It doesn't copy that creature's color": its own copiable color, which is
+            // what a copy of it copies (Vesuvan Doppelganger's ruling).
+            ("KeepColor", []) => {
+                return Ok(format!("{{ let own = q.copiable_values(asker.source); {values}.colored(own.colors.unwrap_or(q.card(own.card).colors())) }}"))
+            }
             ("RemoveThisAbility", []) => format!("{values}.without_ability(item.ability)"),
             ("SetLoyalty", [loyalty]) => {
                 format!("{values}.with_loyalty({})", self.stated(loyalty)?)

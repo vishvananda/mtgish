@@ -767,6 +767,17 @@ impl Compiler {
                     zone_kind(zone)?
                 )
             }
+            // This card, which the cost that was just paid exiled from where it died.
+            ObjectSet::InZone { objects, zone }
+                if matches!(&**objects, ObjectSet::One(ObjectRef::Source))
+                    && self.notes.exiled_source.is_some() =>
+            {
+                format!(
+                    "({}).into_iter().filter(|&id| q.state().obj(id).became.is_none() && q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
+                    self.notes.exiled_source.clone().unwrap_or_default(),
+                    zone_kind(zone)?
+                )
+            }
             ObjectSet::InZone { objects, zone } => format!(
                 "({}).into_iter().filter(|&id| q.state().obj(id).became.is_none() && q.state().obj(id).zone.kind() == {}).collect::<Vec<ObjectId>>()",
                 self.objects(objects)?,
@@ -1071,6 +1082,12 @@ impl Compiler {
                 return Err(gap(format!("primitive numeric expression {name}")))
             }
             Expr::Constant(n) => Number::integer(*n),
+            Expr::AnnouncedX if self.notes.paid_x.is_some() => Number {
+                code: self.notes.paid_x.clone().unwrap_or_default(),
+                min: 0,
+                max: 255,
+                dynamic: true,
+            },
             Expr::AnnouncedX
                 if self.reader == Reader::Resolution
                     && self.stack_item
@@ -1962,11 +1979,19 @@ impl Compiler {
                     zone_kind(zone)?
                 )
             }
-            ObjectFilter::InZone(ZoneScope::Players { zone, players }) => format!(
-                "(q.state().obj({id}).zone.kind() == {} && {})",
-                zone_kind(zone)?,
-                self.player_in(players, &format!("q.state().obj({id}).owner"))?
-            ),
+            // "That player's graveyard", of the slot before: asked whether the ability
+            // can be offered at all, before that slot has chosen, any will do.
+            ObjectFilter::InZone(ZoneScope::Players { zone, players }) => {
+                let owner = self.player_in(players, &format!("q.state().obj({id}).owner"))?;
+                let owner = match owner.contains("q.chosen_targets()") {
+                    true => format!("(q.chosen_targets().is_empty() || {owner})"),
+                    false => owner,
+                };
+                format!(
+                    "(q.state().obj({id}).zone.kind() == {} && {owner})",
+                    zone_kind(zone)?
+                )
+            }
             ObjectFilter::InSet(objects) => {
                 format!("({}).contains(&{id})", self.objects(objects)?)
             }
@@ -2054,6 +2079,27 @@ impl Compiler {
                 "{}.is_some_and(|candidate: ObjectId| {})",
                 self.object(object)?,
                 self.filter(filter, &Candidate::of("candidate"))?
+            ),
+            // "Activate only if defending player controls ...", with no creature to
+            // say which: the one of them the controller would choose (CR 508.5a).
+            Condition::Not(inner)
+                if matches!(**inner, Condition::Controls { player: PlayerRef::DefendingPlayer, .. }) =>
+            {
+                let Condition::Controls { filter, minimum, .. } = &**inner else {
+                    unreachable!("a condition just matched");
+                };
+                format!(
+                    "q.state().opponents(q.state().turn.active).into_iter().any(|defending: PlayerId| q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == defending && {}).count() < {minimum})",
+                    self.filter(filter, &Candidate::of("id"))?
+                )
+            }
+            Condition::Controls {
+                player: PlayerRef::DefendingPlayer,
+                filter,
+                minimum,
+            } => format!(
+                "q.state().opponents(q.state().turn.active).into_iter().any(|defending: PlayerId| q.state().battlefield().iter().copied().filter(|&id| q.controller(id) == defending && {}).count() >= {minimum})",
+                self.filter(filter, &Candidate::of("id"))?
             ),
             Condition::Controls {
                 player,

@@ -119,6 +119,114 @@ pub(super) fn payer_sets_the_size(part: &CostPart) -> bool {
 }
 
 /// One fixed kind of counter, off one object other than the source.
+/// Whether a player action is only "put this on the bottom of its owner's library".
+fn moves_self_to_bottom(body: &Program) -> bool {
+    matches!(
+        body.instructions.as_slice(),
+        [Instruction::Effect {
+            operation: Operation::Move {
+                objects: ObjectSet::One(ObjectRef::Source),
+                destination: Destination::OwnersLibraryBottom,
+                entry,
+                face_down: false,
+            },
+            ..
+        }] if !entry.tapped && entry.counters.is_empty() && entry.states.is_empty()
+    )
+}
+/// Collect evidence as the action of a player action, as the cost part it is.
+fn evidence_of(body: &Program) -> Option<CostPart> {
+    match body.instructions.as_slice() {
+        [Instruction::Effect {
+            operation:
+                Operation::Keyword {
+                    action: KeywordAction::CollectEvidence,
+                    object: None,
+                    other: None,
+                    amount: amount @ Some(Expr::Constant(_)),
+                    subtype: None,
+                    ..
+                },
+            ..
+        }] => Some(CostPart::Keyword {
+            action: CostKeyword::CollectEvidence,
+            amount: amount.clone(),
+        }),
+        _ => None,
+    }
+}
+/// "You may pay {1} and exile it", "you may exile it and collect evidence 4": the
+/// one object exiled, and the rest of the price with `Cost` fields of its own. An
+/// object with no card to exile can't pay it (Timothar's ruling).
+pub(super) fn exile_beside_a_price(cost: &Cost) -> Option<(&ObjectRef, Cost)> {
+    let mut exiled = None;
+    let mut rest = Vec::new();
+    for part in &cost.parts {
+        match part {
+            CostPart::Move {
+                selections,
+                destination: Destination::Exile,
+                entry,
+                face_down: false,
+            } if exiled.is_none()
+                && !entry.tapped
+                && entry.counters.is_empty()
+                && entry.states.is_empty() =>
+            {
+                let [CostObjectSelection {
+                    objects: ObjectSet::One(object),
+                    choose: None,
+                }] = selections.as_slice()
+                else {
+                    return None;
+                };
+                exiled = Some(object);
+            }
+            CostPart::Mana(_) | CostPart::Life(_) => rest.push(part.clone()),
+            CostPart::PlayerAction { body, .. } => rest.push(evidence_of(body)?),
+            _ => return None,
+        }
+    }
+    match (exiled, rest.is_empty()) {
+        (Some(object), false) => Some((object, Cost { parts: rest })),
+        _ => None,
+    }
+}
+/// "You may discard your hand and draw two cards": each is done as itself, and
+/// neither can stop the other.
+pub(super) fn discards_hand_and_draws(cost: &Cost) -> bool {
+    match cost.parts.as_slice() {
+        [CostPart::PlayerAction { body, .. }, CostPart::Draw { .. }] => matches!(
+            body.instructions.as_slice(),
+            [Instruction::Effect {
+                operation: Operation::Discard {
+                    amount: Expr::CountObjects(_),
+                    random: false,
+                    ..
+                },
+                ..
+            }]
+        ),
+        _ => false,
+    }
+}
+/// "You may untap target tapped creature", "you may untap all lands you control".
+pub(super) fn untaps_named_objects(cost: &Cost) -> Option<&ObjectSet> {
+    match cost.parts.as_slice() {
+        [CostPart::ChangeTapState {
+            selections,
+            tapped: false,
+            symbol: false,
+        }] => match selections.as_slice() {
+            [CostObjectSelection {
+                objects,
+                choose: None,
+            }] => Some(objects),
+            _ => None,
+        },
+        _ => None,
+    }
+}
 fn removes_from_another(removals: &[CounterRemoval]) -> bool {
     matches!(
         removals,
@@ -459,6 +567,36 @@ fn priced(
     }
 }
 
+/// What "as an additional cost, you may sacrifice any number of these, and when you
+/// do, copy this spell for each" sacrifices, if `cost` is that.
+fn sacrifices_to_copy(cost: &Cost) -> Option<ObjectFilter> {
+    let [CostPart::PlayerAction { player: PlayerRef::AbilityController, body }] = cost.parts.as_slice() else {
+        return None;
+    };
+    let mut steps = Vec::new();
+    lane_m::flat_groups(&body.instructions, &mut steps);
+    let [Instruction::Effect {
+        operation: Operation::Sacrifice {
+            objects: ObjectSet::Battlefield(filter),
+            choose: Some(Count::AnyNumber),
+            ..
+        },
+        ..
+    }, Instruction::Effect {
+        operation: Operation::ReflexiveTrigger { condition: None, body, .. },
+        ..
+    }] = steps.as_slice()
+    else {
+        return None;
+    };
+    let creatures = matches!(filter, ObjectFilter::CardType(t) if form(t) == "Creature");
+    let copies = matches!(body.instructions.as_slice(), [Instruction::Effect {
+        operation: Operation::CopyOnStack { object: ObjectRef::Source, effects, card: None, .. },
+        ..
+    }] if effects.is_empty());
+    (creatures && copies).then(|| filter.clone())
+}
+
 impl Compiler {
     /// An event Cantrip does not show to abilities. `in_history` says its record
     /// is already there, so a question of what happened can ask it now.
@@ -531,6 +669,7 @@ impl Compiler {
     ) -> Result<String> {
         self.helpers.insert("pay_question");
         let payer = self.fetch(self.certain_player(player)?);
+        self.notes.acting = Some(format!("Some(payer_{id})"));
         let ask = |source: &str, subject: &str, cost: &str| {
             format!("g.may_pay(payer_{id}, {source}, {subject}, {cost}, &PAY_QUESTION)?")
         };
@@ -559,6 +698,21 @@ impl Compiler {
                 format!(
                     "match {object} {{ Some(o) => {}, None => false }}",
                     ask("o", "o", "SACRIFICE_THIS")
+                )
+            }
+            // "Pay {3} and sacrifice it", of the object named some other way.
+            [price @ CostPart::Mana(_), CostPart::Sacrifice {
+                objects: ObjectSet::One(object),
+                choose: None,
+            }] if !matches!(object, ObjectRef::Source) => {
+                let object = self.fetch(self.object(object)?);
+                let price = Cost {
+                    parts: vec![price.clone()],
+                };
+                let price = format!("({}).and(SACRIFICE_THIS)", self.cost(&price, PAID)?);
+                format!(
+                    "match {object} {{ Some(o) => {}, None => false }}",
+                    ask("o", "o", &price)
                 )
             }
             [CostPart::RemoveCounters { removals }] if removes_from_another(removals) => {
@@ -602,6 +756,122 @@ impl Compiler {
         Ok(format!(
             "let payer_{id} = {payer}; let paid_{id} = {able}{paid};"
         ))
+    }
+    /// "You may pay {1} and exile it": `exile_beside_a_price`. The price is one
+    /// payment; the card goes as it is paid, from whoever's graveyard it is in,
+    /// and collecting evidence can't take the card itself (Lamplight Phoenix's
+    /// ruling), so there the price is asked of that card.
+    pub(super) fn pay_and_exile(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        cost: &Cost,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let Some((object, price)) = exile_beside_a_price(cost) else {
+            return Err(gap("cost part Move"));
+        };
+        // The link is to the exiling ability's object, not to the token that was
+        // given the ability that reads it.
+        let later = format!("{:?}", self.after);
+        if later.contains("GrantAbility") && later.contains("Earlier { what: Exiled") {
+            return Err(gap("an exiled card read by an ability given to a token"));
+        }
+        let evidence = price
+            .parts
+            .iter()
+            .any(|part| matches!(part, CostPart::Keyword { .. }));
+        let source = if evidence { "o" } else { "asker.source" };
+        self.helpers.insert("pay_question");
+        let payer = self.fetch(self.certain_player(player)?);
+        let object = self.fetch(self.object(object)?);
+        let price = self.cost(&price, PAID)?;
+        writeln!(out, "let payer_{id} = {payer}; let it_{id}: Option<ObjectId> = {object}; let paid_{id} = match it_{id} {{ Some(o) => g.may_pay(payer_{id}, {source}, o, {price}, &PAY_QUESTION)?, None => false }}; let mut moved_{id}: Vec<ObjectId> = Vec::new(); if let (true, Some(o)) = (paid_{id}, it_{id}) {{ moved_{id}.push(g.exile(o)); }}").unwrap();
+        self.performed.insert(result.0, format!("paid_{id}"));
+        self.moved.insert(result.0, format!("moved_{id}"));
+        self.left_behind(result, format!("moved_{id}.clone()"));
+        self.notes.exiled_source = Some(format!("moved_{id}.clone()"));
+        Ok(())
+    }
+    /// "You may discard your hand and draw two cards. If you do": one decision.
+    pub(super) fn discard_hand_and_draw(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        cost: &Cost,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let [CostPart::PlayerAction { body, .. }, CostPart::Draw { count }] = cost.parts.as_slice()
+        else {
+            return Err(gap("cost part PlayerAction"));
+        };
+        let payer = self.fetch(self.certain_player(player)?);
+        writeln!(out, "let payer_{id} = {payer}; let paid_{id} = {M}::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)?; if paid_{id} {{").unwrap();
+        self.block(body, out, true)?;
+        let draw = Operation::Draw {
+            players: PlayerSet::One(player.clone()),
+            amount: count.clone(),
+        };
+        self.operation(&draw, result, out)?;
+        writeln!(out, "}}").unwrap();
+        self.moved.remove(&result.0);
+        self.performed.insert(result.0, format!("paid_{id}"));
+        Ok(())
+    }
+    /// "You may untap ...": "if you do" is that something untapped.
+    pub(super) fn may_untap(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        objects: &ObjectSet,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let payer = self.fetch(self.certain_player(player)?);
+        writeln!(out, "let payer_{id} = {payer}; let mut paid_{id} = false; if {M}::effects::ask_may(g, payer_{id}, asker.source, Purpose::Optional)? {{").unwrap();
+        let untap = Operation::Tap {
+            objects: objects.clone(),
+            tapped: false,
+        };
+        self.operation(&untap, result, out)?;
+        writeln!(out, "paid_{id} = !{}.is_empty(); }}", self.moved(result)?).unwrap();
+        self.moved.remove(&result.0);
+        self.performed.insert(result.0, format!("paid_{id}"));
+        Ok(())
+    }
+    /// "You may pay one or more {E}": how much is the question, none is declining,
+    /// and it is what "that many" reads.
+    pub(super) fn may_pay_energy(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        let payer = self.fetch(self.certain_player(player)?);
+        writeln!(out, "let payer_{id} = {payer}; let most_{id} = u32::from(g.state().player(payer_{id}).energy()); let paid_{id}: u32 = if most_{id} > 0 {{ {M}::choose::number(g, payer_{id}, asker.source, 0, most_{id}, \"Pay how much energy\")? }} else {{ 0 }}; if paid_{id} > 0 {{ g.change_energy(payer_{id}, -(paid_{id} as i32)); }}").unwrap();
+        self.performed.insert(result.0, format!("paid_{id}"));
+        Ok(())
+    }
+    /// "You may pay {X}. X can't be greater than ...": X is said first, within the
+    /// bound, then paid (107.3f), and X afterwards is the X paid.
+    pub(super) fn may_pay_bounded_x(
+        &mut self,
+        id: usize,
+        player: &PlayerRef,
+        bound: &Expr,
+        result: &ResultId,
+        out: &mut String,
+    ) -> Result<()> {
+        self.helpers.insert("pay_question");
+        let payer = self.fetch(self.certain_player(player)?);
+        let bound = self.fetch(self.number(bound)?.code);
+        writeln!(out, "let payer_{id} = {payer}; let most_{id} = ({bound}).clamp(0, 255) as u32; let x_{id} = {M}::choose::number(g, payer_{id}, asker.source, 0, most_{id}, \"Choose X\")?; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, Cost::mana(ManaCost {{ generic: x_{id} as u8, ..ManaCost::ZERO }}), &PAY_QUESTION)?; let bound_{id}: i64 = i64::from(x_{id});").unwrap();
+        self.performed.insert(result.0, format!("paid_{id}"));
+        self.notes.paid_x = Some(format!("bound_{id}"));
+        Ok(())
     }
     /// "Add one mana of any type that land produced": the trigger's data names
     /// the player and the types, and with none produced nothing is added (106.12a).
@@ -929,6 +1199,24 @@ impl Compiler {
                 self.moved.insert(result.0, format!("discarded_{id}"));
                 self.left_behind(result, format!("discarded_{id}.clone()"));
             }
+            // "Shuffle a card from your hand into your library. If you do": a card
+            // shuffled in, of a hand that had one.
+            CostPart::ShuffleFromHand => {
+                let hand = ObjectSet::Zone {
+                    scope: ZoneScope::Players {
+                        zone: EventZone::Hand,
+                        players: PlayerSet::One(player.clone()),
+                    },
+                    kind: ObjectKind::Card,
+                    filter: ObjectFilter::Any,
+                };
+                let one = Count::Exactly(Expr::Constant(1));
+                self.choose(player, &hand, &one, result, "PutOnLibrary", out)?;
+                let picked = self.selections[&result.0].clone();
+                writeln!(out, "let shuffled_{id} = g.put_into_library(&{picked}, LibraryPlace::ShuffledIn); let paid_{id} = !shuffled_{id}.is_empty();").unwrap();
+                self.moved.insert(result.0, format!("shuffled_{id}"));
+                self.left_behind(result, format!("{picked}.clone()"));
+            }
             // "Pay {E}{E}. If you can't, ...": whoever can pay does (Greenbelt Rampager).
             CostPart::Energy(n) => {
                 let owed = self.fetch(self.number(n)?.amount(255, "u8")?);
@@ -1220,6 +1508,10 @@ impl Compiler {
                 "variable: Some(VariableCost::DiscardXAtRandom)",
             ),
             CostPart::DiscardHand => "DISCARD_HAND".into(),
+            // "Put this creature on the bottom of its owner's library".
+            CostPart::PlayerAction { body, .. } if !resolving && moves_self_to_bottom(body) => {
+                "put_self_into_library(LibraryPlace::Bottom)".into()
+            }
             CostPart::Exert(ObjectRef::Source) if !resolving => "EXERT".into(),
             CostPart::Unattach(ObjectRef::Source) => "UNATTACH_THIS".into(),
             CostPart::Unattach(ObjectRef::Granter) => plan(
@@ -1565,6 +1857,16 @@ impl Compiler {
                 None,
             ) => {
                 sole(parts, "optional_cost")?;
+                // "You may sacrifice one or more creatures. When you do, copy this spell
+                // for each creature sacrificed this way": the number the spell paid.
+                if let Some(filter) = sacrifices_to_copy(cost) {
+                    let filter = self.cost_filter(&filter, label)?;
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {label}_sacrificed(q: &dyn Query, asker: &Asker) -> bool {{ q.obj(asker.source).paid > 0 }}\nfn {label}_copies(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> {{ for _ in 0..g.obj(item.object).paid {{ g.copy_spell(item.object, item.controller, false)?; }} Ok(()) }}").unwrap();
+                    parts.field("optional_cost", format!("Some(OptionalCost::new(Cost {{ variable: Some(VariableCost::SacrificeOneOrMore({filter})), ..Cost::NONE }}))"));
+                    parts.field("labels", "&[\"Cast without sacrificing\", \"Sacrifice one or more creatures\"]".to_string());
+                    parts.table("abilities", format!("triggered(cantrip_mechanics::triggers::CAST_THIS_SPELL, {label}_copies, \"When you do, copy this spell for each creature sacrificed this way.\").condition({label}_sacrificed)"));
+                    return Ok(());
+                }
                 let code = self.optional_cost(cost, label)?;
                 self.cost_labels(cost, parts);
                 match code {

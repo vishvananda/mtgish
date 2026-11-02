@@ -2162,6 +2162,19 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         let mut code = String::new();
+        // "Exile them in a face-down pile, shuffle that pile": the pile's order, which
+        // is all a shuffle of it can change, is taken as it is exiled.
+        if let (true, Destination::Exile, false, [EntryState::ExilePile { shuffled: true }]) =
+            (face_down, destination, entry.tapped, entry.states.as_slice())
+        {
+            if entry.counters.is_empty() {
+                let pool = self.fetch(self.objects(objects)?);
+                writeln!(out, "let mut pool_{id} = {pool}; let mut objects_{id}: Vec<ObjectId> = Vec::new(); while !pool_{id}.is_empty() {{ let at = g.choose_at_random(pool_{id}.len()); objects_{id}.push(pool_{id}.remove(at)); }} let moved_{id} = g.exile_face_down(&objects_{id}, None);").unwrap();
+                self.moved.insert(result.0, format!("moved_{id}"));
+                self.left_behind(result, effects::gone(&format!("objects_{id}")));
+                return Ok(());
+            }
+        }
         let failed = match face_down {
             true => gap("operation Move"),
             false => match self.move_objects(id, objects, destination, entry, result, &mut code) {
@@ -2172,12 +2185,13 @@ impl Compiler {
                 Err(failed) => failed,
             },
         };
-        const STATES: [&str; 5] = [
+        const STATES: [&str; 6] = [
             "operation Move",
             "move arrival state",
             "move arrival with a color",
             "move arrival flags",
             "several objects arriving in a state",
+            "enters tapped as something else",
         ];
         if !STATES.contains(&failed.feature.as_str()) {
             return Err(failed);
@@ -2226,7 +2240,10 @@ impl Compiler {
         else {
             return Err(failed);
         };
-        if failed.feature != "operation ChangeZone" && failed.feature != "move to Hand" {
+        if failed.feature != "operation ChangeZone"
+            && failed.feature != "move to Hand"
+            && failed.feature != "put onto the battlefield face down as a stated creature"
+        {
             return Err(failed);
         }
         let actor = self.fetch(self.players(actor)?);
@@ -2294,6 +2311,8 @@ impl Compiler {
             return Err(failed);
         };
         let planned = failed.feature == "operation Search"
+            || failed.feature == "search with cards from outside the game"
+            || failed.feature == "cards found in two zones put on top of a library"
             || failed.feature == "search with several find clauses"
             || failed.feature.starts_with("search constraint ");
         if !planned {

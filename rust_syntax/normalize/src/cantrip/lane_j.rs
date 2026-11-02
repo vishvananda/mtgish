@@ -2658,10 +2658,16 @@ impl Compiler {
         let Some((power, toughness)) = &definition.power_toughness else {
             return Ok(false);
         };
+        let attacking = matches!(
+            entry.states.as_slice(),
+            [EntryState::Attacking {
+                or_planeswalker: false,
+                ..
+            }]
+        );
         if matches!((power, toughness), (Expr::Constant(_), Expr::Constant(_)))
-            || !entry.states.is_empty()
+            || !(entry.states.is_empty() || attacking)
             || !entry.counters.is_empty()
-            || entry.tapped
         {
             return Ok(false);
         }
@@ -2678,13 +2684,15 @@ impl Compiler {
         };
         writeln!(
             out,
-            "let count_{id} = {}; let power_{id} = {}; let toughness_{id} = {}; let players_{id} = {}; let mut values_{id} = Copiable::of(g.card_id(&{definition})).sized(power_{id}, toughness_{id}); values_{id}.words = {words}; let mut created_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ created_{id}.extend(g.create_token_copies_of(values_{id}, player, count_{id})?); }}",
+            "let count_{id} = {}; let power_{id} = {}; let toughness_{id} = {}; let players_{id} = {}; let mut values_{id} = Copiable::of(g.card_id(&{definition})).sized(power_{id}, toughness_{id}); values_{id}.words = {words}; let mut created_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ created_{id}.extend(g.create_token_copies_tapped(values_{id}, player, count_{id}, {})?); }}",
             self.fetch(count),
             self.fetch(power),
             self.fetch(toughness),
             self.fetch(self.players(players)?),
+            entry.tapped,
         )
         .unwrap();
+        self.token_state(id, entry, out)?;
         self.creations.insert(result.0, format!("created_{id}"));
         Ok(true)
     }
@@ -2710,10 +2718,11 @@ impl Compiler {
         self.picked.borrow_mut().named.push((key.clone(), asking));
         writeln!(
             out,
-            "let mut paid_{id} = false; for bound_{} in {asked} {{",
+            "let mut paid_{id} = false; let mut who_{id}: Option<PlayerId> = None; for bound_{} in {asked} {{",
             binding.0
         )
         .unwrap();
+        self.notes.performers.insert(result.0, format!("who_{id}"));
         let ask = Operation::PayCost {
             player: PlayerRef::Bound(binding.clone()),
             cost: cost.clone(),
@@ -2725,7 +2734,7 @@ impl Compiler {
         done?;
         let inner = self.performed.insert(result.0, format!("paid_{id}"));
         let inner = inner.ok_or_else(|| gap("possibly absent player FirstWilling"))?;
-        writeln!(out, "if {inner} {{ paid_{id} = true; break; }} }}").unwrap();
+        writeln!(out, "if {inner} {{ paid_{id} = true; who_{id} = Some(bound_{}); break; }} }}", binding.0).unwrap();
         self.moved.remove(&result.0);
         self.before.remove(&result.0);
         self.selections.remove(&result.0);
@@ -3097,6 +3106,10 @@ pub(super) enum PaidFor {
 /// source's timestamp, so two copies of one Equipment are two givers; a resolved
 /// effect is named by its own.
 pub(super) const GRANTER: &str = "fn granter(q: &dyn Query, item: &StackItem) -> Option<ObjectId> { if item.acquired.by != AcquiredBy::Grant { return None; } let stamp = item.acquired.stamp; let card = item.ability.card; if let Some(e) = q.state().effects.iter().find(|e| e.timestamp == stamp && matches!(e.kind, EffectKind::AddAbility(_))) { return Some(e.source); } if let Some(id) = q.state().battlefield().iter().copied().find(|&id| q.state().obj(id).timestamp == stamp && q.chars(id).card == card) { return Some(id); } q.history().all().iter().rev().find_map(|r| match r.event { Event::ZoneChange { old, from, .. } if from.is(ZoneKind::Battlefield) && q.state().obj(old).timestamp == stamp && q.state().obj(old).card == card => Some(old), _ => None }) }\n";
+
+/// The controller of the effect that gave `asker`'s ability (CR 113.2c, 609.4 of who
+/// cast the spell that made it), named by the ability's stamp.
+pub(super) const GRANTED_BY: &str = "fn granted_by(q: &dyn Query, asker: &Asker) -> Option<PlayerId> { let by = asker.by?; if by.acquired.by != AcquiredBy::Grant { return None; } q.state().effects.iter().find(|e| e.timestamp == by.acquired.stamp && matches!(e.kind, EffectKind::AddAbility(_))).map(|e| e.controller) }\n";
 
 /// Time travel (CR 701.56a): of each suspended card `player` owns (CR 702.62b, read
 /// as the upkeep reads it) and each permanent they control with a time counter on
@@ -4590,6 +4603,10 @@ impl Compiler {
                 );
                 self.plan_code("a token entering blocking", &code, out);
             }
+            // `create_token_attached` takes a definition: attached after it
+            // enters, a copy is seen unattached, and an Aura that can't enchant
+            // the host is made and dies where it should not be made (CR 303.4i).
+            [EntryState::AttachedTo(_)] => return Err(gap("a token copy attached as it enters")),
             _ => return Err(gap("tokens entering in a special state")),
         }
         Ok(())
