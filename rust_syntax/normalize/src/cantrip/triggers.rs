@@ -1708,12 +1708,18 @@ impl Compiler {
         let done_once = self.done_once(limits, body);
         extra.extend(done_once.map(lane_k::not_yet_done));
         if let Some(intervening) = intervening_if {
+            // The AST has "if it isn't a mana ability" without its "isn't".
             if lane_n::lost_its_negation(intervening, matched.frame) {
-                self.frame = Frame::default();
-                return Err(gap("a mana ability test that lost its negation"));
-            }
-            // What an ability's cost was does not change: the event's test is all.
-            if lane_n::of_the_activation(intervening, matched.frame) {
+                if !lane_k::printed_otherwise(self.line_text(), "isn't a mana ability") {
+                    self.frame = Frame::default();
+                    return Err(gap("a mana ability test that lost its negation"));
+                }
+                extra.push(self.activation_test(
+                    &ObjectFilter::Not(Box::new(ObjectFilter::OnStack(StackTrait::Mana))),
+                    matched.frame,
+                )?);
+            } else if lane_n::of_the_activation(intervening, matched.frame) {
+                // What an ability's cost was does not change: the event's test is all.
                 let Condition::ObjectMatches { filter, .. } = intervening else {
                     unreachable!("of_the_activation asks this");
                 };

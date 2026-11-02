@@ -1881,6 +1881,11 @@ impl Compiler {
                 let test = self.was_kicked(&object, "candidate");
                 format!("{object}.is_some_and(|candidate: ObjectId| {test})")
             }
+            // "If the {1}{B} cost was paid": the one way of the card's that it was cast by.
+            Condition::ObjectMatches {
+                object: ObjectRef::Source,
+                filter: ObjectFilter::AlternateCostPaid(_),
+            } if self.stack_item && self.reader == Reader::Resolution => "item.way == 1".into(),
             Condition::ObjectMatches { object, filter } => format!(
                 "{}.is_some_and(|candidate: ObjectId| {})",
                 self.object(object)?,
