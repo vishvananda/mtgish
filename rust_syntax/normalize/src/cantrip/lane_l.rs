@@ -5,6 +5,108 @@ use super::*;
 
 const M: &str = "cantrip_mechanics";
 
+/// What "do this only once each turn" offers, under a "may" that already asks it.
+pub(super) fn once_offered(body: &Program) -> Option<&Program> {
+    match body.instructions.as_slice() {
+        [Instruction::Effect {
+            operation:
+                Operation::PlayersDo {
+                    players: PlayerSet::One(PlayerRef::AbilityController),
+                    any_one: false,
+                    optional: true,
+                    once_each_turn: true,
+                    body,
+                    otherwise,
+                },
+            ..
+        }] if otherwise.is_empty() => match body.as_slice() {
+            [Operand::Program(offered)] => Some(offered),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// A cost offered for an object and what stands for "no one paid for it": `body`'s
+/// one payment, or the first willing of `players` where each is offered it.
+pub(super) fn paid_for_each(body: &Program) -> Option<(ResultId, Instruction)> {
+    let [only] = body.instructions.as_slice() else {
+        return None;
+    };
+    match only {
+        Instruction::Effect {
+            result,
+            operation: Operation::PayCost { optional: true, .. },
+        } => Some((result.clone(), only.clone())),
+        Instruction::ForEachPlayer {
+            players,
+            binding,
+            starting_with: None,
+            in_chosen_direction: false,
+            body,
+        } => {
+            let [Instruction::Effect {
+                result,
+                operation:
+                    Operation::PayCost {
+                        player: PlayerRef::Bound(payer),
+                        cost,
+                        optional: true,
+                    },
+            }] = body.instructions.as_slice()
+            else {
+                return None;
+            };
+            (payer.0 == binding.0).then(|| {
+                let first = PlayerRef::FirstWilling(Box::new(players.clone()));
+                let offered = Instruction::Effect {
+                    result: result.clone(),
+                    operation: Operation::PayCost {
+                        player: first,
+                        cost: cost.clone(),
+                        optional: true,
+                    },
+                };
+                (result.clone(), offered)
+            })
+        }
+        _ => None,
+    }
+}
+
+/// The one instruction `player` is had to do, said of them. The reduction leaves
+/// the doer as "you" in `body`, which only these forms read back without doubt.
+fn had_to_do(player: &PlayerRef, body: &[Operand]) -> Option<Program> {
+    let [Operand::Program(program)] = body else {
+        return None;
+    };
+    let [Instruction::Effect { result, operation }] = program.instructions.as_slice() else {
+        return None;
+    };
+    let them = || PlayerSet::One(player.clone());
+    let you = |players: &PlayerSet| matches!(players, PlayerSet::One(PlayerRef::AbilityController));
+    let operation = match operation {
+        Operation::Mill { players, amount } if you(players) => Operation::Mill {
+            players: them(),
+            amount: amount.clone(),
+        },
+        Operation::Shuffle {
+            players,
+            excluding: None,
+        } if you(players) => Operation::Shuffle {
+            players: them(),
+            excluding: None,
+        },
+        _ => return None,
+    };
+    let mut program = program.clone();
+    program.instructions = vec![Instruction::Effect {
+        result: result.clone(),
+        operation,
+    }];
+    Some(program)
+}
+
 /// The prompt of a choice that nothing does anything to by name: "chooses three
 /// permanents, then sacrifices the rest" keeps what it chooses, and any other
 /// choice a later instruction reads is a plain choice.
@@ -149,6 +251,11 @@ pub(super) fn chooses_what_pays(cost: &Cost) -> bool {
         _ => false,
     }
 }
+
+/// A search for several things at once (CR 701.23h): cards fit when each can be
+/// one of the things searched for, none more than that thing's number, and any of
+/// them may go unfound (CR 701.23b).
+pub(super) const CLAUSES: &str = "fn clauses_fit(cards: &[ObjectId], clauses: &mut [(u32, &dyn Fn(ObjectId) -> bool)]) -> bool { let Some((&card, rest)) = cards.split_first() else { return true; }; for i in 0..clauses.len() { if clauses[i].0 > 0 && (clauses[i].1)(card) { clauses[i].0 -= 1; let fits = clauses_fit(rest, clauses); clauses[i].0 += 1; if fits { return true; } } } false }\nfn clauses_verdict(choice: &Choice, clauses: &mut [(u32, &dyn Fn(ObjectId) -> bool)]) -> Verdict { let complete = clauses_fit(choice.selected, clauses); let addable = Bits::of(choice.candidates.len(), |i| { let card = choice.candidates[i]; !choice.selected.contains(&card) && { let with: Vec<ObjectId> = choice.selected.iter().copied().chain([card]).collect(); clauses_fit(&with, clauses) } }); Verdict { complete, addable } }\n";
 
 impl Compiler {
     /// A count made by the ability that makes a reflexive one, which that reflexive
@@ -1319,6 +1426,21 @@ impl Compiler {
                     out,
                 );
             }
+            // "Reveals their hand and discards a card": no two things at once, the
+            // one word "and" of an instruction done in order.
+            Operation::Together(operations)
+                if matches!(
+                    operations.as_slice(),
+                    [
+                        Operation::Reveal { .. } | Operation::RevealFromHand { .. },
+                        Operation::DiscardObjects { .. }
+                    ]
+                ) =>
+            {
+                for operation in operations {
+                    self.operation(operation, result, out)?;
+                }
+            }
             Operation::Together(operations) => {
                 self.plan_code(&feature, "g.begin_simultaneous()", out);
                 for operation in operations {
@@ -1392,6 +1514,23 @@ impl Compiler {
                     self.plan_code("villainous choice", &code, out);
                 }
                 self.choose_one(decider, &programs, out)?;
+            }
+            // "You may have target player mill ...": you are asked, and they do it.
+            Operation::PlayersDo {
+                players: PlayerSet::One(player),
+                any_one: false,
+                optional: true,
+                once_each_turn: false,
+                body,
+                otherwise,
+            } if otherwise.is_empty() && had_to_do(player, body).is_some() => {
+                let then = had_to_do(player, body).expect("just matched");
+                let mut offered = then.clone();
+                offered.instructions = vec![Instruction::Optional {
+                    decider: PlayerRef::AbilityController,
+                    body: then,
+                }];
+                self.block(&offered, out, true)?;
             }
             Operation::PlayersDo {
                 players,
@@ -1751,6 +1890,10 @@ impl Compiler {
                 }
                 writeln!(out, "let player_{id} = {player}; let times_{id}: Option<u32> = {times}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; while times_{id}.map_or(true, |n| flips_{id} < n) {{ flips_{id} += 1; if g.flip_coin(player_{id}) {{ done_{id} += 1; }} else if {until_lost} {{ break; }} }}").unwrap();
                 self.performed.insert(result.0, format!("done_{id}"));
+                self.coins = Some((
+                    format!("done_{id}"),
+                    format!("(i64::from(flips_{id}) - done_{id})"),
+                ));
             }
             Operation::MillUntil {
                 actor,
@@ -1990,6 +2133,40 @@ impl Compiler {
         }
         Ok(rules)
     }
+    /// One rule over the cards of a search for several things: the most it can
+    /// take, and a judge that tells them off among the clauses, each with its own
+    /// quality and number. `None` where a clause is more than that.
+    fn clauses_judge(
+        &self,
+        id: usize,
+        choices: &[SearchChoice],
+    ) -> Result<Option<(String, String)>> {
+        let mut tests = Vec::new();
+        let mut counts = Vec::new();
+        for choice in choices {
+            let Count::UpTo(n) = &choice.count else {
+                return Ok(None);
+            };
+            if !choice.constraints.is_empty() {
+                return Ok(None);
+            }
+            let test = self.filter(&choice.filter, &Candidate::of("id"))?;
+            let n = self.number(n)?.amount(u32::MAX.into(), "u32")?;
+            tests.push(format!("&|id: ObjectId| {test}"));
+            counts.push(n);
+        }
+        let total = counts.join(" + ");
+        let rows: Vec<String> = counts
+            .iter()
+            .zip(&tests)
+            .map(|(n, test)| format!("({n}, {test})"))
+            .collect();
+        let judge = format!(
+            "#[allow(unused_variables)] fn clauses_{id}(q: &dyn Query, choice: &Choice, _: u32) -> Verdict {{ let asker = &Asker::new(choice.source, q.controller(choice.source)); clauses_verdict(choice, &mut [{}]) }}",
+            rows.join(", ")
+        );
+        Ok(Some((total, judge)))
+    }
     /// One search with several find clauses (CR 701.23h): the requirement is one
     /// episode with one result, so what reads the result stays real.
     pub(super) fn search_several(
@@ -1998,11 +2175,20 @@ impl Compiler {
         library: &PlayerRef,
         choices: &[SearchChoice],
         result: &ResultId,
+        destination: &str,
         out: &mut String,
     ) -> Result<()> {
         let id = self.fresh();
         let searcher = self.fetch(self.certain_player(player)?);
         let owner = self.fetch(self.certain_player(library)?);
+        if let Some((total, judge)) = self.clauses_judge(id, choices)? {
+            self.helpers.insert("clauses");
+            writeln!(self.functions, "{judge}").unwrap();
+            writeln!(out, "let searcher_{id} = {searcher}; let owner_{id} = {owner}; let found_{id} = {M}::library::search(g, searcher_{id}, owner_{id}, asker.source, SearchDestination::{destination}, {M}::select::Selection::new({M}::select::up_to({total})).with(cantrip_api::select::part(&(clauses_{id} as SelectFn), 0, \"one for each thing searched for\")))?;").unwrap();
+            self.selections.insert(result.0, format!("found_{id}"));
+            self.searched.insert(result.0, "true".into());
+            return Ok(());
+        }
         let mut clauses = Vec::new();
         for choice in choices {
             let test = self.filter(&choice.filter, &Candidate::of("id"))?;
@@ -2243,19 +2429,6 @@ impl Compiler {
             [EntryState::AttachedTo(host)] if counters.is_empty() && !tapped => {
                 let host = self.fetch(self.object(host)?);
                 format!("if let Some(host) = {host} {{ moved.extend(g.put_onto_battlefield_attached(o, controller, host)?); }}")
-            }
-            [EntryState::Attacking {
-                player: Some(player),
-                or_planeswalker: false,
-            }] if !tapped => {
-                let defender = self.fetch(self.player(player)?);
-                format!("if let Some(defender) = {defender} {{ moved.push(g.put_onto_battlefield_attacking(o, controller, Target::Player(defender), &[{counters}])?); }}")
-            }
-            [EntryState::Attacking {
-                player: None,
-                or_planeswalker: true,
-            }] if !tapped => {
-                format!("if let Some(defender) = {M}::combat::choose_attack_target(g, controller, asker.source)? {{ moved.push(g.put_onto_battlefield_attacking(o, controller, defender, &[{counters}])?); }}")
             }
             states => {
                 let states = quoted(&format!("{states:?}"));

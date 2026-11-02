@@ -388,7 +388,7 @@ impl Compiler {
     /// `Vec<ObjectId>` of what an earlier step acted on, as the words of the card
     /// leave it to be found. A step that couldn't be written reads as nothing, and
     /// its own hole says why.
-    fn earlier_objects(&self, what: &EarlierObjects) -> Result<String> {
+    pub(super) fn earlier_objects(&self, what: &EarlierObjects) -> Result<String> {
         let word = form(what);
         let step = self.notes.earlier.iter().rev().find(|(w, _)| *w == word);
         let Some((_, result)) = step.filter(|_| self.reader == Reader::Resolution) else {
@@ -950,6 +950,10 @@ impl Compiler {
                 "numeric expression DraftNoted".into(),
                 &format!("q.draft_notes(asker.controller, {})", one_line(n)),
             ),
+            Expr::CoinFlipsWon(won) if self.coins.is_some() => {
+                let (wins, losses) = self.coins.as_ref().expect("flipped");
+                counted(if *won { wins.clone() } else { losses.clone() })
+            }
             Expr::CoinFlipsWon(won) => held_number(
                 "numeric expression CoinFlipsWon".into(),
                 &format!("g.coin_flips(asker.controller, {won})"),

@@ -22,17 +22,24 @@ const DAMAGE_LOCALS: &str =
 /// collect those objects: the resolving ability's references mean nothing later.
 /// Its source is the effect's, which the callbacks are told anyway.
 pub(super) fn capture(event: &mut ReplacementEvent, found: &mut Vec<ObjectRef>) {
-    let mut name = |filter: &mut ObjectFilter| {
-        if let ObjectFilter::SameObject(object) = filter {
-            if !matches!(object, ObjectRef::Source) {
+    fn named(filter: &mut ObjectFilter, found: &mut Vec<ObjectRef>) {
+        match filter {
+            ObjectFilter::SameObject(object) if !matches!(object, ObjectRef::Source) => {
                 let key = format!("{object:?}");
                 if !found.iter().any(|f| format!("{f:?}") == key) {
                     found.push(object.clone());
                 }
                 *object = ObjectRef::Affected;
             }
+            ObjectFilter::All(filters) => {
+                for filter in filters {
+                    named(filter, found);
+                }
+            }
+            _ => {}
         }
-    };
+    }
+    let mut name = |filter: &mut ObjectFilter| named(filter, found);
     match event {
         ReplacementEvent::Damage(damage) => {
             name(&mut damage.sources);

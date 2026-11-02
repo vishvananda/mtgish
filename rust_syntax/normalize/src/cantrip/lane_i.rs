@@ -213,6 +213,20 @@ pub(super) fn watched(event: &mut EventSpec) -> Option<ObjectRef> {
         EventSpec::ZoneChange { objects, .. } | EventSpec::Object { objects, .. } => {
             watched_filter(objects)
         }
+        // One object, however it does it.
+        EventSpec::Either(events) => {
+            let mut parts = events.clone();
+            let mut seen = None;
+            for part in &mut parts {
+                let object = watched(part)?;
+                if seen.as_ref().is_some_and(|s| format!("{s:?}") != format!("{object:?}")) {
+                    return None;
+                }
+                seen = Some(object);
+            }
+            *events = parts;
+            seen
+        }
         _ => None,
     }
 }
@@ -1402,6 +1416,10 @@ impl Compiler {
             } if effects::plain_entry(entry) => {
                 let by = match (self.links_exile, self.stack_item) {
                     (true, true) => "Some(g.linked(item))".to_string(),
+                    // A replacement's `then`: what linked abilities know its text by.
+                    (true, false) if self.pending != Pending::Entering => {
+                        "Some(g.text_linked(asker.source))".to_string()
+                    }
                     (true, false) => planned::planned_value(
                         "exile outside a stack item that an ability reads as exiled with its source",
                         "None",
@@ -1714,6 +1732,20 @@ impl Compiler {
                         }
                         subtypes.push(format!("Subtype::{word}"));
                     }
+                }
+                // "It's a Spirit Detective": the creature types it had are gone.
+                Change::CreatureTypes {
+                    mode: ChangeMode::Set,
+                    types: CreatureTypeSet::Listed(types),
+                } => {
+                    for t in types {
+                        let word = name(t);
+                        if !crate::cantrip_vocab::SUBTYPES.contains(&word.as_str()) {
+                            return Err(gap(format!("subtype {word}")));
+                        }
+                        subtypes.push(format!("Subtype::{word}"));
+                    }
+                    fields.push("loses_subtypes_of: &[CardType::Creature]".to_string());
                 }
                 Change::SetBasePowerToughness {
                     power: Expr::Constant(power),

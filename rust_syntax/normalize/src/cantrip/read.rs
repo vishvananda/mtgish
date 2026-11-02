@@ -992,6 +992,19 @@ impl Compiler {
             max: u32::MAX.into(),
             dynamic: true,
         };
+        if let Expr::CountObjects(objects)
+        | Expr::Aggregate { objects, .. }
+        | Expr::CountDistinct { objects, .. } = n
+        {
+            if let Some(code) = self.outside_count(n, objects)? {
+                return Ok(Number {
+                    code,
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                });
+            }
+        }
         Ok(match n {
             Expr::Primitive { name, .. } => {
                 return Err(gap(format!("primitive numeric expression {name}")))
@@ -1988,10 +2001,8 @@ impl Compiler {
                     TurnWindow::BeforeBlockersDeclared => {
                         format!("{step} < (Step::DeclareBlockers as u8)")
                     }
-                    TurnWindow::FirstCombat => planned::planned_value(
-                        "engine: no combat phase count",
-                        "false",
-                        "q.state().turn.combat_phase == 1",
+                    TurnWindow::FirstCombat => format!(
+                        "({step} >= (Step::BeginCombat as u8) && {step} <= (Step::EndOfCombat as u8) && q.history().this_turn().iter().filter(|r| matches!(r.event, Event::StepBegan {{ step: Step::BeginCombat }})).count() == 1)"
                     ),
                     TurnWindow::AfterBlockersDeclared => {
                         format!("{step} > (Step::DeclareBlockers as u8)")

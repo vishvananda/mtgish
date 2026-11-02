@@ -1679,6 +1679,13 @@ impl Compiler {
         let expiry = play_expiry(duration)?;
         let cards = self.fetch(self.objects(objects)?);
         let players = self.fetch(self.players(players)?);
+        // What a player knows of a card face down in exile lasts as long as that
+        // object does (CR 406.3), which is "for as long as it remains exiled".
+        use crate::ir::Duration as D;
+        if matches!(duration, D::WhileExiled(_) | D::WhileAnyExiled(_)) {
+            writeln!(out, "let cards_{id}_{i} = {cards}; let players_{id}_{i} = {players}; for &player in &players_{id}_{i} {{ g.look_at(player, &cards_{id}_{i}); }}").unwrap();
+            return Ok(true);
+        }
         self.plan_code(
             "a card a player may look at for a while",
             &format!("let cards_{id}_{i} = {cards}; let players_{id}_{i} = {players}; for &card in &cards_{id}_{i} {{ for &player in &players_{id}_{i} {{ g.allow_look(card, player, {expiry}); }} }}"),
@@ -3503,6 +3510,17 @@ impl Compiler {
             R::DamageStaysMarked => self.object_table("damage_stays", function, affected, parts)?,
             R::LegendRuleExempt => {
                 self.object_table("legend_rule_exempt", function, affected, parts)?
+            }
+            R::Prohibit(ObjectAction::Activate(filter)) => {
+                let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
+                let barred = self.barred_activation(filter)?;
+                // A creature card in hand is no creature: it may still cycle.
+                let here = match affected {
+                    ObjectSet::Battlefield(_) => "q.is_on_battlefield(id) && ",
+                    _ => "",
+                };
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, object: ObjectId, ability: &ActivatedDef) -> bool {{ let id = object; !({here}{guard}{test} && ({barred})) }}").unwrap();
+                parts.table("activation_rules", function.to_string());
             }
             R::Prohibit(ObjectAction::Sacrifice) => {
                 if matches!(affected, ObjectSet::One(ObjectRef::Source))

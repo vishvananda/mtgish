@@ -1702,6 +1702,10 @@ impl Compiler {
             ObjectRef::Discarded if self.frame.object.is_some() => {
                 self.carried_object(self.frame.object)?
             }
+            // The stack item remembers the effect that gave the ability (CR 607.5).
+            ObjectRef::Granter if self.reader == Reader::Resolution && self.stack_item => {
+                "granter(q, item)".to_string()
+            }
             ObjectRef::Granter => return held("q.granted_by(asker.source)"),
             ObjectRef::PairedWith(_) => {
                 return held(&format!(
@@ -1922,6 +1926,22 @@ impl Compiler {
             Expr::PaidCountersRemoved { .. } => {
                 held_number(feature, "i64::from(q.counters_paid(item))")
             }
+            Expr::ExcessDamage { result, to } if self.excess.contains_key(&result.0) => {
+                let (list, recipients, aimed) = &self.excess[&result.0];
+                let only = match &**to {
+                    ObjectFilter::Any => Some(String::new()),
+                    ObjectFilter::SameObject(object) if aimed.as_deref() == Some(format!("{object:?}").as_str()) => {
+                        Some(format!(".filter(|(t, _)| {recipients}.contains(t))"))
+                    }
+                    _ => None,
+                };
+                match only {
+                    Some(only) => counted(format!(
+                        "{list}.iter(){only}.map(|(_, n)| i64::from(*n)).sum::<i64>()"
+                    )),
+                    None => held_number(feature, "i64::from(result.excess)"),
+                }
+            }
             Expr::ExcessDamage { .. } => held_number(feature, "i64::from(result.excess)"),
             Expr::ChosenNumber => match self.chosen_local(ValueKind::Number) {
                 Ok(local) => counted(format!("i64::from({local})")),
@@ -1967,6 +1987,31 @@ impl Compiler {
                     "{{ let those: Vec<ObjectId> = {}; those.iter().filter(|&&a| those.iter().any(|&b| b != a && {same})).count() as i64 }}",
                     self.objects(objects)?
                 ))
+            }
+            // "Each opponent who didn't discard a nonland card this way": of what the
+            // instruction discarded, that player's. A hand holds only its owner's cards.
+            Expr::Earlier {
+                what: what @ EarlierObjects::Discarded,
+                measure: ObjectMeasure::Count,
+                result,
+                filter,
+                by: Some(PlayerRef::Bound(binding)),
+            } => {
+                let list = match result {
+                    Some(result) => self.objects(&ObjectSet::Transition {
+                        result: result.clone(),
+                        phase: ObjectPhase::After,
+                    })?,
+                    None => self.earlier_objects(what)?,
+                };
+                let keep = match filter {
+                    Some(filter) => format!(
+                        ".filter(|&id| {})",
+                        self.filter(filter, &Candidate::of("id"))?
+                    ),
+                    None => String::new(),
+                };
+                counted(format!("({list}).into_iter().filter(|&id: &ObjectId| q.state().obj(id).owner == bound_{}){keep}.count() as i64", binding.0))
             }
             // What an instruction named did: the AST says which. One whose
             // `result` is empty leaves the instruction to be found, so stays a gap.
@@ -2155,12 +2200,53 @@ impl Compiler {
                 .collect::<Vec<_>>();
             format!("({})", tests.join(" || "))
         };
+        let card = self.card_row(&format!("{chars}.card"));
+        let way = |kind: &str| format!("{card}.ways.iter().any(|w| w.kind == WayKind::{kind})");
         match family {
             KeywordFamily::Hexproof => any(&["Hexproof"]),
             KeywordFamily::Decayed => any(&["Decayed"]),
             KeywordFamily::Morph => any(&["Morph"]),
             KeywordFamily::Disguise => any(&["Disguise"]),
             KeywordFamily::Phasing => any(&["Phasing"]),
+            KeywordFamily::Toxic => format!("{chars}.toxic > 0"),
+            KeywordFamily::Ward if self.reader == Reader::Layer => format!(
+                "{chars}.abilities().any(|a| matches!(q.cards().ability(a), AbilityDef::Triggered(t) if t.ward))"
+            ),
+            KeywordFamily::Ward => format!(
+                "{chars}.abilities().any(|a| q.triggered_ability(a).is_some_and(|t| t.ward))"
+            ),
+            KeywordFamily::Exhaust if self.reader == Reader::Layer => format!(
+                "{chars}.abilities().any(|a| matches!(q.cards().ability(a), AbilityDef::Activated(d) if d.exhaust))"
+            ),
+            KeywordFamily::Exhaust => format!(
+                "{chars}.abilities().any(|a| q.activated_ability(a).is_some_and(|d| d.exhaust))"
+            ),
+            KeywordFamily::Warp => way("Warp"),
+            KeywordFamily::Freerunning => way("Freerunning"),
+            KeywordFamily::Mutate => way("Mutate"),
+            KeywordFamily::Kicker => format!("{card}.kicker.is_some()"),
+            KeywordFamily::Madness => format!("{card}.madness.is_some()"),
+            KeywordFamily::Foretell => format!("{card}.foretell.is_some()"),
+            KeywordFamily::Suspend => format!("{card}.suspend.is_some()"),
+            KeywordFamily::StartYourEngines => format!("{card}.start_your_engines"),
+            KeywordFamily::Convoke if self.reader != Reader::Layer => format!(
+                "({card}.pay_with.convoke || q.state().battlefield().iter().any(|&p| !q.lost_all_abilities(p) && q.card(q.chars(p).card).grants_pay_with.iter().any(|g| g(q, p, q.controller({id}), {id}).convoke)))"
+            ),
+            KeywordFamily::Flashback => {
+                // A flashback way is known from what else exiles the spell by
+                // its cost: harmonize's taps a creature, beam me up's returns one.
+                let printed = format!(
+                    "{card}.ways.iter().any(|w| w.exile_after && w.from == ZoneKind::Graveyard && !w.cost.tap_to_reduce && !matches!(w.cost.permanents, Some(PermanentCost {{ action: PermanentAction::BeamUp, .. }})))"
+                );
+                if self.reader == Reader::Layer {
+                    return format!(
+                        "({printed} || q.state().permissions.iter().any(|p| p.grant.flashback && q.state().permission_covers(p, {id})))"
+                    );
+                }
+                format!(
+                    "({printed} || q.state().permissions.iter().any(|p| p.grant.flashback && q.state().permission_covers(p, {id})) || q.state().battlefield().iter().any(|&p| !q.lost_all_abilities(p) && q.card(q.chars(p).card).granted_ways.iter().any(|w| w.flashback && q.state().obj({id}).zone.is(w.from) && (w.cost)(q, &Asker::new(p, q.controller(p)), {id}, q.state().obj({id}).owner).is_some())))"
+                )
+            }
             KeywordFamily::Landwalk => any(&[
                 "Islandwalk",
                 "Plainswalk",
@@ -2210,6 +2296,9 @@ impl Compiler {
                 &format!("q.stack_item({id}).is_some_and(|i| i.is(StackTrait::{}))", form(other)),
             ),
             ObjectFilter::History { event, window } => self.object_history(event, window, id)?,
+            ObjectFilter::DamagedBy(result) if self.moved.contains_key(&result.0) => {
+                format!("{}.contains(&{id})", self.moved[&result.0])
+            }
             ObjectFilter::DamagedBy(_) => held(format!(
                 "cantrip_mechanics::history::permanents_dealt_damage_by(q.history(), asker.source, since).contains(&{id})"
             )),
@@ -2363,13 +2452,33 @@ impl Compiler {
             ObjectFilter::AlternateCostPaid(_) => {
                 held(format!("q.state().obj({id}).alternate_cost_paid(cost)"))
             }
+            // What put it there is what was resolving as it entered, or the Aura it
+            // came with (CR 303.4f); the history reads the same of a token.
+            ObjectFilter::MadeBy(object) if !layer => format!(
+                "{}.is_some_and(|m: ObjectId| q.state().obj({id}).entered_with == Some(m) || q.history().all().iter().any(|r| matches!(r.event, Event::Entered {{ permanent, .. }} if permanent == {id}) && (r.cause == Cause::Spell(m) || matches!(r.cause, Cause::Ability {{ source, .. }} if source == m))))",
+                self.object(object)?
+            ),
             ObjectFilter::MadeBy(object) => held(format!(
                 "q.state().obj({id}).made_by == {}",
                 self.object(object)?
             )),
-            ObjectFilter::HasActivatedAbility(_) => {
-                held(format!("q.card_of({id}).activated.iter().any(|d| matches(d))"))
-            }
+            ObjectFilter::HasActivatedAbility(which) => match activation_test(which) {
+                Some(test) if layer => {
+                    let mut code = format!("{chars}.abilities().any(|a| matches!(q.cards().ability(a), AbilityDef::Activated(d) if !d.special_action{test}))");
+                    if matches!(which, ActivationFilter::Mana) {
+                        code = format!("({code} || {chars}.abilities().any(|a| matches!(q.cards().ability(a), AbilityDef::Triggered(t) if t.mana_ability)))");
+                    }
+                    code
+                }
+                Some(test) => {
+                    let mut code = format!("{chars}.abilities().any(|a| q.activated_ability(a).is_some_and(|d| !d.special_action{test}))");
+                    if matches!(which, ActivationFilter::Mana) {
+                        code = format!("({code} || {chars}.abilities().any(|a| q.triggered_ability(a).is_some_and(|t| t.mana_ability)))");
+                    }
+                    code
+                }
+                None => held(format!("q.card_of({id}).activated.iter().any(|d| matches(d))")),
+            },
             other => return self.predicate_more(other, c),
         })
     }
@@ -2405,7 +2514,10 @@ impl Compiler {
                 self.player(attacker)?,
                 self.player(defender)?
             ),
-            Condition::SameTeam { .. } => held("q.state().same_team(a, b)"),
+            // No game of Cantrip's has teams: "your team" is you alone (CR 810 is the variant).
+            Condition::SameTeam { player, other } => {
+                format!("{} == {}", self.player(player)?, self.player(other)?)
+            }
             Condition::MostVotes { .. } => held("g.votes().most(option)"),
             Condition::ChosenWord(word) => self.chosen_word(word)?,
             Condition::VotedFor { .. } | Condition::Voted(_) | Condition::AllVotedFor(_) => {
@@ -2865,6 +2977,50 @@ pub(super) enum PaidFor {
     Mana,
     Spell,
 }
+/// The object whose effect gave `item`'s ability to its source, on the battlefield
+/// or as it last was there (CR 113.2c, 608.2h). A static ability's effect has its
+/// source's timestamp, so two copies of one Equipment are two givers; a resolved
+/// effect is named by its own.
+pub(super) const GRANTER: &str = "fn granter(q: &dyn Query, item: &StackItem) -> Option<ObjectId> { if item.acquired.by != AcquiredBy::Grant { return None; } let stamp = item.acquired.stamp; let card = item.ability.card; if let Some(e) = q.state().effects.iter().find(|e| e.timestamp == stamp && matches!(e.kind, EffectKind::AddAbility(_))) { return Some(e.source); } if let Some(id) = q.state().battlefield().iter().copied().find(|&id| q.state().obj(id).timestamp == stamp && q.chars(id).card == card) { return Some(id); } q.history().all().iter().rev().find_map(|r| match r.event { Event::ZoneChange { old, from, .. } if from.is(ZoneKind::Battlefield) && q.state().obj(old).timestamp == stamp && q.state().obj(old).card == card => Some(old), _ => None }) }\n";
+
+/// Time travel (CR 701.56a): of each suspended card `player` owns (CR 702.62b, read
+/// as the upkeep reads it) and each permanent they control with a time counter on
+/// it, a time counter more, one fewer, or neither.
+pub(super) const TIME_TRAVEL: &str = "fn time_travel_for(g: &mut dyn Game, player: PlayerId, source: ObjectId) -> Result<(), Suspend> { let mut each: Vec<ObjectId> = g.state().zone(Zone::exile(player)).iter().copied().filter(|&id| g.obj(id).counters(CounterKind::Time) > 0 && g.card(g.obj(id).card).suspend.is_some()).collect(); each.extend(g.permanents_of(player).into_iter().filter(|&id| g.obj(id).counters(CounterKind::Time) > 0)); let any = cantrip_mechanics::select::cards(cantrip_mechanics::select::ANY_NUMBER); let adding = cantrip_mechanics::choose::select(g, player, source, Purpose::PutCounters(CounterKind::Time, 1), each.clone(), any.clone())?; let rest: Vec<ObjectId> = each.into_iter().filter(|id| !adding.contains(id)).collect(); let removing = cantrip_mechanics::choose::select(g, player, source, Purpose::Choose, rest, any)?; let more: Vec<(ObjectId, CounterKind, i16)> = adding.iter().map(|&id| (id, CounterKind::Time, 1)).collect(); g.add_counters_together(&more); for id in removing { g.remove_counters(id, CounterKind::Time, 1); } Ok(()) }\n";
+
+/// Whether an Aura could enchant `host` under `controller` (CR 303.4a, 702.5c):
+/// every enchant ability it has allows it, the one its card prints as well, which
+/// it has back on the battlefield whatever a graveyard takes, and `host` has no
+/// protection from it (CR 702.16c). Not targeted, so hexproof is nothing to it.
+pub(super) const COULD_ENCHANT: &str = "fn could_enchant(q: &dyn Query, aura: ObjectId, controller: PlayerId, host: ObjectId) -> bool { let chars = q.chars(aura); if chars.is(CardType::Creature) { return false; } let asker = Asker::new(aura, controller); let printed = q.card(q.state().obj(aura).card).enchant; chars.abilities().filter_map(|a| match a.index { AbilityRef::ENCHANT => q.card(a.card).enchant, AbilityRef::ENCHANT_GIVEN => q.card(a.card).becomes_aura_enchant, _ => None }).chain(printed).all(|spec| (spec.filter)(q, &asker, Target::Object(host))) && !q.chars(host).protected_from_by(&chars, || q.mana_value(aura), controller) }\n";
+
+/// What `filter` adds to "an activated ability" over `d: &ActivatedDef`, starting
+/// with ` && `: nothing for any. `None` for what `d` alone doesn't say.
+fn activation_test(filter: &ActivationFilter) -> Option<String> {
+    fn test(filter: &ActivationFilter) -> Option<String> {
+        Some(match filter {
+            ActivationFilter::Any => "true".to_string(),
+            ActivationFilter::Mana => "d.is_mana_ability()".to_string(),
+            ActivationFilter::Cycling => "d.cycling".to_string(),
+            ActivationFilter::Is(StackTrait::TapSymbolInCost) => "d.cost.tap".to_string(),
+            ActivationFilter::Not(inner) => format!("!({})", test(inner)?),
+            ActivationFilter::All(parts) => {
+                let parts: Option<Vec<String>> = parts.iter().map(test).collect();
+                format!("({})", parts?.join(" && "))
+            }
+            ActivationFilter::Either(parts) => {
+                let parts: Option<Vec<String>> = parts.iter().map(test).collect();
+                format!("({})", parts?.join(" || "))
+            }
+            ActivationFilter::Of(_) | ActivationFilter::Is(_) => return None,
+        })
+    }
+    match filter {
+        ActivationFilter::Any => Some(String::new()),
+        other => Some(format!(" && {}", test(other)?)),
+    }
+}
+
 /// How to tell which player of a batch did which part of it, for `ObjectSet::MovedBy`.
 #[derive(Clone, Debug)]
 pub(super) enum Share {

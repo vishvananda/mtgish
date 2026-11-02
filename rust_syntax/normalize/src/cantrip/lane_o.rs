@@ -1388,6 +1388,9 @@ impl Compiler {
     }
     /// The statement that gives a layer's `chars` these abilities.
     pub(super) fn grant_in_layer(&mut self, ability: &Ability) -> Result<statics::LayerChange> {
+        if let Some(n) = lane_n::toxic_of(ability) {
+            return Ok(statics::LayerChange::of("Ability", format!("chars.toxic += {n};")));
+        }
         let card = self.source_card();
         let mut body = format!("let card = {card}; let _ = card;");
         for reference in self.granted_refs(ability)? {
@@ -1397,6 +1400,9 @@ impl Compiler {
     }
     /// The effects that give an object this ability.
     pub(super) fn grant_kinds(&mut self, ability: &Ability) -> Result<Vec<String>> {
+        if let Some(n) = lane_n::toxic_of(ability) {
+            return Ok(vec![format!("EffectKind::Toxic({n})")]);
+        }
         // "It's an Aura with enchant creature": an enchant ability a card's effect
         // gives is `CardDef::becomes_aura_enchant` (CR 303.4, 613.1f).
         if let Ability::Enchant { hosts } = ability {
@@ -1412,6 +1418,10 @@ impl Compiler {
         let EnchantHosts::Permanents(filter) = hosts else {
             return Err(gap("granted Enchant"));
         };
+        // Necromancy puts its creature in with it, a move this reading can't say.
+        if format!("{filter:?}").contains("MadeBy") {
+            return Err(gap("an Aura that enchants what it put onto the battlefield"));
+        }
         let function = format!("becomes_aura_{}", self.fresh());
         let test = self.queried(|c| c.filter(filter, &Candidate::of("id")))?;
         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, t: Target) -> bool {{ matches!(t, Target::Object(id) if cantrip_mechanics::targets::permanent(q, id) && ({test})) }}").unwrap();
@@ -1714,6 +1724,21 @@ impl Compiler {
                     ));
                 }
                 kinds
+            }
+            // "... gain flying until end of turn if a creature you control has
+            // flying. The same is true for ...": read now, each keyword its own.
+            Change::GainAbilitiesOf {
+                objects,
+                kinds,
+                once_each_turn: false,
+                spend_as: None,
+            } if lane_n::plain_keywords(kinds).is_some() => {
+                let words = lane_n::plain_keywords(kinds).expect("checked");
+                vec![format!(
+                    "{{ let those = {}; let had: Vec<Keyword> = [{}].into_iter().filter(|k: &Keyword| those.iter().any(|&o: &ObjectId| g.chars(o).has(*k))).collect(); EffectKind::AddKeywords(Keywords::of(&had)) }}",
+                    self.objects(objects)?,
+                    words.join(", ")
+                )]
             }
             Change::GainAbilitiesOf { objects, .. } => {
                 let ids = self.fetch(self.objects(objects)?);
@@ -2926,6 +2951,11 @@ impl Compiler {
     }
     /// `Vec<PlayerId>`: a set nothing else reads.
     pub(super) fn players_stated(&self, players: &PlayerSet) -> Result<String> {
+        if let PlayerSet::DamagedBy(result) = players {
+            if let Some(list) = self.hurt_players.get(&result.0) {
+                return Ok(format!("{list}.clone()"));
+            }
+        }
         let code = match players {
             PlayerSet::DamagedBy(result) => format!("q.players_damaged_by(asker, {})", result.0),
             PlayerSet::DamageRecipients => "q.recipients_of_event_damage(asker)".to_string(),

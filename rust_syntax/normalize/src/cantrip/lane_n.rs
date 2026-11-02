@@ -316,6 +316,46 @@ impl Compiler {
     }
     /// A replacement a spell or ability made, as `add_replacement` for the
     /// definitions those keep.
+    /// What a permanent entering attacking attacks (CR 508.4): `Target::None`
+    /// when there is nothing it could.
+    pub(super) fn entering_defender(
+        &self,
+        player: Option<&PlayerRef>,
+        or_planeswalker: bool,
+    ) -> Result<String> {
+        const ANY: &str = "cantrip_mechanics::combat::choose_attack_target(g, controller, asker.source)?.unwrap_or(Target::None)";
+        Ok(match (player, or_planeswalker) {
+            (None, _) => ANY.to_string(),
+            (Some(player), false) => {
+                format!("Target::Player({})", self.fetch(self.certain_player(player)?))
+            }
+            (Some(player), true) => format!(
+                "{{ let player = {}; let candidates: Vec<Target> = g.enter_attacking_targets(controller).into_iter().filter(|t| match *t {{ Target::Player(p) => p == player, Target::Object(o) => g.controller(o) == player && g.chars(o).is(CardType::Planeswalker), _ => false }}).collect(); cantrip_mechanics::combat::choose_among(g, controller, asker.source, &candidates)?.unwrap_or(Target::None) }}",
+                self.fetch(self.certain_player(player)?)
+            ),
+        })
+    }
+    /// "If a Hero enters this way, it enters with ... counters" (CR 614.12): a
+    /// replacement effect about the card, so it is judged as it would exist on the
+    /// battlefield, as a look at it where it is now would not. The index of the
+    /// made replacement.
+    pub(super) fn arrival_counters(
+        &mut self,
+        filter: &ObjectFilter,
+        counters: &[(crate::counter::CounterKind, Expr)],
+    ) -> Result<usize> {
+        let id = self.fresh();
+        let test = self.filter(filter, &Candidate::of("affected"))?;
+        let mut adds = String::new();
+        for (kind, n) in counters {
+            let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+            write!(adds, "z.counters[{} as usize] += {n}; ", counter_kind(kind)?).unwrap();
+        }
+        writeln!(self.functions, "#[allow(unused_variables)] fn arrival_{id}_applies(q: &dyn Query, asker: &Asker, affected: ObjectId, proposal: &Proposal) -> bool {{ matches!(proposal, Proposal::ZoneChange(z) if z.object == affected && z.to.is(ZoneKind::Battlefield)) && {test} }}").unwrap();
+        writeln!(self.functions, "#[allow(unused_variables)] fn arrival_{id}_apply(q: &dyn Query, asker: &Asker, affected: ObjectId, proposal: &mut Proposal) {{ if let Proposal::ZoneChange(z) = proposal {{ {adds}}} }}").unwrap();
+        self.add_made_replacement(format!("granted_replacement(ReplacementKind::ZoneChange, arrival_{id}_applies, arrival_{id}_apply, \"enters with counters\").once()"));
+        Ok(self.made_replacements.len() - 1)
+    }
     pub(super) fn add_made_replacement(&mut self, mut def: String) {
         let mut feature = self.replacing.planned.take();
         for (needs, call) in std::mem::take(&mut self.replacing.suffix) {
@@ -1411,6 +1451,37 @@ impl Compiler {
         }
         Ok(())
     }
+    /// A callback can't read a list the ability made. What is about each thing
+    /// a damage instruction was dealt to is made once for each, about that object.
+    /// `moving`: it is about that object dying, which only a creature or a
+    /// planeswalker does (CR 700.4), whatever else was dealt damage.
+    pub(super) fn about_each_damaged(
+        &mut self,
+        objects: &mut ObjectFilter,
+        moving: bool,
+        out: &mut String,
+    ) -> Option<u32> {
+        let binding = 1000 + self.fresh() as u32;
+        let each = ObjectRef::Bound(Binding(binding));
+        let results: Vec<u32> = self.moved.keys().copied().collect();
+        let result = results
+            .into_iter()
+            .find(|r| damaged_to_bound(objects, *r, &each))?;
+        if moving && !format!("{objects:?}").contains("CardType(Creature)") {
+            let dying = [crate::mtg_types::CardType::Creature, crate::mtg_types::CardType::Planeswalker];
+            let dying = ObjectFilter::Either(dying.map(ObjectFilter::CardType).to_vec());
+            *objects = ObjectFilter::All(vec![dying, objects.clone()]);
+        }
+        writeln!(out, "for bound_{binding} in {}.clone() {{", self.moved[&result]).unwrap();
+        self.bound_objects.insert(binding);
+        Some(binding)
+    }
+    pub(super) fn end_each_damaged(&mut self, each: Option<u32>, out: &mut String) {
+        if let Some(binding) = each {
+            self.bound_objects.remove(&binding);
+            writeln!(out, "}}").unwrap();
+        }
+    }
     /// "Choose a player or a planeswalker that player controls": no target, and
     /// no one kind of thing to ask about.
     pub(super) fn choose_recipient(
@@ -1925,6 +1996,107 @@ pub(super) fn moves_named_objects(cost: &Cost) -> bool {
         [CostPart::Move { selections, face_down: false, .. }]
             if matches!(selections.as_slice(), [CostObjectSelection { choose: None, .. }])
     )
+}
+
+/// Whether what comes later reads a damage instruction's result as what it was
+/// dealt to, which is only known from the events: a prevention names none and a
+/// redirection names another (CR 614.9).
+/// The one keyword a permanent gains for the turn as it arrives.
+pub(super) fn keyword_until_end_of_turn(states: &[EntryState]) -> Option<&Keyword> {
+    match states {
+        [EntryState::ChangesUntil {
+            changes,
+            duration: crate::ir::Duration::EndOfTurn,
+        }] => match changes.as_slice() {
+            [Change::GrantKeyword(k)] => Some(k),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// A power and a toughness set by one effect are the one thing the engine sets
+/// (CR 613.4b). `None` where the list does not say both.
+pub(super) fn power_with_toughness(changes: &[Change]) -> Option<Vec<Change>> {
+    let power = changes.iter().position(|c| matches!(c, Change::SetPower(_)))?;
+    let toughness = changes.iter().position(|c| matches!(c, Change::SetToughness(_)))?;
+    let (Change::SetPower(p), Change::SetToughness(t)) = (&changes[power], &changes[toughness])
+    else {
+        return None;
+    };
+    let mut joined = changes.to_vec();
+    joined[power] = Change::SetBasePowerToughness {
+        power: p.clone(),
+        toughness: t.clone(),
+    };
+    joined.remove(toughness);
+    Some(joined)
+}
+
+/// Damage to every other permanent, where the words were "each other creature":
+/// no card says that, and read as written it would burn planeswalkers.
+pub(super) fn names_no_card_type(recipients: &Recipients) -> bool {
+    format!("{recipients:?}").contains("Battlefield(Not(")
+}
+
+/// The keywords a list of kinds of ability names, where each is one the engine
+/// holds as a plain bit. "Hexproof from [quality]" (CR 702.11) is not among them:
+/// what `AnyHexproof` asks of it has no bit.
+pub(super) fn plain_keywords(kinds: &Operand) -> Option<Vec<String>> {
+    const PLAIN: [&str; 17] = [
+        "Deathtouch", "Defender", "DoubleStrike", "Fear", "FirstStrike", "Flying", "Haste",
+        "Hexproof", "Indestructible", "Infect", "Lifelink", "Menace", "Reach", "Shroud",
+        "Skulk", "Trample", "Vigilance",
+    ];
+    let one = std::slice::from_ref(kinds);
+    let list = match kinds {
+        Operand::List(list) => list.as_slice(),
+        _ => one,
+    };
+    list.iter()
+        .map(|kind| match kind {
+            Operand::Term { form, .. } if PLAIN.contains(&form.as_str()) => {
+                Some(format!("Keyword::{form}"))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+/// The N of toxic N, as a grant says it.
+pub(super) fn toxic_of(ability: &Ability) -> Option<i64> {
+    match ability {
+        Ability::Mechanic {
+            mechanic: Mechanic::Toxic,
+            amount: Some(Expr::Constant(n)),
+            ..
+        } if *n > 0 => Some(*n),
+        _ => None,
+    }
+}
+
+/// Whether what comes later reads the excess of a damage instruction.
+pub(super) fn reads_excess(after: &[Instruction], result: &ResultId) -> bool {
+    format!("{after:?}").contains(&format!("ExcessDamage {{ result: ResultId({})", result.0))
+}
+
+pub(super) fn read_as_damaged(after: &[Instruction], result: &ResultId) -> bool {
+    format!("{after:?}").contains(&format!("DamagedBy(ResultId({}))", result.0))
+}
+
+/// Say of `filter` that it is `each`, where it says it was dealt damage by
+/// `result`, which a callback has no way to read.
+pub(super) fn damaged_to_bound(filter: &mut ObjectFilter, result: u32, each: &ObjectRef) -> bool {
+    match filter {
+        ObjectFilter::DamagedBy(r) if r.0 == result => {
+            *filter = ObjectFilter::SameObject(each.clone());
+            true
+        }
+        ObjectFilter::All(filters) => filters
+            .iter_mut()
+            .fold(false, |found, f| damaged_to_bound(f, result, each) || found),
+        _ => false,
+    }
 }
 
 /// Whether what comes later reads an instruction's result as objects.

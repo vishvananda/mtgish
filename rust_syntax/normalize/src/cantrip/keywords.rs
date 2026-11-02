@@ -616,10 +616,9 @@ impl Compiler {
                 "g.flip(object)?",
                 out,
             )?,
-            K::TimeTravel => self.plan_for_actor(
-                "engine: no Time Travel",
-                action,
-                &format!("{M}::time_travel::time_travel(g, player, asker.source)?"),
+            K::TimeTravel => self.actor_action(
+                &action,
+                "time_travel_for(g, player, asker.source)?",
                 out,
             )?,
             K::Forage => self.plan_for_actor(

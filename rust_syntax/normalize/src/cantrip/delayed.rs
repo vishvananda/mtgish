@@ -21,6 +21,13 @@ pub(super) struct Outer {
     matcher: bool,
     /// `Vec<Target>` code of each part such an effect keeps.
     pub(super) parts: RefCell<Vec<String>>,
+    /// Asked of what it watches, so what made it is not its source: the object
+    /// `Source` says is carried.
+    source_moved: bool,
+    /// A reflexive ability, which is told one number as well as its subject.
+    reflexive: bool,
+    /// `i64` code of the number it is told, worked out as it triggers.
+    count: RefCell<Option<String>>,
 }
 
 impl Outer {
@@ -159,8 +166,67 @@ impl Compiler {
             ObjectRef::Damage(DamageSubject::Recipient) => self.frame.damage_recipient.is_some(),
             ObjectRef::RecipientObject { .. } => false,
             ObjectRef::Bound(binding) => self.bound_objects.contains(&binding.0),
+            ObjectRef::Source => {
+                let resolving = self.reader == Reader::Resolution && self.stack_item;
+                !(resolving && self.outer.as_ref().is_some_and(|o| o.source_moved))
+            }
+            // "That card" of what the maker's instruction did: what a subject holds.
+            ObjectRef::Query { objects, .. } => {
+                self.list_is_local(objects)
+                    || self
+                        .outer
+                        .as_ref()
+                        .map_or(true, |outer| outer.subject.is_none())
+            }
             _ => true,
         }
+    }
+    /// Whether the list `objects` narrows is this body's own.
+    fn list_is_local(&self, objects: &ObjectSet) -> bool {
+        match objects {
+            ObjectSet::Matching { objects, .. } => self.list_is_local(objects),
+            ObjectSet::Selected(result) | ObjectSet::Observed(result) => {
+                self.selections.contains_key(&result.0)
+            }
+            ObjectSet::Created(result) => self.creations.contains_key(&result.0),
+            ObjectSet::Affected(result) => self.selections.contains_key(&result.0),
+            ObjectSet::Transition { result, .. } => self.moved.contains_key(&result.0),
+            ObjectSet::Named(result) => {
+                self.selections.contains_key(&result.0)
+                    || self.creations.contains_key(&result.0)
+                    || self.moved.contains_key(&result.0)
+                    || !self.bound_outside(result)
+            }
+            ObjectSet::Targets(slot) => self.slots.contains_key(&slot.0),
+            ObjectSet::CostObjects {
+                payment: PaymentRef::Resolution(result),
+                ..
+            } => self.moved.contains_key(&result.0),
+            ObjectSet::CostObjects { .. } => false,
+            _ => true,
+        }
+    }
+    /// "That many", of a list a reflexive ability's maker made: the one number
+    /// the ability is told (CR 603.12), worked out as it triggers. In its target
+    /// filter there is no stack item yet to read it from.
+    pub(super) fn outside_count(&self, n: &Expr, objects: &ObjectSet) -> Result<Option<String>> {
+        let Some(outer) = self.carrying() else {
+            return Ok(None);
+        };
+        if !outer.reflexive
+            || self.event_at == EventAt::TargetFilter
+            || self.list_is_local(objects)
+        {
+            return Ok(None);
+        }
+        let inner = &outer.compiler;
+        let code = format!("({} as i64)", inner.fetch(inner.number(n)?.code));
+        let mut carried = outer.count.borrow_mut();
+        if carried.as_ref().is_some_and(|c| *c != code) {
+            return Err(gap("reflexive ability told two numbers"));
+        }
+        *carried = Some(code);
+        Ok(Some("i64::from(item.x)".into()))
     }
     /// An `Option<ObjectId>` this body cannot read for itself, if `object` is.
     pub(super) fn outside_object(&self, object: &ObjectRef) -> Result<Option<String>> {
@@ -297,7 +363,7 @@ impl Compiler {
                 ),
             )));
         }
-        if outer.subject.is_some() {
+        if let Some(subject) = &outer.subject {
             if outer.made.is_some() && !matches!(objects, ObjectSet::One(_)) {
                 return Err(gap("a made effect about a list of objects"));
             }
@@ -306,6 +372,21 @@ impl Compiler {
                     "{}.into_iter().collect::<Vec<ObjectId>>()",
                     self.outside_object(object)?.expect("carried")
                 ))),
+                // What can only be one thing is what a subject holds.
+                ObjectSet::Created(result) | ObjectSet::Selected(result)
+                    if outer.compiler.single.contains(&result.0) =>
+                {
+                    let code = format!("({}).first().copied()", outer.compiler.objects(objects)?);
+                    let mut carried = subject.borrow_mut();
+                    if carried.as_ref().is_some_and(|c| *c != code) {
+                        return Err(gap("reflexive ability about two objects"));
+                    }
+                    *carried = Some(code);
+                    Ok(Some(match self.event_at == EventAt::TargetFilter {
+                        true => "q.event_subject().object().into_iter().collect::<Vec<ObjectId>>()",
+                        false => "item.subject.object().into_iter().collect::<Vec<ObjectId>>()",
+                    }.to_string()))
+                }
                 _ => {
                     let code = outer.compiler.objects(objects)?;
                     Ok(Some(planned::planned_value(
@@ -526,6 +607,9 @@ impl Compiler {
             made,
             matcher: self.watching,
             parts: RefCell::new(Vec::new()),
+            source_moved: std::mem::take(&mut self.source_moved),
+            reflexive: std::mem::take(&mut self.reflexing),
+            count: RefCell::new(None),
         });
         let results = self.results();
         let repeating = self.repeating.take();
@@ -603,6 +687,15 @@ impl Compiler {
         let (event, source) = self.watching_source(event, body)?;
         let label = format!("watch_{}", self.fresh());
         let limits = TriggerLimits::default();
+        let (maker, _, _) = self.maker();
+        let says = format!("{body:?}");
+        if source != format!("Some({maker})") && says.contains("Source") {
+            // What is linked to the maker can't be read through a list (CR 607).
+            if says.contains("ExiledWith") {
+                return Err(gap("event trigger carrying values"));
+            }
+            self.source_moved = true;
+        }
         let (outer, def) = self.closing_for_matcher(false, |c| {
             // Its matcher is a function of its own: no local reaches it.
             c.reset_results();
@@ -693,11 +786,14 @@ impl Compiler {
             )
             .unwrap();
         }
-        let code = match player.as_ref() {
-            None => format!("if let Some(source) = {source} {{ {about} g.delayed_trigger_about({when}, source, {controller}, {ability}, &about); }}"),
-            Some(player) => format!("if let Some(source) = {source} {{ {about} let player = {}.map_or(Target::None, Target::Player); g.delayed_trigger_with({when}, source, {controller}, {ability}, player, &about); }}", self.fetch(player)),
-        };
-        self.plan_code("event trigger carrying values", &code, out);
+        match player.as_ref() {
+            // Its body reads the list; what its matcher reads is held where it is read.
+            None => writeln!(out, "if let Some(source) = {source} {{ {about} g.delayed_trigger_about({when}, source, {controller}, {ability}, &about); }}").unwrap(),
+            Some(player) => {
+                let code = format!("if let Some(source) = {source} {{ {about} let player = {}.map_or(Target::None, Target::Player); g.delayed_trigger_with({when}, source, {controller}, {ability}, player, &about); }}", self.fetch(player));
+                self.plan_code("event trigger carrying values", &code, out);
+            }
+        }
         Ok(())
     }
     /// `Operation::ReflexiveTrigger`.
@@ -766,6 +862,7 @@ impl Compiler {
         let sized = std::mem::replace(&mut self.sized_slot, slot.map(|(count, _)| count));
         let announced = lane_p::without_modes(announcement);
         let dividing = self.dividing.take();
+        self.reflexing = true;
         let closed = self.closing(true, |c| {
             c.reset_results();
             let targets = c.targets_for(&announced, &label, Frame::default())?;
@@ -777,6 +874,11 @@ impl Compiler {
         self.sized_slot = sized;
         let divided = std::mem::replace(&mut self.dividing, dividing);
         let (outer, (targets, modal)) = closed.map_err(lane_l::reads_as_a_target)?;
+        let told = outer.count.borrow().clone();
+        if amount.is_some() && told.is_some() && amount != told {
+            return Err(gap("reflexive ability told two numbers"));
+        }
+        let amount = amount.or(told);
         let text = self.said(lane_k::Said::Triggered, ability_text(body));
         let mut def = format!("delayed_trigger({label}, {})", quoted(&text));
         if let Some(targets) = targets {

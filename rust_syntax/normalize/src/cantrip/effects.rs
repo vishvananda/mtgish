@@ -696,7 +696,15 @@ impl Compiler {
                 result,
             } if also.is_empty() => {
                 let [choice] = choices.as_slice() else {
-                    return self.search_several(player, library, choices, result, out);
+                    let destination = search_destination(result, &body.instructions[i + 1..]);
+                    return self.search_several(
+                        player,
+                        library,
+                        choices,
+                        result,
+                        destination,
+                        out,
+                    );
                 };
                 let rules = self.search_rules(&choice.constraints)?;
                 if one_at_most(&choice.count) {
@@ -803,6 +811,17 @@ impl Compiler {
                 }
                 Ok(())
             }
+            // The trigger's "may" and the "may" of "do this only once each turn" are
+            // one question, which the first asks and spends.
+            Instruction::Optional { decider, body: then }
+                if self.do_once.is_some() && lane_l::once_offered(then).is_some() =>
+            {
+                let offered = Instruction::Optional {
+                    decider: decider.clone(),
+                    body: lane_l::once_offered(then).expect("just matched").clone(),
+                };
+                self.instruction(body, i, &offered, out)
+            }
             Instruction::Optional { decider, body } if playing::may_only_play(decider, body) => {
                 let mut plays = body;
                 while let [Instruction::Group(group)] = plays.instructions.as_slice() {
@@ -872,6 +891,34 @@ impl Compiler {
                 writeln!(out, "let decider_{id} = {decider}; if {open}cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{{spent}").unwrap();
                 self.block(body, out, true)?;
                 writeln!(out, "}}").unwrap();
+                Ok(())
+            }
+            // "For each land, destroy that land unless any player pays 1 life": all
+            // the payments come first, and what no one paid for is then done at once.
+            Instruction::ForEachObject {
+                objects,
+                binding,
+                body: each,
+            } if lane_l::paid_for_each(each).is_some_and(|(paid, _)| {
+                format!("{:?}", &body.instructions[i + 1..])
+                    .contains(&format!("Unpaid(ResultId({}))", paid.0))
+            }) =>
+            {
+                let (paid, offered) = lane_l::paid_for_each(each).expect("just matched");
+                let objects = self.fetch(self.objects(objects)?);
+                writeln!(out, "let mut unpaid_{}: Vec<ObjectId> = Vec::new(); for bound_{} in {objects} {{", paid.0, binding.0).unwrap();
+                self.bound_objects.insert(binding.0);
+                let scope = self.results();
+                let mut asked = each.clone();
+                asked.instructions = vec![offered];
+                let compiled = self.program(&asked, out, false);
+                let spent = self.performed.get(&paid.0).cloned();
+                self.restore_results(scope);
+                self.bound_objects.remove(&binding.0);
+                compiled?;
+                let spent = spent.ok_or_else(|| gap("object collection Unpaid"))?;
+                writeln!(out, "if !{spent} {{ unpaid_{}.push(bound_{}); }} }}", paid.0, binding.0).unwrap();
+                self.unpaid.insert(paid.0);
                 Ok(())
             }
             Instruction::ForEachObject {
@@ -1279,8 +1326,19 @@ impl Compiler {
                 amount,
                 preventable: true,
             } => {
+                if lane_n::names_no_card_type(recipients) {
+                    return Err(gap("damage to each permanent, a card type lost in the data"));
+                }
                 let amount = self.number(amount)?.amount(u16::MAX.into(), "u16")?;
-                let (declare, deal) = if lane_n::read_as_objects(&self.after, result) {
+                let (declare, deal) = if lane_n::read_as_damaged(&self.after, result) {
+                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.moved.insert(result.0, format!("dealt_{id}"));
+                    self.hurt_players.insert(result.0, format!("hurt_{id}"));
+                    (
+                        format!("let mut done_{id}: i64 = 0; let mut dealt_{id}: Vec<ObjectId> = Vec::new(); let mut hurt_{id}: Vec<PlayerId> = Vec::new(); let before_{id} = g.history().head() as usize; "),
+                        format!("done_{id} += g.damage_together(&batch).iter().map(|&n| i64::from(n)).sum::<i64>(); dealt_{id}.extend(cantrip_mechanics::history::permanents_dealt_damage_by(g.history(), source, before_{id})); for r in &g.history().all()[before_{id}..] {{ if let Event::Damage {{ source: s, target: Target::Player(p), amount, .. }} = r.event {{ if s == source && amount > 0 && !hurt_{id}.contains(&p) {{ hurt_{id}.push(p); }} }} }}"),
+                    )
+                } else if lane_n::read_as_objects(&self.after, result) {
                     self.performed.insert(result.0, format!("done_{id}"));
                     self.moved.insert(result.0, format!("dealt_{id}"));
                     (
@@ -1296,6 +1354,21 @@ impl Compiler {
                 } else {
                     (String::new(), "g.damage_together(&batch);".to_string())
                 };
+                // CR 120.10, read from the damage events: what was dealt, to whom
+                // it was dealt, a redirection and a prevention included.
+                let (declare, deal) = if lane_n::reads_excess(&self.after, result) {
+                    let aimed = match recipients {
+                        Recipients::Objects(ObjectSet::One(object)) => Some(format!("{object:?}")),
+                        _ => None,
+                    };
+                    self.excess.insert(result.0, (format!("excess_{id}"), format!("recipients_{id}"), aimed));
+                    (
+                        format!("{declare}let mut excess_{id}: Vec<(Target, u32)> = Vec::new(); let since_{id} = g.history().head() as usize; "),
+                        format!("{deal} excess_{id}.extend(g.history().all()[since_{id}..].iter().filter_map(|r| match r.event {{ Event::Damage {{ source: s, target, recipient_excess, .. }} if s == source => Some((target, recipient_excess)), _ => None }}));"),
+                    )
+                } else {
+                    (declare, deal)
+                };
                 writeln!(out, "{declare}let source_{id} = {}; let amount_{id} = {}; let recipients_{id} = {}; if let Some(source) = source_{id} {{ let batch: Vec<(ObjectId, Target, u16)> = recipients_{id}.iter().map(|t| (source, *t, amount_{id})).collect(); {deal} }}", self.fetch(self.damage_source(source)?), self.fetch(amount), self.fetch(self.recipients(recipients)?)).unwrap();
             }
             Operation::DealDamageParts {
@@ -1308,7 +1381,12 @@ impl Compiler {
                     let amount = self.number(&part.amount)?.amount(u16::MAX.into(), "u16")?;
                     writeln!(out, "let amount_{id}_{i} = {}; if let Some(source) = source_{id} {{ for t in {} {{ batch_{id}.push((source, t, amount_{id}_{i})); }} }}", self.fetch(amount), self.fetch(self.recipients(&part.recipients)?)).unwrap();
                 }
-                writeln!(out, "g.damage_together(&batch_{id});").unwrap();
+                if lane_n::read_as_damaged(&self.after, result) {
+                    self.moved.insert(result.0, format!("dealt_{id}"));
+                    writeln!(out, "let before_{id} = g.history().head() as usize; g.damage_together(&batch_{id}); let dealt_{id} = source_{id}.map_or(Vec::new(), |source| cantrip_mechanics::history::permanents_dealt_damage_by(g.history(), source, before_{id}));").unwrap();
+                } else {
+                    writeln!(out, "g.damage_together(&batch_{id});").unwrap();
+                }
             }
             Operation::PutCounters { placements }
                 if matches!(
@@ -1609,15 +1687,29 @@ impl Compiler {
                 body,
                 once,
                 intervening_if,
-            } => self.create_trigger(
-                event,
-                duration,
-                announcement,
-                body,
-                *once,
-                intervening_if,
-                out,
-            )?,
+            } => {
+                let mut event = event.clone();
+                let each = match &mut event {
+                    EventSpec::ZoneChange { objects, .. } => {
+                        self.about_each_damaged(objects, true, out)
+                    }
+                    EventSpec::Object { objects, .. } => {
+                        self.about_each_damaged(objects, false, out)
+                    }
+                    _ => None,
+                };
+                let made = self.create_trigger(
+                    &event,
+                    duration,
+                    announcement,
+                    body,
+                    *once,
+                    intervening_if,
+                    out,
+                );
+                self.end_each_damaged(each, out);
+                made?
+            }
             Operation::CreateDelayedTrigger {
                 event,
                 start,
@@ -1632,7 +1724,19 @@ impl Compiler {
                 body,
             } => {
                 self.prevented.extend(lane_n::preventions(body));
-                self.create_replacement(event, limit, duration, body, out)?
+                let mut event = event.clone();
+                let each = match &mut event {
+                    ReplacementEvent::ZoneChange { objects, .. } => {
+                        self.about_each_damaged(objects, true, out)
+                    }
+                    ReplacementEvent::Object { objects, .. } => {
+                        self.about_each_damaged(objects, false, out)
+                    }
+                    _ => None,
+                };
+                let made = self.create_replacement(&event, limit, duration, body, out);
+                self.end_each_damaged(each, out);
+                made?
             }
             Operation::PayCost {
                 player,
@@ -2024,6 +2128,10 @@ impl Compiler {
         self.moved.clear();
         self.before.clear();
         self.performed.clear();
+        self.excess.clear();
+        self.unpaid.clear();
+        self.hurt_players.clear();
+        self.coins = None;
         self.values.clear();
         self.flips.clear();
         self.chosen.clear();
@@ -2287,6 +2395,9 @@ impl Compiler {
             Destination::Exile if self.links_exile && self.stack_item => {
                 format!("{{ let by = g.linked(item); g.exile_with(&objects_{id}, by, false) }}")
             }
+            Destination::Exile if self.links_exile && self.pending != Pending::Entering => {
+                format!("{{ let by = g.text_linked(asker.source); g.exile_with(&objects_{id}, by, false) }}")
+            }
             Destination::Exile if self.links_exile => planned::planned_value(
                 "exile outside a stack item that an ability reads as exiled with its source",
                 &format!("g.exile_all(&objects_{id})"),
@@ -2354,15 +2465,39 @@ impl Compiler {
             ),
             [EntryState::Attacking {
                 player,
-                or_planeswalker: false,
-            }] if entry.tapped => {
-                let defender = match player {
-                    Some(player) => {
-                        format!("Target::Player({})", self.fetch(self.certain_player(player)?))
-                    }
-                    None => "cantrip_mechanics::combat::choose_attack_target(g, controller, asker.source)?.unwrap_or(Target::None)".into(),
+                or_planeswalker,
+            }, rest @ ..]
+                if rest.is_empty() || lane_n::keyword_until_end_of_turn(rest).is_some() =>
+            {
+                let defender = self.entering_defender(player.as_ref(), *or_planeswalker)?;
+                // `put_onto_battlefield_attacking` taps: "tapped and attacking".
+                let enter = match entry.tapped {
+                    true => format!("let entered = g.put_onto_battlefield_attacking(o, controller, defender, &[{counters}])?; let came = g.is_on_battlefield(entered);"),
+                    false => format!("let entered = g.put_onto_battlefield_with_counters(o, controller, false, &[{counters}])?; let came = g.is_on_battlefield(entered); if came {{ g.enter_attacking(&[entered], defender); }}"),
                 };
-                format!("let defender = {defender}; moved.push(g.put_onto_battlefield_attacking(o, controller, defender, &[{counters}])?);")
+                let gains = match lane_n::keyword_until_end_of_turn(rest) {
+                    Some(k) => format!(" cantrip_mechanics::effects::gain_until_end_of_turn(g, asker.source, entered, {});", keyword(k)?),
+                    None => String::new(),
+                };
+                format!("let defender = {defender}; {enter} if came {{ moved.push(entered);{gains} }}")
+            }
+            [EntryState::AttachedToChosen(filter)]
+                if counters.is_empty() && !entry.tapped =>
+            {
+                let test = self.filter(filter, &Candidate::of("host"))?;
+                format!("let aura = g.chars(o).has_subtype(Subtype::Aura); let hosts: Vec<ObjectId> = {{ let q: &dyn Query = g; q.state().battlefield().iter().copied().filter(|&host| {test} && (!aura || could_enchant(q, o, controller, host))).collect() }}; match cantrip_mechanics::choose::card(g, controller, asker.source, Purpose::Attach, hosts)? {{ Some(host) => moved.extend(g.put_onto_battlefield_attached(o, controller, host)?), None if !aura => moved.push(g.put_onto_battlefield(o, controller, false)?), None => {{}} }}")
+            }
+            [EntryState::When { filter, entry: then }]
+                if counters.is_empty()
+                    && !entry.tapped
+                    && !then.tapped
+                    && then.states.is_empty()
+                    && !then.counters.is_empty()
+                    && self.stack_item
+                    && !self.granting =>
+            {
+                let index = self.arrival_counters(filter, &then.counters)?;
+                format!("g.add_effect(item.object, o, EffectKind::Replacement {{ card: item.ability.card, index: {index} }}, Duration::EndOfTurn); moved.extend(g.put_all_onto_battlefield_as(&[(o, controller, false)])?.into_iter().filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)));")
             }
             _ => return self.arrival_in_state(entry, &counters),
         })
@@ -2636,6 +2771,8 @@ impl Compiler {
             self.fetch(self.object(source)?),
         )
         .unwrap();
+        let joined = lane_n::power_with_toughness(changes);
+        let changes = joined.as_deref().unwrap_or(changes);
         if let [Change::CopyOf { object, effects }] = changes {
             let original = self.fetch(self.objects(&ObjectSet::One(object.clone()))?);
             let values = self.copy_values(

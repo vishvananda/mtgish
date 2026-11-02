@@ -576,6 +576,9 @@ impl Compiler {
             parts.keywords.push(keyword(printed)?);
             return Ok(());
         }
+        if self.affinity_granted(label, affected, changes, parts)? {
+            return Ok(());
+        }
         let changes = &self.casting_tables(label, affected, changes, parts)?[..];
         let changes = &lane_o::in_one_effect(changes)[..];
         if changes.is_empty() || self.copy_static(label, affected, changes, parts)? {

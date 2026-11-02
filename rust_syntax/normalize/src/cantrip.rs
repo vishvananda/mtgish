@@ -588,6 +588,15 @@ struct Compiler {
     /// The announcement slot whose filter is being compiled.
     choosing: Option<usize>,
     performed: BTreeMap<u32, String>,
+    /// The payments whose `unpaid_` list this resolution keeps.
+    unpaid: BTreeSet<u32>,
+    /// The players a damage instruction dealt damage to.
+    hurt_players: BTreeMap<u32, String>,
+    /// The flips a coin-flipping instruction won and lost.
+    coins: Option<(String, String)>,
+    /// A damage instruction's excess (CR 120.10): the list of what each recipient
+    /// took past lethal, its recipients' local, and the one object it aimed at.
+    excess: BTreeMap<u32, (String, String, Option<String>)>,
     values: BTreeMap<u32, String>,
     flips: BTreeMap<u32, String>,
     /// The local of the object a change is being applied to, while its value
@@ -600,6 +609,10 @@ struct Compiler {
     /// Values the card chooses as it enters, which its permanent keeps.
     enters_choosing: Vec<ValueKind>,
     bound_objects: BTreeSet<u32>,
+    /// The next closure is a reflexive ability's.
+    reflexing: bool,
+    /// The next closure is the body of a delayed ability asked of another object.
+    source_moved: bool,
     bound_players: BTreeSet<u32>,
     /// A mechanic asks for the first way, so no other way may come before it.
     only_way: bool,
@@ -940,6 +953,10 @@ impl Compiler {
             door: None,
             choosing: None,
             performed: BTreeMap::new(),
+            unpaid: BTreeSet::new(),
+            hurt_players: BTreeMap::new(),
+            coins: None,
+            excess: BTreeMap::new(),
             values: BTreeMap::new(),
             flips: BTreeMap::new(),
             affected_object: None,
@@ -947,6 +964,8 @@ impl Compiler {
             chosen: Vec::new(),
             enters_choosing: Vec::new(),
             bound_objects: BTreeSet::new(),
+            reflexing: false,
+            source_moved: false,
             bound_players: BTreeSet::new(),
             costing_targets: false,
             mode_guard: None,
@@ -2212,6 +2231,15 @@ fn emit_face(
     if c.functions.contains("about(q, ") {
         c.helpers.insert("about");
     }
+    if c.functions.contains("granter(q, item)") {
+        c.helpers.insert("granter");
+    }
+    if c.functions.contains("could_enchant(q, ") {
+        c.helpers.insert("could_enchant");
+    }
+    if c.functions.contains("time_travel_for(g, player") {
+        c.helpers.insert("time_travel");
+    }
     for helper in &c.helpers {
         c.functions.push_str(match *helper {
             "cast_of" => CAST_OF,
@@ -2223,6 +2251,10 @@ fn emit_face(
             "announced" => ANNOUNCED,
             "pay_question" => PAY_QUESTION,
             "about" => delayed::ABOUT,
+            "clauses" => lane_l::CLAUSES,
+            "granter" => lane_j::GRANTER,
+            "could_enchant" => lane_j::COULD_ENCHANT,
+            "time_travel" => lane_j::TIME_TRAVEL,
             other => unreachable!("no helper {other}"),
         });
     }
