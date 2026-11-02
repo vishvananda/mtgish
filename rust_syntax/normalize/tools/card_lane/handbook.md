@@ -79,6 +79,7 @@ blockers, decline, first eligible card, find nothing, discard newest. So a line 
 | `Bot1.Battlefield.Tundra.Activate(Ability: {U})` | one of several abilities, by part of its text; `Ability: #2` the Nth |
 | `Bot1.Battlefield.Cathar Commando.Activate(Bot2.Battlefield.Sol Ring)` | arguments are targets |
 | `Bot1.Battlefield.Black Lotus.Activate(Color: Blue)` | mana of any one color |
+| `Bot1.Battlefield.Smuggler's Copter.Activate(Ability: Crew)` then `Bot1.Choose(Grizzly Bears)` | crew, and the creatures that tap for it |
 | `Bot1.Pass` · `Bot1.Accept` · `Bot1.Decline` · `Bot1.PayCost` | priority, "you may", unless-costs (default: decline) |
 | `Bot1.Target(Sol Ring)` · `Bot1.Target(Island; Mountain)` · `Bot1.Target()` | a trigger's or mode's targets; none for "up to" |
 | `Bot1.Choose(Island; Forest)` | choosing cards as something resolves |

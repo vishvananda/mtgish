@@ -2,6 +2,7 @@
 
     python3 rust_syntax/normalize/tools/card_lane/test_card_lane.py
 """
+import io
 import json
 import os
 import subprocess
@@ -452,6 +453,58 @@ class Ways(unittest.TestCase):
     def test_no_way_rations_a_workers_actions(self):
         for way in lane.WAYS.values():
             self.assertNotIn("one action", way)
+
+
+class Streams(unittest.TestCase):
+    """`submit` closes the open card on a pass or a stop, and hands over the next; a card that keeps failing is set aside."""
+
+    def submit(self, state, report=None, ok=True):
+        card = mock.Mock(ok=ok)
+        card.failures.return_value = [] if ok else [{"gate": "corpus", "detail": "line 3 failed"}]
+        with tempfile.TemporaryDirectory() as scratch:
+            for name in state["order"]:
+                (Path(scratch) / name).mkdir()
+                (Path(scratch) / name / "section.md").write_text(f"## Card: {name}", encoding="utf-8")
+            stream = Path(scratch) / "stream.json"
+            stream.write_text(json.dumps(state), encoding="utf-8")
+            with mock.patch.multiple(lane, STREAM=stream, reopen_batch=mock.Mock(), expand_reports=mock.Mock(), report_of=mock.Mock(return_value=report),
+                                     batch_gates=mock.Mock(return_value={state["current"]: card}), owned_digest=mock.Mock(return_value="d"),
+                                     card_dir=lambda name: Path(scratch) / name), \
+                 mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+                code = lane.cmd_submit(None)
+                return code, json.loads(stream.read_text(encoding="utf-8")), out.getvalue()
+
+    def state(self, **extra):
+        return dict({"order": ["A", "B"], "current": "A", "opened": 0, "closed": {}, "tries": {}, "max_tries": 2}, **extra)
+
+    def test_a_pass_closes_the_card_and_prints_the_next(self):
+        code, state, out = self.submit(self.state())
+        self.assertEqual((code, state["current"], state["closed"]["A"]["outcome"], state["closed"]["A"]["digest"]), (0, "B", "passed", "d"))
+        self.assertIn("## Card: B", out)
+
+    def test_a_stop_closes_the_card_without_the_gates(self):
+        code, state, out = self.submit(self.state(), {"decision": "engine_gap", "reason": "no such rule"})
+        self.assertEqual((state["current"], state["closed"]["A"]["outcome"], state["closed"]["A"]["detail"]), ("B", "engine_gap", "no such rule"))
+
+    def test_a_failure_is_counted_and_the_card_stays_open(self):
+        code, state, out = self.submit(self.state(), ok=False)
+        self.assertEqual((code, state["current"], state["tries"]), (1, "A", {"A": 1}))
+        self.assertIn("line 3 failed", out)
+
+    def test_the_last_failure_sets_the_card_aside(self):
+        code, state, out = self.submit(self.state(tries={"A": 1}), ok=False)
+        self.assertEqual((state["current"], state["closed"]["A"]["outcome"]), ("B", "failed_gates"))
+        self.assertIn("## Card: B", out)
+
+    def test_after_the_last_card_the_worker_is_told_its_turn_is_over(self):
+        code, state, out = self.submit(self.state(order=["A"]))
+        self.assertIsNone(state["current"])
+        self.assertIn("Every card is done", out)
+
+    def test_the_prompt_says_to_go_on_without_stopping(self):
+        text = lane.WAYS["stream"].replace("\n", " ")
+        for words in ("submit", "Your turn ends only when `submit` says that every card is done", "Do not stop between cards"):
+            self.assertIn(words, text)
 
 
 class PointsNoGameCanShow(unittest.TestCase):

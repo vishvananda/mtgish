@@ -974,7 +974,7 @@ def check(name, fast=False):
     survivors = mutation_gates([name], {name: gates}).get(name, []) if not fast else []
     if "statics:" in source and not fast:
         started = time.time()
-        code, out = shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases")
+        code, out = remembered("layers", source_state(), lambda: shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases"))
         gates.add("layers", code == 0, out[-1500:] if code else "", started)
     report_gate(gates, name, context, survivors)
     return finish(gates)
@@ -992,7 +992,10 @@ def early_gates(gates, name):
     gates.add("generated", not problems, "\n".join(problems), started)
 
     started = time.time()
-    code, out = tool("new-card.py", name, "--no-write")
+    # The card's file and content are read-only to the worker, so Scryfall's word on them holds for the batch.
+    reads = [card_file(name), content_file(name), CANTRIP / "tools" / "maintenance" / "new-card.py"]
+    key = name + "".join(p.read_text(encoding="utf-8", errors="replace") if p.exists() else "-" for p in reads)
+    code, out = remembered("oracle", key, lambda: tool("new-card.py", name, "--no-write"))
     differs = [l.strip() for l in out.splitlines() if "DIFFERS" in l]
     gates.add("oracle", code == 0 and not differs and "matches Scryfall" in out, "\n".join(differs) or out[-400:] if code or differs or "matches Scryfall" not in out else "", started)
     points = parse_test_points(out)
@@ -1047,10 +1050,13 @@ def report_looks(name, context):
 
 def report_gate(gates, name, context, survivors):
     started = time.time()
-    problems = report_problems(name, context["points"], report_looks(name, context), survivors)
     report = report_of(name) or {}
     if report.get("decision") not in ("done", None):
-        problems.insert(0, f"the worker reported {report.get('decision')}: {report.get('reason', '')}")
+        # A stop owes its reason, not the lines and points of a card that won't land: listing them sends the worker back
+        # to a report it has finished.
+        problems = [f"the worker reported {report.get('decision')}: {report.get('reason', '')}"]
+    else:
+        problems = report_problems(name, context["points"], report_looks(name, context), survivors)
     gates.add("report", not problems, "\n".join(problems), started)
 
 
@@ -1488,9 +1494,39 @@ def reopen_batch():
     open_batch(json.loads(path.read_text(encoding="utf-8")))
 
 
+def source_state():
+    """What a build reads that a batch can change: HEAD and each change to crates/, content/ and the manifests, untracked
+    files with their contents. Scenarios are not in it: the corpus reads them as it runs, and the build script that lists
+    them is for `cargo test` alone."""
+    paths = ["crates", "content", "Cargo.toml", "Cargo.lock"]
+    parts = [git("rev-parse", "HEAD"), git("diff", "HEAD", "--", *paths, check=False)]
+    for path in sorted(git("ls-files", "--others", "--exclude-standard", "--", *paths, check=False).split()):
+        parts += [path, (CANTRIP / path).read_text(encoding="utf-8", errors="replace")]
+    return hashlib.sha256("\0".join(parts).encode()).hexdigest()
+
+
+def remembered(kind, key, run):
+    """`run()`'s (exit status, output), kept in the state folder while `key` stays the same: a gate whose inputs the
+    worker cannot change is run once a batch, not on every check. Only a pass is kept, so nothing that failed for a reason
+    of its own (the network, a full disk) is kept failing."""
+    path = STATE / "memo" / f"{kind}-{hashlib.sha256(key.encode()).hexdigest()[:32]}.json"
+    if path.exists():
+        return tuple(json.loads(path.read_text(encoding="utf-8")))
+    code, out = run()
+    if code == 0:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps([code, out]), encoding="utf-8")
+    return code, out
+
+
 def build_corpus():
-    """The one build every card's gates share. (exit status, what it printed)."""
-    code, out = shell("cargo", "build", "--profile", "cards", "-p", "cantrip-script", "--bin", "corpus")
+    """The one build every card's gates share. (exit status, what it printed). Skipped while no source it reads changed
+    since the last one that passed: a worker writes scenarios only, and cargo takes seconds to find nothing to do."""
+    binary = TARGET / "cards" / ("corpus.exe" if os.name == "nt" else "corpus")
+    state = source_state()
+    if not binary.exists():
+        state += str(time.time())  # nothing to reuse
+    code, out = remembered("build", state, lambda: shell("cargo", "build", "--profile", "cards", "-p", "cantrip-script", "--bin", "corpus"))
     BUILT["out"] = out
     return code, out
 
@@ -1669,11 +1705,116 @@ Do each card in full now. For each, list what it owes: every printed line, test 
 expectation for each. Most cards need several scenarios, and a card with one is sent straight back. Nothing has been played, so
 every card's decision is `done` unless reading its code shows a `generator_bug`. Unproved is the state of everything at this
 point; it is no reason to stop.""",
+    "stream": """You take the cards one at a time, all in this one session, and go from each to the next yourself. The first is
+below; the tools hand you each one after it.
+
+Tools, from the working directory:
+- `{lane} submit`: the whole check of the open card. It plays the card's scenarios, breaks the card one change at a time, and
+  judges its report. If the card passes, or its report has a stop, the card is closed and the tool prints the next card. If not,
+  it prints what failed: fix that and submit again. A card that fails {tries} submits is set aside, and the next card is printed.
+- `{lane} current`: the open card again, if you lose it.
+- `{lane} batch-check --fast --card "NAME"`: the open card's scenarios and report, without breaking it. Quicker while you work.
+- `{lane} corpus --file PATH --brief`: one scenario. Add `--dump`, `--diff N` or `--next` to see what it can see.
+- `{lane} tool find-cards.py ...`, `{lane} tool cr.py 603.6a`.
+
+For each card, write what it owes: every printed line, test point, ruling and keyword. Play its scenarios, put its entry in
+the reports file and `submit`. Work only on the open card. A closed card's files are final, and the driver commits each card
+that passed. Your turn ends only when `submit` says that every card is done. Do not stop between cards to sum up: nobody reads
+it, and the next card is waiting. One command at a time, in the foreground.""",
 }
 
+STREAM = BATCH_DIR / "stream.json"
+STREAM_TRIES = 5  # submits a card may fail before a stream sets it aside
 
-def batch_prompt(cards, way):
+
+def stream_state():
+    if not STREAM.exists():
+        sys.exit("no stream is open")
+    return json.loads(STREAM.read_text(encoding="utf-8"))
+
+
+def save_stream(state):
+    part = STREAM.with_suffix(".part")
+    part.write_text(json.dumps(state, ensure_ascii=False, indent=1), encoding="utf-8")
+    part.replace(STREAM)
+
+
+def owned_digest(name):
+    """What a card's own files say together, so a card that passed can be told from one changed after."""
+    return digest("".join(f"{p}\0{file_digest(CANTRIP / p)}\0" for p in sorted(owned_paths(name))))
+
+
+def file_digest(path):
+    return digest(path.read_bytes()) if path.is_file() else "-"
+
+
+def stream_advance(state, outcome, detail=""):
+    """Closes the open card with this outcome and opens the next one not yet closed."""
+    name = state["current"]
+    state["closed"][name] = {"outcome": outcome, "detail": detail, "seconds": round(time.time() - state["opened"], 1)}
+    if outcome == "passed":
+        state["closed"][name]["digest"] = owned_digest(name)
+    state["current"] = next((n for n in state["order"] if n not in state["closed"]), None)
+    state["opened"] = time.time()
+    save_stream(state)
+
+
+def stream_card_text(state):
+    name = state["current"]
+    if name is None:
+        return "Every card is done. Your turn is over: end it now."
+    return (card_dir(name) / "section.md").read_text(encoding="utf-8")
+
+
+def cmd_current(args):
+    reopen_batch()
+    print(stream_card_text(stream_state()))
+    return 0
+
+
+def cmd_submit(args):
+    """The whole check of the stream's open card. A pass or a stop closes it and prints the next."""
+    reopen_batch()
+    state = stream_state()
+    name = state["current"]
+    if name is None:
+        print(stream_card_text(state))
+        return 0
+    expand_reports([name])
+    report = report_of(name) or {}
+    if report.get("decision") in STOPS:
+        stream_advance(state, report["decision"], str(report.get("reason", ""))[:400])
+        print(f"{name}: {report['decision']}, recorded. It is closed.\n\n{stream_card_text(state)}")
+        return 0
+    gates = batch_gates([name])
+    if gates[name].ok:
+        stream_advance(state, "passed")
+        print(f"PASS {name}. It is closed and will be committed: do not change its files again.\n\n{stream_card_text(state)}")
+        return 0
+    state["tries"][name] = state["tries"].get(name, 0) + 1
+    print(batch_text(gates))
+    if state["tries"][name] >= state["max_tries"]:
+        stream_advance(state, "failed_gates", "; ".join(f"{r['gate']}: {r['detail'][:160]}" for r in gates[name].failures())[:600])
+        print(f"\n{name} failed {state['max_tries']} submits and is set aside. Leave it.\n\n{stream_card_text(state)}")
+        return 1
+    save_stream(state)
+    print(f"\n{state['max_tries'] - state['tries'][name]} submit(s) left for {name}.")
+    return 1
+
+
+def batch_prompt(cards, way, total=None):
+    """The worker's first prompt. A stream's holds only its first card, of `total`: the tools hand over the rest."""
     lane = f"python3 {Path(__file__).resolve()}"
+    if way == "stream":
+        first = card_dir(cards[0]["name"]) / "section.md"
+        head = [f"# {total} generated cards, one at a time", "",
+                f"The mtgish generator wrote each card you will be given. Validate each against its Oracle text and write the scenarios that prove it. "
+                f"You write new files under `{SCENARIOS_DIR}/` and the reports, nothing else: the cards' files and content are read-only, and no `git`. "
+                f"Your working directory is the Cantrip tree `{CANTRIP}`. Delete a placeholder when you replace it. Never `--release`. A driver makes the commits.", "",
+                (HERE / "handbook.md").read_text(encoding="utf-8").rstrip(), "", "# The reports", "",
+                REPORT_FORMAT.format(path=BATCH_DIR / "reports.json"), "", "# How to work", "", WAYS[way].format(lane=lane, tries=STREAM_TRIES), "",
+                "# The first card", "", first.read_text(encoding="utf-8")]
+        return "\n".join(head) + "\n"
     head = [f"# {len(cards)} generated card{'s' if len(cards) > 1 else ''}", "",
             f"The mtgish generator wrote each card below. Validate each against its Oracle text and write the scenarios that prove it. "
             f"You write new files under `{SCENARIOS_DIR}/` and the reports, nothing else: the cards' files and content are read-only, and no `git`. "
@@ -2108,7 +2249,7 @@ def batch_gates(names, fast=False):
         statics = [n for n in ready if "statics:" in contexts[n]["source"]]
         if statics:
             started = time.time()
-            code, out = shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases")
+            code, out = remembered("layers", source_state(), lambda: shell("cargo", "test", "--profile", "checked", "-q", "-p", "cantrip-script", "--test", "layer_pass_cases"))
             for name in statics:
                 gates[name].add("layers", code == 0, out[-1500:] if code else "", started)
     for name in names:
@@ -2241,6 +2382,98 @@ def run_batch(cards, backend, args, queue):
     return record
 
 
+def run_stream(cards, backend, args, queue):
+    """Some cards in one session, one after another: the worker submits each and the tool hands it the next, so nothing
+    is read twice and no card waits on another's repairs. The worker cannot write the tree's git, so the driver commits each
+    card that passed once the session is over, if its files are still what passed. Returns the stream's record."""
+    started, phases, usage, session, rounds = time.time(), {}, Usage(), None, 0
+    names = [c["name"] for c in cards]
+    open_batch(names)
+    (BATCH_DIR / "open.json").write_text(json.dumps(names, ensure_ascii=False), encoding="utf-8")
+    (BATCH_DIR / "reports.json").unlink(missing_ok=True)
+    log = BATCH_DIR / f"worker-{int(started)}.jsonl"
+    who = f"{backend.name}:{backend.model}"
+    lane = f"python3 {Path(__file__).resolve()}"
+    for card in cards:
+        begin(card, queue, who)
+        card_dir(card["name"]).mkdir(parents=True, exist_ok=True)
+    remaining, state = list(cards), None
+    try:
+        t = time.time()
+        remaining = prepare_batch(cards, queue)
+        for i, card in enumerate(remaining, 1):
+            shared = shared_section([card])
+            text = card_section(f"{i} of {len(remaining)}", card) + (f"\n\n## Shared code it calls\n\n{shared}" if shared else "")
+            (card_dir(card["name"]) / "section.md").write_text(text + "\n", encoding="utf-8")
+        phases["prepare"] = round(time.time() - t, 1)
+        if not remaining:
+            return None
+        order = [c["name"] for c in remaining]
+        (BATCH_DIR / "open.json").write_text(json.dumps(order, ensure_ascii=False), encoding="utf-8")
+        state = {"order": order, "current": order[0], "opened": time.time(), "closed": {}, "tries": {}, "max_tries": STREAM_TRIES}
+        save_stream(state)
+        prompt = batch_prompt(remaining, "stream", len(order))
+        (BATCH_DIR / "prompt.md").write_text(prompt, encoding="utf-8")
+        phases["prompt_chars"] = len(prompt)
+        place = {"name": names[0], "dirs": [STATE]}
+        deadline = started + args.timeout
+        while True:
+            t = time.time()
+            code, session, used = spawn(backend, place, prompt, session, max(1, deadline - time.time()), log)
+            phases["worker"] = round(phases.get("worker", 0) + time.time() - t, 1)
+            usage.add(used, backend.cumulative)
+            rounds += 1
+            state = stream_state()
+            print(f"   session {rounds}: {time.time() - t:.0f}s, {len(state['closed'])} of {len(order)} closed, {usage.input} in, {usage.output} out", flush=True)
+            if code is None or (code != 0 and used.turns == 0) or state["current"] is None or rounds > args.repairs or time.time() >= deadline:
+                break
+            left = len(order) - len(state["closed"])
+            prompt = (f"{state['current']} is still open, and {left - 1} more card{'s' if left != 2 else ''} after it. Your turn is not over. Keep going: finish it, "
+                      f"run `{lane} submit`, and go on card after card until `submit` says every card is done. `{lane} current` prints the open card.")
+    except Exception as error:  # a stream's trouble is recorded on its cards, and the tree goes back clean
+        for card in remaining:
+            card["failure"] = f"{type(error).__name__}: {error}"[:600]
+        raise
+    finally:
+        closed = (state or {}).get("closed", {})
+        passed = [c for c in remaining if closed.get(c["name"], {}).get("outcome") == "passed"]
+        changed = [c for c in passed if owned_digest(c["name"]) != closed[c["name"]]["digest"]]
+        if changed:  # a card edited after it passed is judged again, as it is now
+            gates = batch_gates([c["name"] for c in changed])
+            for card in changed:
+                if not gates[card["name"]].ok:
+                    passed.remove(card)
+                    closed[card["name"]].update(outcome="failed_gates", detail="changed after it passed, and then failed")
+        for card in [c for c in remaining if c not in passed]:
+            entry = closed.get(card["name"])
+            card["failure"] = entry["detail"] if entry else ("still open at the end" if (state or {}).get("current") == card["name"] else "not reached")
+            discard(card, queue, entry["outcome"] if entry and entry["outcome"] in STOPS else "failed_gates")
+        for card in passed:
+            try:
+                card["commit"] = commit_card(card)
+                card["stream_seconds"] = closed[card["name"]]["seconds"]
+                conclude(card, queue, "committed")
+            except Exception as error:
+                card["failure"] = f"{type(error).__name__}: {error}"[:600]
+                discard(card, queue, "error")
+            if card["name"] in BATCH:
+                BATCH.remove(card["name"])
+        close_batch()
+        STREAM.unlink(missing_ok=True)
+        clean_tree()
+    tally = collections.Counter(c["status"] for c in cards)
+    record = {"cards": names, "way": "stream", "who": who, "effort": args.effort, "rounds": rounds, "seconds": round(time.time() - started, 1), "phases": phases,
+              "usage": usage.record(backend.model), "outcomes": dict(tally), "log": str(log),
+              "by_card": {c["name"]: {k: c.get(k) for k in ("status", "commit", "failure", "stream_seconds")} for c in cards}}
+    with (STATE / "batches.jsonl").open("a", encoding="utf-8") as out:
+        out.write(json.dumps(record, ensure_ascii=False) + "\n")
+    share = {k: (v / max(1, len(cards)) if isinstance(v, (int, float)) else v) for k, v in record["usage"].items()}
+    for card in cards:
+        card.update(usage={k: round(v, 4) if isinstance(v, float) else v for k, v in share.items()}, phases=phases)
+    save_queue(queue)
+    return record
+
+
 def cmd_batch_run(args):
     queue = load_queue()
     recover(queue)
@@ -2257,7 +2490,9 @@ def cmd_batch_run(args):
     for start in range(0, len(pending), args.size):
         cards = pending[start:start + args.size]
         print(f"== batch of {len(cards)}: {', '.join(c['name'] for c in cards)}", flush=True)
-        record = run_batch(cards, backend, args, queue)
+        record = (run_stream if args.way == "stream" else run_batch)(cards, backend, args, queue)
+        if record is None:
+            continue
         u = record["usage"]
         print(f"   {record['outcomes']} in {record['seconds']:.0f}s, {record['rounds']} round(s), {u['input']} in/{u['cached']} cached/{u['output']} out, ${u['usd_api_equivalent']}", flush=True)
     print_status(queue)
@@ -2377,7 +2612,7 @@ def main():
     p.add_argument("--limit", type=int, default=10)
     p.add_argument("--only", nargs="*", default=[], help="only these cards")
     p.add_argument("--timeout", type=int, default=1800, help="seconds a card may take, worker and repairs together")
-    p.add_argument("--repairs", type=int, default=2, help="rounds a worker is sent back with failed gates")
+    p.add_argument("--repairs", type=int, default=2, help="rounds a worker is sent back with failed gates, or a stream's worker told to go on")
     p.add_argument("--attempts", type=int, default=2, help="runs a card may take across restarts")
     p.add_argument("--stop-after", type=int, default=3, help="stop if this many first cards all fail")
     p.set_defaults(func=cmd_run)
@@ -2390,11 +2625,16 @@ def main():
     p.add_argument("--limit", type=int, default=10, help="cards in all")
     p.add_argument("--only", nargs="*", default=[])
     p.add_argument("--only-file", help="a file of card names, one to a line, in order")
-    p.add_argument("--way", choices=WAYS, default="work", help="`work` lets the worker run the tools; `draft` writes everything blind, then a driver sends back what failed")
+    p.add_argument("--way", choices=WAYS, default="work", help="`work` lets the worker run the tools; `draft` writes everything blind, then a driver sends back what failed; "
+                   "`stream` hands the worker one card at a time, the next as each passes, all in one session")
     p.add_argument("--timeout", type=int, default=3600, help="seconds a batch may take")
-    p.add_argument("--repairs", type=int, default=4, help="rounds a worker is sent back with failed gates")
+    p.add_argument("--repairs", type=int, default=4, help="rounds a worker is sent back with failed gates, or a stream's worker told to go on")
     p.add_argument("--attempts", type=int, default=2)
     p.set_defaults(func=cmd_batch_run)
+    p = sub.add_parser("submit", help="a stream's open card, judged in full: if it passes or stops, the next card")
+    p.set_defaults(func=cmd_submit)
+    p = sub.add_parser("current", help="a stream's open card")
+    p.set_defaults(func=cmd_current)
     p = sub.add_parser("batch-check", help="the gates over the open batch, or one of its cards")
     p.add_argument("--fast", action="store_true")
     p.add_argument("--card")
