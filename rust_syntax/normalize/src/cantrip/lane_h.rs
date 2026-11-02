@@ -2287,6 +2287,17 @@ impl Compiler {
                     "cantrip_mechanics::statics::grant_loyalty_abilities_of(q, &ids, chars)",
                 )
             ),
+            // "Has all activated and triggered abilities of the exiled card"
+            // (Idris, CR 613.1f): each such ability its card prints, the
+            // object's own as written (CR 113.7); the core asks triggered
+            // abilities of what an object has (`Chars::abilities`).
+            ["ActivatedAbility", "TriggeredAbility"] | ["TriggeredAbility", "ActivatedAbility"] => format!(
+                "let cards: Vec<CardId> = ({ids}).into_iter().map(|id: ObjectId| q.state().obj(id).card).collect(); for card in cards {{ for (index, ability) in q.cards().get(card).abilities.iter().enumerate() {{ if matches!(ability, AbilityDef::Activated(a) if !a.special_action) || matches!(ability, AbilityDef::Triggered(_)) {{ if let Some(slot) = chars.abilities.iter().position(|a| a.is_none()) {{ chars.abilities[slot] = Some(AbilityRef {{ card, index: index as u8 }}); }} }} }} }}"
+            ),
+            // Ability stickers (Unfinity, CR 123.4): Cantrip has no stickers.
+            names if names.iter().any(|n| n.contains("Sticker")) => {
+                return Err(gap("the abilities of ability stickers"))
+            }
             names if names.iter().any(|n| n.ends_with("Ability")) => return Err(failure()),
             names => {
                 let list = names
