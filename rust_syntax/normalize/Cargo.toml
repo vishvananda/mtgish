@@ -9,7 +9,10 @@ default = []
 cantrip = ["dep:prettyplease"]
 
 [dependencies]
-rust_syntax = { path = ".." }
+# Source AST is frozen independently of normalized-IR work. It is byte-identical
+# to the parent source at this split; new IR revisions can reuse this build.
+# Updating source enums also requires updating this explicit published revision.
+rust_syntax = { git = "ssh://git@github.com/vishvananda/mtgish.git", rev = "449b4bcf461fd6476cb2c93b78c2b2ff2c78ce28" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ron = "0.8.1"

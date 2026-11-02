@@ -35,3 +35,11 @@ To generate a proposed contract explicitly, run the ignored
 `ir_schema::contract::dump_schema_contract` library test with `--ignored
 --nocapture`, capture only the text between its markers, review it, and run the
 ordinary frozen-shape test. The generator never overwrites a checked fixture.
+
+The legacy `rust_syntax` source dependency is frozen independently at published
+revision `449b4bcf461fd6476cb2c93b78c2b2ff2c78ce28`. Its `src/` and manifest
+are byte-identical to the parent parser at this split. Normalized-IR edits can
+reuse that package build instead of rebuilding the large unchanged parser.
+Changing source enums requires explicitly updating this dependency revision as
+well as reviewing generated adapters. The workspace source package remains
+available to its own tools; the IR library uses the explicit git dependency.
