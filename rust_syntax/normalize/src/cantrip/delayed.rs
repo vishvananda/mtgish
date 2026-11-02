@@ -7,7 +7,7 @@ use super::*;
 /// What a delayed ability's body takes along from the instruction making it.
 pub(super) struct Outer {
     /// The making instruction's view, to read references as they stand then.
-    compiler: Compiler,
+    pub(super) compiler: Compiler,
     /// `Vec<ObjectId>` code for each list carried.
     pub(super) objects: RefCell<Vec<String>>,
     /// `Option<PlayerId>` code for the player carried.

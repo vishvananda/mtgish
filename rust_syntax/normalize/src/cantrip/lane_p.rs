@@ -569,12 +569,15 @@ impl Compiler {
         if self.enters_choosing.contains(&kind) && kind != ValueKind::Ability {
             return Ok(code);
         }
-        Ok(planned::planned_value(
-            &feature,
-            placeholder,
-            &format!(
-                "q.state().{read}({}).expect(\"it chose one\")",
-                self.linked()
+        Ok(self.follows_choice(
+            kind,
+            planned::planned_value(
+                &feature,
+                placeholder,
+                &format!(
+                    "q.state().{read}({}).expect(\"it chose one\")",
+                    self.linked()
+                ),
             ),
         ))
     }

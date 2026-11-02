@@ -309,6 +309,12 @@ pub(super) struct Notes {
 fn acted_on(op: &Operation) -> &'static [&'static str] {
     match op {
         Operation::ChooseObjects { .. } | Operation::ChooseAndPay { .. } => &["Selected"],
+        // "Chooses a card in your graveyard", "secretly chooses a creature": objects
+        // chosen on terms, which "each creature chosen this way" reads back.
+        Operation::ChooseValueWith {
+            kind: ValueKind::Object,
+            ..
+        } => &["Selected"],
         Operation::Sacrifice { .. } => &["Sacrificed", "PutInGraveyard"],
         Operation::PayCost { cost, optional: true, .. }
             if matches!(cost.parts.as_slice(), [CostPart::Sacrifice { .. }]) =>
@@ -328,7 +334,10 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         // "Until they reveal a historic permanent card ... that card" (Jhoira):
         // what a reveal until finds is the card found this way.
         Operation::RevealUntil { .. } => &["Revealed", "Found"],
-        Operation::Reveal { .. } | Operation::RevealFromHand { .. } => &["Revealed"],
+        Operation::Reveal { .. } => &["Revealed"],
+        // "Reveals a nonland card at random from their hand. It perpetually gains":
+        // the card revealed is the card chosen in the hand.
+        Operation::RevealFromHand { .. } => &["Revealed", "Selected"],
         Operation::Search { .. } => &["Found"],
         Operation::Tap { .. } => &["Tapped"],
         Operation::CreateTokens { .. } => &["Created"],
@@ -560,6 +569,18 @@ impl Compiler {
             return Ok("{ let mut chosen: Vec<ObjectId> = targets.iter().filter_map(|t| t.object()).collect(); chosen.sort_unstable(); chosen.dedup(); chosen }".into());
         }
         let step = self.notes.earlier.iter().rev().find(|(w, _)| *w == word);
+        // "When you do, tap the copied creature": what the ability that made this
+        // one chose, carried to it as its other objects are.
+        if step.is_none() && matches!(what, EarlierObjects::Selected) {
+            let outer = self.carrying().and_then(|outer| {
+                outer.compiler.notes.earlier.iter().rev().find(|(w, _)| *w == word)
+            });
+            if let Some((_, result)) = outer {
+                if let Some(code) = self.outside_objects(&ObjectSet::Selected(result.clone()))? {
+                    return Ok(code);
+                }
+            }
+        }
         let Some((_, result)) = step.filter(|_| self.reader == Reader::Resolution) else {
             return self.earlier_paid(what);
         };
@@ -716,6 +737,19 @@ impl Compiler {
         if matches!(what, EarlierObjects::Unattached) && unattaches_granter {
             return Ok("vec![asker.source]".into());
         }
+        // "As an additional cost to cast this spell, choose a creature you control":
+        // what was chosen is what that cost part chose, and the part's own hole
+        // (cost part PlayerAction) already says what the file waits on.
+        let chooses = |cost: &Cost| {
+            let cost = format!("{cost:?}");
+            cost.contains("PlayerAction") && cost.contains("ChooseObjects")
+        };
+        let chose_as_cost = self.activation_cost.as_ref().is_some_and(chooses)
+            || self.casting_costs.values().any(chooses)
+            || self.option_cost.as_ref().is_some_and(chooses);
+        if matches!(what, EarlierObjects::Selected) && chose_as_cost {
+            return Ok(planned::planned_value(FOLLOWS_GAP, NO_OBJECTS, "Vec::<ObjectId>::new()"));
+        }
         let Some((payment, at)) = by_activation.or(by_casting) else {
             if exiled {
                 return Ok(format!("q.exiled_with({})", self.linked()));
@@ -747,7 +781,30 @@ impl Compiler {
             // "The last chosen card", read by a static ability: an ability that
             // resolved chose it, and a resolving ability can keep only a name on
             // its permanent (`Game::remember_chosen_name`), never an object.
-            if matches!(what, EarlierObjects::Selected) && self.reader == Reader::Layer {
+            // "As this Aura enters, choose a creature. Enchanted creature is a copy
+            // of the chosen creature": what it chose as it entered, which it keeps.
+            if matches!(what, EarlierObjects::Selected)
+                && self.chose_object_as_enters
+                && self.reader != Reader::Resolution
+            {
+                return Ok(format!(
+                    "q.state().chosen_object({}).into_iter().collect::<Vec<ObjectId>>()",
+                    self.linked()
+                ));
+            }
+            // "Choose an exiled creature card used to craft this Equipment" as it
+            // becomes attached: the choice is that ability's, whose own hole says
+            // what the file waits on.
+            if matches!(what, EarlierObjects::Selected)
+                && self.functions.contains("AttachAction::ChooseAnExiledCardToCopy")
+            {
+                return Ok(planned::planned_value(FOLLOWS_GAP, NO_OBJECTS, "Vec::<ObjectId>::new()"));
+            }
+            // Read by a static or a trigger's event: an ability that resolved chose
+            // it ("When Zenos enters, choose a creature ... When the chosen creature
+            // leaves the battlefield"), and a resolving ability can keep only a name
+            // on its permanent (`Game::remember_chosen_name`), never an object.
+            if matches!(what, EarlierObjects::Selected) && self.reader != Reader::Resolution {
                 return Err(gap("a chosen object outside its body"));
             }
             // "Each player turns face up all cards they own exiled with this, then
@@ -1066,7 +1123,8 @@ impl Compiler {
     ) -> Result<bool> {
         // "Flashback {1}": a price of its own (CR 118.9; Iroh, Grand Lotus).
         let price = flashback_price(changes);
-        if !gives_flashback(changes) && price.is_none() {
+        let escape = granted_escape(changes);
+        if !gives_flashback(changes) && price.is_none() && escape.is_none() {
             return Ok(false);
         }
         let EffectSubjects::Objects(ObjectSet::Zone {
@@ -1085,6 +1143,30 @@ impl Compiler {
         let tests = self.permission_tests(players, &ObjectFilter::Any, filter, "card");
         self.reader = reader;
         let printed = "q.card(q.chars(card).card)";
+        // "Each nonland card in your graveyard has escape. The escape cost is
+        // equal to the card's mana cost plus exile three other cards from your
+        // graveyard" (Underworld Breach; CR 702.138a, 113.6): the cost of the
+        // face cast, for a card that has a mana cost.
+        if let Some(exiled) = escape {
+            let body = format!(
+                "({} && {printed}.has_cost).then(|| cantrip_mechanics::escape::cost({printed}.cost, {exiled}))",
+                tests?.join(" && ")
+            );
+            self.permission_entry(
+                None,
+                "granted_ways",
+                &format!("{label}_escape_cost"),
+                (
+                    "q: &dyn Query, asker: &Asker, card: ObjectId, player: PlayerId",
+                    "q, asker, card, player",
+                    "Option<Cost>",
+                ),
+                &body,
+                |cost| format!("cantrip_mechanics::escape::granted({cost})"),
+                parts,
+            );
+            return Ok(true);
+        }
         let body = match price {
             Some(symbols) => format!(
                 "({}).then(|| Cost::mana({}))",
@@ -1717,6 +1799,41 @@ pub(super) fn spells_joined(card: &Card) -> Option<Card> {
 
 /// Whether all these do is give flashback for the card's own mana cost.
 /// The mana a grant of flashback names as its cost, when it names one.
+/// "Has escape. The escape cost is equal to the card's mana cost plus exile N
+/// other cards from your graveyard": N.
+fn granted_escape(changes: &[Change]) -> Option<u8> {
+    let [Change::GrantAbility(ability)] = changes else {
+        return None;
+    };
+    let Ability::Mechanic {
+        mechanic: Mechanic::Escape,
+        cost: Some(cost),
+        amount: None,
+        filter: None,
+    } = &**ability
+    else {
+        return None;
+    };
+    let [CostPart::ManaCostOf(ObjectRef::Source), CostPart::Move {
+        selections,
+        destination: Destination::Exile,
+        ..
+    }] = cost.parts.as_slice()
+    else {
+        return None;
+    };
+    let [selection] = selections.as_slice() else {
+        return None;
+    };
+    let Some(Count::Exactly(Expr::Constant(exiled))) = &selection.choose else {
+        return None;
+    };
+    let shape = format!("{:?}", selection.objects);
+    let others = shape.contains("Graveyard")
+        && shape.contains("Not(SameObject(Source))")
+        && shape.contains("AbilityController");
+    others.then_some(u8::try_from(*exiled).ok()?)
+}
 fn flashback_price(changes: &[Change]) -> Option<&[ManaSymbol]> {
     let [Change::GrantAbility(ability)] = changes else {
         return None;

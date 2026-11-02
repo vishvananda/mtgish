@@ -576,6 +576,9 @@ struct Compiler {
     countered: BTreeMap<u16, String>,
     /// The instruction that separated a face-down pile and a face-up pile.
     face_piles: Option<usize>,
+    /// An instruction exiled cards into piles ("in a face-down pile"), which
+    /// a later choice of "those piles" reads.
+    exiled_piles: bool,
     /// The piles players separated (CR 700.3): the local of their rows, each a
     /// separator, its piles, the pile chosen and who may choose it.
     piles: Option<String>,
@@ -615,6 +618,12 @@ struct Compiler {
     casting_costs: BTreeMap<u32, Cost>,
     /// A cost this card's spell pays beyond its additional costs is being written.
     spell_cost: bool,
+    /// The cost of the option of a choice of costs whose body is being compiled
+    /// ("as an additional cost, choose a creature you control or ...").
+    option_cost: Option<Cost>,
+    /// "As this enters, choose a creature": the permanent keeps the object chosen
+    /// (`Entering::chosen_object`), which its other abilities read (CR 607.2d).
+    chose_object_as_enters: bool,
     /// What a mechanic's cost of this card's own spell took, by earlier objects' word.
     cast_pays: Vec<&'static str>,
     /// "As this enters, sacrifice any number": how many is what it keeps.
@@ -1062,6 +1071,7 @@ impl Compiler {
             notes: Default::default(),
             countered: BTreeMap::new(),
             face_piles: None,
+            exiled_piles: false,
             piles: None,
             piles_walk: None,
             pile_shape: (0, false),
@@ -1079,6 +1089,8 @@ impl Compiler {
             activation_cost: None,
             casting_costs: BTreeMap::new(),
             spell_cost: false,
+            option_cost: None,
+            chose_object_as_enters: false,
             cast_pays: Vec::new(),
             enters_sacrifices: false,
             damages_once: false,

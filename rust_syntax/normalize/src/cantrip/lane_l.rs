@@ -573,6 +573,7 @@ impl Compiler {
         let pool = self.fetch(self.objects(objects)?);
         let count = self.fetch(self.select_count(count)?);
         writeln!(out, "let permanents = {pool}; let count = {count}; {M}::choose::object_as_enters(g, entering, permanents, {M}::select::Selection::of(count, &[]))?;").unwrap();
+        self.chose_object_as_enters = true;
         Ok(true)
     }
     /// "You may tap any number of ...".
@@ -1232,6 +1233,11 @@ impl Compiler {
                 terms => {
                     self.choose_value_terms(id, actor, *kind, terms, out)?;
                     self.chosen_number_performed(*kind, result);
+                    // Objects chosen on terms are what "each creature chosen this
+                    // way" reads back: the hole's own stand-in, not a hole of its own.
+                    if matches!(kind, ValueKind::Object) && out.contains(&format!("let chosen_{id} =")) {
+                        self.selections.insert(result.0, format!("chosen_{id}"));
+                    }
                 }
             },
             Operation::CopyCards {
@@ -2255,6 +2261,10 @@ impl Compiler {
                     Some(chooser) => format!("Some({})", self.fetch(self.players(chooser)?)),
                     None => "None".to_string(),
                 };
+                let feature = match labeled_piles(names) {
+                    true => LABELED_PILES.to_string(),
+                    false => feature,
+                };
                 self.plan_code(&feature, &format!("{M}::choose::into_piles(g, {player}, asker.source, {objects}, {count}, &{names:?}, {chooser})?"), out);
             }
             // The chooser sees the face-up pile, and how many the other holds. Its
@@ -2336,7 +2346,23 @@ impl Compiler {
                     None => "None".to_string(),
                 };
                 let then = then.as_ref().map(|d| form(d).to_string());
-                self.plan_code(&feature, &format!("{M}::choose::of_piles(g, {player}, asker.source, {from}, {random}, &{names:?}, {object}, {then:?})?"), out);
+                let code = format!("{M}::choose::of_piles(g, {player}, asker.source, {from}, {random}, &{names:?}, {object}, {then:?})?");
+                // "An opponent chooses one of those piles" of piles exiled by an
+                // instruction with a hole of its own (Abstract Performance,
+                // Hostile Negotiations, The Celestial Toymaker): the arm above
+                // writes the choice once that instruction keeps its piles.
+                if names.is_empty() && self.piles.is_none() && self.exiled_piles {
+                    let follows = planned::requirement(FOLLOWS_GAP);
+                    writeln!(out, "planned!({follows:?} => {code});").unwrap();
+                    // What reads the chosen pile follows the same hole.
+                    self.failed.insert(result.0);
+                    return Ok(());
+                }
+                let feature = match labeled_piles(names) {
+                    true => LABELED_PILES.to_string(),
+                    false => feature,
+                };
+                self.plan_code(&feature, &code, out);
             }
             Operation::PutStickers {
                 actor,
@@ -3651,6 +3677,7 @@ impl Compiler {
                 Some("Subtype::Plains")
             }
             ValueKind::Player => Some("asker.controller"),
+            ValueKind::Object => Some("Vec::<ObjectId>::new()"),
             _ => None,
         };
         match placeholder {
@@ -3717,6 +3744,7 @@ impl Compiler {
         until: Option<&crate::ir::Duration>,
         out: &mut String,
     ) -> Result<()> {
+        let on_objects = matches!(subject, EffectSubject::Objects(_));
         let subject = match subject {
             EffectSubject::Objects(objects) => {
                 format!("EffectOn::Objects({})", self.fetch(self.objects(objects)?))
@@ -3743,7 +3771,26 @@ impl Compiler {
             Some(until) => format!("Some({})", self.duration(until)?),
             None => "None".to_string(),
         };
-        let effects: Vec<String> = effects.iter().map(|o| self.operand_code(o)).collect();
+        // "Exile that card instead ... as it resolves" (Feather): what an effect
+        // on objects does is done to the object it is on, which it is handed.
+        let saved = match on_objects {
+            true => self.affected_object.replace("affected"),
+            false => self.affected_object,
+        };
+        let effects: Vec<String> = effects
+            .iter()
+            .map(|o| {
+                let code = self.operand_code(o);
+                match on_objects {
+                    true => code.replace(
+                        "|g: &mut dyn Game| -> Result<(), Suspend>",
+                        "|g: &mut dyn Game, affected: ObjectId| -> Result<(), Suspend>",
+                    ),
+                    false => code,
+                }
+            })
+            .collect();
+        self.affected_object = saved;
         self.plan_code(
             "operation EffectOn",
             &format!(
@@ -3909,4 +3956,10 @@ impl Compiler {
         }
         Ok(())
     }
+}
+/// "A 'left' pile and a 'right' pile" (Raging River): piles told apart by the
+/// names a later choice and a rule that lasts past the resolution read.
+const LABELED_PILES: &str = "a pile's name kept on its objects for a lasting rule";
+fn labeled_piles(names: &[String]) -> bool {
+    !names.is_empty() && names.iter().all(|n| !n.starts_with("face "))
 }

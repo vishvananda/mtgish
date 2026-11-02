@@ -1105,7 +1105,11 @@ impl Compiler {
                     self.frame.object = Some(Carried::Subject);
                     self.event_object = Some(ObjectRef::Source);
                 }
+                // "Only by creatures in the same sector" (Space Beleren): the
+                // object the effect is on is the one the rule is asked about.
+                let affected = self.affected_object.replace(subject);
                 let test = self.filter(filter, &Candidate::of(other));
+                self.affected_object = affected;
                 (self.frame, self.event_object) = event;
                 (self.reader, self.event_at) = saved;
                 if test.as_ref().is_ok_and(|code| self.reads_a_local(code)) {
@@ -1377,6 +1381,13 @@ impl Compiler {
             ) {
                 return Err(gap("a lasting permission to cast from the top of a graveyard"));
             }
+        }
+        // "Until end of turn, you may play cards from the top of your library"
+        // (Gwenom, The Belligerent): the same for a library, where the lasting
+        // rule a static ability has (`PlayRule::LibraryTop`) has no effect to
+        // give it for a while.
+        if top_of_their(cards, EventZone::Library) {
+            return Err(gap("a lasting permission to play from the top of a library"));
         }
         let chosen = match filter {
             ObjectFilter::Any => cards.clone(),
@@ -1780,6 +1791,13 @@ impl Compiler {
             return Ok(false);
         };
         let expiry = play_expiry(duration)?;
+        // "Until end of turn, you may look at the top card of your library any
+        // time" (Gwenom, The Belligerent): whatever card is on top as it changes,
+        // a rule for the player for a while. `allow_look` is for one object, and
+        // `PlayRule::LookAtLibraryTop` is a static ability's only.
+        if top_of_their(objects, EventZone::Library) {
+            return Err(gap("a lasting rule to look at the top card of a library"));
+        }
         let cards = self.fetch(self.objects(objects)?);
         let players = self.fetch(self.players(players)?);
         // What a player knows of a card face down in exile lasts as long as that
@@ -2278,6 +2296,17 @@ impl Compiler {
                     "cantrip_mechanics::statics::grant_loyalty_abilities_of(q, &ids, chars)",
                 )
             ),
+            // "Has all activated and triggered abilities of the exiled card"
+            // (Idris, CR 613.1f): each such ability its card prints, the
+            // object's own as written (CR 113.7); the core asks triggered
+            // abilities of what an object has (`Chars::abilities`).
+            ["ActivatedAbility", "TriggeredAbility"] | ["TriggeredAbility", "ActivatedAbility"] => format!(
+                "let cards: Vec<CardId> = ({ids}).into_iter().map(|id: ObjectId| q.state().obj(id).card).collect(); for card in cards {{ for (index, ability) in q.cards().get(card).abilities.iter().enumerate() {{ if matches!(ability, AbilityDef::Activated(a) if !a.special_action) || matches!(ability, AbilityDef::Triggered(_)) {{ if let Some(slot) = chars.abilities.iter().position(|a| a.is_none()) {{ chars.abilities[slot] = Some(AbilityRef {{ card, index: index as u8 }}); }} }} }} }}"
+            ),
+            // Ability stickers (Unfinity, CR 123.4): Cantrip has no stickers.
+            names if names.iter().any(|n| n.contains("Sticker")) => {
+                return Err(gap("the abilities of ability stickers"))
+            }
             names if names.iter().any(|n| n.ends_with("Ability")) => return Err(failure()),
             names => {
                 let list = names
@@ -3296,6 +3325,9 @@ impl Compiler {
         )
         .unwrap();
         self.selections.insert(result.0, format!("picked_{id}"));
+        // "The copied creature": one object, which "when you do" carries.
+        self.single.insert(result.0);
+        self.notes.earlier.push(("Selected", result.clone()));
         if let Some(until) = until {
             let until = self.duration(until)?;
             self.plan_code(
@@ -4321,4 +4353,13 @@ fn hasable_keyword(word: &str, operands: &[Operand]) -> Option<Ability> {
         _ => return None,
     };
     Some(Ability::Keyword(keyword))
+}
+/// "The top card of [the affected player's] library": the card on top of the
+/// zone of the player a rule is for, whichever card that is as it changes.
+fn top_of_their(objects: &ObjectSet, zone: EventZone) -> bool {
+    matches!(
+        objects,
+        ObjectSet::Take { objects, count: Expr::Constant(1), from: SequenceEnd::Top }
+            if matches!(&**objects, ObjectSet::Zone { scope: ZoneScope::Players { zone: z, players: PlayerSet::One(PlayerRef::Affected) }, .. } if *z == zone)
+    )
 }

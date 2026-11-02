@@ -1146,6 +1146,11 @@ impl Compiler {
                             filter: ObjectFilter::Any,
                             random: false,
                         }] => "cantrip_mechanics::triggers::ward_discard(\"Ward\u{2014}Discard a card.\")".into(),
+                        // "Ward—Discard a card or pay {2}" (Titania, Rugged Rumbler).
+                        [CostPart::Choice(costs)] if lane_k::discard_or_pay(costs).is_some() => {
+                            let n = lane_k::discard_or_pay(costs).unwrap_or_default();
+                            format!("cantrip_mechanics::triggers::ward_discard_or_pay::<{n}>(\"Ward\u{2014}Discard a card or pay {{{n}}}.\")")
+                        }
                         [CostPart::Life(Expr::ObjectProperty {
                             object: ObjectRef::KeywordHost,
                             property: Property::Power,

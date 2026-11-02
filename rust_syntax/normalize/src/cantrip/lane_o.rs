@@ -661,7 +661,15 @@ impl Compiler {
                     "|g: &mut dyn Game, asker: &Asker| -> Result<(), Suspend> {{ {body} Ok(()) }}"
                 )
             }
+            // "It gains haste until end of turn" (Thundermane Dragon): a keyword
+            // is a word of `Keywords` (`EffectKind::AddKeywords`), not an ability
+            // of the card's to point at.
             Operand::Ability(ability) => {
+                if let Ability::Keyword(k) = &**ability {
+                    if let Ok(word) = keyword(k) {
+                        return Ok(format!("Keywords::of(&[{word}])"));
+                    }
+                }
                 let refs = self.granted_refs(ability)?;
                 match refs.as_slice() {
                     [one] => one.clone(),
@@ -3736,6 +3744,24 @@ impl Compiler {
                 };
                 let mut code = values.clone();
                 for operand in list {
+                    // "Except it has changeling" (Omni-Changeling), "the copy gains
+                    // haste" (Choreographed Sparks): a keyword the copy's values
+                    // have (CR 707.9b), as a characteristic-defining one too.
+                    let added_keyword = match operand {
+                        Operand::Ability(ability) if name == "AddAbility" => match &**ability {
+                            Ability::Keyword(k) => keyword(k).ok(),
+                            Ability::Static {
+                                kind: StaticKind::CharacteristicDefining { keyword: Some(k), .. },
+                                ..
+                            } => keyword(k).ok(),
+                            _ => None,
+                        },
+                        _ => None,
+                    };
+                    if let Some(k) = added_keyword {
+                        code = format!("{code}.with_keyword({k})");
+                        continue;
+                    }
                     match operand {
                         Operand::Ability(ability) if lane_n::toxic_of(ability).is_some() => {
                             return Err(gap("toxic as a copy exception"));
@@ -3766,6 +3792,11 @@ impl Compiler {
                         }
                         _ => return Err(gap(feature)),
                     }
+                }
+                // `Copiable::with_ability` and `with_keyword` are what an added
+                // ability is; what the ability itself waits on is its own hole.
+                if name == "AddAbility" {
+                    return Ok(code);
                 }
                 code
             }
@@ -4011,8 +4042,14 @@ impl Compiler {
                 let mut ways = Vec::new();
                 for (i, (cost, then)) in options.iter().enumerate() {
                     let label = format!("{label}_option_{i}");
-                    let then = self.resolved_body(then, &label)?;
-                    ways.push(format!("({}, {then})", self.cost(cost, &label)?));
+                    // The cost first: what its body reads of the cost ("the creature
+                    // chosen this way") follows what the cost could not say.
+                    let paid = self.cost(cost, &label);
+                    let outer = self.option_cost.replace(cost.clone());
+                    let then = self.resolved_body(then, &label);
+                    self.option_cost = outer;
+                    let then = then?;
+                    ways.push(format!("({}, {then})", paid?));
                 }
                 self.plan_entry(
                     &feature,
