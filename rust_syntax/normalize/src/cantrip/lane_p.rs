@@ -2000,7 +2000,7 @@ impl Compiler {
             Condition::VotedAs { player, other, same } => held(
                 &feature,
                 &format!(
-                    "{}.zip({}).is_some_and(|(a, b): (PlayerId, PlayerId)| g.votes().same(a, b) == {same})",
+                    "{}.zip({}).is_some_and(|(a, b): (PlayerId, PlayerId)| q.votes().same(a, b) == {same})",
                     self.player(player)?,
                     self.player(other)?
                 ),

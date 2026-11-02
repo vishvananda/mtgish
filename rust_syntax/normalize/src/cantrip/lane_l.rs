@@ -1416,7 +1416,9 @@ impl Compiler {
                 match subject {
                     SpellSubject::One(spell) => {
                         let spell = self.fetch(self.object(spell)?);
-                        self.plan_code(&feature, &format!("if let Some(spell) = {spell} {{ {M}::spell_changes::change(g, asker, spell, &[{changes}]); }}"), out);
+                        // The changes are read as it resolves ("the color of your choice").
+                        let changes = self.fetch(format!("[{changes}]"));
+                        self.plan_code(&feature, &format!("if let Some(spell) = {spell} {{ let changes = {changes}; {M}::spell_changes::change(g, asker, spell, &changes); }}"), out);
                     }
                     SpellSubject::Next {
                         spells,
@@ -1426,7 +1428,8 @@ impl Compiler {
                     } => {
                         let test = self.filter(spells, &Candidate::of("id"))?;
                         let player = self.fetch(self.certain_player(player)?);
-                        self.plan_code(&feature, &format!("{M}::spell_changes::next_spell(g, asker, {player}, |q: &dyn Query, asker: &Asker, id: ObjectId| {test}, NextSpell {{ this_turn: {this_turn}, from_hand: {from_hand} }}, &[{changes}])"), out);
+                        let changes = self.fetch(format!("[{changes}]"));
+                        self.plan_code(&feature, &format!("{{ let changes = {changes}; {M}::spell_changes::next_spell(g, asker, {player}, |q: &dyn Query, asker: &Asker, id: ObjectId| {test}, NextSpell {{ this_turn: {this_turn}, from_hand: {from_hand} }}, &changes); }}"), out);
                     }
                 }
             }

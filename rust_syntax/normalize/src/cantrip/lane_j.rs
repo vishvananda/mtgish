@@ -2115,13 +2115,32 @@ impl Compiler {
                 "q.history().this_turn().iter().filter(|r| matches!(r.event, Event::AbilityActivated { source, ability, .. } if source == item.object && ability == item.ability)).count() as i64".into(),
             ),
             Expr::AnnouncedX => held_number(feature, "i64::from(q.announced_x().unwrap_or(0))"),
-            Expr::CountManaSymbols { colors, .. } => held_number(
-                feature,
-                &format!(
-                    "i64::from(cantrip_mechanics::devotion::symbols_among(q, &objects, {}))",
-                    colors.len()
-                ),
-            ),
+            // Mana symbols as a layer reads them (devotion while
+            // characteristics are worked out): the objects' and the colors'.
+            Expr::CountManaSymbols { objects, colors } => {
+                let colors = colors
+                    .iter()
+                    .map(|c| color(c).map(|c| format!("Color::{c}.mana()")))
+                    .collect::<Result<Vec<_>>>()?
+                    .join(", ");
+                held_number(
+                    feature,
+                    &format!(
+                        "i64::from(cantrip_mechanics::devotion::symbols_among(q, &{}, &[{colors}]))",
+                        self.objects(objects)?
+                    ),
+                )
+            }
+            // How many counters a cost removed is the X announced with it
+            // (`VariableCost::RemoveAnyNumberOfCounters`): a mana ability has no
+            // stack item, and its X is its source's, as `lane_g::MANA_COUNTERS_X`
+            // reads it; a target's filter reads the X announced (CR 601.2b).
+            Expr::PaidCountersRemoved { .. } if self.mana_body => {
+                held_number(feature, "i64::from(q.obj(asker.source).x)")
+            }
+            Expr::PaidCountersRemoved { .. } if !resolving => {
+                held_number(feature, "i64::from(q.announced_x().unwrap_or(0))")
+            }
             Expr::PaidCountersRemoved { .. } => {
                 held_number(feature, "i64::from(q.counters_paid(item))")
             }
@@ -2857,6 +2876,20 @@ impl Compiler {
             other => return self.predicate_more(other, c),
         })
     }
+    /// An option of a vote, which the votes cast are read by: a word of the
+    /// ballot, a player or an object.
+    pub(super) fn vote_option(&self, option: &VoteOption) -> Result<String> {
+        Ok(match option {
+            VoteOption::Word(word) => format!("cantrip_mechanics::vote::Vote::Word({word:?})"),
+            VoteOption::Player(player) => {
+                format!("cantrip_mechanics::vote::Vote::Player({})", self.certain_player(player)?)
+            }
+            VoteOption::Object(object) => format!(
+                "cantrip_mechanics::vote::Vote::Object({}.unwrap_or(ObjectId::NONE))",
+                self.object(object)?
+            ),
+        })
+    }
     /// The rest of `condition`.
     pub(super) fn condition_rest(&self, condition: &Condition) -> Result<String> {
         let held = |code: &str| {
@@ -2893,7 +2926,11 @@ impl Compiler {
             Condition::SameTeam { player, other } => {
                 format!("{} == {}", self.player(player)?, self.player(other)?)
             }
-            Condition::MostVotes { .. } => held("g.votes().most(option)"),
+            // The votes cast as this resolves, read by an option (CR 701.38).
+            Condition::MostVotes { option, tied } => held(&format!(
+                "q.votes().most({}, {tied})",
+                self.vote_option(option)?
+            )),
             Condition::ChosenWord(word) => self.chosen_word(word)?,
             Condition::VotedFor {
                 player,
@@ -2910,8 +2947,16 @@ impl Compiler {
                     self.player(player)?
                 )
             }
-            Condition::VotedFor { .. } | Condition::Voted(_) | Condition::AllVotedFor(_) => {
-                held("g.votes().voted(option)")
+            Condition::VotedFor { player, option } => held(&format!(
+                "{}.is_some_and(|p: PlayerId| q.votes().voted(p, {}))",
+                self.player(player)?,
+                self.vote_option(option)?
+            )),
+            Condition::Voted(option) => {
+                held(&format!("q.votes().count({}) > 0", self.vote_option(option)?))
+            }
+            Condition::AllVotedFor(option) => {
+                held(&format!("q.votes().unanimous({})", self.vote_option(option)?))
             }
             other => return self.condition_more(other),
         })

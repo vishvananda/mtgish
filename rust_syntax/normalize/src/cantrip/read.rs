@@ -2373,7 +2373,7 @@ impl Compiler {
             PlayerState::ReceivedAVote => planned::planned_value(
                 "player state ReceivedAVote",
                 "false",
-                "g.votes().received(player)",
+                &format!("q.votes().count(cantrip_mechanics::vote::Vote::Player(player)) > 0"),
             ),
             PlayerState::CouldMulligan => planned::planned_value(
                 "player state CouldMulligan",

@@ -146,6 +146,75 @@ pub(super) fn value_gaps(rust: &str) -> Vec<Diagnostic> {
     found.remove(FOLLOWS_GAP);
     found.into_iter().map(gap).collect()
 }
+/// The index past the bracket that closes the one opening at `open`, string
+/// and character literals skipped, and the top-level `;` inside it.
+fn close_of(code: &str, open: usize) -> Option<(usize, bool)> {
+    let bytes = code.as_bytes();
+    let (mut depth, mut i, mut semicolon) = (0usize, open, false);
+    while i < bytes.len() {
+        match bytes[i] {
+            b'"' => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != b'"' {
+                    i += if bytes[i] == b'\\' { 2 } else { 1 };
+                }
+            }
+            // A character literal, not a lifetime.
+            b'\'' if bytes.get(i + 2) == Some(&b'\'') => i += 2,
+            b'\'' if bytes.get(i + 1) == Some(&b'\\') => {
+                i += 2;
+                while i < bytes.len() && bytes[i] != b'\'' {
+                    i += 1;
+                }
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some((i + 1, semicolon));
+                }
+            }
+            b';' if depth == 1 => semicolon = true,
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+/// Binds what the instruction whose code begins at `from` did, as `result_N`
+/// that the instructions after it read (`unreported`), where its hole's code is
+/// one call: the proposal returns what it did, as Cantrip's own calls do
+/// (`exile_all`, `put_onto_battlefield`). A hole of statements, or of no code,
+/// leaves the readers' own holes waiting on it.
+pub(super) fn bind_hole_result(out: &mut String, from: usize, result: &ResultId) {
+    const MARK: &str = "planned!(\"";
+    let Some(at) = out[from..].rfind(MARK).map(|at| from + at) else {
+        return;
+    };
+    let open = at + MARK.len() - 2;
+    let Some((close, _)) = close_of(out, open) else {
+        return;
+    };
+    let inner = &out[open + 1..close - 1];
+    let Some(arrow) = inner.find("\" => ").map(|a| a + 5) else {
+        return;
+    };
+    // A bracket another instruction's gap left (`begin_simultaneous`) is not it.
+    if inner[1..arrow - 5] == requirement(FOLLOWS_GAP) {
+        return;
+    }
+    let code = inner[arrow..].trim();
+    let statement = ["for ", "if ", "let ", "{", "match ", "while ", "cantrip_api::instruction("]
+        .iter()
+        .any(|s| code.starts_with(s));
+    let semicolon = close_of(&format!("({code})"), 0).map_or(true, |(_, s)| s);
+    if statement || semicolon || code.is_empty() {
+        return;
+    }
+    let bound = format!("let result_{} = {code};", result.0);
+    let start = open + 1 + arrow;
+    out.replace_range(start..close - 1, &bound);
+}
 /// `placeholder`, read where the result of an instruction with a gap would be:
 /// that instruction's own hole already says what the file waits on.
 pub(super) fn unreported(placeholder: &str, result: &ResultId) -> String {
