@@ -518,6 +518,8 @@ struct Compiler {
     /// A trigger on damage to a player fires with that player as its subject.
     recipient_subject: bool,
     candidates: std::cell::RefCell<Vec<Candidate>>,
+    /// What this spell keeps of the board as it is cast: `CardDef::cast_fact`.
+    cast_fact: std::rc::Rc<std::cell::RefCell<Option<String>>>,
     affected_in_scope: bool,
     /// The condition of the enclosing `Ability::Conditional`, asked as layers run.
     static_guard: Option<Condition>,
@@ -904,6 +906,7 @@ impl Compiler {
             grouped: false,
             recipient_subject: false,
             candidates: Default::default(),
+            cast_fact: Default::default(),
             affected_in_scope: false,
             static_guard: None,
             trigger_gate: None,
@@ -2083,6 +2086,10 @@ fn emit_face(
             c.reset_after_gap();
             c.plan_ability(&feature, a, &format!("ability_{i}"));
         }
+    }
+    if let Some(fact) = c.cast_fact.borrow_mut().take() {
+        writeln!(c.functions, "#[allow(unused_variables)] fn kept_as_cast(q: &dyn Query, asker: &Asker) -> u32 {{ ({fact}).max(0) as u32 }}").unwrap();
+        parts.field("cast_fact", "Some(kept_as_cast)".into());
     }
     // A cast announces one number, a kicker's when there is one: {X} stays unannounced.
     if let (Some(kicker), Some(cost)) = (parts.fields.get("kicker"), &c.printed_mana) {

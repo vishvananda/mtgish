@@ -1137,11 +1137,13 @@ impl Compiler {
                 aggregation,
             } => {
                 if filter.snow {
+                    // Who pays chooses which mana (CR 601.2h), but only a permanent's
+                    // rule tells mana apart by its source: not the spell being paid for.
                     return Ok(count(planned::planned_value(
-                        "snow mana spent",
+                        "engine: snow mana told apart as a spell is paid for",
                         "0i64",
                         &format!(
-                            "{}.map_or(0, |o: ObjectId| i64::from(q.obj(o).spent.snow))",
+                            "{}.map_or(0, |o: ObjectId| q.history().mana_spent_to_cast(o).filter(|(source, _)| *source != ObjectId::NONE && q.chars(*source).supertypes.snow).map(|(_, mana)| i64::from(mana.total())).sum::<i64>())",
                             self.object(object)?
                         ),
                     )));

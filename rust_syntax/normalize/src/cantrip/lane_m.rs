@@ -881,6 +881,58 @@ impl Compiler {
                 "numeric expression Noted".into(),
                 &format!("q.noted(asker, {})", one_line(n)),
             ),
+            // "As you cast this spell" (CR 601.2i): kept in its cast record, so what
+            // happens to the board after changes nothing, and a copy has none.
+            Expr::AsOf {
+                moment: Moment::ThisSpellCast,
+                value,
+            } if self.reader == Reader::Resolution && self.stack_item => {
+                let mut asked = self.clone();
+                asked.reader = Reader::Query;
+                asked.stack_item = false;
+                let code = asked.number(value)?.code;
+                let mut fact = self.cast_fact.borrow_mut();
+                if fact.as_ref().is_some_and(|other| *other != code) {
+                    return Err(gap("two facts kept as a spell is cast"));
+                }
+                *fact = Some(code);
+                counted("i64::from(q.history().fact_as_cast(item.object))".into())
+            }
+            // "Cast before that spell this turn": the casts as they were, in order.
+            Expr::AsOf {
+                moment: Moment::Cast(object),
+                value,
+            } if matches!(
+                &**value,
+                Expr::EventHistory {
+                    event,
+                    window: HistoryWindow::ThisTurn,
+                    measure: HistoryMeasure::Occurrences,
+                } if matches!(**event, EventSpec::Spell { event: SpellEvent::Cast, .. })
+            ) =>
+            {
+                let Expr::EventHistory { event, .. } = &**value else {
+                    unreachable!("matched above");
+                };
+                let EventSpec::Spell { players, spells, .. } = &**event else {
+                    unreachable!("matched above");
+                };
+                let spell = self.object(object)?;
+                let who = self.player_in(players, "cast.player")?;
+                let earlier = self
+                    .filter(spells, &Candidate::of("cast.spell"))?
+                    .replace("q.chars(cast.spell)", "cast.chars(q)");
+                counted(format!(
+                    "q.history().casts().take_while(|cast| Some(cast.spell) != {spell}).filter(|cast| {who} && {earlier}).count() as i64"
+                ))
+            }
+            Expr::AsOf {
+                moment: Moment::TurnBegan,
+                ..
+            } => held_number(
+                "engine: no record of the board as the turn began".into(),
+                &format!("q.as_of(asker, {})", one_line(n)),
+            ),
             Expr::AsOf { .. } => held_number(
                 "numeric expression AsOf".into(),
                 &format!("q.as_of(asker, {})", one_line(n)),
