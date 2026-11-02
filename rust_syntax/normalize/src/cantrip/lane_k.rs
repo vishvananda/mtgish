@@ -25,6 +25,8 @@ pub(super) struct Line {
     kind: Said,
     /// The line, reminder text removed, modes joined on as Cantrip's cards have them.
     text: String,
+    /// The line as printed above its modes, reminder text removed.
+    head: String,
     /// The bulleted lines under it, without their bullets.
     modes: Vec<String>,
     /// What it quotes: the text of an ability it grants or a token has.
@@ -207,9 +209,44 @@ fn line_of(kind: Said, text: String, raw: &str) -> Line {
     Line {
         kind,
         quotes: quotes(raw),
+        head: text.clone(),
         text,
         modes: Vec::new(),
     }
+}
+
+/// The sentences of a printed line, each with its period.
+fn sentences(text: &str) -> Vec<String> {
+    let sentences = text.split_inclusive(". ").map(|s| s.trim().to_string());
+    let sentences: Vec<String> = sentences.filter(|s| !s.is_empty()).collect();
+    match sentences.is_empty() {
+        true => vec![text.to_string()],
+        false => sentences,
+    }
+}
+
+/// The sentences of a line of `kind` past its cost: an activated ability's
+/// cost isn't what it does.
+fn effect_sentences(kind: Said, text: &str) -> Vec<String> {
+    let mut sentences = sentences(text);
+    if kind == Said::Activated {
+        if let Some((_, effect)) = sentences[0].split_once(": ") {
+            sentences[0] = effect.to_string();
+        }
+    }
+    sentences
+}
+
+/// Oracle words as Cantrip's `waiting_texts_match_oracle` compares them:
+/// lowercase, straight quotes, single spaces, no parentheses.
+fn oracle_words(text: &str) -> String {
+    let text = text
+        .to_lowercase()
+        .replace(['\u{2018}', '\u{2019}'], "'")
+        .replace(['\u{201c}', '\u{201d}'], "\"")
+        .replace(['(', ')'], " ")
+        .replace('\u{2212}', "-");
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 impl Printed {
@@ -1908,20 +1945,91 @@ impl Compiler {
         };
         let makes = |sentence: &str| {
             let sentence = sentence.to_lowercase();
-            ["prevent", "would", "instead"].iter().any(|word| sentence.contains(word))
+            ["prevent", "would", "instead", "the next time", "enters with", "enter with"]
+                .iter()
+                .any(|word| sentence.contains(word))
         };
         // A mode prints on a line of its own, which is what Oracle text holds.
         if let Some(mode) = line.modes.iter().find(|mode| makes(mode)) {
-            return mode.clone();
+            let sentences = sentences(mode);
+            return self.printed_run(&sentences, 0, sentences.len());
         }
-        let mut at = 0;
-        for sentence in line.text.split_inclusive(". ") {
-            if makes(sentence) {
-                return line.text[at..].to_string();
+        let sentences = effect_sentences(line.kind, &line.head);
+        match sentences.iter().position(|sentence| makes(sentence)) {
+            Some(at) => self.printed_run(&sentences, at, sentences.len()),
+            None => line.text.clone(),
+        }
+    }
+    /// Whether the face prints `passage`, as Cantrip holds a waiting text to its
+    /// card's Oracle text: by its words, its own reminder text aside, whatever its
+    /// case or final period.
+    fn prints_passage(&self, passage: &str) -> bool {
+        let words = oracle_words(&without_reminder(passage));
+        let words = words.trim_end_matches('.').trim_end();
+        !words.is_empty() && oracle_words(&self.face_text).contains(words)
+    }
+    /// `sentences[from..to]`, or as many of them from `from` as the face prints
+    /// together: a passage can't reach past reminder text the line has lost.
+    fn printed_run(&self, sentences: &[String], from: usize, to: usize) -> String {
+        let run = |to: usize| sentences[from..to].join(" ");
+        (from + 1..=to)
+            .rev()
+            .map(run)
+            .find(|passage| self.prints_passage(passage))
+            .unwrap_or_else(|| run(from + 1))
+    }
+    /// The words of a delayed triggered ability (CR 603.7), or of a reflexive one
+    /// if `reflexive` (CR 603.12), as `TriggeredDef::text` wants them: the sentence
+    /// of its line that makes it, as Oracle text prints it. A delayed ability is
+    /// its sentence; a reflexive one, "When you do, ...", runs to the end of its
+    /// line. A granted ability's line is what the granting line quotes.
+    pub(super) fn delayed_words(&mut self, reflexive: bool, fallback: String) -> String {
+        let Some(line) = self.line.clone() else {
+            return self.said(Said::Triggered, fallback);
+        };
+        let blocks: Vec<(Said, String)> = match self.granting {
+            true => line.quotes.clone(),
+            false => {
+                let modes = line.modes.iter().map(|mode| (Said::Sentence, mode.clone()));
+                modes.chain([(line.kind, line.head.clone())]).collect()
             }
-            at += sentence.len();
+        };
+        let makes = |sentence: &str| {
+            let sentence = sentence.to_lowercase();
+            match reflexive {
+                true => sentence.starts_with("when "),
+                false => {
+                    sentence.starts_with("when")
+                        || [
+                            "at the beginning of",
+                            "at end of combat",
+                            "at the end of",
+                            ", when",
+                            "the next time",
+                        ]
+                        .iter()
+                        .any(|words| sentence.contains(words))
+                }
+            }
+        };
+        let mut first = None;
+        for (kind, block) in &blocks {
+            let sentences = effect_sentences(*kind, block);
+            for at in 0..sentences.len() {
+                if !makes(&sentences[at]) {
+                    continue;
+                }
+                let to = if reflexive { sentences.len() } else { at + 1 };
+                let words = self.printed_run(&sentences, at, to);
+                // A triggered ability's first sentence is its own trigger.
+                if at == 0 && *kind == Said::Triggered {
+                    first.get_or_insert(words);
+                    continue;
+                }
+                return words;
+            }
         }
-        line.text.clone()
+        first.unwrap_or_else(|| self.said(Said::Triggered, fallback))
     }
     /// The printed line being compiled.
     pub(super) fn line_text(&self) -> Option<&str> {

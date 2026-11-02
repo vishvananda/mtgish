@@ -506,6 +506,9 @@ struct Compiler {
     first_again: Option<String>,
     /// Reading a test of whether this spell may be cast.
     cast_test: bool,
+    /// Compiling a delayed triggered ability, whose words are the sentence that
+    /// makes it (`delayed_words`).
+    waiting_trigger: bool,
     /// All of the face's Oracle text: a printed line holds one ability's words.
     face_text: String,
     /// The next tap or untap is a "may", which offers doing nothing with them.
@@ -1071,6 +1074,7 @@ impl Compiler {
             do_once: None,
             first_again: None,
             cast_test: false,
+            waiting_trigger: false,
             face_text: String::new(),
             may_tap_or_untap: false,
             unless_paid: BTreeSet::new(),

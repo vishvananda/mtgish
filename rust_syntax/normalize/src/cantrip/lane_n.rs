@@ -1380,7 +1380,7 @@ impl Compiler {
                     Some(condition) => c.guarded_effect(condition, body, &label),
                     None => c.effect(body, &label),
                 }?;
-                let text = format!("{}, {}", matched.phrase, ability_text(body));
+                let text = c.delayed_words(false, format!("{}, {}", matched.phrase, ability_text(body)));
                 Ok(format!(
                     "triggered({trigger}, {label}, {}).targets({targets})",
                     quoted(&text)

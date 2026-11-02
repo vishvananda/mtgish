@@ -1945,7 +1945,10 @@ impl Compiler {
         self.frame = Frame::default();
         let effect = effect?;
         let text = format!("{}, {}", matched.phrase, ability_text(body));
-        let text = self.said(lane_k::Said::Triggered, text);
+        let text = match self.waiting_trigger {
+            true => self.delayed_words(false, text),
+            false => self.said(lane_k::Said::Triggered, text),
+        };
         let mut def = format!(
             "triggered({trigger}, {effect}, {}).targets({targets})",
             quoted(&text)

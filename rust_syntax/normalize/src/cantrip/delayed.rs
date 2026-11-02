@@ -702,6 +702,7 @@ impl Compiler {
             // Its matcher is a function of its own: no local reaches it.
             c.reset_results();
             let counts = std::mem::replace(&mut c.slot_counts, target_counts::SlotCounts::Delayed);
+            c.waiting_trigger = true;
             let def = c.triggered(
                 &label,
                 &event,
@@ -710,6 +711,7 @@ impl Compiler {
                 announcement,
                 body,
             );
+            c.waiting_trigger = false;
             c.slot_counts = counts;
             def
         })?;
@@ -887,7 +889,7 @@ impl Compiler {
             return Err(gap("reflexive ability told two numbers"));
         }
         let amount = amount.or(told);
-        let text = self.said(lane_k::Said::Triggered, ability_text(body));
+        let text = self.delayed_words(true, ability_text(body));
         let mut def = format!("delayed_trigger({label}, {})", quoted(&text));
         if let Some(targets) = targets {
             write!(def, ".targets({targets})").unwrap();
@@ -948,7 +950,7 @@ impl Compiler {
         let when = self.delayed_when(event, start, expires)?;
         let label = format!("delayed_{}", self.fresh());
         let (outer, _) = self.closure(&label, false, None, intervening_if, body)?;
-        let text = self.said(lane_k::Said::Triggered, ability_text(body));
+        let text = self.delayed_words(false, ability_text(body));
         self.delayed
             .push(format!("delayed_trigger({label}, {})", quoted(&text)));
         let index = self.delayed.len() - 1;

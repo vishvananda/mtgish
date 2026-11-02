@@ -242,6 +242,11 @@ impl Compiler {
             K::Assist => {
                 parts.pay_with.insert("assist");
             }
+            // A granted exalted is the keyword its grant prints, not exalted's own words.
+            K::Exalted if self.granting => {
+                let text = quoted(&self.said_word("Exalted".into()));
+                ability(parts, format!("triggered({M}::triggers::CREATURE_YOU_CONTROL_ATTACKS_ALONE, {M}::triggers::subject_gets_plus_one, {text})"));
+            }
             K::Exalted => constant(parts, "triggers::EXALTED"),
             K::Cascade => constant(parts, "triggers::CASCADE"),
             K::Evolve => constant(parts, "evolve::EVOLVE"),

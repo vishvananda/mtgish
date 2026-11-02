@@ -61,6 +61,8 @@ const CARDS: &[(&str, &str)] = &[
     ("Suffocation", "damage source kind Spell"),
     ("Primeval Spawn", "as-enters replacement of another event"),
     ("Quarum Trench Gnomes", "replacement event ProduceColor"),
+    // A granted exalted is the word its grant prints.
+    ("First Sliver's Chosen", "subject_gets_plus_one, \"Exalted\")"),
 ];
 
 /// Cards whose source lost a word, so code from it would say what the card does
