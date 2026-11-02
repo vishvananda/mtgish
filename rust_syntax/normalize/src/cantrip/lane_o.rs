@@ -806,7 +806,10 @@ impl Compiler {
                 for item in operands {
                     items.push(self.stated(item)?);
                 }
+                // As `operand_code` writes a variant of one list.
+                let listed = crate::lower::LIST_VARIANTS.contains(&(family.as_str(), form.as_str()));
                 match items.is_empty() {
+                    _ if listed => format!("{family}::{form}(&[{}])", items.join(", ")),
                     true => format!("{family}::{form}"),
                     false => format!("{family}::{form}({})", items.join(", ")),
                 }
