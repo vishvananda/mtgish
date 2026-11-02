@@ -11,6 +11,10 @@ use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 
+mod events;
+#[cfg(test)]
+mod tests;
+
 pub(crate) fn schema() -> Result<&'static Schema, String> {
     static SCHEMA: OnceLock<Result<Schema, String>> = OnceLock::new();
     SCHEMA
@@ -33,17 +37,21 @@ struct Ids {
     maps: HashMap<&'static str, HashMap<u64, u64>>,
     /// Which ability this is, in visiting order.
     visit: usize,
+    /// Unread definitions still need distinct ids for executable, valid IR.
+    unread: u64,
 }
 
-/// What an instruction whose result nothing reads is numbered: lowering order
-/// shows in those numbers and nothing else does.
-const UNREAD: u64 = u32::MAX as u64;
+/// Used results count up from zero; unread definitions count down in lexical
+/// order. Their original lowering ids have no meaning, but aliasing them all
+/// would violate the IR's unique-definition contract.
+const UNUSED_START: u64 = u32::MAX as u64;
 
 impl Ids {
     fn define(&mut self, kind: &'static str, value: &mut Value, read: Option<&HashSet<u64>>) {
         let Some(old) = value.as_u64() else { return };
         if kind == "result" && read.is_some_and(|read| !read.contains(&old)) {
-            *value = Value::from(UNREAD);
+            *value = Value::from(UNUSED_START - self.unread);
+            self.unread += 1;
             return;
         }
         let map = self.maps.entry(kind).or_default();
@@ -93,6 +101,9 @@ struct Walker {
     damage_subjects: Vec<Option<Value>>,
     /// Whether each open ability's event is about the source itself.
     subjects: Vec<Subject>,
+    destinations: Vec<Option<Value>>,
+    event_header: bool,
+    reference_reductions: bool,
     /// Keep ids and list order, for callers that read the text back out.
     keep_order: bool,
     /// The results each ability reads, by visiting order. The first of the two
@@ -205,10 +216,10 @@ impl Walker {
             if self.reading {
                 self.read.push(HashSet::new());
             }
-            let outer = self.damage_subjects.last().cloned().flatten();
             self.damage_subjects
-                .push(damage_subject(&value["args"]["event"]).or(outer));
+                .push(damage_subject(&value["args"]["event"]));
             self.subjects.push(subject_of(value));
+            self.destinations.push(events::destination(value));
         }
         let schema = self.schema;
         match schema.types.get(name) {
@@ -225,6 +236,7 @@ impl Walker {
             self.scopes.pop();
             self.damage_subjects.pop();
             self.subjects.pop();
+            self.destinations.pop();
         }
     }
 
@@ -246,7 +258,12 @@ impl Walker {
             return;
         };
         let subject = self.subjects.last().copied().unwrap_or(Subject::Other);
-        if name == "ObjectRef" && variant == "EventSubject" && self.names_source(subject) {
+        let references = self.reference_reductions && !self.event_header;
+        if references
+            && name == "ObjectRef"
+            && variant == "EventSubject"
+            && self.names_source(subject)
+        {
             *value = serde_json::json!({"kind": "Source"});
             return;
         }
@@ -282,18 +299,27 @@ impl Walker {
                     }
                 }
                 ("ObjectRef", "Damage") => {
-                    if self.damage_subjects.last().cloned().flatten().as_ref() == value.get("args")
+                    if references
+                        && self.damage_subjects.last().cloned().flatten().as_ref()
+                            == value.get("args")
                     {
                         *value = serde_json::json!({"kind": "EventSubject"});
                     }
                 }
                 ("PlayerRef", "ControllerOf") => {
-                    if subject == Subject::Entering && value["args"]["kind"] == "Source" {
+                    if references
+                        && subject == Subject::Entering
+                        && value["args"]["kind"] == "Source"
+                    {
                         *value = serde_json::json!({"kind": "AbilityController"});
                     }
                 }
                 ("ObjectRef", "Query") => {
-                    if in_event_destination(&value["args"]) {
+                    if references
+                        && in_event_destination(&value["args"])
+                        && self.destinations.last().and_then(Option::as_ref)
+                            == value.pointer("/args/objects/args/zone")
+                    {
                         let source = self.names_source(subject);
                         let kind = if source { "Source" } else { "EventSubject" };
                         *value = serde_json::json!({"kind": kind});
@@ -345,11 +371,37 @@ impl Walker {
                 }
             }
             Fields::Named(types) => {
+                let old_reductions = self.reference_reductions;
+                if matches!(
+                    owner,
+                    "Operation::CreateDelayedTrigger"
+                        | "Operation::CreateReplacement"
+                        | "Operation::ReflexiveTrigger"
+                ) {
+                    // Closures may retain the creator's event or install a new
+                    // event. Preserve their explicit references rather than
+                    // equating roles without proof of that binding context.
+                    self.reference_reductions = false;
+                }
                 for (field, ty) in types {
                     if let Some(item) = value.get_mut(field) {
+                        if owner == "Ability::Saga" && field == "chapters" {
+                            if let (Value::Array(items), Ty::Vec(inner)) = (item, ty) {
+                                for chapter in items {
+                                    self.walk(chapter, inner, false);
+                                }
+                            }
+                            continue;
+                        }
+                        let old_header = self.event_header;
+                        if field == "event" {
+                            self.event_header = true;
+                        }
                         self.walk(item, ty, defines(owner, field));
+                        self.event_header = old_header;
                     }
                 }
+                self.reference_reductions = old_reductions;
             }
         }
     }
@@ -581,6 +633,9 @@ fn normalize(value: &mut Value, keep_order: bool) -> Result<(), String> {
         scopes: Vec::new(),
         damage_subjects: Vec::new(),
         subjects: Vec::new(),
+        destinations: Vec::new(),
+        event_header: false,
+        reference_reductions: true,
         keep_order,
         read: Vec::new(),
         reading: !keep_order,

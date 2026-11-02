@@ -1,5 +1,7 @@
 //! Generic card semantics and compilation. Kept apart from the large parser
 //! schema so edits to lowering do not recompile its serialization derives.
+#[cfg(test)]
+extern crate self as mtgish_ast;
 pub use rust_syntax::{corpus, inspect, mtg_types};
 pub mod canonical;
 pub mod ir;

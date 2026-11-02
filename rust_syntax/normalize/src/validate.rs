@@ -4508,8 +4508,9 @@ fn valid_cycling_body(origin: &ActivationOrigin, body: &Program) -> bool {
             }]
         );
     };
-    let [Instruction::Group(body)] = body.instructions.as_slice() else {
-        return false;
+    let instructions = match body.instructions.as_slice() {
+        [Instruction::Group(body)] => body.instructions.as_slice(),
+        instructions => instructions,
     };
     let [Instruction::Effect {
         result,
@@ -4542,7 +4543,7 @@ fn valid_cycling_body(origin: &ActivationOrigin, body: &Program) -> bool {
                 excluding: None,
             },
         ..
-    }] = body.instructions.as_slice()
+    }] = instructions
     else {
         return false;
     };
@@ -5076,8 +5077,11 @@ fn validate_ability_in(
 
 /// Accepts `Named` forms. Complete cards go through `card`, which rejects them.
 pub fn first_invalid(card: &Card) -> Option<(usize, String)> {
-    let casting_costs = card
-        .abilities
+    first_invalid_abilities(&card.abilities)
+}
+
+fn first_invalid_abilities(abilities: &[Ability]) -> Option<(usize, String)> {
+    let casting_costs = abilities
         .iter()
         .enumerate()
         .filter_map(|(i, ability)| {
@@ -5086,11 +5090,24 @@ pub fn first_invalid(card: &Card) -> Option<(usize, String)> {
                 .map(|cost| (i as u32, cost))
         })
         .collect();
-    card.abilities.iter().enumerate().find_map(|(i, ability)| {
+    abilities.iter().enumerate().find_map(|(i, ability)| {
         validate_ability_in(ability, None, &casting_costs)
             .err()
             .map(|e| (i, e))
     })
+}
+
+/// Validate complete abilities without inventing printed card characteristics.
+/// Casting-cost addresses use the list's actual ability indices. Named/opaque
+/// unreduced forms never count as a successful semantic reading.
+pub fn abilities(abilities: &[Ability]) -> Result {
+    if let Some((index, why)) = first_invalid_abilities(abilities) {
+        return Err(format!("abilities[{index}]: {why}"));
+    }
+    match crate::unified::named_forms(&abilities).keys().next() {
+        Some(form) => Err(format!("unreduced form {form}")),
+        None => Ok(()),
+    }
 }
 
 fn face(card: &Card) -> Result {

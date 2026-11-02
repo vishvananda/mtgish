@@ -275,6 +275,7 @@ fn a_labeled_additional_cost_keeps_its_payment_namespace() {
         .insert(0, presented(cost, Some("Test label"), false));
     // Reinsert rather than renumbering either the declaration or its reader.
     assert!(crate::cost_history::casting_cost(&card.abilities[0]).is_some());
+    validate::abilities(&card.abilities).unwrap();
     validate::card(&card).unwrap();
 }
 
