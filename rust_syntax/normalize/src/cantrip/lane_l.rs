@@ -1604,6 +1604,32 @@ impl Compiler {
                 self.plan_code(&feature, &format!("{M}::notes::most_common_creature_type(g, asker, &{players})"), out);
             }
             Operation::Note(kind) => {
+                // Kept by the ability that notes it, as a chosen name is
+                // (`remember_chosen_name`), for the abilities linked to it: the
+                // game keeps data, never the `Asker` that asked.
+                let by = match self.stack_item {
+                    true => "g.linked(item)",
+                    false => "g.linked_to(asker)",
+                };
+                // Objects or players are a list read as the call runs.
+                let listed = match kind {
+                    NoteKind::Numbered(objects) => {
+                        Some(("note_numbered", self.fetch(self.objects(objects)?)))
+                    }
+                    NoteKind::MostCommonCreatureType(players) => Some((
+                        "note_most_common_creature_type",
+                        self.fetch(self.players(players)?),
+                    )),
+                    _ => None,
+                };
+                if let Some((call, list)) = listed {
+                    self.plan_code(
+                        &feature,
+                        &format!("{{ let by = {by}; let listed = {list}; {M}::notes::{call}(g, by, &listed); }}"),
+                        out,
+                    );
+                    return Ok(());
+                }
                 let note = match kind {
                     NoteKind::Number(n) => {
                         format!("Note::Number({})", self.fetch(self.number(n)?.code))
@@ -1624,7 +1650,7 @@ impl Compiler {
                 };
                 self.plan_code(
                     &feature,
-                    &format!("{M}::notes::note(g, asker, {note})"),
+                    &format!("{{ let by = {by}; {M}::notes::note(g, by, {note}); }}"),
                     out,
                 );
             }

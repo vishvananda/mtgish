@@ -3798,8 +3798,10 @@ impl Compiler {
                     });
                 }
                 let duration = self.duration(duration)?;
+                // The objects a list read as it resolves, each kept with what it
+                // is given: the game holds no list.
                 format!(
-                    "{M}::effects::grant(g, item, {objects}, &[{}], {duration})?",
+                    "{{ let objects: Vec<ObjectId> = {objects}; {M}::effects::grant(g, item, &objects, &[{}], {duration})? }}",
                     grants.join(", ")
                 )
             }
@@ -4155,10 +4157,14 @@ impl Compiler {
                     .unwrap_or_else(|| format!("result_{}", result.0));
                 format!("Duration::ExtraTurn({turn})")
             }
+            // One player, as data the game can keep: who it is, if anyone.
             D::UntilNext { point, players } => format!(
                 "Duration::UntilNext(TurnPoint::{}, {})",
                 form(point),
-                self.fetch(self.players(players)?)
+                self.fetch(match players {
+                    PlayerSet::One(player) => self.player(player)?,
+                    players => self.players(players)?,
+                })
             ),
             D::ThroughNextTurn => "Duration::ThroughNextTurn".to_string(),
             D::WhileControlled { player, object } => format!(
@@ -4199,6 +4205,34 @@ impl Compiler {
                 Ok(object) => format!("Duration::{}({})", form(duration), self.fetch(object)),
                 Err(_) => return lane_m::duration_more(duration),
             },
+            // "Until a player planeswalks away": an event the game watches for
+            // as it would a trigger's, the card's `lasting_until` matcher, of
+            // what the effect's source and controller can read.
+            D::UntilEvent(event) => {
+                let saved = self.clone();
+                let index = self.made_lasting_until.len();
+                let label = format!("lasting_until_{index}");
+                let made = self.event(event).map(|matched| {
+                    let phrase = matched.phrase.clone();
+                    (phrase, self.trigger(&matched, &label, &[]))
+                });
+                let Ok((phrase, ends)) = made else {
+                    *self = saved;
+                    return lane_m::duration_more(duration);
+                };
+                // The card's words after "until", else the trigger's.
+                let said = self.line_text().and_then(|line| {
+                    let at = line.find("until ")? + "until ".len();
+                    let rest = &line[at..];
+                    Some(rest[..rest.find([',', '.']).unwrap_or(rest.len())].to_string())
+                });
+                let phrase = said.unwrap_or(phrase);
+                self.made_lasting_until.push((
+                    feature.clone(),
+                    format!("LastingUntil {{ text: {}, ends: {ends} }}", quoted(&phrase)),
+                ));
+                self.fetch(format!("Duration::UntilEvent({}, {index})", self.source_card()))
+            }
             other => return lane_m::duration_more(other),
         };
         Ok(planned::planned_value(&feature, later, &code))

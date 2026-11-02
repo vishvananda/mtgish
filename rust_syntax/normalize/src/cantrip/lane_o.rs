@@ -156,30 +156,32 @@ impl Compiler {
             self.ability_test(filter)?
         ))
     }
+    /// What a rule on objects is about doing: `ObjectAction`, not Cantrip's
+    /// `Action`, which is a decision a player took.
     fn action_code(&self, action: &ObjectAction) -> Result<String> {
         use ObjectAction as A;
         Ok(match action {
-            A::Attack(defenders) => format!("Action::Attack({})", self.defenders(defenders)?),
-            A::Block(filter) => format!("Action::Block({})", self.over(filter, "attacker")?),
-            A::BeBlocked(filter) => format!("Action::BeBlocked({})", self.over(filter, "blocker")?),
-            A::Activate(filter) => format!("Action::Activate({})", self.activation_bar(filter)?),
+            A::Attack(defenders) => format!("ObjectAction::Attack({})", self.defenders(defenders)?),
+            A::Block(filter) => format!("ObjectAction::Block({})", self.over(filter, "attacker")?),
+            A::BeBlocked(filter) => format!("ObjectAction::BeBlocked({})", self.over(filter, "blocker")?),
+            A::Activate(filter) => format!("ObjectAction::Activate({})", self.activation_bar(filter)?),
             A::BeTargeted(filter) => format!(
-                "Action::BeTargeted(|q: &dyn Query, asker: &Asker, by: &Asker, by_source: &Chars| {})",
+                "ObjectAction::BeTargeted(|q: &dyn Query, asker: &Asker, by: &Asker, by_source: &Chars| {})",
                 self.targeting_source(filter)?
             ),
-            A::ReceiveCounters(None) => "Action::ReceiveCounters(None)".into(),
+            A::ReceiveCounters(None) => "ObjectAction::ReceiveCounters(None)".into(),
             A::ReceiveCounters(Some(kind)) => {
-                format!("Action::ReceiveCounters(Some({}))", counter_kind(kind)?)
+                format!("ObjectAction::ReceiveCounters(Some({}))", counter_kind(kind)?)
             }
-            A::LoseCounters(kind) => format!("Action::LoseCounters({})", counter_kind(kind)?),
+            A::LoseCounters(kind) => format!("ObjectAction::LoseCounters({})", counter_kind(kind)?),
             A::BeAttachedBy {
                 attachments,
                 keep_existing,
             } => format!(
-                "Action::BeAttachedBy {{ attachments: {}, keep_existing: {keep_existing} }}",
+                "ObjectAction::BeAttachedBy {{ attachments: {}, keep_existing: {keep_existing} }}",
                 self.over(attachments, "attachment")?
             ),
-            other => format!("Action::{}", form(other)),
+            other => format!("ObjectAction::{}", form(other)),
         })
     }
     fn requirement_amount(&self, amount: &RequirementAmount) -> Result<String> {
@@ -336,14 +338,34 @@ impl Compiler {
     /// A resolving effect's rule on an object, which `EffectKind` will hold.
     pub(super) fn stated_rule_kind(&mut self, rule: &RuleChange) -> Result<Vec<String>> {
         let feature = format!("continuous rule {}", effects_rule_name(rule));
-        let saved = self.frame;
+        // The game state keeps data, and a rule holds tests: the effect names
+        // the rule in the card's `lasting_object_rules`, as
+        // `EffectKind::BlockRestriction` names its `lasting_block_rules`. Its
+        // tests are asked later, of the game as it is then.
+        let saved = (self.frame, self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let code = self.rule_code(rule);
-        self.frame = saved;
+        (self.frame, self.reader, self.event_at) = saved;
         let code = code.map_err(|_| gap(&feature))?;
+        if reads_the_stack_item(&code) || self.reads_a_local(&code) {
+            return Err(gap("a lasting object rule reading what its ability chose"));
+        }
+        let index = self.made_object_rules.len();
+        let text = self
+            .line_text()
+            .map(|line| line.trim().to_string())
+            .unwrap_or_else(|| effects_rule_name(rule));
+        self.made_object_rules.push((
+            feature.clone(),
+            format!("LastingObjectRule {{ text: {}, rule: {code} }}", quoted(&text)),
+        ));
         Ok(vec![planned::planned_value(
             &feature,
             "EffectKind::CantBlock",
-            &format!("EffectKind::Rule({code})"),
+            &format!(
+                "EffectKind::ObjectRule {{ card: {}, index: {index} }}",
+                self.source_card()
+            ),
         )])
     }
     /// A static ability's rule on objects, with no table of its own yet. False
@@ -494,12 +516,7 @@ impl Compiler {
         let until = self.stated_until(duration)?;
         let source = self.fetch(self.object(source)?);
         for change in changes {
-            // A rule of a name `lasting_rules` keep, but not of this set or not
-            // this rule ("attack you if able"), waits on more than they are.
-            let feature = match open_set_feature(change) {
-                feature if lasting_rule_named(change) => format!("{feature} beyond lasting rules"),
-                feature => feature,
-            };
+            let feature = beyond_lasting_rules(change);
             let kinds = self
                 .effect_kinds(change)
                 .map_err(|_| gap(feature.as_str()))?;
@@ -531,25 +548,53 @@ impl Compiler {
         let ObjectSet::Battlefield(filter) = affected else {
             return Ok(false);
         };
-        let Some(kinds) = changes
-            .iter()
-            .map(lasting_rule_kind)
-            .collect::<Option<Vec<&str>>>()
-        else {
+        if !changes.iter().all(|change| matches!(change, Change::Rule(_))) {
             return Ok(false);
+        }
+        // A rule `LastingRuleKind` has no word for is proposed in its shape
+        // (`lasting_kind_beyond`), a hole of its own whatever the Cantrip.
+        let beyond = changes.iter().find(|change| lasting_rule_kind(change).is_none());
+        let refused = |failed: Diagnostic| match beyond {
+            Some(change) => gap(beyond_lasting_rules(change)),
+            None => failed,
         };
         let saved = (self.reader, self.event_at);
         (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
         let asked = self.filter(filter, &Candidate::of("id"));
         (self.reader, self.event_at) = saved;
-        // A target is read as the resolution has it, then handed over as `about`.
+        // A target, or the player a trigger's event named, is read as the
+        // resolution has it, then handed over as `about`; anything else of the
+        // resolution `named_as_resolved` refuses.
         let test = match asked {
-            Err(failed) if failed.feature == "target reference outside a resolving ability" => {
-                self.filter(filter, &Candidate::of("id"))?
+            Err(failed)
+                if failed.feature == "target reference outside a resolving ability"
+                    || failed.feature == "event player this trigger does not bind" =>
+            {
+                self.filter(filter, &Candidate::of("id")).map_err(refused)?
             }
-            asked => asked?,
+            asked => asked.map_err(refused)?,
         };
-        let (test, about) = self.named_as_resolved(&test)?;
+        let (test, mut about) = self.named_as_resolved(&test).map_err(refused)?;
+        // (the kind's code, its requirement, whether #897 has it, its words)
+        let mut kinds: Vec<(String, String, bool, &str)> = Vec::new();
+        for change in changes {
+            if let Some(kind) = lasting_rule_kind(change) {
+                kinds.push((format!("LastingRuleKind::{kind}"), open_set_feature(change), false, kind));
+                continue;
+            }
+            let feature = beyond_lasting_rules(change);
+            let (kind, named, words) = self
+                .lasting_kind_beyond(change)
+                .map_err(|_| gap(feature.as_str()))?;
+            if let Some(named) = named {
+                // What the rule is about and what its set reads are one `about`.
+                if about != "Target::None" {
+                    return Err(gap(feature));
+                }
+                about = named;
+            }
+            kinds.push((kind, feature, true, words));
+        }
         // "Their next untap step" of a set one player controls is that
         // player's; a set of no one controller is the objects named now
         // (`untaps_by_their_controllers`), never reaching here.
@@ -572,32 +617,122 @@ impl Compiler {
         // The rules of one instruction begin together.
         let mut made = Vec::new();
         let mut features = Vec::new();
-        for (kind, change) in kinds.into_iter().zip(changes) {
+        for (kind, feature, beyond, words) in kinds {
             let index = self.made_lasting_rules.len();
             let function = format!("lasting_rule_{index}");
-            let feature = open_set_feature(change);
             let item = format!("#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, about: Target, id: ObjectId) -> bool {{ let source = asker.source; {test} }}");
             writeln!(self.functions, "{}", planned::switched_item(planned::LASTING_RULES, &feature, &item)).unwrap();
             self.made_lasting_rules.push((
                 feature.clone(),
                 format!(
-                    "LastingRule {{ text: {}, rule: LastingRuleKind::{kind}, applies: {function} }}",
-                    quoted(&self.lasting_rule_words(kind))
+                    "LastingRule {{ text: {}, rule: {kind}, applies: {function} }}",
+                    quoted(&self.lasting_rule_words(words))
                 ),
+                beyond,
             ));
             made.push(format!("g.add_lasting_rule(item, {index}, about_{first}, until_{first});"));
-            features.push(feature);
+            features.push((feature, beyond));
         }
         let code = match made.as_slice() {
             [one] => one.clone(),
             _ => format!("cantrip_api::instruction(g, |g| {{ {} }});", made.join(" ")),
         };
-        // One statement, one hole: the others it waits on are its gaps too.
-        self.plan_switched(planned::LASTING_RULES, &features[0], &code, out);
-        if !planned::switched_on(planned::LASTING_RULES) {
-            self.gaps.extend(features[1..].iter().map(gap));
+        // One statement, one hole: the others it waits on are its gaps too. A
+        // rule beyond #897's is a hole whatever the Cantrip.
+        let on = planned::switched_on(planned::LASTING_RULES);
+        match features.iter().position(|(_, beyond)| *beyond) {
+            Some(at) => {
+                let (hole, _) = features.remove(at);
+                self.plan_code(&hole, &code, out);
+            }
+            None => {
+                let (hole, _) = features.remove(0);
+                self.plan_switched(planned::LASTING_RULES, &hole, &code, out);
+            }
+        }
+        for (feature, beyond) in features {
+            if beyond || !on {
+                self.gaps.push(gap(feature));
+            }
         }
         Ok(true)
+    }
+    /// A rule on an open set that `LastingRuleKind` has no word for, proposed as
+    /// one more (CR 611.2c): (its code, what the effect is `about` when it
+    /// names something of the resolution, the words `lasting_rule_words` looks
+    /// for). Each is data in the card's static, as #897's are: a rule that tests
+    /// something names a table of the card by index, as `EffectKind` does.
+    fn lasting_kind_beyond(
+        &mut self,
+        change: &Change,
+    ) -> Result<(String, Option<String>, &'static str)> {
+        use RuleChange as R;
+        let Change::Rule(rule) = change else {
+            return Err(gap("a lasting rule that is no rule"));
+        };
+        let attack_one = |amount: &RequirementAmount| {
+            matches!(amount, RequirementAmount::AtLeast(Expr::Constant(1)))
+        };
+        match rule {
+            // "All creatures able to block target creature this turn do so"
+            // (Alluring Scent): the attacker named as it resolved.
+            R::RequireCombat {
+                action: ObjectAction::Block(ObjectFilter::SameObject(attacker)),
+                amount,
+            } if attack_one(amount) => {
+                let attacker = self.fetch(self.object(attacker)?);
+                return Ok((
+                    "LastingRuleKind::MustBlockAbout".into(),
+                    Some(format!("{attacker}.map(Target::Object).unwrap_or(Target::None)")),
+                    "block",
+                ));
+            }
+            // "... attack you if able" (Taunt): whoever controls the effect.
+            R::RequireCombat {
+                action: ObjectAction::Attack(AttackDefenders::Players(PlayerSet::One(player))),
+                amount,
+            } if attack_one(amount) => {
+                return Ok(match player {
+                    PlayerRef::AbilityController => {
+                        ("LastingRuleKind::MustAttackController".into(), None, "attack")
+                    }
+                    other => {
+                        let player = self.fetch(self.certain_player(other)?);
+                        (
+                            "LastingRuleKind::MustAttackAbout".into(),
+                            Some(format!("Target::Player({player})")),
+                            "attack",
+                        )
+                    }
+                });
+            }
+            _ => {}
+        }
+        let (blocks, objects) = (self.made_block_rules.len(), self.made_object_rules.len());
+        let kinds = self.continuous_rule(rule)?;
+        let [kind] = kinds.as_slice() else {
+            return Err(gap("a lasting rule of two effects"));
+        };
+        // A block rule or rule of the card's own tables, asked of each
+        // permanent of the set as `EffectKind`'s are of the one they're on;
+        // what the effect naming it waited on, its entry waits on.
+        if self.made_block_rules.len() > blocks || self.made_object_rules.len() > objects {
+            self.gaps.extend(planned::value_gaps(kind));
+        }
+        if self.made_block_rules.len() > blocks {
+            let index = self.made_block_rules.len() - 1;
+            return Ok((format!("LastingRuleKind::BlockRestriction({index})"), None, "block"));
+        }
+        if self.made_object_rules.len() > objects {
+            let index = self.made_object_rules.len() - 1;
+            return Ok((format!("LastingRuleKind::ObjectRule({index})"), None, ""));
+        }
+        // Else an effect of one object that is data alone (CR 611.2c):
+        // "creatures ... can't be regenerated this turn".
+        if reads_the_stack_item(kind) || kind.contains("asker") || kind.contains("q.") {
+            return Err(gap("a lasting rule reading what its ability chose"));
+        }
+        Ok((format!("LastingRuleKind::Effect({kind})"), None, ""))
     }
     /// `test` with what it reads of the resolution - one target, a player or an
     /// object - read from `about` instead, and the code of that `about`.
@@ -623,6 +758,17 @@ impl Compiler {
                     test = test.replace(&raw, &format!("about.{what}()"));
                     about = Some(format!("{}.map({wrap}).unwrap_or(Target::None)", self.fetch(&read)));
                 }
+            }
+        }
+        // What a trigger's event named ("that player"), as the item holds it.
+        for what in ["player", "object"] {
+            let read = format!("item.subject.{what}()");
+            if test.contains(&read) {
+                if about.is_some() {
+                    return Err(gap("a lasting rule reading two things its ability chose"));
+                }
+                test = test.replace(&read, &format!("about.{what}()"));
+                about = Some("item.subject".to_string());
             }
         }
         // "That player" of a target object is its controller as the effect
@@ -694,6 +840,14 @@ impl Compiler {
             _ => code.as_ref().to_string(),
         }
     }
+    /// One player as `Option<PlayerId>`, data a duration can hold; other sets
+    /// as the list they are.
+    fn one_or_all(&self, players: &PlayerSet) -> Result<String> {
+        match players {
+            PlayerSet::One(player) => self.player(player),
+            players => self.players(players),
+        }
+    }
     /// A duration, in the word it will have if it has none yet.
     pub(super) fn stated_until(&mut self, duration: &crate::ir::Duration) -> Result<String> {
         use crate::ir::Duration as D;
@@ -709,9 +863,10 @@ impl Compiler {
                 "Duration::DuringNextUntapStepOf({})",
                 self.read(self.certain_player(player)?)
             ),
+            // One player, as data the game can keep: who it is, if anyone.
             D::UntilNext { point, players } => format!(
                 "Duration::UntilNext(TurnPoint::{point:?}, {})",
-                self.read(self.players(players)?)
+                self.read(self.one_or_all(players)?)
             ),
             D::While(condition) => format!(
                 "Duration::While(|q: &dyn Query, asker: &Asker| {})",
@@ -736,7 +891,7 @@ impl Compiler {
             }
             D::UntilAnotherExiled { by, with } => format!(
                 "Duration::UntilAnotherExiled {{ by: {}, with: {} }}",
-                self.read(self.players(by)?),
+                self.read(self.one_or_all(by)?),
                 self.read(self.object(with)?)
             ),
             D::UntilLibraryTopChanges(player) => format!(
@@ -937,10 +1092,18 @@ impl Compiler {
             A::BlockWith(filter) => {
                 format!("Prohibition::BlockWith({})", self.over(filter, "blocker")?)
             }
-            A::AttackInto(recipients) => format!(
-                "Prohibition::AttackInto({})",
-                self.fetch(self.recipients(recipients)?)
-            ),
+            // Whom it can't be attacked: asked of each defender as attackers
+            // are declared, as `AttackWith` is of each attacker, the rule a
+            // function the table holds.
+            A::AttackInto(recipients) => {
+                let at = self.recipients(recipients)?;
+                match reads_the_stack_item(&at) {
+                    false => format!(
+                        "Prohibition::AttackInto(|q: &dyn Query, asker: &Asker, defender: Target| ({at}).contains(&defender))"
+                    ),
+                    true => format!("Prohibition::AttackInto({})", self.fetch(at)),
+                }
+            }
             A::PayLife(on) => format!("Prohibition::PayLife({})", self.payment(on)?),
             A::Sacrifice { objects, paying } => {
                 let paying = match paying {
@@ -3290,7 +3453,8 @@ impl Compiler {
             }
             K::SetRepeatablePlayers => {
                 let players = self.fetch(self.players(action.actor)?);
-                let code = format!("{M}::players::set_repeatable(g, {players}, asker.source)?;");
+                // Each player kept as one who repeats: the game holds no list.
+                let code = format!("{{ let players: Vec<PlayerId> = {players}; {M}::players::set_repeatable(g, &players, asker.source)?; }}");
                 self.plan_code(&feature, &code, out);
                 return Ok(());
             }
@@ -4601,6 +4765,16 @@ fn open_set_feature(change: &Change) -> String {
     format!("engine: no resolving rule on an open set: {what}")
 }
 
+/// What a rule on an open set `lasting_rule_kind` has no word for waits on: a
+/// rule of a name #897 keeps, but not of this set or not this rule ("attack you
+/// if able"), waits on more than it does.
+fn beyond_lasting_rules(change: &Change) -> String {
+    match open_set_feature(change) {
+        feature if lasting_rule_named(change) => format!("{feature} beyond lasting rules"),
+        feature => feature,
+    }
+}
+
 /// Whether a change has the name of a rule `lasting_rule_kind` makes, which is
 /// its requirement's name too.
 fn lasting_rule_named(change: &Change) -> bool {
@@ -4654,7 +4828,7 @@ fn single_controller(filter: &ObjectFilter) -> Option<&PlayerRef> {
 
 /// Whether code still reads a local of the resolution: `g`, `item`, or a
 /// numbered one such as `t_0_raw` or `chosen_0`.
-fn reads_the_resolution(code: &str) -> bool {
+pub(super) fn reads_the_resolution(code: &str) -> bool {
     code.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
         .any(|word| {
             matches!(word, "g" | "item")
@@ -4664,6 +4838,19 @@ fn reads_the_resolution(code: &str) -> bool {
                         && n.chars().all(|c| c.is_ascii_digit())
                 })
                 || word.ends_with("_raw")
+        })
+}
+
+/// Whether code reads the resolving item or its targets, which a card's table
+/// can't: `g`, `item`, `t_0` or `t_0_raw`. Functions it names (`rule_cost_3`) it may.
+fn reads_the_stack_item(code: &str) -> bool {
+    code.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+        .any(|word| {
+            matches!(word, "g" | "item")
+                || word.ends_with("_raw")
+                || word
+                    .strip_prefix("t_")
+                    .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
         })
 }
 

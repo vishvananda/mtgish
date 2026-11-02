@@ -689,6 +689,11 @@ impl Compiler {
                 let test = self.lasting_test(duration);
                 (self.reader, self.event_at) = saved;
                 if test.is_err() && !matches!(duration, D::Either(_)) {
+                    if let D::WhileMatches { object, filter } = duration {
+                        if let Ok(code) = self.lasting_about(duration, object, filter) {
+                            return Ok(code);
+                        }
+                    }
                     return self.duration_p(duration);
                 }
                 let test = test.map_err(|failed| match failed.feature.as_str() {
@@ -742,6 +747,84 @@ impl Compiler {
             ),
             other => self.duration_p(other)?,
         })
+    }
+    /// "For as long as" about something its ability named as it resolved (CR
+    /// 611.2b): the object it names, or what the test of the effect's own
+    /// object reads ("remains attached to that creature"). The game keeps that
+    /// as data, the `about` of `Duration::AsLongAsAbout`, and asks the card's
+    /// `lasting_about` test of it; it keeps no closure.
+    fn lasting_about(
+        &mut self,
+        duration: &crate::ir::Duration,
+        object: &ObjectRef,
+        filter: &ObjectFilter,
+    ) -> Result<String> {
+        let feature = format!("duration {}", form(duration));
+        let (id, live, named) = match object {
+            ObjectRef::Source => (
+                "e.source",
+                "is_live(q, e.source) && q.is_on_battlefield(e.source) && ",
+                None,
+            ),
+            ObjectRef::Affected => ("e.affected", "", None),
+            other => ("id", "", Some(self.fetch(self.object(other)?))),
+        };
+        let test = self.filter(filter, &Candidate::of(id))?;
+        let (test, about) = match named {
+            Some(named) => {
+                if lane_o::reads_the_resolution(&test) {
+                    return Err(gap(&feature));
+                }
+                (
+                    format!("about.object().is_some_and(|id| {test})"),
+                    format!("{named}.map(Target::Object).unwrap_or(Target::None)"),
+                )
+            }
+            None => {
+                // An object the ability remembers, as its item holds it.
+                let mut test = test;
+                let mut held = None;
+                for n in 0..8 {
+                    let read = format!("Some(ObjectId(item.data[{n}])).filter(|o| *o != ObjectId::NONE)");
+                    if test.contains(&read) {
+                        if held.is_some() {
+                            return Err(gap(&feature));
+                        }
+                        test = test.replace(&read, "about.object()");
+                        held = Some(format!("{read}.map(Target::Object).unwrap_or(Target::None)"));
+                    }
+                }
+                let (test, about) = self.named_as_resolved(&test)?;
+                let about = match (held, about.as_str()) {
+                    (None, _) => about,
+                    (Some(held), "Target::None") => held,
+                    _ => return Err(gap(&feature)),
+                };
+                (format!("{live}{test}"), about)
+            }
+        };
+        let index = self.made_lasting_about.len();
+        let function = format!("lasting_about_{index}");
+        let item = format!("#[allow(unused_variables)] fn {function}(q: &dyn Query, e: &ContinuousEffect, about: Target) -> bool {{ let asker = &Asker::new(e.source, e.controller); {test} }}");
+        match planned::landed(&feature) {
+            true => writeln!(self.functions, "{item}").unwrap(),
+            false => writeln!(self.functions, "planned_item!({:?} => {item});", planned::requirement(&feature)).unwrap(),
+        }
+        self.made_lasting_about.push((
+            feature.clone(),
+            format!(
+                "LastingAbout {{ text: {}, holds: {function} }}",
+                quoted(&lasting_text(duration))
+            ),
+        ));
+        Ok(planned::planned_value(
+            &feature,
+            "Duration::Indefinite",
+            &self.fetch(format!(
+                "Duration::AsLongAsAbout({}, {index}, {about})",
+                self.source_card()
+            )),
+        ))
     }
     /// The test of a "for as long as": `e` is the effect it is about.
     fn lasting_test(&self, duration: &crate::ir::Duration) -> Result<String> {

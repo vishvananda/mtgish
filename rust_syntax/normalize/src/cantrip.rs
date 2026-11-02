@@ -769,9 +769,21 @@ struct Compiler {
     lasting: Vec<String>,
     /// `CardDef::lasting_block_rules`.
     made_block_rules: Vec<String>,
+    /// `CardDef::lasting_object_rules`: rules a resolving effect gives an object
+    /// (`EffectKind::ObjectRule`) or a set (`LastingRuleKind::ObjectRule`), each
+    /// with what it waits on.
+    made_object_rules: Vec<(String, String)>,
+    /// `CardDef::lasting_about`: "for as long as" conditions about something
+    /// the effect's ability named as it resolved (`Duration::AsLongAsAbout`),
+    /// each with what it waits on.
+    made_lasting_about: Vec<(String, String)>,
+    /// `CardDef::lasting_until`: the events "until" durations end on
+    /// (`Duration::UntilEvent`), each with what it waits on.
+    made_lasting_until: Vec<(String, String)>,
     /// `CardDef::lasting_rules`: rules on open sets (CR 611.2c), each with
-    /// what it waits on where Cantrip has none.
-    made_lasting_rules: Vec<(String, String)>,
+    /// what it waits on where Cantrip has none and whether it is a rule beyond
+    /// those #897 has.
+    made_lasting_rules: Vec<(String, String, bool)>,
     /// `CardDef::play_terms`: what a permission to play a card is on beside
     /// data (a test, a cost, what playing it does), each with what it waits
     /// on once the hole that wrote it says.
@@ -1172,6 +1184,9 @@ impl Compiler {
             replaced_counter: None,
             lasting: Vec::new(),
             made_block_rules: Vec::new(),
+            made_object_rules: Vec::new(),
+            made_lasting_about: Vec::new(),
+            made_lasting_until: Vec::new(),
             made_lasting_rules: Vec::new(),
             made_play_terms: Vec::new(),
             prevented: BTreeSet::new(),
@@ -2690,14 +2705,51 @@ fn emit_face(
     for made in std::mem::take(&mut c.made_block_rules) {
         parts.table("lasting_block_rules", made);
     }
+    // Each is a hole of the value that names it, whose gap is already the card's.
+    for (feature, made) in std::mem::take(&mut c.made_object_rules) {
+        match planned::landed(&feature) {
+            true => parts.table("lasting_object_rules", made),
+            false => writeln!(
+                c.holes,
+                "planned_item!({:?} => lasting_object_rules: {made});",
+                planned::requirement(&feature)
+            )
+            .unwrap(),
+        }
+    }
+    let lasting_about = std::mem::take(&mut c.made_lasting_about).into_iter().map(|made| ("lasting_about", made));
+    let lasting_until = std::mem::take(&mut c.made_lasting_until).into_iter().map(|made| ("lasting_until", made));
+    for (table, (feature, made)) in lasting_about.chain(lasting_until).collect::<Vec<_>>() {
+        match planned::landed(&feature) {
+            true => parts.table(table, made),
+            false => writeln!(
+                c.holes,
+                "planned_item!({:?} => {table}: {made});",
+                planned::requirement(&feature)
+            )
+            .unwrap(),
+        }
+    }
     // A field can't be a hole, so the table is an item of its own in both forms.
+    // A rule beyond #897's keeps the whole table a hole of its own: one entry of
+    // a static can't be.
     let lasting_rules = std::mem::take(&mut c.made_lasting_rules);
-    if let Some((feature, _)) = lasting_rules.first() {
-        let entries: Vec<&str> = lasting_rules.iter().map(|(_, rule)| rule.as_str()).collect();
+    if let Some((feature, _, _)) = lasting_rules.first() {
+        let entries: Vec<&str> = lasting_rules.iter().map(|(_, rule, _)| rule.as_str()).collect();
         let table = format!("static LASTING_RULES: &[LastingRule] = &[{}];", entries.join(","));
-        writeln!(c.functions, "{}", planned::switched_item(planned::LASTING_RULES, feature, &table)).unwrap();
-        if planned::switched_on(planned::LASTING_RULES) {
-            parts.field("lasting_rules", "LASTING_RULES".to_string());
+        match lasting_rules.iter().find(|(_, _, beyond)| *beyond) {
+            Some((beyond, _, _)) => writeln!(
+                c.functions,
+                "planned_item!({:?} => {table});",
+                planned::requirement(beyond)
+            )
+            .unwrap(),
+            None => {
+                writeln!(c.functions, "{}", planned::switched_item(planned::LASTING_RULES, feature, &table)).unwrap();
+                if planned::switched_on(planned::LASTING_RULES) {
+                    parts.field("lasting_rules", "LASTING_RULES".to_string());
+                }
+            }
         }
     }
     // Only a hole writes a play grant on terms (`play_grant`): a whole card
