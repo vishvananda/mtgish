@@ -224,9 +224,9 @@ impl Compiler {
                 "SnowManaOfOwnColorSpent",
                 format!("q.state().obj({id}).snow_spent.any_of({chars}.colors)"),
             ),
-            S::NonBasicLandType => unrecorded(
-                "NonBasicLandType",
-                format!("{chars}.has_nonbasic_land_type()"),
+            // CR 305.8: the five basic land types, and no other.
+            S::NonBasicLandType => format!(
+                "{chars}.subtypes.iter().any(|kind| kind.card_types().has(CardType::Land) && !matches!(kind, Subtype::Plains | Subtype::Island | Subtype::Swamp | Subtype::Mountain | Subtype::Forest))"
             ),
             other => return Err(gap(format!("object state {}", form(other)))),
         })
@@ -271,7 +271,9 @@ pub(super) struct Notes {
 fn acted_on(op: &Operation) -> &'static [&'static str] {
     match op {
         Operation::ChooseObjects { .. } | Operation::ChooseAndPay { .. } => &["Selected"],
-        Operation::Sacrifice { .. } => &["Sacrificed"],
+        Operation::Sacrifice { .. } => &["Sacrificed", "PutInGraveyard"],
+        Operation::Destroy { .. } => &["PutInGraveyard"],
+        Operation::Counter { .. } => &["Countered"],
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],
         Operation::Mill { .. } => &["Milled"],
         Operation::Reveal { .. }
@@ -408,8 +410,10 @@ impl Compiler {
         {
             return Ok(format!("{found}.clone()"));
         }
-        // What was sacrificed is read as it last existed.
-        if matches!(what, EarlierObjects::Sacrificed) && self.before.contains_key(&result.0) {
+        // What was sacrificed or countered is read as it last existed.
+        if matches!(what, EarlierObjects::Sacrificed | EarlierObjects::Countered)
+            && self.before.contains_key(&result.0)
+        {
             return self.transition(result, &ObjectPhase::Before);
         }
         self.named(result)
@@ -426,6 +430,13 @@ impl Compiler {
             (EarlierObjects::Sacrificed, CostPart::Sacrifice { .. }) => true,
             (EarlierObjects::Revealed, CostPart::Reveal { .. }) => true,
             (EarlierObjects::Discarded, CostPart::Discard { .. }) => true,
+            (
+                EarlierObjects::Returned,
+                CostPart::Move {
+                    destination: Destination::OwnersHand,
+                    ..
+                },
+            ) => true,
             (EarlierObjects::Unattached, CostPart::UnattachFrom { .. }) => true,
             (
                 EarlierObjects::Exiled,
@@ -447,6 +458,30 @@ impl Compiler {
         let Some((payment, at)) = by_activation.or(by_casting) else {
             if exiled {
                 return Ok(format!("q.exiled_with({})", self.linked()));
+            }
+            // The turn's own record of it.
+            let last = |event: &str, card: &str| {
+                format!("q.history().this_turn().iter().rev().find_map(|r| match r.event {{ {event} => Some({card}), _ => None }}).into_iter().collect::<Vec<ObjectId>>()")
+            };
+            match what {
+                EarlierObjects::LastDrawn => {
+                    return Ok(last(
+                        "Event::Drew { player, card } if player == asker.controller",
+                        "card",
+                    ))
+                }
+                EarlierObjects::LastCast => return Ok(last("Event::Cast(cast)", "cast.spell")),
+                // What a "one or more" ability triggered on (CR 603.2c).
+                EarlierObjects::LeftGraveyard if self.stack_item => {
+                    return Ok("q.event_objects(item).to_vec()".into())
+                }
+                // No step of its own: what the ability is about went there.
+                EarlierObjects::PutInGraveyard if self.stack_item => {
+                    if let Ok(card) = self.objects(&ObjectSet::One(ObjectRef::EventDestination)) {
+                        return Ok(card);
+                    }
+                }
+                _ => {}
             }
             // Cantrip keeps no record of this for a read to find.
             return Ok(planned::planned_value(

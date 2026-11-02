@@ -1633,10 +1633,14 @@ impl Compiler {
             Operation::Counter {
                 objects,
                 destination: Destination::OwnersGraveyard,
-            } if self.stack_targets(objects).is_some() => match self.read_later(result) {
-                true => self.counter_reporting(id, objects, result, out),
-                false => self.counter_on_stack(id, objects, out),
-            },
+            } if self.stack_targets(objects).is_some() => {
+                let read = self.read_later(result)
+                    || format!("{:?}", self.after).contains("Earlier { what: Countered");
+                match read {
+                    true => self.counter_reporting(id, objects, result, out),
+                    false => self.counter_on_stack(id, objects, out),
+                }
+            }
             Operation::Counter {
                 objects:
                     ObjectSet::Zone {
@@ -1662,7 +1666,15 @@ impl Compiler {
                     Some(to) => format!("g.counter_to(spell, CounterTo::{to});"),
                     None => "g.counter(spell);".into(),
                 };
-                writeln!(out, "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for spell in objects_{id} {{ {call} }} }});", self.fetch(self.objects(objects)?)).unwrap();
+                let read = format!("{:?}", self.after).contains("Earlier { what: Countered");
+                let keep = match read {
+                    true => format!("let before_{id} = objects_{id}.clone(); "),
+                    false => String::new(),
+                };
+                writeln!(out, "let objects_{id} = {}; {keep}cantrip_api::instruction(g, |g| {{ for spell in objects_{id} {{ {call} }} }});", self.fetch(self.objects(objects)?)).unwrap();
+                if read {
+                    self.left_behind(result, format!("before_{id}.clone()"));
+                }
             }
             Operation::CreateContinuousEffect {
                 source,

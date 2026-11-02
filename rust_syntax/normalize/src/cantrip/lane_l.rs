@@ -2753,6 +2753,7 @@ impl Compiler {
             self.single.insert(result.0);
         }
         self.selections.insert(result.0, format!("shown_{id}"));
+        self.notes.earlier.push(("Revealed", result.clone()));
         Ok(())
     }
     /// "Chosen at random", which the engine records as one (`Event::ChosenAtRandom`).

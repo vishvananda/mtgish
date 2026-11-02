@@ -832,6 +832,13 @@ impl Compiler {
             CostPart::ChangeTapState { selections, .. } => {
                 selections.iter().any(|s| s.choose.is_some())
             }
+            CostPart::Move {
+                selections,
+                destination: Destination::OwnersHand,
+                ..
+            } => selections
+                .iter()
+                .all(|s| s.choose.is_some() && matches!(s.objects, ObjectSet::Battlefield(_))),
             _ => false,
         };
         match payment {
@@ -1817,8 +1824,16 @@ impl Compiler {
             ),
             ObjectFilter::Shares { property, with } => {
                 let test = lane_j::sharing(property)?;
+                // A spell that has left the stack is as it was cast.
+                let other = match with {
+                    ObjectRef::Earlier {
+                        what: EarlierObjects::LastCast,
+                        ..
+                    } => "q.history().cast_of(o).filter(|_| q.state().obj(o).became.is_some()).map_or_else(|| q.chars(o), |cast| cast.chars(q))",
+                    _ => "q.chars(o)",
+                };
                 format!(
-                    "{}.is_some_and(|o: ObjectId| {{ let (a, b) = (&{chars}, &q.chars(o)); {test} }})",
+                    "{}.is_some_and(|o: ObjectId| {{ let (a, b) = (&{chars}, &{other}); {test} }})",
                     self.object(with)?
                 )
             }
