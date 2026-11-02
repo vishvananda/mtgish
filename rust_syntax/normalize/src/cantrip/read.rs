@@ -985,6 +985,16 @@ impl Compiler {
             max: u32::MAX.into(),
             dynamic: true,
         };
+        if let Expr::CountObjects(objects) = n {
+            if let Some(code) = self.outside_count(n, objects)? {
+                return Ok(Number {
+                    code,
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                });
+            }
+        }
         Ok(match n {
             Expr::Primitive { name, .. } => {
                 return Err(gap(format!("primitive numeric expression {name}")))

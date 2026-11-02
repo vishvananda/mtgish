@@ -589,6 +589,8 @@ struct Compiler {
     /// Values the card chooses as it enters, which its permanent keeps.
     enters_choosing: Vec<ValueKind>,
     bound_objects: BTreeSet<u32>,
+    /// The next closure is a reflexive ability's.
+    reflexing: bool,
     bound_players: BTreeSet<u32>,
     /// A mechanic asks for the first way, so no other way may come before it.
     only_way: bool,
@@ -935,6 +937,7 @@ impl Compiler {
             chosen: Vec::new(),
             enters_choosing: Vec::new(),
             bound_objects: BTreeSet::new(),
+            reflexing: false,
             bound_players: BTreeSet::new(),
             costing_targets: false,
             mode_guard: None,
