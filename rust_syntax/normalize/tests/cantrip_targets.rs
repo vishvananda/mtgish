@@ -49,8 +49,8 @@ const CARDS: &[(&str, &str)] = &[
     ("Wolf of Devil's Breach", "Event::Discarded { card, .. } => Some(card)"),
     // "The blighted creature": the effect says which, where a payment doesn't.
     ("Grub, Notorious Auntie", "blight::may_in_effect("),
-    // "Up to two" is the printed words', which the instruction lost.
-    ("Fable of the Mirror-Breaker", "discard-of-up-to-a-number-read-as-exactly-that-number"),
+    // "You may discard up to two cards" (#165): up to two, then that many drawn.
+    ("Fable of the Mirror-Breaker", "Count::UpTo((2i64)"),
     // Emerge's and a kicker's payment, read from the records of the cast.
     ("Adipose Offspring", "original_spell("),
     ("Dralnu's Pet", "original_spell("),

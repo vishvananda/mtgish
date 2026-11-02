@@ -1477,20 +1477,6 @@ impl Compiler {
         let decider_code = planned::planned_read(player, "asker.controller", decider);
         writeln!(out, "let decider_{id} = {decider_code};").unwrap();
         let Some(base) = self.option_labels_of(options) else {
-            let said = self.lines_said();
-            // Whim of Volrath, Trait Doctoring: "until end of turn" is in the data
-            // for the land type alone, so a changed color word would last forever.
-            if said.iter().any(|line| {
-                line.contains("one color word with another or one basic land type")
-                    && line.contains(" until ")
-            }) {
-                return Err(gap("a text change's duration given to one of its options, in the data"));
-            }
-            // Bison Whistle: "Otherwise" is a free option in the data, so a Bison
-            // or a creature card could go to the graveyard.
-            if said.iter().any(|line| line.contains(". Otherwise, you may put it into your graveyard")) {
-                return Err(gap("an option the card says is otherwise, free in the data"));
-            }
             let labels: Vec<String> = (0..options.len())
                 .map(|i| format!("Label::Card(card_{id}, {i})"))
                 .collect();
@@ -2041,7 +2027,7 @@ impl Compiler {
                 actor: PlayerSet::One(player),
                 object,
                 targets: NewTargets::To(to),
-            } if !matches!(to, ObjectSet::Battlefield(ObjectFilter::Not(_))) => {
+            } => {
                 self.retarget_to(id, player, object, to, out)?
             }
             Operation::MoveCounters {

@@ -714,14 +714,6 @@ impl Compiler {
         if self.divided_shields(event, limit, duration, body, out)? {
             return Ok(());
         }
-        // Redeem: "prevent all damage that would be dealt this turn to up to two
-        // target creatures" has the targets as the damage's sources in the data.
-        let by_targets = matches!(event, ReplacementEvent::Damage(damage)
-            if matches!(damage.recipients, DamageRecipients::Any)
-                && matches!(&damage.sources, ObjectFilter::InSet(set) if matches!(**set, ObjectSet::Targets(_))));
-        if by_targets && self.line_text().is_some_and(|line| line.contains("would be dealt this turn to")) {
-            return Err(gap("damage prevented to its targets, read in the data as by them"));
-        }
         let saved = self.clone();
         let mark = out.len();
         let holes = self.gaps.len();

@@ -1439,9 +1439,6 @@ impl Compiler {
                 let feature = match targets {
                     NewTargets::ToPlayers(_) => "a spell's target changed to a player".to_string(),
                     NewTargets::Random(_) => "new targets chosen at random".to_string(),
-                    NewTargets::To(_) => {
-                        "a spell's target changed to a permanent of no stated kind".to_string()
-                    }
                     _ => feature,
                 };
                 let player = self.one_actor(actor, &feature)?;
@@ -2367,11 +2364,6 @@ impl Compiler {
                 self.selections.insert(result.0, format!("objects_{id}"));
                 self.notes.exiled_going.insert(result.0);
             }
-            // The data has the revealing opponent sacrifice this artifact, which
-            // they don't control, where the card has "you" sacrifice it.
-            Operation::RevealUntil {
-                at_most: Some(_), ..
-            } => return Err(gap("a reveal whose sacrifice the data gives to another player")),
             Operation::PutChosenCounters { objects, choice }
                 if self.chosen_counters(id, objects, choice, result, out)? => {}
             Operation::PutChosenCounters { objects, choice } => {

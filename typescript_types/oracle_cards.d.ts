@@ -4092,7 +4092,7 @@ type GameNumber =
 | { "_GameNumber": "TheNumberOfCardTypesAmongCardsPutInGraveyardThisWay" }
 | { "_GameNumber": "TheNumberOfCardTypesAmongPermanents", "args": Permanents }
 | { "_GameNumber": "TheNumberOfCardTypesAmongSpellsCastThisTurn", "args": Spells }
-| { "_GameNumber": "TheNumberOfCardTypesAmongThePermanentsSacrificedThisTurn" }
+| { "_GameNumber": "TheNumberOfCardTypesAmongThePermanentsSacrificedByPlayerThisTurn", "args": Player }
 | { "_GameNumber": "TheNumberOfCardTypesItSharesWithAnyExiledCard", "args": CardsInExile }
 | { "_GameNumber": "TheNumberOfCardTypesPermanentHas", "args": Permanent }
 | { "_GameNumber": "TheNumberOfCardsDiscardedByPlayerThisWay", "args": Player }

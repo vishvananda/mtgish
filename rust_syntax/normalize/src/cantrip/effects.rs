@@ -1507,9 +1507,6 @@ impl Compiler {
                 amount,
                 preventable: true,
             } => {
-                if lane_n::names_no_card_type(recipients) {
-                    return Err(gap("damage to each permanent, a card type lost in the data"));
-                }
                 let amount = self.number(amount)?.amount(u16::MAX.into(), "u16")?;
                 let (declare, deal) = if lane_n::read_as_damaged(&self.after, result) {
                     self.performed.insert(result.0, format!("done_{id}"));
@@ -2222,14 +2219,6 @@ impl Compiler {
                 cost,
                 optional: true,
             } => {
-                // The source's words "up to", which the instruction doesn't have.
-                let words = "discard up to";
-                if (lane_k::printed_otherwise(self.line_text(), words)
-                    || self.chapters.values().any(|chapter| chapter.contains(words)))
-                    && matches!(cost.parts.as_slice(), [CostPart::Discard { .. }])
-                {
-                    return Err(gap("discard of up to a number read as exactly that number"));
-                }
                 let discard = self.paid_discard(cost, result);
                 if discard.is_some() {
                     writeln!(out, "let mark_{id} = {{ let q: &dyn Query = g; q.history().all().len() }};").unwrap();
@@ -2804,12 +2793,6 @@ impl Compiler {
             }
         }
         let alone = self.one_object(objects);
-        // All Hallow's Eve (#173): "each player returns ... from their graveyard" is in the data as you putting the cards
-        // of every graveyard onto the battlefield, so each creature would come under your control.
-        let every_graveyard = matches!(
-            objects,
-            ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Graveyard, players }, .. } if !matches!(players, PlayerSet::One(_))
-        );
         let shown = self.outside_shown(objects);
         let revealed = self.revealed;
         let chosen = matches!(objects, ObjectSet::Selected(_));
@@ -2823,9 +2806,6 @@ impl Compiler {
         let call = match destination {
             Destination::Battlefield(_) | Destination::OwnersBattlefield => {
                 let controller = match destination {
-                    Destination::Battlefield(_) if every_graveyard && self.line_text().is_some_and(|line| line.to_lowercase().contains("each player returns")) => {
-                        return Err(gap("each player's return read as yours in the data"));
-                    }
                     Destination::Battlefield(player) => {
                         let player = self.certain_player(player)?;
                         writeln!(out, "let player_{id} = {};", self.fetch(player)).unwrap();

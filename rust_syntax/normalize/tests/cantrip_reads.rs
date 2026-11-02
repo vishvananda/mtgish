@@ -66,10 +66,9 @@ const CARDS: &[(&str, &str)] = &[
     // Holes that stay, each for what the form can't say.
     // Its own ability is told from the others by its printed words.
     ("Withering Wisps", "engine: no limit on activations each turn"),
-    (
-        "Korvold, Gleeful Glutton",
-        "a sacrifice history with its player lost in the data",
-    ),
+    // "Permanents you've sacrificed this turn" (#175): yours now, but a count of
+    // distinct card types in a history isn't written yet.
+    ("Korvold, Gleeful Glutton", "history measure Distinct"),
     // Losing keywords wouldn't reach a landwalk that's a rule of the block.
     ("Hammerheim", "losing ability AnyLandwalk"),
     // An event-fired delayed ability keeps no list: this read would be empty.

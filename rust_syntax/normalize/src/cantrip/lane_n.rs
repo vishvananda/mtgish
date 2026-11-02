@@ -2321,10 +2321,6 @@ pub(super) fn power_with_toughness(changes: &[Change]) -> Option<Vec<Change>> {
 
 /// Damage to every other permanent, where the words were "each other creature":
 /// no card says that, and read as written it would burn planeswalkers.
-pub(super) fn names_no_card_type(recipients: &Recipients) -> bool {
-    format!("{recipients:?}").contains("Battlefield(Not(")
-}
-
 /// The keywords a list of kinds of ability names, where each is one the engine
 /// holds as a plain bit. "Hexproof from [quality]" (CR 702.11) is not among them:
 /// what `AnyHexproof` asks of it has no bit.

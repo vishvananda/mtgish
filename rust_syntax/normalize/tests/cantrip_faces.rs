@@ -166,15 +166,12 @@ fn cant_be_blocked_as_long_as_is_the_keyword_while_it_holds() {
 }
 
 #[test]
-fn the_data_s_wrong_reads_are_planned_holes() {
-    let Some(rows) = rows() else { return };
-    for (name, feature) in [
-        ("Ajani, Nacatl Pariah", "one or more that die read as each in the data"),
-        ("Great Fierce Bee", "one or more that die read as each in the data"),
-        ("Vengeful Townsfolk", "one or more that die read as each in the data"),
-        ("Sink into Stupor", "an opponent's permanent read as anyone's in the data"),
-    ] {
-        let (_, gaps) = &rows[name];
-        assert!(gaps.iter().any(|gap| gap == feature), "{name}: {gaps:?}");
+fn the_data_s_repaired_reads_are_written_whole() {
+    // "Whenever one or more other ... die" is a batch in the data again (#177): it triggers once (CR 603.2c).
+    for name in ["Ajani, Nacatl Pariah", "Great Fierce Bee", "Vengeful Townsfolk"] {
+        says(name, &[".once_per_batch()"]);
     }
+    // "Target spell or nonland permanent an opponent controls" (#178): the permanent is an opponent's too.
+    let Some(file) = file("Sink into Stupor") else { return };
+    assert_eq!(file.matches("opponents(asker.controller)").count(), 2, "{file}");
 }
