@@ -3815,7 +3815,8 @@ impl Compiler {
                 };
                 let count = self.fetch(self.number(count)?.code);
                 let entry = self.stated_operands(entry);
-                format!("for player in {actors} {{ {M}::conjure::conjure(g, player, {owner}, {source}, {what}, {count}, ConjureTo::Entering(EventZone::{zone:?}, {spot}, {entry}))?; }}")
+                // What each player conjured, together: the instruction's result.
+                format!("{{ let mut conjured: Vec<ObjectId> = Vec::new(); for player in {actors} {{ conjured.extend({M}::conjure::conjure(g, player, {owner}, {source}, {what}, {count}, ConjureTo::Entering(EventZone::{zone:?}, {spot}, {entry}))?); }} conjured }};")
             }
             Operation::CreateContinuousEffect {
                 affected: EffectSubjects::Objects(objects),

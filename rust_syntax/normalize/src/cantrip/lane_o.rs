@@ -3186,7 +3186,7 @@ impl Compiler {
                     .and_then(|body| Ok((body, self.player(player)?)));
                 self.stack_item = saved;
                 let (body, player) = read?;
-                format!("Cost::performed(|q: &dyn Query, asker: &Asker| {player}, {body})")
+                format!("Cost::performed(|q: &dyn Query, asker: &Asker| -> Option<PlayerId> {{ {player} }}, {body})")
             }
             P::Discard {
                 count,

@@ -241,9 +241,19 @@ fn one_call(code: &str) -> bool {
 /// a block whose last statement is one; `let name = call` (the name's value);
 /// `if cond { call; }` (with nothing made otherwise).
 fn made_by(code: &str) -> Option<String> {
-    let code = code.trim();
+    let code = code.trim().trim_end_matches(';').trim_end();
     if one_call(code) {
         return Some(code.to_string());
+    }
+    // A block gathering what its calls made in a list of its own, its value.
+    if code.starts_with('{') && close_of(code, 0).map(|(end, _)| end) == Some(code.len()) {
+        let inner = code[1..code.len() - 1].trim();
+        let parts = top_level(inner, b';');
+        let last = parts.last().map_or("", |last| last.trim());
+        let simple = !last.is_empty() && last.chars().all(|c| c == '_' || c.is_ascii_alphanumeric());
+        if simple && inner.starts_with(&format!("let mut {last}")) {
+            return Some(code.to_string());
+        }
     }
     if let Some(rest) = code.strip_prefix("let ") {
         let (name, value) = rest.split_once(" = ")?;

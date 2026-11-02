@@ -461,10 +461,8 @@ impl Compiler {
                 // of its own (`reflexive_trigger_about`), as a delayed one's.
                 _ => {
                     let code = outer.compiler.objects(objects)?;
-                    let read = match outer.reflexive {
-                        true => self.carried_list(outer, code),
-                        false => format!("about(q, item, {code})"),
-                    };
+                    // A delayed ability carries it so too (`make_watching`).
+                    let read = self.carried_list(outer, code);
                     Ok(Some(planned::planned_value(
                         REFLEXIVE_LIST,
                         "Vec::<ObjectId>::new()",
