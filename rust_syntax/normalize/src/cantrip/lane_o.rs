@@ -3374,7 +3374,7 @@ impl Compiler {
         self.plan_entry(
             &failed.feature,
             "own_casts",
-            &format!("OwnCast {{ zone: {zone}, condition: {condition}, grant: PlayGrant {{ {grant}..PlayGrant::PLAIN }} }}"),
+            &format!("OwnCast {{ zone: {zone}, condition: {condition}, grant: {grant} }}"),
             parts,
         );
         Ok(())

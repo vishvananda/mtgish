@@ -3928,7 +3928,7 @@ impl Compiler {
             } => {
                 let library = self.fetch(self.certain_player(library)?);
                 let rule = self.stated_constraints(constraints)?;
-                format!("let revealed = {M}::library::reveal_until_group(g, {library}, {source}, {rule})?")
+                format!("let revealed = {M}::library::reveal_until_group(g, {library}, {source}, {rule})?;")
             }
             Operation::RevealUntil {
                 library,
@@ -3943,7 +3943,7 @@ impl Compiler {
                     Some(n) => format!("Some({})", self.fetch(self.number(n)?.code)),
                     None => "None".to_string(),
                 };
-                format!("let revealed = {M}::library::reveal_until_or(g, {library}, {source}, {filter}, {count}, {most})?")
+                format!("let revealed = {M}::library::reveal_until_or(g, {library}, {source}, {filter}, {count}, {most})?;")
             }
             // What triggered it, spell or ability, whichever the event was.
             Operation::SetX {

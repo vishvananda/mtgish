@@ -3693,7 +3693,13 @@ impl Compiler {
                     .collect::<Vec<_>>()
                     .join(", ")
             }
-            Err(_) => form(ability),
+            Err(_) => String::new(),
+        };
+        // An ability that is no entry of its own (a cost change, a static the
+        // card holds elsewhere) is named by its words.
+        let inner = match inner.is_empty() {
+            true => quoted(&form(ability)),
+            false => inner,
         };
         self.plan_entry(
             &format!("keyword modifier {what}"),
