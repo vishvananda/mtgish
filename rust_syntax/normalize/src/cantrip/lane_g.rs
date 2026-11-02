@@ -1223,6 +1223,27 @@ impl Compiler {
                 let payer = self.fetch(self.certain_player(player)?);
                 writeln!(out, "let owed_{id}: u8 = {owed}; let payer_{id} = {payer}; let paid_{id} = g.state().player(payer_{id}).energy() >= owed_{id}; if paid_{id} {{ g.change_energy(payer_{id}, -i32::from(owed_{id})); }}").unwrap();
             }
+            // "Remove a counter from a creature you control. If you do" (Mister
+            // Hyde): one counter of any kind off one of them, its player's choice.
+            CostPart::RemoveCounters { removals }
+                if matches!(
+                    removals.as_slice(),
+                    [CounterRemoval {
+                        recipients: Recipients::Objects(_),
+                        kind: None,
+                        amount: CounterAmount::Count(Count::Exactly(Expr::Constant(1))),
+                        selection: Some(_),
+                        ..
+                    }]
+                ) =>
+            {
+                let [CounterRemoval { player: remover, recipients: Recipients::Objects(objects), .. }] = removals.as_slice() else {
+                    unreachable!("one counter off one of a set");
+                };
+                let remover = self.fetch(self.certain_player(remover)?);
+                let among = self.fetch(self.objects(objects)?);
+                writeln!(out, "let remover_{id} = {remover}; let among_{id}: Vec<ObjectId> = {among}; let paid_{id} = g.remove_a_counter_from_among(remover_{id}, asker.source, &among_{id})?;").unwrap();
+            }
             CostPart::RemoveCounters { removals } if removes_one_counter(removals) => {
                 self.remove_counters(id, removals, result, out)?;
                 writeln!(out, "let paid_{id} = removed_{id} > 0;").unwrap();
