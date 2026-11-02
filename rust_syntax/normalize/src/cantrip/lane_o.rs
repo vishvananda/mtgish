@@ -3726,7 +3726,11 @@ impl Compiler {
             ("KeepPT", []) => {
                 return Ok(format!("{{ let own = q.card(q.chars(asker.source).card); {values}.sized(own.power.unwrap_or(0), own.toughness.unwrap_or(0)) }}"))
             }
-            ("KeepName", []) => format!("{values}.keeping_name()"),
+            // "Except its name is still [this]": its own copiable name (CR 707.9b),
+            // a copy effect's on it or its card's.
+            ("KeepName", []) => {
+                return Ok(format!("{{ let own = q.copiable_values(asker.source); {values}.named(own.name.unwrap_or(q.card(own.card).name)) }}"))
+            }
             // "It doesn't copy that creature's color": its own copiable color, which is
             // what a copy of it copies (Vesuvan Doppelganger's ruling).
             ("KeepColor", []) => {
