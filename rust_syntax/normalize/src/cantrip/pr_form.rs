@@ -3055,6 +3055,8 @@ enum Role {
     Static,
     /// The set a rule on an open set is asked of (CR 611.2c).
     Lasting,
+    /// The damage a prevention effect applies to (CR 615.1).
+    Prevention,
     Mana,
 }
 
@@ -3112,6 +3114,8 @@ fn function_names(file: &File, printed: &str) -> Names {
             Role::Target
         } else if old.starts_with("lasting_rule") {
             Role::Lasting
+        } else if old.ends_with("_applies") && text_of(&function.sig).contains("DamageEvent") {
+            Role::Prevention
         } else if ["affects", "applies", "apply", "rule"].iter().any(|w| old.contains(w)) {
             Role::Static
         } else {
@@ -3215,6 +3219,7 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         Role::Target => "115.1",
         Role::Static => "604.1",
         Role::Lasting => "611.2c",
+        Role::Prevention => "615.1",
         Role::Mana => "605.3a",
         Role::Effect => "608.2",
     }];
