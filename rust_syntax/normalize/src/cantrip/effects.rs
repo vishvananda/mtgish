@@ -2790,6 +2790,12 @@ impl Compiler {
             }
         }
         let alone = self.one_object(objects);
+        // All Hallow's Eve (#173): "each player returns ... from their graveyard" is in the data as you putting the cards
+        // of every graveyard onto the battlefield, so each creature would come under your control.
+        let every_graveyard = matches!(
+            objects,
+            ObjectSet::Zone { scope: ZoneScope::Players { zone: EventZone::Graveyard, players }, .. } if !matches!(players, PlayerSet::One(_))
+        );
         let shown = self.outside_shown(objects);
         let revealed = self.revealed;
         let chosen = matches!(objects, ObjectSet::Selected(_));
@@ -2803,6 +2809,9 @@ impl Compiler {
         let call = match destination {
             Destination::Battlefield(_) | Destination::OwnersBattlefield => {
                 let controller = match destination {
+                    Destination::Battlefield(_) if every_graveyard && self.line_text().is_some_and(|line| line.to_lowercase().contains("each player returns")) => {
+                        return Err(gap("each player's return read as yours in the data"));
+                    }
                     Destination::Battlefield(player) => {
                         let player = self.certain_player(player)?;
                         writeln!(out, "let player_{id} = {};", self.fetch(player)).unwrap();

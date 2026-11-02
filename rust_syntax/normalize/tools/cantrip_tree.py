@@ -532,15 +532,28 @@ def todo(args):
     print(f"{shown} requirements")
 
 
+def file_stem_of(card):
+    """The file a card is: its name's, or for a card of several faces the one its `CARD` is named for (`..oracle::DELVER_OF_SECRETS`
+    is delver_of_secrets.rs, a front face's name). None for a card of several faces with no PR form."""
+    if card["layout"] == "Card":
+        return stem_of(card["name"])
+    base = re.search(r"pub static CARD: CardDef = CardDef \{.*?\.\.oracle::(\w+)", card.get("file") or "", re.S)
+    return base.group(1).lower() if base else None
+
+
 def swap(args):
-    """Replace each hand-written plain card that has whole generated code, so Cantrip's own scenarios judge it."""
+    """Replace each hand-written plain card that has whole generated code, so Cantrip's own scenarios judge it; with
+    --faces, cards of several faces too."""
     cards = Path(args.cantrip) / "crates/cantrip-cards/src/cards"
     counter_path, token_path = Path(args.cantrip) / COUNTER_TABLE, Path(args.cantrip) / TOKEN_TABLE
     counter_table, token_table = counter_path.read_text(encoding="utf-8"), token_path.read_text(encoding="utf-8")
     swapped, counters, tokens = [], {}, {}
     for card in read_rows(args.rows):
-        path = cards / f"{stem_of(card['name'])}.rs"
-        if status_of(card) == "ready" and card["layout"] == "Card" and path.exists():
+        if card["layout"] != "Card" and not args.faces:
+            continue
+        stem = file_stem_of(card)
+        path = cards / f"{stem}.rs"
+        if stem and status_of(card) == "ready" and path.exists():
             code = card.get("file") or (header(card) + body(card))
             path.write_text(code, encoding="utf-8")
             swapped.append(card["name"])
@@ -595,6 +608,7 @@ def main():
     command = commands.add_parser("swap")
     command.add_argument("rows")
     command.add_argument("cantrip")
+    command.add_argument("--faces", action="store_true", help="also cards of several faces that have a PR form")
     command.set_defaults(run=swap)
     command = commands.add_parser("show")
     command.add_argument("rows")

@@ -550,3 +550,26 @@ fn a_name_the_faces_mean_differently_is_numbered() {
     assert!(file.contains("&PAY_QUESTION_2"), "{file}");
     syn::parse_file(&file).unwrap();
 }
+
+const LEAVES_DAMAGE: &str = r#"
+#[allow(unused_imports)] use cantrip_api::*;
+#[allow(unused_variables)] fn ability_0_event(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> { if let Event::ZoneChange { old, new, from, .. } = event { let id = *old; let subject = Target::Object(id); let data = [0u32, u32::MAX]; if from.is(ZoneKind::Battlefield) && Some(asker.source) == Some(id) { return Some(Fired { subject, data }); } }
+ None }
+fn ability_0(g: &mut dyn Game, item: &StackItem) -> Result<(), Suspend> { let asker = &Asker::new(item.object, item.controller);
+let source_0 = { let q: &dyn Query = g; item.subject.object() }; let amount_0 = { let q: &dyn Query = g; (1i64).max(0) as u16 }; let recipients_0 = { let q: &dyn Query = g; (q.state().battlefield().iter().copied().filter(|&id| q.chars(id).is(CardType::Creature)).collect::<Vec<ObjectId>>()).into_iter().map(Target::Object).collect::<Vec<Target>>() }; if let Some(source) = source_0 { let batch: Vec<(ObjectId, Target, u16)> = recipients_0.iter().map(|t| (source, *t, amount_0)).collect(); g.damage_together(&batch); }
+g.end_sentence();
+ Ok(()) }
+pub static CARD: CardDef = CardDef { name: "Sample", oracle: true, abilities: &[triggered(when_asked(EventMask(EventMask::ZONE_CHANGE.0), ability_0_event), ability_0, "When this enchantment leaves the battlefield, it deals 1 damage to each creature.")], ..CardDef::BLANK };
+pub static EXTRA: &[&CardDef] = &[];
+"#;
+
+/// Goblin Shrine: the trigger's subject is always the enchantment that left, so an `if let` around the damage has a closing
+/// brace no game runs, which Cantrip's coverage gate refuses. The guard is a `let .. else` on one line instead.
+#[test]
+fn a_guard_at_the_end_is_a_let_else() {
+    let printed = "When this enchantment leaves the battlefield, it deals 1 damage to each creature.";
+    let file = render(LEAVES_DAMAGE, "Sample", printed, Characteristics::Oracle).unwrap();
+    println!("{file}");
+    assert!(file.contains("let Some(source) = source_0 else { return Ok(()) };"), "{file}");
+    assert!(!file.contains("if let Some(source)"), "{file}");
+}
