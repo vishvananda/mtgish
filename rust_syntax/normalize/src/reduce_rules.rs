@@ -1587,7 +1587,15 @@ fn reduce_rule_ability(name: &str, operands: &[Operand]) -> Option<Ability> {
                 rule: TriggerRule::DoesntTrigger,
             })
         }
+        // "You may ... Do this only once each turn": the may is the row's, as
+        // `TriggerMayOnceEachTurn`'s is, and declining spends nothing (603.2h).
         ("TriggerMayOnceEachTurnI", [Operand::Event(event), Operand::Condition(condition), Operand::Program(body)]) => {
+            let body = Program {
+                instructions: vec![Instruction::Optional {
+                    decider: PlayerRef::AbilityController,
+                    body: body.clone(),
+                }],
+            };
             Some(Ability::Triggered {
                 event: (**event).clone(),
                 intervening_if: Some(condition.clone()),
@@ -1599,7 +1607,7 @@ fn reduce_rule_ability(name: &str, operands: &[Operand]) -> Option<Ability> {
                     targets: vec![],
                     modes: None,
                 },
-                body: body.clone(),
+                body,
             })
         }
         _ => None,

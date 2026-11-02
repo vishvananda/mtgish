@@ -2,10 +2,10 @@
  "cantrip": "01aba4b159",
  "totals": {
   "cards": 33529,
-  "ready": 28313,
-  "planned": 5168,
+  "ready": 28317,
+  "planned": 5164,
   "data": 48,
-  "written": 173,
+  "written": 172,
   "new_tokens": 198,
   "cards_with_new_tokens": 1004,
   "counter_lines": 169,
@@ -17,8 +17,8 @@
    "planned": 7
   },
   "Card": {
-   "ready": 27569,
-   "planned": 4617
+   "ready": 27573,
+   "planned": 4613
   },
   "Conspiracy": {
    "ready": 0,
@@ -88,7 +88,7 @@
  "classes": {
   "engine": {
    "requirements": 875,
-   "cards": 3883
+   "cards": 3884
   },
   "mechanic": {
    "requirements": 230,
@@ -99,16 +99,16 @@
    "cards": 332
   },
   "generator": {
-   "requirements": 41,
-   "cards": 75
+   "requirements": 39,
+   "cards": 71
   }
  },
  "fixes": {
-  "Cantrip": 2893,
+  "Cantrip": 2976,
   "not played": 1081,
   "mechanics module": 661,
-  "unaudited": 97,
-  "generator": 174,
+  "mtgish data": 7,
+  "generator": 178,
   "unsure": 89
  },
  "features": [
@@ -208,8 +208,7 @@
    "cards": 234,
    "written": 3,
    "fixes": [
-    "Cantrip",
-    "unaudited"
+    "Cantrip"
    ],
    "fix": "Cantrip",
    "examples": [
@@ -521,6 +520,24 @@
    ]
   },
   {
+   "needs": "A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes.",
+   "class": "engine",
+   "forms": [
+    "operation-change-spell"
+   ],
+   "cards": 72,
+   "written": 7,
+   "fixes": [
+    "Cantrip"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Alter Reality",
+    "Arcane Archery",
+    "Archway of Innovation"
+   ]
+  },
+  {
    "needs": "a generator arm, or a Cantrip feature if none exists",
    "class": "generator",
    "forms": [
@@ -529,10 +546,8 @@
     "put-onto-the-battlefield-face-down-as-a-stated-creature",
     "tapped-token-copies-of-several-objects-at-once",
     "a-limit-on-the-x-announced",
-    "delayed-trigger-this-turn-with-no-end-in-the-a-s-t",
     "enters-tapped-as-something-else",
     "returns-transformed-and-attached",
-    "a-once-each-turn-that-isn-t-a-limit-on-triggering",
     "a-spell-s-target-changed-to-a-player",
     "new-targets-chosen-at-random",
     "the-rest-of-a-prevention-read-for-each-of-its-parts",
@@ -540,6 +555,7 @@
     "a-target-the-source-doesn-t-limit-to-yours",
     "search-with-cards-from-outside-the-game",
     "a-delayed-ability-made-by-a-delayed-ability",
+    "a-once-each-turn-that-isn-t-a-limit-on-triggering",
     "a-perpetual-change-as-it-enters",
     "a-reveal-whose-sacrifice-the-data-gives-to-another-player",
     "a-sacrifice-history-with-its-player-lost-in-the-data",
@@ -560,17 +576,17 @@
     "a-chosen-type-mana-rule-that-names-creatures-it-doesn-t-print",
     "a-main-phase-test-that-lost-its-negation",
     "a-play-for-the-turn-read-as-a-play-now",
-    "a-return-that-prints-no-owner-under-its-owner-s-control",
     "an-overloaded-search-once-for-each-player",
     "an-unkicked-target-count-the-source-reads-as-any-number",
     "cards-found-in-two-zones-put-on-top-of-a-library",
     "spells-of-two-subtypes-read-as-spells-of-both"
    ],
-   "cards": 75,
-   "written": 14,
+   "cards": 71,
+   "written": 13,
    "fixes": [
     "Cantrip",
     "generator",
+    "mtgish data",
     "unaudited"
    ],
    "fix": "Cantrip",
@@ -578,24 +594,6 @@
     "A Killer Among Us",
     "Acidic Dagger",
     "Aetherplasm"
-   ]
-  },
-  {
-   "needs": "A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes.",
-   "class": "engine",
-   "forms": [
-    "operation-change-spell"
-   ],
-   "cards": 72,
-   "written": 7,
-   "fixes": [
-    "Cantrip"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Alter Reality",
-    "Arcane Archery",
-    "Archway of Innovation"
    ]
   },
   {
@@ -3801,6 +3799,25 @@
    ]
   },
   {
+   "needs": "Event::ControlChanged reaches triggered abilities and names the previous controller: it is filed in the history only",
+   "class": "engine",
+   "forms": [
+    "trigger-event-player-loses-control",
+    "trigger-event-control-changes"
+   ],
+   "cards": 11,
+   "written": 0,
+   "fixes": [
+    "Cantrip"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Duplicity",
+    "Gustha's Scepter",
+    "Khârn the Betrayer"
+   ]
+  },
+  {
    "needs": "Forecast (CR 702.57): activate only during your upkeep, once each turn, from the hand with the card revealed.",
    "class": "mechanic",
    "forms": [
@@ -4069,25 +4086,6 @@
     "Anvil of Bogardan",
     "Cursed Rack",
     "Folio of Fancies"
-   ]
-  },
-  {
-   "needs": "Event::ControlChanged reaches triggered abilities and names the previous controller: it is filed in the history only",
-   "class": "engine",
-   "forms": [
-    "trigger-event-player-loses-control",
-    "trigger-event-control-changes"
-   ],
-   "cards": 10,
-   "written": 0,
-   "fixes": [
-    "Cantrip"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Duplicity",
-    "Gustha's Scepter",
-    "Khârn the Betrayer"
    ]
   },
   {
@@ -15205,8 +15203,8 @@
     "Glyph of Doom",
     "Heart Wolf"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "Confirmed: where a delayed ability waiting for an event triggers, settle.rs:1438 makes its PendingTrigger with `members: Span::default()`, so `event_objects` reads nothing of the list `delayed_trigger_about` kept (`Delayed::members`). The step path at settle.rs:1646 passes `members: d.members`. One-line Cantrip fix: `members: d.members` at :1438."
   },
   {
    "id": "engine-no-bushido",
@@ -15243,8 +15241,8 @@
     "Gloom Surgeon",
     "Hostility"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "Static `PreventionDef` (replace.rs:358) is hint, applies, amount: no `then`. `GrantedPreventionDef::then: Option<PreventionThen>` (replace.rs:390) is the shape. Cantrip fix: the same `then` on `PreventionDef`, run by `rest_of_preventions` as the granted one is."
   },
   {
    "id": "engine-venture-into-the-dungeon-reaches-only-undercity",
@@ -16991,8 +16989,8 @@
     "Expert-Level Safe",
     "Goblin Game"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "Every `Game::ask` answer and every chosen_* value is public state; nothing keeps a choice from the other players until it is revealed. Needs a hidden answer: a secret flag on the request and a kept value only its chooser sees until a reveal."
   },
   {
    "id": "earlier-objects-selected",
@@ -18435,8 +18433,8 @@
     "Ink-Treader Nephilim",
     "Mirrorwing Dragon"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "No public query of what a stack item's target slot could target: `item_target_candidates` (actions.rs:1731) and `slot_spec` (resolve.rs:85) are crate-private, and `can_target` is only hexproof and protection. Copying first and then `change_a_target_to` leaves a copy on its old target where the new one is illegal, and that call only takes a permanent. Needs `Query::target_candidates(item, slot)` (or `copy_spell_targeting(spell, copier, to)`)."
   },
   {
    "id": "a-limit-on-what-untaps-in-an-untap-step",
@@ -18857,6 +18855,25 @@
    "how": ""
   },
   {
+   "id": "trigger-event-player-loses-control",
+   "feature": "trigger event Player LosesControl",
+   "class": "engine",
+   "needs": "Event::ControlChanged reaches triggered abilities and names the previous controller: it is filed in the history only",
+   "family": "trigger event",
+   "cards": 9,
+   "written": 0,
+   "alone": 4,
+   "examples": [
+    "Duplicity",
+    "Gustha's Scepter",
+    "Khârn the Betrayer",
+    "Krovikan Vampire",
+    "Magus of the Unseen"
+   ],
+   "fix": "Cantrip",
+   "how": ""
+  },
+  {
    "id": "player-reference-one-of",
    "feature": "player reference OneOf",
    "class": "engine",
@@ -19159,25 +19176,6 @@
    ],
    "fix": "Cantrip",
    "how": "None. A card printing a word `Subtype` lacks does not build: crates/cantrip-oracle/build.rs panics."
-  },
-  {
-   "id": "trigger-event-player-loses-control",
-   "feature": "trigger event Player LosesControl",
-   "class": "engine",
-   "needs": "Event::ControlChanged reaches triggered abilities and names the previous controller: it is filed in the history only",
-   "family": "trigger event",
-   "cards": 8,
-   "written": 0,
-   "alone": 3,
-   "examples": [
-    "Duplicity",
-    "Gustha's Scepter",
-    "Khârn the Betrayer",
-    "Krovikan Vampire",
-    "Magus of the Unseen"
-   ],
-   "fix": "Cantrip",
-   "how": ""
   },
   {
    "id": "trigger-event-player-ring-tempts",
@@ -20316,8 +20314,8 @@
     "Tezzeret, Cruel Machinist",
     "The Cyber-Controller"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "`FaceDown` is Manifested or Cloaked only (card.rs:4090), and `face_down_values` maps each to an intrinsic card (card.rs:4581), the 2/2 with the mana-cost turn-up action. 'They're 2/2 Cyberman artifact creatures' needs face-down values of the effect's own (a `FaceDown::As(CardId)` whose CardDef is face_down), not turned up for the card's mana cost."
   },
   {
    "id": "static-rule-blocks-despite",
@@ -20886,8 +20884,8 @@
     "Impulsive Maneuvers",
     "Reflect Damage"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "Damage is replaced one DamageEvent part at a time (`replace::damage`, rules replace.rs:1451), and a granted `once` replacement is used up by the first part it applies to (replace.rs:1050). 'The next time ... would deal damage, it deals double / is dealt to X instead' is the whole simultaneous event (CR 120.2). Prevention has that as `Shield::NextTime` (object.rs:1505); replacements need the same: used up after the event's last part, as `apply_to_parts` does for token batches."
   },
   {
    "id": "engine-no-resolving-rule-on-an-open-set-combat-cost",
@@ -21513,8 +21511,8 @@
     "Mirror-Style Master",
     "Redoubled Stormsinger"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "`create_token_copies_together` (game.rs:813) has no tapped: its ops (ops.rs:2048) calls create_tokens_onto with `false`. `create_token_copies_tapped` is one Copiable. Small Cantrip fix: a `tapped: bool` on create_token_copies_together, passed through. Attacking is then `enter_attacking` (game.rs:821)."
   },
   {
    "id": "tokens-entering-in-a-special-state",
@@ -23343,23 +23341,6 @@
    "how": "Not landed. g.counters_put_by in the held code doesn't exist. Event::CountersPut carries one kind per event, so 'those counters' across kinds needs a read of the batch."
   },
   {
-   "id": "delayed-trigger-this-turn-with-no-end-in-the-a-s-t",
-   "feature": "delayed trigger this turn with no end in the AST",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "delayed trigger",
-   "cards": 3,
-   "written": 0,
-   "alone": 3,
-   "examples": [
-    "Magus Lucea Kane",
-    "Repeated Reverberation",
-    "Seraph"
-   ],
-   "fix": "unaudited",
-   "how": ""
-  },
-  {
    "id": "duration-until-another-exiled",
    "feature": "duration UntilAnotherExiled",
    "class": "engine",
@@ -23662,8 +23643,8 @@
     "Princess Yue",
     "Vraska, the Silencer"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "`EntersAs` (card.rs:130) has no tapped and `put_onto_battlefield_as` (game.rs:771) takes none: tapping afterwards is not entering tapped. Cantrip fix: a `tapped` on EntersAs or the call. Princess Yue also needs a name in EntersAs ('a land named Moon')."
   },
   {
    "id": "event-value-outside-its-ability",
@@ -24274,8 +24255,8 @@
     "Radiant Restraints // Radiant Grace",
     "Strangling Grasp // Vengeful Strangler"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "The core's Entering carries transformed, attach and attach_player together (ops.rs:452), but the API has `put_onto_battlefield_transformed` (no host) and `put_onto_battlefield_attached` (no transform, a permanent host only) and nothing that enchants a player as it enters. Needs `put_onto_battlefield_transformed_attached(object, controller, host: Target)`."
   },
   {
    "id": "sacrificing-any-number-of-permanents-to-activate-an-ability",
@@ -24925,22 +24906,6 @@
    "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: only_if summing triggerings of both."
   },
   {
-   "id": "a-once-each-turn-that-isn-t-a-limit-on-triggering",
-   "feature": "a once each turn that isn't a limit on triggering",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "a once",
-   "cards": 2,
-   "written": 0,
-   "alone": 2,
-   "examples": [
-    "Legolas, Counter of Kills",
-    "Rinoa, Angel Wing"
-   ],
-   "fix": "unaudited",
-   "how": ""
-  },
-  {
    "id": "a-party-read-in-a-layer",
    "feature": "a party read in a layer",
    "class": "engine",
@@ -24969,8 +24934,8 @@
     "Rebound",
     "Reflecting Mirror"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "`change_target` changes to any other legal target, with no kind; `change_a_target_to` takes an ObjectId on the battlefield only (ops.rs:2829). 'The new target must be a player' needs a change to a player: `change_a_target_to` over a Target, or change_target with a filter. With no could-target query card code can't offer only the legal players."
   },
   {
    "id": "ability-while-on-top-of-library",
@@ -25977,8 +25942,8 @@
     "Chef's Kiss",
     "Grip of Chaos"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "`choose_at_random` exists, but picking among 'all legal targets' needs them listed: no public query of a stack item's slot candidates (actions.rs:1731 is crate-private), and no call sets a target to a given player or spell. Same missing query as a-copy-of-a-spell-for-each-object-it-could-target."
   },
   {
    "id": "numeric-expression-additional-cost-paid",
@@ -26969,8 +26934,8 @@
     "Comeuppance",
     "Judgment of Alexander"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "generator",
+   "how": "`PreventionThen` is told every part it prevented (`&[Prevented]`, each with source, target, amount): the generator's then calls its steps once with the first part's subject. It should group the parts by source and run the steps for each ('that creature', 'that source's controller'), with that source's total."
   },
   {
    "id": "token-copy-entering-with-counters",
@@ -27284,8 +27249,8 @@
    "examples": [
     "Tendril of the Mycotyrant"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "mtgish data",
+   "how": "The data's target is TargetPermanent(And([IsNonCardtype(Creature), IsCardtype(Land)])) where Oracle says 'target noncreature land you control': ControlledByAPlayer(SinglePlayer(You)) is missing."
   },
   {
    "id": "conditional-replacement",
@@ -27479,8 +27444,8 @@
    "examples": [
     "Invocation of the Founders // Invasion of Arcavios"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "generator",
+   "how": "Turtles Forever searches the library and outside the game as one selection: `searched_cards` and `outside_the_game` shown together, a library card moved, one from outside brought in with `bring_into_hand_revealed`. Add the graveyard to the same pool."
   },
   {
    "id": "selection-constraint-no-common-property",
@@ -27719,8 +27684,8 @@
    "examples": [
     "Acidic Dagger"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "mtgish data",
+   "how": "The data nests 'When the targeted creature leaves the battlefield this turn, sacrifice this artifact' inside the first CreateTriggerUntil's ActionList, as though the damage made it. Oracle has two sentences of the activated ability: they are siblings. Read so, both are delayed abilities of one resolution."
   },
   {
    "id": "a-gift-of-another-kind",
@@ -27753,6 +27718,21 @@
    "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: entering.chosen_subtype=first; entering.chosen_number=Some(index of second in a const list)."
   },
   {
+   "id": "a-once-each-turn-that-isn-t-a-limit-on-triggering",
+   "feature": "a once each turn that isn't a limit on triggering",
+   "class": "generator",
+   "needs": "a generator arm, or a Cantrip feature if none exists",
+   "family": "a once",
+   "cards": 1,
+   "written": 0,
+   "alone": 1,
+   "examples": [
+    "Rinoa, Angel Wing"
+   ],
+   "fix": "generator",
+   "how": "`history().done` and `note_done`, as Ancient Cornucopia. Landed for Legolas: TriggerMayOnceEachTurnI dropped the may, so its body is now Optional and `done_once` keys it. Rinoa still holds: `done_once` leaves a may that chooses first (chooses_first), which Cantrip can do the same way."
+  },
+  {
    "id": "a-perpetual-change-as-it-enters",
    "feature": "a perpetual change as it enters",
    "class": "generator",
@@ -27764,8 +27744,8 @@
    "examples": [
     "Better Offer"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "'Perpetually' is Alchemy (digital only): Cantrip has no perpetual effect anywhere (see engine-no-double-team)."
   },
   {
    "id": "a-reveal-whose-sacrifice-the-data-gives-to-another-player",
@@ -27779,8 +27759,8 @@
    "examples": [
     "Thought Dissector"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "mtgish data",
+   "how": "SacrificePermanent(ThisPermanent) sits inside PlayerAction(Ref_TargetPlayer, RevealCardsFromTheTopOfLibraryUntil...), so the revealing opponent sacrifices an artifact they don't control. Oracle's 'sacrifice this artifact' is yours."
   },
   {
    "id": "a-sacrifice-history-with-its-player-lost-in-the-data",
@@ -27794,8 +27774,8 @@
    "examples": [
     "Korvold, Gleeful Glutton"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "mtgish data",
+   "how": "TheNumberOfCardTypesAmongThePermanentsSacrificedThisTurn has no player, where Oracle says 'permanents you've sacrificed this turn'; NumberOfPermanentsSacrificedByPlayerThisTurn(.., You) is the shape with one."
   },
   {
    "id": "a-spell-s-target-changed-to-a-permanent-of-no-stated-kind",
@@ -27809,8 +27789,8 @@
    "examples": [
     "Quicksilver Dragon"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "mtgish data",
+   "how": "ChangeTheTargetOfSpellToAPermanent(Ref_TargetSpell, Other(ThisPermanent)): Oracle says 'change that spell's target to another creature', and the creature is lost."
   },
   {
    "id": "a-static-ability-that-makes-cards-outside-the-battlefield-lose-all-abilities",
@@ -27839,8 +27819,8 @@
    "examples": [
     "Three Dog, Galaxy News DJ"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "`create_token_attached` takes a CardId, not Copiable values, and the copy calls attach nothing. 'Create a token that's a copy of that Aura attached to that creature' needs a copy made attached (create_tokens_onto already takes copies and an attach; the API exposes no such pair)."
   },
   {
    "id": "ability-exiles-searched-cards",
@@ -27989,8 +27969,8 @@
    "examples": [
     "Timothar, Baron of Bats"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "generator",
+   "how": "After the grant, link the exiled card to the token's granted text: `g.link_exiled(&[card], Linked { object: token, text, acquired: Acquired { by: Grant, stamp, part: 0 } })`, the stamp being the AddAbility effect's; the granted ability reads `exiled_with(linked_to(asker))`."
   },
   {
    "id": "an-ordinal-of-grouped-events",
@@ -28124,8 +28104,8 @@
    "examples": [
     "Fire Giant's Fury"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "mtgish data",
+   "how": "The delayed trigger is WhenACreatureDealsCombatDamage(SinglePermanent(Ref_TargetPermanent)), any recipient, where Oracle says 'deals combat damage to a player'."
   },
   {
    "id": "combined-mana-choices-in-one-production",
@@ -28724,8 +28704,8 @@
    "examples": [
     "Catastrophe"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "`destroy_all` and `destroy_all_no_regen` are each one batch: lands chosen, the land creatures can't be regenerated and the rest can, destroyed at once. Needs one destroy with a per-object no-regeneration set."
   },
   {
    "id": "discard-of-up-to-a-number-read-as-exactly-that-number",
@@ -28739,8 +28719,8 @@
    "examples": [
     "Reflection of Kiki-Jiki // Fable of the Mirror-Breaker"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "mtgish data",
+   "how": "MayCost(DiscardNumberCards(Integer(2))) where Oracle says 'You may discard up to two cards': exactly two. The grammar has DiscardUptoNumberCards."
   },
   {
    "id": "distinct-color-pairs",
@@ -30719,8 +30699,8 @@
    "examples": [
     "Deathmist Raptor"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "Return 'face up or face down': face down is a plain face-down 2/2 turned up for its megamorph cost. `FaceDown` has only Manifested and Cloaked, both turned up for the mana cost of a creature card (intrinsic.rs:252), which Deathmist Raptor's face-down mustn't be. Needs a plain face-down variant; the choice is card code."
   },
   {
    "id": "modal-announcement",
@@ -32789,8 +32769,8 @@
    "examples": [
     "Aetherplasm"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "Attacking has `put_onto_battlefield_attacking` and `enter_attacking`; nothing puts a creature onto the battlefield blocking an attacker. Needs an enter_blocking(permanent, attacker) twin."
   },
   {
    "id": "put-onto-the-battlefield-face-down-as-a-land",
@@ -32804,8 +32784,8 @@
    "examples": [
     "Yedora, Grave Gardener"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "'Face down ... It's a Forest land' needs face-down values that are a Forest land with no other types or abilities: FaceDown has only the 2/2 creature values. Same fix as put-onto-the-battlefield-face-down-as-a-stated-creature."
   },
   {
    "id": "put-onto-the-battlefield-face-down-with-abilities",
@@ -32819,8 +32799,8 @@
    "examples": [
     "Magar of the Magic Strings"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "A face-down 3/3 with two abilities of the effect's needs face-down values of the card's own (FaceDown::As(CardId)); also 'note the name' and a copy of the noted card. Same fix as the stated-creature form."
   },
   {
    "id": "replacement-event-copy-spell",
@@ -33209,8 +33189,8 @@
    "examples": [
     "Homura's Essence // Homura, Human Ascendant"
    ],
-   "fix": "unaudited",
-   "how": ""
+   "fix": "Cantrip",
+   "how": "No flip cards: no flipped status, no flip call, CardDef.back is transform (see layout-flip, keyword-action-flip)."
   },
   {
    "id": "sacrifice-cost-without-a-fixed-count",
@@ -35802,19 +35782,6 @@
    "class": "generator",
    "needs": "a generator arm, or a Cantrip feature if none exists",
    "family": "a play",
-   "cards": 0,
-   "written": 1,
-   "alone": 0,
-   "examples": [],
-   "fix": "unaudited",
-   "how": ""
-  },
-  {
-   "id": "a-return-that-prints-no-owner-under-its-owner-s-control",
-   "feature": "a return that prints no owner under its owner's control",
-   "class": "generator",
-   "needs": "a generator arm, or a Cantrip feature if none exists",
-   "family": "a return",
    "cards": 0,
    "written": 1,
    "alone": 0,
@@ -44608,9 +44575,6 @@
    "intensity",
    "subtype-chorus"
   ],
-  "Legolas, Counter of Kills": [
-   "a-once-each-turn-that-isn-t-a-limit-on-triggering"
-  ],
   "Leitmotif Composer": [
    "engine-no-resolving-rule-on-an-open-set-prohibit-be-blocked"
   ],
@@ -45085,9 +45049,6 @@
   "Magnetic Web": [
    "continuous-rule-require-combat-be-blocked",
    "static-rule-attack-drags"
-  ],
-  "Magus Lucea Kane": [
-   "delayed-trigger-this-turn-with-no-end-in-the-a-s-t"
   ],
   "Magus of the Arena": [
    "player-reference-one-of",
@@ -48352,9 +48313,6 @@
   "Renegade Krasis": [
    "trigger-event-object-evolves"
   ],
-  "Repeated Reverberation": [
-   "delayed-trigger-this-turn-with-no-end-in-the-a-s-t"
-  ],
   "Replicating Terror": [
    "operation-conjure"
   ],
@@ -49376,7 +49334,7 @@
    "per-player-instruction-with-several-steps"
   ],
   "Seraph": [
-   "delayed-trigger-this-turn-with-no-end-in-the-a-s-t"
+   "trigger-event-player-loses-control"
   ],
   "Seraph of the Scales": [
    "engine-no-afterlife"
@@ -54609,9 +54567,6 @@
   ],
   "Titania, Rugged Rumbler": [
    "engine-no-choice-between-the-costs-of-an-ability"
-  ],
-  "Tom, Bert, and William": [
-   "a-return-that-prints-no-owner-under-its-owner-s-control"
   ],
   "Tomik, Orzhov Lawmage": [
    "granted-attack-cap"

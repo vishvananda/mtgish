@@ -220,6 +220,19 @@
 "partial": "Kept after entry: gap. Two values of one kind as it enters: encode the second in Entering.chosen_number (see condition-value-chosen-is).",
 "verdict": "gap"
 },
+"a-copy-of-a-spell-for-each-object-it-could-target": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:846",
+"crates/cantrip-api/src/game.rs:1258",
+"crates/cantrip-api/src/game.rs:566",
+"crates/cantrip-rules/src/actions.rs:1731",
+"crates/cantrip-rules/src/resolve.rs:85"
+],
+"how": "No public query of what a stack item's target slot could target: `item_target_candidates` (actions.rs:1731) and `slot_spec` (resolve.rs:85) are crate-private, and `can_target` is only hexproof and protection. Copying first and then `change_a_target_to` leaves a copy on its old target where the new one is illegal, and that call only takes a permanent. Needs `Query::target_candidates(item, slot)` (or `copy_spell_targeting(spell, copier, to)`).",
+"note": "Agrus Kos, Feather, Glimmervoid Basin, Ink-Treader Nephilim, Mirrorwing Dragon, Precursor Golem.",
+"partial": "Glimmervoid Basin's 'spell, card not on the battlefield, and/or player' also needs change_a_target_to over any Target.",
+"verdict": "gap"
+},
 "a-cost-at-resolution-filtered-by-who-is-asked-to-pay-it": {
 "evidence": [
 "crates/cantrip-api/src/card.rs:1292",
@@ -229,6 +242,15 @@
 "note": "",
 "partial": "",
 "verdict": "exists"
+},
+"a-delayed-ability-made-by-a-delayed-ability": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "The data nests 'When the targeted creature leaves the battlefield this turn, sacrifice this artifact' inside the first CreateTriggerUntil's ActionList, as though the damage made it. Oracle has two sentences of the activated ability: they are siblings. Read so, both are delayed abilities of one resolution.",
+"note": "Acidic Dagger. Filed upstream.",
+"partial": "",
+"verdict": "data"
 },
 "a-gift-that-changes-how-many-a-spell-targets": {
 "evidence": [
@@ -357,6 +379,17 @@
 "partial": "",
 "verdict": "gap"
 },
+"a-once-each-turn-that-isn-t-a-limit-on-triggering": {
+"evidence": [
+"crates/cantrip-api/src/history.rs:498",
+"crates/cantrip-api/src/game.rs:872",
+"crates/cantrip-cards/src/cards/ancient_cornucopia.rs:29"
+],
+"how": "`history().done` and `note_done`, as Ancient Cornucopia. Landed for Legolas: TriggerMayOnceEachTurnI dropped the may, so its body is now Optional and `done_once` keys it. Rinoa still holds: `done_once` leaves a may that chooses first (chooses_first), which Cantrip can do the same way.",
+"note": "",
+"partial": "Rinoa, Angel Wing.",
+"verdict": "exists"
+},
 "a-party-read-in-a-layer": {
 "evidence": [
 "crates/cantrip-api/src/card.rs:245"
@@ -365,6 +398,15 @@
 "note": "Out-of-order reads unchecked.",
 "partial": "",
 "verdict": "unsure"
+},
+"a-perpetual-change-as-it-enters": {
+"evidence": [
+"crates/cantrip-api/src/card.rs:130"
+],
+"how": "'Perpetually' is Alchemy (digital only): Cantrip has no perpetual effect anywhere (see engine-no-double-team).",
+"note": "Better Offer.",
+"partial": "",
+"verdict": "gap"
 },
 "a-reveal-from-an-opening-hand": {
 "evidence": [
@@ -379,6 +421,15 @@
 "partial": "`OpeningHandAction` allows only `counter` and `exile_from_hand`, so reveal-and-remember is not in the form meant for it. The reveal comes at the upkeep, not before the game, so opponents mulligan and keep with the same information but lose it as they play out a first-turn response, and the prompt or",
 "verdict": "card-code"
 },
+"a-reveal-whose-sacrifice-the-data-gives-to-another-player": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "SacrificePermanent(ThisPermanent) sits inside PlayerAction(Ref_TargetPlayer, RevealCardsFromTheTopOfLibraryUntil...), so the revealing opponent sacrifices an artifact they don't control. Oracle's 'sacrifice this artifact' is yours.",
+"note": "Thought Dissector.",
+"partial": "",
+"verdict": "data"
+},
 "a-rule-on-triggering-where-the-card-says-whose-abilities": {
 "evidence": [
 "crates/cantrip-api/src/card.rs:3316"
@@ -387,6 +438,15 @@
 "note": "",
 "partial": "",
 "verdict": "exists"
+},
+"a-sacrifice-history-with-its-player-lost-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "TheNumberOfCardTypesAmongThePermanentsSacrificedThisTurn has no player, where Oracle says 'permanents you've sacrificed this turn'; NumberOfPermanentsSacrificedByPlayerThisTurn(.., You) is the shape with one.",
+"note": "Korvold, Gleeful Glutton.",
+"partial": "",
+"verdict": "data"
 },
 "a-spell-costing-colored-mana-more": {
 "evidence": [
@@ -409,6 +469,26 @@
 "note": "Tracker missed that stack is public.",
 "partial": "",
 "verdict": "card-code"
+},
+"a-spell-s-target-changed-to-a-permanent-of-no-stated-kind": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "ChangeTheTargetOfSpellToAPermanent(Ref_TargetSpell, Other(ThisPermanent)): Oracle says 'change that spell's target to another creature', and the creature is lost.",
+"note": "Quicksilver Dragon. Filed upstream.",
+"partial": "With the data right it still needs a change to a chosen creature among the legal ones: no could-target query (see a-spell-s-target-changed-to-a-player).",
+"verdict": "data"
+},
+"a-spell-s-target-changed-to-a-player": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:1253",
+"crates/cantrip-api/src/game.rs:1258",
+"crates/cantrip-rules/src/ops.rs:2822"
+],
+"how": "`change_target` changes to any other legal target, with no kind; `change_a_target_to` takes an ObjectId on the battlefield only (ops.rs:2829). 'The new target must be a player' needs a change to a player: `change_a_target_to` over a Target, or change_target with a filter. With no could-target query card code can't offer only the legal players.",
+"note": "Rebound, Reflecting Mirror.",
+"partial": "",
+"verdict": "gap"
 },
 "a-static-ability-that-makes-cards-outside-the-battlefield-lose-all-abilities": {
 "evidence": [
@@ -441,6 +521,25 @@
 "partial": "Filter says yours where card says any: generator bug.",
 "verdict": "exists"
 },
+"a-target-the-source-doesn-t-limit-to-yours": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "The data's target is TargetPermanent(And([IsNonCardtype(Creature), IsCardtype(Land)])) where Oracle says 'target noncreature land you control': ControlledByAPlayer(SinglePlayer(You)) is missing.",
+"note": "Tendril of the Mycotyrant. Filed upstream.",
+"partial": "",
+"verdict": "data"
+},
+"a-token-copy-attached-as-it-enters": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:1061",
+"crates/cantrip-api/src/game.rs:813"
+],
+"how": "`create_token_attached` takes a CardId, not Copiable values, and the copy calls attach nothing. 'Create a token that's a copy of that Aura attached to that creature' needs a copy made attached (create_tokens_onto already takes copies and an attach; the API exposes no such pair).",
+"note": "Three Dog, Galaxy News DJ.",
+"partial": "The Aura's card id would miss copy effects and exceptions on the sacrificed Aura.",
+"verdict": "gap"
+},
 "a-token-entering-blocking": {
 "evidence": [
 "crates/cantrip-api/src/game.rs:817"
@@ -458,6 +557,16 @@
 "note": "",
 "partial": "",
 "verdict": "exists"
+},
+"a-value-chosen-in-secret": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:597",
+"crates/cantrip-state/src/decision.rs:355"
+],
+"how": "Every `Game::ask` answer and every chosen_* value is public state; nothing keeps a choice from the other players until it is revealed. Needs a hidden answer: a secret flag on the request and a kept value only its chooser sees until a reveal.",
+"note": "As operation-choose-value-with and operation-reveal-choices: no hand-written 'secretly' card.",
+"partial": "A Killer Among Us, Emissary of Grudges, Expert-Level Safe keep the secret on a permanent across turns.",
+"verdict": "gap"
 },
 "ability-as-event": {
 "evidence": [
@@ -810,6 +919,17 @@
 "partial": "",
 "verdict": "card-code"
 },
+"an-exiled-card-read-by-an-ability-given-to-a-token": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:1071",
+"crates/cantrip-api/src/game.rs:396",
+"crates/cantrip-state/src/object.rs:416"
+],
+"how": "After the grant, link the exiled card to the token's granted text: `g.link_exiled(&[card], Linked { object: token, text, acquired: Acquired { by: Grant, stamp, part: 0 } })`, the stamp being the AddAbility effect's; the granted ability reads `exiled_with(linked_to(asker))`.",
+"note": "Timothar, Baron of Bats.",
+"partial": "Unverified: add_effect returns no timestamp, so the stamp is read from the effect it just made.",
+"verdict": "card-code"
+},
 "an-ordinal-of-grouped-events": {
 "evidence": [
 "crates/cantrip-api/src/history.rs:183"
@@ -1032,6 +1152,15 @@
 "note": "",
 "partial": "",
 "verdict": "card-code"
+},
+"combat-damage-to-a-player-the-player-lost-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "The delayed trigger is WhenACreatureDealsCombatDamage(SinglePermanent(Ref_TargetPermanent)), any recipient, where Oracle says 'deals combat damage to a player'.",
+"note": "Fire Giant's Fury. Filed upstream.",
+"partial": "",
+"verdict": "data"
 },
 "combined-mana-choices-in-one-production": {
 "evidence": [
@@ -4789,6 +4918,16 @@
 "partial": "A stated other player's next turn takes a matcher.",
 "verdict": "gap"
 },
+"delayed-trigger-this-turn-with-no-end-in-the-a-s-t": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:840",
+"rust_syntax/normalize/src/reduce_card_rules.rs:11"
+],
+"how": "Landed. The data's event is WhenPlayerCastsTheirNextSpellOrActivatesTheirNextAbilityThisTurn: `future_expiry` now gives it EndOfTurn, so it is DelayedWhen::NextThisTurn (Magus Lucea Kane, Repeated Reverberation). Seraph was a false hole: its 'this turn' is the trigger's own, so the check now asks for 'next ... this turn' in one sentence, and Seraph holds on trigger-event-player-loses-control.",
+"note": "",
+"partial": "",
+"verdict": "exists"
+},
 "delayed-trigger-until-until-state-based-actions-checked": {
 "evidence": [
 "crates/cantrip-state/src/object.rs:1772"
@@ -4797,6 +4936,25 @@
 "note": "Until state-based actions are checked.",
 "partial": "",
 "verdict": "gap"
+},
+"destroyed-together-some-that-can-t-be-regenerated": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:658",
+"crates/cantrip-api/src/game.rs:660"
+],
+"how": "`destroy_all` and `destroy_all_no_regen` are each one batch: lands chosen, the land creatures can't be regenerated and the rest can, destroyed at once. Needs one destroy with a per-object no-regeneration set.",
+"note": "Catastrophe.",
+"partial": "",
+"verdict": "gap"
+},
+"discard-of-up-to-a-number-read-as-exactly-that-number": {
+"evidence": [
+"data/mtgish.lines.ron"
+],
+"how": "MayCost(DiscardNumberCards(Integer(2))) where Oracle says 'You may discard up to two cards': exactly two. The grammar has DiscardUptoNumberCards.",
+"note": "Fable of the Mirror-Breaker. Filed upstream.",
+"partial": "",
+"verdict": "data"
 },
 "discarding-x-cards-as-a-cost": {
 "evidence": [
@@ -5516,6 +5674,18 @@
 "engine-a-cost-that-taps-what-its-payer-may-not-control": {
 "how": "support in Cantrip's core",
 "note": "Found by a generator lane trying the form; the hole names it.",
+"verdict": "gap"
+},
+"engine-a-delayed-ability-on-an-event-keeps-no-list": {
+"evidence": [
+"crates/cantrip-rules/src/settle.rs:1438",
+"crates/cantrip-rules/src/settle.rs:1646",
+"crates/cantrip-state/src/object.rs:1781",
+"crates/cantrip-api/src/game.rs:843"
+],
+"how": "Confirmed: where a delayed ability waiting for an event triggers, settle.rs:1438 makes its PendingTrigger with `members: Span::default()`, so `event_objects` reads nothing of the list `delayed_trigger_about` kept (`Delayed::members`). The step path at settle.rs:1646 passes `members: d.members`. One-line Cantrip fix: `members: d.members` at :1438.",
+"note": "Delif's Cube, Gaze of the Gorgon, Giant Oyster, Glyph of Doom, Heart Wolf and the rest: what the delayed ability is about is a list kept to the event.",
+"partial": "",
 "verdict": "gap"
 },
 "engine-a-play-permission-that-costs-less": {
@@ -6892,6 +7062,18 @@
 "partial": "Living metal's half is fine (row 47).",
 "verdict": "gap"
 },
+"engine-no-once-only-replacement-of-a-whole-damage-event": {
+"evidence": [
+"crates/cantrip-api/src/replace.rs:336",
+"crates/cantrip-rules/src/replace.rs:1050",
+"crates/cantrip-rules/src/replace.rs:1451",
+"crates/cantrip-state/src/object.rs:1505"
+],
+"how": "Damage is replaced one DamageEvent part at a time (`replace::damage`, rules replace.rs:1451), and a granted `once` replacement is used up by the first part it applies to (replace.rs:1050). 'The next time ... would deal damage, it deals double / is dealt to X instead' is the whole simultaneous event (CR 120.2). Prevention has that as `Shield::NextTime` (object.rs:1505); replacements need the same: used up after the event's last part, as `apply_to_parts` does for token batches.",
+"note": "Desperate Gambit, Glarecaster, Goblin Psychopath, Impulsive Maneuvers, Reflect Damage.",
+"partial": "Desperate Gambit's and Impulsive Maneuvers' prevent halves alone are Shield::NextTime, which exists.",
+"verdict": "gap"
+},
 "engine-no-order-of-a-graveyard": {
 "evidence": [
 "crates/cantrip-api/src/card.rs:2882"
@@ -7447,6 +7629,17 @@
 "partial": "",
 "verdict": "gap"
 },
+"engine-no-static-prevention-with-an-effect-besides": {
+"evidence": [
+"crates/cantrip-api/src/replace.rs:358",
+"crates/cantrip-api/src/replace.rs:390",
+"crates/cantrip-api/src/replace.rs:420"
+],
+"how": "Static `PreventionDef` (replace.rs:358) is hint, applies, amount: no `then`. `GrantedPreventionDef::then: Option<PreventionThen>` (replace.rs:390) is the shape. Cantrip fix: the same `then` on `PreventionDef`, run by `rest_of_preventions` as the granted one is.",
+"note": "Angel of Suffering, Hostility, Gloom Surgeon, Bloatfly Swarm: 'if damage would be dealt ..., prevent that damage and ...' as a static ability.",
+"partial": "A Damage replacement with a then zeroes the amount but skips can't-be-prevented (CR 615.12) and records no DamagePrevented: not a stand-in.",
+"verdict": "gap"
+},
 "engine-no-sticker-kicker": {
 "evidence": [
 "crates/cantrip-state/src/subtypes.rs:5"
@@ -7776,6 +7969,16 @@
 "engine-x-in-a-mana-cost-beside-a-kicker": {
 "how": "support in Cantrip's core",
 "note": "Found by a generator lane trying the form; the hole names it.",
+"verdict": "gap"
+},
+"enters-tapped-as-something-else": {
+"evidence": [
+"crates/cantrip-api/src/card.rs:130",
+"crates/cantrip-api/src/game.rs:771"
+],
+"how": "`EntersAs` (card.rs:130) has no tapped and `put_onto_battlefield_as` (game.rs:771) takes none: tapping afterwards is not entering tapped. Cantrip fix: a `tapped` on EntersAs or the call. Princess Yue also needs a name in EntersAs ('a land named Moon').",
+"note": "Princess Yue, Vraska the Silencer, Emergent Sequence.",
+"partial": "Emergent Sequence may be a data question: Oracle says 'put it onto the battlefield tapped ... That land becomes a 0/0 ... Fractal creature', a becomes after it entered, which the data reads as EntersWithLayerEffect. Read so, it would be a tapped put and a lasting effect, which exist.",
 "verdict": "gap"
 },
 "escape-cost-other-than-exiling-other-graveyard-cards": {
@@ -9309,6 +9512,16 @@
 "partial": "Could-produce of other permanents is private (colors_from_sacrifice) for lands with variable mana.",
 "verdict": "card-code"
 },
+"may-enter-face-down": {
+"evidence": [
+"crates/cantrip-api/src/card.rs:4090",
+"crates/cantrip-api/src/intrinsic.rs:252"
+],
+"how": "Return 'face up or face down': face down is a plain face-down 2/2 turned up for its megamorph cost. `FaceDown` has only Manifested and Cloaked, both turned up for the mana cost of a creature card (intrinsic.rs:252), which Deathmist Raptor's face-down mustn't be. Needs a plain face-down variant; the choice is card code.",
+"note": "Deathmist Raptor.",
+"partial": "",
+"verdict": "gap"
+},
 "mayhem-cost-other-than-mana": {
 "evidence": [
 "crates/cantrip-mechanics/src/mayhem.rs:11"
@@ -9615,6 +9828,17 @@
 "note": "ChooseName takes looked_at and a kind. Check that a kind restricts it to the revealed nonland names; NameKind was not located.",
 "partial": "",
 "verdict": "unsure"
+},
+"new-targets-chosen-at-random": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:888",
+"crates/cantrip-api/src/game.rs:1249",
+"crates/cantrip-rules/src/actions.rs:1731"
+],
+"how": "`choose_at_random` exists, but picking among 'all legal targets' needs them listed: no public query of a stack item's slot candidates (actions.rs:1731 is crate-private), and no call sets a target to a given player or spell. Same missing query as a-copy-of-a-spell-for-each-object-it-could-target.",
+"note": "Chef's Kiss, Grip of Chaos.",
+"partial": "",
+"verdict": "gap"
 },
 "new-targets-each-player": {
 "evidence": [
@@ -13814,6 +14038,48 @@
 "partial": "No commander API in game.rs or card.rs.",
 "verdict": "gap"
 },
+"put-onto-the-battlefield-blocking": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:751",
+"crates/cantrip-api/src/game.rs:821"
+],
+"how": "Attacking has `put_onto_battlefield_attacking` and `enter_attacking`; nothing puts a creature onto the battlefield blocking an attacker. Needs an enter_blocking(permanent, attacker) twin.",
+"note": "Aetherplasm. As a-token-entering-blocking.",
+"partial": "",
+"verdict": "gap"
+},
+"put-onto-the-battlefield-face-down-as-a-land": {
+"evidence": [
+"crates/cantrip-api/src/card.rs:4090",
+"crates/cantrip-api/src/card.rs:4581"
+],
+"how": "'Face down ... It's a Forest land' needs face-down values that are a Forest land with no other types or abilities: FaceDown has only the 2/2 creature values. Same fix as put-onto-the-battlefield-face-down-as-a-stated-creature.",
+"note": "Yedora, Grave Gardener.",
+"partial": "",
+"verdict": "gap"
+},
+"put-onto-the-battlefield-face-down-as-a-stated-creature": {
+"evidence": [
+"crates/cantrip-api/src/card.rs:4090",
+"crates/cantrip-api/src/card.rs:4581",
+"crates/cantrip-api/src/game.rs:1085",
+"crates/cantrip-rules/src/ops.rs:952"
+],
+"how": "`FaceDown` is Manifested or Cloaked only (card.rs:4090), and `face_down_values` maps each to an intrinsic card (card.rs:4581), the 2/2 with the mana-cost turn-up action. 'They're 2/2 Cyberman artifact creatures' needs face-down values of the effect's own (a `FaceDown::As(CardId)` whose CardDef is face_down), not turned up for the card's mana cost.",
+"note": "Cybership, Death in Heaven, Missy, Tezzeret Cruel Machinist, The Cyber-Controller.",
+"partial": "Manifesting and then setting types is wrong: a manifested creature card can be turned up for its mana cost (CR 701.40b).",
+"verdict": "gap"
+},
+"put-onto-the-battlefield-face-down-with-abilities": {
+"evidence": [
+"crates/cantrip-api/src/card.rs:4090",
+"crates/cantrip-api/src/card.rs:4581"
+],
+"how": "A face-down 3/3 with two abilities of the effect's needs face-down values of the card's own (FaceDown::As(CardId)); also 'note the name' and a copy of the noted card. Same fix as the stated-creature form.",
+"note": "Magar of the Magic Strings.",
+"partial": "",
+"verdict": "gap"
+},
 "rad-counters": {
 "evidence": [
 "crates/cantrip-api/src/card.rs:2627"
@@ -14367,6 +14633,26 @@
 "partial": "",
 "verdict": "card-code"
 },
+"returns-flipped": {
+"evidence": [
+"crates/cantrip-api/src/card.rs:2882"
+],
+"how": "No flip cards: no flipped status, no flip call, CardDef.back is transform (see layout-flip, keyword-action-flip).",
+"note": "Homura, Human Ascendant.",
+"partial": "",
+"verdict": "gap"
+},
+"returns-transformed-and-attached": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:762",
+"crates/cantrip-api/src/game.rs:791",
+"crates/cantrip-rules/src/ops.rs:452"
+],
+"how": "The core's Entering carries transformed, attach and attach_player together (ops.rs:452), but the API has `put_onto_battlefield_transformed` (no host) and `put_onto_battlefield_attached` (no transform, a permanent host only) and nothing that enchants a player as it enters. Needs `put_onto_battlefield_transformed_attached(object, controller, host: Target)`.",
+"note": "Accursed Witch, Radiant Grace, Vengeful Strangler: their back faces are Auras that enter attached to an opponent or a creature.",
+"partial": "",
+"verdict": "gap"
+},
 "room-door-with-a-standing-rule": {
 "evidence": [
 "crates/cantrip-api/src/card.rs:3508"
@@ -14516,6 +14802,18 @@
 "note": "",
 "partial": "Random and named-after need code on top.",
 "verdict": "card-code"
+},
+"search-with-cards-from-outside-the-game": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:344",
+"crates/cantrip-api/src/game.rs:706",
+"crates/cantrip-cards/src/cards/turtles_forever.rs:21",
+"crates/cantrip-mechanics/src/outside.rs:11"
+],
+"how": "Turtles Forever searches the library and outside the game as one selection: `searched_cards` and `outside_the_game` shown together, a library card moved, one from outside brought in with `bring_into_hand_revealed`. Add the graveyard to the same pool.",
+"note": "Invasion of Arcavios.",
+"partial": "",
+"verdict": "exists"
 },
 "search-with-several-find-clauses": {
 "evidence": [
@@ -16438,6 +16736,18 @@
 "partial": "",
 "verdict": "card-code"
 },
+"tapped-token-copies-of-several-objects-at-once": {
+"evidence": [
+"crates/cantrip-api/src/game.rs:813",
+"crates/cantrip-api/src/game.rs:816",
+"crates/cantrip-rules/src/ops.rs:2048",
+"crates/cantrip-api/src/game.rs:821"
+],
+"how": "`create_token_copies_together` (game.rs:813) has no tapped: its ops (ops.rs:2048) calls create_tokens_onto with `false`. `create_token_copies_tapped` is one Copiable. Small Cantrip fix: a `tapped: bool` on create_token_copies_together, passed through. Attacking is then `enter_attacking` (game.rs:821).",
+"note": "Altair Ibn-La'Ahad, Kambal, Mardu Siegebreaker, Mirror-Style Master, Redoubled Stormsinger.",
+"partial": "",
+"verdict": "gap"
+},
 "tapping-any-number-of-permanents-as-a-cost": {
 "evidence": [
 "crates/cantrip-api/src/card.rs:909"
@@ -16749,6 +17059,16 @@
 "note": "",
 "partial": "Loyalty cost unread.",
 "verdict": "card-code"
+},
+"the-rest-of-a-prevention-read-for-each-of-its-parts": {
+"evidence": [
+"crates/cantrip-api/src/replace.rs:403",
+"crates/cantrip-api/src/replace.rs:420"
+],
+"how": "`PreventionThen` is told every part it prevented (`&[Prevented]`, each with source, target, amount): the generator's then calls its steps once with the first part's subject. It should group the parts by source and run the steps for each ('that creature', 'that source's controller'), with that source's total.",
+"note": "Comeuppance, Judgment of Alexander.",
+"partial": "",
+"verdict": "exists"
 },
 "token-copy-entering-with-counters": {
 "evidence": [

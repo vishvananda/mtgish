@@ -10,7 +10,10 @@ pub fn with_replacement(outer: &EventBindings, event: &ReplacementEvent) -> Even
 /// How long a row's delayed trigger waits, when its own words end it.
 pub fn future_expiry(name: &str) -> Option<Duration> {
     match name.split_once("::")?.1 {
-        "WhenPlayerNextActivatesAnAbilityBySpendingAnAmountOfMana" => Some(Duration::EndOfTurn),
+        "WhenPlayerNextActivatesAnAbilityBySpendingAnAmountOfMana"
+        | "WhenPlayerCastsTheirNextSpellOrActivatesTheirNextAbilityThisTurn" => {
+            Some(Duration::EndOfTurn)
+        }
         "WhenPermanentWinsAFightAgainstPermanent" => {
             Some(Duration::UntilStateBasedActionsChecked)
         }
