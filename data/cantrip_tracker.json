@@ -2,9 +2,9 @@
  "cantrip": "01aba4b159",
  "totals": {
   "cards": 33529,
-  "ready": 28327,
-  "planned": 5154,
-  "excluded": 48,
+  "ready": 28328,
+  "planned": 5201,
+  "excluded": 0,
   "written": 172,
   "new_tokens": 198,
   "cards_with_new_tokens": 1004,
@@ -17,8 +17,8 @@
    "planned": 7
   },
   "Card": {
-   "ready": 27584,
-   "planned": 4602
+   "ready": 27585,
+   "planned": 4601
   },
   "Conspiracy": {
    "ready": 0,
@@ -69,8 +69,8 @@
    "planned": 6
   },
   "StickerSheet": {
-   "ready": 48,
-   "planned": 0
+   "ready": 0,
+   "planned": 48
   },
   "TokenDefinition": {
    "ready": 24,
@@ -87,12 +87,12 @@
  },
  "classes": {
   "engine": {
-   "requirements": 869,
-   "cards": 3865
+   "requirements": 870,
+   "cards": 3913
   },
   "mechanic": {
-   "requirements": 230,
-   "cards": 1397
+   "requirements": 229,
+   "cards": 1396
   },
   "vocabulary": {
    "requirements": 168,
@@ -104,8 +104,8 @@
   }
  },
  "fixes": {
-  "Cantrip": 2981,
-  "not played": 1080,
+  "Cantrip": 2980,
+  "not played": 1128,
   "mechanics module": 661,
   "mtgish data": 20,
   "generator": 151,
@@ -862,6 +862,24 @@
     "Calamity of the Titans",
     "Charge of the Forever-Beast",
     "Daring Buccaneer"
+   ]
+  },
+  {
+   "needs": "stickers (CR 123, Unfinity), a casual variant Cantrip does not play: its docs/rules-exceptions.md leaves stickers out, so each sticker of a sheet is a hole that keeps what it says",
+   "class": "engine",
+   "forms": [
+    "engine-no-stickers"
+   ],
+   "cards": 48,
+   "written": 0,
+   "fixes": [
+    "not played"
+   ],
+   "fix": "not played",
+   "examples": [
+    "Sticker sheet: Ancestral, Hot Dog, Minotaur",
+    "Sticker sheet: Carnival, Elephant, Meteor",
+    "Sticker sheet: Contortionist, Otter, Storm"
    ]
   },
   {
@@ -8519,24 +8537,6 @@
    ]
   },
   {
-   "needs": "A mechanic's delayed ability is always index 0 of `CardDef::delayed`, so a card with another first delayed ability has no place for it: the mechanic is told its index.",
-   "class": "mechanic",
-   "forms": [
-    "cipher-beside-another-first-delayed-ability",
-    "two-mechanics-that-need-the-first-delayed-ability"
-   ],
-   "cards": 2,
-   "written": 0,
-   "fixes": [
-    "Cantrip"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Scurry of Squirrels",
-    "Voidwalk"
-   ]
-  },
-  {
    "needs": "A play permission that lets only one kind of mana be spent as though of any color (CR 609.4b): colorless mana, snow mana or one color.",
    "class": "vocabulary",
    "forms": [
@@ -9745,6 +9745,22 @@
    "fix": "Cantrip",
    "examples": [
     "Winter, Misanthropic Guide"
+   ]
+  },
+  {
+   "needs": "A mechanic's delayed ability is always index 0 of `CardDef::delayed`, so a card with another first delayed ability has no place for it: the mechanic is told its index.",
+   "class": "mechanic",
+   "forms": [
+    "cipher-beside-another-first-delayed-ability"
+   ],
+   "cards": 1,
+   "written": 0,
+   "fixes": [
+    "Cantrip"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Voidwalk"
    ]
   },
   {
@@ -15048,6 +15064,25 @@
     "Draconic Roar"
    ],
    "fix": "Cantrip",
+   "how": ""
+  },
+  {
+   "id": "engine-no-stickers",
+   "feature": "engine: no stickers",
+   "class": "engine",
+   "needs": "stickers (CR 123, Unfinity), a casual variant Cantrip does not play: its docs/rules-exceptions.md leaves stickers out, so each sticker of a sheet is a hole that keeps what it says",
+   "family": "engine: no",
+   "cards": 48,
+   "written": 0,
+   "alone": 48,
+   "examples": [
+    "Sticker sheet: Ancestral, Hot Dog, Minotaur",
+    "Sticker sheet: Carnival, Elephant, Meteor",
+    "Sticker sheet: Contortionist, Otter, Storm",
+    "Sticker sheet: Cool, Fluffy, Loxodon",
+    "Sticker sheet: Cursed, Firebreathing, Yogurt"
+   ],
+   "fix": "not played",
    "how": ""
   },
   {
@@ -35458,21 +35493,6 @@
    "how": "chosen_option plus chosen_number holding the second index."
   },
   {
-   "id": "two-mechanics-that-need-the-first-delayed-ability",
-   "feature": "two mechanics that need the first delayed ability",
-   "class": "mechanic",
-   "needs": "A mechanic's delayed ability is always index 0 of `CardDef::delayed`, so a card with another first delayed ability has no place for it: the mechanic is told its index.",
-   "family": "two mechanics",
-   "cards": 1,
-   "written": 0,
-   "alone": 1,
-   "examples": [
-    "Scurry of Squirrels"
-   ],
-   "fix": "Cantrip",
-   "how": ""
-  },
-  {
    "id": "what-a-permanent-could-be-attached-to",
    "feature": "what a permanent could be attached to",
    "class": "engine",
@@ -36788,6 +36808,9 @@
   ],
   "Ancestral Communion": [
    "engine-no-commander"
+  ],
+  "Sticker sheet: Ancestral, Hot Dog, Minotaur": [
+   "engine-no-stickers"
   ],
   "Ancient Brass Dragon": [
    "a-target-filter-reading-the-amount-its-ability-was-told",
@@ -38283,6 +38306,9 @@
    "engine-no-tickets",
    "operation-put-sticker"
   ],
+  "Sticker sheet: Carnival, Elephant, Meteor": [
+   "engine-no-stickers"
+  ],
   "Carom": [
    "target-reference-outside-a-resolving-ability"
   ],
@@ -38954,6 +38980,9 @@
   "Contested Game Ball": [
    "counter-kind-point"
   ],
+  "Sticker sheet: Contortionist, Otter, Storm": [
+   "engine-no-stickers"
+  ],
   "Contract from Below": [
    "card-outside-ordinary-play",
    "move-to-ante"
@@ -38967,6 +38996,9 @@
   "Convulsing Licid": [
    "duration-until-paid",
    "losing-ability-this-ability"
+  ],
+  "Sticker sheet: Cool, Fluffy, Loxodon": [
+   "engine-no-stickers"
   ],
   "Copper-Leaf Angel": [
    "sacrificing-x-permanents-to-activate-an-ability"
@@ -39234,6 +39266,9 @@
    "embalm-cost-other-than-mana",
    "engine-no-embalm-granted",
    "engine-no-cost-copies-a-mana-cost"
+  ],
+  "Sticker sheet: Cursed, Firebreathing, Yogurt": [
+   "engine-no-stickers"
   ],
   "Cursed Mirror": [
    "copy-as-it-enters-for-a-duration"
@@ -39504,6 +39539,9 @@
   "Deep Forest Hermit": [
    "engine-no-vanishing-enters"
   ],
+  "Sticker sheet: Deep-Fried, Plague, Myr": [
+   "engine-no-stickers"
+  ],
   "Deepwater Hypnotist": [
    "engine-no-untap-event"
   ],
@@ -39578,6 +39616,9 @@
   ],
   "Demonic Hordes": [
    "object-collection-chosen"
+  ],
+  "Sticker sheet: Demonic, Tourist, Laser": [
+   "engine-no-stickers"
   ],
   "Demonlord of Ashmouth": [
    "sacrificing-all-of-a-kind-of-permanent-as-a-cost"
@@ -40220,6 +40261,9 @@
   "Elderscale Wurm": [
    "player-rule-damage-life-floor"
   ],
+  "Sticker sheet: Eldrazi, Guacamole, Tightrope": [
+   "engine-no-stickers"
+  ],
   "Eldrazi Temple": [
    "mana-spending-predicate"
   ],
@@ -40237,6 +40281,9 @@
   ],
   "Elemental Resonance": [
    "mana-production-mana-cost-of"
+  ],
+  "Sticker sheet: Elemental, Time, Flamingo": [
+   "engine-no-stickers"
   ],
   "Elemental Uprising": [
    "continuous-rule-require-combat-be-blocked"
@@ -40578,6 +40625,9 @@
    "counters-removed-from-a-player",
    "modes-implied-by-the-target-chosen"
   ],
+  "Sticker sheet: Eternal, Acrobat, Toast": [
+   "engine-no-stickers"
+  ],
   "Eternal Dominion": [
    "engine-no-epic"
   ],
@@ -40834,6 +40884,9 @@
   ],
   "Falthis, Shadowcat Familiar": [
    "engine-no-commander"
+  ],
+  "Sticker sheet: Familiar, Beeble, Mascot": [
+   "engine-no-stickers"
   ],
   "Famished Worldsire": [
    "engine-no-devour"
@@ -41667,6 +41720,9 @@
   "Gearshift Ace": [
    "engine-no-crew-event"
   ],
+  "Sticker sheet: Geek, Lotus, Warrior": [
+   "engine-no-stickers"
+  ],
   "Geist Trappers": [
    "engine-no-soulbond",
    "object-reference-paired-with",
@@ -41781,6 +41837,9 @@
   ],
   "Giant Fire Beetles": [
    "engine-no-double-team"
+  ],
+  "Sticker sheet: Giant, Mana, Cake": [
+   "engine-no-stickers"
   ],
   "Giant Ox": [
    "static-rule-tap-cost-uses-toughness"
@@ -41980,6 +42039,9 @@
   ],
   "Goblin Brawler": [
    "static-rule-prohibit-be-attached-by"
+  ],
+  "Sticker sheet: Goblin, Coward, Parade": [
+   "engine-no-stickers"
   ],
   "Goblin Crash Pilot": [
    "engine-no-crew-event"
@@ -42527,6 +42589,9 @@
   ],
   "Hanweir, the Writhing Township": [
    "layout-melded"
+  ],
+  "Sticker sheet: Happy, Dead, Squirrel": [
+   "engine-no-stickers"
   ],
   "Harbinger of Spring": [
    "engine-no-soulshift",
@@ -43705,6 +43770,9 @@
    "engine-no-more-than-meets-the-eye",
    "engine-no-cost-removes-counters-this-way",
    "numeric-expression-paid-counters-removed"
+  ],
+  "Sticker sheet: Jetpack, Death, Seltzer": [
+   "engine-no-stickers"
   ],
   "Jewel Mine Overseer": [
    "engine-no-perpetual-effects",
@@ -45653,6 +45721,9 @@
   "Mister Negative": [
    "operation-toward-player"
   ],
+  "Sticker sheet: Misunderstood, Trapeze, Elf": [
+   "engine-no-stickers"
+  ],
   "Mitotic Ultimus": [
    "operation-conjure"
   ],
@@ -46016,6 +46087,9 @@
   "Mystic Decree": [
    "supertype-world"
   ],
+  "Sticker sheet: Mystic, Doom, Sandwich": [
+   "engine-no-stickers"
+  ],
   "Mystic Reflection": [
    "event-change-entry"
   ],
@@ -46091,6 +46165,9 @@
   ],
   "Narfi, Betrayer King": [
    "engine-no-snow-or-hybrid-phyrexian-mana-symbol"
+  ],
+  "Sticker sheet: Narrow-Minded, Baloney, Fireworks": [
+   "engine-no-stickers"
   ],
   "Narset Transcendent": [
    "operation-change-spell"
@@ -46300,6 +46377,9 @@
    "per-player-instruction-with-several-steps",
    "the-loyalty-abilities-of-other-permanents"
   ],
+  "Sticker sheet: Night, Brushwagg, Ringmaster": [
+   "engine-no-stickers"
+  ],
   "Night Clubber": [
    "engine-no-blitz"
   ],
@@ -46450,6 +46530,9 @@
    "layout-scheme",
    "operation-abandon-scheme",
    "supertype-ongoing"
+  ],
+  "Sticker sheet: Notorious, Sliver, War": [
+   "engine-no-stickers"
   ],
   "Notorious Throng": [
    "engine-no-prowl",
@@ -47259,6 +47342,9 @@
   "Phyrexian Ironfoot": [
    "engine-no-snow-or-hybrid-phyrexian-mana-symbol"
   ],
+  "Sticker sheet: Phyrexian, Midway, Bamboozle": [
+   "engine-no-stickers"
+  ],
   "Phyrexian Portal": [
    "operation-choose-pile",
    "operation-piles"
@@ -47356,6 +47442,9 @@
   ],
   "Plaxcaster Frogling": [
    "engine-no-graft"
+  ],
+  "Sticker sheet: Playable, Delusionary, Hydra": [
+   "engine-no-stickers"
   ],
   "Plaza of Harmony": [
    "engine-no-reading-of-what-a-permanent-could-produce"
@@ -47539,6 +47628,9 @@
   "Primal Wellspring // Primal Amulet": [
    "engine-no-cost-removes-counters-this-way",
    "mana-spending-effect"
+  ],
+  "Sticker sheet: Primal, Elder, Kitty": [
+   "engine-no-stickers"
   ],
   "Primalcrux": [
    "numeric-expression-count-mana-symbols"
@@ -48917,6 +49009,9 @@
   "Sash and Waistcoat, Unmen": [
    "engine-no-activation-by-other-players"
   ],
+  "Sticker sheet: Sassy, Gremlin, Blood": [
+   "engine-no-stickers"
+  ],
   "Satoru Umezawa": [
    "activated-ability-on-stack"
   ],
@@ -49063,9 +49158,6 @@
   ],
   "Scrying Sheets": [
    "engine-no-snow-or-hybrid-phyrexian-mana-symbol"
-  ],
-  "Scurry of Squirrels": [
-   "two-mechanics-that-need-the-first-delayed-ability"
   ],
   "Scuttling Death": [
    "engine-no-soulshift"
@@ -49766,6 +49858,9 @@
   "Slimefoot, Thallid Transplant": [
    "operation-draft-from-spellbook"
   ],
+  "Sticker sheet: Slimy, Burrito, Illusion": [
+   "engine-no-stickers"
+  ],
   "Slimy Kavu": [
    "engine-no-resolving-effect-sets-land-types"
   ],
@@ -49835,6 +49930,9 @@
   ],
   "Snarlfang Vermin": [
    "engine-no-perpetual-effects"
+  ],
+  "Sticker sheet: Snazzy, Aether, Homunculus": [
+   "engine-no-stickers"
   ],
   "Snowborn Simulacra": [
    "engine-no-perpetual-effects",
@@ -50020,6 +50118,9 @@
    "object-filter-in-sector",
    "object-reference-affected"
   ],
+  "Sticker sheet: Space, Fungus, Snickerdoodle": [
+   "engine-no-stickers"
+  ],
   "Spara's Bodyguard": [
    "engine-no-perpetual-effects"
   ],
@@ -50180,6 +50281,9 @@
   "Spoils of War": [
    "a-limit-on-the-x-announced"
   ],
+  "Sticker sheet: Spooky, Clown, Mox": [
+   "engine-no-stickers"
+  ],
   "Spore Cloud": [
    "continuous-rule-untap-step",
    "duration-during-controllers-next-untap-step",
@@ -50228,9 +50332,15 @@
    "card-type-vanguard",
    "layout-vanguard"
   ],
+  "Sticker sheet: Squid, Fire, Knight": [
+   "engine-no-stickers"
+  ],
   "Squirrel Squatters": [
    "engine-no-attractions",
    "numeric-expression-player-number-attractions-visited-this-turn"
+  ],
+  "Sticker sheet: Squishy, Sphinx, Ninja": [
+   "engine-no-stickers"
   ],
   "Staff of the Ages": [
    "static-rule-blocked-as-though-lacking"
@@ -50361,6 +50471,9 @@
    "engine-no-soulbond",
    "object-reference-paired-with",
    "object-state-paired"
+  ],
+  "Sticker sheet: Sticky, Kavu, Daredevil": [
+   "engine-no-stickers"
   ],
   "Stilt-Man, Towering Terror": [
    "granted-static"
@@ -52122,6 +52235,9 @@
    "subtype-vryn",
    "trigger-event-player-chaos-ensues"
   ],
+  "Sticker sheet: Trained, Blessed, Mind": [
+   "engine-no-stickers"
+  ],
   "Traitor's Roar": [
    "engine-no-conspire"
   ],
@@ -52179,6 +52295,9 @@
   "Trench Behemoth": [
    "duration-until-next",
    "operation-effect-on"
+  ],
+  "Sticker sheet: Trendy, Circus, Pirate": [
+   "engine-no-stickers"
   ],
   "Tresserhorn's Lord, Returned": [
    "cost-part-player-action",
@@ -52419,6 +52538,9 @@
   "Umbral Mantle": [
    "engine-no-untap-symbol-cost"
   ],
+  "Sticker sheet: Unassuming, Gelatinous, Serpent": [
+   "engine-no-stickers"
+  ],
   "Unblinking Observer": [
    "mana-spending-purpose"
   ],
@@ -52489,9 +52611,18 @@
   "Unfinished Business": [
    "several-objects-arriving-attached"
   ],
+  "Sticker sheet: Unglued, Pea-Brained, Dinosaur": [
+   "engine-no-stickers"
+  ],
+  "Sticker sheet: Unhinged, Beast, Hunt": [
+   "engine-no-stickers"
+  ],
   "Unholy Citadel": [
    "engine-no-bands-with-others",
    "engine-no-bands-with-others-granted"
+  ],
+  "Sticker sheet: Unique, Charmed, Pants": [
+   "engine-no-stickers"
   ],
   "Unlawful Entry": [
    "trigger-event-player-puts-art-sticker"
@@ -52512,6 +52643,9 @@
    "object-reference-scoped",
    "replacement-event-draw-caused-by"
   ],
+  "Sticker sheet: Unsanctioned, Ancient, Juggler": [
+   "engine-no-stickers"
+  ],
   "Unstable Amulet": [
    "duration-until-another-exiled",
    "play-permission-lasting-until-another-exiled"
@@ -52527,6 +52661,9 @@
   ],
   "Unstable Molecule Suit": [
    "engine-no-commander"
+  ],
+  "Sticker sheet: Unstable, Robot, Dragon": [
+   "engine-no-stickers"
   ],
   "Unstoppable Ash": [
    "engine-no-champion"
@@ -52580,6 +52717,9 @@
   ],
   "Urza's Construction Drone": [
    "operation-conjure"
+  ],
+  "Sticker sheet: Urza's, Dark, Cannonball": [
+   "engine-no-stickers"
   ],
   "Urza's Rage": [
    "operation-deal-damage"
@@ -52641,6 +52781,9 @@
    "layout-planar",
    "subtype-kylem",
    "trigger-event-player-chaos-ensues"
+  ],
+  "Sticker sheet: Vampire, Champion, Fury": [
+   "engine-no-stickers"
   ],
   "Vampire Nocturnus": [
    "a-library-s-top-card-open-to-view"
@@ -53275,6 +53418,9 @@
   "Weight of Conscience": [
    "engine-no-set-rule-on-what-a-cost-chooses"
   ],
+  "Sticker sheet: Weird, Angel, Flame": [
+   "engine-no-stickers"
+  ],
   "Jurassic Park // Welcome to . . .": [
    "escape-cost-other-than-exiling-other-graveyard-cards",
    "engine-no-escape-granted",
@@ -53288,6 +53434,9 @@
   ],
   "Well of Knowledge": [
    "engine-no-activation-by-other-players"
+  ],
+  "Sticker sheet: Werewolf, Lightning, Mage": [
+   "engine-no-stickers"
   ],
   "Werewolf Pack Leader": [
    "continuous-change-remove-subtype"
@@ -53384,6 +53533,9 @@
   "Wild Endeavor": [
    "keyword-action-roll-two-in-order-4",
    "numeric-expression-die-result-at"
+  ],
+  "Sticker sheet: Wild, Ogre, Bupkis": [
+   "engine-no-stickers"
   ],
   "Wild Slash": [
    "operation-game-effect"
@@ -53624,6 +53776,9 @@
   "Wren's Run Vanquisher": [
    "engine-no-reveal-cost"
   ],
+  "Sticker sheet: Wrinkly, Monkey, Shenanigans": [
+   "engine-no-stickers"
+  ],
   "Writ of Passage": [
    "activated-keyword-forecast",
    "engine-no-forecast",
@@ -53703,6 +53858,9 @@
   ],
   "Yavimaya Bloomsage // Channel": [
    "player-rule-for-a-while-life-for-mana-ability"
+  ],
+  "Sticker sheet: Yawgmoth, Merfolk, Soul": [
+   "engine-no-stickers"
   ],
   "Yawgmoth's Bargain": [
    "skipping-a-step-of-the-turn"
@@ -53900,6 +54058,9 @@
   ],
   "Zombie Brute": [
    "engine-no-amplify"
+  ],
+  "Sticker sheet: Zombie, Cheese, Magician": [
+   "engine-no-stickers"
   ],
   "Zombie Musher": [
    "engine-no-snow-or-hybrid-phyrexian-mana-symbol",

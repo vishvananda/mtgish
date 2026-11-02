@@ -2339,6 +2339,10 @@ fn emit_face(
             .earthbend
             .then(|| keywords::EARTHBEND_RETURN.to_string()),
     );
+    // "Myriad, myriad" (Scurry of Squirrels): each trigger makes its own delayed trigger with its own tokens, both from
+    // the one first `delayed` ability, so a mechanic printed twice asks for that slot once.
+    firsts.sort();
+    firsts.dedup();
     c.attempt("abilities".into(), |c| match firsts.as_slice() {
         [] => Ok(()),
         [first] => {

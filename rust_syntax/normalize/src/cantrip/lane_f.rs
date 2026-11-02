@@ -347,8 +347,15 @@ impl Joining<'_> {
                 ..Place::default()
             };
             if let Some(what) = self.beside(at, &half, module, place)?.filter(|_| room) {
-                self.gaps
-                    .push(gap(format!("Room door with {what}")).at("layout"));
+                // The door is written whole, but `CardDef::door_unsupported` refuses it: the file says where.
+                let feature = format!("Room door with {what}");
+                let id = planned::requirement(&feature);
+                writeln!(
+                    self.place.holes,
+                    "planned_item!({id:?}, \"{module}::CARD: CardDef::door_unsupported refuses a door with {what}\");"
+                )
+                .unwrap();
+                self.gaps.push(gap(feature).at("layout"));
             }
             self.place.extras.push(format!("{module}::CARD"));
         }
@@ -396,6 +403,42 @@ pub fn is_card(card: &UnifiedCard) -> bool {
     !card.faces.is_empty() && card.layout != "TokenDefinition"
 }
 
+/// A sticker sheet (CR 123): no card, but the sheet a game of Unfinity has beside it. Cantrip leaves stickers out of the
+/// game it plays (its docs/rules-exceptions.md), so each sticker is a hole that keeps what it says, and the sheet is named
+/// for its name stickers, the only name it has.
+fn sticker_sheet(card: &UnifiedCard) -> Whole {
+    let stickers: &[Sticker] = card
+        .data
+        .iter()
+        .find_map(|field| match &field.value {
+            Operand::Stickers(stickers) if field.name == "Stickers" => Some(stickers.as_slice()),
+            _ => None,
+        })
+        .unwrap_or_default();
+    let names: Vec<&str> = stickers
+        .iter()
+        .filter_map(|sticker| match sticker {
+            Sticker::Name(name) => Some(name.as_str()),
+            _ => None,
+        })
+        .collect();
+    let feature = "engine: no stickers";
+    let id = planned::requirement(feature);
+    let mut rust = String::from("#[allow(unused_imports)] use cantrip_api::*;\n");
+    for sticker in stickers {
+        let source = ron::to_string(sticker).unwrap_or_default();
+        writeln!(rust, "planned_item!({id:?}, {source:?});").unwrap();
+    }
+    Whole {
+        faces: vec![WholeFace {
+            name: format!("Sticker sheet: {}", names.join(", ")),
+            rust,
+            gaps: vec![gap(feature).at("layout")],
+        }],
+        rust: None,
+    }
+}
+
 /// A record whole, its faces joined where Cantrip joins them. Everything the
 /// card waits on is a gap of one of its faces: `tracked` and `survey` read this.
 pub fn whole(source: &OracleCard, card: &UnifiedCard) -> Result<Whole> {
@@ -408,6 +451,9 @@ pub fn whole_printed(
     card: &UnifiedCard,
     oracle: Option<&BTreeMap<String, String>>,
 ) -> Result<Whole> {
+    if card.layout == "StickerSheet" {
+        return Ok(sticker_sheet(card));
+    }
     let inspected = match card.layout.as_str() {
         "Card" => Value::Null,
         _ => crate::inspect::value(source).expect("source AST serialization"),

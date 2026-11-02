@@ -359,6 +359,11 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
                 }
                 _ => None,
             };
+            // A sticker sheet has no name of its own: it is its face's.
+            let name = match faces.as_slice() {
+                [face] if name.is_empty() => face.name.clone(),
+                _ => name,
+            };
             Ok(TrackedCard {
                 line,
                 name,
