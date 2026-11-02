@@ -521,6 +521,18 @@ impl Compiler {
             )
             .unwrap();
         }
+        // "Each opponent who copied the spell this way": who said yes.
+        for step in &steps {
+            let (Some(guard), Instruction::Effect { result, operation: Operation::CopyOnStack { .. } }) =
+                (step.guard, &program.instructions[step.at])
+            else {
+                continue;
+            };
+            if matches!(guards[guard], Guard::May) {
+                let took = (format!("players_{id}"), format!("guard_{id}_{guard}[at]"));
+                self.notes.took.entry(result.0).or_insert(took);
+            }
+        }
         self.bound_players.insert(each.binding.0);
         let mut views: Vec<View> = Vec::new();
         let mut earlier = BTreeSet::new();

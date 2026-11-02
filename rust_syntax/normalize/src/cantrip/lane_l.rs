@@ -681,11 +681,12 @@ impl Compiler {
                 ".implied_by_target()".to_string(),
             ));
         }
+        // The combat before this one of that player's: from its beginning, while
+        // the steps are combat's, a later combat of the turn being another.
         if let Some(ModeHistory::LastCombat(player)) = &selection.unchosen {
             let player = self.certain_player(player)?;
-            planned.push((
-                "modes limited by earlier choices",
-                format!(".allowed({M}::history::mode_not_chosen_last_combat(|q: &dyn Query, asker: &Asker| {player}))"),
+            return Ok(format!(
+                "{modal}.allowed(|q: &dyn Query, asker: &Asker, mode: u8| {{ let you = {player}; let records = q.history().all(); let combat = |r: &Record| matches!(r.step, Step::BeginCombat | Step::DeclareAttackers | Step::DeclareBlockers | Step::CombatDamage | Step::EndOfCombat); let began = |r: &Record| matches!(r.event, Event::StepBegan {{ step: Step::BeginCombat }}); let starts: Vec<usize> = records.iter().enumerate().filter(|(_, r)| r.active == you && began(r)).map(|(at, _)| at).collect(); let at = starts.len().saturating_sub(2); starts.get(at).filter(|_| starts.len() >= 2).map_or(true, |&start| !records[start + 1..].iter().take_while(|r| combat(r) && !began(r)).any(|r| matches!(r.event, Event::ModesChosen {{ source, modes, .. }} if source == asker.source && modes & (1 << mode) != 0))) }})"
             ));
         }
         if selection.distinct_targets {

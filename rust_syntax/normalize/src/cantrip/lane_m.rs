@@ -81,6 +81,10 @@ impl Compiler {
                 "false",
                 &self.cast_by_way(id, "w.kind == WayKind::Prowl"),
             ),
+            // Cast by madness's own ability, its record says (CR 702.35a).
+            S::CostPaid(CastCost::Madness) if !layer => format!(
+                "{{ let records = q.history().all(); let spell = records.iter().rev().find_map(|r| match r.event {{ Event::ZoneChange {{ old, new, reason: ZoneReason::Resolve, .. }} if new == {id} => Some(old), _ => None }}).unwrap_or({id}); records.iter().rev().any(|r| matches!(r.event, Event::Cast(cast) if cast.spell == spell) && matches!(r.cause, Cause::Ability {{ ability, .. }} if ability.is_madness())) }}"
+            ),
             S::CostPaid(CastCost::Madness) => planned::planned_value(
                 "object state CostPaid Madness",
                 "false",
@@ -1033,6 +1037,8 @@ impl Compiler {
             Expr::Dice(DiceMeasure::Result | DiceMeasure::Total) => {
                 match self.notes.earlier.iter().rev().find(|(w, _)| *w == "Rolled") {
                     Some((_, result)) => self.number(&Expr::DieResult(result.clone()))?,
+                    // The roll that triggered this.
+                    None if self.frame.amount.is_some() => self.number(&Expr::EventAmount)?,
                     None => held_number(
                         "numeric expression Dice".into(),
                         "g.last_roll(asker.controller).result",

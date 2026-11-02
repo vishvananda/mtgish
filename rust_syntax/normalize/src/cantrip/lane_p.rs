@@ -639,6 +639,15 @@ impl Compiler {
                 &feature,
                 &format!("{}.and_then(|o: ObjectId| q.ability_source(o))", self.object(of)?),
             ),
+            // "The creature put onto the battlefield with this enchantment", while it
+            // is still that object (CR 400.7).
+            ObjectRef::MadeHere if self.reader == Reader::Resolution => format!(
+                "q.state().battlefield().iter().copied().find(|&id| {})",
+                self.filter(
+                    &ObjectFilter::MadeBy(ObjectRef::Source),
+                    &Candidate::of("id")
+                )?
+            ),
             ObjectRef::MadeHere => {
                 held_object(&feature, &format!("q.made_by({})", self.linked()))
             }
@@ -1489,6 +1498,20 @@ impl Compiler {
                     )
                 ),
             ),
+            // Among the cards discarded this way, ties included.
+            Condition::HadExtreme {
+                player,
+                what: what @ EarlierObjects::Discarded,
+                filter: None,
+                highest,
+            } if self.earlier_objects(what).is_ok() => {
+                let those = self.earlier_objects(what)?;
+                let extreme = if *highest { "max" } else { "min" };
+                format!(
+                    "{{ let those: Vec<ObjectId> = {those}; let extreme = those.iter().map(|&o| q.mana_value(o)).{extreme}(); those.iter().any(|&o| Some(q.state().obj(o).owner) == {} && Some(q.mana_value(o)) == extreme) }}",
+                    self.player(player)?
+                )
+            }
             Condition::HadExtreme {
                 player,
                 what,
@@ -1537,6 +1560,19 @@ impl Compiler {
                         rules.join(", ")
                     ),
                 )
+            }
+            // "If it targets two creatures you control": what the activation announced.
+            Condition::TargetCount {
+                object: ObjectRef::Source,
+                filter,
+                comparison,
+                value,
+            } if self.costing_targets => {
+                let count = format!(
+                    "{{ let mut objects: Vec<ObjectId> = Vec::new(); for o in targets.iter().filter_map(|t| t.object()) {{ if !objects.contains(&o) {{ objects.push(o); }} }} objects.into_iter().filter(|&id| {}).count() as i64 }}",
+                    self.filter(filter, &Candidate::of("id"))?
+                );
+                compare(&count, comparison, &self.number(value)?.code)
             }
             Condition::TargetCount {
                 object,

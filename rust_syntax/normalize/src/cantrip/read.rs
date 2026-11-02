@@ -369,6 +369,23 @@ impl Compiler {
         for (i, spec) in self.slots.values() {
             if *i < referred {
                 let Count::Exactly(Expr::Constant(n)) = &spec.count else {
+                    // The only player among what's been chosen, wherever it falls.
+                    let players = self
+                        .slots
+                        .values()
+                        .filter(|(i, s)| *i < choosing && matches!(s.kind, TargetKind::Player))
+                        .count();
+                    let referred_player = self.slots.values().any(|(i, s)| {
+                        *i == referred
+                            && matches!(s.kind, TargetKind::Player)
+                            && matches!(s.count, Count::Exactly(Expr::Constant(1)))
+                    });
+                    if players == 1 && referred_player && index == 0 {
+                        return Ok(Some(
+                            "q.chosen_targets().iter().copied().find(|t: &Target| t.player().is_some())"
+                                .to_string(),
+                        ));
+                    }
                     return Ok(Some(planned::planned_value(
                         "target reference past a slot of no fixed size",
                         "None::<Target>",
