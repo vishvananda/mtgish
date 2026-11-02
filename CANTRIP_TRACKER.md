@@ -18,8 +18,8 @@ What stands between each remaining card and its file, counting the hardest thing
 
 | fix | cards | meaning |
 |---|---|---|
-| generator | 1543 | Cantrip can do it today: the generator has only to write it |
-| mechanics module | 637 | a keyword's module for the mechanics crate, no change to the core |
+| generator | 1505 | Cantrip can do it today: the generator has only to write it |
+| mechanics module | 675 | a keyword's module for the mechanics crate, no change to the core |
 | unsure | 93 | the audit could not settle it |
 | unaudited | 0 | a form that appeared after the audit |
 | Cantrip | 2757 | needs a change to Cantrip's engine or API |
@@ -69,7 +69,7 @@ What the forms below come to: 572 features more than one card or form shares, mo
 | 49 | 7 | 1 | Cantrip | a static ability an effect grants, in force while the object has it and lost with its abilities (CR 613.1f), as Armed with Proof's Clues' 'Equipped creature gets +2/+0' and Chimeric Mass's 'power and toughness are each equal to' do: AbilityRef reaches only abilities that use the stack | Acolyte of Bahamut, Armed with Proof, Arterial Alchemy |
 | 49 | 3 | 21 | Cantrip | a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form | Angel of Grace, Angel's Grace, Autumn's Veil |
 | 49 | 0 | 1 | Cantrip | A rule on who may activate an ability, read when it is offered: abilities are their controller's today. | Aether Storm, Armageddon Clock, Capricopian |
-| 49 | 0 | 1 | generator | The Ring emblem and Ring-bearer designation (CR 701.54). | Bilbo, Retired Burglar, Birthday Escape, Bombadil's Song |
+| 49 | 0 | 1 | mechanics module | The Ring emblem and Ring-bearer designation (CR 701.54). | Bilbo, Retired Burglar, Birthday Escape, Bombadil's Song |
 | 48 | 0 | 1 | Cantrip | Revealing cards as a cost: the card itself, cards from hand, the top of a library. | Calamity of the Titans, Charge of the Forever-Beast, Daring Buccaneer |
 | 46 | 9 | 17 | Cantrip | a permission to play on these terms: PlayGrant and PlayRule have no field for them | Advanced Floral Invocations, Annie Flash, the Veteran, Brazen Cannonade |
 | 46 | 4 | 1 | Cantrip | Effects made at resolution on objects, players, each spell that matches including later ones, or the next matching spell, for a duration: discounts, abilities gained, plays allowed. | Alaundo the Seer, Apex Observatory // Eye of Ojer Taq, Azor, the Lawbringer |
@@ -822,7 +822,7 @@ What the forms below come to: 572 features more than one card or form shares, mo
 | `event-value-in-a-target-filter-beyond-its-subject` | engine | generator | 51 | 5 | 36 | a target filter of a triggered ability can read the data of its event, as Query::event_subject reads the subject | Black Bolt, Inhuman King, Blade of Shared Souls, Bladegriff Prototype |
 | `prevention-limited-by-next-occurrence` | engine | Cantrip | 50 | 0 | 4 | A prevention shield that prevents all of the next damage event ('the next time a source would deal damage'), and goes; `Shield` has All and Next(n) only. | Awe Strike, Bone Mask, Charm Peddler |
 | `granted-static` | engine | Cantrip | 49 | 7 | 27 | a static ability an effect grants, in force while the object has it and lost with its abilities (CR 613.1f), as Armed with Proof's Clues' 'Equipped creature gets +2/+0' and Chimeric Mass's 'power and toughness are each equal to' do: AbilityRef reaches only abilities that use the stack | Acolyte of Bahamut, Armed with Proof, Arterial Alchemy |
-| `engine-no-ring-temptation` | engine | generator | 49 | 0 | 37 | The Ring emblem and Ring-bearer designation (CR 701.54). | Bilbo, Retired Burglar, Birthday Escape, Bombadil's Song |
+| `engine-no-ring-temptation` | engine | mechanics module | 49 | 0 | 37 | The Ring emblem and Ring-bearer designation (CR 701.54). | Bilbo, Retired Burglar, Birthday Escape, Bombadil's Song |
 | `engine-no-activation-by-other-players` | engine | Cantrip | 49 | 0 | 33 | A rule on who may activate an ability, read when it is offered: abilities are their controller's today. | Aether Storm, Armageddon Clock, Capricopian |
 | `engine-no-reveal-cost` | engine | Cantrip | 48 | 0 | 18 | Revealing cards as a cost: the card itself, cards from hand, the top of a library. | Calamity of the Titans, Charge of the Forever-Beast, Daring Buccaneer |
 | `operation-effect-on` | engine | Cantrip | 46 | 4 | 32 | Effects made at resolution on objects, players, each spell that matches including later ones, or the next matching spell, for a duration: discounts, abilities gained, plays allowed. | Alaundo the Seer, Azor, the Lawbringer, Ballad of the Black Flag |

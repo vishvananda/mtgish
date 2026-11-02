@@ -98,8 +98,8 @@
  "fixes": {
   "Cantrip": 2757,
   "not played": 1082,
-  "generator": 1543,
-  "mechanics module": 637,
+  "generator": 1505,
+  "mechanics module": 675,
   "unsure": 93
  },
  "features": [
@@ -1203,9 +1203,9 @@
    "cards": 49,
    "written": 0,
    "fixes": [
-    "generator"
+    "mechanics module"
    ],
-   "fix": "generator",
+   "fix": "mechanics module",
    "examples": [
     "Bilbo, Retired Burglar",
     "Birthday Escape",
@@ -14724,7 +14724,7 @@
     "Boromir, Warden of the Tower",
     "Breaking of the Fellowship"
    ],
-   "fix": "generator",
+   "fix": "mechanics module",
    "how": "A new `cantrip_mechanics::ring` with no core change for the 45 of 49 that only tempt or read. `ring::tempt(g, you, source)`: `g.create_emblem(THE_RING, you)` if you have none, `choose::card` among your creatures, then a marker `g.add_effect(emblem, creature, EffectKind::Harnessed, Duration::Indefinite)` (or `AddAbility`) as the designation, and `g.note_done(emblem, RING_ABILITY, you)` as one temptation. Level is the count of those `Done` records in `q.history().all()`, so 'has tempted you two or more times' is a read. The emblem holds the four levels as ordinary abilities: triggers and statics"
   },
   {

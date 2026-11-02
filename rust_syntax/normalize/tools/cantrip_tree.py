@@ -271,6 +271,7 @@ def family(feature):
 # against the hand-written cards, not a guess from the form's family. `card-code` of a keyword is a module for Cantrip's
 # mechanics crate, since a keyword is not written out in every card that has it; the core need not change.
 FIXES = ("generator", "mechanics module", "unsure", "unaudited", "Cantrip", "not played")
+NEW_MODULE = re.compile(r"\b(new|a plain function in|function in|module)\b.{0,40}cantrip[-_]mechanics|cantrip[-_]mechanics.{0,30}\b(new|module)\b|in the mechanics crate|new mechanics", re.I)
 NOT_PLAYED = re.compile(r"game mode Cantrip does not play|casual variant Cantrip does not play|Alchemy|^digital:|casual-format", re.I)
 
 
@@ -280,7 +281,8 @@ def fix_of(row, audit):
     verdict = audit.get(row["id"], {}).get("verdict")
     if verdict is None:
         return "unaudited"
-    if verdict == "exists" or (verdict == "card-code" and row["class"] != "mechanic"):
+    module = verdict == "card-code" and (row["class"] == "mechanic" or NEW_MODULE.search(audit[row["id"]].get("how", "")))
+    if verdict == "exists" or (verdict == "card-code" and not module):
         return "generator"
     return {"card-code": "mechanics module", "unsure": "unsure"}.get(verdict, "Cantrip")
 
