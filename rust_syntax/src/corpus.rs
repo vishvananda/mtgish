@@ -274,7 +274,12 @@ impl Identity {
                     if let Some(name) = fields.get("Name").and_then(|v| v.as_str()) {
                         out.push(name.into());
                     }
-                    for child in fields.values() {
+                    // The map keeps its keys sorted, which puts `BackFace` before `FrontFace` and `Flipped` before
+                    // `Unflipped`: the face a card is printed and named by goes first.
+                    let first = |key: &str| !matches!(key, "FrontFace" | "Unflipped");
+                    let mut children: Vec<_> = fields.iter().collect();
+                    children.sort_by_key(|(key, _)| first(key));
+                    for (_, child) in children {
                         names(child, out);
                     }
                 }

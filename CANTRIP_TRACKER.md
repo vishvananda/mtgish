@@ -11,21 +11,21 @@ Contents: [Where things stand](#where-things-stand) · [How to read a card's fil
 |  | cards | what it means |
 |---|---|---|
 | Magic cards | 33529 | every record mtgish parses, all faces of a card counted once |
-| **whole** | **28387** | a complete file with no hole: compiles, and needs nothing Cantrip lacks (3455 of them Cantrip already has written by hand) |
+| **whole** | **28387** | a complete file with no hole: compiles, and needs nothing Cantrip lacks (3542 of them Cantrip already has written by hand) |
 | with holes | 5142 | a complete file, but some lines wait on a named requirement |
-| ... written by hand in Cantrip | 117 | Cantrip already has the card; only mtgish's generator is behind |
-| ... **waiting** | **5025** | what the rest of this page is about |
+| ... written by hand in Cantrip | 123 | Cantrip already has the card; only mtgish's generator is behind |
+| ... **waiting** | **5019** | what the rest of this page is about |
 
 What each waiting card needs, counted once by the hardest thing it needs:
 
 | fix | cards | meaning |
 |---|---|---|
 | generator | 4 | Cantrip can do it today; mtgish's generator has only to write it |
-| mechanics module | 655 | a keyword's module in `cantrip-mechanics`, no change to the core |
+| mechanics module | 654 | a keyword's module in `cantrip-mechanics`, no change to the core |
 | unsure | 71 | the audit could not settle whether Cantrip can do it |
 | unaudited | 26 | a form that appeared after the last audit |
 | mtgish data | 7 | mtgish encodes the card wrongly; fixed in mtgish, not Cantrip |
-| Cantrip | 3132 | a change to Cantrip's engine or API |
+| Cantrip | 3127 | a change to Cantrip's engine or API |
 | not played | 1130 | a game mode or digital-only rule Cantrip does not play |
 
 The code inside the holes is mtgish's proposal for the API it needs. `tools/proposal_check.py` compiles it against stubs of that API under Cantrip's rules for stored data (`Copy`, `Eq`, `Hash`, no closures): of 5142 cards with holes, 2769 compile, 2298 fail only where Rust can't stub the API, and **75 propose a shape Cantrip couldn't take** ([listed below](#proposed-apis-that-do-not-fit)).
@@ -44,12 +44,12 @@ In the tables below, **lands** is the number of waiting cards this alone stands 
 
 ## What to build in Cantrip
 
-524 pieces of Cantrip's engine or API, 3132 cards. The top 60:
+524 pieces of Cantrip's engine or API, 3127 cards. The top 60:
 
 | lands | touches | written | status | needs | forms | examples |
 |---|---|---|---|---|---|---|
 | 182 | 205 | 0 | [PR #897](https://github.com/cantrip-rs/cantrip-rs/pull/897) | Cantrip's lasting rules (cantrip-rs/cantrip-rs#897): a can't attack, can't block, can't be blocked, attacks or blocks if able, or doesn't untap rule a resolving spell or ability gives an open set of objects (CR 611.2c), as a LastingRule of the card, and a permanent that doesn't untap during its controller's or a player's next untap step (CR 502.3), weaker than CantBecomeUntapped and following a change of control, which exerting doesn't. | `continuous-rule-untap-step` `duration-during-controllers-next-untap-step` `engine-no-resolving-rule-on-an-open-set-prohibit-block` +6 | [Abominable Treefolk](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/abominable_treefolk.rs), [Adverse Conditions](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/adverse_conditions.rs), [Ajani Vengeant](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/ajani_vengeant.rs) |
-| 58 | 72 | 7 |   | A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes. | `operation-change-spell` | [Alter Reality](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/alter_reality.rs), [Arcane Archery](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/arcane_archery.rs), [Archway of Innovation](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/archway_of_innovation.rs) |
+| 57 | 71 | 8 |   | A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes. | `operation-change-spell` | [Alter Reality](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/alter_reality.rs), [Arcane Archery](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/arcane_archery.rs), [Archway of Innovation](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/archway_of_innovation.rs) |
 | 40 | 63 | 1 |   | a static ability gives a player this rule: the engine does not ask for it | `player-rule-reveal-draws` `player-rule-damage-life-floor` `player-rule-retain-mana` +22 | [Ali from Cairo](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/ali_from_cairo.rs), [Altar of the Pantheon](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/altar_of_the_pantheon.rs), [Archon of Coronation](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/archon_of_coronation.rs) |
 | 39 | 52 | 2 |   | a static ability changes this rule of the object it affects: the engine has no hook for it | `static-rule-unique` `static-rule-blocks-despite` `static-rule-cant-gain-ability` +17 | [Ace's Baseball Bat](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/aces_baseball_bat.rs), [Aether Web](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/aether_web.rs), [Aetherflame Wall](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/aetherflame_wall.rs) |
 | 38 | 49 | 0 |   | A rule on who may activate an ability, read when it is offered: abilities are their controller's today. | `engine-no-activation-by-other-players` | [Aether Storm](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/aether_storm.rs), [Armageddon Clock](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/armageddon_clock.rs), [Casey Jones, Asphalt Hooligan](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/casey_jones_asphalt_hooligan.rs) |
@@ -64,7 +64,7 @@ In the tables below, **lands** is the number of waiting cards this alone stands 
 | 28 | 34 | 0 |   | An event when a permanent becomes untapped. | `engine-no-untap-event` | [Aerie Worshippers](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/aerie_worshippers.rs), [Arbiter of the Ideal](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/arbiter_of_the_ideal.rs), [Coffin Queen](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/coffin_queen.rs) |
 | 28 | 31 | 0 |   | A rule table for how many more creatures a permanent can block (CR 509.1a), including any number, read as blockers are declared. | `static-rule-block-capacity` | [Avatar of Hope](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/avatar_of_hope.rs), [Brave the Sands](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/brave_the_sands.rs), [Cenn's Tactician](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/cenns_tactician.rs) |
 | 26 | 48 | 0 |   | Revealing cards as a cost: the card itself, cards from hand, the top of a library. | `engine-no-reveal-cost` | [Daring Buccaneer](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/daring_buccaneer.rs), [Draconic Roar](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/draconic_roar.rs), [Dragon's Eye Savants](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/dragons_eye_savants.rs) |
-| 25 | 25 | 0 |   | Disturb (CR 702.146). | `engine-no-disturb` | [Ancestor's Embrace // Kindly Ancestor](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/ancestors_embrace_kindly_ancestor.rs), [Archive Haunt // Overwhelmed Archivist](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/archive_haunt_overwhelmed_archivist.rs), [Benevolent Geist // Malevolent Hermit](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/benevolent_geist_malevolent_hermit.rs) |
+| 25 | 25 | 0 |   | Disturb (CR 702.146). | `engine-no-disturb` | [Baithook Angler // Hook-Haunt Drifter](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/baithook_angler.rs), [Beloved Beggar // Generous Soul](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/beloved_beggar.rs), [Binding Geist // Spectral Binding](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/binding_geist.rs) |
 | 23 | 37 | 1 |   | A cost that moves objects between zones with a count or from a zone Cost has no field for: X or any number of cards from a graveyard, a library top, the stack, a hand to the battlefield, a graveyard to a library. | `engine-no-cost-moves-these-objects` | [Alms](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/alms.rs), [Arc-Slogger](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/arc_slogger.rs), [Battlefield Scrounger](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/battlefield_scrounger.rs) |
 | 22 | 52 | 0 |   | A list of the cards a spell's or ability's cost discarded, exiled or revealed, as q.cost_objects gives the permanents it chose. | `engine-no-record-of-what-paid-a-cost` | [Bloodfire Infusion](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/bloodfire_infusion.rs), [Coin of Fate](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/coin_of_fate.rs), [Corpse Cobble](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/corpse_cobble.rs) |
 | 22 | 49 | 3 |   | a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form | `player-rule-for-a-while-decides` `player-rule-for-a-while-prohibit-attack-into` `player-rule-for-a-while-grant-keyword` +18 | [Angel of Grace](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/angel_of_grace.rs), [Champions of Minas Tirith](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/champions_of_minas_tirith.rs), [Cheering Fanatic](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/cheering_fanatic.rs) |
@@ -85,7 +85,7 @@ In the tables below, **lands** is the number of waiting cards this alone stands 
 | 16 | 58 | 7 |   | A cost a `Cost` can't hold: an action by a player, mana with a bound X, a choice revealed, a part that targets, or an exile of a stated object. | `cost-part-player-action` `cost-part-mana-with-x` `cost-part-unspecialize` +20 | [Avacyn's Judgment](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/avacyns_judgment.rs), [Draco](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/draco.rs), [From Under the Floorboards](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/from_under_the_floorboards.rs) |
 | 16 | 22 | 0 |   | a total divided among targets: of a mode, or of a slot past the first | `target-with-a-divided-amount` | [Abzan Charm](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/abzan_charm.rs), [Ajani, Mentor of Heroes](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/ajani_mentor_of_heroes.rs), [Arc Mage](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/arc_mage.rs) |
 | 15 | 42 | 0 |   | Confirmed: where a delayed ability waiting for an event triggers, settle.rs:1438 makes its PendingTrigger with `members: | `engine-a-delayed-ability-on-an-event-keeps-no-list` | [Acidic Dagger](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/acidic_dagger.rs), [Delif's Cube](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/delifs_cube.rs), [Gaze of the Gorgon](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/gaze_of_the_gorgon.rs) |
-| 15 | 27 | 0 |   | A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c) | `engine-no-resolving-rule-on-an-open-set-require-combat-block-beyond-lasting-rules` `engine-no-resolving-rule-on-an-open-set-combat-cost` `engine-no-resolving-rule-on-an-open-set-prohibit-attack-beyond-lasting-rules` +3 | [Alluring Scent](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/alluring_scent.rs), [Armed // Dangerous](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/armed_dangerous.rs), [Bloodscent](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/bloodscent.rs) |
+| 15 | 27 | 0 |   | A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c) | `engine-no-resolving-rule-on-an-open-set-require-combat-block-beyond-lasting-rules` `engine-no-resolving-rule-on-an-open-set-combat-cost` `engine-no-resolving-rule-on-an-open-set-prohibit-attack-beyond-lasting-rules` +3 | [Alluring Scent](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/alluring_scent.rs), [Armed // Dangerous](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/armed.rs), [Bloodscent](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/bloodscent.rs) |
 | 15 | 23 | 2 |   | Casting or playing on terms the cast call has no field for: a spend-as rule, a limit, a window, effects the spell gets, a group rule over what is cast together. | `operation-play-with` | [Amped Raptor](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/amped_raptor.rs), [Anrakyr the Traveller](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/anrakyr_the_traveller.rs), [Bismuth Mindrender](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/bismuth_mindrender.rs) |
 | 15 | 21 | 5 |   | A rule of the game changed for a duration, made by a resolving effect: combat damage not assigned or prevented, phases skipped, permanents that phase, and the like. | `operation-game-effect` | [Barrage of Boulders](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/barrage_of_boulders.rs), [Call In a Professional](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/call_in_a_professional.rs), [Camouflage](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/camouflage.rs) |
 | 15 | 20 | 0 |   | A static ability that makes a player skip a step (CR 614.10), such as 'skip your draw step' or 'players skip their untap steps'. | `skipping-a-step-of-the-turn` | [Damia, Sage of Stone](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/damia_sage_of_stone.rs), [Dragon Appeasement](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/dragon_appeasement.rs), [Eon Hub](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/eon_hub.rs) |
@@ -111,7 +111,7 @@ In the tables below, **lands** is the number of waiting cards this alone stands 
 
 ## Mechanics modules
 
-89 keywords and mechanics that need a module in `cantrip-mechanics` and no change to the core, 655 cards. A good first contribution.
+89 keywords and mechanics that need a module in `cantrip-mechanics` and no change to the core, 654 cards. A good first contribution.
 
 | lands | touches | written | status | needs | forms | examples |
 |---|---|---|---|---|---|---|
@@ -136,15 +136,15 @@ In the tables below, **lands** is the number of waiting cards this alone stands 
 | 11 | 11 | 0 |   | Reinforce N (CR 702.77). | `engine-no-reinforce` | [Bannerhide Krushok](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/bannerhide_krushok.rs), [Break Ties](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/break_ties.rs), [Brighthearth Banneret](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/brighthearth_banneret.rs) |
 | 10 | 12 | 0 |   | Champion a [type] (CR 702.72). | `engine-no-champion` | [Boggart Mob](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/boggart_mob.rs), [Changeling Berserker](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/changeling_berserker.rs), [Changeling Hero](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/changeling_hero.rs) |
 | 10 | 12 | 0 |   | Endure N (CR 701.63). | `engine-no-endure` | [Anafenza, Unyielding Lineage](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/anafenza_unyielding_lineage.rs), [Descendant of Storms](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/descendant_of_storms.rs), [Dusyut Earthcarver](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/dusyut_earthcarver.rs) |
-| 10 | 10 | 0 |   | earthbend of what the card reads, past one target and a fixed number | `earthbend-beyond-one-target-and-a-number` `earthbend-of-a-target-past-the-first` | [Avatar Kyoshi // The Legend of Kyoshi](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/avatar_kyoshi_the_legend_of_kyoshi.rs), [Beifong's Bounty Hunters](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/beifongs_bounty_hunters.rs), [Bumi's Feast Lecture](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/bumis_feast_lecture.rs) |
+| 10 | 10 | 0 |   | earthbend of what the card reads, past one target and a fixed number | `earthbend-beyond-one-target-and-a-number` `earthbend-of-a-target-past-the-first` | [Beifong's Bounty Hunters](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/beifongs_bounty_hunters.rs), [Bumi's Feast Lecture](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/bumis_feast_lecture.rs), [Cracked Earth Technique](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/cracked_earth_technique.rs) |
 | 9 | 13 | 0 |   | Afflict N (CR 702.130). | `engine-no-afflict` | [Ammit Eternal](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/ammit_eternal.rs), [Eternal of Harsh Truths](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/eternal_of_harsh_truths.rs), [Frontline Devastator](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/frontline_devastator.rs) |
 | 9 | 12 | 0 |   | Afterlife N and its Spirit (CR 702.135). | `engine-no-afterlife` | [Debtors' Transport](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/debtors_transport.rs), [Imperious Oligarch](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/imperious_oligarch.rs), [Knight of the Last Breath](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/knight_of_the_last_breath.rs) |
 | 9 | 12 | 0 |   | cumulative upkeep costs Payment doesn't list: either of two mana symbols for each age counter (a hybrid cost stops at six symbols), several parts at once, drawing, gaining control of a land, exiling from the library, and instructions such as adding mana or flipping a coin (CR 702.24a) | `cumulative-upkeep-paid-other-than-in-mana-or-life` | [Arctic Nishoba](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/arctic_nishoba.rs), [Braid of Fire](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/braid_of_fire.rs), [Earthen Goo](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/earthen_goo.rs) |
 | 9 | 9 | 0 |   | Amplify N (CR 702.38). | `engine-no-amplify` | [Aven Warhawk](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/aven_warhawk.rs), [Canopy Crawler](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/canopy_crawler.rs), [Daru Stinger](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/daru_stinger.rs) |
 | 8 | 10 | 0 |   | a villainous choice: the next opponent chooses too (CR 701.55) | `villainous-choice` | [Damocles Base, Sword of Kang](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/damocles_base_sword_of_kang.rs), [Ensnared by the Mara](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/ensnared_by_the_mara.rs), [Genesis of the Daleks](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/genesis_of_the_daleks.rs) |
-| 8 | 9 | 0 |   | A layer 6 helper giving those of a list of keywords that other objects have, protection and landwalk with their qualities (CR 613.1f, 702.16). | `the-keywords-of-other-objects` | [Cairn Wanderer](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/cairn_wanderer.rs), [Death-Mask Duplicant](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/death_mask_duplicant.rs), [Eater of Virtue](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/eater_of_virtue.rs) |
 | 8 | 9 | 0 |   | Detain (CR 701.35). | `engine-no-detain` | [Azorius Arrester](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/azorius_arrester.rs), [Inaction Injunction](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/inaction_injunction.rs), [Isperia's Skywatch](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/isperias_skywatch.rs) |
 | 7 | 9 | 0 |   | revealing a card from an opening hand before the game to set up a later effect, as the Chancellors of New Phyrexia do (CR 103.6b) | `a-reveal-from-an-opening-hand` | [Chancellor of the Dross](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/chancellor_of_the_dross.rs), [Chancellor of the Forge](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/chancellor_of_the_forge.rs), [Chancellor of the Spires](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/chancellor_of_the_spires.rs) |
+| 7 | 8 | 1 |   | A layer 6 helper giving those of a list of keywords that other objects have, protection and landwalk with their qualities (CR 613.1f, 702.16). | `the-keywords-of-other-objects` | [Cairn Wanderer](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/cairn_wanderer.rs), [Death-Mask Duplicant](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/death_mask_duplicant.rs), [Eater of Virtue](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/eater_of_virtue.rs) |
 | 7 | 8 | 1 |   | whether some subset of objects meets a total under constraints | `condition-subset-meets` | [Common Cause](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/common_cause.rs), [Dead Ringers](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/dead_ringers.rs), [Demonic Covenant](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/demonic_covenant.rs) |
 | 6 | 11 | 0 |   | Prowl (CR 702.76). | `engine-no-prowl` | [Auntie's Snitch](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/aunties_snitch.rs), [Enigma Thief](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/enigma_thief.rs), [Knowledge Exploitation](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/knowledge_exploitation.rs) |
 | 6 | 8 | 0 |   | Demonstrate (CR 702.144). | `engine-no-demonstrate` | [Creative Technique](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/creative_technique.rs), [Excavation Technique](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/excavation_technique.rs), [Healing Technique](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/healing_technique.rs) |
@@ -178,7 +178,7 @@ In the tables below, **lands** is the number of waiting cards this alone stands 
 | 0 | 25 | 0 |   | soulbond, with the creature each is paired with on the object | `object-reference-paired-with` | [Breathkeeper Seraph](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/breathkeeper_seraph.rs), [Deadeye Navigator](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/deadeye_navigator.rs), [Diregraf Escort](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/diregraf_escort.rs) |
 | 0 | 24 | 0 |   | Exploit (CR 702.110): the sacrifice as it enters. | `engine-no-exploit` | [Colonel Autumn](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/colonel_autumn.rs), [Diver Skaab](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/diver_skaab.rs), [Fell Stinger](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/fell_stinger.rs) |
 | 0 | 15 | 0 |   | a vote keeps its count per option for the rest of the resolution | `numeric-expression-votes` | [Capital Punishment](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/capital_punishment.rs), [Círdan the Shipwright](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/cirdan_the_shipwright.rs), [Elrond of the White Council](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/elrond_of_the_white_council.rs) |
-| 0 | 13 | 0 |   | Living metal (CR 702.161). | `engine-no-living-metal` | [Arcee, Acrobatic Coupe // Arcee, Sharpshooter](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/arcee_acrobatic_coupe_arcee_sharpshooter.rs), [Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/blitzwing_adaptive_assailant_blitzwing_cruel_tormentor.rs), [Cyclonus, Cybertronian Fighter // Cyclonus, the Saboteur](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/cyclonus_cybertronian_fighter_cyclonus_the_saboteur.rs) |
+| 0 | 13 | 0 |   | Living metal (CR 702.161). | `engine-no-living-metal` | [Arcee, Sharpshooter // Arcee, Acrobatic Coupe](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/arcee_sharpshooter.rs), [Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/blitzwing_cruel_tormentor.rs), [Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/cyclonus_the_saboteur.rs) |
 | 0 | 11 | 0 |   | Forecast (CR 702.57): activate only during your upkeep, once each turn, from the hand with the card revealed. | `engine-no-forecast` | [Govern the Guildless](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/govern_the_guildless.rs), [Paladin of Prahv](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/paladin_of_prahv.rs), [Piercing Rays](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/piercing_rays.rs) |
 | 0 | 11 | 0 |   | Tribute N (CR 702.104). | `engine-no-tribute` | [Fanatic of Xenagos](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/fanatic_of_xenagos.rs), [Flame-Wreathed Phoenix](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/flame_wreathed_phoenix.rs), [Nessian Demolok](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/nessian_demolok.rs) |
 | 0 | 11 | 0 |   | forecast (CR 702.57): activated from the hand, revealed, during its owner's upkeep and once each turn | `activated-keyword-forecast` | [Govern the Guildless](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/govern_the_guildless.rs), [Paladin of Prahv](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/paladin_of_prahv.rs), [Piercing Rays](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/piercing_rays.rs) |
@@ -286,7 +286,7 @@ In the tables below, **lands** is the number of waiting cards this alone stands 
 
 **in a CardDef table but not Copy + Sync + 'static (TransformAction::BecomeACopyOfAnExiledCard)** (1 cards). A `CardDef` table entry must be constant data; the proposed payload is not.
 
-- [Olag, Ludevic's Hubris // Ludevic, Necrogenius](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/olag_ludevics_hubris_ludevic_necrogenius.rs): line 26, the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)
+- [Ludevic, Necrogenius // Olag, Ludevic's Hubris](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/ludevic_necrogenius.rs): line 26, the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)
 
 **E0605: non-primitive cast: `_` as `_`** (1 cards). 
 
@@ -298,7 +298,7 @@ In the tables below, **lands** is the number of waiting cards this alone stands 
 
 **in a CardDef table but not Copy + Sync + 'static (TransformAction::AttachPermanentToAPlayer)** (1 cards). A `CardDef` table entry must be constant data; the proposed payload is not.
 
-- [Leeching Lurker // Curse of Leeches](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/leeching_lurker_curse_of_leeches.rs): line 13, the trait bound `Vec<cantrip_api::PlayerId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::PlayerId>`)
+- [Curse of Leeches // Leeching Lurker](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/curse_of_leeches.rs): line 13, the trait bound `Vec<cantrip_api::PlayerId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::PlayerId>`)
 
 **in a CardDef table but not Copy + Sync + 'static (FaceUpAction::AttachPermanentToAPermanent)** (1 cards). A `CardDef` table entry must be constant data; the proposed payload is not.
 
@@ -350,7 +350,7 @@ In the tables below, **lands** is the number of waiting cards this alone stands 
 
 **in a CardDef table but not Copy + Sync + 'static (AttachAction::ChooseAnExiledCardToCopy)** (1 cards). A `CardDef` table entry must be constant data; the proposed payload is not.
 
-- [Dinosaur Headdress // Paleontologist's Pick-Axe](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/dinosaur_headdress_paleontologists_pick_axe.rs): line 47, the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)
+- [Paleontologist's Pick-Axe // Dinosaur Headdress](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/paleontologists_pick_axe.rs): line 47, the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)
 
 **inside Keyword but without what it derives (on::Keyword::ProtectionFrom)** (1 cards). A variant of stored data (`Copy + Eq + Hash`) is proposed with a list or a closure in it. It needs a `Copy` shape: an index into a card table, or one entry for each object.
 
@@ -362,7 +362,7 @@ In the tables below, **lands** is the number of waiting cards this alone stands 
 
 **in a CardDef table but not Copy + Sync + 'static (TransformAction::ChooseAPlayer)** (1 cards). A `CardDef` table entry must be constant data; the proposed payload is not.
 
-- [Shinryu, Transcendent Rival // Zenos yae Galvus](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/shinryu_transcendent_rival_zenos_yae_galvus.rs): line 29, the trait bound `Vec<cantrip_api::PlayerId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::PlayerId>`)
+- [Zenos yae Galvus // Shinryu, Transcendent Rival](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/zenos_yae_galvus.rs): line 29, the trait bound `Vec<cantrip_api::PlayerId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::PlayerId>`)
 
 **passed through dyn but not data (Proposed_ModeDef::divide)** (1 cards). A proposed method on a `dyn` trait takes a closure; Cantrip's traits take `fn` pointers or data.
 
@@ -391,7 +391,7 @@ Cantrip can do it today; mtgish's generator has only to write it.
 | 0 | 2 | 0 |   | who exiled a card, with what, and when | `object-filter-exiled-by` | [Evelyn, the Covetous](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/evelyn_the_covetous.rs), [Haldan, Avid Arcanist](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/haldan_avid_arcanist.rs) |
 | 0 | 1 | 0 |   | Reading the defending player of the combat under way without naming an attacker | `player-reference-defending-player` | [Nuka-Nuke Launcher](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/nuka_nuke_launcher.rs) |
 | 0 | 1 | 0 |   | X announced for a spell or activation is readable while its costs are chosen and paid, not only in a target filter | `numeric-expression-announced-x` | [Droning Bureaucrats](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/droning_bureaucrats.rs) |
-| 0 | 1 | 0 |   | the permanent whose effect gave an ability to its source | `object-reference-granter` | [Tibalt, Cosmic Impostor // Valki, God of Lies](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/tibalt_cosmic_impostor_valki_god_of_lies.rs) |
+| 0 | 1 | 0 |   | the permanent whose effect gave an ability to its source | `object-reference-granter` | [Valki, God of Lies // Tibalt, Cosmic Impostor](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/valki_god_of_lies.rs) |
 | 0 | 1 | 0 |   | which permanents an instruction just dealt damage to, as a result of that instruction | `object-filter-damaged-by` | [Huatli, Warrior Poet](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/huatli_warrior_poet.rs) |
 
 ### mtgish data: 7 cards
@@ -428,7 +428,7 @@ the audit could not settle whether Cantrip can do it.
 | 0 | 11 | 0 |   | A value remembered on an object for a later read: a number, a player, a life total, counters, mana spent, an ordering of cards. | `operation-note` | [Dragonborn Immolator](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/dragonborn_immolator.rs), [Favored Enemy](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/favored_enemy.rs), [Ice Cauldron](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/ice_cauldron.rs) |
 | 0 | 2 | 0 |   | a card moved to the command zone by an effect (CR 408), for commanders and their replacement. | `move-to-command-zone` | [Hellkite Courser](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/hellkite_courser.rs), [Leadership Vacuum](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/leadership_vacuum.rs) |
 | 0 | 1 | 0 |   | Adding mana of what only the game can say | `combined-mana-choices-in-one-production` | [Open the Omenpaths](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/open_the_omenpaths.rs) |
-| 0 | 1 | 0 |   | craft materials judged together, as Apex Observatory's 'two that share a card type' | `craft-materials-that-must-have-something-in-common` | [Apex Observatory // Eye of Ojer Taq](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/apex_observatory_eye_of_ojer_taq.rs) |
+| 0 | 1 | 0 |   | craft materials judged together, as Apex Observatory's 'two that share a card type' | `craft-materials-that-must-have-something-in-common` | [Eye of Ojer Taq // Apex Observatory](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/eye_of_ojer_taq.rs) |
 
 ### unaudited: 26 cards
 
@@ -436,7 +436,7 @@ a form that appeared after the last audit.
 
 | lands | touches | written | status | needs | forms | examples |
 |---|---|---|---|---|---|---|
-| 9 | 9 | 0 |   | A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c) | `engine-no-resolving-rule-on-an-open-set-require-combat-block-beyond-lasting-rules` | [Alluring Scent](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/alluring_scent.rs), [Armed // Dangerous](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/armed_dangerous.rs), [Bloodscent](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/bloodscent.rs) |
+| 9 | 9 | 0 |   | A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c) | `engine-no-resolving-rule-on-an-open-set-require-combat-block-beyond-lasting-rules` | [Alluring Scent](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/alluring_scent.rs), [Armed // Dangerous](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/armed.rs), [Bloodscent](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/bloodscent.rs) |
 | 7 | 9 | 0 |   | a generator arm, or a Cantrip feature if none exists | `a-lasting-rule-reading-what-its-ability-chose` | [Academic Probation](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/academic_probation.rs), [Conjurer's Ban](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/conjurers_ban.rs), [Eunuchs' Intrigues](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/eunuchs_intrigues.rs) |
 | 2 | 5 | 0 |   | A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c) | `engine-no-resolving-rule-on-an-open-set-prohibit-attack-beyond-lasting-rules` | [Agyrem](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/agyrem.rs), [Chronomantic Escape](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/chronomantic_escape.rs), [Illusionist's Gambit](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/illusionists_gambit.rs) |
 | 2 | 3 | 0 |   | A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c) | `engine-no-resolving-rule-on-an-open-set-prohibit-be-blocked-beyond-lasting-rules` | [Dread Charge](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/dread_charge.rs), [Legion Loyalist](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/legion_loyalist.rs), [Space Beleren](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/space_beleren.rs) |
@@ -457,7 +457,7 @@ a form that appeared after the last audit.
 | touches | needs | examples |
 |---|---|---|
 | 384 | a game mode Cantrip does not play: Planechase, Vanguard, Archenemy and Conspiracy Draft have card types of their own | [A Display of My Dark Power](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/a_display_of_my_dark_power.rs), [A Premonition of Your Demise](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/a_premonition_of_your_demise.rs), [A Reckoning Approaches](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/a_reckoning_approaches.rs) |
-| 256 | Changes that stay with an object through every zone for the rest of the game (Alchemy "perpetually"), held on the card and not on the permanent. Alchemy only, so Cantrip has no reason to play it unless it plays digital cards. | [Absorb Energy](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/absorb_energy.rs), [Accident-Prone Apprentice // Amphibian Accident](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/accident_prone_apprentice_amphibian_accident.rs), [Ace Flockbringer](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/ace_flockbringer.rs) |
+| 256 | Changes that stay with an object through every zone for the rest of the game (Alchemy "perpetually"), held on the card and not on the permanent. Alchemy only, so Cantrip has no reason to play it unless it plays digital cards. | [Absorb Energy](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/absorb_energy.rs), [Accident-Prone Apprentice // Amphibian Accident](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/accident_prone_apprentice.rs), [Ace Flockbringer](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/ace_flockbringer.rs) |
 | 236 | a game mode Cantrip does not play: Planechase, Archenemy and Vanguard, with their events | [A Display of My Dark Power](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/a_display_of_my_dark_power.rs), [A Premonition of Your Demise](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/a_premonition_of_your_demise.rs), [A Reckoning Approaches](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/a_reckoning_approaches.rs) |
 | 173 | digital: create a card in a zone from a name, a spellbook or a filter | [A Golden Opportunity](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/a_golden_opportunity.rs), [Ace Flockbringer](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/ace_flockbringer.rs), [Agent of Raffine](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/agent_of_raffine.rs) |
 | 157 | The commander designation (CR 903.3): Cantrip games have none, so a casual-format form it has no reason to support unless it adds the variant. | [Acolyte of Bahamut](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/acolyte_of_bahamut.rs), [Agent of the Iron Throne](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/agent_of_the_iron_throne.rs), [Agent of the Shadow Thieves](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/agent_of_the_shadow_thieves.rs) |
@@ -503,11 +503,11 @@ a form that appeared after the last audit.
 | 157 | 0 | 1 | not played | The commander designation (CR 903.3): Cantrip games have none, so a casual-format form it has no reason to support unless it adds the variant. | Acolyte of Bahamut, Agent of the Iron Throne, Agent of the Shadow Thieves |
 | 151 | 0 | 1 | not played | Planechase (CR 901), a casual variant Cantrip does not play: the planar deck, the planar die, and planes and phenomena in the command zone | Academy at Tolaria West, Agyrem, Akoum |
 | 149 | 0 | 90 | Cantrip | the word in Cantrip's Subtype: planar types of Planes and Phenomena, and the few others its table has no row for | Academy at Tolaria West, Agyrem, Akoum |
-| 138 | 12 | 71 | Cantrip | a generator arm, or a Cantrip feature if none exists | A Killer Among Us, Academic Probation, Aetherplasm |
+| 138 | 12 | 71 | Cantrip | a generator arm, or a Cantrip feature if none exists | A Killer Among Us, Academic Probation, Accursed Witch // Infectious Curse |
 | 106 | 0 | 1 | not played | Vanguard (CR 902), a casual variant Cantrip does not play: an avatar in the command zone whose modifiers set starting hand size and life | Akroma, Angel of Wrath Avatar, Arcanis, the Omnipotent Avatar, Arcbound Overseer Avatar |
 | 102 | 0 | 1 | not played | Archenemy (CR 904), a casual variant Cantrip does not play: the scheme deck in the command zone, set in motion each turn | A Display of My Dark Power, A Premonition of Your Demise, A Reckoning Approaches |
-| 72 | 7 | 1 | Cantrip | A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes. | Alter Reality, Arcane Archery, Archway of Innovation |
-| 66 | 3 | 39 | Cantrip | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Adventurers' Guildhouse, Afterlife Insurance, Aragorn, Hornburg Hero |
+| 71 | 8 | 1 | Cantrip | A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes. | Alter Reality, Arcane Archery, Archway of Innovation |
+| 65 | 4 | 39 | Cantrip | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Adventurers' Guildhouse, Afterlife Insurance, Aragorn, Hornburg Hero |
 | 63 | 1 | 25 | Cantrip | a static ability gives a player this rule: the engine does not ask for it | Ali from Cairo, Altar of the Pantheon, Archon of Coronation |
 | 58 | 7 | 23 | Cantrip | A cost a `Cost` can't hold: an action by a player, mana with a bound X, a choice revealed, a part that targets, or an exile of a stated object. | A Killer Among Us, Avacyn's Judgment, Back from the Brink |
 | 52 | 2 | 20 | Cantrip | a static ability changes this rule of the object it affects: the engine has no hook for it | Ace's Baseball Bat, Aether Web, Aetherflame Wall |
@@ -518,7 +518,7 @@ a form that appeared after the last audit.
 | 49 | 0 | 1 | mechanics module | The Ring emblem and Ring-bearer designation (CR 701.54). | Bilbo, Retired Burglar, Birthday Escape, Bombadil's Song |
 | 48 | 0 | 1 | Cantrip | Revealing cards as a cost: the card itself, cards from hand, the top of a library. | Calamity of the Titans, Charge of the Forever-Beast, Daring Buccaneer |
 | 48 | 0 | 1 | not played | stickers (CR 123, Unfinity), a casual variant Cantrip does not play: its docs/rules-exceptions.md leaves stickers out, so each sticker of a sheet is a hole that keeps what it says | Sticker sheet: Ancestral, Hot Dog, Minotaur, Sticker sheet: Carnival, Elephant, Meteor, Sticker sheet: Contortionist, Otter, Storm |
-| 46 | 4 | 1 | Cantrip | Effects made at resolution on objects, players, each spell that matches including later ones, or the next matching spell, for a duration: discounts, abilities gained, plays allowed. | Alaundo the Seer, Apex Observatory // Eye of Ojer Taq, Azor, the Lawbringer |
+| 46 | 4 | 1 | Cantrip | Effects made at resolution on objects, players, each spell that matches including later ones, or the next matching spell, for a duration: discounts, abilities gained, plays allowed. | Alaundo the Seer, Azor, the Lawbringer, Ballad of the Black Flag |
 | 43 | 0 | 1 | Cantrip | ManaCost has no snow symbol (CR 107.4h) and no Phyrexian symbol of two colors (CR 107.4f). | Adarkar Windform, Ajani, Sleeper Agent, Arcum's Astrolabe |
 | 43 | 0 | 1 | not played | draft from a spellbook (Alchemy, digital-only): the player picks one of three random cards of a named card's spellbook and puts it into hand, the given number of times. | Adaptive Armorer, Arms Scavenger, Big Spender |
 | 42 | 0 | 1 | not played | An event when a permanent specializes (Alchemy). | Gut, Bestial Fanatic, Gut, Brutal Fanatic, Gut, Devious Fanatic |
@@ -527,7 +527,7 @@ a form that appeared after the last audit.
 | 37 | 1 | 1 | Cantrip | A cost that moves objects between zones with a count or from a zone Cost has no field for: X or any number of cards from a graveyard, a library top, the stack, a hand to the battlefield, a graveyard to a library. | Alms, Araumi of the Dead Tide, Arc-Slogger |
 | 37 | 0 | 1 | mechanics module | Bushido N (CR 702.45). | Araba Mothrider, Battle-Mad Ronin, Brothers Yamazaki |
 | 37 | 0 | 1 | Cantrip | Venture must offer the three dungeons (CR 701.49a): Game::venture only knows Undercity. | Acererak the Archlich, Bar the Gate, Barrowin of Clan Undurr |
-| 36 | 1 | 1 | Cantrip | how many counters a cost removed, kept on the stack item for abilities that say 'that many' or 'for each counter removed this way' | Arcee, Acrobatic Coupe // Arcee, Sharpshooter, Black Mana Battery, Blademane Baku |
+| 36 | 1 | 1 | Cantrip | how many counters a cost removed, kept on the stack item for abilities that say 'that many' or 'for each counter removed this way' | Arcee, Sharpshooter // Arcee, Acrobatic Coupe, Black Mana Battery, Blademane Baku |
 | 36 | 0 | 1 | Cantrip | Mana restricted by a filter on the spell or source it pays for, past the closed list ManaRestriction::NAMED has words for (CR 106.6). | Altar of the Lost, Anina, Natural Parallelist, Brotherhood Headquarters |
 | 36 | 0 | 1 | Cantrip | counter kinds that change power and toughness by something other than ±1/±1, as older cards' +1/+0 and +2/+2 counters do (CR 122.1a), with the layer that applies them | Armor Thrull, Balduvian Hydra, Baron Sengir |
 | 35 | 0 | 2 | Cantrip | Stickers (Unfinity): a player's sticker sheet, putting a chosen or named sticker on an object, and the ticket cost. A casual-only mechanic. | Aerialephant, Ambassador Blorpityblorpboop, Baaallerina |
@@ -548,7 +548,7 @@ a form that appeared after the last audit.
 | 26 | 0 | 1 | Cantrip | An effect that a creature assigns no combat damage (CR 510.1), for a duration. | Bone Dancer, Carrion Rats, Carrion Wurm |
 | 26 | 0 | 1 | Cantrip | the World supertype, with the world rule that puts all but the newest world permanent into graveyards (CR 704.5k) | Arboria, Bazaar of Wonders, Caverns of Despair |
 | 25 | 0 | 1 | not played | Conspiracy Draft (CR 905), a casual variant Cantrip does not play: conspiracies in the command zone, and what they do during the draft | Adriana's Valor, Advantageous Proclamation, Assemble the Rank and Vile |
-| 25 | 0 | 1 | Cantrip | Disturb (CR 702.146). | Ancestor's Embrace // Kindly Ancestor, Archive Haunt // Overwhelmed Archivist, Benevolent Geist // Malevolent Hermit |
+| 25 | 0 | 1 | Cantrip | Disturb (CR 702.146). | Baithook Angler // Hook-Haunt Drifter, Beloved Beggar // Generous Soul, Binding Geist // Spectral Binding |
 | 25 | 0 | 1 | mechanics module | Soulbond and being paired (CR 702.95). | Breathkeeper Seraph, Deadeye Navigator, Diregraf Escort |
 | 25 | 0 | 1 | mechanics module | soulbond records the creature a permanent is paired with | Breathkeeper Seraph, Deadeye Navigator, Diregraf Escort |
 | 25 | 0 | 1 | mechanics module | soulbond, with the creature each is paired with on the object | Breathkeeper Seraph, Deadeye Navigator, Diregraf Escort |
@@ -574,9 +574,7 @@ a form that appeared after the last audit.
 | 21 | 0 | 1 | mechanics module | Renown N and the renowned designation (CR 702.112). | Acolyte of the Inferno, Akroan Sergeant, Aragorn, Hornburg Hero |
 | 21 | 0 | 1 | Cantrip | a resolution keeps these values for a read: life paid to a cost, excess damage, players who have lost; an ability read before it resolves has no AbilityRef to count resolutions | Carpet of Flowers, Chorus of the Conclave, Font of Agonies |
 | 21 | 0 | 1 | Cantrip | the Ongoing supertype of a scheme, which stays face up in the command zone until an ability abandons it (CR 314.4): Archenemy, a casual format | Because I Have Willed It, Bow to My Command, Dark Wings Bring Your Downfall |
-| 20 | 4 | 1 | Cantrip | Removing counters of no fixed kind, all counters, at least a number, or from several permanents as a cost. | Arcee, Acrobatic Coupe // Arcee, Sharpshooter, Catti-brie of Mithral Hall, Essence Bottle |
 | 20 | 2 | 1 | not played | Things one player does to another: heist (Alchemy, digital-only), controlling a player's next turn or combat, and exchanging life totals with them. | Axavar, Fate Thief, Cliffside Market, Cruel Entertainment |
-| 20 | 0 | 1 | Cantrip | A cost equal to an object's mana cost, read when it is paid, for abilities. | Araumi of the Dead Tide, Cursecloth Wrappings, Djinn Illuminatus |
 | 20 | 0 | 1 | Cantrip | A static ability that makes a player skip a step (CR 614.10), such as 'skip your draw step' or 'players skip their untap steps'. | Colfenor's Plans, Damia, Sage of Stone, Dragon Appeasement |
 | 20 | 0 | 1 | Cantrip | Abandoning an ongoing scheme (Archenemy, CR 314.5): the scheme card leaves the game's ongoing state. A casual variant. | Because I Have Willed It, Bow to My Command, Dark Wings Bring Your Downfall |
 | 20 | 0 | 1 | Cantrip | Mana spendable only on one part of a cost or action, such as {X}, a morph cost or a door's unlock (CR 106.6), which needs the payment to say what it is paying. | Adarkar Unicorn, Creeping Peeper, Cultivator Drone |
@@ -586,14 +584,16 @@ a form that appeared after the last audit.
 | 20 | 0 | 1 | mechanics module | Vanishing N entering with time counters (CR 702.63). | Aven Riftwatcher, Calciderm, Chronozoa |
 | 20 | 0 | 2 | Cantrip | a granted ability of this kind: granted abilities are one AbilityDef | Bewitching Leechcraft, Caduceus, Staff of Hermes, Can't Stay Away |
 | 20 | 0 | 12 | Cantrip | a replacement of this event: ReplacementDef has no hook for it | Bamboozling Beeble, Barbarian Class, Bewitching Leechcraft |
-| 20 | 0 | 1 | Cantrip | flip cards (CR 710): a flipped half that gives a flipped permanent its name, text, types and power and toughness and keeps its mana cost and colors | Autumn-Tail, Kitsune Sage // Kitsune Mystic, Azamuki, Treachery Incarnate // Cunning Bandit, Dokai, Weaver of Life // Budoka Gardener |
+| 20 | 0 | 1 | Cantrip | flip cards (CR 710): a flipped half that gives a flipped permanent its name, text, types and power and toughness and keeps its mana cost and colors | Akki Lavarunner // Tok-Tok, Volcano Born, Budoka Gardener // Dokai, Weaver of Life, Budoka Pupil // Ichiga, Who Topples Oaks |
 | 20 | 0 | 1 | not played | the intensity of a card (Alchemy, digital-only; CR 702.161): its starting intensity and what intensify added | Arek, False Goldwarden, Awestruck Cygnet, Bellowsbreath Ogre |
+| 19 | 5 | 1 | Cantrip | Removing counters of no fixed kind, all counters, at least a number, or from several permanents as a cost. | Arcee, Sharpshooter // Arcee, Acrobatic Coupe, Catti-brie of Mithral Hall, Essence Bottle |
+| 19 | 1 | 1 | Cantrip | A cost equal to an object's mana cost, read when it is paid, for abilities. | Araumi of the Dead Tide, Cursecloth Wrappings, Djinn Illuminatus |
 | 19 | 0 | 1 | Cantrip | A rule that a player plays with the top card of a library revealed, or may look at it, beyond its controller's own (CR 400.2, 401.5). | Benjamin Sisko, Besieged, Conspicuous Snoop, Courser of Kruphix |
 | 19 | 0 | 1 | Cantrip | An effect carried by mana on what it pays for: a keyword, a counter on entering, a trigger when spent (CR 106.6), beyond GainsHaste and uncounterable. | Animal Attendant, Biophagus, Boseiju, Who Shelters All |
 | 19 | 0 | 1 | mechanics module | Blitz (CR 702.152): the way, its haste, its draw and its sacrifice. | Caldaia Guardian, Caldaia Strongarm, Effluence Devourer |
 | 19 | 0 | 1 | not played | Specialize, its choice and its faces (Alchemy; digital only). | Alora, Rogue Companion, Ambergris, Citadel Agent, Gale, Conduit of the Arcane |
 | 19 | 0 | 1 | Cantrip | a query for whether an object has a keyword ability that is not a Keyword bit (flashback, toxic, ward, convoke and the like) | Akroma, Vision of Ixidor, An Unearthly Child, Arcbound Overseer |
-| 19 | 0 | 1 | Cantrip | the flip action and the flipped status (CR 110.5, 710), which lasts until the permanent leaves the battlefield | Autumn-Tail, Kitsune Sage // Kitsune Mystic, Azamuki, Treachery Incarnate // Cunning Bandit, Dokai, Weaver of Life // Budoka Gardener |
+| 19 | 0 | 1 | Cantrip | the flip action and the flipped status (CR 110.5, 710), which lasts until the permanent leaves the battlefield | Akki Lavarunner // Tok-Tok, Volcano Born, Budoka Gardener // Dokai, Weaver of Life, Budoka Pupil // Ichiga, Who Topples Oaks |
 | 18 | 1 | 1 | Cantrip | A rule that raises, lowers or replaces what a keyword costs (CR 601.2f, 118.9): cycling, flashback, foretell, morph, ninjutsu, plot, boast, unearth and the like, since CostDelta and ability_alternatives see only ActivatedDef's equip, power-up and exhaust flags. | Advancing the Spirit, Catalyst Stone, Cosmos Charger |
 | 18 | 0 | 1 | mechanics module | Umbra armor (CR 702.89). | Bear Umbra, Boar Umbra, Crab Umbra |
 | 18 | 0 | 1 | Cantrip | a divided total read from the game as the targets are chosen: Divide holds a constant, the announced X, or a function of X. | Captain America, First Avenger, Case of the Market Melee, Grand Ossuary |
@@ -617,30 +617,30 @@ a form that appeared after the last audit.
 | 16 | 0 | 3 | Cantrip | a word about a card outside the game rules: drafting, starting decks and printings, kept for casual play | Aether Searcher, Animus of Predation, Arcane Savant |
 | 15 | 1 | 1 | Cantrip | A rule that gives spells a keyword with a cost or number as they are cast, or only the first such spell each turn (CR 113.6, 601.2): casualty, replicate, blitz, evoke, demonstrate, conspire, offspring, affinity, ripple. | Anhelo, the Painter, Ashad, the Lone Cyberman, Ashling, the Limitless |
 | 15 | 0 | 1 | Cantrip | A damage replacement a spell or ability makes that names who the damage would be dealt to and sends it elsewhere, often only the next N of it (CR 614.9, 615.3), since GrantedReplacementDef callbacks read neither the effect's targets nor a shield. | Daughter of Autumn, Eladamri, Hazduhr the Abbot |
-| 15 | 0 | 4 | Cantrip | A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules | Agyrem, Chronomantic Escape, Ertai's Familiar |
 | 15 | 0 | 1 | Cantrip | A target slot chosen by a player other than the controller (CR 601.2c, 603.3d). | Arena, Cuombajj Witches, Curse of Inertia |
-| 15 | 0 | 1 | Cantrip | An additional beginning, main or end phase: only additional combats exist. | Aggravated Assault, All-Out Assault, Cyclonus, Cybertronian Fighter // Cyclonus, the Saboteur |
+| 15 | 0 | 1 | Cantrip | An additional beginning, main or end phase: only additional combats exist. | Aggravated Assault, All-Out Assault, Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter |
 | 15 | 0 | 1 | mechanics module | Awaken N (CR 702.113): the alternative cost, a land target, and a land that becomes a 0/0 Elemental. | Boiling Earth, Clutch of Currents, Coastal Discovery |
 | 15 | 0 | 1 | Cantrip | Changes to combat by a resolving effect: reassign what attacks or blocks, make a blocker block, swap blocks, only these attack or block. | Balduvian Warlord, Bumi, Unleashed, Capricopian |
 | 15 | 0 | 1 | mechanics module | Jump-start (CR 702.133). | Beacon Bolt, Chemister's Insight, Dihada's Ploy |
-| 15 | 0 | 1 | Cantrip | More Than Meets the Eye (CR 702.162). | Arcee, Acrobatic Coupe // Arcee, Sharpshooter, Blaster, Morale Booster // Blaster, Combat DJ, Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor |
+| 15 | 0 | 1 | Cantrip | More Than Meets the Eye (CR 702.162). | Arcee, Sharpshooter // Arcee, Acrobatic Coupe, Blaster, Combat DJ // Blaster, Morale Booster, Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant |
 | 15 | 0 | 1 | Cantrip | Skipping a step or phase of a coming turn. | Avizoa, Blinding Angel, Brine Elemental |
 | 15 | 0 | 1 | Cantrip | a card already in exile that gains suspend, with the time counters it was given (CR 702.62): the triggers read CardDef.suspend, which a card without it does not have. | Amy's Home, Doom's Time Platform, Epochrasite |
 | 15 | 0 | 1 | mechanics module | a vote keeps its count per option for the rest of the resolution | Capital Punishment, Círdan the Shipwright, Elrond of the White Council |
 | 15 | 0 | 5 | not played | conditions on a keyword's cost or use beyond its plain form: Suspend X with X can't be 0, Flashback's X can't be 0 and costing X less by a commander's mana value, Emblazoned Golem's colored-only kicker, Alchemy specialize with an activation condition or reduction | Aeon Chronicler, Benalish Commander, Detritivore |
+| 14 | 1 | 4 | Cantrip | A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules | Agyrem, Chronomantic Escape, Ertai's Familiar |
 | 14 | 0 | 1 | Cantrip | A granted ability that has no ability definition: the card keeps its rules in a list a grant can name | Benevolent Blessing, Black Ward, Blue Ward |
-| 14 | 0 | 1 | Cantrip | As this is turned face up or transforms: a replacement on those events, which only Enters and AsTransforms have | Aquamorph Entity, Bubble Smuggler, Crowd-Control Warden |
 | 14 | 0 | 1 | Cantrip | Hidden agenda, a Conspiracy-draft form Cantrip has no reason to play (CR 702.106). | Adriana's Valor, Assemble the Rank and Vile, Brago's Favor |
 | 14 | 0 | 1 | Cantrip | protection that does not remove the Auras or Equipment already attached ('This effect doesn't remove this Aura'): the state-based check (CR 704.5m-n, 702.16) needs an exception | Benevolent Blessing, Black Ward, Blue Ward |
 | 14 | 0 | 1 | Cantrip | the cost part 'discard X [cards]' on a spell or ability, X announced or paid with mana (CR 107.3, 601.2b) | Abandon Hope, Aether Tide, Channeled Force |
 | 14 | 0 | 8 | Cantrip | this event is proposed to replacement effects before it happens | Ashiok, Wicked Manipulator, Aven Mindcensor, Bruvac the Grandiloquent |
 | 13 | 1 | 1 | Cantrip | A value chosen on terms: secretly, not what was chosen before, at random, in order, up to a number, with exceptions; the answer asked of each of several players. | Akroma, Angel of Wrath Avatar, Cryptic Spires, Desert Cenote |
+| 13 | 1 | 1 | Cantrip | As this is turned face up or transforms: a replacement on those events, which only Enters and AsTransforms have | Aquamorph Entity, Bubble Smuggler, Crowd-Control Warden |
 | 13 | 0 | 1 | Cantrip | A resolved ban on casting spells that match, for a duration (CR 101.2, 611.2c), since EffectKind::CantCastSpellsFrom knows only zones. | Abeyance, Aurelia's Fury, Calamity's Wake |
 | 13 | 0 | 1 | mechanics module | Afflict N (CR 702.130). | Ammit Eternal, Cyberman Patrol, Dagger of the Worthy |
 | 13 | 0 | 1 | mechanics module | Conspire (CR 702.78). | Aethertow, Barkshell Blessing, Burn Trail |
 | 13 | 0 | 1 | mechanics module | Graft N (CR 702.58). | Aquastrand Spider, Cytoplast Manipulator, Cytoplast Root-Kin |
 | 13 | 0 | 1 | not played | Intensity as a card starts (Alchemy; digital only). | Bellowsbreath Ogre, Colossal Chorus, Great Desert Hellion |
-| 13 | 0 | 1 | mechanics module | Living metal (CR 702.161). | Arcee, Acrobatic Coupe // Arcee, Sharpshooter, Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor, Cyclonus, Cybertronian Fighter // Cyclonus, the Saboteur |
+| 13 | 0 | 1 | mechanics module | Living metal (CR 702.161). | Arcee, Sharpshooter // Arcee, Acrobatic Coupe, Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant, Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter |
 | 13 | 0 | 8 | Cantrip | Planechase (CR 901): a planar deck, chaos, planeswalking. A casual variant. | Fixed Point in Time, Interplanar Tunnel, Missy |
 | 13 | 0 | 1 | mechanics module | Rampage N (CR 702.23). | Aerathi Berserker, Balduvian War-Makers, Chromium |
 | 13 | 0 | 2 | Cantrip | a player keeps counters of named kinds beyond poison, energy and experience | Etched Slith, Final Act, Leeches |
@@ -684,14 +684,13 @@ a form that appeared after the last audit.
 | 10 | 0 | 1 | mechanics module | a villainous choice: the next opponent chooses too (CR 701.55) | Damocles Base, Sword of Kang, Ensnared by the Mara, Genesis of the Daleks |
 | 10 | 0 | 1 | Cantrip | an object has all abilities of another, as they are while it does: AddAbility names one | Bleeding Effect, Concerted Effort, Grell Philosopher |
 | 10 | 0 | 1 | Cantrip | day and night changing (CR 730) raises an event | Brimstone Vandal, Celestus Sanctifier, Component Collector |
-| 10 | 0 | 2 | mechanics module | earthbend of what the card reads, past one target and a fixed number | Avatar Kyoshi // The Legend of Kyoshi, Beifong's Bounty Hunters, Bumi's Feast Lecture |
+| 10 | 0 | 2 | mechanics module | earthbend of what the card reads, past one target and a fixed number | Beifong's Bounty Hunters, Bumi's Feast Lecture, Cracked Earth Technique |
 | 10 | 0 | 1 | Cantrip | several Auras and Equipment put onto the battlefield at once, each attached to a named or chosen object (CR 110.2a, 303.4f): put_onto_battlefield_attached takes one | Bruna, Light of Alabaster, Cass, Hand of Vengeance, Evershrike |
 | 10 | 0 | 1 | Cantrip | the cost part 'Sacrifice X [permanents]' on an activated ability: VariableCost::SacrificeX is read only for a spell (CR 601.2b, 602.2b) | Champion of Stray Souls, Chatterfang, Squirrel General, Copper-Leaf Angel |
 | 9 | 1 | 1 | Cantrip | A reflexive trigger on what came of an action: a regeneration that happened, excess damage, a revealed quality. | A Premonition of Your Demise, Incinerator of the Guilty, Matopi Golem |
 | 9 | 1 | 1 | Cantrip | A rule that a portion of the mana spent on a spell must be of a kind. | Atalya, Samite Master, Consume Spirit, Crimson Hellkite |
 | 9 | 1 | 9 | Cantrip | What each player does as one batch of events when a choice falls between (CR 101.4, 603.2c): `instruction` holds one batch only without a suspension, so where the steps can't be gathered into one call each player's turn is its own batch. | Eumidian Wastewaker, Kharasha Foothills, Kozilek, the Broken Reality |
 | 9 | 1 | 1 | Cantrip | a card played only for ante, or banned, as a deck rule: ante is not in Cantrip (CR 407, casual forms) | Amulet of Quoz, Bronze Tablet, Contract from Below |
-| 9 | 0 | 1 | mechanics module | A layer 6 helper giving those of a list of keywords that other objects have, protection and landwalk with their qualities (CR 613.1f, 702.16). | Animus of Predation, Cairn Wanderer, Death-Mask Duplicant |
 | 9 | 0 | 1 | Cantrip | A limit on how many permanents of a kind a player untaps during their untap step, the player choosing which (CR 502.3, 614), as Winter Orb's. | Damping Field, Dovin Baan, Imi Statue |
 | 9 | 0 | 1 | Cantrip | A rule across the objects a cost picks: all of one color, sharing a type, and so on. | Bow to My Command, Illuminated Folio, Night Soil |
 | 9 | 0 | 1 | Cantrip | A rule on the value of an ability's X. | Bargaining Table, Blighted Nightmare, Caller of the Untamed |
@@ -710,6 +709,7 @@ a form that appeared after the last audit.
 | 9 | 0 | 1 | Cantrip | the Ring-bearer of a player | Aragorn, Company Leader, Faramir, Field Commander, Frodo Baggins |
 | 9 | 0 | 1 | Cantrip | the cost part 'tap X untapped [permanents] you control', X announced (CR 107.3, 118.3) | Apothecary White, Aryel, Knight of Windgrace, Belisarius Cawl |
 | 8 | 3 | 1 | Cantrip | Reading one player of a set where nothing is resolving, the one picked as the ability is announced or as the permanent enters | Arena, Bargaining Table, Echo Chamber |
+| 8 | 1 | 1 | mechanics module | A layer 6 helper giving those of a list of keywords that other objects have, protection and landwalk with their qualities (CR 613.1f, 702.16). | Animus of Predation, Cairn Wanderer, Death-Mask Duplicant |
 | 8 | 1 | 1 | Cantrip | the object in the place of a damage event, read outside the replacement | Anowon, the Ruin Thief, Descendants' Fury, Heroes in a Half Shell |
 | 8 | 1 | 1 | mechanics module | whether some subset of objects meets a total under constraints | Common Cause, Dead Ringers, Demonic Covenant |
 | 8 | 0 | 1 | Cantrip | Damage from one instruction that can't be prevented (CR 615.12), a rider of that damage alone rather than a rule for the turn as `damage_cant_be_prevented` is. | Arrow Storm, Banefire, Combust |
@@ -719,7 +719,7 @@ a form that appeared after the last audit.
 | 8 | 0 | 1 | Cantrip | a target count that depends on whether a gift was promised, as if_kicked does for a kicker (CR 702.174m): 'instead destroy two target artifacts and/or enchantments' | Consumed by Greed, Dewdrop Cure, Mind Spiral |
 | 8 | 0 | 1 | Cantrip | a target filter of a triggered ability can read the data of its event, as Query::event_subject reads the subject | Blade of Shared Souls, Case of the Market Melee, Confusion in the Ranks |
 | 8 | 0 | 1 | Cantrip | the Ring tempting a player raises an event | Aragorn, Company Leader, Faramir, Field Commander, Galadriel of Lothlórien |
-| 7 | 1 | 2 | Cantrip | A value chosen by a resolving ability, or for a hidden agenda, and read by another ability or a later turn: the engine keeps only the choices made as a permanent entered. | A Killer Among Us, Akroma, Angel of Wrath Avatar, Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor |
+| 7 | 1 | 2 | Cantrip | A value chosen by a resolving ability, or for a hidden agenda, and read by another ability or a later turn: the engine keeps only the choices made as a permanent entered. | A Killer Among Us, Akroma, Angel of Wrath Avatar, Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant |
 | 7 | 1 | 2 | Cantrip | this kind of ability works from another zone: only triggers and some statics say so | Bloodbraid Marauder, Dearly Departed, Kaervek's Torch |
 | 7 | 0 | 1 | Cantrip | A granted ability whose cost unattaches the Equipment or Aura that gave it. | Blinding Powder, Heartseeker, Leonin Bola |
 | 7 | 0 | 1 | Cantrip | A resolving effect turning a permanent face down. | Backslide, Master of the Veil, Mischievous Quanar |
@@ -729,7 +729,7 @@ a form that appeared after the last audit.
 | 7 | 0 | 1 | Cantrip | A target the game picks at random among legal targets. | Explosion of Riches, Furnace Layer, Goblin Test Pilot |
 | 7 | 0 | 1 | Cantrip | An event for a creature saddling a Mount (CR 702.171), in the history and to abilities. | Calamity, Galloping Inferno, Canyon Vaulter, Fortune, Loyal Steed |
 | 7 | 0 | 1 | unsure | Compleated (CR 702.150). | Ajani, Sleeper Agent, Jace, the Perfected Mind, Lukka, Bound to Ruin |
-| 7 | 0 | 1 | Cantrip | Event::GameLost is filed in the history only: it must reach triggers. | Blood Tyrant, Curse of Vengeance, Ramses, Assassin Lord |
+| 7 | 0 | 1 | Cantrip | Event::GameLost is filed in the history only: it must reach triggers. | Blood Tyrant, Curse of Vengeance, Elbrus, the Binding Blade // Withengar Unbound |
 | 7 | 0 | 1 | Cantrip | Intensity (CR 702.169): a value kept on cards that follows them through zones and is raised for each matching card a player owns. Digital-only. | Arek, False Goldwarden, Awestruck Cygnet, Chittering Skullspeaker |
 | 7 | 0 | 1 | Cantrip | One event for all the dice a player rolled at once. | Barbarian Class, Brazen Dwarf, Farideh, Devil's Chosen |
 | 7 | 0 | 1 | Cantrip | Phases and steps past a plain combat: combat and main together, upkeep, beginning, end, with what happens as the added phase starts. | Moraug, Fury of Akoum, Obeka, Splitter of Seconds, Paradox Haze |
@@ -772,7 +772,7 @@ a form that appeared after the last audit.
 | 5 | 0 | 1 | Cantrip | A pawprint budget (CR 700.2i): modes have weights and their total is limited. | Season of Gathering, Season of Loss, Season of Weaving |
 | 5 | 0 | 1 | Cantrip | A resolving effect giving the city's blessing: only the Ascend keyword does. | Expel from Orazca, Golden Demise, Pride of Conquerors |
 | 5 | 0 | 2 | Cantrip | A rule of found cards `select` has no part for: named after one of each of a set, one for each filter, at random, a common property. | Clarion Ultimatum, Dichotomancy, Doubling Chant |
-| 5 | 0 | 1 | Cantrip | A static rule letting a player take a special action | Cramped Vents // Access Maze, Evelyn, the Covetous, Hauken's Insight // Jacob Hauken, Inspector |
+| 5 | 0 | 1 | Cantrip | A static rule letting a player take a special action | Cramped Vents // Access Maze, Evelyn, the Covetous, Jacob Hauken, Inspector // Hauken's Insight |
 | 5 | 0 | 1 | Cantrip | Abilities that trigger once for each counter put: CountersPut is one event for the put, however many counters. | Bloodcrazed Hoplite, Fathom Mage, Flourishing Defenses |
 | 5 | 0 | 1 | mechanics module | Epic (CR 702.50): the rest of the game's upkeep copies and no more spells. | Endless Swarm, Enduring Ideal, Eternal Dominion |
 | 5 | 0 | 1 | Cantrip | Event::Crewed is recorded in the history but not emitted: abilities that trigger on a creature crewing never see it (a question of who crewed already compiles). | Gearshift Ace, Goblin Crash Pilot, Speedway Fanatic |
@@ -807,13 +807,12 @@ a form that appeared after the last audit.
 | 4 | 0 | 1 | Cantrip | A static rule giving players more land plays where the land table is not enough | Ghirapur Orrery, Rites of Flourishing, Storm Cauldron |
 | 4 | 0 | 1 | Cantrip | A top-of-library permission with an additional cost or flash (CR 601.3, 118.8), since PlayRule::LibraryTopSpells has only a filter and a replacement. | Elsha of the Infinite, Falco Spara, Pactweaver, Fortune Teller's Talent |
 | 4 | 0 | 1 | Cantrip | Attaching chosen objects to several hosts or to a player; `attach` takes one object and one object host. | Archnemesis, Ardenn, Intrepid Archaeologist, Maddening Hex |
-| 4 | 0 | 1 | Cantrip | Cast as though it had flash if you pay more: a way of casting whose extra cost is paid only outside a sorcery timing. | Harbinger of the Tides, Moonlit Ambusher // Oakshade Stalker, Mystical Tether |
+| 4 | 0 | 1 | Cantrip | Cast as though it had flash if you pay more: a way of casting whose extra cost is paid only outside a sorcery timing. | Harbinger of the Tides, Mystical Tether, Oakshade Stalker // Moonlit Ambusher |
 | 4 | 0 | 1 | Cantrip | Event::DungeonCompleted reaches triggered abilities: it is filed in the history only | Dungeon Crawler, Loot Dispute, Sefris of the Hidden Ways |
 | 4 | 0 | 1 | Cantrip | Event::Shuffled reaches triggered abilities: it is filed in the history only | Cosi's Trickster, Psychic Surgery, Psychogenic Probe |
 | 4 | 0 | 1 | Cantrip | Event::Tapped names the player who tapped the permanent, none for a cost or the rules | Hylda of the Icy Crown, Icewrought Sentry, Sharae of Numbing Depths |
 | 4 | 0 | 1 | not played | Seek (Alchemy, digital-only): a card chosen at random from those that match is put into hand from the library. | Bounty of the Deep, Grow Old Together, Song of Seasons |
-| 4 | 0 | 4 | Cantrip | The mechanic takes any cost, not only mana | Fblthp, Lost on the Range, Green Goblin // Norman Osborn, Herigast, Erupting Nullkite |
-| 4 | 0 | 4 | Cantrip | a condition with no read in Query or Game | Aang, Master of Elements // Avatar Aang, Human-Time Lord Meta-Crisis, Izzet Generatorium |
+| 4 | 0 | 4 | Cantrip | a condition with no read in Query or Game | Avatar Aang // Aang, Master of Elements, Human-Time Lord Meta-Crisis, Izzet Generatorium |
 | 4 | 0 | 1 | Cantrip | a permanent put onto the battlefield blocking an attacker (CR 509.7): blocking it though never declared as a blocker, as enter_attacking does for attackers | Brimaz, King of Oreskos, Flash Foliage, Mirror Match |
 | 4 | 0 | 1 | Cantrip | a player getting energy raises an event with the amount | Aether Revolt, Brotherhood Scribe, Fabrication Module |
 | 4 | 0 | 2 | Cantrip | a query of the base power and toughness after layers 7a and 7b, before counters and modifiers | Jason Bright, Glowing Prophet, Kutzil, Malamet Exemplar, Ms. Marvel, Elastic Ally |
@@ -825,6 +824,7 @@ a form that appeared after the last audit.
 | 3 | 1 | 1 | generator | A spell's choice between instruction lists asked as a labelled question; the AST carries no option labels, so `one_of` needs them from the card text or a generated label list. | Bison Whistle, Crystal Spray, Whim of Volrath |
 | 3 | 1 | 1 | Cantrip | An effect that one creature assigns combat damage equal to its toughness (CR 510.1), which CreaturesAssignDamageByToughness says only of a player's creatures. | Bill the Pony, Plagon, Lord of the Beach, Walking Bulwark |
 | 3 | 1 | 1 | generator | Reading what these players did to objects earlier, after the effect that did it is over | Human-Time Lord Meta-Crisis, Memory Vessel, Triple Triad |
+| 3 | 1 | 4 | Cantrip | The mechanic takes any cost, not only mana | Fblthp, Lost on the Range, Herigast, Erupting Nullkite, Songcrafter Mage |
 | 3 | 1 | 1 | Cantrip | a player has protection from something | Gor Muldrak, Amphinologist, Runed Halo, Serra's Emissary |
 | 3 | 1 | 1 | Cantrip | a rule on triggering can tell a room ability, a ward ability, and an ability of an emblem | Dungeon Delver, Hama Pashar, Ruin Seeker, The Masamune |
 | 3 | 0 | 1 | Cantrip | A cost change that adds a cost other than mana and life to an activated ability, or anything to a mana ability (CR 118.8, 605.3), since the core prices only non-mana abilities and CostDelta holds mana and life. | Brutal Suppression, Drought, Thran Portal |
@@ -836,9 +836,9 @@ a form that appeared after the last audit.
 | 3 | 0 | 1 | Cantrip | A resolving effect making an attacker blocked with nothing blocking it. | Curtain of Light, Dazzling Beauty, Trap Runner |
 | 3 | 0 | 1 | Cantrip | A resolving effect phasing a permanent in. | The Doctor's Childhood Barn, The Pandorica, Time and Tide |
 | 3 | 0 | 1 | Cantrip | A rule letting a creature attack a matching defender as though it had haste, apart from activation (CR 302.6). | Chaos Lord, Frenzied Saddlebrute, Instill Energy |
-| 3 | 0 | 2 | Cantrip | A static ability that makes an object a copy, or gives it the text, of another (CR 613.2a, Cantrip has no copy layer) | Dinosaur Headdress // Paleontologist's Pick-Axe, Metamorphic Alteration, Volrath's Shapeshifter |
+| 3 | 0 | 2 | Cantrip | A static ability that makes an object a copy, or gives it the text, of another (CR 613.2a, Cantrip has no copy layer) | Metamorphic Alteration, Paleontologist's Pick-Axe // Dinosaur Headdress, Volrath's Shapeshifter |
 | 3 | 0 | 1 | Cantrip | A static rule of combat or activation on an object with no table of its own | Cogwork Tracker, Galactus, Devourer of Worlds, Public Enemy |
-| 3 | 0 | 2 | Cantrip | An action for each number in a range; a chosen defender; a random pick of an ability, color or action; counters moved or put with an amount each player sets. | Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor, Master of the Wild Hunt Avatar, Ornate Imitations |
+| 3 | 0 | 2 | Cantrip | An action for each number in a range; a chosen defender; a random pick of an ability, color or action; counters moved or put with an amount each player sets. | Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant, Master of the Wild Hunt Avatar, Ornate Imitations |
 | 3 | 0 | 1 | Cantrip | An effect that a blocked creature may assign its combat damage as though it weren't blocked (CR 510.1c). | Gurzigost, Outmaneuver, Predatory Focus |
 | 3 | 0 | 1 | mechanics module | Bidding (Forge's Bid): players raise a stake in turn until all pass, and the winning amount and player are read. Casual cards. | Illicit Auction, Mages' Contest, Pain's Reward |
 | 3 | 0 | 1 | Cantrip | Damage with a rider: excess to a player, part of it prevented, or divided by a player other than the controller. | Errant Minion, Master of the Wild Hunt, Power Leak |
@@ -953,7 +953,7 @@ a form that appeared after the last audit.
 | [Moritte of the Frost](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/moritte_of_the_frost.rs) | 0 | Cantrip | A copy with a supertype other than legendary added or taken away |
 | [Flesh Duplicate](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/flesh_duplicate.rs) | 0 | mechanics module | A copy with several abilities added, or an ability only if it lacks it |
 | [Carth the Lion](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/carth_the_lion.rs) | 0 | Cantrip | A cost change that adds to the loyalty a loyalty ability costs (CR 606.4), as Carth the Lion's. |
-| [Olag, Ludevic's Hubris // Ludevic, Necrogenius](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/olag_ludevics_hubris_ludevic_necrogenius.rs) | 0 | Cantrip | A cost that exiles what another ability of the source later reads as exiled with it |
+| [Ludevic, Necrogenius // Olag, Ludevic's Hubris](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/ludevic_necrogenius.rs) | 0 | Cantrip | A cost that exiles what another ability of the source later reads as exiled with it |
 | [Niko, Light of Hope](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/niko_light_of_hope.rs) | 0 | Cantrip | A duration ending as the next end step begins (CR 611.2a). |
 | [Duplicant](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/duplicant.rs) | 0 | Cantrip | A layer that gives an object the creature types of another |
 | [Midnight Oil](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/midnight_oil.rs) | 0 | Cantrip | A maximum hand size read as a value |
@@ -1024,7 +1024,7 @@ a form that appeared after the last audit.
 | [Chromatic Armor](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/chromatic_armor.rs) | 0 | Cantrip | a card that chooses a color as it enters and again later keeps only the last one chosen |
 | [Shapeshifter](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/shapeshifter.rs) | 0 | Cantrip | a card that chooses a number as it enters and again later keeps only the last one chosen |
 | [Human-Time Lord Meta-Crisis](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/human_time_lord_meta_crisis.rs) | 0 | Cantrip | a choice of between two numbers of objects as it resolves: "one or two creatures" |
-| [Harnfel, Horn of Bounty // Birgi, God of Storytelling](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/harnfel_horn_of_bounty_birgi_god_of_storytelling.rs) | 0 | Cantrip | a cost change on abilities by what they were |
+| [Birgi, God of Storytelling // Harnfel, Horn of Bounty](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/birgi_god_of_storytelling.rs) | 0 | Cantrip | a cost change on abilities by what they were |
 | [Archival Whorl](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/archival_whorl.rs) | 0 | not played | a gift outside the six rules-defined kinds, a digital-only Alchemy card: 'Gift a Rhystic Study', with what giving it does written on the card |
 | [Two Streams Facility](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/two_streams_facility.rs) | 0 | Cantrip | a permanent makes two choices of words as it enters and keeps both |
 | [Maddening Imp](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/maddening_imp.rs) | 0 | Cantrip | a permanent records the step of the turn its controller got it, beside controlled_since |
@@ -1035,7 +1035,7 @@ a form that appeared after the last audit.
 | [Illusionary Mask](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/illusionary_mask.rs) | 0 | Cantrip | a replacement of a permanent becoming tapped, the tap then going ahead (Illusionary Mask) |
 | [Island Sanctuary](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/island_sanctuary.rs) | 0 | Cantrip | a resolved rule that a player can be attacked only by creatures that pass a test, for a while (Island Sanctuary) |
 | [The Temporal Anchor](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/the_temporal_anchor.rs) | 0 | Cantrip | a scry raises an event naming the cards put on the bottom |
-| [Invocation of the Founders // Invasion of Arcavios](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/invocation_of_the_founders_invasion_of_arcavios.rs) | 0 | Cantrip | a search of a library and other zones reports whether the player chose to search the library, for 'if you search your library this way, shuffle' |
+| [Invasion of Arcavios // Invocation of the Founders](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/invasion_of_arcavios.rs) | 0 | Cantrip | a search of a library and other zones reports whether the player chose to search the library, for 'if you search your library this way, shuffle' |
 | [Grip of Chaos](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/grip_of_chaos.rs) | 0 | Cantrip | a spell or ability put onto the stack raises one event, whether cast, copied or triggered |
 | [Vizier of Many Faces](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/vizier_of_many_faces.rs) | 0 | mechanics module | a token remembers it was made by embalm |
 | [Firkraag, Cunning Instigator](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/firkraag_cunning_instigator.rs) | 0 | Cantrip | an attack declaration records which attackers a requirement forced |
@@ -1048,7 +1048,7 @@ a form that appeared after the last audit.
 | [Mistbind Clique](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/mistbind_clique.rs) | 0 | Cantrip | champion raises an event naming the championed card |
 | [Call of the Ring](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/call_of_the_ring.rs) | 0 | Cantrip | choosing a Ring-bearer raises an event |
 | [All Will Be One](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/all_will_be_one.rs) | 0 | Cantrip | counters on a player raise an event naming who put them |
-| [Apex Observatory // Eye of Ojer Taq](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/apex_observatory_eye_of_ojer_taq.rs) | 0 | unsure | craft materials judged together, as Apex Observatory's 'two that share a card type' |
+| [Eye of Ojer Taq // Apex Observatory](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/eye_of_ojer_taq.rs) | 0 | unsure | craft materials judged together, as Apex Observatory's 'two that share a card type' |
 | [Kresh the Bloodbraided Avatar](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/kresh_the_bloodbraided_avatar.rs) | 0 | Cantrip | devour raises an event for each creature sacrificed to it, naming the devourer |
 | [Hellkite Hatchling](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/hellkite_hatchling.rs) | 0 | mechanics module | devour records how many creatures this creature devoured |
 | [Davriel, Soul Broker](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/davriel_soul_broker.rs) | 0 | not played | digital: a player is offered some options at random and picks one |
@@ -1082,7 +1082,7 @@ a form that appeared after the last audit.
 | [Drought](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/drought.rs) | 0 | Cantrip | the mana symbols of an activation's cost, by color |
 | [Elda, Conjurer of Spectacle](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/elda_conjurer_of_spectacle.rs) | 0 | Cantrip | the nth spell cast in a scope that passes a test |
 | [Human-Time Lord Meta-Crisis](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/human_time_lord_meta_crisis.rs) | 0 | Cantrip | the object at a given place in a sequence of choices |
-| [Tibalt, Cosmic Impostor // Valki, God of Lies](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/tibalt_cosmic_impostor_valki_god_of_lies.rs) | 0 | generator | the permanent whose effect gave an ability to its source |
+| [Valki, God of Lies // Tibalt, Cosmic Impostor](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/valki_god_of_lies.rs) | 0 | generator | the permanent whose effect gave an ability to its source |
 | [Illusionary Terrain](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/illusionary_terrain.rs) | 0 | Cantrip | the second of two chosen land types, read by a static or an effect: a permanent keeps one chosen land type today |
 | [The Matrix of Time](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/the_matrix_of_time.rs) | 0 | Cantrip | the spell cast from a set of cards |
 | [Lupine Harbingers](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/lupine_harbingers.rs) | 0 | mechanics module | the turn a card was foretold |
@@ -1090,7 +1090,7 @@ a form that appeared after the last audit.
 | [The Millennium Calendar](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/the_millennium_calendar.rs) | 0 | Cantrip | the untap step raises an event for each permanent a player untaps, as a batch |
 | [Day of the Moon](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/day_of_the_moon.rs) | 0 | Cantrip | the value of a kind chosen for a named object |
 | [Savior of Ollenbock](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/savior_of_ollenbock.rs) | 0 | Cantrip | training raises an event when it puts its counter on a creature |
-| [Aang, Master of Elements // Avatar Aang](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/aang_master_of_elements_avatar_aang.rs) | 0 | Cantrip | waterbending, earthbending, firebending and airbending raise an event |
+| [Avatar Aang // Aang, Master of Elements](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/avatar_aang.rs) | 0 | Cantrip | waterbending, earthbending, firebending and airbending raise an event |
 | [Eye of Duskmantle](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/eye_of_duskmantle.rs) | 0 | Cantrip | whether a card was surveilled this turn: the history keeps what was surveilled |
 | [Illusionary Mask](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/illusionary_mask.rs) | 0 | Cantrip | whether a cost could be paid with a recorded lot of mana |
 | [Mana Web](https://github.com/vishvananda/cantrip-rs/blob/card-lane/generated/crates/cantrip-generated/cards/mana_web.rs) | 0 | Cantrip | whether a land could add a type of mana another could |
@@ -1114,12 +1114,12 @@ a form that appeared after the last audit.
 | storage | 18 | Bottomless Vault, Calciform Pools, City of Shadows |
 | verse | 13 | Aria of Flame, Discordant Dirge, Lilting Refrain |
 | depletion | 12 | Decree of Silence, Force Bubble, Hickory Woodlot |
-| ki | 11 | Azamuki, Treachery Incarnate // Cunning Bandit, Baku Altar, Blademane Baku |
-| study | 10 | Grimoire of the Dead, Imbraham, Dean of Theory // Kianne, Dean of Substance, Lattice Library |
+| ki | 11 | Baku Altar, Blademane Baku, Budoka Pupil // Ichiga, Who Topples Oaks |
+| study | 10 | Grimoire of the Dead, Kianne, Dean of Substance // Imbraham, Dean of Theory, Lattice Library |
 | divinity | 8 | Bant, Kindred Boon, Myojin of Cleansing Fire |
 | brick | 5 | Edifice of Authority, Luxa River Shrine, Oracle's Vault |
 | doom | 5 | Armageddon Clock, Eye of Doom, Imminent Doom |
-| flame | 5 | Embodiment of Flame // Flame Channeler, Kardum, Patron of Flames, Managorger Phoenix |
+| flame | 5 | Flame Channeler // Embodiment of Flame, Kardum, Patron of Flames, Managorger Phoenix |
 | fuse | 5 | Bomb Squad, Goblin Bomb, Incendiary |
 | blood | 4 | Bloodletter Quill, Font of Agonies, Rakdos Riteknife |
 | pressure | 4 | Exploding Barrel, Hellion Crucible, Magma Mine |
@@ -1128,11 +1128,11 @@ a form that appeared after the last audit.
 | fate | 3 | Norn's Dominion, Oblivion Stone, Triad of Fates |
 | feather | 3 | Aven Mimeomancer, Kangee, Aerie Keeper, Soulcatchers' Aerie |
 | fetch | 3 | Haldan, Avid Arcanist, Hex, Kellan's Companion, Pako, Arcane Retriever |
-| hatchling | 3 | Eumidian Hatchery, Ludevic's Abomination // Ludevic's Test Subject, Triassic Egg |
+| hatchling | 3 | Eumidian Hatchery, Ludevic's Test Subject // Ludevic's Abomination, Triassic Egg |
 | hit | 3 | Etrata, the Silencer, Mari, the Killing Quill, Ravenloft Adventurer |
 | hour | 3 | Midnight Clock, Midnight Oil, Rusko, Clockmaker |
 | infection | 3 | Diseased Vermin, Festering Wound, Genestealer Patriarch |
-| omen | 3 | Celestial Convergence, Cipherbound Spirit // Soulcipher Board, Forsaken Thresher // Foreboding Statue |
+| omen | 3 | Celestial Convergence, Foreboding Statue // Forsaken Thresher, Soulcipher Board // Cipherbound Spirit |
 | plague | 3 | Plague Boiler, Traveling Plague, Withering Hex |
 | slime | 3 | Gutter Grime, Sludge Monster, Toxrill, the Corrosive |
 | stash | 3 | Glittering Stockpile, Hoarder's Overflow, Tinybones, Bauble Burglar |
@@ -1158,10 +1158,10 @@ a form that appeared after the last audit.
 | awakening | 1 | Liege of the Tangle |
 | bait | 1 | Fishing Pole |
 | blessing | 1 | Boon of the Spirit Realm |
-| bloodline | 1 | Edgar Markov's Coffin // Edgar, Charmed Groom |
+| bloodline | 1 | Edgar, Charmed Groom // Edgar Markov's Coffin |
 | bloodstain | 1 | Blood Spatter Analysis |
 | book | 1 | Spell Satchel |
-| bore | 1 | Tecutlan, the Searing Rift // Brass's Tunnel-Grinder |
+| bore | 1 | Brass's Tunnel-Grinder // Tecutlan, the Searing Rift |
 | brain | 1 | Rex, Cyber-Hound |
 | bribery | 1 | Gwafa Hazid, Profiteer |
 | cage | 1 | Mairsil, the Pretender |
@@ -1179,11 +1179,11 @@ a form that appeared after the last audit.
 | descent | 1 | Descent into Avernus |
 | despair | 1 | Descent into Madness |
 | discovery | 1 | Lara Croft, Tomb Raider |
-| dread | 1 | Shadows' Lair // Grasping Shadows |
+| dread | 1 | Grasping Shadows // Shadows' Lair |
 | duty | 1 | Immortal Obligation |
 | echo | 1 | Soul Echo |
 | elixir | 1 | Essence Bottle |
-| ember | 1 | Ashmouth Dragon // Smoldering Egg |
+| ember | 1 | Smoldering Egg // Ashmouth Dragon |
 | enlightened | 1 | The Book of Exalted Deeds |
 | eruption | 1 | Pompeii |
 | everything | 1 | Omo, Queen of Vesuva |
@@ -1198,21 +1198,21 @@ a form that appeared after the last audit.
 | ghostform | 1 | Kaya the Inexorable |
 | glyph | 1 | Glyph of Delusion |
 | harmony | 1 | Instrument of the Bards |
-| hatching | 1 | Dragon-Kami's Egg // The Dragon-Kami Reborn |
+| hatching | 1 | The Dragon-Kami Reborn // Dragon-Kami's Egg |
 | hoofprint | 1 | Hoofprints of the Stag |
 | hourglass | 1 | Temporal Distortion |
 | hunger | 1 | Fasting |
 | impostor | 1 | Illicit Masquerade |
 | incarnation | 1 | Nine Lives |
 | ingredient | 1 | Communal Brewing |
-| intel | 1 | Flamewar, Streetwise Operative // Flamewar, Brash Veteran |
+| intel | 1 | Flamewar, Brash Veteran // Flamewar, Streetwise Operative |
 | intervention | 1 | Divine Intervention |
 | isolation | 1 | Quarantine Field |
 | javelin | 1 | Icatian Javelineers |
-| judgment | 1 | Sinner's Judgment // Faithbound Judge |
+| judgment | 1 | Faithbound Judge // Sinner's Judgment |
 | kick | 1 | Zethi, Arcane Blademaster |
 | knowledge | 1 | The Magic Mirror |
-| landmark | 1 | Treasure Cove // Treasure Map |
+| landmark | 1 | Treasure Map // Treasure Cove |
 | loot | 1 | Bandit's Haul |
 | magnet | 1 | Magnetic Web |
 | manifestation | 1 | Arbiter of the Ideal |
@@ -1242,12 +1242,12 @@ a form that appeared after the last audit.
 | prey | 1 | Tetzimoc, Primal Death |
 | pupa | 1 | Cocoon |
 | rally | 1 | Aligned Heart |
-| refine | 1 | Nassari, Dean of Expression // Uvilda, Dean of Perfection |
+| refine | 1 | Uvilda, Dean of Perfection // Nassari, Dean of Expression |
 | rejection | 1 | Tolarian Contempt |
 | reprieve | 1 | Magnanimous Magistrate |
 | revival | 1 | Nine-Lives Familiar |
 | ribbon | 1 | Prize Pig |
-| ritual | 1 | Inherited Fiend // Heirloom Mirror |
+| ritual | 1 | Heirloom Mirror // Inherited Fiend |
 | rope | 1 | Fraying Line |
 | rust | 1 | Corrosion |
 | saurian | 1 | Sauron, Dino Devotee |
@@ -1305,7 +1305,7 @@ mtgish changes 112 passages of card text on purpose before parsing (`grammars/fi
 A requirement is one form the generator could not write, not one piece of work: one feature can be many forms. `class` comes from the form's family; `fix` from `data/cantrip_audit.json`, where each form's verdict cites the API or a hand-written card. **alone** counts the cards this form alone stands between and a whole file.
 
 <details>
-<summary>1127 requirements on waiting cards</summary>
+<summary>1125 requirements on waiting cards</summary>
 
 | requirement | class | fix | cards | written | alone | needs | examples |
 |---|---|---|---|---|---|---|---|
@@ -1322,7 +1322,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `card-type-scheme` | engine | not played | 102 | 0 | 0 | a game mode Cantrip does not play: Planechase, Vanguard, Archenemy and Conspiracy Draft have card types of their own | A Display of My Dark Power, A Premonition of Your Demise, A Reckoning Approaches |
 | `layout-scheme` | engine | not played | 102 | 0 | 0 | Archenemy (CR 904), a casual variant Cantrip does not play: the scheme deck in the command zone, set in motion each turn | A Display of My Dark Power, A Premonition of Your Demise, A Reckoning Approaches |
 | `trigger-event-player-sets-scheme-in-motion` | engine | not played | 82 | 0 | 0 | a game mode Cantrip does not play: Planechase, Archenemy and Vanguard, with their events | A Display of My Dark Power, A Premonition of Your Demise, A Reckoning Approaches |
-| `operation-change-spell` | engine | Cantrip | 72 | 7 | 58 | A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes. | Alter Reality, Arcane Archery, Archway of Innovation |
+| `operation-change-spell` | engine | Cantrip | 71 | 8 | 57 | A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes. | Alter Reality, Arcane Archery, Archway of Innovation |
 | `engine-no-record-of-what-paid-a-cost` | engine | Cantrip | 52 | 0 | 22 | A list of the cards a spell's or ability's cost discarded, exiled or revealed, as q.cost_objects gives the permanents it chose. | Assemble from Parts, Back from the Brink, Baron Helmut Zemo |
 | `granted-static` | engine | Cantrip | 49 | 6 | 30 | a static ability an effect grants, in force while the object has it and lost with its abilities (CR 613.1f), as Armed with Proof's Clues' 'Equipped creature gets +2/+0' and Chimeric Mass's 'power and toughness are each equal to' do: AbilityRef reaches only abilities that use the stack | Acolyte of Bahamut, Armed with Proof, Arterial Alchemy |
 | `engine-no-ring-temptation` | engine | mechanics module | 49 | 0 | 38 | The Ring emblem and Ring-bearer designation (CR 701.54). | Bilbo, Retired Burglar, Birthday Escape, Bombadil's Song |
@@ -1338,7 +1338,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `engine-no-bushido` | mechanic | mechanics module | 37 | 0 | 33 | Bushido N (CR 702.45). | Araba Mothrider, Battle-Mad Ronin, Brothers Yamazaki |
 | `engine-no-static-prevention-with-an-effect-besides` | engine | Cantrip | 37 | 0 | 30 | support in Cantrip's core | Angel of Suffering, Anti-Venom, Horrifying Healer, Bloatfly Swarm |
 | `engine-venture-into-the-dungeon-reaches-only-undercity` | engine | Cantrip | 37 | 0 | 32 | Venture must offer the three dungeons (CR 701.49a): Game::venture only knows Undercity. | Acererak the Archlich, Bar the Gate, Barrowin of Clan Undurr |
-| `numeric-expression-paid-counters-removed` | engine | Cantrip | 36 | 1 | 18 | how many counters a cost removed, kept on the stack item for abilities that say 'that many' or 'for each counter removed this way' | Arcee, Acrobatic Coupe // Arcee, Sharpshooter, Black Mana Battery, Blademane Baku |
+| `numeric-expression-paid-counters-removed` | engine | Cantrip | 36 | 1 | 18 | how many counters a cost removed, kept on the stack item for abilities that say 'that many' or 'for each counter removed this way' | Arcee, Sharpshooter // Arcee, Acrobatic Coupe, Black Mana Battery, Blademane Baku |
 | `mana-spending-predicate` | engine | Cantrip | 36 | 0 | 28 | Mana restricted by a filter on the spell or source it pays for, past the closed list ManaRestriction::NAMED has words for (CR 106.6). | Altar of the Lost, Anina, Natural Parallelist, Brotherhood Headquarters |
 | `power-toughness-counter-other-than-1-1` | vocabulary | Cantrip | 36 | 0 | 29 | counter kinds that change power and toughness by something other than ±1/±1, as older cards' +1/+0 and +2/+2 counters do (CR 122.1a), with the layer that applies them | Armor Thrull, Balduvian Hydra, Baron Sengir |
 | `operation-vote` | mechanic | mechanics module | 34 | 1 | 0 | Voting (CR 701.38) on words, players, objects or graveyard cards, open or secret, that records votes for `g.votes()` to read; only `vote::for_permanents` exists and it records nothing. | Bite of the Black Rose, Capital Punishment, Coercive Portal |
@@ -1359,7 +1359,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `supertype-world` | engine | Cantrip | 26 | 0 | 20 | the World supertype, with the world rule that puts all but the newest world permanent into graveyards (CR 704.5k) | Arboria, Bazaar of Wonders, Caverns of Despair |
 | `target-reference-outside-a-resolving-ability` | engine | Cantrip | 26 | 0 | 18 | A trigger or replacement made by a resolving ability reads the targets of the ability that made it (603.7c): a created effect has no closure over them. A few are a cost change that reads targets. | Acolyte's Reward, Bamboozling Beeble, Captain's Maneuver |
 | `card-type-conspiracy` | engine | not played | 25 | 0 | 0 | a game mode Cantrip does not play: Planechase, Vanguard, Archenemy and Conspiracy Draft have card types of their own | Adriana's Valor, Advantageous Proclamation, Assemble the Rank and Vile |
-| `engine-no-disturb` | mechanic | Cantrip | 25 | 0 | 25 | Disturb (CR 702.146). | Hook-Haunt Drifter // Baithook Angler, Generous Soul // Beloved Beggar, Spectral Binding // Binding Geist |
+| `engine-no-disturb` | mechanic | Cantrip | 25 | 0 | 25 | Disturb (CR 702.146). | Baithook Angler // Hook-Haunt Drifter, Beloved Beggar // Generous Soul, Binding Geist // Spectral Binding |
 | `engine-no-soulbond` | mechanic | mechanics module | 25 | 0 | 0 | Soulbond and being paired (CR 702.95). | Breathkeeper Seraph, Deadeye Navigator, Diregraf Escort |
 | `layout-conspiracy` | engine | not played | 25 | 0 | 0 | Conspiracy Draft (CR 905), a casual variant Cantrip does not play: conspiracies in the command zone, and what they do during the draft | Adriana's Valor, Advantageous Proclamation, Assemble the Rank and Vile |
 | `object-reference-paired-with` | mechanic | mechanics module | 25 | 0 | 0 | soulbond, with the creature each is paired with on the object | Breathkeeper Seraph, Deadeye Navigator, Diregraf Escort |
@@ -1383,22 +1383,22 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `engine-no-resolving-rule-on-an-open-set-prohibit-block` | engine | Cantrip | 21 | 0 | 19 | Cantrip's lasting rules (cantrip-rs/cantrip-rs#897): a can't attack, can't block, can't be blocked, attacks or blocks if able, or doesn't untap rule a resolving spell or ability gives an open set of objects (CR 611.2c), as a LastingRule of the card, and a permanent that doesn't untap during its controller's or a player's next untap step (CR 502.3), weaker than CantBecomeUntapped and following a change of control, which exerting doesn't. | Awe for the Guilds, Destructive Tampering, Droning Bureaucrats |
 | `numeric-expression-game` | engine | Cantrip | 21 | 0 | 10 | a resolution keeps these values for a read: life paid to a cost, excess damage, players who have lost; an ability read before it resolves has no AbilityRef to count resolutions | Carpet of Flowers, Chorus of the Conclave, Font of Agonies |
 | `supertype-ongoing` | engine | Cantrip | 21 | 0 | 0 | the Ongoing supertype of a scheme, which stays face up in the command zone until an ability abandons it (CR 314.4): Archenemy, a casual format | Because I Have Willed It, Bow to My Command, Dark Wings Bring Your Downfall |
-| `engine-no-cost-removes-counters-this-way` | engine | Cantrip | 20 | 4 | 2 | Removing counters of no fixed kind, all counters, at least a number, or from several permanents as a cost. | Arcee, Acrobatic Coupe // Arcee, Sharpshooter, Catti-brie of Mithral Hall, Essence Bottle |
 | `operation-toward-player` | mechanic | not played | 20 | 2 | 18 | Things one player does to another: heist (Alchemy, digital-only), controlling a player's next turn or combat, and exchanging life totals with them. | Axavar, Fate Thief, Cliffside Market, Cruel Entertainment |
 | `engine-no-vanishing-enters` | mechanic | mechanics module | 20 | 0 | 18 | Vanishing N entering with time counters (CR 702.63). | Aven Riftwatcher, Calciderm, Chronozoa |
-| `engine-no-cost-copies-a-mana-cost` | engine | Cantrip | 20 | 0 | 0 | A cost equal to an object's mana cost, read when it is paid, for abilities. | Araumi of the Dead Tide, Cursecloth Wrappings, Djinn Illuminatus |
 | `engine-no-tickets` | engine | Cantrip | 20 | 0 | 2 | Ticket counters on players and stickers (Unfinity). An Un-set form that Cantrip has no reason to play. | Aerialephant, Ambassador Blorpityblorpboop, Bioluminary |
 | `engine-no-untap-symbol-cost` | engine | Cantrip | 20 | 0 | 18 | The untap symbol in a cost (CR 107.6). | Crackleburr, Duergar Mine-Captain, Farmstead Gleaner |
 | `engine-only-a-mana-ability-triggers-on-tapping-for-mana` | engine | Cantrip | 20 | 0 | 11 | TappedForMana shown to ordinary triggered abilities, not only to mana abilities (CR 605.1b). | Barbflare Gremlin, Burning Earth, C.A.M.P. |
 | `intensity` | mechanic | not played | 20 | 0 | 0 | the intensity of a card (Alchemy, digital-only; CR 702.161): its starting intensity and what intensify added | Arek, False Goldwarden, Awestruck Cygnet, Bellowsbreath Ogre |
-| `layout-flip` | engine | Cantrip | 20 | 0 | 0 | flip cards (CR 710): a flipped half that gives a flipped permanent its name, text, types and power and toughness and keeps its mana cost and colors | Tok-Tok, Volcano Born // Akki Lavarunner, Dokai, Weaver of Life // Budoka Gardener, Ichiga, Who Topples Oaks // Budoka Pupil |
+| `layout-flip` | engine | Cantrip | 20 | 0 | 0 | flip cards (CR 710): a flipped half that gives a flipped permanent its name, text, types and power and toughness and keeps its mana cost and colors | Akki Lavarunner // Tok-Tok, Volcano Born, Budoka Gardener // Dokai, Weaver of Life, Budoka Pupil // Ichiga, Who Topples Oaks |
 | `mana-spending-purpose` | engine | Cantrip | 20 | 0 | 18 | Mana spendable only on one part of a cost or action, such as {X}, a morph cost or a door's unlock (CR 106.6), which needs the payment to say what it is paying. | Adarkar Unicorn, Creeping Peeper, Cultivator Drone |
 | `operation-abandon-scheme` | mechanic | Cantrip | 20 | 0 | 0 | Abandoning an ongoing scheme (Archenemy, CR 314.5): the scheme card leaves the game's ongoing state. A casual variant. | Because I Have Willed It, Bow to My Command, Dark Wings Bring Your Downfall |
 | `skipping-a-step-of-the-turn` | engine | Cantrip | 20 | 0 | 15 | A static ability that makes a player skip a step (CR 614.10), such as 'skip your draw step' or 'players skip their untap steps'. | Colfenor's Plans, Damia, Sage of Stone, Dragon Appeasement |
+| `engine-no-cost-removes-counters-this-way` | engine | Cantrip | 19 | 5 | 1 | Removing counters of no fixed kind, all counters, at least a number, or from several permanents as a cost. | Arcee, Sharpshooter // Arcee, Acrobatic Coupe, Catti-brie of Mithral Hall, Essence Bottle |
+| `engine-no-cost-copies-a-mana-cost` | engine | Cantrip | 19 | 1 | 0 | A cost equal to an object's mana cost, read when it is paid, for abilities. | Araumi of the Dead Tide, Cursecloth Wrappings, Djinn Illuminatus |
 | `a-library-s-top-card-open-to-view` | engine | Cantrip | 19 | 0 | 15 | A rule that a player plays with the top card of a library revealed, or may look at it, beyond its controller's own (CR 400.2, 401.5). | Benjamin Sisko, Besieged, Conspicuous Snoop, Courser of Kruphix |
 | `engine-no-blitz` | mechanic | mechanics module | 19 | 0 | 13 | Blitz (CR 702.152): the way, its haste, its draw and its sacrifice. | Caldaia Guardian, Caldaia Strongarm, Effluence Devourer |
 | `engine-no-specialize` | mechanic | not played | 19 | 0 | 12 | Specialize, its choice and its faces (Alchemy; digital only). | Alora, Rogue Companion, Ambergris, Citadel Agent, Gale, Conduit of the Arcane |
-| `keyword-action-flip` | engine | Cantrip | 19 | 0 | 0 | the flip action and the flipped status (CR 110.5, 710), which lasts until the permanent leaves the battlefield | Tok-Tok, Volcano Born // Akki Lavarunner, Dokai, Weaver of Life // Budoka Gardener, Ichiga, Who Topples Oaks // Budoka Pupil |
+| `keyword-action-flip` | engine | Cantrip | 19 | 0 | 0 | the flip action and the flipped status (CR 110.5, 710), which lasts until the permanent leaves the battlefield | Akki Lavarunner // Tok-Tok, Volcano Born, Budoka Gardener // Dokai, Weaver of Life, Budoka Pupil // Ichiga, Who Topples Oaks |
 | `mana-spending-effect` | engine | Cantrip | 19 | 0 | 15 | An effect carried by mana on what it pays for: a keyword, a counter on entering, a trigger when spent (CR 106.6), beyond GainsHaste and uncounterable. | Animal Attendant, Biophagus, Boseiju, Who Shelters All |
 | `object-filter-has-keyword-family` | engine | Cantrip | 19 | 0 | 14 | a query for whether an object has a keyword ability that is not a Keyword bit (flashback, toxic, ward, convoke and the like) | Akroma, Vision of Ixidor, An Unearthly Child, Arcbound Overseer |
 | `a-keyword-s-cost-changed` | engine | Cantrip | 18 | 1 | 13 | A rule that raises, lowers or replaces what a keyword costs (CR 601.2f, 118.9): cycling, flashback, foretell, morph, ninjutsu, plot, boast, unearth and the like, since CostDelta and ability_alternatives see only ActivatedDef's equip, power-up and exhaust flags. | Advancing the Spirit, Catalyst Stone, Cosmos Charger |
@@ -1425,8 +1425,8 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `a-value-chosen-in-secret` | generator | Cantrip | 15 | 0 | 1 | a generator arm, or a Cantrip feature if none exists | A Killer Among Us, Call to the Void, Emissary of Grudges |
 | `engine-no-awaken` | mechanic | mechanics module | 15 | 0 | 13 | Awaken N (CR 702.113): the alternative cost, a land target, and a land that becomes a 0/0 Elemental. | Boiling Earth, Clutch of Currents, Coastal Discovery |
 | `engine-no-jump-start` | mechanic | mechanics module | 15 | 0 | 12 | Jump-start (CR 702.133). | Beacon Bolt, Chemister's Insight, Dihada's Ploy |
-| `engine-no-more-than-meets-the-eye` | mechanic | Cantrip | 15 | 0 | 0 | More Than Meets the Eye (CR 702.162). | Arcee, Acrobatic Coupe // Arcee, Sharpshooter, Blaster, Morale Booster // Blaster, Combat DJ, Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor |
-| `engine-no-additional-phase-but-combat` | engine | Cantrip | 15 | 0 | 9 | An additional beginning, main or end phase: only additional combats exist. | Aggravated Assault, All-Out Assault, Cyclonus, Cybertronian Fighter // Cyclonus, the Saboteur |
+| `engine-no-more-than-meets-the-eye` | mechanic | Cantrip | 15 | 0 | 0 | More Than Meets the Eye (CR 702.162). | Arcee, Sharpshooter // Arcee, Acrobatic Coupe, Blaster, Combat DJ // Blaster, Morale Booster, Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant |
+| `engine-no-additional-phase-but-combat` | engine | Cantrip | 15 | 0 | 9 | An additional beginning, main or end phase: only additional combats exist. | Aggravated Assault, All-Out Assault, Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter |
 | `engine-no-skipped-step-or-phase` | engine | Cantrip | 15 | 0 | 14 | Skipping a step or phase of a coming turn. | Avizoa, Blinding Angel, Brine Elemental |
 | `exiled-card-gains-suspend` | mechanic | Cantrip | 15 | 0 | 11 | a card already in exile that gains suspend, with the time counters it was given (CR 702.62): the triggers read CardDef.suspend, which a card without it does not have. | Amy's Home, Doom's Time Platform, Epochrasite |
 | `granted-replacement` | engine | Cantrip | 15 | 0 | 8 | a granted ability of this kind: granted abilities are one AbilityDef | Bewitching Leechcraft, Caduceus, Staff of Hermes, Can't Stay Away |
@@ -1435,22 +1435,22 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `replacement-of-damage-to-a-named-recipient` | engine | Cantrip | 15 | 0 | 12 | A damage replacement a spell or ability makes that names who the damage would be dealt to and sends it elsewhere, often only the next N of it (CR 614.9, 615.3), since GrantedReplacementDef callbacks read neither the effect's targets nor a shield. | Daughter of Autumn, Eladamri, Hazduhr the Abbot |
 | `targets-chosen-by-another-player` | engine | Cantrip | 15 | 0 | 7 | A target slot chosen by a player other than the controller (CR 601.2c, 603.3d). | Arena, Cuombajj Witches, Curse of Inertia |
 | `a-cost-s-filter-reading-the-x-announced` | generator | Cantrip | 14 | 0 | 9 | a generator arm, or a Cantrip feature if none exists | Arcanis, the Omnipotent Avatar, Blazing Shoal, Bosh, Iron Golem Avatar |
-| `ability-as-event` | engine | Cantrip | 14 | 0 | 8 | As this is turned face up or transforms: a replacement on those events, which only Enters and AsTransforms have | Aquamorph Entity, Bubble Smuggler, Crowd-Control Warden |
 | `ability-protection-except` | engine | Cantrip | 14 | 0 | 0 | protection that does not remove the Auras or Equipment already attached ('This effect doesn't remove this Aura'): the state-based check (CR 704.5m-n, 702.16) needs an exception | Benevolent Blessing, Black Ward, Blue Ward |
 | `condition-most-votes` | engine | mechanics module | 14 | 0 | 0 | the votes of the resolution in progress, kept for later instructions to read | Bite of the Black Rose, Coercive Portal, Galadriel, Elven-Queen |
 | `discarding-x-cards-as-a-cost` | engine | Cantrip | 14 | 0 | 12 | the cost part 'discard X [cards]' on a spell or ability, X announced or paid with mana (CR 107.3, 601.2b) | Abandon Hope, Aether Tide, Channeled Force |
 | `engine-no-hidden-agenda` | mechanic | Cantrip | 14 | 0 | 0 | Hidden agenda, a Conspiracy-draft form Cantrip has no reason to play (CR 702.106). | Adriana's Valor, Assemble the Rank and Vile, Brago's Favor |
 | `granted-protection-except` | engine | Cantrip | 14 | 0 | 0 | A granted ability that has no ability definition: the card keeps its rules in a list a grant can name | Benevolent Blessing, Black Ward, Blue Ward |
 | `static-rule-combat-group-blocker` | engine | Cantrip | 14 | 0 | 1 | A declaration rule on how many creatures attack, block or block one attacker together (CR 508.1c, 509.1b): can't attack or block alone, can only attack alone, no more than N each combat, except by N or more. | Astral Arena, Bonded Horncrest, Caverns of Despair |
+| `ability-as-event` | engine | Cantrip | 13 | 1 | 7 | As this is turned face up or transforms: a replacement on those events, which only Enters and AsTransforms have | Aquamorph Entity, Bubble Smuggler, Crowd-Control Warden |
 | `operation-choose-value-with` | engine | Cantrip | 13 | 1 | 5 | A value chosen on terms: secretly, not what was chosen before, at random, in order, up to a number, with exceptions; the answer asked of each of several players. | Akroma, Angel of Wrath Avatar, Cryptic Spires, Desert Cenote |
 | `engine-no-afflict` | mechanic | mechanics module | 13 | 0 | 9 | Afflict N (CR 702.130). | Ammit Eternal, Cyberman Patrol, Dagger of the Worthy |
 | `engine-no-conspire` | mechanic | mechanics module | 13 | 0 | 11 | Conspire (CR 702.78). | Aethertow, Barkshell Blessing, Burn Trail |
 | `engine-no-graft` | mechanic | mechanics module | 13 | 0 | 13 | Graft N (CR 702.58). | Aquastrand Spider, Cytoplast Manipulator, Cytoplast Root-Kin |
-| `engine-no-living-metal` | mechanic | mechanics module | 13 | 0 | 0 | Living metal (CR 702.161). | Arcee, Acrobatic Coupe // Arcee, Sharpshooter, Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor, Cyclonus, Cybertronian Fighter // Cyclonus, the Saboteur |
+| `engine-no-living-metal` | mechanic | mechanics module | 13 | 0 | 0 | Living metal (CR 702.161). | Arcee, Sharpshooter // Arcee, Acrobatic Coupe, Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant, Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter |
 | `engine-no-rampage` | mechanic | mechanics module | 13 | 0 | 11 | Rampage N (CR 702.23). | Aerathi Berserker, Balduvian War-Makers, Chromium |
 | `engine-no-starting-intensity` | mechanic | not played | 13 | 0 | 0 | Intensity as a card starts (Alchemy; digital only). | Bellowsbreath Ogre, Colossal Chorus, Great Desert Hellion |
 | `player-rule-for-a-while-can-t-cast-some-spells` | engine | Cantrip | 13 | 0 | 9 | A resolved ban on casting spells that match, for a duration (CR 101.2, 611.2c), since EffectKind::CantCastSpellsFrom knows only zones. | Abeyance, Aurelia's Fury, Calamity's Wake |
-| `play-permission-to-play-land` | engine | Cantrip | 12 | 2 | 3 | a permission to play on these terms: PlayGrant and PlayRule have no field for them | Annie Flash, the Veteran, The Omenkeel // Cosima, God of the Voyage, Elder Brain |
+| `play-permission-to-play-land` | engine | Cantrip | 12 | 2 | 3 | a permission to play on these terms: PlayGrant and PlayRule have no field for them | Annie Flash, the Veteran, Cosima, God of the Voyage // The Omenkeel, Elder Brain |
 | `card-type-phenomenon` | engine | not played | 12 | 0 | 0 | a game mode Cantrip does not play: Planechase, Vanguard, Archenemy and Conspiracy Draft have card types of their own | Caught in a Parallel Universe, Chaotic Aether, Fixed Point in Time |
 | `cumulative-upkeep-paid-other-than-in-mana-or-life` | mechanic | mechanics module | 12 | 0 | 9 | cumulative upkeep costs Payment doesn't list: either of two mana symbols for each age counter (a hybrid cost stops at six symbols), several parts at once, drawing, gaining control of a land, exiling from the library, and instructions such as adding mana or flipping a coin (CR 702.24a) | Arctic Nishoba, Braid of Fire, Earthen Goo |
 | `duration-until-paid` | engine | Cantrip | 12 | 0 | 0 | A duration a player may end at any time they have priority by paying a cost, as a special action (the licids, CR 116.2). | Calming Licid, Convulsing Licid, Corrupting Licid |
@@ -1517,13 +1517,13 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `static-rule-require-combat-block` | engine | Cantrip | 9 | 0 | 7 | A standing rule that a creature blocks each combat if able (CR 509.1c), which today only an effect on one object can say. | Grand Melee, Invasion Plans, Iron Golem |
 | `subtype-dominaria` | vocabulary | Cantrip | 9 | 0 | 0 | the word in Cantrip's Subtype: planar types of Planes and Phenomena, and the few others its table has no row for | Academy at Tolaria West, Isle of Vesuva, Krosa |
 | `tapping-x-permanents-as-a-cost` | engine | Cantrip | 9 | 0 | 9 | the cost part 'tap X untapped [permanents] you control', X announced (CR 107.3, 118.3) | Apothecary White, Aryel, Knight of Windgrace, Belisarius Cawl |
-| `the-keywords-of-other-objects` | mechanic | mechanics module | 9 | 0 | 8 | A layer 6 helper giving those of a list of keywords that other objects have, protection and landwalk with their qualities (CR 613.1f, 702.16). | Wretched Bonemass // Altar of the Wretched, Animus of Predation, Cairn Wanderer |
 | `trigger-event-caused` | engine | unsure | 9 | 0 | 6 | a matcher can read what caused the event it is shown: Record::cause is in the history, which stops before the event itself | Baral, Chief of Compliance, Firesong and Sunspeaker, Hero of Bretagard |
 | `trigger-event-player-loses-control` | engine | Cantrip | 9 | 0 | 4 | Event::ControlChanged reaches triggered abilities and names the previous controller: it is filed in the history only | Duplicity, Gustha's Scepter, Khârn the Betrayer |
 | `player-reference-one-of` | engine | Cantrip | 8 | 3 | 0 | Reading one player of a set where nothing is resolving, the one picked as the ability is announced or as the permanent enters | Arena, Bargaining Table, Echo Chamber |
 | `static-rule-unique` | engine | Cantrip | 8 | 2 | 6 | a static ability changes this rule of the object it affects: the engine has no hook for it | Ghostly Flame, Me, the Immortal, Nacatl War-Pride |
 | `condition-subset-meets` | mechanic | mechanics module | 8 | 1 | 7 | whether some subset of objects meets a total under constraints | Common Cause, Dead Ringers, Demonic Covenant |
 | `object-collection-damage` | engine | Cantrip | 8 | 1 | 6 | the object in the place of a damage event, read outside the replacement | Anowon, the Ruin Thief, Descendants' Fury, Heroes in a Half Shell |
+| `the-keywords-of-other-objects` | mechanic | mechanics module | 8 | 1 | 7 | A layer 6 helper giving those of a list of keywords that other objects have, protection and landwalk with their qualities (CR 613.1f, 702.16). | Animus of Predation, Cairn Wanderer, Death-Mask Duplicant |
 | `a-gift-that-changes-how-many-a-spell-targets` | engine | Cantrip | 8 | 0 | 8 | a target count that depends on whether a gift was promised, as if_kicked does for a kicker (CR 702.174m): 'instead destroy two target artifacts and/or enchantments' | Consumed by Greed, Dewdrop Cure, Mind Spiral |
 | `engine-no-demonstrate` | mechanic | mechanics module | 8 | 0 | 6 | Demonstrate (CR 702.144). | Creative Technique, Excavation Technique, Healing Technique |
 | `engine-no-intensity` | mechanic | not played | 8 | 0 | 0 | Intensity and intensify (Alchemy; digital only). | Bellowsbreath Ogre, Drix Interlacer, Great Desert Hellion |
@@ -1547,7 +1547,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `earthbend-beyond-one-target-and-a-number` | mechanic | mechanics module | 7 | 0 | 7 | earthbend of what the card reads, past one target and a fixed number | Beifong's Bounty Hunters, Bumi's Feast Lecture, Rockalanche |
 | `engine-no-compleated` | mechanic | unsure | 7 | 0 | 3 | Compleated (CR 702.150). | Ajani, Sleeper Agent, Jace, the Perfected Mind, Lukka, Bound to Ruin |
 | `engine-no-recover` | mechanic | mechanics module | 7 | 0 | 6 | Recover (CR 702.59). | Controvert, Garza's Assassin, Grim Harvest |
-| `engine-no-ability-triggers-on-losing-the-game` | engine | Cantrip | 7 | 0 | 4 | Event::GameLost is filed in the history only: it must reach triggers. | Blood Tyrant, Curse of Vengeance, Withengar Unbound // Elbrus, the Binding Blade |
+| `engine-no-ability-triggers-on-losing-the-game` | engine | Cantrip | 7 | 0 | 4 | Event::GameLost is filed in the history only: it must reach triggers. | Blood Tyrant, Curse of Vengeance, Elbrus, the Binding Blade // Withengar Unbound |
 | `engine-no-cost-unattaches-what-gave-the-ability` | engine | Cantrip | 7 | 0 | 7 | A granted ability whose cost unattaches the Equipment or Aura that gave it. | Blinding Powder, Heartseeker, Leonin Bola |
 | `engine-no-effect-turns-a-permanent-face-down` | engine | Cantrip | 7 | 0 | 6 | A resolving effect turning a permanent face down. | Backslide, Master of the Veil, Mischievous Quanar |
 | `engine-no-event-for-dice-rolled-together` | engine | Cantrip | 7 | 0 | 4 | One event for all the dice a player rolled at once. | Barbarian Class, Brazen Dwarf, Farideh, Devil's Chosen |
@@ -1629,7 +1629,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `object-reference-scoped` | vocabulary | Cantrip | 5 | 0 | 0 | an object named with no read in Query or Game | Demon of Fate's Design, Dream Halls, Soul Partition |
 | `object-state-sticker` | mechanic | Cantrip | 5 | 0 | 0 | stickers: a casual mechanic of Unfinity; an object records the stickers on it | Baaallerina, Lineprancers, Proficient Pyrodancer |
 | `operation-pick-from-hand` | engine | Cantrip | 5 | 0 | 5 | Looking at a player's hand and taking a card of it to do something: they play it, it goes on top, it is cast free, it is discarded. | Agonizing Memories, Distended Mindbender, Mindleech Mass |
-| `player-rule-special-action` | engine | Cantrip | 5 | 0 | 2 | A static rule letting a player take a special action | Cramped Vents // Access Maze, Evelyn, the Covetous, Hauken's Insight // Jacob Hauken, Inspector |
+| `player-rule-special-action` | engine | Cantrip | 5 | 0 | 2 | A static rule letting a player take a special action | Cramped Vents // Access Maze, Evelyn, the Covetous, Jacob Hauken, Inspector // Hauken's Insight |
 | `player-rule-unspent-mana-becomes` | engine | Cantrip | 5 | 0 | 4 | a static ability gives a player this rule: the engine does not ask for it | Horizon Stone, Kruphix, God of Horizons, Omnath, Locus of All |
 | `player-rule-for-a-while-grant-keyword` | engine | unsure | 5 | 0 | 2 | a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form | Eon Frolicker, Guardian Archon, Noble Heritage |
 | `player-rule-for-a-while-spell-cost` | engine | Cantrip | 5 | 0 | 4 | a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form | Cheering Fanatic, Goblin Maskmaker, Rowan, Scion of War |
@@ -1662,7 +1662,6 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `condition-chose-extreme` | engine | Cantrip | 4 | 0 | 0 | who named the highest or lowest number in a shared choice | Goblin Game, Itazura, Lingering Wick, Menacing Ogre |
 | `continuous-rule-prohibit-attack` | engine | Cantrip | 4 | 0 | 2 | A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules | Agyrem, Chronomantic Escape, Immortal Obligation |
 | `continuous-rule-prohibit-be-targeted` | engine | Cantrip | 4 | 0 | 1 | a resolving effect changes this rule of an object | Autumn's Veil, Display of Dominance, Peace Talks |
-| `continuous-rule-require-combat-attack` | engine | Cantrip | 4 | 0 | 1 | A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules | Kardur, Doomscourge, Gideon, Battle-Forged // Kytheon, Hero of Akros, Maximum Carnage |
 | `cost-part-reveal-choice` | engine | Cantrip | 4 | 0 | 0 | A cost a `Cost` can't hold: an action by a player, mana with a bound X, a choice revealed, a part that targets, or an exile of a stated object. | A Killer Among Us, Emissary of Grudges, Guardian Archon |
 | `engine-no-afflict-granted` | engine | mechanics module | 4 | 0 | 0 | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Cyberman Patrol, Dagger of the Worthy, Lazotep Sliver |
 | `engine-no-double-team-granted` | engine | Cantrip | 4 | 0 | 0 | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Liara of the Flaming Fist, Tan Jolom, the Worldwalker, Ulder Ravengard, Marshal |
@@ -1670,7 +1669,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `engine-no-cost-reduced-for-each-time-a-cost-is-paid` | engine | Cantrip | 4 | 0 | 3 | A spell that costs less for each time an additional cost is paid. | Bite Down on Crime, Explosive Singularity, Gorex, the Tombshell |
 | `engine-no-effect-picks-a-door` | engine | Cantrip | 4 | 0 | 4 | A door chosen as an effect resolves, and locking one: Game::unlock_door names its door and nothing locks. | Ghostly Dancers, Ghostly Keybearer, Keys to the House |
 | `engine-no-effect-removes-a-card-type` | engine | Cantrip | 4 | 0 | 2 | A resolving effect removing one card type. | Aplan Mortarium, Blink, Neurok Transmuter |
-| `engine-no-flash-for-an-additional-cost` | engine | Cantrip | 4 | 0 | 4 | Cast as though it had flash if you pay more: a way of casting whose extra cost is paid only outside a sorcery timing. | Harbinger of the Tides, Mystical Tether, Moonlit Ambusher // Oakshade Stalker |
+| `engine-no-flash-for-an-additional-cost` | engine | Cantrip | 4 | 0 | 4 | Cast as though it had flash if you pay more: a way of casting whose extra cost is paid only outside a sorcery timing. | Harbinger of the Tides, Mystical Tether, Oakshade Stalker // Moonlit Ambusher |
 | `engine-no-resolving-rule-on-an-open-set-require-combat-attack-beyond-lasting-rules` | engine | unaudited | 4 | 0 | 1 | A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c) | Kardur, Doomscourge, Maximum Carnage, Taunt |
 | `event-change-as-it-enters-set-controller` | engine | Cantrip | 4 | 0 | 3 | A hook that chooses which player a permanent enters under the control of, chosen before its other replacements (CR 616.1b), which CardDef::enters must not do. | Abby, Merciless Soldier, Captive Audience, Pendant of Prosperity |
 | `event-trigger-for-end-of-combat` | engine | Cantrip | 4 | 0 | 1 | a delayed trigger on an event can last for any duration, firing each time or only once | Goblin Flotilla, Love on the Battlefield, Melee |
@@ -1704,6 +1703,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `trigger-event-player-taps-permanent` | engine | Cantrip | 4 | 0 | 4 | Event::Tapped names the player who tapped the permanent, none for a cost or the rules | Hylda of the Icy Crown, Icewrought Sentry, Sharae of Numbing Depths |
 | `player-rule-for-a-while-activation-grant` | engine | unsure | 3 | 2 | 2 | a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form | Kaito, Dancing Shadow, The Chain Veil, Urza Assembles the Titans |
 | `continuous-rule-combat-damage-use-toughness` | engine | Cantrip | 3 | 1 | 3 | An effect that one creature assigns combat damage equal to its toughness (CR 510.1), which CreaturesAssignDamageByToughness says only of a player's creatures. | Bill the Pony, Plagon, Lord of the Beach, Walking Bulwark |
+| `continuous-rule-require-combat-attack` | engine | Cantrip | 3 | 1 | 0 | A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules | Kardur, Doomscourge, Maximum Carnage, Nahiri, the Unforgiving |
 | `cost-part-mana-cost-reduced` | engine | unsure | 3 | 1 | 0 | A cost a `Cost` can't hold: an action by a player, mana with a bound X, a choice revealed, a part that targets, or an exile of a stated object. | Bohn, Beguiling Balladeer, Dream Devourer, Singing Towers of Darillium |
 | `duration-extra-turn` | engine | Cantrip | 3 | 1 | 0 | an effect lasts until this: Duration has no such end | Alchemist's Gambit, All in Good Time, Time Bends to My Will |
 | `duration-until-next` | engine | Cantrip | 3 | 1 | 0 | an effect lasts until this: Duration has no such end | Rocco, Street Chef, Sizzling Soloist, Trench Behemoth |
@@ -1720,7 +1720,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `unearth-cost-other-than-mana` | mechanic | Cantrip | 3 | 0 | 1 | this mechanic takes a full Cost: CardDef and its WayDef hold a ManaCost only | Grixis, Highway Reaver, Salvation Colossus |
 | `a-card-exiled-to-pay-a-permanent-spell-s-cost-read-as-exiled-with-the-permanent` | generator | Cantrip | 3 | 0 | 2 | a generator arm, or a Cantrip feature if none exists | Fear of Abduction, Gorex, the Tombshell, Redemptor Dreadnought |
 | `a-choice-between-the-costs-of-an-activated-ability` | generator | Cantrip | 3 | 0 | 3 | a generator arm, or a Cantrip feature if none exists | Bullseye, Death Dealer, Ion Storm, Rift Elemental |
-| `a-choice-of-ability-outside-its-body` | engine | generator | 3 | 0 | 0 | A value chosen by a resolving ability, or for a hidden agenda, and read by another ability or a later turn: the engine keeps only the choices made as a permanent entered. | Akroma, Angel of Wrath Avatar, Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor, Gabriel Angelfire |
+| `a-choice-of-ability-outside-its-body` | engine | generator | 3 | 0 | 0 | A value chosen by a resolving ability, or for a hidden agenda, and read by another ability or a later turn: the engine keeps only the choices made as a permanent entered. | Akroma, Angel of Wrath Avatar, Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant, Gabriel Angelfire |
 | `a-resolution-s-choice-read-by-the-trigger-it-creates` | generator | Cantrip | 3 | 0 | 3 | a generator arm, or a Cantrip feature if none exists | Leori, Sparktouched Hunter, The Clone Saga, Zombie Boa |
 | `ability-cost-options` | engine | Cantrip | 3 | 0 | 1 | an ability of this shape: CardDef has no field for it | Close Encounter, Lethal Throwdown, Monstrous Emergence |
 | `activation-cost-with-another-cost` | engine | Cantrip | 3 | 0 | 2 | A cost change that adds a cost other than mana and life to an activated ability, or anything to a mana ability (CR 118.8, 605.3), since the core prices only non-mana abilities and CostDelta holds mana and life. | Brutal Suppression, Drought, Thran Portal |
@@ -1779,10 +1779,10 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `player-rule-spend-color-as` | engine | Cantrip | 3 | 0 | 2 | a static ability gives a player this rule: the engine does not ask for it | Celestial Dawn, Quicksilver Elemental, Sunglasses of Urza |
 | `player-rule-targets-must-include` | engine | Cantrip | 3 | 0 | 3 | a static ability gives a player this rule: the engine does not ask for it | Coalition Flag, Coalition Honor Guard, Standard Bearer |
 | `player-rule-for-a-while-must-attack` | engine | Cantrip | 3 | 0 | 0 | A resolving effect that puts this rule on a player for a duration | Gideon Jura, Oracle en-Vec, Rowan Kenrith |
-| `player-rule-for-a-while-prohibit-activate` | engine | Cantrip | 3 | 0 | 1 | A resolving effect that puts this rule on a player for a duration | Abeyance, Revel in Silence // Flamescroll Celebrant, Sen Triplets |
+| `player-rule-for-a-while-prohibit-activate` | engine | Cantrip | 3 | 0 | 1 | A resolving effect that puts this rule on a player for a duration | Abeyance, Flamescroll Celebrant // Revel in Silence, Sen Triplets |
 | `prevention-limited-by-damage-to-each` | engine | Cantrip | 3 | 0 | 3 | A prevention shield with a limit for each recipient rather than in total. | Kitsune Palliator, Samite Censer-Bearer, Wojek Apothecary |
 | `replacement-of-untaps-in-untap-step` | engine | Cantrip | 3 | 0 | 1 | a replacement of this event: ReplacementDef has no hook for it | Bewitching Leechcraft, Edge of Malacol, Freyalise's Winds |
-| `returns-transformed-and-attached` | generator | Cantrip | 3 | 0 | 3 | a generator arm, or a Cantrip feature if none exists | Infectious Curse // Accursed Witch, Radiant Restraints // Radiant Grace, Strangling Grasp // Vengeful Strangler |
+| `returns-transformed-and-attached` | generator | Cantrip | 3 | 0 | 3 | a generator arm, or a Cantrip feature if none exists | Accursed Witch // Infectious Curse, Radiant Grace // Radiant Restraints, Vengeful Strangler // Strangling Grasp |
 | `sacrificing-any-number-of-permanents-to-activate-an-ability` | engine | Cantrip | 3 | 0 | 2 | the cost part 'sacrifice any number of [permanents]' on an activated ability, how many being the ability's to read (CR 602.2b) | Emrakul's Evangel, Phyrexian Dreadnought, Sword of the Ages |
 | `search-constraint-named-after-one-each` | vocabulary | Cantrip | 3 | 0 | 3 | A rule of found cards `select` has no part for: named after one of each of a set, one for each filter, at random, a common property. | Clarion Ultimatum, Dichotomancy, Doubling Chant |
 | `static-rule-attach-only-to` | engine | Cantrip | 3 | 0 | 3 | a static ability changes this rule of the object it affects: the engine has no hook for it | Gate Smasher, Konda's Banner, O-Naginata |
@@ -1809,7 +1809,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `embalm-cost-other-than-mana` | mechanic | Cantrip | 2 | 0 | 0 | this mechanic takes a full Cost: CardDef and its WayDef hold a ManaCost only | Cursecloth Wrappings, Naktamun |
 | `eternalize-cost-other-than-mana` | mechanic | mechanics module | 2 | 0 | 2 | this mechanic takes a full Cost: CardDef and its WayDef hold a ManaCost only | Sinuous Striker, Sunscourge Champion |
 | `mobilize-without-a-fixed-number` | mechanic | mechanics module | 2 | 0 | 2 | the mechanic takes its number at run time: today it is a const generic | Avenger of the Fallen, Infantry Shield |
-| `a-chosen-object-outside-its-body` | generator | Cantrip | 2 | 0 | 1 | a generator arm, or a Cantrip feature if none exists | Koh, the Face Stealer, Shinryu, Transcendent Rival // Zenos yae Galvus |
+| `a-chosen-object-outside-its-body` | generator | Cantrip | 2 | 0 | 1 | a generator arm, or a Cantrip feature if none exists | Koh, the Face Stealer, Zenos yae Galvus // Shinryu, Transcendent Rival |
 | `a-cost-reading-the-card-it-is-paid-for` | generator | Cantrip | 2 | 0 | 0 | a generator arm, or a Cantrip feature if none exists | Hama, the Bloodbender, Kentaro, the Smiling Cat |
 | `a-delayed-ability-at-each-step-for-as-long-as-cards-remain-exiled` | generator | Cantrip | 2 | 0 | 2 | a generator arm, or a Cantrip feature if none exists | Dimensional Breach, Ertai's Meddling |
 | `a-lasting-permission-to-play-from-the-top-of-a-library` | generator | Cantrip | 2 | 0 | 0 | a generator arm, or a Cantrip feature if none exists | Gwenom, Remorseless, The Belligerent |
@@ -1840,7 +1840,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `damage-prevented-by-an-effect-of-this-ability` | engine | Cantrip | 2 | 0 | 0 | A delayed ability made by a prevention is told how much that prevention prevented. | Sacred Boon, Scars of the Veteran |
 | `duration-end-of-turn` | engine | Cantrip | 2 | 0 | 0 | an effect lasts until this: Duration has no such end | Drop Tower, Temporal Aperture |
 | `duration-through-next-turn` | engine | Cantrip | 2 | 0 | 0 | an effect lasts until this: Duration has no such end | Azor, the Lawbringer, Peace Talks |
-| `engine-a-spell-a-play-permission-casts-enters-changed` | engine | Cantrip | 2 | 0 | 1 | support in Cantrip's core | Osteomancer Adept, The Tomb of Aclazotz // Tarrian's Journal |
+| `engine-a-spell-a-play-permission-casts-enters-changed` | engine | Cantrip | 2 | 0 | 1 | support in Cantrip's core | Osteomancer Adept, Tarrian's Journal // The Tomb of Aclazotz |
 | `engine-mana-spent-by-what-it-may-pay-for` | engine | Cantrip | 2 | 0 | 2 | ManaRestriction variants beyond its fixed list: a test of the spell or source, a part of a cost, a rider on what it pays for. | Karn, Legacy Reforged, Klauth, Unrivaled Ancient |
 | `engine-no-afterlife-granted` | engine | mechanics module | 2 | 0 | 0 | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Afterlife Insurance, Indebted Spirit |
 | `engine-no-bloodthirst-x` | mechanic | mechanics module | 2 | 0 | 2 | Bloodthirst X (CR 702.54c). | Indoraptor, the Perfect Hybrid, Petrified Wood-Kin |
@@ -1887,7 +1887,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `object-filter-paired-with` | mechanic | mechanics module | 2 | 0 | 0 | soulbond pairs | Donna Noble, Flowering Lumberknot |
 | `object-filter-shares-color-with-mana` | engine | Cantrip | 2 | 0 | 1 | the colors of a recorded lot of mana | C.A.M.P., Protective Sphere |
 | `object-state-ring-bearer` | mechanic | Cantrip | 2 | 0 | 0 | the Ring tempts you: a player has a Ring-bearer | Dúnedain Rangers, Lord of the Nazgûl |
-| `operation-choose-at-random` | engine | Cantrip | 2 | 0 | 0 | An action for each number in a range; a chosen defender; a random pick of an ability, color or action; counters moved or put with an amount each player sets. | Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor, Master of the Wild Hunt Avatar |
+| `operation-choose-at-random` | engine | Cantrip | 2 | 0 | 0 | An action for each number in a range; a chosen defender; a random pick of an ability, color or action; counters moved or put with an amount each player sets. | Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant, Master of the Wild Hunt Avatar |
 | `operation-counter-with` | engine | Cantrip | 2 | 0 | 2 | A spell countered to a stated place, gated on what it is; `counter_to` covers the fixed places. | Delay, Desertion |
 | `operation-limit-x` | vocabulary | Cantrip | 2 | 0 | 1 | A limit on the X announced for a spell or ability, read by a rule of the announcement. | Mind Grind, Relentless Dead |
 | `operation-set-x` | engine | Cantrip | 2 | 0 | 2 | the value of X of a spell or ability on the stack becomes a number; digital cards also | Glava, Five-Advents Mage, Unbound Flourishing |
@@ -1912,12 +1912,12 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `prohibited-action-attack-with` | engine | Cantrip | 2 | 0 | 1 | players can be stopped from this: no prohibition reaches the action | Angelic Arbiter, Prahv |
 | `replacement-destination-owners-library-bottom` | engine | Cantrip | 2 | 0 | 2 | a zone change proposal says which end of the library it goes to: ZoneProposal has a zone and a shuffle only | Nissa's Chosen, Wheel of Sun and Moon |
 | `replacement-event-caused` | engine | unsure | 2 | 0 | 1 | a replacement matching on this: ReplacementDef has no test for it | Silhouette, Zabaz, the Glimmerwasp |
-| `replacement-of-explores` | engine | Cantrip | 2 | 0 | 2 | this event is proposed to replacement effects before it happens | Topography Tracker, Mycoid Maze // Twists and Turns |
+| `replacement-of-explores` | engine | Cantrip | 2 | 0 | 2 | this event is proposed to replacement effects before it happens | Topography Tracker, Twists and Turns // Mycoid Maze |
 | `replacement-of-mill` | engine | Cantrip | 2 | 0 | 2 | this event is proposed to replacement effects before it happens | Bruvac the Grandiloquent, The Water Crystal |
 | `replacement-of-scry` | engine | Cantrip | 2 | 0 | 2 | this event is proposed to replacement effects before it happens | Eligeth, Crossroads Augur, Kenessos, Priest of Thassa |
 | `search-constraint-at-random` | vocabulary | Cantrip | 2 | 0 | 0 | A rule of found cards `select` has no part for: named after one of each of a set, one for each filter, at random, a common property. | Enigma Sphinx Avatar, Higure, the Still Wind Avatar |
 | `source-zone-scope-on-replacement` | engine | Cantrip | 2 | 0 | 2 | this kind of ability works from another zone: only triggers and some statics say so | Dearly Departed, Retriever Phoenix |
-| `static-change-copy-of` | engine | Cantrip | 2 | 0 | 1 | A static ability that makes an object a copy, or gives it the text, of another (CR 613.2a, Cantrip has no copy layer) | Metamorphic Alteration, Dinosaur Headdress // Paleontologist's Pick-Axe |
+| `static-change-copy-of` | engine | Cantrip | 2 | 0 | 1 | A static ability that makes an object a copy, or gives it the text, of another (CR 613.2a, Cantrip has no copy layer) | Metamorphic Alteration, Paleontologist's Pick-Axe // Dinosaur Headdress |
 | `static-rule-assign-damage-to` | engine | Cantrip | 2 | 0 | 2 | a static ability changes this rule of the object it affects: the engine has no hook for it | Butcher Orgg, Cunning Giant |
 | `static-rule-prohibit-phase-in` | engine | Cantrip | 2 | 0 | 2 | a static ability changes this rule of the object it affects: the engine has no hook for it | Disciple of Caelus Nin, The City on the Edge of Forever |
 | `static-rule-prohibit-transform` | engine | Cantrip | 2 | 0 | 2 | A static rule that an object can't do this, as a rule read of the object | Bound by Moonsilver, Immerwolf |
@@ -1959,11 +1959,10 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `reflexive-ability-about-two-objects` | engine | mtgish data | 1 | 1 | 0 | A delayed or reflexive ability that carries more than one subject, of mixed kinds. | Dance of the Dead |
 | `emerge-cost-other-than-mana` | mechanic | mechanics module | 1 | 0 | 0 | The mechanic takes any cost, not only mana | Herigast, Erupting Nullkite |
 | `harmonize-cost-other-than-mana` | mechanic | mechanics module | 1 | 0 | 0 | The mechanic takes any cost, not only mana | Songcrafter Mage |
-| `mayhem-cost-other-than-mana` | mechanic | mechanics module | 1 | 0 | 0 | The mechanic takes any cost, not only mana | Green Goblin // Norman Osborn |
 | `plot-cost-other-than-mana` | mechanic | Cantrip | 1 | 0 | 0 | The mechanic takes any cost, not only mana | Fblthp, Lost on the Range |
 | `room-door-with-replacement-effects` | engine | Cantrip | 1 | 0 | 1 | a Room that has what its unlocked doors print beyond their triggered, activated and play rules: CardTable::new refuses such a door (CR 709.5) | Spiked Corridor // Torture Pit |
 | `a-card-name-each-player-chose-as-it-entered-read-by-another-ability` | generator | unaudited | 1 | 0 | 0 | a generator arm, or a Cantrip feature if none exists | Null Chamber |
-| `a-card-type-shared-among-the-cards-used-to-craft-it` | generator | Cantrip | 1 | 0 | 0 | a generator arm, or a Cantrip feature if none exists | Apex Observatory // Eye of Ojer Taq |
+| `a-card-type-shared-among-the-cards-used-to-craft-it` | generator | Cantrip | 1 | 0 | 0 | a generator arm, or a Cantrip feature if none exists | Eye of Ojer Taq // Apex Observatory |
 | `a-choice-among-options-offered-at-random` | mechanic | not played | 1 | 0 | 0 | digital: a player is offered some options at random and picks one | Davriel, Soul Broker |
 | `a-choice-of-ability` | vocabulary | mechanics module | 1 | 0 | 0 | A question for this kind of value: `RequestKind` asks for colors, a name, a subtype of a listed set, a number and a player, and has no word for a card type, a direction, a letter or a filter, and `labels` hold no generated list of these options. | Gabriel Angelfire |
 | `a-choice-of-color-made-again` | engine | Cantrip | 1 | 0 | 0 | a card that chooses a color as it enters and again later keeps only the last one chosen | Chromatic Armor |
@@ -1988,7 +1987,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `ability-kicked-has` | engine | Cantrip | 1 | 0 | 1 | A rule of the card with no field of its own | Molten Disaster |
 | `ability-starting-hand-size` | engine | Cantrip | 1 | 0 | 0 | A rule of the card with no field of its own | Sovereign's Realm |
 | `ability-villainous-choice-twice` | engine | Cantrip | 1 | 0 | 0 | A rule of the card with no field of its own | The Valeyard |
-| `activation-cost-of-abilities-on-stack` | engine | Cantrip | 1 | 0 | 0 | a cost change on abilities by what they were | Harnfel, Horn of Bounty // Birgi, God of Storytelling |
+| `activation-cost-of-abilities-on-stack` | engine | Cantrip | 1 | 0 | 0 | a cost change on abilities by what they were | Birgi, God of Storytelling // Harnfel, Horn of Bounty |
 | `activation-cost-of-an-additional-loyalty` | engine | Cantrip | 1 | 0 | 1 | A cost change that adds to the loyalty a loyalty ability costs (CR 606.4), as Carth the Lion's. | Carth the Lion |
 | `an-aura-attached-to-a-player-by-an-effect` | generator | Cantrip | 1 | 0 | 0 | a generator arm, or a Cantrip feature if none exists | Lynde, Cheerful Tormentor |
 | `an-ability-activated-as-though-it-had-not-been` | engine | Cantrip | 1 | 0 | 1 | A rule that lets a once-only ability be activated as though it hadn't been (CR 702.177a), as Elvish Refueler's for exhaust. | Elvish Refueler |
@@ -2003,9 +2002,9 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `condition-chose-nth` | vocabulary | Cantrip | 1 | 0 | 0 | a condition with no read in Query or Game | Human-Time Lord Meta-Crisis |
 | `condition-completed-dungeon` | mechanic | Cantrip | 1 | 0 | 0 | which dungeon a player completed, by name | Acererak the Archlich |
 | `condition-graveyard-position` | engine | Cantrip | 1 | 0 | 1 | graveyard order, to count what lies above a card (CR 404.1) | Ashen Ghoul |
-| `condition-player-did-bent-all-four` | vocabulary | Cantrip | 1 | 0 | 0 | a condition with no read in Query or Game | Aang, Master of Elements // Avatar Aang |
+| `condition-player-did-bent-all-four` | vocabulary | Cantrip | 1 | 0 | 0 | a condition with no read in Query or Game | Avatar Aang // Aang, Master of Elements |
 | `condition-player-did-paid-or-lost-energy` | vocabulary | Cantrip | 1 | 0 | 1 | a condition with no read in Query or Game | Izzet Generatorium |
-| `condition-searched` | engine | Cantrip | 1 | 0 | 0 | a search of a library and other zones reports whether the player chose to search the library, for 'if you search your library this way, shuffle' | Invocation of the Founders // Invasion of Arcavios |
+| `condition-searched` | engine | Cantrip | 1 | 0 | 0 | a search of a library and other zones reports whether the player chose to search the library, for 'if you search your library this way, shuffle' | Invasion of Arcavios // Invocation of the Founders |
 | `condition-voted` | engine | mechanics module | 1 | 0 | 0 | the votes of the resolution in progress, kept for later instructions to read | Travel Through Caradhras |
 | `condition-won-subgame` | vocabulary | Cantrip | 1 | 0 | 0 | a condition with no read in Query or Game | Shahrazad |
 | `continuous-rule-cant-gain-ability` | engine | Cantrip | 1 | 0 | 1 | an effect on an object that it can't have or gain an ability for a while, as Arcane Lighthouse's hexproof and shroud | Arcane Lighthouse |
@@ -2030,7 +2029,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `counter-kind-contract` | engine | Cantrip | 1 | 0 | 0 | this kind of counter on a player | Miss Highwater |
 | `counter-kind-exalted` | engine | Cantrip | 1 | 0 | 1 | the exalted keyword counter (CR 122.1b), with the layer that gives its keyword | Emissary of Soulfire |
 | `counters-removed-from-an-object-which-the-history-does-not-record` | generator | Cantrip | 1 | 0 | 0 | a generator arm, or a Cantrip feature if none exists | Cyclopean Tomb |
-| `craft-materials-that-must-have-something-in-common` | mechanic | unsure | 1 | 0 | 0 | craft materials judged together, as Apex Observatory's 'two that share a card type' | Apex Observatory // Eye of Ojer Taq |
+| `craft-materials-that-must-have-something-in-common` | mechanic | unsure | 1 | 0 | 0 | craft materials judged together, as Apex Observatory's 'two that share a card type' | Eye of Ojer Taq // Apex Observatory |
 | `damage-prevented-by-what-the-effect-asks-as-it-would-be-dealt` | generator | Cantrip | 1 | 0 | 1 | a generator arm, or a Cantrip feature if none exists | Heroism |
 | `delayed-trigger-until-until-state-based-actions-checked` | engine | Cantrip | 1 | 0 | 0 | `DelayedWhen` for events and times it has no variant for, and delayed triggers made by a static or replacement that has no stack item: an object or player event, main phase begins, an extra turn, a stated player's next turn, one that lapses at end of turn. | Skyshroud Ambush |
 | `destroyed-together-some-that-can-t-be-regenerated` | generator | Cantrip | 1 | 0 | 1 | a generator arm, or a Cantrip feature if none exists | Catastrophe |
@@ -2045,7 +2044,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `earlier-objects-sought` | engine | Cantrip | 1 | 0 | 0 | a resolution keeps what its instructions and costs acted on, by kind: copies made, cards devoured, mana-cost sacrifices and the rest have no result a later read can name | Lurker in the Deep |
 | `engine-a-cost-that-taps-the-permanent-that-granted-the-ability` | engine | Cantrip | 1 | 0 | 0 | support in Cantrip's core | Fishing Pole |
 | `engine-a-play-permission-that-costs-less` | engine | Cantrip | 1 | 0 | 1 | support in Cantrip's core | Urianger Augurelt |
-| `engine-a-spell-a-play-permission-casts-enters-tapped` | engine | Cantrip | 1 | 0 | 1 | support in Cantrip's core | Kaldring, the Rimestaff // Jorn, God of Winter |
+| `engine-a-spell-a-play-permission-casts-enters-tapped` | engine | Cantrip | 1 | 0 | 1 | support in Cantrip's core | Jorn, God of Winter // Kaldring, the Rimestaff |
 | `engine-blight-x-outside-a-spell-s-additional-cost` | engine | Cantrip | 1 | 0 | 0 | Blight X in an ability's cost: BlightX is real only as a spell's additional cost. | Blighted Nightmare |
 | `engine-no-absorb` | mechanic | mechanics module | 1 | 0 | 0 | Absorb N (CR 702.64). | Lymph Sliver |
 | `engine-no-absorb-granted` | engine | mechanics module | 1 | 0 | 0 | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Lymph Sliver |
@@ -2065,8 +2064,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `engine-no-frenzy-granted` | engine | mechanics module | 1 | 0 | 0 | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Frenzy Sliver |
 | `engine-no-harmonize-granted` | engine | Cantrip | 1 | 0 | 0 | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Songcrafter Mage |
 | `engine-no-madness-granted` | engine | unsure | 1 | 0 | 0 | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Falkenrath Gorger |
-| `engine-no-mayhem-granted` | engine | Cantrip | 1 | 0 | 0 | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Green Goblin // Norman Osborn |
-| `engine-no-modular-granted` | engine | Cantrip | 1 | 0 | 0 | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Blaster, Morale Booster // Blaster, Combat DJ |
+| `engine-no-modular-granted` | engine | Cantrip | 1 | 0 | 0 | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Blaster, Combat DJ // Blaster, Morale Booster |
 | `engine-no-plot-granted` | engine | Cantrip | 1 | 0 | 0 | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Fblthp, Lost on the Range |
 | `engine-no-prowl-granted` | engine | unsure | 1 | 0 | 0 | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Hunting Velociraptor |
 | `engine-no-rampage-granted` | engine | mechanics module | 1 | 0 | 0 | A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set. | Rapid Fire |
@@ -2098,7 +2096,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `event-trigger-for-while-matches` | engine | Cantrip | 1 | 0 | 0 | a delayed trigger on an event can last for any duration, firing each time or only once | Giant Oyster |
 | `event-trigger-for-while-on-battlefield` | engine | Cantrip | 1 | 0 | 0 | a delayed trigger on an event can last for any duration, firing each time or only once | Myra the Magnificent |
 | `every-graveyard-where-the-card-says-their-graveyard-in-the-data` | generator | mtgish data | 1 | 0 | 1 | a generator arm, or a Cantrip feature if none exists | Grave Sifter |
-| `exile-cost-an-ability-reads-as-exiled-with-its-source` | engine | Cantrip | 1 | 0 | 0 | A cost that exiles what another ability of the source later reads as exiled with it | Olag, Ludevic's Hubris // Ludevic, Necrogenius |
+| `exile-cost-an-ability-reads-as-exiled-with-its-source` | engine | Cantrip | 1 | 0 | 0 | A cost that exiles what another ability of the source later reads as exiled with it | Ludevic, Necrogenius // Olag, Ludevic's Hubris |
 | `exile-outside-a-stack-item-that-an-ability-reads-as-exiled-with-its-source` | engine | Cantrip | 1 | 0 | 0 | Linking exiled cards to their source where no stack item is resolving | The Mystical Archive |
 | `flash-for-spells-other-than-by-type` | engine | Cantrip | 1 | 0 | 0 | cast as though it had flash by a filter of the spell, not by a TypeSet | Cherished Hatchling |
 | `hand-size-set` | engine | Cantrip | 1 | 0 | 1 | A maximum hand size read as a value | Midnight Oil |
@@ -2181,7 +2179,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `object-filter-mana-cost-payable-with` | engine | Cantrip | 1 | 0 | 0 | whether a cost could be paid with a recorded lot of mana | Illusionary Mask |
 | `object-filter-nth-cast` | engine | Cantrip | 1 | 0 | 1 | the nth spell cast in a scope that passes a test | Elda, Conjurer of Spectacle |
 | `object-filter-would-destroy` | vocabulary | Cantrip | 1 | 0 | 1 | a word of filters with no read: Query has no way to ask it | Equinox |
-| `object-reference-granter` | engine | generator | 1 | 0 | 0 | the permanent whose effect gave an ability to its source | Tibalt, Cosmic Impostor // Valki, God of Lies |
+| `object-reference-granter` | engine | generator | 1 | 0 | 0 | the permanent whose effect gave an ability to its source | Valki, God of Lies // Tibalt, Cosmic Impostor |
 | `object-reference-nth-chosen` | engine | Cantrip | 1 | 0 | 0 | the object at a given place in a sequence of choices | Human-Time Lord Meta-Crisis |
 | `object-state-controlled-since-before-combat` | engine | Cantrip | 1 | 0 | 0 | a permanent records the step of the turn its controller got it, beside controlled_since | Maddening Imp |
 | `object-state-couldnt-attack` | engine | Cantrip | 1 | 0 | 1 | the declare attackers step records which creatures could not have attacked | Season of the Witch |
@@ -2242,7 +2240,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `player-rule-for-a-while-attacked-only-by` | engine | Cantrip | 1 | 0 | 1 | a resolved rule that a player can be attacked only by creatures that pass a test, for a while (Island Sanctuary) | Island Sanctuary |
 | `player-rule-for-a-while-blocker-limit` | engine | Cantrip | 1 | 0 | 1 | A resolving effect that puts this rule on a player for a duration | Mirri, Weatherlight Duelist |
 | `player-rule-for-a-while-hand-size` | engine | Cantrip | 1 | 0 | 1 | a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form | Inspired Idea |
-| `player-rule-for-a-while-prohibit-attack-defender` | engine | Cantrip | 1 | 0 | 1 | a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form | Sandswirl Wanderglyph // Unstable Glyphbridge |
+| `player-rule-for-a-while-prohibit-attack-defender` | engine | Cantrip | 1 | 0 | 1 | a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form | Unstable Glyphbridge // Sandswirl Wanderglyph |
 | `player-rule-for-a-while-prohibit-be-targeted` | engine | Cantrip | 1 | 0 | 0 | a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form | Peace Talks |
 | `player-rule-for-a-while-prohibit-sacrifice` | engine | Cantrip | 1 | 0 | 0 | A resolving effect that puts this rule on a player for a duration | Call for Aid |
 | `player-rule-for-a-while-retain-mana` | engine | Cantrip | 1 | 0 | 1 | a resolving effect gives a player this rule for a while: EffectKind names a few and has no general form | The Last Agni Kai |
@@ -2284,10 +2282,10 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `replacement-of-search-library` | engine | Cantrip | 1 | 0 | 1 | this event is proposed to replacement effects before it happens | Aven Mindcensor |
 | `replacement-of-set-scheme-in-motion` | engine | Cantrip | 1 | 0 | 0 | a replacement of this event: ReplacementDef has no hook for it | Plots That Span Centuries |
 | `resolution-cost-object-action` | engine | Cantrip | 1 | 0 | 0 | an instruction asks for a cost of this kind as it resolves: pay_cost takes mana, life and sacrifices | Jeweled Bird |
-| `returns-flipped` | generator | Cantrip | 1 | 0 | 0 | a generator arm, or a Cantrip feature if none exists | Homura's Essence // Homura, Human Ascendant |
+| `returns-flipped` | generator | Cantrip | 1 | 0 | 0 | a generator arm, or a Cantrip feature if none exists | Homura, Human Ascendant // Homura's Essence |
 | `sacrificing-one-or-more-permanents-to-activate-an-ability` | engine | Cantrip | 1 | 0 | 1 | the cost part 'sacrifice one or more [permanents]' on an activated ability, how many being the ability's to read (CR 602.2b) | Radiant Lotus |
 | `sacrificing-up-to-a-number-of-permanents-as-a-cost` | engine | Cantrip | 1 | 0 | 1 | the cost part 'sacrifice up to N [permanents]', the payer choosing how many (CR 118.3) | Baba Lysaga, Night Witch |
-| `search-with-cards-from-outside-the-game` | generator | generator | 1 | 0 | 0 | a generator arm, or a Cantrip feature if none exists | Invocation of the Founders // Invasion of Arcavios |
+| `search-with-cards-from-outside-the-game` | generator | generator | 1 | 0 | 0 | a generator arm, or a Cantrip feature if none exists | Invasion of Arcavios // Invocation of the Founders |
 | `several-objects-entering-with-a-color` | engine | Cantrip | 1 | 0 | 1 | EntersAs with colors it adds, as Ever After's 'black Zombie in addition to its other colors and types' (CR 614.12, 613.1e) | Ever After |
 | `sharing-mana-costs` | vocabulary | Cantrip | 1 | 0 | 0 | a read of how many different values of this there are among objects | Maelstrom Archangel Avatar |
 | `static-change-add-names` | engine | Cantrip | 1 | 0 | 1 | An object having more than one name | Spy Kit |
@@ -2297,7 +2295,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `static-change-replace-word` | engine | Cantrip | 1 | 0 | 1 | A static ability that changes words in text on the battlefield and on the stack | Swirl the Mists |
 | `static-change-set-controller` | engine | Cantrip | 1 | 0 | 1 | A control change a layer reads rather than a resolving effect makes | Fealty to the Realm |
 | `static-change-text-of` | engine | Cantrip | 1 | 0 | 1 | A static ability that makes an object a copy, or gives it the text, of another (CR 613.2a, Cantrip has no copy layer) | Volrath's Shapeshifter |
-| `static-rule-activations-each-turn` | engine | Cantrip | 1 | 0 | 0 | a static ability changes this rule of the object it affects: the engine has no hook for it | Harnfel, Horn of Bounty // Birgi, God of Storytelling |
+| `static-rule-activations-each-turn` | engine | Cantrip | 1 | 0 | 0 | a static ability changes this rule of the object it affects: the engine has no hook for it | Birgi, God of Storytelling // Harnfel, Horn of Bounty |
 | `static-rule-attack-exception` | engine | Cantrip | 1 | 0 | 1 | a static ability changes this rule of the object it affects: the engine has no hook for it | Weathered Sentinels |
 | `static-rule-attacks-when-attacking` | engine | Cantrip | 1 | 0 | 1 | a static ability changes this rule of the object it affects: the engine has no hook for it | Ekundu Cyclops |
 | `static-rule-block-while-tapped` | engine | Cantrip | 1 | 0 | 1 | A rule that a tapped creature can block (CR 509.1a). | Masako the Humorless |
@@ -2389,7 +2387,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `targeted-by-backup-ability` | engine | Cantrip | 1 | 0 | 1 | Target slots whose size depends on the branch of a cost, target rules that read which ability targets, and reads past a slot of no fixed size: `chosen_targets` holds a flat list. | Mirror-Shield Hoplite |
 | `the-card-a-discover-found` | mechanic | mechanics module | 1 | 0 | 1 | discover says which card it found, for text that goes on to speak of it | Hit the Mother Lode |
 | `the-chosen-cards-of-a-search-of-more-than-the-library-shuffled-into-it-read-as-a-shuffle-in-the-data` | generator | mtgish data | 1 | 0 | 1 | a generator arm, or a Cantrip feature if none exists | Ecological Appreciation |
-| `the-members-a-trigger-keeps-read-through-its-source` | generator | Cantrip | 1 | 0 | 0 | a generator arm, or a Cantrip feature if none exists | Arcee, Acrobatic Coupe // Arcee, Sharpshooter |
+| `the-members-a-trigger-keeps-read-through-its-source` | generator | Cantrip | 1 | 0 | 0 | a generator arm, or a Cantrip feature if none exists | Arcee, Sharpshooter // Arcee, Acrobatic Coupe |
 | `the-player-who-exiled-a-card-another-player-owns` | generator | Cantrip | 1 | 0 | 1 | a generator arm, or a Cantrip feature if none exists | Shared Fate |
 | `the-targets-of-abilities-activated-earlier-this-turn` | generator | Cantrip | 1 | 0 | 1 | a generator arm, or a Cantrip feature if none exists | Professor Hojo |
 | `token-recipe-copy` | engine | generator | 1 | 0 | 0 | tokens of this shape: TokenSpec and copy tokens have no field for it | Esix, Fractal Bloom |
@@ -2408,7 +2406,7 @@ A requirement is one form the generator could not write, not one piece of work: 
 | `trigger-event-pair-championed-with` | mechanic | Cantrip | 1 | 0 | 0 | champion raises an event naming the championed card | Mistbind Clique |
 | `trigger-event-pair-mentors` | mechanic | Cantrip | 1 | 0 | 1 | mentor raises an event naming both creatures | Aegis of the Legion |
 | `trigger-event-pair-stations` | mechanic | Cantrip | 1 | 0 | 0 | station raises an event naming the creature and the Spacecraft | Monoist Gravliner |
-| `trigger-event-player-bends` | mechanic | Cantrip | 1 | 0 | 0 | waterbending, earthbending, firebending and airbending raise an event | Aang, Master of Elements // Avatar Aang |
+| `trigger-event-player-bends` | mechanic | Cantrip | 1 | 0 | 0 | waterbending, earthbending, firebending and airbending raise an event | Avatar Aang // Aang, Master of Elements |
 | `trigger-event-player-bottoms-while-scrying` | engine | Cantrip | 1 | 0 | 1 | a scry raises an event naming the cards put on the bottom | The Temporal Anchor |
 | `trigger-event-player-chooses-ring-bearer` | mechanic | Cantrip | 1 | 0 | 0 | choosing a Ring-bearer raises an event | Call of the Ring |
 | `trigger-event-player-claims-prize` | mechanic | Cantrip | 1 | 0 | 0 | the Attraction mechanics of the Un-sets (a casual form) with their events | The Most Dangerous Gamer |
@@ -2441,10 +2439,10 @@ A requirement is one form the generator could not write, not one piece of work: 
 
 ### Only on cards Cantrip has written
 
-Cantrip has every card on these 31 rows, so none is a missing feature; each is a gap in mtgish's generator.
+Cantrip has every card on these 33 rows, so none is a missing feature; each is a gap in mtgish's generator.
 
 <details>
-<summary>31 requirements</summary>
+<summary>33 requirements</summary>
 
 | requirement | class | written |
 |---|---|---|
@@ -2454,6 +2452,7 @@ Cantrip has every card on these 31 rows, so none is a missing feature; each is a
 | `engine-no-miracle-granted` | engine | 2 |
 | `keyword-action-unprepare` | mechanic | 2 |
 | `mana-for-that-player-the-source-gives-to-you` | generator | 2 |
+| `mayhem-cost-other-than-mana` | mechanic | 1 |
 | `modular-without-a-fixed-number` | mechanic | 1 |
 | `a-chosen-type-mana-rule-that-names-creatures-it-doesn-t-print` | generator | 1 |
 | `a-main-phase-test-that-lost-its-negation` | generator | 1 |
@@ -2466,6 +2465,7 @@ Cantrip has every card on these 31 rows, so none is a missing feature; each is a
 | `continuous-change-replace-word` | engine | 1 |
 | `cost-part-behold` | engine | 1 |
 | `engine-no-casualty-x` | mechanic | 1 |
+| `engine-no-mayhem-granted` | engine | 1 |
 | `engine-no-sneak-granted` | engine | 1 |
 | `object-collection-moved-by` | vocabulary | 1 |
 | `object-reference-bound` | vocabulary | 1 |

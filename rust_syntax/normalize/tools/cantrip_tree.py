@@ -205,6 +205,11 @@ def slug(feature):
     return out.rstrip("-")
 
 
+def card_stem(name):
+    """A card's file in the generated crate: named for its front face, as Cantrip names delver_of_secrets.rs."""
+    return stem_of(name.split(" // ")[0])
+
+
 def stem_of(name):
     ascii_name = "".join(c for c in unicodedata.normalize("NFKD", name) if not unicodedata.combining(c))
     stem = re.sub(r"[^a-z0-9]+", "_", ascii_name.replace("'", "").lower()).strip("_")
@@ -390,7 +395,7 @@ def write(args):
             root.write_text(manifest.replace('members = [\n', f'members = [\n    "{CRATE}",\n', 1))
     wanted, sized, taken, planned = {}, [], {}, []  # wanted: {stem: its file's text}
     for card in read_rows(args.rows):
-        stem = stem_of(card["name"])
+        stem = card_stem(card["name"])
         taken[stem] = taken.get(stem, 0) + 1
         if taken[stem] > 1:
             stem = f"{stem}_{card['line']}"
@@ -560,8 +565,8 @@ def tracker(args):
     stems, ready_written = {}, 0
     for card in read_rows(args.rows):
         status = status_of(card)
-        stems.setdefault(card["name"], stem_of(card["name"]))
-        ready_written += status == "ready" and stem_of(card["name"].split(" // ")[0]) in hand
+        stems.setdefault(card["name"], card_stem(card["name"]))
+        ready_written += status == "ready" and card_stem(card["name"]) in hand
         for word in counters_wanted(whole(card), table):
             counters.setdefault(word, []).append(card["name"])
         for token in tokens_wanted(card.get("file") or "", token_table):  # the PR form names shared tokens, the module does not
@@ -571,7 +576,7 @@ def tracker(args):
         layouts.setdefault(card["layout"], [0, 0])
         layouts[card["layout"]][status == "planned"] += 1
         if status == "planned":
-            done = stem_of(card["name"].split(" // ")[0]) in hand
+            done = card_stem(card["name"]) in hand
             (written if done else blocked)[card["name"]] = [slug(f) for f in card["requirements"]]
             for feature in card["requirements"]:
                 row = needs.setdefault(feature, {"cards": 0, "written": 0, "alone": 0, "examples": []})

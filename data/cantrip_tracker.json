@@ -5,8 +5,8 @@
   "ready": 28387,
   "planned": 5142,
   "excluded": 0,
-  "written": 117,
-  "ready_written": 3455,
+  "written": 123,
+  "ready_written": 3542,
   "new_tokens": 198,
   "cards_with_new_tokens": 1003,
   "counter_lines": 169,
@@ -89,11 +89,11 @@
  "classes": {
   "engine": {
    "requirements": 722,
-   "cards": 3865
+   "cards": 3860
   },
   "mechanic": {
    "requirements": 221,
-   "cards": 1387
+   "cards": 1385
   },
   "vocabulary": {
    "requirements": 144,
@@ -105,9 +105,9 @@
   }
  },
  "fixes": {
-  "Cantrip": 3132,
+  "Cantrip": 3127,
   "not played": 1130,
-  "mechanics module": 655,
+  "mechanics module": 654,
   "unaudited": 26,
   "unsure": 71,
   "generator": 4,
@@ -491,7 +491,7 @@
    "examples": [
     "A Killer Among Us",
     "Academic Probation",
-    "Aetherplasm"
+    "Accursed Witch // Infectious Curse"
    ]
   },
   {
@@ -536,8 +536,8 @@
    "forms": [
     "operation-change-spell"
    ],
-   "cards": 72,
-   "written": 7,
+   "cards": 71,
+   "written": 8,
    "fixes": [
     "Cantrip"
    ],
@@ -579,7 +579,6 @@
     "engine-no-frenzy-granted",
     "engine-no-harmonize-granted",
     "engine-no-madness-granted",
-    "engine-no-mayhem-granted",
     "engine-no-modular-granted",
     "engine-no-plot-granted",
     "engine-no-prowl-granted",
@@ -590,10 +589,11 @@
     "engine-no-vanishing-granted",
     "engine-no-vanishing-enters-granted",
     "engine-no-miracle-granted",
+    "engine-no-mayhem-granted",
     "engine-no-sneak-granted"
    ],
-   "cards": 66,
-   "written": 3,
+   "cards": 65,
+   "written": 4,
    "fixes": [
     "Cantrip",
     "mechanics module",
@@ -888,8 +888,8 @@
    "fix": "Cantrip",
    "examples": [
     "Alaundo the Seer",
-    "Apex Observatory // Eye of Ojer Taq",
-    "Azor, the Lawbringer"
+    "Azor, the Lawbringer",
+    "Ballad of the Black Flag"
    ]
   },
   {
@@ -1073,7 +1073,7 @@
    ],
    "fix": "Cantrip",
    "examples": [
-    "Arcee, Acrobatic Coupe // Arcee, Sharpshooter",
+    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
     "Black Mana Battery",
     "Blademane Baku"
    ]
@@ -1478,9 +1478,9 @@
    ],
    "fix": "Cantrip",
    "examples": [
-    "Ancestor's Embrace // Kindly Ancestor",
-    "Archive Haunt // Overwhelmed Archivist",
-    "Benevolent Geist // Malevolent Hermit"
+    "Baithook Angler // Hook-Haunt Drifter",
+    "Beloved Beggar // Generous Soul",
+    "Binding Geist // Spectral Binding"
    ]
   },
   {
@@ -1961,24 +1961,6 @@
    ]
   },
   {
-   "needs": "Removing counters of no fixed kind, all counters, at least a number, or from several permanents as a cost.",
-   "class": "engine",
-   "forms": [
-    "engine-no-cost-removes-counters-this-way"
-   ],
-   "cards": 20,
-   "written": 4,
-   "fixes": [
-    "Cantrip"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Arcee, Acrobatic Coupe // Arcee, Sharpshooter",
-    "Catti-brie of Mithral Hall",
-    "Essence Bottle"
-   ]
-  },
-  {
    "needs": "Things one player does to another: heist (Alchemy, digital-only), controlling a player's next turn or combat, and exchanging life totals with them.",
    "class": "mechanic",
    "forms": [
@@ -1994,24 +1976,6 @@
     "Axavar, Fate Thief",
     "Cliffside Market",
     "Cruel Entertainment"
-   ]
-  },
-  {
-   "needs": "A cost equal to an object's mana cost, read when it is paid, for abilities.",
-   "class": "engine",
-   "forms": [
-    "engine-no-cost-copies-a-mana-cost"
-   ],
-   "cards": 20,
-   "written": 0,
-   "fixes": [
-    "Cantrip"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Araumi of the Dead Tide",
-    "Cursecloth Wrappings",
-    "Djinn Illuminatus"
    ]
   },
   {
@@ -2201,9 +2165,9 @@
    ],
    "fix": "Cantrip",
    "examples": [
-    "Autumn-Tail, Kitsune Sage // Kitsune Mystic",
-    "Azamuki, Treachery Incarnate // Cunning Bandit",
-    "Dokai, Weaver of Life // Budoka Gardener"
+    "Akki Lavarunner // Tok-Tok, Volcano Born",
+    "Budoka Gardener // Dokai, Weaver of Life",
+    "Budoka Pupil // Ichiga, Who Topples Oaks"
    ]
   },
   {
@@ -2222,6 +2186,42 @@
     "Arek, False Goldwarden",
     "Awestruck Cygnet",
     "Bellowsbreath Ogre"
+   ]
+  },
+  {
+   "needs": "Removing counters of no fixed kind, all counters, at least a number, or from several permanents as a cost.",
+   "class": "engine",
+   "forms": [
+    "engine-no-cost-removes-counters-this-way"
+   ],
+   "cards": 19,
+   "written": 5,
+   "fixes": [
+    "Cantrip"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
+    "Catti-brie of Mithral Hall",
+    "Essence Bottle"
+   ]
+  },
+  {
+   "needs": "A cost equal to an object's mana cost, read when it is paid, for abilities.",
+   "class": "engine",
+   "forms": [
+    "engine-no-cost-copies-a-mana-cost"
+   ],
+   "cards": 19,
+   "written": 1,
+   "fixes": [
+    "Cantrip"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Araumi of the Dead Tide",
+    "Cursecloth Wrappings",
+    "Djinn Illuminatus"
    ]
   },
   {
@@ -2327,9 +2327,9 @@
    ],
    "fix": "Cantrip",
    "examples": [
-    "Autumn-Tail, Kitsune Sage // Kitsune Mystic",
-    "Azamuki, Treachery Incarnate // Cunning Bandit",
-    "Dokai, Weaver of Life // Budoka Gardener"
+    "Akki Lavarunner // Tok-Tok, Volcano Born",
+    "Budoka Gardener // Dokai, Weaver of Life",
+    "Budoka Pupil // Ichiga, Who Topples Oaks"
    ]
   },
   {
@@ -2768,27 +2768,6 @@
    ]
   },
   {
-   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
-   "class": "engine",
-   "forms": [
-    "continuous-rule-combat-cost",
-    "continuous-rule-prohibit-attack",
-    "continuous-rule-require-combat-attack",
-    "continuous-rule-prohibit-phase-out"
-   ],
-   "cards": 15,
-   "written": 0,
-   "fixes": [
-    "Cantrip"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Agyrem",
-    "Chronomantic Escape",
-    "Ertai's Familiar"
-   ]
-  },
-  {
    "needs": "A target slot chosen by a player other than the controller (CR 601.2c, 603.3d).",
    "class": "engine",
    "forms": [
@@ -2821,7 +2800,7 @@
    "examples": [
     "Aggravated Assault",
     "All-Out Assault",
-    "Cyclonus, Cybertronian Fighter // Cyclonus, the Saboteur"
+    "Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter"
    ]
   },
   {
@@ -2891,9 +2870,9 @@
    ],
    "fix": "Cantrip",
    "examples": [
-    "Arcee, Acrobatic Coupe // Arcee, Sharpshooter",
-    "Blaster, Morale Booster // Blaster, Combat DJ",
-    "Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor"
+    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
+    "Blaster, Combat DJ // Blaster, Morale Booster",
+    "Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant"
    ]
   },
   {
@@ -2973,6 +2952,27 @@
    ]
   },
   {
+   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
+   "class": "engine",
+   "forms": [
+    "continuous-rule-combat-cost",
+    "continuous-rule-prohibit-attack",
+    "continuous-rule-require-combat-attack",
+    "continuous-rule-prohibit-phase-out"
+   ],
+   "cards": 14,
+   "written": 1,
+   "fixes": [
+    "Cantrip"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Agyrem",
+    "Chronomantic Escape",
+    "Ertai's Familiar"
+   ]
+  },
+  {
    "needs": "A granted ability that has no ability definition: the card keeps its rules in a list a grant can name",
    "class": "engine",
    "forms": [
@@ -2988,24 +2988,6 @@
     "Benevolent Blessing",
     "Black Ward",
     "Blue Ward"
-   ]
-  },
-  {
-   "needs": "As this is turned face up or transforms: a replacement on those events, which only Enters and AsTransforms have",
-   "class": "engine",
-   "forms": [
-    "ability-as-event"
-   ],
-   "cards": 14,
-   "written": 0,
-   "fixes": [
-    "Cantrip"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Aquamorph Entity",
-    "Bubble Smuggler",
-    "Crowd-Control Warden"
    ]
   },
   {
@@ -3103,6 +3085,24 @@
     "Akroma, Angel of Wrath Avatar",
     "Cryptic Spires",
     "Desert Cenote"
+   ]
+  },
+  {
+   "needs": "As this is turned face up or transforms: a replacement on those events, which only Enters and AsTransforms have",
+   "class": "engine",
+   "forms": [
+    "ability-as-event"
+   ],
+   "cards": 13,
+   "written": 1,
+   "fixes": [
+    "Cantrip"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Aquamorph Entity",
+    "Bubble Smuggler",
+    "Crowd-Control Warden"
    ]
   },
   {
@@ -3208,9 +3208,9 @@
    ],
    "fix": "mechanics module",
    "examples": [
-    "Arcee, Acrobatic Coupe // Arcee, Sharpshooter",
-    "Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor",
-    "Cyclonus, Cybertronian Fighter // Cyclonus, the Saboteur"
+    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
+    "Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant",
+    "Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter"
    ]
   },
   {
@@ -4036,9 +4036,9 @@
    ],
    "fix": "mechanics module",
    "examples": [
-    "Avatar Kyoshi // The Legend of Kyoshi",
     "Beifong's Bounty Hunters",
-    "Bumi's Feast Lecture"
+    "Bumi's Feast Lecture",
+    "Cracked Earth Technique"
    ]
   },
   {
@@ -4156,24 +4156,6 @@
     "Amulet of Quoz",
     "Bronze Tablet",
     "Contract from Below"
-   ]
-  },
-  {
-   "needs": "A layer 6 helper giving those of a list of keywords that other objects have, protection and landwalk with their qualities (CR 613.1f, 702.16).",
-   "class": "mechanic",
-   "forms": [
-    "the-keywords-of-other-objects"
-   ],
-   "cards": 9,
-   "written": 0,
-   "fixes": [
-    "mechanics module"
-   ],
-   "fix": "mechanics module",
-   "examples": [
-    "Animus of Predation",
-    "Cairn Wanderer",
-    "Death-Mask Duplicant"
    ]
   },
   {
@@ -4514,6 +4496,24 @@
    ]
   },
   {
+   "needs": "A layer 6 helper giving those of a list of keywords that other objects have, protection and landwalk with their qualities (CR 613.1f, 702.16).",
+   "class": "mechanic",
+   "forms": [
+    "the-keywords-of-other-objects"
+   ],
+   "cards": 8,
+   "written": 1,
+   "fixes": [
+    "mechanics module"
+   ],
+   "fix": "mechanics module",
+   "examples": [
+    "Animus of Predation",
+    "Cairn Wanderer",
+    "Death-Mask Duplicant"
+   ]
+  },
+  {
    "needs": "the object in the place of a damage event, read outside the replacement",
    "class": "engine",
    "forms": [
@@ -4692,7 +4692,7 @@
    "examples": [
     "A Killer Among Us",
     "Akroma, Angel of Wrath Avatar",
-    "Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor"
+    "Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant"
    ]
   },
   {
@@ -4876,7 +4876,7 @@
    "examples": [
     "Blood Tyrant",
     "Curse of Vengeance",
-    "Ramses, Assassin Lord"
+    "Elbrus, the Binding Blade // Withengar Unbound"
    ]
   },
   {
@@ -5673,7 +5673,7 @@
    "examples": [
     "Cramped Vents // Access Maze",
     "Evelyn, the Covetous",
-    "Hauken's Insight // Jacob Hauken, Inspector"
+    "Jacob Hauken, Inspector // Hauken's Insight"
    ]
   },
   {
@@ -6309,8 +6309,8 @@
    "fix": "Cantrip",
    "examples": [
     "Harbinger of the Tides",
-    "Moonlit Ambusher // Oakshade Stalker",
-    "Mystical Tether"
+    "Mystical Tether",
+    "Oakshade Stalker // Moonlit Ambusher"
    ]
   },
   {
@@ -6386,28 +6386,6 @@
    ]
   },
   {
-   "needs": "The mechanic takes any cost, not only mana",
-   "class": "mechanic",
-   "forms": [
-    "emerge-cost-other-than-mana",
-    "harmonize-cost-other-than-mana",
-    "mayhem-cost-other-than-mana",
-    "plot-cost-other-than-mana"
-   ],
-   "cards": 4,
-   "written": 0,
-   "fixes": [
-    "Cantrip",
-    "mechanics module"
-   ],
-   "fix": "Cantrip",
-   "examples": [
-    "Fblthp, Lost on the Range",
-    "Green Goblin // Norman Osborn",
-    "Herigast, Erupting Nullkite"
-   ]
-  },
-  {
    "needs": "a condition with no read in Query or Game",
    "class": "vocabulary",
    "forms": [
@@ -6423,7 +6401,7 @@
    ],
    "fix": "Cantrip",
    "examples": [
-    "Aang, Master of Elements // Avatar Aang",
+    "Avatar Aang // Aang, Master of Elements",
     "Human-Time Lord Meta-Crisis",
     "Izzet Generatorium"
    ]
@@ -6628,6 +6606,28 @@
     "Human-Time Lord Meta-Crisis",
     "Memory Vessel",
     "Triple Triad"
+   ]
+  },
+  {
+   "needs": "The mechanic takes any cost, not only mana",
+   "class": "mechanic",
+   "forms": [
+    "emerge-cost-other-than-mana",
+    "harmonize-cost-other-than-mana",
+    "plot-cost-other-than-mana",
+    "mayhem-cost-other-than-mana"
+   ],
+   "cards": 3,
+   "written": 1,
+   "fixes": [
+    "Cantrip",
+    "mechanics module"
+   ],
+   "fix": "Cantrip",
+   "examples": [
+    "Fblthp, Lost on the Range",
+    "Herigast, Erupting Nullkite",
+    "Songcrafter Mage"
    ]
   },
   {
@@ -6842,8 +6842,8 @@
    ],
    "fix": "Cantrip",
    "examples": [
-    "Dinosaur Headdress // Paleontologist's Pick-Axe",
     "Metamorphic Alteration",
+    "Paleontologist's Pick-Axe // Dinosaur Headdress",
     "Volrath's Shapeshifter"
    ]
   },
@@ -6879,7 +6879,7 @@
    ],
    "fix": "Cantrip",
    "examples": [
-    "Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor",
+    "Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant",
     "Master of the Wild Hunt Avatar",
     "Ornate Imitations"
    ]
@@ -8689,7 +8689,7 @@
    ],
    "fix": "Cantrip",
    "examples": [
-    "Olag, Ludevic's Hubris // Ludevic, Necrogenius"
+    "Ludevic, Necrogenius // Olag, Ludevic's Hubris"
    ]
   },
   {
@@ -9825,7 +9825,7 @@
    ],
    "fix": "Cantrip",
    "examples": [
-    "Harnfel, Horn of Bounty // Birgi, God of Storytelling"
+    "Birgi, God of Storytelling // Harnfel, Horn of Bounty"
    ]
   },
   {
@@ -10018,7 +10018,7 @@
    ],
    "fix": "Cantrip",
    "examples": [
-    "Invocation of the Founders // Invasion of Arcavios"
+    "Invasion of Arcavios // Invocation of the Founders"
    ]
   },
   {
@@ -10226,7 +10226,7 @@
    ],
    "fix": "unsure",
    "examples": [
-    "Apex Observatory // Eye of Ojer Taq"
+    "Eye of Ojer Taq // Apex Observatory"
    ]
   },
   {
@@ -10770,7 +10770,7 @@
    ],
    "fix": "generator",
    "examples": [
-    "Tibalt, Cosmic Impostor // Valki, God of Lies"
+    "Valki, God of Lies // Tibalt, Cosmic Impostor"
    ]
   },
   {
@@ -10898,7 +10898,7 @@
    ],
    "fix": "Cantrip",
    "examples": [
-    "Aang, Master of Elements // Avatar Aang"
+    "Avatar Aang // Aang, Master of Elements"
    ]
   },
   {
@@ -12615,7 +12615,7 @@
    "Rayami, First of the Fallen"
   ],
   "Bloodline": [
-   "Edgar Markov's Coffin // Edgar, Charmed Groom"
+   "Edgar, Charmed Groom // Edgar Markov's Coffin"
   ],
   "Bloodstain": [
    "Blood Spatter Analysis"
@@ -12624,7 +12624,7 @@
    "Spell Satchel"
   ],
   "Bore": [
-   "Tecutlan, the Searing Rift // Brass's Tunnel-Grinder"
+   "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift"
   ],
   "Brain": [
    "Rex, Cyber-Hound"
@@ -12737,7 +12737,7 @@
    "Your Inescapable Doom"
   ],
   "Dread": [
-   "Shadows' Lair // Grasping Shadows"
+   "Grasping Shadows // Shadows' Lair"
   ],
   "Duty": [
    "Immortal Obligation"
@@ -12754,7 +12754,7 @@
    "Essence Bottle"
   ],
   "Ember": [
-   "Ashmouth Dragon // Smoldering Egg"
+   "Smoldering Egg // Ashmouth Dragon"
   ],
   "Enlightened": [
    "The Book of Exalted Deeds"
@@ -12804,7 +12804,7 @@
    "War Balloon"
   ],
   "Flame": [
-   "Embodiment of Flame // Flame Channeler",
+   "Flame Channeler // Embodiment of Flame",
    "Kardum, Patron of Flames",
    "Managorger Phoenix",
    "Naar Isle",
@@ -12844,11 +12844,11 @@
    "Instrument of the Bards"
   ],
   "Hatching": [
-   "Dragon-Kami's Egg // The Dragon-Kami Reborn"
+   "The Dragon-Kami Reborn // Dragon-Kami's Egg"
   ],
   "Hatchling": [
    "Eumidian Hatchery",
-   "Ludevic's Abomination // Ludevic's Test Subject",
+   "Ludevic's Test Subject // Ludevic's Abomination",
    "Triassic Egg"
   ],
   "Healing": [
@@ -12889,7 +12889,7 @@
    "Communal Brewing"
   ],
   "Intel": [
-   "Flamewar, Streetwise Operative // Flamewar, Brash Veteran"
+   "Flamewar, Brash Veteran // Flamewar, Streetwise Operative"
   ],
   "Intervention": [
    "Divine Intervention"
@@ -12901,18 +12901,18 @@
    "Icatian Javelineers"
   ],
   "Judgment": [
-   "Sinner's Judgment // Faithbound Judge"
+   "Faithbound Judge // Sinner's Judgment"
   ],
   "Ki": [
-   "Azamuki, Treachery Incarnate // Cunning Bandit",
    "Baku Altar",
    "Blademane Baku",
-   "Ichiga, Who Topples Oaks // Budoka Pupil",
-   "Jaraku the Interloper // Callow Jushi",
-   "Kaiso, Memory of Loyalty // Faithful Squire",
+   "Budoka Pupil // Ichiga, Who Topples Oaks",
+   "Callow Jushi // Jaraku the Interloper",
+   "Cunning Bandit // Azamuki, Treachery Incarnate",
+   "Faithful Squire // Kaiso, Memory of Loyalty",
+   "Hired Muscle // Scarmaker",
    "Petalmane Baku",
    "Quillmane Baku",
-   "Scarmaker // Hired Muscle",
    "Skullmane Baku",
    "Waxmane Baku"
   ],
@@ -12923,7 +12923,7 @@
    "The Magic Mirror"
   ],
   "Landmark": [
-   "Treasure Cove // Treasure Map"
+   "Treasure Map // Treasure Cove"
   ],
   "Loot": [
    "Bandit's Haul"
@@ -12973,8 +12973,8 @@
   ],
   "Omen": [
    "Celestial Convergence",
-   "Cipherbound Spirit // Soulcipher Board",
-   "Forsaken Thresher // Foreboding Statue"
+   "Foreboding Statue // Forsaken Thresher",
+   "Soulcipher Board // Cipherbound Spirit"
   ],
   "Ore": [
    "Orcish Mine"
@@ -13033,7 +13033,7 @@
    "Aligned Heart"
   ],
   "Refine": [
-   "Nassari, Dean of Expression // Uvilda, Dean of Perfection"
+   "Uvilda, Dean of Perfection // Nassari, Dean of Expression"
   ],
   "Rejection": [
    "Tolarian Contempt"
@@ -13048,7 +13048,7 @@
    "Prize Pig"
   ],
   "Ritual": [
-   "Inherited Fiend // Heirloom Mirror"
+   "Heirloom Mirror // Inherited Fiend"
   ],
   "Rope": [
    "Fraying Line"
@@ -13147,7 +13147,7 @@
   ],
   "Study": [
    "Grimoire of the Dead",
-   "Imbraham, Dean of Theory // Kianne, Dean of Substance",
+   "Kianne, Dean of Substance // Imbraham, Dean of Theory",
    "Lattice Library",
    "Pursuit of Knowledge",
    "Vhal, Eager Scholar",
@@ -13494,9 +13494,9 @@
    "class": "engine",
    "needs": "A change to one spell on the stack or to the next spell a player casts: counters it enters with, abilities and keywords it gains, its total cost, can't be countered, and changes that continue on the permanent it becomes.",
    "family": "operation ChangeSpell",
-   "cards": 72,
-   "written": 7,
-   "alone": 58,
+   "cards": 71,
+   "written": 8,
+   "alone": 57,
    "examples": [
     "Alter Reality",
     "Arcane Archery",
@@ -13748,7 +13748,7 @@
     "Araba Mothrider",
     "Battle-Mad Ronin",
     "Brothers Yamazaki",
-    "Kenzo the Hardhearted // Bushi Tenderfoot",
+    "Bushi Tenderfoot // Kenzo the Hardhearted",
     "Cursed Ronin"
    ],
    "fix": "mechanics module",
@@ -13802,7 +13802,7 @@
    "written": 1,
    "alone": 18,
    "examples": [
-    "Arcee, Acrobatic Coupe // Arcee, Sharpshooter",
+    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
     "Black Mana Battery",
     "Blademane Baku",
     "Blue Mana Battery",
@@ -14201,11 +14201,11 @@
    "written": 0,
    "alone": 25,
    "examples": [
-    "Hook-Haunt Drifter // Baithook Angler",
-    "Generous Soul // Beloved Beggar",
-    "Spectral Binding // Binding Geist",
-    "Brinebound Gift // Brine Comber",
-    "Chapel Shieldgeist // Chaplain of Alms"
+    "Baithook Angler // Hook-Haunt Drifter",
+    "Beloved Beggar // Generous Soul",
+    "Binding Geist // Spectral Binding",
+    "Brine Comber // Brinebound Gift",
+    "Chaplain of Alms // Chapel Shieldgeist"
    ],
    "fix": "Cantrip",
    "how": "Cast from the graveyard transformed for a cost. Nothing lets a way cast the back face of a nonmodal card."
@@ -14648,25 +14648,6 @@
    "how": "Ongoing scheme."
   },
   {
-   "id": "engine-no-cost-removes-counters-this-way",
-   "feature": "engine: no cost removes counters this way",
-   "class": "engine",
-   "needs": "Removing counters of no fixed kind, all counters, at least a number, or from several permanents as a cost.",
-   "family": "engine: no",
-   "cards": 20,
-   "written": 4,
-   "alone": 2,
-   "examples": [
-    "Arcee, Acrobatic Coupe // Arcee, Sharpshooter",
-    "Catti-brie of Mithral Hall",
-    "Essence Bottle",
-    "Galloping Lizrog",
-    "Geometric Nexus"
-   ],
-   "fix": "Cantrip",
-   "how": ""
-  },
-  {
    "id": "operation-toward-player",
    "feature": "operation TowardPlayer",
    "class": "mechanic",
@@ -14703,25 +14684,6 @@
    ],
    "fix": "mechanics module",
    "how": "`enters: Some(with_time::<3>)` (`e.counters[CounterKind::Time as usize] += 3`), `triggered(YOUR_UPKEEP, remove_a_time_counter, ..)` and a `state_triggered(no_time_counters, ..)` for the last removal, then `g.sacrifice(you, &[me])`."
-  },
-  {
-   "id": "engine-no-cost-copies-a-mana-cost",
-   "feature": "engine: no cost copies a mana cost",
-   "class": "engine",
-   "needs": "A cost equal to an object's mana cost, read when it is paid, for abilities.",
-   "family": "engine: no",
-   "cards": 20,
-   "written": 0,
-   "alone": 0,
-   "examples": [
-    "Araumi of the Dead Tide",
-    "Cursecloth Wrappings",
-    "Djinn Illuminatus",
-    "Falkenrath Gorger",
-    "Fblthp, Lost on the Range"
-   ],
-   "fix": "Cantrip",
-   "how": ""
   },
   {
    "id": "engine-no-tickets",
@@ -14809,11 +14771,11 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Tok-Tok, Volcano Born // Akki Lavarunner",
-    "Dokai, Weaver of Life // Budoka Gardener",
-    "Ichiga, Who Topples Oaks // Budoka Pupil",
-    "Kenzo the Hardhearted // Bushi Tenderfoot",
-    "Jaraku the Interloper // Callow Jushi"
+    "Akki Lavarunner // Tok-Tok, Volcano Born",
+    "Budoka Gardener // Dokai, Weaver of Life",
+    "Budoka Pupil // Ichiga, Who Topples Oaks",
+    "Bushi Tenderfoot // Kenzo the Hardhearted",
+    "Callow Jushi // Jaraku the Interloper"
    ],
    "fix": "Cantrip",
    "how": ""
@@ -14871,6 +14833,44 @@
     "Dragon Appeasement",
     "Eon Hub",
     "Gibbering Descent"
+   ],
+   "fix": "Cantrip",
+   "how": ""
+  },
+  {
+   "id": "engine-no-cost-removes-counters-this-way",
+   "feature": "engine: no cost removes counters this way",
+   "class": "engine",
+   "needs": "Removing counters of no fixed kind, all counters, at least a number, or from several permanents as a cost.",
+   "family": "engine: no",
+   "cards": 19,
+   "written": 5,
+   "alone": 1,
+   "examples": [
+    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
+    "Catti-brie of Mithral Hall",
+    "Essence Bottle",
+    "Galloping Lizrog",
+    "Geometric Nexus"
+   ],
+   "fix": "Cantrip",
+   "how": ""
+  },
+  {
+   "id": "engine-no-cost-copies-a-mana-cost",
+   "feature": "engine: no cost copies a mana cost",
+   "class": "engine",
+   "needs": "A cost equal to an object's mana cost, read when it is paid, for abilities.",
+   "family": "engine: no",
+   "cards": 19,
+   "written": 1,
+   "alone": 0,
+   "examples": [
+    "Araumi of the Dead Tide",
+    "Cursecloth Wrappings",
+    "Djinn Illuminatus",
+    "Falkenrath Gorger",
+    "Fblthp, Lost on the Range"
    ],
    "fix": "Cantrip",
    "how": ""
@@ -14942,11 +14942,11 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Tok-Tok, Volcano Born // Akki Lavarunner",
-    "Dokai, Weaver of Life // Budoka Gardener",
-    "Ichiga, Who Topples Oaks // Budoka Pupil",
-    "Kenzo the Hardhearted // Bushi Tenderfoot",
-    "Jaraku the Interloper // Callow Jushi"
+    "Akki Lavarunner // Tok-Tok, Volcano Born",
+    "Budoka Gardener // Dokai, Weaver of Life",
+    "Budoka Pupil // Ichiga, Who Topples Oaks",
+    "Bushi Tenderfoot // Kenzo the Hardhearted",
+    "Callow Jushi // Jaraku the Interloper"
    ],
    "fix": "Cantrip",
    "how": ""
@@ -15135,7 +15135,7 @@
     "Chandra, Flame's Catalyst",
     "Extraordinary Journey",
     "Gaea's Will",
-    "Pyre of the World Tree // Invasion of Kaldheim",
+    "Invasion of Kaldheim // Pyre of the World Tree",
     "Kayla's Music Box"
    ],
    "fix": "Cantrip",
@@ -15345,7 +15345,7 @@
     "Garruk, Savage Herald",
     "Imaryll, Elfhame Elite",
     "Indomitable Might",
-    "Zilortha, Apex of Ikoria // Invasion of Ikoria"
+    "Invasion of Ikoria // Zilortha, Apex of Ikoria"
    ],
    "fix": "Cantrip",
    "how": ""
@@ -15455,11 +15455,11 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Arcee, Acrobatic Coupe // Arcee, Sharpshooter",
-    "Blaster, Morale Booster // Blaster, Combat DJ",
-    "Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor",
-    "Cyclonus, Cybertronian Fighter // Cyclonus, the Saboteur",
-    "Flamewar, Streetwise Operative // Flamewar, Brash Veteran"
+    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
+    "Blaster, Combat DJ // Blaster, Morale Booster",
+    "Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant",
+    "Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter",
+    "Flamewar, Brash Veteran // Flamewar, Streetwise Operative"
    ],
    "fix": "Cantrip",
    "how": "More Than Meets the Eye: cast converted for a cost. Same block as disturb."
@@ -15476,7 +15476,7 @@
    "examples": [
     "Aggravated Assault",
     "All-Out Assault",
-    "Cyclonus, Cybertronian Fighter // Cyclonus, the Saboteur",
+    "Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter",
     "Drench the Soil in Their Blood",
     "Fury of the Horde"
    ],
@@ -15636,25 +15636,6 @@
    "how": "Cost filters run with the Cx query, whose announced_x() is None (only Given implements it), and VariableCost has no 'mana value X' form, so a discard/exile/sacrifice of a card with mana value X (the Shoals' alternative cost, Knollspine Invocation, Kozilek, Nahiri's Sacrifice, Scrap Welder, Sidisi, Osgir, Fabrication Foundry, Arcanis, Bosh) cannot read X. Needs a cost-selection X in cantrip-rules."
   },
   {
-   "id": "ability-as-event",
-   "feature": "ability AsEvent",
-   "class": "engine",
-   "needs": "As this is turned face up or transforms: a replacement on those events, which only Enters and AsTransforms have",
-   "family": "ability AsEvent",
-   "cards": 14,
-   "written": 0,
-   "alone": 8,
-   "examples": [
-    "Aquamorph Entity",
-    "Bubble Smuggler",
-    "Crowd-Control Warden",
-    "Leeching Lurker // Curse of Leeches",
-    "Gift of Doom"
-   ],
-   "fix": "Cantrip",
-   "how": ""
-  },
-  {
    "id": "ability-protection-except",
    "feature": "ability ProtectionExcept",
    "class": "engine",
@@ -15769,6 +15750,25 @@
    "how": ""
   },
   {
+   "id": "ability-as-event",
+   "feature": "ability AsEvent",
+   "class": "engine",
+   "needs": "As this is turned face up or transforms: a replacement on those events, which only Enters and AsTransforms have",
+   "family": "ability AsEvent",
+   "cards": 13,
+   "written": 1,
+   "alone": 7,
+   "examples": [
+    "Aquamorph Entity",
+    "Bubble Smuggler",
+    "Crowd-Control Warden",
+    "Curse of Leeches // Leeching Lurker",
+    "Gift of Doom"
+   ],
+   "fix": "Cantrip",
+   "how": ""
+  },
+  {
    "id": "operation-choose-value-with",
    "feature": "operation ChooseValueWith",
    "class": "engine",
@@ -15854,11 +15854,11 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Arcee, Acrobatic Coupe // Arcee, Sharpshooter",
-    "Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor",
-    "Cyclonus, Cybertronian Fighter // Cyclonus, the Saboteur",
-    "Flamewar, Streetwise Operative // Flamewar, Brash Veteran",
-    "Goldbug, Scrappy Scout // Goldbug, Humanity's Ally"
+    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe",
+    "Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant",
+    "Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter",
+    "Flamewar, Brash Veteran // Flamewar, Streetwise Operative",
+    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout"
    ],
    "fix": "mechanics module",
    "how": "`statics: &[static_ability(Layer::Type, its_your_turn_on_this, make_creature, \"..\").own(), ..]`: an own static applying while `q.state().turn.active == q.controller(source)`, as Station's `is_a_creature`."
@@ -15931,7 +15931,7 @@
    "alone": 3,
    "examples": [
     "Annie Flash, the Veteran",
-    "The Omenkeel // Cosima, God of the Voyage",
+    "Cosima, God of the Voyage // The Omenkeel",
     "Elder Brain",
     "Gaea's Will",
     "Gix, Yawgmoth Praetor"
@@ -16104,7 +16104,7 @@
     "Bident of Thassa",
     "Chemister's Trick",
     "Goblin Diplomats",
-    "Grisly Anglerfish // Grizzled Angler",
+    "Grizzled Angler // Grisly Anglerfish",
     "Imaginary Threats"
    ],
    "fix": "Cantrip",
@@ -16181,7 +16181,7 @@
     "Espers to Magicite",
     "Forum Filibuster",
     "Gilgamesh, Master-at-Arms",
-    "Teferi Akosa of Zhalfir // Invasion of New Phyrexia"
+    "Invasion of New Phyrexia // Teferi Akosa of Zhalfir"
    ],
    "fix": "Cantrip",
    "how": "reflexive_trigger takes no list and reflexive_trigger_counted only a count. A count can't be read in a target filter for Teferi's form."
@@ -17194,25 +17194,6 @@
    "how": ""
   },
   {
-   "id": "the-keywords-of-other-objects",
-   "feature": "the keywords of other objects",
-   "class": "mechanic",
-   "needs": "A layer 6 helper giving those of a list of keywords that other objects have, protection and landwalk with their qualities (CR 613.1f, 702.16).",
-   "family": "the keywords",
-   "cards": 9,
-   "written": 0,
-   "alone": 8,
-   "examples": [
-    "Wretched Bonemass // Altar of the Wretched",
-    "Animus of Predation",
-    "Cairn Wanderer",
-    "Death-Mask Duplicant",
-    "Eater of Virtue"
-   ],
-   "fix": "mechanics module",
-   "how": "A Layer::Ability apply copying bits from view.chars(other).keywords."
-  },
-  {
    "id": "trigger-event-caused",
    "feature": "trigger event Caused",
    "class": "engine",
@@ -17325,6 +17306,25 @@
    ],
    "fix": "Cantrip",
    "how": ""
+  },
+  {
+   "id": "the-keywords-of-other-objects",
+   "feature": "the keywords of other objects",
+   "class": "mechanic",
+   "needs": "A layer 6 helper giving those of a list of keywords that other objects have, protection and landwalk with their qualities (CR 613.1f, 702.16).",
+   "family": "the keywords",
+   "cards": 8,
+   "written": 1,
+   "alone": 7,
+   "examples": [
+    "Animus of Predation",
+    "Cairn Wanderer",
+    "Death-Mask Duplicant",
+    "Eater of Virtue",
+    "Escaped Shapeshifter"
+   ],
+   "fix": "mechanics module",
+   "how": "A Layer::Ability apply copying bits from view.chars(other).keywords."
   },
   {
    "id": "a-gift-that-changes-how-many-a-spell-targets",
@@ -17720,7 +17720,7 @@
     "Bumi's Feast Lecture",
     "Rockalanche",
     "The Boulder, Ready to Rumble",
-    "Avatar Kyoshi // The Legend of Kyoshi"
+    "The Legend of Kyoshi // Avatar Kyoshi"
    ],
    "fix": "mechanics module",
    "how": "Card function copying earthbend::effect with n read at run time (effect<const N> is the only entry) and target slot chosen."
@@ -17775,7 +17775,7 @@
    "examples": [
     "Blood Tyrant",
     "Curse of Vengeance",
-    "Withengar Unbound // Elbrus, the Binding Blade",
+    "Elbrus, the Binding Blade // Withengar Unbound",
     "Ramses, Assassin Lord",
     "Sengir, the Dark Baron"
    ],
@@ -18138,7 +18138,7 @@
     "Goblin Researcher",
     "Neriv, Crackling Vanguard",
     "Neyali, Suns' Vanguard",
-    "Rahilda, Feral Outlaw // Rahilda, Wanted Cutthroat"
+    "Rahilda, Wanted Cutthroat // Rahilda, Feral Outlaw"
    ],
    "fix": "Cantrip",
    "how": ""
@@ -19333,7 +19333,7 @@
    "examples": [
     "Cramped Vents // Access Maze",
     "Evelyn, the Covetous",
-    "Hauken's Insight // Jacob Hauken, Inspector",
+    "Jacob Hauken, Inspector // Hauken's Insight",
     "Kess, Dissident Mage",
     "The Fourth Doctor"
    ],
@@ -19931,24 +19931,6 @@
    "how": ""
   },
   {
-   "id": "continuous-rule-require-combat-attack",
-   "feature": "continuous rule RequireCombat Attack",
-   "class": "engine",
-   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
-   "family": "continuous rule",
-   "cards": 4,
-   "written": 0,
-   "alone": 1,
-   "examples": [
-    "Kardur, Doomscourge",
-    "Gideon, Battle-Forged // Kytheon, Hero of Akros",
-    "Maximum Carnage",
-    "Nahiri, the Unforgiving"
-   ],
-   "fix": "Cantrip",
-   "how": ""
-  },
-  {
    "id": "cost-part-reveal-choice",
    "feature": "cost part RevealChoice",
    "class": "engine",
@@ -20086,7 +20068,7 @@
    "examples": [
     "Harbinger of the Tides",
     "Mystical Tether",
-    "Moonlit Ambusher // Oakshade Stalker",
+    "Oakshade Stalker // Moonlit Ambusher",
     "Quantum Reduction"
    ],
    "fix": "Cantrip",
@@ -20685,6 +20667,23 @@
    "how": ""
   },
   {
+   "id": "continuous-rule-require-combat-attack",
+   "feature": "continuous rule RequireCombat Attack",
+   "class": "engine",
+   "needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
+   "family": "continuous rule",
+   "cards": 3,
+   "written": 1,
+   "alone": 0,
+   "examples": [
+    "Kardur, Doomscourge",
+    "Maximum Carnage",
+    "Nahiri, the Unforgiving"
+   ],
+   "fix": "Cantrip",
+   "how": ""
+  },
+  {
    "id": "cost-part-mana-cost-reduced",
    "feature": "cost part ManaCostReduced",
    "class": "engine",
@@ -20967,7 +20966,7 @@
    "alone": 0,
    "examples": [
     "Akroma, Angel of Wrath Avatar",
-    "Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor",
+    "Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant",
     "Gabriel Angelfire"
    ],
    "fix": "generator",
@@ -21970,7 +21969,7 @@
    "alone": 1,
    "examples": [
     "Abeyance",
-    "Revel in Silence // Flamescroll Celebrant",
+    "Flamescroll Celebrant // Revel in Silence",
     "Sen Triplets"
    ],
    "fix": "Cantrip",
@@ -22020,9 +22019,9 @@
    "written": 0,
    "alone": 3,
    "examples": [
-    "Infectious Curse // Accursed Witch",
-    "Radiant Restraints // Radiant Grace",
-    "Strangling Grasp // Vengeful Strangler"
+    "Accursed Witch // Infectious Curse",
+    "Radiant Grace // Radiant Restraints",
+    "Vengeful Strangler // Strangling Grasp"
    ],
    "fix": "Cantrip",
    "how": "The core's Entering carries transformed, attach and attach_player together (ops.rs:452), but the API has `put_onto_battlefield_transformed` (no host) and `put_onto_battlefield_attached` (no transform, a permanent host only) and nothing that enchants a player as it enters. Needs `put_onto_battlefield_transformed_attached(object, controller, host: Target)`."
@@ -22474,7 +22473,7 @@
    "alone": 1,
    "examples": [
     "Koh, the Face Stealer",
-    "Shinryu, Transcendent Rival // Zenos yae Galvus"
+    "Zenos yae Galvus // Shinryu, Transcendent Rival"
    ],
    "fix": "Cantrip",
    "how": "Koh, the Face Stealer reads 'the last chosen card' from a static ability after its triggered ability exiled and chose it. A resolving ability can remember only a name (remember_chosen_name); chosen_object is written only as the permanent enters."
@@ -22970,7 +22969,7 @@
    "alone": 1,
    "examples": [
     "Osteomancer Adept",
-    "The Tomb of Aclazotz // Tarrian's Journal"
+    "Tarrian's Journal // The Tomb of Aclazotz"
    ],
    "fix": "Cantrip",
    "how": "support in Cantrip's core"
@@ -23721,7 +23720,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor",
+    "Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant",
     "Master of the Wild Hunt Avatar"
    ],
    "fix": "Cantrip",
@@ -24122,7 +24121,7 @@
    "alone": 2,
    "examples": [
     "Topography Tracker",
-    "Mycoid Maze // Twists and Turns"
+    "Twists and Turns // Mycoid Maze"
    ],
    "fix": "Cantrip",
    "how": ""
@@ -24202,7 +24201,7 @@
    "alone": 1,
    "examples": [
     "Metamorphic Alteration",
-    "Dinosaur Headdress // Paleontologist's Pick-Axe"
+    "Paleontologist's Pick-Axe // Dinosaur Headdress"
    ],
    "fix": "Cantrip",
    "how": ""
@@ -24854,21 +24853,6 @@
    "how": "Songcrafter Mage: as row 11's Confession Dial, Cost{mana: its cost, tap_to_reduce: true}."
   },
   {
-   "id": "mayhem-cost-other-than-mana",
-   "feature": "Mayhem cost other than mana",
-   "class": "mechanic",
-   "needs": "The mechanic takes any cost, not only mana",
-   "family": "Mayhem cost",
-   "cards": 1,
-   "written": 0,
-   "alone": 0,
-   "examples": [
-    "Green Goblin // Norman Osborn"
-   ],
-   "fix": "mechanics module",
-   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Green Goblin: the granted form in mayhem.rs."
-  },
-  {
    "id": "plot-cost-other-than-mana",
    "feature": "Plot cost other than mana",
    "class": "mechanic",
@@ -24923,7 +24907,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Apex Observatory // Eye of Ojer Taq"
+    "Eye of Ojer Taq // Apex Observatory"
    ],
    "fix": "Cantrip",
    "how": "Apex Observatory: 'choose a card type shared among two exiled cards used to craft it' must offer only the types its exiled craft materials share (CR 702.167). Cantrip's as-enters choices are choose::option_as_enters over a static label range of the CardDef, and it has no as-enters choice among card types worked out at that point. Needs a choose::card_type_as_enters(g, entering, &[CardType]) that keeps the type the way chosen_option does, plus a read of it."
@@ -25298,7 +25282,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Harnfel, Horn of Bounty // Birgi, God of Storytelling"
+    "Birgi, God of Storytelling // Harnfel, Horn of Bounty"
    ],
    "fix": "Cantrip",
    "how": ""
@@ -25523,7 +25507,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Aang, Master of Elements // Avatar Aang"
+    "Avatar Aang // Aang, Master of Elements"
    ],
    "fix": "Cantrip",
    "how": "There is no bending event in the history."
@@ -25553,7 +25537,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Invocation of the Founders // Invasion of Arcavios"
+    "Invasion of Arcavios // Invocation of the Founders"
    ],
    "fix": "Cantrip",
    "how": "The search the condition reads is itself held ('operation Search', 'search with several find clauses'). search_zone_and_or_library searches one other zone along with the library, while these cards search two (graveyard and hand)."
@@ -25928,7 +25912,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Apex Observatory // Eye of Ojer Taq"
+    "Eye of Ojer Taq // Apex Observatory"
    ],
    "fix": "unsure",
    "how": "`craft::materials` checks each card on its own; a filter for two that share a type is pairwise."
@@ -26153,7 +26137,7 @@
    "written": 0,
    "alone": 1,
    "examples": [
-    "Kaldring, the Rimestaff // Jorn, God of Winter"
+    "Jorn, God of Winter // Kaldring, the Rimestaff"
    ],
    "fix": "Cantrip",
    "how": "support in Cantrip's core"
@@ -26444,21 +26428,6 @@
    "how": "Foretell, jump-start, rebound, emerge, prowl and madness: GrantedWay looks closest (flashback and spell_replacement cover jump-start)."
   },
   {
-   "id": "engine-no-mayhem-granted",
-   "feature": "engine: no Mayhem granted",
-   "class": "engine",
-   "needs": "A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set.",
-   "family": "engine: no",
-   "cards": 1,
-   "written": 0,
-   "alone": 0,
-   "examples": [
-    "Green Goblin // Norman Osborn"
-   ],
-   "fix": "Cantrip",
-   "how": "Norman Osborn's granted mayhem costs the card's mana cost: mayhem::way takes a const ManaCost, and no Cost copies a mana cost (engine-no-cost-copies-a-mana-cost)."
-  },
-  {
    "id": "engine-no-modular-granted",
    "feature": "engine: no Modular granted",
    "class": "engine",
@@ -26468,7 +26437,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Blaster, Morale Booster // Blaster, Combat DJ"
+    "Blaster, Combat DJ // Blaster, Morale Booster"
    ],
    "fix": "Cantrip",
    "how": "Blaster, Combat DJ: 'other nontoken artifact creatures and Vehicles you control have modular 1'. The dies trigger can be granted (modular::TRIGGER as a delayed ability), but the 'enters with an additional +1/+1 counter' half is an as-enters replacement granted by a static, which must apply to a permanent judged as it would exist on the battlefield (CR 614.12). The engine applies only the entering card's own CardDef::enters (ops.rs apply_own_entering), never one a static gives it."
@@ -26948,7 +26917,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Olag, Ludevic's Hubris // Ludevic, Necrogenius"
+    "Ludevic, Necrogenius // Olag, Ludevic's Hubris"
    ],
    "fix": "Cantrip",
    "how": "Engine: a card exiled from a graveyard or hand to pay an activated ability's cost is not linked to the ability's source: pay_exiles links nothing (actions.rs:1165), while pay_permanents links exiled permanents for activated abilities (actions.rs:1521). The permanents case landed (lane g13: an activation cost exiling permanents is read as exiled with its source); a permanent spell's own cost (Gorex) moved to the a-card-exiled-to-pay-a-permanent-spell-s-cost gap; Mechtitan Core falls to engine-no-cost-moves-these-objects. Left: Ludevic, Necrogenius ('Exile X creature cards from your graveyard: Transform', read by Olag as 'exiled with it'). Needs pay_exiles to take the ability's Linked as pay_permanents does."
@@ -28193,7 +28162,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Tibalt, Cosmic Impostor // Valki, God of Lies"
+    "Valki, God of Lies // Tibalt, Cosmic Impostor"
    ],
    "fix": "generator",
    "how": "The card lookup the audit gives is ambiguous with two copies, but needs no fallback: a static grant's stamp is its source's timestamp (layers.rs GEntry), and a resolved grant's is the effect's, so item.acquired names the giver exactly."
@@ -29108,7 +29077,7 @@
    "written": 0,
    "alone": 1,
    "examples": [
-    "Sandswirl Wanderglyph // Unstable Glyphbridge"
+    "Unstable Glyphbridge // Sandswirl Wanderglyph"
    ],
    "fix": "Cantrip",
    "how": ""
@@ -29738,7 +29707,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Homura's Essence // Homura, Human Ascendant"
+    "Homura, Human Ascendant // Homura's Essence"
    ],
    "fix": "Cantrip",
    "how": "No flip cards: no flipped status, no flip call, CardDef.back is transform (see layout-flip, keyword-action-flip)."
@@ -29783,7 +29752,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Invocation of the Founders // Invasion of Arcavios"
+    "Invasion of Arcavios // Invocation of the Founders"
    ],
    "fix": "generator",
    "how": "Turtles Forever searches the library and outside the game as one selection: `searched_cards` and `outside_the_game` shown together, a library card moved, one from outside brought in with `bring_into_hand_revealed`. Add the graveyard to the same pool."
@@ -29933,7 +29902,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Harnfel, Horn of Bounty // Birgi, God of Storytelling"
+    "Birgi, God of Storytelling // Harnfel, Horn of Bounty"
    ],
    "fix": "Cantrip",
    "how": ""
@@ -31313,7 +31282,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Arcee, Acrobatic Coupe // Arcee, Sharpshooter"
+    "Arcee, Sharpshooter // Arcee, Acrobatic Coupe"
    ],
    "fix": "Cantrip",
    "how": "Cantrip needs TriggerMembers to receive the ability's source or Asker, e.g. fn(&dyn Query, &Asker, Target) -> Vec<ObjectId>. Then a filter on the members a spell-targeting trigger keeps can read the source's words: Arcee's 'creatures you control' goes through q.words(asker.source) after a text change."
@@ -31598,7 +31567,7 @@
    "written": 0,
    "alone": 0,
    "examples": [
-    "Aang, Master of Elements // Avatar Aang"
+    "Avatar Aang // Aang, Master of Elements"
    ],
    "fix": "Cantrip",
    "how": ""
@@ -32087,6 +32056,19 @@
    "how": ""
   },
   {
+   "id": "mayhem-cost-other-than-mana",
+   "feature": "Mayhem cost other than mana",
+   "class": "mechanic",
+   "needs": "The mechanic takes any cost, not only mana",
+   "family": "Mayhem cost",
+   "cards": 0,
+   "written": 1,
+   "alone": 0,
+   "examples": [],
+   "fix": "mechanics module",
+   "how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Green Goblin: the granted form in mayhem.rs."
+  },
+  {
    "id": "modular-without-a-fixed-number",
    "feature": "Modular without a fixed number",
    "class": "mechanic",
@@ -32241,6 +32223,19 @@
    "examples": [],
    "fix": "mtgish data",
    "how": "Ob Nixilis, the Adversary is just CasualtyX: the source drops \"The copy isn't legendary and has starting loyalty X\", which hand-written Ob Nixilis needs (casualty::trigger_with + copy_spell_as(values.nonlegendary().with_loyalty(x))). Proposed: CasualtyX carrying its copy exceptions, e.g. CasualtyXCopyExcept([RemoveSupertypes([Legendary]), SetLoyalty(CasualtyX)]). With them, the generator writes optional_cost: Some(casualty::X) and trigger_with."
+  },
+  {
+   "id": "engine-no-mayhem-granted",
+   "feature": "engine: no Mayhem granted",
+   "class": "engine",
+   "needs": "A keyword written as a card-level definition granted to another object: the static grant reaches only the keywords in the Keyword set.",
+   "family": "engine: no",
+   "cards": 0,
+   "written": 1,
+   "alone": 0,
+   "examples": [],
+   "fix": "Cantrip",
+   "how": "Norman Osborn's granted mayhem costs the card's mana cost: mayhem::way takes a const ManaCost, and no Cost copies a mana cost (engine-no-cost-copies-a-mana-cost)."
   },
   {
    "id": "engine-no-sneak-granted",
@@ -32498,7 +32493,7 @@
   "Accomplished Automaton": [
    "engine-no-fabricate"
   ],
-  "Infectious Curse // Accursed Witch": [
+  "Accursed Witch // Infectious Curse": [
    "returns-transformed-and-attached"
   ],
   "Ace Flockbringer": [
@@ -32677,7 +32672,7 @@
    "engine-no-snow-or-hybrid-phyrexian-mana-symbol",
    "target-with-a-divided-amount"
   ],
-  "Tok-Tok, Volcano Born // Akki Lavarunner": [
+  "Akki Lavarunner // Tok-Tok, Volcano Born": [
    "keyword-action-flip",
    "layout-flip"
   ],
@@ -32774,9 +32769,6 @@
   ],
   "Altar of the Pantheon": [
    "player-rule-devotion-bonus"
-  ],
-  "Wretched Bonemass // Altar of the Wretched": [
-   "the-keywords-of-other-objects"
   ],
   "Altaïr Ibn-La'Ahad": [
    "tapped-token-copies-of-several-objects-at-once"
@@ -33037,7 +33029,7 @@
    "card-type-vanguard",
    "layout-vanguard"
   ],
-  "Arcee, Acrobatic Coupe // Arcee, Sharpshooter": [
+  "Arcee, Sharpshooter // Arcee, Acrobatic Coupe": [
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye",
    "engine-no-cost-removes-counters-this-way",
@@ -33261,7 +33253,7 @@
   "Avacyn's Judgment": [
    "cost-branch-madness"
   ],
-  "Aang, Master of Elements // Avatar Aang": [
+  "Avatar Aang // Aang, Master of Elements": [
    "condition-player-did-bent-all-four",
    "trigger-event-player-bends"
   ],
@@ -33349,7 +33341,7 @@
   "Baird, Argivian Recruiter": [
    "base-power"
   ],
-  "Hook-Haunt Drifter // Baithook Angler": [
+  "Baithook Angler // Hook-Haunt Drifter": [
    "engine-no-disturb"
   ],
   "Balduvian Fallen": [
@@ -33539,7 +33531,7 @@
   "Belonging": [
    "engine-no-encore"
   ],
-  "Generous Soul // Beloved Beggar": [
+  "Beloved Beggar // Generous Soul": [
    "engine-no-disturb"
   ],
   "Benalish Commander": [
@@ -33624,7 +33616,7 @@
    "operation-conjure",
    "operation-draft-from-spellbook"
   ],
-  "Spectral Binding // Binding Geist": [
+  "Binding Geist // Spectral Binding": [
    "engine-no-disturb"
   ],
   "Bioluminary": [
@@ -33644,7 +33636,7 @@
    "card-type-vanguard",
    "layout-vanguard"
   ],
-  "Harnfel, Horn of Bounty // Birgi, God of Storytelling": [
+  "Birgi, God of Storytelling // Harnfel, Horn of Bounty": [
    "activation-cost-of-abilities-on-stack",
    "static-rule-activations-each-turn"
   ],
@@ -33696,7 +33688,7 @@
   "Blaster Hulk": [
    "numeric-expression-player-number-energy-paid-or-lost-this-turn"
   ],
-  "Blaster, Morale Booster // Blaster, Combat DJ": [
+  "Blaster, Combat DJ // Blaster, Morale Booster": [
    "engine-no-modular-granted",
    "engine-no-more-than-meets-the-eye"
   ],
@@ -33744,7 +33736,7 @@
   "Blink": [
    "engine-no-effect-removes-a-card-type"
   ],
-  "Blitzwing, Adaptive Assailant // Blitzwing, Cruel Tormentor": [
+  "Blitzwing, Cruel Tormentor // Blitzwing, Adaptive Assailant": [
    "a-choice-of-ability-outside-its-body",
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye",
@@ -34036,7 +34028,7 @@
   "Brimstone Vandal": [
    "trigger-event-player-day-night-changes"
   ],
-  "Brinebound Gift // Brine Comber": [
+  "Brine Comber // Brinebound Gift": [
    "engine-no-disturb"
   ],
   "Brine Elemental": [
@@ -34092,11 +34084,11 @@
   "Bubble Smuggler": [
    "ability-as-event"
   ],
-  "Dokai, Weaver of Life // Budoka Gardener": [
+  "Budoka Gardener // Dokai, Weaver of Life": [
    "keyword-action-flip",
    "layout-flip"
   ],
-  "Ichiga, Who Topples Oaks // Budoka Pupil": [
+  "Budoka Pupil // Ichiga, Who Topples Oaks": [
    "keyword-action-flip",
    "layout-flip"
   ],
@@ -34132,7 +34124,7 @@
   "Burrenton Bombardier": [
    "engine-no-reinforce"
   ],
-  "Kenzo the Hardhearted // Bushi Tenderfoot": [
+  "Bushi Tenderfoot // Kenzo the Hardhearted": [
    "engine-no-bushido",
    "keyword-action-flip",
    "layout-flip"
@@ -34234,7 +34226,7 @@
    "engine-no-rule-on-an-ability-s-x",
    "object-filter-draft-noted"
   ],
-  "Jaraku the Interloper // Callow Jushi": [
+  "Callow Jushi // Jaraku the Interloper": [
    "keyword-action-flip",
    "layout-flip"
   ],
@@ -34532,7 +34524,7 @@
    "trigger-event-player-encounters-phenomenon",
    "trigger-event-player-planeswalks-away"
   ],
-  "Chapel Shieldgeist // Chaplain of Alms": [
+  "Chaplain of Alms // Chapel Shieldgeist": [
    "engine-no-disturb"
   ],
   "Charge of the Forever-Beast": [
@@ -35083,7 +35075,7 @@
   "Cosi's Trickster": [
    "trigger-event-player-shuffles"
   ],
-  "The Omenkeel // Cosima, God of the Voyage": [
+  "Cosima, God of the Voyage // The Omenkeel": [
    "operation-effect-on",
    "play-permission-to-play-land"
   ],
@@ -35121,10 +35113,10 @@
   "Cover of Winter": [
    "engine-no-snow-or-hybrid-phyrexian-mana-symbol"
   ],
-  "Covetous Geist // Covert Cutpurse": [
+  "Covert Cutpurse // Covetous Geist": [
    "engine-no-disturb"
   ],
-  "Ghostly Castigator // Covetous Castaway": [
+  "Covetous Castaway // Ghostly Castigator": [
    "engine-no-disturb"
   ],
   "Covetous Urge": [
@@ -35262,7 +35254,7 @@
   "Cultural Exchange": [
    "operation-exchange"
   ],
-  "Azamuki, Treachery Incarnate // Cunning Bandit": [
+  "Cunning Bandit // Azamuki, Treachery Incarnate": [
    "keyword-action-flip",
    "layout-flip"
   ],
@@ -35295,7 +35287,7 @@
    "event-value-in-a-target-filter-beyond-its-subject",
    "targets-chosen-by-another-player"
   ],
-  "Leeching Lurker // Curse of Leeches": [
+  "Curse of Leeches // Leeching Lurker": [
    "ability-as-event"
   ],
   "Curse of Misfortunes": [
@@ -35351,7 +35343,7 @@
   "Cycle of Life": [
    "duration-until-next-upkeep"
   ],
-  "Cyclonus, Cybertronian Fighter // Cyclonus, the Saboteur": [
+  "Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter": [
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye",
    "engine-no-additional-phase-but-combat"
@@ -35671,7 +35663,7 @@
   "Demoralize": [
    "operation-game-effect"
   ],
-  "Dennick, Pious Apparition // Dennick, Pious Apprentice": [
+  "Dennick, Pious Apprentice // Dennick, Pious Apparition": [
    "engine-no-disturb"
   ],
   "Deranged Assistant": [
@@ -35729,7 +35721,7 @@
   "Devoted Caretaker": [
    "engine-no-protection-from-this-quality"
   ],
-  "Departed Soulkeeper // Devoted Grafkeeper": [
+  "Devoted Grafkeeper // Departed Soulkeeper": [
    "engine-no-disturb"
   ],
   "Devoted Retainer": [
@@ -35825,7 +35817,7 @@
   "Distracted Botanist": [
    "engine-no-perpetual-effects"
   ],
-  "Clever Distraction // Distracting Geist": [
+  "Distracting Geist // Clever Distraction": [
    "engine-no-disturb"
   ],
   "Disturbed Slumber": [
@@ -35907,7 +35899,7 @@
   "Doomsday Confluence": [
    "a-count-of-modes-a-spell-or-an-activated-ability-reads"
   ],
-  "Dorothea's Retribution // Dorothea, Vengeful Victim": [
+  "Dorothea, Vengeful Victim // Dorothea's Retribution": [
    "engine-no-disturb"
   ],
   "Double Stroke": [
@@ -36079,7 +36071,7 @@
    "engine-no-intensity",
    "intensity"
   ],
-  "Drogskol Armaments // Drogskol Infantry": [
+  "Drogskol Infantry // Drogskol Armaments": [
    "engine-no-disturb"
   ],
   "Droning Bureaucrats": [
@@ -36282,7 +36274,7 @@
   "Eland Umbra": [
    "engine-no-umbra-armor"
   ],
-  "Withengar Unbound // Elbrus, the Binding Blade": [
+  "Elbrus, the Binding Blade // Withengar Unbound": [
    "engine-no-ability-triggers-on-losing-the-game"
   ],
   "Elda, Conjurer of Spectacle": [
@@ -36565,7 +36557,7 @@
   "Equinox": [
    "object-filter-would-destroy"
   ],
-  "Erayo's Essence // Erayo, Soratami Ascendant": [
+  "Erayo, Soratami Ascendant // Erayo's Essence": [
    "keyword-action-flip",
    "layout-flip"
   ],
@@ -36827,7 +36819,7 @@
   "Eye of Nidhogg": [
    "static-rule-goaded-by"
   ],
-  "Apex Observatory // Eye of Ojer Taq": [
+  "Eye of Ojer Taq // Apex Observatory": [
    "a-card-type-shared-among-the-cards-used-to-craft-it",
    "craft-materials-that-must-have-something-in-common",
    "operation-effect-on"
@@ -36854,13 +36846,13 @@
   "Failure // Comply": [
    "a-lasting-rule-reading-what-its-ability-chose"
   ],
-  "Sinner's Judgment // Faithbound Judge": [
+  "Faithbound Judge // Sinner's Judgment": [
    "engine-no-disturb"
   ],
   "Faithful Disciple": [
    "operation-draft-from-spellbook"
   ],
-  "Kaiso, Memory of Loyalty // Faithful Squire": [
+  "Faithful Squire // Kaiso, Memory of Loyalty": [
    "keyword-action-flip",
    "layout-flip"
   ],
@@ -37230,7 +37222,7 @@
    "operation-deal-damage",
    "target-reference-outside-a-resolving-ability"
   ],
-  "Revel in Silence // Flamescroll Celebrant": [
+  "Flamescroll Celebrant // Revel in Silence": [
    "player-rule-for-a-while-prohibit-activate"
   ],
   "Flameskull": [
@@ -37240,7 +37232,7 @@
    "card-type-vanguard",
    "layout-vanguard"
   ],
-  "Flamewar, Streetwise Operative // Flamewar, Brash Veteran": [
+  "Flamewar, Brash Veteran // Flamewar, Streetwise Operative": [
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye"
   ],
@@ -37652,7 +37644,7 @@
    "operation-change-spell",
    "static-play-permission-with-an-effect-on-what-is-played"
   ],
-  "Waildrifter // Galedrifter": [
+  "Galedrifter // Waildrifter": [
    "engine-no-disturb"
   ],
   "Galloping Lizrog": [
@@ -38126,7 +38118,7 @@
   "Gogo, Master of Mimicry": [
    "engine-no-ability-that-can-t-be-copied"
   ],
-  "Goldbug, Scrappy Scout // Goldbug, Humanity's Ally": [
+  "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout": [
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye"
   ],
@@ -38368,7 +38360,7 @@
   "Grixis Illusionist": [
    "engine-no-resolving-effect-sets-land-types"
   ],
-  "Grisly Anglerfish // Grizzled Angler": [
+  "Grizzled Angler // Grisly Anglerfish": [
    "engine-no-resolving-rule-on-an-open-set-require-combat-attack"
   ],
   "Grizzled Huntmaster": [
@@ -38493,11 +38485,8 @@
    "engine-no-perpetual-effects",
    "operation-conjure"
   ],
-  "Gutter Shortcut // Gutter Skulker": [
+  "Gutter Skulker // Gutter Shortcut": [
    "engine-no-disturb"
-  ],
-  "Ghost-Spider // Gwen Stacy": [
-   "engine-no-cost-removes-counters-this-way"
   ],
   "Gwenom, Remorseless": [
    "a-lasting-permission-to-play-from-the-top-of-a-library",
@@ -38853,7 +38842,7 @@
    "engine-no-hidden-agenda",
    "layout-conspiracy"
   ],
-  "Scarmaker // Hired Muscle": [
+  "Hired Muscle // Scarmaker": [
    "keyword-action-flip",
    "layout-flip"
   ],
@@ -38899,7 +38888,7 @@
    "continuous-rule-untap-step",
    "duration-during-controllers-next-untap-step"
   ],
-  "Homura's Essence // Homura, Human Ascendant": [
+  "Homura, Human Ascendant // Homura's Essence": [
    "layout-flip",
    "returns-flipped"
   ],
@@ -38965,7 +38954,7 @@
   "Housemeld": [
    "engine-no-perpetual-effects"
   ],
-  "Roar of the Fifth People // Huatli, Poet of Unity": [
+  "Huatli, Poet of Unity // Roar of the Fifth People": [
    "granted-static"
   ],
   "Huatli, Warrior Poet": [
@@ -39409,7 +39398,7 @@
   "Inherited Envelope": [
    "engine-no-ring-temptation"
   ],
-  "Goka the Unjust // Initiate of Blood": [
+  "Initiate of Blood // Goka the Unjust": [
    "engine-a-delayed-ability-on-an-event-keeps-no-list",
    "keyword-action-flip",
    "layout-flip"
@@ -39508,23 +39497,23 @@
    "player-rule-decides",
    "static-rule-require-combat-block"
   ],
-  "Invocation of the Founders // Invasion of Arcavios": [
+  "Invasion of Arcavios // Invocation of the Founders": [
    "condition-searched",
    "search-with-cards-from-outside-the-game"
   ],
-  "Zilortha, Apex of Ikoria // Invasion of Ikoria": [
+  "Invasion of Ikoria // Zilortha, Apex of Ikoria": [
    "static-rule-combat-damage-as-unblocked"
   ],
-  "Pyre of the World Tree // Invasion of Kaldheim": [
+  "Invasion of Kaldheim // Pyre of the World Tree": [
    "play-permission-on-an-open-set-of-cards"
   ],
-  "Teferi Akosa of Zhalfir // Invasion of New Phyrexia": [
+  "Invasion of New Phyrexia // Teferi Akosa of Zhalfir": [
    "reflexive-ability-about-a-list-of-objects"
   ],
   "Invasion of the Giants": [
    "operation-change-spell"
   ],
-  "Living Breakthrough // Inventive Iteration": [
+  "Inventive Iteration // Living Breakthrough": [
    "player-rule-for-a-while-can-t-cast-some-spells"
   ],
   "Invigorate": [
@@ -39669,7 +39658,7 @@
    "static-rule-combat-group-attacker",
    "static-rule-combat-group-blocker"
   ],
-  "Hauken's Insight // Jacob Hauken, Inspector": [
+  "Jacob Hauken, Inspector // Hauken's Insight": [
    "player-rule-special-action"
   ],
   "Jade Avenger": [
@@ -39684,7 +39673,7 @@
   "Jade Orb of Dragonkind": [
    "mana-spending-effect"
   ],
-  "Journey to the Oracle // Jadzi, Oracle of Arcavios": [
+  "Jadzi, Oracle of Arcavios // Journey to the Oracle": [
    "operation-play-with"
   ],
   "Jaheira, Harper Emissary": [
@@ -39764,7 +39753,7 @@
   "Jet Collector": [
    "operation-conjure"
   ],
-  "Jetfire, Air Guardian // Jetfire, Ingenious Scientist": [
+  "Jetfire, Ingenious Scientist // Jetfire, Air Guardian": [
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye",
    "engine-no-cost-removes-counters-this-way",
@@ -39835,7 +39824,7 @@
    "continuous-rule-require-combat-be-blocked",
    "engine-no-resolving-rule-on-an-open-set-require-combat-be-blocked"
   ],
-  "Kaldring, the Rimestaff // Jorn, God of Winter": [
+  "Jorn, God of Winter // Kaldring, the Rimestaff": [
    "engine-a-spell-a-play-permission-casts-enters-tapped"
   ],
   "Joven's Ferrets": [
@@ -39873,7 +39862,7 @@
    "continuous-rule-untap-step",
    "duration-during-controllers-next-untap-step"
   ],
-  "Tomoya the Revealer // Jushi Apprentice": [
+  "Jushi Apprentice // Tomoya the Revealer": [
    "keyword-action-flip",
    "layout-flip"
   ],
@@ -40018,7 +40007,7 @@
   "Kasmina, Enigma Sage": [
    "the-loyalty-abilities-of-other-permanents"
   ],
-  "Katilda's Rising Dawn // Katilda, Dawnhart Martyr": [
+  "Katilda, Dawnhart Martyr // Katilda's Rising Dawn": [
    "engine-no-disturb"
   ],
   "Kav Landseeker": [
@@ -40170,7 +40159,7 @@
   "Kin-Tree Nurturer": [
    "engine-no-endure"
   ],
-  "Ancestor's Embrace // Kindly Ancestor": [
+  "Kindly Ancestor // Ancestor's Embrace": [
    "engine-no-disturb"
   ],
   "King Harald's Revenge": [
@@ -40211,7 +40200,7 @@
   "Kitsune Dawnblade": [
    "engine-no-bushido"
   ],
-  "Autumn-Tail, Kitsune Sage // Kitsune Mystic": [
+  "Kitsune Mystic // Autumn-Tail, Kitsune Sage": [
    "keyword-action-flip",
    "layout-flip"
   ],
@@ -40303,7 +40292,7 @@
   "Koh, the Face Stealer": [
    "a-chosen-object-outside-its-body"
   ],
-  "The Ringhart Crest // Kolvori, God of Kinship": [
+  "Kolvori, God of Kinship // The Ringhart Crest": [
    "mana-spending-predicate"
   ],
   "Konda's Banner": [
@@ -40393,10 +40382,7 @@
   "Kukemssa Serpent": [
    "engine-no-resolving-effect-sets-land-types"
   ],
-  "Etching of Kumano // Kumano Faces Kakkazan": [
-   "operation-change-spell"
-  ],
-  "Kuon's Essence // Kuon, Ogre Ascendant": [
+  "Kuon, Ogre Ascendant // Kuon's Essence": [
    "keyword-action-flip",
    "layout-flip"
   ],
@@ -40414,9 +40400,6 @@
   ],
   "Kytheon's Irregulars": [
    "engine-no-renown"
-  ],
-  "Gideon, Battle-Forged // Kytheon, Hero of Akros": [
-   "continuous-rule-require-combat-attack"
   ],
   "Labyrinth Minotaur": [
    "continuous-rule-untap-step",
@@ -40504,7 +40487,7 @@
   "Landlore Navigator": [
    "operation-conjure"
   ],
-  "Lanterns' Lift // Lantern Bearer": [
+  "Lantern Bearer // Lanterns' Lift": [
    "engine-no-disturb"
   ],
   "Lantern of Insight": [
@@ -40894,7 +40877,7 @@
    "keyword-action-roll-die-6-with-an-amount",
    "numeric-expression-dice"
   ],
-  "Olag, Ludevic's Hubris // Ludevic, Necrogenius": [
+  "Ludevic, Necrogenius // Olag, Ludevic's Hubris": [
    "ability-as-event",
    "exile-cost-an-ability-reads-as-exiled-with-its-source"
   ],
@@ -40956,7 +40939,7 @@
   "Lunar Rejection": [
    "cleave-that-changes-its-targets"
   ],
-  "Luminous Phantom // Lunarch Veteran": [
+  "Lunarch Veteran // Luminous Phantom": [
    "engine-no-disturb"
   ],
   "Lupine Harbingers": [
@@ -41115,7 +41098,7 @@
   "Malcolm, Keen-Eyed Navigator": [
    "the-players-a-one-or-more-damage-trigger-s-batch-dealt-damage-to"
   ],
-  "Benevolent Geist // Malevolent Hermit": [
+  "Malevolent Hermit // Benevolent Geist": [
    "engine-no-disturb"
   ],
   "Malfegor Avatar": [
@@ -41398,7 +41381,7 @@
   "Megaton's Fate": [
    "rad-counters"
   ],
-  "Megatron, Destructive Force // Megatron, Tyrant": [
+  "Megatron, Tyrant // Megatron, Destructive Force": [
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye",
    "numeric-expression-game"
@@ -41667,7 +41650,7 @@
    "subtype-karsus",
    "trigger-event-player-chaos-ensues"
   ],
-  "Ghastly Mimicry // Mirrorhall Mimic": [
+  "Mirrorhall Mimic // Ghastly Mimicry": [
    "engine-no-disturb"
   ],
   "Mirrormere Guardian": [
@@ -41679,7 +41662,7 @@
   "Mirrorwood Treefolk": [
    "replacement-of-damage-to-a-named-recipient"
   ],
-  "Catlike Curiosity // Mischievous Catgeist": [
+  "Mischievous Catgeist // Catlike Curiosity": [
    "engine-no-disturb"
   ],
   "Mischievous Lookout": [
@@ -41914,7 +41897,7 @@
   "Mounted Archers": [
    "continuous-rule-block-capacity"
   ],
-  "Morning Apparition // Mourning Patrol": [
+  "Mourning Patrol // Morning Apparition": [
    "engine-no-disturb"
   ],
   "Mournwillow": [
@@ -42356,14 +42339,14 @@
    "continuous-rule-require-combat-be-blocked",
    "trigger-event-object-fights"
   ],
-  "Nighteyes the Desecrator // Nezumi Graverobber": [
+  "Nezumi Graverobber // Nighteyes the Desecrator": [
    "keyword-action-flip",
    "layout-flip"
   ],
   "Nezumi Ronin": [
    "engine-no-bushido"
   ],
-  "Stabwhisker the Odious // Nezumi Shortfang": [
+  "Nezumi Shortfang // Stabwhisker the Odious": [
    "keyword-action-flip",
    "layout-flip"
   ],
@@ -42475,11 +42458,6 @@
   "Nomads en-Kor": [
    "replacement-of-damage-to-a-named-recipient"
   ],
-  "Green Goblin // Norman Osborn": [
-   "mayhem-cost-other-than-mana",
-   "engine-no-mayhem-granted",
-   "engine-no-cost-copies-a-mana-cost"
-  ],
   "Norn's Choirmaster": [
    "engine-no-commander"
   ],
@@ -42588,7 +42566,7 @@
   "Oaken Brawler": [
    "operation-clash"
   ],
-  "Moonlit Ambusher // Oakshade Stalker": [
+  "Oakshade Stalker // Moonlit Ambusher": [
    "engine-no-flash-for-an-additional-cost"
   ],
   "Oath of Teferi": [
@@ -42657,7 +42635,7 @@
   "Ohran Yeti": [
    "engine-no-snow-or-hybrid-phyrexian-mana-symbol"
   ],
-  "Temple of Cyclical Time // Ojer Pakpatiq, Deepest Epoch": [
+  "Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time": [
    "operation-change-spell"
   ],
   "Ojutai's Breath": [
@@ -42767,7 +42745,7 @@
   "Oppressive Rays": [
    "static-rule-combat-cost-block"
   ],
-  "Optimus Prime, Autobot Leader // Optimus Prime, Hero": [
+  "Optimus Prime, Hero // Optimus Prime, Autobot Leader": [
    "engine-a-delayed-ability-on-an-event-keeps-no-list",
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye"
@@ -42873,7 +42851,7 @@
    "subtype-kamigawa",
    "trigger-event-player-chaos-ensues"
   ],
-  "Shidako, Broodmistress // Orochi Eggwatcher": [
+  "Orochi Eggwatcher // Shidako, Broodmistress": [
    "keyword-action-flip",
    "layout-flip"
   ],
@@ -42970,7 +42948,7 @@
   "Overseer of Vault 76": [
    "counter-removal-among-them"
   ],
-  "Archive Haunt // Overwhelmed Archivist": [
+  "Overwhelmed Archivist // Archive Haunt": [
    "engine-no-disturb"
   ],
   "Oyaminartok, Polar Werebear": [
@@ -43009,7 +42987,7 @@
   "Pale Wayfarer": [
    "engine-no-untap-symbol-cost"
   ],
-  "Dinosaur Headdress // Paleontologist's Pick-Axe": [
+  "Paleontologist's Pick-Axe // Dinosaur Headdress": [
    "ability-as-event",
    "static-change-copy-of"
   ],
@@ -43604,7 +43582,7 @@
   "Priest of Possibility": [
    "engine-no-perpetual-effects"
   ],
-  "Primal Wellspring // Primal Amulet": [
+  "Primal Amulet // Primal Wellspring": [
    "engine-no-cost-removes-counters-this-way",
    "mana-spending-effect"
   ],
@@ -43721,7 +43699,7 @@
   "Providence of Night": [
    "engine-no-protection-from-this-quality"
   ],
-  "Prowl, Pursuit Vehicle // Prowl, Stoic Strategist": [
+  "Prowl, Stoic Strategist // Prowl, Pursuit Vehicle": [
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye"
   ],
@@ -43941,7 +43919,7 @@
   "Raddic, Tal Zealot": [
    "operation-draft-from-spellbook"
   ],
-  "Radiant Restraints // Radiant Grace": [
+  "Radiant Grace // Radiant Restraints": [
    "returns-transformed-and-attached"
   ],
   "Radiant Lotus": [
@@ -43974,7 +43952,7 @@
   "Ragnarok, Divine Deliverance": [
    "layout-melded"
   ],
-  "Rahilda, Feral Outlaw // Rahilda, Wanted Cutthroat": [
+  "Rahilda, Wanted Cutthroat // Rahilda, Feral Outlaw": [
    "play-permission-on-a-condition"
   ],
   "Raiding Schemes": [
@@ -44004,7 +43982,7 @@
   "Ral, Caller of Storms": [
    "target-with-a-divided-amount"
   ],
-  "Ral, Leyline Prodigy // Ral, Monsoon Mage": [
+  "Ral, Monsoon Mage // Ral, Leyline Prodigy": [
    "target-with-a-divided-amount"
   ],
   "Rally the Galadhrim": [
@@ -44068,7 +44046,7 @@
    "engine-a-two-word-subtype-in-a-card-s-type-line",
    "player-rule-spells-have-abilities"
   ],
-  "Ratchet, Rescue Racer // Ratchet, Field Medic": [
+  "Ratchet, Field Medic // Ratchet, Rescue Racer": [
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye"
   ],
@@ -44712,7 +44690,7 @@
   "Rune of Sustenance": [
    "granted-static"
   ],
-  "Rune-Tail's Essence // Rune-Tail, Kitsune Ascendant": [
+  "Rune-Tail, Kitsune Ascendant // Rune-Tail's Essence": [
    "keyword-action-flip",
    "layout-flip"
   ],
@@ -44953,7 +44931,7 @@
    "engine-no-cost-removes-counters-this-way",
    "numeric-expression-paid-counters-removed"
   ],
-  "Sasaya's Essence // Sasaya, Orochi Ascendant": [
+  "Sasaya, Orochi Ascendant // Sasaya's Essence": [
    "cost-part-player-action",
    "keyword-action-flip",
    "layout-flip"
@@ -45293,9 +45271,6 @@
   ],
   "Sentry Oak": [
    "operation-clash"
-  ],
-  "Sephiroth, One-Winged Angel // Sephiroth, Fabled SOLDIER": [
-   "ability-as-event"
   ],
   "Seraph": [
    "trigger-event-player-loses-control"
@@ -45798,7 +45773,7 @@
    "continuous-rule-untap-step",
    "duration-during-controllers-next-untap-step"
   ],
-  "Slicer, High-Speed Antagonist // Slicer, Hired Muscle": [
+  "Slicer, Hired Muscle // Slicer, High-Speed Antagonist": [
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye"
   ],
@@ -46041,7 +46016,7 @@
   "Soultether Golem": [
    "engine-no-vanishing-enters"
   ],
-  "Soundwave, Superior Captain // Soundwave, Sonic Spy": [
+  "Soundwave, Sonic Spy // Soundwave, Superior Captain": [
    "engine-no-more-than-meets-the-eye",
    "event-value-in-a-target-filter-beyond-its-subject"
   ],
@@ -46361,7 +46336,7 @@
    "numeric-expression-noted",
    "operation-note"
   ],
-  "Starscream, Seeker Leader // Starscream, Power Hungry": [
+  "Starscream, Power Hungry // Starscream, Seeker Leader": [
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye"
   ],
@@ -46602,7 +46577,7 @@
   "Stubborn Burrowfiend": [
    "trigger-event-object-becomes-saddled"
   ],
-  "Tobita, Master of Winds // Student of Elements": [
+  "Student of Elements // Tobita, Master of Winds": [
    "keyword-action-flip",
    "layout-flip",
    "trigger-event-object-becomes"
@@ -46682,7 +46657,7 @@
    "counters-removed-from-a-player",
    "player-rule-for-a-while-prohibit-receive-counters"
   ],
-  "Volcanic Fissure // Sundering Eruption": [
+  "Sundering Eruption // Volcanic Fissure": [
    "engine-no-resolving-rule-on-an-open-set-prohibit-block"
   ],
   "Sundering Sentinel": [
@@ -46962,7 +46937,7 @@
    "continuous-rule-untap-step",
    "duration-during-controllers-next-untap-step"
   ],
-  "Fibrous Entangler // Tangleclaw Werewolf": [
+  "Tangleclaw Werewolf // Fibrous Entangler": [
    "static-rule-block-capacity"
   ],
   "Tangleweave Armor": [
@@ -46985,7 +46960,7 @@
   "Tarmogoyf Nest": [
    "a-token-that-is-a-named-card"
   ],
-  "The Tomb of Aclazotz // Tarrian's Journal": [
+  "Tarrian's Journal // The Tomb of Aclazotz": [
    "engine-a-spell-a-play-permission-casts-enters-changed"
   ],
   "Task Mage Assembly": [
@@ -47211,7 +47186,7 @@
   "Thassa, God of the Sea": [
    "numeric-expression-count-mana-symbols"
   ],
-  "Spires of Orazca // Thaumatic Compass": [
+  "Thaumatic Compass // Spires of Orazca": [
    "engine-no-effect-removes-from-combat"
   ],
   "Thayan Evokers": [
@@ -47490,7 +47465,7 @@
   "The Last Agni Kai": [
    "player-rule-for-a-while-retain-mana"
   ],
-  "Avatar Kyoshi // The Legend of Kyoshi": [
+  "The Legend of Kyoshi // Avatar Kyoshi": [
    "earthbend-beyond-one-target-and-a-number"
   ],
   "The Lux Foundation Library": [
@@ -48085,7 +48060,7 @@
   "Toralf's Disciple": [
    "operation-conjure"
   ],
-  "Toralf's Hammer // Toralf, God of Fury": [
+  "Toralf, God of Fury // Toralf's Hammer": [
    "engine-no-cost-unattaches-what-gave-the-ability"
   ],
   "Torgal, A Fine Hound": [
@@ -48322,7 +48297,7 @@
    "operation-put-sticker",
    "trigger-event-player-puts-ability-sticker"
   ],
-  "Twinblade Invocation // Twinblade Geist": [
+  "Twinblade Geist // Twinblade Invocation": [
    "engine-no-disturb"
   ],
   "Twinning Staff": [
@@ -48336,7 +48311,7 @@
   "Twist Allegiance": [
    "operation-exchange"
   ],
-  "Mycoid Maze // Twists and Turns": [
+  "Twists and Turns // Mycoid Maze": [
    "replacement-of-explores"
   ],
   "Two Streams Facility": [
@@ -48414,7 +48389,7 @@
    "engine-no-double-team-granted",
    "operation-conjure"
   ],
-  "Ultra Magnus, Armored Carrier // Ultra Magnus, Tactician": [
+  "Ultra Magnus, Tactician // Ultra Magnus, Armored Carrier": [
    "condition-subset-meets",
    "engine-no-living-metal",
    "engine-no-more-than-meets-the-eye"
@@ -48551,7 +48526,7 @@
   "Unstable Frontier": [
    "engine-no-resolving-effect-sets-land-types"
   ],
-  "Sandswirl Wanderglyph // Unstable Glyphbridge": [
+  "Unstable Glyphbridge // Sandswirl Wanderglyph": [
    "player-rule-for-a-while-prohibit-attack-defender"
   ],
   "Unstable Molecule Suit": [
@@ -48582,7 +48557,7 @@
   "Ur-Drago": [
    "static-rule-blocked-as-though-lacking"
   ],
-  "The Great Work // Urabrask": [
+  "Urabrask // The Great Work": [
    "play-permission-on-an-open-set-of-cards"
   ],
   "Urban Burgeoning": [
@@ -48628,7 +48603,7 @@
    "layout-melded",
    "operation-effect-on"
   ],
-  "Nassari, Dean of Expression // Uvilda, Dean of Perfection": [
+  "Uvilda, Dean of Perfection // Nassari, Dean of Expression": [
    "operation-effect-on",
    "play-permission-with-mana-as-though-any-color"
   ],
@@ -48658,7 +48633,7 @@
   "Valiant Farewell": [
    "engine-no-perpetual-effects"
   ],
-  "Tibalt, Cosmic Impostor // Valki, God of Lies": [
+  "Valki, God of Lies // Tibalt, Cosmic Impostor": [
    "object-reference-granter",
    "play-permission-with-mana-as-though-any-color"
   ],
@@ -48787,7 +48762,7 @@
   "Vengeful Dreams": [
    "discarding-x-cards-as-a-cost"
   ],
-  "Strangling Grasp // Vengeful Strangler": [
+  "Vengeful Strangler // Strangling Grasp": [
    "returns-transformed-and-attached"
   ],
   "Venomous Breath": [
@@ -49903,7 +49878,7 @@
   "Zealous Inquisitor": [
    "replacement-of-damage-to-a-named-recipient"
   ],
-  "Shinryu, Transcendent Rival // Zenos yae Galvus": [
+  "Zenos yae Galvus // Shinryu, Transcendent Rival": [
    "a-chosen-object-outside-its-body",
    "ability-as-event",
    "engine-no-ability-triggers-on-losing-the-game"
@@ -50026,6 +50001,9 @@
  "written": {
   "Absolute Virtue": [
    "player-keyword-protection"
+  ],
+  "Altar of the Wretched // Wretched Bonemass": [
+   "the-keywords-of-other-objects"
   ],
   "Animate Dead": [
    "enchant-graveyard-card",
@@ -50179,6 +50157,9 @@
   "Grist, the Hunger Tide": [
    "source-zone-scope-on-static"
   ],
+  "Gwen Stacy // Ghost-Spider": [
+   "engine-no-cost-removes-counters-this-way"
+  ],
   "Hall of Echoes": [
    "operation-game-effect"
   ],
@@ -50220,6 +50201,12 @@
   "Kang the Conqueror": [
    "duration-extra-turn",
    "operation-game-effect"
+  ],
+  "Kumano Faces Kakkazan // Etching of Kumano": [
+   "operation-change-spell"
+  ],
+  "Kytheon, Hero of Akros // Gideon, Battle-Forged": [
+   "continuous-rule-require-combat-attack"
   ],
   "Leonardo, Sewer Samurai": [
    "static-play-permission-with-an-effect-on-what-is-played"
@@ -50273,6 +50260,11 @@
    "engine-no-sneak-granted",
    "play-permission-for-another-cost"
   ],
+  "Norman Osborn // Green Goblin": [
+   "mayhem-cost-other-than-mana",
+   "engine-no-mayhem-granted",
+   "engine-no-cost-copies-a-mana-cost"
+  ],
   "Nowhere to Run": [
    "what-a-rule-on-triggering-asks-of-an-ability"
   ],
@@ -50303,6 +50295,9 @@
   ],
   "Sanctum Lurker": [
    "static-rule-unique"
+  ],
+  "Sephiroth, Fabled SOLDIER // Sephiroth, One-Winged Angel": [
+   "ability-as-event"
   ],
   "Serra Paragon": [
    "static-play-permission-with-an-effect-on-what-is-played"
@@ -50729,7 +50724,7 @@
     "errors": 1,
     "members": [
      {
-      "card": "olag_ludevics_hubris_ludevic_necrogenius",
+      "card": "ludevic_necrogenius",
       "line": 26,
       "message": "the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)"
      }
@@ -50765,7 +50760,7 @@
     "errors": 1,
     "members": [
      {
-      "card": "leeching_lurker_curse_of_leeches",
+      "card": "curse_of_leeches",
       "line": 13,
       "message": "the trait bound `Vec<cantrip_api::PlayerId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::PlayerId>`)"
      }
@@ -50921,7 +50916,7 @@
     "errors": 1,
     "members": [
      {
-      "card": "dinosaur_headdress_paleontologists_pick_axe",
+      "card": "paleontologists_pick_axe",
       "line": 47,
       "message": "the trait bound `Vec<cantrip_api::ObjectId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::ObjectId>`)"
      }
@@ -50957,7 +50952,7 @@
     "errors": 1,
     "members": [
      {
-      "card": "shinryu_transcendent_rival_zenos_yae_galvus",
+      "card": "zenos_yae_galvus",
       "line": 29,
       "message": "the trait bound `Vec<cantrip_api::PlayerId>: TableEntry` is not satisfied (the trait `TableEntry` is not implemented for `Vec<cantrip_api::PlayerId>`)"
      }
