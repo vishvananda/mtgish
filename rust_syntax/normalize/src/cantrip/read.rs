@@ -224,6 +224,13 @@ pub(super) fn counter_kind(kind: &crate::counter::CounterKind) -> Result<String>
         K::Named(counter) => name(counter),
     };
     let word = word.strip_suffix("Counter").unwrap_or(&word).to_string();
+    // The source renames Sensei Golden-Tail's training counter so that it can't be
+    // read as the keyword; Oracle text, which Cantrip prints, still says training.
+    let word = if word == "Samurai" {
+        "Training".to_string()
+    } else {
+        word
+    };
     if crate::cantrip_vocab::COUNTERS.contains(&word.as_str()) {
         Ok(format!("CounterKind::{word}"))
     } else {

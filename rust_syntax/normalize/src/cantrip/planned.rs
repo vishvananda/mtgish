@@ -33,9 +33,8 @@ const LANDED: &[&str] = &[
 
 /// Counters that are more than a name, so no line in `counter_kinds!` finishes
 /// them: rad, poison, acorn, point and contract counters sit on players, and an
-/// exalted counter gives its keyword (CR 122.1b). `Samurai` is the source's name
-/// for Sensei Golden-Tail's training counter.
-const MORE_THAN_A_NAME: &[&str] = &["Acorn", "Contract", "Exalted", "Point", "Poison", "Rad", "Samurai"];
+/// exalted counter gives its keyword (CR 122.1b).
+const MORE_THAN_A_NAME: &[&str] = &["Acorn", "Contract", "Exalted", "Point", "Poison", "Rad"];
 
 /// Whether `feature` asks only for a counter's name (CR 122.1). Its line goes in
 /// `counter_kinds!` as a commit of its own just before the card, so the card is
@@ -359,7 +358,7 @@ mod tests {
             planned_value(&feature, "CounterKind::Charge", &format!("CounterKind::{word}"))
         };
         assert_eq!(value("Spore"), "CounterKind::Spore");
-        for word in ["Acorn", "Contract", "Exalted", "Point", "Poison", "Rad", "Samurai"] {
+        for word in ["Acorn", "Contract", "Exalted", "Point", "Poison", "Rad"] {
             assert!(value(word).starts_with("planned_value!"), "{word}");
         }
     }

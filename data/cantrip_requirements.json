@@ -7,7 +7,6 @@
  {"match": "^engine: ", "class": "engine", "needs": "support in Cantrip's core"},
  {"match": "^counter kind (Acorn|Contract|Point|Poison|Rad)$", "class": "engine", "needs": "this kind of counter on a player"},
  {"match": "^counter kind Exalted$", "class": "engine", "needs": "the exalted keyword counter (CR 122.1b), with the layer that gives its keyword"},
- {"match": "^counter kind Samurai$", "class": "vocabulary", "needs": "the source to name Sensei Golden-Tail's training counter (i5jb/mtgish#154)"},
  {"match": "^subtype ", "class": "vocabulary", "needs": "the word in Cantrip's Subtype"},
  {"match": "^supertype", "class": "vocabulary", "needs": "the supertype in Cantrip"},
  {"match": ".", "class": "generator", "needs": "a generator arm, or a Cantrip feature if none exists"}
