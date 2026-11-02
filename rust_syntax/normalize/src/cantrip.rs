@@ -651,6 +651,8 @@ struct Compiler {
     unread: Vec<(String, Vec<String>)>,
     /// Locals that hold a value each player chose, by kind.
     chosen_lists: Vec<(ValueKind, String)>,
+    /// The kinds an earlier ability's locals held: out of scope here, and kept nowhere a later ability could read.
+    earlier_chosen_lists: Vec<ValueKind>,
     /// The bound player whose own choice in a walk a filter reads.
     own_choice: std::cell::RefCell<Option<String>>,
     /// The local of the spells the last cast of cards made.
@@ -1113,6 +1115,7 @@ impl Compiler {
             hoisted: None,
             unread: Vec::new(),
             chosen_lists: Vec::new(),
+            earlier_chosen_lists: Vec::new(),
             own_choice: std::cell::RefCell::new(None),
             played: None,
             single: BTreeSet::new(),
@@ -2477,6 +2480,9 @@ fn emit_face(
         _ => Err(gap("two mechanics that need the first delayed ability")),
     });
     for (i, a) in card.abilities.iter().enumerate() {
+        // A list of what each player chose is a local of the ability that asked (Null Chamber's names).
+        let earlier: Vec<ValueKind> = std::mem::take(&mut c.chosen_lists).into_iter().map(|(kind, _)| kind).collect();
+        c.earlier_chosen_lists.extend(earlier);
         c.on_ability(i);
         let failure = c.attempt(format!("abilities[{i}]"), |c| {
             let compiled = c.ability(a, &format!("ability_{i}"), &mut parts, None);

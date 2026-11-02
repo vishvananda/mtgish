@@ -1618,7 +1618,7 @@ impl Compiler {
                 let all = self.fetch(self.objects(objects)?);
                 let count = self.fetch(self.select_count(count)?);
                 const M: &str = "cantrip_mechanics";
-                writeln!(out, "let all_{id}: Vec<ObjectId> = {all}; let kept_{id} = {M}::choose::select(g, {bound}, asker.source, Purpose::Keep, all_{id}.clone(), {M}::select::Selection::of({count}, &[]))?; gathered_{local}.extend(all_{id}.iter().copied().filter(|o| !kept_{id}.contains(o)));").unwrap();
+                writeln!(out, "let all_{id}: Vec<ObjectId> = {all}; let count_{id} = {count}; let kept_{id} = {M}::choose::select(g, {bound}, asker.source, Purpose::Keep, all_{id}.clone(), {M}::select::Selection::of(count_{id}, &[]))?; gathered_{local}.extend(all_{id}.iter().copied().filter(|o| !kept_{id}.contains(o)));").unwrap();
             }
             Gathered::Objects { objects, .. } => {
                 writeln!(
@@ -1664,7 +1664,7 @@ impl Compiler {
                 let objects = self.fetch(self.objects(objects)?);
                 let keep = self.fetch(keep);
                 const M: &str = "cantrip_mechanics";
-                writeln!(out, "let own_{id}: Vec<ObjectId> = {objects}.into_iter().filter(|&o| g.controller(o) == {bound}).collect(); let kept_{id} = {M}::choose::select(g, {bound}, asker.source, Purpose::Keep, own_{id}.clone(), {M}::select::Selection::of({M}::select::up_to({keep}), &[]))?; gathered_{local}.extend(own_{id}.iter().filter(|o| !kept_{id}.contains(o)).map(|&o| ({bound}, o)));").unwrap();
+                writeln!(out, "let own_{id}: Vec<ObjectId> = {objects}.into_iter().filter(|&o| g.controller(o) == {bound}).collect(); let keep_{id} = {keep}; let kept_{id} = {M}::choose::select(g, {bound}, asker.source, Purpose::Keep, own_{id}.clone(), {M}::select::Selection::of({M}::select::up_to(keep_{id}), &[]))?; gathered_{local}.extend(own_{id}.iter().filter(|o| !kept_{id}.contains(o)).map(|&o| ({bound}, o)));").unwrap();
             }
             Gathered::SacrificeEach { slots, .. } => {
                 self.sacrifice_slots(id, &bound, slots, out)?;

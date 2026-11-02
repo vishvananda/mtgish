@@ -379,6 +379,17 @@ def write(args):
     for stale in cards.glob("*.rs"):
         if stale.stem not in wanted:
             stale.unlink()
+    if not args.standalone:
+        # A counter is a name and nothing more (CR 122.1): a card's PR adds its line before the card, so the tree has
+        # every counter its whole cards use, appended as that commit would.
+        counter_path = Path(args.cantrip) / COUNTER_TABLE
+        table = counter_path.read_text(encoding="utf-8")
+        counters = {}
+        for path in sorted(cards.glob("*.rs")):
+            counters.update(dict.fromkeys(counters_wanted(path.read_text(encoding="utf-8"), table)))
+        if counters:
+            counter_path.write_text(with_counters(table, list(counters)), encoding="utf-8", newline="\n")
+        print(f"{len(counters)} counters added to {COUNTER_TABLE}")
     sample = sample_of(sized, args.sample)
     (crate / "sample.txt").write_text("".join(s + "\n" for s in sample))
     # What the `proposals` feature compiles: every card with a hole, whose code proposal_check.py type-checks.
@@ -470,6 +481,12 @@ def written_by_hand(cantrip):
     return {path.stem.removeprefix("r#") for path in (Path(cantrip) / "crates/cantrip-cards/src/cards").glob("*.rs")}
 
 
+def cantrip_base(cantrip):
+    """The Cantrip main commit a tree is based on."""
+    return subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=cantrip, text=True,
+                          capture_output=True, check=True).stdout.strip()
+
+
 def tracker(args):
     root = Path(__file__).resolve().parents[3]
     rules = load_rules(root)
@@ -479,9 +496,12 @@ def tracker(args):
     blocked = {}
     written = {}
     hand = written_by_hand(args.cantrip)
-    table = (Path(args.cantrip) / COUNTER_TABLE).read_text(encoding="utf-8")
+    # The tables as Cantrip has them, not as `write` appended to them: what a card still needs added is from Cantrip.
+    at_base = lambda path: subprocess.run(["git", "show", f"{cantrip_base(args.cantrip)}:{path}"], cwd=args.cantrip,
+                                          text=True, capture_output=True, check=True).stdout
+    table = at_base(COUNTER_TABLE)
     counters = {}
-    token_table = (Path(args.cantrip) / TOKEN_TABLE).read_text(encoding="utf-8")
+    token_table = at_base(TOKEN_TABLE)
     tokens = {}
     for card in read_rows(args.rows):
         status = status_of(card)
@@ -518,8 +538,7 @@ def tracker(args):
                      "family": family(feature), **row})
         rows[-1]["fix"] = fix_of(rows[-1], audit)
         rows[-1]["how"] = audit.get(rows[-1]["id"], {}).get("how", "")
-    base = subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=args.cantrip, text=True,
-                          capture_output=True, check=True).stdout.strip()[:10]
+    base = cantrip_base(args.cantrip)[:10]
     classes = {}
     for row in rows:
         entry = classes.setdefault(row["class"], {"requirements": 0, "cards": set()})

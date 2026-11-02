@@ -124,3 +124,26 @@ fn printed_lines_say_what_their_cards_say() {
         );
     }
 }
+
+/// A cast trigger an optional cost adds goes in the card's one ability list (Plumb the Forbidden), and what each
+/// player chose as a permanent entered is a local of that ability, which no later ability can read (Null Chamber).
+#[test]
+fn one_ability_list_and_no_local_of_another_ability() {
+    let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let (corpus, oracle) = (data.join("mtgish.lines.ron"), data.join("oracle.json"));
+    if !corpus.exists() || !oracle.exists() {
+        return;
+    }
+    let names = vec!["Plumb the Forbidden".to_string(), "Null Chamber".to_string()];
+    let modules: BTreeMap<String, String> = cantrip::modules_printed(&corpus, &oracle, &names)
+        .unwrap()
+        .into_iter()
+        .collect();
+    let plumb = &modules["Plumb the Forbidden"];
+    assert_eq!(plumb.matches(" abilities: &[").count(), 1, "{plumb}");
+    assert!(plumb.contains("CAST_THIS_SPELL"), "{plumb}");
+    let chamber = &modules["Null Chamber"];
+    let enters = chamber.find("fn ability_1").unwrap_or(chamber.len());
+    assert!(!chamber[enters..].contains("each_chosen"), "{chamber}");
+    assert!(chamber.contains("read-by-another-ability"), "{chamber}");
+}
