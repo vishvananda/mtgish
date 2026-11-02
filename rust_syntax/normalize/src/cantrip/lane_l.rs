@@ -1485,10 +1485,20 @@ impl Compiler {
                     _ => feature,
                 };
                 let copier = self.one_actor(actor, &feature)?;
-                let object = self.fetch(self.object(object)?);
                 let times = self.fetch(self.number(times)?.amount(u32::MAX.into(), "u32")?);
                 let targets = self.new_targets(targets)?;
-                self.plan_code(&feature, &format!("if let Some(spell) = {object} {{ {M}::copy::on_stack(g, {copier}, spell, {times}, {targets})?; }}"), out);
+                // "Copy that ability" (Agrus Kos): an ability on the stack is no
+                // object; Cantrip names it by its serial, as `Target::Ability`.
+                if matches!(object, ObjectRef::EventStackObject)
+                    && self.frame.stack_object.is_none()
+                    && self.frame.activated.is_some()
+                {
+                    let ability = self.carried_ability()?;
+                    self.plan_code(&feature, &format!("{M}::copy::ability_on_stack(g, {copier}, {ability}, {times}, {targets})?;"), out);
+                } else {
+                    let object = self.fetch(self.object(object)?);
+                    self.plan_code(&feature, &format!("if let Some(spell) = {object} {{ {M}::copy::on_stack(g, {copier}, spell, {times}, {targets})?; }}"), out);
+                }
             }
             // The change of control comes first, so that "you" in the spell is its
             // new controller as the targets are chosen again.
