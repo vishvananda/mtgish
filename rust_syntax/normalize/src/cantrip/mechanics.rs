@@ -180,7 +180,13 @@ impl Compiler {
         };
         // "Freerunning—Return a blue creature you control to its owner's hand."
         let freerunning_cost = matches!(mechanic, K::Freerunning) && mana_alone(cost, mechanic).is_err();
-        if freerunning_cost {
+        // "Warp—{B}, Pay 2 life" (Timeline Culler): warp::way_with_cost.
+        let warp_cost = matches!(mechanic, K::Warp) && mana_alone(cost, mechanic).is_err();
+        if warp_cost {
+            let cost = self.mechanic_cost(cost, mechanic, label)?;
+            let text = quoted(&self.said_word("Warp".to_string()));
+            parts.table("ways", format!("{M}::warp::way_with_cost({cost}, {text})"));
+        } else if freerunning_cost {
             let cost = self.mechanic_cost(cost, mechanic, label)?;
             let text = quoted(&self.said_word(format!("{mechanic:?}")));
             parts.table("ways", format!("way({cost}, ZoneKind::Hand, {text}).condition({M}::freerunning::assassin_dealt_combat_damage).kind(WayKind::Freerunning)"));
