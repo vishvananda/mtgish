@@ -2365,15 +2365,33 @@ impl Compiler {
             ),
             [EntryState::Attacking {
                 player,
-                or_planeswalker: false,
-            }] if entry.tapped => {
-                let defender = match player {
-                    Some(player) => {
-                        format!("Target::Player({})", self.fetch(self.certain_player(player)?))
-                    }
-                    None => "cantrip_mechanics::combat::choose_attack_target(g, controller, asker.source)?.unwrap_or(Target::None)".into(),
+                or_planeswalker,
+            }, rest @ ..]
+                if rest.is_empty() || lane_n::keyword_until_end_of_turn(rest).is_some() =>
+            {
+                let defender = self.entering_defender(player.as_ref(), *or_planeswalker)?;
+                // `put_onto_battlefield_attacking` taps: "tapped and attacking".
+                let enter = match entry.tapped {
+                    true => format!("let entered = g.put_onto_battlefield_attacking(o, controller, defender, &[{counters}])?; let came = g.is_on_battlefield(entered);"),
+                    false => format!("let entered = g.put_onto_battlefield_with_counters(o, controller, false, &[{counters}])?; let came = g.is_on_battlefield(entered); if came {{ g.enter_attacking(&[entered], defender); }}"),
                 };
-                format!("let defender = {defender}; moved.push(g.put_onto_battlefield_attacking(o, controller, defender, &[{counters}])?);")
+                let gains = match lane_n::keyword_until_end_of_turn(rest) {
+                    Some(k) => format!(" cantrip_mechanics::effects::gain_until_end_of_turn(g, asker.source, entered, {});", keyword(k)?),
+                    None => String::new(),
+                };
+                format!("let defender = {defender}; {enter} if came {{ moved.push(entered);{gains} }}")
+            }
+            [EntryState::When { filter, entry: then }]
+                if counters.is_empty()
+                    && !entry.tapped
+                    && !then.tapped
+                    && then.states.is_empty()
+                    && !then.counters.is_empty()
+                    && self.stack_item
+                    && !self.granting =>
+            {
+                let index = self.arrival_counters(filter, &then.counters)?;
+                format!("g.add_effect(item.object, o, EffectKind::Replacement {{ card: item.ability.card, index: {index} }}, Duration::EndOfTurn); moved.extend(g.put_all_onto_battlefield_as(&[(o, controller, false)])?.into_iter().filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)));")
             }
             _ => return self.arrival_in_state(entry, &counters),
         })

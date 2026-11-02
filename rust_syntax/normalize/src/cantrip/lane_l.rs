@@ -2292,19 +2292,6 @@ impl Compiler {
                 let host = self.fetch(self.object(host)?);
                 format!("if let Some(host) = {host} {{ moved.extend(g.put_onto_battlefield_attached(o, controller, host)?); }}")
             }
-            [EntryState::Attacking {
-                player: Some(player),
-                or_planeswalker: false,
-            }] if !tapped => {
-                let defender = self.fetch(self.player(player)?);
-                format!("if let Some(defender) = {defender} {{ moved.push(g.put_onto_battlefield_attacking(o, controller, Target::Player(defender), &[{counters}])?); }}")
-            }
-            [EntryState::Attacking {
-                player: None,
-                or_planeswalker: true,
-            }] if !tapped => {
-                format!("if let Some(defender) = {M}::combat::choose_attack_target(g, controller, asker.source)? {{ moved.push(g.put_onto_battlefield_attacking(o, controller, defender, &[{counters}])?); }}")
-            }
             states => {
                 let states = quoted(&format!("{states:?}"));
                 let call = planned::planned_value(

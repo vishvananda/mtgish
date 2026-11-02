@@ -1715,6 +1715,20 @@ impl Compiler {
                         subtypes.push(format!("Subtype::{word}"));
                     }
                 }
+                // "It's a Spirit Detective": the creature types it had are gone.
+                Change::CreatureTypes {
+                    mode: ChangeMode::Set,
+                    types: CreatureTypeSet::Listed(types),
+                } => {
+                    for t in types {
+                        let word = name(t);
+                        if !crate::cantrip_vocab::SUBTYPES.contains(&word.as_str()) {
+                            return Err(gap(format!("subtype {word}")));
+                        }
+                        subtypes.push(format!("Subtype::{word}"));
+                    }
+                    fields.push("loses_subtypes_of: &[CardType::Creature]".to_string());
+                }
                 Change::SetBasePowerToughness {
                     power: Expr::Constant(power),
                     toughness: Expr::Constant(toughness),

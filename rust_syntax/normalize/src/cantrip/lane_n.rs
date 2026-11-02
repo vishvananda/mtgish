@@ -316,6 +316,46 @@ impl Compiler {
     }
     /// A replacement a spell or ability made, as `add_replacement` for the
     /// definitions those keep.
+    /// What a permanent entering attacking attacks (CR 508.4): `Target::None`
+    /// when there is nothing it could.
+    pub(super) fn entering_defender(
+        &self,
+        player: Option<&PlayerRef>,
+        or_planeswalker: bool,
+    ) -> Result<String> {
+        const ANY: &str = "cantrip_mechanics::combat::choose_attack_target(g, controller, asker.source)?.unwrap_or(Target::None)";
+        Ok(match (player, or_planeswalker) {
+            (None, _) => ANY.to_string(),
+            (Some(player), false) => {
+                format!("Target::Player({})", self.fetch(self.certain_player(player)?))
+            }
+            (Some(player), true) => format!(
+                "{{ let player = {}; let candidates: Vec<Target> = g.enter_attacking_targets(controller).into_iter().filter(|t| match *t {{ Target::Player(p) => p == player, Target::Object(o) => g.controller(o) == player && g.chars(o).is(CardType::Planeswalker), _ => false }}).collect(); cantrip_mechanics::combat::choose_among(g, controller, asker.source, &candidates)?.unwrap_or(Target::None) }}",
+                self.fetch(self.certain_player(player)?)
+            ),
+        })
+    }
+    /// "If a Hero enters this way, it enters with ... counters" (CR 614.12): a
+    /// replacement effect about the card, so it is judged as it would exist on the
+    /// battlefield, as a look at it where it is now would not. The index of the
+    /// made replacement.
+    pub(super) fn arrival_counters(
+        &mut self,
+        filter: &ObjectFilter,
+        counters: &[(crate::counter::CounterKind, Expr)],
+    ) -> Result<usize> {
+        let id = self.fresh();
+        let test = self.filter(filter, &Candidate::of("affected"))?;
+        let mut adds = String::new();
+        for (kind, n) in counters {
+            let n = self.number(n)?.amount(i16::MAX.into(), "i16")?;
+            write!(adds, "z.counters[{} as usize] += {n}; ", counter_kind(kind)?).unwrap();
+        }
+        writeln!(self.functions, "#[allow(unused_variables)] fn arrival_{id}_applies(q: &dyn Query, asker: &Asker, affected: ObjectId, proposal: &Proposal) -> bool {{ matches!(proposal, Proposal::ZoneChange(z) if z.object == affected && z.to.is(ZoneKind::Battlefield)) && {test} }}").unwrap();
+        writeln!(self.functions, "#[allow(unused_variables)] fn arrival_{id}_apply(q: &dyn Query, asker: &Asker, affected: ObjectId, proposal: &mut Proposal) {{ if let Proposal::ZoneChange(z) = proposal {{ {adds}}} }}").unwrap();
+        self.add_made_replacement(format!("granted_replacement(ReplacementKind::ZoneChange, arrival_{id}_applies, arrival_{id}_apply, \"enters with counters\").once()"));
+        Ok(self.made_replacements.len() - 1)
+    }
     pub(super) fn add_made_replacement(&mut self, mut def: String) {
         let mut feature = self.replacing.planned.take();
         for (needs, call) in std::mem::take(&mut self.replacing.suffix) {
@@ -1961,6 +2001,20 @@ pub(super) fn moves_named_objects(cost: &Cost) -> bool {
 /// Whether what comes later reads a damage instruction's result as what it was
 /// dealt to, which is only known from the events: a prevention names none and a
 /// redirection names another (CR 614.9).
+/// The one keyword a permanent gains for the turn as it arrives.
+pub(super) fn keyword_until_end_of_turn(states: &[EntryState]) -> Option<&Keyword> {
+    match states {
+        [EntryState::ChangesUntil {
+            changes,
+            duration: crate::ir::Duration::EndOfTurn,
+        }] => match changes.as_slice() {
+            [Change::GrantKeyword(k)] => Some(k),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 pub(super) fn read_as_damaged(after: &[Instruction], result: &ResultId) -> bool {
     format!("{after:?}").contains(&format!("DamagedBy(ResultId({}))", result.0))
 }
