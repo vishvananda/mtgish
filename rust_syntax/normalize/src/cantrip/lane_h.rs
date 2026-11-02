@@ -1952,6 +1952,12 @@ impl Compiler {
         on: &ManaPayment,
         parts: &mut Parts,
     ) -> Result<()> {
+        // Cantrip's spending rules recolor mana only (`spend_any_color`); "as though
+        // it were mana of any type" lets colorless or snow-less mana pay what its
+        // type wouldn't, which no rule reads (Sharkey, Tyrant of the Shire).
+        if matches!(spend_as, SpendAs::AnyType) {
+            return Err(gap("mana spent as though of any type"));
+        }
         let test = match on {
             ManaPayment::Anything => "true".to_string(),
             ManaPayment::Spells(filter) => format!(
@@ -1968,7 +1974,6 @@ impl Compiler {
         let body = format!("let player = s.player; {guard}{member} && {test}");
         let (table, feature): (&'static str, _) = match spend_as {
             SpendAs::AnyColor => ("spend_any_color", None),
-            SpendAs::AnyType => ("spend_any_type", Some("mana spent as though of any type")),
             other => return Err(gap(format!("player rule SpendManaAs {}", form(other)))),
         };
         self.permission_entry(
@@ -2111,6 +2116,24 @@ impl Compiler {
     /// flying, this has flying. The same is true for ..." (CR 613.1f, layer 6).
     pub(super) fn gain_abilities_of(&mut self, change: &Change) -> Result<statics::LayerChange> {
         let failure = || gap("static change GainAbilitiesOf");
+        // The activated abilities a permanent has are its characteristics as the
+        // layers leave them (CR 613.1f), not its card's printed list, which is all
+        // `grant_activated_abilities_of` reads (Drana and Linvala, Scheming Fence,
+        // Sharkey). "You may spend mana as though it were mana of any color to
+        // activate those abilities" rides on the same grant.
+        if let Change::GainAbilitiesOf { objects, kinds, .. } = change {
+            let on_battlefield = matches!(objects, ObjectSet::Battlefield(_));
+            let asked = format!("{kinds:?}");
+            let permanents = on_battlefield || asked.contains("AbilityOfPermanent");
+            let activated = asked.contains("ActivatedAbility") || asked.contains("AbilityOfPermanent");
+            // The plain grant below holds on this same requirement.
+            let plain = on_battlefield
+                && matches!(change, Change::GainAbilitiesOf { spend_as: None, once_each_turn: false, .. })
+                && matches!(&**kinds, Operand::List(items) if matches!(items.as_slice(), [Operand::Term { form, operands, .. }] if form == "ActivatedAbility" && operands.is_empty()));
+            if permanents && activated && !plain {
+                return Err(gap("the activated abilities of other permanents"));
+            }
+        }
         let Change::GainAbilitiesOf {
             objects,
             kinds,

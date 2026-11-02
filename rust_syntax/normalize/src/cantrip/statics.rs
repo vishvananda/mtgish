@@ -675,6 +675,21 @@ impl Compiler {
                     continue;
                 }
             }
+            // "Creature cards you own that aren't on the battlefield have flash"
+            // (Teferi, Mage of Zhalfir): the cards have the keyword (CR 702.8a),
+            // and a card's own speed is its printed one, so a flash rule lets a
+            // card cast as it has it then (CR 601.3b, `FlashRule`).
+            let flash = |a: &Ability| matches!(a, Ability::Keyword(Keyword::Flash));
+            if matches!(change, Change::GrantAbility(a) if flash(a))
+                || matches!(change, Change::GrantKeyword(Keyword::Flash))
+            {
+                let function = format!("{label}_{i}_flash");
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, spell: ObjectId, player: PlayerId) -> bool {{ q.chars(spell).keywords.has(Keyword::Flash) }}").unwrap();
+                parts.table("flash_rules", function);
+                let body = "chars.keywords = chars.keywords.with(Keyword::Flash);".to_string();
+                layered.push((i, change, LayerChange::of("Ability", body)));
+                continue;
+            }
             layered.push((i, change, self.layered(|c| c.layer_change(change))?));
         }
         // Printed order isn't layer order. A later part of one effect follows

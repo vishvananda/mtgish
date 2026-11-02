@@ -694,6 +694,12 @@ impl Compiler {
                 }
                 _ => {}
             }
+            // "The last chosen card", read by a static ability: an ability that
+            // resolved chose it, and a resolving ability can keep only a name on
+            // its permanent (`Game::remember_chosen_name`), never an object.
+            if matches!(what, EarlierObjects::Selected) && self.reader == Reader::Layer {
+                return Err(gap("a chosen object outside its body"));
+            }
             // Cantrip keeps no record of this for a read to find.
             return Ok(planned::planned_value(
                 &format!("earlier objects {word}"),

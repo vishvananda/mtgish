@@ -85,6 +85,12 @@ impl Compiler {
                     let keyword = lane_j::granted_keyword(ability).expect("just seen");
                     format!("{values}.with_keyword({keyword})")
                 }
+                // "Except it's 1/1 and has toxic 1" (CR 707.9b): toxic is a number of
+                // the card's (`CardDef::toxic`), which `Copiable` has no word for, and
+                // a copy's toxic is read from the card it copies alone.
+                ability if lane_n::toxic_of(ability).is_some() => {
+                    return Err(gap("toxic as a copy exception"));
+                }
                 ability => {
                     let Ok(index) = self.grant(ability) else {
                         return self.stated_exception(values, "AddAbility", operands);

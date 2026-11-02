@@ -1484,6 +1484,14 @@ impl Compiler {
         if let Ability::Enchant { hosts } = ability {
             return self.aura_enchant(hosts);
         }
+        // "Until end of turn, each creature card in your graveyard gains escape"
+        // (The Grim Captain's Locker): a way to cast a card lasts past its giver only
+        // as a `PlayGrant`, which has a mana cost to pay instead but no cards to exile
+        // and no escape to cast it by (CR 702.138a-c); `granted_ways` are a
+        // permanent's, while it's on the battlefield.
+        if matches!(ability, Ability::Mechanic { mechanic: Mechanic::Escape, .. }) {
+            return Err(gap("escape given by a resolving effect"));
+        }
         Ok(self
             .granted_refs(ability)?
             .into_iter()
@@ -3486,6 +3494,9 @@ impl Compiler {
                 let mut code = values.clone();
                 for operand in list {
                     match operand {
+                        Operand::Ability(ability) if lane_n::toxic_of(ability).is_some() => {
+                            return Err(gap("toxic as a copy exception"));
+                        }
                         Operand::Ability(ability) => {
                             let refs = self.granted_refs(ability).or_else(|failed| {
                                 let Ability::Mechanic {

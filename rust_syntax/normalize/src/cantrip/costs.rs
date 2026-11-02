@@ -1246,7 +1246,9 @@ impl Compiler {
                     if let [other] = others {
                         let printed = before.clone().said(lane_k::Said::Activated, ability_text(body));
                         let first = before.clone().cost(cost, label)?;
-                        let unlike = gap("engine: no choice between the costs of an ability");
+                        // An activated ability has one cost (`ActivatedDef::cost`); only a
+                        // spell offers a choice of costs (`additional_choice`).
+                        let unlike = gap(ACTIVATED_COST_CHOICE);
                         let Some((one, two)) = worded_apart(&printed) else {
                             return Err(unlike);
                         };
@@ -1263,7 +1265,7 @@ impl Compiler {
                     } else if others.is_empty() {
                         parts.abilities.push(def);
                     } else {
-                        return Err(gap("engine: no choice between the costs of an ability"));
+                        return Err(gap(ACTIVATED_COST_CHOICE));
                     }
                 }
             }
@@ -1437,3 +1439,7 @@ impl Compiler {
         Ok(())
     }
 }
+
+/// "{3}, {T}, Sacrifice an artifact or discard a nonland card: ..." (CR 602.2b, 601.2f-h):
+/// one activated ability with a choice of costs.
+pub(super) const ACTIVATED_COST_CHOICE: &str = "a choice between the costs of an activated ability";
