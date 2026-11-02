@@ -1101,6 +1101,40 @@ impl Compiler {
             _ => unreachable!("a production listed above"),
         }))
     }
+    /// "Protection from Humans" of no quality the engine names: which sources it
+    /// is from, asked of a source as protection is (CR 702.16), is a rule of the
+    /// card's `protection_rules`, and the quality, kept by an effect or a layer,
+    /// names its card and index, with what the words named as an effect
+    /// resolved as its `about`; more of the resolution is a gap of its own.
+    fn protection_rule(&mut self, feature: &str, filter: &ObjectFilter) -> Result<Option<String>> {
+        let saved = (self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+        let asked = self.filter(filter, &Candidate::of("id"));
+        (self.reader, self.event_at) = saved;
+        let test = match asked {
+            Err(failed) if failed.feature == "target reference outside a resolving ability" => {
+                self.filter(filter, &Candidate::of("id")).ok()
+            }
+            asked => asked.ok(),
+        };
+        let Some(test) = test else {
+            return Ok(None);
+        };
+        // A rule reading what the resolution chose but a target can't keep it.
+        let (test, about) = self.named_as_resolved(&test)?;
+        let index = self.holes.matches("=> protection_rules:").count();
+        let function = format!("protection_rule_{index}");
+        let params = "q: &dyn Query, asker: &Asker, about: Target, id: ObjectId";
+        let body = format!("let source = asker.source; {test}");
+        let item = planned::planned_fn(feature, &function, params, "bool", &body);
+        writeln!(self.functions, "{item}").unwrap();
+        let id = planned::requirement(feature);
+        writeln!(self.holes, "planned_item!({id:?} => protection_rules: {function});").unwrap();
+        Ok(Some(format!(
+            "ProtectionQuality::Rule {{ card: {}, index: {index}, about: {about} }}",
+            self.source_card()
+        )))
+    }
     /// Protection given by a static or an effect: the qualities the engine has,
     /// and otherwise the test it will have.
     pub(super) fn grant_protection(
@@ -1140,9 +1174,12 @@ impl Compiler {
             return Ok(());
         };
         let code = match quality {
-            Protection::Objects { filter, .. } => match self.filter(filter, &Candidate::of("id")) {
-                Ok(test) => format!("ProtectionQuality::Matching(|q, asker, id| {test})"),
-                Err(_) => return Err(hole),
+            Protection::Objects { filter, .. } => match self.protection_rule(FEATURE, filter)? {
+                Some(rule) => rule,
+                None => match self.filter(filter, &Candidate::of("id")) {
+                    Ok(test) => format!("ProtectionQuality::Matching(|q, asker, id| {test})"),
+                    Err(_) => return Err(hole),
+                },
             },
             // An effect has one kind for each player: `continuous` adds them.
             Protection::Players(players) => match self.players(players) {
