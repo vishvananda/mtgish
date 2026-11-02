@@ -43,10 +43,8 @@ const CARDS: &[(&str, &str)] = &[
         "Sacred Boon",
         "damage prevented by an effect of this ability",
     ),
-    (
-        "Bill Potts",
-        "a limit shared by the abilities of one sentence",
-    ),
+    // The sentence's limit, shared by its two abilities' triggerings.
+    ("Bill Potts", ".only_if(ability_0_shared_limit)"),
     ("Market Gnome", "trigger event WhileActivating"),
     (
         "Divine Deflection",
