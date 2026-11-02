@@ -134,6 +134,14 @@ impl Compiler {
     fn asked(&self, n: &Expr) -> Result<String> {
         self.number(n).map(|n| n.code)
     }
+    /// How many of a `Count`, which counts in `u32` (Cantrip's `Count::Exactly`):
+    /// a printed number is that constant.
+    fn counted(&self, n: &Expr) -> Result<String> {
+        match n {
+            Expr::Constant(c) if *c >= 0 => Ok(c.to_string()),
+            _ => self.asked(n),
+        }
+    }
     /// A filter of abilities, over `ability` and the `object` it is on.
     fn activation_bar(&self, filter: &ActivationFilter) -> Result<String> {
         Ok(format!(
@@ -798,7 +806,10 @@ impl Compiler {
                 for item in operands {
                     items.push(self.stated(item)?);
                 }
+                // As `operand_code` writes a variant of one list.
+                let listed = crate::lower::LIST_VARIANTS.contains(&(family.as_str(), form.as_str()));
                 match items.is_empty() {
+                    _ if listed => format!("{family}::{form}(&[{}])", items.join(", ")),
                     true => format!("{family}::{form}"),
                     false => format!("{family}::{form}({})", items.join(", ")),
                 }
@@ -1276,7 +1287,7 @@ impl Compiler {
         };
         Ok(match modifier {
             S::Alternate { cost, limit: most } => format!(
-                "CostModifier::Alternate {{ cost: {}, limit: {} }}",
+                "CostModifier::Alternate {{ cost: {}, limit: {}, during: None }}",
                 self.play_cost(cost)?,
                 limit(most)
             ),
@@ -1285,7 +1296,8 @@ impl Compiler {
                 limit: most,
                 during,
             } => format!(
-                "CostModifier::AlternateDuring {{ cost: {}, limit: {}, during: |q: &dyn Query, asker: &Asker, player: PlayerId| {} }}",
+                // One variant, its `during` none where no time is named.
+                "CostModifier::Alternate {{ cost: {}, limit: {}, during: Some(|q: &dyn Query, asker: &Asker, player: PlayerId| {}) }}",
                 self.play_cost(cost)?,
                 limit(most),
                 self.player_member(during)?
@@ -2164,7 +2176,8 @@ impl Compiler {
             Some(spending) => format!("Some({})", spend_as(spending)?),
             None => "None".into(),
         };
-        Ok(format!("AbilitiesOf {{ objects: {ids}, kinds: {kinds}, once_each_turn: {once_each_turn}, spend_as: {spending} }}"))
+        // Not `AbilitiesOf`, Cantrip's word for which sources a set of abilities is of.
+        Ok(format!("AbilitiesFrom {{ objects: {ids}, kinds: {kinds}, once_each_turn: {once_each_turn}, spend_as: {spending} }}"))
     }
     /// A static ability "has all abilities of ..." that `gain_abilities_of` can't
     /// read: `failed` stays the requirement.
@@ -2674,13 +2687,13 @@ impl Compiler {
     fn count_code(&self, count: &Count) -> Result<String> {
         Ok(match count {
             Count::Exactly(n) | Count::UpTo(n) | Count::AtLeast(n) | Count::AsManyAsCan(n) => {
-                format!("Count::{}({})", form(count), self.asked(n)?)
+                format!("Count::{}({})", form(count), self.counted(n)?)
             }
             Count::AnyNumber => "Count::AnyNumber".into(),
             Count::Between { minimum, maximum } => format!(
                 "Count::Between({}, {})",
-                self.asked(minimum)?,
-                self.asked(maximum)?
+                self.counted(minimum)?,
+                self.counted(maximum)?
             ),
             other => return Err(gap(format!("count {}", form(other)))),
         })
@@ -2703,7 +2716,7 @@ impl Compiler {
             None => "Count::Each".to_string(),
         };
         Ok(format!(
-            "Selection {{ objects: {}, count: {count} }}",
+            "CostPick {{ objects: {}, count: {count} }}",
             self.pick_from(&selection.objects)?
         ))
     }
@@ -2734,17 +2747,22 @@ impl Compiler {
         if !entry.counters.is_empty() {
             return Err(gap("cost that moves with counters"));
         }
+        // An `Arrival` as a move's (lane_p's `arrival_code`): face down is one of
+        // its states.
         let mut states = Vec::new();
+        if face_down {
+            states.push("ArrivalState::FaceDown".to_string());
+        }
         for state in &entry.states {
             match state {
                 EntryState::ExilePile { shuffled } => {
-                    states.push(format!("EntryState::ExilePile {{ shuffled: {shuffled} }}"))
+                    states.push(format!("ArrivalState::ExilePile {{ shuffled: {shuffled} }}"))
                 }
                 other => return Err(gap(format!("cost that moves into {}", form(other)))),
             }
         }
         Ok(format!(
-            "Arrival {{ tapped: {}, face_down: {face_down}, states: &[{}] }}",
+            "Arrival {{ tapped: {}, counters: &[], states: &[{}] }}",
             entry.tapped,
             states.join(", ")
         ))
@@ -3140,10 +3158,12 @@ impl Compiler {
             operands.push(self.queried(|c| c.over(filter, "id"))?);
         }
         operands.push(quoted(&format!("{mechanic:?}")));
+        // Not the module's `way`, which takes its mana alone: as warp's
+        // `way_with_cost` takes a whole cost.
         self.plan_entry(
             &failed.feature,
             "ways",
-            &format!("{M}::{module}::way({})", operands.join(", ")),
+            &format!("{M}::{module}::way_with_cost({})", operands.join(", ")),
             parts,
         );
         Ok(())
@@ -3467,15 +3487,16 @@ impl Compiler {
         let feature = format!("casting rule {}", form(rule));
         let code = match rule {
             CastingRule::ProhibitTargets { filter, .. } => {
-                format!("CastRule::ProhibitTargets({})", self.over(filter, "id")?)
+                format!("CastingTerm::ProhibitTargets({})", self.over(filter, "id")?)
             }
             CastingRule::TaxPaidAsLife(amount) => format!(
-                "CastRule::TaxPaidAsLife(|q: &dyn Query, asker: &Asker| {})",
+                "CastingTerm::TaxPaidAsLife(|q: &dyn Query, asker: &Asker| {})",
                 self.asked(amount)?
             ),
             _ => return Err(gap(feature)),
         };
-        self.plan_entry(&feature, "cast_rules", &code, parts);
+        // Not `cast_rules`, which holds Cantrip's `CastRule`, a function.
+        self.plan_entry(&feature, "casting_terms", &code, parts);
         Ok(())
     }
     /// "If this spell was kicked, do this instead": a cost, and the spell it makes.
@@ -3536,7 +3557,7 @@ impl Compiler {
         self.plan_entry(
             &failed.feature,
             "own_casts",
-            &format!("OwnCast {{ zone: {zone}, condition: {condition}, grant: PlayGrant {{ {grant}..PlayGrant::PLAIN }} }}"),
+            &format!("OwnCast {{ zone: {zone}, condition: {condition}, grant: {grant} }}"),
             parts,
         );
         Ok(())
@@ -4263,7 +4284,7 @@ impl Compiler {
                 self.plan_entry(
                     &feature,
                     "abilities",
-                    &format!("{M}::attractions::visit({visit}, {prize}, {text})"),
+                    &format!("{M}::attractions::visit_ability({visit}, {prize}, {text})"),
                     parts,
                 );
             }

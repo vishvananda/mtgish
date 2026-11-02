@@ -3915,13 +3915,25 @@ impl Compiler {
                     }
                     None => {
                         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, attacker: ObjectId, defender: Target) -> bool {{ {guard}{test} && {at} }}").unwrap();
+                        // The cost as an ability's is written (Cantrip's
+                        // `AttackCost` is the decision's mana); its words if
+                        // the generator can't write it yet.
+                        let (gaps, functions) = (self.gaps.len(), self.functions.len());
+                        let mana_x = self.mana_x;
+                        let paid = self.cost(cost, &format!("{function}_cost"));
+                        self.mana_x = mana_x;
+                        let paid = match paid {
+                            Ok(code) => code,
+                            Err(_) => {
+                                self.gaps.truncate(gaps);
+                                self.functions.truncate(functions);
+                                quoted(&format!("{cost:?}"))
+                            }
+                        };
                         self.plan_entry(
                             "static rule CombatCost other than mana",
                             "attack_cost_rules",
-                            &format!(
-                                "AttackCost {{ applies: {function}, cost: {} }}",
-                                quoted(&form(cost))
-                            ),
+                            &format!("AttackPayment {{ applies: {function}, cost: {paid} }}"),
                             parts,
                         );
                     }

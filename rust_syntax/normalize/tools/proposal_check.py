@@ -111,7 +111,8 @@ def balanced(text, i):
 
 def split_args(inner):
     """The top-level comma-separated parts of `inner`, the text between a call's parentheses or a literal's braces."""
-    parts, angle, start, j = [], 0, 0, 0
+    # `ret`: in a closure's return type (`-> Result<(), Suspend>`), whose `<` opens generics too.
+    parts, angle, start, j, ret = [], 0, 0, 0, False
     while j < len(inner):
         j = SPLIT_BORING.match(inner, j).end()
         if j >= len(inner):
@@ -122,15 +123,19 @@ def split_args(inner):
             continue
         c = inner[j]
         if c in "([{":
+            if c == "{":
+                ret = False
             j = balanced(inner, j)
             continue
         if inner.startswith("::<", j):
             angle += 1
             j += 3
             continue
-        if angle and c == "<":
+        if c == ">" and inner[j - 1] == "-":
+            ret = True
+        elif (angle or ret) and c == "<":
             angle += 1
-        elif angle and c == ">" and inner[j - 1] != "-":
+        elif angle and c == ">":
             angle -= 1
         elif c == "|" and inner.startswith("||", j):
             j += 2
@@ -214,6 +219,7 @@ class Model:
         self.derives, self.kinds, self.units, self.lifetimes, self.homes = {}, {}, {}, {}, {}
         self.fields = collections.defaultdict(dict)
         self.variant_fields = collections.defaultdict(lambda: collections.defaultdict(collections.Counter))
+        self.variants = collections.defaultdict(dict)  # enum -> struct variant -> field -> type
         self.any_field = collections.defaultdict(collections.Counter)
         self.traits, self.modules = set(), set()
         used = collections.defaultdict(collections.Counter)
@@ -255,6 +261,7 @@ class Model:
                                 if t:
                                     self.variant_fields[name][t.group(1)][t.group(2).strip()] += 1
                                     self.any_field[t.group(1)][t.group(2).strip()] += 1
+                                    self.variants[name].setdefault(v.group(1), {})[t.group(1)] = t.group(2).strip()
                 for m in re.finditer(r"^pub trait (\w+)", code, re.M):
                     self.traits.add(m.group(1))
                 for m in re.finditer(r"\b([A-Z]\w*)::([A-Z][a-z]\w*)\b(?!\s*[({:])", code):
@@ -280,12 +287,22 @@ class Model:
     def known(self, name):
         return name in self.kinds
 
+    def in_card_def(self, name):
+        """Whether a field of `CardDef` holds `name` (`abilities: &'static [AbilityDef]`)."""
+        return any(re.search(rf"\b{name}\b", ty) for ty in self.fields.get("CardDef", {}).values())
+
     def storage(self, name):
         """What a value inside `name` must have: its derives, or a table's `Copy + Sync + 'static` if it isn't `Hash`."""
         derives = [d for d in self.derives.get(name, []) if d in DERIVABLE]
         return derives if "Hash" in derives else None
 
-    def field_type(self, enum, field):
+    def field_type(self, enum, field, fields=()):
+        """The type of `field` in a new struct variant of `enum` with `fields`: as the variant of `enum` sharing the most
+        of them types it (`CountersRemoved { object, kind, amount }`: `CountersPut`'s `kind`, not `DamageDealt`'s), or
+        else as most of `enum`'s variants, or any enum, type a field of that name."""
+        alike = [(len(set(fields) & set(have)), have) for have in self.variants.get(enum, {}).values() if field in have]
+        if alike and max(alike, key=lambda a: a[0])[0] > 1:
+            return max(alike, key=lambda a: a[0])[1][field]
         for counter in (self.variant_fields.get(enum, {}).get(field), self.any_field.get(field)):
             if counter:
                 return counter.most_common(1)[0][0]
@@ -354,6 +371,7 @@ class Spec:
         self.on = {}  # name -> use, for new items of a type Cantrip has
         self.new_fields = collections.defaultdict(set)  # struct -> fields a literal gives that it doesn't have
         self.read_fields = collections.defaultdict(set)  # struct -> fields read that it doesn't have
+        self.variant_fields = collections.defaultdict(set)  # (enum, variant) -> fields a pattern binds it doesn't have
         self.missing_modules, self.module_items = set(), set()
         self.rets = {}  # stub key -> the return type chosen where no call site says it
         self.unknown_rets = set()
@@ -378,7 +396,8 @@ class Spec:
     def size(self):
         return (f"{len(self.methods)} methods, {len(self.fns)} functions, {len(self.types)} types, {len(self.on)} "
                 f"extended, {sum(map(len, self.new_fields.values()))} new fields, "
-                f"{sum(map(len, self.read_fields.values()))} read fields, {len(self.rets)} returns chosen")
+                f"{sum(map(len, self.read_fields.values()))} read fields, "
+                f"{sum(map(len, self.variant_fields.values()))} variant fields, {len(self.rets)} returns chosen")
 
     def fingerprint(self):
         """What the stubs and rewrites would be: a pass that changes neither learnt nothing (counts of uses may grow)."""
@@ -432,6 +451,13 @@ class Spec:
                 self.new_fields[ty].add(m.group(2))
             elif ty in self.types:
                 self.types[ty]["literal"].add(m.group(2))
+            return
+        m = re.match(r"variant `(?:[\w:]*::)?(\w+)` does not have a field named `(\w+)`", msg)
+        if code == "E0026" and m:
+            # The enum is the one the pattern names before the variant.
+            path = list(re.finditer(rf"(\w+)::{m.group(1)}\s*\{{", text[max(0, start - 2000) : start]))
+            if path and self.model.known(path[-1].group(1)):
+                self.variant_fields[(path[-1].group(1), m.group(1))].add(m.group(2))
             return
         m = re.match(r"no field `(\w+)` on type `([^`]+)`", msg)
         if code == "E0609" and m:
@@ -609,6 +635,10 @@ class Spec:
                 query = any(k == "dyn" and t != "Game" for k, t in entry["bases"])
                 stores = self.method_stores(name, ty)
                 bound = "Stored" if stores else "Data"
+                # A method of a value a CardDef field holds (`ability(..).divide(..)`) builds that table entry: what
+                # it is given is held in the table, as a field of it would be.
+                if kind != "dyn" and self.model.in_card_def(ty):
+                    bound = self.payload(ty, out, seen)[len(ROOT) + 2 :]
                 receiver = "&mut self" if ty == "Game" and not query else "&self"
                 arity = entry["arity"].most_common(1)[0][0]
                 ret, generic = self.ret(f"m::{name}", entry.get("tried"))
@@ -660,6 +690,16 @@ class Spec:
             fns = "\n".join(f"    /// Proposed: a field of `{ty}`.\n    fn {f}<R: {bound}>(&self) -> R {{ panic!({PANIC_RS}) }}\n"
                             f"    fn {f}__set<V: {bound}>(&mut self, v: V) {{}}" for f in sorted(names))
             out.append(f"pub trait ProposedField_{ty} {{\n{fns}\n}}\nimpl ProposedField_{ty} for {ty} {{}}")
+        # New fields of an existing enum's variant, as a pattern binds them: read off the value matched, as the
+        # field would be held.
+        by_enum = collections.defaultdict(list)
+        for (ty, variant), names in sorted(self.variant_fields.items()):
+            bound = self.payload(ty, out, seen)
+            fns = "\n".join(f"        /// Proposed: a field of `{ty}::{variant}`.\n        pub fn {f}<R: {bound}, S>(s: "
+                            f"S) -> &'static R {{ panic!({PANIC_RS}) }}" for f in sorted(names))
+            by_enum[ty].append(f"    pub mod {variant} {{\n{fns}\n    }}")
+        out.append("pub mod variant_field {\n" + "\n".join(f"pub mod {ty} {{\n" + "\n".join(mods) + "\n}"
+                                                       for ty, mods in sorted(by_enum.items())) + "\n}")
         return "\n\n".join(out) + "\n"
 
     def method_stores(self, name, ty):
@@ -809,7 +849,7 @@ class Spec:
             fields = sorted(fields)
             typed, params = [], []
             for f in fields:
-                known = self.model.field_type(ty, f)
+                known = self.model.field_type(ty, f, fields)
                 if known:
                     typed.append(f"pub {f}: {known}")
                 else:
@@ -957,6 +997,49 @@ def drop_new_fields(text, new_fields):
     return text
 
 
+def variant_new_fields(text, variant_fields):
+    """`if let Enum::Variant { a, new: p, .. } = s {`, where `new` is a field the variant doesn't have, as
+    `if let (p, Enum::Variant { a, .. }) = (variant_field::Enum::Variant::new(&s), s) {`: the field read off the value
+    matched, its pattern binding as the field's would."""
+    for (ty, variant), names in variant_fields.items():
+        if variant not in text:
+            continue
+        pat = re.compile(rf"\bif\s+let\s+((?:cantrip_api::)?{ty}::{variant}\s*)\{{")
+        at = 0
+        while m := pat.search(text, at):
+            open_at = m.end() - 1
+            close = balanced(text, open_at)
+            eq = re.compile(r"\s*=(?!=)\s*").match(text, close)
+            if not eq:
+                at = close
+                continue
+            # The scrutinee runs to the body's brace.
+            depth, end = 0, eq.end()
+            while end < len(text) and not (text[end] == "{" and depth == 0):
+                depth += 1 if text[end] in "([" else -1 if text[end] in ")]" else 0
+                end += 1
+            scrutinee = text[eq.end() : end].strip()
+            kept, reads = [], []
+            for part in split_args(text[open_at + 1 : close - 1]):
+                f = re.match(r"(\w+)\s*(?::\s*(.*))?$", part.strip(), re.S)
+                if f and f.group(1) in names:
+                    reads.append(((f.group(2) or f.group(1)).strip(),
+                                  f"{ROOT}::variant_field::{ty}::{variant}::{f.group(1)}(&{scrutinee})"))
+                elif part.strip():
+                    kept.append(part.strip())
+            if not reads:
+                at = close
+                continue
+            if ".." not in kept:
+                kept.append("..")
+            patterns = ", ".join([p for p, _ in reads] + [f"{m.group(1)}{{ {', '.join(kept)} }}"])
+            values = ", ".join([r for _, r in reads] + [scrutinee])
+            new = f"if let ({patterns}) = ({values}) "
+            text = text[: m.start()] + new + text[end:]
+            at = m.start() + len(new)
+    return text
+
+
 def struct_variants(text, spec):
     """A struct variant Cantrip doesn't have, `on::Type::Variant { .. }`: as a pattern, matched against the shim of the
     variant its scrutinee is read as; as an expression, made by `make`, which asks what the type derives of its fields."""
@@ -1021,6 +1104,7 @@ def rewrite(text, model, spec=None):
         if key in text:
             text = old.sub(new, text)
     text = drop_new_fields(text, spec.new_fields)
+    text = variant_new_fields(text, spec.variant_fields)
     text = fn_items_as_pointers(text, spec.data_method_call())
     return struct_variants(text, spec)
 

@@ -441,7 +441,7 @@
 "match": "^(casting rule ProhibitTargets|casting rule TaxPaidAsLife)$",
 "class": "engine",
 "needs": "A rule of casting this spell with no field",
-"api": "CardDef::cast_rules: &[CastRule::..]"
+"api": "CardDef::casting_terms: &[CastingTerm::..]"
 },
 {
 "match": "^cost branch ",

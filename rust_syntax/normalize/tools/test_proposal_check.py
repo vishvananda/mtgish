@@ -31,6 +31,9 @@ impl CardDef {
 }
 #[derive(Clone, Copy, Debug)]
 pub struct TriggerDef { pub text: &'static str }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Event { DamageDealt { source: ObjectId, kind: DamageKind }, Lost { kind: DamageKind },
+    CountersPut { object: ObjectId, kind: CounterKind, amount: i16 } }
 """
 MECHANICS = "pub mod tokens;\npub mod counters;\n"
 
@@ -76,6 +79,9 @@ class Text(unittest.TestCase):
                          ["source", "move |q, asker, id| q.is(id)", "EffectKind::CantBlock", "d"])
         self.assertEqual(pc.split_args("applies: |q, id| true, text: \"a, b\""), ["applies: |q, id| true", 'text: "a, b"'])
         self.assertEqual(pc.split_args("a || b, f::<A, B>(x)"), ["a || b", "f::<A, B>(x)"])
+        # A closure's return type has generics of its own.
+        self.assertEqual(pc.split_args("|q: &dyn Query| p, |g: &mut dyn Game| -> Result<(), Suspend> { Ok(()) }, x < y"),
+                         ["|q: &dyn Query| p", "|g: &mut dyn Game| -> Result<(), Suspend> { Ok(()) }", "x < y"])
 
     def test_how_a_name_is_used(self):
         text = "X::new(a, b)? ; Y { a: 1, b } ; Z::W ; v"
@@ -99,6 +105,10 @@ class Model(unittest.TestCase):
         self.assertEqual(MODEL.field_type("EffectKind", "index"), "u8")
         self.assertEqual(MODEL.modules, {"tokens", "counters"})
         self.assertIn("Game", MODEL.traits)
+
+    def test_a_new_variants_field_is_typed_as_the_variant_most_like_it_types_it(self):
+        self.assertEqual(MODEL.field_type("Event", "kind", ["object", "kind", "amount"]), "CounterKind")
+        self.assertEqual(MODEL.field_type("Event", "kind", ["kind"]), "DamageKind")
 
     def test_state_keeps_what_it_derives_and_a_table_is_not_state(self):
         self.assertEqual(MODEL.storage("Duration"), ["Clone", "Copy", "Debug", "PartialEq", "Eq", "Hash"])
@@ -125,6 +135,12 @@ class Stubs(unittest.TestCase):
         self.assertIn("fn reveal_hand<A0: crate::proposals::Data, R>(&mut self, a0: A0)", stubs)
         self.assertIn("fn votes<A0: crate::proposals::Data, R>(&self, a0: A0) -> R", stubs)
         self.assertIn("impl Proposed_Query for dyn Query + '_ {}", stubs)
+
+    def test_a_method_of_what_a_cardef_field_holds_keeps_what_it_is_given_in_the_table(self):
+        text = "static T: &[TriggerDef] = &[TRIGGER.divide_activated(d)];"
+        stubs = learnt(("E0599", "no method named `divide_activated` found for struct `TriggerDef` in the current "
+                        "scope", text, "divide_activated")).write()
+        self.assertIn("fn divide_activated<A0: crate::proposals::TableEntry", stubs)
 
     def test_cantrip_keeps_state_as_copy_eq_hash_data(self):
         self.assertIn("pub trait Stored: Copy + Eq + std::hash::Hash {}", pc.PRELUDE)
@@ -168,6 +184,27 @@ class Stubs(unittest.TestCase):
         self.assertEqual(pc.rewrite(made, MODEL, spec),
                          "let k = crate::proposals::on::EffectKind::Shielded_new { card: c, index: "
                          "crate::proposals::on::EffectKind::Shielded_new { card: d, index: 0 }.make() }.make();")
+
+    def test_a_new_variant_inside_another_is_made_too(self):
+        text = "let k = EffectKind::Shielded { card: c, index: Duration::Lapsed { at: 1 } };"
+        spec = learnt(("E0599", "no variant named `Shielded` found for enum `EffectKind`", text, "Shielded"),
+                      ("E0599", "no variant named `Lapsed` found for enum `Duration`", text, "Lapsed"))
+        self.assertEqual(pc.rewrite(text, MODEL, spec),
+                         "let k = crate::proposals::on::EffectKind::Shielded_new { card: c, index: "
+                         "crate::proposals::on::Duration::Lapsed_new { at: 1 }.make() }.make();")
+
+    def test_a_new_field_of_an_existing_variant_is_read_off_what_the_pattern_matches(self):
+        text = ("if let Event::Lost { kind, by: Some(player) } = event { return Some(*player); } "
+                "if let cantrip_api::Event::CountersPut { object, previous, .. } = event { }")
+        spec = learnt(("E0026", "variant `Lost` does not have a field named `by`", text, "by"),
+                      ("E0026", "variant `cantrip_api::Event::CountersPut` does not have a field named `previous`",
+                       text, "previous"))
+        self.assertIn("pub fn by<R: crate::proposals::Derives_Event, S>(s: S) -> &'static R", spec.write())
+        self.assertEqual(pc.rewrite(text, MODEL, spec),
+                         "if let (Some(player), Event::Lost { kind, .. }) = "
+                         "(crate::proposals::variant_field::Event::Lost::by(&event), event) { return Some(*player); } "
+                         "if let (previous, cantrip_api::Event::CountersPut { object, .. }) = "
+                         "(crate::proposals::variant_field::Event::CountersPut::previous(&event), event) { }")
 
     def test_a_new_cardef_field_holds_a_table_entry(self):
         text = "pub static CARD: CardDef = CardDef { spell: None, lasting_rules: &[RULE], ..CardDef::BLANK };"

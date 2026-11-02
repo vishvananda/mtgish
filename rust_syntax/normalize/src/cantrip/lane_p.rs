@@ -1274,7 +1274,7 @@ impl Compiler {
                 for value in values {
                     each.push(self.number(value)?.code);
                 }
-                held_number(feature, &format!("{M}::numbers::AnyOf(&[{}])", each.join(", ")))
+                held_number(feature, &format!("{M}::numbers::any_of(&[{}])", each.join(", ")))
             }
             Expr::ModesChosen(object) => held_number(
                 feature,
@@ -2357,7 +2357,7 @@ impl Compiler {
             states.join(", ")
         ))
     }
-    fn arrival_state(&mut self, state: &EntryState, failed: &str) -> Result<String> {
+    pub(super) fn arrival_state(&mut self, state: &EntryState, failed: &str) -> Result<String> {
         let changes = |c: &mut Self, changes: &[Change]| -> Result<String> {
             let mut kinds = Vec::new();
             for change in changes {
@@ -2582,8 +2582,9 @@ impl Compiler {
         }
         let players = self.fetch(self.players(players)?);
         let arrival = self.arrival_code(entry, &failed.feature)?;
+        // Not `tokens::create`, which Cantrip has for one definition.
         let call = format!(
-            "{M}::tokens::create(g, asker, {players}, &[{}], {arrival})?",
+            "{M}::tokens::create_from_recipes(g, asker.source, &{players}, &[{}], {arrival})?",
             orders.join(", ")
         );
         let created = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);
@@ -3961,7 +3962,7 @@ impl Compiler {
             } => {
                 let library = self.fetch(self.certain_player(library)?);
                 let rule = self.stated_constraints(constraints)?;
-                format!("let revealed = {M}::library::reveal_until_group(g, {library}, {source}, {rule})?")
+                format!("let revealed = {M}::library::reveal_until_group(g, {library}, {source}, {rule})?;")
             }
             Operation::RevealUntil {
                 library,
@@ -3976,7 +3977,7 @@ impl Compiler {
                     Some(n) => format!("Some({})", self.fetch(self.number(n)?.code)),
                     None => "None".to_string(),
                 };
-                format!("let revealed = {M}::library::reveal_until_or(g, {library}, {source}, {filter}, {count}, {most})?")
+                format!("let revealed = {M}::library::reveal_until_or(g, {library}, {source}, {filter}, {count}, {most})?;")
             }
             // What triggered it, spell or ability, whichever the event was.
             Operation::SetX {
@@ -4069,7 +4070,12 @@ impl Compiler {
             } => {
                 let actors = self.stated_players(actor)?;
                 let options = self.stated_operands(options);
-                format!("{M}::choose::value(g, {source}, {actors}, ChoiceKind::{kind:?}, {count}, {options})?")
+                // As lane_l's choice on terms calls it: one signature.
+                let count = match count {
+                    0 => "None".to_string(),
+                    n => format!("Some({n})"),
+                };
+                format!("{M}::choose::value(g, {actors}, {source}, ChoiceKind::{kind:?}, ChoiceTerms {{ options: {options}, except: &[], count: {count}, secret: false, unchosen: false, random: false, ordered: false, up_to: false }})?")
             }
             Operation::ChooseAtRandom { kind, options } => {
                 let options = self.stated_operands(options);
@@ -4182,6 +4188,17 @@ impl Compiler {
             D::WhileItMatches(filter) => {
                 format!("Duration::WhileItMatches({})", self.filter_fn(filter)?)
             }
+            // What these name is read as the effect begins, as the rest are.
+            D::DuringNextTurn(player) | D::UntilNextUntapStep(player) => {
+                match self.certain_player(player) {
+                    Ok(player) => format!("Duration::{}({})", form(duration), self.fetch(player)),
+                    Err(_) => return lane_m::duration_more(duration),
+                }
+            }
+            D::WhileOnBattlefield(object) | D::UntilCast(object) => match self.object(object) {
+                Ok(object) => format!("Duration::{}({})", form(duration), self.fetch(object)),
+                Err(_) => return lane_m::duration_more(duration),
+            },
             other => return lane_m::duration_more(other),
         };
         Ok(planned::planned_value(&feature, later, &code))
