@@ -96,7 +96,6 @@ struct Walker {
     damage_subjects: Vec<Option<Value>>,
     /// Whether each open ability's event is about the source itself.
     subjects: Vec<Subject>,
-    destinations: Vec<Option<Value>>,
     event_header: bool,
     reference_reductions: bool,
     /// Keep ids and list order, for callers that read the text back out.
@@ -214,7 +213,6 @@ impl Walker {
             self.damage_subjects
                 .push(damage_subject(&value["args"]["event"]));
             self.subjects.push(subject_of(value));
-            self.destinations.push(events::destination(value));
         }
         let schema = self.schema;
         match schema.types.get(name) {
@@ -231,7 +229,6 @@ impl Walker {
             self.scopes.pop();
             self.damage_subjects.pop();
             self.subjects.pop();
-            self.destinations.pop();
         }
     }
 
@@ -287,6 +284,7 @@ impl Walker {
             match (name, variant.as_str()) {
                 ("ObjectFilter", "InSet") => one_object_set(value),
                 ("ObjectSet", "Zone") => narrow_zone_scope(content_of(value)),
+                ("ObjectSet", "InZone") => repeated_current_zone(value),
                 ("ObjectSet", "Battlefield") => drop_permanent_types(content_of(value)),
                 ("EventSpec", "ZoneChange") => {
                     if value["ZoneChange"]["to"] == "Battlefield" {
@@ -307,17 +305,6 @@ impl Walker {
                         && value["args"]["kind"] == "Source"
                     {
                         *value = serde_json::json!({"kind": "AbilityController"});
-                    }
-                }
-                ("ObjectRef", "Query") => {
-                    if references
-                        && in_event_destination(&value["args"])
-                        && self.destinations.last().and_then(Option::as_ref)
-                            == value.pointer("/args/objects/args/zone")
-                    {
-                        let source = self.names_source(subject);
-                        let kind = if source { "Source" } else { "EventSubject" };
-                        *value = serde_json::json!({"kind": kind});
                     }
                 }
                 ("Recipients", "Union") => self.merge_permanent_groups(value),
@@ -416,13 +403,11 @@ impl Walker {
         let old_reductions = self.reference_reductions;
         self.subjects.push(frame.subject);
         self.damage_subjects.push(frame.damage.clone());
-        self.destinations.push(frame.destination.clone());
         self.event_header = false;
         self.reference_reductions = true;
         self.walk(value, ty, false);
         self.subjects.pop();
         self.damage_subjects.pop();
-        self.destinations.pop();
         self.event_header = old_header;
         self.reference_reductions = old_reductions;
     }
@@ -507,13 +492,24 @@ fn merge_triggers(items: &mut Vec<Value>) {
     *items = merged;
 }
 
-/// The card a zone-change trigger's event just put in that zone.
-fn in_event_destination(query: &Value) -> bool {
+/// Indexing one currently filtered object already enforces this exact zone.
+/// Keep the inner query: unlike EventSubject/Source, it selects nothing after
+/// the object leaves. No history view or mismatched zone is simplified here.
+fn repeated_current_zone(value: &mut Value) {
+    let outer = &value["args"];
+    let one = &outer["objects"];
+    let reference = &one["args"];
+    let query = &reference["args"];
     let objects = &query["objects"];
-    query["index"] == 0
+    if one["kind"] == "One"
+        && reference["kind"] == "Query"
+        && query["index"] == 0
         && objects["kind"] == "InZone"
         && objects["args"]["objects"]["kind"] == "One"
-        && objects["args"]["objects"]["args"]["kind"] == "EventDestination"
+        && objects["args"]["zone"] == outer["zone"]
+    {
+        *value = one.clone();
+    }
 }
 
 /// `All([a, All([b])])` means `All([a, b])`, for `All` and for `Either`.
@@ -654,7 +650,6 @@ fn normalize(value: &mut Value, keep_order: bool) -> Result<(), String> {
         scopes: Vec::new(),
         damage_subjects: Vec::new(),
         subjects: Vec::new(),
-        destinations: Vec::new(),
         event_header: false,
         reference_reductions: true,
         keep_order,

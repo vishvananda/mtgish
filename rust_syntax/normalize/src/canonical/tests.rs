@@ -3,6 +3,7 @@ use serde_json::{json, Value};
 
 mod audit;
 mod created;
+mod departures;
 
 // Reuse the existing canonical regression suite without building the export CLI.
 mod regressions {
@@ -184,7 +185,7 @@ fn destination(zone: &str) -> Value {
 }
 
 #[test]
-fn destination_reduction_requires_a_matching_zone_change_context() {
+fn destination_queries_keep_their_current_zone_checks() {
     let mut value = json!([{"kind":"Triggered","args":{
         "event":{"ZoneChange":{"objects":{"kind":"Any"},"from":null,"to":"Graveyard"}},
         "body":{"instructions":[{"kind":"Effect","args":{"result":3,"operation":{"kind":"Move","args":{
@@ -201,7 +202,7 @@ fn destination_reduction_requires_a_matching_zone_change_context() {
     assert_eq!(
         value[0]["args"]["body"]["instructions"][0]["args"]["operation"]["args"]["objects"]["args"]
             ["kind"],
-        "EventSubject"
+        "Query"
     );
 }
 
