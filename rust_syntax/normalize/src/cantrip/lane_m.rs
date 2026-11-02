@@ -581,6 +581,11 @@ impl Compiler {
             EarlierObjects::Discarded if self.cast_pays.contains(&"Discarded") => {
                 "Event::Discarded { card, .. } => Some(card)"
             }
+            // Web-slinging's return is the spell's only cost that returns a
+            // permanent, read as it last existed (CR 702.188a).
+            EarlierObjects::Webslung => {
+                "Event::ZoneChange { old, from, to, .. } if from.is(ZoneKind::Battlefield) && to.is(ZoneKind::Hand) => Some(old)"
+            }
             _ => return None,
         };
         let me = if self.stack_item { "item.object" } else { "asker.source" };
