@@ -49,7 +49,23 @@ const CARDS: &[(&str, &str)] = &[
     // "Your choice", which the data says of no one.
     ("Hinder", "counter into OwnersLibraryTopOrBottom"),
     ("Ilharg, the Raze-Boar", "may_put_onto_battlefield_attacking"),
+    // The spell that reads a name counts what says it counts as that name.
+    ("Muscle Burst", "\"Diligent Farmhand\""),
+    ("Diligent Farmhand", "statics: &[]"),
+    // Each basic land type, read from the layer before abilities.
+    ("Magnigoth Treefolk", "Keyword::landwalk(kind)"),
+    // An X in an alternative cost is announced like the mana cost's.
+    ("Fall of the Titans", "surge::way(ManaCost { generic: 0, x: 1"),
+    ("Pippin, Guard of the Citadel", "EffectKind::ProtectionFromTypes"),
+    // "Corrupted": the way's one condition holds the requirement too.
+    ("Viral Spawning", ".exile_after().condition("),
+    // Sizes known as the payer is asked, and a payer's own permanents.
+    ("Archfiend of Spite", "Cost::sacrifice(("),
+    ("Reservoir Kraken", "tap_untapped(1, "),
+    ("Escape Detection", "freerunning::assassin_dealt_combat_damage"),
     // Holes that stay, each for what the form can't say.
+    // Its own ability is told from the others by its printed words.
+    ("Withering Wisps", "engine: no limit on activations each turn"),
     (
         "Korvold, Gleeful Glutton",
         "a sacrifice history with its player lost in the data",
