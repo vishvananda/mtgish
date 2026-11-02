@@ -930,6 +930,25 @@ impl Compiler {
         rest: &[Instruction],
         label: &str,
     ) -> Result<Option<String>> {
+        // "Add two mana of different colors" (CR 106.1b): each a color the ones
+        // before it aren't, chosen as the ability resolves (Wizards' Rockets asks
+        // its colors the same way).
+        if let (ManaProduction::DifferentColors(n @ 1..=5), []) = (mana, rest) {
+            let (lasting, restriction) = mana_lasting(restriction);
+            if lasting.is_some() {
+                return Ok(None);
+            }
+            let rule = restriction.map(|r| self.mana_use(r)).transpose()?;
+            let (add, only) = match &rule {
+                Some(rule) => (
+                    format!("g.add_restricted_mana(asker.controller, color.mana(), 1, {rule});"),
+                    format!(".only_for({rule})"),
+                ),
+                None => ("g.add_mana(asker.controller, color.mana(), 1);".to_string(), String::new()),
+            };
+            writeln!(self.functions, "fn {label}(g: &mut dyn Game, asker: &Asker, _: Option<Color>) -> Result<(), Suspend> {{ let mut left = ColorSet(0b11111); for _ in 0..{n} {{ let color = cantrip_mechanics::choose_colors(g, asker.controller, asker.source, left, 1)?[0]; left = ColorSet(left.0 & !ColorSet::of(color).0); {add} }} Ok(()) }}").unwrap();
+            return Ok(Some(format!("add_by({label}).yields_any({n}){only}")));
+        }
         let among = matches!(
             mana,
             ManaProduction::ColorsAmong { .. }
@@ -1295,6 +1314,21 @@ impl Compiler {
                     return Err(gap(format!("resolution cost {}", form(part))));
                 };
                 writeln!(out, "let paid_{id} = !{applied}.is_empty();").unwrap();
+            }
+            // "Move one or more counters from this onto another target permanent
+            // you control. If you do": how many of each kind it has, a question for
+            // each (as moving any number of each kind is asked), the last kind
+            // asked for at least one while none has moved (CR 122.5, 608.2c).
+            CostPart::MoveCounters {
+                from,
+                to,
+                kind: None,
+                amount: MovedCounters::AtLeast(Expr::Constant(1)),
+            } => {
+                let actor = self.fetch(self.certain_player(player)?);
+                let sources = self.acted_on(from)?;
+                let recipient = self.acted_on(to)?;
+                writeln!(out, "let mut done_{id}: i64 = 0; let actor_{id} = {actor}; let from_{id}: Option<ObjectId> = ({sources}).first().copied(); let to_{id}: Option<ObjectId> = ({recipient}).first().copied(); if let (Some(from), Some(to)) = (from_{id}, to_{id}) {{ let kinds: Vec<CounterKind> = CounterKind::ALL.into_iter().filter(|&kind| g.state().obj(from).counters(kind) > 0).collect(); let last = kinds.len(); for (i, kind) in kinds.into_iter().enumerate() {{ let most = g.state().obj(from).counters(kind).clamp(0, 255) as u32; let least = u32::from(done_{id} == 0 && i + 1 == last); if most >= least {{ let amount = cantrip_mechanics::choose::number(g, actor_{id}, asker.source, least, most, \"Move counters\")? as i16; done_{id} += i64::from(g.move_counters(from, to, kind, amount)); }} }} }} let paid_{id} = done_{id} > 0;").unwrap();
             }
             other => {
                 let feature = format!("resolution cost {}", form(other));
@@ -1763,6 +1797,14 @@ impl Compiler {
                     &format!("({inner}).chosen_under(&[{}])", rules.join(", ")),
                 )
             }
+            // Tariff: "sacrifices the creature ... unless they pay that creature's mana
+            // cost". The data pays the cost of any creature that ties and then has the
+            // sacrifice choose among them again, so the creature paid for and the one
+            // sacrificed are not one choice.
+            CostPart::ObjectAction {
+                action: CostObjectAction::PayManaCost,
+                ..
+            } => return Err(gap("a mana cost paid for one creature and a sacrifice choosing again")),
             other => return Err(gap(format!("cost part {}", form(other)))),
         })
     }

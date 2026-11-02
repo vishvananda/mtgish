@@ -681,6 +681,9 @@ struct Compiler {
     paradigm: bool,
     /// Inside a spell's cost change, which has `targets` in reach.
     costing_targets: bool,
+    /// A spell's additional cost read the game for its size, so it is worked out
+    /// as the total cost is (`cost_of_targets`, CR 601.2f).
+    cost_reads_board: bool,
     /// An intervening "if" that reads the event, for each mode to ask again.
     mode_guard: Option<Condition>,
     /// What the cost being compiled is paid for.
@@ -1069,6 +1072,7 @@ impl Compiler {
             watching_object: None,
             bound_players: BTreeSet::new(),
             costing_targets: false,
+            cost_reads_board: false,
             mode_guard: None,
             paying: lane_g::Paying::Ability,
             counted: None,

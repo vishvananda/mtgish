@@ -309,6 +309,11 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         {
             &["Sacrificed"]
         }
+        Operation::PayCost { cost, optional: true, .. }
+            if matches!(cost.parts.as_slice(), [CostPart::UnattachFrom { .. }]) =>
+        {
+            &["Unattached"]
+        }
         Operation::Destroy { .. } => &["PutInGraveyard"],
         Operation::Counter { .. } => &["Countered"],
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],

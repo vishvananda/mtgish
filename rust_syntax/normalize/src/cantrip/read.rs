@@ -1464,10 +1464,9 @@ impl Compiler {
                     DistinctProperty::ColorPairs => format!(
                         "{{ let mut seen = Vec::new(); for id in {objects} {{ let value = q.chars(id).colors; if value.iter().count() == 2 && !seen.contains(&value) {{ seen.push(value); }} }} seen.len() as i64 }}"
                     ),
-                    DistinctProperty::UnlockedDoorNames => planned::planned_value(
-                        "distinct UnlockedDoorNames",
-                        "0i64",
-                        &format!("cantrip_mechanics::rooms::unlocked_door_names(q, &{objects})"),
+                    // A Room's names are its unlocked doors' alone (CR 709.5).
+                    DistinctProperty::UnlockedDoorNames => format!(
+                        "{{ let mut seen: Vec<&'static str> = Vec::new(); for id in {objects} {{ for name in cantrip_mechanics::library::object_names(q, id) {{ if !seen.contains(&name) {{ seen.push(name); }} }} }} seen.len() as i64 }}"
                     ),
                     other => return Err(gap(format!("distinct {}", form(other)))),
                 })
