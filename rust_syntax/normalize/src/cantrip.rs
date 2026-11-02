@@ -2138,16 +2138,6 @@ fn ability_text(body: &Program) -> String {
         .join(" ")
 }
 
-/// What `card_files` found for one record.
-#[derive(serde::Serialize)]
-pub struct CardFileRow {
-    pub line: usize,
-    pub name: String,
-    /// The file, when the card has one; `None` with no gap needs only content.
-    pub rust: Option<String>,
-    pub gap: Option<String>,
-}
-
 /// Each face's printed text, by name.
 fn oracle_texts(oracle: &Path) -> corpus::Result<BTreeMap<String, String>> {
     // Read whole first: through a reader serde_json takes a byte at a time, most of a second here.
@@ -2162,63 +2152,6 @@ fn oracle_texts(oracle: &Path) -> corpus::Result<BTreeMap<String, String>> {
             Some((face["name"].as_str()?.to_string(), text.to_string()))
         })
         .collect())
-}
-
-/// Every single-faced, complete, primitive-free record the recipes of
-/// `card_file` cover, or the gap that stops it, as one JSON object a line.
-pub fn card_files(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usize> {
-    let oracle = oracle_texts(oracle)?;
-    let mut artifact = corpus::Artifact::create(output)?;
-    let mut count = 0;
-    corpus::map_cards(
-        input,
-        |line, source| -> corpus::Result<Option<CardFileRow>> {
-            let identity = corpus::Identity::of(&source)?;
-            let lowered = crate::unified::lower(&source);
-            let forms = crate::unified::forms(&lowered.card);
-            if !(lowered.diagnostics.is_empty() && forms.named.is_empty())
-                || !forms.primitives.is_empty()
-                || lowered.card.layout != "Card"
-                || lowered.card.faces.len() != 1
-            {
-                return Ok(None);
-            }
-            let name = identity.names.join(" // ");
-            let face = &lowered.card.faces[0];
-            if !gaps(face).is_empty() {
-                return Ok(None);
-            }
-            let Some(text) = oracle.get(&name) else {
-                return Ok(None);
-            };
-            let (rust, gap) = match card_file::card_file(face, text) {
-                Ok(rust) => (rust, None),
-                Err(recipe) => match lane_f::whole_printed(&source, &lowered.card, Some(&oracle)) {
-                    Ok(whole) if whole.faces.iter().all(|f| f.gaps.is_empty()) => {
-                        let module: String = whole.faces.iter().map(|f| f.rust.as_str()).collect();
-                        let characteristics = pr_form::Characteristics::Oracle;
-                        (pr_form::render(&module, &name, text, characteristics), None)
-                    }
-                    _ => (None, Some(recipe.feature)),
-                },
-            };
-            Ok(Some(CardFileRow {
-                line,
-                name,
-                rust,
-                gap,
-            }))
-        },
-        |_, row| {
-            if let Some(row) = row {
-                writeln!(artifact, "{}", serde_json::to_string(&row)?)?;
-                count += 1;
-            }
-            Ok(())
-        },
-    )?;
-    artifact.commit()?;
-    Ok(count)
 }
 
 /// The module of each named card in a source corpus, for reading what the

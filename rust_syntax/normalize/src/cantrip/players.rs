@@ -94,7 +94,7 @@ impl Compiler {
         let guard = self.guard()?;
         let function = format!("{label}_affinity");
         self.table_entry(parts, "cost_changes", &function, format!(
-            "fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ {PRELUDE} let Costed::Spell(spell) = costed else {{ return CostDelta::NONE; }}; if {guard}player == asker.controller && {test} {{ let count = q.permanents_of(player).into_iter().filter(|&id| {counted}).count(); CostDelta::less(count.min(255) as u8) }} else {{ CostDelta::NONE }} }}"
+            "fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ {PRELUDE} let Costed::Spell(spell) = costed else {{ return CostDelta::NONE; }}; if {guard}player == asker.controller && {test} {{ let count = q.permanents_of(player).into_iter().filter(|&id| {counted}).count(); CostDelta::less(count as u32) }} else {{ CostDelta::NONE }} }}"
         ));
         Ok(true)
     }

@@ -2933,7 +2933,7 @@ fn printed_of(call: &syn::ExprCall) -> Option<String> {
     if !matches!(
         name.as_str(),
         "triggered" | "ability" | "mana_ability" | "static_ability" | "activated" | "loyalty_ability"
-            | "replacement" | "prevention"
+            | "replacement" | "prevention" | "chapter"
     ) {
         return None;
     }
@@ -3247,7 +3247,7 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         ("exile", "406.3"),
         ("sacrifice", "701.21a"),
         ("discard", "701.9a"),
-        ("gain_life", "119.1"),
+        ("gain_life", "119.3"),
         ("lose_life", "119.3"),
         ("create_token", "111.1"),
         ("add_counters", "122.1"),

@@ -2579,10 +2579,10 @@ impl Compiler {
                     return Err(gap("pay a set X"));
                 };
                 let base = mana(symbols)?;
-                let owed = self.fetch(self.number(x)?.amount(255, "u8")?);
+                let owed = self.fetch(self.number(x)?.amount(u32::MAX.into(), "u32")?);
                 self.helpers.insert("pay_question");
                 let payer = self.fetch(self.certain_player(player)?);
-                writeln!(out, "let payer_{id} = {payer}; let owed_{id}: u8 = {owed}; let base_{id} = {base}; let price_{id} = ManaCost {{ generic: base_{id}.generic.saturating_add(owed_{id}.saturating_mul(base_{id}.x)), x: 0, ..base_{id} }}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, Cost::mana(price_{id}), &PAY_QUESTION)?;").unwrap();
+                writeln!(out, "let payer_{id} = {payer}; let owed_{id}: u32 = {owed}; let base_{id} = {base}; let price_{id} = ManaCost {{ generic: base_{id}.generic.saturating_add(owed_{id}.saturating_mul(u32::from(base_{id}.x))), x: 0, ..base_{id} }}; let paid_{id} = g.may_pay(payer_{id}, asker.source, asker.source, Cost::mana(price_{id}), &PAY_QUESTION)?;").unwrap();
                 self.performed.insert(result.0, format!("paid_{id}"));
             }
             Operation::PayCost {

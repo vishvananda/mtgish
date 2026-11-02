@@ -639,13 +639,21 @@ pub(super) fn paid_by_a_choice(cost: &Cost) -> bool {
 
 /// Whether what `decider` may do starts with their choosing one object.
 pub(super) fn chooses_first(decider: &PlayerRef, body: &Program) -> bool {
+    chooses_first_after(decider, body, false)
+}
+
+/// `chooses_first`, `looked` if the cards were looked at first.
+fn chooses_first_after(decider: &PlayerRef, body: &Program, mut looked: bool) -> bool {
     for instruction in &body.instructions {
         match instruction {
-            Instruction::Group(group) => return chooses_first(decider, group),
+            Instruction::Group(group) => return chooses_first_after(decider, group, looked),
             Instruction::Effect {
                 operation: Operation::LookAt { .. },
                 ..
-            } => continue,
+            } => {
+                looked = true;
+                continue;
+            }
             Instruction::Effect {
                 operation:
                     Operation::Discard {
@@ -699,14 +707,19 @@ pub(super) fn chooses_first(decider: &PlayerRef, body: &Program) -> bool {
                     Operation::ChooseObjects {
                         player,
                         objects,
-                        count:
-                            Count::Exactly(Expr::Constant(1))
-                            | Count::AsManyAsCan(Expr::Constant(1))
-                            | Count::AnyNumber,
+                        count,
                         constraints,
                     },
                 ..
-            } => {
+            } if matches!(
+                count,
+                Count::Exactly(Expr::Constant(1)) | Count::AsManyAsCan(Expr::Constant(1)) | Count::AnyNumber
+            ) || (!looked && matches!(count, Count::UpTo(_))) =>
+            {
+                // "You may discard up to two cards": the choice is the may, none is
+                // declining it (Fable of the Mirror-Breaker). Not after a look: "you may
+                // look at ..., put up to one ... and the rest on the bottom" still puts the
+                // rest there when none is chosen (Call to the Kindred).
                 return format!("{player:?}") == format!("{decider:?}")
                     && !matches!(objects, ObjectSet::Created(_))
                     && !constraints

@@ -634,7 +634,7 @@ impl Compiler {
                 (self.reader, self.event_at) = saved;
                 let test = test?;
                 let function = format!("{label}_affinity");
-                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ if costed != Costed::Spell(source) {{ return CostDelta::NONE; }} let asker = &Asker::new(source, player); let count = q.permanents_of(player).into_iter().filter(|&id| {test}).count(); CostDelta::less(count.min(255) as u8) }}").unwrap();
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ if costed != Costed::Spell(source) {{ return CostDelta::NONE; }} let asker = &Asker::new(source, player); let count = q.permanents_of(player).into_iter().filter(|&id| {test}).count(); CostDelta::less(count as u32) }}").unwrap();
                 parts.table("own_cost_changes", function);
             }
             K::Bestow | K::BestowX => {

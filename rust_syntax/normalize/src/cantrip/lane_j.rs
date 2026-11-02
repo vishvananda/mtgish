@@ -4780,12 +4780,12 @@ impl Compiler {
         {
             return Ok(format!(
                 "CostDelta::less({})",
-                self.number(amount)?.fit(0, 255, "u8")?
+                self.number(amount)?.amount(u32::MAX.into(), "u32")?
             ));
         }
         let mut lines = Vec::new();
         for ManaReduction { color: of, amount } in reductions {
-            let n = self.number(amount)?.fit(0, 255, "u8")?;
+            let n = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
             lines.push(match of {
                 Some(c) => format!("less.symbols[{}] += {n};", color_index(c)?),
                 None => format!("less.generic += {n};"),

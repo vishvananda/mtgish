@@ -596,10 +596,103 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
     tracked_cached(input, oracle, output, None)
 }
 
-/// `tracked`, keeping `pr_form`'s renders in `cache` from one run to the next
-/// (see `pr_cache`): a run after a change to the generator renders again only
-/// the modules that changed.
-pub fn tracked_cached(input: &Path, oracle: &Path, output: &Path, cache: Option<&Path>) -> corpus::Result<usize> {
+/// One record's tracked card, as `tracked` and `lane_rows` both write it.
+struct Track {
+    card: TrackedCard,
+    /// A gapless single face whose characteristics are the whole card: `card_file`
+    /// wrote no file for it because none is needed.
+    content_only: bool,
+    kept: Option<super::pr_cache::Kept>,
+}
+
+/// The tracked card of one record, its render taken from `renders` where they have it.
+fn track(
+    line: usize,
+    source: &crate::mtg_types::OracleCard,
+    oracle: &BTreeMap<String, String>,
+    renders: &super::pr_cache::Renders,
+) -> corpus::Result<Track> {
+    let identity = corpus::Identity::of(source)?;
+    let lowered = crate::unified::lower(source);
+    let name = identity.names.join(" // ");
+    let whole = lane_f::whole_printed(source, &lowered.card, Some(oracle))
+        .map_err(|g| format!("{name}: {}: {} ({})", g.path, g.feature, g.message))?;
+    let mut faces: Vec<TrackedFace> = whole
+        .faces
+        .into_iter()
+        .map(|face| TrackedFace {
+            oracle: oracle.get(&face.name).cloned(),
+            name: face.name,
+            rust: Some(face.rust),
+            gaps: face.gaps,
+        })
+        .collect();
+    let (mut kept, mut content_only) = (None, false);
+    let file = match faces.as_slice() {
+        [one, two]
+            if one.gaps.is_empty()
+                && two.gaps.is_empty()
+                && !face_modules(&lowered.card.layout).is_empty() =>
+        {
+            match (&whole.rust, one.oracle.as_deref(), two.oracle.as_deref()) {
+                (Some(raw), Some(first), Some(second)) => {
+                    let (file, render) = renders.render_faces(
+                        raw,
+                        face_modules(&lowered.card.layout),
+                        &[(&one.name, first), (&two.name, second)],
+                    );
+                    kept = render;
+                    file
+                }
+                _ => None,
+            }
+        }
+        [one @ TrackedFace { rust: Some(module), .. }]
+            if one.gaps.is_empty() && matches!(lowered.card.layout.as_str(), "Card" | "MeldPiece") =>
+        {
+            let file = one.oracle.as_deref().and_then(|text| {
+                match card_file::card_file(&lowered.card.faces[0], text) {
+                    Ok(file) => file,
+                    Err(_) => {
+                        let (file, render) =
+                            renders.render(module, &one.name, text, super::pr_form::Characteristics::Oracle);
+                        kept = render;
+                        file
+                    }
+                }
+            });
+            // Neither writes a file of `..oracle::NAME` alone: the content is the card.
+            content_only = file.is_none() && one.oracle.is_some();
+            file
+        }
+        _ => None,
+    };
+    // A face's code is not written twice: the card's module holds each face it joins.
+    if let Some(joined) = &whole.rust {
+        for face in &mut faces {
+            if face.rust.as_ref().is_some_and(|rust| joined.contains(rust.as_str())) {
+                face.rust = None;
+            }
+        }
+    }
+    // A sticker sheet has no name of its own: it is its face's.
+    let name = match faces.as_slice() {
+        [face] if name.is_empty() => face.name.clone(),
+        _ => name,
+    };
+    let card = TrackedCard { line, name, layout: lowered.card.layout.clone(), faces, rust: whole.rust, file };
+    Ok(Track { card, content_only, kept })
+}
+
+/// Every record through `track`, each written as `row` makes it, with the
+/// render cache kept as `tracked_cached` keeps it.
+fn each_tracked(
+    input: &Path,
+    oracle: &Path,
+    output: &Path,
+    cache: Option<&Path>,
+    row: impl Fn(Track) -> corpus::Result<(String, Option<super::pr_cache::Kept>)> + Sync,
+) -> corpus::Result<usize> {
     use super::pr_cache::{Kept, Renders};
     let oracle = oracle_texts(oracle)?;
     let renders = match cache {
@@ -612,90 +705,13 @@ pub fn tracked_cached(input: &Path, oracle: &Path, output: &Path, cache: Option<
     corpus::map_cards(
         input,
         |line, source| -> corpus::Result<(String, Option<(Kept, bool)>)> {
-            let identity = corpus::Identity::of(&source)?;
-            let lowered = crate::unified::lower(&source);
-            let name = identity.names.join(" // ");
-            let whole = lane_f::whole_printed(&source, &lowered.card, Some(&oracle))
-                .map_err(|g| format!("{name}: {}: {} ({})", g.path, g.feature, g.message))?;
-            let mut faces: Vec<TrackedFace> = whole
-                .faces
-                .into_iter()
-                .map(|face| TrackedFace {
-                    oracle: oracle.get(&face.name).cloned(),
-                    name: face.name,
-                    rust: Some(face.rust),
-                    gaps: face.gaps,
-                })
-                .collect();
-            let mut kept = None;
-            let file = match faces.as_slice() {
-                [one, two]
-                    if one.gaps.is_empty()
-                        && two.gaps.is_empty()
-                        && !face_modules(&lowered.card.layout).is_empty() =>
-                {
-                    match (&whole.rust, one.oracle.as_deref(), two.oracle.as_deref()) {
-                        (Some(raw), Some(first), Some(second)) => {
-                            let (file, render) = renders.render_faces(
-                                raw,
-                                face_modules(&lowered.card.layout),
-                                &[(&one.name, first), (&two.name, second)],
-                            );
-                            kept = render;
-                            file
-                        }
-                        _ => None,
-                    }
-                }
-                [one @ TrackedFace { rust: Some(module), .. }]
-                    if one.gaps.is_empty()
-                        && matches!(lowered.card.layout.as_str(), "Card" | "MeldPiece") =>
-                {
-                    one.oracle.as_deref().and_then(|text| {
-                        match card_file::card_file(&lowered.card.faces[0], text) {
-                            Ok(file) => file,
-                            Err(_) => {
-                                let (file, render) = renders.render(
-                                    module,
-                                    &one.name,
-                                    text,
-                                    super::pr_form::Characteristics::Oracle,
-                                );
-                                kept = render;
-                                file
-                            }
-                        }
-                    })
-                }
-                _ => None,
-            };
-            // A face's code is not written twice: the card's module holds each face it joins.
-            if let Some(joined) = &whole.rust {
-                for face in &mut faces {
-                    if face.rust.as_ref().is_some_and(|rust| joined.contains(rust.as_str())) {
-                        face.rust = None;
-                    }
-                }
-            }
-            // A sticker sheet has no name of its own: it is its face's.
-            let name = match faces.as_slice() {
-                [face] if name.is_empty() => face.name.clone(),
-                _ => name,
-            };
-            let card = TrackedCard {
-                line,
-                name,
-                layout: lowered.card.layout.clone(),
-                faces,
-                rust: whole.rust,
-                file,
-            };
+            let (text, kept) = row(track(line, &source, &oracle, &renders)?)?;
             let kept = kept.map(|kept| {
                 let found = renders.had(&kept);
                 (kept, found)
             });
-            // Written out here, on the workers: the rows are 200 MB of JSON.
-            Ok((serde_json::to_string(&card)?, kept))
+            // Written out here, on the workers: the tracked rows are 200 MB of JSON.
+            Ok((text, kept))
         },
         |_, (row, kept)| {
             artifact.write_all(row.as_bytes())?;
@@ -713,6 +729,65 @@ pub fn tracked_cached(input: &Path, oracle: &Path, output: &Path, cache: Option<
     }
     keeper.commit()?;
     Ok(count)
+}
+
+/// `tracked`, keeping `pr_form`'s renders in `cache` from one run to the next
+/// (see `pr_cache`): a run after a change to the generator renders again only
+/// the modules that changed.
+pub fn tracked_cached(input: &Path, oracle: &Path, output: &Path, cache: Option<&Path>) -> corpus::Result<usize> {
+    each_tracked(input, oracle, output, cache, |track| Ok((serde_json::to_string(&track.card)?, track.kept)))
+}
+
+/// What the card lane reads of a record: `tracked`'s card without its modules,
+/// so a row is its file or its gap.
+#[derive(serde::Serialize, Debug, PartialEq)]
+pub struct LaneRow {
+    pub line: usize,
+    /// Its faces' names joined, the front face first.
+    pub name: String,
+    pub layout: String,
+    pub faces: Vec<String>,
+    /// The card's file; `None` with no gap is a card whose content is all of it.
+    pub rust: Option<String>,
+    pub gap: Option<String>,
+}
+
+impl LaneRow {
+    fn of(track: Track) -> Self {
+        let Track { card, content_only, .. } = track;
+        let gap = match (&card.file, content_only) {
+            (Some(_), _) | (None, true) => None,
+            (None, false) => Some(
+                card.faces
+                    .iter()
+                    .flat_map(|face| face.gaps.first())
+                    .map(|gap| gap.feature.clone())
+                    .next()
+                    .unwrap_or_else(|| format!("no whole file for a {} card", card.layout)),
+            ),
+        };
+        // In the name's order, the front face first: the lowered faces of a transforming card come back first.
+        let printed: Vec<&str> = card.name.split(" // ").collect();
+        let mut faces: Vec<String> = card.faces.into_iter().map(|face| face.name).collect();
+        faces.sort_by_key(|face| printed.iter().position(|name| name == face).unwrap_or(usize::MAX));
+        LaneRow {
+            line: card.line,
+            name: card.name,
+            layout: card.layout,
+            faces,
+            rust: card.file,
+            gap,
+        }
+    }
+}
+
+/// Every record as the card lane reads it (`ast cantrip-files`): a card's file
+/// is `tracked`'s, byte for byte, whatever its layout.
+pub fn lane_rows(input: &Path, oracle: &Path, output: &Path, cache: Option<&Path>) -> corpus::Result<usize> {
+    each_tracked(input, oracle, output, cache, |track| {
+        let kept = track.kept.clone();
+        Ok((serde_json::to_string(&LaneRow::of(track))?, kept))
+    })
 }
 
 #[cfg(test)]

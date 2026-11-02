@@ -127,8 +127,10 @@ fn run() -> Result<()> {
         [command, input, oracle, output] if command == "cantrip-files" => {
             #[cfg(feature="cantrip")]
             {
-            let count = mtgish_ast::cantrip::card_files(Path::new(input), Path::new(oracle), Path::new(output))?;
-            eprintln!("{count} generator-capable single-faced records written");
+            // Every record, its file as `cantrip-tracked` writes it or its gap, with the same render cache.
+            let cache = mtgish_ast::cantrip::pr_cache::default_dir();
+            let count = mtgish_ast::cantrip::planned::lane_rows(Path::new(input), Path::new(oracle), Path::new(output), cache.as_deref())?;
+            eprintln!("{count} records written");
             }
             #[cfg(not(feature="cantrip"))]
             {let _=(input,oracle,output);return Err("Cantrip generation requires --features cantrip".into());}
