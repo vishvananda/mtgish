@@ -832,7 +832,11 @@ impl Compiler {
                 else {
                     return Err(gap("may play"));
                 };
+                let once = self.do_once.take();
                 self.play_cards(operation, true, out)?;
+                if let (Some(key), Some(played)) = (once, &self.played) {
+                    writeln!(out, "if !{played}.is_empty() {{ {} }}", lane_k::spends_once(key)).unwrap();
+                }
                 self.report_played(result);
                 Ok(())
             }
@@ -2101,6 +2105,13 @@ impl Compiler {
             self.performed.insert(result.0, format!("paid_{id}"));
             self.objects_that_paid(id, result, out);
             return Ok(());
+        }
+        // "You may pay one or more": paying none is declining, and the amount paid
+        // is what the rest reads, not whether it was.
+        if let (true, [Instruction::Effect { operation: Operation::PayAnyAmount { actor, resource }, .. }]) =
+            (optional, body.instructions.as_slice())
+        {
+            return self.pay_any_amount(id, actor, resource, result, out);
         }
         let willing = if optional {
             writeln!(

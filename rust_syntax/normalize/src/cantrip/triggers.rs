@@ -1858,6 +1858,9 @@ impl Compiler {
         }
         let done_once = self.done_once(limits, body);
         extra.extend(done_once.map(lane_k::not_yet_done));
+        // The look isn't offered, only what follows it.
+        let looked = done_once.and_then(|_| lane_k::looks_then_may(body));
+        let body = looked.as_ref().unwrap_or(body);
         if let Some(intervening) = intervening_if {
             // The AST has "if it isn't a mana ability" without its "isn't".
             if lane_n::lost_its_negation(intervening, matched.frame) {

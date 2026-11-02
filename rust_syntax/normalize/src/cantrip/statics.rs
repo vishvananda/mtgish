@@ -650,7 +650,10 @@ impl Compiler {
         // Printed order isn't layer order. A later part of one effect follows
         // the part before it in a strictly later layer (613.6); parts in one
         // layer read the same subjects anyway.
-        layered.sort_by_key(|(_, _, part)| layer_rank(part.layer));
+        // A creature type is set on what the same effect has made a creature (205.3d).
+        layered.sort_by_key(|(_, change, part)| {
+            (layer_rank(part.layer), matches!(change, Change::CreatureTypes { .. }))
+        });
         let mut defs = Vec::new();
         let mut last = None;
         for (i, change, part) in layered {

@@ -951,7 +951,7 @@ impl Compiler {
         Ok(())
     }
     /// "Pay any amount of ...": the amount is the result, for each who pays.
-    fn pay_any_amount(
+    pub(super) fn pay_any_amount(
         &mut self,
         id: usize,
         actor: &PlayerSet,

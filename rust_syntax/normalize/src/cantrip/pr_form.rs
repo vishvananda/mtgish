@@ -36,17 +36,21 @@ pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteris
         || raw.contains("counted_by_amount")
         || raw.contains(".data[");
     let reads_subject = raw.contains("event_subject") || raw.contains("event_objects") || raw.contains("item.subject");
+    let unread = matchers_whose_data_is_unread(&file);
+    let reads_data = |function: &syn::ItemFn| reads_data && !unread.contains(&function.sig.ident.to_string());
     flatten_tokens(&mut file, &mut BTreeSet::new());
     use_shared_tokens(&mut file);
     for item in &mut file.items {
         strip_allows(item);
         if let Item::Fn(function) = item {
+            let reads_data = reads_data(function);
             simplify_function(function, reads_data);
         }
     }
     use_shared_targets(&mut file);
     for item in &mut file.items {
         if let Item::Fn(function) = item {
+            let reads_data = reads_data(function);
             simplify_function(function, reads_data);
         }
     }
@@ -86,6 +90,72 @@ pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteris
     strip_literal_types(&mut file);
     let text = fields_on_their_own_lines(prettyplease::unparse(&file));
     Some(spaced(let_else_on_one_line(&event_patterns_on_one_line(&text))))
+}
+
+/// The event functions whose abilities never read what they carry: `Fired::data` belongs to the ability it fires, not to the
+/// file, and one ability reading it says nothing of the others. An event function goes in only if every `triggered` using it
+/// has an effect that doesn't read `item.data`, by itself or through a function of the file, and no batching by data.
+fn matchers_whose_data_is_unread(file: &File) -> BTreeSet<String> {
+    let bodies: BTreeMap<String, String> = file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Fn(function) => Some((function.sig.ident.to_string(), text_of(function))),
+            _ => None,
+        })
+        .collect();
+    let says = |text: &str, name: &str| text.split(|c: char| !c.is_alphanumeric() && c != '_').any(|word| word == name);
+    let mut reading: BTreeSet<&String> = bodies.iter().filter(|(_, body)| body.contains(". data [")).map(|(name, _)| name).collect();
+    loop {
+        let more: Vec<&String> = bodies
+            .iter()
+            .filter(|(name, body)| !reading.contains(name) && reading.iter().any(|read| says(body, read)))
+            .map(|(name, _)| name)
+            .collect();
+        if more.is_empty() {
+            break;
+        }
+        reading.extend(more);
+    }
+    struct Uses<'a> {
+        used: BTreeMap<&'a str, bool>,
+        bodies: &'a BTreeMap<String, String>,
+        reading: &'a BTreeSet<&'a String>,
+    }
+    impl<'a> Uses<'a> {
+        fn triggered(&mut self, call: &syn::ExprCall, batched: bool) {
+            let (Some(matcher), Some(effect)) = (call.args.first(), call.args.iter().nth(1)) else { return };
+            let (matcher, effect) = (text_of(matcher), text_of(effect));
+            let words = |text: &str| text.split(|c: char| !c.is_alphanumeric() && c != '_').map(str::to_string).collect::<BTreeSet<_>>();
+            let effect_words = words(&effect);
+            let reads = batched || effect.contains(". data [") || self.reading.iter().any(|name| effect_words.contains(*name));
+            for word in words(&matcher) {
+                if let Some((name, _)) = self.bodies.get_key_value(&word) {
+                    *self.used.entry(name).or_default() |= reads || self.reading.contains(name);
+                }
+            }
+        }
+    }
+    impl<'ast> Visit<'ast> for Uses<'_> {
+        fn visit_expr(&mut self, node: &'ast Expr) {
+            let mut at = node;
+            let mut batched = false;
+            while let Expr::MethodCall(method) = at {
+                let word = method.method.to_string();
+                batched |= word == "batch_by_data" || word == "counted_by_amount";
+                at = &method.receiver;
+            }
+            match at {
+                Expr::Call(call) if text_of(&call.func).ends_with("triggered") => self.triggered(call, batched),
+                _ => {}
+            }
+            visit::visit_expr(self, node);
+        }
+    }
+    let mut uses = Uses { used: BTreeMap::new(), bodies: &bodies, reading: &reading };
+    uses.visit_file(file);
+    let unread = uses.used.iter().filter(|(_, reads)| !**reads).map(|(name, _)| name.to_string()).collect();
+    unread
 }
 
 /// `if let Event::X { .. } = event { .. } None` says what to do with any other event, which a trigger on X's mask is never

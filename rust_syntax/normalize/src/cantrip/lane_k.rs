@@ -889,16 +889,46 @@ pub(super) fn tap_or_untap_only(body: &Program) -> bool {
     )
 }
 
+/// "Look at the top card. You may cast that card. Do this only once each turn": the
+/// source has the whole ability offered, but the look isn't, and "this" is the cast
+/// (the ruling on Planetarium of Wan Shi Tong). What's asked, looked at unasked.
+pub(super) fn looks_then_may(body: &Program) -> Option<Program> {
+    let [Instruction::Optional {
+        decider,
+        body: offered,
+    }] = body.instructions.as_slice()
+    else {
+        return None;
+    };
+    let [looks @ .., Instruction::Optional { decider: inner, .. }] = offered.instructions.as_slice()
+    else {
+        return None;
+    };
+    let only_looks = !looks.is_empty()
+        && looks.iter().all(|step| {
+            matches!(
+                step,
+                Instruction::Effect {
+                    operation: Operation::LookAt { .. },
+                    ..
+                }
+            )
+        });
+    (only_looks && format!("{decider:?}") == format!("{inner:?}")).then(|| offered.clone())
+}
+
 /// The key of a thing done once each turn, among a card's own: past its abilities,
 /// so `Query::history` holds it apart from them.
 fn done_key(key: u8, reader: &str) -> String {
     format!("AbilityRef {{ card: {reader}.chars(asker.source).card, index: {key} }}")
 }
 
-/// The test on an event that what's done once each turn has yet to be.
+/// The test on an event that what's done once each turn has yet to be: the action
+/// is its controller's (603.2h), so one taken with this ability before its source
+/// left and came back counts as well.
 pub(super) fn not_yet_done(key: u8) -> String {
     format!(
-        "!q.history().done(asker.source, {}, asker.controller)",
+        "!q.history().this_turn().iter().any(|r| matches!(r.event, Event::Done {{ ability, player, .. }} if ability == {} && player == asker.controller))",
         done_key(key, "q")
     )
 }
@@ -912,6 +942,14 @@ pub(super) fn once_a_turn(key: Option<u8>, id: usize) -> (String, String) {
     (
         format!("!g.history().done(asker.source, {done}, decider_{id}) && "),
         format!(" g.note_done(asker.source, {done}, decider_{id});"),
+    )
+}
+
+/// What spends the turn's once when it is done, not asked (603.2h).
+pub(super) fn spends_once(key: u8) -> String {
+    format!(
+        "g.note_done(asker.source, {}, asker.controller);",
+        done_key(key, "g")
     )
 }
 
@@ -946,6 +984,13 @@ pub(super) fn asked_if(decider: &PlayerRef, id: usize, body: &Program) -> String
                 _ => 1,
             };
             format!("!cant_draw(g, decider_{id}, {n}) && ")
+        }
+        // A search that can't be caused isn't offered (Ashiok, Dream Render's ruling).
+        Some(Instruction::Effect {
+            operation: Operation::Search { player, library, .. },
+            ..
+        }) if same(player) && same(library) => {
+            format!("g.may_search(decider_{id}, decider_{id}) && ")
         }
         // Moving the source: it's a new object once it has moved (400.7).
         Some(Instruction::Effect {
@@ -1812,6 +1857,11 @@ impl Compiler {
             .line
             .as_ref()
             .is_some_and(|line| line.text.contains("Do this only once each turn"));
+        if said && limits.per_turn == Some(1) && looks_then_may(body).is_some() {
+            let key = 200 + (self.fresh() % 50) as u8;
+            self.do_once = Some(key);
+            return Some(key);
+        }
         let [Instruction::Optional {
             decider,
             body: offered,
