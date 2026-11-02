@@ -2152,12 +2152,53 @@ impl Compiler {
                 .collect::<Vec<_>>();
             format!("({})", tests.join(" || "))
         };
+        let card = self.card_row(&format!("{chars}.card"));
+        let way = |kind: &str| format!("{card}.ways.iter().any(|w| w.kind == WayKind::{kind})");
         match family {
             KeywordFamily::Hexproof => any(&["Hexproof"]),
             KeywordFamily::Decayed => any(&["Decayed"]),
             KeywordFamily::Morph => any(&["Morph"]),
             KeywordFamily::Disguise => any(&["Disguise"]),
             KeywordFamily::Phasing => any(&["Phasing"]),
+            KeywordFamily::Toxic => format!("{chars}.toxic > 0"),
+            KeywordFamily::Ward if self.reader == Reader::Layer => format!(
+                "{chars}.abilities().any(|a| matches!(q.cards().ability(a), AbilityDef::Triggered(t) if t.ward))"
+            ),
+            KeywordFamily::Ward => format!(
+                "{chars}.abilities().any(|a| q.triggered_ability(a).is_some_and(|t| t.ward))"
+            ),
+            KeywordFamily::Exhaust if self.reader == Reader::Layer => format!(
+                "{chars}.abilities().any(|a| matches!(q.cards().ability(a), AbilityDef::Activated(d) if d.exhaust))"
+            ),
+            KeywordFamily::Exhaust => format!(
+                "{chars}.abilities().any(|a| q.activated_ability(a).is_some_and(|d| d.exhaust))"
+            ),
+            KeywordFamily::Warp => way("Warp"),
+            KeywordFamily::Freerunning => way("Freerunning"),
+            KeywordFamily::Mutate => way("Mutate"),
+            KeywordFamily::Kicker => format!("{card}.kicker.is_some()"),
+            KeywordFamily::Madness => format!("{card}.madness.is_some()"),
+            KeywordFamily::Foretell => format!("{card}.foretell.is_some()"),
+            KeywordFamily::Suspend => format!("{card}.suspend.is_some()"),
+            KeywordFamily::StartYourEngines => format!("{card}.start_your_engines"),
+            KeywordFamily::Convoke if self.reader != Reader::Layer => format!(
+                "({card}.pay_with.convoke || q.state().battlefield().iter().any(|&p| !q.lost_all_abilities(p) && q.card(q.chars(p).card).grants_pay_with.iter().any(|g| g(q, p, q.controller({id}), {id}).convoke)))"
+            ),
+            KeywordFamily::Flashback => {
+                // A flashback way is known from what else exiles the spell by
+                // its cost: harmonize's taps a creature, beam me up's returns one.
+                let printed = format!(
+                    "{card}.ways.iter().any(|w| w.exile_after && w.from == ZoneKind::Graveyard && !w.cost.tap_to_reduce && !matches!(w.cost.permanents, Some(PermanentCost {{ action: PermanentAction::BeamUp, .. }})))"
+                );
+                if self.reader == Reader::Layer {
+                    return format!(
+                        "({printed} || q.state().permissions.iter().any(|p| p.grant.flashback && q.state().permission_covers(p, {id})))"
+                    );
+                }
+                format!(
+                    "({printed} || q.state().permissions.iter().any(|p| p.grant.flashback && q.state().permission_covers(p, {id})) || q.state().battlefield().iter().any(|&p| !q.lost_all_abilities(p) && q.card(q.chars(p).card).granted_ways.iter().any(|w| w.flashback && q.state().obj({id}).zone.is(w.from) && (w.cost)(q, &Asker::new(p, q.controller(p)), {id}, q.state().obj({id}).owner).is_some())))"
+                )
+            }
             KeywordFamily::Landwalk => any(&[
                 "Islandwalk",
                 "Plainswalk",
