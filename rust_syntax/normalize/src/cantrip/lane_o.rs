@@ -413,6 +413,11 @@ impl Compiler {
         duration: &crate::ir::Duration,
         out: &mut String,
     ) -> Result<()> {
+        if planned::switched_on(planned::LASTING_RULES)
+            && self.lasting_rules(affected, changes, duration, out)?
+        {
+            return Ok(());
+        }
         let test = match affected {
             ObjectSet::Battlefield(filter) => self.filter(filter, &Candidate::of("id"))?,
             other => match self.outside_subject(other, &Candidate::of("id"))? {
@@ -440,6 +445,161 @@ impl Compiler {
             }
         }
         Ok(())
+    }
+    /// A rule on an open set (CR 611.2c) as Cantrip's `lasting_rules` hold it:
+    /// one `LastingRule` of the card for each change, its set a function asked
+    /// whenever the rule is read, and `g.add_lasting_rule` naming it. What the
+    /// words named as it resolved - the target player - is the effect's `about`,
+    /// since the function can't read the resolution. False, and nothing written,
+    /// where a change is no rule Cantrip keeps of a set.
+    fn lasting_rules(
+        &mut self,
+        affected: &ObjectSet,
+        changes: &[Change],
+        duration: &crate::ir::Duration,
+        out: &mut String,
+    ) -> Result<bool> {
+        use crate::ir::Duration as D;
+        let ObjectSet::Battlefield(filter) = affected else {
+            return Ok(false);
+        };
+        let Some(kinds) = changes
+            .iter()
+            .map(lasting_rule_kind)
+            .collect::<Option<Vec<&str>>>()
+        else {
+            return Ok(false);
+        };
+        let saved = (self.reader, self.event_at);
+        (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+        let asked = self.filter(filter, &Candidate::of("id"));
+        (self.reader, self.event_at) = saved;
+        // A target is read as the resolution has it, then handed over as `about`.
+        let test = match asked {
+            Err(failed) if failed.feature == "target reference outside a resolving ability" => {
+                self.filter(filter, &Candidate::of("id"))?
+            }
+            asked => asked?,
+        };
+        let (test, about) = self.named_as_resolved(&test)?;
+        // "Their next untap step" of a set one player controls is that
+        // player's; a set of no one controller is the objects named now
+        // (`untaps_by_their_controllers`), never reaching here.
+        let until = match duration {
+            D::DuringControllersNextUntapStep => match single_controller(filter) {
+                Some(player) => format!(
+                    "Duration::DuringNextUntapStepOf({})",
+                    self.fetch(self.certain_player(player)?)
+                ),
+                None => return Err(gap("an untap rule on a set of no one controller")),
+            },
+            other => self.stated_until(other)?,
+        };
+        let first = self.made_lasting_rules.len();
+        writeln!(out, "let about_{first} = {about}; let until_{first} = {until};").unwrap();
+        // The rules of one instruction begin together.
+        let mut made = Vec::new();
+        for kind in kinds {
+            let index = self.made_lasting_rules.len();
+            let function = format!("lasting_rule_{index}");
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, about: Target, id: ObjectId) -> bool {{ let source = asker.source; {test} }}").unwrap();
+            self.made_lasting_rules.push(format!(
+                "LastingRule {{ text: {}, rule: LastingRuleKind::{kind}, applies: {function} }}",
+                quoted(&self.lasting_rule_words(kind))
+            ));
+            made.push(format!("g.add_lasting_rule(item, {index}, about_{first}, until_{first});"));
+        }
+        match made.as_slice() {
+            [one] => writeln!(out, "{one}").unwrap(),
+            _ => writeln!(out, "cantrip_api::instruction(g, |g| {{ {} }});", made.join(" ")).unwrap(),
+        }
+        Ok(true)
+    }
+    /// `test` with what it reads of the resolution - one target, a player or an
+    /// object - read from `about` instead, and the code of that `about`.
+    fn named_as_resolved(&self, test: &str) -> Result<(String, String)> {
+        let mut test = test.to_string();
+        let mut about: Option<String> = None;
+        for slot in 0..8 {
+            for index in 0..8 {
+                for (what, wrap) in [("player", "Target::Player"), ("object", "Target::Object")] {
+                    // Still a legal target, or as announced: a spell with no
+                    // legal target left does nothing (CR 608.2b), so they agree.
+                    let legal = format!("t_{slot}_raw.get({index}).copied().filter(|t| t_{slot}.contains(t)).and_then(|t: Target| t.{what}())");
+                    let raw = format!("t_{slot}_raw.get({index}).copied().and_then(|t: Target| t.{what}())");
+                    let read = match (test.contains(&legal), test.contains(&raw)) {
+                        (false, false) => continue,
+                        (true, _) => legal.clone(),
+                        (false, true) => raw.clone(),
+                    };
+                    if about.is_some() {
+                        return Err(gap("a lasting rule reading two things its ability chose"));
+                    }
+                    test = test.replace(&legal, &format!("about.{what}()"));
+                    test = test.replace(&raw, &format!("about.{what}()"));
+                    about = Some(format!("{}.map({wrap}).unwrap_or(Target::None)", self.fetch(&read)));
+                }
+            }
+        }
+        // "That player" of a target object is its controller as the effect
+        // began, which the object can't say later: a second thing to capture.
+        if test.contains("about.object().map(|o: ObjectId| q.controller(o))") {
+            return Err(gap("a lasting rule reading two things its ability chose"));
+        }
+        if reads_the_resolution(&test) {
+            return Err(gap("a lasting rule reading what its ability chose"));
+        }
+        Ok((test, about.unwrap_or_else(|| "Target::None".to_string())))
+    }
+    /// The sentence of the line that says the rule, as the card prints it.
+    fn lasting_rule_words(&self, kind: &str) -> String {
+        let says: &[&str] = match kind {
+            "CantBlock" => &["can't block", "can't attack or block"],
+            "CantAttack" => &["can't attack"],
+            "CantBeBlocked" => &["can't be blocked"],
+            "MustAttack" => &["attack"],
+            "MustBlock" => &["block"],
+            "DoesntUntap" => &["untap"],
+            _ => &[],
+        };
+        let said = self.lines_said().join("\n");
+        // The line being written, else any the face prints: a kicked spell's
+        // words are on its spell line, not the kicker's.
+        let mut face = String::new();
+        let mut depth = 0;
+        for c in self.face_text.chars() {
+            match c {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                c if depth == 0 => face.push(c),
+                _ => {}
+            }
+        }
+        [said.clone(), face]
+            .iter()
+            .find_map(|text| {
+                text.split(['\n', '•'])
+                    // An activated ability's words follow its cost, a loyalty
+                    // ability's too: "−7: ...".
+                    .map(|line| match line.split_once(": ") {
+                        Some((cost, rest))
+                            if cost.contains('{')
+                                || cost.contains("Sacrifice")
+                                || cost.trim_start_matches(['+', '−', '-']).parse::<u32>().is_ok() =>
+                        {
+                            rest
+                        }
+                        _ => line,
+                    })
+                    .flat_map(|line| line.split_inclusive(". "))
+                    // A mode is a sentence of its own: "Choose one — • ... • ...".
+                    .flat_map(|s| s.split("; or "))
+                    // Past an ability word, "Choose one" or a mode's name.
+                    .map(|s| s.rsplit_once(" — ").map_or(s, |(_, rest)| rest).trim())
+                    .find(|sentence| says.iter().any(|w| sentence.contains(w)))
+                    .map(|s| if s.ends_with('.') { s.to_string() } else { format!("{s}.") })
+            })
+            .unwrap_or_else(|| said.trim().to_string())
     }
     // --- Operands, read strictly: what can't be read is no code at all.
 
@@ -3908,4 +4068,67 @@ fn lost_keyword(lost: &Operand) -> Option<String> {
         }
         _ => None,
     }
+}
+
+/// The rule a `LastingRule` makes of a change on an open set, where Cantrip
+/// keeps one (`LastingRuleKind`).
+fn lasting_rule_kind(change: &Change) -> Option<&'static str> {
+    use RuleChange as R;
+    let Change::Rule(rule) = change else {
+        return None;
+    };
+    Some(match rule {
+        R::Prohibit(ObjectAction::Attack(AttackDefenders::Any)) => "CantAttack",
+        R::Prohibit(ObjectAction::Block(ObjectFilter::Any)) => "CantBlock",
+        R::Prohibit(ObjectAction::BeBlocked(ObjectFilter::Any)) => "CantBeBlocked",
+        R::RequireCombat {
+            action: ObjectAction::Attack(AttackDefenders::Any),
+            amount: RequirementAmount::AtLeast(Expr::Constant(1)),
+        } => "MustAttack",
+        R::RequireCombat {
+            action: ObjectAction::Block(ObjectFilter::Any),
+            amount: RequirementAmount::AtLeast(Expr::Constant(1)),
+        } => "MustBlock",
+        R::UntapStep {
+            behavior: UntapBehavior::Skip,
+            players: PlayerSet::One(PlayerRef::ControllerOf(controlled)),
+        } if matches!(**controlled, ObjectRef::Affected) => "DoesntUntap",
+        _ => return None,
+    })
+}
+
+/// The one player whose permanents a filter takes, if it names one:
+/// "creatures and lands target opponent controls".
+fn single_controller(filter: &ObjectFilter) -> Option<&PlayerRef> {
+    match filter {
+        ObjectFilter::ControlledBy(PlayerSet::One(player)) => Some(player),
+        ObjectFilter::All(filters) => filters.iter().find_map(single_controller),
+        _ => None,
+    }
+}
+
+/// Whether code still reads a local of the resolution: `g`, `item`, or a
+/// numbered one such as `t_0_raw` or `chosen_0`.
+fn reads_the_resolution(code: &str) -> bool {
+    code.split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+        .any(|word| {
+            matches!(word, "g" | "item")
+                || word.rsplit_once('_').is_some_and(|(stem, n)| {
+                    stem.starts_with(|c: char| c.is_ascii_lowercase())
+                        && !n.is_empty()
+                        && n.chars().all(|c| c.is_ascii_digit())
+                })
+                || word.ends_with("_raw")
+        })
+}
+
+/// Whether a rule on a set waits for "its controller's next untap step" while
+/// the set names no one controller: the words are about each object, which are
+/// the ones there as it resolves (Tangle's ruling), not a set that gains members.
+pub(super) fn untaps_by_their_controllers(
+    affected: &EffectSubjects,
+    duration: &crate::ir::Duration,
+) -> bool {
+    matches!(duration, crate::ir::Duration::DuringControllersNextUntapStep)
+        && matches!(affected, EffectSubjects::Objects(ObjectSet::Battlefield(filter)) if single_controller(filter).is_none())
 }

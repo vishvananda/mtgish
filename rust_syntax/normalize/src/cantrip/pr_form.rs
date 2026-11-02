@@ -3053,6 +3053,8 @@ enum Role {
     Trigger,
     Target,
     Static,
+    /// The set a rule on an open set is asked of (CR 611.2c).
+    Lasting,
     Mana,
 }
 
@@ -3108,6 +3110,8 @@ fn function_names(file: &File, printed: &str) -> Names {
             Role::Trigger
         } else if old.contains("target") {
             Role::Target
+        } else if old.starts_with("lasting_rule") {
+            Role::Lasting
         } else if ["affects", "applies", "apply", "rule"].iter().any(|w| old.contains(w)) {
             Role::Static
         } else {
@@ -3183,6 +3187,7 @@ fn rename(file: &mut File, names: &BTreeMap<String, String>) {
 fn rules_of(function: &syn::ItemFn, role: Role) -> String {
     const CALLS: &[(&str, &str)] = &[
         ("add_effect", "611.2a"),
+        ("add_lasting_rule", "611.2c"),
         ("damage", "120.3"),
         ("destroy", "701.8a"),
         ("draw", "121.1"),
@@ -3209,6 +3214,7 @@ fn rules_of(function: &syn::ItemFn, role: Role) -> String {
         Role::Trigger => "603.2",
         Role::Target => "115.1",
         Role::Static => "604.1",
+        Role::Lasting => "611.2c",
         Role::Mana => "605.3a",
         Role::Effect => "608.2",
     }];

@@ -1902,6 +1902,13 @@ impl Compiler {
                     EffectSubjects::Objects(ObjectSet::Battlefield(ObjectFilter::All(filters)))
                         if filters.iter().any(|f| matches!(f, ObjectFilter::DamagedBy(dealt) if self.moved.contains_key(&dealt.0)))
                 );
+                // "Each attacking creature doesn't untap during its controller's
+                // next untap step": a set with no one controller has no one untap
+                // step to wait for, and the words are about each object, so they
+                // are the ones named as it resolves (Tangle's ruling).
+                let closed = closed
+                    || (planned::switched_on(planned::LASTING_RULES)
+                        && lane_o::untaps_by_their_controllers(affected, duration));
                 match evaluation {
                     EffectEvaluation::LiveObjects if !closed => {
                         return self.open_rule(id, source, affected, changes, duration, out)
@@ -3294,15 +3301,21 @@ impl Compiler {
         };
         let becoming = self.becoming_replaces(changes);
         let changes = becoming.as_deref().unwrap_or(changes);
-        // Exerting is exactly this (CR 701.43a), and no event tells them apart.
-        if let (
-            [Change::Rule(RuleChange::UntapStep {
-                behavior: UntapBehavior::Skip,
-                ..
-            })],
-            crate::ir::Duration::DuringControllersNextUntapStep,
-        ) = (changes, duration)
-        {
+        // Exerting is this but for a change of control (CR 701.43a: "your next
+        // untap step", the exerting player's), and no event tells them apart. A
+        // Cantrip with `EffectKind::DoesntUntap` follows the permanent to its new
+        // controller's next untap step, as the Tamiyo, the Moon Sage ruling has it.
+        let exerts = matches!(
+            (changes, duration),
+            (
+                [Change::Rule(RuleChange::UntapStep {
+                    behavior: UntapBehavior::Skip,
+                    ..
+                })],
+                crate::ir::Duration::DuringControllersNextUntapStep,
+            )
+        );
+        if exerts && !planned::switched_on(planned::LASTING_RULES) {
             writeln!(
                 out,
                 "let objects_{id} = {}; cantrip_api::instruction(g, |g| {{ for &object in &objects_{id} {{ g.exert(object); }} }});",
