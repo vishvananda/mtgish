@@ -373,6 +373,9 @@ class Spec:
         self.on = {}  # name -> use, for new items of a type Cantrip has
         self.new_fields = collections.defaultdict(set)  # struct -> fields a literal gives that it doesn't have
         self.read_fields = collections.defaultdict(set)  # struct -> fields read that it doesn't have
+        # struct -> (receiver, field): a field read that it doesn't have but another of Cantrip's structs does, so
+        # only where it is read off that receiver is it the new one.
+        self.read_at = collections.defaultdict(set)
         self.variant_fields = collections.defaultdict(set)  # (enum, variant) -> fields a pattern binds it doesn't have
         self.missing_modules, self.module_items = set(), set()
         self.rets = {}  # stub key -> the return type chosen where no call site says it
@@ -399,7 +402,7 @@ class Spec:
     def size(self):
         return (f"{len(self.methods)} methods, {len(self.fns)} functions, {len(self.types)} types, {len(self.on)} "
                 f"extended, {sum(map(len, self.new_fields.values()))} new fields, "
-                f"{sum(map(len, self.read_fields.values()))} read fields, "
+                f"{sum(map(len, self.read_fields.values())) + sum(map(len, self.read_at.values()))} read fields, "
                 f"{sum(map(len, self.variant_fields.values()))} variant fields, {len(self.rets)} returns chosen")
 
     def fingerprint(self):
@@ -470,6 +473,10 @@ class Spec:
             base = base_of(m.group(2))
             if base and self.model.known(base[1]) and m.group(1) not in self.model.struct_fields:
                 self.read_fields[base[1]].add(m.group(1))
+            elif base and self.model.known(base[1]) and m.group(1) not in self.model.fields.get(base[1], {}):
+                receiver = re.search(r"(?<![\w.])((?:[a-z_]\w*\.)*[a-z_]\w*)\.\s*$", text[:start])
+                if receiver:
+                    self.read_at[base[1]].add((receiver.group(1), m.group(1)))
             return
         if code in ("E0282", "E0283", "E0284", "E0790"):
             self.learn_return(text, start, end)
@@ -691,7 +698,12 @@ class Spec:
                             f"core::mem::forget(v) }}" for f in sorted(names))
             fields.append(f"pub mod {ty} {{\n{fns}\n}}")
         out.append("pub mod field {\n" + "\n".join(fields) + "\n}")
-        for ty, names in sorted(self.read_fields.items()):
+        read = collections.defaultdict(set)
+        for ty, names in self.read_fields.items():
+            read[ty] |= names
+        for ty, pairs in self.read_at.items():
+            read[ty] |= {f for _, f in pairs}
+        for ty, names in sorted(read.items()):
             bound = self.payload(ty, out, seen)
             fns = "\n".join(f"    /// Proposed: a field of `{ty}`.\n    fn {f}<R: {bound}>(&self) -> R {{ panic!({PANIC_RS}) }}\n"
                             f"    fn {f}__set<V: {bound}>(&mut self, v: V) {{}}" for f in sorted(names))
@@ -919,6 +931,10 @@ class Spec:
             alt = "|".join(fields)
             rules.append((".", rf"\.({alt})\s*=(?!=)\s*([^;]*);", r".\1__set(\2);"))
             rules.append((".", rf"\.({alt})\b(?!\s*[(:])", r".\1()"))
+        for receiver, field in sorted({pair for pairs in self.read_at.values() for pair in pairs}):
+            at = rf"(?<![\w.]){re.escape(receiver)}\s*\.\s*{field}\b"
+            rules.append((f".{field}", rf"({at})\s*=(?!=)\s*([^;]*);", rf"{receiver}.{field}__set(\2);"))
+            rules.append((f".{field}", rf"({at})(?!\s*[(:])", rf"{receiver}.{field}()"))
         return rules
 
     def own_consts(self, ty, use):

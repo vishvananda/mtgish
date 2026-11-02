@@ -277,6 +277,14 @@ class Stubs(unittest.TestCase):
         stubs = learnt(method("counters", "p.counters(k)", on="cantrip_state::object::TriggerDef")).write()
         self.assertIn("impl Proposed_TriggerDef for cantrip_state::object::TriggerDef {}", stubs)
 
+    def test_a_new_field_another_struct_has_is_read_off_its_receiver_alone(self):
+        text = "fn f(d: &TriggerDef, c: &CardDef) -> bool { d.spell == x && c.spell.is_none() }"
+        spec = learnt(("E0609", "no field `spell` on type `&TriggerDef`", text, "spell"))
+        self.assertIn("pub trait ProposedField_TriggerDef {", spec.write())
+        self.assertIn("fn spell<R: crate::proposals::TableEntry>(&self) -> R", spec.write())
+        self.assertEqual(pc.rewrite(text, MODEL, spec),
+                         "fn f(d: &TriggerDef, c: &CardDef) -> bool { d.spell() == x && c.spell.is_none() }")
+
     def test_the_stubs_converge(self):
         spec = learnt(method("add_open_effect", "g.add_open_effect(a, b);"))
         before = spec.fingerprint()
