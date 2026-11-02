@@ -267,16 +267,39 @@ def family(feature):
     return " ".join(words[:2]) if len(words) > 1 else feature
 
 
+# What stands between a card and its file, the hardest last. Each form's verdict is `data/cantrip_audit.json`: the API read
+# against the hand-written cards, not a guess from the form's family. `card-code` of a keyword is a module for Cantrip's
+# mechanics crate, since a keyword is not written out in every card that has it; the core need not change.
+FIXES = ("generator", "mechanics module", "unsure", "unaudited", "Cantrip", "not played")
+NOT_PLAYED = re.compile(r"game mode Cantrip does not play|casual variant Cantrip does not play|Alchemy|^digital:|casual-format", re.I)
+
+
+def fix_of(row, audit):
+    if NOT_PLAYED.search(row["needs"]):
+        return "not played"
+    verdict = audit.get(row["id"], {}).get("verdict")
+    if verdict is None:
+        return "unaudited"
+    if verdict == "exists" or (verdict == "card-code" and row["class"] != "mechanic"):
+        return "generator"
+    return {"card-code": "mechanics module", "unsure": "unsure"}.get(verdict, "Cantrip")
+
+
+def hardest(fixes):
+    return max(fixes, key=FIXES.index) if fixes else "generator"
+
+
 def features_of(rows, blocked, written):
     """Rows by what they need. A row is one form the generator could not write, so one fix can be many rows: a new counter
     kind is a row for each name. {needs, class, forms, cards, written, examples}, the most cards first."""
     features = {}
     for row in rows:
-        entry = features.setdefault(row["needs"], {"needs": row["needs"], "class": row["class"], "forms": [], "cards": set(), "written": set()})
+        entry = features.setdefault(row["needs"], {"needs": row["needs"], "class": row["class"], "forms": [], "cards": set(), "written": set(), "fixes": set()})
         entry["forms"].append(row["id"])
+        entry["fixes"].add(row["fix"])
         entry["cards"].update(name for name, ids in blocked.items() if row["id"] in ids)
         entry["written"].update(name for name, ids in written.items() if row["id"] in ids)
-    out = [{**e, "examples": sorted(e["cards"])[:3], "cards": len(e["cards"]), "written": len(e["written"])} for e in features.values()]
+    out = [{**e, "fixes": sorted(e["fixes"]), "fix": hardest(e["fixes"]), "examples": sorted(e["cards"])[:3], "cards": len(e["cards"]), "written": len(e["written"])} for e in features.values()]
     return sorted(out, key=lambda e: (-e["cards"], -e["written"], e["needs"]))
 
 
@@ -313,11 +336,14 @@ def tracker(args):
                 if len(row["examples"]) < 5:
                     row["examples"].append(card["name"])
     totals["written"] = len(written)
+    audit = json.loads((root / "data/cantrip_audit.json").read_text(encoding="utf-8"))
     rows = []
     for feature, row in sorted(needs.items(), key=lambda kv: (-kv[1]["cards"], -kv[1]["written"], kv[0])):
         rule = rule_for(feature, rules)
         rows.append({"id": slug(feature), "feature": feature, "class": rule["class"], "needs": rule["needs"],
                      "family": family(feature), **row})
+        rows[-1]["fix"] = fix_of(rows[-1], audit)
+        rows[-1]["how"] = audit.get(rows[-1]["id"], {}).get("how", "")
     base = subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=args.cantrip, text=True,
                           capture_output=True, check=True).stdout.strip()[:10]
     classes = {}
@@ -327,8 +353,13 @@ def tracker(args):
         entry["cards"].update(name for name, ids in blocked.items() if row["id"] in ids)
     summary = {name: {"requirements": e["requirements"], "cards": len(e["cards"])} for name, e in classes.items()}
     features = features_of(rows, blocked, written)
+    fix_by_id = {row["id"]: row["fix"] for row in rows}
+    by_fix = {}
+    for name, ids in blocked.items():
+        fix = hardest([fix_by_id[i] for i in ids])
+        by_fix[fix] = by_fix.get(fix, 0) + 1
     tracked = {"cantrip": base, "totals": totals, "layouts": {k: {"ready": v[0], "planned": v[1]} for k, v in sorted(layouts.items())},
-               "classes": summary, "features": features, "requirements": rows, "cards": blocked, "written": written}
+               "classes": summary, "fixes": by_fix, "features": features, "requirements": rows, "cards": blocked, "written": written}
     out = Path(args.out) if args.out else root
     (out / "data").mkdir(exist_ok=True)
     (out / "data/cantrip_tracker.json").write_text(json.dumps(tracked, indent=1, ensure_ascii=False) + "\n")
@@ -342,21 +373,28 @@ def tracker(args):
              "`cards` counts what Cantrip does not have yet. `written` counts the cards Cantrip has written by hand:",
              "at least some of what that row asks can be done there, so it may be a gap in the generator, not in the engine.", "",
              "A requirement is one form the generator could not write, not one piece of work, and `class` comes from the form's",
-             "family, not from anyone having tried. A form only one card has may well be that card's own code once it is written.", "",
-             "| class | requirements | cards |", "|---|---|---|"]
+             "family, not from anyone having tried. `fix` is from `data/cantrip_audit.json`, where each form's verdict cites the API",
+             "or a hand-written card. It comes from reading the code: nothing there has been compiled or played.", "",
+             "What stands between each remaining card and its file, counting the hardest thing a card needs:", "",
+             "| fix | cards | meaning |", "|---|---|---|"]
+    meaning = {"generator": "Cantrip can do it today: the generator has only to write it", "mechanics module": "a keyword's module for the mechanics crate, no change to the core",
+               "unsure": "the audit could not settle it", "unaudited": "a form that appeared after the audit", "Cantrip": "needs a change to Cantrip's engine or API",
+               "not played": "a game mode or a digital-only rule Cantrip does not play"}
+    lines += [f"| {k} | {by_fix.get(k, 0)} | {meaning[k]} |" for k in FIXES]
+    lines += ["", "| class | requirements | cards |", "|---|---|---|"]
     lines += [f"| {k} | {v['requirements']} | {v['cards']} |" for k, v in sorted(summary.items())]
     shared = [f for f in features if f["cards"] > 1 or len(f["forms"]) > 1]
     single = [f for f in features if f["cards"] == 1 and len(f["forms"]) == 1]
     lines += ["", "## Features", "", f"What the forms below come to: {len(shared)} features more than one card or form shares, most cards first.", "",
-              "| cards | written | forms | class | needs | examples |", "|---|---|---|---|---|---|"]
-    lines += [f"| {f['cards']} | {f['written']} | {len(f['forms'])} | {f['class']} | {f['needs']} | {', '.join(f['examples'])} |" for f in shared]
+              "| cards | written | forms | fix | needs | examples |", "|---|---|---|---|---|---|"]
+    lines += [f"| {f['cards']} | {f['written']} | {len(f['forms'])} | {f['fix']} | {f['needs']} | {', '.join(f['examples'])} |" for f in shared]
     lines += ["", "## Asked by one card", "", f"{len(single)} forms that one remaining card has and nothing shares. Most are likely to be code in that card's file.", "",
-              "| card | written | class | needs |", "|---|---|---|---|"]
-    lines += [f"| {f['examples'][0] if f['examples'] else ''} | {f['written']} | {f['class']} | {f['needs']} |" for f in single]
-    lines += ["", "## Every requirement", "", "| requirement | class | cards | written | alone | needs | examples |", "|---|---|---|---|---|---|---|"]
+              "| card | written | fix | needs |", "|---|---|---|---|"]
+    lines += [f"| {f['examples'][0] if f['examples'] else ''} | {f['written']} | {f['fix']} | {f['needs']} |" for f in single]
+    lines += ["", "## Every requirement", "", "| requirement | class | fix | cards | written | alone | needs | examples |", "|---|---|---|---|---|---|---|---|"]
     for row in rows:
         if row["cards"]:
-            lines.append(f"| `{row['id']}` | {row['class']} | {row['cards']} | {row['written']} | {row['alone']} | {row['needs']} | "
+            lines.append(f"| `{row['id']}` | {row['class']} | {row['fix']} | {row['cards']} | {row['written']} | {row['alone']} | {row['needs']} | "
                          + ", ".join(row["examples"][:3]) + " |")
     done = [row for row in rows if not row["cards"]]
     lines += ["", "## Only on cards Cantrip has written", "",
