@@ -441,6 +441,25 @@ impl Compiler {
                     if beholds && self.spell_targets {
                         parts.field("late_targets", "true".into());
                     }
+                } else if let [CostPart::Keyword {
+                    action: CostKeyword::CollectEvidence,
+                    amount: Some(amount),
+                }] = cost.parts.as_slice()
+                {
+                    // "Collect evidence X, where X is the total mana value of the
+                    // permanents this spell targets" (Urgent Necropsy): worked out
+                    // once the targets are announced (CR 601.2f, 701.59a).
+                    if parts.fields.contains_key("cost_of_targets") { return Err(gap("two rules for cost_of_targets")); }
+                    let saved = (self.reader, self.event_at);
+                    (self.reader, self.event_at) = (Reader::Query, EventAt::Nowhere);
+                    self.costing_targets = true;
+                    let amount = self.number(amount).map(|n| n.code);
+                    self.costing_targets = false;
+                    (self.reader, self.event_at) = saved;
+                    let amount = amount?;
+                    let function = format!("{label}_of_targets");
+                    writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, targets: &[Target]) -> Cost {{ Cost {{ collect_evidence: ({amount}).clamp(0, 255) as u8, ..Cost::NONE }} }}").unwrap();
+                    parts.field("cost_of_targets", format!("Some({function})"));
                 } else {
                     self.paid_for = PaidFor::Spell;
                     self.cost_reads_board = false;

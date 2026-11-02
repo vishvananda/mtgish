@@ -543,6 +543,11 @@ impl Compiler {
     /// its own hole says why.
     pub(super) fn earlier_objects(&self, what: &EarlierObjects) -> Result<String> {
         let word = form(what);
+        // "The permanents this spell targets", read as its total cost is worked
+        // out (CR 601.2f): each permanent once, however many slots chose it.
+        if matches!(what, EarlierObjects::Targeted) && self.costing_targets {
+            return Ok("{ let mut chosen: Vec<ObjectId> = targets.iter().filter_map(|t| t.object()).collect(); chosen.sort_unstable(); chosen.dedup(); chosen }".into());
+        }
         let step = self.notes.earlier.iter().rev().find(|(w, _)| *w == word);
         let Some((_, result)) = step.filter(|_| self.reader == Reader::Resolution) else {
             return self.earlier_paid(what);
