@@ -392,6 +392,15 @@ impl Compiler {
             parts.table("face_up_bans", function.to_string());
             return Ok(true);
         }
+        // "Can't be beamed up": beam me up's cost is the only way to beam a
+        // permanent up (CR 118.3), so the ban is of that payment (Marooned).
+        if matches!(rule, RuleChange::Prohibit(ObjectAction::BeBeamedUp)) {
+            let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();
+            writeln!(self.functions, "#[allow(unused_variables)] fn {function}_ban(q: &dyn Query, asker: &Asker, player: PlayerId, costing: CostFor, payment: CostPayment) -> bool {{ matches!(payment, CostPayment::BeamUp(permanent) if {function}(q, asker, permanent)) }}").unwrap();
+            parts.table("cost_bans", format!("{function}_ban"));
+            return Ok(true);
+        }
         let code = self.rule_code(rule).map_err(|_| gap(&feature))?;
         let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
         writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ let source = asker.source; {guard}{test} }}").unwrap();

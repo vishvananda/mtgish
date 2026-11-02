@@ -2723,6 +2723,15 @@ impl Compiler {
             SelectionConstraint::CommonProperty(DistinctProperty::CardTypes) => {
                 format!("{M}::select::SHARE_A_CARD_TYPE")
             }
+            // "That share a land type" (CR 205.3i): some one land type every card
+            // chosen has, as SHARE_A_CARD_TYPE asks of card types (Myriad Landscape).
+            SelectionConstraint::CommonProperty(DistinctProperty::LandTypes) => {
+                const NAME: &str = "share_a_land_type";
+                if !self.functions.contains(&format!("fn {NAME}(")) {
+                    writeln!(self.functions, "fn {NAME}(q: &dyn Query, choice: &Choice, _: u32) -> Verdict {{ let all_have = |t: Subtype| choice.selected.iter().all(|&c| q.chars(c).subtypes.has(t)); let complete = choice.selected.is_empty() || SubtypeSet::LAND_TYPES.iter().any(all_have); let addable = Bits::of(choice.candidates.len(), |i| {{ let candidate = q.chars(choice.candidates[i]); choice.selected.is_empty() || SubtypeSet::LAND_TYPES.iter().any(|t| all_have(t) && candidate.subtypes.has(t)) }}); Verdict {{ complete, addable }} }}\nfn largest_{NAME}(q: &dyn Query, choice: &Choice, _: u32) -> Vec<ObjectId> {{ SubtypeSet::LAND_TYPES.iter().map(|t| choice.candidates.iter().copied().filter(|&c| q.chars(c).subtypes.has(t)).collect::<Vec<ObjectId>>()).max_by_key(Vec::len).unwrap_or_default() }}").unwrap();
+                }
+                format!("cantrip_api::select::set_part(&({NAME} as SelectFn), &(largest_{NAME} as cantrip_api::select::LargestFn), 0, \"that share a land type\")")
+            }
             SelectionConstraint::NoCommonProperty(DistinctProperty::CreatureTypes) => {
                 self.helpers.insert("no_common_creature_type");
                 "cantrip_api::select::set_part(&(no_common_creature_type as SelectFn), &(largest_no_common_creature_type as cantrip_api::select::LargestFn), 0, \"that share no creature types\")".to_string()
