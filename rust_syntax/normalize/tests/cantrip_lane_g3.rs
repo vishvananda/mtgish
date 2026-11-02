@@ -35,9 +35,19 @@ const CARDS: &[(&str, &str, bool)] = &[
     ("Rinoa, Angel Wing", "if !selected_2.is_empty() { g.note_done(", true),
     // "The first activated ability of an artifact you activate each turn".
     ("Tezzeret, Betrayer of Flesh", "Event::AbilityActivated { source, ability, player: p, .. }", true),
+    // The activated abilities other permanents have as layer 6 leaves them.
+    ("Drana and Linvala", "let other = q.chars(id); for r in other.abilities()", true),
+    ("Drana and Linvala", "spend_any_color: &[ability_3_0_spend]", true),
+    ("Scheming Fence", "!d.special_action && (true && !d.is_loyalty_ability())", true),
+    ("Experiment Kraj", "if id == source || !q.state().obj(id).zone.is(ZoneKind::Battlefield)", true),
+    ("Marvin, Murderous Mimic", "let other = q.chars(id);", true),
+    ("Robaran Mercenaries", "let other = q.chars(id);", true),
+    ("Manascape Refractor", "let other = q.chars(id);", true),
+    // Reconfigure at either price: its two abilities at each.
+    ("Razorfield Ripper", "\"Reconfigure\u{2014}Pay {E}{E}{E} (Pay {E}{E}{E}: Unattach this permanent.", true),
+    ("Razorfield Ripper", "Cost { energy: 3, ..Cost::NONE }), cantrip_mechanics::attach::attach_to_target", true),
     // What Cantrip has no word for.
-    ("Drana and Linvala", "the-activated-abilities-of-other-permanents", false),
-    ("Scheming Fence", "the-activated-abilities-of-other-permanents", false),
+    ("Dragon's Fire", "planned_value!(\"engine: no reveal cost\", Cost::NONE => Cost::one_of", false),
     ("Sharkey, Tyrant of the Shire", "mana-spent-as-though-of-any-type", false),
     ("Koh, the Face Stealer", "a-chosen-object-outside-its-body", false),
     ("Bullseye, Death Dealer", "a-choice-between-the-costs-of-an-activated-ability", false),

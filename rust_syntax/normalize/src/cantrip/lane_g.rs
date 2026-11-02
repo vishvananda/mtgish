@@ -1676,6 +1676,14 @@ impl Compiler {
             CostPart::Choice(_) if self.activation_cost.is_some() => {
                 return Err(gap(super::costs::ACTIVATED_COST_CHOICE));
             }
+            // "You may reveal a Dragon card from your hand or choose a Dragon you
+            // control" (Dragon's Fire): a cost no `Cost` pays (a reveal, card.rs
+            // `Cost`) can't be one of the choices, whatever offers the choice.
+            CostPart::Choice(costs)
+                if costs.iter().any(|c| c.parts.iter().any(|p| matches!(p, CostPart::Reveal { .. }))) =>
+            {
+                return Err(gap("engine: no reveal cost"));
+            }
             CostPart::Choice(costs) => {
                 let mut options = Vec::new();
                 for (i, option) in costs.iter().enumerate() {
