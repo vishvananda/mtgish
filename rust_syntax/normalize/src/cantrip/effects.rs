@@ -2573,7 +2573,7 @@ impl Compiler {
                     // of its colors" (Omnath, Locus of All): what was revealed is the
                     // card still on top.
                     None if matches!(cost.parts.as_slice(), [CostPart::RevealTop(_)])
-                        && self.read_later(result) =>
+                        && lane_n::read_as_objects(&self.after, result) =>
                     {
                         writeln!(out, "let revealed_{id}: Vec<ObjectId> = match paid_{id} {{ true => g.state().zone(Zone::library(payer_{id})).first().copied().into_iter().collect(), false => Vec::new() }};").unwrap();
                         self.moved.insert(result.0, format!("revealed_{id}"));

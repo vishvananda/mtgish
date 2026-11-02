@@ -2415,7 +2415,7 @@ impl Compiler {
             );
         }
         // The copies, for "those spells" (Spinerock Tyrant) after.
-        let kept = self.read_later(result) || format!("{:?}", self.after).contains("what: CopiedSpell");
+        let kept = lane_n::read_as_objects(&self.after, result) || format!("{:?}", self.after).contains("what: CopiedSpell");
         let copies = match kept {
             true => format!(" let mut copies_{id}: Vec<ObjectId> = Vec::new();"),
             false => String::new(),
