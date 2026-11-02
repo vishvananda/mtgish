@@ -55,10 +55,16 @@ pub(super) fn purpose(result: &ResultId, rest: &[Instruction]) -> Option<&'stati
                 SequenceEnd::Bottom => "PutOnBottom",
             },
             Operation::Move {
-                objects,
+                objects: cards,
                 destination,
                 ..
-            } if chosen(objects) => match destination {
+            }
+            | Operation::ChangeZone {
+                cards,
+                count: None,
+                destination,
+                ..
+            } if chosen(cards) => match destination {
                 Destination::OwnersHand => "PutIntoHand",
                 Destination::OwnersGraveyard => "PutIntoGraveyard",
                 Destination::Exile => "Exile",
@@ -2074,6 +2080,9 @@ impl Compiler {
             }
             Operation::Reveal { objects } => {
                 self.revealed = true;
+                if self.from_outside(objects) {
+                    self.notes.outside.insert(result.0);
+                }
                 self.selections.insert(result.0, format!("objects_{id}"));
                 writeln!(out, "let objects_{id} = {}; let mut owners_{id}: Vec<PlayerId> = objects_{id}.iter().map(|o| g.state().obj(*o).owner).collect(); owners_{id}.dedup(); for owner in owners_{id} {{ let cards: Vec<ObjectId> = objects_{id}.iter().copied().filter(|o| g.state().obj(*o).owner == owner).collect(); g.reveal(owner, &cards); }}", self.fetch(self.objects(objects)?)).unwrap();
             }

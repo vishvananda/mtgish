@@ -585,7 +585,7 @@ impl Compiler {
     pub(super) fn from_outside(&self, objects: &ObjectSet) -> bool {
         match objects {
             ObjectSet::OutsideTheGame(_) => true,
-            ObjectSet::Selected(result) => self.notes.outside.contains(&result.0),
+            ObjectSet::Selected(result) | ObjectSet::Named(result) => self.notes.outside.contains(&result.0),
             ObjectSet::Union(sets) => sets.iter().any(|set| self.from_outside(set)),
             ObjectSet::Matching { objects, .. }
             | ObjectSet::Difference { objects, .. }

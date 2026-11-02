@@ -1145,7 +1145,7 @@ fn group_constraint(term: &Operand) -> Option<SelectionConstraint> {
         ("SameNames", []) => C::CommonProperty(D::Names),
         ("ShareAllCardTypes", []) => C::AllSameProperty(D::CardTypes),
         ("HasAColorNotInCommon", []) => C::NoCommonProperty(D::Colors),
-        ("DifferentNames", []) => C::NoCommonProperty(D::Names),
+        ("DifferentNames", []) => C::DifferentNames,
         ("TotalPowerIs", [Operand::Comparison(comparison, amount)]) => C::TotalProperty {
             property: Property::Power,
             comparison: comparison.clone(),
