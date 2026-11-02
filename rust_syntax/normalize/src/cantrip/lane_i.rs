@@ -1867,27 +1867,47 @@ impl Compiler {
             if said.iter().any(|line| line.contains(". Otherwise, you may put it into your graveyard")) {
                 return Err(gap("an option the card says is otherwise, free in the data"));
             }
+            // Cloak and Dagger: "until Cloak and Dagger leave the battlefield" is
+            // gone from the data's exile, and its two exiles are one choice there.
+            if said.iter().any(|line| line.contains(" until ") && line.contains(" leave")) {
+                return Err(gap("an exile until this leaves the battlefield dropped from a choice, in the data"));
+            }
             let labels: Vec<String> = (0..options.len())
                 .map(|i| format!("Label::Card(card_{id}, {i})"))
                 .collect();
+            let mut arms = String::new();
+            for (i, option) in options.iter().enumerate() {
+                match i + 1 == options.len() {
+                    true => writeln!(arms, "_ => {{").unwrap(),
+                    false => writeln!(arms, "{i} => {{").unwrap(),
+                }
+                self.block(option, &mut arms, true)?;
+                writeln!(arms, "}}").unwrap();
+            }
+            // "You may instead ..." in what a replacement does (Flitwing, Jinnie
+            // Fay, Mirrormind Crown, Retriever Phoenix): Cantrip asks it as the
+            // effect applies (`ReplacementDef::optional`, CR 614.1a), not as a
+            // choice in its steps, so the choice is written with the change it
+            // offers, whose own hole already says what the file waits on.
+            let feature = match self.pending == Pending::Reshaped && arms.contains("planned!(") {
+                true => FOLLOWS_GAP,
+                // Winter's Chill: "may pay {1} or {2}" is a choice whose options
+                // each ask again whether to pay, so a player who picks one and
+                // declines has neither paid nor taken the option that says so.
+                false if arms.matches("g.may_pay(").count() + 1 >= options.len() && options.len() > 2 => {
+                    return Err(gap("a choice among costs to pay, each one asked again as a may"));
+                }
+                false => "instruction ChooseOne",
+            };
             let pick = planned::planned_value(
-                "instruction ChooseOne",
+                feature,
                 "0u8",
                 &format!(
                     "cantrip_mechanics::choose::one_of(g, decider_{id}, asker.source, vec![{}])?",
                     labels.join(", ")
                 ),
             );
-            writeln!(out, "match {pick} {{").unwrap();
-            for (i, option) in options.iter().enumerate() {
-                match i + 1 == options.len() {
-                    true => writeln!(out, "_ => {{").unwrap(),
-                    false => writeln!(out, "{i} => {{").unwrap(),
-                }
-                self.block(option, out, true)?;
-                writeln!(out, "}}").unwrap();
-            }
-            writeln!(out, "}}").unwrap();
+            writeln!(out, "match {pick} {{\n{arms}}}").unwrap();
             return Ok(());
         };
         let card = match self.stack_item {

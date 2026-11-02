@@ -715,7 +715,27 @@ impl Compiler {
         let ask = |source: &str, subject: &str, cost: &str| {
             format!("g.may_pay(payer_{id}, {source}, {subject}, {cost}, &PAY_QUESTION)?")
         };
+        let beholds: Vec<&CostPart> = cost
+            .parts
+            .iter()
+            .filter(|part| !matches!(part, CostPart::Mana(symbols) if symbols.is_empty()))
+            .collect();
         let paid = match cost.parts.as_slice() {
+            // "You may behold an Elf. If you do, ..." (CR 701.4a, 608.2d): nobody is
+            // asked with nothing to behold (Elven Passage, Sarkhan); "as this enters"
+            // leaves the entering card out (Theorist's Sanctum).
+            _ if matches!(beholds.as_slice(), [CostPart::Behold { count: Expr::Constant(1), .. }]) => {
+                let [CostPart::Behold { what, .. }] = beholds.as_slice() else {
+                    unreachable!("one behold");
+                };
+                let (test, quality) = behold_words(what)?;
+                let function = format!("behold_{}", self.fresh());
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker, id: ObjectId) -> bool {{ {test} }}").unwrap();
+                match self.pending == Pending::Entering {
+                    true => format!("{M}::behold::as_enters(g, entering, {function}, {})?", quoted(&quality)),
+                    false => format!("{M}::behold::on_resolution(g, payer_{id}, asker.source, {function}, {})?", quoted(&quality)),
+                }
+            }
             [CostPart::Choice(_)]
                 if lane_k::printed_otherwise(self.line_text(), "for each blight counter") =>
             {

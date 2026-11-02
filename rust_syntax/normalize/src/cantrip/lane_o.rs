@@ -7,6 +7,9 @@
 use super::*;
 
 const M: &str = "cantrip_mechanics";
+/// `CardDef::becomes_aura_enchant` of an Aura that enchants the creature it put
+/// onto the battlefield (Necromancy).
+const AURA_PUT_WITH_THIS: &str = "Some(cantrip_mechanics::targets::CREATURE_PUT_ONTO_THE_BATTLEFIELD_WITH_THIS)";
 
 /// "Loses all other abilities and has this", as the two changes it is: they keep
 /// their order in the ability layer, so what it has it keeps (CR 613.1f).
@@ -1582,13 +1585,24 @@ impl Compiler {
             .map(|reference| format!("EffectKind::AddAbility({reference})"))
             .collect())
     }
+    /// Whether this card's Aura enchants what it puts onto the battlefield.
+    pub(super) fn aura_puts_its_host(&self) -> bool {
+        self.aura.as_deref() == Some(AURA_PUT_WITH_THIS)
+    }
     pub(super) fn aura_enchant(&mut self, hosts: &EnchantHosts) -> Result<Vec<String>> {
         let EnchantHosts::Permanents(filter) = hosts else {
             return Err(gap("granted Enchant"));
         };
-        // Necromancy puts its creature in with it, a move this reading can't say.
-        if format!("{filter:?}").contains("MadeBy") {
-            return Err(gap("an Aura that enchants what it put onto the battlefield"));
+        // Necromancy: "enchant creature put onto the battlefield with [this]" is
+        // the creature that entered with it as its Aura (CR 303.4a), and the put
+        // that follows is `put_onto_battlefield_with_aura` (CR 303.4f).
+        let words = format!("{filter:?}");
+        if words.contains("MadeBy") {
+            if !(words.starts_with("All([CardType(Creature), MadeBy(Source)") || words == "All([CardType(Creature), MadeBy(Source)])") {
+                return Err(gap("an Aura that enchants what it put onto the battlefield"));
+            }
+            self.aura = Some(AURA_PUT_WITH_THIS.to_string());
+            return Ok(vec![format!("EffectKind::Enchant({})", self.source_card())]);
         }
         let function = format!("becomes_aura_{}", self.fresh());
         let test = self.queried(|c| c.filter(filter, &Candidate::of("id")))?;
@@ -1929,6 +1943,15 @@ impl Compiler {
                     format!("EffectKind::AddAbilitiesOf({abilities})"),
                 )]
             }
+            // "Add one mana of any color. This creature becomes that color" (Foraging
+            // Wickermaw): the color named as the mana ability was activated, the
+            // mana's, and exactly that color (CR 105.3, 605.1a, 613.1e).
+            Change::ColorOfMana {
+                mode: ChangeMode::Set,
+                ..
+            } if self.mana_body => vec![
+                "EffectKind::SetColors(ColorSet::of(chosen.expect(\"mana activation selected a color\")))".to_string(),
+            ],
             // The instruction before it added the mana; nothing else is read.
             Change::ColorOfMana { mode, .. } => vec![lane_g::planned_kind(
                 "continuous change ColorOfMana",
@@ -3090,7 +3113,11 @@ impl Compiler {
     ) -> Result<()> {
         let read = |c: &mut Self| -> Result<String> {
             // The branch that failed may have left its own items under `label`.
-            let cost = c.cost(cost, &format!("{label}_branch_cost"))?;
+            // A spell's cost as it is cast (CR 601.2b), which may behold.
+            let paying = std::mem::replace(&mut c.paying, lane_g::Paying::Additional);
+            let cost = c.cost(cost, &format!("{label}_branch_cost"));
+            c.paying = paying;
+            let cost = cost?;
             let paid = c.resolved_body(paid, &format!("{label}_branch_paid"))?;
             let unpaid = c.resolved_body(unpaid, &format!("{label}_branch_unpaid"))?;
             Ok(format!(
@@ -3860,6 +3887,7 @@ impl Compiler {
                 };
                 let object = self.fetch(self.object(object)?);
                 let actions = self.listed(actions)?;
+                self.as_event_chooses |= actions.contains("::Choose");
                 self.plan_entry(
                     &feature,
                     "as_events",

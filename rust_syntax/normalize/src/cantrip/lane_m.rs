@@ -325,9 +325,10 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         Operation::Discard { .. } | Operation::DiscardObjects { .. } => &["Discarded"],
         Operation::Mill { .. } => &["Milled"],
         Operation::Manifest { .. } => &["Manifested"],
-        Operation::Reveal { .. }
-        | Operation::RevealUntil { .. }
-        | Operation::RevealFromHand { .. } => &["Revealed"],
+        // "Until they reveal a historic permanent card ... that card" (Jhoira):
+        // what a reveal until finds is the card found this way.
+        Operation::RevealUntil { .. } => &["Revealed", "Found"],
+        Operation::Reveal { .. } | Operation::RevealFromHand { .. } => &["Revealed"],
         Operation::Search { .. } => &["Found"],
         Operation::Tap { .. } => &["Tapped"],
         Operation::CreateTokens { .. } => &["Created"],
@@ -550,6 +551,11 @@ impl Compiler {
     /// its own hole says why.
     pub(super) fn earlier_objects(&self, what: &EarlierObjects) -> Result<String> {
         let word = form(what);
+        // "The permanents this spell targets", read as its total cost is worked
+        // out (CR 601.2f): each permanent once, however many slots chose it.
+        if matches!(what, EarlierObjects::Targeted) && self.costing_targets {
+            return Ok("{ let mut chosen: Vec<ObjectId> = targets.iter().filter_map(|t| t.object()).collect(); chosen.sort_unstable(); chosen.dedup(); chosen }".into());
+        }
         let step = self.notes.earlier.iter().rev().find(|(w, _)| *w == word);
         let Some((_, result)) = step.filter(|_| self.reader == Reader::Resolution) else {
             return self.earlier_paid(what);
@@ -557,6 +563,16 @@ impl Compiler {
         if let (EarlierObjects::Revealed, Some(found)) = (what, self.reveal_matches.get(&result.0))
         {
             return Ok(format!("{found}.clone()"));
+        }
+        // The card a reveal until found, and the permanent it became if it was put
+        // onto the battlefield: "that permanent's mana value" (Jhoira, CR 400.7).
+        if let (EarlierObjects::Found, Some(found)) = (what, self.reveal_matches.get(&result.0)) {
+            // Jhoira: "You put that card onto the battlefield under your control and
+            // lose life" is in the data the revealing opponent's own action.
+            if self.line_text().is_some_and(|line| line.contains("under your control and lose life")) {
+                return Err(gap("the life you lose read as the revealing player's, in the data"));
+            }
+            return Ok(format!("{found}.iter().map(|&id| q.state().obj(id).became.filter(|&now| q.state().obj(now).zone.is(ZoneKind::Battlefield)).unwrap_or(id)).collect::<Vec<ObjectId>>()"));
         }
         // What was sacrificed or countered is read as it last existed.
         if matches!(what, EarlierObjects::Sacrificed | EarlierObjects::Countered)
@@ -577,6 +593,11 @@ impl Compiler {
             }
             EarlierObjects::Discarded if self.cast_pays.contains(&"Discarded") => {
                 "Event::Discarded { card, .. } => Some(card)"
+            }
+            // Web-slinging's return is the spell's only cost that returns a
+            // permanent, read as it last existed (CR 702.188a).
+            EarlierObjects::Webslung => {
+                "Event::ZoneChange { old, from, to, .. } if from.is(ZoneKind::Battlefield) && to.is(ZoneKind::Hand) => Some(old)"
             }
             _ => return None,
         };

@@ -606,7 +606,9 @@ impl Compiler {
             parts.keywords.push(keyword(printed)?);
             return Ok(());
         }
-        if self.affinity_granted(label, affected, changes, parts)? {
+        if self.affinity_granted(label, affected, changes, parts)?
+            || self.miracle_granted(label, affected, changes, parts)?
+        {
             return Ok(());
         }
         let changes = &self.casting_tables(label, affected, changes, parts)?[..];

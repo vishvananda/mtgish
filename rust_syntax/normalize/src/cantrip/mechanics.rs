@@ -638,8 +638,22 @@ impl Compiler {
                 parts.table("own_cost_changes", function);
             }
             K::Bestow | K::BestowX => {
-                let cost = mana_alone(cost, mechanic)?;
-                self.bestow = Some(cost);
+                // "Bestow—{R}, Collect evidence 6" (Detective's Phoenix): the mana is
+                // the bestow cost, the rest an additional cost of casting it bestowed.
+                let parts = cost.map(|c| c.parts.as_slice()).unwrap_or_default();
+                let (mana_parts, rest): (Vec<CostPart>, Vec<CostPart>) =
+                    parts.iter().cloned().partition(|part| matches!(part, CostPart::Mana(_)));
+                let mana_cost = match mana_parts.as_slice() {
+                    [mana_part] => Cost { parts: vec![mana_part.clone()] },
+                    _ => return Err(gap(format!("{mechanic:?} cost other than mana"))),
+                };
+                let mana_code = mana_alone(Some(&mana_cost), mechanic)?;
+                let extra = match rest.is_empty() {
+                    true => None,
+                    false => Some(self.cost(&Cost { parts: rest }, label)?),
+                };
+                self.bestow = Some(mana_code);
+                self.bestow_extra = extra;
             }
             K::Escape => {
                 let (mana, exiled) = escape_cost(cost)?;

@@ -1780,6 +1780,19 @@ impl Compiler {
                         format!("let mut done_{id}: i64 = 0; let mut dealt_{id}: Vec<ObjectId> = Vec::new(); "),
                         format!("let dealt = g.damage_together(&batch); done_{id} += dealt.iter().map(|&n| i64::from(n)).sum::<i64>(); dealt_{id}.extend(batch.iter().zip(&dealt).filter(|(_, n)| **n > 0).filter_map(|(d, _)| d.1.object()));"),
                     )
+                } else if self.read_later(result)
+                    && self.after.iter().any(|i| format!("{i:?}").contains(&format!("ClampedDamage(ResultId({}))", result.0)))
+                {
+                    // "But not more life than the player's life total before the
+                    // damage was dealt, the planeswalker's loyalty before the damage
+                    // was dealt, or the creature's toughness" (Drain Life): each
+                    // recipient's damage, no more than that.
+                    self.performed.insert(result.0, format!("done_{id}"));
+                    let clamped = format!("clamped_damage_{}", result.0);
+                    (
+                        format!("let mut done_{id}: i64 = 0; let mut {clamped}: i64 = 0; "),
+                        format!("let caps: Vec<i64> = batch.iter().map(|&(_, t, _)| match t {{ Target::Player(p) => i64::from(g.state().player(p).life).max(0), Target::Object(o) if g.chars(o).is(CardType::Planeswalker) => i64::from(g.state().obj(o).counters(CounterKind::Loyalty)).max(0), Target::Object(o) => i64::from(g.chars(o).toughness.unwrap_or(0)).max(0), _ => 0 }}).collect(); let dealt = g.damage_together(&batch); done_{id} += dealt.iter().map(|&n| i64::from(n)).sum::<i64>(); {clamped} += dealt.iter().zip(&caps).map(|(&n, &cap)| i64::from(n).min(cap)).sum::<i64>();"),
+                    )
                 } else if self.read_later(result) {
                     self.performed.insert(result.0, format!("done_{id}"));
                     (
@@ -1943,6 +1956,10 @@ impl Compiler {
             Operation::Attach { attachments, host } => {
                 let attachments = self.acted_on(attachments)?;
                 let host = self.fetch(self.damage_source(host)?);
+                if self.aura_puts_its_host() && attachments.starts_with("{ let q: &dyn Query = g; (Some(asker.source)") && host.contains("moved_") && !self.read_later(result) {
+                    writeln!(out, "// Attached as it entered with this Aura.").unwrap();
+                    return Ok(());
+                }
                 let (flag, attach) = if self.read_later(result) {
                     self.performed.insert(result.0, format!("attached_{id}"));
                     (
@@ -3151,6 +3168,10 @@ impl Compiler {
                 } else if !entry.states.is_empty() {
                     let each = self.arrival(entry)?;
                     format!("{{ let mut moved: Vec<ObjectId> = Vec::new(); for &o in &objects_{id} {{ let controller = {controller}; {each} }} moved }}")
+                } else if entry.counters.is_empty() && self.aura_puts_its_host() && !entry.tapped {
+                    // It enters with this Aura attached (CR 303.4f), so the enchant
+                    // ability "put onto the battlefield with [this]" names it.
+                    format!("{{ let mut came_{id}: Vec<ObjectId> = Vec::new(); for &o in &objects_{id} {{ came_{id}.push(g.put_onto_battlefield_with_aura(o, {controller}, asker.source)?); }} came_{id}.into_iter().filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)).collect::<Vec<ObjectId>>() }}")
                 } else if entry.counters.is_empty() {
                     format!("{{ {rows} let came_{id} = g.put_all_onto_battlefield_as(&rows_{id})?; came_{id}.into_iter().filter(|&o| g.state().obj(o).zone.is(ZoneKind::Battlefield)).collect::<Vec<ObjectId>>() }}")
                 } else {
