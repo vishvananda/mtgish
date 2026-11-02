@@ -2113,8 +2113,8 @@ pub struct CardFileRow {
 
 /// Each face's printed text, by name.
 fn oracle_texts(oracle: &Path) -> corpus::Result<BTreeMap<String, String>> {
-    let printed: serde_json::Value =
-        serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(oracle)?))?;
+    // Read whole first: through a reader serde_json takes a byte at a time, most of a second here.
+    let printed: serde_json::Value = serde_json::from_slice(&std::fs::read(oracle)?)?;
     Ok(printed
         .as_array()
         .ok_or("oracle data is not a list")?
