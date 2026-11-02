@@ -1441,9 +1441,13 @@ impl Compiler {
         }
         let when = match expires {
             // The rewrite kept "this turn" out of the AST, and without it the ability
-            // would wait past the turn.
-            None if lane_k::printed_otherwise(self.line_text(), "next")
-                && lane_k::printed_otherwise(self.line_text(), "this turn") =>
+            // would wait past the turn. It is "next ... this turn" in one sentence:
+            // Seraph's "dealt damage by this creature this turn" is the trigger's own.
+            None if self.line_text().is_some_and(|line| {
+                line.split(". ").any(|sentence| {
+                    sentence.find("next").is_some_and(|at| sentence[at..].contains("this turn"))
+                })
+            }) =>
             {
                 return Err(gap("delayed trigger this turn with no end in the AST"));
             }

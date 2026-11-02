@@ -344,7 +344,7 @@ def family(feature):
 # What stands between a card and its file, the hardest last. Each form's verdict is `data/cantrip_audit.json`: the API read
 # against the hand-written cards, not a guess from the form's family. `card-code` of a keyword is a module for Cantrip's
 # mechanics crate, since a keyword is not written out in every card that has it; the core need not change.
-FIXES = ("generator", "mechanics module", "unsure", "unaudited", "Cantrip", "not played")
+FIXES = ("generator", "mechanics module", "unsure", "unaudited", "mtgish data", "Cantrip", "not played")
 NEW_MODULE = re.compile(r"\b(new|a plain function in|function in|module)\b.{0,40}cantrip[-_]mechanics|cantrip[-_]mechanics.{0,30}\b(new|module)\b|in the mechanics crate|new mechanics", re.I)
 NOT_PLAYED = re.compile(r"game mode Cantrip does not play|casual variant Cantrip does not play|Alchemy|^digital:|casual-format", re.I)
 
@@ -358,7 +358,7 @@ def fix_of(row, audit):
     module = verdict == "card-code" and (row["class"] == "mechanic" or NEW_MODULE.search(audit[row["id"]].get("how", "")))
     if verdict == "exists" or (verdict == "card-code" and not module):
         return "generator"
-    return {"card-code": "mechanics module", "unsure": "unsure"}.get(verdict, "Cantrip")
+    return {"card-code": "mechanics module", "unsure": "unsure", "data": "mtgish data"}.get(verdict, "Cantrip")
 
 
 def hardest(fixes):
@@ -467,7 +467,8 @@ def tracker(args):
              "What stands between each remaining card and its file, counting the hardest thing a card needs:", "",
              "| fix | cards | meaning |", "|---|---|---|"]
     meaning = {"generator": "Cantrip can do it today: the generator has only to write it", "mechanics module": "a keyword's module for the mechanics crate, no change to the core",
-               "unsure": "the audit could not settle it", "unaudited": "a form that appeared after the audit", "Cantrip": "needs a change to Cantrip's engine or API",
+               "unsure": "the audit could not settle it", "unaudited": "a form that appeared after the audit",
+               "mtgish data": "the mtgish data encodes the card wrongly: fixed upstream, not in Cantrip", "Cantrip": "needs a change to Cantrip's engine or API",
                "not played": "a game mode or a digital-only rule Cantrip does not play"}
     lines += [f"| {k} | {by_fix.get(k, 0)} | {meaning[k]} |" for k in FIXES]
     lines += ["", "| class | requirements | cards |", "|---|---|---|"]

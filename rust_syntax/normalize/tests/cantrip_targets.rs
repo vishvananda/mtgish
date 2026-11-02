@@ -68,6 +68,12 @@ const CARDS: &[(&str, &str)] = &[
     ("Herald of Vengeance", "zone.is(ZoneKind::Battlefield)"),
     // The modes of the combat before this one of yours.
     ("Yotian Courier", "Step::BeginCombat"),
+    // "You may untap it. Do this only once each turn": asked, and spent by a yes.
+    ("Legolas, Counter of Kills", "g.note_done(asker.source"),
+    // "When you next cast ... this turn" waits for this turn alone.
+    ("Repeated Reverberation", "DelayedWhen::NextThisTurn"),
+    // "This turn" of Seraph's trigger is no end of the delayed ability's wait.
+    ("Seraph", "DelayedWhen::UntilEvent"),
 ];
 
 #[test]
