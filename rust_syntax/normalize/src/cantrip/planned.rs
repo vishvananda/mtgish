@@ -291,15 +291,15 @@ pub struct TrackedCard {
 
 /// Every card's code, a JSON object a line. A record that can't be emitted
 /// stops the run: nothing is left for the tracker to miss.
-/// The module a layout's second face is written in, where that face is one `CardDef`
-/// of its own beside the card's. A Split or Room card joins its two in a third.
-fn second_face_module(layout: &str) -> Option<&'static str> {
+/// The modules a layout's other faces are written in, each one `CardDef` beside the card's.
+fn face_modules(layout: &str) -> &'static [&'static str] {
     match layout {
-        "Transforming" | "ModalDFC" => Some("back"),
-        "Adventurer" => Some("adventure"),
-        "Ominous" => Some("omen"),
-        "Preparer" => Some("prepared"),
-        _ => None,
+        "Transforming" | "ModalDFC" => &["back"],
+        "Adventurer" => &["adventure"],
+        "Ominous" => &["omen"],
+        "Preparer" => &["prepared"],
+        "Split" | "Room" => &["left", "right"],
+        _ => &[],
     }
 }
 
@@ -329,13 +329,13 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
                 [one, two]
                     if one.gaps.is_empty()
                         && two.gaps.is_empty()
-                        && second_face_module(&lowered.card.layout).is_some() =>
+                        && !face_modules(&lowered.card.layout).is_empty() =>
                 {
                     match (&whole.rust, one.oracle.as_deref(), two.oracle.as_deref()) {
-                        (Some(raw), Some(first), Some(second)) => super::pr_form::render_two_faces(
+                        (Some(raw), Some(first), Some(second)) => super::pr_form::render_faces(
                             raw,
-                            second_face_module(&lowered.card.layout).expect("just seen"),
-                            [(&one.name, first), (&two.name, second)],
+                            face_modules(&lowered.card.layout),
+                            &[(&one.name, first), (&two.name, second)],
                         ),
                         _ => None,
                     }

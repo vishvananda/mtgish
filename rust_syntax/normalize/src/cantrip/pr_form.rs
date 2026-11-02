@@ -33,19 +33,16 @@ pub fn render(raw: &str, name: &str, printed: &str, characteristics: Characteris
     rendered(file, raw, name, printed, characteristics).map(written)
 }
 
-/// A card of two faces as one file, `raw` holding the second in `module`: its `CARD` is
-/// named as the card reads it (`BACK`, or its own name), and the two share one namespace.
-/// `faces` are each face's name and Oracle text. None where the faces' names collide.
+/// A card of two faces as one file, `raw` holding the second in `module`.
 pub fn render_two_faces(raw: &str, module: &str, faces: [(&str, &str); 2]) -> Option<String> {
-    let mut file = syn::parse_str::<File>(raw).ok()?;
-    let at = file
-        .items
-        .iter()
-        .position(|item| matches!(item, Item::Mod(m) if m.ident == module))?;
-    let Item::Mod(taken) = file.items.remove(at) else {
-        return None;
-    };
-    let (_, items) = taken.content?;
+    render_faces(raw, &[module], &faces)
+}
+
+/// A card of several faces as one file, `raw` holding each in one of `modules`: its `CARD`
+/// is named as the card reads it (`BACK`, or its own name), and they share one namespace.
+/// `faces` are each face's name and Oracle text. The card itself may be neither face, as
+/// a split card is. None where the module isn't there, or its name is no face's.
+pub fn render_faces(raw: &str, modules: &[&str], faces: &[(&str, &str)]) -> Option<String> {
     let printed_name = |file: &File| {
         file.items.iter().find_map(|item| match item {
             Item::Static(s) if s.ident == "CARD" => match &*s.expr {
@@ -61,38 +58,53 @@ pub fn render_two_faces(raw: &str, module: &str, faces: [(&str, &str); 2]) -> Op
             _ => None,
         })
     };
-    let front_name = printed_name(&file)?;
-    let [one, two] = faces;
-    let (front, second) = if one.0 == front_name { (one, two) } else { (two, one) };
-    if front.0 != front_name {
-        return None;
+    let face_named = |name: &str| faces.iter().find(|face| face.0 == name).copied();
+    let mut file = syn::parse_str::<File>(raw).ok()?;
+    let mut parts: Vec<(&str, File, (&str, &str), String)> = Vec::new();
+    for module in modules {
+        let at = file
+            .items
+            .iter()
+            .position(|item| matches!(item, Item::Mod(m) if m.ident == module))?;
+        let Item::Mod(taken) = file.items.remove(at) else {
+            return None;
+        };
+        let (_, items) = taken.content?;
+        let items = items.into_iter().filter(|item| !matches!(item, Item::Use(_))).collect();
+        let inner = File { shebang: None, attrs: Vec::new(), items };
+        let face = face_named(&printed_name(&inner)?)?;
+        let constant = match *module {
+            "back" => "BACK".to_string(),
+            _ => oracle_constant(face.0),
+        };
+        parts.push((module, inner, face, constant));
     }
-    let constant = match module {
-        "back" => "BACK".to_string(),
-        _ => super::card_file::oracle_constant(second.0),
-    };
-    let unparsed = prettyplease::unparse(&file).replace(&format!("{module}::CARD"), &constant);
-    let inner = File {
-        shebang: None,
-        attrs: Vec::new(),
-        items: items.into_iter().filter(|item| !matches!(item, Item::Use(_))).collect(),
-    };
-    let inner = format!("use cantrip_api::*;\n{}", prettyplease::unparse(&inner));
+    let name = printed_name(&file)?;
+    let joined = faces.iter().map(|face| face.1).collect::<Vec<_>>().join("\n");
+    let front = face_named(&name).unwrap_or((&name, &joined));
+    let mut unparsed = prettyplease::unparse(&file);
+    for (module, _, _, constant) in &parts {
+        unparsed = unparsed.replace(&format!("{module}::CARD"), constant);
+    }
     let oracle = Characteristics::Oracle;
-    let front_file = rendered(syn::parse_str(&unparsed).ok()?, &unparsed, front.0, front.1, oracle)?;
-    // A prepare spell is no card and has no content file (722.3c).
-    let characteristics = match module {
-        "prepared" => Characteristics::Inline,
-        _ => oracle,
-    };
-    let second_file = match rendered(syn::parse_str(&inner).ok()?, &inner, second.0, second.1, characteristics) {
-        Some(file) => file,
-        None => {
-            let base: syn::Path = syn::parse_str(&format!("oracle::{}", oracle_constant(second.0))).ok()?;
-            parse_quote!(pub static CARD: CardDef = CardDef { ..#base };)
-        }
-    };
-    merged_faces(front_file, second_file, &constant).map(written)
+    let mut merged = rendered(syn::parse_str(&unparsed).ok()?, &unparsed, front.0, front.1, oracle)?;
+    for (module, inner, face, constant) in parts {
+        let raw = format!("use cantrip_api::*;\n{}", prettyplease::unparse(&inner));
+        // A prepare spell is no card and has no content file (722.3c).
+        let characteristics = match module {
+            "prepared" => Characteristics::Inline,
+            _ => oracle,
+        };
+        let second = match rendered(syn::parse_str(&raw).ok()?, &raw, face.0, face.1, characteristics) {
+            Some(file) => file,
+            None => {
+                let base: syn::Path = syn::parse_str(&format!("oracle::{}", oracle_constant(face.0))).ok()?;
+                parse_quote!(pub static CARD: CardDef = CardDef { ..#base };)
+            }
+        };
+        merged = merged_faces(merged, second, &constant)?;
+    }
+    Some(written(merged))
 }
 
 /// The second face's items before the first's, under one set of imports.
@@ -156,7 +168,8 @@ fn merged_faces(front: File, mut second: File, constant: &str) -> Option<File> {
                     if let Expr::Reference(list) = &*s.expr {
                         if let Expr::Array(list) = &*list.expr {
                             for entry in &list.elems {
-                                if !extra.iter().any(|e| text_of(e) == text_of(entry)) {
+                                let through_a_module = text_of(entry).contains("::");
+                                if !through_a_module && !extra.iter().any(|e| text_of(e) == text_of(entry)) {
                                     extra.push(entry.clone());
                                 }
                             }
@@ -166,6 +179,12 @@ fn merged_faces(front: File, mut second: File, constant: &str) -> Option<File> {
                 }
                 if i == 0 && s.ident == "CARD" {
                     s.ident = syn::Ident::new(constant, s.ident.span());
+                } else if i == 0 && text_of(&s.ty) == "CardDef" {
+                    let ident = &s.ident;
+                    let entry: Expr = parse_quote!(&#ident);
+                    if !extra.iter().any(|e| text_of(e) == text_of(&entry)) {
+                        extra.push(entry);
+                    }
                 }
             }
             if let Some(name) = name_of(&item) {
