@@ -3608,6 +3608,24 @@ impl Compiler {
                 };
                 let mut code = values.clone();
                 for operand in list {
+                    // "Except it has changeling" (Omni-Changeling), "the copy gains
+                    // haste" (Choreographed Sparks): a keyword the copy's values
+                    // have (CR 707.9b), as a characteristic-defining one too.
+                    let added_keyword = match operand {
+                        Operand::Ability(ability) if name == "AddAbility" => match &**ability {
+                            Ability::Keyword(k) => keyword(k).ok(),
+                            Ability::Static {
+                                kind: StaticKind::CharacteristicDefining { keyword: Some(k), .. },
+                                ..
+                            } => keyword(k).ok(),
+                            _ => None,
+                        },
+                        _ => None,
+                    };
+                    if let Some(k) = added_keyword {
+                        code = format!("{code}.with_keyword({k})");
+                        continue;
+                    }
                     match operand {
                         Operand::Ability(ability) if lane_n::toxic_of(ability).is_some() => {
                             return Err(gap("toxic as a copy exception"));
@@ -3638,6 +3656,11 @@ impl Compiler {
                         }
                         _ => return Err(gap(feature)),
                     }
+                }
+                // `Copiable::with_ability` and `with_keyword` are what an added
+                // ability is; what the ability itself waits on is its own hole.
+                if name == "AddAbility" {
+                    return Ok(code);
                 }
                 code
             }
