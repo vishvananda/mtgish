@@ -23,10 +23,8 @@ const CARDS: &[(&str, &str)] = &[
     ("Twinning Staff", "replacement event CopySpell"),
     ("Vedalken Squirrel-Whacker", "replacement of RollD6"),
     ("Grifter's Blade", "what a permanent could be attached to"),
-    (
-        "\"Lifetime\" Pass Holder",
-        "amount of an event its trigger does not carry",
-    ),
+    // The amount follows the event Cantrip lacks.
+    ("\"Lifetime\" Pass Holder", "trigger event Player RollsToVisit"),
     // "If those permanents are exchanged this way".
     ("Gauntlets of Chaos", "traded_"),
     // "For each counter you put on a creature this way": once per counter.
