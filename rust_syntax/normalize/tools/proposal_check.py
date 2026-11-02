@@ -1000,7 +1000,8 @@ def struct_variants(text, spec):
         else:
             name_end = m.start(1)
             text = text[:name_end] + "_new" + text[name_end:close] + ".make()" + text[close:]
-            at = close + len("_new") + len(".make()")
+            # Inside its braces next: a field may hold another new variant, made the same way.
+            at = m.end() + len("_new")
 
 
 def fn_items_as_pointers(text, pat):
