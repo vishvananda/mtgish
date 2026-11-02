@@ -1185,11 +1185,11 @@ class RandomNote(unittest.TestCase):
     def test_random_words(self):
         for text in ("Flip a coin. If you win the flip, create a Treasure token.", "Roll a d20.", "Roll two dice.",
                      "Target player discards a card at random."):
-            self.assertTrue(card_lane.RANDOM.search(text), text)
+            self.assertTrue(lane.RANDOM.search(text), text)
 
     def test_other_words(self):
         for text in ("Draw a card.", "Transform this creature.", "Turn it face up.", "Each player chooses a creature."):
-            self.assertFalse(card_lane.RANDOM.search(text), text)
+            self.assertFalse(lane.RANDOM.search(text), text)
 
 
 if __name__ == "__main__":
