@@ -1722,13 +1722,18 @@ impl Compiler {
                 self.values.insert(result.0, format!("value_{id}"));
             }
             Operation::FlipCoin { player } => {
+                let call = self.flip_call()?;
                 writeln!(
                     out,
-                    "let player_{id} = {}; let flip_{id} = g.flip_coin(player_{id});",
+                    "let player_{id} = {}; let flip_{id} = g.{call}(player_{id});",
                     self.fetch(self.certain_player(player)?)
                 )
                 .unwrap();
                 self.flips.insert(result.0, format!("flip_{id}"));
+                self.coins = Some((
+                    format!("i64::from(flip_{id})"),
+                    format!("i64::from(!flip_{id})"),
+                ));
             }
             Operation::ModifyEvent { change } => self.modify_entering(change, out)?,
             Operation::CreateTrigger {
@@ -2184,6 +2189,8 @@ impl Compiler {
         self.unpaid.clear();
         self.hurt_players.clear();
         self.coins = None;
+        self.coin_turns = None;
+        self.coin_objects = None;
         self.values.clear();
         self.flips.clear();
         self.chosen.clear();

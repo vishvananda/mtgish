@@ -1338,6 +1338,27 @@ impl Compiler {
                     self.player(player)?
                 ),
             ),
+            // Each player's own coin, flipped one at a time.
+            Condition::CoinCameUp {
+                player: Some(player),
+                outcome: outcome @ (CoinOutcome::Heads | CoinOutcome::Tails),
+            } if self.coin_turns.is_some() => {
+                let (players, flips) = self.coin_turns.clone().expect("flipped");
+                let player = self.player(player)?;
+                let heads = matches!(outcome, CoinOutcome::Heads);
+                format!("{players}.iter().zip(&{flips}).any(|(&flipper, &heads)| Some(flipper) == {player} && heads == {heads})")
+            }
+            // The coin flipped for the object being looked at.
+            Condition::CoinCameUp {
+                player: None,
+                outcome: outcome @ (CoinOutcome::Heads | CoinOutcome::Tails),
+            } if self.coin_objects.is_some() => {
+                let flips = self.coin_objects.clone().expect("flipped");
+                let candidate = self.candidates.borrow().last().map(|c| c.id.clone());
+                let candidate = candidate.ok_or_else(|| gap(feature.as_str()))?;
+                let heads = matches!(outcome, CoinOutcome::Heads);
+                format!("{flips}.iter().any(|&(flipped, heads)| flipped == {candidate} && heads == {heads})")
+            }
             Condition::CoinCameUp { player, outcome } => {
                 let player = match player {
                     Some(player) => self.player(player)?,
@@ -2917,13 +2938,9 @@ impl Compiler {
                 action: KeywordAction::TakeExtraTurn,
                 amount: Some(Expr::HeadsFlipped(result)),
                 ..
-            } => {
+            } if self.flips.contains_key(&result.0) => {
                 let actors = self.stated_players(actor)?;
-                let heads = self
-                    .flips
-                    .get(&result.0)
-                    .cloned()
-                    .unwrap_or_else(|| format!("result_{}", result.0));
+                let heads = self.flips[&result.0].clone();
                 format!("for player in {actors} {{ for _ in 0..{heads}.iter().filter(|won| **won).count() {{ g.take_extra_turn(player); }} }}")
             }
             Operation::Conjure {

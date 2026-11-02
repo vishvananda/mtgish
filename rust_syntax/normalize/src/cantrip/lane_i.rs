@@ -846,6 +846,13 @@ impl Compiler {
                     _ => all.or(total),
                 },
             };
+            if matches!(kind, ViewKind::Flip) {
+                self.coin_turns = Some((format!("players_{id}"), format!("each_{k}")));
+                self.coins = Some((
+                    format!("(each_{k}.iter().filter(|&&flip| flip).count() as i64)"),
+                    format!("(each_{k}.iter().filter(|&&flip| !flip).count() as i64)"),
+                ));
+            }
             views.retain(|v| v.result != result || !same_kind(v.kind, kind));
             views.push(view);
             let took = match kind {

@@ -893,8 +893,13 @@ impl Compiler {
             Operation::FlipCoins { actor, count } => {
                 let player = self.one_actor(actor, "operation FlipCoins")?;
                 let count = self.number(count)?.amount(u32::MAX.into(), "u32")?;
-                writeln!(out, "let player_{id} = {player}; let count_{id} = {}; let mut done_{id}: i64 = 0; for _ in 0..count_{id} {{ if g.flip_coin(player_{id}) {{ done_{id} += 1; }} }}", self.fetch(count)).unwrap();
+                let call = self.flip_call()?;
+                writeln!(out, "let player_{id} = {player}; let count_{id} = {}; let mut done_{id}: i64 = 0; for _ in 0..count_{id} {{ if g.{call}(player_{id}) {{ done_{id} += 1; }} }}", self.fetch(count)).unwrap();
                 self.performed.insert(result.0, format!("done_{id}"));
+                self.coins = Some((
+                    format!("done_{id}"),
+                    format!("(i64::from(count_{id}) - done_{id})"),
+                ));
             }
             Operation::EachObject { objects, action } => {
                 writeln!(
@@ -1992,6 +1997,20 @@ impl Compiler {
                 called,
             } => {
                 let player = self.one_actor(actor, &feature)?;
+                if let (None, Some(each), false, false, false) =
+                    (times, each, *until_lost, *may_stop, *called)
+                {
+                    let call = self.flip_call()?;
+                    let each = self.fetch(self.objects(each)?);
+                    writeln!(out, "let player_{id} = {player}; let mut flips_{id}: Vec<(ObjectId, bool)> = Vec::new(); let mut done_{id}: i64 = 0; for object in {each} {{ let flip = g.{call}(player_{id}); if flip {{ done_{id} += 1; }} flips_{id}.push((object, flip)); }}").unwrap();
+                    self.performed.insert(result.0, format!("done_{id}"));
+                    self.coins = Some((
+                        format!("done_{id}"),
+                        format!("(flips_{id}.len() as i64 - done_{id})"),
+                    ));
+                    self.coin_objects = Some(format!("flips_{id}"));
+                    return Ok(());
+                }
                 let times = match (times, each) {
                     (Some(times), None) => {
                         let n = self.number(times)?.amount(u32::MAX.into(), "u32")?;
@@ -2007,7 +2026,8 @@ impl Compiler {
                     self.plan_code(&feature, &format!("{M}::coins::flips(g, {player}, {times}, {until_lost}, {may_stop}, {called})?"), out);
                     return Ok(());
                 }
-                writeln!(out, "let player_{id} = {player}; let times_{id}: Option<u32> = {times}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; while times_{id}.map_or(true, |n| flips_{id} < n) {{ flips_{id} += 1; if g.flip_coin(player_{id}) {{ done_{id} += 1; }} else if {until_lost} {{ break; }} }}").unwrap();
+                let call = self.flip_call()?;
+                writeln!(out, "let player_{id} = {player}; let times_{id}: Option<u32> = {times}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; while times_{id}.map_or(true, |n| flips_{id} < n) {{ flips_{id} += 1; if g.{call}(player_{id}) {{ done_{id} += 1; }} else if {until_lost} {{ break; }} }}").unwrap();
                 self.performed.insert(result.0, format!("done_{id}"));
                 self.coins = Some((
                     format!("done_{id}"),

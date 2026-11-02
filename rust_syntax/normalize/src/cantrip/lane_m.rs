@@ -951,6 +951,9 @@ impl Compiler {
                 "numeric expression DraftNoted".into(),
                 &format!("q.draft_notes(asker.controller, {})", one_line(n)),
             ),
+            Expr::HeadsFlipped(result) if self.performed.contains_key(&result.0) => {
+                counted(self.performed[&result.0].clone())
+            }
             Expr::CoinFlipsWon(won) if self.coins.is_some() => {
                 let (wins, losses) = self.coins.as_ref().expect("flipped");
                 counted(if *won { wins.clone() } else { losses.clone() })

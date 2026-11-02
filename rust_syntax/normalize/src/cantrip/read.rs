@@ -924,8 +924,10 @@ impl Compiler {
                 "{{ let other = {}; q.state().apnap().filter(|p| Some(*p) != other).collect::<Vec<PlayerId>>() }}",
                 self.player(player)?
             ),
+            // Target players act in turn order, not the order they were targeted in
+            // (CR 101.4).
             PlayerSet::Targets(slot) => format!(
-                "t_{}.iter().filter_map(|t| t.player()).collect::<Vec<PlayerId>>()",
+                "q.state().apnap().filter(|&p| t_{}.iter().any(|t| t.player() == Some(p))).collect::<Vec<PlayerId>>()",
                 self.slot(slot)?
             ),
             PlayerSet::Union(sets) => {

@@ -607,6 +607,10 @@ struct Compiler {
     hurt_players: BTreeMap<u32, String>,
     /// The flips a coin-flipping instruction won and lost.
     coins: Option<(String, String)>,
+    /// The players who each flipped a coin, and how each came up.
+    coin_turns: Option<(String, String)>,
+    /// A coin flipped for each object: `(object, flip)`.
+    coin_objects: Option<String>,
     /// A damage instruction's excess (CR 120.10): the list of what each recipient
     /// took past lethal, its recipients' local, and the one object it aimed at.
     excess: BTreeMap<u32, (String, String, Option<String>)>,
@@ -1002,6 +1006,8 @@ impl Compiler {
             unpaid: BTreeSet::new(),
             hurt_players: BTreeMap::new(),
             coins: None,
+            coin_turns: None,
+            coin_objects: None,
             excess: BTreeMap::new(),
             values: BTreeMap::new(),
             flips: BTreeMap::new(),

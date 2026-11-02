@@ -1860,6 +1860,17 @@ impl Compiler {
         }
         line.text.clone()
     }
+    /// A flip whose line speaks of heads or tails has no winner (CR 705.2), and
+    /// the rest are won or lost. The AST says the same words either way.
+    pub(super) fn flip_call(&self) -> Result<&'static str> {
+        let line = self
+            .line_text()
+            .ok_or_else(|| gap("a coin flip with no printed line"))?;
+        let called = line
+            .split(|c: char| !c.is_alphabetic())
+            .any(|word| word.eq_ignore_ascii_case("heads") || word.eq_ignore_ascii_case("tails"));
+        Ok(if called { "flip_coin_for_heads" } else { "flip_coin" })
+    }
     /// The printed line being compiled.
     pub(super) fn line_text(&self) -> Option<&str> {
         self.line.as_ref().map(|line| line.text.as_str())
