@@ -524,11 +524,15 @@ impl Compiler {
         }
         Ok(())
     }
-    pub(super) fn cost_delta(&self, modifier: &SpellCostModifier) -> Result<String> {
+    pub(super) fn cost_delta(&mut self, modifier: &SpellCostModifier) -> Result<String> {
         Ok(match modifier {
             SpellCostModifier::Increase(cost) => {
                 let [CostPart::Mana(symbols)] = cost.parts.as_slice() else {
-                    return self.clone().costlier(cost);
+                    // Read apart, but the functions its cost names are the card's.
+                    let mut apart = self.clone();
+                    let made = apart.costlier(cost);
+                    self.functions = std::mem::take(&mut apart.functions);
+                    return made;
                 };
                 let [ManaSymbol::Generic(n)] = symbols.as_slice() else {
                     return Ok(planned::planned_value(

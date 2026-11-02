@@ -3832,7 +3832,7 @@ impl Compiler {
     // --- Costs and copies.
 
     /// A spell costing more of what mana is not.
-    pub(super) fn costlier(mut self, cost: &Cost) -> Result<String> {
+    pub(super) fn costlier(&mut self, cost: &Cost) -> Result<String> {
         let more = self.cost(cost, "more")?;
         Ok(planned::planned_value(
             "spell cost increase other than mana",

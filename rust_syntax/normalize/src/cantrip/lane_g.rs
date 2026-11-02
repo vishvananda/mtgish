@@ -32,13 +32,6 @@ fn fixed_selection(selection: &CostObjectSelection) -> Option<Option<&Expr>> {
     }
 }
 
-fn reading_cost(code: &str) -> String {
-    planned::planned_value(
-        "engine: no cost sized by the game",
-        "Cost::NONE",
-        &format!("Cost::reading(|q, asker, targets| {code})"),
-    )
-}
 
 /// Whether a cost is "tap an untapped creature you control" and nothing else.
 fn taps_a_creature_you_control(cost: &Cost) -> bool {
@@ -678,7 +671,7 @@ impl Compiler {
     /// A part of a cost sized by the game: worked out as a resolving cost is
     /// asked, and otherwise by the function the cost will hold.
     fn sized_cost(
-        &self,
+        &mut self,
         n: &Expr,
         label: &str,
         field: &str,
@@ -691,7 +684,20 @@ impl Compiler {
         if label == PAID {
             return Ok(build(&self.fetch(self.number(n)?.code)));
         }
-        Ok(reading_cost(&build(&self.asked_number(n)?)))
+        let code = build(&self.asked_number(n)?);
+        Ok(self.reading_cost(&code, label))
+    }
+    /// A cost worked out from the game each time it is asked: a `fn` the cost
+    /// holds, as `cost_of_targets` holds one, of the card's own.
+    fn reading_cost(&mut self, code: &str, label: &str) -> String {
+        const FEATURE: &str = "engine: no cost sized by the game";
+        let prefix = format!("{label}_cost_");
+        let at = self.functions.matches(&format!("fn {prefix}")).count();
+        let function = format!("{prefix}{at}");
+        let params = "q: &dyn Query, asker: &Asker, targets: &[Target]";
+        let item = planned::planned_fn(FEATURE, &function, params, "Cost", code);
+        writeln!(self.functions, "{item}").unwrap();
+        planned::planned_value(FEATURE, "Cost::NONE", &format!("Cost::reading({function})"))
     }
     /// A number a cost's function reads, with no stack item in reach.
     fn asked_number(&self, n: &Expr) -> Result<String> {
@@ -1880,7 +1886,7 @@ impl Compiler {
                     _ => {
                         let once = self.cost(&once, label)?;
                         let n = self.asked_number(times)?;
-                        reading_cost(&format!("({once}).times(({n}).clamp(0, 255) as u8)"))
+                        self.reading_cost(&format!("({once}).times(({n}).clamp(0, 255) as u8)"), label)
                     }
                 }
             }
@@ -1959,18 +1965,38 @@ impl Compiler {
         function
     }
     /// Who may activate an ability (CR 602.2), where it is not its controller.
-    pub(super) fn activators(&self, def: String, who: Option<&PlayerSet>) -> Result<String> {
+    /// "Any player may activate this ability" is data (Forge's `AnyPlayer$
+    /// True`); any other set of players is a `fn` the card's ability holds, as
+    /// `condition` holds one, asked of a player as they would activate it.
+    pub(super) fn activators(
+        &mut self,
+        def: String,
+        who: Option<&PlayerSet>,
+        label: &str,
+    ) -> Result<String> {
         let Some(who) = who else {
             return Ok(def);
         };
         let mut asked = self.clone();
         (asked.reader, asked.event_at) = (Reader::Query, EventAt::Nowhere);
         let test = asked.player_in(who, "player")?;
-        Ok(planned::planned_value(
-            "engine: no activation by other players",
-            &def,
-            &format!("{def}.activated_by(|q, asker, player| {test})"),
-        ))
+        const FEATURE: &str = "engine: no activation by other players";
+        let rule = match test.as_str() {
+            "true" => ".any_player_may_activate()".to_string(),
+            _ => {
+                let function = format!("{label}_activators");
+                let item = planned::planned_fn(
+                    FEATURE,
+                    &function,
+                    "q: &dyn Query, asker: &Asker, player: PlayerId",
+                    "bool",
+                    &test,
+                );
+                writeln!(self.functions, "{item}").unwrap();
+                format!(".activated_by({function})")
+            }
+        };
+        Ok(planned::planned_value(FEATURE, &def, &format!("{def}{rule}")))
     }
     /// What an ability's limits say beyond the engine's own methods.
     pub(super) fn activation_rule_beyond(
@@ -1980,7 +2006,7 @@ impl Compiler {
         label: &str,
     ) -> Result<String> {
         Ok(match rule {
-            ActivationRule::OnlyBy(players) => self.activators(def, Some(players))?,
+            ActivationRule::OnlyBy(players) => self.activators(def, Some(players), label)?,
             ActivationRule::CantBeCopied => planned::planned_value(
                 "engine: no ability that can't be copied",
                 &def,
@@ -2038,11 +2064,18 @@ impl Compiler {
                 let exact = matches!(rule, ActivationRule::XIs(_));
                 let bound = self.asked_number(n)?;
                 let method = if exact { "x_is" } else { "x_at_most" };
-                planned::planned_value(
-                    "engine: no rule on an ability's X",
-                    &def,
-                    &format!("{def}.{method}(|q, asker| {bound})"),
-                )
+                const FEATURE: &str = "engine: no rule on an ability's X";
+                // The number, asked as the ability is activated: a `fn` it holds.
+                let function = format!("{label}_{method}");
+                let item = planned::planned_fn(
+                    FEATURE,
+                    &function,
+                    "q: &dyn Query, asker: &Asker",
+                    "i64",
+                    &bound,
+                );
+                writeln!(self.functions, "{item}").unwrap();
+                planned::planned_value(FEATURE, &def, &format!("{def}.{method}({function})"))
             }
             other => return Err(gap(format!("activation rule {}", form(other)))),
         })
@@ -2176,7 +2209,10 @@ impl Compiler {
                     ),
                     ManaPaymentFilter::ProducedBy(filter) => {
                         let test = self.spending_test(filter, "source")?;
-                        format!("ManaSpendRule::ProducedBy(|q, asker, source| {test})")
+                        let params = "q: &dyn Query, asker: &Asker, source: ObjectId";
+                        let feature = "engine: no rule on the mana spent on a spell";
+                        let produced = self.rule_fn(feature, &format!("{label}_mana_source"), params, "bool", &test);
+                        format!("ManaSpendRule::ProducedBy({produced})")
                     }
                 };
                 let portion = match portion {
@@ -2515,8 +2551,10 @@ impl Compiler {
             }
             Protection::Objects { kind, filter } => {
                 let test = self.spending_test(filter, "source")?;
+                let params = "q: &dyn Query, asker: &Asker, source: ObjectId";
+                let quality = self.rule_fn(FEATURE, "protection_quality", params, "bool", &test);
                 let code = format!(
-                    "{M}::protection::from_matching(ObjectKind::{kind:?}, |q, asker, source| {test}, {})",
+                    "{M}::protection::from_matching(ObjectKind::{kind:?}, {quality}, {})",
                     text("a quality")
                 );
                 self.plan_entry(FEATURE, "statics", &code, parts);

@@ -664,13 +664,13 @@ impl Compiler {
                     }
                     other => self.reshape(lane_n::shape_of(variant, variant), other, frame)?,
                 };
-                self.plan_code(
-                    feature,
-                    &format!(
-                        "g.change_event(|q, proposal| {{ if let Proposal::{variant}({binding}) = proposal {{ {edit} }} }});"
-                    ),
-                    out,
-                );
+                // The edit, a `fn` the engine calls on the event still to happen
+                // with what the replacement's steps were handed: no closure goes
+                // through the game.
+                let params = "q: &dyn Query, asker: &Asker, affected: ObjectId, subject: Target, data: [u32; 2], proposal: &mut Proposal";
+                let body = format!("if let Proposal::{variant}({binding}) = proposal {{ {edit} }}");
+                let function = self.rule_fn(feature, "event_edit", params, "()", &body);
+                self.plan_code(feature, &format!("g.change_event({function});"), out);
                 return Ok(());
             }
         }
