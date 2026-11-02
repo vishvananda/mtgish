@@ -1416,6 +1416,10 @@ impl Compiler {
             } if effects::plain_entry(entry) => {
                 let by = match (self.links_exile, self.stack_item) {
                     (true, true) => "Some(g.linked(item))".to_string(),
+                    // A replacement's `then`: what linked abilities know its text by.
+                    (true, false) if self.pending != Pending::Entering => {
+                        "Some(g.text_linked(asker.source))".to_string()
+                    }
                     (true, false) => planned::planned_value(
                         "exile outside a stack item that an ability reads as exiled with its source",
                         "None",

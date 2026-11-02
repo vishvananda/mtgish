@@ -2039,6 +2039,30 @@ pub(super) fn names_no_card_type(recipients: &Recipients) -> bool {
     format!("{recipients:?}").contains("Battlefield(Not(")
 }
 
+/// The keywords a list of kinds of ability names, where each is one the engine
+/// holds as a plain bit. "Hexproof from [quality]" (CR 702.11) is not among them:
+/// what `AnyHexproof` asks of it has no bit.
+pub(super) fn plain_keywords(kinds: &Operand) -> Option<Vec<String>> {
+    const PLAIN: [&str; 17] = [
+        "Deathtouch", "Defender", "DoubleStrike", "Fear", "FirstStrike", "Flying", "Haste",
+        "Hexproof", "Indestructible", "Infect", "Lifelink", "Menace", "Reach", "Shroud",
+        "Skulk", "Trample", "Vigilance",
+    ];
+    let one = std::slice::from_ref(kinds);
+    let list = match kinds {
+        Operand::List(list) => list.as_slice(),
+        _ => one,
+    };
+    list.iter()
+        .map(|kind| match kind {
+            Operand::Term { form, .. } if PLAIN.contains(&form.as_str()) => {
+                Some(format!("Keyword::{form}"))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 /// The N of toxic N, as a grant says it.
 pub(super) fn toxic_of(ability: &Ability) -> Option<i64> {
     match ability {

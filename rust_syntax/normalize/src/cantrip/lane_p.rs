@@ -552,6 +552,9 @@ impl Compiler {
                 &format!("q.damage_objects(item, DamageSubject::{})", form(subject)),
             ),
             ObjectSet::EventGroup => held_objects(&feature, "q.event_objects(item).to_vec()"),
+            ObjectSet::Unpaid(result) if self.unpaid.contains(&result.0) => {
+                format!("unpaid_{}.clone()", result.0)
+            }
             ObjectSet::Unpaid(result) => held_objects(&feature, &format!("unpaid_{}.clone()", result.0)),
             ObjectSet::OutsideTheGame(filter) => keep(
                 filter,
@@ -902,6 +905,12 @@ impl Compiler {
                     self.object(object)?
                 ),
             ),
+            // "With enchant creature" and "could enchant a creature" come here as
+            // the same set of creatures, and only the second looks at what is there.
+            ObjectFilter::CouldEnchant(hosts) if matches!(&**hosts, ObjectSet::One(_)) => format!(
+                "({}).into_iter().any(|host: ObjectId| could_enchant(q, {id}, asker.controller, host))",
+                self.objects(hosts)?
+            ),
             ObjectFilter::CouldEnchant(hosts) => held(
                 &feature,
                 &format!(
@@ -1175,6 +1184,35 @@ impl Compiler {
                     quoted(name)
                 ),
             ),
+            // A graveyard's top is its last (CR 404.2, as Corpse Dance walks it). The
+            // data says "above" of what the card says "directly above". "Above this
+            // card" names no graveyard, so the order isn't declared and is never asked.
+            Condition::GraveyardPosition {
+                card,
+                player,
+                above,
+                comparison,
+                amount,
+            } if self
+                .line_text()
+                .is_some_and(|line| line.contains("graveyard") && line.contains("above it")) =>
+            {
+                let directly = self.line_text().is_some_and(|line| line.contains("directly above"));
+                let test = self.filter(above, &Candidate::of("id"))?;
+                let read = match directly {
+                    true => format!("cards.get(at + 1).copied().is_some_and(|id| {test})"),
+                    false => compare(
+                        &format!("cards[at + 1..].iter().copied().filter(|&id| {test}).count() as i64"),
+                        comparison,
+                        &self.number(amount)?.code,
+                    ),
+                };
+                format!(
+                    "{}.zip({}).is_some_and(|(p, card): (PlayerId, ObjectId)| {{ let cards = q.state().zone(Zone::graveyard(p)); cards.iter().position(|&o| o == card).is_some_and(|at| {read}) }})",
+                    self.player(player)?,
+                    self.object(card)?,
+                )
+            }
             Condition::GraveyardPosition {
                 card,
                 player,

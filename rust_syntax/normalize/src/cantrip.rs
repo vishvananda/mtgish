@@ -577,6 +577,10 @@ struct Compiler {
     /// The announcement slot whose filter is being compiled.
     choosing: Option<usize>,
     performed: BTreeMap<u32, String>,
+    /// The payments whose `unpaid_` list this resolution keeps.
+    unpaid: BTreeSet<u32>,
+    /// The players a damage instruction dealt damage to.
+    hurt_players: BTreeMap<u32, String>,
     /// The flips a coin-flipping instruction won and lost.
     coins: Option<(String, String)>,
     /// A damage instruction's excess (CR 120.10): the list of what each recipient
@@ -937,6 +941,8 @@ impl Compiler {
             door: None,
             choosing: None,
             performed: BTreeMap::new(),
+            unpaid: BTreeSet::new(),
+            hurt_players: BTreeMap::new(),
             coins: None,
             excess: BTreeMap::new(),
             values: BTreeMap::new(),
@@ -2193,6 +2199,12 @@ fn emit_face(
     if c.functions.contains("granter(q, item)") {
         c.helpers.insert("granter");
     }
+    if c.functions.contains("could_enchant(q, ") {
+        c.helpers.insert("could_enchant");
+    }
+    if c.functions.contains("time_travel_for(g, player") {
+        c.helpers.insert("time_travel");
+    }
     for helper in &c.helpers {
         c.functions.push_str(match *helper {
             "cast_of" => CAST_OF,
@@ -2206,6 +2218,8 @@ fn emit_face(
             "about" => delayed::ABOUT,
             "clauses" => lane_l::CLAUSES,
             "granter" => lane_j::GRANTER,
+            "could_enchant" => lane_j::COULD_ENCHANT,
+            "time_travel" => lane_j::TIME_TRAVEL,
             other => unreachable!("no helper {other}"),
         });
     }

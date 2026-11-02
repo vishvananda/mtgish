@@ -440,10 +440,9 @@ pub fn whole_printed(
                 joining.plan_field(&layout, &field);
             }
             match (card.layout.as_str(), card.faces.first()) {
-                ("MeldPiece", _) => {
-                    let into = args["MeldsInto"].as_str().unwrap_or_default();
-                    joining.plan_field(&layout, &format!("melds_into: Some({into:?})"));
-                }
+                // A half is an ordinary card: the meld is the partner's instruction
+                // to do, or the hole of the one that prints it.
+                ("MeldPiece", _) => {}
                 ("Melded", _) => joining.plan_field(&layout, "melded: true"),
                 ("Dungeon", Some(face)) => joining.plan_field(&layout, &dungeon(face)),
                 _ => {}

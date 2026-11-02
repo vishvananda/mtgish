@@ -45,6 +45,29 @@ fn sums_damage(damage: &DamageEvent) -> bool {
     }
 }
 
+/// "Whenever one or more creatures deal combat damage to a player ... that damage":
+/// one happening for each player, of its total, so the player is what it is about.
+/// Only where nothing reads which creatures they were.
+fn summed_at_recipient(event: &EventSpec, body: &Program) -> Option<EventSpec> {
+    let EventSpec::Damage(damage) = event else {
+        return None;
+    };
+    let body = format!("{body:?}");
+    let groups = matches!(damage.grouping, DamageGrouping::Recipient)
+        && damage.subject == DamageSubject::Source
+        && matches!(damage.recipients, DamageRecipients::Players(_))
+        && matches!(damage.kind, DamageKind::Any | DamageKind::Combat | DamageKind::Noncombat);
+    let free = !["EventGroup", "EventSubject", "EventSource", "DamageSource"]
+        .iter()
+        .any(|read| body.contains(read));
+    (groups && free && body.contains("EventAmount")).then(|| {
+        EventSpec::Damage(DamageEvent {
+            subject: DamageSubject::Recipient,
+            ..damage.clone()
+        })
+    })
+}
+
 /// The event a damage trigger hears.
 fn damage_pattern(damage: &DamageEvent) -> &'static str {
     match damage.kind {
@@ -1642,6 +1665,8 @@ impl Compiler {
         }
         self.recipient_subject =
             format!("{:?}", announcement.targets).contains("ControlledBy(One(EventSubject))");
+        let summed = summed_at_recipient(event, body);
+        let event = summed.as_ref().unwrap_or(event);
         let matched = self.event(event);
         self.recipient_subject = false;
         if let (EventSpec::Either(events), Err(failed)) = (event, &matched) {
@@ -1737,7 +1762,8 @@ impl Compiler {
             }
         }
         let trigger = self.trigger(&matched, &format!("{label}_event"), &extra);
-        self.grouped = matched.batch.is_some();
+        let members = self.members_targeted(event, label, matched.frame, body)?;
+        self.grouped = matched.batch.is_some() || members.is_some();
         let effect = match guard {
             Some(condition) => self.guarded_effect(condition, body, label),
             None => self.effect(body, label),
@@ -1762,6 +1788,9 @@ impl Compiler {
         if matched.sums {
             def.push_str(".sums_per_subject()");
         }
+        if let Some(members) = members {
+            def.push_str(&format!(".members_of({members})"));
+        }
         if matched.mana {
             def.push_str(lane_k::triggered_mana(body));
         }
@@ -1772,6 +1801,33 @@ impl Compiler {
             def.push_str(&format!(".divide({divide})"));
         }
         Ok(def)
+    }
+    /// "Whenever you cast a spell that targets one or more creatures, those ...":
+    /// what it targeted as it was cast, fixed as the ability triggers.
+    fn members_targeted(
+        &mut self,
+        event: &EventSpec,
+        label: &str,
+        frame: Frame,
+        body: &Program,
+    ) -> Result<Option<String>> {
+        let EventSpec::SpellTargeting {
+            targets: Some(targets),
+            ..
+        } = event
+        else {
+            return Ok(None);
+        };
+        if !format!("{body:?}").contains("EventGroup") {
+            return Ok(None);
+        }
+        let wanted = self.matching(frame, |c| c.objects(targets))?;
+        if wanted.contains("asker") || wanted.contains("event") {
+            return Ok(None);
+        }
+        let function = format!("{label}_members");
+        writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, subject: Target) -> Vec<ObjectId> {{ let wanted: Vec<ObjectId> = {wanted}; subject.object().map(|spell| cantrip_mechanics::targets::permanents_targeted_as_cast(q, spell).into_iter().filter(|o| wanted.contains(o)).collect()).unwrap_or_default() }}").unwrap();
+        Ok(Some(function))
     }
     fn modal_triggered(
         &mut self,

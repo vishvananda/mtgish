@@ -793,6 +793,17 @@ impl Compiler {
                 }
                 Ok(())
             }
+            // The trigger's "may" and the "may" of "do this only once each turn" are
+            // one question, which the first asks and spends.
+            Instruction::Optional { decider, body: then }
+                if self.do_once.is_some() && lane_l::once_offered(then).is_some() =>
+            {
+                let offered = Instruction::Optional {
+                    decider: decider.clone(),
+                    body: lane_l::once_offered(then).expect("just matched").clone(),
+                };
+                self.instruction(body, i, &offered, out)
+            }
             Instruction::Optional { decider, body } if playing::may_only_play(decider, body) => {
                 let mut plays = body;
                 while let [Instruction::Group(group)] = plays.instructions.as_slice() {
@@ -862,6 +873,34 @@ impl Compiler {
                 writeln!(out, "let decider_{id} = {decider}; if {open}cantrip_mechanics::effects::ask_may(g, decider_{id}, asker.source, Purpose::Optional)? {{{spent}").unwrap();
                 self.block(body, out, true)?;
                 writeln!(out, "}}").unwrap();
+                Ok(())
+            }
+            // "For each land, destroy that land unless any player pays 1 life": all
+            // the payments come first, and what no one paid for is then done at once.
+            Instruction::ForEachObject {
+                objects,
+                binding,
+                body: each,
+            } if lane_l::paid_for_each(each).is_some_and(|(paid, _)| {
+                format!("{:?}", &body.instructions[i + 1..])
+                    .contains(&format!("Unpaid(ResultId({}))", paid.0))
+            }) =>
+            {
+                let (paid, offered) = lane_l::paid_for_each(each).expect("just matched");
+                let objects = self.fetch(self.objects(objects)?);
+                writeln!(out, "let mut unpaid_{}: Vec<ObjectId> = Vec::new(); for bound_{} in {objects} {{", paid.0, binding.0).unwrap();
+                self.bound_objects.insert(binding.0);
+                let scope = self.results();
+                let mut asked = each.clone();
+                asked.instructions = vec![offered];
+                let compiled = self.program(&asked, out, false);
+                let spent = self.performed.get(&paid.0).cloned();
+                self.restore_results(scope);
+                self.bound_objects.remove(&binding.0);
+                compiled?;
+                let spent = spent.ok_or_else(|| gap("object collection Unpaid"))?;
+                writeln!(out, "if !{spent} {{ unpaid_{}.push(bound_{}); }} }}", paid.0, binding.0).unwrap();
+                self.unpaid.insert(paid.0);
                 Ok(())
             }
             Instruction::ForEachObject {
@@ -1276,9 +1315,10 @@ impl Compiler {
                 let (declare, deal) = if lane_n::read_as_damaged(&self.after, result) {
                     self.performed.insert(result.0, format!("done_{id}"));
                     self.moved.insert(result.0, format!("dealt_{id}"));
+                    self.hurt_players.insert(result.0, format!("hurt_{id}"));
                     (
-                        format!("let mut done_{id}: i64 = 0; let mut dealt_{id}: Vec<ObjectId> = Vec::new(); let before_{id} = g.history().head() as usize; "),
-                        format!("done_{id} += g.damage_together(&batch).iter().map(|&n| i64::from(n)).sum::<i64>(); dealt_{id}.extend(cantrip_mechanics::history::permanents_dealt_damage_by(g.history(), source, before_{id}));"),
+                        format!("let mut done_{id}: i64 = 0; let mut dealt_{id}: Vec<ObjectId> = Vec::new(); let mut hurt_{id}: Vec<PlayerId> = Vec::new(); let before_{id} = g.history().head() as usize; "),
+                        format!("done_{id} += g.damage_together(&batch).iter().map(|&n| i64::from(n)).sum::<i64>(); dealt_{id}.extend(cantrip_mechanics::history::permanents_dealt_damage_by(g.history(), source, before_{id})); for r in &g.history().all()[before_{id}..] {{ if let Event::Damage {{ source: s, target: Target::Player(p), amount, .. }} = r.event {{ if s == source && amount > 0 && !hurt_{id}.contains(&p) {{ hurt_{id}.push(p); }} }} }}"),
                     )
                 } else if lane_n::read_as_objects(&self.after, result) {
                     self.performed.insert(result.0, format!("done_{id}"));
@@ -2054,6 +2094,8 @@ impl Compiler {
         self.before.clear();
         self.performed.clear();
         self.excess.clear();
+        self.unpaid.clear();
+        self.hurt_players.clear();
         self.coins = None;
         self.values.clear();
         self.flips.clear();
@@ -2318,6 +2360,9 @@ impl Compiler {
             Destination::Exile if self.links_exile && self.stack_item => {
                 format!("{{ let by = g.linked(item); g.exile_with(&objects_{id}, by, false) }}")
             }
+            Destination::Exile if self.links_exile && self.pending != Pending::Entering => {
+                format!("{{ let by = g.text_linked(asker.source); g.exile_with(&objects_{id}, by, false) }}")
+            }
             Destination::Exile if self.links_exile => planned::planned_value(
                 "exile outside a stack item that an ability reads as exiled with its source",
                 &format!("g.exile_all(&objects_{id})"),
@@ -2400,6 +2445,12 @@ impl Compiler {
                     None => String::new(),
                 };
                 format!("let defender = {defender}; {enter} if came {{ moved.push(entered);{gains} }}")
+            }
+            [EntryState::AttachedToChosen(filter)]
+                if counters.is_empty() && !entry.tapped =>
+            {
+                let test = self.filter(filter, &Candidate::of("host"))?;
+                format!("let aura = g.chars(o).has_subtype(Subtype::Aura); let hosts: Vec<ObjectId> = {{ let q: &dyn Query = g; q.state().battlefield().iter().copied().filter(|&host| {test} && (!aura || could_enchant(q, o, controller, host))).collect() }}; match cantrip_mechanics::choose::card(g, controller, asker.source, Purpose::Attach, hosts)? {{ Some(host) => moved.extend(g.put_onto_battlefield_attached(o, controller, host)?), None if !aura => moved.push(g.put_onto_battlefield(o, controller, false)?), None => {{}} }}")
             }
             [EntryState::When { filter, entry: then }]
                 if counters.is_empty()

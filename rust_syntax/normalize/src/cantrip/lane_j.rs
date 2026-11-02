@@ -1985,6 +1985,31 @@ impl Compiler {
                     self.objects(objects)?
                 ))
             }
+            // "Each opponent who didn't discard a nonland card this way": of what the
+            // instruction discarded, that player's. A hand holds only its owner's cards.
+            Expr::Earlier {
+                what: what @ EarlierObjects::Discarded,
+                measure: ObjectMeasure::Count,
+                result,
+                filter,
+                by: Some(PlayerRef::Bound(binding)),
+            } => {
+                let list = match result {
+                    Some(result) => self.objects(&ObjectSet::Transition {
+                        result: result.clone(),
+                        phase: ObjectPhase::After,
+                    })?,
+                    None => self.earlier_objects(what)?,
+                };
+                let keep = match filter {
+                    Some(filter) => format!(
+                        ".filter(|&id| {})",
+                        self.filter(filter, &Candidate::of("id"))?
+                    ),
+                    None => String::new(),
+                };
+                counted(format!("({list}).into_iter().filter(|&id: &ObjectId| q.state().obj(id).owner == bound_{}){keep}.count() as i64", binding.0))
+            }
             // What an instruction named did: the AST says which. One whose
             // `result` is empty leaves the instruction to be found, so stays a gap.
             Expr::Earlier {
@@ -2410,6 +2435,12 @@ impl Compiler {
             ObjectFilter::AlternateCostPaid(_) => {
                 held(format!("q.state().obj({id}).alternate_cost_paid(cost)"))
             }
+            // What put it there is what was resolving as it entered, or the Aura it
+            // came with (CR 303.4f); the history reads the same of a token.
+            ObjectFilter::MadeBy(object) if !layer => format!(
+                "{}.is_some_and(|m: ObjectId| q.state().obj({id}).entered_with == Some(m) || q.history().all().iter().any(|r| matches!(r.event, Event::Entered {{ permanent, .. }} if permanent == {id}) && (r.cause == Cause::Spell(m) || matches!(r.cause, Cause::Ability {{ source, .. }} if source == m))))",
+                self.object(object)?
+            ),
             ObjectFilter::MadeBy(object) => held(format!(
                 "q.state().obj({id}).made_by == {}",
                 self.object(object)?
@@ -2926,13 +2957,24 @@ pub(super) enum PaidFor {
 /// effect is named by its own.
 pub(super) const GRANTER: &str = "fn granter(q: &dyn Query, item: &StackItem) -> Option<ObjectId> { if item.acquired.by != AcquiredBy::Grant { return None; } let stamp = item.acquired.stamp; let card = item.ability.card; if let Some(e) = q.state().effects.iter().find(|e| e.timestamp == stamp && matches!(e.kind, EffectKind::AddAbility(_))) { return Some(e.source); } if let Some(id) = q.state().battlefield().iter().copied().find(|&id| q.state().obj(id).timestamp == stamp && q.chars(id).card == card) { return Some(id); } q.history().all().iter().rev().find_map(|r| match r.event { Event::ZoneChange { old, from, .. } if from.is(ZoneKind::Battlefield) && q.state().obj(old).timestamp == stamp && q.state().obj(old).card == card => Some(old), _ => None }) }\n";
 
+/// Time travel (CR 701.56a): of each suspended card `player` owns (CR 702.62b, read
+/// as the upkeep reads it) and each permanent they control with a time counter on
+/// it, a time counter more, one fewer, or neither.
+pub(super) const TIME_TRAVEL: &str = "fn time_travel_for(g: &mut dyn Game, player: PlayerId, source: ObjectId) -> Result<(), Suspend> { let mut each: Vec<ObjectId> = g.state().zone(Zone::exile(player)).iter().copied().filter(|&id| g.obj(id).counters(CounterKind::Time) > 0 && g.card(g.obj(id).card).suspend.is_some()).collect(); each.extend(g.permanents_of(player).into_iter().filter(|&id| g.obj(id).counters(CounterKind::Time) > 0)); let any = cantrip_mechanics::select::cards(cantrip_mechanics::select::ANY_NUMBER); let adding = cantrip_mechanics::choose::select(g, player, source, Purpose::PutCounters(CounterKind::Time, 1), each.clone(), any.clone())?; let rest: Vec<ObjectId> = each.into_iter().filter(|id| !adding.contains(id)).collect(); let removing = cantrip_mechanics::choose::select(g, player, source, Purpose::Choose, rest, any)?; let more: Vec<(ObjectId, CounterKind, i16)> = adding.iter().map(|&id| (id, CounterKind::Time, 1)).collect(); g.add_counters_together(&more); for id in removing { g.remove_counters(id, CounterKind::Time, 1); } Ok(()) }\n";
+
+/// Whether an Aura could enchant `host` under `controller` (CR 303.4a, 702.5c):
+/// every enchant ability it has allows it, the one its card prints as well, which
+/// it has back on the battlefield whatever a graveyard takes, and `host` has no
+/// protection from it (CR 702.16c). Not targeted, so hexproof is nothing to it.
+pub(super) const COULD_ENCHANT: &str = "fn could_enchant(q: &dyn Query, aura: ObjectId, controller: PlayerId, host: ObjectId) -> bool { let chars = q.chars(aura); if chars.is(CardType::Creature) { return false; } let asker = Asker::new(aura, controller); let printed = q.card(q.state().obj(aura).card).enchant; chars.abilities().filter_map(|a| match a.index { AbilityRef::ENCHANT => q.card(a.card).enchant, AbilityRef::ENCHANT_GIVEN => q.card(a.card).becomes_aura_enchant, _ => None }).chain(printed).all(|spec| (spec.filter)(q, &asker, Target::Object(host))) && !q.chars(host).protected_from_by(&chars, || q.mana_value(aura), controller) }\n";
+
 /// What `filter` adds to "an activated ability" over `d: &ActivatedDef`, starting
 /// with ` && `: nothing for any. `None` for what `d` alone doesn't say.
 fn activation_test(filter: &ActivationFilter) -> Option<String> {
     fn test(filter: &ActivationFilter) -> Option<String> {
         Some(match filter {
             ActivationFilter::Any => "true".to_string(),
-            ActivationFilter::Mana => "d.mana.is_some()".to_string(),
+            ActivationFilter::Mana => "d.is_mana_ability()".to_string(),
             ActivationFilter::Cycling => "d.cycling".to_string(),
             ActivationFilter::Is(StackTrait::TapSymbolInCost) => "d.cost.tap".to_string(),
             ActivationFilter::Not(inner) => format!("!({})", test(inner)?),

@@ -47,6 +47,57 @@ impl Compiler {
         writeln!(self.functions, "#[allow(unused_variables)] {code}").unwrap();
         parts.table(table, function.to_string());
     }
+    /// "Creature spells you cast have affinity for artifacts" (CR 702.41a, 702.41b):
+    /// a cost change of the source, each source its own, as Witherbloom prints it.
+    /// The data says only "spells": the words "you cast" are the card's.
+    pub(super) fn affinity_granted(
+        &mut self,
+        label: &str,
+        affected: &ObjectSet,
+        changes: &[Change],
+        parts: &mut Parts,
+    ) -> Result<bool> {
+        let [Change::GrantAbility(ability)] = changes else {
+            return Ok(false);
+        };
+        let Ability::Mechanic {
+            mechanic: Mechanic::Affinity,
+            cost: None,
+            amount: None,
+            filter: Some(counted),
+        } = &**ability
+        else {
+            return Ok(false);
+        };
+        let ObjectSet::Zone {
+            scope: ZoneScope::Shared(EventZone::Stack),
+            filter: spells,
+            ..
+        } = affected
+        else {
+            return Ok(false);
+        };
+        let printed = self
+            .line_text()
+            .is_some_and(|line| line.contains("you cast have affinity for"));
+        if !printed {
+            return Ok(false);
+        }
+        let test = self.filter(
+            spells,
+            &Candidate {
+                announced: Some("targets".into()),
+                ..cast_card()
+            },
+        )?;
+        let counted = self.filter(counted, &Candidate::of("id"))?;
+        let guard = self.guard()?;
+        let function = format!("{label}_affinity");
+        self.table_entry(parts, "cost_changes", &function, format!(
+            "fn {function}(q: &dyn Query, source: ObjectId, player: PlayerId, costed: Costed, targets: &[Target]) -> CostDelta {{ {PRELUDE} let Costed::Spell(spell) = costed else {{ return CostDelta::NONE; }}; if {guard}player == asker.controller && {test} {{ let count = q.permanents_of(player).into_iter().filter(|&id| {counted}).count(); CostDelta::less(count.min(255) as u8) }} else {{ CostDelta::NONE }} }}"
+        ));
+        Ok(true)
+    }
     pub(super) fn player_static(
         &mut self,
         label: &str,

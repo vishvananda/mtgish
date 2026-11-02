@@ -5,6 +5,108 @@ use super::*;
 
 const M: &str = "cantrip_mechanics";
 
+/// What "do this only once each turn" offers, under a "may" that already asks it.
+pub(super) fn once_offered(body: &Program) -> Option<&Program> {
+    match body.instructions.as_slice() {
+        [Instruction::Effect {
+            operation:
+                Operation::PlayersDo {
+                    players: PlayerSet::One(PlayerRef::AbilityController),
+                    any_one: false,
+                    optional: true,
+                    once_each_turn: true,
+                    body,
+                    otherwise,
+                },
+            ..
+        }] if otherwise.is_empty() => match body.as_slice() {
+            [Operand::Program(offered)] => Some(offered),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// A cost offered for an object and what stands for "no one paid for it": `body`'s
+/// one payment, or the first willing of `players` where each is offered it.
+pub(super) fn paid_for_each(body: &Program) -> Option<(ResultId, Instruction)> {
+    let [only] = body.instructions.as_slice() else {
+        return None;
+    };
+    match only {
+        Instruction::Effect {
+            result,
+            operation: Operation::PayCost { optional: true, .. },
+        } => Some((result.clone(), only.clone())),
+        Instruction::ForEachPlayer {
+            players,
+            binding,
+            starting_with: None,
+            in_chosen_direction: false,
+            body,
+        } => {
+            let [Instruction::Effect {
+                result,
+                operation:
+                    Operation::PayCost {
+                        player: PlayerRef::Bound(payer),
+                        cost,
+                        optional: true,
+                    },
+            }] = body.instructions.as_slice()
+            else {
+                return None;
+            };
+            (payer.0 == binding.0).then(|| {
+                let first = PlayerRef::FirstWilling(Box::new(players.clone()));
+                let offered = Instruction::Effect {
+                    result: result.clone(),
+                    operation: Operation::PayCost {
+                        player: first,
+                        cost: cost.clone(),
+                        optional: true,
+                    },
+                };
+                (result.clone(), offered)
+            })
+        }
+        _ => None,
+    }
+}
+
+/// The one instruction `player` is had to do, said of them. The reduction leaves
+/// the doer as "you" in `body`, which only these forms read back without doubt.
+fn had_to_do(player: &PlayerRef, body: &[Operand]) -> Option<Program> {
+    let [Operand::Program(program)] = body else {
+        return None;
+    };
+    let [Instruction::Effect { result, operation }] = program.instructions.as_slice() else {
+        return None;
+    };
+    let them = || PlayerSet::One(player.clone());
+    let you = |players: &PlayerSet| matches!(players, PlayerSet::One(PlayerRef::AbilityController));
+    let operation = match operation {
+        Operation::Mill { players, amount } if you(players) => Operation::Mill {
+            players: them(),
+            amount: amount.clone(),
+        },
+        Operation::Shuffle {
+            players,
+            excluding: None,
+        } if you(players) => Operation::Shuffle {
+            players: them(),
+            excluding: None,
+        },
+        _ => return None,
+    };
+    let mut program = program.clone();
+    program.instructions = vec![Instruction::Effect {
+        result: result.clone(),
+        operation,
+    }];
+    Some(program)
+}
+
 /// The prompt of a choice that nothing does anything to by name: "chooses three
 /// permanents, then sacrifices the rest" keeps what it chooses, and any other
 /// choice a later instruction reads is a plain choice.
@@ -1324,6 +1426,21 @@ impl Compiler {
                     out,
                 );
             }
+            // "Reveals their hand and discards a card": no two things at once, the
+            // one word "and" of an instruction done in order.
+            Operation::Together(operations)
+                if matches!(
+                    operations.as_slice(),
+                    [
+                        Operation::Reveal { .. } | Operation::RevealFromHand { .. },
+                        Operation::DiscardObjects { .. }
+                    ]
+                ) =>
+            {
+                for operation in operations {
+                    self.operation(operation, result, out)?;
+                }
+            }
             Operation::Together(operations) => {
                 self.plan_code(&feature, "g.begin_simultaneous()", out);
                 for operation in operations {
@@ -1397,6 +1514,23 @@ impl Compiler {
                     self.plan_code("villainous choice", &code, out);
                 }
                 self.choose_one(decider, &programs, out)?;
+            }
+            // "You may have target player mill ...": you are asked, and they do it.
+            Operation::PlayersDo {
+                players: PlayerSet::One(player),
+                any_one: false,
+                optional: true,
+                once_each_turn: false,
+                body,
+                otherwise,
+            } if otherwise.is_empty() && had_to_do(player, body).is_some() => {
+                let then = had_to_do(player, body).expect("just matched");
+                let mut offered = then.clone();
+                offered.instructions = vec![Instruction::Optional {
+                    decider: PlayerRef::AbilityController,
+                    body: then,
+                }];
+                self.block(&offered, out, true)?;
             }
             Operation::PlayersDo {
                 players,
