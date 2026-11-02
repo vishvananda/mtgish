@@ -550,6 +550,29 @@ fn printed_many(n: i64, noun: &str) -> String {
     }
 }
 
+/// "Discard a card or pay {N}", either way round: N.
+pub(super) fn discard_or_pay(costs: &[Cost]) -> Option<u8> {
+    let [a, b] = costs else { return None };
+    let discard = |c: &Cost| {
+        matches!(
+            c.parts.as_slice(),
+            [CostPart::Discard { count: Expr::Constant(1), filter: ObjectFilter::Any, random: false }]
+        )
+    };
+    let generic = |c: &Cost| match c.parts.as_slice() {
+        [CostPart::Mana(symbols)] => match symbols.as_slice() {
+            [ManaSymbol::Generic(n)] => u8::try_from(*n).ok(),
+            _ => None,
+        },
+        _ => None,
+    };
+    match (discard(a), discard(b)) {
+        (true, false) => generic(b),
+        (false, true) => generic(a),
+        _ => None,
+    }
+}
+
 /// "Ward--Sacrifice a Food" and its like, where Cantrip has the ability.
 pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
     let [CostPart::Sacrifice {
