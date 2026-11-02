@@ -583,6 +583,15 @@ impl Compiler {
                 filter,
                 "{ let mut all: Vec<ObjectId> = q.state().battlefield().to_vec(); all.extend_from_slice(q.state().zone(Zone::STACK)); all.extend_from_slice(q.state().zone(Zone::COMMAND)); for p in q.state().seats() { for zone in [Zone::library(p), Zone::hand(p), Zone::graveyard(p), Zone::exile(p)] { all.extend_from_slice(q.state().zone(zone)); } } all }".into(),
             )?,
+            // The rest of a prevention whose parts have one source (CR 615.5).
+            ObjectSet::Damage(DamageSubject::Source)
+                if self.pending == Pending::Reshaped && self.frame.damage_source.is_some() =>
+            {
+                format!(
+                    "({}).into_iter().collect::<Vec<ObjectId>>()",
+                    self.object(&ObjectRef::Damage(DamageSubject::Source))?
+                )
+            }
             ObjectSet::Damage(subject) => held_objects(
                 &feature,
                 &format!("q.damage_objects(item, DamageSubject::{})", form(subject)),

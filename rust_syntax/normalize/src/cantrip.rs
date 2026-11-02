@@ -545,6 +545,10 @@ struct Compiler {
     mana_x: bool,
     slots: BTreeMap<u16, (usize, TargetSpec)>,
     selections: BTreeMap<u32, String>,
+    /// "A source of your choice": each choice's local and the quality it asks.
+    damage_sources: BTreeMap<String, ObjectFilter>,
+    /// The quality of the source of your choice the made effect at hand is about.
+    choosing_source: Option<ObjectFilter>,
     /// What later reads ask of the instructions before them (`lane_m`).
     notes: lane_m::Notes,
     /// By slot: who controlled the items an earlier step countered.
@@ -955,6 +959,8 @@ impl Compiler {
             mana_x: false,
             slots: BTreeMap::new(),
             selections: BTreeMap::new(),
+            damage_sources: BTreeMap::new(),
+            choosing_source: None,
             notes: Default::default(),
             countered: BTreeMap::new(),
             face_piles: None,

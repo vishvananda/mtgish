@@ -672,7 +672,9 @@ impl Compiler {
                 if self.object_as_it_enters(objects, count, rest, result, out)? {
                     return Ok(());
                 }
-                let purpose = purpose(result, rest)
+                // CR 609.7a: what the source does later is not what it is chosen for.
+                let purpose = lane_n::chooses_a_source(objects)
+                    .or_else(|| purpose(result, rest))
                     .or_else(|| purpose(result, &self.after))
                     .or_else(|| referred_to(result, rest).then_some("ChooseAsEnters"))
                     .or_else(|| referred_to(result, &self.after).then_some("ChooseAsEnters"))
@@ -1041,6 +1043,9 @@ impl Compiler {
         };
         writeln!(out, "let {local}_player = {}; let {local}_candidates = {}; let {local}_count = {}; let {local} = {lone}{{ cantrip_mechanics::choose::select(g, {local}_player, asker.source, Purpose::{purpose}, {local}_candidates, cantrip_mechanics::select::Selection::of({local}_count, &[]){rule})? }};", self.fetch(self.certain_player(player)?), self.fetch(self.objects(objects)?), self.fetch(count)).unwrap();
         self.open_guard(&local, out);
+        if let Some(quality) = lane_n::quality_chosen(objects, self.line_text()) {
+            self.damage_sources.insert(local.clone(), quality.clone());
+        }
         self.selections.insert(result.0, local);
         Ok(())
     }

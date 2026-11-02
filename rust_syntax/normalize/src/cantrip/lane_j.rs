@@ -1802,11 +1802,7 @@ impl Compiler {
             // CR 609.7a: permanents, spells, what those name, and what waits to apply.
             ObjectSet::DamageSources(filter) => format!(
                 "({}).into_iter().filter(|&id| {}).collect::<Vec<ObjectId>>()",
-                planned::planned_value(
-                    "object collection DamageSources",
-                    "Vec::<ObjectId>::new()",
-                    "cantrip_mechanics::damage_sources(q)"
-                ),
+                "cantrip_mechanics::prevention::damage_sources(q)",
                 self.filter(filter, &Candidate::of("id"))?
             ),
             ObjectSet::MovedBy {
