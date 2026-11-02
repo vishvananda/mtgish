@@ -11,8 +11,11 @@ pub(super) enum SlotCounts {
     Announced,
     /// A triggered ability's: what `counted_by` says, else its source's X or
     /// kicks. A permanent keeps the X of its spell for its "enters" triggers
-    /// alone (CR 107.3m).
-    Trigger { enters_itself: bool },
+    /// alone (CR 107.3m), and the X of its morph or disguise cost for its
+    /// "turned face up" triggers (CR 702.37f, 702.168e). Its "becomes
+    /// monstrous" triggers read the X of the monstrosity that made it so (CR
+    /// 701.37c), which Cantrip keeps nowhere.
+    Trigger { enters_itself: bool, turned_up_itself: bool, monstrous_itself: bool },
     /// A delayed or a reflexive ability's: what it was told (`sized_slot`).
     Delayed,
 }
@@ -194,9 +197,13 @@ impl Compiler {
     }
     /// `event` is this object entering the battlefield.
     pub(super) fn counts_of_trigger(event: &EventSpec) -> SlotCounts {
-        let enters_itself = matches!(event, EventSpec::ZoneChange { .. })
-            && matches!(lane_j::event_object(event), Some(ObjectRef::Source));
-        SlotCounts::Trigger { enters_itself }
+        let itself = matches!(lane_j::event_object(event), Some(ObjectRef::Source));
+        let enters_itself = matches!(event, EventSpec::ZoneChange { .. }) && itself;
+        let turned_up_itself = itself
+            && matches!(event, EventSpec::Object { event: ObjectEvent::TurnsFaceUp, .. });
+        let monstrous_itself = itself
+            && matches!(event, EventSpec::Object { event: ObjectEvent::BecomesMonstrous, .. });
+        SlotCounts::Trigger { enters_itself, turned_up_itself, monstrous_itself }
     }
     /// Whether the mana cost printed on this card has an {X}.
     fn printed_x(&self) -> bool {
@@ -208,7 +215,7 @@ impl Compiler {
     /// Whether `n` is the X this object's spell was cast with, and `COUNTED`
     /// reads it, as a total to divide does.
     pub(super) fn counts_own_x(&self, n: &Expr) -> bool {
-        let SlotCounts::Trigger { enters_itself } = self.slot_counts else {
+        let SlotCounts::Trigger { enters_itself, .. } = self.slot_counts else {
             return false;
         };
         let own = matches!(n, Expr::AnnouncedX)
@@ -217,7 +224,7 @@ impl Compiler {
     }
     /// The slot's bounds, where the ability can read `count` as it is put on the
     /// stack: `None` leaves it to `target_count`.
-    fn counted_read(&mut self, count: &Count, label: &str) -> Option<String> {
+    pub(super) fn counted_read(&mut self, count: &Count, label: &str) -> Option<String> {
         let (n, bounds) = match count {
             Count::UpTo(n) => (n, ".between(0, TargetSpec::COUNTED)"),
             Count::Exactly(n) => (n, ".counted()"),
@@ -230,8 +237,17 @@ impl Compiler {
             // "When you do, distribute X": the X paid, told to the ability.
             SlotCounts::Delayed => matches!(n, Expr::AnnouncedX) && self.counted.is_some(),
             SlotCounts::Announced => matches!(n, Expr::AnnouncedX),
+            // "When this is turned face up, ... up to X": the X its morph or
+            // disguise cost was paid with, which the special action keeps on the
+            // permanent (CR 702.168e; `Object::x`), read as the ability triggers.
+            // Turned up any other way, or never cast with an X, it is 0.
+            SlotCounts::Trigger { turned_up_itself: true, .. }
+                if matches!(n, Expr::AnnouncedX) && !self.granting =>
+            {
+                self.count_of_trigger(&Expr::CastX(ObjectRef::Source), false, label).is_some()
+            }
             SlotCounts::Trigger { .. } if matches!(n, Expr::AnnouncedX) => self.counts_own_x(n),
-            SlotCounts::Trigger { enters_itself } => {
+            SlotCounts::Trigger { enters_itself, .. } => {
                 self.counts_own_x(n) || self.count_of_trigger(n, enters_itself, label).is_some()
             }
         };
@@ -321,14 +337,128 @@ impl Compiler {
         };
         Some(format!(".between(0, cantrip_api::TargetSpec::ANY_NUMBER).together(cantrip_api::select::set_part(&({name} as SelectFn), &(largest_{name} as cantrip_api::select::LargestFn), {number}, \"up to X\"))"))
     }
+    /// A total to divide that is a function of the X announced and of nothing
+    /// else ("X plus 1"): the name of that function, for `Divide::of_x`.
+    pub(super) fn total_of_x(&mut self, total: &Expr, label: &str) -> Option<String> {
+        let code = self.number(total).ok()?.code;
+        if !code.contains(ANNOUNCED_X) {
+            return None;
+        }
+        let mut code = code.replace(ANNOUNCED_X, "x");
+        // A spell's own X, "if X is 6 or more" (Shatterskull Smashing), is the one
+        // announced for it (CR 107.3a).
+        if self.activation_cost.is_none() {
+            code = code.replace(SOURCE_X, "x");
+        }
+        let reads = ["q.", "planned_value!", "item.", "g.", "asker"];
+        if reads.iter().any(|read| code.contains(read)) {
+            return None;
+        }
+        let name = format!("{label}_divided_total");
+        writeln!(self.functions, "fn {name}(x: u16) -> u16 {{ let x = i64::from(x); ({code}).clamp(0, i64::from(u16::MAX)) as u16 }}").unwrap();
+        Some(name)
+    }
+    /// "When you do, put target creature card with mana value less than or equal
+    /// to the number of study counters removed this way" (Vhal, Scholar of
+    /// Mortality): a filter has no read of the number a reflexive ability was
+    /// given, but the rule of a slot's targets together does (`COUNTED`), and one
+    /// target's mana value is the total of a set of one. The slot with that test
+    /// moved from its filter to its rule.
+    pub(super) fn told_mana_value_slot(&self, spec: &TargetSpec) -> Option<TargetSpec> {
+        let one = |n: &Expr| matches!(n, Expr::Constant(1));
+        let single = matches!(&spec.count, Count::Exactly(n) | Count::UpTo(n) if one(n));
+        if self.slot_counts != SlotCounts::Delayed || !single || !spec.constraints.is_empty() {
+            return None;
+        }
+        let counted = self.counted?;
+        let (filter, amount) = take_told(&spec.filter, counted)?;
+        Some(TargetSpec {
+            filter,
+            constraints: vec![SelectionConstraint::TotalProperty {
+                property: Property::ManaValue,
+                comparison: Comparison::LessOrEqual,
+                amount,
+            }],
+            ..spec.clone()
+        })
+    }
     /// `target_count`, with what the ability reads as it goes on the stack.
     pub(super) fn slot_count(&mut self, count: &Count, label: &str) -> Result<String> {
+        if let (
+            SlotCounts::Trigger { monstrous_itself: true, .. },
+            Count::UpTo(Expr::AnnouncedX) | Count::Exactly(Expr::AnnouncedX),
+        ) = (self.slot_counts, count)
+        {
+            return Err(gap(MONSTROSITY_X));
+        }
         match self.counted_read(count, label) {
             Some(bounds) => Ok(bounds),
             None => self.target_count(count),
         }
     }
 }
+
+/// `filter` without its one "mana value N or less", N the number told to the
+/// ability (`counted`), and N.
+fn take_told(filter: &ObjectFilter, counted: u32) -> Option<(ObjectFilter, Expr)> {
+    let told = |n: &Expr| match n {
+        Expr::Performed(r) | Expr::CountersRemoved(r) | Expr::DieResult(r) => r.0 == counted,
+        _ => false,
+    };
+    match filter {
+        ObjectFilter::Property {
+            property: Property::ManaValue,
+            comparison: Comparison::LessOrEqual,
+            value,
+        } if told(value) => Some((ObjectFilter::Any, value.clone())),
+        ObjectFilter::All(filters) => {
+            let mut found = None;
+            let mut rest = Vec::new();
+            for f in filters {
+                match take_told(f, counted) {
+                    Some((left, amount)) if found.is_none() => {
+                        found = Some(amount);
+                        rest.push(left);
+                    }
+                    Some(_) => return None,
+                    None => rest.push(f.clone()),
+                }
+            }
+            let rest: Vec<ObjectFilter> = rest.into_iter().filter(|f| !matches!(f, ObjectFilter::Any)).collect();
+            Some((ObjectFilter::All(rest), found?))
+        }
+        _ => None,
+    }
+}
+
+/// The hole of an "up to N targets" slot that no `COUNTED` reads, `read` being
+/// the number's code: what is missing to read it.
+pub(super) fn up_to_feature(counts: SlotCounts, activated: bool, read: &str) -> &'static str {
+    match counts {
+        // The number is a hole of its own, which says what it waits on.
+        _ if read.contains("planned_value!") => FOLLOWS_GAP,
+        // "Up to X target cards from your graveyard, where X is the number of black
+        // permanents target opponent controls" (Reap): a rule of a slot's targets
+        // together is asked with no other slot's targets (`within_together`,
+        // `together_legal`), and a count that is no X is read again on resolution.
+        SlotCounts::Announced if read.contains("q.chosen_targets()") => {
+            "a target count read from another target"
+        }
+        // "Up to X target creatures you control, where X is the number of
+        // Bobbleheads you control as you activate this ability": an activated
+        // ability's `COUNTED` is its X alone (`StackItem::counted`), and no
+        // `ActivatedDef` field reads a number as it is activated, as
+        // `TriggeredDef::counted_by` does for a triggered ability.
+        SlotCounts::Announced if activated && !read.contains("planned_value!") => {
+            "an activated ability's target count read as it is activated"
+        }
+        _ => "target cardinality UpTo",
+    }
+}
+
+/// "When this creature becomes monstrous, ... X": `Event::Monstrous` carries no
+/// number and nothing keeps the monstrosity's X (CR 701.37c).
+pub(super) const MONSTROSITY_X: &str = "the X of the monstrosity a becomes-monstrous trigger reads";
 
 /// Whether a cost sacrifices the ability's source, which so can't be activated again.
 fn sacrifices_its_source(cost: &Cost) -> bool {
@@ -354,6 +484,9 @@ pub(super) const SLOT_HELD: &str = "fn slot_held(q: &dyn Query, source: ObjectId
 /// `carried`'s read of the amount of an event, past a target filter's reach.
 pub(super) const AMOUNT_READ: &str =
     "planned_value!(\"event value in a target filter beyond its subject\", [u32::MAX; 2] => q.event_data())";
+
+/// The X of the source's spell (`Expr::CastX` of the source).
+const SOURCE_X: &str = "Some(asker.source).map_or(0i64, |o: ObjectId| i64::from(q.state().obj(o).x))";
 
 /// The object that entered, read in a target filter: its spell's X.
 const EVENT_OBJECT_X: &str =
@@ -394,6 +527,26 @@ pub(super) fn each_player_slot(spec: &TargetSpec) -> Option<TargetSpec> {
         },
         constraints: Vec::new(),
         ..spec.clone()
+    })
+}
+
+/// Whether a cost picks what it pays by X, with no {X} to announce it: "sacrifice
+/// an artifact with mana value X" (Scrap Welder, Sidisi, Kozilek).
+pub(super) fn x_in_cost_filter(cost: &Cost) -> bool {
+    !has_mana_x(cost)
+        && cost.parts.iter().any(|part| {
+            let said = format!("{part:?}");
+            said.contains("AnnouncedX") && said.contains("Property")
+        })
+}
+
+/// Whether a cost removes X counters, X the number removed.
+pub(super) fn removes_x_counters(cost: &Cost) -> bool {
+    cost.parts.iter().any(|part| {
+        matches!(part, CostPart::RemoveCounters { removals } if removals.iter().any(|r| matches!(
+            r.amount,
+            CounterAmount::Count(Count::Exactly(Expr::AnnouncedX))
+        )))
     })
 }
 

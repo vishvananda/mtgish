@@ -333,6 +333,11 @@ impl Compiler {
             CastingRule::Flash {
                 additional_cost: None,
             } => match condition {
+                // "As though it had flash if X is 3 or less" (Silver Scrutiny):
+                // `flash_if` is judged before X is announced (CR 601.2b).
+                Some(condition) if format!("{condition:?}").contains("AnnouncedX") => {
+                    return Err(gap("a limit on the X announced"));
+                }
                 Some(condition) => {
                     let test = self.activation_condition(condition, &format!("{label}_if"))?;
                     one_field(parts, "flash_if", format!("Some({test})"))?;

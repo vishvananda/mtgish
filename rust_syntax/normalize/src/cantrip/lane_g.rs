@@ -7,6 +7,9 @@ const M: &str = "cantrip_mechanics";
 const PERPETUAL: &str = "cantrip_mechanics::perpetual::Perpetual";
 /// The label of a cost paid as something resolves, where any number can be read.
 pub(super) const PAID: &str = "paid";
+/// "Remove X storage counters from this land: Add X mana": a mana ability that
+/// announces how many counters it removes, which Cantrip's mana abilities don't.
+pub(super) const MANA_COUNTERS_X: &str = "removing X counters to activate a mana ability";
 
 /// What an optional additional cost sets on the card.
 enum Optional {
@@ -1388,6 +1391,15 @@ impl Compiler {
                 CounterAmount::Count(Count::Exactly(Expr::AnnouncedX)),
             ) if label != PAID && kind.is_some() => {
                 let kind = kind.ok_or_else(|| gap(SHAPE))?;
+                // A mana ability announces only its {X} (`activate_mana_as`): no
+                // number of counters to remove, nor an X its effect could read.
+                if self.paid_for == lane_j::PaidFor::Mana {
+                    return Ok(planned::planned_value(
+                        MANA_COUNTERS_X,
+                        "Cost::NONE",
+                        &format!("Cost {{ variable: Some(VariableCost::RemoveAnyNumberOfCounters({kind})), ..Cost::NONE }}"),
+                    ));
+                }
                 format!("Cost {{ variable: Some(VariableCost::RemoveAnyNumberOfCounters({kind})), ..Cost::NONE }}")
             }
             // How many is read as the cost is paid, while the effect resolves.

@@ -3,6 +3,9 @@
 //! then publishes nothing, so no card loses an ability silently.
 use super::*;
 
+/// A cost that picks what it pays by the X announced.
+pub(super) const COST_FILTER_X: &str = "a cost's filter reading the X announced";
+
 /// What the land gains of "{N}, Exile this card from your hand: Target land gains
 /// "..." until this card is cast from exile. You may cast this card for as long as
 /// it remains exiled": Cantrip's `land_until_cast`, which all six that print it take.
@@ -244,6 +247,13 @@ fn alternative_prices(
 impl Compiler {
     /// A generated `ObjectFilter`: what a cost accepts of an object.
     pub(super) fn cost_filter(&mut self, filter: &ObjectFilter, label: &str) -> Result<String> {
+        // "Discard a card with mana value X", "sacrifice an artifact with mana value
+        // X", a Shoal's "exile a red card with mana value X": Cantrip asks a cost's
+        // filter with no X (`Query::announced_x` is a target filter's alone), and
+        // announces none for a cost without {X}.
+        if format!("{filter:?}").contains("AnnouncedX") {
+            return Err(gap(COST_FILTER_X));
+        }
         // A cost's filter is a plain function, with no event or stack item to read.
         // What is entering is its asker's source.
         let saved = (self.reader, self.event_at);
@@ -660,7 +670,7 @@ impl Compiler {
         // "Choose up to X, where X is ...": a triggered ability's own count,
         // read from the game as it is put on the stack (CR 603.3c, 700.2).
         let counted = match self.slot_counts {
-            target_counts::SlotCounts::Trigger { enters_itself }
+            target_counts::SlotCounts::Trigger { enters_itself, .. }
                 if fewest == Some(0) && bound(most).is_none() && !label.contains("_mode_") =>
             {
                 self.count_of_trigger(most, enters_itself, label).is_some()

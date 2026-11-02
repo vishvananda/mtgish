@@ -1101,6 +1101,23 @@ impl Compiler {
                 return Err(gap(format!("primitive numeric expression {name}")))
             }
             Expr::Constant(n) => Number::integer(*n),
+            // "Sacrifice a creature with mana value X: Return target creature card
+            // with mana value X plus 1" (Sidisi): the X a cost's filter defines,
+            // which Cantrip announces none of (`costs::COST_FILTER_X`).
+            Expr::AnnouncedX
+                if self.activation_cost.as_ref().is_some_and(target_counts::x_in_cost_filter) =>
+            {
+                Number {
+                    code: planned::planned_value(
+                        costs::COST_FILTER_X,
+                        "0i64",
+                        "i64::from(q.announced_x().unwrap_or(0))",
+                    ),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
             Expr::AnnouncedX if self.notes.paid_x.is_some() => Number {
                 code: self.notes.paid_x.clone().unwrap_or_default(),
                 min: 0,
@@ -1141,6 +1158,26 @@ impl Compiler {
             {
                 Number {
                     code: "i64::from(q.obj(asker.source).x)".into(),
+                    min: 0,
+                    max: u16::MAX.into(),
+                    dynamic: true,
+                }
+            }
+            // "Remove X storage counters from this land: Add X mana", "Sacrifice X
+            // Goats: Add X mana": a mana ability announces only an {X} (CR 605.3a,
+            // `activate_mana_as`), so this X is the hole its cost is
+            // (`lane_g::MANA_COUNTERS_X`, or the cost's own).
+            Expr::AnnouncedX
+                if self.mana_body
+                    && self.activation_cost.as_ref().is_some_and(|cost| !target_counts::has_mana_x(cost)) =>
+            {
+                let removes = self.activation_cost.as_ref().is_some_and(target_counts::removes_x_counters);
+                Number {
+                    code: planned::planned_value(
+                        if removes { lane_g::MANA_COUNTERS_X } else { FOLLOWS_GAP },
+                        "0i64",
+                        "i64::from(q.obj(asker.source).x)",
+                    ),
                     min: 0,
                     max: u16::MAX.into(),
                     dynamic: true,
@@ -1995,6 +2032,16 @@ impl Compiler {
             ObjectFilter::ExiledWith(ObjectRef::Source) if self.reader != Reader::Layer => {
                 format!("q.exiled_with(q.linked_to(asker)).contains(&{id})")
             }
+            // "Target creature with fewer than X +1/+1 counters on it": before X
+            // is announced, the filter allows what some X would, as a property's does.
+            ObjectFilter::Counters {
+                kind,
+                comparison,
+                value: Expr::AnnouncedX,
+            } if self.choosing.is_some() => format!(
+                "q.announced_x().map_or(true, |x| {})",
+                compare(&counters_on(id, kind.as_ref())?, comparison, "i64::from(x)")
+            ),
             ObjectFilter::Counters {
                 kind,
                 comparison,
