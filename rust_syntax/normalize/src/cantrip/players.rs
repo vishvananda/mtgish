@@ -504,6 +504,15 @@ impl Compiler {
             ZoneScope::Shared(zone) | ZoneScope::Players { zone, players: PlayerSet::All } => {
                 format!("q.obj({card}).zone.is({})", zone_kind(zone)?)
             }
+            // "You can't play lands or cast spells from your hand": the hand of the
+            // player the rule is asked of (Experimental Frenzy).
+            ZoneScope::Players {
+                zone,
+                players: PlayerSet::One(PlayerRef::Affected),
+            } => format!(
+                "(q.obj({card}).zone.is({}) && q.obj({card}).owner == player)",
+                zone_kind(zone)?
+            ),
             ZoneScope::Players { zone, players } => format!(
                 "(q.obj({card}).zone.is({}) && {{ let player = q.obj({card}).owner; {} }})",
                 zone_kind(zone)?,

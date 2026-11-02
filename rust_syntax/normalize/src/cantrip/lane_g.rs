@@ -1273,6 +1273,26 @@ impl Compiler {
                 self.before
                     .insert(result.0, format!("revealed_{id}.clone()"));
             }
+            // "Put a +1/+1 counter on it for each card in your hand. If you do":
+            // that a counter was put (CR 608.2c), on what is still there to have it.
+            CostPart::PutCounters(placements)
+                if placements.iter().all(|p| {
+                    p.selection.is_none() && !matches!(p.recipients, Recipients::Players(_))
+                }) =>
+            {
+                // Ravenous Vampire: "you may sacrifice ... If you do, put a counter
+                // ... If you don't, tap": the data reads the "don't" after the
+                // counter as if that were the choice.
+                if self.line_text().is_some_and(|line| line.contains("If you don't")) {
+                    return Err(gap("a mandatory cost the card's \"If you don't\" is read after, in the data"));
+                }
+                let operation = Operation::PutCounters { placements: placements.clone() };
+                self.operation(&operation, result, out)?;
+                let Some(applied) = self.selections.get(&result.0).cloned() else {
+                    return Err(gap(format!("resolution cost {}", form(part))));
+                };
+                writeln!(out, "let paid_{id} = !{applied}.is_empty();").unwrap();
+            }
             other => {
                 let feature = format!("resolution cost {}", form(other));
                 self.stated_payment(&feature, id, player, cost, out)?;

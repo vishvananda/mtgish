@@ -3369,6 +3369,17 @@ impl Compiler {
                     continue;
                 }
             }
+            // "If it doesn't have [this ability], it gains that ability": asked of
+            // each object as the effect begins, the same ability from any source
+            // being the one it has (Musician).
+            if let Change::GrantAbilityIfAbsent(ability) = change {
+                for (i, reference) in self.granted_refs(ability)?.into_iter().enumerate() {
+                    let local = format!("kind_{id}_{}_{i}", kinds.len());
+                    writeln!(out, "let {local} = {};", self.fetch(format!("EffectKind::AddAbility({reference})"))).unwrap();
+                    write!(each_player, "if !matches!({local}, EffectKind::AddAbility(a) if g.chars(object).abilities.contains(&Some(a))) {{ g.add_effect(source, object, {local}, duration_{id}); }} ").unwrap();
+                }
+                continue;
+            }
             for (i, kind) in self.effect_kinds(change)?.into_iter().enumerate() {
                 let local = format!("kind_{id}_{}_{i}", kinds.len());
                 writeln!(out, "let {local} = {};", self.fetch(kind)).unwrap();

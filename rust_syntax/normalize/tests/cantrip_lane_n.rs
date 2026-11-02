@@ -59,7 +59,8 @@ const CARDS: &[(&str, &str)] = &[
     ),
     ("The Mimeoplasm", "event change as it enters Entry CopyOf"),
     ("Martyrdom", "replacement made by a granted ability"),
-    ("Suffocation", "damage source kind Spell"),
+    // A spell as a source of damage is an object on the stack.
+    ("Suffocation", "q.state().obj(source).zone.is(ZoneKind::Stack)"),
     ("Primeval Spawn", "as-enters replacement of another event"),
     ("Quarum Trench Gnomes", "replacement event ProduceColor"),
     // A granted exalted is the word its grant prints.

@@ -220,6 +220,16 @@
 "partial": "Kept after entry: gap. Two values of one kind as it enters: encode the second in Entering.chosen_number (see condition-value-chosen-is).",
 "verdict": "gap"
 },
+"a-chosen-card-type-where-its-body-chose-a-creature-type-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron",
+"data/oracle.json"
+],
+"how": "Karona, False God: \"choose a creature type. Creatures of the chosen type get +3/+3\" reads IsCardtypeVariable(TheChosenCardtype) after ChooseACreatureType. Proposed: IsCreatureTypeVariable(TheChosenCreatureType).",
+"note": "",
+"partial": "",
+"verdict": "data"
+},
 "a-copy-of-a-spell-for-each-object-it-could-target": {
 "evidence": [
 "crates/cantrip-api/src/game.rs:846",
@@ -242,6 +252,16 @@
 "note": "",
 "partial": "",
 "verdict": "exists"
+},
+"a-count-of-modes-a-spell-or-an-activated-ability-reads": {
+"evidence": [
+"crates/cantrip-api/src/card.rs:1906",
+"crates/cantrip-api/src/ability.rs:358"
+],
+"how": "ModalDef::COUNTED is a triggered ability's count only: a spell or an activated ability can't be given it, and an activated one panics (ability.rs:358). Doomsday Confluence's \"Choose X. You may choose the same mode more than once\" needs a spell's mode count read from its X.",
+"note": "Split from mode-count-that-is-not-a-constant.",
+"partial": "",
+"verdict": "gap"
 },
 "a-delayed-ability-made-by-a-delayed-ability": {
 "evidence": [
@@ -368,6 +388,16 @@
 "note": "Tracker row is a data bug: the generator should honor the negation.",
 "partial": "",
 "verdict": "exists"
+},
+"a-mandatory-cost-the-card-s-if-you-don-t-is-read-after-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron",
+"data/oracle.json"
+],
+"how": "Ravenous Vampire: \"you may sacrifice a nonartifact creature. If you do, put a +1/+1 counter on this creature. If you don't, tap this creature\" is If(CostWasPaid, [MustCost(PutCounters(..)), Unless(CostWasPaid, [TapPermanent(ThisPermanent)])]), so it never taps. Proposed: [MayCost(SacrificeAPermanent(..)), If(CostWasPaid, [PutCounters(..)]), Unless(CostWasPaid, [TapPermanent(ThisPermanent)])].",
+"note": "",
+"partial": "",
+"verdict": "data"
 },
 "a-maximum-hand-size-of-other-players": {
 "evidence": [
@@ -527,6 +557,16 @@
 ],
 "how": "The data's target is TargetPermanent(And([IsNonCardtype(Creature), IsCardtype(Land)])) where Oracle says 'target noncreature land you control': ControlledByAPlayer(SinglePlayer(You)) is missing.",
 "note": "Tendril of the Mycotyrant. Filed upstream.",
+"partial": "",
+"verdict": "data"
+},
+"a-text-change-s-duration-given-to-one-of-its-options-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron",
+"data/oracle.json"
+],
+"how": "Whim of Volrath, Trait Doctoring, Crystal Spray: \"change the text ... by replacing all instances of one color word with another or one basic land type with another until end of turn\" gives the color-word option CreatePermanentLayerEffect with no duration. Proposed: CreatePermanentLayerEffectUntil(.., UntilEndOfTurn) for both options (Crystal Spray's DrawACard after both, not inside the first).",
+"note": "",
 "partial": "",
 "verdict": "data"
 },
@@ -929,6 +969,16 @@
 "note": "Timothar, Baron of Bats.",
 "partial": "Unverified: add_effect returns no timestamp, so the stamp is read from the effect it just made.",
 "verdict": "card-code"
+},
+"an-option-the-card-says-is-otherwise-free-in-the-data": {
+"evidence": [
+"data/mtgish.lines.ron",
+"data/oracle.json"
+],
+"how": "Bison Whistle: ChooseAnAction([[PutTopCardOfLibraryOfTypeOnBattlefield(IsCreatureType(Bison))], [RevealTopCardOfLibraryAndPutIntoHand(IsCardtype(Creature))], [PutTopOfLibraryInGraveyard], [DoNothing]]) makes \"Otherwise, you may put it into your graveyard\" a free choice. The graveyard is only for a card that is neither a Bison nor a creature card.",
+"note": "",
+"partial": "",
+"verdict": "data"
 },
 "an-ordinal-of-grouped-events": {
 "evidence": [
@@ -1568,10 +1618,10 @@
 "crates/cantrip-cards/src/cards/bifur_melodic_rider.rs:20",
 "crates/cantrip-cards/src/cards/windcrag_siege.rs:19"
 ],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: A rule function tests the condition.",
+"how": "Landed for \"If [condition], this enters with ...\": the condition wraps the as-enters body, asked as it would enter, as a static guard is (Dust Animus). Escape with a condition still holds.",
 "note": "",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "conditional-trigger-rule": {
 "evidence": [
@@ -1611,10 +1661,10 @@
 "crates/cantrip-cards/src/cards/foraging_wickermaw.rs:10",
 "crates/cantrip-api/src/game.rs:1184"
 ],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Musician: a granted ability: g.add_effect(source, target, EffectKind::Granted..) checking first that it's absent in the effect. Written zero rows: Foraging Wickermaw (g.add_mana), Artificial Evolution (text_change).",
+"how": "Landed: EffectKind::AddAbility of the granted ability, added only to each object whose chars.abilities lack that AbilityRef as the effect begins (Musician).",
 "note": "",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "continuous-change-remove-subtype": {
 "evidence": [
@@ -4869,21 +4919,34 @@
 "partial": "",
 "verdict": "gap"
 },
+"damage-prevented-to-its-targets-read-in-the-data-as-by-them": {
+"evidence": [
+"data/mtgish.lines.ron",
+"data/oracle.json"
+],
+"how": "Redeem: \"Prevent all damage that would be dealt this turn to up to two target creatures\" is CreatePreventDamageUntil(DamageWouldBeDealtByAPermanent(Ref_TargetPermanents), ..), damage by them. Proposed: DamageWouldBeDealtToARecipient(APermanent(Ref_TargetPermanents)).",
+"note": "",
+"partial": "",
+"verdict": "data"
+},
 "damage-source-kind-spell": {
 "evidence": [
 "crates/cantrip-api/src/history.rs:547"
 ],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: `q.history().damage_dealt().any(|d| d.source == spell)`: object rows are never deleted, so the id still answers.",
+"how": "Landed: a source that is a spell is an object on the stack, its row keeping that zone once it has left (CR 400.7): `q.state().obj(source).zone.is(ZoneKind::Stack)`. Aegar, the Freezing Flame and Suffocation.",
 "note": "Source ids don't go away.",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "damage-to-each-permanent-a-card-type-lost-in-the-data": {
-"evidence": [],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: ",
+"evidence": [
+"data/mtgish.lines.ron",
+"data/oracle.json"
+],
+"how": "Arcbond's \"each other creature and each player\" is MultipleRecipients([EachPermanent(Other(Ref_TargetPermanent)), EachPlayer(AnyPlayer)]): the creature type is lost. Proposed: EachPermanent(And([IsCardtype(Creature), Other(Ref_TargetPermanent)])).",
 "note": "from the reads lane",
 "partial": "",
-"verdict": "card-code"
+"verdict": "data"
 },
 "delayed-ability-about-objects-and-a-player": {
 "evidence": [
@@ -4976,10 +5039,10 @@
 "evidence": [
 "crates/cantrip-api/src/game.rs:203"
 ],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Niv-Mizzet, Guildpact: count color pairs among permanents with plain Vec dedupe. Central Elevator: search filter comparing names, in a filter over chars at resolution via library choice list.",
+"how": "Landed: the distinct ColorSets among the objects that are exactly two colors, a permanent of more colors having no pair (Niv-Mizzet, Guildpact's ruling).",
 "note": "",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "distinct-planeswalker-types": {
 "evidence": [
@@ -5238,15 +5301,13 @@
 },
 "duration-while-controlled": {
 "evidence": [
-"crates/cantrip-state/src/object.rs:1496",
-"crates/cantrip-api/src/card.rs:3296",
-"crates/cantrip-cards/src/cards/old_man_of_the_sea.rs:40",
-"crates/cantrip-cards/src/cards/lwaxana_troi_charming_guest.rs:27"
+"crates/cantrip-state/src/object.rs:1566",
+"crates/cantrip-api/src/card.rs:2541"
 ],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Wall of Stolen Identity: add_effect(.., EffectKind::CantBecomeUntapped, Duration::AsLongAs(CARD, 0)), Lasting.holds reading that you control e.source. Vislor Turlough: add_effect(.., EffectKind::Goaded, Duration::AsLongA",
+"how": "Landed for \"for as long as they control it\", they being its controller as the effect begins (Vislor Turlough): Duration::AsLongAs with a Lasting that compares its controller now with the player of the latest control effect on it no later than the effect. Wall of Stolen Identity holds on other forms.",
 "note": "Lukamina, Crocodile Form's 'doesn't untap for as long as you control' is the same shape.",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "duration-while-exiled": {
 "evidence": [
@@ -5260,14 +5321,13 @@
 },
 "duration-while-it-matches": {
 "evidence": [
-"crates/cantrip-state/src/object.rs:1496",
-"crates/cantrip-api/src/card.rs:3296",
-"crates/cantrip-cards/src/cards/old_man_of_the_sea.rs:40"
+"crates/cantrip-state/src/object.rs:1566",
+"crates/cantrip-api/src/card.rs:2541"
 ],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Rootwater Matriarch: add_effect(self, target, EffectKind::Control(you), Duration::AsLongAs(CARD, 0)), Lasting.holds testing that e.affected is enchanted.",
+"how": "Landed: Duration::AsLongAs with a Lasting testing the filter of e.affected (Rootwater Matriarch: that creature is enchanted). The effect does nothing if it is false as it would begin (CR 611.2b), as the ruling says.",
 "note": "",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "duration-while-matches": {
 "evidence": [
@@ -6788,10 +6848,10 @@
 "crates/cantrip-api/src/card.rs:1292",
 "crates/cantrip-cards/src/cards/timeline_culler.rs:6"
 ],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: The audit's WayDef is wrong for every card: it is an alternative cost, so Rout on an opponent's turn under Omniscience would cost {7}, not {2}. Exact on sorceries instead: cast_as_though_flash + untimely_cleanup_rider (i",
+"how": "Gap: \"You may cast this spell as though it had flash if you pay {2} more to cast it\" is an additional cost only for a cast at instant speed; cast_as_though_flash and flash_if give the permission free, and a WayDef is an alternative cost (it won't combine with another, and Omniscience would waive the {2}). Harbinger of the Tides, Mystical Tether, Quantum Reduction, Moonlit Ambusher.",
 "note": "",
 "partial": "WayDef is an alternative cost by rule: it won't combine with another alternative cost, and it costs a line per card. Quantum Reduction, Moonlit Ambusher unread beyond this.",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "engine-no-forage": {
 "evidence": [
@@ -7209,7 +7269,7 @@
 "evidence": [
 "crates/cantrip-rules/src/ops.rs:1279"
 ],
-"how": "Name misleads: a grantor replacement, prevention or static is the form, so this is no engine gap. Each needs its own generator arm. Not landed.",
+"how": "Landed: a layer-6 grant of Keyword::ReadAhead, which the rules read as the Saga enters (ops.rs choose_read_ahead): Barbara Wright.",
 "note": "ReadAhead is in the Keyword set.",
 "partial": "The chars read at ops.rs:1279 runs only when ability grants are present, which layers::ability_grants_present reports.",
 "verdict": "exists"
@@ -8545,17 +8605,13 @@
 },
 "history-window-last-combat-of": {
 "evidence": [
-"crates/cantrip-api/src/history.rs:183",
-"crates/cantrip-api/src/history.rs:261",
-"crates/cantrip-api/src/history.rs:331",
-"crates/cantrip-api/src/history.rs:342",
-"crates/cantrip-api/src/history.rs:371",
-"crates/cantrip-cards/src/cards/april_oneil_hacktivist.rs:9"
+"crates/cantrip-api/src/history.rs:182",
+"crates/cantrip-api/src/history.rs:342"
 ],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: A function over q.history(): all(), select(EventQuery::kind(..).step(..).in_turn_of(..).after(serial)), casts_by; counts and distinct sets are ordinary iterator code.",
+"how": "Landed: the records from that player's last beginning of combat step (STEP_BEGAN BeginCombat, the one before if a combat of theirs is going on) to the end of that combat phase, read off Record.step. Territorial Hellkite; its \"if you can't choose an opponent this way\" is a mandatory random choice among no one, now a cost not paid.",
 "note": "",
 "partial": "Windows past this turn stop where the history stops; I did not check how far it is kept.",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "history-window-since-last-turn-of": {
 "evidence": [
@@ -9589,10 +9645,10 @@
 "crates/cantrip-rules/src/settle.rs:646",
 "crates/cantrip-cards/src/cards/the_ruinous_wrecking_crew.rs:49"
 ],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: modal_triggered(when,&MODAL.up_to_that_many(),text).counted_by(fn(q,asker)->u16): the count is read as it goes on the stack.",
+"how": "Landed for triggered abilities: modes(..).up_to_that_many() with the ability's .counted_by(fn), read as it is put on the stack (Bumi, King of Three Trials). A spell's count (Doomsday Confluence, \"Choose X\") is now its own gap form, a-count-of-modes-a-spell-or-an-activated-ability-reads.",
 "note": "",
 "partial": "Triggered only. Doomsday Confluence \"Choose X\" on a spell: gap, ModalDef::COUNTED is refused for spells (card.rs:1906).",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "mode-with-a-requirement": {
 "evidence": [
@@ -12793,7 +12849,7 @@
 "crates/cantrip-api/src/card.rs:2308",
 "crates/cantrip-cards/src/cards/armor_wars.rs:31"
 ],
-"how": "Landed where the rule's function has the player: a banned spell's filter (Lavinia) and a permission from exile (Ian Malcolm), by rule_player around the filter. Bosium Strip stays: a lasting permission to cast from the top of a graveyard has no call. Others hold on duration and object filter holes.",
+"how": "Landed where the rule's function has the player: a banned spell's filter (Lavinia), a permission from exile (Ian Malcolm), and \"from your hand\" in a play or cast ban, the hand of the player asked (Experimental Frenzy). Bosium Strip stays: a lasting permission to cast from the top of a graveyard has no call.",
 "note": "",
 "partial": "Gwenom, The Belligerent, Bösium Strip, Uba Mask, Shared Fate need a lasting rule per player and stay open.",
 "verdict": "exists"
@@ -14583,14 +14639,14 @@
 "crates/cantrip-rules/src/actions.rs:11163",
 "crates/cantrip-api/src/card.rs:1287"
 ],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: Thought Gorger: plain counters then discard hand, testing whether counters were placed.",
+"how": "Landed: \"put counters ... If you do\" puts them and is paid when a counter was put on something (Thought Gorger). Ravenous Vampire is a data bug (its \"If you don't\" is nested after the counter) and holds on its own data form.",
 "mixed": [
 "card-code",
 "exists"
 ],
 "note": "",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "resolution-cost-remove-counters": {
 "evidence": [
@@ -15113,10 +15169,9 @@
 "static-change-gain-abilities-of": {
 "evidence": [
 "crates/cantrip-mechanics/src/statics.rs:618",
-"crates/cantrip-api/src/card.rs:245",
-"crates/cantrip-api/src/card.rs:269"
+"crates/cantrip-cards/src/cards/the_enigma_jewel.rs:1"
 ],
-"how": "Not landed and not examined card by card this pass, so this verdict is unverified. Audit said: static_ability(Layer::Ability, affects, apply, text) where apply copies view.chars(other).abilities into free slots; for cards, statics::grant_activated_abilities_of(view, cards, chars).",
+"how": "Landed for cards and once each turn: grant_activated_abilities_of(view, &cards, chars), and \"activate each of those abilities only once each turn\" is CardDef::granted_once_each_turn counting the asked objects whose card is the ability's (Locus of Enlightenment's idiom; Mairsil, the Pretender). Drana and Linvala (permanents' abilities plus spend as any color), Scheming Fence, Koh and Sharkey stay held on other parts.",
 "note": "The Layer::Ability apply is a plain function.",
 "partial": "Resolved form takes one EffectKind::AddAbility per ability, a snapshot rather than a live link (Grell Philosopher, Havengul Lich). Stickers are a gap.",
 "verdict": "card-code"
@@ -15222,10 +15277,10 @@
 "crates/cantrip-api/src/history.rs:182",
 "crates/cantrip-api/src/card.rs:2378"
 ],
-"how": "Not landed. attacks_despite_defender and attack_rules both exist; the rule needs a read of the defender's last turn: Weathered Sentinels.",
+"how": "Gap: AttackDespiteDefenderRule is fn(q, asker, creature) with no defender, so \"can attack players who attacked you during their last turn as though it didn't have defender\" can't name the players. Pairing it with an attack rule that forbids the others is wrong with another despite-defender effect (Rolling Stones lets Walls attack anyone).",
 "note": "The despite rule has no target argument, so the two tables work together.",
 "partial": "",
-"verdict": "card-code"
+"verdict": "gap"
 },
 "static-rule-attack-exception-summoning-sickness": {
 "evidence": [
@@ -15686,10 +15741,10 @@
 "crates/cantrip-api/src/card.rs:295",
 "crates/cantrip-cards/src/cards/six.rs:15"
 ],
-"how": "Not landed. Audit's StaticAffects is a plain function; q.chosen_object in the held code wasn't checked.",
+"how": "Landed: the object chosen as the source entered is `q.state().chosen_object(linked) == Some(id)`, linked as the static's reader is (Tyrannical Pitlord). Scheming Fence still holds on GainAbilitiesOf.",
 "note": "",
 "partial": "",
-"verdict": "card-code"
+"verdict": "exists"
 },
 "static-subjects-take": {
 "evidence": [
