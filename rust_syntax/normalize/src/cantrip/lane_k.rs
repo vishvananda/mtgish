@@ -1835,6 +1835,31 @@ impl Compiler {
     pub(super) fn on_stage(&mut self, minimum: i64) {
         self.stage_lines = self.stages.get(&minimum).cloned().unwrap_or_default();
     }
+    /// The words of an effect that waits to apply, as `GrantedReplacementDef::text`
+    /// and `GrantedPreventionDef::text` want them: from the sentence of its line that
+    /// makes it to the end of the line, since what it does besides is its words too
+    /// (CR 609.7a, 615.5). Cantrip holds them to Oracle text, so they are never reworded.
+    pub(super) fn waiting_words(&self) -> String {
+        let Some(line) = &self.line else {
+            return String::new();
+        };
+        let makes = |sentence: &str| {
+            let sentence = sentence.to_lowercase();
+            ["prevent", "would", "instead"].iter().any(|word| sentence.contains(word))
+        };
+        // A mode prints on a line of its own, which is what Oracle text holds.
+        if let Some(mode) = line.modes.iter().find(|mode| makes(mode)) {
+            return mode.clone();
+        }
+        let mut at = 0;
+        for sentence in line.text.split_inclusive(". ") {
+            if makes(sentence) {
+                return line.text[at..].to_string();
+            }
+            at += sentence.len();
+        }
+        line.text.clone()
+    }
     /// The printed line being compiled.
     pub(super) fn line_text(&self) -> Option<&str> {
         self.line.as_ref().map(|line| line.text.as_str())

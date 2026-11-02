@@ -100,16 +100,18 @@ pub(super) fn prevents(changes: &[EventChange]) -> bool {
 pub(super) fn granted_prevention(
     hint: &str,
     applies: &str,
+    text: &str,
     then: Option<&str>,
     of: Option<&str>,
     may: Option<&str>,
 ) -> String {
     let base = format!(
-        "GrantedPreventionDef {{ hint: {hint}, damage: \"damage\", of_it: None, applies: {applies} }}"
+        "GrantedPreventionDef {{ hint: {hint}, damage: \"damage\", of_it: None, applies: {applies}, then: None, text: {text} }}"
     );
     let mut more = String::new();
-    if let Some(then) = then {
-        write!(more, " then: Some({then}),").unwrap();
+    match then {
+        Some(then) => write!(more, " then: Some({then}),").unwrap(),
+        None => more.push_str(" then: None,"),
     }
     if let Some(of) = of {
         write!(more, " amount: Some({of}),").unwrap();
@@ -117,7 +119,7 @@ pub(super) fn granted_prevention(
     if let Some(may) = may {
         write!(more, " optional: Some(&{may}),").unwrap();
     }
-    if more.is_empty() {
+    if then.is_none() && of.is_none() && may.is_none() {
         return base;
     }
     let feature = if then.is_some() {
@@ -131,7 +133,7 @@ pub(super) fn granted_prevention(
         feature,
         &base,
         &format!(
-            "GrantedPreventionDef {{ hint: {hint}, damage: \"damage\", of_it: None, applies: {applies},{more} }}"
+            "GrantedPreventionDef {{ hint: {hint}, damage: \"damage\", of_it: None, applies: {applies},{more} text: {text} }}"
         ),
     )
 }
@@ -431,6 +433,8 @@ impl Compiler {
         Ok(self.made_replacements.len() - 1)
     }
     pub(super) fn add_made_replacement(&mut self, mut def: String) {
+        let text = quoted(&self.waiting_words());
+        def.push_str(&format!(".text({text})"));
         let mut feature = self.replacing.planned.take();
         for (needs, call) in std::mem::take(&mut self.replacing.suffix) {
             def.push_str(&call);
@@ -442,7 +446,9 @@ impl Compiler {
                 self.release_callbacks(&feature);
                 planned::planned_value(
                     &feature,
-                    "granted_replacement(ReplacementKind::Damage, |_, _, _, _| false, |_, _, _, _| (), \"\")",
+                    &format!(
+                        "granted_replacement(ReplacementKind::Damage, |_, _, _, _| false, |_, _, _, _| (), \"\").text({text})"
+                    ),
                     &def,
                 )
             }

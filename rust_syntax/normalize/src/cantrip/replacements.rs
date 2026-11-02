@@ -850,9 +850,11 @@ impl Compiler {
                 true,
             );
             let may = self.replacing.may.take();
+            let text = quoted(&self.waiting_words());
             self.made_preventions.push(lane_n::granted_prevention(
                 &hint,
                 &applies,
+                &text,
                 then.as_deref(),
                 of.as_deref(),
                 may.as_deref(),
