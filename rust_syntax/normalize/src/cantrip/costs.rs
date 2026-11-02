@@ -331,6 +331,20 @@ impl Compiler {
                         "Cost { variable: Some(VariableCost::TapAttached), ..Cost::NONE }",
                     ));
                 }
+                // "Tap Fishing Pole" in the ability the Equipment gives: Cantrip
+                // has `sacrifice_granter` for "Sacrifice [granter]" and nothing
+                // that taps the granter.
+                if let [CostObjectSelection {
+                    objects: ObjectSet::One(ObjectRef::Granter),
+                    choose: None,
+                }] = selections.as_slice()
+                {
+                    return Ok(planned::planned_value(
+                        "engine: a cost that taps the permanent that granted the ability",
+                        "Cost::NONE",
+                        "Cost { tap_granter: true, ..Cost::NONE }",
+                    ));
+                }
                 let [CostObjectSelection {
                     objects: ObjectSet::Battlefield(filter),
                     choose,

@@ -2667,6 +2667,20 @@ impl Compiler {
         if self.exile_with_entry(id, op, result, out)? {
             return Ok(());
         }
+        // "Shuffle that pile and put it back on top of your library": the order
+        // is chance's, from the game's own random source, so nobody chooses it.
+        if *random
+            && count.is_none()
+            && group.is_none()
+            && entry.is_empty()
+            && matches!(destination, Destination::OwnersLibraryTop)
+        {
+            let cards = self.fetch(self.objects(cards)?);
+            writeln!(out, "let mut order_{id}: Vec<ObjectId> = {cards}; for i in (1..order_{id}.len()).rev() {{ let j = g.random(i as u32 + 1) as usize; order_{id}.swap(i, j); }} let moved_{id} = g.put_into_library(&order_{id}, LibraryPlace::Top);").unwrap();
+            self.moved.insert(result.0, format!("moved_{id}"));
+            let _ = actor;
+            return Ok(());
+        }
         let by_kind = match group {
             Some(group) if !random && matches!(count, Some(Count::AnyNumber)) => {
                 self.picked_by_kind(group)?
