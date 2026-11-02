@@ -315,6 +315,26 @@ impl Compiler {
                 let body = grants.into_iter().map(|(_, statement)| statement).collect();
                 LayerChange::of("Ability", body)
             }
+            // "For each basic land type among lands you control, this creature has
+            // landwalk of that type": types come before abilities (CR 613.1d, f).
+            Change::GrantKeyword(Keyword::Landwalk(land))
+                if matches!(
+                    &**land,
+                    ObjectFilter::SharesWithAny {
+                        property: DistinctProperty::BasicLandTypes,
+                        ..
+                    }
+                ) =>
+            {
+                let ObjectFilter::SharesWithAny { with, .. } = &**land else {
+                    return Err(gap("landwalk of SharesWithAny"));
+                };
+                let lands = self.objects(with)?;
+                LayerChange::of(
+                    "Ability",
+                    format!("for kind in ({lands}).into_iter().flat_map(|o: ObjectId| q.chars(o).subtypes.iter()) {{ if kind.basic_mana().is_some() {{ if let Some(walk) = Keyword::landwalk(kind) {{ chars.keywords = chars.keywords.with(walk); }} }} }}"),
+                )
+            }
             // Ward is a triggered ability, given as any other is.
             Change::GrantKeyword(
                 ward @ (Keyword::Ward(_) | Keyword::Flanking | Keyword::Prowess),

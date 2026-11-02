@@ -4321,6 +4321,14 @@ impl Compiler {
     ) -> Result<String> {
         let spell = self.paid_for == PaidFor::Spell;
         let variable = match choose {
+            // Asked of a payer as it resolves, the size is known by then.
+            Some(Count::Exactly(n))
+                if label == lane_g::PAID && !matches!(n, Expr::AnnouncedX) =>
+            {
+                let n = self.fetch(self.number(n)?.code);
+                let filter = self.cost_filter(filter, label)?;
+                return Ok(format!("Cost::sacrifice(({n}).max(0) as u32, {filter})"));
+            }
             Some(Count::Exactly(Expr::AnnouncedX)) if spell => "SacrificeX",
             Some(Count::Exactly(Expr::AnnouncedX)) => {
                 let filter = self.cost_filter(filter, label)?;
