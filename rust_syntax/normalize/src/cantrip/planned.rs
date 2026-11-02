@@ -394,7 +394,7 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
     let mut count = 0;
     corpus::map_cards(
         input,
-        |line, source| -> corpus::Result<TrackedCard> {
+        |line, source| -> corpus::Result<String> {
             let identity = corpus::Identity::of(&source)?;
             let lowered = crate::unified::lower(&source);
             let name = identity.names.join(" // ");
@@ -448,17 +448,20 @@ pub fn tracked(input: &Path, oracle: &Path, output: &Path) -> corpus::Result<usi
                 [face] if name.is_empty() => face.name.clone(),
                 _ => name,
             };
-            Ok(TrackedCard {
+            let card = TrackedCard {
                 line,
                 name,
                 layout: lowered.card.layout.clone(),
                 faces,
                 rust: whole.rust,
                 file,
-            })
+            };
+            // Written out here, on the workers: the rows are 200 MB of JSON.
+            Ok(serde_json::to_string(&card)?)
         },
-        |_, card| {
-            writeln!(artifact, "{}", serde_json::to_string(&card)?)?;
+        |_, row| {
+            artifact.write_all(row.as_bytes())?;
+            artifact.write_all(b"\n")?;
             count += 1;
             Ok(())
         },
