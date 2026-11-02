@@ -1037,6 +1037,20 @@ impl Compiler {
             Expr::ClampedDamage(result) => {
                 held_number(feature, &format!("clamped_damage_{}", result.0))
             }
+            // "If you removed two or more loyalty counters to activate it" (Way of
+            // the Mind Sculptor): the loyalty cost of the ability activated, a -X
+            // as X was announced (CR 606.4). It is fixed as it is activated, so an
+            // ability that left the stack before this resolves keeps the count it
+            // triggered on (CR 603.4).
+            Expr::CountersPaid { object, kind }
+                if counter_kind(kind)? == "CounterKind::Loyalty"
+                    && self.object(object)?.contains("the ability an event is about") =>
+            {
+                counted(format!(
+                    "q.state().stack.iter().find(|i| Target::Ability(i.serial) == {}).map_or(i64::MAX, |i| match q.activated_ability(i.ability).and_then(|d| d.cost.loyalty) {{ Some(cost) if cost == LOYALTY_MINUS_X => i64::from(i.x), Some(cost) => (-i64::from(cost)).max(0), None => 0 }})",
+                    self.carried_ability()?
+                ))
+            }
             Expr::CountersPaid { object, kind } => held_number(
                 feature,
                 &format!(
