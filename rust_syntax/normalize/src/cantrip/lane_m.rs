@@ -333,6 +333,13 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         Operation::Tap { .. } => &["Tapped"],
         Operation::CreateTokens { .. } => &["Created"],
         Operation::CopyCards { .. } | Operation::CopyOnStack { .. } => &["CopiedSpell"],
+        // "If you gain control of a creature this way, tap it" (Midnight Crusader
+        // Shuttle).
+        Operation::CreateContinuousEffect { changes, .. }
+            if changes.iter().any(|change| matches!(change, Change::SetController(_))) =>
+        {
+            &["GainedControl"]
+        }
         Operation::Move { destination, .. } => match destination {
             Destination::Exile => &["Exiled", "LastExiled"],
             Destination::OwnersGraveyard => &["PutInGraveyard"],
