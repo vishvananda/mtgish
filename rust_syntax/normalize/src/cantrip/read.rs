@@ -1096,6 +1096,21 @@ impl Compiler {
                 });
             }
         }
+        // "Each Aura you controlled that was attached to it": what was attached to it
+        // as it left the battlefield, the `Unattached` records just before its own
+        // move (CR 701.3d). Its Auras are in a graveyard by the time this is read
+        // (CR 704.5m), so each is judged as it last was there (CR 608.2h).
+        if let Expr::CountObjects(set) = n {
+            if let ObjectSet::Matching { objects, filter: ObjectFilter::WasAttachedTo(host) } = &**set {
+                if let ObjectSet::Battlefield(attached) = &**objects {
+                    let test = self.filter(attached, &Candidate::of("id"))?;
+                    return Ok(count(format!(
+                        "{}.map_or(0i64, |host: ObjectId| {{ let records = q.history().all(); records.iter().rposition(|r| matches!(r.event, Event::ZoneChange {{ old, from, .. }} if old == host && from.is(ZoneKind::Battlefield))).map_or(0i64, |left| records[..left].iter().rev().take_while(|r| matches!(r.event, Event::Unattached {{ .. }} | Event::ZoneChange {{ .. }})).filter_map(|r| match r.event {{ Event::Unattached {{ attachment, from }} if from == host => Some(attachment), _ => None }}).filter(|&id| {test}).count() as i64) }})",
+                        self.object(host)?
+                    )));
+                }
+            }
+        }
         Ok(match n {
             Expr::Primitive { name, .. } => {
                 return Err(gap(format!("primitive numeric expression {name}")))

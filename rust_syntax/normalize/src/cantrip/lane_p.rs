@@ -50,6 +50,14 @@ fn held_object(feature: &str, code: &str) -> String {
     planned::planned_value(feature, "None::<ObjectId>", code)
 }
 
+impl Compiler {
+    /// "If a player would draw a card, that player exiles that card ... instead"
+    /// (Uba Mask): each card it exiles is the exiling player's own.
+    fn exiles_own_draw(&self) -> bool {
+        self.card_prints("would draw a card, that player exiles that card")
+    }
+}
+
 /// A list of mana colors, as code: `Color::White, Color::Red`.
 pub(super) fn colors_code(colors: &[ManaColor]) -> Result<String> {
     let colors = colors
@@ -1194,6 +1202,19 @@ impl Compiler {
                 *self.own_choice.borrow_mut() = None;
                 test?
             }
+            // Grave Sifter: its data takes the cards from every graveyard, where the
+            // card says each player's own.
+            ObjectFilter::ChosenBy { kind, player }
+                if self.chosen_lists.iter().any(|(k, _)| k == kind) =>
+            {
+                held(
+                    "every graveyard where the card says their graveyard, in the data",
+                    &format!(
+                        "{}.is_some_and(|p: PlayerId| q.chosen_by(asker, p, ChoiceKind::{kind:?}).matches({id}))",
+                        self.player(player)?
+                    ),
+                )
+            }
             ObjectFilter::ChosenBy { kind, player } => held(
                 &feature,
                 &format!(
@@ -1235,6 +1256,30 @@ impl Compiler {
                     self.object(object)?
                 ),
             ),
+            // "Cards they exiled with this artifact this turn" (Uba Mask), where what
+            // exiles them is the drawing player exiling the card they would draw:
+            // linked to this ability's text (CR 607.2a), and their own card.
+            ObjectFilter::ExiledBy {
+                player: player @ PlayerRef::Affected,
+                with: Some(ObjectRef::Source),
+                this_turn,
+            } if self.exiles_own_draw() => {
+                let turn = if *this_turn {
+                    format!(" && q.history().this_turn().iter().any(|r| matches!(r.event, Event::ZoneChange {{ new, to, .. }} if new == {id} && to.is(ZoneKind::Exile)))")
+                } else {
+                    String::new()
+                };
+                format!(
+                    "(q.exiled_with(q.linked_to(asker)).contains(&{id}) && {}.is_some_and(|p: PlayerId| q.obj({id}).owner == p){turn})",
+                    self.player(player)?
+                )
+            }
+            // Shared Fate: the card is another player's, and nothing keeps who exiled it.
+            ObjectFilter::ExiledBy {
+                player: PlayerRef::Affected,
+                with: Some(ObjectRef::Source),
+                ..
+            } => return Err(gap("the player who exiled a card another player owns")),
             ObjectFilter::ExiledBy {
                 player,
                 with,

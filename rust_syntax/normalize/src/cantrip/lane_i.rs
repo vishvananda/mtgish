@@ -2003,6 +2003,11 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         match op {
+            // Ertai's Meddling: "puts it onto the stack as a copy of the original
+            // spell": the card itself goes, not a copy made on the stack.
+            Operation::CopyOnStack { card: Some(_), .. } => {
+                return Err(gap("a card put onto the stack as a copy of the spell it was"))
+            }
             // "The copy targets [this]": copied whatever it can target, and what it
             // can't stays as the original's (115.7b), every instance of it.
             Operation::CopyOnStack {

@@ -3446,6 +3446,26 @@ impl Compiler {
                     self.hexproof_of(quality)?
                 )]
             }
+            // "Landwalk of each of the land types of the sacrificed land": the
+            // landwalks its types name when the effect is made, as Cantrip has a
+            // landwalk keyword for each basic land type (CR 702.14a).
+            Change::GrantKeyword(Keyword::Landwalk(land))
+                if matches!(
+                    &**land,
+                    ObjectFilter::Shares {
+                        property: DistinctProperty::LandTypes | DistinctProperty::BasicLandTypes,
+                        ..
+                    }
+                ) =>
+            {
+                let ObjectFilter::Shares { with, .. } = &**land else {
+                    return Err(gap("landwalk of Shares"));
+                };
+                vec![format!(
+                    "{{ let walks: Vec<Keyword> = {}.into_iter().flat_map(|o: ObjectId| q.chars(o).subtypes.iter()).filter_map(Keyword::landwalk).collect(); EffectKind::AddKeywords(Keywords::of(&walks)) }}",
+                    self.object(with)?
+                )]
+            }
             Change::GrantKeyword(k) => {
                 vec![format!(
                     "EffectKind::AddKeywords(Keywords::of(&[{}]))",

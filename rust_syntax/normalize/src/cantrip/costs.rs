@@ -402,6 +402,12 @@ impl Compiler {
                 face_down: false,
             } if entry.counters.is_empty() && entry.states.is_empty() && !entry.tapped => {
                 if self.links_exile && matches!(destination, Destination::Exile) {
+                    // A permanent spell's own cost, which CR 607.2q links to the
+                    // permanent: Cantrip links only behold's exile so.
+                    let printed = format!("{part:?}");
+                    if self.casting_costs.values().any(|cost| format!("{cost:?}").contains(&printed)) {
+                        return Err(gap("a card exiled to pay a permanent spell's cost, read as exiled with the permanent"));
+                    }
                     return Err(gap("exile cost an ability reads as exiled with its source"));
                 }
                 let [CostObjectSelection { objects, choose }] = selections.as_slice() else {

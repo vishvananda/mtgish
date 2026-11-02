@@ -2308,8 +2308,11 @@ fn emit_face(
     {
         parts.field("reads_graveyard_order", "true".into());
     }
-    c.links_exile =
-        place.links_exile || format!("{:?}", card.abilities).contains("ExiledWith(Source)");
+    let abilities = format!("{:?}", card.abilities);
+    // "Exiled with this" (CR 607.2a), and "they exiled with this" (Uba Mask).
+    c.links_exile = place.links_exile
+        || abilities.contains("ExiledWith(Source)")
+        || abilities.contains("with: Some(Source)");
     c.own_face = place.own_face;
     c.door = place.door;
     c.printed_mana = card.characteristics.mana_cost.clone();
