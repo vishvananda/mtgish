@@ -17,6 +17,8 @@ const CARDS: &[(&str, &str, bool)] = &[
     // "You may activate each of those abilities only once each turn" (CR 602.5b).
     ("Mairsil, the Pretender", "granted_once_each_turn: Some(granted_once)", true),
     ("Mairsil, the Pretender", "grant_activated_abilities_of(q, &cards, chars)", true),
+    // The cards used to craft it are linked to the card that waited in exile.
+    ("Locus of Enlightenment", "used_to_craft(q.state(), source)", true),
     // Read ahead granted is the keyword the rules read as the Saga enters.
     ("Barbara Wright", "Keyword::ReadAhead", true),
     // A spell as a source of damage is an object on the stack (CR 400.7).
@@ -31,6 +33,7 @@ const CARDS: &[(&str, &str, bool)] = &[
     // "Choose up to X": a triggered ability's count as it goes on the stack.
     ("Bumi, King of Three Trials", ".up_to_that_many()", true),
     ("Bumi, King of Three Trials", ".counted_by(ability_0_count)", true),
+    ("The Ruinous Wrecking Crew", ".up_to_that_many()", true),
     // Only a triggered ability has a count of modes.
     ("Doomsday Confluence", "a-count-of-modes-a-spell-or-an-activated-ability-reads", false),
     // "If you control five or more untapped lands, this enters with ...".

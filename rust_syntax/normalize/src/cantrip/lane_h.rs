@@ -2096,6 +2096,12 @@ impl Compiler {
                 } else {
                     tests.join(" && ")
                 };
+                // "The exiled cards used to craft it" are linked to the craft card
+                // as it waited in exile, which became this (CR 702.167c), not to an
+                // ability of this object.
+                if self.line_text().is_some_and(|line| line.contains("used to craft")) {
+                    return Ok(format!("cantrip_mechanics::craft::used_to_craft(q.state(), source).into_iter().filter(|&id| {keep}).collect::<Vec<ObjectId>>()"));
+                }
                 return Ok(format!("q.exiled_with(q.linked_to(source)).into_iter().filter(|&id| {keep}).collect::<Vec<ObjectId>>()"));
             }
         }

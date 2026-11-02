@@ -15169,9 +15169,10 @@
 "static-change-gain-abilities-of": {
 "evidence": [
 "crates/cantrip-mechanics/src/statics.rs:618",
-"crates/cantrip-cards/src/cards/the_enigma_jewel.rs:1"
+"crates/cantrip-mechanics/src/craft.rs:142",
+"crates/cantrip-cards/src/cards/the_enigma_jewel.rs:27"
 ],
-"how": "Landed for cards and once each turn: grant_activated_abilities_of(view, &cards, chars), and \"activate each of those abilities only once each turn\" is CardDef::granted_once_each_turn counting the asked objects whose card is the ability's (Locus of Enlightenment's idiom; Mairsil, the Pretender). Drana and Linvala (permanents' abilities plus spend as any color), Scheming Fence, Koh and Sharkey stay held on other parts.",
+"how": "Landed for cards and once each turn: grant_activated_abilities_of(view, &cards, chars), and \"activate each of those abilities only once each turn\" is CardDef::granted_once_each_turn counting the asked objects whose card is the ability's (Mairsil, the Pretender; Locus of Enlightenment, whose \"exiled cards used to craft it\" are craft::used_to_craft, linked to the card that waited in exile and not to an ability of Locus). Drana and Linvala (permanents' abilities plus spend as any color), Scheming Fence, Koh and Sharkey stay held on other parts.",
 "note": "The Layer::Ability apply is a plain function.",
 "partial": "Resolved form takes one EffectKind::AddAbility per ability, a snapshot rather than a live link (Grell Philosopher, Havengul Lich). Stickers are a gap.",
 "verdict": "card-code"
