@@ -23,6 +23,31 @@ fn reading_cost(code: &str) -> String {
     )
 }
 
+/// Whether a cost is "tap an untapped creature you control" and nothing else.
+fn taps_a_creature_you_control(cost: &Cost) -> bool {
+    let [CostPart::ChangeTapState {
+        selections,
+        tapped: true,
+        symbol: false,
+    }] = cost.parts.as_slice()
+    else {
+        return false;
+    };
+    let [CostObjectSelection {
+        objects: ObjectSet::Battlefield(ObjectFilter::All(filters)),
+        choose: Some(Count::Exactly(Expr::Constant(1))),
+    }] = selections.as_slice()
+    else {
+        return false;
+    };
+    let [ObjectFilter::Not(untapped), ObjectFilter::CardType(crate::mtg_types::CardType::Creature), ObjectFilter::ControlledBy(PlayerSet::One(PlayerRef::AbilityController))] =
+        filters.as_slice()
+    else {
+        return false;
+    };
+    matches!(**untapped, ObjectFilter::Tapped)
+}
+
 /// Forecast (CR 702.57): the ability is whole, and the keyword is the requirement.
 pub(super) fn forecast(def: String) -> String {
     planned::planned_value("engine: no Forecast", &def, &format!("{def}.forecast()"))
@@ -1821,6 +1846,11 @@ impl Compiler {
                     &def,
                     &format!("{def}.mana_spent({portion}, {rule})"),
                 )
+            }
+            // "Tap an untapped creature you control rather than pay that mana"
+            // (CR 118.3), as Heirloom Epic prints it.
+            ActivationRule::ManaInstead(cost) if taps_a_creature_you_control(cost) => {
+                format!("{def}.tap_creatures_for_mana()")
             }
             ActivationRule::ManaInstead(cost) => {
                 let cost = self.cost(cost, label)?;
