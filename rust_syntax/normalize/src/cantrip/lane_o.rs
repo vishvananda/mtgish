@@ -2078,11 +2078,11 @@ impl Compiler {
             ObjectSet::One(ObjectRef::Chosen) => {
                 format!("q.state().chosen_object({}) == Some({id})", self.linked())
             }
-            ObjectSet::Matching { .. } | ObjectSet::Take { .. } => planned::planned_value(
-                &format!("static subjects {}", form(set)),
-                "false",
-                &format!("({}).contains(&{id})", self.objects(set)?),
-            ),
+            // "The top card of your library" (Fblthp), "creature cards from a
+            // single graveyard" (Night Soil): those objects, read as they are now.
+            ObjectSet::Matching { .. } | ObjectSet::Take { .. } => {
+                format!("({}).contains(&{id})", self.objects(set)?)
+            }
             other => return Err(gap(format!("static subjects {}", form(other)))),
         })
     }
