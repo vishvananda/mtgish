@@ -14,7 +14,8 @@ const CARDS: &[(&str, &str, bool)] = &[
     ("Kentaro, the Smiling Cat", "\"a cost reading the card it is paid for\"", false),
     // "For as long as ... remain exiled" on a play permission (CR 400.7).
     ("Extraordinary Journey", "Duration::Indefinite", false),
-    ("Durnan of the Yawning Portal", "Duration::Indefinite", false),
+    // A permission on one card ends as the card leaves exile: a new object.
+    ("Durnan of the Yawning Portal", "g.allow_play(card, player, PlayGrant { expiry: Expiry::Never", false),
     // A permanent spell's own exile cost is linked to the permanent (CR 607.2q).
     ("Gorex, the Tombshell", "a card exiled to pay a permanent spell's cost", false),
     // Exile piles: face down and face up.

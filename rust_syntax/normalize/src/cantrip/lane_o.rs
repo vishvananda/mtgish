@@ -1445,7 +1445,13 @@ impl Compiler {
                 _ => return Ok(None),
             },
         };
-        let player = self.fetch(self.certain_player(&player)?);
+        // The affected player ("you may play cards from the top of your
+        // library" of a rule on players) is no one player as it resolves: the
+        // cards are asked as they are played, below.
+        let Ok(player) = self.certain_player(&player) else {
+            return Ok(None);
+        };
+        let player = self.fetch(player);
         Ok(Some(format!("CardsOfRule::{rule}{player})")))
     }
     fn cost_modifier(&mut self, modifier: &SpellCostModifier) -> Result<String> {
