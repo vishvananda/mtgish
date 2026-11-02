@@ -558,6 +558,18 @@ impl Compiler {
     pub(super) fn earlier_objects(&self, what: &EarlierObjects) -> Result<String> {
         let word = form(what);
         let step = self.notes.earlier.iter().rev().find(|(w, _)| *w == word);
+        // "When you do, tap the copied creature": what the ability that made this
+        // one chose, carried to it as its other objects are.
+        if step.is_none() && matches!(what, EarlierObjects::Selected) {
+            let outer = self.carrying().and_then(|outer| {
+                outer.compiler.notes.earlier.iter().rev().find(|(w, _)| *w == word)
+            });
+            if let Some((_, result)) = outer {
+                if let Some(code) = self.outside_objects(&ObjectSet::Selected(result.clone()))? {
+                    return Ok(code);
+                }
+            }
+        }
         let Some((_, result)) = step.filter(|_| self.reader == Reader::Resolution) else {
             return self.earlier_paid(what);
         };

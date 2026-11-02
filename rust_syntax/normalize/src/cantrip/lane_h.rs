@@ -3287,6 +3287,9 @@ impl Compiler {
         )
         .unwrap();
         self.selections.insert(result.0, format!("picked_{id}"));
+        // "The copied creature": one object, which "when you do" carries.
+        self.single.insert(result.0);
+        self.notes.earlier.push(("Selected", result.clone()));
         if let Some(until) = until {
             let until = self.duration(until)?;
             self.plan_code(
