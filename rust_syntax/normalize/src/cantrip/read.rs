@@ -1889,7 +1889,7 @@ impl Compiler {
                 )
             }
             ObjectFilter::InZone(ZoneScope::Players { zone, players }) => format!(
-                "(q.state().obj({id}).zone.kind() == {} && {})",
+                "(q.state().obj({id}).became.is_none() && q.state().obj({id}).zone.kind() == {} && {})",
                 zone_kind(zone)?,
                 self.player_in(players, &format!("q.state().obj({id}).owner"))?
             ),

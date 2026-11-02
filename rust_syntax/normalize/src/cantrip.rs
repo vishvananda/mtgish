@@ -2000,6 +2000,8 @@ pub fn gaps(card: &Card) -> Vec<Diagnostic> {
 /// Every target of one slot, in the order chosen: all of them, for reading what
 /// was announced, or the ones still legal, for acting on them (CR 608.2b).
 const ANNOUNCED: &str = "fn announced(g: &dyn Game, item: &StackItem, spec: u8, legal: bool) -> Vec<Target> { (0..g.state().targets(item).len()).filter(|&i| g.state().spec(item, i) == spec && (!legal || g.target_legal(item, i))).map(|i| g.state().target(item, i)).collect() }\n";
+/// Spliced on, its slots follow the spell's own and the cards spliced before it (702.47c).
+const ANNOUNCED_SPLICED: &str = "fn announced(g: &dyn Game, item: &StackItem, spec: u8, legal: bool) -> Vec<Target> { let me = g.card_id(&CARD); let spell = g.obj(item.object).card; let mut before = 0; if spell != me { before += g.card(spell).spell.map_or(0, |s| s.targets.len()); let members = g.state().members(item.members); for &o in &members[..(item.data[0] as usize).min(members.len())] { let card = g.obj(o).card; if card == me { break; } before += g.card(card).spell.map_or(0, |s| s.targets.len()); } } let spec = spec + before as u8; (0..g.state().targets(item).len()).filter(|&i| g.state().spec(item, i) == spec && (!legal || g.target_legal(item, i))).map(|i| g.state().target(item, i)).collect() }\n";
 
 /// "You may pay": the engine shows the cost, and bots read the verb.
 const PAY_QUESTION: &str = "static PAY_QUESTION: Question = Question::new(\"Pay\", \"pay {cost}?\", \"\", \"Pay {cost}\", \"Decline\");\n";
@@ -2366,6 +2368,7 @@ fn emit_face(
             "common_owner" => COMMON_OWNER,
             "common_controller" => COMMON_CONTROLLER,
             "common_creature_type" => COMMON_CREATURE_TYPE,
+            "announced" if parts.fields.contains_key("splice") => ANNOUNCED_SPLICED,
             "announced" => ANNOUNCED,
             "pay_question" => PAY_QUESTION,
             "about" => delayed::ABOUT,

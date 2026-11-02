@@ -1927,6 +1927,69 @@ impl Compiler {
     pub(super) fn line_text(&self) -> Option<&str> {
         self.line.as_ref().map(|line| line.text.as_str())
     }
+    /// "Look at the top three cards of your library, then put them back in any
+    /// order. You may shuffle": one question, an order or a shuffle, so nobody
+    /// orders cards they're about to shuffle away.
+    fn order_or_shuffle(&mut self, rest: &[Instruction], out: &mut String) -> bool {
+        let [Instruction::Group(group), Instruction::Optional {
+            decider: PlayerRef::AbilityController,
+            body,
+        }, ..] = rest
+        else {
+            return false;
+        };
+        let [Instruction::Effect {
+            operation:
+                Operation::LookAt {
+                    player: PlayerRef::AbilityController,
+                    objects: ObjectSet::Take { objects: looked, count, from },
+                },
+            ..
+        }, Instruction::Effect {
+            operation:
+                Operation::ReorderLibrary {
+                    objects: ObjectSet::InZone { .. },
+                    end: SequenceEnd::Top,
+                    order: CardOrder::Chosen,
+                    ..
+                },
+            ..
+        }] = group.instructions.as_slice()
+        else {
+            return false;
+        };
+        let [Instruction::Effect {
+            operation:
+                Operation::Shuffle {
+                    players: PlayerSet::One(PlayerRef::AbilityController),
+                    excluding: None,
+                },
+            ..
+        }] = body.instructions.as_slice()
+        else {
+            return false;
+        };
+        let library = matches!(
+            &**looked,
+            ObjectSet::Zone {
+                scope: ZoneScope::Players {
+                    zone: EventZone::Library,
+                    players: PlayerSet::One(PlayerRef::AbilityController),
+                },
+                filter: ObjectFilter::Any,
+                ..
+            }
+        );
+        let Expr::Constant(depth) = count else {
+            return false;
+        };
+        if format!("{from:?}") != "Top" || !library || !self.stack_item {
+            return false;
+        }
+        let id = self.fresh();
+        writeln!(out, "let looked_{id} = cantrip_mechanics::top_of_library(g, item.controller, {depth}); if !looked_{id}.is_empty() {{ let ask = RequestKind::DistributeCards {{ source: item.object, cards: looked_{id}.clone(), destinations: vec![Destination {{ kind: DestinationKind::LibraryTop, min: 0, max: u8::MAX, eligible: looked_{id} }}], may_shuffle: true }}; if let Answer::Placements {{ placements, shuffle }} = g.ask(item.controller, ask)? {{ if shuffle {{ g.shuffle(item.controller); }} else {{ g.arrange_library(item.controller, &placements[0], &[]); }} }} }}").unwrap();
+        true
+    }
     /// Some line of the face prints these words.
     pub(super) fn card_prints(&self, words: &str) -> bool {
         self.face_text.contains(words)
@@ -2103,6 +2166,9 @@ impl Compiler {
     /// A payment and what hangs on it, where they're one question of the card's
     /// `labels`: whether these instructions were that.
     pub(super) fn one_question(&mut self, rest: &[Instruction], out: &mut String) -> bool {
+        if self.order_or_shuffle(rest, out) {
+            return true;
+        }
         let [Instruction::Effect {
             result,
             operation:

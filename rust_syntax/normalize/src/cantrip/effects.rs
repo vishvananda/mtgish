@@ -1183,12 +1183,17 @@ impl Compiler {
                     _ => ("lose_life", i32::MAX.into(), "i32"),
                 };
                 let amount = self.fetch(number.amount(max, ty)?);
+                let several = !matches!(players, PlayerSet::One(_));
                 let players = self.fetch(self.players(players)?);
                 writeln!(
                     out,
                     "let amount_{id} = {amount}; let players_{id} = {players};"
                 )
                 .unwrap();
+                // More than one draws: in turn order from the active player (121.2c).
+                if several && matches!(op, Operation::Draw { .. }) && !players.contains("apnap") {
+                    writeln!(out, "let drawing_{id}: Vec<PlayerId> = players_{id}.into_iter().collect(); let players_{id}: Vec<PlayerId> = g.state().apnap().filter(|p| drawing_{id}.contains(p)).collect();").unwrap();
+                }
                 if matches!(op, Operation::Draw { .. }) && self.read_later(result) {
                     writeln!(out, "let mut done_{id}: i64 = 0; let mut drawn_{id}: Vec<ObjectId> = Vec::new(); for player in players_{id} {{ let before = g.history().drawn(player) as i64; let held = g.state().zone(Zone::hand(player)).to_vec(); g.draw(player, amount_{id}); done_{id} += g.history().drawn(player) as i64 - before; drawn_{id}.extend(g.state().zone(Zone::hand(player)).iter().copied().filter(|c| !held.contains(c))); }}").unwrap();
                     self.performed.insert(result.0, format!("done_{id}"));
@@ -2108,6 +2113,7 @@ impl Compiler {
                         // "If you do" is that it got there (608.2c).
                         match (destination, self.moved(result)) {
                             (Destination::Exile, Ok(moved)) => writeln!(out, "let paid_{id} = {moved}.iter().any(|&o| g.obj(o).zone.is(ZoneKind::Exile));").unwrap(),
+                            (Destination::Battlefield(_) | Destination::OwnersBattlefield, Ok(moved)) => writeln!(out, "let paid_{id} = !{moved}.is_empty();").unwrap(),
                             _ => writeln!(out, "let paid_{id} = !objects_{id}.is_empty();").unwrap(),
                         }
                     }
@@ -2784,7 +2790,12 @@ impl Compiler {
             Some(count) => {
                 let count = self.offered_count(count);
                 let count = self.fetch(self.select_count(&count)?);
-                writeln!(out, "let count_{id} = {count}; for player in players_{id} {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player && g.can_sacrifice(player, o)).collect(); let taken = match count_{id}.clone() {{ cantrip_mechanics::select::Count::Exactly(n) | cantrip_mechanics::select::Count::AsManyAsCan(n) if eligible.len() <= n as usize => eligible, _ => cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible, cantrip_mechanics::select::Selection::of(count_{id}.clone(), &[]))? }}; for object in taken {{ picks_{id}.push((player, object)); }} }}").unwrap();
+                // However many they choose, they go in battlefield order.
+                let order = match count.contains("AnyNumber") {
+                    true => format!("objects_{id}.iter().copied().filter(|o| taken.contains(o)).collect::<Vec<ObjectId>>()"),
+                    false => "taken".to_string(),
+                };
+                writeln!(out, "let count_{id} = {count}; for player in players_{id} {{ let eligible: Vec<ObjectId> = objects_{id}.iter().copied().filter(|&o| g.controller(o) == player && g.can_sacrifice(player, o)).collect(); let taken = match count_{id}.clone() {{ cantrip_mechanics::select::Count::Exactly(n) | cantrip_mechanics::select::Count::AsManyAsCan(n) if eligible.len() <= n as usize => eligible, _ => cantrip_mechanics::choose::select(g, player, asker.source, Purpose::Sacrifice, eligible, cantrip_mechanics::select::Selection::of(count_{id}.clone(), &[]))? }}; for object in {order} {{ picks_{id}.push((player, object)); }} }}").unwrap();
             }
         }
         Ok(())
