@@ -800,6 +800,18 @@ impl Compiler {
                             Ok(format!("{}.contains(&by)", c.objects(sources)?))
                         })?)
                     }
+                    // "An ability that targets only it" (Agrus Kos): the ability just put
+                    // on the stack, the item at the top as it became the target (CR 601.2c
+                    // by way of 602.2b, 603.3d), has targets and each is this object
+                    // (CR 115.9c: the same object chosen more than once still is only it).
+                    ("TargetsOnlySinglePermanent", [Operand::Object(it)])
+                        if matches!(kind, TargetingKind::Ability) =>
+                    {
+                        let it = self.matching(frame, |c| c.object(it))?;
+                        tests.push(format!(
+                            "{it}.is_some_and(|it: ObjectId| q.state().stack.last().is_some_and(|i| {{ let n = q.state().targets(i).len(); n > 0 && (0..n).all(|k| q.state().target(i, k) == Target::Object(it)) }}))"
+                        ));
+                    }
                     (other, operands) => {
                         let feature = format!("targeted by {other}");
                         let operands = self.stated_operands(operands);

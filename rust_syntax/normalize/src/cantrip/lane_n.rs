@@ -1962,9 +1962,26 @@ impl Compiler {
                     ..
                 }],
             ) => {
+                let lasting = match duration {
+                    crate::ir::Duration::Indefinite => true,
+                    crate::ir::Duration::WhileOnBattlefield(on) => format!("{on:?}") == format!("{object:?}"),
+                    _ => false,
+                };
                 let object = self.fetch(self.object(object)?);
-                let until = self.stated_until(duration)?;
                 let (color, instead) = (lane_j::mana_letter(color), lane_j::mana_letter(instead));
+                // "(This effect lasts indefinitely.)": a replacement effect on that
+                // land (CR 614.1a, 106.12b), each mana of the type it would produce
+                // that type instead, for as long as the land is the object it was.
+                if self.stack_item && lasting {
+                    let id = self.fresh();
+                    writeln!(self.functions, "#[allow(unused_variables)] fn produces_{id}_applies(q: &dyn Query, asker: &Asker, affected: ObjectId, proposal: &Proposal) -> bool {{ matches!(proposal, Proposal::ManaProduction(m) if m.permanent == affected && m.mana.get(Mana::{color}) > 0) }}").unwrap();
+                    writeln!(self.functions, "#[allow(unused_variables)] fn produces_{id}_apply(q: &dyn Query, asker: &Asker, affected: ObjectId, proposal: &mut Proposal) {{ if let Proposal::ManaProduction(m) = proposal {{ let n = std::mem::take(&mut m.mana.0[Mana::{color} as usize]); m.mana.0[Mana::{instead} as usize] += n; }} }}").unwrap();
+                    self.add_made_replacement(format!("granted_replacement(ReplacementKind::ManaProduction, produces_{id}_applies, produces_{id}_apply, \"produces another type of mana instead\")"));
+                    let index = self.made_replacements.len() - 1;
+                    writeln!(out, "if let Some(object) = {object} {{ g.add_effect(item.object, object, EffectKind::Replacement {{ card: item.ability.card, index: {index} }}, Duration::Indefinite); }}").unwrap();
+                    return Ok(true);
+                }
+                let until = self.stated_until(duration)?;
                 self.plan_code(
                     "replacement event ProduceColor",
                     &format!("if let Some(object) = {object} {{ g.add_effect(asker.source, object, EffectKind::ProducesInstead {{ color: Mana::{color}, instead: Mana::{instead} }}, {until}); }}"),
