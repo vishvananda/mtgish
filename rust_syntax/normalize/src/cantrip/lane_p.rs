@@ -964,9 +964,12 @@ impl Compiler {
             }
             ObjectSet::Damage(subject) => held_objects(
                 &feature,
-                &format!("q.damage_objects(item, DamageSubject::{})", form(subject)),
+                &format!("q.{}, DamageSubject::{})", self.item_read("damage_objects"), form(subject)),
             ),
-            ObjectSet::EventGroup => held_objects(&feature, "q.event_objects(item).to_vec()"),
+            ObjectSet::EventGroup => held_objects(
+                &feature,
+                &format!("q.{}).to_vec()", self.item_read("event_objects")),
+            ),
             ObjectSet::Unpaid(result) if self.unpaid.contains(&result.0) => {
                 format!("unpaid_{}.clone()", result.0)
             }
@@ -1221,7 +1224,10 @@ impl Compiler {
                     result.0
                 ),
             ),
-            Expr::Game(value) => held_number(feature, &format!("q.game_value(item, GameValue::{})", form(value))),
+            Expr::Game(value) => held_number(
+                feature,
+                &format!("q.{}, GameValue::{})", self.item_read("game_value"), form(value)),
+            ),
             Expr::Earlier {
                 what,
                 measure,
@@ -1263,7 +1269,7 @@ impl Compiler {
                 held_number(feature, &code)
             }
             Expr::Dice(measure) => {
-                let last = "g.last_roll(asker.controller)";
+                let last = "q.last_roll(asker.controller)";
                 let code = match measure {
                     DiceMeasure::Result | DiceMeasure::Total => format!("{last}.result"),
                     DiceMeasure::Nth(n) => format!("{last}.dice[{n}]"),
@@ -1286,7 +1292,7 @@ impl Compiler {
                 for value in values {
                     each.push(self.number(value)?.code);
                 }
-                held_number(feature, &format!("{M}::numbers::AnyOf(&[{}])", each.join(", ")))
+                held_number(feature, &format!("{M}::numbers::any_of(&[{}])", each.join(", ")))
             }
             Expr::ModesChosen(object) => held_number(
                 feature,
@@ -1408,7 +1414,7 @@ impl Compiler {
                 held(
                     "every graveyard where the card says their graveyard, in the data",
                     &format!(
-                        "{}.is_some_and(|p: PlayerId| q.chosen_by(asker, p, ChoiceKind::{kind:?}).matches({id}))",
+                        "{}.is_some_and(|p: PlayerId| q.choice_made_by(asker, p, ChoiceKind::{kind:?}).matches({id}))",
                         self.player(player)?
                     ),
                 )
@@ -1416,7 +1422,7 @@ impl Compiler {
             ObjectFilter::ChosenBy { kind, player } => held(
                 &feature,
                 &format!(
-                    "{}.is_some_and(|p: PlayerId| q.chosen_by(asker, p, ChoiceKind::{kind:?}).matches({id}))",
+                    "{}.is_some_and(|p: PlayerId| q.choice_made_by(asker, p, ChoiceKind::{kind:?}).matches({id}))",
                     self.player(player)?
                 ),
             ),
@@ -1676,7 +1682,8 @@ impl Compiler {
             ObjectFilter::SharesColorWithMana(mana) => held(
                 &feature,
                 &format!(
-                    "q.mana_colors(item, {}).intersects({chars}.colors)",
+                    "q.{}, {}).intersects({chars}.colors)",
+                    self.item_read("mana_colors"),
                     occurrence(mana)
                 ),
             ),
@@ -1990,9 +1997,16 @@ impl Compiler {
             } => held(
                 &feature,
                 &format!(
-                    "{}.is_some_and(|o: ObjectId| q.targets_of(o).into_iter().all(|id: ObjectId| ObjectKind::{}.is(q, id) && {}))",
+                    "{}.is_some_and(|o: ObjectId| q.targets_of(o).into_iter().all(|id: ObjectId| {} && {}))",
                     self.object(object)?,
-                    form(kind),
+                    // What kind of object a target is, by where it is (CR 110.1,
+                    // 112.1): a permanent on the battlefield, a spell on the stack.
+                    match kind {
+                        ObjectKind::Any => "true".to_string(),
+                        ObjectKind::Permanent => "q.state().obj(id).zone.kind() == ZoneKind::Battlefield".to_string(),
+                        ObjectKind::Spell => "q.state().obj(id).zone.kind() == ZoneKind::Stack".to_string(),
+                        other => format!("ObjectKind::{}.is(q, id)", form(other)),
+                    },
                     self.filter(filter, &Candidate::of("id"))?
                 ),
             ),
@@ -2012,7 +2026,7 @@ impl Compiler {
             Condition::VotedAs { player, other, same } => held(
                 &feature,
                 &format!(
-                    "{}.zip({}).is_some_and(|(a, b): (PlayerId, PlayerId)| g.votes().same(a, b) == {same})",
+                    "{}.zip({}).is_some_and(|(a, b): (PlayerId, PlayerId)| q.votes().same(a, b) == {same})",
                     self.player(player)?,
                     self.player(other)?
                 ),
@@ -2173,22 +2187,34 @@ pub(super) fn history_measure(measure: &HistoryMeasure, hits: &str) -> String {
 }
 
 impl Compiler {
-    /// A maximum hand size that isn't a stated number (CR 402.2).
-    pub(super) fn hand_size_to_come(&self, size: &HandSizeRule) -> Result<String> {
+    /// A permanent's rule for its controller's maximum hand size that isn't a
+    /// stated number (CR 402.2): "is increased by N" adjusts what the other
+    /// effects make it (CR 613.11), a number of its own; one the game says is a
+    /// function the rule asks.
+    pub(super) fn hand_size_to_come(&mut self, label: &str, size: &HandSizeRule) -> Result<String> {
         let feature = format!("hand size {}", form(size));
-        let (read, n) = match size {
-            HandSizeRule::Adjust(n) => (
-                "q.maximum_hand_size(asker.controller).saturating_add_signed",
-                n,
-            ),
-            HandSizeRule::Set(n) => ("Some", n),
+        let placeholder = "PlayRule::MaximumHandSize(Some(7))";
+        let rule = match size {
+            HandSizeRule::Adjust(Expr::Constant(n)) if i32::try_from(*n).is_ok() => {
+                format!("PlayRule::MaximumHandSizeAdjusted({n})")
+            }
+            HandSizeRule::Adjust(n) | HandSizeRule::Set(n) => {
+                let adjust = matches!(size, HandSizeRule::Adjust(_));
+                let function = format!("{label}_hand_size");
+                let n = self.number(n)?.code;
+                let (ty, value) = match adjust {
+                    true => ("i32", format!("({n}).clamp(i32::MIN.into(), i32::MAX.into()) as i32")),
+                    false => ("Option<u32>", format!("Some(({n}).clamp(0, u32::MAX.into()) as u32)")),
+                };
+                self.plan_item(&feature, &format!("#[allow(unused_variables)] fn {function}(q: &dyn Query, asker: &Asker) -> {ty} {{ {value} }}"));
+                match adjust {
+                    true => format!("PlayRule::MaximumHandSizeAdjustedBy({function})"),
+                    false => format!("PlayRule::MaximumHandSizeOf({function})"),
+                }
+            }
             HandSizeRule::Unlimited => return Err(gap(feature.as_str())),
         };
-        Ok(planned::planned_value(
-            &feature,
-            "Some(7)",
-            &format!("{read}(({}) as _)", self.number(n)?.code),
-        ))
+        Ok(planned::planned_value(&feature, placeholder, &rule))
     }
     /// A window of the history no read names.
     pub(super) fn history_window_to_come(&self, window: &HistoryWindow) -> Result<String> {
@@ -2333,19 +2359,19 @@ impl Compiler {
         ))
     }
     /// Where a destination is, as code.
-    fn destination_code(&self, destination: &Destination) -> Result<String> {
+    pub(super) fn destination_code(&self, destination: &Destination) -> Result<String> {
         Ok(match destination {
             Destination::Battlefield(player) => {
                 format!(
-                    "Destination::Battlefield({})",
+                    "ZoneDestination::Battlefield({})",
                     self.fetch(self.player(player)?)
                 )
             }
             Destination::OwnersLibraryFromTop(n) => format!(
-                "Destination::OwnersLibraryFromTop({})",
+                "ZoneDestination::OwnersLibraryFromTop({})",
                 self.fetch(self.number(n)?.code)
             ),
-            other => format!("Destination::{}", form(other)),
+            other => format!("ZoneDestination::{}", form(other)),
         })
     }
     /// How something enters, as code: an `Arrival` the engine doesn't have yet.
@@ -2369,11 +2395,18 @@ impl Compiler {
             states.join(", ")
         ))
     }
-    fn arrival_state(&mut self, state: &EntryState, failed: &str) -> Result<String> {
+    pub(super) fn arrival_state(&mut self, state: &EntryState, failed: &str) -> Result<String> {
+        // A kind that reads the game reads it as the object arrives, past the
+        // `g` the arrival is made with.
         let changes = |c: &mut Self, changes: &[Change]| -> Result<String> {
             let mut kinds = Vec::new();
             for change in changes {
-                kinds.extend(c.effect_kinds(change)?);
+                for kind in c.effect_kinds(change)? {
+                    kinds.push(match kind.contains("q.") {
+                        true => c.fetch(kind),
+                        false => kind,
+                    });
+                }
             }
             Ok(kinds.join(", "))
         };
@@ -2475,9 +2508,14 @@ impl Compiler {
                 objects,
                 body,
             } => format!(
+                // Which of the cards that come back the body is for: permanents
+                // that match, tested as each one does.
                 "ArrivalState::ExiledForWith({}, {}, {})",
                 self.duration(until)?,
-                self.fetch(self.objects(objects)?),
+                match objects {
+                    ObjectSet::Battlefield(filter) => self.filter_fn(filter)?,
+                    other => self.fetch(self.objects(other)?),
+                },
                 self.operand_code(body)
             ),
             _ => return Err(gap(failed)),
@@ -2515,6 +2553,32 @@ impl Compiler {
         }
         if let Some(made) = self.chosen_kind_tokens(id, players, tokens, entry, result, out)? {
             return Ok(made);
+        }
+        // "Create a token that's a copy of each of them": a copy of each object,
+        // made for one object at a time, as `TokenRecipe::Copy` names one.
+        if let [TokenSpec {
+            amount,
+            recipe: TokenRecipe::CopyEach {
+                objects,
+                adjustments,
+            },
+            ..
+        }] = tokens
+        {
+            let amount = self.fetch(self.number(amount)?.amount(u32::MAX.into(), "u32")?);
+            let objects = self.fetch(self.objects(objects)?);
+            let adjustments: Vec<String> =
+                adjustments.iter().map(|o| self.operand_code(o)).collect();
+            let players = self.fetch(self.players(players)?);
+            let arrival = self.arrival_code(entry, &failed.feature)?;
+            let call = format!(
+                "{{ let mut made: Vec<ObjectId> = Vec::new(); for object in {objects} {{ made.extend({M}::tokens::create_from_recipes(g, asker.source, &{players}, &[({amount}, TokenRecipe::Copy(Some(object), &[{}]))], {arrival})?); }} made }}",
+                adjustments.join(", ")
+            );
+            let created = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);
+            writeln!(out, "let created_{id}: Vec<ObjectId> = {created};").unwrap();
+            self.creations.insert(result.0, format!("created_{id}"));
+            return Ok(());
         }
         let mut orders = Vec::new();
         for token in tokens {
@@ -2563,8 +2627,9 @@ impl Compiler {
         }
         let players = self.fetch(self.players(players)?);
         let arrival = self.arrival_code(entry, &failed.feature)?;
+        // Not `tokens::create`, which Cantrip has for one definition.
         let call = format!(
-            "{M}::tokens::create(g, asker, {players}, &[{}], {arrival})?",
+            "{M}::tokens::create_from_recipes(g, asker.source, &{players}, &[{}], {arrival})?",
             orders.join(", ")
         );
         let created = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);
@@ -2772,7 +2837,7 @@ impl Compiler {
             None => "None".to_string(),
         };
         let group = match group {
-            Some(group) => format!("Some({})", self.operand_code(group)),
+            Some(group) => format!("Some({})", self.kept_term(group)),
             None => "None".to_string(),
         };
         let entry: Vec<String> = entry.iter().map(|o| self.operand_code(o)).collect();
@@ -2791,8 +2856,11 @@ impl Compiler {
             None => "None".to_string(),
         };
         let destination = self.destination_code(destination)?;
+        // Who moves and what is moved are read as it resolves, as `in_state`
+        // takes them; how is a `CardMove`, data (`ZoneChange` is the
+        // replacement effects' move, CR 614.1a).
         let call = format!(
-            "{M}::enter::change_zone(g, asker, ZoneChange {{ actor: {actor}, cards: {cards}, count: {count}, random: {random}, group: {group}, destination: {destination}, entry: &[{}], face_down: {face_down} }})?",
+            "{M}::enter::change_zone(g, asker, &{actor}, &{cards}, CardMove {{ count: {count}, random: {random}, group: {group}, destination: {destination}, entry: &[{}], face_down: {face_down} }})?",
             entry.join(", ")
         );
         let moved = planned::planned_value(&failed.feature, "Vec::<ObjectId>::new()", &call);
@@ -3311,7 +3379,11 @@ impl Compiler {
                     format!("{M}::equip::ability_onto({price}, {filter}, {word})"),
                 )
             }
-            K::TrampleOverPlaneswalkers => ("keywords", "Keyword::TrampleOverPlaneswalkers".into()),
+            // A word of the card's `Keywords`, beside those it prints.
+            K::TrampleOverPlaneswalkers => (
+                "keywords",
+                "Keywords::of(&[Keyword::TrampleOverPlaneswalkers])".into(),
+            ),
             K::SpliceOnto => {
                 let filter = self.filter_fn(filter.ok_or_else(open)?)?;
                 let price = price(self)?;
@@ -3538,10 +3610,15 @@ impl Compiler {
                 Some(vec![
                     (
                         "gift",
-                        format!(
-                            "Some(GiftDef {{ kind: Gift::Custom, give: &[{}] }})",
-                            gifts.join(", ")
-                        ),
+                        // `GiftDef::give` is one function; a gift of several
+                        // things is a list of them.
+                        match gifts.as_slice() {
+                            [one] => format!("Some(GiftDef {{ kind: Gift::Custom, give: {one} }})"),
+                            _ => format!(
+                                "Some(GiftDef {{ kind: Gift::Custom, give: &[{}] }})",
+                                gifts.join(", ")
+                            ),
+                        },
                     ),
                     (
                         "spell",
@@ -3750,7 +3827,8 @@ impl Compiler {
                 };
                 let count = self.fetch(self.number(count)?.code);
                 let entry = self.stated_operands(entry);
-                format!("for player in {actors} {{ {M}::conjure::conjure(g, player, {owner}, {source}, {what}, {count}, ConjureTo::Entering(EventZone::{zone:?}, {spot}, {entry}))?; }}")
+                // What each player conjured, together: the instruction's result.
+                format!("{{ let mut conjured: Vec<ObjectId> = Vec::new(); for player in {actors} {{ conjured.extend({M}::conjure::conjure(g, player, {owner}, {source}, {what}, {count}, ConjureTo::Entering(EventZone::{zone:?}, {spot}, {entry}))?); }}; conjured }};")
             }
             Operation::CreateContinuousEffect {
                 affected: EffectSubjects::Objects(objects),
@@ -3776,8 +3854,10 @@ impl Compiler {
                     });
                 }
                 let duration = self.duration(duration)?;
+                // The objects a list read as it resolves, each kept with what it
+                // is given: the game holds no list.
                 format!(
-                    "{M}::effects::grant(g, item, {objects}, &[{}], {duration})?",
+                    "{{ let objects: Vec<ObjectId> = {objects}; {M}::effects::grant(g, item, &objects, &[{}], {duration})? }}",
                     grants.join(", ")
                 )
             }
@@ -3880,7 +3960,7 @@ impl Compiler {
                 let from = self.fetch(self.number(from)?.code);
                 let to = self.fetch(self.number(to)?.code);
                 let action = self.state_operation(feature, action)?;
-                format!("for number in {from}..={to} {{ {action}; }}")
+                format!("for number in ({from})..=({to}) {{ {action}; }}")
             }
             Operation::EachObject { objects, action } => {
                 let objects = self.fetch(self.objects(objects)?);
@@ -3940,7 +4020,7 @@ impl Compiler {
             } => {
                 let library = self.fetch(self.certain_player(library)?);
                 let rule = self.stated_constraints(constraints)?;
-                format!("let revealed = {M}::library::reveal_until_group(g, {library}, {source}, {rule})?")
+                format!("let revealed = {M}::library::reveal_until_group(g, {library}, {source}, {rule})?;")
             }
             Operation::RevealUntil {
                 library,
@@ -3955,7 +4035,7 @@ impl Compiler {
                     Some(n) => format!("Some({})", self.fetch(self.number(n)?.code)),
                     None => "None".to_string(),
                 };
-                format!("let revealed = {M}::library::reveal_until_or(g, {library}, {source}, {filter}, {count}, {most})?")
+                format!("let revealed = {M}::library::reveal_until_or(g, {library}, {source}, {filter}, {count}, {most})?;")
             }
             // What triggered it, spell or ability, whichever the event was.
             Operation::SetX {
@@ -4000,16 +4080,30 @@ impl Compiler {
                     None => "None".to_string(),
                 };
                 let mut finds = Vec::new();
+                // "Cards named after one each of those": the rule is data, and the
+                // objects whose names the cards take are the search's to be given.
+                let mut named_after = None;
                 for choice in choices {
                     let filter = self.filter_now(&choice.filter)?;
                     let count = self.fetch(self.select_count(&choice.count)?);
-                    let rules = self.stated_constraints(&choice.constraints)?;
+                    for constraint in &choice.constraints {
+                        if let SelectionConstraint::NamedAfterOneEach(objects) = constraint {
+                            if named_after.is_some() {
+                                return Err(gap("a search named after two sets of objects"));
+                            }
+                            named_after = Some(self.fetch(self.objects(objects)?));
+                        }
+                    }
+                    let rules = self.constraints_named(&choice.constraints, true)?;
                     finds.push(format!(
                         "Find {{ filter: {filter}, count: {count}, rules: {rules} }}"
                     ));
                 }
                 let also: Vec<String> = also.iter().map(|z| format!("EventZone::{z:?}")).collect();
-                format!("{M}::library::search_for(g, {source}, {player}, {library}, {top}, &[{}], &[{}], {either}, {outside})?", finds.join(", "), also.join(", "))
+                match named_after {
+                    Some(objects) => format!("{M}::library::search_named_after(g, {source}, {player}, {library}, &{objects}, {top}, &[{}], &[{}], {either}, {outside})?", finds.join(", "), also.join(", ")),
+                    None => format!("{M}::library::search_for(g, {source}, {player}, {library}, {top}, &[{}], &[{}], {either}, {outside})?", finds.join(", "), also.join(", ")),
+                }
             }
             Operation::Shuffle { players, excluding } => {
                 let players = self.stated_players(players)?;
@@ -4034,7 +4128,12 @@ impl Compiler {
             } => {
                 let actors = self.stated_players(actor)?;
                 let options = self.stated_operands(options);
-                format!("{M}::choose::value(g, {source}, {actors}, ChoiceKind::{kind:?}, {count}, {options})?")
+                // As lane_l's choice on terms calls it: one signature.
+                let count = match count {
+                    0 => "None".to_string(),
+                    n => format!("Some({n})"),
+                };
+                format!("{M}::choose::value(g, {actors}, {source}, ChoiceKind::{kind:?}, ChoiceTerms {{ options: {options}, except: &[], count: {count}, secret: false, unchosen: false, random: false, ordered: false, up_to: false }})?")
             }
             Operation::ChooseAtRandom { kind, options } => {
                 let options = self.stated_operands(options);
@@ -4047,6 +4146,16 @@ impl Compiler {
     pub(super) fn stated_constraints(
         &mut self,
         constraints: &[SelectionConstraint],
+    ) -> Result<String> {
+        self.constraints_named(constraints, false)
+    }
+    /// `stated_constraints`, where `named` says the call is given the objects a
+    /// "named after one each" rule names (a search is); elsewhere that rule has
+    /// no word yet.
+    pub(super) fn constraints_named(
+        &mut self,
+        constraints: &[SelectionConstraint],
+        named: bool,
     ) -> Result<String> {
         let mut rules = Vec::new();
         for constraint in constraints {
@@ -4068,10 +4177,12 @@ impl Compiler {
                         form(constraint)
                     )
                 }
-                SelectionConstraint::NamedAfterOneEach(objects) => format!(
-                    "SelectionRule::NamedAfterOneEach({})",
-                    self.fetch(self.objects(objects)?)
-                ),
+                SelectionConstraint::NamedAfterOneEach(_) if named => {
+                    "SelectionRule::NamedAfterOneEach".to_string()
+                }
+                SelectionConstraint::NamedAfterOneEach(_) => {
+                    return Err(gap("a choice named after one each of some objects"))
+                }
                 SelectionConstraint::OneForEach(filters) => {
                     let mut each = Vec::new();
                     for filter in filters {
@@ -4102,10 +4213,14 @@ impl Compiler {
                     .unwrap_or_else(|| format!("result_{}", result.0));
                 format!("Duration::ExtraTurn({turn})")
             }
+            // One player, as data the game can keep: who it is, if anyone.
             D::UntilNext { point, players } => format!(
                 "Duration::UntilNext(TurnPoint::{}, {})",
                 form(point),
-                self.fetch(self.players(players)?)
+                self.fetch(match players {
+                    PlayerSet::One(player) => self.player(player)?,
+                    players => self.players(players)?,
+                })
             ),
             D::ThroughNextTurn => "Duration::ThroughNextTurn".to_string(),
             D::WhileControlled { player, object } => format!(
@@ -4134,6 +4249,45 @@ impl Compiler {
             D::While(condition) => format!("Duration::While({})", self.condition_fn(condition)?),
             D::WhileItMatches(filter) => {
                 format!("Duration::WhileItMatches({})", self.filter_fn(filter)?)
+            }
+            // What these name is read as the effect begins, as the rest are.
+            D::DuringNextTurn(player) | D::UntilNextUntapStep(player) => {
+                match self.certain_player(player) {
+                    Ok(player) => format!("Duration::{}({})", form(duration), self.fetch(player)),
+                    Err(_) => return lane_m::duration_more(duration),
+                }
+            }
+            D::WhileOnBattlefield(object) | D::UntilCast(object) => match self.object(object) {
+                Ok(object) => format!("Duration::{}({})", form(duration), self.fetch(object)),
+                Err(_) => return lane_m::duration_more(duration),
+            },
+            // "Until a player planeswalks away": an event the game watches for
+            // as it would a trigger's, the card's `lasting_until` matcher, of
+            // what the effect's source and controller can read.
+            D::UntilEvent(event) => {
+                let saved = self.clone();
+                let index = self.made_lasting_until.len();
+                let label = format!("lasting_until_{index}");
+                let made = self.event(event).map(|matched| {
+                    let phrase = matched.phrase.clone();
+                    (phrase, self.trigger(&matched, &label, &[]))
+                });
+                let Ok((phrase, ends)) = made else {
+                    *self = saved;
+                    return lane_m::duration_more(duration);
+                };
+                // The card's words after "until", else the trigger's.
+                let said = self.line_text().and_then(|line| {
+                    let at = line.find("until ")? + "until ".len();
+                    let rest = &line[at..];
+                    Some(rest[..rest.find([',', '.']).unwrap_or(rest.len())].to_string())
+                });
+                let phrase = said.unwrap_or(phrase);
+                self.made_lasting_until.push((
+                    feature.clone(),
+                    format!("LastingUntil {{ text: {}, ends: {ends} }}", quoted(&phrase)),
+                ));
+                self.fetch(format!("Duration::UntilEvent({}, {index})", self.source_card()))
             }
             other => return lane_m::duration_more(other),
         };

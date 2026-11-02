@@ -810,7 +810,12 @@ impl Compiler {
         if let (None, Instruction::Effect { result, operation }) = (&failure, instruction) {
             let waits = self.gaps.len() > planned;
             self.report(operation, result, waits, out);
+            if waits && self.failed.contains(&result.0) {
+                planned::bind_hole_result(out, mark, result);
+            }
         }
+        let read_later =
+            matches!(instruction, Instruction::Effect { result, .. } if self.read_later(result));
         self.after = around;
         if let Some(feature) = failure {
             out.truncate(mark);
@@ -821,6 +826,9 @@ impl Compiler {
             }
             if !self.stated_instruction(&feature, instruction, out) {
                 self.plan_instruction(&feature, instruction, out);
+            }
+            if let (true, Instruction::Effect { result, .. }) = (read_later, instruction) {
+                planned::bind_hole_result(out, mark, result);
             }
         }
         self.note_step(instruction);

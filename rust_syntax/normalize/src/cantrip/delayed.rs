@@ -59,6 +59,8 @@ const KEEPS_NO_LIST: &str = "engine: a delayed ability on an event keeps no list
 /// "this card" of "when this creature dies".
 const DIED_AS: &str = "Some(ObjectId(item.data[0])).filter(|o| *o != ObjectId::NONE).into_iter().collect::<Vec<ObjectId>>()";
 
+/// A reflexive ability about a list of objects: Cantrip's carries one target.
+const REFLEXIVE_LIST: &str = "reflexive ability about a list of objects";
 pub(super) const ABOUT: &str = "fn about(q: &dyn Query, item: &StackItem, part: usize) -> Vec<ObjectId> { q.event_objects(item).split(|&id| id == ObjectId::NONE).nth(part).map_or_else(Vec::new, <[ObjectId]>::to_vec) }\n";
 
 impl Compiler {
@@ -180,7 +182,19 @@ impl Compiler {
             objects.push(code);
             objects.len() - 1
         });
+        // Choosing the targets of the ability, no item is there yet: the list
+        // is the triggering's, as `Query::event_subject` is its subject.
+        if self.event_at == EventAt::TargetFilter {
+            return format!("q.event_about().split(|&id| id == ObjectId::NONE).nth({part}).map_or_else(Vec::new, <[ObjectId]>::to_vec)");
+        }
         format!("about(q, item, {part})")
+    }
+    /// Whether `result` is what the ability making this body did: known to it, or
+    /// its instruction's hole there, whose result it carries in as it would a known one.
+    fn outside_result(&self, result: &ResultId) -> bool {
+        self.bound_outside(result)
+            || (!self.failed.contains(&result.0)
+                && self.outer.as_ref().is_some_and(|outer| outer.compiler.failed.contains(&result.0)))
     }
     fn reads_itself(&self, object: &ObjectRef) -> bool {
         match object {
@@ -188,7 +202,7 @@ impl Compiler {
                 self.selections.contains_key(&result.0)
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)
-                    || !self.bound_outside(result)
+                    || !self.outside_result(result)
             }
             ObjectRef::Target { slot, .. } => self.slots.contains_key(&slot.0),
             // A body watching for an event of its own reads that event.
@@ -236,7 +250,7 @@ impl Compiler {
                 self.selections.contains_key(&result.0)
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)
-                    || !self.bound_outside(result)
+                    || !self.outside_result(result)
             }
             ObjectSet::Targets(slot) => self.slots.contains_key(&slot.0),
             ObjectSet::CostObjects {
@@ -386,7 +400,7 @@ impl Compiler {
                 self.selections.contains_key(&result.0)
                     || self.creations.contains_key(&result.0)
                     || self.moved.contains_key(&result.0)
-                    || !self.bound_outside(result)
+                    || !self.outside_result(result)
             }
             ObjectSet::Targets(slot) => self.slots.contains_key(&slot.0),
             ObjectSet::CostObjects {
@@ -450,12 +464,16 @@ impl Compiler {
                         false => "item.subject.object().into_iter().collect::<Vec<ObjectId>>()",
                     }.to_string()))
                 }
+                // A list the reflexive ability is about goes with it as a part
+                // of its own (`reflexive_trigger_about`), as a delayed one's.
                 _ => {
                     let code = outer.compiler.objects(objects)?;
+                    // A delayed ability carries it so too (`make_watching`).
+                    let read = self.carried_list(outer, code);
                     Ok(Some(planned::planned_value(
-                        "reflexive ability about a list of objects",
+                        REFLEXIVE_LIST,
                         "Vec::<ObjectId>::new()",
-                        &format!("about(q, item, {code})"),
+                        &read,
                     )))
                 }
             };
@@ -1060,11 +1078,34 @@ impl Compiler {
             ),
             _ => return Err(gap("reflexive ability about an object and a player")),
         };
-        match amount {
-            Some(amount) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger_counted({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}, ({amount}).clamp(0, i64::from(u16::MAX)) as u16); }}").unwrap(),
-            None => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}); }}").unwrap(),
+        let lists = outer.objects.borrow();
+        match (amount, lists.as_slice()) {
+            (Some(amount), _) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger_counted({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}, ({amount}).clamp(0, i64::from(u16::MAX)) as u16); }}").unwrap(),
+            (None, []) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}); }}").unwrap(),
+            (None, lists) => {
+                self.helpers.insert("about");
+                let mut about = String::from("let mut about: Vec<ObjectId> = Vec::new(); ");
+                for list in lists {
+                    write!(about, "about.extend({}); about.push(ObjectId::NONE); ", self.fetch(list)).unwrap();
+                }
+                let make = format!("if {happened} && {condition} {{ {about}g.reflexive_trigger_about({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}, &about); }}");
+                self.plan_code(REFLEXIVE_LIST, &make, out);
+            }
         }
         Ok(())
+    }
+    /// `body` as one of the card's `delayed` abilities, for the engine to put on
+    /// the stack when something it keeps says (the start of an added phase): its
+    /// `AbilityRef`, data the game state can hold where a closure can't be.
+    pub(super) fn delayed_program(&mut self, body: &Program) -> Result<String> {
+        let label = format!("delayed_{}", self.fresh());
+        self.closure(&label, false, None, &None, body)?;
+        let text = self.delayed_words(false, ability_text(body));
+        self.delayed
+            .push(format!("delayed_trigger({label}, {})", quoted(&text)));
+        let index = self.delayed.len() - 1;
+        let (_, _, card) = self.maker();
+        Ok(format!("AbilityRef::delayed({card}, {index})"))
     }
     /// `Operation::CreateDelayedTrigger`.
     pub(super) fn create_delayed(

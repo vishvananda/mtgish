@@ -278,14 +278,14 @@
 {
 "match": "^(continuous rule Prohibit Attack|continuous rule Prohibit PhaseOut|continuous rule CombatCost|continuous rule RequireCombat Attack)$",
 "class": "engine",
-"needs": "A resolving effect that puts this rule on objects for a duration",
-"api": "EffectKind::Rule(rule)"
+"needs": "A resolving effect that puts this rule on objects for a duration: the rule, which holds tests, is an entry of the card's table and the effect names it, as EffectKind::BlockRestriction names lasting_block_rules",
+"api": "CardDef::lasting_object_rules: &[LastingObjectRule { text, rule }]; EffectKind::ObjectRule { card, index }"
 },
 {
 "match": "^(engine: no resolving rule on an open set: CombatCost|engine: no resolving rule on an open set: .* beyond lasting rules)$",
 "class": "engine",
-"needs": "A resolving effect that puts a rule on every matching object, those to come included",
-"api": "g.add_open_effect(source, closure, EffectKind::Rule(rule), until)"
+"needs": "A resolving effect that puts a rule on every matching object, those to come included, that #897's LastingRuleKind has no word for: one more kind of LastingRule (CR 611.2c)",
+"api": "LastingRuleKind::{MustBlockAbout, MustAttackController, MustAttackAbout, BlockRestriction(index), ObjectRule(index), Effect(EffectKind)}; g.add_lasting_rule(item, index, about, duration)"
 },
 {
 "match": "^(static subjects One|static subjects Union|static subjects Matching|static rule subjects One)$",
@@ -441,7 +441,7 @@
 "match": "^(casting rule ProhibitTargets|casting rule TaxPaidAsLife)$",
 "class": "engine",
 "needs": "A rule of casting this spell with no field",
-"api": "CardDef::cast_rules: &[CastRule::..]"
+"api": "CardDef::casting_terms: &[CastingTerm::..]"
 },
 {
 "match": "^cost branch ",
@@ -597,7 +597,7 @@
 "match": "^(keyword action SetRepeatablePlayers)$",
 "class": "mechanic",
 "needs": "Naming the players who repeat a process",
-"api": "cantrip_mechanics::players::set_repeatable(g, players, source)?"
+"api": "cantrip_mechanics::players::set_repeatable(g, &players, source)?"
 },
 {
 "match": "^(player reference Affected)$",

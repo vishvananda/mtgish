@@ -57,6 +57,16 @@ const CARDS: &[(&str, &str, bool)] = &[
     // ability chose, which a rule's `about` can't both hold.
     ("Mark for Death", "a-lasting-rule-reading-two-things-its-ability-chose", false),
     ("Goblin War Cry", "a-lasting-rule-reading-what-its-ability-chose", false),
+    // Rules #897 has no word for are proposed in its shape, holes still with
+    // the feature: what the rule names as it resolves is its `about`, ...
+    ("Alluring Scent", "rule: LastingRuleKind::MustBlockAbout", false),
+    ("Taunt", "rule: LastingRuleKind::MustAttackController", false),
+    // ... a rule with a test of its own names the card's table of them, ...
+    ("Legion Loyalist", "rule: LastingRuleKind::BlockRestriction(0)", false),
+    ("War Tax", "rule: LastingRuleKind::ObjectRule(0)", false),
+    ("War Tax", "lasting_object_rules: LastingObjectRule {", false),
+    // ... and one of no test is the effect each permanent of the set has.
+    ("Runesword", "LastingRuleKind::Effect(", false),
 ];
 
 /// The cards whose whole file is one Cantrip's PR commits, as it commits it.
@@ -171,6 +181,16 @@ fn without_lasting_rules_the_same_code_is_in_holes() {
         );
         assert!(module.contains("planned_item!(\"engine-no-resolving-rule-on-an-open-set-") && module.contains("=> static LASTING_RULES: &[LastingRule] = &["), "{name}:\n{module}");
         assert!(!module.contains("lasting_rules: LASTING_RULES"), "{name}:\n{module}");
+    }
+    // A rule beyond #897's waits on its own requirement with the feature too:
+    // its table and its call stay holes.
+    for name in ["Alluring Scent", "Taunt", "Legion Loyalist", "War Tax", "Runesword"] {
+        let module = &whole[name];
+        assert!(!module.contains("add_open_effect"), "{name}:\n{module}");
+        assert!(module.contains("=> g.add_lasting_rule(item, 0, about_0, until_0);)"), "{name}:\n{module}");
+        assert!(module.contains("=> static LASTING_RULES: &[LastingRule] = &["), "{name}:\n{module}");
+        assert!(!module.contains("lasting_rules: LASTING_RULES"), "{name}:\n{module}");
+        assert_eq!(filled(&holes[name]), filled(module), "{name}: the forms should differ only by holes");
     }
     for name in ["Tangle", "Frost Titan", "Icefall Regent"] {
         let module = &holes[name];

@@ -307,14 +307,14 @@ impl Compiler {
                 ));
             }
             PlayerRule::HandSize(size) if yours => {
-                let limit = match size {
-                    HandSizeRule::Unlimited => "None".to_string(),
+                let rule = match size {
+                    HandSizeRule::Unlimited => "PlayRule::MaximumHandSize(None)".to_string(),
                     HandSizeRule::Set(Expr::Constant(n)) if u32::try_from(*n).is_ok() => {
-                        format!("Some({n})")
+                        format!("PlayRule::MaximumHandSize(Some({n}))")
                     }
-                    other => self.hand_size_to_come(other)?,
+                    other => self.hand_size_to_come(label, other)?,
                 };
-                self.play_rule(label, format!("PlayRule::MaximumHandSize({limit})"), parts)?;
+                self.play_rule(label, rule, parts)?;
             }
             PlayerRule::AdditionalLandPlays(Count::Exactly(Expr::Constant(n)))
                 if yours && u8::try_from(*n).is_ok() =>
@@ -524,11 +524,15 @@ impl Compiler {
         }
         Ok(())
     }
-    pub(super) fn cost_delta(&self, modifier: &SpellCostModifier) -> Result<String> {
+    pub(super) fn cost_delta(&mut self, modifier: &SpellCostModifier) -> Result<String> {
         Ok(match modifier {
             SpellCostModifier::Increase(cost) => {
                 let [CostPart::Mana(symbols)] = cost.parts.as_slice() else {
-                    return self.clone().costlier(cost);
+                    // Read apart, but the functions its cost names are the card's.
+                    let mut apart = self.clone();
+                    let made = apart.costlier(cost);
+                    self.functions = std::mem::take(&mut apart.functions);
+                    return made;
                 };
                 let [ManaSymbol::Generic(n)] = symbols.as_slice() else {
                     return Ok(planned::planned_value(

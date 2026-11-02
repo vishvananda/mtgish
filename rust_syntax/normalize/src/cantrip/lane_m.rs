@@ -189,8 +189,14 @@ impl Compiler {
                     "cantrip_mechanics::stickers::has(q.state(), {id}, StickerKind::{kind:?})"
                 ),
             ),
-            S::MostVotes => unrecorded("MostVotes", format!("votes.most({id})")),
-            S::ReceivedAVote => unrecorded("ReceivedAVote", format!("votes.of({id}) > 0")),
+            S::MostVotes => unrecorded(
+                "MostVotes",
+                format!("q.votes().most(cantrip_mechanics::vote::Vote::Object({id}), true)"),
+            ),
+            S::ReceivedAVote => unrecorded(
+                "ReceivedAVote",
+                format!("q.votes().count(cantrip_mechanics::vote::Vote::Object({id})) > 0"),
+            ),
             S::PowerAboveBase => unrecorded(
                 "PowerAboveBase",
                 format!("{chars}.power.map(i64::from) > Some(q.base_power({id}))"),
@@ -828,7 +834,7 @@ impl Compiler {
             // grant's `instead` and a spell alternative's `InsteadOfManaCost`).
             if matches!(what, EarlierObjects::It) && self.card_costed {
                 return Ok(planned::planned_value(
-                    "a cost reading the card it is paid for",
+                    lane_o::CARD_IT_IS_PAID_FOR,
                     "Vec::<ObjectId>::new()",
                     "vec![card]",
                 ));
@@ -1412,7 +1418,7 @@ impl Compiler {
                     None if self.frame.amount.is_some() => self.number(&Expr::EventAmount)?,
                     None => held_number(
                         "numeric expression Dice".into(),
-                        "g.last_roll(asker.controller).result",
+                        "q.last_roll(asker.controller).result",
                     ),
                 }
             }
@@ -1488,11 +1494,11 @@ impl Compiler {
             ),
             Expr::DieResultAt { index, .. } => held_number(
                 "numeric expression DieResultAt".into(),
-                &format!("g.last_roll(asker.controller).dice[{index}]"),
+                &format!("q.last_roll(asker.controller).dice[{index}]"),
             ),
             Expr::DraftNoted { .. } => held_number(
                 "numeric expression DraftNoted".into(),
-                &format!("q.draft_notes(asker.controller, {})", one_line(n)),
+                &format!("q.draft_note_count(asker.controller, {})", one_line(n)),
             ),
             Expr::HeadsFlipped(result) if self.performed.contains_key(&result.0) => {
                 counted(self.performed[&result.0].clone())
@@ -1514,7 +1520,7 @@ impl Compiler {
             ),
             Expr::Votes(option) => held_number(
                 "numeric expression Votes".into(),
-                &format!("g.votes().count({})", form(option)),
+                &format!("q.votes().count({})", self.vote_option(option)?),
             ),
             Expr::ManaSpentFrom { object, sources } if self.reader != Reader::Layer => counted(format!(
                 "{}.and_then(|o: ObjectId| cast_of(q, o)).map_or(0i64, |cast| q.history().mana_spent_to_cast(cast.spell).filter(|&(source, _)| {}).map(|(_, spent)| i64::from(spent.total())).sum::<i64>())",
@@ -1571,7 +1577,7 @@ impl Compiler {
             ObjectFilter::DraftNoted { .. } => planned::planned_value(
                 "object filter DraftNoted",
                 "false",
-                &format!("q.draft_notes({id}, {})", one_line(f)),
+                &format!("q.draft_noted_card({id}, {})", one_line(f)),
             ),
             other => return self.predicate_p(other, c),
         })
@@ -1934,11 +1940,15 @@ pub(super) fn flat_groups(instructions: &[Instruction], flat: &mut Vec<Instructi
 const PARITY: [&str; 2] = ["odd", "even"];
 
 /// A form of the AST on one line, to name it in a planned call.
+/// A value the generator can't write yet, as its words: a string, as
+/// `planned::source` says one, not the IR's names standing as code.
 fn one_line(value: &impl std::fmt::Debug) -> String {
-    format!("{value:?}")
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+    quoted(
+        &format!("{value:?}")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" "),
+    )
 }
 
 /// What an instruction leaves to be picked.

@@ -120,7 +120,9 @@ macro_rules! planned_item {
         };
     };
     ($id:literal => @new $list:ident : $($code:tt)*) => {
-        const _: () = $crate::proposals::new_card_entry($($code)*);
+        const _: () = {
+            static ENTRY: &dyn $crate::proposals::NewCardEntry = &$($code)*;
+        };
     };
     ($id:literal => $list:ident : $($code:tt)*) => {
         const _: () = {

@@ -295,6 +295,10 @@ impl Compiler {
     }
     /// A read made while resolving, where `g` is the only reader.
     pub(super) fn fetch(&self, code: impl AsRef<str>) -> String {
+        // A reader with no `g` has its `q` already (a rule a table holds).
+        if self.reader != Reader::Resolution || self.tabled {
+            return code.as_ref().to_string();
+        }
         format!("{{ let q: &dyn Query = g; {} }}", code.as_ref())
     }
     pub(super) fn carried(&self, carried: Carried) -> Result<(String, String)> {
@@ -1133,6 +1137,12 @@ impl Compiler {
                     dynamic: true,
                 }
             }
+            Expr::AnnouncedX if self.stating_cost => Number {
+                code: "i64::from(q.announced_x().unwrap_or(0))".into(),
+                min: 0,
+                max: u16::MAX.into(),
+                dynamic: true,
+            },
             Expr::AnnouncedX if self.notes.paid_x.is_some() => Number {
                 code: self.notes.paid_x.clone().unwrap_or_default(),
                 min: 0,
@@ -1562,7 +1572,7 @@ impl Compiler {
                     Aggregation::Minimum => "min().unwrap_or(0)",
                     Aggregation::AnyOf => {
                         let code = format!(
-                            "cantrip_mechanics::numbers::AnyOf(&({}).into_iter().map(|o: ObjectId| {}).collect::<Vec<i64>>())",
+                            "cantrip_mechanics::numbers::any_of(&({}).into_iter().map(|o: ObjectId| {}).collect::<Vec<i64>>())",
                             self.objects(objects)?,
                             read.code
                         );
@@ -2428,7 +2438,7 @@ impl Compiler {
             PlayerState::ReceivedAVote => planned::planned_value(
                 "player state ReceivedAVote",
                 "false",
-                "g.votes().received(player)",
+                &format!("q.votes().count(cantrip_mechanics::vote::Vote::Player(player)) > 0"),
             ),
             PlayerState::CouldMulligan => planned::planned_value(
                 "player state CouldMulligan",

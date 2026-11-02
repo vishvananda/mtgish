@@ -835,30 +835,22 @@ impl Compiler {
         if self.every_slot_chosen && self.chosen_by_subject(chooser) {
             return Ok(());
         }
-        if let PlayerRef::OneOf(players) = chooser {
-            rule.planned.push((
-                "targets chosen by another player".to_string(),
-                format!(
-                    ".chosen_by_one_of(|q: &dyn Query, asker: &Asker| {})",
-                    self.players(players)?
+        // Who chooses, asked as the slot is chosen: a `fn` the slot holds.
+        const FEATURE: &str = "targets chosen by another player";
+        const ASKED: &str = "q: &dyn Query, asker: &Asker";
+        let (method, ret, body) = match chooser {
+            PlayerRef::OneOf(players) => ("chosen_by_one_of", "Vec<PlayerId>", self.players(players)?),
+            _ => match self.certain_player(chooser) {
+                Ok(player) => ("chosen_by", "PlayerId", player),
+                Err(_) => (
+                    "chosen_by_one_of",
+                    "Vec<PlayerId>",
+                    format!("{}.into_iter().collect::<Vec<PlayerId>>()", self.player(chooser)?),
                 ),
-            ));
-            return Ok(());
-        }
-        let Ok(player) = self.certain_player(chooser) else {
-            rule.planned.push((
-                "targets chosen by another player".to_string(),
-                format!(
-                    ".chosen_by_one_of(|q: &dyn Query, asker: &Asker| {}.into_iter().collect::<Vec<PlayerId>>())",
-                    self.player(chooser)?
-                ),
-            ));
-            return Ok(());
+            },
         };
-        rule.planned.push((
-            "targets chosen by another player".to_string(),
-            format!(".chosen_by(|q: &dyn Query, asker: &Asker| {player})"),
-        ));
+        let function = self.rule_fn(FEATURE, "target_chooser", ASKED, ret, &body);
+        rule.planned.push((FEATURE.to_string(), format!(".{method}({function})")));
         Ok(())
     }
     /// A slot's count no plain slot has.
@@ -896,7 +888,7 @@ impl Compiler {
         })
     }
     /// What `ModalDef` has no word for yet.
-    pub(super) fn modes_to_come(&self, selection: &ModeSelection, modal: String) -> Result<String> {
+    pub(super) fn modes_to_come(&mut self, selection: &ModeSelection, modal: String) -> Result<String> {
         let mut planned: Vec<(&str, String)> = Vec::new();
         // Modes each open only under a requirement are told apart by it
         // (`ModalDef::allowed`), not by a target.
@@ -924,17 +916,17 @@ impl Compiler {
             ));
         }
         if let Some(chooser) = &selection.chooser {
+            const FEATURE: &str = "modes chosen by another player";
             let players = self.players(chooser)?;
-            planned.push((
-                "modes chosen by another player",
-                format!(".chosen_by(|q: &dyn Query, asker: &Asker| {players})"),
-            ));
+            let params = "q: &dyn Query, asker: &Asker";
+            let function = self.rule_fn(FEATURE, "mode_choosers", params, "Vec<PlayerId>", &players);
+            planned.push((FEATURE, format!(".chosen_by({function})")));
         }
         if selection.random {
             planned.push(("modes chosen at random", ".at_random()".to_string()));
         }
         if let Some(budget) = &selection.budget {
-            let budget = self.number(budget)?.amount(u32::MAX.into(), "u32")?;
+            let budget = self.number(budget)?.constant(u32::MAX.into(), "u32")?;
             let weights: Vec<String> = selection
                 .modes
                 .iter()
@@ -1333,33 +1325,38 @@ impl Compiler {
                 secret,
             } => {
                 let voters = self.fetch(self.players(actor)?);
-                let ballot = match ballot {
+                // What may be voted for is read as it resolves and handed to the
+                // vote as `Target`s, a player or an object; the ballot is data.
+                let none = "Vec::<Target>::new()".to_string();
+                let players_as = |code: String| format!("({code}).into_iter().map(Target::Player).collect::<Vec<Target>>()");
+                let objects_as = |code: String| format!("({code}).into_iter().map(Target::Object).collect::<Vec<Target>>()");
+                let (ballot, candidates) = match ballot {
                     Ballot::Words(words) => {
                         let words: Vec<String> = words.iter().map(|w| format!("{w:?}")).collect();
-                        format!("{M}::vote::Ballot::Words(&[{}])", words.join(", "))
+                        (format!("{M}::vote::Ballot::Words(&[{}])", words.join(", ")), none)
                     }
-                    Ballot::Players(players) => format!(
-                        "{M}::vote::Ballot::Players({})",
-                        self.fetch(self.players(players)?)
+                    Ballot::Players(players) => (
+                        format!("{M}::vote::Ballot::Players"),
+                        players_as(self.fetch(self.players(players)?)),
                     ),
-                    Ballot::Objects(objects) => format!(
-                        "{M}::vote::Ballot::Objects({})",
-                        self.fetch(self.objects(objects)?)
+                    Ballot::Objects(objects) => (
+                        format!("{M}::vote::Ballot::Objects"),
+                        objects_as(self.fetch(self.objects(objects)?)),
                     ),
-                    Ballot::UpToOne(objects) => format!(
-                        "{M}::vote::Ballot::UpToOne({})",
-                        self.fetch(self.objects(objects)?)
+                    Ballot::UpToOne(objects) => (
+                        format!("{M}::vote::Ballot::UpToOne"),
+                        objects_as(self.fetch(self.objects(objects)?)),
                     ),
                     Ballot::GraveyardCards(filter) => {
                         let test = self.filter(filter, &Candidate::of("id"))?;
-                        format!("{M}::vote::Ballot::GraveyardCards(|q: &dyn Query, asker: &Asker, id: ObjectId| {test})")
+                        (format!("{M}::vote::Ballot::GraveyardCards(|q: &dyn Query, asker: &Asker, id: ObjectId| {test})"), none)
                     }
                 };
                 writeln!(out, "let voters_{id}: Vec<PlayerId> = {voters};").unwrap();
                 self.plan_code(
                     &feature,
                     &format!(
-                        "{M}::vote::ballot(g, asker.source, &voters_{id}, {ballot}, {secret})?"
+                        "{M}::vote::ballot(g, asker.source, &voters_{id}, {ballot}, &{candidates}, {secret})?"
                     ),
                     out,
                 );
@@ -1416,7 +1413,9 @@ impl Compiler {
                 match subject {
                     SpellSubject::One(spell) => {
                         let spell = self.fetch(self.object(spell)?);
-                        self.plan_code(&feature, &format!("if let Some(spell) = {spell} {{ {M}::spell_changes::change(g, asker, spell, &[{changes}]); }}"), out);
+                        // The changes are read as it resolves ("the color of your choice").
+                        let changes = self.fetch(format!("[{changes}]"));
+                        self.plan_code(&feature, &format!("if let Some(spell) = {spell} {{ let changes = {changes}; {M}::spell_changes::change(g, asker, spell, &changes); }}"), out);
                     }
                     SpellSubject::Next {
                         spells,
@@ -1426,7 +1425,8 @@ impl Compiler {
                     } => {
                         let test = self.filter(spells, &Candidate::of("id"))?;
                         let player = self.fetch(self.certain_player(player)?);
-                        self.plan_code(&feature, &format!("{M}::spell_changes::next_spell(g, asker, {player}, |q: &dyn Query, asker: &Asker, id: ObjectId| {test}, NextSpell {{ this_turn: {this_turn}, from_hand: {from_hand} }}, &[{changes}])"), out);
+                        let changes = self.fetch(format!("[{changes}]"));
+                        self.plan_code(&feature, &format!("{{ let changes = {changes}; {M}::spell_changes::next_spell(g, asker, {player}, |q: &dyn Query, asker: &Asker, id: ObjectId| {test}, NextSpell {{ this_turn: {this_turn}, from_hand: {from_hand} }}, &changes); }}"), out);
                     }
                 }
             }
@@ -1473,7 +1473,13 @@ impl Compiler {
                     Some(until) => format!("Some({})", self.duration(until)?),
                     None => "None".to_string(),
                 };
-                self.plan_code(&feature, &format!("{M}::exchange::exchange(g, asker.source, Exchange::{kind:?}, {first}, {second}, {until})"), out);
+                // The zones exchanged are `ZoneKind`s.
+                let kind = format!("{kind:?}");
+                let kind = match kind.strip_prefix("Zones(").and_then(|k| k.strip_suffix(')')).and_then(|k| k.split_once(", ")) {
+                    Some((a, b)) => format!("Zones(ZoneKind::{a}, ZoneKind::{b})"),
+                    None => kind,
+                };
+                self.plan_code(&feature, &format!("{M}::exchange::exchange(g, asker.source, Exchange::{kind}, {first}, {second}, {until})"), out);
             }
             Operation::CopyOnStack {
                 actor,
@@ -1492,7 +1498,7 @@ impl Compiler {
                 };
                 let copier = self.one_actor(actor, &feature)?;
                 let times = self.fetch(self.number(times)?.amount(u32::MAX.into(), "u32")?);
-                let targets = self.new_targets(targets)?;
+                let (targets, among) = self.new_targets(targets)?;
                 // "Copy that ability" (Agrus Kos): an ability on the stack is no
                 // object; Cantrip names it by its serial, as `Target::Ability`.
                 if matches!(object, ObjectRef::EventStackObject)
@@ -1500,10 +1506,10 @@ impl Compiler {
                     && self.frame.activated.is_some()
                 {
                     let ability = self.carried_ability()?;
-                    self.plan_code(&feature, &format!("{M}::copy::ability_on_stack(g, {copier}, {ability}, {times}, {targets})?;"), out);
+                    self.plan_code(&feature, &format!("{M}::copy::ability_on_stack(g, {copier}, {ability}, {times}, {targets}, &{among})?;"), out);
                 } else {
                     let object = self.fetch(self.object(object)?);
-                    self.plan_code(&feature, &format!("if let Some(spell) = {object} {{ {M}::copy::on_stack(g, {copier}, spell, {times}, {targets})?; }}"), out);
+                    self.plan_code(&feature, &format!("if let Some(spell) = {object} {{ {M}::copy::on_stack(g, {copier}, spell, {times}, {targets}, &{among})?; }}"), out);
                 }
             }
             // The change of control comes first, so that "you" in the spell is its
@@ -1528,8 +1534,8 @@ impl Compiler {
                 };
                 let player = self.one_actor(actor, &feature)?;
                 let object = self.fetch(self.object(object)?);
-                let targets = self.new_targets(targets)?;
-                self.plan_code(&feature, &format!("if let Some(spell) = {object} {{ g.change_controller(spell, {player}); {M}::copy::retarget(g, {player}, spell, {targets})?; }}"), out);
+                let (targets, among) = self.new_targets(targets)?;
+                self.plan_code(&feature, &format!("if let Some(spell) = {object} {{ g.change_controller(spell, {player}); {M}::copy::retarget(g, {player}, spell, {targets}, &{among})?; }}"), out);
             }
             Operation::Retarget {
                 actor,
@@ -1543,8 +1549,8 @@ impl Compiler {
                 };
                 let player = self.one_actor(actor, &feature)?;
                 let object = self.fetch(self.object(object)?);
-                let targets = self.new_targets(targets)?;
-                self.plan_code(&feature, &format!("if let Some(spell) = {object} {{ {M}::copy::retarget(g, {player}, spell, {targets})?; }}"), out);
+                let (targets, among) = self.new_targets(targets)?;
+                self.plan_code(&feature, &format!("if let Some(spell) = {object} {{ {M}::copy::retarget(g, {player}, spell, {targets}, &{among})?; }}"), out);
             }
             // The second of "copy each of those spells twice": the first put them all
             // on the stack.
@@ -1596,15 +1602,53 @@ impl Compiler {
             } => {
                 let player = self.one_actor(actor, &feature)?;
                 let test = self.filter(objects, &Candidate::of("id"))?;
-                let targets = self.new_targets(targets)?;
+                let (targets, among) = self.new_targets(targets)?;
                 let call = if matches!(op, Operation::CopyEach { .. }) {
                     "on_stack_each"
                 } else {
                     "retarget_each"
                 };
-                self.plan_code(&feature, &format!("{M}::copy::{call}(g, {player}, |q: &dyn Query, asker: &Asker, id: ObjectId| {test}, {targets})?"), out);
+                self.plan_code(&feature, &format!("{M}::copy::{call}(g, {player}, |q: &dyn Query, asker: &Asker, id: ObjectId| {test}, {targets}, &{among})?"), out);
+            }
+            // Numbering objects and naming each player's most common creature
+            // type note one value per object or player: the list they are about
+            // is the call's, and what is noted is kept the way remembered values
+            // are.
+            Operation::Note(NoteKind::Numbered(objects)) => {
+                let objects = self.fetch(self.objects(objects)?);
+                self.plan_code(&feature, &format!("{M}::notes::number_each(g, asker, &{objects})"), out);
+            }
+            Operation::Note(NoteKind::MostCommonCreatureType(players)) => {
+                let players = self.fetch(self.players(players)?);
+                self.plan_code(&feature, &format!("{M}::notes::most_common_creature_type(g, asker, &{players})"), out);
             }
             Operation::Note(kind) => {
+                // Kept by the ability that notes it, as a chosen name is
+                // (`remember_chosen_name`), for the abilities linked to it: the
+                // game keeps data, never the `Asker` that asked.
+                let by = match self.stack_item {
+                    true => "g.linked(item)",
+                    false => "g.linked_to(asker)",
+                };
+                // Objects or players are a list read as the call runs.
+                let listed = match kind {
+                    NoteKind::Numbered(objects) => {
+                        Some(("note_numbered", self.fetch(self.objects(objects)?)))
+                    }
+                    NoteKind::MostCommonCreatureType(players) => Some((
+                        "note_most_common_creature_type",
+                        self.fetch(self.players(players)?),
+                    )),
+                    _ => None,
+                };
+                if let Some((call, list)) = listed {
+                    self.plan_code(
+                        &feature,
+                        &format!("{{ let by = {by}; let listed = {list}; {M}::notes::{call}(g, by, &listed); }}"),
+                        out,
+                    );
+                    return Ok(());
+                }
                 let note = match kind {
                     NoteKind::Number(n) => {
                         format!("Note::Number({})", self.fetch(self.number(n)?.code))
@@ -1619,17 +1663,13 @@ impl Compiler {
                     NoteKind::ManaSpent { amount } => {
                         format!("Note::ManaSpent {{ amount: {amount} }}")
                     }
-                    NoteKind::Numbered(objects) => {
-                        format!("Note::Numbered({})", self.fetch(self.objects(objects)?))
+                    NoteKind::Numbered(_) | NoteKind::MostCommonCreatureType(_) => {
+                        unreachable!("noted above")
                     }
-                    NoteKind::MostCommonCreatureType(players) => format!(
-                        "Note::MostCommonCreatureType({})",
-                        self.fetch(self.players(players)?)
-                    ),
                 };
                 self.plan_code(
                     &feature,
-                    &format!("{M}::notes::note(g, asker, {note})"),
+                    &format!("{{ let by = {by}; {M}::notes::note(g, by, {note}); }}"),
                     out,
                 );
             }
@@ -1976,38 +2016,46 @@ impl Compiler {
                     self.plan_code(&feature, "g.end_simultaneous()", out);
                 }
             }
+            // The rule is data; the objects and players it names as it resolves
+            // are the call's, as `effect_on_objects` takes them.
             Operation::GameEffect { until, effect } => {
                 let until = self.duration(until)?;
-                let rule = self.operand_code(effect);
+                let (mut objects, mut players) = (None, None);
+                let rule = self.term_apart(effect, &mut objects, &mut players);
+                let objects = objects.unwrap_or_else(|| "Vec::<ObjectId>::new()".to_string());
+                let players = players.unwrap_or_else(|| "Vec::<PlayerId>::new()".to_string());
                 self.plan_code(
                     &feature,
-                    &format!("{M}::game_rules::for_a_time(g, asker, {until}, {rule})"),
+                    &format!("{M}::game_rules::for_a_time(g, asker, {until}, &{objects}, &{players}, {rule})"),
                     out,
                 );
             }
             Operation::ChangeCombat { change } => {
-                let change = match change {
+                // The objects it is about are the call's, read as it resolves
+                // (`&[ObjectId]`, as `exile_all` takes them); the change is data.
+                let none = "Vec::<ObjectId>::new()".to_string();
+                let (objects, change) = match change {
                     CombatChange::Reselect {
                         objects,
                         players_only,
                         optional,
-                    } => format!("CombatChange::Reselect {{ objects: {}, players_only: {players_only}, optional: {optional} }}", self.fetch(self.objects(objects)?)),
+                    } => (self.fetch(self.objects(objects)?), format!("CombatChange::Reselect {{ players_only: {players_only}, optional: {optional} }}")),
                     CombatChange::AssignAttack { objects, to } => {
                         let to = self.operand_code(to);
-                        format!("CombatChange::AssignAttack {{ objects: {}, to: {to} }}", self.fetch(self.objects(objects)?))
+                        (self.fetch(self.objects(objects)?), format!("CombatChange::AssignAttack {{ to: {to} }}"))
                     }
-                    CombatChange::Block { blocker, attackers } => format!("CombatChange::Block {{ blocker: {}, attackers: {} }}", self.fetch(self.object(blocker)?), self.fetch(self.objects(attackers)?)),
+                    CombatChange::Block { blocker, attackers } => (self.fetch(self.objects(attackers)?), format!("CombatChange::Block {{ blocker: {} }}", self.fetch(self.object(blocker)?))),
                     CombatChange::SwapBlocks {
                         first,
                         second,
                         attacking,
-                    } => format!("CombatChange::SwapBlocks {{ first: {}, second: {}, attacking: {attacking} }}", self.fetch(self.object(first)?), self.fetch(self.object(second)?)),
-                    CombatChange::OnlyAttackers { objects, during } => format!("CombatChange::OnlyAttackers {{ objects: {}, added_phase: {} }}", self.fetch(self.objects(objects)?), during.is_some()),
-                    CombatChange::OnlyBlockers(objects) => format!("CombatChange::OnlyBlockers({})", self.fetch(self.objects(objects)?)),
+                    } => (none, format!("CombatChange::SwapBlocks {{ first: {}, second: {}, attacking: {attacking} }}", self.fetch(self.object(first)?), self.fetch(self.object(second)?))),
+                    CombatChange::OnlyAttackers { objects, during } => (self.fetch(self.objects(objects)?), format!("CombatChange::OnlyAttackers {{ added_phase: {} }}", during.is_some())),
+                    CombatChange::OnlyBlockers(objects) => (self.fetch(self.objects(objects)?), "CombatChange::OnlyBlockers".to_string()),
                 };
                 self.plan_code(
                     &feature,
-                    &format!("{M}::combat::change(g, asker, {change})?"),
+                    &format!("{M}::combat::change(g, asker, &{objects}, {change})?"),
                     out,
                 );
             }
@@ -2686,8 +2734,26 @@ impl Compiler {
                         writeln!(out, "for _ in 0..({count}) {{ g.add_combat_phase(); }}").unwrap()
                     }
                     (phases, at_start) => {
-                        let at_start = at_start.as_ref().map(|o| self.operand_code(o));
-                        self.plan_code(&feature, &format!("g.add_phases({player}, AddedPhases::{phases:?}, {count}, {at_start:?})"), out);
+                        // What happens at the start of the added phase is an
+                        // ability of the card's the engine triggers then.
+                        let at_start = match at_start.as_deref() {
+                            None => "None".to_string(),
+                            Some(Operand::Program(body)) => {
+                                let (gaps, functions) = (self.gaps.len(), self.functions.len());
+                                let delayed = self.delayed.len();
+                                match self.delayed_program(body) {
+                                    Ok(ability) => format!("Some({ability})"),
+                                    Err(_) => {
+                                        self.gaps.truncate(gaps);
+                                        self.functions.truncate(functions);
+                                        self.delayed.truncate(delayed);
+                                        format!("Some({})", quoted(&format!("{body:?}")))
+                                    }
+                                }
+                            }
+                            Some(other) => format!("Some({})", self.operand_code(other)),
+                        };
+                        self.plan_code(&feature, &format!("g.add_phases({player}, AddedPhases::{phases:?}, {count}, {at_start})"), out);
                     }
                 }
             }
@@ -2706,7 +2772,10 @@ impl Compiler {
                     None => "None".to_string(),
                 };
                 let entry: Vec<String> = entry.iter().map(|o| self.operand_code(o)).collect();
-                self.plan_code(&feature, &format!("if let Some(spell) = {spell} {{ {M}::counter::to(g, spell, {test}, Destination::{}, &[{}]); }}", form(destination), entry.join(", ")), out);
+                // "Onto the battlefield under your control": the player is the
+                // destination's, as a move's is.
+                let destination = self.destination_code(destination)?;
+                self.plan_code(&feature, &format!("let destination = {destination}; if let Some(spell) = {spell} {{ {M}::counter::to(g, spell, {test}, destination, &[{}]); }}", entry.join(", ")), out);
             }
             // "An opponent gains control": the controller picks one, unasked if
             // there is only one. The new controller keeps it (CR 611.2), or has it
@@ -2884,6 +2953,30 @@ impl Compiler {
             Change::SpellCost(modifier) => {
                 format!("SpellChange::Cost({})", self.cost_delta(modifier)?)
             }
+            // An effect on the spell until a time (Summon: Brynhildr's haste
+            // until end of turn): the effect and its duration, each one, as the
+            // game keeps an effect, with no list of them to borrow.
+            Change::Continuing { changes, until }
+                if changes.iter().all(|c| {
+                    !matches!(
+                        c,
+                        Change::EntersWithCounters { .. }
+                            | Change::CantBeCountered
+                            | Change::SpellCost(_)
+                            | Change::Continuing { .. }
+                            | Change::GrantAbility(_)
+                    )
+                }) =>
+            {
+                let until = self.duration(until)?;
+                let mut each = Vec::new();
+                for change in changes {
+                    for kind in self.effect_kinds(change)? {
+                        each.push(format!("SpellChange::EffectUntil({kind}, {until})"));
+                    }
+                }
+                each.join(", ")
+            }
             Change::Continuing { changes, until } => {
                 let changes = changes
                     .iter()
@@ -2912,30 +3005,40 @@ impl Compiler {
         })
     }
     /// New targets, as a copy or a change of targets will word them.
-    fn new_targets(&self, targets: &NewTargets) -> Result<String> {
-        Ok(match targets {
-            NewTargets::Same => "NewTargets::Same".to_string(),
-            NewTargets::May => "NewTargets::May".to_string(),
-            NewTargets::Must => "NewTargets::Must".to_string(),
-            NewTargets::To(objects) => {
-                format!("NewTargets::To({})", self.fetch(self.objects(objects)?))
-            }
-            NewTargets::Each(objects) => {
-                format!("NewTargets::Each({})", self.fetch(self.objects(objects)?))
-            }
-            NewTargets::ToPlayers(players) => format!(
-                "NewTargets::ToPlayers({})",
+    /// How a copy or a retargeted spell gets its targets, as data, and the
+    /// objects or players it names to choose among (empty when it names none).
+    fn new_targets(&self, targets: &NewTargets) -> Result<(String, String)> {
+        let none = "Vec::<Target>::new()".to_string();
+        let objects = |objects: &ObjectSet| -> Result<String> {
+            Ok(format!(
+                "{}.into_iter().map(Target::Object).collect::<Vec<Target>>()",
+                self.fetch(self.objects(objects)?)
+            ))
+        };
+        let players = |players: &PlayerSet| -> Result<String> {
+            Ok(format!(
+                "{}.into_iter().map(Target::Player).collect::<Vec<Target>>()",
                 self.fetch(self.players(players)?)
-            ),
-            NewTargets::Random(_) => "NewTargets::Random".to_string(),
-            NewTargets::EachLegal => "NewTargets::EachLegal".to_string(),
-            NewTargets::EachPlayer(players) => planned::planned_value(
-                "new targets EachPlayer",
-                "NewTargets::EachLegal",
-                &format!(
-                    "NewTargets::EachPlayer({})",
-                    self.fetch(self.players(players)?)
+            ))
+        };
+        Ok(match targets {
+            NewTargets::Same => ("NewTargets::Same".to_string(), none),
+            NewTargets::May => ("NewTargets::May".to_string(), none),
+            NewTargets::Must => ("NewTargets::Must".to_string(), none),
+            NewTargets::To(those) => ("NewTargets::To".to_string(), objects(those)?),
+            NewTargets::Each(those) => ("NewTargets::Each".to_string(), objects(those)?),
+            NewTargets::ToPlayers(those) => {
+                ("NewTargets::ToPlayers".to_string(), players(those)?)
+            }
+            NewTargets::Random(_) => ("NewTargets::Random".to_string(), none),
+            NewTargets::EachLegal => ("NewTargets::EachLegal".to_string(), none),
+            NewTargets::EachPlayer(those) => (
+                planned::planned_value(
+                    "new targets EachPlayer",
+                    "NewTargets::EachLegal",
+                    "NewTargets::EachPlayer",
                 ),
+                players(those)?,
             ),
             #[allow(unreachable_patterns)]
             other => return Err(gap(format!("new targets {}", form(other)))),
@@ -2973,7 +3076,11 @@ impl Compiler {
                 operands,
             } => {
                 let operands: Vec<String> = operands.iter().map(|o| self.operand_code(o)).collect();
+                // A variant of one list holds the list ("And" of any number of
+                // filters), not as many fields.
+                let listed = crate::lower::LIST_VARIANTS.contains(&(family.as_str(), form.as_str()));
                 match operands.is_empty() {
+                    _ if listed => format!("{family}::{form}(&[{}])", operands.join(", ")),
                     true => format!("{family}::{form}"),
                     false => format!("{family}::{form}({})", operands.join(", ")),
                 }
@@ -3011,6 +3118,62 @@ impl Compiler {
                 }
             }
             other => quoted(&format!("{other:?}")),
+        }
+    }
+    /// A term the game keeps, as Copy data: a set of permanents it names by what
+    /// they are becomes a test of each (a rule applies to permanents to come as
+    /// well), and a set of objects it names otherwise, or of players, is taken
+    /// out into `objects` or `players` for the call to be given. One of each at
+    /// most: a second stays where it is.
+    pub(super) fn term_apart(
+        &mut self,
+        operand: &Operand,
+        objects: &mut Option<String>,
+        players: &mut Option<String>,
+    ) -> String {
+        let Operand::Term {
+            family,
+            form,
+            operands,
+        } = operand
+        else {
+            return self.operand_code(operand);
+        };
+        let mut parts = Vec::new();
+        for o in operands {
+            match o {
+                Operand::Objects(ObjectSet::Battlefield(filter)) => {
+                    match self.filter(filter, &Candidate::of("id")) {
+                        Ok(test) => parts.push(format!(
+                            "|q: &dyn Query, asker: &Asker, id: ObjectId| -> bool {{ {test} }}"
+                        )),
+                        Err(_) => parts.push(self.operand_code(o)),
+                    }
+                }
+                Operand::Objects(set) if objects.is_none() => match self.objects(set) {
+                    Ok(code) => *objects = Some(self.fetch(code)),
+                    Err(_) => parts.push(self.operand_code(o)),
+                },
+                Operand::Players(set) if players.is_none() => match self.players(set) {
+                    Ok(code) => *players = Some(self.fetch(code)),
+                    Err(_) => parts.push(self.operand_code(o)),
+                },
+                Operand::Term { .. } => parts.push(self.term_apart(o, objects, players)),
+                other => parts.push(self.operand_code(other)),
+            }
+        }
+        match parts.is_empty() {
+            true => format!("{family}::{form}"),
+            false => format!("{family}::{form}({})", parts.join(", ")),
+        }
+    }
+    /// `term_apart` where the call has no list to be given: a set of permanents
+    /// named by what they are is a test of each; one named otherwise stays.
+    pub(super) fn kept_term(&mut self, operand: &Operand) -> String {
+        let (mut objects, mut players) = (None, None);
+        match self.term_apart(operand, &mut objects, &mut players) {
+            code if objects.is_none() && players.is_none() => code,
+            _ => self.operand_code(operand),
         }
     }
     /// A rule of chosen cards together, as a `Part`, or nothing if `select` has
@@ -3756,11 +3919,28 @@ impl Compiler {
             }
             states => {
                 let feature = arrival_hole(states);
-                let states = quoted(&format!("{states:?}"));
+                // As a move of several objects in a state says it (lane_p): one
+                // here. A state the generator can't read yet is its words.
+                let mut each = Vec::new();
+                for state in states {
+                    let (gaps, functions) = (self.gaps.len(), self.functions.len());
+                    match self.arrival_state(state, feature) {
+                        Ok(code) => each.push(code),
+                        Err(_) => {
+                            self.gaps.truncate(gaps);
+                            self.functions.truncate(functions);
+                            each.push(quoted(&format!("{state:?}")));
+                        }
+                    }
+                }
+                let arrival = format!(
+                    "Arrival {{ tapped: {tapped}, counters: &[{counters}], states: &[{}] }}",
+                    each.join(", ")
+                );
                 let call = planned::planned_value(
                     feature,
-                    "None::<ObjectId>",
-                    &format!("{M}::enter::in_state(g, o, controller, item, {states}, &[{counters}], {tapped})?"),
+                    "Vec::<ObjectId>::new()",
+                    &format!("{M}::enter::in_state(g, asker, &[o], Destination::Battlefield(Some(controller)), {arrival}, false)?"),
                 );
                 format!("moved.extend({call});")
             }
@@ -3776,16 +3956,21 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         let on_objects = matches!(subject, EffectSubject::Objects(_));
-        let subject = match subject {
-            EffectSubject::Objects(objects) => {
-                format!("EffectOn::Objects({})", self.fetch(self.objects(objects)?))
-            }
-            EffectSubject::Players(players) => {
-                format!("EffectOn::Players({})", self.fetch(self.players(players)?))
-            }
+        // Objects and players named as it resolves are the call's to read, as
+        // `exile_all` takes them, not a list the effect keeps; a set of spells
+        // to come is asked of each, so it is a rule (`EffectOn`).
+        let (call, subject) = match subject {
+            EffectSubject::Objects(objects) => (
+                "effect_on_objects",
+                format!("&{}", self.fetch(self.objects(objects)?)),
+            ),
+            EffectSubject::Players(players) => (
+                "effect_on_players",
+                format!("&{}", self.fetch(self.players(players)?)),
+            ),
             EffectSubject::EachSpell(filter) => {
                 let test = self.filter(filter, &Candidate::of("id"))?;
-                format!("EffectOn::EachSpell(|q: &dyn Query, asker: &Asker, id: ObjectId| {test})")
+                ("effect_on", format!("EffectOn::EachSpell(|q: &dyn Query, asker: &Asker, id: ObjectId| {test})"))
             }
             EffectSubject::NextSpell {
                 spells,
@@ -3795,7 +3980,7 @@ impl Compiler {
             } => {
                 let test = self.filter(spells, &Candidate::of("id"))?;
                 let caster = self.fetch(self.certain_player(caster)?);
-                format!("EffectOn::NextSpell {{ spells: |q: &dyn Query, asker: &Asker, id: ObjectId| {test}, caster: {caster}, this_turn: {this_turn}, from: {:?} }}", from.as_ref().map(|z| format!("{z:?}")))
+                ("effect_on", format!("EffectOn::NextSpell {{ spells: |q: &dyn Query, asker: &Asker, id: ObjectId| {test}, caster: {caster}, this_turn: {this_turn}, from: {:?} }}", from.as_ref().map(|z| format!("{z:?}"))))
             }
         };
         let until = match until {
@@ -3811,7 +3996,7 @@ impl Compiler {
         let effects: Vec<String> = effects
             .iter()
             .map(|o| {
-                let code = self.operand_code(o);
+                let code = self.kept_term(o);
                 match on_objects {
                     true => code.replace(
                         "|g: &mut dyn Game| -> Result<(), Suspend>",
@@ -3825,7 +4010,7 @@ impl Compiler {
         self.plan_code(
             "operation EffectOn",
             &format!(
-                "{M}::effects::effect_on(g, asker, {subject}, &[{}], {until})?",
+                "{M}::effects::{call}(g, asker, {subject}, &[{}], {until})?",
                 effects.join(", ")
             ),
             out,

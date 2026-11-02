@@ -1994,11 +1994,15 @@ impl Compiler {
                 }
                 false => "instruction ChooseOne",
             };
+            let card = match self.stack_item {
+                true => "item.ability.card",
+                false => "g.card_id(&CARD)",
+            };
             let pick = planned::planned_value(
                 feature,
                 "0u8",
                 &format!(
-                    "cantrip_mechanics::choose::one_of(g, decider_{id}, asker.source, vec![{}])?",
+                    "{{ let card_{id} = {card}; cantrip_mechanics::choose::one_of(g, decider_{id}, asker.source, vec![{}])? }}",
                     labels.join(", ")
                 ),
             );
@@ -2656,7 +2660,7 @@ impl Compiler {
                     (true, false) => planned::planned_value(
                         "exile outside a stack item that an ability reads as exiled with its source",
                         "None",
-                        "Some(g.linked_to(asker.source))",
+                        "Some(g.linked_to(asker))",
                     ),
                     (false, _) => "None".to_string(),
                 };
@@ -2922,7 +2926,8 @@ impl Compiler {
                 let call = planned::planned_value(
                     "move arrival AttachedToPlayer",
                     "None::<ObjectId>",
-                    &format!("{player}.and_then(|player| g.put_onto_battlefield_enchanting(o, controller, player)?)"),
+                    // `?` asks the player as the resolution does, outside a closure.
+                    &format!("match {player} {{ Some(player) => g.put_onto_battlefield_enchanting(o, controller, player)?, None => None::<ObjectId> }}"),
                 );
                 format!("moved.extend({call});")
             }

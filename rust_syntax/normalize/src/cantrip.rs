@@ -465,6 +465,14 @@ impl Number {
             Err(gap(format!("numeric range for {kind}")))
         }
     }
+    /// `amount`, but a fixed number written as its literal, for a static's
+    /// table, where `max` is not callable.
+    fn constant(&self, max: i128, kind: &str) -> Result<String> {
+        match (self.dynamic, self.min == self.max) {
+            (false, true) if (0..=max).contains(&self.min) => Ok(self.min.to_string()),
+            _ => self.amount(max, kind),
+        }
+    }
 }
 /// The greatest value of an integer type an `i64` converts back from.
 fn type_max(kind: &str) -> Option<i128> {
@@ -755,6 +763,13 @@ struct Compiler {
     paradigm: bool,
     /// Inside a spell's cost change, which has `targets` in reach.
     costing_targets: bool,
+    /// A cost part is being stated for a `Cost` that can't say it yet: its X is
+    /// the announced one, read as the cost is paid (CR 601.2b, 601.2h).
+    stating_cost: bool,
+    /// What is stated is data a static table holds (a play term's rider, a copy
+    /// effect's exceptions): no `q` or `asker` is there to read the card by, so a
+    /// granted ability is named by its place in the card's lists.
+    tabled: bool,
     /// A spell's additional cost read the game for its size, so it is worked out
     /// as the total cost is (`cost_of_targets`, CR 601.2f).
     cost_reads_board: bool,
@@ -791,9 +806,25 @@ struct Compiler {
     lasting: Vec<String>,
     /// `CardDef::lasting_block_rules`.
     made_block_rules: Vec<String>,
+    /// `CardDef::lasting_object_rules`: rules a resolving effect gives an object
+    /// (`EffectKind::ObjectRule`) or a set (`LastingRuleKind::ObjectRule`), each
+    /// with what it waits on.
+    made_object_rules: Vec<(String, String)>,
+    /// `CardDef::lasting_about`: "for as long as" conditions about something
+    /// the effect's ability named as it resolved (`Duration::AsLongAsAbout`),
+    /// each with what it waits on.
+    made_lasting_about: Vec<(String, String)>,
+    /// `CardDef::lasting_until`: the events "until" durations end on
+    /// (`Duration::UntilEvent`), each with what it waits on.
+    made_lasting_until: Vec<(String, String)>,
     /// `CardDef::lasting_rules`: rules on open sets (CR 611.2c), each with
-    /// what it waits on where Cantrip has none.
-    made_lasting_rules: Vec<(String, String)>,
+    /// what it waits on where Cantrip has none and whether it is a rule beyond
+    /// those #897 has.
+    made_lasting_rules: Vec<(String, String, bool)>,
+    /// `CardDef::play_terms`: what a permission to play a card is on beside
+    /// data (a test, a cost, what playing it does), each with what it waits
+    /// on once the hole that wrote it says.
+    made_play_terms: Vec<(Option<String>, String)>,
     /// Instructions that made an effect preventing damage: its amount comes later.
     prevented: BTreeSet<u32>,
     /// A resolving effect is on what its event is about.
@@ -1174,6 +1205,8 @@ impl Compiler {
             watching_object: None,
             bound_players: BTreeSet::new(),
             costing_targets: false,
+            stating_cost: false,
+            tabled: false,
             cost_reads_board: false,
             mode_guard: None,
             paying: lane_g::Paying::Ability,
@@ -1194,7 +1227,11 @@ impl Compiler {
             replaced_counter: None,
             lasting: Vec::new(),
             made_block_rules: Vec::new(),
+            made_object_rules: Vec::new(),
+            made_lasting_about: Vec::new(),
+            made_lasting_until: Vec::new(),
             made_lasting_rules: Vec::new(),
+            made_play_terms: Vec::new(),
             prevented: BTreeSet::new(),
             rule_on_event_object: false,
             entering_labels: None,
@@ -1547,7 +1584,7 @@ impl Compiler {
                 // Cantrip divides only among a first slot's targets.
                 let total = self
                     .number(total)
-                    .and_then(|n| n.amount(u32::MAX.into(), "u32"))
+                    .and_then(|n| n.constant(u32::MAX.into(), "u32"))
                     .map_err(|e| e.at(&at))?;
                 self.dividing = Some(planned::planned_value(
                     "target with a divided amount",
@@ -2517,7 +2554,9 @@ fn emit_face(
                 c.plan_entry(
                     "target with a divided amount",
                     "abilities",
-                    &format!("{def}.divide({divide})"),
+                    // Not `divide`, which Cantrip has for a triggered ability
+                    // alone and rejects any other as the table is built.
+                    &format!("{def}.divide_activated({divide})"),
                     &mut parts,
                 );
             }
@@ -2712,14 +2751,60 @@ fn emit_face(
     for made in std::mem::take(&mut c.made_block_rules) {
         parts.table("lasting_block_rules", made);
     }
+    // Each is a hole of the value that names it, whose gap is already the card's.
+    for (feature, made) in std::mem::take(&mut c.made_object_rules) {
+        match planned::landed(&feature) {
+            true => parts.table("lasting_object_rules", made),
+            false => writeln!(
+                c.holes,
+                "planned_item!({:?} => lasting_object_rules: {made});",
+                planned::requirement(&feature)
+            )
+            .unwrap(),
+        }
+    }
+    let lasting_about = std::mem::take(&mut c.made_lasting_about).into_iter().map(|made| ("lasting_about", made));
+    let lasting_until = std::mem::take(&mut c.made_lasting_until).into_iter().map(|made| ("lasting_until", made));
+    for (table, (feature, made)) in lasting_about.chain(lasting_until).collect::<Vec<_>>() {
+        match planned::landed(&feature) {
+            true => parts.table(table, made),
+            false => writeln!(
+                c.holes,
+                "planned_item!({:?} => {table}: {made});",
+                planned::requirement(&feature)
+            )
+            .unwrap(),
+        }
+    }
     // A field can't be a hole, so the table is an item of its own in both forms.
+    // A rule beyond #897's keeps the whole table a hole of its own: one entry of
+    // a static can't be.
     let lasting_rules = std::mem::take(&mut c.made_lasting_rules);
-    if let Some((feature, _)) = lasting_rules.first() {
-        let entries: Vec<&str> = lasting_rules.iter().map(|(_, rule)| rule.as_str()).collect();
+    if let Some((feature, _, _)) = lasting_rules.first() {
+        let entries: Vec<&str> = lasting_rules.iter().map(|(_, rule, _)| rule.as_str()).collect();
         let table = format!("static LASTING_RULES: &[LastingRule] = &[{}];", entries.join(","));
-        writeln!(c.functions, "{}", planned::switched_item(planned::LASTING_RULES, feature, &table)).unwrap();
-        if planned::switched_on(planned::LASTING_RULES) {
-            parts.field("lasting_rules", "LASTING_RULES".to_string());
+        match lasting_rules.iter().find(|(_, _, beyond)| *beyond) {
+            Some((beyond, _, _)) => writeln!(
+                c.functions,
+                "planned_item!({:?} => {table});",
+                planned::requirement(beyond)
+            )
+            .unwrap(),
+            None => {
+                writeln!(c.functions, "{}", planned::switched_item(planned::LASTING_RULES, feature, &table)).unwrap();
+                if planned::switched_on(planned::LASTING_RULES) {
+                    parts.field("lasting_rules", "LASTING_RULES".to_string());
+                }
+            }
+        }
+    }
+    // Only a hole writes a play grant on terms (`play_grant`): a whole card
+    // has none, and one a failed part left behind is no card's.
+    let play_terms = std::mem::take(&mut c.made_play_terms);
+    if let Some(first) = c.gaps.first().map(|g| g.feature.clone()) {
+        for (feature, entry) in play_terms {
+            let id = planned::requirement(feature.as_deref().unwrap_or(&first));
+            writeln!(c.functions, "planned_item!({id:?} => play_terms: {entry});").unwrap();
         }
     }
     for made in std::mem::take(&mut c.made_cost_changes) {

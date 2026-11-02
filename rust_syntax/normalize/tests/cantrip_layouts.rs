@@ -141,7 +141,7 @@ fn what_cantrip_has_no_model_of_is_a_hole_and_a_requirement() {
             "Akroma, Angel of Wrath Avatar",
             "variant: Some(Variant::Vanguard { hand: 1, life: 7 })",
         ),
-        ("Lost Mine of Phandelver", "dungeon: &[&[1, 2], "),
+        ("Lost Mine of Phandelver", "\"layout-dungeon\" => dungeon: &[1, 2]);"),
     ] {
         let (whole, gaps) = whole(name);
         assert!(whole.faces[0].rust.contains(code), "{name}");

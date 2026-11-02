@@ -953,7 +953,7 @@ impl Compiler {
         if matches!(limits.keyword, Some(ActivatedKeyword::Forecast)) {
             def = lane_g::forecast(def);
         }
-        self.activators(def, limits.activators.as_ref())
+        self.activators(def, limits.activators.as_ref(), label)
     }
     /// Backup N (702.165a). The listed abilities also stand on the card itself,
     /// so here they are only what the target gains: keywords, and the one other
@@ -995,14 +995,17 @@ impl Compiler {
             "cantrip_mechanics::backup::resolve(g, item, {n}, &[{}], {ability})",
             keywords.join(",")
         );
+        // What it grants is named as the ability's source and controller read
+        // it, before the call takes `g`.
         if !stated.is_empty() {
             call = planned::planned_value(
                 &feature,
                 &call,
                 &format!(
-                    "cantrip_mechanics::backup::resolve_granting(g, item, {n}, &[{}], {ability}, &[{}])",
+                    "{{ let granted: [AbilityRef; {}] = {{ let asker = &Asker::new(item.object, item.controller); let q: &dyn Query = g; [{}] }}; cantrip_mechanics::backup::resolve_granting(g, item, {n}, &[{}], {ability}, &granted) }}",
+                    stated.len(),
+                    stated.join(", "),
                     keywords.join(","),
-                    stated.join(", ")
                 ),
             );
         }

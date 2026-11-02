@@ -31,6 +31,9 @@ impl CardDef {
 }
 #[derive(Clone, Copy, Debug)]
 pub struct TriggerDef { pub text: &'static str }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Event { DamageDealt { source: ObjectId, kind: DamageKind }, Lost { kind: DamageKind },
+    CountersPut { object: ObjectId, kind: CounterKind, amount: i16 } }
 """
 MECHANICS = "pub mod tokens;\npub mod counters;\n"
 
@@ -76,6 +79,9 @@ class Text(unittest.TestCase):
                          ["source", "move |q, asker, id| q.is(id)", "EffectKind::CantBlock", "d"])
         self.assertEqual(pc.split_args("applies: |q, id| true, text: \"a, b\""), ["applies: |q, id| true", 'text: "a, b"'])
         self.assertEqual(pc.split_args("a || b, f::<A, B>(x)"), ["a || b", "f::<A, B>(x)"])
+        # A closure's return type has generics of its own.
+        self.assertEqual(pc.split_args("|q: &dyn Query| p, |g: &mut dyn Game| -> Result<(), Suspend> { Ok(()) }, x < y"),
+                         ["|q: &dyn Query| p", "|g: &mut dyn Game| -> Result<(), Suspend> { Ok(()) }", "x < y"])
 
     def test_how_a_name_is_used(self):
         text = "X::new(a, b)? ; Y { a: 1, b } ; Z::W ; v"
@@ -88,6 +94,44 @@ class Text(unittest.TestCase):
         text = "g.note(a); let x = g.ask(b) + 1;"
         self.assertTrue(pc.statement_after(text, text.index("note") + 4))
         self.assertFalse(pc.statement_after(text, text.index("ask") + 3))
+        # The last call of a closure's body is what the closure returns.
+        tail = "h(g, |g| { let x = 1; g.resolve(x) })"
+        self.assertFalse(pc.statement_after(tail, tail.index("resolve") + 7))
+
+    def test_constant_proposed_variants_would_be_promoted(self):
+        spec = pc.Spec(MODEL)
+        use = spec.types.setdefault("GrantedAbility", pc.new_use())
+        use["ctors"]["Delayed"] = 1
+        self.assertTrue(pc.constant_of_proposed_ctors("[GrantedAbility::Delayed(0)]", spec))
+        # A local, a method call or a constant function of Cantrip's own is no promoted constant, stub or not.
+        self.assertFalse(pc.constant_of_proposed_ctors("[GrantedAbility::Delayed(index)]", spec))
+        self.assertFalse(pc.constant_of_proposed_ctors("[EffectKind::AddKeywords(Keywords::of(&[Keyword::Haste]))]", spec))
+        self.assertFalse(pc.constant_of_proposed_ctors("[Duration::EndOfTurn]", spec))
+
+    def test_a_described_value_or_a_result_no_hole_binds_is_not_proposed(self):
+        ron = '"(kind:Searched,args:(0))"'
+        text = f'if planned_value!("condition Searched", false => {ron}) {{ }}'
+        self.assertTrue(pc.described_value(text, text.index(ron), ron))
+        code = 'if planned_value!("a test", false => q.searched(0)) { }'
+        self.assertFalse(pc.described_value(code, code.index("q.s"), "q.searched(0)"))
+        read = 'planned_value!("depends on an instruction with a gap", false => result_0)'
+        described = 'fn ability_1(g: G) { planned!("pay", PayCost, "cost" = "x");\ng.end_sentence();\nif ' + read
+        bracket = described.replace("\ng.end", '\nplanned!("pay" => g.end_batch());\ng.end')
+        coded = 'fn ability_1(g: G) { planned!("pay" => g.pay(x));\nif ' + read
+        bound = 'fn ability_1(g: G) { planned!("pay" => let result_0 = g.pay(x););\nif ' + read
+        for text, want in ((described, True), (bracket, True), (coded, False), (bound, False)):
+            self.assertEqual(pc.reads_a_described_result(text, text.rindex("result_0"), "result_0"), want, text)
+        # A hole of another function says nothing of this one's.
+        other = 'fn ability_0(g: G) { planned!("pay", PayCost); }\nfn ability_1(g: G) { if ' + read
+        self.assertFalse(pc.reads_a_described_result(other, other.rindex("result_0"), "result_0"))
+
+    def test_a_call_is_only_the_stubs_its_path_can_name(self):
+        self.assertTrue(pc.called_as("f::mechanics::cost_branch::spell", "x: crate::proposals::mechanics::cost_branch::"))
+        self.assertFalse(pc.called_as("f::mechanics::cost_branch::spell", "spell: "))
+        self.assertTrue(pc.called_as("m::spell", "def."))
+        self.assertFalse(pc.called_as("m::spell", "a, "))
+        self.assertTrue(pc.called_as("on::Cost::moves", "Cost::NONE.and(crate::proposals::on::Cost::"))
+        self.assertTrue(pc.called_as("f::::granter", "Picks::These(|q, asker| "))
 
 
 class Model(unittest.TestCase):
@@ -99,6 +143,10 @@ class Model(unittest.TestCase):
         self.assertEqual(MODEL.field_type("EffectKind", "index"), "u8")
         self.assertEqual(MODEL.modules, {"tokens", "counters"})
         self.assertIn("Game", MODEL.traits)
+
+    def test_a_new_variants_field_is_typed_as_the_variant_most_like_it_types_it(self):
+        self.assertEqual(MODEL.field_type("Event", "kind", ["object", "kind", "amount"]), "CounterKind")
+        self.assertEqual(MODEL.field_type("Event", "kind", ["kind"]), "DamageKind")
 
     def test_state_keeps_what_it_derives_and_a_table_is_not_state(self):
         self.assertEqual(MODEL.storage("Duration"), ["Clone", "Copy", "Debug", "PartialEq", "Eq", "Hash"])
@@ -125,6 +173,12 @@ class Stubs(unittest.TestCase):
         self.assertIn("fn reveal_hand<A0: crate::proposals::Data, R>(&mut self, a0: A0)", stubs)
         self.assertIn("fn votes<A0: crate::proposals::Data, R>(&self, a0: A0) -> R", stubs)
         self.assertIn("impl Proposed_Query for dyn Query + '_ {}", stubs)
+
+    def test_a_method_of_what_a_cardef_field_holds_keeps_what_it_is_given_in_the_table(self):
+        text = "static T: &[TriggerDef] = &[TRIGGER.divide_activated(d)];"
+        stubs = learnt(("E0599", "no method named `divide_activated` found for struct `TriggerDef` in the current "
+                        "scope", text, "divide_activated")).write()
+        self.assertIn("fn divide_activated<A0: crate::proposals::TableEntry", stubs)
 
     def test_cantrip_keeps_state_as_copy_eq_hash_data(self):
         self.assertIn("pub trait Stored: Copy + Eq + std::hash::Hash {}", pc.PRELUDE)
@@ -162,6 +216,34 @@ class Stubs(unittest.TestCase):
                          "if let crate::proposals::on::EffectKind::Shielded { card, .. } = "
                          "crate::proposals::on::EffectKind::Shielded::of(kind) { }")
 
+    def test_a_new_struct_variant_inside_another_is_made_too(self):
+        made = "let k = EffectKind::Shielded { card: c, index: EffectKind::Shielded { card: d, index: 0 } };"
+        spec = learnt(("E0599", "no variant named `Shielded` found for enum `EffectKind`", made, "Shielded"))
+        self.assertEqual(pc.rewrite(made, MODEL, spec),
+                         "let k = crate::proposals::on::EffectKind::Shielded_new { card: c, index: "
+                         "crate::proposals::on::EffectKind::Shielded_new { card: d, index: 0 }.make() }.make();")
+
+    def test_a_new_variant_inside_another_is_made_too(self):
+        text = "let k = EffectKind::Shielded { card: c, index: Duration::Lapsed { at: 1 } };"
+        spec = learnt(("E0599", "no variant named `Shielded` found for enum `EffectKind`", text, "Shielded"),
+                      ("E0599", "no variant named `Lapsed` found for enum `Duration`", text, "Lapsed"))
+        self.assertEqual(pc.rewrite(text, MODEL, spec),
+                         "let k = crate::proposals::on::EffectKind::Shielded_new { card: c, index: "
+                         "crate::proposals::on::Duration::Lapsed_new { at: 1 }.make() }.make();")
+
+    def test_a_new_field_of_an_existing_variant_is_read_off_what_the_pattern_matches(self):
+        text = ("if let Event::Lost { kind, by: Some(player) } = event { return Some(*player); } "
+                "if let cantrip_api::Event::CountersPut { object, previous, .. } = event { }")
+        spec = learnt(("E0026", "variant `Lost` does not have a field named `by`", text, "by"),
+                      ("E0026", "variant `cantrip_api::Event::CountersPut` does not have a field named `previous`",
+                       text, "previous"))
+        self.assertIn("pub fn by<R: crate::proposals::Derives_Event, S>(s: S) -> &'static R", spec.write())
+        self.assertEqual(pc.rewrite(text, MODEL, spec),
+                         "if let (Some(player), Event::Lost { kind, .. }) = "
+                         "(crate::proposals::variant_field::Event::Lost::by(&event), event) { return Some(*player); } "
+                         "if let (previous, cantrip_api::Event::CountersPut { object, .. }) = "
+                         "(crate::proposals::variant_field::Event::CountersPut::previous(&event), event) { }")
+
     def test_a_new_cardef_field_holds_a_table_entry(self):
         text = "pub static CARD: CardDef = CardDef { spell: None, lasting_rules: &[RULE], ..CardDef::BLANK };"
         spec = learnt(("E0560", "struct `cantrip_api::CardDef` has no field named `lasting_rules`", text,
@@ -198,6 +280,17 @@ class Stubs(unittest.TestCase):
         self.assertIn("pub const fn grant_play<G0: ?Sized, A1: crate::proposals::Stored, "
                       "A2: crate::proposals::Stored, R>(a0: &mut G0, a1: A1, a2: A2) -> R", spec.write())
 
+    def test_a_free_function_with_no_game_to_change_keeps_nothing(self):
+        # A layer helper, as Cantrip's `grant_activated_abilities_of(view, &cards, chars)`: it reads `q` and writes
+        # `chars`, whatever its name says.
+        text = "grant_keywords_of(q, &ids, &[Keyword::Flying], chars); grant_to(|q: &dyn Query| true, k)"
+        spec = learnt(("E0425", "cannot find function `grant_keywords_of` in this scope", text, "grant_keywords_of"),
+                      ("E0425", "cannot find function `grant_to` in this scope", text, "grant_to"))
+        stubs = spec.write()
+        self.assertIn("pub const fn grant_keywords_of<G0: ?Sized, A1, A2, A3, R>(a0: &G0, a1: A1, a2: A2, a3: A3) -> R",
+                      stubs)
+        self.assertIn("pub const fn grant_to<A0, A1, R>(a0: A0, a1: A1) -> R", stubs)
+
     def test_a_call_followed_by_a_question_mark_returns_a_result(self):
         spec = learnt(method("choose_pile", "let pile = g.choose_pile(p)?;"))
         self.assertIn("-> Result<R, Suspend>", spec.write())
@@ -217,6 +310,25 @@ class Stubs(unittest.TestCase):
                        "villainous"))
         self.assertIn("pub mod villainous {", spec.write())
         self.assertEqual(pc.rewrite(text, MODEL, spec), "crate::proposals::mechanics::villainous::choose(g, p)")
+
+    def test_a_private_name_of_a_mechanics_module_is_stubbed_as_its_new_item(self):
+        text = "cantrip_mechanics::tokens::spell(a, b)"
+        spec = learnt(("E0603", "function `spell` is private", text, "spell"))
+        self.assertEqual(pc.rewrite(text, MODEL, spec), "crate::proposals::mechanics::tokens::spell(a, b)")
+        # Private elsewhere is not the module's to say.
+        self.assertEqual(learnt(("E0603", "function `spell` is private", "x::spell(a)", "spell")).write(), pc.Spec(MODEL).write())
+
+    def test_a_method_on_a_type_cantrip_api_does_not_re_export_is_stubbed_on_its_path(self):
+        stubs = learnt(method("counters", "p.counters(k)", on="cantrip_state::object::TriggerDef")).write()
+        self.assertIn("impl Proposed_TriggerDef for cantrip_state::object::TriggerDef {}", stubs)
+
+    def test_a_new_field_another_struct_has_is_read_off_its_receiver_alone(self):
+        text = "fn f(d: &TriggerDef, c: &CardDef) -> bool { d.spell == x && c.spell.is_none() }"
+        spec = learnt(("E0609", "no field `spell` on type `&TriggerDef`", text, "spell"))
+        self.assertIn("pub trait ProposedField_TriggerDef {", spec.write())
+        self.assertIn("fn spell<R: crate::proposals::TableEntry>(&self) -> R", spec.write())
+        self.assertEqual(pc.rewrite(text, MODEL, spec),
+                         "fn f(d: &TriggerDef, c: &CardDef) -> bool { d.spell() == x && c.spell.is_none() }")
 
     def test_the_stubs_converge(self):
         spec = learnt(method("add_open_effect", "g.add_open_effect(a, b);"))
@@ -238,6 +350,18 @@ class CheckCopy(unittest.TestCase):
     def test_an_item_hole_is_left_as_it_stands(self):
         text = 'planned_item!("a" => static RULES: &[LastingRule] = &[]);\nplanned_item!("b" => fn rule_0() {});\n'
         self.assertEqual(pc.base_rewrite(text, MODEL), text)
+
+    def test_a_function_given_to_a_method_that_takes_data_is_its_fn_pointer(self):
+        text = ("fn who_0(q: &dyn Query, asker: &Asker, player: PlayerId) -> bool { true }\n"
+                "static A: AbilityDef = ability(c, e, \"x\").activated_by(who_0).also(|q| true);\n"
+                "fn f(g: &mut dyn Game) { g.add_rule(who_0); }\n")
+        spec = learnt(method("activated_by", text, on="dyn Query"), method("also", text, on="dyn Query"),
+                      method("add_rule", text))
+        out = pc.rewrite(text, MODEL, spec)
+        self.assertIn(".activated_by((who_0 as fn(&dyn Query, &Asker, PlayerId) -> bool))", out)
+        self.assertIn(".also(|q| true)", out)
+        # What the game state keeps is no function, nor a pointer to one.
+        self.assertIn("g.add_rule(who_0)", out)
 
     def test_a_held_matcher_replaces_its_placeholder(self):
         text = ("fn fired_0(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> { None }\n"
@@ -262,11 +386,39 @@ class Classify(unittest.TestCase):
 
     def test_what_rust_cannot_stub_is_the_stubs_fault(self):
         spec = pc.Spec(MODEL)
+        self.assertTrue(pc.classify(self.error("E0277", "the trait bound `i64: From<!>` is not satisfied"), "", spec)[1])
         self.assertTrue(pc.classify(self.error("E0080", f"evaluation panicked: {pc.PANIC}"), "", spec)[1])
         self.assertTrue(pc.classify(self.error("E0107", "missing generics for struct `LastingRule`"), "", spec)[1])
         self.assertTrue(pc.classify(self.error("E0308", "mismatched types", file="/w/stubs.rs"), "", spec)[1])
         self.assertTrue(pc.classify(self.error("E0282", "type annotations needed",
                                                "cannot infer type of the type parameter `R`"), "", spec)[1])
+
+    def test_a_bare_none_given_to_a_stub_is_the_stubs_fault(self):
+        text = "x(crate::proposals::mechanics::m::f(g, None)); let y: Option<u8> = keep(None);"
+        d = diag("E0282", "type annotations needed", text, text.index("None"), 4)
+        d["rendered"] = "cannot infer type of the type parameter `T` declared on the enum `Option`"
+        self.assertTrue(pc.classify(d, text, pc.Spec(MODEL))[1])
+        d = diag("E0282", "type annotations needed", text, text.rindex("None"), 4)
+        d["rendered"] = "cannot infer type of the type parameter `T` declared on the enum `Option`"
+        self.assertEqual(pc.classify(d, text, pc.Spec(MODEL)), ("type annotations needed", False))
+
+    def test_a_field_of_a_new_variant_nothing_types_is_the_stubs_fault(self):
+        text = ("if let crate::proposals::on::Event::Exploited { card, sacrificed } = "
+                "crate::proposals::on::Event::Exploited::of(event) { let other = *sacrificed; let to = *card; }")
+        for name, fault in (("other", True), ("to", False)):
+            d = diag("E0282", "type annotations needed", text, text.index(f"let {name}") + 4, len(name))
+            d["rendered"] = f"consider giving `{name}` an explicit type"
+            self.assertEqual(pc.classify(d, text, pc.Spec(MODEL))[1], fault, name)
+
+    def test_a_binding_of_what_a_stub_returns_unsettled_is_the_stubs_fault(self):
+        text = ('let moved_2 = planned_value!("move to Ante", Vec::<ObjectId>::new() => g.ante(&objects_2)); '
+                "let n = 2i64 * g.ante(&o); let k = g.ante(&o).len(); let m = vec![];")
+        spec = learnt(method("ante", text))
+        for name, at, fault in (("moved_2", text.index("moved_2"), True), ("2i64 * g.ante(&o)", text.index("2i64"), True),
+                                ("m", text.index("let m") + 4, False)):
+            d = diag("E0282", "type annotations needed", text, at, len(name))
+            d["rendered"] = "type annotations needed"
+            self.assertEqual(pc.classify(d, text, spec)[1], fault, name)
 
     def test_a_local_the_hole_names_out_of_scope_is_the_proposals_fault(self):
         self.assertEqual(pc.classify(self.error("E0425", "cannot find value `result_0` in this scope"), "",

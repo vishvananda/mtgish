@@ -19,9 +19,14 @@ The constraints come from how Cantrip stores and dispatches, never from the prop
 - A new field of a Cantrip struct holds what the struct derives; of a table (`CardDef`, `Cost`, ...: not `Hash`), what a
   static holds, `Copy + Sync + 'static`, so anything the engine calls later is a `fn`.
 - A free function (`cantrip_mechanics`, a `CardDef` helper) is called statically, so it may be generic; one that makes
-  or keeps something takes `Stored` data besides the game itself.
+  or keeps something takes `Stored` data besides the game itself. Only one given the game (`&mut dyn Game`) has a
+  state to keep it in: given `&dyn Query`, or no game, it keeps nothing, as Cantrip's layer helper
+  `grant_activated_abilities_of(view, &cards, chars)` doesn't.
 - A struct of the proposal's own holds what a table holds: a function its literal names is a `fn` pointer of that
   function's signature, a string a `&'static str`, a variant its enum; a field nothing settles stays generic.
+- A function the card defines, given by name to a method that takes data, is its `fn` pointer, as Cantrip's method
+  would take it (`AbilityDef::condition`); never to one that keeps it in the game state, which holds no functions.
+- A bare `None` given to a stub's generic argument, or to a field nothing else settles, is the stub's to type.
 
 All 5,289 planned cards take about 90 s (four passes of 48 shards); a handful, about 2 s.
 """
@@ -108,7 +113,8 @@ def balanced(text, i):
 
 def split_args(inner):
     """The top-level comma-separated parts of `inner`, the text between a call's parentheses or a literal's braces."""
-    parts, angle, start, j = [], 0, 0, 0
+    # `ret`: in a closure's return type (`-> Result<(), Suspend>`), whose `<` opens generics too.
+    parts, angle, start, j, ret = [], 0, 0, 0, False
     while j < len(inner):
         j = SPLIT_BORING.match(inner, j).end()
         if j >= len(inner):
@@ -119,15 +125,19 @@ def split_args(inner):
             continue
         c = inner[j]
         if c in "([{":
+            if c == "{":
+                ret = False
             j = balanced(inner, j)
             continue
         if inner.startswith("::<", j):
             angle += 1
             j += 3
             continue
-        if angle and c == "<":
+        if c == ">" and inner[j - 1] == "-":
+            ret = True
+        elif (angle or ret) and c == "<":
             angle += 1
-        elif angle and c == ">" and inner[j - 1] != "-":
+        elif angle and c == ">":
             angle -= 1
         elif c == "|" and inner.startswith("||", j):
             j += 2
@@ -182,13 +192,30 @@ def fields_of(body):
     return names
 
 
+def called_as(key, before):
+    """Whether a call whose name `before` leads up to can be the stub `key` (`m::name`, `f::module::name`,
+    `on::Type::name`, `t::Type::name`): a method after a `.`, a module's function after its module, an associated
+    function after its type, a function of no module bare."""
+    parts = key.split("::")
+    lead = re.search(r"(\.|(\w+)\s*(?:::<[^()]*>)?\s*::)\s*$", before)
+    if parts[0] == "m":
+        return bool(lead) and lead.group(1) == "."
+    owner = [p for p in parts[1:-1] if p]
+    if parts[0] == "f" and owner == ["mechanics"] or not owner:
+        # A function of the proposals' root module is named by it, or bare where the card imports it.
+        return not lead or lead.group(2) in ("mechanics", "proposals")
+    return bool(lead) and lead.group(2) == owner[-1]
+
+
 def statement_after(text, at):
-    """Whether the call whose name ends at `at` is a whole statement: nothing reads its value."""
+    """Whether the call whose name ends at `at` is a whole statement: nothing reads its value. A call before a `}`
+    is its block's value, which a closure or function body returns (`|g| { ..; f(g) }`): it can be a statement only
+    where the block's own value is `()`, which the call alone doesn't say."""
     use = re.compile(r"\s*(?:::<[^(]*>)?\s*\(").match(text, at)
     if not use:
         return False
     end = balanced(text, use.end() - 1)
-    return bool(re.compile(r"\s*(;|\}|$)").match(text, end))
+    return bool(re.compile(r"\s*(;|$)").match(text, end))
 
 
 def camel(name):
@@ -211,6 +238,7 @@ class Model:
         self.derives, self.kinds, self.units, self.lifetimes, self.homes = {}, {}, {}, {}, {}
         self.fields = collections.defaultdict(dict)
         self.variant_fields = collections.defaultdict(lambda: collections.defaultdict(collections.Counter))
+        self.variants = collections.defaultdict(dict)  # enum -> struct variant -> field -> type
         self.any_field = collections.defaultdict(collections.Counter)
         self.traits, self.modules = set(), set()
         used = collections.defaultdict(collections.Counter)
@@ -252,6 +280,7 @@ class Model:
                                 if t:
                                     self.variant_fields[name][t.group(1)][t.group(2).strip()] += 1
                                     self.any_field[t.group(1)][t.group(2).strip()] += 1
+                                    self.variants[name].setdefault(v.group(1), {})[t.group(1)] = t.group(2).strip()
                 for m in re.finditer(r"^pub trait (\w+)", code, re.M):
                     self.traits.add(m.group(1))
                 for m in re.finditer(r"\b([A-Z]\w*)::([A-Z][a-z]\w*)\b(?!\s*[({:])", code):
@@ -277,12 +306,22 @@ class Model:
     def known(self, name):
         return name in self.kinds
 
+    def in_card_def(self, name):
+        """Whether a field of `CardDef` holds `name` (`abilities: &'static [AbilityDef]`)."""
+        return any(re.search(rf"\b{name}\b", ty) for ty in self.fields.get("CardDef", {}).values())
+
     def storage(self, name):
         """What a value inside `name` must have: its derives, or a table's `Copy + Sync + 'static` if it isn't `Hash`."""
         derives = [d for d in self.derives.get(name, []) if d in DERIVABLE]
         return derives if "Hash" in derives else None
 
-    def field_type(self, enum, field):
+    def field_type(self, enum, field, fields=()):
+        """The type of `field` in a new struct variant of `enum` with `fields`: as the variant of `enum` sharing the most
+        of them types it (`CountersRemoved { object, kind, amount }`: `CountersPut`'s `kind`, not `DamageDealt`'s), or
+        else as most of `enum`'s variants, or any enum, type a field of that name."""
+        alike = [(len(set(fields) & set(have)), have) for have in self.variants.get(enum, {}).values() if field in have]
+        if alike and max(alike, key=lambda a: a[0])[0] > 1:
+            return max(alike, key=lambda a: a[0])[1][field]
         for counter in (self.variant_fields.get(enum, {}).get(field), self.any_field.get(field)):
             if counter:
                 return counter.most_common(1)[0][0]
@@ -351,8 +390,13 @@ class Spec:
         self.on = {}  # name -> use, for new items of a type Cantrip has
         self.new_fields = collections.defaultdict(set)  # struct -> fields a literal gives that it doesn't have
         self.read_fields = collections.defaultdict(set)  # struct -> fields read that it doesn't have
+        # struct -> (receiver, field): a field read that it doesn't have but another of Cantrip's structs does, so
+        # only where it is read off that receiver is it the new one.
+        self.read_at = collections.defaultdict(set)
+        self.variant_fields = collections.defaultdict(set)  # (enum, variant) -> fields a pattern binds it doesn't have
         self.missing_modules, self.module_items = set(), set()
         self.rets = {}  # stub key -> the return type chosen where no call site says it
+        self.paths = {}  # Cantrip type -> the path rustc names it by, for one cantrip_api doesn't re-export
         self.unknown_rets = set()
 
     # Learning from rustc
@@ -361,6 +405,7 @@ class Spec:
         """Add what `diags` say is missing; True if anything is new."""
         before = self.fingerprint()
         self._rules = None
+        self._data_call = False
         for d in diags:
             span = primary(d)
             if not span or span["file_name"].endswith("stubs.rs"):
@@ -374,7 +419,8 @@ class Spec:
     def size(self):
         return (f"{len(self.methods)} methods, {len(self.fns)} functions, {len(self.types)} types, {len(self.on)} "
                 f"extended, {sum(map(len, self.new_fields.values()))} new fields, "
-                f"{sum(map(len, self.read_fields.values()))} read fields, {len(self.rets)} returns chosen")
+                f"{sum(map(len, self.read_fields.values())) + sum(map(len, self.read_at.values()))} read fields, "
+                f"{sum(map(len, self.variant_fields.values()))} variant fields, {len(self.rets)} returns chosen")
 
     def fingerprint(self):
         """What the stubs and rewrites would be: a pass that changes neither learnt nothing (counts of uses may grow)."""
@@ -390,6 +436,9 @@ class Spec:
                 entry = self.methods.setdefault(m.group(1), {"bases": set(), "arity": collections.Counter(),
                                                              "stores": False, "tried": collections.Counter()})
                 entry["bases"].add(base)
+                full = re.sub(r"^(&(mut )?)+", "", m.group(2).strip())
+                if base[0] == "type" and re.match(r"cantrip_\w+::(\w+::)*\w+$", full):
+                    self.paths[base[1]] = full
                 entry["arity"][len(args)] += 1
                 entry["tried"][use[0] == "call" and use[2]] += 1
                 entry["stores"] |= any(re.search(r"\b(Duration|EffectKind)::", a) for a in args)
@@ -421,6 +470,11 @@ class Spec:
         if code in ("E0433", "E0425", "E0412", "E0422", "E0423", "E0531", "E0532") and m:
             self.use_path(text, start, end)
             return
+        # A mechanics module's private name (its `use cantrip_api::*` brings in `spell`) is no item the module has.
+        if code == "E0603" and re.match(r"(?:function|struct|enum|constant|static) `\w+` is private", msg) and \
+                re.search(r"\bcantrip_mechanics::(?:\w+::)+$", text[max(0, start - 200) : start]):
+            self.use_path(text, start, end)
+            return
         m = re.match(r"struct `([^`]+)` has no field named `(\w+)`", msg)
         if code == "E0560" and m:
             ty = m.group(1).split("::")[-1]
@@ -429,11 +483,22 @@ class Spec:
             elif ty in self.types:
                 self.types[ty]["literal"].add(m.group(2))
             return
+        m = re.match(r"variant `(?:[\w:]*::)?(\w+)` does not have a field named `(\w+)`", msg)
+        if code == "E0026" and m:
+            # The enum is the one the pattern names before the variant.
+            path = list(re.finditer(rf"(\w+)::{m.group(1)}\s*\{{", text[max(0, start - 2000) : start]))
+            if path and self.model.known(path[-1].group(1)):
+                self.variant_fields[(path[-1].group(1), m.group(1))].add(m.group(2))
+            return
         m = re.match(r"no field `(\w+)` on type `([^`]+)`", msg)
         if code == "E0609" and m:
             base = base_of(m.group(2))
             if base and self.model.known(base[1]) and m.group(1) not in self.model.struct_fields:
                 self.read_fields[base[1]].add(m.group(1))
+            elif base and self.model.known(base[1]) and m.group(1) not in self.model.fields.get(base[1], {}):
+                receiver = re.search(r"(?<![\w.])((?:[a-z_]\w*\.)*[a-z_]\w*)\.\s*$", text[:start])
+                if receiver:
+                    self.read_at[base[1]].add((receiver.group(1), m.group(1)))
             return
         if code in ("E0282", "E0283", "E0284", "E0790"):
             self.learn_return(text, start, end)
@@ -541,7 +606,10 @@ class Spec:
         """A stub whose return type the call site doesn't settle: `bool` for a question, `()` for a statement."""
         for m in re.finditer(r"(\w+)\s*(?:::<[^(]*>)?\s*\(", text[start : max(end, start + 200)]):
             name = m.group(1)
-            keys = [k for k in self.stub_keys() if k.split("::")[-1] == name]
+            # Only the stubs the call can be: a stub's name alone also names Cantrip's own function of that name
+            # (`spell(..)` beside a proposed `cost_branch::spell(..)`).
+            before = text[max(0, start + m.start(1) - 200) : start + m.start(1)]
+            keys = [k for k in self.stub_keys() if k.split("::")[-1] == name and called_as(k, before)]
             if not keys:
                 continue
             at = start + m.start(1) + len(name)
@@ -603,8 +671,12 @@ class Spec:
             for name in names:
                 entry = self.methods[name]
                 query = any(k == "dyn" and t != "Game" for k, t in entry["bases"])
-                stores = not query and ty == "Game" and (entry["stores"] or bool(STORING & set(name.split("_"))))
+                stores = self.method_stores(name, ty)
                 bound = "Stored" if stores else "Data"
+                # A method of a value a CardDef field holds (`ability(..).divide(..)`) builds that table entry: what
+                # it is given is held in the table, as a field of it would be.
+                if kind != "dyn" and self.model.in_card_def(ty):
+                    bound = self.payload(ty, out, seen)[len(ROOT) + 2 :]
                 receiver = "&mut self" if ty == "Game" and not query else "&self"
                 arity = entry["arity"].most_common(1)[0][0]
                 ret, generic = self.ret(f"m::{name}", entry.get("tried"))
@@ -651,19 +723,55 @@ class Spec:
                             f"core::mem::forget(v) }}" for f in sorted(names))
             fields.append(f"pub mod {ty} {{\n{fns}\n}}")
         out.append("pub mod field {\n" + "\n".join(fields) + "\n}")
-        for ty, names in sorted(self.read_fields.items()):
+        read = collections.defaultdict(set)
+        for ty, names in self.read_fields.items():
+            read[ty] |= names
+        for ty, pairs in self.read_at.items():
+            read[ty] |= {f for _, f in pairs}
+        for ty, names in sorted(read.items()):
             bound = self.payload(ty, out, seen)
             fns = "\n".join(f"    /// Proposed: a field of `{ty}`.\n    fn {f}<R: {bound}>(&self) -> R {{ panic!({PANIC_RS}) }}\n"
                             f"    fn {f}__set<V: {bound}>(&mut self, v: V) {{}}" for f in sorted(names))
             out.append(f"pub trait ProposedField_{ty} {{\n{fns}\n}}\nimpl ProposedField_{ty} for {ty} {{}}")
+        # New fields of an existing enum's variant, as a pattern binds them: read off the value matched, as the
+        # field would be held.
+        by_enum = collections.defaultdict(list)
+        for (ty, variant), names in sorted(self.variant_fields.items()):
+            bound = self.payload(ty, out, seen)
+            fns = "\n".join(f"        /// Proposed: a field of `{ty}::{variant}`.\n        pub fn {f}<R: {bound}, S>(s: "
+                            f"S) -> &'static R {{ panic!({PANIC_RS}) }}" for f in sorted(names))
+            by_enum[ty].append(f"    pub mod {variant} {{\n{fns}\n    }}")
+        out.append("pub mod variant_field {\n" + "\n".join(f"pub mod {ty} {{\n" + "\n".join(mods) + "\n}"
+                                                       for ty, mods in sorted(by_enum.items())) + "\n}")
         return "\n\n".join(out) + "\n"
+
+    def method_stores(self, name, ty):
+        """Whether the stubbed method `name`, called on `ty`, keeps its arguments in the game state."""
+        entry = self.methods[name]
+        query = any(k == "dyn" and t != "Game" for k, t in entry["bases"])
+        return not query and ty == "Game" and (entry["stores"] or bool(STORING & set(name.split("_"))))
+
+    def data_method_call(self):
+        """A call of a method `data_methods` names, or None."""
+        if getattr(self, "_data_call", False) is False:
+            methods = self.data_methods()
+            self._data_call = re.compile(rf"\.({'|'.join(sorted(map(re.escape, methods)))})\s*(?:::<[^(]*>)?\s*\(") \
+                if methods else None
+        return self._data_call
+
+    def data_methods(self):
+        """The stubbed methods that take data read as they run, on no receiver that keeps it."""
+        return {name for name, entry in self.methods.items()
+                if not any(self.method_stores(name, ty) for _, ty in entry["bases"])}
 
     def type_path(self, ty):
         if ty in self.types:
             module = self.types[ty]["module"]
             return f"{ROOT}::{module + '::' if module else ''}{ty}{self.generics(ty, bare=True)}"
         lifetimes = self.model.lifetimes.get(ty, 0)
-        return f"{ty}<{', '.join(["'_"] * lifetimes)}>" if lifetimes else ty
+        # By its own crate's path: `cantrip_state::object::Player` is no name `cantrip_api::*` brings in.
+        path = self.paths.get(ty, ty)
+        return f"{path}<{', '.join(["'_"] * lifetimes)}>" if lifetimes else path
 
     def generics(self, ty, bare=False):
         use = self.types.get(ty)
@@ -683,10 +791,11 @@ class Spec:
                     f"{{ panic!({PANIC_RS}) }}")
         arity = entry["arity"].most_common(1)[0][0]
         calls = sum(entry["arity"].values())
-        stores = bool(STORING & set(name.split("_")))
         # The game passed on (`g`, `q`): borrowed, as Cantrip's mechanics take `&mut dyn Game` or `&dyn Query`.
         handles = {i: kinds.most_common(1)[0][0] for i, kinds in entry["handles"].items()
                    if sum(kinds.values()) * 2 >= calls}
+        # What it keeps, it keeps in the game it is given to change.
+        stores = bool(STORING & set(name.split("_"))) and "mut" in handles.values()
         ret, generic = self.ret(f"f::{module}::{name}", entry.get("tried"))
         params, args, forget = [], [], ""
         for i in range(arity):
@@ -786,7 +895,7 @@ class Spec:
             fields = sorted(fields)
             typed, params = [], []
             for f in fields:
-                known = self.model.field_type(ty, f)
+                known = self.model.field_type(ty, f, fields)
                 if known:
                     typed.append(f"pub {f}: {known}")
                 else:
@@ -847,6 +956,10 @@ class Spec:
             alt = "|".join(fields)
             rules.append((".", rf"\.({alt})\s*=(?!=)\s*([^;]*);", r".\1__set(\2);"))
             rules.append((".", rf"\.({alt})\b(?!\s*[(:])", r".\1()"))
+        for receiver, field in sorted({pair for pairs in self.read_at.values() for pair in pairs}):
+            at = rf"(?<![\w.]){re.escape(receiver)}\s*\.\s*{field}\b"
+            rules.append((f".{field}", rf"({at})\s*=(?!=)\s*([^;]*);", rf"{receiver}.{field}__set(\2);"))
+            rules.append((f".{field}", rf"({at})(?!\s*[(:])", rf"{receiver}.{field}()"))
         return rules
 
     def own_consts(self, ty, use):
@@ -934,6 +1047,49 @@ def drop_new_fields(text, new_fields):
     return text
 
 
+def variant_new_fields(text, variant_fields):
+    """`if let Enum::Variant { a, new: p, .. } = s {`, where `new` is a field the variant doesn't have, as
+    `if let (p, Enum::Variant { a, .. }) = (variant_field::Enum::Variant::new(&s), s) {`: the field read off the value
+    matched, its pattern binding as the field's would."""
+    for (ty, variant), names in variant_fields.items():
+        if variant not in text:
+            continue
+        pat = re.compile(rf"\bif\s+let\s+((?:cantrip_api::)?{ty}::{variant}\s*)\{{")
+        at = 0
+        while m := pat.search(text, at):
+            open_at = m.end() - 1
+            close = balanced(text, open_at)
+            eq = re.compile(r"\s*=(?!=)\s*").match(text, close)
+            if not eq:
+                at = close
+                continue
+            # The scrutinee runs to the body's brace.
+            depth, end = 0, eq.end()
+            while end < len(text) and not (text[end] == "{" and depth == 0):
+                depth += 1 if text[end] in "([" else -1 if text[end] in ")]" else 0
+                end += 1
+            scrutinee = text[eq.end() : end].strip()
+            kept, reads = [], []
+            for part in split_args(text[open_at + 1 : close - 1]):
+                f = re.match(r"(\w+)\s*(?::\s*(.*))?$", part.strip(), re.S)
+                if f and f.group(1) in names:
+                    reads.append(((f.group(2) or f.group(1)).strip(),
+                                  f"{ROOT}::variant_field::{ty}::{variant}::{f.group(1)}(&{scrutinee})"))
+                elif part.strip():
+                    kept.append(part.strip())
+            if not reads:
+                at = close
+                continue
+            if ".." not in kept:
+                kept.append("..")
+            patterns = ", ".join([p for p, _ in reads] + [f"{m.group(1)}{{ {', '.join(kept)} }}"])
+            values = ", ".join([r for _, r in reads] + [scrutinee])
+            new = f"if let ({patterns}) = ({values}) "
+            text = text[: m.start()] + new + text[end:]
+            at = m.start() + len(new)
+    return text
+
+
 def struct_variants(text, spec):
     """A struct variant Cantrip doesn't have, `on::Type::Variant { .. }`: as a pattern, matched against the shim of the
     variant its scrutinee is read as; as an expression, made by `make`, which asks what the type derives of its fields."""
@@ -964,7 +1120,30 @@ def struct_variants(text, spec):
         else:
             name_end = m.start(1)
             text = text[:name_end] + "_new" + text[name_end:close] + ".make()" + text[close:]
-            at = close + len("_new") + len(".make()")
+            # On inside it: a field's value may be another new struct variant, made the same way.
+            at = m.end() + len("_new")
+
+
+def fn_items_as_pointers(text, pat):
+    """Each function the file defines, given by name to a stubbed method that takes data, as its `fn` pointer: what
+    Cantrip's method would take (`AbilityDef::condition` takes `fn(&dyn Query, &Asker) -> bool`), so the item coerces
+    there, and a pointer is data (`Debug`) where a function item is not. A closure stays as it is."""
+    if pat is None:
+        return text
+    out, at = [], 0
+    for m in pat.finditer(text):
+        if m.start() < at:
+            continue
+        close = balanced(text, m.end() - 1)
+        args = split_args(text[m.end() : close - 1])
+        cast = []
+        for a in args:
+            pointer = fn_pointer(text, a) if re.fullmatch(r"[a-z_]\w*", a) else None
+            cast.append(f"({a} as {pointer})" if pointer else a)
+        if cast != args:
+            out.append(text[at : m.end()] + ", ".join(cast) + ")")
+            at = close
+    return "".join(out) + text[at:]
 
 
 def rewrite(text, model, spec=None):
@@ -975,6 +1154,8 @@ def rewrite(text, model, spec=None):
         if key in text:
             text = old.sub(new, text)
     text = drop_new_fields(text, spec.new_fields)
+    text = variant_new_fields(text, spec.variant_fields)
+    text = fn_items_as_pointers(text, spec.data_method_call())
     return struct_variants(text, spec)
 
 
@@ -1004,8 +1185,10 @@ impl<T: std::fmt::Debug + ?Sized> Data for T {{}}
 pub trait TableEntry: Copy + Sync + 'static {{}}
 impl<T: Copy + Sync + 'static> TableEntry for T {{}}
 
-/// An entry of a list `CardDef` does not have yet, as the card's static would hold it.
-pub const fn new_card_entry<T: TableEntry>(_: T) {{}}
+/// An entry of a list `CardDef` does not have yet, as the card's static would hold it: in a static of its own, so what
+/// it borrows lives as long as a static's initializer makes it (a `const` given it as an argument would not).
+pub trait NewCardEntry: Sync {{}}
+impl<T: TableEntry> NewCardEntry for T {{}}
 '''
 
 
@@ -1031,14 +1214,27 @@ class Compiler:
         env = dict(os.environ, CANTRIP_PROPOSALS=str(probe), CARGO_TARGET_DIR=str(self.target))
         env.update(CARGO_INCREMENTAL="0", CARGO_PROFILE_DEV_DEBUG="0")
         run = subprocess.run(
-            ["cargo", "check", "-v", "-p", "cantrip-generated", "--features", "proposals"],
+            ["cargo", "check", "-v", "-p", "cantrip-generated", "--features", "proposals", "--message-format=json"],
             cwd=self.cantrip, env=env, capture_output=True, text=True,
         )
+        # The stubs name a type of the state's that `cantrip_api` doesn't re-export by its own crate
+        # (`cantrip_state::object::Player`), as the card crate's own build would once it depends on it: the metadata cargo
+        # made for that crate in this build.
+        state = []
+        for line in run.stdout.splitlines():
+            try:
+                message = json.loads(line)
+            except ValueError:
+                continue
+            if message.get("reason") == "compiler-artifact" and message.get("target", {}).get("name") == "cantrip_state":
+                state = [f for f in message.get("filenames", []) if f.endswith(".rmeta")]
         cache = self.work / "rustc.json"
         for line in run.stderr.splitlines():
             m = re.search(r"Running `(.*--crate-name cantrip_generated .*)`$", line.strip())
             if m:
                 words = shlex.split(m.group(1))
+                if state:
+                    words += ["--extern", f"cantrip_state={state[0]}"]
                 cache.write_text(json.dumps(words))
                 break
         else:
@@ -1110,6 +1306,138 @@ def bound_in(d):
     return trait, where
 
 
+def enclosing(text, at):
+    """The bracket that holds `text[at]` and the path just before it: ("(", "crate::proposals::x::f") for an argument,
+    ("{", "ManaRule") for a field of a literal; None at the top."""
+    depth, j = 0, at - 1
+    while j >= 0:
+        c = text[j]
+        if c in ")]}":
+            depth += 1
+        elif c in "([{":
+            if depth == 0:
+                m = re.search(r"((?:[\w]+::)*\.?\w+)\s*(?:::<[^()]*>)?\s*$", text[max(0, j - 300) : j])
+                return (c, m.group(1) if m else "")
+            depth -= 1
+        j -= 1
+    return None
+
+
+def given_to_stub(text, at, spec):
+    """Whether the value at `text[at]` is an argument of a stub or a field of a struct the proposal has, whose type
+    no stub can give: a stub's parameter is generic, so nothing settles what a bare `None` or a closure's
+    parameters are, as Cantrip's own signature would."""
+    held = enclosing(text, at) if text else None
+    if not held:
+        return False
+    bracket, path = held
+    name = path.lstrip(".").split("::")[-1]
+    if "proposals::" in path:
+        return True
+    if bracket == "(":
+        return name in {k.split("::")[-1] for k in spec.stub_keys()}
+    return bracket == "{" and (name in spec.types or name in spec.new_fields)
+
+
+def read_from_untyped_field(text, at, name, spec):
+    """Whether `let name = *field` at `text[at]` reads a field a pattern of a new struct variant bound, which the
+    variant's shim holds generically: no other variant of the enum types a field of that name, so nothing but
+    Cantrip's own variant could say what it is."""
+    if not text or not re.fullmatch(r"\w+", name or ""):
+        return False
+    m = re.compile(rf"{re.escape(name)}\s*=\s*\*?(\w+)\s*;").match(text, at)
+    if not m:
+        return False
+    field = m.group(1)
+    before = text[max(0, at - 3000) : at]
+    for p in re.finditer(rf"{re.escape(ROOT)}::on::(\w+)::(\w+)\s*\{{([^}}]*)\}}\s*=\s*{re.escape(ROOT)}::on::\1::\2::of\(",
+                         before):
+        if re.search(rf"\b{re.escape(field)}\b", p.group(3)) and not spec.model.field_type(p.group(1), field):
+            return True
+    return False
+
+
+def generic_returns(spec):
+    """The names of stubs whose return is the generic `R`, no call site having settled it."""
+    keys = [f"m::{n}" for n in spec.methods] + [f"f::{m}::{n}" for m, n in spec.fns if spec.fns[(m, n)]["arity"]]
+    for owner, uses in (("on", spec.on), ("t", spec.types)):
+        keys += [f"{owner}::{ty}::{n}" for ty, use in uses.items() for n in use["fns"]]
+    return {k.split("::")[-1] for k in keys if spec.rets.get(k) is None}
+
+
+def bound_to_stub_value(text, at, name, spec):
+    """Whether `let name = ...` at `text[at]` binds the value a stub call ends with (through a `planned_value!` or a
+    block reading `q`), when no call site settles that stub's return: its type is the stub's generic `R`, which only
+    Cantrip's own signature would give (`g.ante(&objects)` is a `Vec<ObjectId>` there)."""
+    if not text or not re.fullmatch(r"\w+", name or ""):
+        return False
+    m = re.compile(rf"{re.escape(name)}\s*(?::[^=;]*)?=(?!=)").match(text, at)
+    if not m:
+        return False
+    end = m.end()
+    while end < len(text) and text[end] != ";":
+        end = balanced(text, end) if text[end] in "([{" else skip_string(text, end) if text[end] in "\"'" and \
+            skip_string(text, end) != end else end + 1
+    rhs = text[m.end() : end]
+    generic = generic_returns(spec)
+    for c in re.finditer(r"(\w+)\s*(?:::<[^()]*>)?\s*\(", rhs):
+        close = balanced(rhs, c.end() - 1)
+        if c.group(1) in generic and re.fullmatch(r"[\s)}?]*", rhs[close:]):
+            return True
+    return False
+
+
+def constant_of_proposed_ctors(snippet, spec):
+    """Whether `snippet`, a temporary borrowed for `'static`, is constant data a real enum would promote to a static:
+    variants and constants only, with no local, closure or method call, one of them a proposed variant, which the stubs
+    make a `const fn` (`&[GrantedAbility::Delayed(0)]`, `&[ManaRestriction::Lasts(Duration::EndOfTurn)]`)."""
+    bare = re.sub(r'"(?:\\.|[^"\\])*"', "", snippet)
+    words = re.findall(r"\b[A-Za-z_]\w*\b", bare)
+    path = {"crate", "proposals", "on", "planned_value"}
+    if not words or any(not (w[0].isupper() or w in path) for w in words):
+        return False
+    ctors = {(k.split("::")[1], k.split("::")[2]) for k in spec.stub_keys() if k.split("::")[0] in ("on", "t")}
+    return any((m.group(1), m.group(2)) in ctors for m in re.finditer(r"\b([A-Z]\w*)::([A-Z]\w*)\s*\(", bare))
+
+
+FOLLOWS_GAP = "depends on an instruction with a gap"
+
+
+def in_value_code(text, at):
+    """Whether `text[at]` begins the code of a `planned_value!`, after its `=>`, and the feature it is for."""
+    head = text[:at]
+    v = head.rfind("planned_value!(")
+    if v < 0 or not head.rstrip().endswith("=>") or head.rfind("planned!(") > v:
+        return None
+    m = re.match(r'planned_value!\("((?:\\.|[^"\\])*)"', head[v:])
+    return m.group(1) if m else None
+
+
+def described_value(text, at, snippet):
+    """Whether `snippet` at `text[at]`, all the code of a `planned_value!`, is the RON the generator describes a value
+    with where it has no code for it (`planned_read`): a description, as a `planned!("id", Form, ..)` hole is, not code."""
+    return bool(text) and re.fullmatch(r'"\((?:\\.|[^"\\])*\)"', snippet or "") is not None and \
+        in_value_code(text, at) is not None and text[at + len(snippet) :].lstrip().startswith(")")
+
+
+def reads_a_described_result(text, at, snippet):
+    """Whether `result_N` at `text[at]`, what a later instruction reads of one with a gap (`planned::unreported`), is
+    made by an instruction whose hole describes it (`planned!("id", Form, ..)`) and holds no code to bind it: the read
+    is the code the card will have, and only that hole's code, when it has some, can say what `result_N` is."""
+    if not text or not re.fullmatch(r"result_\d+", snippet or "") or in_value_code(text, at) != FOLLOWS_GAP:
+        return False
+    if re.search(rf"\blet\s+(?:mut\s+)?{snippet}\b", text):
+        return False
+    head = text[:at]
+    starts = [m.start() for m in re.finditer(r"(?:^|\n|\] )fn \w+\(", head)]
+    holes = list(re.finditer(r'planned!\("[^"]*"(?:(, \w+)| => (.{0,40}))', head[starts[-1] if starts else 0 :]))
+    for hole in reversed(holes):
+        if hole.group(2) is not None and re.match(r"g\.(begin|end)_\w+\(\)", hole.group(2)):
+            continue
+        return hole.group(1) is not None
+    return False
+
+
 def classify(d, text, spec):
     """(class, stub_fault) for one error."""
     code = (d.get("code") or {}).get("code")
@@ -1131,8 +1459,16 @@ def classify(d, text, spec):
             return "stub layer: a stub's return or argument type the call doesn't settle", True
         if "closure parameter" in rendered and (stubbed or any(re.search(rf"\b{re.escape(n)}\s*\(", snippet) for n in names)):
             return "stub layer: a closure's parameter types, which a stub's generic argument doesn't give", True
+        if snippet == "None" and "declared on the enum `Option`" in rendered and given_to_stub(text, span["byte_start"], spec):
+            return "stub layer: a bare None given to a stub's generic argument or a proposed struct's field", True
+        if read_from_untyped_field(text, span["byte_start"], snippet, spec):
+            return "stub layer: a field of a new variant no other variant of its enum types", True
+        if bound_to_stub_value(text, span["byte_start"], snippet, spec) or \
+                any(re.search(rf"\b{re.escape(n)}\s*\(", snippet) for n in generic_returns(spec)):
+            return "stub layer: a stub's return or argument type the call doesn't settle", True
         return "type annotations needed", False
-    if "`!`" in msg:
+    if "`!`" in msg or (code == "E0277" and re.search(r"<!>|`!`", msg)):
+        # Only a stub's `panic!` body gives a value the type `!`: no card code does.
         return "stub layer: a stub's value its call doesn't type", True
     if code == "E0107":
         return "stub layer: generic arguments given to a stub (a turbofish or a proposed struct named bare)", True
@@ -1142,6 +1478,9 @@ def classify(d, text, spec):
         return "stub layer: a new tuple variant matched in a pattern", True
     if code == "E0308" and stubbed and "fn item" in rendered:
         return "stub layer: a stubbed function used as a value (a fn pointer)", True
+    if code == "E0716" and "'static" in rendered and constant_of_proposed_ctors(snippet, spec):
+        return ("stub layer: a constant of proposed variants borrowed for 'static (a stub's constructor is a function, "
+                "which isn't promoted to a static as a variant is)"), True
     if code == "E0277":
         trait, where = bound_in(d)
         if trait == "Stored":
@@ -1158,6 +1497,10 @@ def classify(d, text, spec):
         trait, _ = bound_in(d)
         owner = trait[8:] if trait and trait.startswith("Derives_") else "its type"
         return f"inside {owner} but without what it derives (variant {m.group(1)})", False
+    if code == "E0425" and reads_a_described_result(text, span["byte_start"], snippet):
+        return "described, not proposed: a result read of an instruction whose hole has no code to bind it", True
+    if code == "E0308" and described_value(text, span["byte_start"], snippet):
+        return "described, not proposed: a value the generator has only the RON of", True
     if code == "E0425" and re.match(r"cannot find value `[a-z_]\w*`", msg):
         return "a local the hole names isn't in scope", False
     if code is None:
@@ -1250,7 +1593,9 @@ def run(cantrip, stems, work, target, jobs, sources=None, passes=8, quiet=False)
     def texts(path):
         if path not in cache:
             try:
-                cache[path] = Path(path).read_text(encoding="utf-8")
+                # rustc's spans are byte offsets: one character a byte, so an index is one (an Oracle text's dash
+                # is three, in a comment).
+                cache[path] = Path(path).read_bytes().decode("latin-1")
             except OSError:
                 cache[path] = None
         return cache[path]

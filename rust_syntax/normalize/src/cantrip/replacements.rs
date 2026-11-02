@@ -398,7 +398,7 @@ impl Compiler {
                 let players = self.fetch(self.players(players)?);
                 self.plan_code(
                     "event change as it enters SetController",
-                    &format!("let players = {players}; entering.controller = cantrip_mechanics::choose::player(g, entering.controller, entering.object, &players)?;"),
+                    &format!("let players = {players}; if let Some(chosen) = cantrip_mechanics::choose::player(g, entering.controller, entering.object, players, \"GainControl\", 0)? {{ entering.controller = chosen; }}"),
                     out,
                 );
             }
