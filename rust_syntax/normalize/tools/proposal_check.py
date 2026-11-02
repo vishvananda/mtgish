@@ -22,6 +22,9 @@ The constraints come from how Cantrip stores and dispatches, never from the prop
   or keeps something takes `Stored` data besides the game itself.
 - A struct of the proposal's own holds what a table holds: a function its literal names is a `fn` pointer of that
   function's signature, a string a `&'static str`, a variant its enum; a field nothing settles stays generic.
+- A function the card defines, given by name to a method that takes data, is its `fn` pointer, as Cantrip's method
+  would take it (`AbilityDef::condition`); never to one that keeps it in the game state, which holds no functions.
+- A bare `None` given to a stub's generic argument, or to a field nothing else settles, is the stub's to type.
 
 All 5,289 planned cards take about 90 s (four passes of 48 shards); a handful, about 2 s.
 """
@@ -361,6 +364,7 @@ class Spec:
         """Add what `diags` say is missing; True if anything is new."""
         before = self.fingerprint()
         self._rules = None
+        self._data_call = False
         for d in diags:
             span = primary(d)
             if not span or span["file_name"].endswith("stubs.rs"):
@@ -603,7 +607,7 @@ class Spec:
             for name in names:
                 entry = self.methods[name]
                 query = any(k == "dyn" and t != "Game" for k, t in entry["bases"])
-                stores = not query and ty == "Game" and (entry["stores"] or bool(STORING & set(name.split("_"))))
+                stores = self.method_stores(name, ty)
                 bound = "Stored" if stores else "Data"
                 receiver = "&mut self" if ty == "Game" and not query else "&self"
                 arity = entry["arity"].most_common(1)[0][0]
@@ -657,6 +661,25 @@ class Spec:
                             f"    fn {f}__set<V: {bound}>(&mut self, v: V) {{}}" for f in sorted(names))
             out.append(f"pub trait ProposedField_{ty} {{\n{fns}\n}}\nimpl ProposedField_{ty} for {ty} {{}}")
         return "\n\n".join(out) + "\n"
+
+    def method_stores(self, name, ty):
+        """Whether the stubbed method `name`, called on `ty`, keeps its arguments in the game state."""
+        entry = self.methods[name]
+        query = any(k == "dyn" and t != "Game" for k, t in entry["bases"])
+        return not query and ty == "Game" and (entry["stores"] or bool(STORING & set(name.split("_"))))
+
+    def data_method_call(self):
+        """A call of a method `data_methods` names, or None."""
+        if getattr(self, "_data_call", False) is False:
+            methods = self.data_methods()
+            self._data_call = re.compile(rf"\.({'|'.join(sorted(map(re.escape, methods)))})\s*(?:::<[^(]*>)?\s*\(") \
+                if methods else None
+        return self._data_call
+
+    def data_methods(self):
+        """The stubbed methods that take data read as they run, on no receiver that keeps it."""
+        return {name for name, entry in self.methods.items()
+                if not any(self.method_stores(name, ty) for _, ty in entry["bases"])}
 
     def type_path(self, ty):
         if ty in self.types:
@@ -967,6 +990,28 @@ def struct_variants(text, spec):
             at = close + len("_new") + len(".make()")
 
 
+def fn_items_as_pointers(text, pat):
+    """Each function the file defines, given by name to a stubbed method that takes data, as its `fn` pointer: what
+    Cantrip's method would take (`AbilityDef::condition` takes `fn(&dyn Query, &Asker) -> bool`), so the item coerces
+    there, and a pointer is data (`Debug`) where a function item is not. A closure stays as it is."""
+    if pat is None:
+        return text
+    out, at = [], 0
+    for m in pat.finditer(text):
+        if m.start() < at:
+            continue
+        close = balanced(text, m.end() - 1)
+        args = split_args(text[m.end() : close - 1])
+        cast = []
+        for a in args:
+            pointer = fn_pointer(text, a) if re.fullmatch(r"[a-z_]\w*", a) else None
+            cast.append(f"({a} as {pointer})" if pointer else a)
+        if cast != args:
+            out.append(text[at : m.end()] + ", ".join(cast) + ")")
+            at = close
+    return "".join(out) + text[at:]
+
+
 def rewrite(text, model, spec=None):
     text = base_rewrite(text, model)
     if spec is None:
@@ -975,6 +1020,7 @@ def rewrite(text, model, spec=None):
         if key in text:
             text = old.sub(new, text)
     text = drop_new_fields(text, spec.new_fields)
+    text = fn_items_as_pointers(text, spec.data_method_call())
     return struct_variants(text, spec)
 
 
@@ -1110,6 +1156,39 @@ def bound_in(d):
     return trait, where
 
 
+def enclosing(text, at):
+    """The bracket that holds `text[at]` and the path just before it: ("(", "crate::proposals::x::f") for an argument,
+    ("{", "ManaRule") for a field of a literal; None at the top."""
+    depth, j = 0, at - 1
+    while j >= 0:
+        c = text[j]
+        if c in ")]}":
+            depth += 1
+        elif c in "([{":
+            if depth == 0:
+                m = re.search(r"((?:[\w]+::)*\.?\w+)\s*(?:::<[^()]*>)?\s*$", text[max(0, j - 300) : j])
+                return (c, m.group(1) if m else "")
+            depth -= 1
+        j -= 1
+    return None
+
+
+def given_to_stub(text, at, spec):
+    """Whether the value at `text[at]` is an argument of a stub or a field of a struct the proposal has, whose type
+    no stub can give: a stub's parameter is generic, so nothing settles what a bare `None` or a closure's
+    parameters are, as Cantrip's own signature would."""
+    held = enclosing(text, at) if text else None
+    if not held:
+        return False
+    bracket, path = held
+    name = path.lstrip(".").split("::")[-1]
+    if "proposals::" in path:
+        return True
+    if bracket == "(":
+        return name in {k.split("::")[-1] for k in spec.stub_keys()}
+    return bracket == "{" and (name in spec.types or name in spec.new_fields)
+
+
 def classify(d, text, spec):
     """(class, stub_fault) for one error."""
     code = (d.get("code") or {}).get("code")
@@ -1131,6 +1210,8 @@ def classify(d, text, spec):
             return "stub layer: a stub's return or argument type the call doesn't settle", True
         if "closure parameter" in rendered and (stubbed or any(re.search(rf"\b{re.escape(n)}\s*\(", snippet) for n in names)):
             return "stub layer: a closure's parameter types, which a stub's generic argument doesn't give", True
+        if snippet == "None" and "declared on the enum `Option`" in rendered and given_to_stub(text, span["byte_start"], spec):
+            return "stub layer: a bare None given to a stub's generic argument or a proposed struct's field", True
         return "type annotations needed", False
     if "`!`" in msg:
         return "stub layer: a stub's value its call doesn't type", True
@@ -1250,7 +1331,9 @@ def run(cantrip, stems, work, target, jobs, sources=None, passes=8, quiet=False)
     def texts(path):
         if path not in cache:
             try:
-                cache[path] = Path(path).read_text(encoding="utf-8")
+                # rustc's spans are byte offsets: one character a byte, so an index is one (an Oracle text's dash
+                # is three, in a comment).
+                cache[path] = Path(path).read_bytes().decode("latin-1")
             except OSError:
                 cache[path] = None
         return cache[path]

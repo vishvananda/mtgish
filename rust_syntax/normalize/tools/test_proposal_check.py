@@ -239,6 +239,18 @@ class CheckCopy(unittest.TestCase):
         text = 'planned_item!("a" => static RULES: &[LastingRule] = &[]);\nplanned_item!("b" => fn rule_0() {});\n'
         self.assertEqual(pc.base_rewrite(text, MODEL), text)
 
+    def test_a_function_given_to_a_method_that_takes_data_is_its_fn_pointer(self):
+        text = ("fn who_0(q: &dyn Query, asker: &Asker, player: PlayerId) -> bool { true }\n"
+                "static A: AbilityDef = ability(c, e, \"x\").activated_by(who_0).also(|q| true);\n"
+                "fn f(g: &mut dyn Game) { g.add_rule(who_0); }\n")
+        spec = learnt(method("activated_by", text, on="dyn Query"), method("also", text, on="dyn Query"),
+                      method("add_rule", text))
+        out = pc.rewrite(text, MODEL, spec)
+        self.assertIn(".activated_by((who_0 as fn(&dyn Query, &Asker, PlayerId) -> bool))", out)
+        self.assertIn(".also(|q| true)", out)
+        # What the game state keeps is no function, nor a pointer to one.
+        self.assertIn("g.add_rule(who_0)", out)
+
     def test_a_held_matcher_replaces_its_placeholder(self):
         text = ("fn fired_0(q: &dyn Query, asker: &Asker, event: &Event) -> Option<Fired> { None }\n"
                 'planned_item!("a" => matcher: fn fired_0(q: &dyn Query, asker: &Asker, event: &Event) -> '
@@ -267,6 +279,15 @@ class Classify(unittest.TestCase):
         self.assertTrue(pc.classify(self.error("E0308", "mismatched types", file="/w/stubs.rs"), "", spec)[1])
         self.assertTrue(pc.classify(self.error("E0282", "type annotations needed",
                                                "cannot infer type of the type parameter `R`"), "", spec)[1])
+
+    def test_a_bare_none_given_to_a_stub_is_the_stubs_fault(self):
+        text = "x(crate::proposals::mechanics::m::f(g, None)); let y: Option<u8> = keep(None);"
+        d = diag("E0282", "type annotations needed", text, text.index("None"), 4)
+        d["rendered"] = "cannot infer type of the type parameter `T` declared on the enum `Option`"
+        self.assertTrue(pc.classify(d, text, pc.Spec(MODEL))[1])
+        d = diag("E0282", "type annotations needed", text, text.rindex("None"), 4)
+        d["rendered"] = "cannot infer type of the type parameter `T` declared on the enum `Option`"
+        self.assertEqual(pc.classify(d, text, pc.Spec(MODEL)), ("type annotations needed", False))
 
     def test_a_local_the_hole_names_out_of_scope_is_the_proposals_fault(self):
         self.assertEqual(pc.classify(self.error("E0425", "cannot find value `result_0` in this scope"), "",
