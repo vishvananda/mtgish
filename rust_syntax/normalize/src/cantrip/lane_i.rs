@@ -965,8 +965,9 @@ impl Compiler {
         Ok(())
     }
     /// "Do this or do that", asked as it resolves. The options' words are the
-    /// card's, which the IR no longer has: the question waits on them, and each
-    /// option is real.
+    /// card's (`option_words`): one whose list can't be read waits on them, and
+    /// each option is real. An option that can't be taken is not offered, and
+    /// with only one left nothing is asked (CR 608.2d).
     pub(super) fn choose_one(
         &mut self,
         decider: &PlayerRef,
@@ -975,29 +976,140 @@ impl Compiler {
     ) -> Result<()> {
         let id = self.fresh();
         let player = self.certain_player(decider).map(|p| self.fetch(p));
-        let decider = planned::planned_read(player, "asker.controller", decider);
-        let labels: Vec<String> = (0..options.len())
-            .map(|i| format!("Label::Card(card_{id}, {i})"))
-            .collect();
-        let pick = planned::planned_value(
-            "instruction ChooseOne",
-            "0u8",
-            &format!(
-                "cantrip_mechanics::choose::one_of(g, decider_{id}, asker.source, vec![{}])?",
-                labels.join(", ")
-            ),
-        );
-        writeln!(out, "let decider_{id} = {decider}; match {pick} {{").unwrap();
-        for (i, option) in options.iter().enumerate() {
-            match i + 1 == options.len() {
-                true => writeln!(out, "_ => {{").unwrap(),
-                false => writeln!(out, "{i} => {{").unwrap(),
+        let decider_code = planned::planned_read(player, "asker.controller", decider);
+        writeln!(out, "let decider_{id} = {decider_code};").unwrap();
+        let Some(base) = self.option_labels_of(options) else {
+            let labels: Vec<String> = (0..options.len())
+                .map(|i| format!("Label::Card(card_{id}, {i})"))
+                .collect();
+            let pick = planned::planned_value(
+                "instruction ChooseOne",
+                "0u8",
+                &format!(
+                    "cantrip_mechanics::choose::one_of(g, decider_{id}, asker.source, vec![{}])?",
+                    labels.join(", ")
+                ),
+            );
+            writeln!(out, "match {pick} {{").unwrap();
+            for (i, option) in options.iter().enumerate() {
+                match i + 1 == options.len() {
+                    true => writeln!(out, "_ => {{").unwrap(),
+                    false => writeln!(out, "{i} => {{").unwrap(),
+                }
+                self.block(option, out, true)?;
+                writeln!(out, "}}").unwrap();
             }
+            writeln!(out, "}}").unwrap();
+            return Ok(());
+        };
+        let card = match self.stack_item {
+            true => "item.ability.card".to_string(),
+            false => "g.card_id(&CARD)".to_string(),
+        };
+        let offered: Vec<String> = options
+            .iter()
+            .enumerate()
+            .map(|(i, option)| format!("({}u8, {})", base + i, self.option_possible(option)))
+            .collect();
+        writeln!(
+            out,
+            "let offered_{id}: Vec<u8> = [{}].into_iter().filter(|option| option.1).map(|option| option.0).collect(); let card_{id} = {card}; let picked_{id} = if offered_{id}.len() > 1 {{ offered_{id}[cantrip_mechanics::choose::one_of(g, decider_{id}, asker.source, offered_{id}.iter().map(|&option| Label::Card(card_{id}, option)).collect())? as usize] }} else {{ offered_{id}.first().copied().unwrap_or(u8::MAX) }}; match picked_{id} {{",
+            offered.join(", ")
+        )
+        .unwrap();
+        for (i, option) in options.iter().enumerate() {
+            writeln!(out, "{} => {{", base + i).unwrap();
             self.block(option, out, true)?;
             writeln!(out, "}}").unwrap();
         }
-        writeln!(out, "}}").unwrap();
+        writeln!(out, "_ => {{}}\n}}").unwrap();
         Ok(())
+    }
+    /// Where the options' words start in the card's `labels`, if the card's own
+    /// words say what they are. An option that does nothing is "Neither".
+    fn option_labels_of(&mut self, options: &[Program]) -> Option<usize> {
+        if self.entering_labels.is_some() && self.choice_labels.is_empty() {
+            return None;
+        }
+        let empty = |option: &Program| {
+            let mut steps = Vec::new();
+            lane_m::flat_groups(&option.instructions, &mut steps);
+            steps.is_empty()
+        };
+        let printed = options.iter().filter(|option| !empty(option)).count();
+        let declines = options.len() - printed;
+        if declines > 1 || (declines == 1 && !empty(options.last()?)) {
+            return None;
+        }
+        let mut labels = option_words::printed_options(&self.lines_said(), printed)?;
+        // "From that player's graveyard or hand" is printed the other way round.
+        if labels[0] == "Graveyard" && labels[1] == "Hand" {
+            labels.swap(0, 1);
+            if !format!("{:?}", options[0]).contains("Hand") {
+                return None;
+            }
+        }
+        if declines == 1 {
+            labels.push(if printed == 2 { "Neither" } else { "None" }.to_string());
+        }
+        let base = (0..=self.choice_labels.len().saturating_sub(labels.len()))
+            .find(|&at| self.choice_labels[at..].starts_with(&labels))
+            .unwrap_or_else(|| {
+                let at = self.choice_labels.len();
+                self.choice_labels.extend(labels);
+                at
+            });
+        self.option_labels = true;
+        let quoted_labels: Vec<String> = self.choice_labels.iter().map(|l| quoted(l)).collect();
+        self.entering_labels = Some(format!("&[{}]", quoted_labels.join(", ")));
+        Some(base)
+    }
+    /// `bool`: whether an option can be taken at all, by the step it starts with.
+    fn option_possible(&self, option: &Program) -> String {
+        let mut steps = Vec::new();
+        lane_m::flat_groups(&option.instructions, &mut steps);
+        let Some(Instruction::Effect { operation, .. }) = steps.first() else {
+            return "true".to_string();
+        };
+        let some = |objects: &ObjectSet| match self.objects(objects) {
+            Ok(code) => format!("!{}.is_empty()", self.fetch(code)),
+            Err(_) => "true".to_string(),
+        };
+        let hand = |players: &PlayerSet| match self.players(players) {
+            Ok(code) => self.fetch(format!(
+                "({code}).into_iter().any(|p: PlayerId| !q.state().zone(Zone::hand(p)).is_empty())"
+            )),
+            Err(_) => "true".to_string(),
+        };
+        match operation {
+            Operation::ChooseObjects { objects, .. } | Operation::Move { objects, .. } => {
+                some(objects)
+            }
+            Operation::Discard { players, .. } => hand(players),
+            Operation::RevealFromHand { actor, .. } => hand(actor),
+            Operation::Sacrifice {
+                objects, players, ..
+            } => match (self.objects(objects), self.players(players)) {
+                (Ok(pool), Ok(players)) => self.fetch(format!(
+                    "{{ let players: Vec<PlayerId> = {players}; ({pool}).into_iter().any(|o: ObjectId| players.contains(&q.obj(o).controller)) }}"
+                )),
+                _ => "true".to_string(),
+            },
+            Operation::RemoveCounters { removals } => match removals.as_slice() {
+                [CounterRemoval {
+                    recipients: Recipients::Objects(objects),
+                    kind: Some(kind),
+                    ..
+                }] => match (self.objects(objects), counter_kind(kind)) {
+                    (Ok(from), Ok(kind)) => self.fetch(format!(
+                        "({from}).into_iter().any(|o: ObjectId| q.state().obj(o).counters({kind}) > 0)"
+                    )),
+                    _ => "true".to_string(),
+                },
+                _ => "true".to_string(),
+            },
+            _ => "true".to_string(),
+        }
     }
     /// What `operation` has no arm for of its own.
     /// Whether targets of `slot` are items on the stack, abilities among them.

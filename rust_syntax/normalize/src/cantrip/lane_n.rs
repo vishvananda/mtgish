@@ -168,10 +168,63 @@ fn changes_event(program: &Program) -> bool {
     })
 }
 
+/// "Draw a card": the draw a "you may instead" leaves alone when it isn't taken,
+/// which the source says by replacing it with itself.
+fn goes_on_drawing(option: &Program) -> bool {
+    matches!(
+        option.instructions.as_slice(),
+        [Instruction::Effect {
+            operation: Operation::ModifyEvent {
+                change: EventChange::Cancel
+            },
+            ..
+        }, Instruction::Effect {
+            operation: Operation::Draw {
+                players: PlayerSet::One(PlayerRef::AbilityController),
+                amount: Expr::Constant(1),
+                ..
+            },
+            ..
+        }]
+    )
+}
+
 /// What "you may" gives the choice of, when it is the whole of a program that
 /// changes its event, and what follows "if you do".
 fn chosen_instead(steps: &[Instruction]) -> Option<(Program, Vec<Instruction>)> {
     match steps {
+        // "You may instead ...", read as a choice between that and the draw.
+        [Instruction::Effect {
+            operation:
+                Operation::ChooseAction {
+                    actor: PlayerSet::One(PlayerRef::AbilityController),
+                    options,
+                    villainous: false,
+                    ..
+                },
+            ..
+        }] => {
+            let options: Vec<Program> = options
+                .iter()
+                .map(lane_l::action_program)
+                .collect::<Option<_>>()?;
+            let (keep, instead) = options.split_last()?;
+            if !goes_on_drawing(keep) {
+                return None;
+            }
+            let body = match instead {
+                [one] => one.clone(),
+                [] => return None,
+                _ => Program {
+                    instructions: vec![Instruction::ChooseOne {
+                        decider: PlayerRef::AbilityController,
+                        options: instead.to_vec(),
+                        offered: None,
+                    }],
+                },
+            };
+            Some((body, Vec::new()))
+        }
         [Instruction::Optional {
             decider: PlayerRef::AbilityController,
             body,

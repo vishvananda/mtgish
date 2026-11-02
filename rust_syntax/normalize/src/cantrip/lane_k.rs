@@ -2095,6 +2095,18 @@ impl Compiler {
         self.quoted_used.insert(at);
         line.quotes[at].1.clone()
     }
+    /// The printed lines the ability being compiled may be among.
+    pub(super) fn lines_said(&self) -> Vec<String> {
+        if let Some(line) = &self.line {
+            if self.granting {
+                return line.quotes.iter().map(|(_, q)| q.clone()).collect();
+            }
+            return vec![line.text.clone()];
+        }
+        let staged = self.stage_lines.iter().map(|line| line.text.clone());
+        let chapters = self.chapters.values().cloned();
+        staged.chain(chapters).collect()
+    }
     /// The printed words of mode `at` of `count`.
     pub(super) fn said_mode(&self, at: usize, count: usize, fallback: String) -> String {
         match &self.line {

@@ -1040,7 +1040,21 @@ impl Compiler {
                 if matched.sums {
                     return Err(gap("a batch of grouped events"));
                 }
-                matched.batch = Some(false);
+                // "One or more cards are put into a library": cards, from outside
+                // it, and one trigger for each library (CR 603.2c).
+                let mut library = false;
+                for arm in &mut matched.arms {
+                    if arm.tests.iter().any(|t| t.contains("to.is(ZoneKind::Library)")) {
+                        library = true;
+                        arm.tests
+                            .push("!from.is(ZoneKind::Library) && !q.obj(*new).token".into());
+                        arm.locals = arm.locals.replace(
+                            ", u32::MAX];",
+                            ", to.player.0 as u32];",
+                        );
+                    }
+                }
+                matched.batch = Some(library);
                 matched
             }
         };

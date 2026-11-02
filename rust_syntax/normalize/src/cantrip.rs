@@ -31,6 +31,7 @@ mod lane_o;
 mod lane_p;
 mod lane_q;
 mod mechanics;
+mod option_words;
 pub mod planned;
 mod players;
 mod playing;
@@ -640,6 +641,8 @@ struct Compiler {
     made_cost_changes: Vec<String>,
     /// `CardDef::labels` of abilities to choose among as a body resolves.
     choice_labels: Vec<String>,
+    /// Options of a "this or that" are among `choice_labels`.
+    option_labels: bool,
     /// The abilities the body's `ChooseValue` offered.
     ability_choice: Vec<Ability>,
     granting: bool,
@@ -961,6 +964,7 @@ impl Compiler {
             printed_mana: None,
             made_cost_changes: Vec::new(),
             choice_labels: Vec::new(),
+            option_labels: false,
             ability_choice: Vec::new(),
             granting: false,
             holding: None,
@@ -2207,6 +2211,11 @@ fn emit_face(
         parts.table("lasting_cost_changes", made);
     }
     if let Some(labels) = c.entering_labels.take() {
+        let taken = c.option_labels && parts.fields.contains_key("labels");
+        c.attempt("abilities".into(), |_| match taken {
+            true => Err(gap("a choice's words beside other labels")),
+            false => Ok(()),
+        });
         parts.field("labels", labels);
     }
     let door_refused = parts.door_refused();
