@@ -162,6 +162,13 @@ class Stubs(unittest.TestCase):
                          "if let crate::proposals::on::EffectKind::Shielded { card, .. } = "
                          "crate::proposals::on::EffectKind::Shielded::of(kind) { }")
 
+    def test_a_new_struct_variant_inside_another_is_made_too(self):
+        made = "let k = EffectKind::Shielded { card: c, index: EffectKind::Shielded { card: d, index: 0 } };"
+        spec = learnt(("E0599", "no variant named `Shielded` found for enum `EffectKind`", made, "Shielded"))
+        self.assertEqual(pc.rewrite(made, MODEL, spec),
+                         "let k = crate::proposals::on::EffectKind::Shielded_new { card: c, index: "
+                         "crate::proposals::on::EffectKind::Shielded_new { card: d, index: 0 }.make() }.make();")
+
     def test_a_new_cardef_field_holds_a_table_entry(self):
         text = "pub static CARD: CardDef = CardDef { spell: None, lasting_rules: &[RULE], ..CardDef::BLANK };"
         spec = learnt(("E0560", "struct `cantrip_api::CardDef` has no field named `lasting_rules`", text,
