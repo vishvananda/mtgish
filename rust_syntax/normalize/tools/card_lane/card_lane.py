@@ -2540,11 +2540,30 @@ scryfall._load(write=True)
 """)
         if code:
             print(out[-800:])
-    env = dict(environment(), MTGISH_CANTRIP_DIR=str(CANTRIP), CARGO_TARGET_DIR=str(LANE / "targets" / "ast"), CARGO_INCREMENTAL="0", CARGO_PROFILE_DEV_DEBUG="0")
-    env.pop("CARGO_NET_OFFLINE")
-    shell("cargo", "build", "--locked", "--features", "cantrip", "-p", "mtgish-ast", "--bin", "ast", cwd=MTGISH / "rust_syntax", env=env, check=True)
+    build_generator()
     shell("cargo", "build", "--profile", "cards", "-p", "cantrip-script", "--bin", "corpus", check=True)
     print(f"lane ready: {CANTRIP} on {git('rev-parse', '--abbrev-ref', 'HEAD').strip()} at {git('rev-parse', '--short', 'HEAD').strip()}")
+
+
+def build_generator():
+    """The mtgish generator, incrementally: an edit to it rebuilds in about 20 seconds, against 100 with incremental
+    builds off. The binary reads no Cantrip tree when it is built, so `MTGISH_CANTRIP_DIR` is only for its tests."""
+    env = dict(environment(), MTGISH_CANTRIP_DIR=str(CANTRIP), CARGO_TARGET_DIR=str(LANE / "targets" / "ast"), CARGO_PROFILE_DEV_DEBUG="0")
+    env.pop("CARGO_NET_OFFLINE")
+    env.pop("CARGO_INCREMENTAL", None)
+    shell("cargo", "build", "--locked", "--features", "cantrip", "-p", "mtgish-ast", "--bin", "ast", cwd=MTGISH / "rust_syntax", env=env, check=True)
+
+
+def cmd_rows(args):
+    """The generator's rows again, after it changed, without touching the queue: what `prepare` writes each card from."""
+    build_generator()
+    data = MTGISH / "data"
+    GEN.mkdir(parents=True, exist_ok=True)
+    part = GEN / "rows.jsonl.part"
+    started = time.time()
+    shell(AST, "cantrip-files", data / "mtgish.lines.ron", data / "oracle.json", part, cwd=MTGISH, check=True)
+    part.replace(GEN / "rows.jsonl")
+    print(f"rows written in {time.time() - started:.0f}s")
 
 
 def cmd_corpus(flags):
@@ -2580,6 +2599,8 @@ def main():
     p.add_argument("--layouts", nargs="*", default=["normal"], help="Scryfall layouts the card files cover")
     p.add_argument("--listed-only", action="store_true", help="only cards on the format's list")
     p.set_defaults(func=cmd_queue)
+    p = sub.add_parser("rows", help="the generator rebuilt and its rows written again; the queue is left alone")
+    p.set_defaults(func=cmd_rows)
     p = sub.add_parser("status")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_status)

@@ -90,6 +90,7 @@ blockers, decline, first eligible card, find nothing, discard newest. So a line 
 | `Bot1.AssignDamage(Ox > Lurker: 1; Ox > Raider: 3)` | how combat damage divides |
 | `Bot1.Divide(Grizzly Bears: 2; Hill Giant: 1)` | a divided slot's targets and shares |
 | `Bot1.Modes(1; 4)` · `Bot1.Modes(Destroy target artifact)` | a modal spell's modes |
+| `Bot1.Modes(Elf)` · `Bot1.Modes(Mountain)` | a creature type, land type or other subtype chosen as asked (`ChooseSubtype`) |
 | `Bot1.Colors(Red)` · `Bot1.Name(Lightning Bolt)` · `Bot1.Number(7)` · `Bot1.ChoosePlayer(Bot2)` | chosen as asked |
 
 Three players: add a `[Bot3 Deck]`; turns go Bot1, Bot2, Bot3, so a wait for Bot1 after turn 1 is `[T4 Bot1.Main1]`. A search that
