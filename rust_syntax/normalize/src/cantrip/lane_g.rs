@@ -2577,17 +2577,27 @@ impl Compiler {
         };
         let id = self.fresh();
         let mut code = format!("let objects_{id}: Vec<ObjectId> = {objects};\n");
+        // What each change reads of "it" (Teyo's "equal to its toughness") is
+        // of the object it is on, so each is made for that object.
+        let saved = self.affected_object.replace("object");
         let mut kinds = Vec::new();
         for change in changes {
-            for kind in self.perpetual_kinds(change)? {
-                let local = format!("kind_{id}_{}", kinds.len());
-                writeln!(code, "let {local} = {};", self.fetch(kind)).unwrap();
-                kinds.push(local);
+            match self.perpetual_kinds(change) {
+                Ok(made) => kinds.extend(made),
+                Err(failed) => {
+                    self.affected_object = saved;
+                    return Err(failed);
+                }
             }
         }
+        self.affected_object = saved;
         let applies: String = kinds
-            .iter()
-            .map(|k| format!("{M}::perpetual::apply(g, asker.source, object, {k}); "))
+            .into_iter()
+            .enumerate()
+            .map(|(i, kind)| {
+                let kind = self.fetch(kind);
+                format!("let kind_{id}_{i} = {kind}; {M}::perpetual::apply(g, asker.source, object, kind_{id}_{i}); ")
+            })
             .collect();
         write!(code, "for &object in &objects_{id} {{ {applies}}}").unwrap();
         self.plan_code(FEATURE, &code, out);

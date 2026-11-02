@@ -1096,7 +1096,11 @@ impl Compiler {
                     self.frame.object = Some(Carried::Subject);
                     self.event_object = Some(ObjectRef::Source);
                 }
+                // "Only by creatures in the same sector" (Space Beleren): the
+                // object the effect is on is the one the rule is asked about.
+                let affected = self.affected_object.replace(subject);
                 let test = self.filter(filter, &Candidate::of(other));
+                self.affected_object = affected;
                 (self.frame, self.event_object) = event;
                 (self.reader, self.event_at) = saved;
                 if test.as_ref().is_ok_and(|code| self.reads_a_local(code)) {

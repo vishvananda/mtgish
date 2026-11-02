@@ -546,13 +546,20 @@ fn reduce_change_zone(actor: &PlayerSet, form: &str, operands: &[Operand]) -> Op
                 D::OwnersHand,
             )
         }
+        // "For each of those tokens, you may put an Aura card from your hand
+        // and/or graveyard onto the battlefield attached to it" (Liberated
+        // Livestock): up to one card for each, and "it" is that one.
         ("MayPutACardFromHandOrGraveyardOnBattlefieldForEachPermanent", [Filter(cards), flags, Objects(each)]) => {
-            ZoneMove::new(
+            let put = ZoneMove::new(
                 ObjectSet::Union(vec![hand(cards), graveyard(cards)]),
                 D::OwnersBattlefield,
             )
-            .choose(Count::UpTo(Expr::CountObjects(Box::new(each.clone()))))
-            .entry(flags)
+            .choose(Count::UpTo(Expr::Constant(1)))
+            .entry(flags);
+            return Some(Operation::EachObject {
+                objects: each.clone(),
+                action: Box::new(put.operation(actor)),
+            });
         }
         ("PutUptoNumberCardsFromHandAndOrGraveyardOnBattlefield", [Number(n), Filter(cards), Player(owner), flags]) => {
             ZoneMove::new(
