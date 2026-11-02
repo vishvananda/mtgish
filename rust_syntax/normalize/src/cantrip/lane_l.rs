@@ -1756,6 +1756,10 @@ impl Compiler {
                 }
                 writeln!(out, "let player_{id} = {player}; let times_{id}: Option<u32> = {times}; let mut done_{id}: i64 = 0; let mut flips_{id}: u32 = 0; while times_{id}.map_or(true, |n| flips_{id} < n) {{ flips_{id} += 1; if g.flip_coin(player_{id}) {{ done_{id} += 1; }} else if {until_lost} {{ break; }} }}").unwrap();
                 self.performed.insert(result.0, format!("done_{id}"));
+                self.coins = Some((
+                    format!("done_{id}"),
+                    format!("(i64::from(flips_{id}) - done_{id})"),
+                ));
             }
             Operation::MillUntil {
                 actor,

@@ -577,6 +577,8 @@ struct Compiler {
     /// The announcement slot whose filter is being compiled.
     choosing: Option<usize>,
     performed: BTreeMap<u32, String>,
+    /// The flips a coin-flipping instruction won and lost.
+    coins: Option<(String, String)>,
     /// A damage instruction's excess (CR 120.10): the list of what each recipient
     /// took past lethal, its recipients' local, and the one object it aimed at.
     excess: BTreeMap<u32, (String, String, Option<String>)>,
@@ -935,6 +937,7 @@ impl Compiler {
             door: None,
             choosing: None,
             performed: BTreeMap::new(),
+            coins: None,
             excess: BTreeMap::new(),
             values: BTreeMap::new(),
             flips: BTreeMap::new(),
@@ -2187,6 +2190,9 @@ fn emit_face(
     if c.functions.contains("about(q, ") {
         c.helpers.insert("about");
     }
+    if c.functions.contains("granter(q, item)") {
+        c.helpers.insert("granter");
+    }
     for helper in &c.helpers {
         c.functions.push_str(match *helper {
             "cast_of" => CAST_OF,
@@ -2199,6 +2205,7 @@ fn emit_face(
             "pay_question" => PAY_QUESTION,
             "about" => delayed::ABOUT,
             "clauses" => lane_l::CLAUSES,
+            "granter" => lane_j::GRANTER,
             other => unreachable!("no helper {other}"),
         });
     }

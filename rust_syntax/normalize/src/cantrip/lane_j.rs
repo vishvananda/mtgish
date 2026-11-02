@@ -1700,6 +1700,10 @@ impl Compiler {
             ObjectRef::Discarded if self.frame.object.is_some() => {
                 self.carried_object(self.frame.object)?
             }
+            // The stack item remembers the effect that gave the ability (CR 607.5).
+            ObjectRef::Granter if self.reader == Reader::Resolution && self.stack_item => {
+                "granter(q, item)".to_string()
+            }
             ObjectRef::Granter => return held("q.granted_by(asker.source)"),
             ObjectRef::PairedWith(_) => {
                 return held(&format!(
@@ -2916,6 +2920,12 @@ pub(super) enum PaidFor {
     Mana,
     Spell,
 }
+/// The object whose effect gave `item`'s ability to its source, on the battlefield
+/// or as it last was there (CR 113.2c, 608.2h). A static ability's effect has its
+/// source's timestamp, so two copies of one Equipment are two givers; a resolved
+/// effect is named by its own.
+pub(super) const GRANTER: &str = "fn granter(q: &dyn Query, item: &StackItem) -> Option<ObjectId> { if item.acquired.by != AcquiredBy::Grant { return None; } let stamp = item.acquired.stamp; let card = item.ability.card; if let Some(e) = q.state().effects.iter().find(|e| e.timestamp == stamp && matches!(e.kind, EffectKind::AddAbility(_))) { return Some(e.source); } if let Some(id) = q.state().battlefield().iter().copied().find(|&id| q.state().obj(id).timestamp == stamp && q.chars(id).card == card) { return Some(id); } q.history().all().iter().rev().find_map(|r| match r.event { Event::ZoneChange { old, from, .. } if from.is(ZoneKind::Battlefield) && q.state().obj(old).timestamp == stamp && q.state().obj(old).card == card => Some(old), _ => None }) }\n";
+
 /// What `filter` adds to "an activated ability" over `d: &ActivatedDef`, starting
 /// with ` && `: nothing for any. `None` for what `d` alone doesn't say.
 fn activation_test(filter: &ActivationFilter) -> Option<String> {

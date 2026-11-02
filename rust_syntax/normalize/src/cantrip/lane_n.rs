@@ -2039,6 +2039,18 @@ pub(super) fn names_no_card_type(recipients: &Recipients) -> bool {
     format!("{recipients:?}").contains("Battlefield(Not(")
 }
 
+/// The N of toxic N, as a grant says it.
+pub(super) fn toxic_of(ability: &Ability) -> Option<i64> {
+    match ability {
+        Ability::Mechanic {
+            mechanic: Mechanic::Toxic,
+            amount: Some(Expr::Constant(n)),
+            ..
+        } if *n > 0 => Some(*n),
+        _ => None,
+    }
+}
+
 /// Whether what comes later reads the excess of a damage instruction.
 pub(super) fn reads_excess(after: &[Instruction], result: &ResultId) -> bool {
     format!("{after:?}").contains(&format!("ExcessDamage {{ result: ResultId({})", result.0))

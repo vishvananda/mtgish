@@ -1385,6 +1385,9 @@ impl Compiler {
     }
     /// The statement that gives a layer's `chars` these abilities.
     pub(super) fn grant_in_layer(&mut self, ability: &Ability) -> Result<statics::LayerChange> {
+        if let Some(n) = lane_n::toxic_of(ability) {
+            return Ok(statics::LayerChange::of("Ability", format!("chars.toxic += {n};")));
+        }
         let card = self.source_card();
         let mut body = format!("let card = {card}; let _ = card;");
         for reference in self.granted_refs(ability)? {
@@ -1394,6 +1397,9 @@ impl Compiler {
     }
     /// The effects that give an object this ability.
     pub(super) fn grant_kinds(&mut self, ability: &Ability) -> Result<Vec<String>> {
+        if let Some(n) = lane_n::toxic_of(ability) {
+            return Ok(vec![format!("EffectKind::Toxic({n})")]);
+        }
         // "It's an Aura with enchant creature": an enchant ability a card's effect
         // gives is `CardDef::becomes_aura_enchant` (CR 303.4, 613.1f).
         if let Ability::Enchant { hosts } = ability {

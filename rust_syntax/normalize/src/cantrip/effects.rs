@@ -2054,6 +2054,7 @@ impl Compiler {
         self.before.clear();
         self.performed.clear();
         self.excess.clear();
+        self.coins = None;
         self.values.clear();
         self.flips.clear();
         self.chosen.clear();
