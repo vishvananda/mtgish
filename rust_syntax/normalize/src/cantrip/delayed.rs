@@ -545,6 +545,16 @@ impl Compiler {
                 other => return Err(gap(format!("delayed trigger on turns of {}", form(other)))),
             })
         };
+        // "At the beginning of your next main phase" (Mana Drain): from that
+        // player's own precombat main phase or combat it is that turn's
+        // postcombat main phase, from anywhere else their next precombat main
+        // phase (CR 505.1), as `delayed::at_your_next_main_phase` reads it.
+        if let (TurnPoint::MainPhaseBegins, PlayerSet::One(player), DelayedStart::Immediately, None) =
+            (point, players, start, expires)
+        {
+            let me = self.fetch(self.certain_player(player)?);
+            return Ok(format!("DelayedWhen::Step {{ step: {{ let q: &dyn Query = g; let turn = q.state().turn; if turn.active == {me} && (Step::PrecombatMain as u8..Step::PostcombatMain as u8).contains(&(turn.step() as u8)) {{ Step::PostcombatMain }} else {{ Step::PrecombatMain }} }}, on_turn_of: Some({me}) }}"));
+        }
         if let TurnPoint::MainPhaseBegins = point {
             let turn = turn_of(self)?;
             return Ok(planned::planned_value(
