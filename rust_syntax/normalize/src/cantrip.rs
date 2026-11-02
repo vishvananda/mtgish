@@ -2139,19 +2139,51 @@ fn ability_text(body: &Program) -> String {
 }
 
 /// Each face's printed text, by name.
+///
+/// A face of a card of several faces is kept by its card's faces too (`face_key`):
+/// its name can be another card's, and the text another's. Eiganjo Dynastorian's
+/// prepare spell is Replenish, without the reminder text Replenish the card has. A
+/// name alone is the card of one face's, when one has it.
 fn oracle_texts(oracle: &Path) -> corpus::Result<BTreeMap<String, String>> {
     // Read whole first: through a reader serde_json takes a byte at a time, most of a second here.
     let printed: serde_json::Value = serde_json::from_slice(&std::fs::read(oracle)?)?;
-    Ok(printed
+    let cards: Vec<Vec<(&str, &str)>> = printed
         .as_array()
         .ok_or("oracle data is not a list")?
         .iter()
-        .flat_map(|card| card["cards"].as_array().into_iter().flatten())
-        .filter_map(|face| {
-            let text = face["text"].as_str().unwrap_or_default();
-            Some((face["name"].as_str()?.to_string(), text.to_string()))
+        .map(|card| {
+            let faces = card["cards"].as_array().into_iter().flatten();
+            faces
+                .filter_map(|face| Some((face["name"].as_str()?, face["text"].as_str().unwrap_or_default())))
+                .collect()
         })
-        .collect())
+        .collect();
+    let mut texts = BTreeMap::new();
+    for faces in cards.iter().filter(|faces| faces.len() > 1).chain(cards.iter().filter(|faces| faces.len() == 1)) {
+        for &(name, text) in faces {
+            if faces.len() > 1 {
+                texts.insert(face_key(faces.iter().map(|face| face.0), name), text.to_string());
+            }
+            texts.insert(name.to_string(), text.to_string());
+        }
+    }
+    Ok(texts)
+}
+
+/// The key `oracle_texts` keeps a face of a card of several faces under, whatever
+/// order the faces come in.
+fn face_key<'a>(faces: impl IntoIterator<Item = &'a str>, face: &str) -> String {
+    let mut names: Vec<&str> = faces.into_iter().collect();
+    names.sort_unstable();
+    format!("{}\u{0}{face}", names.join("\u{0}"))
+}
+
+/// The printed text of `face`, one of the card's `faces`, from `oracle_texts`.
+pub(crate) fn printed_face<'a>(oracle: &'a BTreeMap<String, String>, faces: &[&str], face: &str) -> Option<&'a String> {
+    match faces.len() > 1 {
+        true => oracle.get(&face_key(faces.iter().copied(), face)).or_else(|| oracle.get(face)),
+        false => oracle.get(face),
+    }
 }
 
 /// The module of each named card in a source corpus, for reading what the

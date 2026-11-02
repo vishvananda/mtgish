@@ -16,6 +16,7 @@ const NAMES: &[&str] = &[
     "Call to the Kindred",
     "Cease",
     "Delver of Secrets",
+    "Eiganjo Dynastorian",
     "Fable of the Mirror-Breaker",
     "Great Fierce Bee",
     "Grove's Bounty",
@@ -251,6 +252,14 @@ fn a_chapter_is_named_and_quoted_as_printed() {
 #[test]
 fn a_cost_reduction_is_counted_in_u32() {
     says("Hearth Elemental", &["CostDelta::less(", ".len() as i64) as u32,"]);
+}
+
+#[test]
+fn a_face_named_as_another_card_is_quoted_as_its_own_card_prints_it() {
+    // Eiganjo Dynastorian's prepare spell is Replenish, whose card of its own has reminder text the spell does not.
+    let Some(file) = file("Eiganjo Dynastorian") else { return };
+    assert!(file.contains("/// \"Return all enchantment cards from your graveyard to the battlefield.\" (CR"), "{file}");
+    assert!(!file.contains("Auras with nothing to enchant"), "{file}");
 }
 
 #[test]

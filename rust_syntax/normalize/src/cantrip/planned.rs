@@ -617,11 +617,13 @@ fn track(
     let name = identity.names.join(" // ");
     let whole = lane_f::whole_printed(source, &lowered.card, Some(oracle))
         .map_err(|g| format!("{name}: {}: {} ({})", g.path, g.feature, g.message))?;
+    let names: Vec<String> = whole.faces.iter().map(|face| face.name.clone()).collect();
+    let names: Vec<&str> = names.iter().map(String::as_str).collect();
     let mut faces: Vec<TrackedFace> = whole
         .faces
         .into_iter()
         .map(|face| TrackedFace {
-            oracle: oracle.get(&face.name).cloned(),
+            oracle: super::printed_face(oracle, &names, &face.name).cloned(),
             name: face.name,
             rust: Some(face.rust),
             gaps: face.gaps,
