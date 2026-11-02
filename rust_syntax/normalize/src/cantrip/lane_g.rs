@@ -2161,7 +2161,13 @@ impl Compiler {
                 );
             }
             (CastingRule::ReduceForEachPaid { reductions, cost }, None) => {
-                self.reduce_for_each_paid(reductions, cost, label, parts)?;
+                // The spell's own cost (Gorex, "exile any number of creature
+                // cards from your graveyard"): what it exiles is exiled with the
+                // permanent (CR 607.2q).
+                let was = std::mem::replace(&mut self.spell_cost, true);
+                let paid = self.reduce_for_each_paid(reductions, cost, label, parts);
+                self.spell_cost = was;
+                paid?;
             }
             (CastingRule::RestrictMana { portion, filter }, None) => {
                 let rule = match filter {

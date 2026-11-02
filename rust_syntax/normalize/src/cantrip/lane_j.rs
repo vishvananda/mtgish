@@ -2150,9 +2150,18 @@ impl Compiler {
                 )),
             },
             Expr::Stickers { objects, measure } => {
+                // "The number of unique vowels on that sticker": "that sticker" is the
+                // one just put, which only stickers have; Cantrip leaves stickers out
+                // (its docs/rules-exceptions.md), so the measure is the stickers hole
+                // alone.
+                let objects = match self.objects(objects)? {
+                    read if read.contains("\"earlier objects It\"") => {
+                        "Vec::<ObjectId>::new()".to_string()
+                    }
+                    read => read,
+                };
                 let code = format!(
-                    "cantrip_mechanics::stickers::measure(q, &{}, StickerMeasure::{})",
-                    self.objects(objects)?,
+                    "cantrip_mechanics::stickers::measure(q, &{objects}, StickerMeasure::{})",
                     form(measure)
                 );
                 Number {

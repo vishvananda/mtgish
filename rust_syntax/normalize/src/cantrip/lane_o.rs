@@ -808,7 +808,10 @@ impl Compiler {
             PlayCost::Normal => {}
             PlayCost::Free => grant.push_str("instead: Some(ManaCost::ZERO), "),
             PlayCost::Alternate(cost) => {
-                write!(grant, "alternate: Some({}), ", self.stated(cost)?).unwrap()
+                self.card_costed = true;
+                let stated = self.stated(cost);
+                self.card_costed = false;
+                write!(grant, "alternate: Some({}), ", stated?).unwrap()
             }
             PlayCost::Additional(cost) => {
                 write!(grant, "also: Some({}), ", self.stated(cost)?).unwrap()
@@ -1054,11 +1057,13 @@ impl Compiler {
                 format!("PlayerRule::ExtraLandPlays({})", self.asked(n)?)
             }
             R::AdditionalLandPlays(Count::AnyNumber) => "PlayerRule::AnyNumberOfLandPlays".into(),
-            R::SpellCost { spells, modifier } => format!(
-                "PlayerRule::SpellCost {{ spells: {}, change: {} }}",
-                self.over_played(spells, "spell")?,
-                self.cost_modifier(modifier)?
-            ),
+            R::SpellCost { spells, modifier } => {
+                let spells = self.over_played(spells, "spell")?;
+                self.card_costed = true;
+                let change = self.cost_modifier(modifier);
+                self.card_costed = false;
+                format!("PlayerRule::SpellCost {{ spells: {spells}, change: {} }}", change?)
+            }
             R::SpellTiming { spells, timing } => format!(
                 "PlayerRule::SpellTiming {{ spells: {}, timing: SpellTiming::{timing:?} }}",
                 self.over_played(spells, "spell")?
@@ -1381,7 +1386,20 @@ impl Compiler {
         out: &mut String,
     ) -> Result<()> {
         let code = self.player_rule_code(rule)?;
-        let until = self.stated_until(duration)?;
+        // A permission to play cards "for as long as they remain exiled" is a
+        // permission for those objects, which no longer exist once they leave
+        // exile (CR 400.7): it lasts as one that never ends, as `play_expiry`
+        // writes it (`Expiry::Never`).
+        use crate::ir::Duration as D;
+        let until = match (rule, duration) {
+            (
+                PlayerRule::PlayPermission { .. } | PlayerRule::PlayPermissionWith { .. },
+                D::WhileExiled(_) | D::WhileAnyExiled(_),
+            ) => {
+                "Duration::Indefinite".to_string()
+            }
+            _ => self.stated_until(duration)?,
+        };
         let players = self.fetch(self.players(players)?);
         let source = self.fetch(self.object(source)?);
         self.plan_code(
@@ -3215,6 +3233,12 @@ impl Compiler {
                 return Ok(format!("{list}.clone()"));
             }
         }
+        // An instant or sorcery that deals damage once: the players it dealt
+        // damage to are those it dealt damage to that way (CR 120.3), as
+        // `ObjectFilter::DamagedBy` reads the permanents.
+        if let (PlayerSet::DamagedBy(_), true) = (players, self.damages_once) {
+            return Ok("{ let mut hurt: Vec<PlayerId> = Vec::new(); for r in q.history().all() { if let Event::Damage { source: s, target: Target::Player(p), amount, .. } = r.event { if s == asker.source && amount > 0 && !hurt.contains(&p) { hurt.push(p); } } } hurt }".into());
+        }
         let code = match players {
             PlayerSet::DamagedBy(result) => format!("q.players_damaged_by(asker, {})", result.0),
             PlayerSet::DamageRecipients => "q.recipients_of_event_damage(asker)".to_string(),
@@ -3399,6 +3423,17 @@ impl Compiler {
             }
             ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Outlast)) => {
                 return Ok("def.is_some_and(|d| d.text.starts_with(\"Outlast\"))".into())
+            }
+            // `embalm::ability`, `eternalize::ability` and `craft::ability` take
+            // the printed line, "Embalm {3}{W} (...)", "Craft with artifact {3}{R}{R}".
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Embalm)) => {
+                return Ok("def.is_some_and(|d| d.text.starts_with(\"Embalm\"))".into())
+            }
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Eternalize)) => {
+                return Ok("def.is_some_and(|d| d.text.starts_with(\"Eternalize\"))".into())
+            }
+            ObjectFilter::OnStack(StackTrait::Keyword(AbilityKeyword::Craft)) => {
+                return Ok("def.is_some_and(|d| d.text.starts_with(\"Craft with\"))".into())
             }
             // A ninjutsu ability, printed or given (`ninjutsu::ninjutsu`), commander
             // ninjutsu among them (CR 702.49d).

@@ -1930,7 +1930,7 @@ impl Compiler {
             .as_ref()
             .is_some_and(|line| line.text.contains("Do this only once each turn"));
         if said && limits.per_turn == Some(1) && looks_then_may(body).is_some() {
-            let key = 200 + (self.fresh() % 50) as u8;
+            let key = self.once_key();
             self.do_once = Some(key);
             return Some(key);
         }
@@ -1948,9 +1948,22 @@ impl Compiler {
         {
             return None;
         }
-        let key = 200 + (self.fresh() % 50) as u8;
+        let key = self.once_key();
         self.do_once = Some(key);
         Some(key)
+    }
+    /// A new key for a thing done once each turn, or the one its sentence's other
+    /// abilities spend: "whenever you cast ... or activate ..., you may ... Do
+    /// this only once each turn" is done once for both (Glava, Five-Advents Mage).
+    fn once_key(&mut self) -> u8 {
+        if let Some(Some(key)) = self.once_shared {
+            return key;
+        }
+        let key = 200 + (self.fresh() % 50) as u8;
+        if self.once_shared.is_some() {
+            self.once_shared = Some(Some(key));
+        }
+        key
     }
     /// Reads the printed lines of the counter stage starting at `minimum`.
     pub(super) fn on_stage(&mut self, minimum: i64) {

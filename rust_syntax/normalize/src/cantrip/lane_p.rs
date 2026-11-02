@@ -280,7 +280,12 @@ pub(super) fn only_their_own(objects: &ObjectSet) -> bool {
             _ => false,
         }
     }
-    matches!(objects, ObjectSet::Zone { filter, .. } | ObjectSet::Battlefield(filter) if theirs(filter))
+    match objects {
+        // "Each player exiles the top card of their library" (Rocco, Street Chef).
+        ObjectSet::Zone { scope, .. } if theirs(&ObjectFilter::InZone(scope.clone())) => true,
+        ObjectSet::Take { objects, .. } => only_their_own(objects),
+        _ => matches!(objects, ObjectSet::Zone { filter, .. } | ObjectSet::Battlefield(filter) if theirs(filter)),
+    }
 }
 
 /// "(Artifact, battle, creature, enchantment, instant, kindred, land, planeswalker,
@@ -1691,12 +1696,16 @@ impl Compiler {
             ),
             // What left it as it left the battlefield: those records just before
             // its own, among others of the same move (CR 701.3d, 704.5n). An Aura has
-            // gone to a graveyard by the time anything reads this.
+            // gone to a graveyard by the time anything reads this (CR 704.5m), as a
+            // new object (CR 400.7): "Aura cards that were attached to it" are the
+            // cards those Auras became as they left the battlefield. A line that
+            // counts Auras still on the battlefield reads none of them so.
             ObjectFilter::WasAttachedTo(host)
-                if !lane_k::printed_otherwise(self.line_text(), "Aura") =>
+                if !lane_k::printed_otherwise(self.line_text(), "Aura")
+                    || lane_k::printed_otherwise(self.line_text(), "Aura cards") =>
             {
                 format!(
-                    "{}.is_some_and(|host: ObjectId| {{ let records = q.history().all(); records.iter().rposition(|r| matches!(r.event, Event::ZoneChange {{ old, from, .. }} if old == host && from.is(ZoneKind::Battlefield))).is_some_and(|left| records[..left].iter().rev().take_while(|r| matches!(r.event, Event::Unattached {{ .. }} | Event::ZoneChange {{ .. }})).any(|r| matches!(r.event, Event::Unattached {{ attachment, from }} if attachment == {id} && from == host))) }})",
+                    "{}.is_some_and(|host: ObjectId| {{ let records = q.history().all(); records.iter().rposition(|r| matches!(r.event, Event::ZoneChange {{ old, from, .. }} if old == host && from.is(ZoneKind::Battlefield))).is_some_and(|left| {{ let was: Vec<ObjectId> = records[..left].iter().rev().take_while(|r| matches!(r.event, Event::Unattached {{ .. }} | Event::ZoneChange {{ .. }})).filter_map(|r| match r.event {{ Event::Unattached {{ attachment, from }} if from == host => Some(attachment), _ => None }}).collect(); was.contains(&{id}) || records[left..].iter().any(|r| matches!(r.event, Event::ZoneChange {{ old, new, from, .. }} if new == {id} && was.contains(&old) && from.is(ZoneKind::Battlefield))) }}) }})",
                     self.object(host)?
                 )
             }
@@ -2624,12 +2633,20 @@ impl Compiler {
         let mut code = String::new();
         // "Exile them in a face-down pile, shuffle that pile": the pile's order, which
         // is all a shuffle of it can change, is taken as it is exiled.
-        if let (true, Destination::Exile, false, [EntryState::ExilePile { shuffled: true }]) =
-            (face_down, destination, entry.tapped, entry.states.as_slice())
+        if let (Destination::Exile, false, [EntryState::ExilePile { shuffled }]) =
+            (destination, entry.tapped, entry.states.as_slice())
         {
-            if entry.counters.is_empty() {
+            if entry.counters.is_empty() && (face_down && *shuffled || !self.links_exile) {
                 let pool = self.fetch(self.objects(objects)?);
-                writeln!(out, "let mut pool_{id} = {pool}; let mut objects_{id}: Vec<ObjectId> = Vec::new(); while !pool_{id}.is_empty() {{ let at = g.choose_at_random(pool_{id}.len()); objects_{id}.push(pool_{id}.remove(at)); }} let moved_{id} = g.exile_face_down(&objects_{id}, None);").unwrap();
+                match (face_down, shuffled) {
+                    (true, true) => writeln!(out, "let mut pool_{id} = {pool}; let mut objects_{id}: Vec<ObjectId> = Vec::new(); while !pool_{id}.is_empty() {{ let at = g.choose_at_random(pool_{id}.len()); objects_{id}.push(pool_{id}.remove(at)); }} let moved_{id} = g.exile_face_down(&objects_{id}, None);").unwrap(),
+                    // "Exile the top four cards of your library in a face-down
+                    // pile": a pile is the cards it holds, kept as what moved;
+                    // the order of an unshuffled pile is no secret.
+                    (true, false) => writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_face_down(&objects_{id}, None);").unwrap(),
+                    // A face-up pile's order is seen by all: a shuffle hides nothing.
+                    (false, _) => writeln!(out, "let objects_{id}: Vec<ObjectId> = {pool}; let moved_{id} = g.exile_all(&objects_{id});").unwrap(),
+                }
                 self.moved.insert(result.0, format!("moved_{id}"));
                 self.left_behind(result, effects::gone(&format!("objects_{id}")));
                 return Ok(());

@@ -812,6 +812,15 @@ impl Compiler {
                             "{it}.is_some_and(|it: ObjectId| q.state().stack.last().is_some_and(|i| {{ let n = q.state().targets(i).len(); n > 0 && (0..n).all(|k| q.state().target(i, k) == Target::Object(it)) }}))"
                         ));
                     }
+                    // "The target of an activated ability" (Professor Hojo): the
+                    // event names only the source and that it was an ability, so
+                    // which is the newest item of that source targeting it, as one
+                    // that has just been activated, copied or retargeted is.
+                    ("ActivatedAbility", []) if !matches!(kind, TargetingKind::Spell) => {
+                        tests.push(self.matching(frame, |_| {
+                            Ok("q.state().stack.iter().rev().find(|i| i.object == by && q.state().targets(i).contains(&Target::Object(id))).is_some_and(|i| i.kind == StackKind::Activated)".into())
+                        })?)
+                    }
                     (other, operands) => {
                         let feature = format!("targeted by {other}");
                         let operands = self.stated_operands(operands);

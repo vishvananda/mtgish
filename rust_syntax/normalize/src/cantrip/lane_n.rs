@@ -1905,9 +1905,23 @@ impl Compiler {
         body: &Program,
     ) -> Result<String> {
         let mut defs = Vec::new();
+        let sharing = self.once_shared.replace(None);
         for (i, event) in events.iter().enumerate() {
             let each = format!("{label}_or_{i}");
-            let def = self.triggered(&each, event, intervening_if, limits, announcement, body)?;
+            let def = self.triggered(&each, event, intervening_if, limits, announcement, body);
+            let def = match def {
+                Ok(def) => def,
+                Err(e) => {
+                    self.once_shared = sharing;
+                    return Err(e);
+                }
+            };
+            // "Do this only once each turn": a thing done, not a triggering, so
+            // all of the sentence's abilities spend one key (603.2h).
+            if matches!(self.once_shared, Some(Some(_))) {
+                defs.push(def);
+                continue;
+            }
             // "This ability triggers only once each turn" is of the one ability
             // the sentence prints (Bill Potts): each counts its triggerings
             // (`triggers_each_turn` records them), and each triggers only while
@@ -1929,6 +1943,7 @@ impl Compiler {
                 (None, _) => def,
             });
         }
+        self.once_shared = sharing;
         Ok(defs.join(", "))
     }
     /// What a replacement made by an effect will be where no event of Cantrip's

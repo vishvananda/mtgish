@@ -503,6 +503,9 @@ struct Compiler {
     stage_lines: Vec<lane_k::Line>,
     /// The next "may" is done once each turn, under this key.
     do_once: Option<u8>,
+    /// The abilities of one sentence are being written ("whenever this or that"):
+    /// the key of its "do this only once each turn", one for them all.
+    once_shared: Option<Option<u8>>,
     /// An "if it's the first time" the printed line asks of the object, as the
     /// resolving ability reads it (603.4).
     first_again: Option<String>,
@@ -610,6 +613,8 @@ struct Compiler {
     activation_cost: Option<Cost>,
     /// Each additional cost this card declares, by its ability's index.
     casting_costs: BTreeMap<u32, Cost>,
+    /// A cost this card's spell pays beyond its additional costs is being written.
+    spell_cost: bool,
     /// What a mechanic's cost of this card's own spell took, by earlier objects' word.
     cast_pays: Vec<&'static str>,
     /// "As this enters, sacrifice any number": how many is what it keeps.
@@ -688,6 +693,12 @@ struct Compiler {
     enters_two: Option<ValueKind>,
     /// A rule on the cost of `spell` is being written.
     costed_spell: bool,
+    /// A cost paid for a card in place of its mana cost is being written ("{X}
+    /// rather than its mana cost, where X is its mana value"): "it" is that card.
+    card_costed: bool,
+    /// The local each object being moved is, while what it arrives with is read:
+    /// "exile a card with a number of time counters on it equal to its mana value".
+    moving_one: Option<String>,
     /// The card types it offers, if it chooses one as it enters.
     entering_card_type: Option<Vec<String>>,
     bound_objects: BTreeSet<u32>,
@@ -1067,6 +1078,7 @@ impl Compiler {
             asking: None,
             activation_cost: None,
             casting_costs: BTreeMap::new(),
+            spell_cost: false,
             cast_pays: Vec::new(),
             enters_sacrifices: false,
             damages_once: false,
@@ -1104,6 +1116,8 @@ impl Compiler {
             each_color: None,
             enters_two: None,
             costed_spell: false,
+            card_costed: false,
+            moving_one: None,
             entering_card_type: None,
             bound_objects: BTreeSet::new(),
             reflexing: false,
@@ -1184,6 +1198,7 @@ impl Compiler {
             stages: BTreeMap::new(),
             stage_lines: Vec::new(),
             do_once: None,
+            once_shared: None,
             first_again: None,
             cast_test: false,
             waiting_trigger: false,

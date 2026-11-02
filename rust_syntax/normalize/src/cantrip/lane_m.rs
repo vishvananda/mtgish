@@ -550,6 +550,9 @@ impl Compiler {
     /// leave it to be found. A step that couldn't be written reads as nothing, and
     /// its own hole says why.
     pub(super) fn earlier_objects(&self, what: &EarlierObjects) -> Result<String> {
+        if let (EarlierObjects::It, Some(one)) = (what, &self.moving_one) {
+            return Ok(format!("vec![{one}]"));
+        }
         let word = form(what);
         // "The permanents this spell targets", read as its total cost is worked
         // out (CR 601.2f): each permanent once, however many slots chose it.
@@ -755,6 +758,16 @@ impl Compiler {
                 if self.bound_players.contains(walked) {
                     return self.objects(&turned.clone());
                 }
+            }
+            // "Pay {X} rather than its mana cost, where X is its mana value": the
+            // card the cost is paid for, which a fixed cost can't read (a play
+            // grant's `instead` and a spell alternative's `InsteadOfManaCost`).
+            if matches!(what, EarlierObjects::It) && self.card_costed {
+                return Ok(planned::planned_value(
+                    "a cost reading the card it is paid for",
+                    "Vec::<ObjectId>::new()",
+                    "vec![card]",
+                ));
             }
             // Cantrip keeps no record of this for a read to find.
             return Ok(planned::planned_value(

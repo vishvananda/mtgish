@@ -557,6 +557,37 @@ impl Compiler {
             {
                 return Part::Walk;
             }
+            // "Each opponent exiles a card from their hand or a permanent they
+            // control": each picks an action, then they all happen at once (CR
+            // 101.4). Exiles of either kind would be one exile of all picked; a
+            // discard beside a sacrifice is two kinds of event no one call makes.
+            if let Instruction::ChooseOne { options, .. } = instruction {
+                let exiles = |option: &Program| {
+                    let steps: Vec<&Instruction> = option
+                        .instructions
+                        .iter()
+                        .flat_map(|i| match i {
+                            Instruction::Group(group) => group.instructions.iter().collect(),
+                            other => vec![other],
+                        })
+                        .collect();
+                    steps.iter().any(|i| {
+                        matches!(i, Instruction::Effect { operation: Operation::Move { destination: Destination::Exile, .. }, .. })
+                    }) && steps.iter().all(|i| match i {
+                        Instruction::Effect { operation: Operation::Move { destination, .. }, .. } => {
+                            matches!(destination, Destination::Exile)
+                        }
+                        Instruction::Effect { operation: Operation::ChooseObjects { .. }, .. } => true,
+                        _ => false,
+                    })
+                };
+                if !walks_whole(instruction) {
+                    return Part::Unbatched(match options.iter().all(exiles) {
+                        true => "per-player choice of what to exile, exiled together".into(),
+                        false => "per-player choice among different actions, done at once".into(),
+                    });
+                }
+            }
             return match walks_whole(instruction) {
                 true => Part::Walk,
                 false => Part::Unbatched("per-player instruction with several steps".into()),
@@ -808,7 +839,20 @@ impl Compiler {
                 tokens,
                 entry,
             } if entry.counters.is_empty() && !is_bound(player, binding) => {
-                let unbatched = || Part::Unbatched(format!("per-player {}", form(operation)));
+                // Two creations no gather writes, for want of an engine call that
+                // makes them as one batch: tapped copies of several originals
+                // (`create_token_copies_together` makes none tapped), and tokens
+                // entering attached (no token is created attached).
+                let several_tapped = entry.tapped
+                    && matches!(tokens.as_slice(), [TokenSpec { recipe: TokenRecipe::CopyEach { .. }, .. }]);
+                let attached = entry.states.iter().any(|s| {
+                    matches!(s, EntryState::AttachedTo(_) | EntryState::AttachedToChosen(_) | EntryState::AttachedToPlayer(_))
+                });
+                let unbatched = || match () {
+                    _ if several_tapped => Part::Unbatched("per-player tapped token copies of several objects".into()),
+                    _ if attached => Part::Unbatched("per-player tokens entering attached".into()),
+                    _ => Part::Unbatched(format!("per-player {}", form(operation))),
+                };
                 let [token] = tokens.as_slice() else {
                     return unbatched();
                 };
