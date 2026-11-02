@@ -356,6 +356,11 @@ impl Compiler {
                 "Type",
                 format!("chars.types = chars.types.with(CardType::{});", card_type(t)?),
             ),
+            Change::SetCardTypes(types) if lane_i::artifact_creature(types) => LayerChange::of(
+                "Type",
+                "chars.types = chars.types.with(CardType::Artifact).with(CardType::Creature);"
+                    .into(),
+            ),
             Change::SetCardTypes(types) => {
                 let types = types
                     .iter()

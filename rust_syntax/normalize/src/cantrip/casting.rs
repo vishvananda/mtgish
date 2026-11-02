@@ -452,8 +452,10 @@ impl Compiler {
                 return Err(gap("a limit on the X announced"));
             }
             CastingRule::Require(required) if condition.is_none() => {
-                let test = self.activation_condition(required, &format!("{label}_if"))?;
-                one_field(parts, "cast_only_if", format!("Some({test})"))?;
+                self.cast_test = true;
+                let test = self.activation_condition(required, &format!("{label}_if"));
+                self.cast_test = false;
+                one_field(parts, "cast_only_if", format!("Some({})", test?))?;
             }
             other => self.casting_beyond(other, label, parts, condition)?,
         }

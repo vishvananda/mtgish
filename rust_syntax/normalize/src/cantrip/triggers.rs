@@ -205,6 +205,16 @@ impl Compiler {
             tests.push(format!("from.is({})", zone_kind(from)?));
         }
         tests.push(self.matching(frame, |c| c.filter(objects, &Candidate::of("id")))?);
+        // "Cards were put into exile": a token is no card (108.2).
+        if !entering
+            && self.line_text().is_some_and(|line| {
+                ["cards were put into", "card was put into", "cards are put into", "card is put into"]
+                    .iter()
+                    .any(|words| line.contains(words))
+            })
+        {
+            tests.push("!q.state().obj(id).token".into());
+        }
         let functions = if functions_there {
             Some(format!("ZoneKinds::of(&[{}])", zone_kind(to)?))
         } else {
@@ -1020,7 +1030,15 @@ impl Compiler {
             player: by.map(|_| Carried::Data(1)),
             ..frame
         };
-        let test = self.matching(putting, |c| c.filter(objects, &Candidate::of("id")))?;
+        let as_put = match objects {
+            ObjectFilter::CardType(t) if !removed => Some(card_type(t)?),
+            _ => None,
+        };
+        let test = match &as_put {
+            // What it was as they were put, wherever it is now (122.6, 205.2).
+            Some(t) => format!("types.has(CardType::{t})"),
+            None => self.matching(putting, |c| c.filter(objects, &Candidate::of("id")))?,
+        };
         let mut tests = vec![match test.contains("data[1]") {
             true => format!("{{ let data = [0u32, u32::from(by.0)]; {test} }}"),
             false => test,
@@ -1039,6 +1057,9 @@ impl Compiler {
             Arm {
                 pattern: match removed {
                     true => "Event::CountersRemoved { object, kind, amount, by, .. }".into(),
+                    false if as_put.is_some() => {
+                        "Event::CountersPut { object, kind, amount, by, types, .. }".into()
+                    }
                     false => "Event::CountersPut { object, kind, amount, by, .. }".into(),
                 },
                 locals: "let id = *object; let subject = Target::Object(id); let data = [*amount as u32, id.0];".into(),
@@ -1590,6 +1611,14 @@ impl Compiler {
                 comparison,
                 value,
             } => self.ordinal_event(event, comparison, value, true),
+            // "If it's the first time that creature has": each its own first time.
+            EventSpec::FirstEachTurn(event)
+                if self
+                    .line_text()
+                    .is_some_and(|line| line.contains("first time that creature")) =>
+            {
+                self.event(&EventSpec::FirstForObjectEachTurn(event.clone()))
+            }
             EventSpec::FirstEachTurn(event) => {
                 self.ordinal_event(event, &Comparison::Equal, &Expr::Constant(1), false)
             }
@@ -1903,8 +1932,15 @@ impl Compiler {
             Some(_) if implied_by_target => Err(gap("a condition on modes a target implies")),
             Some(condition) => self.guarded_effect(condition, body, label),
             None if implied_by_target => self.implied_effect(announcement, label),
-            None => self.effect(body, label),
+            None => match self.first_again.take() {
+                Some(test) => {
+                    let test = self.fetch(test);
+                    self.tested_effect(test, body, label)
+                }
+                None => self.effect(body, label),
+            },
         };
+        self.first_again = None;
         self.grouped = false;
         self.frame = Frame::default();
         let effect = effect?;

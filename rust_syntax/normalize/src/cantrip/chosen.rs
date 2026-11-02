@@ -66,18 +66,23 @@ fn name_kind(options: &[Operand]) -> Result<String> {
 
 /// Whether a mana ability's body adds mana of the chosen color.
 pub(super) fn makes_chosen_color(body: &Program) -> bool {
+    let Some(Instruction::Effect {
+        operation: Operation::AddMana { mana, .. },
+        ..
+    }) = body.instructions.first()
+    else {
+        return false;
+    };
+    let one = match mana {
+        ManaProduction::Repeat { production, .. } => production.as_ref(),
+        other => other,
+    };
     matches!(
-        body.instructions.first(),
-        Some(Instruction::Effect {
-            operation: Operation::AddMana {
-                mana: ManaProduction::Amount {
-                    color: ManaColor::Chosen,
-                    ..
-                },
-                ..
-            },
+        one,
+        ManaProduction::Amount {
+            color: ManaColor::Chosen,
             ..
-        })
+        }
     )
 }
 

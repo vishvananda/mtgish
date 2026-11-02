@@ -902,6 +902,11 @@ impl Compiler {
                 )
                 .unwrap();
             }
+            Gathered::Cards { amount, .. }
+                if whole_hand(amount, &PlayerSet::One(PlayerRef::Bound(each.binding.clone()))) =>
+            {
+                writeln!(out, "gathered_{local}.extend(g.state().zone(Zone::hand({bound})).to_vec());").unwrap();
+            }
             Gathered::Cards { amount, .. } => {
                 let number = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
                 writeln!(out, "let amount_{id} = {}; gathered_{local}.extend(cantrip_mechanics::choose_from_hand(g, {bound}, asker.source, amount_{id})?);", self.fetch(number)).unwrap();
@@ -2210,8 +2215,13 @@ impl Compiler {
                     },
                 }];
                 let purpose = effects::purpose(&held, &rest).ok_or_else(unsupported)?;
-                self.choice_rule = rule.unwrap_or_default();
-                self.choose(player, cards, count, &held, purpose, out)?;
+                if let Some(each) = and_or_parts(cards, count, self.line_text()) {
+                    let each = SelectionConstraint::OneForEach(each);
+                    self.choose_with_rule(player, cards, count, &each, &held, &rest, out)?;
+                } else {
+                    self.choice_rule = rule.unwrap_or_default();
+                    self.choose(player, cards, count, &held, purpose, out)?;
+                }
                 picked.clone()
             }
         };
@@ -2287,6 +2297,37 @@ impl Compiler {
             }
         }
         Ok(())
+    }
+    /// "If it's a land card, you may reveal it and put it into your hand": asked of
+    /// such a card alone. `out` gets the look; the result opens the question.
+    pub(super) fn top_card_offered(
+        &mut self,
+        id: usize,
+        body: &Program,
+        out: &mut String,
+    ) -> Result<String> {
+        let [Instruction::Effect {
+            operation:
+                Operation::MoveTopCard {
+                    actor: PlayerSet::One(player),
+                    cards,
+                    reveal: true,
+                    ..
+                },
+            ..
+        }] = body.instructions.as_slice()
+        else {
+            return Ok(String::new());
+        };
+        if !self
+            .line_text()
+            .is_some_and(|line| line.contains(", you may reveal it and put"))
+        {
+            return Ok(String::new());
+        }
+        let filter = self.filter(cards, &Candidate::of("id"))?;
+        writeln!(out, "let looked_{id} = cantrip_mechanics::top_of_library(g, {}, 1); let offered_{id} = {{ let q: &dyn Query = g; looked_{id}.iter().copied().any(|id| {filter}) }};", self.fetch(self.certain_player(player)?)).unwrap();
+        Ok(format!("offered_{id} && "))
     }
     /// "Reveal the top card. If it's a land, put it into your hand."
     fn move_top_card(
@@ -2600,4 +2641,58 @@ fn conjured_tapped(entry: &[Operand]) -> Option<bool> {
 
 fn same_kind(a: ViewKind, b: ViewKind) -> bool {
     std::mem::discriminant(&a) == std::mem::discriminant(&b)
+}
+
+/// "A creature card and/or a land card": up to one of each, not two of either.
+fn and_or_parts(cards: &ObjectSet, count: &Count, line: Option<&str>) -> Option<Vec<ObjectFilter>> {
+    let (ObjectSet::Zone { filter, .. } | ObjectSet::Matching { filter, .. }) = cards else {
+        return None;
+    };
+    let (ObjectFilter::Either(parts), Count::UpTo(Expr::Constant(most))) = (filter, count) else {
+        return None;
+    };
+    (parts.len() as i64 == *most && line?.contains("and/or")).then(|| parts.clone())
+}
+
+/// "Discard your hand": nobody is asked, a whole hand leaving nothing to choose.
+pub(super) fn whole_hand(amount: &Expr, players: &PlayerSet) -> bool {
+    let Expr::CountObjects(objects) = amount else {
+        return false;
+    };
+    let ObjectSet::Zone {
+        scope:
+            ZoneScope::Players {
+                zone: EventZone::Hand,
+                players: holders,
+            },
+        filter: ObjectFilter::Any,
+        ..
+    } = &**objects
+    else {
+        return false;
+    };
+    format!("{holders:?}") == format!("{players:?}")
+}
+
+/// "A tapped creature you control" with its "tapped" apart: the cost that says so
+/// is paid once the mana is, as what's tapped for that mana can be chosen (601.2g-h).
+pub(super) fn without_tapped(filter: &ObjectFilter) -> Option<ObjectFilter> {
+    let tapped = |part: &ObjectFilter| matches!(part, ObjectFilter::Tapped);
+    let ObjectFilter::All(parts) = filter else {
+        return None;
+    };
+    if !parts.iter().any(tapped) {
+        return None;
+    }
+    let mut rest: Vec<ObjectFilter> = parts.iter().filter(|p| !tapped(p)).cloned().collect();
+    Some(match rest.len() {
+        1 => rest.remove(0),
+        _ => ObjectFilter::All(rest),
+    })
+}
+
+/// "Becomes an artifact creature" keeps the object's other types (205.1b).
+pub(super) fn artifact_creature(types: &[crate::mtg_types::CardType]) -> bool {
+    use crate::mtg_types::CardType as T;
+    matches!(types, [T::Artifact, T::Creature] | [T::Creature, T::Artifact])
 }

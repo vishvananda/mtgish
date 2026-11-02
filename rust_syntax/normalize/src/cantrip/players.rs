@@ -244,6 +244,11 @@ impl Compiler {
                 spells,
                 timing: SpellTiming::Flash,
             } => {
+                if matches!(spells, ObjectFilter::All(parts) if parts.iter().all(|part| {
+                    matches!(part, ObjectFilter::Subtype(_))
+                })) {
+                    return Err(gap("spells of two subtypes read as spells of both"));
+                }
                 let test = self.filter(spells, &cast_card())?;
                 let (guard, member) = (self.guard()?, self.player_member(players)?);
                 self.table_entry(parts, "flash_rules", &function, format!(

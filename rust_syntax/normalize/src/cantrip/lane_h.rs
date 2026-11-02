@@ -499,11 +499,39 @@ fn pay_with(ability: &Ability) -> Option<&'static str> {
     }
 }
 
+/// A mana rule made as the effect resolves reads its subtype through the words of
+/// the object's text (612.2).
+pub(super) fn rule_through_words(rule: &str) -> String {
+    const PLAIN: &str = "SubtypeSpells::of(Subtype::";
+    let mut read = String::new();
+    let mut rest = rule;
+    while let Some(at) = rest.find(PLAIN) {
+        let (before, tail) = rest.split_at(at);
+        let tail = &tail[PLAIN.len()..];
+        let end = tail.find(')').unwrap_or(tail.len());
+        write!(
+            read,
+            "{before}SubtypeSpells::of(g.words(asker.source).subtype(Subtype::{}))",
+            &tail[..end]
+        )
+        .unwrap();
+        rest = &tail[(end + 1).min(tail.len())..];
+    }
+    read.push_str(rest);
+    read
+}
+
 impl Compiler {
     /// What mana may be spent on: Cantrip's word for it, or the rule it will
     /// read, as a callback on the payment.
     pub(super) fn mana_use(&mut self, value: &ManaUse) -> Result<String> {
         if let Some(code) = known_mana_use(value) {
+            let printed_any = self.line_text().is_some_and(|line| {
+                line.contains("Spend this mana") && !line.contains("creature spell")
+            });
+            if printed_any && code.contains("CHOSEN_TYPE_CREATURE_SPELLS_OR_ABILITIES") {
+                return Err(gap("a chosen type mana rule that names creatures it doesn't print"));
+            }
             return Ok(code);
         }
         let failed = match mana_restriction(value) {
@@ -3671,6 +3699,19 @@ impl Compiler {
                     "cantrip_mechanics::exert::may_as_it_attacks(\"You may exert this creature as it attacks.\")",
                     parts,
                 );
+            }
+            // No "has": a rule of this permanent's, not an ability the creature
+            // gains (113.1a), so it outlasts the creature's own abilities.
+            R::CombatGroup {
+                role: CombatRole::BlockedAttacker,
+                participants: ObjectFilter::Any,
+                others_only: false,
+                comparison: Comparison::LessOrEqual,
+                amount: Expr::Constant(1),
+            } if !matches!(affected, ObjectSet::One(ObjectRef::Source)) => {
+                let (guard, test) = (self.guard()?, self.rule_subject(affected, "id")?);
+                writeln!(self.functions, "#[allow(unused_variables)] fn {function}(q: &dyn Query, source: ObjectId, id: ObjectId) -> Option<usize> {{ let asker = &Asker::new(source, q.controller(source)); ({guard}{test}).then_some(1) }}").unwrap();
+                parts.table("blocker_limits", function.to_string());
             }
             R::CombatGroup {
                 role,

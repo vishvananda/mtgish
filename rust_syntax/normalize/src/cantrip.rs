@@ -501,6 +501,11 @@ struct Compiler {
     stage_lines: Vec<lane_k::Line>,
     /// The next "may" is done once each turn, under this key.
     do_once: Option<u8>,
+    /// An "if it's the first time" the printed line asks of the object, as the
+    /// resolving ability reads it (603.4).
+    first_again: Option<String>,
+    /// Reading a test of whether this spell may be cast.
+    cast_test: bool,
     /// The next tap or untap is a "may", which offers doing nothing with them.
     may_tap_or_untap: bool,
     /// Payments of "unless you pay": those ask whether to, whatever paying is.
@@ -1062,6 +1067,8 @@ impl Compiler {
             stages: BTreeMap::new(),
             stage_lines: Vec::new(),
             do_once: None,
+            first_again: None,
+            cast_test: false,
             may_tap_or_untap: false,
             unless_paid: BTreeSet::new(),
             replacing: Default::default(),
@@ -1246,6 +1253,24 @@ impl Compiler {
     fn announcement(&mut self, a: &Announcement, label: &str) -> Result<String> {
         if a.modes.is_some() {
             return Err(gap("modal announcement"));
+        }
+        if self
+            .line_text()
+            .is_some_and(|line| line.contains("was kicked, instead choose any number"))
+        {
+            return Err(gap("an unkicked target count the source reads as any number"));
+        }
+        if let ([only], Some(line)) = (a.targets.as_slice(), self.line_text()) {
+            let shown = format!("{only:?}");
+            let target = line.find("target ").map(|at| &line[at..]);
+            let names_you = target
+                .and_then(|words| words.split(['.', ',']).next())
+                .is_some_and(|words| {
+                    words.ends_with(" you control") && words.split(' ').count() <= 5
+                });
+            if names_you && line.matches("target").count() == 1 && !shown.contains("Control") {
+                return Err(gap("a target the source doesn't limit to yours"));
+            }
         }
         self.slots.clear();
         let reader = std::mem::replace(&mut self.reader, Reader::Query);
@@ -1485,10 +1510,20 @@ impl Compiler {
         chosen: Option<&str>,
         out: &mut String,
     ) -> Result<()> {
+        if matches!(players, PlayerSet::One(PlayerRef::AbilityController))
+            && self
+                .line_text()
+                .is_some_and(|line| line.contains("that player adds"))
+        {
+            return Err(gap("mana for that player the source gives to you"));
+        }
         let id = self.next;
         self.next += 1;
         let (lasting, restriction) = lane_g::mana_lasting(restriction);
-        let restriction = restriction.map(|r| self.mana_use(r)).transpose()?;
+        let restriction = restriction
+            .map(|r| self.mana_use(r))
+            .transpose()?
+            .map(|rule| lane_h::rule_through_words(&rule));
         let add = |player: &str, color: &str, amount: &str| -> String {
             match (&restriction, lasting) {
                 (Some(r), _) => format!("g.add_restricted_mana({player}, {color}, {amount}, {r});"),

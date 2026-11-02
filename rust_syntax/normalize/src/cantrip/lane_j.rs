@@ -1258,6 +1258,15 @@ impl Compiler {
             "{scope}.filter_map({}){same}.count() == 0",
             past.history_test()
         );
+        let intervening = self
+            .line_text()
+            .is_some_and(|line| line.contains("if it's the first time"));
+        if by_subject && intervening {
+            self.first_again = Some(format!(
+                "{scope}.filter_map({}).filter(|f: &Fired| f.subject == item.subject).count() <= 1",
+                past.history_test()
+            ));
+        }
         // Summed events are one happening: the rest of it is no earlier one.
         let test = match matched.sums {
             true => planned::planned_value(

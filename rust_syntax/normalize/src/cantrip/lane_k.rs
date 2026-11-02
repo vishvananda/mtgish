@@ -497,6 +497,19 @@ pub(super) fn shuffled_in_though_gone<'a>(
     }
     objects
 }
+/// "A permanent", "three permanents": a number as a card prints it.
+fn printed_many(n: i64, noun: &str) -> String {
+    const WORDS: [&str; 9] = ["two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+    match usize::try_from(n - 2).ok().and_then(|at| WORDS.get(at)) {
+        Some(word) => format!("{word} {noun}s"),
+        None if n == 1 => {
+            let article = if noun.starts_with(|c| "aeiou".contains(c)) { "an" } else { "a" };
+            format!("{article} {noun}")
+        }
+        None => format!("{n} {noun}s"),
+    }
+}
+
 /// "Ward--Sacrifice a Food" and its like, where Cantrip has the ability.
 pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
     let [CostPart::Sacrifice {
@@ -508,7 +521,7 @@ pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
     };
     let call = |function: String, what: &str| {
         Some(format!(
-            "cantrip_mechanics::triggers::{function}(\"Ward--Sacrifice {what}\")"
+            "cantrip_mechanics::triggers::{function}(\"Ward\u{2014}Sacrifice {what}.\")"
         ))
     };
     match (filter, *n) {
@@ -516,7 +529,7 @@ pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
             call("ward_sacrifice_a_food".into(), "a Food")
         }
         (ObjectFilter::Any, n) => {
-            call(format!("ward_sacrifice::<{n}>"), &format!("{n} permanents"))
+            call(format!("ward_sacrifice::<{n}>"), &printed_many(n, "permanent"))
         }
         (ObjectFilter::Not(inner), n)
             if matches!(
@@ -526,7 +539,7 @@ pub(super) fn ward_by_sacrifice(cost: &Cost) -> Option<String> {
         {
             call(
                 format!("ward_sacrifice_nonland::<{n}>"),
-                &format!("{n} nonland permanents"),
+                &printed_many(n, "nonland permanent"),
             )
         }
         _ => None,
@@ -1806,8 +1819,8 @@ impl Compiler {
         self.moved.insert(put.0, format!("taken_{id}"));
         self.left_behind(put, format!("taken_{id}.clone()"));
     }
-    /// What deals damage: a target only if it is still legal, since one that isn't
-    /// does nothing (CR 608.2b).
+    /// What deals damage or is copied: a target only if it is still legal, since one
+    /// that isn't does nothing and nothing is done to it (CR 608.2b).
     pub(super) fn damage_source(&self, source: &ObjectRef) -> Result<String> {
         let read = self.object(source)?;
         match source {
@@ -1931,6 +1944,33 @@ impl Compiler {
                 ..
             }) if matches!(&**objects, ObjectSet::InZone { .. }) => match self.object(object) {
                 Ok(read) => format!("({}).is_some() && ", self.fetch(read)),
+                Err(_) => String::new(),
+            },
+            // "You may put the top card into your graveyard": not asked of no card.
+            Some(Instruction::Effect {
+                operation:
+                    Operation::Move {
+                        objects: objects @ ObjectSet::Take { .. },
+                        ..
+                    },
+                ..
+            }) => match self.objects(objects) {
+                Ok(read) => format!("!({}).is_empty() && ", self.fetch(read)),
+                Err(_) => String::new(),
+            },
+            // "You may attach this Equipment to it": not asked if it can't be (701.3b).
+            Some(Instruction::Effect {
+                operation:
+                    Operation::Attach {
+                        attachments: ObjectSet::One(ObjectRef::Source),
+                        host,
+                    },
+                ..
+            }) => match self.object(host) {
+                Ok(read) => format!(
+                    "cantrip_mechanics::targets::permanent(g, asker.source) && ({}).is_some_and(|o| cantrip_mechanics::targets::permanent(g, o) && g.chars(o).is(CardType::Creature)) && ",
+                    self.fetch(read)
+                ),
                 Err(_) => String::new(),
             },
             // "You may remove a counter from it": not asked of what has none to remove.
@@ -2243,6 +2283,15 @@ impl Compiler {
             Some(line) if line.modes.len() == count => line.modes[at].clone(),
             _ => fallback,
         }
+    }
+    /// The chapter `number` is the next thing compiled: its words are what it does,
+    /// past its numerals.
+    pub(super) fn on_chapter(&mut self, number: i64) {
+        self.line = self.chapters.get(&number).map(|line| {
+            let words = chapter_numbers(line).map_or(line.as_str(), |(_, words)| words);
+            line_of(Said::Sentence, words.to_string(), words)
+        });
+        self.quoted_used.clear();
     }
     /// The printed line of a Saga's chapter.
     pub(super) fn said_chapter(&self, number: i64, fallback: String) -> String {

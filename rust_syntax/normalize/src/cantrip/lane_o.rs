@@ -3208,7 +3208,7 @@ impl Compiler {
         }
         let amount = self.number(amount)?.amount(u32::MAX.into(), "u32")?;
         let values = self.copy_values(&format!("original_{id}"), adjustments)?;
-        writeln!(out, "let original_{id} = {}; let values_{id} = {values}; let count_{id} = {}; let players_{id} = {}; let mut copies_{id}: Vec<(Copiable, PlayerId)> = Vec::new(); if let Some(values) = values_{id} {{ for &player in &players_{id} {{ for _ in 0..count_{id} {{ copies_{id}.push((values.clone(), player)); }} }} }} let created_{id} = g.create_token_copies_together(&copies_{id})?;", self.fetch(self.object(object)?), self.fetch(amount), self.fetch(self.players(players)?)).unwrap();
+        writeln!(out, "let original_{id} = {}; let values_{id} = {values}; let count_{id} = {}; let players_{id} = {}; let mut copies_{id}: Vec<(Copiable, PlayerId)> = Vec::new(); if let Some(values) = values_{id} {{ for &player in &players_{id} {{ for _ in 0..count_{id} {{ copies_{id}.push((values.clone(), player)); }} }} }} let created_{id} = g.create_token_copies_together(&copies_{id})?;", self.fetch(self.damage_source(object)?), self.fetch(amount), self.fetch(self.players(players)?)).unwrap();
         self.token_state(id, entry, out)?;
         self.creations.insert(result.0, format!("created_{id}"));
         Ok(())

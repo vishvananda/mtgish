@@ -254,7 +254,10 @@ fn object_state(state: &ObjectState, id: &str) -> Option<String> {
         S::FaceDown => format!("q.state().obj({id}).face_down"),
         S::Monstrous => format!("q.state().obj({id}).marks.monstrous"),
         S::Transformed => format!("q.state().obj({id}).transformed"),
-        S::Prepared => format!("q.state().obj({id}).prepared"),
+        // A prepared spell is a prepare spell, not a prepared permanent (722.3).
+        S::Prepared => format!(
+            "(q.state().obj({id}).prepared || q.state().obj({id}).zone.is(ZoneKind::Stack) && cantrip_mechanics::prepare::is_prepare_spell(q, {id}))"
+        ),
         S::Suspected => format!(
             "q.state().effects.iter().any(|e| e.affected == {id} && e.kind == EffectKind::Suspected)"
         ),
@@ -905,8 +908,13 @@ impl Compiler {
             }
             _ => return Err(gap("zone that belongs to no player")),
         };
+        // Who may cast the card asks with it still in that zone: it is not one of those counted.
+        let other = match self.cast_test {
+            true => ".filter(|id: &ObjectId| *id != asker.source)",
+            false => "",
+        };
         Ok(format!(
-            "({players}).into_iter().flat_map(|p: PlayerId| q.state().zone(Zone::{per_player}(p)).to_vec()).collect::<Vec<ObjectId>>()"
+            "({players}).into_iter().flat_map(|p: PlayerId| q.state().zone(Zone::{per_player}(p)).to_vec()){other}.collect::<Vec<ObjectId>>()"
         ))
     }
     /// `Vec<PlayerId>`.
@@ -1968,6 +1976,20 @@ impl Compiler {
                 object: ObjectRef::Source,
                 filter: ObjectFilter::AlternateCostPaid(_),
             } if self.stack_item && self.reader == Reader::Resolution => "item.way == 1".into(),
+            // "If it has the greatest power among creatures on the battlefield": what
+            // has left is not among them, whatever it last was.
+            Condition::ObjectMatches {
+                object,
+                filter:
+                    filter @ ObjectFilter::Property {
+                        value: Expr::Aggregate { objects, .. },
+                        ..
+                    },
+            } if matches!(**objects, ObjectSet::Battlefield(_)) => format!(
+                "{}.filter(|&o| cantrip_mechanics::targets::permanent(q, o)).is_some_and(|candidate: ObjectId| {})",
+                self.object(object)?,
+                self.filter(filter, &Candidate::of("candidate"))?
+            ),
             Condition::ObjectMatches { object, filter } => format!(
                 "{}.is_some_and(|candidate: ObjectId| {})",
                 self.object(object)?,
@@ -2075,6 +2097,13 @@ impl Compiler {
             PlayerState::Initiative => "q.state().player(player).initiative".into(),
             PlayerState::StartingPlayer => "q.state().turn.starting == player".into(),
             PlayerState::InTheirUpkeep => format!("{active} && {step} == Step::Upkeep"),
+            PlayerState::InTheirMainPhase
+                if self
+                    .line_text()
+                    .is_some_and(|line| line.contains("isn't your main phase")) =>
+            {
+                return Err(gap("a main phase test that lost its negation"));
+            }
             PlayerState::InTheirMainPhase => format!(
                 "{active} && matches!({step}, Step::PrecombatMain | Step::PostcombatMain)"
             ),

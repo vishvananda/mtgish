@@ -406,7 +406,16 @@ impl Compiler {
                 let objects = yours.as_ref().unwrap_or(objects);
                 match (destination, objects) {
                     (Destination::OwnersHand, ObjectSet::Battlefield(filter)) => {
-                        format!("return_to_hand({n}, {})", self.cost_filter(filter, label)?)
+                        match lane_i::without_tapped(filter) {
+                            Some(rest) => format!(
+                                "return_tapped_to_hand({n}, {})",
+                                self.cost_filter(&rest, label)?
+                            ),
+                            None => format!(
+                                "return_to_hand({n}, {})",
+                                self.cost_filter(filter, label)?
+                            ),
+                        }
                     }
                     (Destination::Exile, ObjectSet::Battlefield(filter)) => {
                         format!(
@@ -1040,18 +1049,18 @@ impl Compiler {
                             _ => self.ward_beyond(cost, label)?,
                         },
                         [CostPart::Life(Expr::Constant(n))] if u8::try_from(*n).is_ok() => {
-                            format!("cantrip_mechanics::triggers::ward_life::<{n}>(\"Ward--Pay {n} life\")")
+                            format!("cantrip_mechanics::triggers::ward_life::<{n}>(\"Ward\u{2014}Pay {n} life.\")")
                         }
                         [CostPart::Discard {
                             count: Expr::Constant(1),
                             filter: ObjectFilter::Any,
                             random: false,
-                        }] => "cantrip_mechanics::triggers::ward_discard(\"Ward--Discard a card\")".into(),
+                        }] => "cantrip_mechanics::triggers::ward_discard(\"Ward\u{2014}Discard a card.\")".into(),
                         [CostPart::Life(Expr::ObjectProperty {
                             object: ObjectRef::KeywordHost,
                             property: Property::Power,
                             ..
-                        })] => "cantrip_mechanics::triggers::ward_life_equal_to_power(\"Ward--Pay life equal to this creature's power\")".into(),
+                        })] => "cantrip_mechanics::triggers::ward_life_equal_to_power(\"Ward\u{2014}Pay life equal to this creature's power.\")".into(),
                         _ => self.ward_beyond(cost, label)?,
                     };
                     parts.abilities.push(ward);
@@ -1314,6 +1323,7 @@ impl Compiler {
                         return Err(gap("saga chapter shape"));
                     };
                     let label = format!("{label}_{i}");
+                    self.on_chapter(i64::from(*n));
                     let modal = self.reflexive_modes(announcement, &format!("{label}_modes"))?;
                     let targets =
                         self.announcement(&lane_p::without_modes(announcement), &label)?;
