@@ -1861,6 +1861,16 @@ pub(super) fn held_number(feature: String, code: &str) -> Number {
 }
 
 impl Compiler {
+    /// A read of what the resolving spell or ability did or was about, open at
+    /// its arguments: `name(item` while one resolves, else `name_of(asker`,
+    /// the ability's source and controller asking, as `linked_to` is to
+    /// `linked` (a condition, a filter or a layer has no stack item).
+    pub(super) fn item_read(&self, name: &str) -> String {
+        match self.reader == Reader::Resolution && self.stack_item {
+            true => format!("{name}(item"),
+            false => format!("{name}_of(asker"),
+        }
+    }
     /// What the object Cantrip has chosen for this ability or as it entered is
     /// linked by.
     pub(super) fn linked(&self) -> &'static str {

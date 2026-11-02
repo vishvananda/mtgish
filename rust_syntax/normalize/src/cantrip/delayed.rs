@@ -59,6 +59,8 @@ const KEEPS_NO_LIST: &str = "engine: a delayed ability on an event keeps no list
 /// "this card" of "when this creature dies".
 const DIED_AS: &str = "Some(ObjectId(item.data[0])).filter(|o| *o != ObjectId::NONE).into_iter().collect::<Vec<ObjectId>>()";
 
+/// A reflexive ability about a list of objects: Cantrip's carries one target.
+const REFLEXIVE_LIST: &str = "reflexive ability about a list of objects";
 pub(super) const ABOUT: &str = "fn about(q: &dyn Query, item: &StackItem, part: usize) -> Vec<ObjectId> { q.event_objects(item).split(|&id| id == ObjectId::NONE).nth(part).map_or_else(Vec::new, <[ObjectId]>::to_vec) }\n";
 
 impl Compiler {
@@ -450,12 +452,18 @@ impl Compiler {
                         false => "item.subject.object().into_iter().collect::<Vec<ObjectId>>()",
                     }.to_string()))
                 }
+                // A list the reflexive ability is about goes with it as a part
+                // of its own (`reflexive_trigger_about`), as a delayed one's.
                 _ => {
                     let code = outer.compiler.objects(objects)?;
+                    let read = match outer.reflexive {
+                        true => self.carried_list(outer, code),
+                        false => format!("about(q, item, {code})"),
+                    };
                     Ok(Some(planned::planned_value(
-                        "reflexive ability about a list of objects",
+                        REFLEXIVE_LIST,
                         "Vec::<ObjectId>::new()",
-                        &format!("about(q, item, {code})"),
+                        &read,
                     )))
                 }
             };
@@ -1060,9 +1068,19 @@ impl Compiler {
             ),
             _ => return Err(gap("reflexive ability about an object and a player")),
         };
-        match amount {
-            Some(amount) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger_counted({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}, ({amount}).clamp(0, i64::from(u16::MAX)) as u16); }}").unwrap(),
-            None => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}); }}").unwrap(),
+        let lists = outer.objects.borrow();
+        match (amount, lists.as_slice()) {
+            (Some(amount), _) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger_counted({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}, ({amount}).clamp(0, i64::from(u16::MAX)) as u16); }}").unwrap(),
+            (None, []) => writeln!(out, "if {happened} && {condition} {{ g.reflexive_trigger({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}); }}").unwrap(),
+            (None, lists) => {
+                self.helpers.insert("about");
+                let mut about = String::from("let mut about: Vec<ObjectId> = Vec::new(); ");
+                for list in lists {
+                    write!(about, "about.extend({}); about.push(ObjectId::NONE); ", self.fetch(list)).unwrap();
+                }
+                let make = format!("if {happened} && {condition} {{ {about}g.reflexive_trigger_about({source}, {controller}, AbilityRef::delayed({card}, {index}), {subject}, &about); }}");
+                self.plan_code(REFLEXIVE_LIST, &make, out);
+            }
         }
         Ok(())
     }
