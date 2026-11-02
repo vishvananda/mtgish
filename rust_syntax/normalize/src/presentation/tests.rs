@@ -226,6 +226,59 @@ fn a_defining_keyword_keeps_its_rules_and_reminder_when_labeled() {
 }
 
 #[test]
+fn a_labeled_additional_cost_keeps_its_payment_namespace() {
+    let cost = Ability::Casting(CastingRule::AdditionalCost {
+        cost: Cost {
+            parts: vec![CostPart::Sacrifice {
+                objects: ObjectSet::Battlefield(ObjectFilter::CardType(
+                    crate::mtg_types::CardType::Creature,
+                )),
+                choose: Some(Count::Exactly(Expr::Constant(1))),
+            }],
+        },
+        optional: false,
+        repetition: CostRepetition::Once,
+    });
+    let mut spell = draw();
+    if let Ability::Spell { body, .. } = &mut spell {
+        if let Instruction::Effect {
+            operation: Operation::Draw { amount, .. },
+            ..
+        } = &mut body.instructions[0]
+        {
+            *amount = Expr::CountObjects(Box::new(ObjectSet::CostObjects {
+                payment: PaymentRef::Casting { ability: 0 },
+                component: vec![0],
+                view: CostObjectView::Inputs,
+                phase: ObjectPhase::Before,
+            }));
+        }
+    }
+    let mut card = Card {
+        schema_version: SCHEMA_VERSION,
+        name: "Fixture Card".into(),
+        characteristics: Characteristics {
+            supertypes: vec![],
+            card_types: vec![crate::mtg_types::CardType::Sorcery],
+            subtypes: vec![],
+            mana_cost: None,
+            color_indicator: vec![],
+            power_toughness: None,
+            loyalty: None,
+            defense: None,
+        },
+        abilities: vec![cost, spell],
+    };
+    validate::card(&card).unwrap();
+    let cost = card.abilities.remove(0);
+    card.abilities
+        .insert(0, presented(cost, Some("Test label"), false));
+    // Reinsert rather than renumbering either the declaration or its reader.
+    assert!(crate::cost_history::casting_cost(&card.abilities[0]).is_some());
+    validate::card(&card).unwrap();
+}
+
+#[test]
 fn erasure_only_visits_typed_metadata_and_preserves_opaque_lookalikes() {
     let mut input = value(&draw());
     let opaque = json!({"WithReminder":{"keyword":"Flying","reminder":true}});
