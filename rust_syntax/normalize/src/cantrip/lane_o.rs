@@ -2982,10 +2982,12 @@ impl Compiler {
             operands.push(self.queried(|c| c.over(filter, "id"))?);
         }
         operands.push(quoted(&format!("{mechanic:?}")));
+        // Not the module's `way`, which takes its mana alone: as warp's
+        // `way_with_cost` takes a whole cost.
         self.plan_entry(
             &failed.feature,
             "ways",
-            &format!("{M}::{module}::way({})", operands.join(", ")),
+            &format!("{M}::{module}::way_with_cost({})", operands.join(", ")),
             parts,
         );
         Ok(())

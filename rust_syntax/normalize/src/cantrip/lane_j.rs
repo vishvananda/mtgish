@@ -727,7 +727,7 @@ impl Compiler {
             E::GetsEnergy => (
                 "ENERGY",
                 "Event::EnergyGained { player, amount }",
-                "let subject = Target::Player(*player); let data = [*amount, 0];",
+                "let subject = Target::Player(*player); let data = [u32::from(*amount), 0];",
                 "*player",
                 Frame {
                     amount: Some(Carried::Data(0)),
@@ -740,7 +740,7 @@ impl Compiler {
             E::PaysLife => (
                 "LIFE_PAID",
                 "Event::LifePaid { player, amount }",
-                "let subject = Target::Player(*player); let data = [*amount, 0];",
+                "let subject = Target::Player(*player); let data = [u32::from(*amount), 0];",
                 "*player",
                 Frame {
                     amount: Some(Carried::Data(0)),

@@ -1507,7 +1507,7 @@ impl Compiler {
             ),
             Expr::Votes(option) => held_number(
                 "numeric expression Votes".into(),
-                &format!("g.votes().count({})", form(option)),
+                &format!("q.votes().count({})", one_line(option)),
             ),
             Expr::ManaSpentFrom { object, sources } if self.reader != Reader::Layer => counted(format!(
                 "{}.and_then(|o: ObjectId| cast_of(q, o)).map_or(0i64, |cast| q.history().mana_spent_to_cast(cast.spell).filter(|&(source, _)| {}).map(|(_, spent)| i64::from(spent.total())).sum::<i64>())",
@@ -1886,11 +1886,15 @@ pub(super) fn flat_groups(instructions: &[Instruction], flat: &mut Vec<Instructi
 const PARITY: [&str; 2] = ["odd", "even"];
 
 /// A form of the AST on one line, to name it in a planned call.
+/// A value the generator can't write yet, as its words: a string, as
+/// `planned::source` says one, not the IR's names standing as code.
 fn one_line(value: &impl std::fmt::Debug) -> String {
-    format!("{value:?}")
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
+    quoted(
+        &format!("{value:?}")
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" "),
+    )
 }
 
 /// What an instruction leaves to be picked.
