@@ -332,7 +332,7 @@ fn acted_on(op: &Operation) -> &'static [&'static str] {
         Operation::Search { .. } => &["Found"],
         Operation::Tap { .. } => &["Tapped"],
         Operation::CreateTokens { .. } => &["Created"],
-        Operation::CopyCards { .. } => &["CopiedSpell"],
+        Operation::CopyCards { .. } | Operation::CopyOnStack { .. } => &["CopiedSpell"],
         Operation::Move { destination, .. } => match destination {
             Destination::Exile => &["Exiled", "LastExiled"],
             Destination::OwnersGraveyard => &["PutInGraveyard"],

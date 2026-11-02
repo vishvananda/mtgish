@@ -2313,6 +2313,7 @@ impl Compiler {
         times: &Expr,
         new_targets: bool,
         effects: &[Operand],
+        result: &ResultId,
         out: &mut String,
     ) -> Result<()> {
         let copier = self.fetch(self.certain_player(player)?);
@@ -2378,16 +2379,30 @@ impl Compiler {
                 "",
             );
         }
-        writeln!(out, "let copier_{id} = {copier}; let spell_{id}: Option<ObjectId> = ({list}).first().copied();").unwrap();
+        // The copies, for "those spells" (Spinerock Tyrant) after.
+        let kept = self.read_later(result) || format!("{:?}", self.after).contains("what: CopiedSpell");
+        let copies = match kept {
+            true => format!(" let mut copies_{id}: Vec<ObjectId> = Vec::new();"),
+            false => String::new(),
+        };
+        let keep = |call: String| match kept {
+            true => format!("copies_{id}.extend({call});"),
+            false => format!("{call};"),
+        };
+        writeln!(out, "let copier_{id} = {copier}; let spell_{id}: Option<ObjectId> = ({list}).first().copied();{copies}").unwrap();
         if effects.is_empty() {
             writeln!(
                 out,
-                "if let Some(spell) = spell_{id} {{ {open}{plain}{close} }}"
+                "if let Some(spell) = spell_{id} {{ {open}{}{close} }}",
+                keep(format!("g.copy_spell(spell, copier_{id}, {new_targets})?"))
             )
             .unwrap();
         } else {
             let values = self.copy_values(&format!("spell_{id}"), effects)?;
-            writeln!(out, "let values_{id} = {values}; if let (Some(spell), Some(values)) = (spell_{id}, values_{id}) {{ {open}g.copy_spell_as(spell, copier_{id}, {new_targets}, values)?;{close} }}").unwrap();
+            writeln!(out, "let values_{id} = {values}; if let (Some(spell), Some(values)) = (spell_{id}, values_{id}) {{ {open}{}{close} }}", keep(format!("g.copy_spell_as(spell, copier_{id}, {new_targets}, values)?"))).unwrap();
+        }
+        if kept {
+            self.moved.insert(result.0, format!("copies_{id}"));
         }
         Ok(())
     }
@@ -2428,7 +2443,7 @@ impl Compiler {
                 card: None,
             } => {
                 let new_targets = matches!(targets, NewTargets::May);
-                self.copy_on_stack(id, player, object, times, new_targets, effects, out)?;
+                self.copy_on_stack(id, player, object, times, new_targets, effects, result, out)?;
             }
             Operation::Retarget {
                 actor: PlayerSet::One(player),
